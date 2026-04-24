@@ -2,6 +2,7 @@
 archives/
 releases/
 legacy/
+proposals/
 
 # Optional local unpack trees (regenerate from releases/ or source root)
 unpacked/
