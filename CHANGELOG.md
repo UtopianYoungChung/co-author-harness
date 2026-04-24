@@ -6,6 +6,20 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.8.5 — 2026-04-24
+
+**Theme.** **Wiki-first resource order** for wiki-linked projects: consult peer `LLM wiki/` before new Zotero PDFs and external discovery tools when adding literature.
+
+### Changes
+
+- **Protocol** — `references/EXTERNAL_VERIFIERS.md` §1.5 (strict read order + logged **Wiki-first** line); `PROJECT_BOOTSTRAP.md` `wiki_first_resources` flag; `GROUNDING_PROTOCOL.md` discovery vs. Rule 7a resolution; `AGENT_CONTRACTS.md` I-Gen-8; `agents/planner.md` wiki paths and Phase 1 / 3.5; `references/SKILL_REGISTRY.md` protocol surface note; Zotero row in §2 clarified for discovery vs. citation resolution.
+
+### Not changed
+
+- No new scripts; no `phase_state.json` schema or trigger enum change.
+
+---
+
 ## v0.8.4 — 2026-04-24
 
 **Theme.** Close documented plugin gaps: §9d executable, package docs, efficiency role map, and lightweight A6–A8 follow-through.

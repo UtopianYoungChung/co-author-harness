@@ -462,6 +462,7 @@ Once the skeleton exists, run the Planner in classification mode (see `AGENT_ORC
 | `coupling_d_on_m5` | `true` if the final paper should be self-ingested into `LLM wiki/wiki/sources/` at M5 (default: same value as `wiki_linked`). |
 | `coupling_e_on_review` | `true` if SK-20 `graph-grounding-overlay` should run in the Evaluator pre-flight when `graphify-out/` exists and is fresh (default: same value as `wiki_linked`). Can be set `false` to suppress graph-overlay findings per-project without severing other wiki couplings — useful if a project's citation format does not resolve cleanly to graphify's `source_file` paths. |
 | `concept_targets` | Optional list of wiki concept pages that the paper will plausibly ground at M5, e.g. `[agency, delegation, governance]`. Helps the M5 ingestion agent choose wikilink targets. |
+| `wiki_first_resources` | `true` (default when `wiki_linked: true`) / `false` | When `true`, Planner and Generator follow `EXTERNAL_VERIFIERS.md` §1.5: consult peer `LLM wiki/` (sources, concepts, syntheses, `GRAPH_REPORT.md`, optional `/llm-wiki-query`) **before** adding new Zotero PDFs or using external discovery tools (e.g. Consensus). Set `false` only to bypass for a project or round with a documented reason. |
 
 **When Coupling D fires.** At M5 (submission-bound final paper) — *not* at bootstrap. The M5 drafting/revision loop should, as its closing action after G.4 sign-off, invoke **SK-17 `ingest-m5-to-wiki`** (`.paper-package/skills/ingest-m5-to-wiki.md`, formalized 2026-04-13). SK-17 creates `LLM wiki/wiki/sources/<projected_wiki_key>.md` with `grounding_status: full` (since the paper has been read directly by every agent in the loop), harvests wikilinks to grounded concepts/entities, and queues the concept-page follow-on batch for a subsequent SK-16 retrofit sweep. It also appends a closing line to this project CLAUDE.md's Wiki linkage section so the coupling fire is auditable.
 
@@ -488,6 +489,8 @@ This package codifies five synergy couplings between a `Research/<project>/`, a 
 | C | Research → Wiki (lessons → syntheses) | Reflector Phase 3.5, every round | `agents/reflector.md §Phase 3.5`, `AGENT_ORCHESTRATION.md §8.5`, `skills/promote-lessons-to-wiki.md` | SK-14 |
 | D | Research → Wiki (final paper → source) | M5 close-out, post-G.4 | This file §3 Step 5; `skills/ingest-m5-to-wiki/SKILL.md` | SK-17 |
 | **E.2** | **Graphify → Evaluator (graph-overlay findings)** | **Evaluator pre-flight, between Step 0a and Step 1** | `AGENT_ORCHESTRATION.md §8.6`; `skills/graph-grounding-overlay/SKILL.md` | **SK-20** |
+
+**Read loop (not a separate coupling).** `EXTERNAL_VERIFIERS.md` §1.5 — when `wiki_linked: true` and `wiki_first_resources` is not `false`, agents consult peer `LLM wiki/` *before* new Zotero PDFs and external tools (e.g. Consensus) for **discovery** of literature. Pairs with Couplings C/D (writing into the wiki) by reusing what the portfolio already ingested.
 
 *Recorded in Coupling D registration (Step 5): `wiki_linked`, `projected_wiki_key`, and the per-coupling activation flags become the project's wiki-facing interface. The bootstrap agent does not decide the couplings' outcomes; it only records intent.*
 

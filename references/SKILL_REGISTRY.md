@@ -42,6 +42,8 @@ Every SK-NN entry below whose `Pattern` or `Depends on` line historically refere
 
 The Reflector defaults to package-level. It escalates to global only when the pattern is clearly not academic-writing-specific. It narrows to project-level when the pattern depends on project-specific constructs.
 
+**Protocol surface (not an SK-NN skill).** **Wiki-first resource order** — `EXTERNAL_VERIFIERS.md` §1.5; project field `wiki_first_resources` in `PROJECT_BOOTSTRAP.md` §3 Step 5; Generator invariant I-Gen-8 in `AGENT_CONTRACTS.md` §3. Closes the read loop: consult peer `LLM wiki/` before new Zotero PDFs and external search (e.g. Consensus) when choosing literature.
+
 ---
 
 ## Skill template

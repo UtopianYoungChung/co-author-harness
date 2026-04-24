@@ -64,6 +64,7 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
    - `reviews/DO_NOT_DISTURB.md` — confirmed-strong items, if the file exists
 3. **Wiki/graph files (when `wiki_linked: true` in project `CLAUDE.md`):**
    - `LLM wiki/wiki/sources/*.md` — source-grounded wiki pages for candidate synthesis clusters
+   - `LLM wiki/wiki/concepts/*.md` and `LLM wiki/wiki/syntheses/*.md` when the round may add or reconcile literature (wiki-first; see `EXTERNAL_VERIFIERS.md` §1.5)
    - `LLM wiki/graphify-out/GRAPH_REPORT.md` — graph communities, hubs, and suggested questions
    - `reviews/graph_overlay_YYYY-MM-DD.md` — latest overlay findings, if present
 
@@ -188,7 +189,7 @@ Before any downstream dispatch fires (Evaluator, Generator, or Reflector), the P
 4. Read `reviews/consolidated_findings_report.md` (if present) to see what the last Evaluator found.
 5. Read `reviews/convergence_log.md` (if present and any section is at Ph3) to see what the iteration history looks like.
 6. Read `research_notes/lessons_learned.md` and `reviews/DO_NOT_DISTURB.md` to know what not to touch.
-7. If `wiki_linked: true`, read relevant `LLM wiki/wiki/sources/*.md`, `LLM wiki/graphify-out/GRAPH_REPORT.md`, and the latest `reviews/graph_overlay_YYYY-MM-DD.md` (if any) before drafting a plan that includes synthesis writing.
+7. If `wiki_linked: true`, read relevant `LLM wiki/wiki/sources/*.md`, `LLM wiki/graphify-out/GRAPH_REPORT.md`, and the latest `reviews/graph_overlay_YYYY-MM-DD.md` (if any) before drafting a plan that includes synthesis writing. If `wiki_first_resources` is not `false` and the round may introduce **new** PDFs or external references, also scan `wiki/concepts/` and `wiki/syntheses/` (and optionally run `/llm-wiki-query` when available) per `EXTERNAL_VERIFIERS.md` §1.5, then record a **Wiki-first** line in the revision plan.
 
 ### Phase 2 — Classify (or re-confirm)
 
@@ -260,7 +261,7 @@ Based on the section's `current_phase` and project state, decide which agents to
 
 ### Phase 3.5 — Build wiki synthesis brief (wiki-linked projects)
 
-Unchanged from v0.6.0. If `wiki_linked: true` and the round includes new synthesis or literature-reconciliation prose, create `reviews/wiki_synthesis_brief.md` before dispatching the Generator. Record, per cluster: target manuscript location, sources in convergence, sources in tension, graph/topology signals, required reconciliation stance (`converges` / `contested` / `unresolved`), allowed certainty level (`claim` / `qualified claim` / `[UNVERIFIED]`).
+Unchanged from v0.6.0. If `wiki_linked: true` and the round includes new synthesis or literature-reconciliation prose, create `reviews/wiki_synthesis_brief.md` before dispatching the Generator. Record, per cluster: target manuscript location, sources in convergence, sources in tension, graph/topology signals, required reconciliation stance (`converges` / `contested` / `unresolved`), allowed certainty level (`claim` / `qualified claim` / `[UNVERIFIED]`). When new literature is in scope, the brief must be consistent with the **Wiki-first** line required by `EXTERNAL_VERIFIERS.md` §1.5.
 
 If wiki-linked but no synthesis writing is planned this round, write `wiki_synthesis_brief.md` with `No synthesis-writing scope this round`.
 

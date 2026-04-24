@@ -299,6 +299,8 @@ If the verifier returns NOT FOUND, the `[UNVERIFIED]` marker **stays** and the E
 
 If the verifier returns UNREACHABLE (MCP timeout, auth failure), annotate `[VERIFIER UNREACHABLE — <verifier>]` at the point of use and leave `[UNVERIFIED]` in place. Do not silently fall back to memory.
 
+**Discovery vs. resolution.** Rule 7a’s Class 1 ordering (Zotero among verifiers, then Scholar Gateway, etc.) applies to **removing `[UNVERIFIED]` on a specific attribution**. When **choosing** new literature or PDFs, wiki-linked projects follow **`EXTERNAL_VERIFIERS.md` §1.5 (wiki-first)** before Zotero and before external search — the two orderings are complementary, not identical.
+
 ### Enforcement
 
 The Reflector's Phase 2.5 grounding audit (Category 1) spot-checks Rule 7a annotations:

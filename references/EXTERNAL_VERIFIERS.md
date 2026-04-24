@@ -1,6 +1,6 @@
 # EXTERNAL VERIFIERS — Ground-Truth Validity Tools for the Harness
 
-**Status.** This file is a **binding component** of the Grounding Protocol. It enumerates the external Model-Context-Protocol (MCP) servers that the four agents (Planner, Evaluator, Generator, Reflector) may invoke as **ground-truth validity layers** when verifying citations, attributions, factual claims, or retraction status. Every verification tier declared below participates in the Chain of Verification (`GROUNDING_PROTOCOL.md` Rule 7) and in Rule 7a (the external-verifier rule introduced below).
+**Status.** This file is a **binding component** of the Grounding Protocol. It enumerates the external Model-Context-Protocol (MCP) servers that the four agents (Planner, Evaluator, Generator, Reflector) may invoke as **ground-truth validity layers** when verifying citations, attributions, factual claims, or retraction status. It also defines **§1.5** (peer `LLM wiki/` paths and optional `/llm-wiki-query` — not MCP) for **discovery** ordering. Every verification tier in §2 onward participates in the Chain of Verification (`GROUNDING_PROTOCOL.md` Rule 7) and in Rule 7a (the external-verifier rule introduced below).
 
 **Scope.** Applies to all projects governed by this package. A project's `CLAUDE.md` may declare which verifier tiers it permits (e.g. `external_verifiers: [class_1, class_1_5]`) but may not declare a verifier that is not registered here. Adding a new verifier requires editing this file and bumping the package version.
 
@@ -23,6 +23,24 @@ Each of these questions is a **Category 1 citation audit** (Rule 4) question tha
 
 ---
 
+## 1.5 Wiki-first resource order (discovery and gap-filling)
+
+**Purpose.** Closes the read loop with the peer `LLM wiki/`: *reuse curated knowledge before* opening new PDFs from Zotero or running broad external search (e.g. Scholar Gateway, **Consensus**). This section governs **where to look first** when the task is to **find, justify, or add** literature — not the **Rule 7a** resolution order for a citation already under audit (see §3 — Evaluator/Generator/Reflector steps for 7a are unchanged).
+
+**When it applies.** The project’s `CLAUDE.md` has `wiki_linked: true` **and** `wiki_first_resources` is not `false` (see `PROJECT_BOOTSTRAP.md` §3 Step 5). If `wiki_linked: false` or the user has set `wiki_first_resources: false`, skip straight to the Zotero → external flow below.
+
+**Order (strict):**
+
+1. **Peer LLM wiki (first line).** At `wiki_path` from the project’s Wiki linkage section, consult at least: relevant `wiki/sources/*.md`, `wiki/concepts/`, `wiki/syntheses/`, and `graphify-out/GRAPH_REPORT.md` (communities, hubs, suggested questions). If the workspace installs the `llm-wiki` plugin, you may use `/llm-wiki-query` for a contract-bound pass; otherwise use Read/semantic search over those paths. **Log a traceable line** in `reviews/revision_plan.md` (Planner) or `manuscript/revision_log.md` (Generator discretionary note), e.g. `Wiki-first: read <paths or query summary> — <sufficient / gap remains because …>`. Rule 1 still applies: do not treat wiki *stubs* as full evidence for new claims at submission depth.
+
+2. **Zotero (second).** Search the user’s library, resolve attachments, and add PDFs the project will actually read per `REFERENCES.md` / stub workflow — only after step 1 fails to cover the information need or the gap is explicitly *net-new* vs. the wiki’s coverage.
+
+3. **External Class 1 / discovery tools (third).** Scholar Gateway, **Consensus**, and other Class 1 verifiers in §2 — for net-new external discovery, contested claims, or 7a verification. Do not use these *instead of* step 1 when the wiki is linked and a reasonable wiki pass could answer the question.
+
+**Non-overlap with Rule 7a.** The Zotero row in §2 still names library-first **for citation resolution** where the user likely holds the item. **Discovery** is wiki → Zotero → external; **7a** Step 1 in `GROUNDING_PROTOCOL.md` remains Zotero first *among Class 1 tools* for removing `[UNVERIFIED]` on a specific attribution, unless the project’s verification log already established coverage via wiki *full* reads.
+
+---
+
 ## 2. Verifier tiers
 
 Four tiers are defined. A project inherits all four unless its `CLAUDE.md` narrows the list.
@@ -37,7 +55,7 @@ Active Class 1 verifiers in this deployment:
 |---|---|---|---|---|
 | **Scholar Gateway** | `mcp__70599628-0640-490e-bb1b-450b0e8248a9__semanticSearch` | `ff091334-0f12-4d0e-a973-c00467dd3818` | ~200M peer-reviewed papers (Semantic Scholar, PubMed, Scopus, arXiv) with passage-level provenance | **Primary Rule 7a verifier.** Use for any attribution the agent has not read directly. Returns passage-level provenance with citations, suitable for Rule 4 quoting. |
 | **Consensus** | `mcp__a28b93ab-2ce7-493f-b02d-f03a8ebe522f__search` | `65247229-f0c7-49df-9044-fcbb8b3894c6` | Peer-reviewed scientific literature with journal-quartile (SJR) ranking, sample-size, and study-type metadata | Use when the finding requires not just "the paper exists" but "what the field thinks of the claim." Especially valuable for Category 1 spot-checks where the attribution is contested, and for filtering by SJR / study type / sample size. |
-| **Zotero (+ Scite)** | `mcp__zotero__*` (stable namespace; includes `scite_check_retractions`, `scite_enrich_item`, `scite_enrich_search`, `zotero_semantic_search`) | (local MCP — no registry UUID) | User's personal library with Scite citation-intent enrichment | Use as the **first** verifier for any citation the user is likely to have in their library. Library-first minimizes external calls, preserves user-curated metadata, and surfaces retraction flags automatically. |
+| **Zotero (+ Scite)** | `mcp__zotero__*` (stable namespace; includes `scite_check_retractions`, `scite_enrich_item`, `scite_enrich_search`, `zotero_semantic_search`) | (local MCP — no registry UUID) | User's personal library with Scite citation-intent enrichment | Use as the **first Class 1 verifier** for *citation resolution* when the user likely has the item. For *new literature discovery* when `wiki_linked: true`, follow **§1.5** first (peer wiki), then Zotero, then other Class 1 tools. Library-first minimizes external calls, preserves user-curated metadata, and surfaces retraction flags automatically. |
 
 > **Runtime vs. registry UUIDs.** The `directoryUuid` (Registry UUID column) is the Cowork MCP registry's catalog entry — it is what `suggest_connectors` expects. The runtime namespace (MCP tool column) is the UUID the MCP server exposes once connected in this session; it is what prefixes every tool name. These are not the same UUID and must not be confused. If the runtime UUID appears to drift between sessions, re-probe via `mcp__mcp-registry__search_mcp_registry(keywords=["scholar-gateway"])` and re-read the tool list to recover the current runtime prefix.
 
@@ -84,6 +102,7 @@ Active Class 3 verifiers:
 
 - At bootstrap (M1), the Planner confirms which verifier tiers are reachable by probing each MCP with a whoami-class call (`mcp__zotero__zotero_list_libraries`, `mcp__*__hf_whoami`). It records the result in the project's `CLAUDE.md` under a `Verifier availability` section. The Evaluator reads this section at the start of each round.
 - If a Class 1 verifier is unreachable and the project is at submission-bound depth, the Planner escalates: either the user connects the MCP, or the project proceeds with `[UNVERIFIED]` citations that cannot be cleared at submission time.
+- When a round’s scope may introduce **new** references or PDFs, and the project is wiki-linked with `wiki_first_resources` not `false`, the Planner’s `reviews/revision_plan.md` must include a **Wiki-first** line per **§1.5** (what was read under `wiki_path`, or an explicit `N/A` with reason).
 
 ### Evaluator
 
@@ -94,6 +113,7 @@ Active Class 3 verifiers:
 
 ### Generator
 
+- When **adding** a citation or proposing **new** literature, if `wiki_linked: true` and `wiki_first_resources` is not `false`, the Generator consults the peer `LLM wiki/` per **§1.5** before relying on Zotero-only or external search, and records the same one-line **Wiki-first** trace in `manuscript/revision_log.md` for that round.
 - Before adding any new citation, the Generator invokes Class 2 (Zotero library resolver) to confirm the citation key maps to a readable source in the user's library. If Class 2 fails, the Generator invokes Class 1 (Scholar Gateway) to confirm the paper exists externally and proposes a `zotero_add_by_doi` action for user approval before citing.
 - Before attributing a specific claim to a specific passage, the Generator invokes Class 1 (Scholar Gateway `mcp__70599628-0640-490e-bb1b-450b0e8248a9__semanticSearch`) with the passage's claim text. The call must include `query` (the claim in natural language), `interaction_id` (a UUID generated once per user prompt and reused across sibling/follow-up searches), and `inferred_intent` (a description of why the Generator is verifying — e.g. "confirming attributed passage is actually present in Baumer 2024 before promoting from [UNVERIFIED] to attributed"). If Scholar Gateway returns a matching passage, the Generator may attribute; if not, the Generator downgrades to **Indirect tier** per Rule 4 or leaves a `[FACT NEEDED]` marker per Rule 6.
 
