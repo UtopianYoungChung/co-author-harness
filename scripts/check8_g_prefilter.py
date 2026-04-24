@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 # Consolidation-cue lexicon (§9d table, row 3)
 _CONSOL = re.compile(
@@ -219,7 +219,7 @@ def render_block(
     n_gc = sum(1 for s in stats if s.g_candidate)
     lines = [
         f"### Cumulative cognitive load pre-filter (Sub-check G)",
-        f"- **P-stage envelope (words):** {p_stage} → {env} (§9d)",
+        f"- **P-stage envelope (words):** {p_stage} -> {env} (§9d)",
         f"- **Tool:** `scripts/check8_g_prefilter.py`  **cycle_id:** `{cycle_id}`  **generated:** {datetime.now().isoformat(timespec='seconds')}",
         f"- Major headings scanned: {n_headings}",
         f"- Boundary gaps exceeding P-stage envelope (words): {n_gap_w}",
@@ -257,7 +257,7 @@ def merge_into_reviews(
     target = project_root / "reviews" / f"deterministic_{cycle_id}.md"
     if not target.is_file():
         return (
-            f"# Deterministic pre-filter stubs — cycle `{cycle_id}`\n\n" + new_block_wrapped
+            f"# Deterministic pre-filter stubs -- cycle `{cycle_id}`\n\n" + new_block_wrapped
         )
     existing = target.read_text(encoding="utf-8", errors="replace")
     pat = (

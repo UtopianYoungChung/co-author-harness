@@ -2,11 +2,11 @@
 
 > Deploy to: the harness root folder (`co-author-harness/CLAUDE.md` in this workspace).
 
-**Scope.** This file governs all Claude (or any agent) activity under the `co-author-harness/` root folder. It is the root-level authority for every research project in this tree and the canonical home of the Research and Academic Paper Writing Package (harness substrate at **v0.8.3**). It sets the rules for package invocation, project discovery, lifecycle management, and cross-project consistency.
+**Scope.** This file governs all Claude (or any agent) activity under the `co-author-harness/` root folder. It is the root-level authority for every research project in this tree and the canonical home of the Research and Academic Paper Writing Package (harness substrate at **v0.8.4**). It sets the rules for package invocation, project discovery, lifecycle management, and cross-project consistency.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
-*Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`, v0.8.3+; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../ROOT_ARCHITECTURE_INDEX.md`.
+*Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`, v0.8.4+; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../ROOT_ARCHITECTURE_INDEX.md`.
 
 ---
 

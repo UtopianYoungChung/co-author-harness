@@ -545,7 +545,9 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/phase_state_validate.py" \
     "$PLUGIN_ROOT/scripts/artefact_frontmatter_validate.py" \
     "$PLUGIN_ROOT/scripts/paragraph_hash_map.py" \
-    "$PLUGIN_ROOT/scripts/migrate_convergence_journal_v075.py"
+    "$PLUGIN_ROOT/scripts/migrate_convergence_journal_v075.py" \
+    "$PLUGIN_ROOT/scripts/check8_g_prefilter.py" \
+    "$PLUGIN_ROOT/scripts/provenance_prewrite_check.py"
 do
     if [[ -f "$pyf" ]]; then
         if python3 -m py_compile "$pyf"; then

@@ -328,6 +328,8 @@ Phase 2g implements the recurrence accounting that Ph.D.-root CLAUDE.md §13.4 m
 
 **1. Assemble the Check 8 corpus.** Glob the project's `reviews/` directory for `safeguard_check8_*.md`. For each file, parse the aggregate verdict (CLEAN / BORDERLINE / MAJOR / BLOCKER) and the per-Sub-check finding list. Build a two-dimensional table indexed by `(round_id, section_heading_path)` with the aggregate verdict in each cell and the list of firing Sub-check codes as a sub-row.
 
+**1a. §9d G-candidate scale signal (A6, v0.8.4).** For every `reviews/deterministic_<cycle_id>.md` the manuscript has accumulated that includes a `### Cumulative cognitive load pre-filter (Sub-check G)` block from `scripts/check8_g_prefilter.py`, read the line `G-candidate boundaries (both gap-exceeded AND zero-cue): <n>`. If `n >= 3` in any single round, record a **PATTERN** in §10e: manuscript-scale construct accumulation at structural boundaries without pre-heading or opening consolidation cues in that run — a candidate lesson to tighten section map / anchor placement; cite the deterministic file path. This does not re-execute Sub-check G; it is cross-round visibility from the §9d deterministic layer.
+
 **2. Within-project recurrence.** For every Sub-check code (A through F), count how many consecutive rounds it fired within a single section. A Sub-check that fired in two or more consecutive rounds within one section is a **project-scoped recurrence signal** — record it as a Phase 4 candidate for a project-scoped lesson in `research_notes/lessons_learned.md` (e.g. "INF3001H §4 repeatedly surfaces Check 8 Sub-check D; the section opens cold; author should adopt a standing preamble schema"). Recurrence across non-consecutive rounds is a weaker signal; record it as PATTERN rather than as a lesson candidate.
 
 **§2g.3 — Demoted-check recurrence (v0.8.0 P-15).** Aggregate `demoted_check_advisories[]` rows from every F4-shaped artefact under `reviews/` that carries the optional block (typically `reviews/reflector_full_*.md`; some projects may mirror rows into other F4 files — read all that parse as F4 per `ARTEFACT_FRONTMATTER_SCHEMA.md` §6). Build a table keyed by **`check_id`** with columns: **row count**, **distinct `source_iteration` values**, **max severity observed**, **routing_rationale samples** (one line each, ≤3).
@@ -342,7 +344,7 @@ Phase 2g implements the recurrence accounting that Ph.D.-root CLAUDE.md §13.4 m
 
 **5. BLOCKER-refused signoff audit.** The Planner refuses terminal signoff on a BLOCKER verdict with failure code `E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF` and trigger 28 (`ph3_accessibility_blocker_surfaced`). Walk the `phase_entry_log[]` for rows with that trigger; for each, compute how many subsequent Ph3 iterations were required to clear the BLOCKER. A mean clearance cost above three iterations suggests the overlay's severity floors are mis-calibrated for this project — file as a candidate for project-scoped overlay threshold override.
 
-**6. Emit §10e.** Write a subsection titled "Accessibility recurrence audit" with (a) the per-Sub-check recurrence table, (b) the within-project lesson candidates, (c) the cross-project plugin-proposal candidates, (d) the BORDERLINE-permitted signoff count, (e) the BLOCKER clearance-cost distribution, **(f) §2g.3 demoted-check recurrence table** and any **`R-Refl-DC-1`** findings. Every candidate carries an evidence anchor (`reviews/safeguard_check8_<date>_<cycle_id>.md:<line>`) so the Phase 2.6 self-audit can confirm it.
+**6. Emit §10e.** Write a subsection titled "Accessibility recurrence audit" with (a) the per-Sub-check recurrence table, (b) the within-project lesson candidates, (c) the cross-project plugin-proposal candidates, (d) the BORDERLINE-permitted signoff count, (e) the BLOCKER clearance-cost distribution, **(f) §2g.3 demoted-check recurrence table** and any **`R-Refl-DC-1`** findings, **(g) §2g.1a §9d G-candidate scale PATTERNs** (if any, with `reviews/deterministic_<cycle_id>.md` anchors). Every Check 8 candidate carries an evidence anchor (`reviews/safeguard_check8_<date>_<cycle_id>.md:<line>`) so the Phase 2.6 self-audit can confirm it.
 
 **Scope exclusion.** Phase 2g does not re-evaluate Check 8 findings; it only aggregates them. Adjudication of whether a specific finding is correct is the Evaluator's responsibility at the round in which it fired. The Reflector's role here is recurrence accounting, not re-audit.
 
@@ -575,7 +577,7 @@ Write `reviews/reflection_report.md` using this template. In lightweight mode, s
 [Per Phase 2f. Per-section pass/fail counts + §6.10 `R-Refl-RG-1` / `R-Refl-RT-1` when v0.8.0 F1 frontmatter present.]
 
 ## 10e. Accessibility recurrence audit   *(full only; "n/a" at lightweight)*
-[Per Phase 2g. Per-Sub-check recurrence table + within-project lesson candidates + cross-project plugin-proposal candidates + BORDERLINE-permitted signoff count + BLOCKER clearance-cost distribution + §2g.3 demoted-check recurrence table / `R-Refl-DC-1`.]
+[Per Phase 2g. Per-Sub-check recurrence table + within-project lesson candidates + cross-project plugin-proposal candidates + BORDERLINE-permitted signoff count + BLOCKER clearance-cost distribution + §2g.3 demoted-check recurrence table / `R-Refl-DC-1` + §2g.1a §9d G-candidate scale PATTERNs.]
 ```
 
 ### Phase 6 — Present to the User *(both modes)*

@@ -1,7 +1,7 @@
 {
   "name": "co-author-harness-claude",
-  "version": "0.8.3",
-  "description": "PhD academic-writing harness: four-agent Lifecycle-Phase Ladder (Ph1\u2192Ph4). Ph3 refinement profiles, diff-scoped Evaluator, verdict cache, convergence vector, per-section ledger, MCR gate, phase-conditioned models. v0.8.3: co-author rebrand (id co-author-harness-claude, root folder co-author-harness/, release zip co-author-harness-claude-v*). v0.8.2: skill quality patches; see CHANGELOG.",
+  "version": "0.8.4",
+  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state ledger, phase-conditioned models, Check 8 / §9d prefilter, provenance check. v0.8.4: gap close (scripts + docs + efficiency roles). See CHANGELOG.",
   "author": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"

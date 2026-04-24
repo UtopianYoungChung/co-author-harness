@@ -6,6 +6,23 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.8.4 — 2026-04-24
+
+**Theme.** Close documented plugin gaps: §9d executable, package docs, efficiency role map, and lightweight A6–A8 follow-through.
+
+### Changes
+
+- **Scripts** — `scripts/check8_g_prefilter.py` implements `references/DETERMINISTIC_CHECKS.md` §9d and merges output into `reviews/deterministic_<cycle_id>.md` (HTML-comment bounded block). `scripts/provenance_prewrite_check.py` (A8) verifies every `phase_deliverable_path` in `reviews/phase_state.json` resolves before ledger writes. Both are `py_compile` gates in `scripts/release-gate.sh`.
+- **Documentation** — `references/CLAUDE.md` component table: authoritative `references/phase_notifications.yaml` (legacy `tier_notifications.yaml` remains a read-only stub). New `references/ADVISORY_UNTIL_SCOPING.md` (A7). `agents/reflector.md` Phase 2g: §9d G-candidate scale signal (A6). `agents/planner.md` pre-write path check (A8).
+- **Config** — `.plugin-efficiency.json` `role_overrides` completed for the eight skills that were previously unmapped.
+- **Proposals** — `reviews/plugin_update_proposals.md` v0.8.1 session rows for A6–A9 marked **IMPLEMENTED** in this release (user sign-off assumed via this shipping task).
+
+### Not changed
+
+- No new slash-command skills; no `phase_state.json` schema or trigger enum change.
+
+---
+
 ## v0.8.3 — 2026-04-24
 
 **Theme.** Repository and plugin **co-author** rebrand only.

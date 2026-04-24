@@ -6,6 +6,21 @@
 
 ---
 
+## Session: v0.8.4 close-out (2026-04-24)
+
+**Closure.** Packaged work shipped as **v0.8.4** in response to the plugin-gap review. The v0.8.1-session items **A6–A9** (P-R-1..P-R-4) are treated as **IMPLEMENTED** with the paths below; user sign-off is this release’s merge.
+
+| A-code / proposal | Shipped as |
+|-------------------|------------|
+| **A6** `A6-scale-coverage-metacheck` (P-R-1) | `agents/reflector.md` Phase 2g **§2g.1a** (§9d G-candidate scale PATTERN) |
+| **A7** `A7-advisory-until-template` (P-R-2) | `references/ADVISORY_UNTIL_SCOPING.md` |
+| **A8** `A8-provenance-prewrite-check` (P-R-3) | `scripts/provenance_prewrite_check.py` + `agents/planner.md` cache §3a |
+| **A9** `A9-sub-check-g-prefilter-script` (P-R-4) | `scripts/check8_g_prefilter.py` + `scripts/release-gate.sh` `py_compile` list |
+
+**Efficiency / docs.** `.plugin-efficiency.json` `role_overrides` completed for the eight skills that were previously unmapped. `references/CLAUDE.md` component #33 now names **`phase_notifications.yaml`** as authoritative.
+
+---
+
 ## Session: v0.8.1 release (2026-04-23)
 
 Five Reflector-full proposals filed from INF3006Y Co Author Ph4 close-out. Three-filter gatekeeper results below.

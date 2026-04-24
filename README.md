@@ -29,6 +29,10 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 - **Grounding in front of cleverness.** `[references/GROUNDING_PROTOCOL.md](references/GROUNDING_PROTOCOL.md)` is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: `[docs/agent-instructions/harness-governance.md](docs/agent-instructions/harness-governance.md)`.
 - **Slash-style skills, documented as files.** 27+ skills under `[skills/](skills/)` (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`) with machine-checkable front matter—validated by the scripts below.
 
+### Skills (27)
+
+See `[skills/plugin-commands/SKILL.md](skills/plugin-commands/SKILL.md)` for the slash-command table.
+
 ---
 
 ## Documentation
@@ -98,9 +102,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
+`0.8.4`
 
 | Release   | Highlights                                                                                                                                                                        |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0.8.4** | §9d `check8_g_prefilter.py`, A8 `provenance_prewrite_check.py`, `phase_notifications` doc fix, efficiency `role_overrides` completion, A6–A7 reflector/ADVISORY_UNTIL follow-through. |
 | **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, folder name `co-author-harness/`, release zip `co-author-harness-claude-v*.zip`. No `phase_state.json` or skill renames. |
 
 

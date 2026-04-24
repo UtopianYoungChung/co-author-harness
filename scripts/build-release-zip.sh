@@ -180,6 +180,7 @@ zip -r -q -9 "$ZIP_PATH" . \
   -x "docs/release-notes/RELEASE_NOTES_v0.8.0.md" \
   -x "docs/release-notes/RELEASE_NOTES_v0.8.1.md" \
   -x "docs/release-notes/RELEASE_NOTES_v0.8.2.md" \
+  -x "docs/release-notes/RELEASE_NOTES_v0.8.3.md" \
   -x ".git/*" \
   -x ".git" \
   -x "*.swp" \

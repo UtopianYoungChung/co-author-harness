@@ -45,7 +45,15 @@
     "skills/suchman-register-audit/SKILL.md": "executor",
     "skills/p-stage-checker/SKILL.md": "executor",
     "skills/check-contradictions/SKILL.md": "executor",
-    "skills/check-abstract-body/SKILL.md": "executor"
+    "skills/check-abstract-body/SKILL.md": "executor",
+    "skills/advisor-escalation/SKILL.md": "orchestrator",
+    "skills/backfill-source-stubs-from-references/SKILL.md": "executor",
+    "skills/ingest-m5-to-wiki/SKILL.md": "executor",
+    "skills/plugin-commands/SKILL.md": "executor",
+    "skills/promote-lessons-to-wiki/SKILL.md": "executor",
+    "skills/public-interest-accountability-pass/SKILL.md": "executor",
+    "skills/retrofit-concept-grounding/SKILL.md": "executor",
+    "skills/tool-contract-roundtrip/SKILL.md": "orchestrator"
   },
 
   "input_tokens_per_second": 16897.1,
