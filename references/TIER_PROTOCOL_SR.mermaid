@@ -1,0 +1,258 @@
+%%{init: {'theme':'neutral', 'flowchart': {'curve':'basis'}}}%%
+%% =====================================================================
+%% TIER_PROTOCOL_SR.mermaid — v0.7.0 Lifecycle-Stage Ladder
+%% Strategic Rationale (i*) view, rendered with Mermaid graph TD.
+%%
+%% Reading legend (Yu 1995 / Horkoff 2006 mapping to Mermaid shapes):
+%%   (( )) = softgoal
+%%   [[ ]] = goal
+%%   [  ] = task
+%%   >  ] = resource
+%%   Solid arrows labelled "means-ends" / "decomp" / "contribution+/-"
+%%   Dashed arrows = actor dependencies (D)
+%%   Subgraphs demarcate actor boundaries
+%%
+%% Grounding: TIER_PROTOCOL.md §§2–6, §11; AGENT_ORCHESTRATION.md §§3, 8.2a–8.2b;
+%% docs/release-notes/RELEASE_NOTES_v0.7.0.md; tier_state_schema.md §§5–6.1.
+%%
+%% Semantic deltas vs v0.6.0 (rendered in this diagram):
+%%   - Staircase → Lifecycle-Stage Ladder
+%%   - Rung names: T1 Plan & Draft / T2 Review & Revise / T3 Iterate & Converge / T4 Finalize & Close
+%%   - T4_ready → T3_converged (terminal state of T3)
+%%   - LCR → MCR (Manuscript Convergence Report) · laggard_clearance_approved → mcr_admission
+%%   - Retired: Confirmation Mode, Self-T1 Verdict, EG-2, T3R sibling ladder
+%%   - Net-new: convergence_log.md resource, [T3-STALE] advisory, EG-1 T4→T3 demotion,
+%%              EG-7 MCR re-admission, Reflector lightweight/full split, Planner gatekeeper
+%% =====================================================================
+
+graph TD
+  %% -------------------------------------------------------------------
+  %% Author actor — the human in the loop
+  %% -------------------------------------------------------------------
+  subgraph AuthorActor[" 🧑 Author (Joseph) "]
+    A_G_Ship[["Ship the manuscript<br/>at the declared final tier"]]
+    A_SG_Integrity(("Integrity preserved<br/>(no hallucination, traceability)"))
+    A_SG_Autonomy(("Authorial autonomy<br/>over every edit"))
+    A_SG_Velocity(("Throughput<br/>at draft speed"))
+    A_SG_Converge(("Section convergence<br/>(T3 metric met)"))
+    A_T_Approve["Approve / Reject at each rung<br/>(binary gate §6)"]
+    A_T_T3Sign["T3 sign terminal (is_terminal=true)<br/>or clear [T3-STALE] (re-engagement)"]
+    A_T_Raise["/raise-ceiling · /cancel-climb<br/>(override levers)"]
+
+    A_G_Ship -->|decomp| A_T_Approve
+    A_G_Ship -->|decomp| A_T_T3Sign
+    A_T_Approve -.->|contribution +| A_SG_Integrity
+    A_T_Approve -.->|contribution +| A_SG_Autonomy
+    A_T_T3Sign -.->|contribution +| A_SG_Converge
+    A_T_Raise -.->|contribution -| A_SG_Velocity
+    A_T_Raise -.->|contribution +| A_SG_Autonomy
+  end
+
+  %% -------------------------------------------------------------------
+  %% Planner actor — sole writer of tier_state.json · gatekeeper for plugin updates
+  %% -------------------------------------------------------------------
+  subgraph PlannerActor[" 🗂️ Planner (agents/planner.md) "]
+    P_G_Dispatch[["Dispatch the correct rung<br/>for the declared scope"]]
+    P_SG_Integrity(("Ledger monotonicity<br/>(never retreat w/o exempt trigger)"))
+    P_SG_Traceability(("Every approval traced<br/>in tier_entry_log"))
+    P_SG_GateKeep(("Plugin updates gated<br/>(three-filter review)"))
+    P_T_Bootstrap["Phase 0 session bootstrap<br/>(v0.6.0 → v0.7.0 migration check)"]
+    P_T_Classify["Phase 2 classification<br/>(paper type, P-stage, default_final_tier,<br/>t1_pstage_declaration)"]
+    P_T_Scope["Phase 2.5 scope inference<br/>(--section · --subsection · fingerprint · ceiling)"]
+    P_T_Dispatch["Phase 3 tier dispatch<br/>(run-tier-1..4)"]
+    P_T_Approve["Phase 5.5 tier-conditioned approval<br/>(T1/T2/T4 advance · T3 iteration row ·<br/>TerminalSignoffRow · ReengagementSignoffRow)"]
+    P_T_MCR["Phase 6 Manuscript Convergence Report<br/>([T3-STALE] re-check · mcr_admission · T4 gate)"]
+    P_T_GateKeep["Gatekeeper for plugin_update_proposals.md<br/>(evidence · non-duplication · tier-appropriateness)"]
+    P_R_Ledger>["reviews/tier_state.json<br/>(single writer = Planner)"]
+
+    P_G_Dispatch -->|decomp| P_T_Bootstrap
+    P_G_Dispatch -->|decomp| P_T_Classify
+    P_G_Dispatch -->|decomp| P_T_Scope
+    P_G_Dispatch -->|decomp| P_T_Dispatch
+    P_G_Dispatch -->|decomp| P_T_Approve
+    P_G_Dispatch -->|decomp| P_T_MCR
+    P_G_Dispatch -->|decomp| P_T_GateKeep
+    P_T_Approve -->|writes| P_R_Ledger
+    P_T_Approve -.->|contribution +| P_SG_Integrity
+    P_T_Approve -.->|contribution +| P_SG_Traceability
+    P_T_GateKeep -.->|contribution +| P_SG_GateKeep
+  end
+
+  %% -------------------------------------------------------------------
+  %% Evaluator actor — independent reviewer, never writes prose
+  %% -------------------------------------------------------------------
+  subgraph EvalActor[" 🔍 Evaluator (agents/evaluator.md) "]
+    E_G_Review[["Surface the findings that<br/>block the rung's approval"]]
+    E_SG_Indep(("Independence from Generator<br/>(no self-evaluation)"))
+    E_SG_Grounding(("Zero uninspected claims<br/>(full-file reads · no digest exception)"))
+    E_SG_Converge(("Convergence observed honestly<br/>(thrash vs converge)"))
+    E_T_T1_Dormant["(Dormant at T1 Plan & Draft<br/>— no evaluator run)"]
+    E_T_T2["T2 Review & Revise — local pass<br/>+ SD/SR read-prerequisites (opt-in: sd_sr_required=true)<br/>+ SAFEGUARD 1/4/5<br/>(E-T2-SD-UNGROUNDABLE — opt-in only)"]
+    E_T_T3["T3 Iterate & Converge — full 7-step pass<br/>+ SAFEGUARD x8<br/>+ convergence_log entry (§8.3)<br/>+ [T3-STALE] advisory"]
+    E_T_T4["T4 Finalize & Close — strict superset<br/>+ Coupling E.2 overlay mandatory<br/>+ G.4 sign-off mandatory<br/>+ EG-1/EG-7 detection"]
+
+    E_G_Review -->|means-ends| E_T_T2
+    E_G_Review -->|means-ends| E_T_T3
+    E_G_Review -->|means-ends| E_T_T4
+    E_T_T1_Dormant -.->|no contribution — dormant| E_SG_Indep
+    E_T_T3 -.->|contribution ++| E_SG_Grounding
+    E_T_T3 -.->|contribution +| E_SG_Converge
+    E_T_T4 -.->|contribution ++| E_SG_Grounding
+  end
+
+  %% -------------------------------------------------------------------
+  %% Generator actor — sole writer of manuscript/main.md · no Self-T1 Verdict at v0.7.0
+  %% -------------------------------------------------------------------
+  subgraph GenActor[" ✍️ Generator (agents/generator.md) "]
+    G_G_Revise[["Apply findings into prose<br/>on the correct section"]]
+    G_SG_VoiceReg(("Voice register preserved<br/>(P-stage + project directives)"))
+    G_SG_ScopeFidelity(("Scope fidelity<br/>(narrow at T4, broad at T1)"))
+    G_T_T1Draft["T1 Plan & Draft<br/>full drafting authority"]
+    G_T_T2T3Fix["T2 / T3 — fix application<br/>+ convergence-aware edits at T3"]
+    G_T_T4Fix["T4 — fix-only, no new prose<br/>(EG-1 demotion if fabrication)"]
+    G_T_Apply["Apply revision log<br/>reviews/findings → manuscript/main.md"]
+    G_T_DriftReport["Report drift measurement<br/>(Phase 4 completion signal)"]
+    G_R_Manuscript>["manuscript/main.md<br/>(single writer = Generator)"]
+
+    G_G_Revise -->|decomp| G_T_T1Draft
+    G_G_Revise -->|decomp| G_T_T2T3Fix
+    G_G_Revise -->|decomp| G_T_T4Fix
+    G_G_Revise -->|decomp| G_T_Apply
+    G_G_Revise -->|decomp| G_T_DriftReport
+    G_T_Apply -->|writes| G_R_Manuscript
+    G_T_Apply -.->|contribution +| G_SG_VoiceReg
+    G_T_T4Fix -.->|contribution ++| G_SG_ScopeFidelity
+  end
+
+  %% -------------------------------------------------------------------
+  %% Reflector actor — lightweight (T1/T2/T3 ad-hoc) + full (T4 close-out)
+  %% -------------------------------------------------------------------
+  subgraph RefActor[" 🪞 Reflector (agents/reflector.md) "]
+    R_G_Learn[["Retain lessons across rounds<br/>(lightweight or full dispatch)"]]
+    R_SG_Lessons(("Lessons never lost<br/>between sessions"))
+    R_SG_Integrity(("Ledger integrity audited<br/>(row-shape · monotonicity)"))
+    R_T_Light["Reflector-lightweight<br/>(T1/T2/T3 ad-hoc probe:<br/>Phase 2f + Phase 2.5 + Phase 2.6)"]
+    R_T_Full["Reflector-full<br/>(T4 close-out: Phases 1–6 incl.<br/>2, 2b, 2d, 2e, 2f, 2.5, 2.5.1, 2.6, 3, 4)"]
+    R_T_Audit["Grounding audit<br/>(Categories 1–9a, gated by §2.5.1)"]
+    R_T_T3Audit["T3 convergence audit (§2d)<br/>+ [T3-STALE] / MCR volatility (§2e)"]
+    R_T_Contract["Tier-row contract audit (§2f)<br/>— v0.7.0 6-field row shape"]
+    R_T_Memory["Append research_notes/lessons_learned.md"]
+    R_T_Proposals["File to reviews/plugin_update_proposals.md<br/>(Planner gatekeeps before user sees)"]
+    R_R_Convergence>["reviews/convergence_log.md<br/>(Reflector reads · Evaluator writes)"]
+
+    R_G_Learn -->|decomp| R_T_Light
+    R_G_Learn -->|decomp| R_T_Full
+    R_T_Light -->|means-ends| R_T_Contract
+    R_T_Light -->|means-ends| R_T_Audit
+    R_T_Full -->|decomp| R_T_Audit
+    R_T_Full -->|decomp| R_T_T3Audit
+    R_T_Full -->|decomp| R_T_Contract
+    R_T_Full -->|decomp| R_T_Memory
+    R_T_Full -->|decomp| R_T_Proposals
+    R_T_T3Audit -->|reads| R_R_Convergence
+    R_T_Memory -.->|contribution +| R_SG_Lessons
+    R_T_Contract -.->|contribution +| R_SG_Integrity
+  end
+
+  %% -------------------------------------------------------------------
+  %% Lifecycle-Stage Ladder topology: T1 → T2 → T3 → T4 (ceiling-aware)
+  %% -------------------------------------------------------------------
+  subgraph Ladder[" 🪜 Lifecycle-Stage Ladder (per section) "]
+    direction LR
+    T1_node["T1 Plan & Draft<br/>full drafting<br/>Evaluator dormant"]
+    T2_node["T2 Review & Revise<br/>local pass<br/>SD/SR read-prereq (opt-in)"]
+    T3_node["T3 Iterate & Converge<br/>unbounded iteration<br/>convergence_log · [T3-STALE]"]
+    T3_converged_node(("T3_converged<br/>awaits MCR<br/>(terminal-flag state)"))
+    T4_node["T4 Finalize & Close<br/>G.4 sign-off mandatory<br/>Coupling E.2 mandatory<br/>Reflector-full dispatch"]
+
+    T1_node -->|user_approval + ceiling>T1| T2_node
+    T1_node -.->|user_approval + ceiling=T1| T1_lock["ceiling_locked at T1_ready"]
+    T2_node -->|user_approval + ceiling>T2| T3_node
+    T2_node -.->|user_approval + ceiling=T2| T2_lock["ceiling_locked at T2_ready"]
+    T3_node -->|TerminalSignoffRow<br/>(is_terminal=true)| T3_converged_node
+    T3_node -->|t3_iteration_round<br/>(non-advancing)| T3_node
+    T3_node -->|t3_stale_reengagement_signoff<br/>(refresh t3_last_activity_at)| T3_node
+    T3_converged_node -->|mcr_admission cleared| T4_node
+    T4_node -->|G.4 signed| Ship[["Ship (M5)"]]
+    T4_node -.->|EG-1: eg1_t4_downgrade_to_t3<br/>(monotonicity-exempt)| T3_node
+    T4_node -.->|EG-7: eg7_mcr_readmission_after_class_change<br/>(monotonicity-exempt)| T3_converged_node
+  end
+
+  %% -------------------------------------------------------------------
+  %% Escalation gates (v0.7.0 set) — side-channels, not rung transitions
+  %% -------------------------------------------------------------------
+  subgraph EGates[" ⚠️ Escalation Gates (TIER_PROTOCOL.md §4) "]
+    EG1["EG-1 T4 → T3 grounding demotion<br/>(monotonicity-exempt)"]
+    EG3["EG-3 Cross-scope ref at T2<br/>→ T3 escalation"]
+    EG4["EG-4 Ceiling-locked inconsistency<br/>(any tier)"]
+    EG5["EG-5 Tier-goal deliverable missing<br/>(T1/T2/T3 entry)"]
+    EG6["EG-6 Advisory warning<br/>(non-blocking, e.g. [T3-STALE])"]
+    EG7["EG-7 MCR re-admission<br/>after classification change<br/>(monotonicity-exempt, NET-NEW v0.7.0)"]
+  end
+
+  %% -------------------------------------------------------------------
+  %% Strategic Dependencies (actor ⇢ actor on a dependum)
+  %% -------------------------------------------------------------------
+  A_T_Approve -. "D: approval decision" .-> P_T_Approve
+  A_T_T3Sign -. "D: terminal or re-engagement signoff" .-> P_T_Approve
+  A_T_Raise -. "D: ceiling mutation" .-> P_R_Ledger
+  P_T_Dispatch -. "D: findings" .-> E_G_Review
+  P_T_Dispatch -. "D: revision" .-> G_G_Revise
+  E_G_Review -. "D: manuscript read" .-> G_R_Manuscript
+  G_T_Apply -. "D: drift measurement" .-> P_R_Ledger
+  G_T_DriftReport -. "D: Planner records drift in ledger" .-> P_T_Approve
+  P_T_MCR -. "D: dispatch back to Evaluator at T4 admission" .-> E_G_Review
+  P_T_Approve -. "D: on T4 close-out → Reflector-full" .-> R_T_Full
+  P_T_Approve -. "D: on T1/T2/T3 ad-hoc → Reflector-lightweight" .-> R_T_Light
+  R_T_Proposals -. "D: gatekeeper filters" .-> P_T_GateKeep
+  E_T_T4 -. "D: grounding BLOCKER → demotion" .-> EG1
+  E_T_T2 -. "D: on cross-scope finding" .-> EG3
+  E_T_T3 -. "D: advisory emission" .-> EG6
+  E_T_T4 -. "D: classification-change detect" .-> EG7
+
+  %% -------------------------------------------------------------------
+  %% Rung dispatch targets (Planner writes, Evaluator reads)
+  %% -------------------------------------------------------------------
+  P_T_Dispatch -->|run-tier-1 / T1 Plan & Draft| T1_node
+  P_T_Dispatch -->|run-tier-2 / T2 Review & Revise| T2_node
+  P_T_Dispatch -->|run-tier-3 / T3 Iterate & Converge| T3_node
+  P_T_Dispatch -->|run-tier-4 / T4 Finalize & Close| T4_node
+
+  %% -------------------------------------------------------------------
+  %% Retired-in-v0.7.0 artefacts (provenance for v0.6.0 readers)
+  %% -------------------------------------------------------------------
+  subgraph Retired[" ⚰️ Retired at v0.7.0 (see TIER_PROTOCOL.md §11) "]
+    Ret_Conf["Evaluator Confirmation Mode<br/>(absorbed: full T2 local pass)"]
+    Ret_SelfT1["Generator Self-T1 Verdict<br/>(absorbed: Phase 4 drift report)"]
+    Ret_EG2["EG-2 Self-T1 mismatch at T2 entry<br/>(retired — no replacement)"]
+    Ret_T3R["T3R Response-letter sibling ladder<br/>(absorbed: response-letter-review skill)"]
+    Ret_Digest["Phase 3a digest integrity<br/>(retired — full-file reads are the floor)"]
+    Ret_LCR["Laggard Clearance Report<br/>(renamed: Manuscript Convergence Report)"]
+    Ret_T4Ready["T4_ready state<br/>(renamed: T3_converged)"]
+  end
+  Ret_Conf -.->|absorbed by| E_T_T2
+  Ret_SelfT1 -.->|absorbed by| G_T_DriftReport
+  Ret_EG2 -.->|no replacement| EGates
+  Ret_T3R -.->|absorbed by| E_T_T4
+  Ret_Digest -.->|no replacement| E_SG_Grounding
+  Ret_LCR -.->|renamed to| P_T_MCR
+  Ret_T4Ready -.->|renamed to| T3_converged_node
+
+  %% -------------------------------------------------------------------
+  %% Styling
+  %% -------------------------------------------------------------------
+  classDef softgoal fill:#ffeaa7,stroke:#b58900,stroke-dasharray:3 3;
+  classDef goal fill:#dfe6e9,stroke:#2d3436,stroke-width:2px;
+  classDef task fill:#fab1a0,stroke:#d63031;
+  classDef resource fill:#a29bfe,stroke:#6c5ce7;
+  classDef retired fill:#dcdde1,stroke:#7f8c8d,stroke-dasharray:5 5,color:#555;
+  classDef rung fill:#55efc4,stroke:#00b894,stroke-width:2px;
+  classDef dormant fill:#f5f6fa,stroke:#95a5a6,stroke-dasharray:2 4,color:#7f8c8d;
+
+  class A_SG_Integrity,A_SG_Autonomy,A_SG_Velocity,A_SG_Converge,P_SG_Integrity,P_SG_Traceability,P_SG_GateKeep,E_SG_Indep,E_SG_Grounding,E_SG_Converge,G_SG_VoiceReg,G_SG_ScopeFidelity,R_SG_Lessons,R_SG_Integrity softgoal;
+  class A_G_Ship,P_G_Dispatch,E_G_Review,G_G_Revise,R_G_Learn,Ship goal;
+  class A_T_Approve,A_T_T3Sign,A_T_Raise,P_T_Bootstrap,P_T_Classify,P_T_Scope,P_T_Dispatch,P_T_Approve,P_T_MCR,P_T_GateKeep,E_T_T2,E_T_T3,E_T_T4,G_T_T1Draft,G_T_T2T3Fix,G_T_T4Fix,G_T_Apply,G_T_DriftReport,R_T_Light,R_T_Full,R_T_Audit,R_T_T3Audit,R_T_Contract,R_T_Memory,R_T_Proposals task;
+  class P_R_Ledger,G_R_Manuscript,R_R_Convergence resource;
+  class Ret_Conf,Ret_SelfT1,Ret_EG2,Ret_T3R,Ret_Digest,Ret_LCR,Ret_T4Ready retired;
+  class T1_node,T2_node,T3_node,T4_node,T3_converged_node rung;
+  class E_T_T1_Dormant dormant;

@@ -1,0 +1,22 @@
+# Older / bulk artifact drops (single-release policy: do not commit)
+archives/
+releases/
+
+# Optional local unpack trees (regenerate from releases/ or source root)
+unpacked/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local probe / scratch
+.write-probe
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.swp
+*~

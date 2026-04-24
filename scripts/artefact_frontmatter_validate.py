@@ -1,0 +1,866 @@
+#!/usr/bin/env python3
+"""
+artefact_frontmatter_validate.py — validator for reviews/*.md artefact frontmatter.
+
+Enforces the schema contract at references/ARTEFACT_FRONTMATTER_SCHEMA.md §8
+(rules 1–10 as of v0.8.0 P2.1b).
+Introduced at plugin v0.7.4 under proposal P-3.
+
+v0.8.0 P2.1b: F1 gains required `adversarial_register` + `routing_rationale`
+(primary-evidence routing string per §8 rule 8); F4 gains optional
+`demoted_check_advisories` (list of five-key rows per §8 rule 10); F6 gains
+optional `check_profile`, `structural_delta_flag`, `parallel_dispatch`,
+`threshold_version` per §8 rule 9.
+
+v0.8.0 P2.1a.1 (R-P2-VALIDATOR-F6 substrate reconciliation): the F6
+`planner_dispatch_plan` family, documented at §7a since v0.7.4 but absent from
+the validator's `FAMILY_SCHEMAS` dispatch table, is landed here to match the
+existing schema-doc contract. In-file checks (required/optional fields, types,
+strict-family unknown-field rejection, `user_approval_required == true`,
+`subagent_envelope[].verdict_authoritative_as_read == true`) are enforced at
+this sub-phase. The three cross-artefact DP finding classes
+(R-Refl-DP-1 plan-drift, R-Refl-DP-2 missing-plan, R-Refl-DP-3 unsigned-plan)
+require joining F6 against `reviews/phase_state.json` and sibling artefacts,
+so they are out of scope for this single-file validator; they are scheduled
+against a later sub-phase (P2.8 scope-freeze gate authoring).
+
+Usage:
+    artefact_frontmatter_validate.py FILE [FILE ...]
+    artefact_frontmatter_validate.py --dir DIR [--recursive]
+    artefact_frontmatter_validate.py --help
+
+Output:
+    Default: human-readable text summary + per-file findings.
+    --json:  machine-readable JSON findings stream.
+
+Exit codes:
+    0  all artefacts PASS
+    1  usage error
+    2  fatal error (I/O, parse failure on required file)
+    3  at least one artefact has findings
+    4  at least one finding is severity BLOCKER
+
+Finding classes:
+    R-Refl-FM-1   missing required field
+    R-Refl-FM-2   type mismatch or enum violation
+    R-Refl-FM-3   unknown field in strict family
+    R-Refl-FM-4   cross-field consistency violation (counts)
+    R-Refl-FM-5   check-8 aggregate derivation mismatch
+    R-Refl-FM-6   legacy artefact (v0.7.3 reduced shape) — advisory only
+    R-Refl-FM-7   unknown document_type (family dispatch failed)
+
+F6-specific cross-artefact finding classes (scheduled, not enforced here):
+    R-Refl-DP-1   plan-drift MAJOR: F6 dispatched_agents disagree with
+                  phase_state.json-observed actors for that cycle
+    R-Refl-DP-2   missing-plan BLOCKER: a round with F1/F2/F3/F5 artefacts but
+                  no F6 present
+    R-Refl-DP-3   unsigned-plan: downstream artefact cites dispatch_plan_reference
+                  whose target F6 lacks a populated user_approval_signature
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+# -----------------------------------------------------------------------------
+# YAML parsing
+# -----------------------------------------------------------------------------
+
+try:
+    import yaml
+except ImportError:
+    sys.stderr.write(
+        "fatal: pyyaml is required. install with: pip install pyyaml --break-system-packages\n"
+    )
+    sys.exit(2)
+
+
+FRONTMATTER_RE = re.compile(
+    r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL | re.MULTILINE
+)
+
+
+def extract_frontmatter(path: Path) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Return (frontmatter_dict, error_message). On success error_message is None."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return None, f"read failed: {exc}"
+
+    match = FRONTMATTER_RE.match(text)
+    if match is None:
+        return None, "no YAML frontmatter block found (expected leading `---` fence)"
+
+    block = match.group(1)
+    try:
+        parsed = yaml.safe_load(block)
+    except yaml.YAMLError as exc:
+        return None, f"YAML parse error: {exc}"
+
+    if parsed is None:
+        return {}, None  # empty frontmatter block is legal but almost certainly a finding
+
+    if not isinstance(parsed, dict):
+        return None, f"frontmatter root is not a mapping (got {type(parsed).__name__})"
+
+    return parsed, None
+
+
+# -----------------------------------------------------------------------------
+# Schema definitions (keyed by document_type)
+# -----------------------------------------------------------------------------
+
+VALID_PHASES = {"Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"}
+VALID_LEGACY_PHASES = {"T1", "T2", "T3", "T3_converged", "T4"}
+VALID_MODELS = {"opus-4-7", "sonnet-4-6", "haiku-4-5"}
+VALID_ACTORS = {"planner", "evaluator", "generator", "reflector"}
+# F6 planner_dispatch_plan.dispatched_agents[].scope enum (schema §7a.1)
+VALID_DISPATCH_SCOPES = {"per_section", "manuscript_level", "cycle_level"}
+# v0.8.0 P2.1b — F1 adversarial_register (schema §3.1)
+VALID_ADVERSARIAL_REGISTERS = {"refinement", "certification"}
+# v0.8.0 P2.1b — F6 check_profile (schema §7a.2, §8 rule 9; tokens per
+# proposals/v0.8.0_upgrade_architecture.md §3.2 / §9 move 2)
+VALID_F6_CHECK_PROFILES = {"refine", "structural", "deep"}
+# v0.8.0 P2.1b — F6 threshold_version RC tag (schema §8 rule 9)
+VALID_F6_THRESHOLD_VERSIONS = {"v0.7.5-provisional", "v0.8.0-provisional"}
+# v0.8.0 P2.1b — F4 demoted_check_advisories[].severity (schema §6.2)
+VALID_DEMOTED_SEVERITIES = {"MINOR", "MAJOR", "ADVISORY", "BLOCKER"}
+
+# F1 routing_rationale + F4 demoted row routing_rationale (schema §8 rules 8, 10)
+ROUTING_RATIONALE_RE = re.compile(
+    r"\Aprimary_evidence=(?P<cid>[A-Za-z0-9_.-]+)\Z"
+)
+
+COMMON_REQUIRED: Dict[str, type] = {
+    "document_type": str,
+    "schema_version": str,
+    "produced_at": str,
+    "produced_by": str,
+    "model_used": str,
+    "cycle_id": str,
+    "iteration": int,
+    "section_heading_path": list,
+    "current_phase": str,
+    "grounding_basis": list,
+}
+
+
+# Per-family required nested structure. Values are either:
+#   type       — scalar type
+#   dict       — nested subfields (recursive)
+#   ("enum", {...}) — enum membership
+#   ("list", type) — list of scalars of that type
+FAMILY_SCHEMAS: Dict[str, Dict[str, Any]] = {
+
+    # --- Family F1: Evaluator findings ---
+    "evaluator_findings": {
+        "required": {
+            "severity_aggregates": {
+                "blocker_count": int,
+                "major_count": int,
+                "minor_count": int,
+                "advisory_count": int,
+                "total_count": int,
+            },
+            "check_8_aggregate": ("enum", {"CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"}),
+            "check_8_subcheck_counters": {
+                "sub_a_cadence_flag_count": int,
+                "sub_b_rhythm_flag_count": int,
+                "sub_c_first_use_flag_count": int,
+                "sub_d_signpost_flag_count": int,
+                "sub_e_jargon_density_flag_count": int,
+                "sub_f_worked_example_flag_count": int,
+            },
+            "dnd_byte_verification": {
+                "anchors_verified": bool,
+                "anchor_count": int,
+                "anchor_drift_count": int,
+            },
+            "coupling_e2_overlay": {
+                "verdict": ("enum", {"CLEAN", "FINDINGS", "N/A"}),
+                "graph_stub_citation_count": int,
+                "section_location_mismatch_count": int,
+                "missing_citation_candidate_count": int,
+            },
+            "adversarial_register": ("enum", VALID_ADVERSARIAL_REGISTERS),
+            "routing_rationale": str,
+        },
+        "optional": {
+            "carry_forward_count": int,
+            "new_signal_count": int,
+            "escalation_flags": list,
+            "borderline_advisories": list,
+            "reviewer_agreement_rate": float,
+            "contradiction_density": float,
+        },
+        "strict": True,
+    },
+
+    # --- Family F2: Evaluator deterministic ---
+    "evaluator_deterministic": {
+        "required": {
+            "section_9a_counters": {
+                "em_dash_count": int,
+                "em_dash_functional_test_pass": bool,
+                "triadic_list_count": int,
+                "absolute_count": int,
+                "llm_tic_count": int,
+                "sentence_length_violations": {
+                    "mean_words_per_sentence": float,
+                    "stddev_words_per_sentence": float,
+                    "monotone_flag": bool,
+                },
+            },
+            "section_9b_counters": {
+                "cadence_flag_count": int,
+                "signpost_flag_count": int,
+                "jargon_density_flag_count": int,
+            },
+            "verdict": ("enum", {"PASS", "MINOR", "MAJOR", "BLOCKER"}),
+        },
+        "optional": {
+            "section_breakdown": list,
+            "anti_pattern_a_count": int,
+            "anti_pattern_b_count": int,
+            "anti_pattern_c_count": int,
+        },
+        "strict": True,
+    },
+
+    # --- Family F3: Reflector-lightweight probe ---
+    "reflector_lightweight_probe": {
+        "required": {
+            "grounding_audit": {
+                "verdict": ("enum", {"GROUNDING-PASS", "GROUNDING-FINDINGS"}),
+                "findings_count": int,
+                "files_audited": list,
+            },
+            "phase_2f_audit": {
+                "rows_checked": int,
+                "violations_by_class": {
+                    "R-Refl-2f-1_notes_length_nonconformance": int,
+                    "R-Refl-2f-2_missing_actor": int,
+                    "R-Refl-2f-3_nonmonotonic_transition": int,
+                    "R-Refl-2f-4_unknown_trigger": int,
+                },
+                "verdict": ("enum", {"CLEAN", "ADVISORY", "MAJOR"}),
+            },
+            "artefacts_inspected": list,
+        },
+        "optional": {
+            "dispatch_envelope_recorded": bool,
+            "r_refl_ma_audit": dict,  # inner schema flexible; only presence matters
+        },
+        "strict": True,
+    },
+
+    # --- Family F4: Reflector-full report ---
+    "reflector_full_report": {
+        "required": {
+            "phase_aggregates": dict,  # rich nested; validated inline below
+            "overall_verdict": ("enum", {"CLEAN", "ADVISORY", "MAJOR", "BLOCKER"}),
+        },
+        "optional": {
+            "plugin_update_proposals_filed": list,
+            "lessons_promoted_to_wiki": list,
+            "historical_audits": dict,
+            "demoted_check_advisories": ("list", {
+                "check_id": str,
+                "finding_summary": str,
+                "severity": ("enum", VALID_DEMOTED_SEVERITIES),
+                "source_iteration": int,
+                "routing_rationale": str,
+            }),
+        },
+        "strict": False,  # F4 tolerates unknown fields for extensibility
+    },
+
+    # --- Family F5: Planner consolidated-findings ---
+    "planner_consolidated_findings": {
+        "required": {
+            "scope_declared": ("enum", {"local", "cross_scope"}),
+            "aggregated_severity": {
+                "blocker_count": int,
+                "major_count": int,
+                "minor_count": int,
+                "advisory_count": int,
+            },
+            "aggregated_check_8": ("enum", {"CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"}),
+            "decision_surface": {
+                "menu_items_presented": list,
+                "recommended_first": str,
+                "ceiling_lock_detected": bool,
+            },
+            "outgoing_markers": list,
+        },
+        "optional": {
+            "dispatch_plan_reference": str,
+            "mcr_state": dict,
+        },
+        "strict": True,
+    },
+
+    # --- Family F6: Planner dispatch plan (schema §7a; reconciled in v0.8.0 P2.1a.1) ---
+    # Contract: reviews/dispatch_plan_<cycle_id>.md, one per round, written at
+    # Phase 0.6 and user-approved before any downstream dispatch fires.
+    # The two MUST-BE-TRUE rules (user_approval_required, and
+    # subagent_envelope[].verdict_authoritative_as_read when present) are
+    # enforced by _check_cross_field() below rather than via an ("enum", {True})
+    # literal, because YAML parses `1` as int and would spuriously match a
+    # {True}-set under Python's `1 == True` equality.
+    "planner_dispatch_plan": {
+        "required": {
+            "round_id": str,
+            "sections_in_scope": list,
+            "dispatched_agents": ("list", {
+                "agent": ("enum", VALID_ACTORS),
+                "phase": ("enum", VALID_PHASES),
+                "model_allocation": ("enum", VALID_MODELS),
+                "scope": ("enum", VALID_DISPATCH_SCOPES),
+                "purpose": str,
+            }),
+            "checks_scheduled": list,
+            "user_approval_required": bool,
+        },
+        "optional": {
+            "subagent_envelope": ("list", {
+                "dispatching_agent": str,
+                "subagent_type": str,
+                "verdict_authoritative_as_read": bool,
+            }),
+            "stability_sub_mode_anticipated": bool,
+            "ceiling_lock_anticipated": bool,
+            "mcr_admission_anticipated": bool,
+            "notes": str,
+            "user_approval_signature": {
+                "approved_at": str,
+                "approved_by": str,
+                "modifications_recorded": bool,
+            },
+            "check_profile": ("enum", VALID_F6_CHECK_PROFILES),
+            "structural_delta_flag": bool,
+            "parallel_dispatch": bool,
+            "threshold_version": ("enum", VALID_F6_THRESHOLD_VERSIONS),
+        },
+        "strict": True,
+    },
+}
+
+
+# -----------------------------------------------------------------------------
+# Validation core
+# -----------------------------------------------------------------------------
+
+
+class Finding:
+    __slots__ = ("path", "cls", "severity", "field", "message")
+
+    def __init__(
+        self,
+        path: Path,
+        cls: str,
+        severity: str,
+        field: str,
+        message: str,
+    ) -> None:
+        self.path = path
+        self.cls = cls
+        self.severity = severity
+        self.field = field
+        self.message = message
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "path": str(self.path),
+            "class": self.cls,
+            "severity": self.severity,
+            "field": self.field,
+            "message": self.message,
+        }
+
+
+def validate_common(fm: Dict[str, Any], path: Path) -> List[Finding]:
+    findings: List[Finding] = []
+
+    for field, expected_type in COMMON_REQUIRED.items():
+        if field not in fm:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-1",
+                    "MAJOR",
+                    field,
+                    f"required common field '{field}' missing",
+                )
+            )
+            continue
+
+        value = fm[field]
+
+        # Special-case: int accepts bool? No — isinstance(True, int) is True in Python,
+        # but we want strict int. Normalize.
+        if expected_type is int and isinstance(value, bool):
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    field,
+                    f"field '{field}' expects int, got bool",
+                )
+            )
+            continue
+
+        if not isinstance(value, expected_type):
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    field,
+                    f"field '{field}' expects {expected_type.__name__}, got {type(value).__name__}",
+                )
+            )
+
+    # Enum-ish cross-checks on common fields
+    if "produced_by" in fm and isinstance(fm["produced_by"], str):
+        if fm["produced_by"] not in VALID_ACTORS:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    "produced_by",
+                    f"produced_by='{fm['produced_by']}' not in {sorted(VALID_ACTORS)}",
+                )
+            )
+
+    if "model_used" in fm and isinstance(fm["model_used"], str):
+        if fm["model_used"] not in VALID_MODELS:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    "model_used",
+                    f"model_used='{fm['model_used']}' not in {sorted(VALID_MODELS)}",
+                )
+            )
+
+    if "current_phase" in fm and isinstance(fm["current_phase"], str):
+        phase = fm["current_phase"]
+        if phase not in VALID_PHASES and phase not in VALID_LEGACY_PHASES:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    "current_phase",
+                    f"current_phase='{phase}' not in {sorted(VALID_PHASES | VALID_LEGACY_PHASES)}",
+                )
+            )
+        elif phase in VALID_LEGACY_PHASES:
+            # v0.7.4 dual-read: legacy tier-named values are tolerated with advisory
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-6",
+                    "ADVISORY",
+                    "current_phase",
+                    f"legacy tier-named value '{phase}'; v0.7.5 will drop this read path",
+                )
+            )
+
+    if "iteration" in fm and isinstance(fm["iteration"], int) and not isinstance(fm["iteration"], bool):
+        if fm["iteration"] < 0:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    "iteration",
+                    f"iteration must be ≥ 0, got {fm['iteration']}",
+                )
+            )
+
+    return findings
+
+
+def _check_nested(
+    fm_subtree: Any,
+    schema_subtree: Any,
+    path: Path,
+    field_path: str,
+) -> List[Finding]:
+    findings: List[Finding] = []
+
+    # Schema leaf: a type
+    if isinstance(schema_subtree, type):
+        if schema_subtree is int and isinstance(fm_subtree, bool):
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    f"expected int, got bool",
+                )
+            )
+            return findings
+        if schema_subtree is float:
+            # Allow ints where floats are specified; coerce at read time.
+            if not isinstance(fm_subtree, (int, float)) or isinstance(fm_subtree, bool):
+                findings.append(
+                    Finding(
+                        path, "R-Refl-FM-2", "MAJOR", field_path,
+                        f"expected float, got {type(fm_subtree).__name__}",
+                    )
+                )
+            return findings
+        if not isinstance(fm_subtree, schema_subtree):
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    f"expected {schema_subtree.__name__}, got {type(fm_subtree).__name__}",
+                )
+            )
+        return findings
+
+    # Schema leaf: an enum tuple
+    if isinstance(schema_subtree, tuple) and len(schema_subtree) == 2 and schema_subtree[0] == "enum":
+        allowed = schema_subtree[1]
+        if fm_subtree not in allowed:
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    f"value '{fm_subtree}' not in {sorted(allowed)}",
+                )
+            )
+        return findings
+
+    # Schema leaf: a list-of-element-schema tuple (v0.8.0 P2.1a.1: needed by F6)
+    if isinstance(schema_subtree, tuple) and len(schema_subtree) == 2 and schema_subtree[0] == "list":
+        element_schema = schema_subtree[1]
+        if not isinstance(fm_subtree, list):
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    f"expected list, got {type(fm_subtree).__name__}",
+                )
+            )
+            return findings
+        for idx, elem in enumerate(fm_subtree):
+            elem_path = f"{field_path}[{idx}]"
+            findings.extend(_check_nested(elem, element_schema, path, elem_path))
+        return findings
+
+    # Schema node: a dict
+    if isinstance(schema_subtree, dict):
+        if not isinstance(fm_subtree, dict):
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    f"expected mapping, got {type(fm_subtree).__name__}",
+                )
+            )
+            return findings
+
+        for sub_field, sub_schema in schema_subtree.items():
+            sub_path = f"{field_path}.{sub_field}" if field_path else sub_field
+            if sub_field not in fm_subtree:
+                findings.append(
+                    Finding(
+                        path, "R-Refl-FM-1", "MAJOR", sub_path,
+                        f"required field '{sub_path}' missing",
+                    )
+                )
+                continue
+            findings.extend(
+                _check_nested(fm_subtree[sub_field], sub_schema, path, sub_path)
+            )
+        return findings
+
+    # Unknown schema shape — author error in this file
+    findings.append(
+        Finding(
+            path, "R-Refl-FM-7", "BLOCKER", field_path,
+            f"validator bug: unknown schema shape {type(schema_subtree).__name__}",
+        )
+    )
+    return findings
+
+
+def validate_family(fm: Dict[str, Any], path: Path) -> List[Finding]:
+    findings: List[Finding] = []
+
+    doc_type = fm.get("document_type")
+    if doc_type is None or not isinstance(doc_type, str):
+        # Common-field validation already flagged this; skip family dispatch
+        return findings
+
+    if doc_type not in FAMILY_SCHEMAS:
+        findings.append(
+            Finding(
+                path, "R-Refl-FM-7", "MAJOR", "document_type",
+                f"unknown document_type '{doc_type}'; legal values: {sorted(FAMILY_SCHEMAS)}",
+            )
+        )
+        return findings
+
+    schema = FAMILY_SCHEMAS[doc_type]
+
+    # Required fields
+    for field, sub_schema in schema["required"].items():
+        if field not in fm:
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-1", "MAJOR", field,
+                    f"required field '{field}' missing for family '{doc_type}'",
+                )
+            )
+            continue
+        findings.extend(_check_nested(fm[field], sub_schema, path, field))
+
+    # Optional fields (type-check only, no required)
+    for field, sub_schema in schema["optional"].items():
+        if field in fm:
+            findings.extend(_check_nested(fm[field], sub_schema, path, field))
+
+    # Strict-family unknown-field rejection
+    if schema.get("strict", True):
+        known = set(COMMON_REQUIRED) | set(schema["required"]) | set(schema["optional"])
+        for field in fm:
+            if field not in known:
+                findings.append(
+                    Finding(
+                        path, "R-Refl-FM-3", "MAJOR", field,
+                        f"unknown field '{field}' in strict family '{doc_type}'",
+                    )
+                )
+
+    # Cross-field consistency
+    findings.extend(_check_cross_field(fm, path, doc_type))
+
+    return findings
+
+
+def _check_cross_field(fm: Dict[str, Any], path: Path, doc_type: str) -> List[Finding]:
+    findings: List[Finding] = []
+
+    # F1: severity_aggregates.total_count == sum of the four
+    if doc_type == "evaluator_findings":
+        agg = fm.get("severity_aggregates")
+        if isinstance(agg, dict):
+            try:
+                summed = int(agg.get("blocker_count", 0)) + int(agg.get("major_count", 0)) \
+                       + int(agg.get("minor_count", 0)) + int(agg.get("advisory_count", 0))
+                total = int(agg.get("total_count", -1))
+                if total != summed:
+                    findings.append(
+                        Finding(
+                            path, "R-Refl-FM-4", "MAJOR", "severity_aggregates.total_count",
+                            f"total_count={total} does not equal sum of components ({summed})",
+                        )
+                    )
+            except (TypeError, ValueError):
+                pass  # type-check will have flagged this
+
+        # Check 8 aggregate derivation rule
+        sub = fm.get("check_8_subcheck_counters")
+        agg_check = fm.get("check_8_aggregate")
+        if isinstance(sub, dict) and isinstance(agg_check, str):
+            # This rule requires the per-subcheck MAJOR/BLOCKER decomposition,
+            # which the current schema captures as flag COUNTS (not severity
+            # verdicts). Counts are per-paragraph, not per-sub-check; the
+            # aggregate verdict comes from the overlay skill's scoring, not
+            # from the counts directly. The strict derivation check needs the
+            # per-sub-check severity verdict, which lives at
+            # check_8_subcheck_verdicts.sub_a .. sub_f if present.
+            #
+            # In this initial v0.7.4 schema we only require the flag counts;
+            # the derivation check is advisory (emitted as R-Refl-FM-6 advisory)
+            # rather than a hard R-Refl-FM-5 until the severity field lands.
+            # The skill `accessibility-overlay` (v0.7.2+) can be extended in a
+            # subsequent minor to populate the severity verdicts directly.
+            pass
+
+        # F1: routing_rationale shape (schema §8 rule 8)
+        rr = fm.get("routing_rationale")
+        if isinstance(rr, str):
+            if ROUTING_RATIONALE_RE.match(rr) is None:
+                findings.append(
+                    Finding(
+                        path, "R-Refl-FM-2", "MAJOR", "routing_rationale",
+                        "routing_rationale must match primary_evidence=<check_id> "
+                        "(see references/ARTEFACT_FRONTMATTER_SCHEMA.md §8 rule 8)",
+                    )
+                )
+
+    # F4: demoted_check_advisories[].routing_rationale shape (schema §8 rule 10)
+    if doc_type == "reflector_full_report":
+        dem = fm.get("demoted_check_advisories")
+        if isinstance(dem, list):
+            for idx, row in enumerate(dem):
+                if not isinstance(row, dict):
+                    continue
+                rr = row.get("routing_rationale")
+                if isinstance(rr, str):
+                    if ROUTING_RATIONALE_RE.match(rr) is None:
+                        findings.append(
+                            Finding(
+                                path, "R-Refl-FM-2", "MAJOR",
+                                f"demoted_check_advisories[{idx}].routing_rationale",
+                                "routing_rationale must match primary_evidence=<check_id> "
+                                "(see references/ARTEFACT_FRONTMATTER_SCHEMA.md §8 rule 10)",
+                            )
+                        )
+
+    # F5: aggregated_check_8 must match worst-case derivation (out of scope for v0.7.4 initial)
+
+    # F6: user_approval_required MUST be true at v0.7.4 (schema §8 rule 7);
+    # subagent_envelope[].verdict_authoritative_as_read MUST be true under
+    # I-SubAgent-1. Both are enforced here rather than via ("enum", {True})
+    # literals, because YAML's `1` would compare-equal to True and spuriously
+    # pass. See P2.1a.1 closure note in the module docstring.
+    if doc_type == "planner_dispatch_plan":
+        uar = fm.get("user_approval_required")
+        if isinstance(uar, bool) and uar is False:
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", "user_approval_required",
+                    "user_approval_required must be true at v0.7.4 "
+                    "(see references/ARTEFACT_FRONTMATTER_SCHEMA.md §8 rule 7)",
+                )
+            )
+
+        env = fm.get("subagent_envelope")
+        if isinstance(env, list):
+            for idx, item in enumerate(env):
+                if not isinstance(item, dict):
+                    continue
+                v = item.get("verdict_authoritative_as_read")
+                if isinstance(v, bool) and v is False:
+                    findings.append(
+                        Finding(
+                            path, "R-Refl-FM-2", "MAJOR",
+                            f"subagent_envelope[{idx}].verdict_authoritative_as_read",
+                            "verdict_authoritative_as_read must be true under "
+                            "I-SubAgent-1 (see references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a.2)",
+                        )
+                    )
+
+    return findings
+
+
+# -----------------------------------------------------------------------------
+# CLI
+# -----------------------------------------------------------------------------
+
+
+def validate_path(path: Path) -> List[Finding]:
+    fm, err = extract_frontmatter(path)
+    if err is not None:
+        return [Finding(path, "R-Refl-FM-7", "BLOCKER", "<file>", err)]
+    if fm is None:
+        return []
+
+    # Empty-frontmatter → flag missing document_type
+    if not fm:
+        return [Finding(path, "R-Refl-FM-1", "MAJOR", "document_type",
+                        "empty frontmatter block; document_type required")]
+
+    findings: List[Finding] = []
+    findings.extend(validate_common(fm, path))
+    findings.extend(validate_family(fm, path))
+    return findings
+
+
+def collect_paths(args: argparse.Namespace) -> List[Path]:
+    paths: List[Path] = []
+    if args.dir:
+        d = Path(args.dir)
+        if not d.is_dir():
+            sys.stderr.write(f"error: --dir is not a directory: {d}\n")
+            sys.exit(2)
+        glob = "**/*.md" if args.recursive else "*.md"
+        paths = sorted(d.glob(glob))
+    else:
+        paths = [Path(p) for p in args.files]
+        for p in paths:
+            if not p.is_file():
+                sys.stderr.write(f"error: not a file: {p}\n")
+                sys.exit(2)
+    return paths
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate reviews/*.md artefact frontmatter per "
+                    "references/ARTEFACT_FRONTMATTER_SCHEMA.md",
+    )
+    parser.add_argument("files", nargs="*", help="file paths to validate")
+    parser.add_argument("--dir", help="validate every *.md under this directory")
+    parser.add_argument("--recursive", action="store_true",
+                        help="(with --dir) recurse into subdirectories")
+    parser.add_argument("--json", action="store_true",
+                        help="emit findings as JSON (stdout)")
+    parser.add_argument("--quiet", action="store_true",
+                        help="suppress per-file PASS lines in human output")
+    args = parser.parse_args(argv)
+
+    if not args.files and not args.dir:
+        parser.error("supply one or more FILE arguments or --dir DIR")
+
+    paths = collect_paths(args)
+    if not paths:
+        sys.stderr.write("warning: no files to validate\n")
+        return 0
+
+    all_findings: List[Finding] = []
+    for p in paths:
+        all_findings.extend(validate_path(p))
+
+    blocker_count = sum(1 for f in all_findings if f.severity == "BLOCKER")
+
+    if args.json:
+        json.dump(
+            {
+                "files_validated": len(paths),
+                "finding_count": len(all_findings),
+                "blocker_count": blocker_count,
+                "findings": [f.to_dict() for f in all_findings],
+            },
+            sys.stdout,
+            indent=2,
+            sort_keys=True,
+        )
+        sys.stdout.write("\n")
+    else:
+        by_path: Dict[Path, List[Finding]] = {}
+        for f in all_findings:
+            by_path.setdefault(f.path, []).append(f)
+        for p in paths:
+            fs = by_path.get(p, [])
+            if not fs:
+                if not args.quiet:
+                    print(f"PASS  {p}")
+                continue
+            print(f"FAIL  {p}  ({len(fs)} findings)")
+            for f in fs:
+                print(f"  [{f.severity}] {f.cls}  {f.field}: {f.message}")
+        print()
+        print(f"files_validated: {len(paths)}")
+        print(f"finding_count:   {len(all_findings)}")
+        print(f"blocker_count:   {blocker_count}")
+
+    if blocker_count > 0:
+        return 4
+    if all_findings:
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

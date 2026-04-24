@@ -1,0 +1,10 @@
+# DRIFT_LOG — Package-level trajectory log
+
+*Append-only. One line per drift-check round. Created by `DRIFT_CHECK.md` §3.5 on first run.*
+
+| Date | Round / Scope | Citations checked | D-A (MAJOR) | D-B (BLOCKER) | D-C (BLOCKER) | Verdict | Report |
+|------|---------------|-------------------|-------------|---------------|---------------|---------|--------|
+| 2026-04-13 | Package-level (post-gstack-adaptation pass) | 14 of 14 MASTER component-file citations; 5 spot-checked section anchors | 0 | 0 | 0 (strict); 1 (completeness gap flagged separately) | CLEAN on strict D-A/D-B/D-C; Constitution under-specification reconciled in same round | `DRIFT_CHECK_REPORT_2026-04-13.md` |
+| 2026-04-13 | Package-level (post-QUICKSTART + OPERATING_MANUAL addition) | Cross-refs in both new files verified against package file list | 0 | 0 | 0 | CLEAN | (no new report; verified inline during file creation) |
+| 2026-04-13 | Package-level (post-Synergy-Program-M0) — edits to reflector.md, AGENT_ORCHESTRATION.md, PROJECT_BOOTSTRAP.md, SKILL_REGISTRY.md; added SK-14/15/16/17 | 7 of 7 MASTER citations into edited files + 6 internal cross-refs in new content | 0 | 0 | 0 | CLEAN; MASTER carries no §-level anchors into edited files (inclusion-only refs in §93–97); informational recommendation (not a drift finding): future MASTER revision could add a "Wiki-facing couplings" row | `DRIFT_CHECK_REPORT_2026-04-13-synergy.md` |
+| 2026-04-16 | v0.3.1 Coupling E.2 implementation — SK-20 Finding B three-tier matcher + harness wiring (PROJECT_BOOTSTRAP §4 five-couplings update, AGENT_ORCHESTRATION §8.6, package CLAUDE.md graphify footer, SKILL_REGISTRY SK-20 entry, grounding-audit Category 8) | 6 of 6 new cross-references + 3-tag integrity + 4-way `coupling_e_on_review` flag consistency | 0 | 0 | 0 | CLEAN; all edited files are harness files excluded from MASTER matrix per §89 scope note — structural drift impossible. INF3006Y CLAUDE.md lacks `wiki_linked` flag but this is deployment gap, not drift | `DRIFT_CHECK_REPORT_2026-04-16-v0.3.1.md` |

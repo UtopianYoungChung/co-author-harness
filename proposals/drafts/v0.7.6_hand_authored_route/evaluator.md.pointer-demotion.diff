@@ -1,0 +1,129 @@
+From: v0.7.6 hand-authored route — proposal §4 Tier C P-C1
+Subject: [DRAFT PATCH] Demote REVIEW_ORCHESTRATION step exposition and Tier-conditioned engagement narrative in agents/evaluator.md
+
+Target file: agents/evaluator.md (v0.7.4.1 shipping surface, declared header "v0.7.0 Lifecycle-Stage Ladder")
+Token-reduction target: ≈3,400 tokens (body reduces from ~7.6k → ~4.2k), subject to the user's preferred demotion depth.
+
+Scope & caveats before applying:
+  1. This patch PRESERVES the v0.7.0 vocabulary (T1/T2/T3/T4, `tier_state.json`, `t3_last_activity_at`) because
+     that is what v0.7.4.1 actually ships in-file. The Tier → Phase surface rewrite (CLAUDE.md §12.8) is a
+     SEPARATE, ORTHOGONAL task and is not folded in here to keep the review diff small and the revert path
+     clean. Apply the Phase rename in a second pass.
+  2. Two demotion hunks:
+       Hunk 1 replaces the "Tier-conditioned engagement" section (lines ~157–196) with a pointer table and a
+       one-line-per-tier precondition checklist.
+       Hunk 2 replaces the "Gate set (v0.7.0)" table (lines ~198–210) with a one-line pointer to
+       `references/TIER_PROTOCOL.md §4` — the file already acknowledges at line 210 that the canonical spec
+       lives there; the full table is redundant.
+  3. The Procedure section (lines ~87–156) is LEFT INTACT. That section already delegates to
+     REVIEW_ORCHESTRATION.md correctly; the audit called it out as a demotion candidate but on re-read the
+     delegation is clean and the per-step bullets are the one-line preconditions the proposal named. Trimming
+     further would erode usable runbook.
+  4. "Evaluator-specific rules" (lines ~212–225) is LEFT INTACT. The content is unique and compressed; the
+     audit did not flag it.
+  5. Sensitivity: MEDIUM. Paired review (user + one additional read) is recommended per proposal §4 P-C1 row
+     before the patch lands on the canonical substrate at `agents/evaluator.md`.
+
+Apply with:
+    cd research-writing-harness/
+    patch -p1 < proposals/drafts/v0.7.6_hand_authored_route/evaluator.md.pointer-demotion.diff
+
+-------- BEGIN UNIFIED DIFF --------
+
+--- a/agents/evaluator.md
++++ b/agents/evaluator.md
+@@ -154,78 +154,41 @@
+ Re-check Mode does not apply at T1 (Evaluator dormant) or at T2 entry under v0.7.0 (no Confirmation path remains — each T2 dispatch is a full local pass on the section envelope).
+
+ ---
+
+-## Tier-conditioned engagement
+-
+-### T1 Plan & Draft — Evaluator is dormant
+-
+-At T1 the Evaluator does not run. The Planner dispatches the Generator alone; the Generator's own self-check is the T1 quality bar. If the Planner errantly dispatches the Evaluator at T1, respond with a one-line no-op note to `reviews/step_findings/t1_noop_<date>.md` citing `TIER_PROTOCOL.md §5.2` and return to the Planner without reading the manuscript. Do not emit findings; do not open the SAFEGUARD layer.
+-
+-**Rationale.** T1 is the plan-and-draft rung. Subjecting it to adversarial review distorts the drafting loop and suppresses the rough productive draft that T1 is meant to incubate. Adversarial review begins at T2.
+-
+-### T2 Review & Revise — full local pass, SD/SR read-prerequisites (conditional)
+-
+-At T2 you run the full evaluator pipeline scoped to the section envelope.
+-
+-1. **Scope budget.** Step 0 + Step 0a + Step 2 or 3 (per gating, scoped to the section's `heading_path`) + Step 7 (local items) + SAFEGUARD checks 1, 4, 5, and 8. Check 8 (Reader-Experience / Prose Architecture) enters the T2 scope at v0.7.2; it is the accessibility surface binding Hard Constraint #8 of the Ph.D.-root CLAUDE.md, and running it at T2 prevents a section from reaching T3 convergence with latent cadence, signposting, or jargon-density defects. Full-file read of the section; **when `sd_sr_required: true` in `reviews/classification.md`** (`TIER_PROTOCOL.md §3.1.2`), also a full-file read of the i\* SD/SR model. When the flag is absent or `false` (the v0.7.1 default), the scope budget reduces to the prose read only — no goal-model read is performed.
+-2. **SD/SR read-prerequisites (conditional on `sd_sr_required: true`).** Per `TIER_PROTOCOL.md §5.3`, **when `sd_sr_required: true`** in the classification record, if the section's `tier_deliverable_path` or the project `directives.md` names a goal-model artifact (an SD or SR diagram, KAOS goal graph, or equivalent), that artifact **must be read before the prose**. The model frames the claim structure of the prose; reviewing the prose first fabricates a reading that the model does not support. If a named model is absent or not readable, emit the finding class **E-T2-SD-UNGROUNDABLE** (severity MAJOR by default, BLOCKER if the section's argumentation is explicitly framed as goal-model-derived). Record the missing artifact path in the finding. **When `sd_sr_required` is absent or `false` (the v0.7.1 default), this entire sub-step silently skips — no goal-model read, no `E-T2-SD-UNGROUNDABLE` emission, no finding recorded.**
+-3. **Convergence metric at T2.** If `convergence_metric` is non-null at T2, note its presence but do not evaluate it yet — the metric is a T3 convergence artifact, not a T2 admission criterion. Flag as MINOR if the metric is declared but not operationalized anywhere in the section.
+-4. **T2 outputs.** Consolidated findings report (abbreviated template); `reviews/step_findings/step_N_<name>.md` per step; SAFEGUARD subset (1, 4, 5, 8). No convergence-log entry at T2. Check 8 findings at T2 are advisory on T2 admission but are carried forward to T3 where they bind the TerminalSignoffRow accessibility gate (`TIER_PROTOCOL.md §3.3.3`); a Check 8 BLOCKER surfaced at T2 should therefore be resolved during the T2 → T3 Generator pass rather than deferred.
+-
+-### T3 Iterate & Converge — full seven-step pass per iteration
+-
+-T3 is unbounded iteration. Each Planner dispatch at T3 is a full evaluator pass on the same manuscript snapshot, followed by a Step 8.3 convergence-log entry.
+-
+-1. **Scope budget.** Steps 0–8.5 (all eight SAFEGUARD checks) on a single manuscript version. Coupling E.2 overlay optional at T3.
+-2. **[T3-STALE] advisory.** Read `t3_last_activity_at` from `reviews/tier_state.json`. If the time since that timestamp exceeds `t3_staleness_budget` (default 14 days; project may override via `directives.md`), append an **[T3-STALE]** advisory warning (EG-6) to the Step 8.3 convergence-log entry and to §7 of the consolidated report. The warning is advisory at T3 (does not block iteration) but becomes gating at MCR admission — the Planner is responsible for that recomputation; you only surface the advisory here.
+-3. **TerminalSignoffRow groundwork.** After the user approves a T3 pass as terminal, the Planner will write a `TerminalSignoffRow` (`is_terminal: true`) that flips the section from T3 to T3_converged. Your Step 8.3 entry should close with an explicit "terminal signoff recommended: yes / no / unclear, with rationale" line the Planner consumes. Do not write the ledger row yourself.
+-4. **ReengagementSignoffRow groundwork.** If the user returns to a [T3-STALE] section with fresh material, the Planner writes a `ReengagementSignoffRow` that refreshes `t3_last_activity_at` without flipping `current_tier`. Your corresponding Step 8.3 entry should note that the stale advisory has been cleared and what triggered the re-engagement.
+-5. **Convergence metric.** If `convergence_metric` is declared, report the observed value each iteration. If the observed value meets the declared target for two consecutive iterations, recommend terminal signoff in the Step 8.3 close line.
+-
+-### T4 Finalize & Close — strict superset of T3, G.4 mandatory
+-
+-T4 is the submission-bound terminal pass. The Planner may only dispatch you at T4 when every section is at `current_tier = T3_converged` and the Manuscript Convergence Report (MCR) has cleared. Your role at T4:
+-
+-1. **Scope budget.** Strict superset of T3. Steps 0–8.5 on the full manuscript (not just one section). Coupling E.2 overlay is **mandatory** at T4. External verifiers (if declared in `directives.md`) are required rather than optional.
+-2. **G.4 sign-off mandatory.** Update `reviews/G4_signoff.md` with an explicit certification block naming: (a) the manuscript fingerprint at which you certified, (b) the date, (c) the verifier set run, (d) your PASS/BLOCK verdict, (e) any residual MAJORs/MINORs the user has elected to ship with (these must be logged in `research_notes/directives.md` with a `ship-accepted` marker before you certify; without that marker, a MAJOR blocks G.4).
+-3. **EG-1 (T4 → T3 grounding demotion).** If during T4 you find a BLOCKER-severity grounding violation (a fabricated citation, an ungroundable claim, a rule 1 digest-read fallout from a prior round), emit the **eg1_t4_downgrade_to_t3** finding. This triggers the Planner to write a monotonicity-exempt row demoting the section T4 → T3. The re-run at T3 is mandatory before any re-promotion.
+-4. **EG-7 (MCR re-admission after classification change).** If during T4 you detect that the project's classification has changed since MCR was cleared (e.g., the paper type was edited in `reviews/classification.md`, or `directives.md` changed the venue target in a way that changes the section-ceiling schedule), emit the **eg7_mcr_readmission_after_class_change** finding. File `reviews/findings/eg7_readmission_<date>.md` with (a) the classification field that changed, (b) the before/after values, (c) which sections' ceilings move as a result. The Planner then writes a monotonicity-exempt row returning the affected sections to the tier indicated by the new classification, and re-runs the MCR with the updated section set. T4 cannot close until the MCR clears under the new classification.
+-5. **Reflector-full handoff.** After G.4 PASS, the Planner dispatches the Reflector in full five-phase mode for close-out. Your consolidated findings report and convergence log are the primary inputs; ensure the T4 report names the final convergence_metric observation and the terminal signoff timestamps for every section.
++## Tier-conditioned engagement (pointer table)
++
++The authoritative per-tier engagement spec lives in `references/TIER_PROTOCOL.md §5` (T1 at §5.2, T2 at §5.3, T3 at §5.4, T4 at §5.5) and in `references/AGENT_CONTRACTS.md §2` (Evaluator preconditions, inputs, outputs, invariants per tier). Read those sections before dispatching; this file names the one-line preconditions only and does not re-state the canonical text.
++
++| Tier | Engagement | Scope budget | SAFEGUARD subset | Convergence-log? | Mandatory artefacts |
++|---|---|---|---|---|---|
++| **T1 Plan & Draft** | **Dormant.** If errantly dispatched, emit a one-line no-op to `reviews/step_findings/t1_noop_<date>.md` citing `TIER_PROTOCOL.md §5.2` and return. | — | — | No | None |
++| **T2 Review & Revise** | Full local pass on the section envelope. SD/SR read-prerequisite IFF `sd_sr_required: true` in `reviews/classification.md` (`TIER_PROTOCOL.md §3.1.2`); absent-means-false (v0.7.1 default). | Step 0 + 0a + 2 or 3 (section-scoped) + 7 (local) | **1, 4, 5, 8** (advisory on T2 admission, BLOCKER-CANDIDATE tagging; Check 8 carries forward to T3 TerminalSignoffRow gate per `TIER_PROTOCOL.md §3.3.3`) | No | Consolidated findings report (abbreviated); per-step findings |
++| **T3 Iterate & Converge** | Full seven-step judgment pass per iteration. Unbounded; each Planner dispatch is a new pass on the same manuscript snapshot. | Steps 0–8.5 | **All 8 checks** | **Yes** — append Step 8.3 block per iteration; include `[T3-STALE]` advisory (EG-6) if `t3_last_activity_at` exceeds `t3_staleness_budget` (default 14 days); close with "terminal signoff recommended: yes/no/unclear" line for the Planner to consume | Step 8.3 entry; consolidated findings; Coupling E.2 overlay optional |
++| **T4 Finalize & Close** | Strict superset of T3. Dispatch permitted only when every section reads `current_tier = T3_converged` and the MCR has cleared. | Steps 0–8.5 on the full manuscript | **All 8 checks** | Yes (rolled into G.4 block) | `reviews/G4_signoff.md` with certification block (fingerprint, date, verifier set, PASS/BLOCK, `ship-accepted` residuals from `directives.md`); Coupling E.2 overlay **mandatory**; EG-1 (`eg1_t4_downgrade_to_t3`) on BLOCKER-grounding; EG-7 (`eg7_mcr_readmission_after_class_change`) on classification change |
++
++**T1 rationale (binding).** T1 is the plan-and-draft rung. Adversarial review at T1 distorts the drafting loop and suppresses the rough productive draft the rung is meant to incubate. Adversarial review begins at T2.
++
++**T2 SD/SR rule (binding when opted in).** When `sd_sr_required: true`, the goal-model artefact named in `tier_deliverable_path` or `directives.md` MUST be read before the prose. Missing or unreadable artefact → emit `E-T2-SD-UNGROUNDABLE` (MAJOR default; BLOCKER if the argumentation is explicitly goal-model-derived). When the flag is absent or false, the sub-step silently skips; no `E-T2-SD-UNGROUNDABLE` can fire.
++
++**T3 terminal-signoff discipline (binding).** You do not write the `TerminalSignoffRow`. You emit the Step 8.3 close-line recommendation and the Planner composes the row after user approval. `convergence_metric` — if declared and observed to meet the target for two consecutive iterations — recommends terminal signoff in the Step 8.3 close line.
++
++**T4 grounding-demotion discipline (binding).** A BLOCKER-severity grounding violation at T4 triggers EG-1 (`eg1_t4_downgrade_to_t3`) — a monotonicity-exempt demotion the Planner writes. T4 cannot close until the MCR clears under the new (or post-re-run) classification.
+
+ ---
+
+-## Gate set (v0.7.0)
+-
+-| Gate | Name | Fires at | Severity | Row shape |
+-|---|---|---|---|---|
+-| EG-1 | T4 → T3 grounding demotion | T4 | BLOCKER | monotonicity-exempt (`eg1_t4_downgrade_to_t3`) |
+-| EG-2 | (retired) | — | — | — |
+-| EG-3 | Cross-scope reference mismatch | T2 entry | MAJOR | standard advance-blocking |
+-| EG-4 | Ceiling-locked inconsistency | any | BLOCKER | standard |
+-| EG-5 | Tier-goal deliverable missing | T1/T2/T3 entry | MAJOR | standard |
+-| EG-6 | Advisory warning | T3 (and T4 where computed) | WARN (non-blocking) | not a row; surfaced in findings §7 |
+-| EG-7 | MCR re-admission after classification change | T4 (detected) | MAJOR | monotonicity-exempt (`eg7_mcr_readmission_after_class_change`) |
+-
+-The authoritative firing conditions live in `references/TIER_PROTOCOL.md §4`. This file names each gate but does not redefine firing logic; treat the table as a cross-reference index, not a spec.
++## Gate set
++
++The authoritative gate set — EG-1 (T4→T3 grounding demotion, monotonicity-exempt), EG-3 (cross-scope reference mismatch at T2 entry), EG-4 (ceiling-locked inconsistency), EG-5 (tier-goal deliverable missing at T1/T2/T3 entry), EG-6 (advisory warning at T3/T4, non-blocking), EG-7 (MCR re-admission after classification change at T4, monotonicity-exempt) — is specified with firing conditions, severities, and row shapes at `references/TIER_PROTOCOL.md §4`. EG-2 is retired (v0.7.0). Read the canonical table there; this file does not re-state it.
+
+ ---
+
+-------- END UNIFIED DIFF --------
+
+Post-apply verification checklist (the Reflector will run these at Phase 2f on the first round after this lands):
+  1. `grep -c "^###" agents/evaluator.md` — header count decreases by 8 (four tier-sub-headings + four
+     retired T1–T4 narrative anchors the pointer table replaces; plus the Gate-set H2).
+  2. Token count on the agent prompt body should fall from ~7,551 (economics-audit JSON line 23 for
+     `agents/evaluator.md`) to ~4,100–4,300 — a reduction of ~3,200–3,400 tokens. The calibrator's
+     `audit-package-economics` probe is the verification oracle; re-run against the harness root to confirm.
+  3. `reviews/safeguard_layer_results.md` Check 1 (Regression Guard) should report CLEAN on the first
+     post-demotion round; if the Evaluator misses a finding the pre-demotion prompt caught, the pointer
+     table has under-shot and must be widened.
+  4. Paired review pre-merge: one reader (user) confirms the pointer table preserves every binding rule
+     from the original narrative (T1-dormant rationale, T2 SD/SR rule, T3 terminal-signoff discipline,
+     T4 grounding-demotion discipline all appear as binding call-outs below the table).

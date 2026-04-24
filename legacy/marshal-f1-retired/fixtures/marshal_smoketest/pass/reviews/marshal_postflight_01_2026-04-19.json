@@ -1,0 +1,81 @@
+{
+  "checks": [
+    {
+      "check_id": "Q-1",
+      "message": "state_probe_<date>.md emitted (N/A at T3)",
+      "remediation": "",
+      "severity": "na"
+    },
+    {
+      "check_id": "Q-2",
+      "message": "tier_closeout emitted (tier_closeout_01_2026-04-19.md)",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-3",
+      "message": "tier_closeout schema valid",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-4",
+      "message": "escalation_log has row(s) for round (1 row(s))",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-5",
+      "message": "tier_decisions_log has row for this round's Phase 5.5",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-6",
+      "message": "tier-scoped artefact present (consolidated_findings_report_2026-04-19.md)",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-7",
+      "message": "tier_entered_via=initial-dispatch consistent with escalation_log",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-8",
+      "message": "ascent_observed consistent ([])",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-9",
+      "message": "no orphan artefacts in reviews/",
+      "remediation": "",
+      "severity": "pass"
+    },
+    {
+      "check_id": "Q-10",
+      "message": "G.4 sign-off emitted (N/A at T3)",
+      "remediation": "",
+      "severity": "na"
+    },
+    {
+      "check_id": "Q-11",
+      "message": "revision_log.md has Round 1 entry",
+      "remediation": "",
+      "severity": "pass"
+    }
+  ],
+  "date": "2026-04-19",
+  "first_run": false,
+  "kind": "postflight",
+  "marshal_schema_version": 1,
+  "overrides_applied": [],
+  "overrides_read": [],
+  "plugin_version": "0.5.5",
+  "round": 1,
+  "tier": "T3",
+  "tier_entered_via": "initial-dispatch",
+  "verdict": "PASS"
+}

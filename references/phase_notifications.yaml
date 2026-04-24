@@ -1,0 +1,856 @@
+# phase_notifications.yaml — v0.7.4 Lifecycle-Phase Ladder
+#
+# Purpose
+# -------
+# Canonical notification-string table consumed by the Planner when it presents
+# phase-transition events to the user and when it writes the `notes` field of
+# each `phase_entry_log` row in `reviews/phase_state.json`. Every template below
+# corresponds to one of the 30 triggers enumerated in
+# `phase_state_schema.md §3.1` / `PHASE_PROTOCOL.md §6.3` (including the two
+# v0.7.4 additions: trigger 29 `ph3_iteration_round_manuscript` and trigger 30
+# `stability_mode_escalated_to_full_ph3`), or to an Escalation Gate (EG) surface
+# from `PHASE_PROTOCOL.md §7`, or to one of the lifecycle-surface events
+# (`[CONVERGENCE-STABLE]`, `[CONVERGENCE-BLOCKED-ACCESSIBILITY]`,
+# `[CONVERGENCE-BORDERLINE-ACCESSIBILITY]`, `[Ph3-STALE]`, `[MCR-FIRST-RESPONSE]`,
+# `[STATE-CORRUPT]`, `[CONCURRENCY-DETECTED]`, `[STABILITY-ADMITTED]`,
+# `[STABILITY-ESCALATED]`).
+#
+# Grounding
+# ---------
+# PHASE_PROTOCOL.md §§2–9 (phase semantics, i* validator, ph3 staleness, escalation
+# gates, MCR), §3.3.2 (Ph3 stability sub-mode normative spec), §6.3 (30-trigger
+# enum with v0.7.4 additions), §11 (retirement register: Confirmation Mode /
+# Self-Ph1 Verdict surfaces retired at v0.7.0), §14 (LCR→MCR rename at v0.7.0);
+# phase_state_schema.md §3.1 (30-value trigger enum), §3a (row schemas including
+# 7-field PhaseEntryLogRow with absent-means-null `model_used` at v0.7.4), §6.1
+# (failure-code taxonomy); AGENT_ORCHESTRATION.md §§8.2a–8.2b (phase-ledger writes)
+# as patched for v0.7.4; ARTEFACT_FRONTMATTER_SCHEMA.md §7a (F6 dispatch-plan
+# stability_sub_mode_anticipated flag).
+#
+# Version contract
+# ----------------
+# config_version 4.0 is a breaking change from v0.7.2's 3.0:
+#   - Cross-cutting Tier → Phase rename throughout: T1/T2/T3/T4 → Ph1/Ph2/Ph3/Ph4;
+#     `tier_transitions` → `phase_transitions`; `tier_vocabulary` → `phase_vocabulary`;
+#     all placeholder names re-scoped (`prev_tier` → `prev_phase`, `current_tier`
+#     → `current_phase`, `default_final_tier` → `default_final_phase`, etc.).
+#   - Filename renamed `tier_notifications.yaml` → `phase_notifications.yaml`.
+#     The legacy filename ships during the v0.7.4 minor as a forwarding stub
+#     with a `[v0.7.3-READ-ONLY]` banner; the stub is dropped at v0.7.5 RC.
+#   - `scripts/phase_notifications_loader.py` prefers this file; if absent, it
+#     falls back to `tier_notifications.yaml` and emits DEPRECATION_WARNING.
+#   - Trigger enum widened 28 → 30: trigger 29 `ph3_iteration_round_manuscript`
+#     (P-7; manuscript-level Ph3 iteration batching) and trigger 30
+#     `stability_mode_escalated_to_full_ph3` (P-2; Ph3 stability sub-mode
+#     escalation back to full Ph3 when the reduced envelope cannot resolve a
+#     surfaced finding).
+#   - Log-row widened 6 → 7 fields with absent-means-null `model_used` recording
+#     which Claude model produced each phase transition; the 7th field feeds
+#     the Reflector's Phase 2f capability-inversion audit (`R-Refl-MA-4/5`).
+#   - Response-letter sibling ladder keys preserved as `t4r_*` (NOT renamed to
+#     `ph4r_*`); PHASE_PROTOCOL.md §12.8 fixes the T4R name at v0.7.4 because
+#     the sibling ladder does not participate in the main Ph1–Ph4 advancement.
+#   - Escalation Gate trigger literal `eg1_t4_downgrade_to_t3` renamed
+#     `eg1_ph4_downgrade_to_ph3`; `eg7_mcr_readmission_after_class_change` and
+#     the EG-numbering scheme (EG-1 / EG-3 / EG-4 / EG-5 / EG-6 / EG-7) are
+#     preserved. EG-2 remains retired.
+#
+# Unchanged from v0.7.2
+# ---------------------
+# Four-agent contract (Planner / Evaluator / Generator / Reflector), Grounding
+# Protocol binding force, SD/SR opt-in gate (`sd_sr_required: false` default
+# per PHASE_PROTOCOL.md §3.1.2), SAFEGUARD Check 8 accessibility gate at Ph3
+# (§3.3.3), MCR admission contract (§9.4), convergence-stability metric
+# threshold 0.03, [Ph3-STALE] 14-day default budget, ceiling_lock semantics.
+#
+# Template placeholder grammar
+# ----------------------------
+# Placeholders are brace-wrapped lowercase identifiers resolved by the Planner
+# at notification time. Unknown placeholders render literally as a fallback
+# (Planner logs a WARN). Reserved placeholders:
+#   {section_heading_path}    — JSON-array string, e.g. ["2. Background", "2.1 ..."]
+#   {prev_phase} / {new_phase}  — one of Ph1, Ph2, Ph3, Ph3_converged, Ph4, or null
+#                                (renamed from v0.7.0's prev_tier / new_tier)
+#   {section_ceiling}         — applicable_ceiling resolved per PHASE_PROTOCOL.md §4
+#   {default_final_phase}     — manuscript-wide ceiling from classification.md
+#   {iteration_count}         — iteration_count_at_current_phase for the row
+#   {cumulative_drift_lines}  — cumulative_drift_lines_since_approval
+#   {fingerprint_mode}        — strict | tolerant | off
+#   {fingerprint_age_hours}   — now - fingerprint_computed_at in hours
+#   {cycle_id}                — cycle-N (new per Planner-opened review cycle)
+#   {timestamp}               — ISO 8601 UTC
+#   {manuscript_id}           — project slug
+#   {stale_section_count}     — number of sections with computed [Ph3-STALE]=true
+#   {stale_section_list}      — bulleted heading_path list of stale sections
+#   {stale_budget_days}       — ph3 staleness budget from CLI / config (default 14)
+#   {stale_delta_days}        — wall-clock minus ph3_last_activity_at, in days
+#   {unready_section_count}   — number of sections with current_phase < Ph3_converged
+#                                and not ceiling-locked
+#   {unready_section_list}    — bulleted heading_path list of unready sections
+#   {override_phase}          — section_ceiling_override value
+#   {target_phase}            — MCR climb target, capped at default_final_phase
+#   {pstage}                  — P0 | P1 | P2 declaration from ph1_pstage_declaration
+#   {convergence_metric}      — current Ph3 metric value (float, 3 decimal places)
+#   {finding_id}              — ESCALATED-finding id from convergence_log.md
+#   {owner_prev} / {owner_new} — ownership endpoints in a transfer
+#   {transfer_rationale}      — non-empty prose from the transfer row notes
+#   {verifier_name}           — Class-1 verifier namespace (e.g. scite-mcp)
+#   {iteration_number}        — Ph3 iteration number for a signoff row
+#   {escalation_reason}       — prose naming the finding that escalated a stability pass
+#   {s0_failure_clause}       — one of hash_missing_prior_iteration / hash_mismatch /
+#                                section_not_in_ph3 / section_stale
+#   {model_used}              — Claude model string recorded in the log row's 7th
+#                                field (v0.7.4 addition; absent-means-null)
+
+config_version: 4.0
+schema_version: 0.7.4
+phase_vocabulary: lifecycle_v0.7.4
+manuscript_agnostic: true
+
+# ---------------------------------------------------------------------------
+# 1. Phase-transition notifications (bound to the 30-trigger enum of §6.3)
+#    — trigger 28 (`ph3_accessibility_blocker_surfaced`) is new at v0.7.2;
+#    triggers 29 (`ph3_iteration_round_manuscript`) and 30
+#    (`stability_mode_escalated_to_full_ph3`) are new at v0.7.4 and are
+#    rendered under the `ph3_loop` and `ph3_stability_sub_mode` blocks below.
+# ---------------------------------------------------------------------------
+phase_transitions:
+
+  # Trigger 1: initial_dispatch
+  ph1_entry:
+    trigger: initial_dispatch
+    presented_to_user: true
+    log_detail: "Section {section_heading_path} entered Ph1 Plan & Draft on fresh dispatch (cycle {cycle_id})."
+    user_template: |
+      ► Ph1 Plan & Draft opened on {section_heading_path} (cycle {cycle_id}).
+      Ceiling for this section resolves to {section_ceiling} (manuscript default_final_phase = {default_final_phase}).
+      At Ph1 the Planner authors the SD / SR models (only when `sd_sr_required: true` in classification.md; default false)
+      and the P-stage declaration; the Generator drafts prose; the Reflector runs a lightweight grounding audit.
+      No Evaluator engagement at this stage.
+      Exit artefact: reviews/ph1_draft_completion.md (user-signed).
+
+  # Trigger 12: ph1_draft_completion_signed
+  ph1_exit_signed:
+    trigger: ph1_draft_completion_signed
+    presented_to_user: true
+    log_detail: "Ph1 draft-completion artefact signed for {section_heading_path}: reviews/ph1_draft_completion.md (P-stage {pstage})."
+    user_template: |
+      ► Ph1 exit signed on {section_heading_path}. P-stage declaration on file: {pstage}.
+      On your next `/approve` the section advances Ph1 → Ph2 Review & Revise.
+
+  # Trigger 13: imodel_structural_validation_signed
+  # Emitted only when `sd_sr_required: true` in reviews/classification.md
+  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false).
+  imodel_validation_signed:
+    trigger: imodel_structural_validation_signed
+    presented_to_user: true
+    log_detail: "i* structural-completeness validator passed for {section_heading_path} (PHASE_PROTOCOL.md §3.1.1; sd_sr_required=true)."
+    user_template: |
+      ► i* structural-completeness validator CLEAN on {section_heading_path}.
+      The Cold-Start defence is satisfied: SD / SR models have no orphan actors, unreferenced softgoals, or dangling dependencies.
+      Ph1 → Ph2 advance is now unblocked on your approval.
+
+  # Trigger 2 (at Ph1 → Ph2): user_approval
+  ph2_entry:
+    trigger: user_approval
+    presented_to_user: true
+    log_detail: "Approval at Ph1 advanced {section_heading_path} to Ph2 Review & Revise (prev_phase: {prev_phase}; iteration_count at Ph1 = {iteration_count})."
+    user_template: |
+      ► Ph1 approved on {section_heading_path}. Section advances Ph1 → Ph2 Review & Revise.
+      The Evaluator joins the round for the first time and runs the full local-scope pass against SD / SR models
+      (when sd_sr_required=true; otherwise Evaluator runs the local-scope pass without SD/SR read-prerequisite).
+      Deterministic-check mandatory subset runs full-file (no Rule 1 digest exception at Ph2; Rule 1 retired at v0.7.0).
+
+  # Trigger 14: ph2_review_completion_signed
+  ph2_exit_signed:
+    trigger: ph2_review_completion_signed
+    presented_to_user: true
+    log_detail: "Ph2 review-completion artefact signed for {section_heading_path}: reviews/ph2_review_completion.md."
+    user_template: |
+      ► Ph2 exit signed on {section_heading_path}.
+      On your next `/approve` the section advances Ph2 → Ph3 Iterate & Converge.
+
+  # Trigger 2 (at Ph2 → Ph3): user_approval
+  ph3_entry:
+    trigger: user_approval
+    presented_to_user: true
+    log_detail: "Approval at Ph2 advanced {section_heading_path} to Ph3 Iterate & Converge (prev_phase: {prev_phase}; iteration_count at Ph2 = {iteration_count})."
+    user_template: |
+      ► Ph2 approved on {section_heading_path}. Section advances Ph2 → Ph3 Iterate & Converge.
+      Ph3 is an unbounded iterate-until-stable loop: the Generator drafts, the Evaluator reviews,
+      the Planner tracks `convergence_metric` and opens ESCALATED findings in convergence_log.md
+      (per-iteration state since v0.7.4 P-4 lives in convergence_journal.jsonl; convergence_log.md is
+      Trajectory-synthesis prose only).
+      No rung change until a TerminalSignoffRow with `is_terminal: true` is appended to
+      reviews/ph3_convergence_signoff.md.
+
+  # Trigger 17: ph3_iteration_round
+  ph3_iteration:
+    trigger: ph3_iteration_round
+    presented_to_user: true
+    log_detail: "Ph3 iteration round on {section_heading_path}: iteration {iteration_number}; convergence_metric = {convergence_metric}."
+    user_template: |
+      ► Ph3 iteration {iteration_number} on {section_heading_path}. convergence_metric = {convergence_metric}.
+      Convergence criterion: two consecutive rounds with metric < 0.03 (see [CONVERGENCE-STABLE] below).
+
+  # Trigger 29: ph3_iteration_round_manuscript (NEW at v0.7.4 under P-7)
+  ph3_iteration_manuscript:
+    trigger: ph3_iteration_round_manuscript
+    presented_to_user: true
+    log_detail: "Ph3 manuscript-level iteration round (cycle {cycle_id}): one row appended per affected section under shared cycle_id."
+    user_template: |
+      ► Ph3 manuscript-level iteration {iteration_number} (cycle {cycle_id}).
+      This iteration touched multiple sections; one row is appended per section under trigger
+      `ph3_iteration_round_manuscript` with the shared cycle_id recorded in `notes`.
+      Per-section monotonicity is preserved; the boundary-write batching collapses ledger overhead.
+      See PHASE_PROTOCOL.md §6.3 v0.7.4 additions for the row-group integrity rule and cycle-id
+      uniqueness contract (R-Refl-Batch-1 / R-Refl-Batch-2).
+
+  # Trigger 18: ph3_convergence_signoff_row (non-terminal)
+  ph3_signoff_row:
+    trigger: ph3_convergence_signoff_row
+    presented_to_user: false
+    log_detail: "Non-terminal signoff row appended for {section_heading_path} at iteration {iteration_number}."
+    user_template: ""
+
+  # Trigger 20: ph3_convergence_signoff_terminal (flips Ph3 → Ph3_converged)
+  ph3_converged:
+    trigger: ph3_convergence_signoff_terminal
+    presented_to_user: true
+    log_detail: "Terminal signoff on {section_heading_path}: current_phase flipped Ph3 → Ph3_converged; iteration {iteration_number}; metric {convergence_metric}."
+    user_template: |
+      ► Ph3 terminal signoff on {section_heading_path}. current_phase flipped Ph3 → Ph3_converged.
+      This section is ready for Ph4 admission when every section has reached Ph3_converged (or its own ceiling lock).
+      convergence_log.md is now frozen for this section; convergence_journal.jsonl rows remain in place as the
+      per-iteration audit trail (P-4 split); iteration_count and cumulative_drift_lines reset to 0.
+
+  # Trigger 19: ph3_stale_reengagement_signoff (clears computed [Ph3-STALE])
+  ph3_stale_cleared:
+    trigger: ph3_stale_reengagement_signoff
+    presented_to_user: true
+    log_detail: "Re-engagement signoff on {section_heading_path} clears computed [Ph3-STALE] = true (was stale since {stale_delta_days} days)."
+    user_template: |
+      ► [Ph3-STALE] cleared on {section_heading_path}.
+      ph3_last_activity_at refreshed; the next Planner pass will recompute [Ph3-STALE] = false on this section.
+      iteration_count and cumulative_drift_lines are PRESERVED (re-engagement is not a fresh iteration).
+
+  # Trigger 6: mcr_admission (manuscript admitted to Ph4)
+  ph4_admission:
+    trigger: mcr_admission
+    presented_to_user: true
+    log_detail: "Manuscript Convergence Report cleared; {manuscript_id} admitted to Ph4 Finalize & Close."
+    user_template: |
+      ► Manuscript Convergence Report (MCR) CLEARED. {manuscript_id} admitted to Ph4 Finalize & Close.
+      Ph4 runs the full four-agent composition with Reflector-full at round close, external Class-1 verifiers
+      where applicable, and G.4 sign-off. On approval, terminal_phase_reached := true and the Reflector's
+      aggregated confirmation-failed history audit (NEW-H-4) runs.
+
+  # Trigger 7: laggard_clearance_cancelled (literal preserved for audit continuity across LCR→MCR rename at v0.7.0)
+  cancel_climb:
+    trigger: laggard_clearance_cancelled
+    presented_to_user: true
+    log_detail: "/cancel-climb invoked during MCR cycle {cycle_id}; advancement halted; no section state lost."
+    user_template: |
+      ► /cancel-climb accepted. MCR cycle {cycle_id} halted.
+      No section rolled back; sections that climbed this cycle retain current_phase and last_approved_phase.
+      Ph4 admission deferred. Resume with `/review` on any unready section or `/raise-ceiling` to widen the target.
+
+  # Trigger 8: ceiling_locked (approval at section-capped phase)
+  ceiling_locked:
+    trigger: ceiling_locked
+    presented_to_user: true
+    log_detail: "Section {section_heading_path} reached applicable_ceiling = {section_ceiling}; ceiling_locked := true."
+    user_template: |
+      ► {section_heading_path} reached its applicable ceiling = {section_ceiling} and is now locked at {prev_phase}.
+      Further `/review` on this section refuses-to-escalate. Raise the ceiling with
+      `/raise-ceiling --section {section_heading_path}` if you want to climb higher.
+
+  # Trigger 9: ceiling_raised
+  ceiling_raised:
+    trigger: ceiling_raised
+    presented_to_user: true
+    log_detail: "section_ceiling_override for {section_heading_path} raised to {override_phase}."
+    user_template: |
+      ► Ceiling raised on {section_heading_path}: section_ceiling_override := {override_phase}.
+      If the section was at a lower ceiling lock, `ceiling_locked` is cleared and climbing resumes on next `/review`.
+
+  # Trigger 10: override_applied (per-section override written at classification time)
+  override_applied:
+    trigger: override_applied
+    presented_to_user: false
+    log_detail: "section_ceiling_override := {override_phase} applied to {section_heading_path} at classification."
+    user_template: ""
+
+  # Trigger 5: fingerprint_reset
+  #   At Ph1 / Ph2: forces re-review at the current rung.
+  #   At Ph3:   demoted to W-Ph3-DRIFT-EXCEEDED-TOLERANT (no re-review) per phase_state_schema.md §4.3.
+  fingerprint_reset:
+    trigger: fingerprint_reset
+    presented_to_user: true
+    log_detail: "Fingerprint reset on {section_heading_path}: cumulative_drift_lines reset from {cumulative_drift_lines} to 0; mode = {fingerprint_mode}; age = {fingerprint_age_hours} h."
+    user_template: |
+      ► Fingerprint reset on {section_heading_path}. Cumulative drift since approval exceeded the per-edit threshold,
+      so the section must be re-reviewed at its current rung before advancing. mode={fingerprint_mode}.
+      (At Ph3, see W-Ph3-DRIFT-EXCEEDED-TOLERANT — drift is informational only, not a forced re-review.)
+
+  # Trigger 3: user_rejection
+  user_rejection:
+    trigger: user_rejection
+    presented_to_user: true
+    log_detail: "Approval gate rejected at {prev_phase} on {section_heading_path} (iteration {iteration_count})."
+    user_template: |
+      ► {prev_phase} rejected on {section_heading_path}.
+      Section stays at {prev_phase}; iteration_count_at_current_phase incremented to {iteration_count}.
+      Generator will apply a corrected revision against the findings; the responsible agent re-passes at {prev_phase}
+      (Evaluator at Ph2 / Ph3 / Ph4; Reflector-lightweight only at Ph1).
+
+  # Trigger 4: user_defer
+  user_defer:
+    trigger: user_defer
+    presented_to_user: true
+    log_detail: "User deferred approval on {section_heading_path} at {prev_phase}; no ledger movement."
+    user_template: |
+      ► Deferred on {section_heading_path} at {prev_phase}. No ledger movement;
+      resume with `/review --section {section_heading_path}` when ready.
+
+  # Trigger 11: retraction
+  retraction:
+    trigger: retraction
+    presented_to_user: true
+    log_detail: "Retraction on {section_heading_path}: current_phase rolled back from {prev_phase} to {new_phase}; last_approved_phase mutated accordingly."
+    user_template: |
+      ► Retraction accepted on {section_heading_path}. current_phase rolled back {prev_phase} → {new_phase}.
+      last_approved_phase is mutated to {new_phase} (the v0.7.0 retraction invariant, preserved at v0.7.4:
+      last_approved_phase tracks the highest phase whose approval is still honoured). All rows referring to a
+      later phase remain in the audit log.
+
+  # Trigger 15: escalation_owner_transferred
+  ownership_transfer:
+    trigger: escalation_owner_transferred
+    presented_to_user: true
+    log_detail: "Ownership of ESCALATED finding {finding_id} on {section_heading_path} transferred: {owner_prev} → {owner_new}. Rationale: {transfer_rationale}"
+    user_template: |
+      ► Ownership transfer on {section_heading_path} (finding {finding_id}): {owner_prev} → {owner_new}.
+      Rationale (Linear-Accountability defence): {transfer_rationale}
+      An empty rationale would have failed with E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE.
+
+  # Trigger 16: escalation_named_owner_assigned
+  named_owner_assigned:
+    trigger: escalation_named_owner_assigned
+    presented_to_user: true
+    log_detail: "Named owner assigned for ESCALATED finding {finding_id} on {section_heading_path}: {owner_new}."
+    user_template: |
+      ► Named owner assigned on {section_heading_path} (finding {finding_id}): {owner_new}.
+      ESCALATED-without-owner state cleared; Linear-Accountability contract satisfied.
+
+  # Trigger 21: mcr_blocked_ph3_stale
+  mcr_blocked_stale:
+    trigger: mcr_blocked_ph3_stale
+    presented_to_user: true
+    log_detail: "MCR admission paused: {stale_section_count} section(s) carry computed [Ph3-STALE] = true."
+    user_template: |
+      ► [MCR-BLOCKED-Ph3-STALE] on {manuscript_id}.
+      MCR admission is PAUSED because {stale_section_count} section(s) went stale beyond the staleness budget
+      ({stale_budget_days} days). Stale sections:
+
+      {stale_section_list}
+
+      To clear: sign a ReengagementSignoffRow on each stale section (`/review --section <path>` runs the Ph3-iterate
+      loop, then append a re-engagement row). The MCR replays automatically on next `/review`.
+      This is the Workflow Failure-Point defence (PHASE_PROTOCOL.md §3.3.1 / §9.3). E-MCR-BLOCKED-Ph3-STALE.
+
+  # Trigger 22: eg7_mcr_readmission_after_class_change
+  eg7_mcr_readmission:
+    trigger: eg7_mcr_readmission_after_class_change
+    presented_to_user: true
+    log_detail: "EG-7 fired at Ph4 on {section_heading_path}: classification change forces Ph3-iteration-then-MCR-replay (Ph4 → Ph3)."
+    user_template: |
+      ► EG-7 fired at Ph4 on {section_heading_path}. Reclassification during Ph4 forced a Ph4 → Ph3 demotion.
+      The section must re-run at least one Ph3 iteration, then the MCR replays manuscript-wide before Ph4 re-admission.
+      Prior Ph4 audit rows are preserved; last_approved_phase mutates to Ph3.
+
+  # Trigger 23: eg1_ph4_downgrade_to_ph3 (renamed from eg1_t4_downgrade_to_t3 at v0.7.4)
+  eg1_ph4_downgrade:
+    trigger: eg1_ph4_downgrade_to_ph3
+    presented_to_user: true
+    log_detail: "EG-1 fired at Ph4 on {section_heading_path}: grounding-rule violation surfaced; demotion Ph4 → Ph3."
+    user_template: |
+      ► EG-1 fired at Ph4 on {section_heading_path}. A Rule 1–7 grounding violation surfaced at the terminal rung;
+      the section is DEMOTED Ph4 → Ph3 so the loop can iterate against the fresh evidence.
+      last_approved_phase mutates to Ph3. MCR will re-admit once the section reaches a new TerminalSignoffRow.
+      See reviews/grounding_threat_{cycle_id}.md for the specific violation.
+
+  # Trigger 24: eg6_override_inconsistency_warning (non-blocking)
+  eg6_override_inconsistent:
+    trigger: eg6_override_inconsistency_warning
+    presented_to_user: true
+    log_detail: "EG-6 fired on {section_heading_path}: `/run-phase-N` override target inconsistent with current_phase / applicable_ceiling. Non-blocking."
+    user_template: |
+      ► EG-6 fired on {section_heading_path}. Your `/run-phase-N` override target is inconsistent with the section's
+      current_phase or applicable_ceiling. The override still applies (non-blocking), but the Planner flags the drift
+      for audit. W-EG6-OVERRIDE-INCONSISTENT.
+
+  # Trigger 25: m5_wiki_ingest (Coupling D)
+  m5_wiki_ingest:
+    trigger: m5_wiki_ingest
+    presented_to_user: true
+    log_detail: "Coupling D: manuscript {manuscript_id} ingested into the LLM wiki on Ph4 close."
+    user_template: |
+      ► Coupling D ingest complete. {manuscript_id} is now a first-class source page in the LLM wiki,
+      wikilinked from concept pages that cite its methods and findings.
+
+  # Trigger 26: plugin_update_proposed_by_planner
+  plugin_proposal:
+    trigger: plugin_update_proposed_by_planner
+    presented_to_user: true
+    log_detail: "Planner formalised a plugin-update proposal from Reflector-full output."
+    user_template: |
+      ► Plugin update proposed by the Planner (from Reflector-full round output).
+      See reviews/plugin_proposals/{cycle_id}.md for the full text; approval is requested before package release.
+
+  # Trigger 27: v0_7_state_rename (migration-only; preserved as historical marker at v0.7.4)
+  v0_7_rename:
+    trigger: v0_7_state_rename
+    presented_to_user: false
+    log_detail: "Migration marker: T4_ready → T3_converged rename from v0.6.0 → v0.7.0 applied to {section_heading_path}."
+    user_template: ""
+
+# ---------------------------------------------------------------------------
+# 2. Escalation-Gate notifications (EG-1 / EG-3 / EG-4 / EG-5 / EG-6 / EG-7)
+#    — EG-2 retired at v0.7.0 along with Evaluator Confirmation Mode
+# ---------------------------------------------------------------------------
+escalation_gates:
+
+  EG1_grounding_threat_at_ph4:
+    fires_at: "Ph4 only; Rule 1–7 grounding violation at the terminal rung"
+    presented_to_user: true
+    log_detail: "EG-1 fired at Ph4 on {section_heading_path}: grounding threat; demoting Ph4 → Ph3 (see trigger `eg1_ph4_downgrade_to_ph3`)."
+    user_template: |
+      ► EG-1 fired at Ph4 on {section_heading_path}.
+      A Rule 1–7 grounding violation surfaced at Ph4 Finalize & Close. The section is DEMOTED Ph4 → Ph3
+      so the iterate-until-stable loop can incorporate the fresh evidence. See
+      reviews/grounding_threat_{cycle_id}.md for the specific rule and source.
+      MCR will replay on next `/review`; Ph4 re-admission follows a new TerminalSignoffRow.
+
+  EG3_cross_scope_reference:
+    fires_at: "Ph2 only; any finding or fix that references material outside the section's heading_path"
+    presented_to_user: true
+    log_detail: "EG-3 fired on {section_heading_path}: cross-scope reference detected at Ph2; review escalates to Ph3."
+    user_template: |
+      ► EG-3 fired on {section_heading_path}.
+      A finding or fix at Ph2 referenced material outside the section envelope — escalation to Ph3 is required.
+      Planner has queued a Ph3 Iterate & Converge pass on the affected sections.
+
+  EG4_contradiction_surface:
+    fires_at: "Ph3 or Ph4; when SAFEGUARD Check 4 (contradiction audit) surfaces an unacknowledged theoretical contradiction"
+    presented_to_user: true
+    log_detail: "EG-4 fired at {prev_phase} on {section_heading_path}: unacknowledged contradiction surfaced."
+    user_template: |
+      ► EG-4 fired at {prev_phase} on {section_heading_path}.
+      SAFEGUARD Check 4 surfaced an unacknowledged contradiction between co-invoked sources.
+      Section held at {prev_phase} until the author either acknowledges the contradiction or revises the co-invocation.
+
+  EG5_deterministic_threshold_breach:
+    fires_at: "any phase; when DETERMINISTIC_CHECKS thresholds are breached"
+    presented_to_user: true
+    log_detail: "EG-5 fired on {section_heading_path}: deterministic-threshold breach at {prev_phase}."
+    user_template: |
+      ► EG-5 fired on {section_heading_path}.
+      A DETERMINISTIC_CHECKS threshold is breached at {prev_phase}. Breach is MINOR unless an absolute-or-cannot
+      claim is implicated (then MAJOR). See pre-flight output in reviews/deterministic_{cycle_id}.md.
+
+  EG6_override_inconsistency_warning:
+    fires_at: "any phase; `/run-phase-N` override target inconsistent with current_phase / applicable_ceiling"
+    presented_to_user: true
+    log_detail: "EG-6 fired on {section_heading_path}: override target inconsistency; non-blocking (see trigger `eg6_override_inconsistency_warning`)."
+    user_template: |
+      ► EG-6 fired on {section_heading_path}.
+      Your `/run-phase-N` override target is inconsistent with the section's current_phase or applicable_ceiling.
+      The override still applies — this is a warning, not a block — but it is logged for Reflector-full audit.
+      W-EG6-OVERRIDE-INCONSISTENT.
+
+  EG7_mcr_readmission_after_class_change:
+    fires_at: "Ph4 only; manuscript or section reclassification at Ph4 forces Ph3-iteration-then-MCR-replay"
+    presented_to_user: true
+    log_detail: "EG-7 fired at Ph4 on {section_heading_path}: classification change forces Ph4 → Ph3 demotion and MCR replay."
+    user_template: |
+      ► EG-7 fired at Ph4 on {section_heading_path}.
+      The manuscript's (or this section's) classification changed during Ph4 Finalize & Close — e.g., venue
+      switch, P-stage promotion, or class-1 verifier set change. The section is DEMOTED Ph4 → Ph3; at least one
+      Ph3 iteration must run before the MCR is replayed for re-admission.
+
+# ---------------------------------------------------------------------------
+# 3. Ph3-loop surface notifications (convergence-stable and staleness)
+# ---------------------------------------------------------------------------
+ph3_loop:
+
+  convergence_stable:
+    presented_to_user: true
+    log_detail: "[CONVERGENCE-STABLE] on {section_heading_path}: two consecutive Ph3 rounds under metric threshold 0.03 (current = {convergence_metric}, iteration {iteration_number}); Check 8 aggregate verdict CLEAN or BORDERLINE (no BLOCKER)."
+    user_template: |
+      ► [CONVERGENCE-STABLE] on {section_heading_path}.
+      Two consecutive Ph3 rounds scored convergence_metric < 0.03 (current = {convergence_metric} at iteration
+      {iteration_number}) AND the most recent SAFEGUARD pass shows Check 8 aggregate verdict CLEAN (or BORDERLINE
+      with no BLOCKER Sub-checks). The section is eligible for a TerminalSignoffRow, which flips current_phase
+      Ph3 → Ph3_converged.
+      Append the signoff with `/ph3-terminate --section {section_heading_path}`.
+      W-CONVERGENCE-STABLE.
+
+  # v0.7.2 — Check 8 accessibility gate, PHASE_PROTOCOL.md §3.3.3.
+  # Fires when line-diff stability is achieved but Check 8 aggregate verdict is
+  # BLOCKER: terminal signoff is REFUSED by pre_phase_advance_check.py clause (h).
+  convergence_blocked_accessibility:
+    presented_to_user: true
+    log_detail: "[CONVERGENCE-BLOCKED-ACCESSIBILITY] on {section_heading_path}: line-diff stability reached (metric = {convergence_metric}) but Check 8 aggregate verdict is BLOCKER; TerminalSignoffRow refused (E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF)."
+    user_template: |
+      ► [CONVERGENCE-BLOCKED-ACCESSIBILITY] on {section_heading_path}.
+      Line-diff stability is achieved (convergence_metric = {convergence_metric} < 0.03 across two consecutive rounds),
+      but SAFEGUARD Check 8 (Reader-Experience / Prose Architecture) aggregated to BLOCKER in the most recent pass.
+      TerminalSignoffRow is REFUSED (E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF); the refused write does NOT consume
+      Ph3 iteration budget.
+      To clear: the Generator runs a Ph3 iteration that resolves the failing Check 8 Sub-check(s) A–F named in
+      reviews/safeguard_layer_results.md, followed by an Evaluator re-check that confirms clearance. On the next
+      `/review` the gate re-evaluates.
+      This is the Reader-Experience defence (PHASE_PROTOCOL.md §3.3.3; Hard Constraint #8 per Ph.D.-root CLAUDE.md §13).
+
+  # v0.7.2 — advisory, non-blocking.
+  convergence_borderline_accessibility:
+    presented_to_user: true
+    log_detail: "[CONVERGENCE-BORDERLINE-ACCESSIBILITY] on {section_heading_path}: line-diff stability reached (metric = {convergence_metric}); Check 8 aggregate verdict is BORDERLINE (MAJOR Sub-check present; no BLOCKER). Terminal signoff permitted; advisory."
+    user_template: |
+      ► [CONVERGENCE-BORDERLINE-ACCESSIBILITY] on {section_heading_path}.
+      Line-diff stability is achieved and terminal signoff is PERMITTED, but SAFEGUARD Check 8 aggregated to
+      BORDERLINE in the most recent pass (one MAJOR Sub-check; no BLOCKER). The Evaluator has filed the specific
+      Sub-check(s) in reviews/safeguard_layer_results.md. If you proceed to signoff, the BORDERLINE verdict is
+      recorded against the section for Reflector Phase 2g recurrence accounting (Ph.D.-root CLAUDE.md §13.4);
+      if you prefer to clear it first, run one more Ph3 iteration before `/ph3-terminate`.
+      This is advisory — not a block.
+
+  # v0.7.2 — bound to trigger 28 (ph3_accessibility_blocker_surfaced).
+  # Logged each time the Planner refuses a TerminalSignoffRow write on the
+  # accessibility gate; rendered as a row in the phase_entry_log.
+  ph3_accessibility_blocker_surfaced:
+    trigger: ph3_accessibility_blocker_surfaced
+    presented_to_user: false
+    log_detail: "Planner refused TerminalSignoffRow write on {section_heading_path}: Check 8 aggregate verdict BLOCKER; failing Sub-checks named in notes."
+    user_template: ""
+
+  ph3_stale_detected:
+    presented_to_user: true
+    log_detail: "[Ph3-STALE] on {section_heading_path}: wall-clock delta {stale_delta_days} days exceeds budget {stale_budget_days} days."
+    user_template: |
+      ► [Ph3-STALE] on {section_heading_path}.
+      ph3_last_activity_at is {stale_delta_days} days old (budget {stale_budget_days} days).
+      No ledger rollback occurred — Option A semantics compute staleness on every Planner pass without a schema
+      field. MCR admission is BLOCKED until a ReengagementSignoffRow is appended (append with
+      `/ph3-reengage --section {section_heading_path}`).
+      W-Ph3-STALE.
+
+  ph3_activity_null:
+    presented_to_user: true
+    log_detail: "[Ph3-STALE] computation skipped on {section_heading_path}: ph3_last_activity_at == null (migrated section)."
+    user_template: |
+      ► ph3_last_activity_at is null on {section_heading_path} (v0.6.0- or v0.7.3-migrated section).
+      [Ph3-STALE] short-circuits to false until the first Ph3 activity is recorded, at which point the clock starts.
+      W-Ph3-ACTIVITY-NULL.
+
+  ph3_drift_exceeded_tolerant:
+    presented_to_user: true
+    log_detail: "W-Ph3-DRIFT-EXCEEDED-TOLERANT on {section_heading_path}: cumulative_drift_lines = {cumulative_drift_lines} exceeds tolerant threshold; not forcing re-review (Ph3-loop demotion per §4.3)."
+    user_template: |
+      ► W-Ph3-DRIFT-EXCEEDED-TOLERANT on {section_heading_path}.
+      Cumulative drift since approval is {cumulative_drift_lines} lines under tolerant-mode fingerprinting.
+      At Ph3 this is INFORMATIONAL only — no forced re-review, to preserve the Ph3 unbounded-loop contract.
+      (At Ph1 / Ph2, exceeding the threshold would trigger fingerprint_reset.)
+
+# ---------------------------------------------------------------------------
+# 4. Ph2 / Ph1 sign-off surface notifications (P-stage and i* gating)
+# ---------------------------------------------------------------------------
+ph1_ph2_signoff:
+
+  pstage_unavailable:
+    presented_to_user: true
+    log_detail: "W-PSTAGE-UNAVAILABLE on {section_heading_path}: ph1_pstage_declaration == null."
+    user_template: |
+      ► W-PSTAGE-UNAVAILABLE on {section_heading_path}.
+      ph1_pstage_declaration is null. The P-Stage Checker skill cannot run until the Planner populates this field
+      from classification.md. Ph1 → Ph2 admission will be refused with E-PSTAGE-REQUIRED-AT-Ph2 if an approval
+      reaches the gate with a null declaration.
+
+  pstage_required_at_ph2:
+    presented_to_user: true
+    log_detail: "E-PSTAGE-REQUIRED-AT-Ph2 on {section_heading_path}: ph1_pstage_declaration == null at Ph1 → Ph2 advance."
+    user_template: |
+      ► E-PSTAGE-REQUIRED-AT-Ph2 on {section_heading_path}.
+      The Ph1 → Ph2 advance requires a P-stage declaration (P0 / P1 / P2). Refused. Update classification.md and
+      re-sign ph1_draft_completion.md to populate ph1_pstage_declaration.
+
+  # Raised only when `sd_sr_required: true` in reviews/classification.md
+  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false). When the flag
+  # is absent or false the §3.1.1 validator does not run and this failure is
+  # never raised.
+  imodel_structurally_incomplete:
+    presented_to_user: true
+    log_detail: "E-IMODEL-STRUCTURALLY-INCOMPLETE on {section_heading_path}: §3.1.1 validator did not pass before Ph1 → Ph2 advance (sd_sr_required=true)."
+    user_template: |
+      ► E-IMODEL-STRUCTURALLY-INCOMPLETE on {section_heading_path}.
+      The Ph1 → Ph2 advance requires a passing i* structural-completeness validator run (PHASE_PROTOCOL.md §3.1.1).
+      SD / SR models must have no orphan actors, unreferenced softgoals, or dangling dependencies.
+      Refused. Revise the model and re-run the validator; a `imodel_structural_validation_signed` row must appear
+      before the user_approval advance row.
+      (Raised only when `sd_sr_required: true` in reviews/classification.md per PHASE_PROTOCOL.md §3.1.2; v0.7.1 default is false.)
+
+  # Raised only when `sd_sr_required: true` in reviews/classification.md
+  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false). When the flag
+  # is absent or false the Evaluator does not open the SD/SR models at Ph2 entry
+  # and this failure is never raised.
+  ph2_sd_ungroundable:
+    presented_to_user: true
+    log_detail: "E-Ph2-SD-UNGROUNDABLE on {section_heading_path}: Evaluator could not read a groundable sd_model.md / sr_model.md at Ph2 entry (sd_sr_required=true)."
+    user_template: |
+      ► E-Ph2-SD-UNGROUNDABLE on {section_heading_path}.
+      The Evaluator's Ph2 read-contract (PHASE_PROTOCOL.md §5.3) requires groundable SD / SR models at Ph2 entry.
+      None were found or the ones on disk failed structural validation. Refused. Re-run the Ph1 validator and
+      re-sign the Ph1 exit artefact before retrying the Ph2 entry.
+      (Raised only when `sd_sr_required: true` in reviews/classification.md per PHASE_PROTOCOL.md §3.1.2; v0.7.1 default is false.)
+
+  escalation_without_owner:
+    presented_to_user: true
+    log_detail: "E-ESCALATION-WITHOUT-OWNER on {section_heading_path} for finding {finding_id}."
+    user_template: |
+      ► E-ESCALATION-WITHOUT-OWNER on {section_heading_path}.
+      ESCALATED finding {finding_id} in convergence_log.md has no named owner. Assign an owner before advancing.
+      Linear-Accountability defence (PHASE_PROTOCOL.md §3.2.1).
+
+  ownership_transfer_without_rationale:
+    presented_to_user: true
+    log_detail: "E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE on {section_heading_path} for finding {finding_id}."
+    user_template: |
+      ► E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE on {section_heading_path}.
+      An escalation_owner_transferred row (finding {finding_id}) was appended with empty notes.
+      Refused: Linear-Accountability requires a non-empty transfer_rationale. Re-append with the rationale.
+
+# ---------------------------------------------------------------------------
+# 5. Response-letter sibling ladder (T4R, independent of Ph1→Ph4 staircase)
+#    — T4R preserved at v0.7.4 (NOT renamed Ph4R); the sibling ladder does not
+#    participate in the main Lifecycle-Phase advancement and keeps the T4R name
+#    per PHASE_PROTOCOL.md §12.8.
+# ---------------------------------------------------------------------------
+response_letter:
+
+  t4r_entry:
+    trigger: initial_dispatch
+    presented_to_user: true
+    log_detail: "T4R sibling opened on response letter via `/review-letter`."
+    user_template: |
+      ► T4R opened on response letter. This is the sibling ladder and does not advance the Ph1→Ph4 staircase.
+      Dispatching SK-11 `response-letter-review`: seven checks + SAFEGUARD 1/4/5 + Rule 7a (if Class-1 verifiers cited).
+
+  t4r_close:
+    trigger: user_approval
+    presented_to_user: true
+    log_detail: "T4R approved on response letter; cycle closed."
+    user_template: |
+      ► T4R approved. Response-letter cycle closed.
+      If this T4R is paired with a Ph4 manuscript pass (resubmission), G.4 sign-off is required on the manuscript before closure.
+
+  t4r_escalation_out:
+    trigger: mcr_admission   # repurposed: T4R escalating to Ph4 manuscript pass under the MCR rename
+    presented_to_user: true
+    log_detail: "T4R escalated to paired Ph4 manuscript pass per PHASE_PROTOCOL.md §2.5."
+    user_template: |
+      ► T4R findings materially altered the manuscript; escalation-out triggered per PHASE_PROTOCOL.md §2.5.
+      A Ph4 Finalize & Close manuscript pass is now required to close the resubmission cycle.
+
+# ---------------------------------------------------------------------------
+# 6. Concurrency / integrity notifications (surfaced by Planner Phase 0)
+# ---------------------------------------------------------------------------
+integrity:
+
+  state_corrupt:
+    presented_to_user: true
+    log_detail: "[STATE-CORRUPT] detected in phase_state.json at session bootstrap."
+    user_template: |
+      ► [STATE-CORRUPT] on {manuscript_id}.
+      `reviews/phase_state.json` failed well-formedness validation. Planner halts before dispatch.
+      Options: restore from `reviews/phase_state.json.bak.{timestamp}` (or `reviews/tier_state.json.v073.bak` if
+      the project is still mid-v0.7.4-migration), re-run `scripts/migrate_v073_to_v074_tier_to_phase.py`
+      (or `scripts/migrate_v060_to_v070.py` if the file is still at v0.6.0; or `scripts/migrate_v055_to_v060.py`
+      if at v0.5.5), or hand-edit and re-bootstrap.
+
+  concurrency_detected:
+    presented_to_user: true
+    log_detail: "[CONCURRENCY-DETECTED] mtime+sha256 mismatch on phase_state.json."
+    user_template: |
+      ► [CONCURRENCY-DETECTED] on {manuscript_id}.
+      The phase-state ledger changed on disk between read and write. Another agent or editor touched it.
+      Planner discards its in-memory edits and re-reads before retrying. No ledger fields are overwritten silently.
+
+  migration_report_hold:
+    presented_to_user: true
+    log_detail: "v0.7.3 → v0.7.4 migration report awaiting user confirmation."
+    user_template: |
+      ► Migration report(s) awaiting review:
+        - `reviews/migration_report_v073_to_v074.md` (Pass 1 — Tier → Phase rename)
+        - `reviews/migration_report_convergence_log_v074.md` (Pass 2 — P-4 convergence-log split)
+
+      Planner cannot accept `/review` until you confirm both migration reports. Reply "confirmed" to proceed
+      or ask about specific rows. Sections renamed `current_tier` → `current_phase` retain their full
+      phase_entry_log history; rows dated before the v0.7.4 release carry `model_used: null` under
+      absent-means-null (R-Refl-MA-5 MINOR suppressed for pre-release rows).
+
+  dual_read_legacy_warning:
+    presented_to_user: true
+    log_detail: "Dual-read DEPRECATION_WARNING: legacy `tier_state.json` consumed at Planner bootstrap; migration to `phase_state.json` not yet committed."
+    user_template: |
+      ► Dual-read warning on {manuscript_id}.
+      `scripts/phase_state_validate.py` accepted a legacy `reviews/tier_state.json` under the v0.7.4 minor's
+      dual-read path. The dual-read path is removed at v0.7.5 RC — run
+      `python scripts/migrate_v073_to_v074_tier_to_phase.py --project-root <project>` to produce
+      `reviews/phase_state.json` and silence this warning.
+      W-DUAL-READ-LEGACY.
+
+# ---------------------------------------------------------------------------
+# 7. Manuscript Convergence Report (MCR) presentation block
+#    — replaces the v0.6.0 Laggard Clearance Report (rename preserved at v0.7.4)
+# ---------------------------------------------------------------------------
+mcr:
+
+  opening:
+    presented_to_user: true
+    log_detail: "MCR opened for {manuscript_id} (cycle {cycle_id}, target {target_phase}, capped at default_final_phase = {default_final_phase})."
+    user_template: |
+      ► [MCR-FIRST-RESPONSE] — Manuscript Convergence Report for {manuscript_id}.
+      Cycle {cycle_id}, target phase = {target_phase}, capped at default_final_phase = {default_final_phase}.
+
+      Unready sections ({unready_section_count}) — below Ph3_converged and not ceiling-locked:
+      {unready_section_list}
+
+      Stale sections ({stale_section_count}) — current_phase == Ph3 with [Ph3-STALE] computed true:
+      {stale_section_list}
+
+      Approval paths:
+        A) Approve MCR auto-climb: Planner walks each unready section to Ph3_converged, iterate-then-terminate.
+        B) Raise specific ceilings before climbing (`/raise-ceiling --section <path> --to <phase>`).
+        C) Re-engage stale sections (`/ph3-reengage --section <path>`) — required before Ph4 admission.
+        D) Cancel the climb (`/cancel-climb`) and ship at current mixed-ceiling.
+
+  climb_step:
+    presented_to_user: true
+    log_detail: "MCR climbing {section_heading_path} {prev_phase} → {new_phase} (cycle {cycle_id})."
+    user_template: |
+      ► MCR climbing {section_heading_path}: {prev_phase} → {new_phase}.
+      Running the rung's pass. Approval auto-advances; rejection returns control with findings.
+
+  climb_complete:
+    presented_to_user: true
+    log_detail: "MCR cycle {cycle_id} cleared; manuscript admitted to {target_phase}."
+    user_template: |
+      ► MCR cycle {cycle_id} CLEARED. All sections at ≥ Ph3_converged (or their ceiling locks);
+      no [Ph3-STALE] flags remain. {manuscript_id} is admitted to {target_phase}. Terminal composition starts next.
+
+  blocked_ph3_stale:
+    presented_to_user: true
+    log_detail: "MCR BLOCKED: {stale_section_count} stale section(s); E-MCR-BLOCKED-Ph3-STALE."
+    user_template: |
+      ► [MCR-BLOCKED-Ph3-STALE] on {manuscript_id}.
+      MCR admission is BLOCKED: {stale_section_count} section(s) carry computed [Ph3-STALE] = true
+      (budget {stale_budget_days} days). Ph4 admission is refused by `pre_phase_advance_check.py` clause (f) at
+      manuscript scope. Sign a ReengagementSignoffRow on each stale section, then re-invoke `/review`.
+
+      Stale sections:
+      {stale_section_list}
+
+# ---------------------------------------------------------------------------
+# 8. Fallbacks and invariants
+# ---------------------------------------------------------------------------
+fallbacks:
+
+  unknown_trigger:
+    presented_to_user: true
+    user_template: |
+      ► Internal: an unrecognized phase_entry_log trigger was surfaced ({trigger}).
+      Planner is logging it and pausing. This is a v0.7.4 schema invariant violation; please file against
+      `references/phase_state_schema.md §3.1 (30-value trigger enum)`.
+
+  unknown_placeholder:
+    presented_to_user: false
+    log_detail: "Template rendered with literal {unknown_placeholder}; check phase_notifications.yaml and Planner placeholder resolution."
+
+# ---------------------------------------------------------------------------
+# 9. Ph3 stability sub-mode (P-2) — v0.7.4 addition
+# ---------------------------------------------------------------------------
+#
+# Grounding: PHASE_PROTOCOL.md §3.3.2 (stability sub-mode normative spec),
+# §6.3 v0.7.4 additions block (trigger 30 stability_mode_escalated_to_full_ph3);
+# skills/run-phase-3-stability/SKILL.md (reduced-envelope dispatch sequence);
+# ARTEFACT_FRONTMATTER_SCHEMA.md §7a (F6 stability_sub_mode_anticipated flag).
+
+ph3_stability_sub_mode:
+
+  stability_mode_proposed:
+    trigger: ph3_iteration_round            # existing trigger; F6 carries stability_sub_mode_anticipated: true
+    presented_to_user: true
+    log_detail: "Ph3 stability sub-mode proposed for {section_heading_path} at iteration {iteration_number}; S-0 hash-match admitted; F6 dispatch plan awaiting approval."
+    user_template: |
+      ► Ph3 stability sub-mode proposed on {section_heading_path}.
+      The manuscript's F1/F2/F3/F5 substrate is byte-stable against the prior Ph3 close
+      ({manuscript_id} manuscript_hash match). The S-0 gate (PHASE_PROTOCOL.md §3.3.2)
+      admits a reduced-envelope iteration: grounding audit + Check 8 deterministic counters
+      only. SAFEGUARD 1/4/5/7, Coupling E.2, external verifiers, and the seven-step judgment
+      pass are SKIPPED under this mode.
+
+      F6 dispatch plan: reviews/dispatch_plan_{cycle_id}.md (stability_sub_mode_anticipated: true).
+      Approve to run stability pass, modify to force a full Ph3 pass, or reject to close the round.
+
+  stability_mode_admitted:
+    trigger: ph3_iteration_round            # clean stability-pass close writes a normal iteration row with stability_mode: true in notes
+    presented_to_user: true
+    log_detail: "[STABILITY-ADMITTED] on {section_heading_path} at iteration {iteration_number}; findings inherited by manuscript_hash from prior F1."
+    user_template: |
+      ► [STABILITY-ADMITTED] on {section_heading_path}.
+      The stability pass closed clean: no grounding-audit findings, Check 8 counters match
+      the prior iteration. The iteration row is written with `stability_mode: true` in notes
+      and inherits the prior F1 findings by manuscript_hash reference. One iteration consumed.
+
+      Reminder: a stability pass cannot write the TerminalSignoffRow for this section.
+      At least one full `run-phase-3` must appear in the section's Ph3 history between
+      Ph2 exit and Ph4 MCR admission.
+
+  stability_mode_escalated:
+    trigger: stability_mode_escalated_to_full_ph3   # trigger 30 (v0.7.4 §6.3 additions)
+    presented_to_user: true
+    log_detail: "Ph3 stability pass on {section_heading_path} escalated to full Ph3 via trigger 30; escalation_reason: {escalation_reason}."
+    user_template: |
+      ► [STABILITY-ESCALATED] on {section_heading_path}.
+      The stability pass surfaced a finding the reduced envelope is not authorised to resolve:
+      {escalation_reason}.
+
+      A `stability_mode_escalated_to_full_ph3` row (trigger 30) is written; it consumes no
+      iteration budget on its own. A full `run-phase-3` round is now opening on this section
+      and will charge one iteration.
+
+  stability_mode_drop_through:
+    trigger: ph3_iteration_round            # S-0 gate fail: full Ph3 opens normally; F6 notes the drop-through
+    presented_to_user: true
+    log_detail: "Ph3 stability sub-mode NOT admitted on {section_heading_path}: S-0 gate {s0_failure_clause}; full Ph3 opened."
+    user_template: |
+      ► Ph3 stability sub-mode NOT admitted on {section_heading_path}.
+      S-0 gate clause failed: {s0_failure_clause} (one of hash_missing_prior_iteration /
+      hash_mismatch / section_not_in_ph3 / section_stale). A full `run-phase-3` round is
+      opening and will charge one iteration as normal.
+
+  stability_mode_refused_at_ph4_admission:
+    trigger: mcr_admission                  # MCR gate refuses; no state mutation on this row
+    presented_to_user: true
+    log_detail: "MCR admission refused on {section_heading_path}: most recent Ph3 pass was a stability pass; full Ph3 required before Ph4."
+    user_template: |
+      ► MCR admission REFUSED on {section_heading_path}.
+      The section's most recent Ph3 pass was a stability sub-mode pass. MCR admission at
+      PHASE_PROTOCOL.md §9.4 requires at least one full `run-phase-3` pass after the last
+      stability pass so the external-verifier probes (Step 0b), Coupling E.2 overlay
+      (Step 0.2), and the seven-step judgment pass have all run on the current byte state.
+
+      Run `/run-phase-3` on this section (full envelope), then retry the MCR.
+
+# End of file.

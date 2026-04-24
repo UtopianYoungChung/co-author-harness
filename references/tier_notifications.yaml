@@ -1,0 +1,50 @@
+# tier_notifications.yaml — DEPRECATED at v0.7.4
+#
+# [v0.7.3-READ-ONLY] — this file is retained as a forwarding stub during the
+# v0.7.4 minor for back-compatibility with tooling that still resolves the
+# legacy filename. The authoritative notification templates now live at
+# `references/phase_notifications.yaml` under the Ph1/Ph2/Ph3/Ph4 vocabulary
+# of the Lifecycle-Phase Ladder.
+#
+# WHY IT WAS RENAMED
+# ------------------
+# v0.7.4 retires the ambiguous *Tier* vocabulary that overloaded two
+# unrelated surfaces — review depth (retired at v0.6.0) and the lifecycle
+# ladder. The remaining ladder is now the Lifecycle-Phase Ladder, with rungs
+# Ph1 Plan & Draft → Ph2 Review & Revise → Ph3 Iterate & Converge → Ph4
+# Finalize & Close. The filename, the top-level section keys (dispatch →
+# phase_transitions), every placeholder prefixed `{prev_tier}` / `{new_tier}`
+# → `{prev_phase}` / `{new_phase}`, and the trigger literals (`t*_*` → `ph*_*`)
+# were all renamed in a single cross-cutting pass. See the v0.7.4 RELEASE_NOTES
+# and the portfolio-root CLAUDE.md §12.8 for the full surface-retirement list.
+#
+# WHERE TO LOOK NOW
+# -----------------
+# Canonical templates:   references/phase_notifications.yaml
+# Schema contract:       references/PHASE_PROTOCOL.md §4 (renamed from TIER_PROTOCOL.md)
+# Loader script:         scripts/phase_notifications_loader.py
+# State file:            reviews/phase_state.json (was reviews/tier_state.json)
+# Validator:             scripts/phase_state_validate.py (was scripts/tier_state_validate.py)
+# Migration:             scripts/migrate_v073_to_v074_tier_to_phase.py
+#
+# DUAL-READ WINDOW
+# ----------------
+# During the v0.7.4 minor, `scripts/phase_notifications_loader.py` retains a
+# dual-read path — it prefers `phase_notifications.yaml` and, on miss, falls
+# back to this file while emitting a `W-DUAL-READ-LEGACY` DEPRECATION_WARNING
+# (template key `integrity/dual_read_legacy_warning` in the canonical file).
+# The dual-read path is **removed at v0.7.5 RC**; after v0.7.5, any caller
+# resolving this file will fail with a missing-config error rather than
+# silently loading a stale template. Projects still on legacy paths should run
+# `scripts/migrate_v073_to_v074_tier_to_phase.py` to complete the rename
+# before upgrading to v0.7.5.
+#
+# LAST UPDATED
+# ------------
+# 2026-04-21 — v0.7.4 deprecation stub. Removed at v0.7.5 RC.
+
+config_version: "DEPRECATED-4.0"
+schema_version: "0.7.4-deprecated-stub"
+phase_vocabulary: "forwarding-stub"
+canonical_path: "references/phase_notifications.yaml"
+removal_target: "v0.7.5 RC"

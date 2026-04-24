@@ -1,0 +1,56 @@
+{
+  "schema_version": "0.7.4",
+  "manuscript_id": "phase-state-smoketest-pass",
+  "default_final_phase": "Ph3",
+  "fingerprint_mode": "tolerant",
+  "terminal_phase_reached": false,
+  "last_updated": "2026-04-22T00:00:01Z",
+  "phase_vocabulary": "lifecycle_v0.7.4",
+  "milestone_assignment": {
+    "M1": "Ph1",
+    "M2": "Ph1",
+    "M3": "Ph1",
+    "M4a": "Ph2",
+    "M4b": "Ph3",
+    "M5": "Ph4"
+  },
+  "sections": {
+    "1. Introduction": {
+      "heading_path": ["1. Introduction"],
+      "current_phase": "Ph2",
+      "last_approved_phase": "Ph2",
+      "ceiling_locked": true,
+      "section_ceiling_override": null,
+      "iteration_count_at_current_phase": 0,
+      "last_scope_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fingerprint_computed_at": "2026-04-22T00:00:00Z",
+      "cumulative_drift_lines_since_approval": 0,
+      "phase_goal_declared": "produce a reviewed and revised section with all CRITICAL findings cleared and a signed ph2_review_completion",
+      "phase_deliverable_path": "reviews/ph2_review_completion.md",
+      "convergence_metric": null,
+      "ph1_pstage_declaration": "P1",
+      "ph3_last_activity_at": null,
+      "pre_mcr_deep_pass_completed": false,
+      "phase_entry_log": [
+        {
+          "timestamp": "2026-04-22T00:00:00Z",
+          "trigger": "initial_dispatch",
+          "prev_phase": null,
+          "new_phase": "Ph1",
+          "actor": "planner",
+          "notes": "Smoketest PASS fixture — initial dispatch.",
+          "model_used": null
+        },
+        {
+          "timestamp": "2026-04-22T00:00:01Z",
+          "trigger": "user_approval",
+          "prev_phase": "Ph1",
+          "new_phase": "Ph2",
+          "actor": "user",
+          "notes": "Smoketest PASS fixture — monotonic advance Ph1 -> Ph2.",
+          "model_used": null
+        }
+      ]
+    }
+  }
+}
