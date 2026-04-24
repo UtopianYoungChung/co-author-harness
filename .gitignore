@@ -1,6 +1,4 @@
 # Older / bulk artifact drops (single-release policy: do not commit)
-archives/
-releases/
 legacy/
 proposals/
 
