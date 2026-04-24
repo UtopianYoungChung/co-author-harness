@@ -1,5 +1,3 @@
-
-
 # co-author-harness
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
@@ -9,8 +7,6 @@
 [License](#license)
 
 [Quick start](#quick-start) · [Documentation](#documentation) · [Repository layout](#repository-layout) · [Changelog](CHANGELOG.md)
-
-
 
 ---
 
@@ -104,10 +100,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 `0.8.4`
 
-| Release   | Highlights                                                                                                                                                                        |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
+| Release   | Highlights                                                                                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **0.8.4** | §9d `check8_g_prefilter.py`, A8 `provenance_prewrite_check.py`, `phase_notifications` doc fix, efficiency `role_overrides` completion, A6–A7 reflector/ADVISORY_UNTIL follow-through. |
-| **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, folder name `co-author-harness/`, release zip `co-author-harness-claude-v*.zip`. No `phase_state.json` or skill renames. |
+| **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, folder name `co-author-harness/`, release zip `co-author-harness-claude-v*.zip`. No `phase_state.json` or skill renames.     |
 
 
 Full history: `[CHANGELOG.md](CHANGELOG.md)`.

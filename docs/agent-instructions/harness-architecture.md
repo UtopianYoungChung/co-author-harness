@@ -18,7 +18,7 @@ co-author-harness/
 ├── research_notes/              # package-tier lessons_learned.md
 ├── reviews/                     # package-tier review artefacts (ground-truth verification)
 ├── legacy/                      # plugin-internal legacy (marshal-f1, rule-digest-v060, etc.)
-├── releases/                    # local release `.zip` outputs (gitignored; attach to GitHub Releases instead of committing)
+├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip` files; tracked in git when committed)
 ├── CHANGELOG.md, README.md
 ├── docs/                        # agent-instructions/, concepts/, release-notes/RELEASE_NOTES_v*.md, …
 └── CLAUDE.md                    # harness root instructions (this repo)
