@@ -1,7 +1,7 @@
 {
   "name": "co-author-harness-claude",
   "version": "0.8.5",
-  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance, wiki-first resources (EXTERNAL_VERIFIERS §1.5). v0.8.5. See CHANGELOG.",
+  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance. v0.8.5: wiki-first discovery (LLM wiki before new Zotero PDFs and external Class 1 tools; EXTERNAL_VERIFIERS 1.5). Rule 7a Zotero resolution unchanged. See CHANGELOG; release notes: docs/release-notes/RELEASE_NOTES_v0.8.5.md.",
   "author": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"
@@ -19,7 +19,12 @@
     "phase-state-ledger",
     "manuscript-convergence-report",
     "stability-sub-mode",
-    "consolidation-anchors"
+    "consolidation-anchors",
+    "wiki-first",
+    "llm-wiki",
+    "literature-discovery",
+    "zotero",
+    "EXTERNAL_VERIFIERS"
   ],
   "license": "UNLICENSED"
 }
