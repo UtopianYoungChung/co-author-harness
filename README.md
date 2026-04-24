@@ -1,43 +1,85 @@
+<div align="center">
+
 # co-author-harness
 
-**Version:** 0.8.3 · **Plugin id:** `co-author-harness-claude`
+**A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-A **Claude Code plugin** and document bundle for **PhD-level academic writing**: a four-agent workflow (Planner, Evaluator, Generator, Reflector), a **Lifecycle–Phase Ladder** (Ph1 Plan & Draft → Ph2 Review & Revise → Ph3 Iterate & Converge → Ph4 Finalize & Close), slash-command **skills**, and binding **grounding** rules (`references/GROUNDING_PROTOCOL.md`).
+[![Version](https://img.shields.io/badge/Version-0.8.3-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
+[![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
-This repository is the **canonical harness root** (successor to the `research-writing-harness/` naming; `paper-harness/` is retired). Substance and history are documented in `[docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md)` and `[docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md)`.
+[Quick start](#quick-start) · [Documentation](#documentation) · [Repository layout](#repository-layout) · [Changelog](CHANGELOG.md)
 
----
-
-## What you get
-
-
-| Area                          | Location                                                                                                                                                                    |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent prompts                 | `[agents/](agents/)` — `planner`, `evaluator`, `generator`, `reflector`                                                                                                     |
-| Skills (slash-style commands) | `[skills/](skills/)` — e.g. `run-phase-1` … `run-phase-4`, `run-phase-3-stability`, `run-reflection`, `quick-deterministic`, `check-contradictions`, and specialized passes |
-| Rules and runbooks            | `[references/](references/)` — orchestration, phase protocol, review pipeline, templates, `MASTER_research_and_paper_guidelines.md`, etc.                                   |
-| Validation and tooling        | `[scripts/](scripts/)` — phase state validation, artefact checks, migrations, release scripts                                                                               |
-| Maintainer / agent docs       | `[docs/agent-instructions/](docs/agent-instructions/)` — architecture, discovery & lifecycle, governance, reference index                                                   |
-
-
-Plugin metadata (name, version, description) lives in `[.claude-plugin/plugin.json](.claude-plugin/plugin.json)`.
+</div>
 
 ---
 
-## Quick start (using the package)
+## Why this project
 
-1. **Open the harness** in your editor or mount it as the plugin workspace so paths resolve (the package supports plugin-root layout; see `[references/CLAUDE.md](references/CLAUDE.md)` for deployment notes).
-2. **Read the routing spine first** on each substantive session: `[references/ROUTING_SPINE.md](references/ROUTING_SPINE.md)` maps intent to phases and exit gates.
-3. For a one-page operator primer, see `[references/QUICKSTART.md](references/QUICKSTART.md)`. For full orchestration, start with `[references/REVIEW_ORCHESTRATION.md](references/REVIEW_ORCHESTRATION.md)` and `[references/AGENT_ORCHESTRATION.md](references/AGENT_ORCHESTRATION.md)`. The full operational runbook is `[references/OPERATING_MANUAL.md](references/OPERATING_MANUAL.md)`.
-4. **Harness root policy** (when the package is invoked, precedence, triggers) is in `[CLAUDE.md](CLAUDE.md)` at this repository root.
+**co-author-harness** ships the *Research and Academic Paper Writing Package* as a maintainable tree you can open as a **plugin root** or embed beside a research workspace. It coordinates **Planner → Evaluator → Generator → Reflector** work, tracks progress on a per-section **Lifecycle–Phase Ladder** (Ph1–Ph4) with a ledger at `reviews/phase_state.json`, and routes skills such as `run-phase-1` … `run-phase-4`, `run-phase-3-stability`, and `quick-deterministic` without abandoning the binding rules in `references/GROUNDING_PROTOCOL.md`.
 
-New research projects under this system use a standard tree (`manuscript/`, `reviews/` including `phase_state.json`, `research_notes/`, project `CLAUDE.md`). The bootstrap protocol is in `[references/PROJECT_BOOTSTRAP.md](references/PROJECT_BOOTSTRAP.md)`; lifecycle and discovery are summarized in `[docs/agent-instructions/harness-discovery-lifecycle.md](docs/agent-instructions/harness-discovery-lifecycle.md)`.
+The harness root is **canonical** (formerly `research-writing-harness/`; `paper-harness/` is retired). Consolidation, ownership, and history: [`docs/agent-instructions/harness-architecture.md`](docs/agent-instructions/harness-architecture.md) · [`docs/agent-instructions/harness-history.md`](docs/agent-instructions/harness-history.md). Workspace contract (parent tree): `../ROOT_ARCHITECTURE_INDEX.md`.
 
 ---
 
-## Maintainer checks (from repo root)
+## Features
 
-With **Python 3** and **PyYAML** available:
+* **Multi-agent, phase-conditioned dispatch.** Agent prompts in [`agents/`](agents/) and orchestration in [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) define who runs when (e.g. Evaluator joins from Ph2 onward; full four-agent loop in Ph3/Ph4). Model allocation and obligations are written down—see [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
+* **A ladder, not a free-for-all.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). M1–M5 milestones still describe the *project* arc; the phase ladder governs *review and revision*.
+* **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
+* **Slash-style skills, documented as files.** 27+ skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`) with machine-checkable front matter—validated by the scripts below.
+
+---
+
+## Documentation
+
+| Read this first | Why |
+| --- | --- |
+| [`CLAUDE.md`](CLAUDE.md) (repo root) | **When the package is invoked**, precedence in one place, and maintainer check commands. |
+| [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) | **Intent → phase** dispatch and exit gates—read before dispatching a round. |
+| [`references/QUICKSTART.md`](references/QUICKSTART.md) | One-page operator primer (session open, failure modes, shortcuts). |
+| [`references/OPERATING_MANUAL.md`](references/OPERATING_MANUAL.md) | Full runbook when you inherit the package cold. |
+| [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
+| [`references/CLAUDE.md`](references/CLAUDE.md) | **Package-level** invocation rules and component map. |
+
+**New project?** [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md) seeds the standard directories (`manuscript/`, `reviews/`, `research_notes/`). **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
+
+---
+
+## Quick start
+
+1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).
+2. **Start every substantive session** by reading [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) and naming the phase you are in—same spirit as the operational “one rule” in [`references/QUICKSTART.md`](references/QUICKSTART.md).
+3. **Wire a research project** using the standard tree and `reviews/phase_state.json` as the ledger; bootstrap details are in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md).
+
+**Example (session open)** — what you can literally ask the agent:
+
+```text
+Read references/ROUTING_SPINE.md, then tell me which phase this session should
+run under and which artefact you will touch first.
+```
+
+Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json).
+
+---
+
+## Repository layout
+
+| Path | What lives there |
+| --- | --- |
+| [`agents/`](agents/) | Planner, Evaluator, Generator, Reflector prompts |
+| [`skills/`](skills/) | Slash-style skills (Ph rounds, checks, overlays, audits) |
+| [`references/`](references/) | Orchestration, protocols, style packages, templates, registries |
+| [`scripts/`](scripts/) | Validators, migration utilities, `release-gate.sh`, `build-release-zip.sh` |
+| [`docs/agent-instructions/`](docs/agent-instructions/) | Architecture, governance, discovery, reference index |
+| [`legacy/`](legacy/) | Retired in-tree material—frozen reference, not the editing surface |
+| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Published plugin `name` / `version` / `description` |
+
+---
+
+## For maintainers
+
+From the repo root, with **Python 3** and **PyYAML** installed:
 
 ```bash
 python scripts/skill-check.py
@@ -46,32 +88,27 @@ python scripts/catalog-check.py
 python scripts/path-hygiene-check.py
 ```
 
-Full release packaging (bash): `scripts/release-gate.sh` (see the script header for flags). Release zip builds use `scripts/build-release-zip.sh`; shipped zips are described in `[CHANGELOG.md](CHANGELOG.md)`.
+Full release packaging: `scripts/release-gate.sh` (see script header). Release zip: `scripts/build-release-zip.sh`—artefact naming and notes in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
 ## Version
 
+| Release | Highlights |
+| --- | --- |
+| **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, folder name `co-author-harness/`, release zip `co-author-harness-claude-v*.zip`. No `phase_state.json` or skill renames. |
 
-| Release   | Notes                                                                                                                                                                                                      |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, repo folder `co-author-harness/`, release zip naming `co-author-harness-claude-v*.zip`. No skill renames and no `phase_state.json` schema change. |
-
-
-Older entries and meta-level changes: `[CHANGELOG.md](CHANGELOG.md)`.
+Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
-## Authors and license
+## License
 
-- **Author:** Young Jo(seph) Chung — `jo.chung@utoronto.ca` (from plugin manifest).
-- **License:** `UNLICENSED` (see `[.claude-plugin/plugin.json](.claude-plugin/plugin.json)`).
+**UNLICENSED** (see [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json)). Author: **Young Jo(seph) Chung** — `jo.chung@utoronto.ca`.
 
 ---
 
-## Related reading
+## Related links
 
-- `[CLAUDE.md](CLAUDE.md)` — root instructions and package invocation triggers  
-- `[docs/agent-instructions/harness-governance.md](docs/agent-instructions/harness-governance.md)` — precedence and cross-project rules  
-- `[references/GROUNDING_PROTOCOL.md](references/GROUNDING_PROTOCOL.md)` — non-negotiable grounding rules for agents using this package
-
+* [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) — binding grounding rules
+* [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md) — full precedence ladder
