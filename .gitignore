@@ -1,7 +1,6 @@
 # Older / bulk artifact drops (single-release policy: do not commit)
-archives/
-releases/
 legacy/
+proposals/
 
 # Optional local unpack trees (regenerate from releases/ or source root)
 unpacked/
