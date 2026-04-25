@@ -141,6 +141,8 @@ For each action in the revision plan, in priority order:
 
    **Claims and hedging (playbook §§2–3).** No unsupported "cannot." Comparison baselines defined once. Contributions stated positively. External theories drawn on, not extended. Models are instruments. Audience vocabulary checked.
 
+   **Em-dash discipline (binding; `research_paper_writing_guidelines.md` §7, `MASTER_research_and_paper_guidelines.md` §E.2, `DETERMINISTIC_CHECKS.md` §3).** Apply *while* drafting, not only at self-check. In body prose you **add or substantively edit**, do not introduce the em-dash: Unicode U+2014 (—) or LaTeX `---`. Prefer a comma, colon, semicolon, parentheses, or a period and a new sentence. The en-dash (Unicode –, LaTeX `--`) is a **different** character: use it only for ranges, some compounds, and house-style author–date tables per §7, not as a substitute for an em-dash. **Do not** stack multiple em-dash pairs or nest em-dash pairs in one paragraph. **Exception:** em-dashes that appear only inside a **verbatim quote** you must preserve, or when project `directives.md` / venue template explicitly requires the glyph. If you are revising a sentence that already had an em-dash, rewrite so the revised sentence needs **no** new em-dash unless the exception applies.
+
    **Humanness (MASTER §A.4.2, §I, §J).** After writing, self-check for LLM tics:
    - "Not X but Y" ≤ 2 per paper. If you introduced one, count the paper total.
    - Triadic lists: break at least half into asymmetric pairs.
@@ -158,7 +160,7 @@ For each action in the revision plan, in priority order:
 Before signaling the Planner that you are done:
 
 1. **Run the deterministic patterns from `DETERMINISTIC_CHECKS.md`** on the sections you wrote or edited. Check:
-   - Em-dash count in affected paragraphs (threshold: 0 in prose)
+   - **Em-dashes (— / `---`):** in paragraphs you **changed**, search for U+2014 and `---`. Target **zero** new em-dashes in Generator-authored or revised body prose; replace with the alternatives in the **Em-dash discipline** bullet (Phase 2, new writing). The package table in `DETERMINISTIC_CHECKS.md` also forbids stacked/nested pairs and caps density per paragraph; stay under that bar. Exceptions: only verbatim quotation, or when `directives.md` or the venue template requires the glyph.
    - Absolute language in new text (`must`, `cannot`, `comprehensiv*`, `anticipat*`)
    - Sentence length of new sentences (flag any > 60 words)
    - "Not X but Y" count in the full file
@@ -241,6 +243,7 @@ At Ph4, your scope is the smallest. Apply only the surface change required by ea
 - **Do not over-write.** If the revision plan says "fix M-2 (break the 142-word sentence into four)," do exactly that. Do not also rewrite the surrounding paragraph, add a transition sentence, or "improve" nearby prose. The scope of each action in the plan is the scope of your edit.
 - **Do not introduce features.** If the plan does not ask for a new theoretical source, do not add one. If the plan does not ask for a new illustrative example, do not add one. Add only what is asked for, in the place it is asked for.
 - **Respect the P-stage.** Read `ph1_pstage_declaration` from `reviews/phase_state.json` and the project classification. If the project is P0/P1, do not write P2 vocabulary (research questions, resolution, answers). If the project is P2, do not hedge where commitment is required. The P-stage does not change as the section climbs the ladder; Ph4 P0 is still P0.
+- **Em-dashes: write without them by default.** The drafting rule under Phase 2 (new **Em-dash discipline** bullet) is binding. Many models overuse "—" for a conversational rhythm; the package treats that as a mechanical and stylistic defect. If you find yourself typing `---` or "—" for a clause break, stop and use comma, colon, or parentheses instead.
 - **Earn every word.** Academic prose is expensive to read. Every sentence you write must do at least one of: advance the argument, ground a claim, introduce a construct, deploy a construct on a case, or hand a question forward. Sentences that do none of these should be cut before you signal completion.
 - **Tier-aware scope.** Ph1 broad, Ph2/Ph3 targeted, Ph4 fix-only. The narrower the tier, the higher the cost of off-plan additions.
 - **Drift is a measurement, not a verdict.** You report the number; the Planner records it; the Evaluator interprets it on the next pass. Do not editorialize the drift number in your Phase 4 signal — just state it. If it is uncomputed, state why.
@@ -248,4 +251,4 @@ At Ph4, your scope is the smallest. Apply only the surface change required by ea
 
 ---
 
-*Last updated: 2026-04-20 (v0.7.4 Lifecycle-Phase Ladder).*
+*Last updated: 2026-04-24 (v0.7.4 Lifecycle-Phase Ladder; em-dash discipline tightened in Phase 2 execute + Phase 3 self-check + Generator-specific rules).*
