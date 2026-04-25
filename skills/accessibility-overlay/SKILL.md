@@ -1,6 +1,6 @@
 ---
 name: accessibility-overlay
-description: Overlay the seven reader-accessibility Sub-checks (A–G) from SAFEGUARD Check 8 onto a manuscript's prose, producing a structured findings report that feeds the Evaluator's SAFEGUARD layer at T2, T3, and T4. Sub-checks A–F run at section scope (paragraph cadence, sentence rhythm, first-use definition, section-opening signposting, jargon density, worked examples at density spikes); Sub-check G runs at full-manuscript scope (cumulative cognitive load / consolidation anchors at structural boundaries). Binds Hard Constraint #8 of the Ph.D.-root CLAUDE.md (Reader-Experience / Prose Architecture) to a reusable, diff-stable overlay that emits Cadence-Flag, Rhythm-Flag, First-Use-Flag, Signpost-Flag, Jargon-Density-Flag, Worked-Example-Flag, and Consolidation-Anchor-Flag findings at MINOR / MAJOR / BLOCKER severities with an aggregate verdict the Planner consumes for the §3.3.3 TerminalSignoffRow accessibility gate.
+description: 'Overlay SAFEGUARD Check 8 reader-accessibility Sub-checks A–G on prose: section-scoped A–F (cadence, rhythm, first-use, signpost, jargon, worked-example) and manuscript-scoped G (cumulative cognitive load). Emits flag findings and aggregate verdict for §3.3.3 TerminalSignoffRow. Use when: Step 8.5, user requests overlay, T2 Check 8 subset, T3 re-read, Reflector 2g replay.'
 trigger: when the Evaluator runs Step 8.5 (SAFEGUARD Check 8), when the user asks to run an accessibility overlay on a section or a full manuscript, when the T2 SAFEGUARD subset dispatches Check 8 (A–F only at that rung), when the T3 iterate-until-stable loop needs a re-read against the reader-accessibility criteria (A–G at that rung), or when the Reflector Phase 2g recurrence audit replays Check 8 findings across rounds.
 created_by: Reflector (Reader-Experience defence, v0.7.2 pilot; Sub-check G extension v0.8.1)
 created_from: >-
@@ -22,7 +22,7 @@ pattern_source: >-
   Ph.D.-root CLAUDE.md §13.3 (operational criteria 1–7) and §13.4 (distinction
   from dumbing-down); Sweller's cognitive-load taxonomy (intrinsic /
   extraneous / germane — G audits the germane-load-across-the-manuscript scale)
-version: 1.1
+version: 1.2
 ---
 
 # Accessibility Overlay (SAFEGUARD Check 8)

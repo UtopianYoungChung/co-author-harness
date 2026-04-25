@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.8.5-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-0.8.6-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -99,10 +99,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.8.5`
+`0.8.6`
 
 | Release | Highlights |
 | --- | --- |
+| **0.8.6** | Advisor MCP EP-1/EP-2, em-dash fix-round discipline, in-tree `plugin_calibrator_audit.py` for release-gate, accessibility `description` trim, `plugin-commands` routing. |
 | **0.8.5** | Wiki-first read loop (`EXTERNAL_VERIFIERS.md` §1.5, `wiki_first_resources`, I-Gen-8, Planner wiki paths / revision-plan trace). |
 | **0.8.4** | §9d `check8_g_prefilter.py`, A8 `provenance_prewrite_check.py`, `phase_notifications` doc fix, efficiency `role_overrides` completion, A6–A7 reflector/ADVISORY_UNTIL follow-through. |
 | **0.8.3** | Co-author rebrand: plugin id `co-author-harness-claude`, folder name `co-author-harness/`, release zip `co-author-harness-claude-v*.zip`. No `phase_state.json` or skill renames. |

@@ -6,6 +6,22 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.8.6 — 2026-04-25
+
+**Theme.** Advisor MCP entry points, em-dash control on **fix** rounds, release-gate chain-depth without external calibrator, packaging polish.
+
+### Changes
+
+- **Advisor MCP** — `references/ADVISOR_MCP.md`, `PHASE_PROTOCOL.md` cross-ref, `advisor-escalation` / `plugin-commands` / `SKILL_REGISTRY` (EP-1 post-Ph2 pre-Ph3, EP-2 pre-MCR/Ph4).
+- **Generator** — `agents/generator.md`: em-dash discipline on **fix application**; `MASTER_research_and_paper_guidelines.md` §E.2, `research_paper_writing_guidelines.md` §7, `sentence-level-pass` (v1.1) mechanical scan.
+- **Release** — `scripts/plugin_calibrator_audit.py` in-tree; `release-gate.sh` discovers it before peer stub; `accessibility-overlay` `description` trimmed to pass 500-char skill gate; `build-release-zip.sh` + `releases/co-author-harness-claude-v0.8.6.zip`.
+
+### Not changed
+
+- No `phase_state.json` schema or trigger-enum change.
+
+---
+
 ## v0.8.5 — 2026-04-24
 
 **Theme.** **Wiki-first resource order** for wiki-linked projects: consult peer `LLM wiki/` before new Zotero PDFs and external discovery tools when adding literature.

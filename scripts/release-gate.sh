@@ -547,7 +547,8 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/paragraph_hash_map.py" \
     "$PLUGIN_ROOT/scripts/migrate_convergence_journal_v075.py" \
     "$PLUGIN_ROOT/scripts/check8_g_prefilter.py" \
-    "$PLUGIN_ROOT/scripts/provenance_prewrite_check.py"
+    "$PLUGIN_ROOT/scripts/provenance_prewrite_check.py" \
+    "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"
 do
     if [[ -f "$pyf" ]]; then
         if python3 -m py_compile "$pyf"; then
@@ -640,6 +641,8 @@ print(d.get('thresholds', {}).get('max_chain_depth', 15))
         CALIBRATOR_BIN="$PLUGIN_CALIBRATOR_BIN"
     elif command -v plugin-calibrator >/dev/null 2>&1; then
         CALIBRATOR_BIN="plugin-calibrator"
+    elif [[ -f "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py" ]]; then
+        CALIBRATOR_BIN="python3 $PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"
     elif [[ -n "$PEER_ROOT" && -d "$PEER_ROOT" ]]; then
         for cand in "$PEER_ROOT"/*/scripts/plugin_quality_check.py; do
             [[ -f "$cand" ]] || continue
