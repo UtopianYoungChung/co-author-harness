@@ -5,7 +5,7 @@ trigger: when the user asks for line editing, sentence-level feedback, prose pol
 created_by: Reflector
 created_from: Tier 2 skill build, 2026-04-11 — bacon_2009_well_crafted_sentence_guidelines.md had no standalone entry point
 pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist
-version: 1.0
+version: 1.1
 ---
 # Sentence-Level Pass (Bacon)
 
@@ -27,6 +27,7 @@ Run these counts on the manuscript (or the section the user specifies):
 | Average sentence length | compute | ~15–20 for technical; ~25 for prestige/essay; flag if > 30 |
 | Max sentence length | compute | flag if > 50 |
 | Consecutive sentences of similar length (±3 words, 3+ in a row) | scan | flag clusters as monotony |
+| Em-dash (U+2014 `—` and LaTeX `---` in body prose) | `rg` count; per-paragraph if needed | **Total** in scope; any paragraph with **2+** em-dashes or **increase** vs. prior version if available → [MINOR] candidate (`research_paper_writing_guidelines.md` §7, `DETERMINISTIC_CHECKS.md` §3). **Rewrites must not** swap commas for em-dashes for “emphasis.” |
 | Dummy subjects (*it is*, *there is*, *there are*, *there remain*) | grep | flag each; not all are violations, but each must earn its place |
 | Passive voice clusters (3+ consecutive passive clauses) | scan | flag the cluster |
 
@@ -71,6 +72,7 @@ Walk the manuscript paragraph by paragraph. For each paragraph, check these nine
 - Dummy subjects (it is/there is/there are): <n>
 - Passive clusters (3+ consecutive): <n>
 - Monotonous-length clusters: <n>
+- Em-dashes (— / `---`) in scope: <n> (paragraphs with 2+ flagged in findings)
 
 ### Findings (by location)
 

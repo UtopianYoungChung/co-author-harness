@@ -327,7 +327,7 @@ Draft **a couple of sentences per area** first (Baird worksheets in original JAI
 
 ### E.2 Dashes and alternatives
 
-- **Em-dash (—):** **sparingly**; prefer commas, colons, semicolons, parentheses, or new sentences. No stacked or nested em-dash pairs in one paragraph. In LaTeX, `---` is em-dash.
+- **Em-dash (—):** **sparingly**; prefer commas, colons, semicolons, parentheses, or new sentences. No stacked or nested em-dash pairs in one paragraph. In LaTeX, `---` is em-dash. **Fix rounds:** do not let em-dash count go **up** when applying edits; models often add `---` or `—` when restructuring to satisfy a finding.
 - **En-dash (–):** ranges, some compounds, author–date tables—per **house style**; not interchangeable with em-dash.
 - **Hyphen (-):** standard compounds.
 

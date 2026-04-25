@@ -118,9 +118,10 @@ For each action in the revision plan, in priority order:
    - The rule that authorizes it (`<file>#<section>`)
    - The severity of the finding
    - The exact replacement text
-3. Apply the edit to `manuscript/main.md`.
-4. Log the edit in `manuscript/revision_log.md` with the rule reference and severity.
-5. **At Ph4 only.** Fixes are bounded to the surface change required by the finding. Do not extend a Ph4 fix into adjacent prose, even if you see drift — surface it to the Planner instead. Ph4 is fix-only-no-new-prose; introducing fresh prose at Ph4 risks an EG-1 demotion (Ph4 → Ph3) on the next Evaluator pass.
+3. **Em-dash discipline on fixes (binding; same sources as new writing).** Most **em-dash inflation** happens here: models restate sentences to satisfy a finding and insert U+2014 (`—`) or LaTeX `---` for “smooth” clause breaks. **Do not add** em-dashes to sentences you touch unless (i) removing an existing em-dash as part of the fix, (ii) preserving a **verbatim quote**, or (iii) `directives.md` / venue template requires the glyph. When rewriting for a BLOCKER/MAJOR/MAJOR fix, aim for **the same or fewer** em-dashes in each **edited sentence** as before the edit; if your draft would add one, stop and use a comma, colon, semicolon, parentheses, or a period + new sentence (`research_paper_writing_guidelines.md` §7, `MASTER_research_and_paper_guidelines.md` §E.2). The en-dash (– / `--`) stays **only** for ranges, eligible compounds, and house-style tables—not as an em-dash substitute.
+4. Apply the edit to `manuscript/main.md`.
+5. Log the edit in `manuscript/revision_log.md` with the rule reference and severity.
+6. **At Ph4 only.** Fixes are bounded to the surface change required by the finding. Do not extend a Ph4 fix into adjacent prose, even if you see drift — surface it to the Planner instead. Ph4 is fix-only-no-new-prose; introducing fresh prose at Ph4 risks an EG-1 demotion (Ph4 → Ph3) on the next Evaluator pass.
 
 #### If the action is **new writing** (co-authoring a new section or paragraph) — Ph1/Ph2/Ph3:
 
@@ -160,7 +161,7 @@ For each action in the revision plan, in priority order:
 Before signaling the Planner that you are done:
 
 1. **Run the deterministic patterns from `DETERMINISTIC_CHECKS.md`** on the sections you wrote or edited. Check:
-   - **Em-dashes (— / `---`):** in paragraphs you **changed**, search for U+2014 and `---`. Target **zero** new em-dashes in Generator-authored or revised body prose; replace with the alternatives in the **Em-dash discipline** bullet (Phase 2, new writing). The package table in `DETERMINISTIC_CHECKS.md` also forbids stacked/nested pairs and caps density per paragraph; stay under that bar. Exceptions: only verbatim quotation, or when `directives.md` or the venue template requires the glyph.
+   - **Em-dashes (— / `---`):** in paragraphs you **changed**, search for U+2014 and `---`. Target **zero net new** em-dashes in Generator-authored or revised body prose (including **fix-application** rounds: if you rewrote a sentence for a finding, that sentence must not gain an em-dash unless an exception below applies). Replace with the alternatives in the **Em-dash discipline** bullet (Phase 2, new writing) and the **Em-dash discipline on fixes** bullet (Phase 2, fix path). The package table in `DETERMINISTIC_CHECKS.md` also forbids stacked/nested pairs and caps density per paragraph; stay under that bar. Exceptions: only verbatim quotation, or when `directives.md` or the venue template requires the glyph.
    - Absolute language in new text (`must`, `cannot`, `comprehensiv*`, `anticipat*`)
    - Sentence length of new sentences (flag any > 60 words)
    - "Not X but Y" count in the full file
@@ -244,6 +245,7 @@ At Ph4, your scope is the smallest. Apply only the surface change required by ea
 - **Do not introduce features.** If the plan does not ask for a new theoretical source, do not add one. If the plan does not ask for a new illustrative example, do not add one. Add only what is asked for, in the place it is asked for.
 - **Respect the P-stage.** Read `ph1_pstage_declaration` from `reviews/phase_state.json` and the project classification. If the project is P0/P1, do not write P2 vocabulary (research questions, resolution, answers). If the project is P2, do not hedge where commitment is required. The P-stage does not change as the section climbs the ladder; Ph4 P0 is still P0.
 - **Em-dashes: write without them by default.** The drafting rule under Phase 2 (new **Em-dash discipline** bullet) is binding. Many models overuse "—" for a conversational rhythm; the package treats that as a mechanical and stylistic defect. If you find yourself typing `---` or "—" for a clause break, stop and use comma, colon, or parentheses instead.
+- **Em-dashes on revision (fix rounds).** Uncontrolled em-dash growth almost always enters through **fix application**, not net-new sections. After every fix, if the edited passage has more em-dashes than it started with (per sentence or per paragraph), you have violated policy: back out the em-dashes first, then keep the substantive fix.
 - **Earn every word.** Academic prose is expensive to read. Every sentence you write must do at least one of: advance the argument, ground a claim, introduce a construct, deploy a construct on a case, or hand a question forward. Sentences that do none of these should be cut before you signal completion.
 - **Tier-aware scope.** Ph1 broad, Ph2/Ph3 targeted, Ph4 fix-only. The narrower the tier, the higher the cost of off-plan additions.
 - **Drift is a measurement, not a verdict.** You report the number; the Planner records it; the Evaluator interprets it on the next pass. Do not editorialize the drift number in your Phase 4 signal — just state it. If it is uncomputed, state why.
@@ -251,4 +253,4 @@ At Ph4, your scope is the smallest. Apply only the surface change required by ea
 
 ---
 
-*Last updated: 2026-04-24 (v0.7.4 Lifecycle-Phase Ladder; em-dash discipline tightened in Phase 2 execute + Phase 3 self-check + Generator-specific rules).*
+*Last updated: 2026-04-25 (v0.7.4 Lifecycle-Phase Ladder; em-dash discipline extended to Phase 2 fix-application path + anti-inflation rules).*

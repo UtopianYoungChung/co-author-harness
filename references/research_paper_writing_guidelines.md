@@ -184,7 +184,7 @@ For venue-specific rules (page limits, template packages), always follow the cal
 
 ## 7. Punctuation: em-dash, en-dash, and alternatives
 
-**Em-dash (—).** Use **sparingly**. In most prose, commas, colons, semicolons, parentheses, or a new sentence achieve the same clarity with **more variety** and less visual monotony. Reserve an em-dash only when it delivers **clearly more** than those alternatives (e.g. a single, sharp interruptive aside that would be awkward with parentheses). **Do not** stack multiple em-dashes in one paragraph or nest em-dash pairs. In **LaTeX**, `---` produces an em-dash; avoid overusing it in running text.
+**Em-dash (—).** Use **sparingly**. In most prose, commas, colons, semicolons, parentheses, or a new sentence achieve the same clarity with **more variety** and less visual monotony. Reserve an em-dash only when it delivers **clearly more** than those alternatives (e.g. a single, sharp interruptive aside that would be awkward with parentheses). **Do not** stack multiple em-dashes in one paragraph or nest em-dash pairs. In **LaTeX**, `---` produces an em-dash; avoid overusing it in running text. **On revision:** when rewriting a sentence to fix a review finding, do **not** add em-dashes for “flow”; that path is where overuse most often **increases** without a stylistic reason.
 
 **En-dash (–).** Distinct from the em-dash. Conventional uses include **compound modifiers** where both parts carry equal weight (e.g. human–computer in some house styles), **ranges** (pages, years), and **connection** (author–date style in tables). Follow your venue’s typographic rules; do not treat en-dash as interchangeable with em-dash.
 
