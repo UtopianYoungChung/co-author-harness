@@ -1,13 +1,13 @@
 ---
 name: plugin-commands
-description: 'Show all slash commands in the co-author-harness plugin, each with purpose and invocation moment, plus the manual script commands (sk20 preflight/overlay/autonomous-loop, release-gate). Use when: "what commands are available", "list plugin skills", "slash command help", first-time orientation.'
-trigger: when the user asks for slash-command help, command list, available skills, or how to invoke plugin commands
-version: 1.0
+description: 'Show all slash commands in the co-author-harness plugin, each with purpose and invocation moment, plus the manual script commands (sk20 preflight/overlay/autonomous-loop, release-gate). Use when: "what commands are available", "list plugin skills", "slash command help", first-time orientation, host omits a slash, or unclassified project routing.'
+trigger: 'Catalog and routing for this package’s shipped slash names and script entrypoints (details in description and body).'
+version: 1.1
 ---
 
 # Plugin Commands
 
-You are listing the slash commands available in this plugin.
+List slash commands shipped in this plugin: use the **Command routing** table to pick a path, then the full **Command catalog** for detail.
 
 ## What to output
 
@@ -15,6 +15,21 @@ Return a concise command catalog with:
 - command name
 - one-line purpose
 - best-use moment
+
+If routing is ambiguous, state the single recommended next command in one line and why.
+
+## Command routing (quick)
+
+| Situation | Start here |
+|---|---|
+| New project, unknown P-stage, or no `reviews/classification.md` yet | `/classify-manuscript` before phase runs that expect classification. |
+| New section, ceiling T1 | `/run-phase-1` |
+| After T1 approval, section climbing | `/run-phase-2` |
+| Default T3 full iteration | `/run-phase-3` |
+| Substrate byte-identical to last Ph3 close; same bytes, another pass | `/run-phase-3-stability` (escalate to full `/run-phase-3` on any finding) |
+| Final sign-off, MCR, external handoff | `/run-phase-4` (only when ladder/MCR preconditions in project docs are met) |
+| Pre-release, external verifier contract check | `/tool-contract-roundtrip` |
+| Orientation only: “what exists in this package?” | `/plugin-commands` (this file) |
 
 ## Command catalog
 
@@ -62,8 +77,20 @@ Use these when you want deterministic, script-level execution outside slash-comm
 | `python scripts/provenance_prewrite_check.py --project-root "<project-root>"` | Verify every `phase_deliverable_path` under `reviews/phase_state.json` resolves on disk. | Planner pre-write gate before a ledger row that cites section paths. |
 | `bash scripts/release-gate.sh --build` | Run pre-release structural checks and build a package bundle. | Before version bumps and distribution packaging. |
 
+## NEVER (common mistakes)
+
+- **NEVER** use `/run-phase-3-stability` in place of **full** `/run-phase-3` when Ph4 or MCR rules require a complete Ph3 pass for admission — stability is a reduced envelope; “byte-stable” is not a shortcut past documented admission tests.
+- **NEVER** open `/run-phase-4` for “one last polish” if MCR, G.4, or T4 preconditions in the project’s ladder docs are not satisfied — T4 adds external verifiers and close-out; skipping gates is a ladder break, not a time save.
+- **NEVER** skip `/classify-manuscript` (or the project’s declared equivalent) and run tiered phase skills on a project that has no `reviews/classification.md` / declared tier — the Planner/Evaluator contract assumes declared P-stage and tier defaults.
+- **NEVER** run `/retrofit-concept-grounding` (Coupling B) before `/backfill-source-stubs-from-references` (Coupling A) when source pages are still missing — B assumes the source layer from A exists.
+- **NEVER** treat `/accessibility-overlay` as ignorable at T3/T4 when the workflow expects Check 8/terminal signoff — it is **dormant** at T1 and severity-floored at T2; at T3+ it feeds real gates; skipping it to “save time” leaves BLOCKER-class debt.
+- **NEVER** add slash commands to the catalog that are not shipped in this package’s `skills/` tree — the registry is the authority; the host’s UI may lag or differ.
+- **NEVER** use `/tool-contract-roundtrip` as a substitute for reading the project’s own `EXTERNAL_VERIFIERS` / policy docs — the skill probes contracts; it does not replace release governance in `CLAUDE.md` or the project wiki.
+
 ## Guardrails
 
-- Do not invent commands that are not shipped in this plugin.
-- If a command is unavailable, say so explicitly.
-- Keep names exact so users can invoke them directly.
+- Do not invent commands that are not shipped in this plugin. The tables above match `skills/*/SKILL.md` names; if something is not listed, it is not part of this package.
+- If a user’s **host** (e.g. Claude Code, Cursor) does not show a slash in the palette but the name is in the table, say so: the command is still a shipped skill; the user can type the slash command manually, update/install the package, or rely on the agent to load the skill from the repository. Do not fabricate a different command to replace a missing host entry.
+- If a command is **unavailable** in the current session (e.g. skill not loaded, wrong workspace root), say so explicitly and give the exact canonical name for retry.
+- Keep names **exact** (leading slash, kebab-case) so users can invoke them directly.
+- **Pre-classification:** If the project has no `reviews/classification.md` (or project `CLAUDE.md` defers to one), point to `/classify-manuscript` first unless the user explicitly overrules for a one-off pass.
