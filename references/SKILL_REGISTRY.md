@@ -218,15 +218,15 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-18. `advisor-escalation`
 - **File:** `skills/advisor-escalation/SKILL.md` (executable prompt)
-- **Pattern:** Strategic escalation from the four-agent loop to the external Opus 4.7 advisor MCP, with EXTERNAL-tag re-classification, consultation-artifact filing, and grounding-protocol integration. Encodes the bridge between free-form advisor output and the harness's traceability requirements.
+- **Pattern:** **Advisor MCP** — the co-author-harness **plugin** ships this skill; the **host** must connect the **advisor** MCP server so `consult_advisor` is available. Escalation from the four-agent loop to Opus 4.7–class advisor output, with EXTERNAL-tag re-classification, `reviews/advisor_consultation_*.md` filing, and grounding-protocol integration. **EP-1** (post-Ph2, pre-Ph3) and **EP-2** (post-`Ph3_converged`, pre-MCR/Ph4) are the recommended **submission-defensibility** entry points; normative text in `references/ADVISOR_MCP.md` and `PHASE_PROTOCOL.md` §1.
 - **Created:** 2026-04-15
-- **Source:** C.1 → A.1 design session — advisor MCP server (v1.3.0) produces EXTERNAL-tagged output, but without a bridge skill the tags are not audited, the consultation is not filed, and advisor-sourced claims enter the pipeline as unverified-but-unmarked hypotheses
+- **Source:** C.1 → A.1 design session — advisor MCP server (v1.3.0) produces EXTERNAL-tagged output, but without a bridge skill the tags are not audited, the consultation is not filed, and advisor-sourced claims enter the pipeline as unverified-but-unmarked hypotheses. EP-1/EP-2 entry points added 2026-04-25.
 - **Tier:** Package
 - **Status:** Active
-- **Dependencies:** `advisor` MCP plugin (contract v1.3.0+ runtime; canonical entrypoint at `Advisor/general-advisor/runtime/advisor_server.py` in this workspace); consultation uses `project_root` canonical context packing where possible
+- **Dependencies:** `advisor` MCP server in the **host** (contract v1.3.0+ runtime; `ADVISOR_MCP.md` documents wiring); consultation uses `project_root` canonical context packing where possible
 - **Contract version gate:** v1.3.0+ — treat earlier versions' tag output as untrusted and always re-classify; v1.3.0+ improves prompt-side discipline but re-classification remains mandatory
 - **Grounding-audit extension:** Adds Category 7 (advisor-sourced claims) to the grounding-audit skill's six existing categories
-- **Sibling:** SK-12 `grounding-audit` (downstream consumer — Category 7 extension); SK-26 `run-phase-3` and SK-27 `run-phase-4` (advisor-escalation is an optional lateral step, not part of the core pipeline)
+- **Sibling:** SK-12 `grounding-audit` (downstream consumer — Category 7 extension); SK-25/29/26/27 `run-phase-1/2/3/4` (advisor-escalation is an optional **lateral** at EP-1/EP-2, not a substitute for phase skills)
 
 ### SK-22. `tool-contract-roundtrip`
 - **File:** `skills/tool-contract-roundtrip/SKILL.md`

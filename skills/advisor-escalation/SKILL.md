@@ -1,15 +1,38 @@
 ---
 name: advisor-escalation
-description: Escalate a strategic question to the Opus 4.7 advisor MCP, consume the tagged response, re-classify EXTERNAL tags defensively, file a consultation artifact, and hand the result back with grounding markers intact.
-trigger: when the user or Planner needs strategic guidance beyond the harness's in-session capabilities — P-stage boundary decisions, reframing choices, theoretical pivot questions, submission-readiness judgment, or any question where the four-agent loop is stuck on a value judgment rather than a mechanical check
+description: 'Advisor MCP bridge: co-author-harness plugin skill calls the host-configured advisor MCP (`consult_advisor`) for external feedback—strategic questions plus EP-1 (post-Ph2 pre-Ph3) and EP-2 (post-Ph3_converged pre-MCR/Ph4). Re-classify EXTERNAL tags; file `reviews/advisor_consultation_*.md`. See `references/ADVISOR_MCP.md`.'
+trigger: when the user or Planner needs strategic or fresh-eyes guidance via the advisor MCP—EP-1/EP-2 moments, P-stage boundaries, reframing, theory pivots, submission-readiness judgment, stuck value-judgment loops, or explicit /advisor-escalation
 created_by: User + design session (C.1 → A.1 progression)
 created_from: advisor_plugin_upgrade design, 2026-04-15 — context_contract.md v1.3.0
 pattern_source: advisor output requires grounding-protocol integration that free-form consultation does not provide; EXTERNAL tags need audit-side re-classification; consultation artifacts need filing for traceability
-version: 1.0
+version: 1.1
 ---
-# Advisor Escalation
+# Advisor MCP — `advisor-escalation` (plugin bridge)
 
-You are running the advisor-escalation bridge skill. This skill connects the co-author-harness four-agent loop to the external Opus 4.7 advisor MCP server. It handles everything between "the Planner decides it needs strategic advice" and "the requesting agent receives a grounded, auditable consultation result."
+You are running the **Advisor MCP** bridge skill shipped by the **co-author-harness** plugin. It connects the four-agent loop to the **advisor** MCP server the user has attached in the **host** (Cursor, Claude Code, etc.). The plugin **does not** bundle the server; it exposes this skill so agents invoke `mcp__advisor__consult_advisor` with the same guardrails every time.
+
+It handles everything between "the Planner decides it needs external feedback" and "the requesting agent receives a grounded, auditable consultation result."
+
+**Normative one-pager.** Read [`references/ADVISOR_MCP.md`](references/ADVISOR_MCP.md) for EP-1 / EP-2 definitions and plugin–MCP wiring.
+
+---
+
+## Lifecycle entry points (submission defensibility)
+
+Use the same Steps 1–7 below. **Name the entry point in `task_summary`** so downstream artefacts show *why* this consultation ran.
+
+| ID | When to run | What to ask |
+|----|-------------|-------------|
+| **EP-1** | After **Ph2** completion (first full Evaluator pass / Ph2 exit artefacts), **before** deep **Ph3** iteration | Macro questions: contribution clarity, narrative arc, venue fit, structural risks—*before* Ph3 optimizes locally. |
+| **EP-2** | After all in-scope sections are **`Ph3_converged`**, **before** **MCR** and **Ph4** | Skeptical read: over-claiming, related-work fairness, "would a reviewer believe this" issues—*before* external-verifier and G.4 work. |
+
+These are **recommended** consult moments; they do not replace user approval, MCR, or `EXTERNAL_VERIFIERS` checks.
+
+---
+
+## Procedural flow (Steps 1–7)
+
+You are executing the advisor-escalation bridge. **Opus 4.7** pricing applies to the advisor MCP server as configured; see Step 1.
 
 **Prerequisite reads.** Before proceeding, read these files (skip if already read in this session):
 
@@ -31,6 +54,8 @@ You are running the advisor-escalation bridge skill. This skill connects the co-
 | **Submission-readiness judgment** | "Is this ready for CAiSE or does it need another round?" |
 | **Strategic dead-end** | The Evaluator keeps flagging the same BLOCKER and the Generator cannot resolve it — the problem may be structural, not editorial |
 | **User explicitly requests advisor** | "Ask the advisor about X," "Escalate this to Opus," `/advisor-escalation` |
+| **EP-1 (post-Ph2, pre-Ph3)** | Scheduled **Advisor MCP** read after Ph2 exit, before deep Ph3 — see `references/ADVISOR_MCP.md` |
+| **EP-2 (pre-MCR/Ph4)** | Scheduled read after `Ph3_converged`, before MCR/Ph4 — see `references/ADVISOR_MCP.md` |
 | **Cross-project strategic question** | "How does the INF3006Y framing relate to the CAiSE revision?" |
 
 ### When NOT to invoke
@@ -76,9 +101,10 @@ consult_advisor(
 **Rules for composing the question:**
 
 1. **One question per call.** Multiple questions dilute the advisor's focus and make tag-attribution harder.
-2. **Include what the loop already tried.** If the Evaluator flagged a BLOCKER and the Generator attempted a fix, say so. The advisor needs to know what failed.
-3. **Name the tension explicitly.** "The tension is between X and Y; the loop cannot resolve it because Z."
-4. **Do not ask the advisor to review prose.** The advisor gives strategic guidance; the Evaluator reviews prose. If you need both, run the advisor first, incorporate its guidance, then run the Evaluator.
+2. **If EP-1 or EP-2:** the first line of `task_summary` MUST be `Advisor entry point: EP-1 (post-Ph2, pre-Ph3)` or `Advisor entry point: EP-2 (post-Ph3_converged, pre-MCR/Ph4)` (exact choice matching `ADVISOR_MCP.md`).
+3. **Include what the loop already tried.** If the Evaluator flagged a BLOCKER and the Generator attempted a fix, say so. The advisor needs to know what failed.
+4. **Name the tension explicitly.** "The tension is between X and Y; the loop cannot resolve it because Z."
+5. **Do not ask the advisor to line-edit every sentence.** The advisor gives strategic / fresh-eyes guidance; the Evaluator reviews prose. If you need both, run the advisor first, incorporate its guidance, then run the Evaluator.
 
 ---
 

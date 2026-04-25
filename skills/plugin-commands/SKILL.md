@@ -2,7 +2,7 @@
 name: plugin-commands
 description: 'Show all slash commands in the co-author-harness plugin, each with purpose and invocation moment, plus the manual script commands (sk20 preflight/overlay/autonomous-loop, release-gate). Use when: "what commands are available", "list plugin skills", "slash command help", first-time orientation, host omits a slash, or unclassified project routing.'
 trigger: 'Catalog and routing for this package’s shipped slash names and script entrypoints (details in description and body).'
-version: 1.1
+version: 1.2
 ---
 
 # Plugin Commands
@@ -29,6 +29,7 @@ If routing is ambiguous, state the single recommended next command in one line a
 | Substrate byte-identical to last Ph3 close; same bytes, another pass | `/run-phase-3-stability` (escalate to full `/run-phase-3` on any finding) |
 | Final sign-off, MCR, external handoff | `/run-phase-4` (only when ladder/MCR preconditions in project docs are met) |
 | Pre-release, external verifier contract check | `/tool-contract-roundtrip` |
+| **Advisor MCP** — after Ph2, before Ph3 (EP-1) or after Ph3_converged, before MCR/Ph4 (EP-2) | `/advisor-escalation` — see `references/ADVISOR_MCP.md`; host must expose advisor MCP |
 | Orientation only: “what exists in this package?” | `/plugin-commands` (this file) |
 
 ## Command catalog
@@ -55,7 +56,7 @@ If routing is ambiguous, state the single recommended next command in one line a
 | `/accessibility-overlay` | Overlay SAFEGUARD Check 8's six reader-accessibility Sub-checks (A–F: Cadence, Rhythm, First-Use, Signpost, Jargon-Density, Worked-Example) onto a section's prose; emits MINOR / MAJOR / BLOCKER findings and an aggregate verdict the Planner consumes for the §3.3.3 TerminalSignoffRow accessibility gate. Dormant at T1, T2 severity-floored, full severity at T3/T4. | When the Evaluator runs Step 8.5, when a user asks to audit a section for reader accessibility, or when the Reflector Phase 2g recurrence audit replays Check 8 across rounds. |
 | `/suchman-register-audit` | Audit Suchman register and asymmetric argument quality. | Suchman-style manuscript validation. |
 | `/public-interest-accountability-pass` | Run an optional Eubanks-style policy-critical writing pass. | Inequality/public-service accountability sections. |
-| `/advisor-escalation` | Escalate strategic questions to advisor MCP with safeguards. | Complex planning/theory decisions. |
+| `/advisor-escalation` | **Advisor MCP** — plugin bridge to the host’s **advisor** MCP (`consult_advisor`); external feedback with EXTERNAL reclassification and `reviews/advisor_consultation_*.md`. **EP-1** post-Ph2 pre-Ph3; **EP-2** post-Ph3_converged pre-MCR/Ph4 (`ADVISOR_MCP.md`). | Strategic or fresh-eyes questions; **scheduled** EP-1/EP-2 for submission defensibility; not for mechanical checks. |
 | `/graph-grounding-overlay` | Overlay graphify findings onto manuscript citation set. | Wiki-linked graph-assisted reviews. |
 | `/tool-contract-roundtrip` | Probe external verifier tool contracts before release. | Pre-release plugin validation. |
 | `/backfill-source-stubs-from-references` | Generate wiki source-page stubs from a project's REFERENCES.md (Coupling A-revised). | Populating the external-source layer before concept-page grounding retrofits. |
