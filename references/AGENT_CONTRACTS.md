@@ -26,9 +26,36 @@
 - `research_notes/directives.md` if present.
 - Prior `reviews/reflection_report.md` if a prior round exists.
 
-**Outputs (write).**
-- `reviews/classification.md` (create or update).
-- `reviews/revision_plan.md` (create or update, prioritized). During re-check mode, the Planner appends a **retain/revert addendum** to this file, categorizing each Generator change as RETAIN, REVERT, or PARTIAL per the Retain/Revert Protocol (`AGENT_ORCHESTRATION.md` §7).
+**Outputs (write).** Full enumeration matches `agents/planner.md §"What you write"`.
+
+*Every round:*
+- `reviews/phase_state.json` — per-section lifecycle ledger (sole writer). 16-field `SectionStateObject` per `phase_state_schema.md §2`; atomic `.tmp → rename` with mtime+sha256 concurrency check.
+- `reviews/classification.md` — four-field classification (paper type, P-stage, venue, `default_final_phase`) plus optional `section_ceiling_override` and `fingerprint_mode`. Created or updated.
+- `reviews/revision_plan.md` — prioritized, rule-cited action list for Generator and Evaluator. During re-check mode, the Planner appends a **retain/revert addendum** categorizing each Generator change as RETAIN, REVERT, or PARTIAL per the Retain/Revert Protocol (`AGENT_ORCHESTRATION.md §7`).
+- `reviews/dispatch_plan_<cycle_id>.md` — F6 frontmatter artefact authored at Phase 0.6 per I-Planner-10; declares `sections_in_scope`, `dispatched_agents[]`, `checks_scheduled[]`, and (when Ph3 is in scope) the v0.8.0 profile quartet.
+- `reviews/escalation_log.md` — append-only pipe-row trace of every phase transition within the round. Column vocabulary: `| timestamp | prev_phase -> new_phase | gate | reason | round_id |`. Also receives `CACHE-INVALIDATED-EXTERNAL-WRITE` advisory rows from Phase 0.5 invalidation events.
+- `reviews/round_program.md` — one-round goal/scope/success-criteria plan (overwritten each round).
+
+*Phase-specific:*
+- `reviews/ph1_draft_completion.md` — Ph1 exit artefact (Planner-signed; when `sd_sr_required: true`, additionally asserts i* SD/SR models are frozen).
+- `reviews/convergence_log.md` — Ph3 append-only per-iteration record (fields: iteration_index, findings_count_delta, generator_response_summary, convergence_metric, ownership-transfer metadata).
+- `reviews/convergence_journal.jsonl` — Ph3 mechanical-state journal; one JSONL row per batch iteration under P-7 (manuscript-level `ph3_iteration_round_manuscript`). Sole writer: Planner.
+- `reviews/ph3_convergence_signoff.md` — cumulative Ph3 signoff artefact; carries `TerminalSignoffRow` and `ReengagementSignoffRow` entries.
+- `reviews/mcr_<YYYY-MM-DD>.md` — Manuscript Convergence Report (written when `/run-phase-4` or `/ship` is invoked against a non-uniform ledger).
+- `reviews/close_out_<phase>_<YYYY-MM-DD>.md` — optional narrative close-out at phase close (not mandatory; not a dispatch gate).
+- `reviews/plugin_update_proposals.md` — formalized Reflector-full proposal candidates (Planner is sole gatekeeper; applies three filters before surfacing to user).
+- `reviews/migration_report_v060_to_v070.md` — written once by migration script; Planner presents to user before accepting first `/review` on a migrated project (read-and-present, not write).
+
+*Round-close archive:*
+- `reviews/escalation_log.md.<round-id>` — archival copy of the round's escalation log.
+
+*Reads but does not write:*
+- `reviews/ph2_review_completion.md` — Generator-signed Ph2 exit artefact; Planner reads and records the `ph2_review_completion_signed` trigger row on user approval.
+
+*Conditional:*
+- `reviews/wiki_synthesis_brief.md` — when wiki-linked and the round includes new synthesis writing.
+
+*Dispatch instructions:*
 - Dispatch instructions to other agents (via Agent tool or parent-session handoff).
 
 **Invariants.**

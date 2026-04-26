@@ -20,7 +20,7 @@
 
 **The critical constraint:** The Generator never evaluates its own output, and the Evaluator never writes prose. This separation is what makes the system trustworthy. The Reflector-full audits both; the Reflector-lightweight runs an integrity probe only.
 
-**The Planner's real scope (v0.7.3 clarification).** "Planner" is a historical name inherited from v0.5.x when the agent was principally a planner of revision work. At v0.7.3 the role has outgrown that name: the Planner carries seven orchestration responsibilities — (i) classification of the manuscript and P-stage lock-in; (ii) revision planning proper; (iii) dispatch of Evaluator / Generator / Reflector subagents; (iv) sole-writer ownership of `reviews/tier_state.json`, the 15-field per-section ledger; (v) model-capability arbitration under `MODEL_ALLOCATION.md` with the capability-inversion refusal gate (I-Planner-5); (vi) Manuscript Convergence Report compilation and T4 admission control; (vii) user-checkpoint gating at every `► PRESENTS TO USER ◄`. In orchestration terms the Planner is the *conductor* of the four-agent pipeline — the single choke-point through which every dispatch and every state transition flows. The package deliberately does not split these responsibilities into a fifth "Maestro" role: orchestration authority co-locates with state authority on a single dispatcher, and the Reflector's Phase 2f audit is the cross-cutting harmonization check that a separate orchestrator would otherwise duplicate. The human user remains the ultimate conductor — every blocking checkpoint routes the decision to a human — while the Planner is the conductor-within-the-loop. A rename to `Director` (or `Conductor`) is under consideration for the v0.7.4 major alongside the Tier → Phase rename; no rename ships in v0.7.3.
+**The Planner's real scope (v0.7.3 clarification).** "Planner" is a historical name inherited from v0.5.x when the agent was principally a planner of revision work. At v0.7.3 the role has outgrown that name: the Planner carries seven orchestration responsibilities — (i) classification of the manuscript and P-stage lock-in; (ii) revision planning proper; (iii) dispatch of Evaluator / Generator / Reflector subagents; (iv) sole-writer ownership of `reviews/phase_state.json`, the 16-field per-section ledger; (v) model-capability arbitration under `MODEL_ALLOCATION.md` with the capability-inversion refusal gate (I-Planner-5); (vi) Manuscript Convergence Report compilation and Ph4 admission control; (vii) user-checkpoint gating at every `► PRESENTS TO USER ◄`. In orchestration terms the Planner is the *conductor* of the four-agent pipeline — the single choke-point through which every dispatch and every state transition flows. The package deliberately does not split these responsibilities into a fifth "Maestro" role: orchestration authority co-locates with state authority on a single dispatcher, and the Reflector's Phase 2f audit is the cross-cutting harmonization check that a separate orchestrator would otherwise duplicate. The human user remains the ultimate conductor — every blocking checkpoint routes the decision to a human — while the Planner is the conductor-within-the-loop. A rename to `Director` (or `Conductor`) is under consideration for the v0.7.4 major alongside the Tier → Phase rename; no rename ships in v0.7.3.
 
 **v0.7.0 retirement notice.** Three surfaces retired at v0.7.0, replaced by the Lifecycle-Phase Ladder's phase-conditioned engagement matrix:
 
@@ -160,7 +160,7 @@ The standard workflow for a revision round at Ph3 or Ph4:
 ```
 USER REQUEST
   ↓
-① PLANNER — bootstraps 15-field section state; reads classification.md
+① PLANNER — bootstraps 16-field section state; reads classification.md
    for P-stage; populates ph1_pstage_declaration.
    When sd_sr_required: true (classification.md, v0.7.1 opt-in),
    additionally authors SD/SR models and runs the §3.1.1
@@ -411,7 +411,7 @@ The indented block is parsed by the Reflector-full Phase 2b trajectory collector
 **Header.** The first line of the file is always a single `# Escalation Log — <round-id>` heading; the Planner writes this on round open and never rewrites it. The second line is a pipe-table header and separator so that the body reads as a valid markdown table:
 
 ```
-| timestamp | prev_tier -> new_tier | gate | reason | round_id |
+| timestamp | prev_phase -> new_phase | gate | reason | round_id |
 |---|---|---|---|---|
 ```
 
@@ -426,7 +426,7 @@ The tuner's regex anchors on the column shape, not on the header, so the header 
 **Seed template:** The Planner writes the following header on first Ph3 entry (or copies it when archiving a prior round into `escalation_log.md.<round-id>`):
 
 ```markdown
-# Escalation Log — <PROJECT_NAME>
+# Escalation Log — <round-id>
 
 **Round:** <N>
 **Opened:** <ISO-8601 timestamp>
@@ -456,48 +456,49 @@ The phase-state ledger is a Planner-written, single-writer JSON file that carrie
 
 **Persistence and concurrency contract.** Every mutation follows the atomic `phase_state.json.tmp` → `rename` pattern (`PHASE_PROTOCOL.md §8.7`). The Planner stamps `last_updated` with the current wall-clock time on every mutation; the NEW-H-5 invariant requires `last_updated ≥ max(phase_entry_log[*].timestamp)` across all sections and rows written in the same session. Before any write, the Planner performs an mtime + sha256 concurrency check against the in-memory copy read at session bootstrap; a mismatch fires the `[CONCURRENCY-DETECTED]` prompt (`PHASE_PROTOCOL.md §8.7`) and the write halts until the user resolves the divergence. An advisory lockfile `reviews/.phase_state.lock` is best-effort; it does not substitute for the mtime+hash check.
 
-**Cross-reference with §8.2a.** The escalation log (§8.2a) records transitions as pipe-row append-only markdown for human readability and for `gate_threshold_tuner.py`; the `tier_entry_log` array in §8.2b records the same transitions as structured JSON for agent consumption. The two representations must not disagree. A transition that appears in the escalation log but is missing from `tier_entry_log` (or vice versa) is a Planner-contract violation the Reflector-full flags as a BLOCKER (grounding violation: Rule 2 — compute before report). The `prev_tier` / `new_tier` JSON field names match the pipe-row column names — the rename from v0.6.0's `from_tier` / `to_tier` was global to keep escalation-log parsers and JSON consumers in lockstep.
+**Cross-reference with §8.2a.** The escalation log (§8.2a) records transitions as pipe-row append-only markdown for human readability and for `gate_threshold_tuner.py`; the `phase_entry_log` array in §8.2b records the same transitions as structured JSON for agent consumption. The two representations must not disagree. A transition that appears in the escalation log but is missing from `phase_entry_log` (or vice versa) is a Planner-contract violation the Reflector-full flags as a BLOCKER (grounding violation: Rule 2 — compute before report). The `prev_phase` / `new_phase` JSON field names match the pipe-row column names — the rename from v0.6.0's `from_tier` / `to_tier` to v0.7.0's `prev_tier` / `new_tier` to v0.7.4's `prev_phase` / `new_phase` was global to keep escalation-log parsers and JSON consumers in lockstep.
 
-**Audit envelope.** The Reflector-full's success-metric M3 audit (`TIER_PROTOCOL.md §11`) walks the `tier_entry_log` at Ph4 close and verifies that every `user_approval` row is preceded within the same session by one of: `initial_dispatch`, a prior `user_approval`, a `user_rejection` followed by a meaningful Generator write, an `mcr_admission` row covering the section, a `ph3_iteration_completion_signed` row at Ph3, a `ph2_review_completion_signed` row at Ph2, or an `override_applied` row with user concurrence logged. Any `user_approval` whose predecessor does not satisfy these cases surfaces as a Category 6 violation (approve-through-inertia).
+**Audit envelope.** The Reflector-full's success-metric M3 audit (`PHASE_PROTOCOL.md §11`) walks the `phase_entry_log` at Ph4 close and verifies that every `user_approval` row is preceded within the same session by one of: `initial_dispatch`, a prior `user_approval`, a `user_rejection` followed by a meaningful Generator write, an `mcr_admission` row covering the section, a `ph3_iteration_completion_signed` row at Ph3, a `ph2_review_completion_signed` row at Ph2, or an `override_applied` row with user concurrence logged. Any `user_approval` whose predecessor does not satisfy these cases surfaces as a Category 6 violation (approve-through-inertia).
 
-**Legacy compatibility.** v0.6.0 projects migrate via `scripts/migrate_v060_to_v070.py`, which: (a) bumps `schema_version` to `0.7.0`; (b) renames each `tier_entry_log` row's `from_tier` / `to_tier` to `prev_tier` / `new_tier`; (c) renames `current_tier: "T4_ready"` to `"T3_converged"`; (d) injects null defaults for the five new SectionStateObject fields, with an attached `migration_report_hold` warning that the Planner must resolve before any T2 dispatch; (e) preserves `confirmation_failed` rows read-only; (f) renames the trigger `laggard_clearance_approved` to `mcr_admission` and `laggard_clearance_cancelled` to `mcr_admission_revoked`. Post-migration, the v0.6.0 `tier_state.json` is archived as `tier_state_v0.6.0.archive.json` and is **not read** by v0.7.0 runtime code — only the migrated `tier_state.json` is authoritative.
+**Legacy compatibility.** v0.6.0 projects migrate via `scripts/migrate_v060_to_v070.py`, which: (a) bumps `schema_version` to `0.7.4`; (b) renames each `phase_entry_log` row's `from_tier` / `to_tier` → `prev_tier` / `new_tier` → `prev_phase` / `new_phase` (two-step rename); (c) renames `current_phase: "T4_ready"` to `"Ph3_converged"`; (d) injects null defaults for the six new SectionStateObject fields (including `pre_mcr_deep_pass_completed: false`), with an attached `migration_report_hold` warning that the Planner must resolve before any Ph2 dispatch; (e) preserves `confirmation_failed` rows read-only; (f) renames the trigger `laggard_clearance_approved` to `mcr_admission` and `laggard_clearance_cancelled` to `mcr_admission_revoked`. Post-migration, the v0.6.0 `tier_state.json` is archived as `phase_state_v0.6.0.archive.json` and is **not read** by v0.7.4 runtime code — only the migrated `phase_state.json` is authoritative.
 
 **Seed template (fresh v0.7.0 project).**
 
 ```json
 {
-  "schema_version": "0.7.0",
+  "schema_version": "0.7.4",
   "manuscript_id": "<project-slug>",
-  "default_final_tier": "T3",
+  "default_final_phase": "Ph3",
   "fingerprint_mode": "tolerant",
-  "terminal_tier_reached": false,
-  "t3_stale_budget_days": 14,
+  "terminal_phase_reached": false,
+  "ph3_stale_budget_days": 14,
   "last_updated": "2026-04-19T14:05:22Z",
   "sections": [
     {
       "heading_path": ["1. Introduction"],
-      "current_tier": "T1",
-      "last_approved_tier": null,
+      "current_phase": "Ph1",
+      "last_approved_phase": null,
       "ceiling_locked": false,
       "section_ceiling_override": null,
-      "iteration_count_at_current_tier": 0,
+      "iteration_count_at_current_phase": 0,
       "last_scope_fingerprint": "<sha256>",
       "fingerprint_computed_at": "2026-04-19T14:05:22Z",
       "cumulative_drift_lines_since_approval": 0,
-      "tier_goal_declared": null,
-      "tier_deliverable_path": null,
+      "phase_goal_declared": null,
+      "phase_deliverable_path": null,
       "convergence_metric": null,
-      "t1_pstage_declaration": null,
-      "t3_last_activity_at": null,
-      "tier_entry_log": [
+      "ph1_pstage_declaration": null,
+      "ph3_last_activity_at": null,
+      "pre_mcr_deep_pass_completed": false,
+      "phase_entry_log": [
         {
           "timestamp": "2026-04-19T14:05:22Z",
           "trigger": "initial_dispatch",
-          "prev_tier": null,
-          "new_tier": "T1",
-          "scope": "section",
-          "cycle_id": "cycle-1",
-          "detail": "Section initialized on fresh v0.7.0 project."
+          "prev_phase": null,
+          "new_phase": "Ph1",
+          "actor": "planner",
+          "notes": "Section initialized on fresh v0.7.4 project.",
+          "model_used": null
         }
       ]
     }
@@ -505,7 +506,7 @@ The phase-state ledger is a Planner-written, single-writer JSON file that carrie
 }
 ```
 
-The migration script produces an analogous seed for v0.6.0 → v0.7.0 projects, performing the field rename and default-injection as described above and emitting a `migration_report_hold` row in `tier_entry_log` that the Planner must resolve before any T2 dispatch.
+The migration script produces an analogous seed for v0.6.0 → v0.7.4 projects, performing the field rename and default-injection as described above and emitting a `migration_report_hold` row in `phase_entry_log` that the Planner must resolve before any Ph2 dispatch.
 
 ---
 
@@ -513,18 +514,18 @@ The migration script produces an analogous seed for v0.6.0 → v0.7.0 projects, 
 
 **Status: retired since v0.6.0.** The **Tier Marshal**, introduced at v0.5.5 (Phase F.1 advisory rollout) as the package's fifth agent, was retired at v0.6.0 and remains retired at v0.7.0. The 24 predicates that constituted its preflight/postflight battery (P-1…P-13 and Q-1…Q-11) were bound to machinery that the v0.6.0 rewrite removed — the Phase 5.5 Tier Close-Out election (`Down / Stay / Up / Done`), the asymmetric-Down ratchet (`ascent_observed` array), the per-round `reviews/tier_closeout_<round>_<date>.md` benefit-delta artefact, and the `choice`-column `reviews/tier_decisions_log.md`. Under the v0.7.0 Lifecycle-Stage Ladder these objects do not exist; the predicates that guarded them have no referents and cannot fire.
 
-**Per-predicate retirement rationale.** See `TIER_PROTOCOL.md §9.1` for the binding-by-binding audit (which predicate referenced which retired object, and why no v0.7.0 analog is required). In brief: P-7 and P-8 referenced the ratchet header and `ascent_observed` — both gone under the monotonicity invariant (current_tier never moves below last_approved_tier except via explicit EG-1 / EG-7 demotion or user retraction); Q-1 through Q-5 referenced the close-out artefact and decisions-log `choice` column — both gone under the binary Approve/Reject gate of `TIER_PROTOCOL.md §6`; the remaining predicates either collapse into well-formedness checks on `tier_state.json` (now absorbed into the Planner's Phase 0 bootstrap, with the §3.1.1 i* structural-completeness validator added at v0.7.0) or into the pre-phase-advance check (absorbed into `scripts/pre_phase_advance_check.py` per `TIER_PROTOCOL.md §7.3`). Confirmation Mode at T2 entry — itself retired at v0.7.0 — no longer absorbs any of these predicates.
+**Per-predicate retirement rationale.** See `PHASE_PROTOCOL.md §9.1` for the binding-by-binding audit (which predicate referenced which retired object, and why no v0.7.0 analog is required). In brief: P-7 and P-8 referenced the ratchet header and `ascent_observed` — both gone under the monotonicity invariant (current_phase never moves below last_approved_phase except via explicit EG-1 / EG-7 demotion or user retraction); Q-1 through Q-5 referenced the close-out artefact and decisions-log `choice` column — both gone under the binary Approve/Reject gate of `PHASE_PROTOCOL.md §6`; the remaining predicates either collapse into well-formedness checks on `phase_state.json` (now absorbed into the Planner's Phase 0 bootstrap, with the §3.1.1 i* structural-completeness validator added at v0.7.0) or into the pre-phase-advance check (absorbed into `scripts/pre_phase_advance_check.py` per `PHASE_PROTOCOL.md §7.3`). Confirmation Mode at Ph2 entry — itself retired at v0.7.0 — no longer absorbs any of these predicates.
 
 **Archived artefacts.** The v0.5.5 contract document `references/TIER_MARSHAL_CONTRACT.md`, the runners `scripts/marshal_preflight.py` / `scripts/marshal_postflight.py` / `scripts/_marshal_common.py`, and the F.1 report-template fixtures are preserved under `legacy/marshal-f1-retired/` with a README enumerating their historical role and the replacement path. The v0.5.5 migration helper `scripts/migrate_classification_to_tier.py` was superseded by `scripts/migrate_v055_to_v060.py`, which is itself superseded at v0.7.0 by `scripts/migrate_v060_to_v070.py` (Phase 7 of the v0.7.0 rollout).
 
 **Function absorption.** The Marshal's two structural duties migrate into the Planner:
 
-- **Preflight (was P-1…P-13)** → Planner Phase 0 session-bootstrap routine (`agents/planner.md §Phase 0`), which reads `reviews/classification.md` and `reviews/tier_state.json`, validates ledger well-formedness, verifies the NEW-H-5 `last_updated` invariant, checks fingerprint freshness, handles concurrency via the mtime+sha256 check, and halts with a [STATE-CORRUPT] or [CONCURRENCY-DETECTED] prompt if invariants fail.
-- **Postflight (was Q-1…Q-11)** → Planner Phase 5.5 post-approval log-write routine, which appends the `tier_entry_log` row under the 12-trigger enum and updates `current_tier` / `last_approved_tier` / `iteration_count_at_current_tier` / `cumulative_drift_lines_since_approval` / `last_updated` atomically.
+- **Preflight (was P-1…P-13)** → Planner Phase 0 session-bootstrap routine (`agents/planner.md §Phase 0`), which reads `reviews/classification.md` and `reviews/phase_state.json`, validates ledger well-formedness, verifies the NEW-H-5 `last_updated` invariant, checks fingerprint freshness, handles concurrency via the mtime+sha256 check, and halts with a [STATE-CORRUPT] or [CONCURRENCY-DETECTED] prompt if invariants fail.
+- **Postflight (was Q-1…Q-11)** → Planner Phase 5.5 post-approval log-write routine, which appends the `phase_entry_log` row under the 30-trigger active enum and updates `current_phase` / `last_approved_phase` / `iteration_count_at_current_phase` / `cumulative_drift_lines_since_approval` / `last_updated` atomically.
 
 Under the v0.6.0 monotonicity invariant the ratchet audit is **vacuous** — there is no asymmetric-Down path left to police — so the predicates that enforced it (P-7, P-8, Q-6) have no work to do and are not replaced. SAFEGUARD Check 5 (Edit Traceability) continues to enforce the edit → finding linkage it always did; Q-2's "every round closes on a signed close-out" duty is supplanted by the binary approval gate and its `tier_entry_log` row.
 
-**Scope of this note.** This §8.3 is preserved as a migration marker only. Agents that previously dispatched or consulted the Marshal (no active agent does at v0.6.0) should treat references to `TIER_MARSHAL_CONTRACT.md` as dangling and route to `TIER_PROTOCOL.md §9.1` and the archived `legacy/marshal-f1-retired/README.md` for historical context.
+**Scope of this note.** This §8.3 is preserved as a migration marker only. Agents that previously dispatched or consulted the Marshal (no active agent does at v0.6.0) should treat references to `TIER_MARSHAL_CONTRACT.md` as dangling and route to `PHASE_PROTOCOL.md §9.1` and the archived `legacy/marshal-f1-retired/README.md` for historical context.
 
 ---
 
@@ -648,18 +649,18 @@ If any gate fails, the Reflector records the pattern as a lesson instead of a sk
 
 ## 10. Lifecycle Dispatch — Milestones Unified into the Lifecycle-Stage Ladder
 
-At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **superseded** by the Lifecycle-Stage Ladder's tier vocabulary (T1, T2, T3, T4). Each milestone maps onto a tier or onto a sub-phase within a tier; the milestone names are preserved as **deliverable tags** for users who carry the older mental model, but the dispatch contract is now tier-based. This section specifies the supersession mapping, the tier-conditioned agent dispatch for each former milestone, and the migration path for projects that originated under the v0.6.0 milestone framing.
+At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **superseded** by the Lifecycle-Phase Ladder's phase vocabulary (Ph1, Ph2, Ph3, Ph4). Each milestone maps onto a phase or onto a sub-phase within a phase; the milestone names are preserved as **deliverable tags** for users who carry the older mental model, but the dispatch contract is now phase-based. This section specifies the supersession mapping, the phase-conditioned agent dispatch for each former milestone, and the migration path for projects that originated under the v0.6.0 milestone framing.
 
 ### 10.1 Supersession mapping (v0.6.0 → v0.7.0)
 
-| v0.6.0 Milestone | Artifact | v0.7.0 Tier | v0.7.0 Sub-phase or notes |
+| v0.6.0 Milestone | Artifact | v0.7.0 Phase | v0.7.0 Sub-phase or notes |
 |---|---|---|---|
-| **M1 — Project Memo** | `research_notes/project_memo.md` | **T1 Plan & Draft** | T1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
-| **M2 — Annotated References** | `research_notes/annotated_references.md` | **T1 Plan & Draft** | T1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
-| **M3 — Structured Outline** | `manuscript/outline.md` | **T1 Plan & Draft** | T1 sub-phase 3: Generator may seed prose stubs. **When `sd_sr_required: true`** (`TIER_PROTOCOL.md §3.1.2`), Planner additionally authors SD/SR models per `agents/planner.md §T1` and runs §3.1.1 i* structural-completeness validator; when the flag is absent or `false` (v0.7.1 default), these sub-activities silently skip. |
-| **M4a — Paper Draft (review-ready)** | `manuscript/main.md` (initial draft depth) | **T2 Review & Revise** | First Evaluator engagement; Confirmation Mode retired |
-| **M4b — Paper Draft (converging)** | `manuscript/main.md` (iteration depth) | **T3 Iterate & Converge** | Unbounded loop with `convergence_metric` two-round stability test; Coupling E.2 graph-grounding overlay at Step 0.2 |
-| **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **T4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
+| **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
+| **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
+| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 3: Generator may seed prose stubs. **When `sd_sr_required: true`** (`PHASE_PROTOCOL.md §3.1.2`), Planner additionally authors SD/SR models per `agents/planner.md §Ph1` and runs §3.1.1 i* structural-completeness validator; when the flag is absent or `false` (v0.7.1 default), these sub-activities silently skip. |
+| **M4a — Paper Draft (review-ready)** | `manuscript/main.md` (initial draft depth) | **Ph2 Review & Revise** | First Evaluator engagement; Confirmation Mode retired |
+| **M4b — Paper Draft (converging)** | `manuscript/main.md` (iteration depth) | **Ph3 Iterate & Converge** | Unbounded loop with `convergence_metric` two-round stability test; Coupling E.2 graph-grounding overlay at Step 0.2 |
+| **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
 **Why the supersession.** The milestone framing was ordered (M1 → M2 → ... → M5) but the agent-engagement contract was **uniform across milestones**: every milestone could in principle dispatch the full four-agent loop. This blurred the boundary between drafting (where the Generator's freedom is highest) and converging (where the Evaluator's policing is tightest). The Lifecycle-Phase Ladder makes the boundary explicit — Ph1 has no Evaluator at all, Ph4 requires external verifiers — and the milestone vocabulary becomes redundant. Preserving the milestone names as deliverable tags (e.g. "the M1 deliverable is the project memo, authored at Ph1 sub-phase 1") keeps the older mental model usable without requiring two parallel dispatch contracts.
 
@@ -668,7 +669,7 @@ At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **supers
 #### M1 deliverable — Project Memo (at Ph1 sub-phase 1)
 
 ```
-Planner (T1 bootstrap; reads classification.md for P-stage; populates t1_pstage_declaration)
+Planner (Ph1 bootstrap; reads classification.md for P-stage; populates ph1_pstage_declaration)
   → Generator (drafts memo under P-stage register; diff-scoped, Rule 1 digest exception applies)
   → Reflector-lightweight (optional integrity probe; no lessons_learned.md write)
 ```
@@ -683,14 +684,14 @@ Planner (T1 bootstrap; reads classification.md for P-stage; populates t1_pstage_
 | Forward-pointing questions | Are candidate q-items (q-α, q-β, q-γ) present? (Not numbered RQs at P0/P1.) |
 | Snowball strategy | Are core sources identified with tracks for expansion? |
 | Argumentative framing | When the memo claims a disciplinary placement or integration (e.g., "Problem X belongs in Discipline Y"), are existing research programs named that demonstrate the claimed integration? Presence of claim ≠ demonstration of claim. |
-| Premise mapping | When the memo introduces theoretical premises (e.g., "Actors are provisional stabilizations" + "We use models"), are potential internal tensions between premises identified and noted for resolution at T2? |
+| Premise mapping | When the memo introduces theoretical premises (e.g., "Actors are provisional stabilizations" + "We use models"), are potential internal tensions between premises identified and noted for resolution at Ph2? |
 
-**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset on the memo text under the Rule 1 tier-gated digest exception (Ph1 only). The Evaluator does not engage at Ph1, so the deterministic checks are run by the Planner as part of the pre-phase-advance check (clause (g) of `pre_phase_advance_check.py`).
+**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset on the memo text under the Rule 1 phase-gated digest exception (Ph1 only). The Evaluator does not engage at Ph1, so the deterministic checks are run by the Planner as part of the pre-phase-advance check (clause (g) of `pre_phase_advance_check.py`).
 
 #### M2 deliverable — Annotated References (at Ph1 sub-phase 2)
 
 ```
-Planner (T1; coordinates with M1 deliverable)
+Planner (Ph1; coordinates with M1 deliverable)
   → Generator (drafts annotations under P-stage register)
   → Reflector-lightweight (optional)
 ```
@@ -703,30 +704,30 @@ Planner (T1; coordinates with M1 deliverable)
 | Track assignment | Is each source assigned to a snowball track? |
 | Quotation discipline | Are direct quotes flagged with page numbers and never paraphrased silently? |
 | Coverage of core sources | Are the core sources identified at M1 actually annotated? |
-| P-stage discipline | Does the annotation set match the declared `t1_pstage_declaration`? (P0: exploratory; P1: candidate-bounded; P2: claim-bounded.) |
+| P-stage discipline | Does the annotation set match the declared `ph1_pstage_declaration`? (P0: exploratory; P1: candidate-bounded; P2: claim-bounded.) |
 
 #### M3 deliverable — Structured Outline with i* SD/SR Models (at Ph1 sub-phase 3)
 
 ```
-Planner (T1 — unconditional: orchestrates outline sub-phase.
-         When sd_sr_required: true in reviews/classification.md (TIER_PROTOCOL.md §3.1.2):
-           authors SD/SR models per agents/planner.md §T1;
+Planner (Ph1 — unconditional: orchestrates outline sub-phase.
+         When sd_sr_required: true in reviews/classification.md (PHASE_PROTOCOL.md §3.1.2):
+           authors SD/SR models per agents/planner.md §Ph1;
            runs §3.1.1 structural-completeness validator;
-           writes imodel_structural_validation_signed row to tier_entry_log.
+           writes imodel_structural_validation_signed row to phase_entry_log.
          When sd_sr_required is absent or false (v0.7.1 default):
            SD/SR authoring and validator both silently skip.)
   → Generator (may seed prose stubs aligned to the outline)
   → Reflector-lightweight (optional)
 ```
 
-**Planner T1 criteria for the outline + i* models** (**conditional on `sd_sr_required: true`**; Master System Prompt §3 step 2 binds this deliverable to the SD/SR models when the opt-in is declared, in which case the §3.1.1 structural-completeness validator is the gate that admits T1 to T2):
+**Planner Ph1 criteria for the outline + i* models** (**conditional on `sd_sr_required: true`**; Master System Prompt §3 step 2 binds this deliverable to the SD/SR models when the opt-in is declared, in which case the §3.1.1 structural-completeness validator is the gate that admits Ph1 to Ph2):
 
 | Check | What it verifies |
 |---|---|
 | Structural completeness (§3.1.1) | No orphan actors, no unreferenced softgoals, no dangling dependencies — the validator emits PASS/FAIL into `reviews/imodel_validation.md` |
 | Goal-task decomposition | Are high-level stakeholder goals decomposed into tasks and softgoals per the GORE/AORE framing? |
 | Section coverage | Does the outline have one entry per top-level section that will be drafted at M4a/M4b? |
-| Deliverable path | Is `tier_deliverable_path` populated with the outline file's path? |
+| Deliverable path | Is `phase_deliverable_path` populated with the outline file's path? |
 
 #### M4a deliverable — Paper Draft (review-ready) at Ph2
 
@@ -739,7 +740,7 @@ Planner (runs pre_phase_advance_check.py clauses (a)(b)(d)(e)(g) for Ph2 entry)
   → Reflector-lightweight (optional integrity probe)
 ```
 
-Ph2 is the first rung that engages the Evaluator. The Rule 1 tier-gated digest exception **does not apply** at Ph2; full-file reads are mandatory.
+Ph2 is the first rung that engages the Evaluator. The Rule 1 phase-gated digest exception **does not apply** at Ph2; full-file reads are mandatory.
 
 #### M4b deliverable — Paper Draft (converging) at Ph3
 
@@ -748,7 +749,7 @@ Planner (runs pre_phase_advance_check.py clauses (a)(b)(c)(d)(e)(g) for Ph3 entr
   → Evaluator (full-scope pass; external verifiers OPTIONAL; Coupling E.2 SK-20 overlay at Step 0.2)
   → Planner (merges; updates convergence_metric)
   → Generator (applies findings; Linear-Accountability defence — ESCALATED findings require named owner)
-  → Evaluator (re-check; W-T3-DRIFT-EXCEEDED-TOLERANT on tolerant-mode exceedance — warning, not forced re-review)
+  → Evaluator (re-check; W-Ph3-DRIFT-EXCEEDED-TOLERANT on tolerant-mode exceedance — warning, not forced re-review)
   → Reflector-lightweight
 ```
 
@@ -777,7 +778,7 @@ Ph4 is the strict superset of Ph3. **Legal Ph4 → Ph3 demotions** at v0.8.0: EG
 
 Projects that originated under the v0.6.0 milestone framing migrate via `scripts/migrate_v060_to_v070.py`. The script:
 
-- Maps the project's most recent milestone tag (in `reviews/round_program.md` or in the v0.6.0 `tier_state.json`) onto the v0.7.0 phase per the §10.1 supersession table.
+- Maps the project's most recent milestone tag (in `reviews/round_program.md` or in the v0.6.0 `tier_state.json`) onto the v0.7.4 phase per the §10.1 supersession table.
 - Injects `phase_goal_declared` defaulted to the milestone deliverable name (e.g. "M3 deliverable — Structured Outline").
 - Injects `phase_deliverable_path` defaulted to the canonical artifact path from §10.1.
 - Sets `ph3_last_activity_at` to the migration timestamp for sections at `Ph3` (so the staleness clock starts at migration, not at the unknown v0.6.0 last-activity).

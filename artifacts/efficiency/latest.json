@@ -1,0 +1,1023 @@
+{
+  "artefact_count": 32,
+  "assumed_rates": {
+    "executor": {
+      "input_per_mtok_usd": 3.0,
+      "model": "claude-sonnet-4-6",
+      "output_per_mtok_usd": 15.0
+    },
+    "orchestrator": {
+      "input_per_mtok_usd": 15.0,
+      "model": "claude-opus-4-7",
+      "output_per_mtok_usd": 75.0
+    }
+  },
+  "assumed_rates_verified": true,
+  "axes": {
+    "economics": {
+      "dispatch_reference_hits": 379,
+      "per_artefact": [
+        {
+          "kind": "skill",
+          "relpath": "skills/IS-theory-pass/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 2028,
+          "tokens_frontmatter": 191,
+          "tokens_total": 2219
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/accessibility-overlay/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 4162,
+          "tokens_frontmatter": 575,
+          "tokens_total": 4736
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/advisor-escalation/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 3222,
+          "tokens_frontmatter": 251,
+          "tokens_total": 3473
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/backfill-source-stubs-from-references/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 2388,
+          "tokens_frontmatter": 288,
+          "tokens_total": 2676
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/check-abstract-body/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1262,
+          "tokens_frontmatter": 179,
+          "tokens_total": 1441
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/check-contradictions/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 828,
+          "tokens_frontmatter": 175,
+          "tokens_total": 1003
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/classify-manuscript/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 1882,
+          "tokens_frontmatter": 127,
+          "tokens_total": 2009
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/graph-grounding-overlay/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 3207,
+          "tokens_frontmatter": 404,
+          "tokens_total": 3610
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/grounding-audit/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1335,
+          "tokens_frontmatter": 194,
+          "tokens_total": 1529
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/ingest-m5-to-wiki/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 3125,
+          "tokens_frontmatter": 253,
+          "tokens_total": 3378
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/narrative-structure-pass/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1506,
+          "tokens_frontmatter": 189,
+          "tokens_total": 1695
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/p-stage-checker/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1528,
+          "tokens_frontmatter": 194,
+          "tokens_total": 1722
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/plugin-commands/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 3301,
+          "tokens_frontmatter": 135,
+          "tokens_total": 3435
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/promote-lessons-to-wiki/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 2706,
+          "tokens_frontmatter": 253,
+          "tokens_total": 2959
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/public-interest-accountability-pass/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 803,
+          "tokens_frontmatter": 135,
+          "tokens_total": 937
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/quick-deterministic/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 599,
+          "tokens_frontmatter": 165,
+          "tokens_total": 764
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/response-letter-review/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 4013,
+          "tokens_frontmatter": 270,
+          "tokens_total": 4282
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/retrofit-concept-grounding/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1776,
+          "tokens_frontmatter": 279,
+          "tokens_total": 2055
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-generator-session/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1097,
+          "tokens_frontmatter": 155,
+          "tokens_total": 1251
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-phase-1/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 3447,
+          "tokens_frontmatter": 131,
+          "tokens_total": 3577
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-phase-2/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 3548,
+          "tokens_frontmatter": 136,
+          "tokens_total": 3684
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-phase-3/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 5318,
+          "tokens_frontmatter": 141,
+          "tokens_total": 5459
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-phase-3-stability/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 6151,
+          "tokens_frontmatter": 154,
+          "tokens_total": 6305
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-phase-4/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 4811,
+          "tokens_frontmatter": 141,
+          "tokens_total": 4952
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/run-reflection/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 2712,
+          "tokens_frontmatter": 127,
+          "tokens_total": 2839
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/sentence-level-pass/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1612,
+          "tokens_frontmatter": 186,
+          "tokens_total": 1798
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/suchman-register-audit/SKILL.md",
+          "tier": "executor",
+          "tokens_body": 1541,
+          "tokens_frontmatter": 206,
+          "tokens_total": 1746
+        },
+        {
+          "kind": "skill",
+          "relpath": "skills/tool-contract-roundtrip/SKILL.md",
+          "tier": "orchestrator",
+          "tokens_body": 3851,
+          "tokens_frontmatter": 245,
+          "tokens_total": 4096
+        },
+        {
+          "kind": "agent",
+          "relpath": "agents/evaluator.md",
+          "tier": "orchestrator",
+          "tokens_body": 7077,
+          "tokens_frontmatter": 379,
+          "tokens_total": 7456
+        },
+        {
+          "kind": "agent",
+          "relpath": "agents/generator.md",
+          "tier": "orchestrator",
+          "tokens_body": 7406,
+          "tokens_frontmatter": 363,
+          "tokens_total": 7768
+        },
+        {
+          "kind": "agent",
+          "relpath": "agents/planner.md",
+          "tier": "orchestrator",
+          "tokens_body": 18230,
+          "tokens_frontmatter": 330,
+          "tokens_total": 18559
+        },
+        {
+          "kind": "agent",
+          "relpath": "agents/reflector.md",
+          "tier": "orchestrator",
+          "tokens_body": 19594,
+          "tokens_frontmatter": 514,
+          "tokens_total": 20108
+        }
+      ],
+      "per_tier_cost_usd": {
+        "executor": 0.998586,
+        "orchestrator": 9.03402
+      },
+      "per_tier_token_totals": {
+        "executor": {
+          "count": 18,
+          "frontmatter_tokens": 4156,
+          "tokens": 38954
+        },
+        "orchestrator": {
+          "count": 14,
+          "frontmatter_tokens": 3309,
+          "tokens": 94567
+        }
+      },
+      "projected_cost_per_invocation_usd": 10.032606,
+      "prompt_tokens_estimate": 133521,
+      "subagent_dispatch_multiplier": 12.844,
+      "tool_definition_overhead_tokens": 7465
+    },
+    "quality": {
+      "max_cyclomatic_complexity": 33,
+      "mean_maintainability_proxy": 44.43,
+      "per_module": [
+        {
+          "cyclomatic": 24,
+          "loc": 769,
+          "maintainability_proxy": 0.0,
+          "relpath": "scripts/artefact_frontmatter_validate.py"
+        },
+        {
+          "cyclomatic": 16,
+          "loc": 116,
+          "maintainability_proxy": 56.4,
+          "relpath": "scripts/catalog-check.py"
+        },
+        {
+          "cyclomatic": 12,
+          "loc": 304,
+          "maintainability_proxy": 45.6,
+          "relpath": "scripts/check8_g_prefilter.py"
+        },
+        {
+          "cyclomatic": 20,
+          "loc": 164,
+          "maintainability_proxy": 43.6,
+          "relpath": "scripts/coupling_health_report.py"
+        },
+        {
+          "cyclomatic": 33,
+          "loc": 295,
+          "maintainability_proxy": 4.5,
+          "relpath": "scripts/coupling_readiness_check.py"
+        },
+        {
+          "cyclomatic": 17,
+          "loc": 242,
+          "maintainability_proxy": 41.8,
+          "relpath": "scripts/gate_threshold_tuner.py"
+        },
+        {
+          "cyclomatic": 22,
+          "loc": 150,
+          "maintainability_proxy": 41.0,
+          "relpath": "scripts/graphify_contract.py"
+        },
+        {
+          "cyclomatic": 3,
+          "loc": 93,
+          "maintainability_proxy": 84.7,
+          "relpath": "scripts/install_preflight_assets.py"
+        },
+        {
+          "cyclomatic": 6,
+          "loc": 221,
+          "maintainability_proxy": 65.9,
+          "relpath": "scripts/migrate_convergence_journal_v075.py"
+        },
+        {
+          "cyclomatic": 20,
+          "loc": 504,
+          "maintainability_proxy": 9.6,
+          "relpath": "scripts/migrate_convergence_log_v074.py"
+        },
+        {
+          "cyclomatic": 21,
+          "loc": 935,
+          "maintainability_proxy": 0.0,
+          "relpath": "scripts/migrate_v055_to_v060.py"
+        },
+        {
+          "cyclomatic": 17,
+          "loc": 744,
+          "maintainability_proxy": 0.0,
+          "relpath": "scripts/migrate_v060_to_v070.py"
+        },
+        {
+          "cyclomatic": 27,
+          "loc": 451,
+          "maintainability_proxy": 0.9,
+          "relpath": "scripts/migrate_v073_to_v074_tier_to_phase.py"
+        },
+        {
+          "cyclomatic": 6,
+          "loc": 121,
+          "maintainability_proxy": 75.9,
+          "relpath": "scripts/paragraph_hash_map.py"
+        },
+        {
+          "cyclomatic": 9,
+          "loc": 52,
+          "maintainability_proxy": 76.8,
+          "relpath": "scripts/path-hygiene-check.py"
+        },
+        {
+          "cyclomatic": 19,
+          "loc": 221,
+          "maintainability_proxy": 39.9,
+          "relpath": "scripts/phase_notifications_loader.py"
+        },
+        {
+          "cyclomatic": 20,
+          "loc": 505,
+          "maintainability_proxy": 9.5,
+          "relpath": "scripts/phase_state_validate.py"
+        },
+        {
+          "cyclomatic": 4,
+          "loc": 57,
+          "maintainability_proxy": 86.3,
+          "relpath": "scripts/plugin_calibrator_audit.py"
+        },
+        {
+          "cyclomatic": 18,
+          "loc": 994,
+          "maintainability_proxy": 0.0,
+          "relpath": "scripts/pre_phase_advance_check.py"
+        },
+        {
+          "cyclomatic": 7,
+          "loc": 50,
+          "maintainability_proxy": 81.0,
+          "relpath": "scripts/provenance_prewrite_check.py"
+        },
+        {
+          "cyclomatic": 19,
+          "loc": 411,
+          "maintainability_proxy": 20.9,
+          "relpath": "scripts/sk20_autonomous_loop.py"
+        },
+        {
+          "cyclomatic": 14,
+          "loc": 447,
+          "maintainability_proxy": 27.3,
+          "relpath": "scripts/sk20_overlay_run.py"
+        },
+        {
+          "cyclomatic": 7,
+          "loc": 93,
+          "maintainability_proxy": 76.7,
+          "relpath": "scripts/sk20_preflight_gate.py"
+        },
+        {
+          "cyclomatic": 13,
+          "loc": 179,
+          "maintainability_proxy": 56.1,
+          "relpath": "scripts/skill-check.py"
+        },
+        {
+          "cyclomatic": 2,
+          "loc": 34,
+          "maintainability_proxy": 92.6,
+          "relpath": "scripts/tier_notifications_loader.py"
+        },
+        {
+          "cyclomatic": 12,
+          "loc": 273,
+          "maintainability_proxy": 48.7,
+          "relpath": "scripts/tier_state_canonicalize.py"
+        },
+        {
+          "cyclomatic": 2,
+          "loc": 34,
+          "maintainability_proxy": 92.6,
+          "relpath": "scripts/tier_state_validate.py"
+        },
+        {
+          "cyclomatic": 13,
+          "loc": 82,
+          "maintainability_proxy": 65.8,
+          "relpath": "scripts/version-check.py"
+        }
+      ],
+      "prompt_clarity_per_artefact": [
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/IS-theory-pass/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Sub-check F \u2014 Worked examples at density spikes"
+          ],
+          "relpath": "skills/accessibility-overlay/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/advisor-escalation/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/backfill-source-stubs-from-references/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/check-abstract-body/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/check-contradictions/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Step 2 \u2014 Gather the four classification inputs",
+            "Inputs"
+          ],
+          "relpath": "skills/classify-manuscript/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/graph-grounding-overlay/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/grounding-audit/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/ingest-m5-to-wiki/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/narrative-structure-pass/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/p-stage-checker/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/plugin-commands/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/promote-lessons-to-wiki/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Activation gate"
+          ],
+          "relpath": "skills/public-interest-accountability-pass/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/quick-deterministic/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/response-letter-review/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/retrofit-concept-grounding/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-generator-session/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-phase-1/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-phase-2/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-phase-3/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-phase-3-stability/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-phase-4/SKILL.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/run-reflection/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/sentence-level-pass/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": false,
+          "recognised_sections": [],
+          "relpath": "skills/suchman-register-audit/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Procedure"
+          ],
+          "relpath": "skills/tool-contract-roundtrip/SKILL.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Output Contract",
+            "Procedure"
+          ],
+          "relpath": "agents/evaluator.md"
+        },
+        {
+          "has_fenced_block": false,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Output Contract",
+            "Procedure"
+          ],
+          "relpath": "agents/generator.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Output Contract",
+            "Procedure"
+          ],
+          "relpath": "agents/planner.md"
+        },
+        {
+          "has_fenced_block": true,
+          "missing_frontmatter_keys": [],
+          "ok": true,
+          "recognised_sections": [
+            "Output Contract",
+            "Procedure"
+          ],
+          "relpath": "agents/reflector.md"
+        }
+      ],
+      "prompt_clarity_score": 0.25,
+      "prompt_concision_score": 0.193,
+      "prompt_duplication_score": 0.0,
+      "python_modules_scored": 28
+    },
+    "speed": {
+      "artefact_cross_references": {
+        "agents/evaluator.md": [
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/accessibility-overlay/SKILL.md",
+          "skills/graph-grounding-overlay/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/run-phase-3/SKILL.md"
+        ],
+        "agents/generator.md": [
+          "agents/evaluator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/run-generator-session/SKILL.md"
+        ],
+        "agents/planner.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/accessibility-overlay/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/response-letter-review/SKILL.md",
+          "skills/run-phase-3/SKILL.md",
+          "skills/run-phase-4/SKILL.md",
+          "skills/run-reflection/SKILL.md"
+        ],
+        "agents/reflector.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/accessibility-overlay/SKILL.md",
+          "skills/check-contradictions/SKILL.md",
+          "skills/graph-grounding-overlay/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/run-phase-3/SKILL.md"
+        ],
+        "skills/IS-theory-pass/SKILL.md": [
+          "skills/narrative-structure-pass/SKILL.md",
+          "skills/p-stage-checker/SKILL.md",
+          "skills/sentence-level-pass/SKILL.md"
+        ],
+        "skills/accessibility-overlay/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/run-phase-3-stability/SKILL.md",
+          "skills/run-phase-3/SKILL.md"
+        ],
+        "skills/advisor-escalation/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/check-contradictions/SKILL.md",
+          "skills/classify-manuscript/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/narrative-structure-pass/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/sentence-level-pass/SKILL.md"
+        ],
+        "skills/backfill-source-stubs-from-references/SKILL.md": [
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/promote-lessons-to-wiki/SKILL.md"
+        ],
+        "skills/check-abstract-body/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/check-contradictions/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/classify-manuscript/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/planner.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/response-letter-review/SKILL.md"
+        ],
+        "skills/graph-grounding-overlay/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/planner.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/advisor-escalation/SKILL.md",
+          "skills/backfill-source-stubs-from-references/SKILL.md",
+          "skills/check-contradictions/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/retrofit-concept-grounding/SKILL.md"
+        ],
+        "skills/grounding-audit/SKILL.md": [
+          "agents/generator.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/ingest-m5-to-wiki/SKILL.md": [
+          "agents/evaluator.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/narrative-structure-pass/SKILL.md": [
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/p-stage-checker/SKILL.md",
+          "skills/sentence-level-pass/SKILL.md"
+        ],
+        "skills/p-stage-checker/SKILL.md": [
+          "agents/generator.md",
+          "agents/planner.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/plugin-commands/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/accessibility-overlay/SKILL.md",
+          "skills/advisor-escalation/SKILL.md",
+          "skills/backfill-source-stubs-from-references/SKILL.md",
+          "skills/check-abstract-body/SKILL.md",
+          "skills/check-contradictions/SKILL.md",
+          "skills/classify-manuscript/SKILL.md",
+          "skills/graph-grounding-overlay/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/ingest-m5-to-wiki/SKILL.md",
+          "skills/narrative-structure-pass/SKILL.md",
+          "skills/p-stage-checker/SKILL.md",
+          "skills/promote-lessons-to-wiki/SKILL.md",
+          "skills/public-interest-accountability-pass/SKILL.md",
+          "skills/quick-deterministic/SKILL.md",
+          "skills/response-letter-review/SKILL.md",
+          "skills/retrofit-concept-grounding/SKILL.md",
+          "skills/run-generator-session/SKILL.md",
+          "skills/run-phase-1/SKILL.md",
+          "skills/run-phase-2/SKILL.md",
+          "skills/run-phase-3-stability/SKILL.md",
+          "skills/run-phase-3/SKILL.md",
+          "skills/run-phase-4/SKILL.md",
+          "skills/run-reflection/SKILL.md",
+          "skills/sentence-level-pass/SKILL.md",
+          "skills/suchman-register-audit/SKILL.md",
+          "skills/tool-contract-roundtrip/SKILL.md"
+        ],
+        "skills/promote-lessons-to-wiki/SKILL.md": [
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/public-interest-accountability-pass/SKILL.md": [
+          "skills/narrative-structure-pass/SKILL.md",
+          "skills/sentence-level-pass/SKILL.md"
+        ],
+        "skills/quick-deterministic/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/response-letter-review/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/retrofit-concept-grounding/SKILL.md": [
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/backfill-source-stubs-from-references/SKILL.md"
+        ],
+        "skills/run-generator-session/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/classify-manuscript/SKILL.md"
+        ],
+        "skills/run-phase-1/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/run-phase-2/SKILL.md"
+        ],
+        "skills/run-phase-2/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/run-phase-3/SKILL.md"
+        ],
+        "skills/run-phase-3-stability/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/accessibility-overlay/SKILL.md",
+          "skills/grounding-audit/SKILL.md",
+          "skills/run-phase-3/SKILL.md",
+          "skills/run-phase-4/SKILL.md"
+        ],
+        "skills/run-phase-3/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/graph-grounding-overlay/SKILL.md",
+          "skills/response-letter-review/SKILL.md",
+          "skills/run-phase-3-stability/SKILL.md",
+          "skills/run-phase-4/SKILL.md"
+        ],
+        "skills/run-phase-4/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/ingest-m5-to-wiki/SKILL.md",
+          "skills/response-letter-review/SKILL.md",
+          "skills/run-phase-3/SKILL.md"
+        ],
+        "skills/run-reflection/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "agents/planner.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/sentence-level-pass/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "skills/IS-theory-pass/SKILL.md",
+          "skills/narrative-structure-pass/SKILL.md"
+        ],
+        "skills/suchman-register-audit/SKILL.md": [
+          "agents/evaluator.md",
+          "agents/generator.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ],
+        "skills/tool-contract-roundtrip/SKILL.md": [
+          "agents/generator.md",
+          "agents/reflector.md",
+          "skills/IS-theory-pass/SKILL.md"
+        ]
+      },
+      "declared_protocol_stage_count": 0,
+      "estimated_input_processing_ms": 7902,
+      "input_tokens_per_second_assumed": 16897,
+      "max_subagent_chain_depth": 21,
+      "parallelisable_fraction": 0.444
+    }
+  },
+  "config_source": "plugin-root",
+  "findings": [
+    {
+      "axis": "quality",
+      "detail": "max cyclomatic complexity 33 > 20",
+      "key": "cyclomatic_complexity_over_threshold",
+      "severity": "MINOR"
+    },
+    {
+      "axis": "quality",
+      "detail": "clarity score 0.25 < floor 0.5",
+      "key": "prompt_clarity_below_floor",
+      "severity": "MINOR"
+    },
+    {
+      "axis": "speed",
+      "detail": "chain depth 21 > ceiling 15",
+      "key": "chain_depth_over_threshold",
+      "severity": "MINOR"
+    }
+  ],
+  "generated_at": "2026-04-26T13:57:11+00:00",
+  "plugin_name": "co-author-harness-claude",
+  "plugin_root": "/sessions/youthful-admiring-goldberg/mnt/co-author-harness",
+  "plugin_version": "0.8.7",
+  "reference_models": {
+    "executor": "claude-sonnet-4-6",
+    "orchestrator": "claude-opus-4-7"
+  },
+  "schema_version": "1",
+  "summary": {
+    "blocker_count": 0,
+    "major_count": 0,
+    "minor_count": 3,
+    "status": "pass"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "task_id": "md_review_02_agent_orchestration",
+  "agent": "md-reviewer",
+  "inputs": {
+    "target_file": "references/AGENT_ORCHESTRATION.md",
+    "plugin_root": "B:\\Agents\\co-author-harness",
+    "plugin_id": "co-author-harness-claude",
+    "context": "Primary orchestration protocol document. Flag logic gaps, broken internal references, missing contracts, and narrative inconsistencies."
+  },
+  "expected_output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "advisory",
+          "fail"
+        ]
+      },
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "severity",
+            "category",
+            "explanation",
+            "span"
+          ],
+          "properties": {
+            "severity": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "explanation": {
+              "type": "string"
+            },
+            "span": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "status",
+      "findings"
+    ]
+  }
+}

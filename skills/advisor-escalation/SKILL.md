@@ -131,9 +131,9 @@ Capture the full response text. The response will contain:
 
 The advisor's output carries `[source: external]` tags on claims the advisor attributes to named authorities. Those tags must be re-classified defensively before the content enters the manuscript pipeline — some will resolve to verifiable citations in your REFERENCES.md, some will remain unverified and must stay `[REF to be verified]`, and a few will be ungrounded rhetorical attributions that must be removed entirely.
 
-**MANDATORY — READ ENTIRE FILE.** Before running re-classification, you MUST read [`references/external_reclassification.md`](references/external_reclassification.md) completely from start to finish. That file carries the four attribution-pattern regexes (Name+verb, Author's-term, Per-X/According-to-X, X-who-argues) plus the 4a–4d procedure (extract, heuristic-reclassify, force-reclassify, validate surviving gaps). **NEVER set any range limits when reading this file.** The regex patterns and pattern numbering are load-bearing for the reclassification log the Step 5 artifact template consumes.
+**MANDATORY — READ ENTIRE FILE.** Before running re-classification, you MUST read [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) completely from start to finish. That file carries the attribution-confidence tiers (Verified / Inherited / Indirect), the Rule 4 attribution procedure, and the four-pattern framework (Name+verb, Author's-term, Per-X/According-to-X, X-who-argues) plus the extract → heuristic-reclassify → force-reclassify → validate procedure. **NEVER set any range limits when reading this file.** The tier definitions and pattern numbering are load-bearing for the reclassification log the Step 5 artifact template consumes.
 
-**Do NOT load** `GROUNDING_PROTOCOL.md` a second time for this step if you already read it at Step 0 — the external_reclassification.md file is the implementation; GROUNDING_PROTOCOL.md carries the binding rules.
+If you already read `GROUNDING_PROTOCOL.md` at Step 0, re-read the **Rule 4** and **Attribution-confidence tiers** sections specifically rather than reloading the full file.
 
 ## Step 5 — File the consultation artifact
 

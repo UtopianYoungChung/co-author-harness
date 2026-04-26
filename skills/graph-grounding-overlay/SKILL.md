@@ -81,7 +81,7 @@ When `reviews/coupling_readiness_YYYY-MM-DD.json` exists, prefer its `recommende
 
 ### Phase 3 — Generate the three finding types
 
-**MANDATORY — READ ENTIRE FILE.** Before generating findings, you MUST read [`references/finding_types.md`](references/finding_types.md) completely from start to finish. That file carries the full spec for Finding A (graph-stub citations), Finding B (section-location mismatches with the three-tier matcher and Jaccard thresholds 0.25 / bigram / 0.30), and Finding C (missing-citation candidates). **NEVER set any range limits when reading this file.** The threshold numerics, severity-by-P-stage mappings, and the match-tier annotation format (`(match-tier: 2)`, `(match-tier: 3)`) are load-bearing for grounding-audit Category 8 downstream consumption.
+**MANDATORY — READ ENTIRE FILE.** Before generating findings, you MUST read [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) completely from start to finish and locate §8.6 (Coupling E.2). That section carries the full spec for Finding A (graph-stub citations — cited sources absent from the graph), Finding B (section-location mismatches — three-tier matcher with Jaccard thresholds 0.25 / bigram / 0.30), and Finding C (missing-citation candidates — graphify edges between cited and uncited sources). **NEVER set any range limits when reading this file.** The threshold numerics, severity-by-P-stage mappings, and the match-tier annotation format (`(match-tier: 2)`, `(match-tier: 3)`) are load-bearing for grounding-audit Category 8 downstream consumption.
 
 **Do NOT auto-promote findings to BLOCKER.** The overlay's function is to surface candidates; severity escalation beyond MAJOR requires the Evaluator's normal seven-step judgment in a subsequent pass.
 

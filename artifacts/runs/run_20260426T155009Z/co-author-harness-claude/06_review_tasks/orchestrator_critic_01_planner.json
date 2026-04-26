@@ -1,0 +1,62 @@
+{
+  "task_id": "orchestrator_critic_01_planner",
+  "agent": "orchestrator-critic",
+  "inputs": {
+    "primary_orchestrator": "agents/planner.md",
+    "supporting_files": [
+      "references/AGENT_ORCHESTRATION.md",
+      "references/PHASE_PROTOCOL.md",
+      "references/AGENT_CONTRACTS.md"
+    ],
+    "plugin_root": "B:\\Agents\\co-author-harness",
+    "plugin_id": "co-author-harness-claude",
+    "context": "Critically review the Planner orchestrator for structural anti-patterns, weak artifact contracts, and questionable stage coupling."
+  },
+  "expected_output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "advisory",
+          "fail"
+        ]
+      },
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "severity",
+            "category",
+            "explanation",
+            "source_file",
+            "excerpt"
+          ],
+          "properties": {
+            "severity": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "explanation": {
+              "type": "string"
+            },
+            "source_file": {
+              "type": "string"
+            },
+            "excerpt": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "status",
+      "findings"
+    ]
+  }
+}

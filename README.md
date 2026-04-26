@@ -18,7 +18,7 @@
 
 **co-author-harness** ships the *Research and Academic Paper Writing Package* as a maintainable tree you can open as a **plugin root** or embed beside a research workspace. It coordinates **Planner → Evaluator → Generator → Reflector** work, tracks progress on a per-section **Lifecycle–Phase Ladder** (Ph1–Ph4) with a ledger at `reviews/phase_state.json`, and routes skills such as `run-phase-1` … `run-phase-4`, `run-phase-3-stability`, and `quick-deterministic` without abandoning the binding rules in `references/GROUNDING_PROTOCOL.md`.
 
-The harness root is **canonical** (formerly `research-writing-harness/`; `paper-harness/` is retired). Consolidation, ownership, and history: [`docs/agent-instructions/harness-architecture.md`](docs/agent-instructions/harness-architecture.md) · [`docs/agent-instructions/harness-history.md`](docs/agent-instructions/harness-history.md). Workspace contract (parent tree): `../ROOT_ARCHITECTURE_INDEX.md`.
+The harness root is **canonical** (formerly `research-writing-harness/`; `paper-harness/` is retired). Consolidation, ownership, and history: [`docs/agent-instructions/harness-architecture.md`](docs/agent-instructions/harness-architecture.md) · [`docs/agent-instructions/harness-history.md`](docs/agent-instructions/harness-history.md). Workspace contract (parent tree): `ROOT_ARCHITECTURE_INDEX.md` (workspace root — lives outside this repo).
 
 ---
 

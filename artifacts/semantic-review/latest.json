@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "version": "0.8.7",
+  "status": "pass",
+  "run_id": "run_20260426T161135Z",
+  "completed_at_utc": "2026-04-26T16:11:35Z",
+  "prior_run_id": "run_20260426T155009Z",
+  "fixes_applied": [
+    {
+      "file": "agents/planner.md",
+      "finding": "Phase 0 Step 3: '15 fields' → '16 fields'; '27-entry active enum' → '30-trigger active enum'; row-column vocab prev_tier/new_tier → prev_phase/new_phase",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "agents/planner.md",
+      "finding": "'What you read' escalation_log row-column vocab prev_tier → prev_phase",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "agents/planner.md",
+      "finding": "Added reviews/convergence_journal.jsonl to 'What you write' tier-specific enumeration",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "agents/planner.md",
+      "finding": "Phase 4.5 restructured: F6-consumption primary path leads; MODEL_ALLOCATION.md §2 independent resolution demoted to fallback for pre-v0.7.4/no-F6 contexts",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "agents/planner.md",
+      "finding": "Phase 0.5 cache invalidation: CACHE-INVALIDATED-EXTERNAL-WRITE now also appended as durable row to reviews/escalation_log.md for R-Refl-Cache-1 audit surface",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "agents/planner.md",
+      "finding": "Planner-specific rules: 'prev_tier -> new_tier' → 'prev_phase -> new_phase'; row fields prev_tier/new_tier → prev_phase/new_phase",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§8.2b seed JSON template: full field-name sweep to v0.7.4 vocabulary (schema_version, default_final_phase, terminal_phase_reached, ph3_stale_budget_days, current_phase, last_approved_phase, iteration_count_at_current_phase, phase_goal_declared, phase_deliverable_path, ph1_pstage_declaration, ph3_last_activity_at, pre_mcr_deep_pass_completed, phase_entry_log, prev_phase, new_phase, model_used, actor)",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§10 Lifecycle Dispatch: Lifecycle-Stage Ladder → Lifecycle-Phase Ladder; tier vocabulary → phase vocabulary; T1/T2/T3/T4 → Ph1/Ph2/Ph3/Ph4 throughout dispatch tables and sequences; TIER_PROTOCOL.md §3.1.2 → PHASE_PROTOCOL.md §3.1.2; t1_pstage_declaration → ph1_pstage_declaration; tier_deliverable_path → phase_deliverable_path; tier_entry_log → phase_entry_log; W-T3-DRIFT-EXCEEDED-TOLERANT → W-Ph3-DRIFT-EXCEEDED-TOLERANT; dispatch contract tier-based → phase-based",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§8.2a escalation log header template: prev_tier -> new_tier → prev_phase -> new_phase",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§8.2b cross-reference paragraph: rename history extended to v0.7.4 prev_phase/new_phase; tier_entry_log → phase_entry_log",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§8.2b audit envelope: TIER_PROTOCOL.md §11 → PHASE_PROTOCOL.md §11; tier_entry_log → phase_entry_log",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§8.3: TIER_PROTOCOL.md §9.1 → PHASE_PROTOCOL.md §9.1; §6 → §6; §7.3 → §7.3; tier_state.json → phase_state.json; tier_entry_log → phase_entry_log; current_tier/last_approved_tier/iteration_count_at_current_tier → current_phase/last_approved_phase/iteration_count_at_current_phase",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§1 Planner scope: reviews/tier_state.json, the 15-field → reviews/phase_state.json, the 16-field; T4 admission control → Ph4 admission control",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_ORCHESTRATION.md",
+      "finding": "§3.2 Ph1 truncated loop: bootstraps 15-field section state → 16-field section state",
+      "severity": "MAJOR"
+    },
+    {
+      "file": "references/AGENT_CONTRACTS.md",
+      "finding": "§1 Planner Outputs (write): expanded from 3 artifacts to full ≥15 artifact enumeration matching agents/planner.md §'What you write'",
+      "severity": "MAJOR"
+    }
+  ],
+  "residual_findings": [
+    {
+      "severity": "MINOR",
+      "count": 7,
+      "note": "Non-blocking; narrative inconsistencies and logic gaps that do not break contracts"
+    },
+    {
+      "severity": "ADVISORY",
+      "count": 5,
+      "note": "Non-blocking; design observations (F6 ceiling rigidity, Planner-concentration risk, Ph3-STALE threshold alignment)"
+    }
+  ],
+  "gate_verdict": "CLEARED-WITH-WARNINGS",
+  "deterministic_gate": "pass",
+  "semantic_gate": "pass"
+}
