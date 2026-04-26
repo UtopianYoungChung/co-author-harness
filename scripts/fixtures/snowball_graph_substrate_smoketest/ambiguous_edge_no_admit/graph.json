@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1",
+  "_comment": "SK-20 graph fixture for SK-NEW-A ambiguous_edge_no_admit scenario. Three nodes; three edges with one carrying confidence: AMBIGUOUS. The seed n1 has both an EXTRACTED forward edge (to be admitted) and an AMBIGUOUS forward edge (NOT to be admitted). Validates SKILL.md §3 Phase 2 edge confidence policy and §9 not-doing rule 3.",
+  "nodes": [
+    {
+      "id": "n1",
+      "label": "Goguen Linde 1993 -- Techniques for requirements elicitation",
+      "source_file": "wiki/sources/goguen-linde-1993.md",
+      "source_location": "L1-L9",
+      "author": "Goguen",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "requirements-elicitation",
+      "norm_label": "goguen-linde-1993"
+    },
+    {
+      "id": "n2",
+      "label": "Sutcliffe 1998 -- Scenario-based requirements analysis",
+      "source_file": "wiki/sources/sutcliffe-1998.md",
+      "source_location": "L1-L9",
+      "author": "Sutcliffe",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "requirements-elicitation",
+      "norm_label": "sutcliffe-1998"
+    },
+    {
+      "id": "n3",
+      "label": "Maiden 2009 -- Creativity in requirements",
+      "source_file": "wiki/sources/maiden-2009.md",
+      "source_location": "L1-L9",
+      "author": "Maiden",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "requirements-elicitation",
+      "norm_label": "maiden-2009"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.93,
+      "source": "n2",
+      "target": "n1",
+      "source_file": "wiki/sources/sutcliffe-1998.md",
+      "source_location": "L34-L35",
+      "weight": 1.0
+    },
+    {
+      "relation": "cites",
+      "confidence": "AMBIGUOUS",
+      "confidence_score": 0.42,
+      "source": "n3",
+      "target": "n1",
+      "source_file": "wiki/sources/maiden-2009.md",
+      "source_location": "L88-L89",
+      "weight": 0.4,
+      "_comment": "AMBIGUOUS confidence: SK-20 extractor flagged the citation context as plausibly attributing to Goguen Linde but with insufficient surrounding context to be sure. SK-NEW-A must NOT auto-admit; surface as [graph-ambiguous] for user review."
+    },
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.91,
+      "source": "n2",
+      "target": "n3",
+      "source_file": "wiki/sources/sutcliffe-1998.md",
+      "source_location": "L41-L42",
+      "weight": 1.0
+    }
+  ]
+}

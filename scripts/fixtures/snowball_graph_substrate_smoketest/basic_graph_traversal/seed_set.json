@@ -1,0 +1,42 @@
+{
+  "_comment": "Mock seed_set for SK-NEW-A basic_graph_traversal scenario. Three seeds: two are graph-resident (resolvable to n1 and n2 in graph.json via source_file = pdf_path), one is graph-stub (no pdf_path resolution). The graph-stub seed exercises the external fall-through branch of SK-NEW-A's iteration.",
+  "section": "snowball_methodology_intro",
+  "claim_register": [
+    {
+      "claim_text": "Snowballing achieves saturation within four iterations on a moderate seed set per Wohlin's protocol.",
+      "claim_kind": "result",
+      "section_locus": "intro:p2"
+    },
+    {
+      "claim_text": "Empirical replication confirms the per-iteration admission rate halves between iteration 1 and iteration 2.",
+      "claim_kind": "result",
+      "section_locus": "method:p1"
+    }
+  ],
+  "seeds": [
+    {
+      "key": "wohlin-2014",
+      "pdf_path": "wiki/sources/wohlin-2014.md",
+      "author": "Wohlin",
+      "year": 2014,
+      "doi": "10.1145/2601248.2601268",
+      "provenance": "[seed: zotero]"
+    },
+    {
+      "key": "barros-justo-2021",
+      "pdf_path": "wiki/sources/barros-justo-2021.md",
+      "author": "Barros-Justo",
+      "year": 2021,
+      "doi": "10.1002/smr.2370",
+      "provenance": "[seed: zotero]"
+    },
+    {
+      "key": "kuhn-1962-structure-of-scientific-revolutions",
+      "pdf_path": null,
+      "author": "Kuhn",
+      "year": 1962,
+      "doi": null,
+      "provenance": "[seed: scholar-gateway]"
+    }
+  ]
+}

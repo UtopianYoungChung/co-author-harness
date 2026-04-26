@@ -1,0 +1,21 @@
+{
+  "_comment": "Mock seed_set for SK-NEW-A ambiguous_edge_no_admit scenario. One graph-resident seed (resolvable to n1 via source_file). The forward traversal of n1 will encounter both an EXTRACTED edge (n2 -> n1) and an AMBIGUOUS edge (n3 -> n1); only n2 should admit, n3 should surface as [graph-ambiguous].",
+  "section": "requirements_elicitation_techniques",
+  "claim_register": [
+    {
+      "claim_text": "Scenario-based elicitation extends earlier ethnographic approaches to requirements gathering.",
+      "claim_kind": "theoretical_commitment",
+      "section_locus": "method:p1"
+    }
+  ],
+  "seeds": [
+    {
+      "key": "goguen-linde-1993",
+      "pdf_path": "wiki/sources/goguen-linde-1993.md",
+      "author": "Goguen",
+      "year": 1993,
+      "doi": "10.1109/ISRE.1993.324822",
+      "provenance": "[seed: zotero]"
+    }
+  ]
+}

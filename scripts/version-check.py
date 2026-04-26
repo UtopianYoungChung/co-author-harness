@@ -41,10 +41,21 @@ def extract_readme_latest_version(plugin_root: Path) -> Optional[str]:
 
 
 def extract_changelog_latest_version(plugin_root: Path) -> Optional[str]:
+    """Return the version of the most recent *released* CHANGELOG entry.
+
+    Skips headings tagged as `(unreleased)` so that the in-flight stage-by-stage
+    accumulation pattern declared by the snowball-implementation-strategy
+    §8.2 does not collide with the strategy §8.4 invariant that the manifest
+    version is bumped only at the RC gate. Without this filter, every stage
+    close from S1 onward would surface a spurious BLOCKER as soon as the
+    `## v0.10.0 (unreleased)` heading is appended.
+    """
     text = read_text(plugin_root / "CHANGELOG.md")
-    match = re.search(r"^##\s+v(\d+\.\d+\.\d+)\b", text, re.M)
-    if match:
-        return match.group(1)
+    for match in re.finditer(r"^##\s+v(\d+\.\d+\.\d+)([^\n]*)$", text, re.M):
+        version, rest = match.group(1), match.group(2)
+        if "(unreleased)" in rest.lower():
+            continue
+        return version
     return None
 
 
