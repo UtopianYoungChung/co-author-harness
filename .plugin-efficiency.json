@@ -65,6 +65,13 @@
     "orchestrator": 4
   },
 
+  "extra_clarity_section_tags": [
+    "what you do",
+    "step ",
+    "phase ",
+    "output"
+  ],
+
   "baseline": {
     "prompt_clarity_score": {
       "known_false_negative": true,
