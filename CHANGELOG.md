@@ -6,6 +6,30 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.10.0 (unreleased)
+
+**Theme.** Snowball-driven reference scaffolding for Phase 1 / Phase 2 of the Lifecycle-Phase Ladder; materialises Coupling E.1 (`graph-read-at-planner`) via SK-NEW-A's graph-substrate iteration. Eight-stage rollout per `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md`.
+
+### Changes
+
+- **S1 (closed 2026-04-26).** SK-NEW-A `seed-snowball-discovery` skill (SK-33) shipped manually-invokable. New files: `skills/seed-snowball-discovery/SKILL.md` (246 lines), `commands/seed-snowball-discovery.md`. Edited: `references/SKILL_REGISTRY.md` (SK-33 entry), `skills/plugin-commands/SKILL.md` (catalog row), `README.md` (skill count 28 → 29), `.plugin-efficiency.json` (executor registration; cost rebase to $6.0793 — 100% feature-attributed; zero bloat). Calibrator economics gate green. The S1 SKILL.md body absorbed the architecture's §5.5.1, §5.5.2, and §5.5.6 content that the strategy doc §5.2 had nominally allocated to S1.5 — this is documented as a strategy-doc deviation in `docs/release-notes/RELEASE_NOTES_v0.10.0.md §2.S1` and reconciled at S1.5.
+- **S1.5 (closed 2026-04-26).** Hardening pass over S1's absorbed content. Eighteen-row audit table mapping every architecture sub-clause in §5.5.1/§5.5.2/§5.5.6 to its SKILL.md realisation (17 covered, 1 partial gap fixed in S1.5). Gap-fix: `skills/seed-snowball-discovery/SKILL.md` §3 Phase 2 — new `**Lookup keying.**` paragraph specifying the `source_file` primary / `(author, year)` secondary resolution contract for `lookup_node_by_doi_or_pdf_path`. Scenario fixtures: `scripts/fixtures/snowball_graph_substrate_smoketest/{basic_graph_traversal,ambiguous_edge_no_admit,dual_path_access_modes}/` — three reference scenarios documenting expected SK-NEW-A behaviour in human-readable form, with mock graph.json and seed_set.json inputs. Python validator deferred to a future hardening pass when SK-NEW-C's S4 ship justifies the second consumer of the same iteration logic. Side-effect fix: `scripts/version-check.py` patched to skip `(unreleased)` headings per strategy §8.2 + §8.4 (otherwise every v0.10.0 stage close would surface a spurious BLOCKER). Calibrator baseline target: maintain S1's $6.0793 per `.plugin-efficiency.json`. See `docs/release-notes/RELEASE_NOTES_v0.10.0.md §2.S1.5`.
+
+### Not yet changed (deferred to subsequent stages)
+
+- `run-phase-1` Step 4.5 dispatch insertion (S2).
+- `phase_state.json` schema bump 16 → 18 fields; trigger-enum 30 → 31; `migrate_v090_to_v100_snowball_fields.py` body authoring (S2).
+- SK-NEW-B `claim-coverage-audit` (S3); SK-NEW-C `extend-snowball-incremental` (S4); SK-NEW-D `inherit-snowball-from-wiki` (S6).
+- Wiki synthesis fast-path + red-link auto-trigger (S4.5).
+- Documentation amendments: `EXTERNAL_VERIFIERS.md §1.5` named-executor lines; `AGENT_ORCHESTRATION.md §8.6` Coupling E.1 retired/re-registered (S5).
+- `plugin.json` version bump 0.9.0 → 0.10.0 (RC gate).
+
+### Process notes
+
+A merge anomaly at S1 close (`6ad499d` landed an empty tree where `--no-ff` of `f9411d5` was intended) was recovered via cherry-pick (`5fbc0c7`); the `v0.10.0-S1` annotated tag was force-moved from a pre-S1 location (`dcb6e2e`) to the recovery commit. Both events are preserved in git history rather than rewritten — future archaeology has the full incident trace via the merge commit message and the cherry-pick commit message. Strategy §6.3's deferred-merge fallback was considered and rejected once the recovery completed.
+
+---
+
 ## v0.9.0 — 2026-04-26
 
 **Theme.** UI loadability via `.claude-plugin/plugin.json` + `commands/` shim convention; model allocation calibrator pin restored to `references/MODEL_ALLOCATION.md §2`.

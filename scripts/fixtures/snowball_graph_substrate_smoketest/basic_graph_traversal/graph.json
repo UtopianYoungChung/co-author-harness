@@ -1,0 +1,98 @@
+{
+  "schema_version": "0.1",
+  "_comment": "SK-20 graph fixture for SK-NEW-A basic_graph_traversal scenario. Four nodes covering snowballing-methodology community, five EXTRACTED edges. The seed set in seed_set.json contains two of these nodes (n1, n2) plus one graph-stub seed.",
+  "nodes": [
+    {
+      "id": "n1",
+      "label": "Wohlin 2014 -- Guidelines for snowballing",
+      "source_file": "wiki/sources/wohlin-2014.md",
+      "source_location": "L1-L9",
+      "author": "Wohlin",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "snowballing-methodology",
+      "norm_label": "wohlin-2014"
+    },
+    {
+      "id": "n2",
+      "label": "Barros-Justo 2021 -- Empirical replication of snowballing",
+      "source_file": "wiki/sources/barros-justo-2021.md",
+      "source_location": "L1-L9",
+      "author": "Barros-Justo",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "snowballing-methodology",
+      "norm_label": "barros-justo-2021"
+    },
+    {
+      "id": "n3",
+      "label": "Felizardo 2016 -- Visual text mining for SLR",
+      "source_file": "wiki/sources/felizardo-2016.md",
+      "source_location": "L1-L9",
+      "author": "Felizardo",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "snowballing-methodology",
+      "norm_label": "felizardo-2016"
+    },
+    {
+      "id": "n4",
+      "label": "Kitchenham 2007 -- Guidelines for SLR",
+      "source_file": "wiki/sources/kitchenham-2007.md",
+      "source_location": "L1-L9",
+      "author": "Kitchenham",
+      "captured_at": "2026-04-25T12:00:00Z",
+      "community": "systematic-literature-review",
+      "norm_label": "kitchenham-2007"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source": "n2",
+      "target": "n1",
+      "source_file": "wiki/sources/barros-justo-2021.md",
+      "source_location": "L42-L43",
+      "weight": 1.0
+    },
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.92,
+      "source": "n3",
+      "target": "n1",
+      "source_file": "wiki/sources/felizardo-2016.md",
+      "source_location": "L67-L68",
+      "weight": 1.0
+    },
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.90,
+      "source": "n2",
+      "target": "n3",
+      "source_file": "wiki/sources/barros-justo-2021.md",
+      "source_location": "L51-L52",
+      "weight": 1.0
+    },
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.88,
+      "source": "n1",
+      "target": "n4",
+      "source_file": "wiki/sources/wohlin-2014.md",
+      "source_location": "L23-L24",
+      "weight": 1.0
+    },
+    {
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.86,
+      "source": "n3",
+      "target": "n4",
+      "source_file": "wiki/sources/felizardo-2016.md",
+      "source_location": "L72-L73",
+      "weight": 1.0
+    }
+  ]
+}

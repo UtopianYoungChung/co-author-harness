@@ -116,6 +116,8 @@ SNOWBALL ITERATION:
     S_I = S_{I-1} ∪ new_admits
 ```
 
+**Lookup keying.** `lookup_node_by_doi_or_pdf_path(s, graph.json)` resolves seeds against graph nodes primarily by `source_file` (matched against REFERENCES.md's `pdf_path` column), falling back to `(author, year)` heuristics when no `pdf_path` resolves. The two-tier resolution accommodates both Zotero-derived seeds (carrying `pdf_path`) and Scholar-Gateway-derived seeds (carrying author/year only).
+
 **Edge confidence policy.** AMBIGUOUS edges are never auto-admitted; they surface as `[graph-ambiguous]` candidates in the snowball log for user review. INFERRED edges are admitted only when the iteration's external-cost budget warrants the lower-confidence path (parameter `admit_inferred_edges: false` by default; surfaced in `classification.md`).
 
 **Per-iteration `interaction_id`.** Every Scholar Gateway sub-query within iteration `I` uses the same UUID, generated once at the iteration entry. Iteration `I+1` generates a new UUID. This satisfies the Scholar Gateway "parallel/follow-up searches in the same episode" contract per `EXTERNAL_VERIFIERS.md §2`.
