@@ -337,6 +337,17 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Depends on:** `references/TIER_PROTOCOL.md §3 (T2 Review & Revise)`, `references/REVIEW_ORCHESTRATION.md §3.3` (tier table), the per-section `reviews/tier_state.json` ledger (15-field SectionStateObject), `reviews/classification.md` (including any declared SD/SR artefact paths), and `references/GROUNDING_PROTOCOL.md` (full-file reads at every rung — no digest exception at v0.7.0).
 - **Sibling:** SK-25 `run-phase-1` (Plan & Draft — one rung below, the ladder predecessor); SK-26 `run-phase-3` (Iterate & Converge — one rung above, the auto-advance target on approval); SK-27 `run-phase-4` (Finalize & Close — two rungs above); SK-04 `classify-manuscript` (writes the `tier:` field).
 
+### SK-32. `run-generator-session`
+- **File:** `skills/run-generator-session/SKILL.md`
+- **Pattern:** **Session-sourced Generator** pass — the current chat supplies revision *instructions*; `reviews/classification.md` and `reviews/phase_state.json` supply *authority* (phase, P-stage, ceiling). No new `reviews/` session artefacts in v1. Aligned with `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md` and `agents/generator.md` (manuscript + `manuscript/revision_log.md` only; no `reviews` writes by the Generator).
+- **Created:** 2026-04-25
+- **Source:** Brainstorming + approved design spec `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md`
+- **Tier:** Package
+- **Status:** Active
+- **Depends on:** `agents/generator.md`, `references/GROUNDING_PROTOCOL.md`, `reviews/classification.md`, `reviews/phase_state.json`, optional project-local style path via `CLAUDE.md` / `directives.md`
+- **Sibling:** SK-25 `run-phase-1` … SK-27 `run-phase-4` (full ladder entry points with Planner/Evaluator packaging); SK-23 `plugin-commands` (discovery); SK-07 `sentence-level-pass` / SK-08 `narrative-structure-pass` (craft overlays, not the Generator role file)
+- **Not a replacement for:** full `/run-phase-2+` with Evaluator when the project’s governance still requires that round; does not create Planner artefacts
+
 ---
 
 ## Orchestration Commands (v0.7.0)
