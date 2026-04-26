@@ -20,7 +20,7 @@ Entries below use paths **under this harness** unless noted. Rows that point to 
 |------|----------|------|
 | AI harness concept (workspace) | `docs/concepts/ai-harness.md` | Prompt vs harness engineering explainer; not part of the shipped plugin bundle |
 | Release notes (per version) | `docs/release-notes/RELEASE_NOTES_v*.md` | Point-in-time ship notes; lean release zips exclude historical files (see `scripts/build-release-zip.sh`) |
-| Plugin manifest | `.claude-plugin/plugin.json` | Authoritative version (v0.8.6) |
+| Plugin manifest | `.claude-plugin/plugin.json` | Authoritative version (v0.8.7) |
 | AGENT_ORCHESTRATION.md | `references/AGENT_ORCHESTRATION.md` | Four-agent architecture + lifecycle dispatch |
 | REVIEW_ORCHESTRATION.md | `references/REVIEW_ORCHESTRATION.md` | Review pipeline runbook (Steps 0a–8.5) |
 | PHASE_PROTOCOL.md | `references/PHASE_PROTOCOL.md` | Lifecycle-Phase Ladder canonical spec (v0.7.4; §3.1.2 for `sd_sr_required`; §3.3.3 for Check 8 gate) |

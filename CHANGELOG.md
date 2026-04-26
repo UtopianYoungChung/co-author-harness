@@ -6,6 +6,21 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.8.7 — 2026-04-25
+
+**Theme.** Session-sourced Generator skill and catalog wiring.
+
+### Changes
+
+- **New skill** — `run-generator-session` (`/run-generator-session`): apply chat-originated revision instructions under real `phase_state` + `classification` per approved design `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md`.
+- **Registry** — `SKILL_REGISTRY` SK-32; `plugin-commands` routing + catalog.
+
+### Not changed
+
+- No `phase_state.json` schema or trigger-enum change.
+
+---
+
 ## v0.8.6 — 2026-04-25
 
 **Theme.** Advisor MCP entry points, em-dash control on **fix** rounds, release-gate chain-depth without external calibrator, packaging polish.

@@ -4,7 +4,7 @@
 
 ---
 
-## Package substrate (v0.8.6)
+## Package substrate (v0.8.7)
 
 The canonical harness substrate lives at the top level of this directory:
 
@@ -28,7 +28,7 @@ co-author-harness/
 
 All academic writing rules, review orchestration, agent prompts, skills, safeguard checks, and grounding constraints live inside the four canonical top-level directories named above. The root `CLAUDE.md` does **not** duplicate them.
 
-**Canonical ownership note.** Under Option C″ (2026-04-21), `co-author-harness/` (v0.8.6+; formerly `research-writing-harness/`) is the canonical workspace-root harness. The former `paper-harness/` root has been retired; surviving material from that era is either in this tree or in git history. The legacy plugin-internal tree at `legacy/` (e.g., `research-writing-harness-v0.2.0/`) is retained for release-oracle reference and should be treated as a frozen mirror — never edit there unless a release task explicitly targets it.
+**Canonical ownership note.** Under Option C″ (2026-04-21), `co-author-harness/` (v0.8.7+; formerly `research-writing-harness/`) is the canonical workspace-root harness. The former `paper-harness/` root has been retired; surviving material from that era is either in this tree or in git history. The legacy plugin-internal tree at `legacy/` (e.g., `research-writing-harness-v0.2.0/`) is retained for release-oracle reference and should be treated as a frozen mirror — never edit there unless a release task explicitly targets it.
 
 For workspace-level ownership and mirror policy, use `../ROOT_ARCHITECTURE_INDEX.md` as the first routing hop.
 

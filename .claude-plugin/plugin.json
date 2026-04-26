@@ -1,7 +1,7 @@
 {
   "name": "co-author-harness-claude",
-  "version": "0.8.6",
-  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance. v0.8.6: Advisor MCP EP-1/EP-2 (ADVISOR_MCP.md); em-dash discipline on fix rounds; in-tree chain-depth audit shim; accessibility skill description trim. See CHANGELOG; release notes: docs/release-notes/RELEASE_NOTES_v0.8.6.md.",
+  "version": "0.8.7",
+  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance. v0.8.7: /run-generator-session; prior: Advisor MCP, calibrator shim, accessibility trim. See CHANGELOG; release notes: docs/release-notes/RELEASE_NOTES_v0.8.7.md.",
   "author": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"

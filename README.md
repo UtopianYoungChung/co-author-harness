@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.8.6-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-0.8.7-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -27,9 +27,9 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 * **Multi-agent, phase-conditioned dispatch.** Agent prompts in [`agents/`](agents/) and orchestration in [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) define who runs when (e.g. Evaluator joins from Ph2 onward; full four-agent loop in Ph3/Ph4). Model allocation and obligations are written down—see [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **A ladder, not a free-for-all.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). M1–M5 milestones still describe the *project* arc; the phase ladder governs *review and revision*.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
-* **Slash-style skills, documented as files.** 27+ skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`) with machine-checkable front matter—validated by the scripts below.
+* **Slash-style skills, documented as files.** 28+ skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`) with machine-checkable front matter—validated by the scripts below.
 
-### Skills (27)
+### Skills (28)
 
 See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the slash-command table.
 
@@ -99,10 +99,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.8.6`
+`0.8.7`
 
 | Release | Highlights |
 | --- | --- |
+| **0.8.7** | New `/run-generator-session` (SK-32): session-sourced Generator pass; `plugin-commands` and `SKILL_REGISTRY` updated. |
 | **0.8.6** | Advisor MCP EP-1/EP-2, em-dash fix-round discipline, in-tree `plugin_calibrator_audit.py` for release-gate, accessibility `description` trim, `plugin-commands` routing. |
 | **0.8.5** | Wiki-first read loop (`EXTERNAL_VERIFIERS.md` §1.5, `wiki_first_resources`, I-Gen-8, Planner wiki paths / revision-plan trace). |
 | **0.8.4** | §9d `check8_g_prefilter.py`, A8 `provenance_prewrite_check.py`, `phase_notifications` doc fix, efficiency `role_overrides` completion, A6–A7 reflector/ADVISORY_UNTIL follow-through. |
