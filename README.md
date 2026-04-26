@@ -27,9 +27,9 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 * **Multi-agent, phase-conditioned dispatch.** Agent prompts in [`agents/`](agents/) and orchestration in [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) define who runs when (e.g. Evaluator joins from Ph2 onward; full four-agent loop in Ph3/Ph4). Model allocation and obligations are written down—see [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **A ladder, not a free-for-all.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). M1–M5 milestones still describe the *project* arc; the phase ladder governs *review and revision*.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
-* **Slash-style skills, documented as files.** 28+ skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`) with machine-checkable front matter—validated by the scripts below.
+* **Slash-style skills, documented as files.** 29+ skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`, `seed-snowball-discovery`) with machine-checkable front matter—validated by the scripts below.
 
-### Skills (28)
+### Skills (29)
 
 See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the slash-command table.
 

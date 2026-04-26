@@ -1,5 +1,5 @@
 {
-  "_comment": "v0.8.0 authoring substrate — landed at Phase 1.1 (α Tier A) per proposals/v0.8.0_upgrade_architecture.md §3.2. Content promoted verbatim from proposals/drafts/v0.7.6_hand_authored_route/plugin-efficiency.json.draft. Rates, models, and thresholds are pinned against `references/MODEL_ALLOCATION.md §2` and `CLAUDE.md §12.9` (capability-inversion refusal floor). The `input_tokens_per_second` figure (16897.1) is the MEASURED orchestrator-tier ingestion rate for claude-opus-4-7 (scalar interpretation (a) 'orchestrator-rate' per opus-throughput-measurement SKILL.md Step 2), captured 2026-04-22T15:19-04:00 via anthropic-streaming-api: TTFT-based (wall-clock delta from request dispatch to the first message_start SSE event, ingestion only, does not include generation time); 1 warmup + n=3 measured samples per tier with 70s inter-call cooldown to respect the observed 30,000 input-tokens/min rate limit on claude-opus-4-7; payload = full v0.8.0_upgrade_architecture.md (23897 input tokens per Opus tokenizer, 17867 per Sonnet tokenizer). Per-tier medians: Opus 16897.1 tok/s, Sonnet 16063.5 tok/s. Step-4 check 4 (Opus <= Sonnet capability-inversion rail) soft-failed (Opus 5.2% higher); user-accepted 2026-04-22 under D-3 paired review as variance-indistinguishable at n=3 (gap sits inside Sonnet's inter-sample spread of 4937 tok/s). D-3 amendment closed; release-gate §3.3 condition 4 satisfied. The calibrator schema supports a binary `executor` / `orchestrator` tier split; Haiku 4.5 (at Reflector-lightweight per MODEL_ALLOCATION.md §2 on a 30-day pilot, H-MA-2) is NOT representable in this file and is documented in proposals/drafts/v0.7.6_hand_authored_route/README.md §Honesty notes. Duplication threshold is intentionally relaxed to 0.5 because the shared Grounding-Protocol quotations across agent prompts are not sprawl. Chain-depth threshold set to 15 matches the release-gate regression ceiling landed at Phase 1.3.",
+  "_comment": "v0.8.0 authoring substrate landed at Phase 1.1. Rates pinned against MODEL_ALLOCATION.md section 2 and CLAUDE.md section 12.9. input_tokens_per_second 16897.1 measured 2026-04-22 via anthropic-streaming-api TTFT. v0.10.0 Stage S1 (2026-04-26) registered seed-snowball-discovery as executor and recorded the S1 cost rebase. Three known-false-positive metrics in baseline.",
   "model_tiers": {
     "executor": {
       "model": "claude-sonnet-4-6",
@@ -51,7 +51,8 @@
     "skills/public-interest-accountability-pass/SKILL.md": "executor",
     "skills/retrofit-concept-grounding/SKILL.md": "executor",
     "skills/tool-contract-roundtrip/SKILL.md": "executor",
-    "skills/run-generator-session/SKILL.md": "executor"
+    "skills/run-generator-session/SKILL.md": "executor",
+    "skills/seed-snowball-discovery/SKILL.md": "executor"
   },
   "input_tokens_per_second": 16897.1,
   "assumed_output_tokens_per_invocation": 800,
@@ -73,9 +74,42 @@
       "recorded_date": "2026-04-26",
       "failing_artefacts": 7,
       "total_artefacts": 32,
-      "root_cause": "7 remaining failures are orchestrator/spec skills without triple-backtick fenced code blocks (run-phase-1/2/3/3-stability, run-reflection, run-generator-session, plugin-commands); these are architectural documents not tool-invocation guides — fence absence is genuine, not a deficiency",
-      "resolution": "Path A: add extra_clarity_section_tags config support to efficiency.py (Task 3) and declare harness-specific tags in this file (Task 4)",
-      "advisor_reference": "reviews/advisor_consultation_2026-04-26.md — Path C as interim, Path A as fix"
+      "root_cause": "Architectural skills without triple-backtick fenced code blocks; fence absence is genuine.",
+      "resolution": "extra_clarity_section_tags config support added to efficiency.py at v0.9.0."
+    },
+    "max_subagent_chain_depth": {
+      "known_false_positive": true,
+      "recorded_value_at_v0_9_0": 21,
+      "recorded_value_at_v0_10_0_S1": 20,
+      "config_threshold": 15,
+      "recorded_date": "2026-04-26",
+      "root_cause": "Bash-environment plugin_calibrator's _declared_protocol_stage_count does not pick up scripts/protocol_constants.py via detect_orchestrator. declared_protocol_stage_count reports 0; max_subagent_chain_depth therefore equals heuristic markdown-graph max_depth.",
+      "resolution": "Side-bar issue against unified-superkit; do not block stage close."
+    },
+    "parallelisable_fraction": {
+      "known_false_positive": true,
+      "recorded_value_at_v0_9_0": 0.054,
+      "recorded_value_at_v0_10_0_S1": 0.051,
+      "config_threshold_min": 0.25,
+      "recorded_date": "2026-04-26",
+      "root_cause": "Same bash-environment scope as max_subagent_chain_depth.",
+      "resolution": "Same: upstream fix; do not block."
+    },
+    "projected_cost_per_invocation_usd_S1_rebase": {
+      "v0_9_0_baseline": 5.8686,
+      "v0_10_0_S1_baseline": 6.0793,
+      "delta": 0.2107,
+      "delta_decomposition": {
+        "executor_count_growth": 2,
+        "executor_token_growth": 6048,
+        "expected_input_cost_delta": 0.0907,
+        "expected_output_cost_delta": 0.1200,
+        "expected_total_delta": 0.2107,
+        "actual_delta": 0.2107,
+        "unaccounted_bloat": 0.0
+      },
+      "interpretation": "100 percent feature-attributed (zero bloat). New 6.0793 baseline established for the S1.5 close gate.",
+      "recorded_date": "2026-04-26"
     }
   }
 }
