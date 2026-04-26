@@ -65,5 +65,16 @@
     "orchestrator": 4
   },
 
-  "baseline": null
+  "baseline": {
+    "prompt_clarity_score": {
+      "known_false_negative": true,
+      "recorded_score": 0.25,
+      "recorded_date": "2026-04-26",
+      "failing_artefacts": 24,
+      "total_artefacts": 32,
+      "root_cause": "calibrator _CLARITY_SECTION_TAGS vocabulary mismatch — harness uses '## What you do', '## Step N —', '## Phase N —' which are not in the hardcoded tuple at efficiency.py lines 694-701",
+      "resolution": "Path A: add extra_clarity_section_tags config support to efficiency.py (Task 3) and declare harness-specific tags in this file (Task 4)",
+      "advisor_reference": "reviews/advisor_consultation_2026-04-26.md — Path C as interim, Path A as fix"
+    }
+  }
 }
