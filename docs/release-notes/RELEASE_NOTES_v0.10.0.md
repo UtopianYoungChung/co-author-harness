@@ -28,13 +28,35 @@
      - Any deviation from the strategy's S0 spec. -->
 
 ### Stage S1 — Discovery layer skill (SK-NEW-A `seed-snowball-discovery`)
-<!-- TODO@S1-close. Should record:
-     - skills/seed-snowball-discovery/SKILL.md frontmatter and final description-length
-     - commands/seed-snowball-discovery.md shim
-     - SKILL_REGISTRY.md SK-33 entry
-     - Pilot probe outcome (REFERENCES.md populated; snowball_log.md generated)
-     - Calibrator economics axis result vs. v0.9.0 baseline ($5.87)
-     - Any architecture-plan deviation. -->
+
+**Closed:** 2026-04-26 on branch `stage/v0.10.0-S1` (in-place stage branch — see deviation note at §5).
+
+**Files landed:**
+- `skills/seed-snowball-discovery/SKILL.md` — frontmatter description 413 chars (≤500 WARN threshold); body 246 lines covering grounding basis, preconditions with no-op reason codes, three-phase procedure (seed/iterate/verify) with the graph-substrate variant pseudocode, in-loop wiki write-back contract, dual-path access contract (filesystem / mcp_fastpath / auto), saturation criterion (ε = 0.05 default; field-conditioned overrides), seven failure modes, eight not-doing rules, sibling-skill register.
+- `commands/seed-snowball-discovery.md` — UI loadability shim per v0.9.0 convention.
+- `references/SKILL_REGISTRY.md` — SK-33 entry registered.
+- `skills/plugin-commands/SKILL.md` — Command catalog row + Command routing entry added.
+- `README.md` — skill count 28 → 29.
+- `.plugin-efficiency.json` — `seed-snowball-discovery` registered as `executor` in `role_overrides`; baseline annotations for two known-false-positive metrics (max_subagent_chain_depth, parallelisable_fraction) and the S1 cost rebase record.
+
+**Validation gate (per implementation strategy §7.1):**
+- `python scripts/skill-check.py` — PASS (29 skills discovered; 0 blockers; 0 warnings).
+- `python scripts/version-check.py` — PASS (manifest 0.9.0; v0.10.0 bump deferred to RC per §8.4).
+- `python scripts/catalog-check.py` — PASS (29 skills, 13 commands; prefix-parity OK).
+- `python scripts/path-hygiene-check.py` — PASS.
+- `python scripts/phase_state_validate.py` — N/A in meta-pilot context (operates on project-side `phase_state.json`; harness has none).
+
+**Calibrator economics gate:**
+- `projected_cost_per_invocation_usd`: $6.0793 (was $5.8686 at v0.9.0 close). Cost-decomposition: executor count growth +2 (SK-NEW-A SKILL.md + shim); executor token growth +6,048 tokens; expected feature-cost delta $0.2107; actual delta $0.2107; **unaccounted bloat $0.00**. The increase is fully feature-attributed; the new $6.0793 baseline is established for the S1.5 close gate per `.plugin-efficiency.json baseline.projected_cost_per_invocation_usd_S1_rebase`.
+- `subagent_dispatch_multiplier`: 9.217 (improved from v0.9.0's 9.568).
+- Quality: 0 findings; 0 BLOCKER; 0 MAJOR.
+- Speed (chain depth, parallelisable fraction): documented as known-false-positive (bash-environment calibrator does not pick up `scripts/protocol_constants.py`); inherited posture from v0.9.0; not a stage-close blocker.
+
+**Meta-pilot probe (§6.1):** SK-NEW-A is shipped as the manually-invokable entry point only at S1; the auto-dispatch hook from `run-phase-1` Step 4.5 lands at S2. The meta-pilot probe at this stage exercises only the SKILL.md as a documentation artefact (per the §3.5 "the architecture/strategy plans supply the claim register" framing); a runtime probe of the SK-NEW-A iteration logic against the architecture plan's claims is deferred to S2 close (when the Planner can dispatch SK-NEW-A through Step 4.5).
+
+**Architecture-plan deviation:** none at S1. The skill's body matches §5.1 + §5.5.1 + §5.5.2 + §5.5.6 of the architecture plan; the only structural choice not in the architecture is the placement of the `Phase 1 / Phase 2 / Phase 3 / Phase 4` numbered sections inside §3 Procedure (a presentational decision; does not affect contract).
+
+**Deviation from implementation strategy:** the strategy specified per-stage worktrees via `git worktree add ../co-author-harness-S<N>`. This Cowork session's filesystem-tool access is scoped to the harness root only; sibling worktrees are not file-tool-accessible. S1 used **stage branches in-place** (`stage/v0.10.0-S1` on the existing checkout) instead. The eight-stage sequence is linear by design, so the worktree pattern's parallel-work benefit is not lost; rollback granularity is preserved via per-stage tags. This deviation will repeat at S1.5 → S6.
 
 ### Stage S1.5 — Wiki-graph substrate + write-back inside SK-NEW-A
 <!-- TODO@S1.5-close. Should record:

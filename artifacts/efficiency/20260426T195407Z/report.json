@@ -1478,7 +1478,7 @@
       "declared_protocol_stage_count": 0,
       "estimated_input_processing_ms": 8348,
       "input_tokens_per_second_assumed": 16897,
-      "max_subagent_chain_depth": 21,
+      "max_subagent_chain_depth": 20,
       "parallelisable_fraction": 0.051
     }
   },
@@ -1498,12 +1498,12 @@
     },
     {
       "axis": "speed",
-      "detail": "chain depth 21 > ceiling 15",
+      "detail": "chain depth 20 > ceiling 15",
       "key": "chain_depth_over_threshold",
       "severity": "MINOR"
     }
   ],
-  "generated_at": "2026-04-26T20:00:11+00:00",
+  "generated_at": "2026-04-26T19:54:07+00:00",
   "plugin_name": "co-author-harness-claude",
   "plugin_root": "/sessions/zealous-practical-albattani/mnt/co-author-harness",
   "plugin_version": "0.9.0",

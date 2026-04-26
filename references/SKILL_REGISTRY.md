@@ -348,6 +348,17 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Sibling:** SK-25 `run-phase-1` … SK-27 `run-phase-4` (full ladder entry points with Planner/Evaluator packaging); SK-23 `plugin-commands` (discovery); SK-07 `sentence-level-pass` / SK-08 `narrative-structure-pass` (craft overlays, not the Generator role file)
 - **Not a replacement for:** full `/run-phase-2+` with Evaluator when the project’s governance still requires that round; does not create Planner artefacts
 
+### SK-33. `seed-snowball-discovery`
+- **File:** `skills/seed-snowball-discovery/SKILL.md`
+- **Pattern:** **Ph1 entry reference scaffolding** — assemble `references/REFERENCES.md` from a section's claim register via Wohlin-style snowball saturation (Wohlin 2014, `10.1145/2601248.2601268`; Zotero `FXJ6M8ED`). Three-phase mechanised procedure: seed (wiki-first per `EXTERNAL_VERIFIERS.md §1.5`; Zotero second; Class 1 fall-through), iterate (graph-substrate variant — traverse `${wiki_path}/graphify-out/graph.json` first, fall through to Scholar Gateway only for graph-stub seeds), verify (every Class 1 admission emits a Rule 7a verification log row). In-loop wiki/sources/ stub write-back when `wiki_linked: true`. Dual-path access (filesystem / mcp_fastpath / auto). Stops on `rate < ε` (default 0.05) or `iterations >= 4`. Materialises Coupling E.1 (`graph-read-at-planner`) — previously roadmapped but unimplemented per SK-20 §Dependencies.
+- **Created:** 2026-04-26
+- **Source:** v0.10.0 Stage S1 implementation per `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §5.1, §5.5.1, §5.5.2, §5.5.6`
+- **Tier:** Package (executor — Sonnet)
+- **Status:** Active (v0.10.0+)
+- **Depends on:** `references/GROUNDING_PROTOCOL.md` (Rule 4, Rule 6, Rule 7a), `references/EXTERNAL_VERIFIERS.md §§1.5, 2, 3.1` (Scholar Gateway render contract), `reviews/classification.md` (claim register + the new v0.10.0 fields `claim_coverage_threshold`, `inherit_snowball`, `pre_seed_cap`), `reviews/revision_plan.md` (claim outline), Class 1 verifiers (Scholar Gateway primary; Consensus for contested cross-check; Zotero+Scite for Class 2 resolution + Class 3 retraction), graphify graph at `${wiki_path}/graphify-out/graph.json` (when `wiki_linked: true`)
+- **Sibling:** SK-15 `backfill-source-stubs-from-references` (downstream consumer; SK-NEW-A's in-loop write-back inherits SK-15's stub-template logic); SK-16 `retrofit-concept-grounding` (downstream consumer; consumes the populated `wiki/sources/` layer); SK-20 `graph-grounding-overlay` (upstream contract — SK-NEW-A reads the same `graph.json` schema SK-20 reads); SK-NEW-B `claim-coverage-audit` (Ph2 successor); SK-NEW-C `extend-snowball-incremental` (Ph2 in-loop successor); SK-NEW-D `inherit-snowball-from-wiki` (pre-seed dependency)
+- **Not a replacement for:** SK-15 (which converts a curated REFERENCES.md to wiki stubs at terminal stage; SK-NEW-A operates inline at Ph1); SK-16 (which retrofits concept pages with wikilinks; SK-NEW-A only writes to `wiki/sources/`); manual literature review (SK-NEW-A is recall-biased and prunes via per-claim verification — it surfaces candidates, not commitments)
+
 ---
 
 ## Orchestration Commands (v0.7.0)
