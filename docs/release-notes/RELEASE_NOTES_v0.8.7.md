@@ -16,6 +16,8 @@ See `CHANGELOG.md` §v0.8.7.
 
 Output: `releases/co-author-harness-claude-v0.8.7.zip` (Claude / Cowork plugin loader format).
 
+**Published artefact:** the v0.8.7 cut is committed at `releases/co-author-harness-claude-v0.8.7.zip` on `main` (rebuild with the command above if you need a fresh zip from a dirty tree).
+
 ## Upgrade / migration
 
 - No `phase_state.json` or trigger-enum change.

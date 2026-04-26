@@ -14,6 +14,7 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 - **New skill** — `run-generator-session` (`/run-generator-session`): apply chat-originated revision instructions under real `phase_state` + `classification` per approved design `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md`.
 - **Registry** — `SKILL_REGISTRY` SK-32; `plugin-commands` routing + catalog.
+- **Release** — `build-release-zip.sh` + `releases/co-author-harness-claude-v0.8.7.zip`.
 
 ### Not changed
 
