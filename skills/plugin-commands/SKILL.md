@@ -30,6 +30,7 @@ If routing is ambiguous, state the single recommended next command in one line a
 | Final sign-off, MCR, external handoff | `/run-phase-4` (only when ladder/MCR preconditions in project docs are met) |
 | Pre-release, external verifier contract check | `/tool-contract-roundtrip` |
 | **Advisor MCP** — after Ph2, before Ph3 (EP-1) or after Ph3_converged, before MCR/Ph4 (EP-2) | `/advisor-escalation` — see `references/ADVISOR_MCP.md`; host must expose advisor MCP |
+| Session chat should become manuscript edits (Generator) — requirements from thread, not from formal `revision_plan` only | `/run-generator-session` — load `agents/generator.md` authority from real `phase_state` + `classification` |
 | Orientation only: “what exists in this package?” | `/plugin-commands` (this file) |
 
 ## Command catalog
@@ -38,6 +39,7 @@ If routing is ambiguous, state the single recommended next command in one line a
 |---|---|---|
 | `/plugin-commands` | List all plugin slash commands and usage moments. | First-time orientation or quick recall. |
 | `/classify-manuscript` | Classify paper type, P-stage, venue, and default final tier (T1–T4 / T3R) of the v0.7.0 Lifecycle-Stage Ladder. | Before any review work starts. |
+| `/run-generator-session` | **Session-sourced Generator** — apply the current session’s agreed revision instructions to `manuscript/*` under the real `current_phase` from `reviews/phase_state.json`; requires `classification` + a resolvable section. Chat is not evidence. Writes `manuscript` + `revision_log` only. | After extended chat about a section: turn decisions into on-disk draft/fixes without re-typing a formal plan. |
 | `/run-phase-1` | T1 Plan & Draft — Planner bootstraps the 15-field section state; Generator drafts under the declared P-stage register. **When `sd_sr_required: true` in `reviews/classification.md`** (v0.7.1 opt-in; default `false`), the Planner additionally authors i* SD/SR models and runs the §3.1.1 structural-completeness validator. No Evaluator; no Self-T1 Verdict (retired at v0.7.0). | First rung for a new section or section whose ceiling is T1. |
 | `/run-phase-2` | T2 Review & Revise — first Evaluator-joined rung; full local-scope pass every entry (Confirmation Mode retired at v0.7.0). Pre-tier-advance check enforces non-null `t1_pstage_declaration`; i* validator-pass and SD/SR read-prerequisite checks fire only when `sd_sr_required: true` (v0.7.1). | After a T1 approval when the section is climbing toward T3 or its ceiling. |
 | `/run-phase-3` | T3 Iterate & Converge — unbounded loop with convergence_metric two-round stability test; full four-agent loop + SAFEGUARD + Coupling E.2 overlay; pre-T4 admission gate. `[T3-STALE]` computed from `t3_last_activity_at` against wall-clock (Option A). | Most manuscript reviews; the default `default_final_tier: T3` dispatch. |
@@ -87,6 +89,7 @@ Use these when you want deterministic, script-level execution outside slash-comm
 - **NEVER** treat `/accessibility-overlay` as ignorable at T3/T4 when the workflow expects Check 8/terminal signoff — it is **dormant** at T1 and severity-floored at T2; at T3+ it feeds real gates; skipping it to “save time” leaves BLOCKER-class debt.
 - **NEVER** add slash commands to the catalog that are not shipped in this package’s `skills/` tree — the registry is the authority; the host’s UI may lag or differ.
 - **NEVER** use `/tool-contract-roundtrip` as a substitute for reading the project’s own `EXTERNAL_VERIFIERS` / policy docs — the skill probes contracts; it does not replace release governance in `CLAUDE.md` or the project wiki.
+- **NEVER** treat `/run-generator-session` as a substitute for a full `/run-phase-2`+ Evaluator-joined pass when the ladder and project governance still require that round.
 
 ## Guardrails
 
