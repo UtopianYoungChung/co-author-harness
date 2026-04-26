@@ -6,6 +6,8 @@ Catalog parity checks:
 1) README skill count matches discovered skills/*/SKILL.md count.
 2) /plugin-commands command table matches discovered skill names.
 3) SKILL_REGISTRY includes every shipped skill name.
+4) commands/<name>.md shim descriptions are prefix-matches of the
+   plugin-commands SKILL catalog Purpose column (v0.9.0+).
 """
 
 from __future__ import annotations
@@ -20,6 +22,17 @@ import yaml
 
 
 REGISTRY_SKILL_HEADING = re.compile(r"^###\s+SK-\d+\.\s+`([^`]+)`\s*$")
+
+
+def _normalize_quotes(s: str) -> str:
+    """Normalize curly quotes to ASCII so plain-text shim descriptions
+    can prefix-match catalog rows that use smart quotes."""
+    return (
+        s.replace("’", "'")
+         .replace("‘", "'")
+         .replace("“", '"')
+         .replace("”", '"')
+    )
 
 
 def read_text(path: Path) -> str:
@@ -67,6 +80,92 @@ def parse_registry_names(plugin_root: Path) -> Set[str]:
         if match:
             names.add(match.group(1).strip())
     return names
+
+
+def parse_plugin_commands_purposes(plugin_root: Path) -> Dict[str, str]:
+    """Parse the /plugin-commands SKILL command catalog table.
+
+    Returns a mapping of command name (no leading slash) to its Purpose
+    column text, whitespace-stripped, with markdown bold markers stripped
+    so plain-text shim descriptions can prefix-match.
+    """
+    path = plugin_root / "skills" / "plugin-commands" / "SKILL.md"
+    text = read_text(path)
+    purposes: Dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.strip().startswith("| `/"):
+            continue
+        parts = line.split("|")
+        if len(parts) < 4:
+            continue
+        first_cell = parts[1].strip()
+        match = re.match(r"^`/([^`]+)`$", first_cell)
+        if not match:
+            continue
+        name = match.group(1).strip()
+        purpose = _normalize_quotes(parts[2].strip().replace("**", "").replace("`", ""))
+        purposes[name] = purpose
+    return purposes
+
+
+def discover_commands(plugin_root: Path) -> Dict[str, str]:
+    """Discover commands/<name>.md shims and return a mapping of
+    command name to frontmatter description (whitespace-stripped).
+    """
+    discovered: Dict[str, str] = {}
+    commands_dir = plugin_root / "commands"
+    if not commands_dir.exists():
+        return discovered
+    for command_md in sorted(commands_dir.glob("*.md")):
+        name = command_md.stem
+        text = read_text(command_md)
+        match = re.search(r"^---\n(.*?)\n---", text, re.S)
+        if not match:
+            discovered[name] = ""
+            continue
+        frontmatter = yaml.safe_load(match.group(1)) or {}
+        description = _normalize_quotes(str(frontmatter.get("description", "")).strip())
+        discovered[name] = description
+    return discovered
+
+
+def check_commands_parity(
+    plugin_root: Path,
+    blockers: List[str],
+    warnings: List[str],
+) -> int:
+    """v0.9.0 parity rule: every commands/<name>.md frontmatter description
+    must be a prefix of the matching plugin-commands SKILL catalog row's
+    Purpose column (whitespace-stripped, prefix-tolerant; markdown bold
+    markers stripped from the catalog before comparison).
+    """
+    try:
+        commands = discover_commands(plugin_root)
+        purposes = parse_plugin_commands_purposes(plugin_root)
+    except Exception as exc:  # noqa: BLE001
+        blockers.append(f"commands/ parity check failed: {exc}")
+        return 0
+
+    if not commands:
+        warnings.append(
+            "commands/ directory empty or absent — UI loadability shims not present"
+        )
+        return 0
+
+    for name, description in sorted(commands.items()):
+        if name not in purposes:
+            blockers.append(
+                f"commands/{name}.md has no matching row in plugin-commands SKILL catalog"
+            )
+            continue
+        if not description:
+            blockers.append(f"commands/{name}.md is missing frontmatter description")
+            continue
+        if not purposes[name].startswith(description):
+            blockers.append(
+                f"commands/{name}.md description is not a prefix of the catalog Purpose column"
+            )
+    return len(commands)
 
 
 def main() -> int:
@@ -126,9 +225,12 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         blockers.append(f"SKILL_REGISTRY check failed: {exc}")
 
+    commands_count = check_commands_parity(plugin_root, blockers, warnings)
+
     print("CATALOG PARITY CHECK")
     print(f"- Plugin root: {plugin_root}")
     print(f"- Discovered skills: {len(discovered_names)}")
+    print(f"- Discovered commands: {commands_count}")
     print(f"- README skills count: {readme_count if readme_count is not None else '<missing>'}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")
@@ -143,4 +245,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

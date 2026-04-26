@@ -1,6 +1,5 @@
 {
   "_comment": "v0.8.0 authoring substrate — landed at Phase 1.1 (α Tier A) per proposals/v0.8.0_upgrade_architecture.md §3.2. Content promoted verbatim from proposals/drafts/v0.7.6_hand_authored_route/plugin-efficiency.json.draft. Rates, models, and thresholds are pinned against `references/MODEL_ALLOCATION.md §2` and `CLAUDE.md §12.9` (capability-inversion refusal floor). The `input_tokens_per_second` figure (16897.1) is the MEASURED orchestrator-tier ingestion rate for claude-opus-4-7 (scalar interpretation (a) 'orchestrator-rate' per opus-throughput-measurement SKILL.md Step 2), captured 2026-04-22T15:19-04:00 via anthropic-streaming-api: TTFT-based (wall-clock delta from request dispatch to the first message_start SSE event, ingestion only, does not include generation time); 1 warmup + n=3 measured samples per tier with 70s inter-call cooldown to respect the observed 30,000 input-tokens/min rate limit on claude-opus-4-7; payload = full v0.8.0_upgrade_architecture.md (23897 input tokens per Opus tokenizer, 17867 per Sonnet tokenizer). Per-tier medians: Opus 16897.1 tok/s, Sonnet 16063.5 tok/s. Step-4 check 4 (Opus <= Sonnet capability-inversion rail) soft-failed (Opus 5.2% higher); user-accepted 2026-04-22 under D-3 paired review as variance-indistinguishable at n=3 (gap sits inside Sonnet's inter-sample spread of 4937 tok/s). D-3 amendment closed; release-gate §3.3 condition 4 satisfied. The calibrator schema supports a binary `executor` / `orchestrator` tier split; Haiku 4.5 (at Reflector-lightweight per MODEL_ALLOCATION.md §2 on a 30-day pilot, H-MA-2) is NOT representable in this file and is documented in proposals/drafts/v0.7.6_hand_authored_route/README.md §Honesty notes. Duplication threshold is intentionally relaxed to 0.5 because the shared Grounding-Protocol quotations across agent prompts are not sprawl. Chain-depth threshold set to 15 matches the release-gate regression ceiling landed at Phase 1.3.",
-
   "model_tiers": {
     "executor": {
       "model": "claude-sonnet-4-6",
@@ -13,7 +12,6 @@
       "output_per_mtok_usd": 75.0
     }
   },
-
   "thresholds": {
     "max_cyclomatic_complexity": 20,
     "min_prompt_clarity_score": 0.5,
@@ -21,20 +19,19 @@
     "max_chain_depth": 15,
     "max_duplication_score": 0.5
   },
-
   "role_overrides": {
-    "agents/planner.md": "orchestrator",
+    "agents/planner.md": "executor",
     "agents/evaluator.md": "orchestrator",
-    "agents/generator.md": "orchestrator",
+    "agents/generator.md": "executor",
     "agents/reflector.md": "orchestrator",
-    "skills/run-phase-1/SKILL.md": "orchestrator",
+    "skills/run-phase-1/SKILL.md": "executor",
     "skills/run-phase-2/SKILL.md": "orchestrator",
     "skills/run-phase-3/SKILL.md": "orchestrator",
     "skills/run-phase-3-stability/SKILL.md": "orchestrator",
     "skills/run-phase-4/SKILL.md": "orchestrator",
     "skills/response-letter-review/SKILL.md": "orchestrator",
-    "skills/run-reflection/SKILL.md": "orchestrator",
-    "skills/classify-manuscript/SKILL.md": "orchestrator",
+    "skills/run-reflection/SKILL.md": "executor",
+    "skills/classify-manuscript/SKILL.md": "executor",
     "skills/accessibility-overlay/SKILL.md": "executor",
     "skills/graph-grounding-overlay/SKILL.md": "executor",
     "skills/grounding-audit/SKILL.md": "executor",
@@ -46,25 +43,22 @@
     "skills/p-stage-checker/SKILL.md": "executor",
     "skills/check-contradictions/SKILL.md": "executor",
     "skills/check-abstract-body/SKILL.md": "executor",
-    "skills/advisor-escalation/SKILL.md": "orchestrator",
+    "skills/advisor-escalation/SKILL.md": "executor",
     "skills/backfill-source-stubs-from-references/SKILL.md": "executor",
     "skills/ingest-m5-to-wiki/SKILL.md": "executor",
     "skills/plugin-commands/SKILL.md": "executor",
     "skills/promote-lessons-to-wiki/SKILL.md": "executor",
     "skills/public-interest-accountability-pass/SKILL.md": "executor",
     "skills/retrofit-concept-grounding/SKILL.md": "executor",
-    "skills/tool-contract-roundtrip/SKILL.md": "orchestrator"
+    "skills/tool-contract-roundtrip/SKILL.md": "executor",
+    "skills/run-generator-session/SKILL.md": "executor"
   },
-
   "input_tokens_per_second": 16897.1,
-
   "assumed_output_tokens_per_invocation": 800,
-
   "assumed_invocations_per_run": {
-    "executor": 3,
-    "orchestrator": 4
+    "executor": 5,
+    "orchestrator": 2
   },
-
   "extra_clarity_section_tags": [
     "what you do",
     "step ",
@@ -72,7 +66,6 @@
     "output",
     "dispatch"
   ],
-
   "baseline": {
     "prompt_clarity_score": {
       "known_false_negative": true,

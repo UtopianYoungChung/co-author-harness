@@ -163,3 +163,17 @@ DO NOT start with GP text extraction — it is item 4, not item 1.
 ---
 
 **Security Reminder**: No secrets in this handoff.
+
+---
+
+## Correction (2026-04-26 — model allocation audit, v0.9.0 release session)
+
+The v0.9.0 release session re-examined three statements in this handoff against `references/MODEL_ALLOCATION.md §2` and `agents/planner.md` lines 48 + 325–336. The findings:
+
+- **Line 23 — `$10.03 per invocation` is stale.** The figure was generated against the v0.8.7 `.plugin-efficiency.json` `role_overrides`, which had drifted from `MODEL_ALLOCATION.md §2`. After the v0.9.0 audit reclassified seven artefacts from `orchestrator` to `executor`, added `skills/run-generator-session/SKILL.md`, and retuned `assumed_invocations_per_run` to `{executor: 5, orchestrator: 2}`, the projected cost-per-invocation drops to an estimated $5.50–$7.00 (order-of-magnitude). Empirical re-run on the patched Windows-side `plugin_calibrator/efficiency.py` is the definitive number; deferred to the next maintenance window per v0.9.0 Decision 4-α.
+- **Line 48 — "All four agent files are currently 'orchestrator'" is partial.** True at v0.8.7, but reclassified at v0.9.0: `agents/planner.md` and `agents/generator.md` move to `executor` (Sonnet 4.6 at all four tiers per §2 rows 1 and 3). Only `agents/evaluator.md` (Opus floor at T2/T3/T4) and `agents/reflector.md` (Opus at T4 close-out) remain `orchestrator` after the audit.
+- **Line 130 — "Opus is required for Planner and Evaluator" is wrong on Planner.** Per `MODEL_ALLOCATION.md §2` row 1, the Planner is Sonnet 4.6 at every tier; T4 even shows the explicit downshift marker (`↓`). Opus is required only for the Evaluator (T2/T3/T4) and the Reflector-full T4 close-out per §3. The correct statement is: **Opus is required for the Evaluator at T2/T3/T4 and the Reflector-full at T4. The Planner and Generator are Sonnet at all tiers; the Reflector-lightweight is Haiku at T1/T2/T3 (30-day pilot, H-MA-2).**
+
+**Bookkeeping framing.** None of these corrections change runtime dispatch behavior. The Planner resolves model dispatch from `MODEL_ALLOCATION.md §2` at every invocation (`agents/planner.md` line 48 — "**Authoritative for every dispatch**"), not from `.plugin-efficiency.json`. The handoff's "Behavioral fidelity risk" gate (line 101) is unnecessary for `role_overrides` edits; the field is consumed only by the external calibrator package for cost-projection purposes.
+
+**Reference.** Full audit narrative and findings table: `docs/release-notes/RELEASE_NOTES_v0.9.0.md` "Headline change — model allocation pin restored to MODEL_ALLOCATION.md §2."

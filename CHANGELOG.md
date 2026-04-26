@@ -6,6 +6,32 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.9.0 — 2026-04-26
+
+**Theme.** UI loadability via `.claude-plugin/plugin.json` + `commands/` shim convention; model allocation calibrator pin restored to `references/MODEL_ALLOCATION.md §2`.
+
+### Changes
+
+- **UI loadability** — twelve `commands/<name>.md` shim files for the headline-cut slash commands (six phase-ladder rungs + `/run-generator-session`, `/classify-manuscript`, `/plugin-commands`, `/run-reflection`, `/quick-deterministic`, `/check-contradictions`, `/grounding-audit`). Each shim delegates to its sibling `skills/<name>/SKILL.md` as the binding authority; the SKILL remains the single source of truth.
+- **Manifest** — `.claude-plugin/plugin.json` `description` rewritten to point at `/plugin-commands` for the full slash catalog rather than privilege a single slash by name; `version` 0.8.7 → 0.9.0.
+- **Root `CLAUDE.md`** — trigger table line 40 flagged "illustrative — full catalog at `/plugin-commands`"; missing v0.8.7 headline `/run-generator-session` added.
+- **Catalog parity** — `scripts/catalog-check.py` extended with `parse_plugin_commands_purposes`, `discover_commands`, `check_commands_parity`, and a Unicode-quote normalization helper. The new rule asserts every `commands/<name>.md` frontmatter description is a prefix of the matching catalog Purpose column (markdown bold, inline-code backticks, and curly quotes normalized before comparison).
+- **Calibrator pin restored** — `.plugin-efficiency.json` `role_overrides` reconciled to `MODEL_ALLOCATION.md §2`. Seven artefacts downshifted from `orchestrator` to `executor` (`agents/planner.md`, `agents/generator.md`, `skills/run-phase-1/SKILL.md`, `skills/run-reflection/SKILL.md`, `skills/classify-manuscript/SKILL.md`, `skills/advisor-escalation/SKILL.md`, `skills/tool-contract-roundtrip/SKILL.md`); one added (`skills/run-generator-session/SKILL.md` as `executor`); `assumed_invocations_per_run` retuned to `{executor: 5, orchestrator: 2}`. Net orchestrator pool 14 → 7. Bookkeeping correction only — no agent dispatch behavior changes; the Planner resolves runtime dispatch from `MODEL_ALLOCATION.md §2`, not from this file.
+- **Release notes** — `docs/release-notes/RELEASE_NOTES_v0.9.0.md`.
+
+### Not changed
+
+- No `phase_state.json` schema or trigger-enum change.
+- No `MODEL_ALLOCATION.md` edit (the audit *restores* the existing pin).
+- No agent prompt change.
+
+### Open items for next audit
+
+- Empirical calibrator economics re-run on the patched Windows-side `plugin_calibrator/efficiency.py` to confirm the projected cost-per-invocation drop (estimated $10.03 → $5.50–$7.00). Decision 4-α: shipping is justified by bookkeeping correctness; cost reduction is downstream.
+- F4 (`agents/reflector.md`) and F8 (`skills/run-phase-3-stability/SKILL.md`) conservative-keeps are revisitable if the calibrator schema later supports a tri-tier `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}` representation.
+
+---
+
 ## v0.8.7 — 2026-04-25
 
 **Theme.** Session-sourced Generator skill and catalog wiring.

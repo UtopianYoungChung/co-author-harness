@@ -37,7 +37,7 @@ The agent **must** read the package component files and follow the orchestration
 | User pastes academic text and asks for feedback                         | (any draft + "what do you think?")                                                                                                                           |
 | User asks to bootstrap a new research project                           | "Set up a new project for X," "Create the folder structure for Y"                                                                                            |
 | User invokes an agent role                                              | "Run the planner," "Evaluate the manuscript," "Reflect on this round"                                                                                        |
-| User invokes a skill                                                    | `/run-phase-1`, `/run-phase-2`, `/run-phase-3`, `/run-phase-3-stability`, `/run-phase-4`, `/run-reflection`, `/quick-deterministic`, `/check-contradictions` |
+| User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-phase-1`, `/run-phase-2`, `/run-phase-3`, `/run-phase-3-stability`, `/run-phase-4`, `/run-reflection`, `/run-generator-session`, `/quick-deterministic`, `/check-contradictions` |
 | User asks about project lifecycle or milestones                         | "Where is this project?", "What milestone am I at?", "What's next?"                                                                                          |
 
 
