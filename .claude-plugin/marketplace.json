@@ -9,8 +9,8 @@
     {
       "name": "co-author-harness-claude",
       "source": "./",
-      "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance, wiki-first, snowball-driven reference scaffolding (v0.10.0); v0.10.1 arch/strategy doc mirrors + SAFEGUARD Check 8 Sub-check H (Register Appropriateness, advisory_until: H_two_revision_cycles). Run /plugin-commands for the full slash catalog.",
-      "version": "0.10.1",
+      "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d/§9e prefilters, provenance, wiki-first, snowball-driven reference scaffolding (v0.10.0); v0.10.1 arch/strategy doc mirrors + SAFEGUARD Check 8 Sub-check H (Register Appropriateness, advisory_until: H_two_revision_cycles); v0.10.2 §9e H pre-filter substrate, lay-term policy tightening (Latinate whitelist + register-shift signposting), H aggregator script, and three forward-looking plan docs. Run /plugin-commands for the full slash catalog.",
+      "version": "0.10.2",
       "author": {
         "name": "Young Jo(seph) Chung",
         "email": "jo.chung@utoronto.ca"

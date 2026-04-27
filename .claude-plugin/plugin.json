@@ -1,7 +1,7 @@
 {
   "name": "co-author-harness-claude",
-  "version": "0.10.1",
-  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance, snowball reference scaffolding (SK-33/34/35/36). Run /plugin-commands for the full slash catalog. v0.10.1 hardening: arch/strategy doc mirrors for the four S4 binding decisions; SAFEGUARD Check 8 Sub-check H (Register Appropriateness) added under advisory_until: H_two_revision_cycles. See CHANGELOG; release notes: docs/release-notes/RELEASE_NOTES_v0.10.1.md.",
+  "version": "0.10.2",
+  "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d/§9e prefilters, provenance, snowball reference scaffolding (SK-33/34/35/36). Run /plugin-commands for the full slash catalog. v0.10.2 H pre-filter substrate (§9e), lay-term policy tightening (Latinate whitelist + concrete-referent operationalisation + signpost orienting/contribution split + register-shift signposting marker), H telemetry/aggregator (aggregate_h_calibration.py), and three forward-looking plan docs (flag retirement decision; quantitative thresholds; v0.10.0 pilot replay protocol). See CHANGELOG; release notes: docs/release-notes/RELEASE_NOTES_v0.10.2.md.",
   "author": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"

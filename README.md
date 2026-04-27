@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.10.1-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-0.10.2-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -99,10 +99,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.10.1`
+`0.10.2`
 
 | Release | Highlights |
 | --- | --- |
+| **0.10.2** | DETERMINISTIC_CHECKS §9e H pre-filter substrate (three counter probes for nominalisation / prepositional run length / hedging density; literature-anchored thresholds; reference Python at `scripts/check8_h_prefilter.py`); H lay-term policy tightening (load-bearing-Latinate whitelist with six entries; concrete-referent operationalisation across three classes with construct exclusion; signpost orienting/contribution clause split with orienting-clause Ph2 binding; register-shift signposting added as fourth positive marker per user directive 2026-04-27); accessibility-overlay v1.4 → v1.5; new `references/lay_term_lexicons.md` canonical lexicon file; H telemetry/aggregator (`scripts/aggregate_h_calibration.py`) + retirement-decision plan doc; quantitative-thresholds plan doc + v0.10.0 pilot replay protocol plan doc. §6.0 coupling-checklist EXEMPT throughout; skill count invariant 32 holds. |
 | **0.10.1** | Hardening patch: architecture- and strategy-doc mirrors for the four S4 binding decisions anchored at `agents/planner.md §Phase 3.8` (four-outcome handler / inline parallel cap of 8 / S4.5-delivered regression hook / halt-vs-continue asymmetry rationale); SAFEGUARD Check 8 expanded from seven to eight Sub-checks (A–H) with the new Sub-check H (Register Appropriateness) operationalising the user's daily-language directive at two scopes (passage-scoped via the five non-technical passage roles; manuscript-scoped via the new `register_class` field in `directives.md`); H ships under `advisory_until: H_two_revision_cycles`; two `marketplace.json` slips closed at validator level (`scripts/version-check.py` extended) — version-skew rejecting the `.plugin` loader install (RC), and source-format slip rejecting `"."` against the marketplace loader's schema (post-RC; tag re-anchored to `7a53c02`). |
 | **0.10.0** | Snowball-driven reference scaffolding (SK-33/34/35/36): wiki-first seed discovery, claim-coverage audit, incremental snowball extension, cross-project pre-seed inheritance; Ph1/Ph2 auto-dispatch wired; §6.0 Coupling Checklist; phase_state schema 16 → 18 fields; 8 new classification.md governance fields. |
 | **0.9.0** | UI loadability via `.claude-plugin/plugin.json` + 12 `commands/<name>.md` shims; model allocation calibrator pin restored to `MODEL_ALLOCATION.md §2` (7 artefacts downshifted, 1 added; net orchestrator pool 14 → 7). |
