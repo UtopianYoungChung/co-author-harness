@@ -160,12 +160,44 @@ Verdict summary: 17 of 18 sub-clauses covered cleanly at S1; 1 partial gap (look
 **Acknowledged carry-over MINOR (deferred).** Markdown numbering of fractional-step labels: `4.5.` in run-phase-1, `0.5.` in run-phase-2, `Phase 3.7` in planner.md. CommonMark / GFM ordered-list rendering may collapse fractional-prefixed items to consecutive integers (`5.` for `4.5.`, etc.). Source authoring is unconventional but cross-references in non-Markdown contexts (validator scripts, calibrator output, future maintainer Grep) work correctly. Renumbering Steps 5–12 to 6–13 (run-phase-1) was considered and deferred pending a holistic decision about whether the fractional convention scales to S4's anticipated additional inserts. Tracked as a hardening item.
 
 ### Stage S3 — Coverage audit skill (SK-NEW-B `claim-coverage-audit`)
-<!-- TODO@S3-close. Should record:
-     - skills/claim-coverage-audit/SKILL.md
-     - commands/claim-coverage-audit.md shim
-     - SKILL_REGISTRY.md SK-34 entry
-     - Pilot probe outcome (claim_coverage_*.md emitted; reproducibility within ±5pp)
-     - Calibrator economics. -->
+
+**Closed:** 2026-04-27 on branch `stage/v0.10.0-S3` (in-place stage branch — same convention as S1, S1.5, S2).
+
+**Scope.** Single-stage additive ship of the manually-invokable coverage-audit skill per architecture §6.4 + strategy §5.4. No phase-runner Step edits, no schema bumps, no migration scripts, no orchestration co-mutations — section §6.0 coupling checklist explicitly does not apply (manually-invokable scope; auto-dispatch from `run-phase-2` Step 0.5 lands at S4).
+
+**Files landed:**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `skills/claim-coverage-audit/SKILL.md` | New (3933 tokens; 3722 body + 211 frontmatter) | Three-set coverage map + score; deterministic claim extraction (five-kind taxonomy from architecture §4.1); conservative source-mapping via three categories (explicit citation / anchored metadata / lexical-match similarity ≥0.6); §5 determinism contract; §7 manually-invokable status with S4 auto-dispatch and S4.5 synthesis-fast-path forward references |
+| 2 | `commands/claim-coverage-audit.md` | New (206 tokens; UI shim) | Mirrors `commands/seed-snowball-discovery.md` precedent — frontmatter `description` is a clean prefix of the catalog Purpose row; body delegates to `${CLAUDE_PLUGIN_ROOT}/skills/claim-coverage-audit/SKILL.md` as the binding authority |
+| 3 | `references/SKILL_REGISTRY.md` | SK-34 entry inserted between SK-33 and the Orchestration Commands divider | Mirrors SK-33's nine-field shape (File, Pattern, Created, Source, Tier, Status, Depends on, Sibling, Not a replacement for); cross-references SK-33 (upstream pool producer), SK-NEW-C (downstream extender at S4), SK-12 `grounding-audit` (adjacent-not-equivalent) |
+| 4 | `skills/plugin-commands/SKILL.md` | New routing-table row + new catalog-table row | Both rows inserted adjacent to `/seed-snowball-discovery`; routing row anchors the post-Ph1, pre-Ph2 use moment; catalog row carries the full Purpose with leading prefix matching the shim's frontmatter description |
+| 5 | `README.md` | Skill count 29 → 30; new skill named in headline list | `### Skills (29)` → `### Skills (30)`; added `claim-coverage-audit` to the example skills line |
+| 6 | `.plugin-efficiency.json` | `claim-coverage-audit` registered as `executor` in `role_overrides`; `_comment` updated; new `projected_cost_per_invocation_usd_S3_rebase` baseline entry | Architecture §5.1 SK-NEW-B specifies executor tier (Sonnet — structured audit); default classification was orchestrator, which inflated the first-pass cost reading to 6.4428 USD before the override |
+| 7 | `docs/superpowers/plans/2026-04-27-accessibility-subcheck-h-amendment.md` | New plan-doc (orthogonal side-deliverable) | Captures Opus 4.6 advisor consultation output proposing accessibility Sub-check H ("Register Appropriateness") with dual scope (within-manuscript non-technical passages + audience-conditioned `register_class` field); user direction was plan-doc-only at S3 with suggested staging as v0.10.1 patch; **NOT a v0.10.0 binding deliverable** |
+
+**Architecture-plan deviation:** none at S3. The skill body matches §4.4 (per-claim coverage map) + §5.1 SK-NEW-B (skill specification) + §6.4 (S3 deliverable scope) of the architecture plan. Future amendments at S4.5 (synthesis fast-path per §5.5.3) and S4 (Ph2 wiring per §6.5) are explicitly named as forward references in §7 of the new SKILL.md.
+
+**Strategy-doc deviation:** none at S3. The three-deliverable scope per §5.4 is delivered exactly. The plan-doc accessibility-amendment side-deliverable is **outside** the snowball rollout's strategy-document scope and does not extend or modify it; it is captured solely as a planning artefact for a future v0.10.1 hardening stage.
+
+**Pilot probe outcome:** deferred to user-side use of the skill on a real project. Strategy §5.4's stage-close gate calls for "hand-curated coverage maps for two pilot sections agree with the skill's output to within ±5 percentage points"; this is a project-side activity (the harness ships the skill; the user curates real claims and validates the output on a live manuscript). The harness substrate session cannot run a meaningful pilot probe without a project's manuscript + REFERENCES.md content. Recorded as an S3 close-side deferred item; the v0.10.0 RC integration probe at §6.3 of the strategy document will exercise the skill end-to-end against a fresh bootstrapped project.
+
+**Calibrator economics:**
+
+- `projected_cost_per_invocation_usd`: **6.323805 USD** (was 6.13842 USD at S2 close). Delta +0.185385 USD = **+3.02%** vs. S2 baseline. Cost decomposition: executor count growth +1 (`claim-coverage-audit/SKILL.md` registered as executor at S3 via the `role_overrides` entry); executor token growth ~4810 tokens (3933 SKILL.md + 206 shim + ~150 plugin-commands edits + ~470 SK-34 registry entry + ~50 README edits); subagent_dispatch_multiplier 9.604 (was 9.739; **delta -0.135**, the expected pattern for a manually-invokable skill that does not pull through the auto-dispatch graph at S3 — auto-dispatch from `run-phase-2` Step 0.5 lands at S4 and will reverse this delta). The S2 → S3 rebase is **fully feature-attributed**; zero bloat. New 6.323805 USD baseline established for the S4 close gate per `.plugin-efficiency.json baseline.projected_cost_per_invocation_usd_S3_rebase`.
+- Quality: 0 BLOCKER, 0 MAJOR, 0 MINOR emitted by the calibrator (three known-FP metrics in baseline are unchanged: `max_cyclomatic_complexity: 39 > 20` (carry-over from S2's `migrate_v090_to_v100_snowball_fields.py`; per-function complexity all ≤14 at S2); `max_subagent_chain_depth: 22 > 15` (calibrator heuristic noise; rose from S2's 19 within the documented ±3 envelope); `parallelisable_fraction: 0.073 < 0.25` (rose from S2's 0.051 because the new manually-invokable skill is not on the dispatch graph and counts as parallelisable trivially)).
+- Speed: same three known-FP metrics; no new offenders.
+
+**Five-script gate:** `python3 scripts/skill-check.py` (30 skills, 0 blockers); `python3 scripts/version-check.py` (manifest 0.9.0 = README 0.9.0 = CHANGELOG 0.9.0; per strategy §8.4 the v0.10.0 frontmatter version bump is deferred to the RC); `python3 scripts/catalog-check.py` (30 discovered skills = 30 README count = 14 commands; 0 blockers after the README count bump and the shim-description prefix alignment); `python3 scripts/path-hygiene-check.py` (0 blockers).
+
+**Convergence pattern:** S3 closed in a single pass. Three first-pass blockers (`/plugin-commands` missing the new shim; README count = 29 ≠ 30; shim description not a prefix of catalog Purpose) were all surface-coordination issues, not architectural ones — fixed by mechanical edits. The simplicity of S3 vs. S2's five-cycle convergence reflects the lighter scope (additive document-only) and the explicit §6.0 coupling-checklist exemption (no phase-runner Step edits).
+
+**Semantic-review:** not invoked at S3. Strategy §5.4's stage-close gate lists semantic-review as **advisory** at S3 (binding only at S2 / S4 / S5); the user's discretion at S3 close was to skip the semantic-review pass. Any post-hoc binding-MAJOR finding can be addressed in a v0.10.x patch without violating S3's close-gate contract.
+
+**Side deliverable (plan-doc only):** During the S3 session the user invoked the Opus 4.6 advisor to propose a refinement to the Phase-3 accessibility protocol — a new daily-language rule for non-technical settings. The advisor returned a structured amendment proposal (1817 output tokens) for a new Sub-check H "Register Appropriateness" with dual scope: (i) within-manuscript non-technical passages (signposts, framing, transitions, worked-example vignettes, consolidation anchors), structured-role enumeration; (ii) audience-conditioned whole-manuscript register via a new orthogonal `register_class` field (`technical | mixed | non-technical`) in `directives.md`. The proposal preserves the protocol's anti-dilution stance via a functional-removability detection test (rather than a Flesch-Kincaid scalar). The user's explicit direction was **plan-doc only at S3**, with the amendment scheduled as a v0.10.1 patch after v0.10.0 RC. Captured at `docs/superpowers/plans/2026-04-27-accessibility-subcheck-h-amendment.md`. This deliverable is **outside the v0.10.0 snowball rollout scope** and is not gated by the v0.10.0 RC.
+
+**Acknowledged carry-over MINOR (deferred):** the three known-FP metrics persist; markdown numbering of fractional-step labels still pending S4 holistic decision; PHASE_PROTOCOL.md §6.3a vs phase_state_schema.md §3.1 trigger ambiguity still pending a broader hardening pass; `pre_phase_advance_check.py` tier-name → phase-name migration still v0.10.x patch scope. None block S3 close.
 
 ### Stage S4 — Phase-2 wiring + SK-NEW-C (`extend-snowball-incremental`)
 <!-- TODO@S4-close. Should record:

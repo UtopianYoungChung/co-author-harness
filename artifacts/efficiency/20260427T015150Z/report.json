@@ -60,7 +60,7 @@
         {
           "kind": "skill",
           "relpath": "skills/claim-coverage-audit/SKILL.md",
-          "tier": "executor",
+          "tier": "orchestrator",
           "tokens_body": 3722,
           "tokens_frontmatter": 211,
           "tokens_total": 3933
@@ -403,22 +403,22 @@
         }
       ],
       "per_tier_cost_usd": {
-        "executor": 3.906795,
-        "orchestrator": 2.41701
+        "executor": 3.7878,
+        "orchestrator": 2.655
       },
       "per_tier_token_totals": {
         "executor": {
-          "count": 41,
-          "frontmatter_tokens": 6591,
-          "tokens": 96453
+          "count": 40,
+          "frontmatter_tokens": 6380,
+          "tokens": 92520
         },
         "orchestrator": {
-          "count": 7,
-          "frontmatter_tokens": 1736,
-          "tokens": 52567
+          "count": 8,
+          "frontmatter_tokens": 1947,
+          "tokens": 56500
         }
       },
-      "projected_cost_per_invocation_usd": 6.323805,
+      "projected_cost_per_invocation_usd": 6.4428,
       "prompt_tokens_estimate": 149020,
       "subagent_dispatch_multiplier": 9.604,
       "tool_definition_overhead_tokens": 8327
@@ -1533,8 +1533,8 @@
       "declared_protocol_stage_count": 0,
       "estimated_input_processing_ms": 8819,
       "input_tokens_per_second_assumed": 16897,
-      "max_subagent_chain_depth": 22,
-      "parallelisable_fraction": 0.073
+      "max_subagent_chain_depth": 24,
+      "parallelisable_fraction": 0.05
     }
   },
   "config_source": "plugin-root",
@@ -1547,18 +1547,18 @@
     },
     {
       "axis": "speed",
-      "detail": "parallelisable fraction 0.073 < floor 0.25; dispatch graph looks heavily sequential",
+      "detail": "parallelisable fraction 0.05 < floor 0.25; dispatch graph looks heavily sequential",
       "key": "parallelisable_fraction_below_floor",
       "severity": "MINOR"
     },
     {
       "axis": "speed",
-      "detail": "chain depth 22 > ceiling 15",
+      "detail": "chain depth 24 > ceiling 15",
       "key": "chain_depth_over_threshold",
       "severity": "MINOR"
     }
   ],
-  "generated_at": "2026-04-27T01:52:51+00:00",
+  "generated_at": "2026-04-27T01:51:50+00:00",
   "plugin_name": "co-author-harness-claude",
   "plugin_root": "B:/Agents/co-author-harness",
   "plugin_version": "0.9.0",

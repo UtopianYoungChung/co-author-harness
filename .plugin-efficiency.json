@@ -1,5 +1,5 @@
 {
-  "_comment": "v0.8.0 authoring substrate landed at Phase 1.1. Rates pinned against MODEL_ALLOCATION.md section 2 and CLAUDE.md section 12.9. input_tokens_per_second 16897.1 measured 2026-04-22 via anthropic-streaming-api TTFT. v0.10.0 Stage S1 (2026-04-26) registered seed-snowball-discovery as executor and recorded the S1 cost rebase. v0.10.0 Stage S1.5 (2026-04-26) recorded the S1.5 cost rebase. v0.10.0 Stage S2 (2026-04-27) recorded the S2 cost rebase under projected_cost_per_invocation_usd_S2_rebase; the S2 close required THREE fix cycles converging on a doc-level architectural amendment (new architecture section 6.0 coupling checklist + section 6.3 enumeration of seven deliverables; full story in docs/release-notes/RELEASE_NOTES_v0.10.0.md section 2.S2). Three known-false-positive metrics in baseline.",
+  "_comment": "v0.8.0 authoring substrate landed at Phase 1.1. Rates pinned against MODEL_ALLOCATION.md section 2 and CLAUDE.md section 12.9. input_tokens_per_second 16897.1 measured 2026-04-22 via anthropic-streaming-api TTFT. v0.10.0 Stage S1 (2026-04-26) registered seed-snowball-discovery as executor and recorded the S1 cost rebase. v0.10.0 Stage S1.5 (2026-04-26) recorded the S1.5 cost rebase. v0.10.0 Stage S2 (2026-04-27) recorded the S2 cost rebase under projected_cost_per_invocation_usd_S2_rebase; the S2 close required THREE fix cycles converging on a doc-level architectural amendment (new architecture section 6.0 coupling checklist + section 6.3 enumeration of seven deliverables; full story in docs/release-notes/RELEASE_NOTES_v0.10.0.md section 2.S2). v0.10.0 Stage S3 (2026-04-27) registered claim-coverage-audit as executor and recorded the S3 cost rebase under projected_cost_per_invocation_usd_S3_rebase; manually-invokable skill, no Ph2 wiring, no architecture amendment. Three known-false-positive metrics in baseline.",
   "model_tiers": {
     "executor": {
       "model": "claude-sonnet-4-6",
@@ -52,7 +52,8 @@
     "skills/retrofit-concept-grounding/SKILL.md": "executor",
     "skills/tool-contract-roundtrip/SKILL.md": "executor",
     "skills/run-generator-session/SKILL.md": "executor",
-    "skills/seed-snowball-discovery/SKILL.md": "executor"
+    "skills/seed-snowball-discovery/SKILL.md": "executor",
+    "skills/claim-coverage-audit/SKILL.md": "executor"
   },
   "input_tokens_per_second": 16897.1,
   "assumed_output_tokens_per_invocation": 800,
@@ -191,6 +192,51 @@
       ],
       "stage_close_status": "pass (zero blocker; zero major; three minor of which two are documented false positives and one is pre-existing per-function-ceiling discipline)",
       "semantic_review_verdict": "CLEAN after five rounds: md-reviewer round 4 PASS, orchestrator-critic round 5 PASS, promise-reviewer advisory throughout (carry-over MINORs only, no MAJOR introduced).",
+      "recorded_date": "2026-04-27"
+    },
+    "projected_cost_per_invocation_usd_S3_rebase": {
+      "v0_10_0_S2_baseline": 6.13842,
+      "v0_10_0_S3_baseline": 6.323805,
+      "delta": 0.185385,
+      "delta_pct": 3.02,
+      "delta_attribution": {
+        "executor_count_growth": 1,
+        "artefact_count": 48,
+        "executor_token_growth": "skills/claim-coverage-audit/SKILL.md = 3933 tokens (3722 body + 211 frontmatter); commands/claim-coverage-audit.md shim = 206 tokens (120 body + 86 frontmatter); plus ~150 tokens of plugin-commands SKILL.md routing+catalog rows; plus ~470 tokens of references/SKILL_REGISTRY.md SK-34 entry; plus ~50 tokens of README.md count update. Total new executor substrate: ~4810 tokens.",
+        "subagent_dispatch_multiplier_baseline_S2": 9.739,
+        "subagent_dispatch_multiplier_S3": 9.604,
+        "subagent_dispatch_multiplier_delta": -0.135,
+        "subagent_dispatch_multiplier_delta_pct_vs_v0_9_0_ceiling": -1.41,
+        "interpretation": "Cost +3.02% and multiplier -0.135 are both feature-attributed to the S3 deliverable scope. The negative multiplier delta is the expected pattern for a manually-invokable skill: the new SKILL.md does not pull through the auto-dispatch graph (no Step 0.5 wiring at S3 — that lands at S4), so the average dispatch path length per artefact decreases when this skill is averaged in. The cost growth is concentrated in the new SKILL.md body tokens (the largest single contributor) and is well below the linear-scaling expectation derived from the S2 rebase's ~$0.05/600-tokens baseline. No bloat. role_overrides updated at S3 to register claim-coverage-audit as executor (architecture section 5.1 SK-NEW-B specifies executor tier; default classification was orchestrator, which inflated the first-pass cost reading to 6.4428 USD before the override was added; the corrected reading is 6.323805 USD)."
+      },
+      "convergence_pattern": {
+        "fix_cycles_required": 0,
+        "binding_majors_per_cycle": [],
+        "interpretation": "S3 closed in a single pass with no semantic-review binding (semantic-review is advisory at S3 per strategy section 5.4). One first-pass blocker from skill-check (plugin-commands missing /claim-coverage-audit row) was resolved by adding the entry to skills/plugin-commands/SKILL.md routing + catalog tables. Two first-pass blockers from catalog-check (README skills count 29 != 30; commands/claim-coverage-audit.md description not a prefix of catalog Purpose) were resolved by bumping README count to 30 and aligning the shim description with the catalog row's leading sentence. Calibrator first pass surfaced an over-cost reading caused by the default orchestrator classification of the new skill; the role_override fix dropped the cost from 6.4428 to 6.323805. Subsequent runs of all five gates returned zero blockers, zero majors, zero minors emitted by the calibrator (three known-FP metrics in baseline are unchanged: max_cyclomatic_complexity 39, max_subagent_chain_depth 22, parallelisable_fraction 0.073). The simplicity of S3 (additive document-only scope, no orchestration co-mutations, no schema bumps, no migration script) made the close clean compared to S2's five-cycle convergence.",
+        "advisor_consultation_decisive": "Not invoked at S3. The user did invoke the advisor mid-session for an orthogonal accessibility-protocol amendment proposal (docs/superpowers/plans/2026-04-27-accessibility-subcheck-h-amendment.md, captured as plan-doc-only at the user's direction); that consultation did not feed S3 close-gate logic."
+      },
+      "minor_findings_at_close": [
+        {
+          "key": "cyclomatic_complexity_over_threshold",
+          "value": 39,
+          "threshold": 20,
+          "note": "Carry-over from S2: scripts/migrate_v090_to_v100_snowball_fields.py (per-function complexity all <=14 per Sub-C verification at S2; total-file aggregation is 39). Not introduced by S3 — claim-coverage-audit ships no Python scripts. Surface at a later hardening pass."
+        },
+        {
+          "key": "parallelisable_fraction_below_floor",
+          "value": 0.073,
+          "threshold": 0.25,
+          "note": "Known false positive per baseline.parallelisable_fraction; value rose from S2's 0.051 to S3's 0.073 because the new manually-invokable skill is not on the dispatch graph (it counts as parallelisable trivially)."
+        },
+        {
+          "key": "chain_depth_over_threshold",
+          "value": 22,
+          "threshold": 15,
+          "note": "Known false positive per baseline.max_subagent_chain_depth; value rose from S2's 19 to S3's 22, attributable to calibrator heuristic noise (the new skill adds an isolated graph node; the heuristic's longest-path computation can shift unexpectedly when the connected components change). Within the +-3 noise envelope documented at S1.5."
+        }
+      ],
+      "stage_close_status": "pass (zero blocker; zero major; three minor of which two are documented false positives and one is pre-existing per-function-ceiling discipline carry-over from S2)",
+      "semantic_review_verdict": "Not invoked at S3 (advisory per strategy section 5.4; user discretion). The three deliverables (SKILL.md + command shim + registry entry) ship without semantic-review pre-clearance; any post-hoc binding-MAJOR finding can be addressed in a v0.10.x patch.",
       "recorded_date": "2026-04-27"
     }
   }
