@@ -143,7 +143,58 @@ VALID_TRIGGERS = frozenset({
     "confirmation_failed",
     # LCR audit-continuity alias: laggard_clearance_cancelled retained.
     "laggard_clearance_approved",  # accepted on read (pre-migration); v0.7.0 writes mcr_admission
+    # v0.10.0 S2 — snowball-driven reference scaffolding (architecture
+    # 2026-04-26-snowball-reference-architecture.md §6.3 row 6 of the §6.0
+    # coupling checklist; Planner writes this row at run-phase-1 §3 Step 4.5
+    # / agents/planner.md Phase 3.7 on SK-NEW-A clean exit). Within-phase
+    # artefact-completion trigger; analogous to imodel_structural_validation_signed.
+    # Per phase_state_schema.md §3.1 line 193 (Sub-B's S2 edit). Without this
+    # entry, every Ph1->Ph2 advance with a trigger-31 row would fail clause (g)
+    # row-shape conformance with TRIGGER_UNKNOWN.
+    "seed_snowball_signed",
 })
+
+# v0.10.0 S2 — Non-blocking advisory on the v0.10.0 references_initialized
+# field at Ph1->Ph2 advance. Per architecture §6.3 row 6 of the §6.0 coupling
+# checklist, this clause SURFACES (does not enforce) the field's state at the
+# advance boundary. Blocking enforcement defers to Step 0.5 placeholder in
+# skills/run-phase-2/SKILL.md (also non-blocking) and to the eventual S3/S4
+# wiring of full Ph2-side dispatch. Returns an advisory string for the report
+# section, or None if not applicable / field is true.
+def references_initialized_advisory(
+    section_state: dict, target_tier: str
+) -> str | None:
+    """v0.10.0 S2 advisory: surface references_initialized: false at Ph1->Ph2.
+
+    Args:
+        section_state: the SectionStateObject dict (per phase_state_schema.md §2).
+        target_tier: the tier the section is advancing into.
+
+    Returns:
+        Advisory string if (a) target is Ph2/T2 AND (b) references_initialized
+        is false or absent; None otherwise. The advisory is informational only
+        and does not cause clause failure; pre-advance check still permits the
+        advance. Step 0.5 of run-phase-2 re-emits W-SNOWBALL-PRECONDITION-UNMET
+        on the same condition at Ph2 entry, which is the user-visible signal.
+    """
+    # Field name uses v0.10.0 naming. Tier name uses script's existing T*
+    # vocabulary; "T2" maps to "Ph2" in the phase-named vocabulary.
+    if target_tier not in ("T2", "Ph2"):
+        return None
+    # Local variable named `value` (not `field`) to avoid shadowing the
+    # `dataclasses.field` symbol imported at module scope.
+    value = section_state.get("references_initialized")
+    if value is True:
+        return None  # field is set; SK-NEW-A has run cleanly
+    return (
+        "[ADVISORY v0.10.0 S2] references_initialized is "
+        f"{value!r} at Ph1->Ph2 advance. Section can proceed; SK-NEW-A "
+        "(seed-snowball-discovery) was not signed at Ph1. Consider running "
+        "/seed-snowball-discovery <section> from Ph2 to populate "
+        "references/REFERENCES.md before the Evaluator's Step 4 read. "
+        "Per architecture §6.3 row 6, this advisory does not refuse the "
+        "advance; Step 0.5 of run-phase-2 re-emits W-SNOWBALL-PRECONDITION-UNMET."
+    )
 
 # Exit-artefact path per target tier. The prior tier's artefact is the one
 # checked by clause (a) before advancing *into* target.
@@ -1072,6 +1123,16 @@ def main(argv: list[str] | None = None) -> int:
     check_clause_e(ctx)
     check_clause_f(ctx)
     check_clause_g(ctx)
+
+    # v0.10.0 S2 — non-blocking advisory on references_initialized at Ph1->Ph2
+    # advance. Per architecture §6.3 row 6 of the §6.0 coupling checklist; does
+    # NOT cause clause failure (does not append to ctx.findings as an error);
+    # surfaces as a stderr advisory line for user awareness. Step 0.5 of
+    # run-phase-2 re-emits W-SNOWBALL-PRECONDITION-UNMET as the user-visible
+    # signal at Ph2 entry; this script's role is to surface it pre-advance.
+    advisory_msg = references_initialized_advisory(section, ctx.target_tier)
+    if advisory_msg:
+        sys.stderr.write(advisory_msg + "\n")
 
     # Emit findings. Warnings (codes beginning with W-) do not affect exit code.
     errors = [f for f in ctx.findings if not f.code.startswith("W-")]

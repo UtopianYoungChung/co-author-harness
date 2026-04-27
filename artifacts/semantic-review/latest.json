@@ -1,100 +1,32 @@
 {
   "schema_version": "1.0",
-  "version": "0.8.7",
+  "version": "0.9.0",
   "status": "pass",
-  "run_id": "run_20260426T161135Z",
-  "completed_at_utc": "2026-04-26T16:11:35Z",
-  "prior_run_id": "run_20260426T155009Z",
-  "fixes_applied": [
-    {
-      "file": "agents/planner.md",
-      "finding": "Phase 0 Step 3: '15 fields' → '16 fields'; '27-entry active enum' → '30-trigger active enum'; row-column vocab prev_tier/new_tier → prev_phase/new_phase",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "agents/planner.md",
-      "finding": "'What you read' escalation_log row-column vocab prev_tier → prev_phase",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "agents/planner.md",
-      "finding": "Added reviews/convergence_journal.jsonl to 'What you write' tier-specific enumeration",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "agents/planner.md",
-      "finding": "Phase 4.5 restructured: F6-consumption primary path leads; MODEL_ALLOCATION.md §2 independent resolution demoted to fallback for pre-v0.7.4/no-F6 contexts",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "agents/planner.md",
-      "finding": "Phase 0.5 cache invalidation: CACHE-INVALIDATED-EXTERNAL-WRITE now also appended as durable row to reviews/escalation_log.md for R-Refl-Cache-1 audit surface",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "agents/planner.md",
-      "finding": "Planner-specific rules: 'prev_tier -> new_tier' → 'prev_phase -> new_phase'; row fields prev_tier/new_tier → prev_phase/new_phase",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§8.2b seed JSON template: full field-name sweep to v0.7.4 vocabulary (schema_version, default_final_phase, terminal_phase_reached, ph3_stale_budget_days, current_phase, last_approved_phase, iteration_count_at_current_phase, phase_goal_declared, phase_deliverable_path, ph1_pstage_declaration, ph3_last_activity_at, pre_mcr_deep_pass_completed, phase_entry_log, prev_phase, new_phase, model_used, actor)",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§10 Lifecycle Dispatch: Lifecycle-Stage Ladder → Lifecycle-Phase Ladder; tier vocabulary → phase vocabulary; T1/T2/T3/T4 → Ph1/Ph2/Ph3/Ph4 throughout dispatch tables and sequences; TIER_PROTOCOL.md §3.1.2 → PHASE_PROTOCOL.md §3.1.2; t1_pstage_declaration → ph1_pstage_declaration; tier_deliverable_path → phase_deliverable_path; tier_entry_log → phase_entry_log; W-T3-DRIFT-EXCEEDED-TOLERANT → W-Ph3-DRIFT-EXCEEDED-TOLERANT; dispatch contract tier-based → phase-based",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§8.2a escalation log header template: prev_tier -> new_tier → prev_phase -> new_phase",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§8.2b cross-reference paragraph: rename history extended to v0.7.4 prev_phase/new_phase; tier_entry_log → phase_entry_log",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§8.2b audit envelope: TIER_PROTOCOL.md §11 → PHASE_PROTOCOL.md §11; tier_entry_log → phase_entry_log",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§8.3: TIER_PROTOCOL.md §9.1 → PHASE_PROTOCOL.md §9.1; §6 → §6; §7.3 → §7.3; tier_state.json → phase_state.json; tier_entry_log → phase_entry_log; current_tier/last_approved_tier/iteration_count_at_current_tier → current_phase/last_approved_phase/iteration_count_at_current_phase",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§1 Planner scope: reviews/tier_state.json, the 15-field → reviews/phase_state.json, the 16-field; T4 admission control → Ph4 admission control",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_ORCHESTRATION.md",
-      "finding": "§3.2 Ph1 truncated loop: bootstraps 15-field section state → 16-field section state",
-      "severity": "MAJOR"
-    },
-    {
-      "file": "references/AGENT_CONTRACTS.md",
-      "finding": "§1 Planner Outputs (write): expanded from 3 artifacts to full ≥15 artifact enumeration matching agents/planner.md §'What you write'",
-      "severity": "MAJOR"
-    }
-  ],
-  "residual_findings": [
-    {
-      "severity": "MINOR",
-      "count": 7,
-      "note": "Non-blocking; narrative inconsistencies and logic gaps that do not break contracts"
-    },
-    {
-      "severity": "ADVISORY",
-      "count": 5,
-      "note": "Non-blocking; design observations (F6 ceiling rigidity, Planner-concentration risk, Ph3-STALE threshold alignment)"
-    }
-  ],
-  "gate_verdict": "CLEARED-WITH-WARNINGS",
-  "deterministic_gate": "pass",
-  "semantic_gate": "pass"
+  "stage": "v0.10.0-S2",
+  "stage_binding": true,
+  "run_id": "v0.10.0-S2-five-rounds",
+  "completed_at_utc": "2026-04-27T00:45:00Z",
+  "convergence_summary": {
+    "rounds_required": 5,
+    "binding_majors_per_round": [5, 7, 4, 1, 0],
+    "round_1_findings": "5 binding MAJORs surfaced after Sub-A/B/C original work: W-SNOWBALL-PRECONDITION-UNMET undeclared in phase_notifications.yaml; idempotency gap in Step 4.5 outer guard; agents/planner.md not amended; Ph2 re-test claim unsubstantiated; weak partial-failure contract.",
+    "round_2_findings": "7 binding MAJORs after Sub-D/E/F S2-fix mini-cycle: Sub-F's strategy section 5.5 misreference in two files; Sub-F's single-key vs spec conjunctive divergence; pre_phase_advance_check.py VALID_TRIGGERS missing seed_snowball_signed; pre_phase_advance_check.py no references_initialized awareness; planner.md vs run-phase-1 partial-failure halt-vs-continue divergence; planner.md vs run-phase-1 dispatch placement disagreement (Phase 5 vs section 3 between Step 4 and Step 5); Sub-F outer-guard narrative inaccuracy about section Preconditions clause 4 protection.",
+    "round_3_findings": "4 binding MAJORs after advisor-recommended Path C amendment (architecture section 6.0 coupling checklist + section 6.3 enumeration + restored OR-conjunctive guard + planner.md Phase 3.7 + pre_phase_advance_check.py extension): broken cross-reference (Step 1a citation when Step 1a was removed); references_initialized_advisory dead code never called from main; trigger-31 timing divergence between Phase 3.7 and Step 4.5(i); architecture section 6.0 row 1 example contradicts implementation.",
+    "round_4_findings": "1 binding MAJOR after mechanical fixes: architecture section 6.3 row 4 not amended in lockstep with section 6.0 row 1 - exactly the kind of single-source-of-truth violation the section 6.0 checklist was meant to prevent; the architecture amendment itself slipped through self-application of the checklist.",
+    "round_5_verdict": "CLEAN. md-reviewer pass. orchestrator-critic pass. promise-reviewer advisory throughout (5 carry-over MINORs: version drift acceptable per strategy section 8.4 deferral; description omission of Step 4.5; trigger field omission of snowball phrases; same pattern in run-phase-2; all deferred to v0.10.0 RC frontmatter refresh)."
+  },
+  "advisor_consultation": {
+    "model": "claude-opus-4-7",
+    "trigger": "round-2 inflection: 7 binding MAJORs exceeded original 5; pattern suggested S2 scope was materially larger than architecture/strategy docs specified",
+    "diagnosis": "doc-level under-specification, not architectural mismatch; the snowball pipeline can be staged but S2 had the wrong boundary drawn (treated phase-runner Step insertion as a document edit when it was actually an orchestration edit with four mandatory co-mutation surfaces)",
+    "recommendation_path": "Path C: amend architecture and strategy docs to enumerate the discovered dependencies, then complete the work; structural addition: add a coupling checklist as new section 6.0 to prevent S3/S4/S4.5 from repeating the discovery cycle",
+    "outcome": "advisor recommendation correct; rounds 3-5 each closed without re-opening architectural questions; the section 6.0 coupling checklist is now the load-bearing prevention surface for future phase-runner-Step-editing stages"
+  },
+  "fixes_applied_summary": {
+    "round_2_sub_d_e_f": ["agents/planner.md Phase 5 Step 1a (later relocated)", "phase_notifications.yaml W-SNOWBALL-PRECONDITION-UNMET + E-SNOWBALL-MID-RUN-FAILURE", "run-phase-1 Step 4.5 single-key outer guard (later restored to OR-conjunctive)", "run-phase-2 Step 0.5 placeholder"],
+    "round_3_advisor_path_c": ["architecture section 6.0 coupling checklist (4-row table)", "architecture section 6.3 enumeration (3 doc-layer + 4 orchestration deliverables)", "architecture section 5.2 Edit-1 corrections (classification.md to phase_state.json; W-CORPUS-BOOTSTRAP-DEFERRED to W-SNOWBALL-PRECONDITION-UNMET; explicit halt-on-partial-failure)", "strategy section 5.3 mirror update", "section 5.5 to section 5.4-5.5 misreference fixes in two files", "Step 4.5 OR-conjunctive guard restoration with accurate inner-guard narrative", "planner.md Phase 3.7 (relocated from Phase 5)", "pre_phase_advance_check.py VALID_TRIGGERS extension + advisory function"],
+    "round_4_mechanical": ["Step 4.5 line 43 cross-reference fix (Step 1a to Phase 3.7)", "Phase 3.7(i) trigger-31 timing alignment with Step 4.5(i)", "architecture section 6.0 row 1 example correction", "pre_phase_advance_check.py advisory wiring + variable shadowing fix"],
+    "round_5_one_liner": ["architecture section 6.3 row 4 lockstep amendment with section 6.0 row 1"]
+  },
+  "stage_close_decision": "CLEARED for merge; 0 binding MAJORs; 1 advisory finding (Markdown numbering of fractional-step labels Step 4.5 / 0.5 / Phase 3.7 - acknowledged carry-over; deferred to a future hardening pass per orchestrator decision); semantic-review binding gate satisfied."
 }

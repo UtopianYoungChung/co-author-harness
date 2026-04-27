@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.7.4",
+  "manuscript_id": "v090-to-v100-block-invalid-json"
+  "default_final_phase": "Ph3",
+  "sections": {
+    "1. Introduction": {
+      "heading_path": ["1. Introduction"],
+      "current_phase": "Ph1"
+    }
+  }
+}

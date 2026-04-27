@@ -2,7 +2,7 @@
 
 > **File-rename note (v0.7.4.1).** This file is the authoritative schema for `reviews/phase_state.json`. It was shipped at v0.7.4 under the legacy name `tier_state_schema.md`; the physical rename to `phase_state_schema.md` landed at v0.7.4.1 to close a rename-migration miss surfaced by the plugin-calibrator. The body was carried forward in v0.7.0-shape prose through v0.7.4.1 as a known residual and is **rewritten to v0.7.4 shape at v0.8.0 (R-P0-SCHEMA-3 closure)**. The two provenance carve-outs that survive the rewrite are this file-rename note and the v0.6.0 predecessor reference on the next line.
 
-> **v0.6.0 predecessor.** The direct documentary ancestor of this file is the v0.6.0 `tier_state_schema.md`, which shipped a ten-field `SectionStateObject` and a six-field log row under the Progressive-Approval depth-of-review vocabulary. The v0.7.0 Lifecycle-Stage Ladder widened the section shape to fifteen fields; the v0.7.4 Tier → Phase rename + economic-efficiency bundle widened the log row to seven fields and extended the trigger enum 28 → 30. At v0.8.0 under β-P-9a (pre-MCR Ph3-deep safety-net pass), the section shape widens a further 15 → 16 fields with the addition of `pre_mcr_deep_pass_completed: bool`; the widening is additive and does not rename the `schema_version` string, which remains `"0.7.4"` at the ledger surface until the v0.8.0 RC vocabulary roll. The v0.7.4 migration path for projects carrying a v0.7.3 `tier_state.json` is `scripts/migrate_v073_to_v074_tier_to_phase.py`; see §7.
+> **v0.6.0 predecessor.** The direct documentary ancestor of this file is the v0.6.0 `tier_state_schema.md`, which shipped a ten-field `SectionStateObject` and a six-field log row under the Progressive-Approval depth-of-review vocabulary. The v0.7.0 Lifecycle-Stage Ladder widened the section shape to fifteen fields; the v0.7.4 Tier → Phase rename + economic-efficiency bundle widened the log row to seven fields and extended the trigger enum 28 → 30. At v0.8.0 under β-P-9a (pre-MCR Ph3-deep safety-net pass), the section shape widens a further 15 → 16 fields with the addition of `pre_mcr_deep_pass_completed: bool`; the widening is additive and does not rename the `schema_version` string. **v0.10.0 RC is the vocabulary roll point:** `schema_version` stays `"0.7.4"` at the ledger surface across the entire v0.8.x line and the v0.9.x line (both v0.8.0 and v0.9.0 shipped without rolling the surface, despite the v0.8.0 β-P-9a P2.1a section-shape widening and the v0.9.0 maintenance bundle); the bump to `"0.10.0"` lands at the v0.10.0 RC gate via `scripts/migrate_v090_to_v100_snowball_fields.py`, in lockstep with the snowball-driven SectionStateObject extensions documented at §2 (`references_initialized` at S2; `last_coverage_score` at S4) and the trigger-enum extension at §3.1 (`seed_snowball_signed = 31`). The v0.7.4 migration path for projects carrying a v0.7.3 `tier_state.json` is `scripts/migrate_v073_to_v074_tier_to_phase.py`; see §7.
 
 *Normative schema for the per-section ledger under the v0.7.4 Lifecycle-Phase Ladder. This file binds (a) the Planner's writes (Phase 0 session bootstrap, Phase 5.5 post-approval log-write, Phase 6 MCR cycle-step append) and (b) every other agent's reads. Located at `reviews/phase_state.json` for each manuscript. Single writer: Planner.*
 
@@ -56,7 +56,7 @@ The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_
 
 ## 2. `SectionStateObject` schema
 
-Every value of the `sections` map is an object with the following sixteen fields (no omissions tolerated for the two fields the validator enforces as required; other fields are contract-required but not per-field-enforced by `phase_state_validate.py` — see §6.1). The sixteenth field, `pre_mcr_deep_pass_completed`, is additive at v0.8.0 under β-P-9a; a ledger that omits it is tolerated at shape-validation time and treated as `false` by the MCR admission gate.
+Every value of the `sections` map is an object with the following seventeen fields (no omissions tolerated for the two fields the validator enforces as required; other fields are contract-required but not per-field-enforced by `phase_state_validate.py` — see §6.1). The sixteenth field, `pre_mcr_deep_pass_completed`, is additive at v0.8.0 under β-P-9a; a ledger that omits it is tolerated at shape-validation time and treated as `false` by the MCR admission gate. The seventeenth field, `references_initialized`, is additive at v0.10.0 Stage S2 under the snowball-driven reference-scaffolding bundle; a ledger that omits it is tolerated at shape-validation time and treated as `false` by SK-NEW-A's idempotency guard. (The v0.10.0 release reaches its final 18-field shape at Stage S4 with the addition of `last_coverage_score: float | null`, which is out of scope for S2 and not documented here.)
 
 ```json
 {
@@ -71,6 +71,7 @@ Every value of the `sections` map is an object with the following sixteen fields
   "cumulative_drift_lines_since_approval": 0,
   "phase_goal_declared": "produce a complete first draft with classification and an advisory Evaluator note",
   "phase_deliverable_path": "reviews/ph1_draft_completion.md",
+  "references_initialized": false,
   "convergence_metric": null,
   "ph1_pstage_declaration": "P2",
   "ph3_last_activity_at": null,
@@ -79,7 +80,7 @@ Every value of the `sections` map is an object with the following sixteen fields
 }
 ```
 
-**Validator-enforced required fields (BLOCKER on absence).** `current_phase`, `phase_entry_log`. All other fields are contract-required per this §2 but are not enforced by `phase_state_validate.py` — they are validated in context by `pre_phase_advance_check.py` clauses (a)–(h) and by the Reflector's Phase 2b lifecycle-coherence audit at Ph4. The v0.8.0 sixteenth field `pre_mcr_deep_pass_completed` is a soft type-check at `phase_state_validate.py` (MINOR finding `SECTION_BAD_PRE_MCR_DEEP_PASS_TYPE` if present and non-boolean); its MCR admission refusal `E-MCR-PRE-DEEP-PASS-REQUIRED` is authored at `pre_phase_advance_check.py` clause (f) — see §6.1 "Contracts enforced elsewhere" — and at the Planner's Phase 8 MCR-assembly logic.
+**Validator-enforced required fields (BLOCKER on absence).** `current_phase`, `phase_entry_log`. All other fields are contract-required per this §2 but are not enforced by `phase_state_validate.py` — they are validated in context by `pre_phase_advance_check.py` clauses (a)–(h) and by the Reflector's Phase 2b lifecycle-coherence audit at Ph4. The v0.8.0 sixteenth field `pre_mcr_deep_pass_completed` is a soft type-check at `phase_state_validate.py` (MINOR finding `SECTION_BAD_PRE_MCR_DEEP_PASS_TYPE` if present and non-boolean); its MCR admission refusal `E-MCR-PRE-DEEP-PASS-REQUIRED` is authored at `pre_phase_advance_check.py` clause (f) — see §6.1 "Contracts enforced elsewhere" — and at the Planner's Phase 8 MCR-assembly logic. The v0.10.0 seventeenth field `references_initialized` is likewise a soft type-check at `phase_state_validate.py` (MINOR finding `SECTION_BAD_REFERENCES_INITIALIZED_TYPE` if present and non-boolean); its consumer-side contract (the SK-NEW-A `seed-snowball-discovery` idempotency guard) is enforced at the skill's preflight, not in this validator — see §6.1 "Contracts enforced elsewhere".
 
 ### 2.1 Field semantics
 
@@ -121,6 +122,8 @@ Every value of the `sections` map is an object with the following sixteen fields
 | `Ph3_converged` | `reviews/ph3_convergence_signoff.md` (terminal row, unchanged) |
 | `Ph4` | `reviews/ph4_ship_signoff.md` |
 
+**`references_initialized`** — `boolean`. Introduced at v0.10.0 Stage S2 under the snowball-driven reference-scaffolding bundle (architecture: `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §5.4`; strategy: `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §3.3`). `true` iff the section's reference corpus has been seeded by the SK-NEW-A `seed-snowball-discovery` skill — operationally, iff `references/REFERENCES.md` exists and carries at least one row in either the core corpus table or the snowball table (the heuristic is the same one used by the migration script's default-set). `false` on a freshly-initialised section and on every section whose `references/REFERENCES.md` is absent or contains only the empty table scaffolds. Default on a freshly-initialised section (or a v0.9.x ledger carried forward without snowball-bundle run): `false`. Writer: the Planner, on the Phase 5.5 log-write that closes the SK-NEW-A clean exit at `run-phase-1` Step 4.5; the same write appends a `seed_snowball_signed` row (trigger 31) to the section's `phase_entry_log`. **Idempotency anchor:** SK-NEW-A reads this field at preflight (`skills/seed-snowball-discovery/SKILL.md §4` precondition clause 4); on `true`, the skill emits `ALREADY_INITIALIZED` no-op and exits without re-running the snowball saturation loop. The user must explicitly clear the field to `false` (or invoke SK-NEW-C `extend-snowball-incremental` for incremental extension) to re-enter SK-NEW-A. **Migration:** `scripts/migrate_v090_to_v100_snowball_fields.py` defaults this field to `true` on sections whose `references/REFERENCES.md` already has a populated core or snowball table at migration time, and to `false` otherwise; once present, the field is left untouched on subsequent migration re-runs (per the script's idempotency contract). **Consumer skill:** SK-NEW-A `seed-snowball-discovery` (`skills/seed-snowball-discovery/SKILL.md`); the Planner is the sole writer.
+
 **`convergence_metric`** — `float | null`. Most recent Ph3 convergence metric, computed as `diff_lines_vs_previous_round / total_section_lines` (`PHASE_PROTOCOL.md §3.3`). `null` when not at Ph3 or when no Ph3 iteration has yet completed. At v0.8.0, the multi-signal 4-vector shape specified in the v0.8.0 β core P-9/P-10 redesign supersedes this scalar; migration at v0.8.0 via `scripts/migrate_convergence_journal_v075.py` (see `proposals/v0.8.0_upgrade_architecture.md §3.2 Phase 2.1`).
 
 **`ph1_pstage_declaration`** — `enum | null`. P-stage declared at Ph1 sign-off, from EYgp vocabulary (`"P0"`, `"P1"`, `"P2"`). `null` before Ph1 sign-off. Renamed at v0.7.4 from `t1_pstage_declaration`.
@@ -151,9 +154,9 @@ Each row in `phase_entry_log` is an object with the following seven fields. The 
 
 The validator `phase_state_validate.py` enforces the set of required field names exactly (missing → `LOG_ROW_MISSING_FIELD` BLOCKER; extra → `LOG_ROW_UNKNOWN_FIELD` MAJOR). `model_used: null` is legal (explicit absence).
 
-### 3.1 The v0.7.4 trigger enum (30 values)
+### 3.1 The v0.7.4 trigger enum (31 values)
 
-The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) and `§6.3` additions (triggers 29 and 30). Summarised here for cross-reference.
+The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) and `§6.3` additions (triggers 29 and 30 at v0.7.4; trigger 31 added at v0.10.0 Stage S2 under the snowball-driven reference-scaffolding bundle). Summarised here for cross-reference.
 
 | # | `trigger` | When it fires | Typical `prev_phase` → `new_phase` |
 |---|---|---|---|
@@ -187,6 +190,7 @@ The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) a
 | 28 | `ph3_accessibility_blocker_surfaced` | Planner refused a `TerminalSignoffRow` write because a Check 8 BLOCKER is open at signoff (`PHASE_PROTOCOL.md §3.3.3`). Introduced at v0.7.2. | No phase movement |
 | 29 | `ph3_iteration_round_manuscript` | One manuscript-level Ph3 iteration that touches N≥2 sections under a single revision directive. Emits N rows sharing one `cycle_id`. Introduced at v0.7.4 per P-7 (`PHASE_PROTOCOL.md §3.3.5`). | `Ph3 → Ph3` |
 | 30 | `stability_mode_escalated_to_full_ph3` | Automatic escalation from Ph3 stability sub-mode back to full Ph3 when the reduced envelope surfaces a finding. Introduced at v0.7.4 per P-2 (`PHASE_PROTOCOL.md §3.3.2`). | `Ph3 → Ph3` (escalation row only; the full-Ph3 round that follows uses trigger 17 or 29) |
+| 31 | `seed_snowball_signed` | SK-NEW-A `seed-snowball-discovery` returned a clean exit at `run-phase-1` Step 4.5: the section's `references/REFERENCES.md` has been seeded by the snowball saturation loop. Within-phase artefact-completion row (analogous to trigger 13 `imodel_structural_validation_signed` and trigger 12 `ph1_draft_completion_signed`); not a phase-advance trigger. The Planner is the actor — it writes the row immediately after SK-NEW-A's clean exit, in the same Phase 5.5 atomic write that flips `references_initialized: true` on the section. **Notes contract:** `notes` SHOULD identify the SK-NEW-A run id (timestamp suffix) and the count of references admitted, broken down by table — e.g., `"SK-NEW-A run 2026-04-27T14:05:22Z — admitted 14 sources (12 core, 2 snowball)"`. ≤ 280 chars per §3a.1. Introduced at v0.10.0 Stage S2 per the snowball-driven reference-scaffolding bundle (`docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §5.4`). | `Ph1 → Ph1` |
 
 **Retired at v0.7.0.** The v0.6.0 trigger `confirmation_failed` is retired; migrated rows are preserved but no v0.7.0+ write path emits this trigger.
 
@@ -203,7 +207,7 @@ Three structured row shapes are consumed by tooling across v0.7.4. Their contrac
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `timestamp` | string (ISO-8601 UTC, `Z`-suffixed) | yes | Monotonically non-decreasing across rows in the same array. |
-| `trigger` | enum | yes | One of the 30 values in §3.1. |
+| `trigger` | enum | yes | One of the 31 values in §3.1. |
 | `prev_phase` | enum \| null | yes | One of `"Ph1"` / `"Ph2"` / `"Ph3"` / `"Ph3_converged"` / `"Ph4"`, or `null` for initial rows. |
 | `new_phase` | enum | yes | Same enum as `prev_phase` but `null` is **not** legal (the validator fires `LOG_ROW_BAD_NEW_PHASE` BLOCKER on `null`). Non-phase-changing triggers repeat the prior phase in `new_phase` (e.g., `user_rejection` with `prev_phase: Ph2, new_phase: Ph2`) to satisfy the monotonicity check as a no-movement row. |
 | `actor` | enum | yes | One of `"planner"` / `"evaluator"` / `"generator"` / `"reflector"` / `"user"`. |
@@ -262,6 +266,7 @@ Codes emitted by `scripts/phase_state_validate.py` at v0.7.4. Codes are grounded
 | `SECTION_LOG_EMPTY` | MAJOR | `phase_entry_log` is empty on a bootstrapped section. | `_validate_section` |
 | `SECTION_CURRENT_PHASE_DIVERGENT` | MAJOR | `current_phase` does not match the last log row's `new_phase`. | `_validate_section` |
 | `SECTION_BAD_PRE_MCR_DEEP_PASS_TYPE` | MINOR | `pre_mcr_deep_pass_completed` is present on a section but is neither `true` nor `false` (introduced v0.8.0 under β-P-9a; absence is tolerated and treated as `false` by the MCR admission gate). | `_validate_section` |
+| `SECTION_BAD_REFERENCES_INITIALIZED_TYPE` | MINOR | `references_initialized` is present on a section but is neither `true` nor `false` (introduced v0.10.0 Stage S2 under the snowball-driven reference-scaffolding bundle; absence is tolerated and treated as `false` by SK-NEW-A's preflight idempotency guard). | `_validate_section` |
 | `LOG_ROW_NOT_OBJECT` | BLOCKER | A log row is not an object. | `_validate_log_row` |
 | `LOG_ROW_MISSING_FIELD` | BLOCKER | A log row is missing any of the seven required fields. | `_validate_log_row` |
 | `LOG_ROW_UNKNOWN_FIELD` | MAJOR | A log row carries an unknown field (e.g., v0.6.0 `from_tier`, `to_tier`, `scope`, `cycle_id`, `detail`). | `_validate_log_row` |
@@ -277,7 +282,7 @@ Codes emitted by `scripts/phase_state_validate.py` at v0.7.4. Codes are grounded
 
 **Exit codes.** `0` PASS; `1` usage error; `2` file I/O or parse error; `3` validation findings (MINOR or MAJOR only); `4` BLOCKER findings present.
 
-**Contracts enforced elsewhere.** The following contracts named in `PHASE_PROTOCOL.md §§6.1, 7, 8, 9` are enforced by `scripts/pre_phase_advance_check.py` (clauses (a)–(h)) at advance time, not by this validator: required `SectionStateObject` fields beyond the two validator-required ones; signed exit artefacts gating advances (`E-MISSING-PH1-SIGNOFF`, `E-MISSING-PH2-SIGNOFF`); i\* structural-completeness at Ph1→Ph2 (`E-IMODEL-STRUCTURALLY-INCOMPLETE`, opt-in via `sd_sr_required`); Evaluator Ph1-model read contract (`E-Ph2-SD-UNGROUNDABLE`, opt-in); convergence-metric null-at-terminal (`E-Ph3-CONVERGENCE-NULL-AT-SIGNOFF`); Check 8 accessibility gate at terminal signoff (`E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF`, introduced v0.7.2); escalation-ownership (`E-ESCALATION-WITHOUT-OWNER`, `E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE`); MCR `[Ph3-STALE]` admission block (`E-MCR-BLOCKED-Ph3-STALE`); pre-MCR Ph3-deep safety-net pass (`E-MCR-PRE-DEEP-PASS-REQUIRED`, introduced v0.8.0 under β-P-9a; clause (f) extension authored at P2.6 — refuses MCR admission on any section whose `pre_mcr_deep_pass_completed` is `false` or absent). These are not duplicated here — they are authored where they run.
+**Contracts enforced elsewhere.** The following contracts named in `PHASE_PROTOCOL.md §§6.1, 7, 8, 9` are enforced by `scripts/pre_phase_advance_check.py` (clauses (a)–(h)) at advance time, not by this validator: required `SectionStateObject` fields beyond the two validator-required ones; signed exit artefacts gating advances (`E-MISSING-PH1-SIGNOFF`, `E-MISSING-PH2-SIGNOFF`); i\* structural-completeness at Ph1→Ph2 (`E-IMODEL-STRUCTURALLY-INCOMPLETE`, opt-in via `sd_sr_required`); Evaluator Ph1-model read contract (`E-Ph2-SD-UNGROUNDABLE`, opt-in); convergence-metric null-at-terminal (`E-Ph3-CONVERGENCE-NULL-AT-SIGNOFF`); Check 8 accessibility gate at terminal signoff (`E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF`, introduced v0.7.2); escalation-ownership (`E-ESCALATION-WITHOUT-OWNER`, `E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE`); MCR `[Ph3-STALE]` admission block (`E-MCR-BLOCKED-Ph3-STALE`); pre-MCR Ph3-deep safety-net pass (`E-MCR-PRE-DEEP-PASS-REQUIRED`, introduced v0.8.0 under β-P-9a; clause (f) extension authored at P2.6 — refuses MCR admission on any section whose `pre_mcr_deep_pass_completed` is `false` or absent); SK-NEW-A `seed-snowball-discovery` preflight idempotency guard (`ALREADY_INITIALIZED` no-op, introduced v0.10.0 Stage S2 — refuses re-entry to the snowball saturation loop on any section whose `references_initialized` is `true` and whose `references/REFERENCES.md` carries non-empty core or snowball tables; authored at `skills/seed-snowball-discovery/SKILL.md §4` precondition clause 4, not in this validator). These are not duplicated here — they are authored where they run.
 
 ### 6.2 Pre-advance check
 
@@ -335,6 +340,7 @@ Freshly-bootstrapped `phase_state.json` for a new v0.7.4 manuscript with two sec
       "cumulative_drift_lines_since_approval": 0,
       "phase_goal_declared": "produce a complete first draft with classification and an advisory Evaluator note",
       "phase_deliverable_path": "reviews/ph1_draft_completion.md",
+      "references_initialized": false,
       "convergence_metric": null,
       "ph1_pstage_declaration": null,
       "ph3_last_activity_at": null,
@@ -363,6 +369,7 @@ Freshly-bootstrapped `phase_state.json` for a new v0.7.4 manuscript with two sec
       "cumulative_drift_lines_since_approval": 0,
       "phase_goal_declared": "produce a complete first draft with classification and an advisory Evaluator note",
       "phase_deliverable_path": "reviews/ph1_draft_completion.md",
+      "references_initialized": false,
       "convergence_metric": null,
       "ph1_pstage_declaration": null,
       "ph3_last_activity_at": null,
@@ -414,3 +421,5 @@ Freshly-bootstrapped `phase_state.json` for a new v0.7.4 manuscript with two sec
 ---
 
 *Last updated: 2026-04-22 (v0.8.0 P2.1a substrate widening — `SectionStateObject` 15 → 16 fields via `pre_mcr_deep_pass_completed: bool` per β-P-9a; validator type-check `SECTION_BAD_PRE_MCR_DEEP_PASS_TYPE` (MINOR) and MCR admission contract `E-MCR-PRE-DEEP-PASS-REQUIRED` cross-referenced; seed template bumped. Amends the v0.8.0 P0.1a R-P0-SCHEMA-3 rewrite without re-opening the rewrite's clean-rewrite-policy scope. See `proposals/v0.8.0_upgrade_architecture.md §3.2 Phase 2.1` and `§9.1 P2.1a closure note`).*
+
+*2026-04-26 (v0.10.0 Stage S2 — snowball-driven reference-scaffolding bundle): `SectionStateObject` 16 → 17 fields via `references_initialized: bool` (S4 will land the 18th field `last_coverage_score: float | null`); §3.1 trigger enum 30 → 31 via `seed_snowball_signed` (within-phase artefact-completion row, Planner actor, `Ph1 → Ph1`); §1.1 schema_version commentary updated to identify v0.10.0 RC as the vocabulary roll point (the bump from `"0.7.4"` to `"0.10.0"` lands via `scripts/migrate_v090_to_v100_snowball_fields.py`); validator type-check `SECTION_BAD_REFERENCES_INITIALIZED_TYPE` (MINOR) added to §6.1; SK-NEW-A `seed-snowball-discovery` preflight `ALREADY_INITIALIZED` no-op cross-referenced under "Contracts enforced elsewhere"; seed template bumped. See `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §5.4` and `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §3.3`.*
