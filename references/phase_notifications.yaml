@@ -577,6 +577,34 @@ ph1_ph2_signoff:
       from classification.md. Ph1 → Ph2 admission will be refused with E-PSTAGE-REQUIRED-AT-Ph2 if an approval
       reaches the gate with a null declaration.
 
+  # v0.10.0 Stage S2 — emitted by the Planner at run-phase-1 Step 4.5 when SK-NEW-A
+  # `seed-snowball-discovery` is dispatched but its preconditions are unmet beyond
+  # the idempotency clause (per skills/seed-snowball-discovery/SKILL.md §2 reason
+  # codes — e.g., wiki_path unresolvable on a wiki_linked: true project, no
+  # reachable Class 1 verifier, missing claim register). Non-blocking: Ph1 proceeds
+  # to Step 5 without writing the seed_snowball_signed (trigger 31) row;
+  # references_initialized remains false. Ph2's placeholder Step 0.5 (added at S2
+  # by Sub-F) re-tests the gate.
+  snowball_precondition_unmet:
+    presented_to_user: true
+    log_detail: "W-SNOWBALL-PRECONDITION-UNMET on {section_heading_path}: SK-NEW-A `seed-snowball-discovery` dispatched at run-phase-1 Step 4.5 but a precondition beyond idempotency was unmet (see skills/seed-snowball-discovery/SKILL.md §2 reason codes); references_initialized remains false; Ph1 proceeds to Step 5 without writing trigger 31."
+    user_template: |
+      ► W-SNOWBALL-PRECONDITION-UNMET on {section_heading_path}.
+      SK-NEW-A `seed-snowball-discovery` was dispatched at run-phase-1 Step 4.5 but one of its
+      preconditions (beyond the idempotency clause) was unmet — e.g., `wiki_path` unresolvable on a
+      `wiki_linked: true` project, no reachable Class 1 verifier, or a missing claim register
+      (see `skills/seed-snowball-discovery/SKILL.md §2` reason codes:
+      CLASSIFICATION_MISSING / NO_CLAIM_REGISTER / NO_REACHABLE_VERIFIER /
+      WIKI_PATH_UNRESOLVABLE / GRAPH_JSON_UNREADABLE / INSUFFICIENT_SEEDS_AFTER_PHASE).
+      Ph1 proceeds to Step 5 without writing the `seed_snowball_signed` row (trigger 31);
+      `references_initialized` remains `false`. The section can advance to Ph2 normally; Ph2's
+      placeholder Step 0.5 re-tests the gate.
+      Recommended action: inspect SK-NEW-A's reason code in `reviews/snowball_log.md` (if any was
+      written before the unmet precondition fired); resolve the precondition (e.g., set `wiki_path`
+      in `CLAUDE.md`, populate the claim register) and re-run `/run-phase-1 <section>` to retry.
+      (Introduced v0.10.0 Stage S2; cross-refs: `skills/seed-snowball-discovery/SKILL.md §2`,
+      `skills/run-phase-1/SKILL.md §3 Step 4.5`.)
+
   pstage_required_at_ph2:
     presented_to_user: true
     log_detail: "E-PSTAGE-REQUIRED-AT-Ph2 on {section_heading_path}: ph1_pstage_declaration == null at Ph1 → Ph2 advance."
@@ -613,6 +641,32 @@ ph1_ph2_signoff:
       None were found or the ones on disk failed structural validation. Refused. Re-run the Ph1 validator and
       re-sign the Ph1 exit artefact before retrying the Ph2 entry.
       (Raised only when `sd_sr_required: true` in reviews/classification.md per PHASE_PROTOCOL.md §3.1.2; v0.7.1 default is false.)
+
+  # v0.10.0 Stage S2 — emitted by the Planner at run-phase-1 Step 4.5 when
+  # SK-NEW-A `seed-snowball-discovery` PASSED its preconditions but its execution
+  # failed mid-run per its §8 failure modes (e.g., WRITE_FAILURE on the in-loop
+  # wiki write-back, GRAPH_VS_EXTERNAL_DISAGREEMENT, lock-contention timeout,
+  # Scite unreachable mid-Phase 3). Blocks Ph1 completion until resolved or
+  # user-acknowledged: Planner does NOT flip references_initialized to true and
+  # does NOT write the seed_snowball_signed row. The partial REFERENCES.md state
+  # (if any) is preserved for user inspection.
+  snowball_mid_run_failure:
+    presented_to_user: true
+    log_detail: "E-SNOWBALL-MID-RUN-FAILURE on {section_heading_path}: SK-NEW-A `seed-snowball-discovery` failed mid-run after preconditions passed (see skills/seed-snowball-discovery/SKILL.md §8 failure modes); references_initialized NOT flipped; trigger 31 NOT written; partial REFERENCES.md state preserved for inspection."
+    user_template: |
+      ► E-SNOWBALL-MID-RUN-FAILURE on {section_heading_path}.
+      SK-NEW-A `seed-snowball-discovery` was dispatched at run-phase-1 Step 4.5; its preconditions
+      PASSED but its execution failed mid-run per its §8 failure modes — e.g., `WRITE_FAILURE` on the
+      in-loop wiki write-back, `GRAPH_VS_EXTERNAL_DISAGREEMENT`, lock-contention timeout, or Scite
+      unreachable mid-Phase 3 (see `skills/seed-snowball-discovery/SKILL.md §8` failure modes table).
+      The Planner does NOT flip `references_initialized` to `true` and does NOT write the
+      `seed_snowball_signed` row (trigger 31). The partial `references/REFERENCES.md` state (if any)
+      is preserved for user inspection. Ph1 stays at the current cycle pending user adjudication.
+      Recommended action: read `reviews/snowball_log.md` for the SK-NEW-A failure trace; decide
+      whether to resume (retry SK-NEW-A from the failed step — roll back the partial REFERENCES.md
+      first, then re-run `/run-phase-1 <section>`) or accept (preserve the partial state and
+      manually set `references_initialized: true` in `reviews/phase_state.json` to skip retries).
+      (Introduced v0.10.0 Stage S2; cross-ref: `skills/seed-snowball-discovery/SKILL.md §8`.)
 
   escalation_without_owner:
     presented_to_user: true

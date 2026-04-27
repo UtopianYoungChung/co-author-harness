@@ -224,17 +224,26 @@ Each stage's content is specified in the architecture plan §6.1–§6.8. The im
 
 **Effort:** ~4 hours (the iteration rewrite is the load-bearing change; the dual-path detection is non-trivial; the in-loop write-back hooks into SK-15's stub-template logic and needs careful testing).
 
-### 5.3 Stage S2 — Phase-1 wiring (Edit-1)
+### 5.3 Stage S2 — Phase-1 wiring (Edit-1) — full enumeration per architecture §6.0 coupling checklist
 
-**Worktree:** `../co-author-harness-S2`, branched off `v0.10.0-S1.5`.
+**Worktree:** `../co-author-harness-S2`, branched off `v0.10.0-S1.5`. (In-place stage branch in Cowork-Windows environments per the S1 deviation precedent.)
 
-**Key files modified:** `skills/run-phase-1/SKILL.md` (insert Step 4.5); `references/phase_state_schema.md` (add `references_initialized` field; add trigger 31 `seed_snowball_signed` to the §3.1 enum); `scripts/migrate_v090_to_v100_<topic>.py` (full implementation; built off the S0 skeleton).
+**Key files modified — document layer (the original §5.3 scope):**
+- `skills/run-phase-1/SKILL.md` (insert Step 4.5 with OR-conjunctive outer guard per architecture §5.2 Edit-1)
+- `references/phase_state_schema.md` (add `references_initialized` field to §2; add trigger 31 `seed_snowball_signed` to §3.1)
+- `scripts/migrate_v090_to_v100_snowball_fields.py` (flesh out S0 skeleton; smoketest fixtures under `scripts/fixtures/phase_state_smoketest/v090_to_v100/`)
 
-**Parallelism:** the migration script + the schema doc + the run-phase-1 edit are independent tasks. `unified-superkit:dispatching-parallel-agents` is appropriate: three sub-agents in parallel, each owning one file.
+**Key files modified — orchestration co-mutations (added per architecture §6.0 coupling checklist; surfaced at v0.10.0 S2 close 2026-04-27):**
+- `agents/planner.md` (register SK-NEW-A dispatch responsibility at the Planner phase that mirrors run-phase-1 §3 Step 4.5's placement — Phase 4 / 4.5 / 4.6 region, NOT Phase 5; three-outcome-branch handling authoritative here)
+- `references/phase_notifications.yaml` (declare `W-SNOWBALL-PRECONDITION-UNMET` and `E-SNOWBALL-MID-RUN-FAILURE` codes in §4)
+- `scripts/pre_phase_advance_check.py` (add `seed_snowball_signed` to `VALID_TRIGGERS`; add non-blocking advisory clause for `references_initialized: false` at Ph1→Ph2 advance)
+- `skills/run-phase-2/SKILL.md` (insert non-blocking Step 0.5 placeholder that re-tests the gate at Ph2 entry; full Ph2-side dispatch defers to S3/S4)
 
-**Stage-close gate:** as above, plus `scripts/phase_state_validate.py` passes against the v0.10.0 fixture; the migration script `--dry-run` against the smoketest fixture matches expected output; semantic-review verdict on `run-phase-1/SKILL.md` is CLEAR (no md-reviewer or promise-reviewer findings).
+**Parallelism:** the document-layer files (run-phase-1, schema, migration) are independent and parallelisable per `unified-superkit:dispatching-parallel-agents` (3 sub-agents). The orchestration co-mutations have **interdependencies** that preclude full parallelisation: planner.md placement constrains how run-phase-1 references it; partial-failure halt-vs-continue must be reconciled across both files; Step 0.5 in run-phase-2 must reference the W-* code declared in phase_notifications.yaml. Recommended: dispatch document-layer in parallel; sequence orchestration co-mutations.
 
-**Effort:** ~5 hours (schema + migration + skill edit + fixture authoring + semantic review).
+**Stage-close gate:** five validation scripts (skill-check, version-check, catalog-check, path-hygiene-check; phase_state_validate is N/A in meta-pilot context — harness has no project-side phase_state.json); migration script `--validate` returns exit 0 on all 9 smoketest fixtures (5 pass + 4 block); plugin-calibrator economics axis pass with feature-attributed deltas tolerated; **semantic-review (binding at S2)** returns CLEAR — md-reviewer reads `run-phase-1`, `run-phase-2`, AND `2026-04-26-snowball-reference-architecture.md` (the architecture doc itself becomes a review target at S2 per the §6.0 coupling-checklist amendment); promise-reviewer reads `run-phase-1` + `run-phase-2` frontmatter; orchestrator-critic reviews the dispatch graph including the four co-mutations.
+
+**Effort:** ~8-12 hours (5h document layer + 4-6h orchestration co-mutations + ~30 min architecture/strategy doc amendments). The original ~5h estimate did not anticipate the §6.0 coupling-checklist scope.
 
 ### 5.4 Stage S3 — `claim-coverage-audit` (SK-NEW-B, no Ph2 wiring)
 
