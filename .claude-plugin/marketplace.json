@@ -9,7 +9,7 @@
     {
       "name": "co-author-harness-claude",
       "source": "./",
-      "description": "A Claude Code plugin for PhD-level academic-writing review. Four agents (Planner, Evaluator, Generator, Reflector) climb a four-phase ladder against a per-section ledger under absolute grounding discipline. Ships 32 skills: snowball references, accessibility audit, named-scholar style overlays.",
+      "description": "PhD-level academic-writing review for Claude Code. Four agents (Planner, Evaluator, Generator, Reflector) advance a per-section phase ledger under grounding discipline. Skills include snowball references, accessibility audit, and named-scholar style overlays.",
       "version": "0.10.2",
       "author": {
         "name": "Young Jo(seph) Chung",
