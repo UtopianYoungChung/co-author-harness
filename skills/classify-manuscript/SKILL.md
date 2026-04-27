@@ -25,9 +25,8 @@ If the user has not provided all four inputs, ask for them in a single question.
 | **Venue** | journal or conference name, or `course essay`, `thesis chapter`, `cross-venue` |
 | **Review depth** | *(retired at v0.5.0 — dispatch reads `tier:` directly; v0.4.x records parse under the transitional mapping below)* |
 | **Tier** (default `T3`) | `T0` · `T1` · `T2` · `T3` · `T3R` · `T4` — full ladder active at v0.5.0 per `TIER_PROTOCOL.md §2`. Default `T3` unless the user requests otherwise. **Automatically recommend `T3R`** when `paper_type: response-letter`. **Automatically recommend `T4`** whenever a `submission-bound` trigger applies (see below). Legacy `review_depth` values in v0.4.x classification records are migrated on first read under the transitional mapping `quick↔T1, standard↔T3, submission-bound↔T4`; new classifications do not use `review_depth`. |
-| **SD/SR required** (default `false`) | `true` · `false` — whether the Planner must author i\* Strategic Dependency and Strategic Rationale models at T1. Introduced at v0.7.1. Default `false`: SD/SR are **not** generated unless the user explicitly asks for them. Set to `true` only when the user wants GORE/AORE modelling as part of the manuscript. When `false`, T2's SD/SR read-prerequisite and the `E-T2-SD-UNGROUNDABLE` finding silently skip. |
 
-**If the user declines to classify**, default to: `essay/positioning · P1 · cross-venue · T3 · sd_sr_required: false`.
+**If the user declines to classify**, default to: `essay/positioning · P1 · cross-venue · T3`.
 
 **Apply `submission-bound` automatically** (and tell the user you did so and why) when the user describes: a final draft for journal/conference submission; a course paper marked *final*; a thesis chapter sent to committee or deposited; any resubmission after reviews; a response letter paired with a revised manuscript.
 
@@ -59,7 +58,6 @@ Produce the classification record using this exact template:
 - P-stage: [P0 / P1 / P2]
 - Venue: [venue]
 - Tier: [T0 / T1 / T2 / T3 / T3R / T4 — default T3; recommend T3R for `response-letter`, T4 on submission-bound trigger]
-- SD/SR required: [true / false — default false; set true only when the user explicitly asks for i* Strategic Dependency / Strategic Rationale modelling]
 
 ## Component file applicability
 

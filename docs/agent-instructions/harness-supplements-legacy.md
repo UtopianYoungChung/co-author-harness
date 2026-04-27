@@ -28,8 +28,9 @@ Some projects carry **binding supplements** — files that add rules within that
 
 When a project involves a specific modeling notation, the project CLAUDE.md should record the notation rules. Known domain rules from the Year 2026 workspace:
 
-- **i\* modeling (CAiSE_Rev01):** When generating or reviewing i\* model content, consult the i\* Construct Vocabulary table in the project's memory. Key rule: agents are specific actors, roles are abstract expectations — do not confuse them.
-- **i\* modeling under v0.7.1+ opt-in.** Strategic Dependency / Strategic Rationale artefacts are project-level opt-in via `sd_sr_required: true` in `reviews/classification.md`. Default is `false`. When `true`, the Planner authors `reviews/sd_model.md` and `reviews/sr_model.md` at Ph1 and the Evaluator opens them as read-prerequisites at Ph2 entry.
+- **i\* modeling (CAiSE_Rev01):** When generating or reviewing i\* model content (in projects whose manuscripts are *about* i\*), consult the i\* Construct Vocabulary table in the project's memory. Key rule: agents are specific actors, roles are abstract expectations — do not confuse them.
+
+(The harness itself no longer authors SD/SR models as part of its own pipeline; the v0.7.1 `sd_sr_required` opt-in was retired at v0.11.0 along with the Cold-Start defence and the `E-IMODEL-STRUCTURALLY-INCOMPLETE` / `E-Ph2-SD-UNGROUNDABLE` finding classes. Projects that author manuscripts *about* i*/GORE/AORE remain fully supported through the Reader-Experience and Argumentative-Rigor surfaces.)
 
 These rules are recorded here as a cross-reference so the agent knows they exist even if the project has not yet migrated to the Research tree. Once a project migrates, the modeling rules should live in that project's own CLAUDE.md.
 

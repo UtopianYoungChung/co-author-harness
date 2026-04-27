@@ -23,7 +23,7 @@ Entries below use paths **under this harness** unless noted. Rows that point to 
 | Plugin manifest | `.claude-plugin/plugin.json` | Authoritative version (v0.8.7) |
 | AGENT_ORCHESTRATION.md | `references/AGENT_ORCHESTRATION.md` | Four-agent architecture + lifecycle dispatch |
 | REVIEW_ORCHESTRATION.md | `references/REVIEW_ORCHESTRATION.md` | Review pipeline runbook (Steps 0a–8.5) |
-| PHASE_PROTOCOL.md | `references/PHASE_PROTOCOL.md` | Lifecycle-Phase Ladder canonical spec (v0.7.4; §3.1.2 for `sd_sr_required`; §3.3.3 for Check 8 gate) |
+| PHASE_PROTOCOL.md | `references/PHASE_PROTOCOL.md` | Lifecycle-Phase Ladder canonical spec (v0.7.4; §3.3.3 for Check 8 gate) |
 | ADVISOR_MCP.md | `references/ADVISOR_MCP.md` | Advisor MCP: plugin-bridged external feedback; EP-1 (post-Ph2 pre-Ph3) and EP-2 (post-Ph3_converged pre-MCR/Ph4) |
 | GROUNDING_PROTOCOL.md | `references/GROUNDING_PROTOCOL.md` | Binding no-hallucination rules |
 | SAFEGUARD_LAYER.md | `references/SAFEGUARD_LAYER.md` | Eight SAFEGUARD checks (Check 8 = Reader-Experience / Prose Architecture) |
