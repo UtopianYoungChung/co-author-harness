@@ -285,6 +285,24 @@ else
     echo ""
 fi
 
+# --- Phase 0.62: manifest coherence checks (v0.11.0 c8) -------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/manifest-coherence-check.py" ]]; then
+    echo "Manifest coherence checks (description / keywords / parity)"
+    if ! python3 "$PLUGIN_ROOT/scripts/manifest-coherence-check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/manifest-coherence-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/manifest-coherence-check.py passed"
+    fi
+    echo ""
+else
+    echo "Manifest coherence checks: script missing (scripts/manifest-coherence-check.py)"
+    echo "  [BLOCKER] cannot run manifest coherence checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.65: [Retired at v0.7.0] Rule-digest build-and-verify ---------
 #
 # The tier-gated digest exception in GROUNDING_PROTOCOL Rule 1 (v0.6.0 and
