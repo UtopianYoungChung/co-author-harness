@@ -6,6 +6,11 @@ Checks that the current release version is synchronized across:
 - .claude-plugin/plugin.json
 - README.md (latest entry in "## Version")
 - CHANGELOG.md (top release heading)
+- .claude-plugin/marketplace.json (self-referencing plugins[] entries with
+  source == "."; closes the v0.10.0 RC slip in which marketplace.json carried
+  a stale "0.9.0" entry while plugin.json had been bumped to "0.10.0",
+  producing a loader-rejected disagreement when the plugin was packaged via
+  the .plugin ZIP route.)
 """
 
 from __future__ import annotations
@@ -59,6 +64,84 @@ def extract_changelog_latest_version(plugin_root: Path) -> Optional[str]:
     return None
 
 
+def extract_marketplace_self_referencing_versions(
+    plugin_root: Path,
+) -> Optional[List[Tuple[str, str]]]:
+    """Return [(plugin_name, version), ...] for marketplace.json entries
+    whose source resolves to the same plugin root (source == "." or "./",
+    or an absolute/relative path that resolves to plugin_root).
+
+    Returns None when marketplace.json does not exist — the file is
+    optional infrastructure (not every plugin ships with a co-located
+    marketplace), so its absence is silent rather than a BLOCKER.
+
+    Returns [] when marketplace.json exists but has no self-referencing
+    plugin entries — the marketplace registers other plugins by path but
+    not this one; nothing for version-check.py to enforce.
+
+    The check exists because v0.10.0 RC shipped with marketplace.json
+    line 13 reading "version": "0.9.0" while plugin.json had been bumped
+    to "0.10.0". The .plugin ZIP carries both files; loader rejected the
+    install on the disagreement. Closing the gap at the validator level
+    prevents recurrence.
+    """
+    marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
+    if not marketplace_path.exists():
+        return None
+
+    marketplace = json.loads(read_text(marketplace_path))
+    plugins = marketplace.get("plugins", [])
+    if not isinstance(plugins, list):
+        return []
+
+    self_versions: List[Tuple[str, str]] = []
+    for entry in plugins:
+        if not isinstance(entry, dict):
+            continue
+        source = str(entry.get("source", "")).strip()
+        if not source:
+            continue
+        # Format check (v0.10.1 follow-up): the Claude Code marketplace
+        # loader's schema rejects bare "." as `Invalid input` for the
+        # `source` field. Accepted forms surfaced empirically against
+        # working examples are relative paths starting with "./" or
+        # "../", and absolute git/HTTPS URLs. We do not enforce git URLs
+        # here (the loader handles those); we only flag the bare-dot
+        # class that has shipped twice (v0.10.0 RC marketplace skew and
+        # v0.10.1 RC schema-format slip) so future RC gates catch it.
+        if source in (".", ".."):
+            self_versions.append(
+                (
+                    str(entry.get("name", "<unnamed>")).strip() or "<unnamed>",
+                    f"<INVALID_SOURCE_FORMAT: bare '{source}' rejected by "
+                    f"marketplace loader; use '{source}/' instead>",
+                )
+            )
+            continue
+        # Normalise to absolute path for comparison; treat "./" and
+        # "../" as relative-to-marketplace.json's-directory by Claude
+        # Code convention. We additionally try the parent-of-marketplace
+        # interpretation (some marketplaces co-locate the registration
+        # one directory up) so the check is robust to layout variation.
+        candidates = [
+            (marketplace_path.parent / source).resolve(),  # ./ relative to marketplace.json
+            (marketplace_path.parent.parent / source).resolve(),  # ./ relative to plugin root
+        ]
+        if plugin_root.resolve() not in candidates:
+            continue
+
+        name = str(entry.get("name", "")).strip()
+        version = str(entry.get("version", "")).strip()
+        if not name or not version:
+            # Self-referencing entry but missing name/version — flag with a
+            # placeholder so main() can surface a useful BLOCKER.
+            self_versions.append((name or "<unnamed>", version or "<missing>"))
+            continue
+        self_versions.append((name, version))
+
+    return self_versions
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check release version consistency.")
     parser.add_argument(
@@ -82,6 +165,7 @@ def main() -> int:
 
     readme_version = extract_readme_latest_version(plugin_root)
     changelog_version = extract_changelog_latest_version(plugin_root)
+    marketplace_versions = extract_marketplace_self_referencing_versions(plugin_root)
 
     if readme_version is None:
         blockers.append("README latest version entry not found under '## Version'")
@@ -97,11 +181,29 @@ def main() -> int:
             f"CHANGELOG top version ({changelog_version}) != manifest version ({manifest_version})"
         )
 
+    if marketplace_versions is None:
+        # marketplace.json is absent — silent skip per docstring contract.
+        marketplace_summary = "<no marketplace.json>"
+    elif not marketplace_versions:
+        # marketplace.json present but no self-referencing entries.
+        marketplace_summary = "<no self-referencing entries>"
+    else:
+        marketplace_summary = ", ".join(
+            f"{name}={version}" for name, version in marketplace_versions
+        )
+        for name, version in marketplace_versions:
+            if version != manifest_version:
+                blockers.append(
+                    f"marketplace.json plugin '{name}' version ({version}) "
+                    f"!= manifest version ({manifest_version})"
+                )
+
     print("VERSION CONSISTENCY CHECK")
     print(f"- Plugin root: {plugin_root}")
     print(f"- Manifest version: {manifest_version}")
     print(f"- README latest version: {readme_version or '<missing>'}")
     print(f"- CHANGELOG top version: {changelog_version or '<missing>'}")
+    print(f"- Marketplace self-referencing entries: {marketplace_summary}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")
 
