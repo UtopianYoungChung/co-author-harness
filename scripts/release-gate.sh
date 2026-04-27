@@ -303,6 +303,24 @@ else
     echo ""
 fi
 
+# --- Phase 0.63: SSOT registry check (v0.11.0 c9) -------------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/ssot-check.py" ]]; then
+    echo "SSOT registry checks (.claude-plugin/ssot.yaml fact-consumer parity)"
+    if ! python3 "$PLUGIN_ROOT/scripts/ssot-check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/ssot-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/ssot-check.py passed"
+    fi
+    echo ""
+else
+    echo "SSOT registry checks: script missing (scripts/ssot-check.py)"
+    echo "  [BLOCKER] cannot run SSOT registry checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.65: [Retired at v0.7.0] Rule-digest build-and-verify ---------
 #
 # The tier-gated digest exception in GROUNDING_PROTOCOL Rule 1 (v0.6.0 and
