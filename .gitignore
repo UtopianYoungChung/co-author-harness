@@ -20,3 +20,11 @@ Thumbs.db
 .DS_Store
 *.swp
 *~
+
+# Plugin bundles (build artefacts; built by scripts/build-plugin.py from
+# git ls-tree HEAD; landing them inside .claude-plugin/ alongside the
+# manifests is intentional for upload visibility, but the file itself
+# must never be tracked — committing a *.plugin would cause the next
+# rebuild to nest the prior bundle inside the new one (zip-cannot-contain-
+# nested-zip per Cowork plugin loader contract).
+*.plugin
