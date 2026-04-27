@@ -294,6 +294,23 @@ Directives here override the package's cross-venue rules within this project
 
 ---
 
+# Manuscript register class (v0.10.1)
+# Conditions Sub-check H (Register Appropriateness) of SAFEGUARD Check 8.
+# Default: technical (peer-reviewed scholarly venue; H runs only on the
+# five non-technical passage roles — signposts, framing, transitions,
+# vignettes, anchors).
+# Set: mixed (thesis chapter aimed partly at committee, partly at applied
+# audience; H additionally runs on abstract / introduction / conclusion).
+# Set: non-technical (public-interest write-up, policy memo, trade-press
+# article; H runs manuscript-wide with technical paragraphs held to
+# positive-marker construction at the sentence level).
+# Field is orthogonal to P-stage: P-stage governs depth/scope of engagement;
+# register_class governs target-audience register requirements.
+# Silent absence inherits the default `technical` for back-compat safety.
+register_class: technical
+
+---
+
 <!-- Template:
 
 ## D-<N>: <short label>
