@@ -36,25 +36,11 @@ Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human appr
 
 ## 2. Theoretical framing
 
-*Source: draft-5 §2.* The lifecycle reframing is motivated by GORE and operationalized by AORE.
+*Source: draft-5 §2.* This section names the four-phase ladder, its rationale, and its relation to P-stages.
 
-### 2.1 GORE layer — four-phase goal decomposition
+### 2.1 Phase ladder rationale
 
-The top-level hard goal is **"produce a submission-ready research paper grounded in reviewed literature."** This decomposes into four sub-goals, each owned by exactly one phase.
-
-- **G1 (Ph1 — Plan & Draft).** Produce a complete first draft articulating a coherent intentionality. Operationalization: the manuscript reaches prose-completeness across all sections, with an explicit problem statement, theoretical framework, methodology, analysis, and synthesis arc; **when `sd_sr_required: true` in `reviews/classification.md`** (v0.7.1 opt-in — see §3.1.2), the Planner produces and freezes i\* SD and SR models capturing the research intentionality; every section declares its P-stage per EYgp.
-- **G2 (Ph2 — Review & Revise).** Produce an externally-reviewable draft that has survived at least one independent Evaluator pass. Operationalization: every BLOCKER and every MAJOR finding from the Evaluator's first full-file pass is either RESOLVED, ACKNOWLEDGED with rationale, or ESCALATED with a named owner of record. Softgoals: argumentative rigor, grounding integrity, register compliance.
-- **G3 (Ph3 — Iterate & Converge).** Converge on a draft the human researcher has actively declared satisfactory. Operationalization: the manuscript passes successive review-revise rounds until the user explicitly approves; the loop is user-gated and unbounded; staleness is monitored within Ph3 and gates re-admission at MCR (§3.3.1, §9.3). Softgoals: voice consistency, theoretical contradiction resolution, stakeholder alignment, narrative drive.
-- **G4 (Ph4 — Finalize & Close).** Ship a submission-bound artefact and close the knowledge-production loop. Operationalization: the manuscript is bound into a submission bundle; external verifiers are exhausted; the Reflector runs its full meta-learning pass; wiki ingestion and plugin-update proposals are routed to the Planner as the sole gatekeeper. Softgoals: provenance integrity, reproducibility, institutional learning.
-
-### 2.2 AORE layer — per-phase SD contract
-
-Each phase declares a distinct Strategic Dependency graph. The human researcher is the depending actor in all four; the dependee set — the agent society — changes by phase. §5 enumerates the matrix; the theoretical significance here is that *each phase is a separately-contracted social system*, not the same system escalated in rigor. The explicit i\* SD/SR *artefact* dependencies listed below for Ph1 and Ph2 are **conditional on `sd_sr_required: true` in `reviews/classification.md`** (§3.1.2); when the flag is absent or `false` (the default), the human-to-Planner dependency for i\* artefacts and the Reflector-lightweight Ph2 divergence check silently fall out of scope. The agent-society contract itself is unchanged.
-
-- **Ph1 SD.** Researcher depends on Planner for i\* models **(when `sd_sr_required: true`)** and Reflector-lightweight for grounding-integrity safety. Researcher depends on Generator for prose. No Evaluator contract exists at Ph1 because prose is not yet externalizable.
-- **Ph2 SD.** Researcher depends on Evaluator for independent review, on Generator for per-finding disposition, on Planner for orchestration and named-owner tracking, and on Reflector-lightweight for divergence checking against the Ph1-frozen i\* model **(the divergence-check dependency is conditional on `sd_sr_required: true`; when absent, the Reflector-lightweight contract reduces to grounding-integrity safety only)**.
-- **Ph3 SD.** Researcher depends on the full four-agent loop for iterative convergence. Planner additionally depends on Reflector-lightweight for confirmation-failed history, drift, and reflexivity signals surfaced per iteration.
-- **Ph4 SD.** Researcher depends on Evaluator for terminal review, on Generator for submission-bundle assembly, on Planner as gatekeeper of plugin proposals and MCR admission, and on Reflector-full for lesson extraction and the Coupling A-revised / B / C / D closures.
+The top-level hard goal is **"produce a submission-ready research paper grounded in reviewed literature."** Each of the four phases owns one sub-goal, and each phase declares its own dependency contract between the human researcher and the agent society — the agent set is not the same across phases, only the human depender is. **Ph1 (Plan & Draft)** produces a complete first draft with explicit problem statement, theoretical framework, methodology, analysis, and synthesis arc; every section declares its P-stage per EYgp. **Ph2 (Review & Revise)** produces an externally-reviewable draft that has survived an independent Evaluator pass; every BLOCKER and every MAJOR finding is RESOLVED, ACKNOWLEDGED with rationale, or ESCALATED with a named owner of record (softgoals: argumentative rigor, grounding integrity, register compliance). **Ph3 (Iterate & Converge)** converges on a draft the human researcher has actively declared satisfactory through user-gated unbounded review–revise rounds; staleness is monitored within Ph3 and gates re-admission at MCR (§3.3.1, §9.3) (softgoals: voice consistency, theoretical contradiction resolution, stakeholder alignment, narrative drive). **Ph4 (Finalize & Close)** ships a submission-bound artefact and closes the knowledge-production loop; external verifiers are exhausted, the Reflector runs its full meta-learning pass, and wiki ingestion plus plugin-update proposals route to the Planner as sole gatekeeper (softgoals: provenance integrity, reproducibility, institutional learning). The per-phase agent-society contract — who depends on whom for what at each phase — is enumerated in §5.
 
 ### 2.3 Relation to P-stages (unchanged) and milestones (superseded)
 
@@ -71,8 +57,8 @@ Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P
 | Property | Value |
 |---|---|
 | **Phase goal** | Produce a complete first draft articulating a coherent research intentionality. |
-| **Primary deliverables** | `manuscript/main.md` at prose-completeness; **when `sd_sr_required: true` in `reviews/classification.md`** (§3.1.2), `models/sd_model.md` and `models/sr_model.md` capturing the i\* framing, **conformant to the i\* template structure specified in §3.1.1**; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). When `sd_sr_required` is absent or `false`, the `models/` deliverables are out of scope. |
-| **Exit artefact** | `reviews/ph1_draft_completion.md` — Planner-signed declaration that every section has prose, every in-text citation has a `wiki/sources/` stub (via the new incremental SK-16 sibling), every placeholder is explicit; **when `sd_sr_required: true`, the declaration also asserts that i\* SD/SR models are frozen *and* structurally complete (§3.1.1)**. |
+| **Primary deliverables** | `manuscript/main.md` at prose-completeness; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). |
+| **Exit artefact** | `reviews/ph1_draft_completion.md` — Planner-signed declaration that every section has prose, every in-text citation has a `wiki/sources/` stub (via the new incremental SK-16 sibling), every placeholder is explicit. |
 | **Absorbs milestones** | M1, M2, M3 (all three map to Ph1 per the §4 supersession). |
 | **Active agents** | Planner, Generator. |
 | **Evaluator** | **Dormant** — no adversarial review at draft stage. |
@@ -84,60 +70,7 @@ Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P
 | **User-gated exit** | User approves `ph1_draft_completion.md`; section auto-advances to Ph2, or remains at Ph1 if `applicable_ceiling == Ph1` (see §9.4 for Ph1-ceiling terminal-artefact semantics). |
 | **Wall-clock target** | Variable. The phase imposes no wall-clock budget; only artefact completeness. |
 
-**SD contract at Ph1.** The human researcher depends on the Planner for the i\* models and on the Generator for prose. No Evaluator contract exists at Ph1, because prose is not yet externalizable. The Reflector's lightweight contract at Ph1 is a *safety* dependency (grounding integrity), not an *evaluation* dependency.
-
-#### 3.1.1 i\* model structural-completeness contract (Cold-Start defence)
-
-> **Opt-in gate (v0.7.1).** This subsection fires **only when `sd_sr_required: true` in `reviews/classification.md`** (§3.1.2). When the flag is absent or `false` (the default), the Cold-Start structural validator does not run, the failure modes `E-IMODEL-STRUCTURALLY-INCOMPLETE` are not emitted, and the `ph1_draft_completion.md` exit artefact omits the i\*-frozen assertion.
-
-The user's mandatory safety constraint (Cold-Start) requires that the Planner validate the structural completeness of `sd_model.md` and `sr_model.md` before signing `ph1_draft_completion.md`. Presence of the files is necessary but not sufficient; the i\* template structure must be conformant.
-
-**`sd_model.md` template structure — required headings:**
-
-- `## Actors` — at least one human actor and at least one software-agent actor named in the manuscript.
-- `## Strategic Dependencies` — at least one dependency per (depender, dependee) actor pair where the dependee is a software-agent actor.
-- `## Resources / Tasks / Goals / Softgoals` — each i\* dependum kind populated when it appears in the dependency list; empty headings are acceptable but the heading must exist.
-
-**`sr_model.md` template structure — required headings:**
-
-- `## Actor Boundaries` — one boundary subsection per actor named in `sd_model.md`.
-- `## Internal Reasoning per Actor` — for each actor boundary: at least one `Goal`, one `Task`, and one `Softgoal` (placeholder-acceptable, but the structural slot must be present).
-- `## Means-End Decomposition` and `## Task Decomposition` — present as headings; populated when applicable.
-
-**The Planner runs the structural validator at Ph1 exit. Failure modes:**
-
-- **Empty file** → fail with `E-IMODEL-STRUCTURALLY-INCOMPLETE: <file> empty`.
-- **Missing required heading** → fail with `E-IMODEL-STRUCTURALLY-INCOMPLETE: <file> missing required heading <H>`.
-- **No software-agent actor in `sd_model.md`** → fail with `E-IMODEL-STRUCTURALLY-INCOMPLETE: sd_model.md has no software-agent actor — the v0.7.0 SD contract requires at least one`.
-
-The validator does **not** assess content quality; it confirms the structural slots that the Ph2 Evaluator will read against. Content quality is the Evaluator's contract, not the Planner's. The validator's purpose is to prevent Ph1 sign-off on a section whose i\* models would silently fail the Ph2 read contract (§5.3, `E-Ph2-SD-UNGROUNDABLE`). The structural template specification is plan-originated.
-
-#### 3.1.2 SD/SR opt-in gate (v0.7.1 — `sd_sr_required`)
-
-**Motivation.** i\* Strategic Dependency and Strategic Rationale modelling is a GORE/AORE research instrument, not a universal writing prerequisite. Many research manuscripts (empirical papers, conceptual reviews, essays, response letters) do not require an i\* framing, and authoring SD/SR models on those manuscripts imposes modelling cost without methodological payoff. The v0.7.1 opt-in gate makes SD/SR authoring a per-manuscript *decision*, not a default execution step.
-
-**The flag.** `reviews/classification.md` carries a field `SD/SR required: true | false`, introduced by `skills/classify-manuscript/SKILL.md` at v0.7.1. Default value is `false`. The user sets it to `true` only when they want i\* modelling as part of the manuscript's theoretical framework.
-
-**Absent-means-false migration.** Classification records written before v0.7.1 do not carry the field. Any downstream gate that reads `sd_sr_required` treats *absence* as equivalent to `false`. No migration script is required; existing v0.7.0 projects continue working unchanged. Existing projects that already authored SD/SR models are unaffected — the models remain in `models/`, but no new gate references them unless the classification record is updated.
-
-**Gates affected (all silently skip when the flag is false/absent).**
-
-- §2.2 Ph1/Ph2 SD-contract i\* dependencies reduce to prose-only dependencies.
-- §3.1 Ph1 *Primary deliverables* row: the `models/sd_model.md` and `models/sr_model.md` artefacts are out of scope.
-- §3.1 Ph1 *Exit artefact*: `ph1_draft_completion.md` omits the i\*-frozen assertion.
-- §3.1.1 Cold-Start structural validator does not run; `E-IMODEL-STRUCTURALLY-INCOMPLETE` does not emit.
-- §3.2 Ph2 *SD-contract dependency on Ph1* row: the Evaluator does not open `models/sd_model.md` or `models/sr_model.md` as a read-prerequisite.
-- §5 Ph1 Planner row: the "build i\* SD/SR models" sub-phase does not fire; the §3.1.1 validator is not invoked.
-- §5 Ph2 Evaluator row: "SD/SR models as explicit read-prerequisites" silently reduces to prose-only read.
-- §5.3 Evaluator's Ph1-model read contract: the entire read-before-prose sequence and the `E-Ph2-SD-UNGROUNDABLE` diagnostic are disabled.
-- §6.3 `imodel_structural_validation_signed` trigger: not recorded.
-- §6.3a `TierEntryLogRow` for sd/sr-related events: not emitted.
-
-**What remains unconditional.** The P-stage declaration (§3.1 row `p-stage-checker discipline`), the classification record itself, the problem statement, the grounding audit, the deterministic checks, and every non-i\*-specific contract in §§3.1–3.4 remain unchanged. The flag gates *only* the i\*-artefact-specific path.
-
-**Change-of-mind semantics.** A user may flip `sd_sr_required: false → true` at any phase by updating `reviews/classification.md`. On the next Planner pass, the SD/SR authoring sub-phase fires and the Cold-Start validator runs. A reverse flip (`true → false`) is recorded in `classification.md` with rationale but does not retroactively delete already-authored `models/` artefacts; it simply deactivates the downstream read contracts. Both flips are recorded in `phase_entry_log` under `classification_updated`.
-
-**Rationale.** The gate operationalizes the user directive that SD/SR modelling be a user-initiated, project-scoped commitment rather than a reflexive step. Under v0.7.0, SD/SR were effectively always-on for every manuscript opened in the harness; under v0.7.1, they are user-declared per manuscript. The change is backward-compatible (absent-means-false) and semantically clean (one canonical flag, read by every gate, no special cases).
+**SD contract at Ph1.** The human researcher depends on the Planner for orchestration (P-stage declaration, classification, draft sequencing) and on the Generator for prose. No Evaluator contract exists at Ph1, because prose is not yet externalizable. The Reflector's lightweight contract at Ph1 is a *safety* dependency (grounding integrity), not an *evaluation* dependency.
 
 ### 3.2 Ph2 — Review & Revise
 
@@ -148,8 +81,7 @@ The validator does **not** assess content quality; it confirms the structural sl
 | **Exit artefact** | `reviews/ph2_review_completion.md` — Generator-signed per-finding disposition record. Every finding carries `disposition: RESOLVED / ACKNOWLEDGED / ESCALATED`; every `ESCALATED` finding carries a `named_owner` field **and is bound to the Ph2→Ph3 transition contract specified in §3.2.1**. |
 | **Absorbs milestone** | M4a (first reviewed-and-revised pass — plan-originated subdivision per §4). |
 | **Active agents** | Planner, Evaluator, Generator, Reflector-lightweight. |
-| **SD-contract dependency on Ph1** | **When `sd_sr_required: true`** in `reviews/classification.md` (§3.1.2), the Evaluator's read contract explicitly opens `models/sd_model.md` and `models/sr_model.md` before prose reading; findings that cannot be grounded against the i\* framing are themselves flagged as `E-Ph2-SD-UNGROUNDABLE` (§5.3). When the flag is absent or `false` (the default), this row silently does not apply — the Evaluator reads prose directly and `E-Ph2-SD-UNGROUNDABLE` is not emitted. |
-| **Reflector mode** | Lightweight: divergence check between prose and the Ph1-frozen i\* model; non-blocking. |
+| **Reflector mode** | Lightweight: grounding-integrity safety; non-blocking. |
 | **Deterministic checks** | `DETERMINISTIC_CHECKS.md` full content. |
 | **Rule 1 digest exception** | Does **not** apply. Full-file reads mandatory from Ph2 upward. |
 | **Skills invoked** | `sentence-level-pass` (Bacon), `narrative-structure-pass` (Sexton), `grounding-audit` (full), `check-abstract-body`, `check-contradictions`, `p-stage-checker` (drift-only). |
@@ -418,7 +350,7 @@ The declared reason for supersession is that the v0.6.0 definitions describe *ar
 
 | Milestone (v0.7.0) | Phase | Activity | Recommended v0.6.0 artefact (not milestone-defining) |
 |---|---|---|---|
-| **M1 — Concept / ideation / problem framing** | Ph1 | Problem statement drafted; **when `sd_sr_required: true`** (§3.1.2), Planner also produces i\* SD/SR models. | `research_notes/project_memo.md` |
+| **M1 — Concept / ideation / problem framing** | Ph1 | Problem statement drafted. | `research_notes/project_memo.md` |
 | **M2 — Literature review / theoretical framing** | Ph1 | Generator drafts literature-review prose; incremental SK-16 sibling produces wiki source stubs. Full `grounding-audit` required (Q-E exception). | `research_notes/annotated_references.md` |
 | **M3 — Method + early draft** | Ph1 | Method and initial analysis sections drafted to prose-completeness. | `manuscript/outline.md` (as scaffolding within `main.md`) |
 | **M4a — First reviewed-and-revised pass** | Ph2 | First Evaluator engagement; BLOCKER/MAJOR disposition; named-owner records for ESCALATED. | `manuscript/main.md` at first-reviewed state |
@@ -439,10 +371,10 @@ Because §4.1 supersedes `AGENT_ORCHESTRATION.md §10.1`, the reduced-loop dispa
 
 | Agent | Ph1 Plan & Draft | Ph2 Review & Revise | Ph3 Iterate & Converge | Ph4 Finalize & Close |
 |---|---|---|---|---|
-| **Planner** | Bootstrap ledger, orchestrate drafting, freeze P-stage declaration; **when `sd_sr_required: true`** (§3.1.2), additionally build i\* SD/SR models and run the §3.1.1 structural validator before Ph1 sign-off. | Orchestrate Evaluator/Generator handoff, fire `p-stage-checker` (drift-only), track named owners of ESCALATED findings, **carry `named_owner` into Ph3 entry per §3.2.1**; **when `sd_sr_required: true`**, also verify SD/SR models open before Evaluator read. | Orchestrate iteration loop, write cumulative signoff rows, track `ph3_last_activity_at`, emit convergence-stable and staleness warnings, **enforce `transfer_rationale` non-emptiness on ownership transfers**, gate on signed terminal row. | Orchestrate MCR admission (including `[Ph3-STALE]` clearance and EG-7 re-admission), coordinate terminal-phase composition, **formalize Reflector-emitted plugin proposals into `plugin_update_proposals.md`** (sole gatekeeper), **emit override-inconsistency warning on EG-6 fires**. |
-| **Evaluator** | **Dormant.** | Full first-pass review (seven-step judgment, deterministic full, grounding audit, abstract–body, contradictions, SAFEGUARD, Bacon, Sexton); **when `sd_sr_required: true`** (§3.1.2), also with SD/SR models as explicit read-prerequisites. | Re-review per iteration; re-engagement on unresolved findings plus fresh surfaces exposed by Generator revisions. | Terminal review: verify `submission_bundle/` against `main.md`, render-contract drift, external-verifier internalization. |
-| **Generator** | Primary active: drafting from lit anchors (**and from i\* models when `sd_sr_required: true`** — §3.1.2). | Respond to findings: per-finding RESOLVED / ACKNOWLEDGED / ESCALATED (with named owner); no new substantive claims. | Iterative response; per-round self-verdict `Ph3-verdict: CONVERGING / CONTESTED / DIVERGING`; **propose ownership transfer with rationale when escalated finding moves domain (§3.2.1)**. | Final polish: assemble submission bundle, cover letter, response letter; no new substantive claims. |
-| **Reflector** | **Lightweight:** grounding audit (Rule 1). | **Lightweight:** divergence check against Ph1-frozen i\* model. | **Lightweight:** confirmation-failed history, drift, reflexivity. | **Full:** lessons extraction, Coupling A-revised reconciliation, Coupling B retrofit, Coupling C promotion, Coupling D ingest, skill-retirement proposals (R1–R5), skill-addition proposals (A1–A5, §5.4), tool-contract roundtrip. |
+| **Planner** | Bootstrap ledger, orchestrate drafting, freeze P-stage declaration. | Orchestrate Evaluator/Generator handoff, fire `p-stage-checker` (drift-only), track named owners of ESCALATED findings, **carry `named_owner` into Ph3 entry per §3.2.1**. | Orchestrate iteration loop, write cumulative signoff rows, track `ph3_last_activity_at`, emit convergence-stable and staleness warnings, **enforce `transfer_rationale` non-emptiness on ownership transfers**, gate on signed terminal row. | Orchestrate MCR admission (including `[Ph3-STALE]` clearance and EG-7 re-admission), coordinate terminal-phase composition, **formalize Reflector-emitted plugin proposals into `plugin_update_proposals.md`** (sole gatekeeper), **emit override-inconsistency warning on EG-6 fires**. |
+| **Evaluator** | **Dormant.** | Full first-pass review (seven-step judgment, deterministic full, grounding audit, abstract–body, contradictions, SAFEGUARD, Bacon, Sexton). | Re-review per iteration; re-engagement on unresolved findings plus fresh surfaces exposed by Generator revisions. | Terminal review: verify `submission_bundle/` against `main.md`, render-contract drift, external-verifier internalization. |
+| **Generator** | Primary active: drafting from lit anchors. | Respond to findings: per-finding RESOLVED / ACKNOWLEDGED / ESCALATED (with named owner); no new substantive claims. | Iterative response; per-round self-verdict `Ph3-verdict: CONVERGING / CONTESTED / DIVERGING`; **propose ownership transfer with rationale when escalated finding moves domain (§3.2.1)**. | Final polish: assemble submission bundle, cover letter, response letter; no new substantive claims. |
+| **Reflector** | **Lightweight:** grounding audit (Rule 1). | **Lightweight:** grounding integrity. | **Lightweight:** confirmation-failed history, drift, reflexivity. | **Full:** lessons extraction, Coupling A-revised reconciliation, Coupling B retrofit, Coupling C promotion, Coupling D ingest, skill-retirement proposals (R1–R5), skill-addition proposals (A1–A5, §5.3), tool-contract roundtrip. |
 
 ### 5.2 The Planner as gatekeeper
 
@@ -452,13 +384,7 @@ The Planner's Ph4 role is elevated at v0.7.0 to formal gatekeeper of Reflector o
 
 The Planner's round-entry responsibilities at v0.7.4 include authoring an F6 `planner_dispatch_plan` artefact at Phase 0.6 of every round under invariant I-Planner-10 (`AGENT_CONTRACTS.md §2 Planner`). The artefact lives at `reviews/dispatch_plan_<cycle_id>.md`, conforms to `ARTEFACT_FRONTMATTER_SCHEMA.md §7a`, and is presented to the user as a blocking checkpoint — no downstream Evaluator, Generator, or Reflector dispatch fires until `user_approval_signature` is populated. The plan declares `sections_in_scope`, `dispatched_agents[]` (each with `agent`, `phase`, `model_allocation`, `scope`, `purpose`), `checks_scheduled[]`, and any `subagent_envelope[]` entries. The Planner's subsequent Phase 4.5 (model allocation) and Phase 4.6 (subagent envelope) become *consumers* of Phase 0.6's pre-authored plan rather than independent resolvers; plan drift between Phase 0.6 and execution is audited by Reflector Phase 2f at step 6.9 (R-Refl-DP-1 MAJOR, R-Refl-DP-2 BLOCKER, R-Refl-DP-3 BLOCKER). The F6 is strict-family, is NOT inherited under P-2 stability sub-mode, and does not itself consume iteration budget. See `agents/planner.md` Phase 0.6 for the authoring procedure.
 
-### 5.3 The Evaluator's Ph1-model read contract
-
-> **Opt-in gate (v0.7.1).** This entire read contract is **conditional on `sd_sr_required: true` in `reviews/classification.md`** (§3.1.2). When the flag is absent or `false` (the default), the Evaluator reads `manuscript/main.md` directly at Ph2 entry without opening `models/sd_model.md` or `models/sr_model.md`, and the `E-Ph2-SD-UNGROUNDABLE` diagnostic is not emitted. The structural-dependency rationale below is unchanged for the opt-in case.
-
-At Ph2 entry, the Evaluator opens `models/sd_model.md` and `models/sr_model.md` *before* opening `manuscript/main.md`. Findings that cannot be grounded against the i\* framing are emitted with the diagnostic code `E-Ph2-SD-UNGROUNDABLE` and routed to the Planner rather than the Generator. This is how the Ph2 hard goal (reviewable draft) is made structurally dependent on the Ph1 primary deliverable (the frozen i\* models), not merely co-existent with it. The §3.1.1 structural-completeness contract is the upstream defence that makes this read contract possible: by the time the Evaluator runs, the i\* models are guaranteed to have the structural slots the read pass expects.
-
-### 5.4 Proposal and retirement criteria
+### 5.3 Proposal and retirement criteria
 
 v0.6.0's `SKILL_REGISTRY.md` defined R1–R5 as *retirement* criteria only:
 
@@ -546,7 +472,6 @@ The `milestone_scope` field proposed in earlier drafts is dropped because the `t
 The v0.6.0 trigger enum (12 values) is preserved; v0.7.0 adds the following:
 
 - `ph1_draft_completion_signed` — records the user's signed `ph1_draft_completion.md`.
-- `imodel_structural_validation_signed` — records the Planner's structural-completeness check on `sd_model.md` and `sr_model.md` (§3.1.1). **Emitted only when `sd_sr_required: true`** (§3.1.2); silently not recorded otherwise.
 - `ph2_review_completion_signed` — records the signed `ph2_review_completion.md`.
 - `escalation_owner_transferred` — records a `transferred_to` event in `convergence_log.md` (§3.2.1).
 - `escalation_named_owner_assigned` — records every ESCALATED-finding owner assignment at Ph2 / Ph3.
@@ -579,7 +504,7 @@ Three structured row shapes are consumed by tooling across v0.7.0. Their full-sc
 | `timestamp` | string (ISO-8601 UTC) | Monotonically non-decreasing across rows in the same array. |
 | `trigger` | enum | One of the trigger values enumerated in §6.3. |
 | `prev_phase` | enum \| null | One of `Ph1` / `Ph2` / `Ph3` / `Ph3_converged` / `Ph4`, or `null` for the initial row. |
-| `new_phase` | enum \| null | Same enum; `null` when the trigger records a non-phase-changing event (e.g., `eg6_override_inconsistency_warning`, `imodel_structural_validation_signed`). |
+| `new_phase` | enum \| null | Same enum; `null` when the trigger records a non-phase-changing event (e.g., `eg6_override_inconsistency_warning`). |
 | `actor` | enum | One of `planner` / `evaluator` / `generator` / `reflector` / `user`. |
 | `notes` | string (≤ 280 chars) | Optional. Free-text trace for the Reflector; validator bounds the length. |
 
@@ -631,7 +556,7 @@ Idempotent single-pass migration:
 
 A second run is a no-op (verified by `schema_version == "0.7.0"`).
 
-**Migration test discipline.** Before release, the migration script is tested against deliberately corrupted inputs, including a v0.6.0 file where the pre-v0.7.0 exit artefacts (`ph1_draft_completion.md` etc.) cannot exist because they are v0.7.0 inventions. The script handles this as a *graceful cold-start* on the exit-artefact contract, not a hard failure. Specifically: on a migrating section, if a v0.7.0 exit artefact is absent *and* the section's `last_approved_phase` shows it previously cleared the phase, the script writes a *placeholder* exit artefact with a `migration_origin: v0.6.0` flag, permitting the v0.6.0 prior approval to be honored without fabricating content. The same cold-start exception applies to §3.1.1's i\* structural-completeness contract: a migrating section that previously cleared Ph1 in v0.6.0 carries an `imodel_structural_validation: deferred_v060_migration` flag; the validator runs on the next post-migration Ph1 sign-off, not retroactively.
+**Migration test discipline.** Before release, the migration script is tested against deliberately corrupted inputs, including a v0.6.0 file where the pre-v0.7.0 exit artefacts (`ph1_draft_completion.md` etc.) cannot exist because they are v0.7.0 inventions. The script handles this as a *graceful cold-start* on the exit-artefact contract, not a hard failure. Specifically: on a migrating section, if a v0.7.0 exit artefact is absent *and* the section's `last_approved_phase` shows it previously cleared the phase, the script writes a *placeholder* exit artefact with a `migration_origin: v0.6.0` flag, permitting the v0.6.0 prior approval to be honored without fabricating content.
 
 ---
 
@@ -887,10 +812,9 @@ Per project under `Ph.D. Research/` (or equivalent portfolio root):
    - `ph1_pstage_declaration` — from `reviews/classification.md` if available; else `null` with warning `W-PSTAGE-UNAVAILABLE`.
    - `ph3_last_activity_at` — `null`. Emit `W-Ph3-ACTIVITY-NULL` for every migrated Ph3 section.
 6. **Exit-artefact cold-start.** On a migrating section, if a v0.7.0 exit artefact is absent *and* the section's `last_approved_phase` shows it previously cleared the phase, the script writes a *placeholder* exit artefact with a `migration_origin: v0.6.0` flag, permitting the v0.6.0 prior approval to be honored without fabricating content.
-7. **i\* structural-validation cold-start.** A migrating section that previously cleared Ph1 in v0.6.0 carries an `imodel_structural_validation: deferred_v060_migration` flag; the §3.1.1 validator runs on the next post-migration Ph1 sign-off, not retroactively.
-8. **Archive the pre-migration file** at `reviews/tier_state.v0.6.0.json`.
-9. **Emit `reviews/migration_report_v0.6_to_v0.7.md`** listing every translated section and every warning raised.
-10. **Preserve v0.6.0 artefacts.** `reviews/tier_state.v0.6.0.json` is retained in the repository; the Reflector's Ph4 digest-integrity audit reads both the migration report and the archived v0.6.0 state to verify the rename chain.
+7. **Archive the pre-migration file** at `reviews/tier_state.v0.6.0.json`.
+8. **Emit `reviews/migration_report_v0.6_to_v0.7.md`** listing every translated section and every warning raised.
+9. **Preserve v0.6.0 artefacts.** `reviews/tier_state.v0.6.0.json` is retained in the repository; the Reflector's Ph4 digest-integrity audit reads both the migration report and the archived v0.6.0 state to verify the rename chain.
 
 ### 12.2 Compatibility envelope
 
@@ -916,10 +840,9 @@ Migration is **one-way.** Rollback to v0.6.0 requires the archived `reviews/tier
    - `off`: no resets; `fingerprint_drift_advisory` rows only.
 6. **Concurrency contract honoured.** No `phase_state.json` overwrite occurs against a divergent mtime + hash without explicit user resolution via the §8.7 prompt.
 7. **Linear-Accountability defence honoured.** Every `ESCALATED` finding has, at any point in time, exactly one named owner. Every ownership transfer carries a non-empty `transfer_rationale`. `E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE` fires on violation.
-8. **Cold-Start defence honoured.** Every `ph1_draft_completion.md` is preceded by a passing `imodel_structural_validation_signed` row. `E-IMODEL-STRUCTURALLY-INCOMPLETE` fires on violation.
-9. **Workflow Failure-Point defence honoured.** No Ph4 admission proceeds while any section carries a computed `[Ph3-STALE] = true`. `E-MCR-BLOCKED-Ph3-STALE` fires on violation.
-10. **Row-shape contract honoured.** Every row in `phase_entry_log` and every row in `ph3_convergence_signoff.md` conforms to the §6.3a schemas. `E-ROW-SHAPE-VIOLATION` fires on violation.
-11. **Reflector re-expansion productive.** Reflector-lightweight at Ph1/Ph2/Ph3 fires zero false-positive blocks across the round. (Soft metric; Reflector-full audits the lightweight's log at Ph4.)
+8. **Workflow Failure-Point defence honoured.** No Ph4 admission proceeds while any section carries a computed `[Ph3-STALE] = true`. `E-MCR-BLOCKED-Ph3-STALE` fires on violation.
+9. **Row-shape contract honoured.** Every row in `phase_entry_log` and every row in `ph3_convergence_signoff.md` conforms to the §6.3a schemas. `E-ROW-SHAPE-VIOLATION` fires on violation.
+10. **Reflector re-expansion productive.** Reflector-lightweight at Ph1/Ph2/Ph3 fires zero false-positive blocks across the round. (Soft metric; Reflector-full audits the lightweight's log at Ph4.)
 
 ---
 
@@ -980,6 +903,6 @@ These do **not** block the v0.7.0 release; they are tracked as forward work.
 
 *Normative status.* This file is the single source of truth for phase semantics at v0.7.4. Other package files (`AGENT_ORCHESTRATION.md`, `REVIEW_ORCHESTRATION.md`, `GROUNDING_PROTOCOL.md`, `SKILL_REGISTRY.md`, `ROUTING_SPINE.md`, the four `run-phase-N` skills) name and apply phase concepts but do not redefine them. Any conflict between this file and another package file is resolved in favour of this file unless the other file is explicitly `GROUNDING_PROTOCOL.md` (which sits outside the precedence ladder; see project CLAUDE.md §5).
 
-*Grounding trail.* Every section above derives from `TIER_REDESIGN_v0.7-draft-5.md` (for the lifecycle-reframe substrate) and from the v0.7.4 economic-efficiency proposal bundle (for the Tier → Phase rename and the P-1 through P-8 additions): §1 ← draft-5 §§1, 2.2, 10 + v0.7.4 supersession clause; §2 ← draft-5 §2; §3 ← draft-5 §3 (with §§3.1.1, 3.2.1, 3.3.1 as the three plan-originated mandatory safety constraints); §4 ← draft-5 §4; §5 ← draft-5 §5; §6 ← draft-5 §6 (including §6.3a row schemas, widened to seven fields at v0.7.4 with `model_used` per Ph.D. Research CLAUDE.md §12.9); §7 ← draft-5 §8.3; §8 ← draft-5 §8.1 and v0.6.0 §6 (preserved with phase-down broadening); §9 ← draft-5 §§3.4, 8.4, Q-D; §10 ← v0.7.4 retirement (the draft-5 §§3.1, 9 Q-E exception is retired outright at v0.7.4); §11 ← draft-5 §10 + v0.7.4 retirement items 9–14; §12 ← draft-5 §6.4; §13 ← draft-5 §12 + v0.6.0 §11; §14 ← draft-5 §14 (inferred from v0.6.0 §12 with renaming); §15 ← draft-5 §11 (plan-originated constants table inferred from the narrative).
+*Grounding trail.* Every section above derives from `TIER_REDESIGN_v0.7-draft-5.md` (for the lifecycle-reframe substrate) and from the v0.7.4 economic-efficiency proposal bundle (for the Tier → Phase rename and the P-1 through P-8 additions): §1 ← draft-5 §§1, 2.2, 10 + v0.7.4 supersession clause; §2 ← draft-5 §2; §3 ← draft-5 §3 (with §§3.2.1, 3.3.1 as the plan-originated mandatory safety constraints; the v0.7.0 §3.1.1 i\* structural-completeness contract was retired at v0.11.0 with the SD/SR machinery cut); §4 ← draft-5 §4; §5 ← draft-5 §5; §6 ← draft-5 §6 (including §6.3a row schemas, widened to seven fields at v0.7.4 with `model_used` per Ph.D. Research CLAUDE.md §12.9); §7 ← draft-5 §8.3; §8 ← draft-5 §8.1 and v0.6.0 §6 (preserved with phase-down broadening); §9 ← draft-5 §§3.4, 8.4, Q-D; §10 ← v0.7.4 retirement (the draft-5 §§3.1, 9 Q-E exception is retired outright at v0.7.4); §11 ← draft-5 §10 + v0.7.4 retirement items 9–14; §12 ← draft-5 §6.4; §13 ← draft-5 §12 + v0.6.0 §11; §14 ← draft-5 §14 (inferred from v0.6.0 §12 with renaming); §15 ← draft-5 §11 (plan-originated constants table inferred from the narrative).
 
 *Last updated.* 2026-04-21 — v0.7.4 rename pass. Renamed from `TIER_PROTOCOL.md` under the cross-cutting Tier → Phase terminology rename; retired §10's phase-gated digest exception in favour of universal full-file reads at every phase; retired Reflector Phase 3a Digest Integrity; extended §11 retirement ledger with items 9–14; added the v0.7.4 supersession clause at the top covering the lifecycle-phase ladder rename, the 15-field `SectionStateObject` field renames, the 6 → 7 log-row widening with absent-means-null `model_used`, the 28 → 30 trigger enum extension (trigger 29 `ph3_iteration_round_manuscript` per P-7, trigger 30 `stability_mode_escalated_to_full_ph3` per P-2), the `eg1_t4_downgrade_to_t3` → `eg1_ph4_downgrade_to_ph3` trigger rename, the I-SubAgent-1 invariant, and the eight economic-efficiency proposals P-1 through P-8. Previous: 2026-04-19 — Phase 1 of v0.7.0 rollout. Supersedes the v0.6.0 `TIER_PROTOCOL.md` as the normative source.
