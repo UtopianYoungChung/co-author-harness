@@ -37,6 +37,8 @@ Each of these questions is a **Category 1 citation audit** (Rule 4) question tha
 
 3. **External Class 1 / discovery tools (third).** Scholar Gateway, **Consensus**, and other Class 1 verifiers in §2 — for net-new external discovery, contested claims, or 7a verification. Do not use these *instead of* step 1 when the wiki is linked and a reasonable wiki pass could answer the question.
 
+**Skill executors.** At Ph1, **SK-33 `seed-snowball-discovery`** is the package's named executor of this three-step order: its seed and iterate phases walk steps 1–3 in sequence (wiki-first graph traversal → Zotero → Scholar Gateway fall-through), logging a traceable `Wiki-first:` line per step 1's requirement. At Ph2 in-loop, **SK-35 `extend-snowball-incremental`** re-executes steps 1–3 narrowed to a single uncovered claim from SK-34's `## Uncovered` table. When `wiki_linked: false` or `wiki_first_resources: false`, both skills skip step 1 and begin at step 2 (Zotero).
+
 **Non-overlap with Rule 7a.** The Zotero row in §2 still names library-first **for citation resolution** where the user likely holds the item. **Discovery** is wiki → Zotero → external; **7a** Step 1 in `GROUNDING_PROTOCOL.md` remains Zotero first *among Class 1 tools* for removing `[UNVERIFIED]` on a specific attribution, unless the project’s verification log already established coverage via wiki *full* reads.
 
 ---
