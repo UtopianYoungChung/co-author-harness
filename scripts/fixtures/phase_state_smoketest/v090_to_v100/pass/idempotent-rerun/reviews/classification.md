@@ -10,6 +10,8 @@ synthesis_alignment_threshold_cosine: 0.6
 synthesis_alignment_threshold_jaccard: 0.3
 auto_redlink_snowball: false
 red_link_cap_per_round: 5
+inherit_snowball: true
+pre_seed_cap: 10
 ---
 
 # Classification — idempotent-rerun

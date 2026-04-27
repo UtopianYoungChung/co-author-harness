@@ -7,7 +7,7 @@
 # reference-architecture.md §5.4` and the implementation strategy
 # `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §3.3`.
 #
-# **Status: S2 + S4 + S4.5 R2 implementation** — S2 shipped the four
+# **Status: S2 + S4 + S4.5 R2 + S6 implementation** — S2 shipped the four
 # S2-scoped functions (references_initialized field-add via heuristic;
 # schema_version bump; classification.md `claim_coverage_threshold` append;
 # fixture suite). S4 added `last_coverage_score` to the SectionStateObject
@@ -15,8 +15,9 @@
 # with six scalar fields surfacing parameters previously encoded inline at
 # S2/S4 (`coverage_regression_floor`, `max_parallel_extend_snowball`) or
 # shipping concurrently with consumers in SK-34 Phase 2.5 and SK-16
-# Phase 4.5 (synthesis thresholds + the two red-link fields). The
-# invariant check tolerates {16, 17, 18}.
+# Phase 4.5 (synthesis thresholds + the two red-link fields). S6 adds
+# `inherit_snowball` (wiki_linked-conditional) and `pre_seed_cap` (SK-36
+# cross-project pre-seed). The invariant check tolerates {16, 17, 18}.
 #
 # Scope (filled at S2)
 # --------------------
@@ -138,7 +139,8 @@ CLASSIFICATION_DEFAULTS = {
 # synthesis thresholds use Option-B flat-scalar shape (per the S4.5 R2 entry
 # decision); the runtime picks cosine vs. Jaccard based on the project's
 # `wiki_access_mode`. The S6 `inherit_snowball` / `pre_seed_cap` fields
-# remain queued for their own stage.
+# are wiki_linked-conditional: `inherit_snowball` defaults to True when
+# wiki_linked:true (else False); `pre_seed_cap` defaults to 10 regardless.
 S2_CLASSIFICATION_FIELDS = ("claim_coverage_threshold",)
 S4_5_CLASSIFICATION_FIELDS = (
     "coverage_regression_floor",
@@ -148,6 +150,12 @@ S4_5_CLASSIFICATION_FIELDS = (
     "auto_redlink_snowball",
     "red_link_cap_per_round",
 )
+# S6: SK-36 inherit-snowball-from-wiki parameters.
+# `inherit_snowball` is wiki_linked-conditional (handled inside
+# extend_classification_md — cannot use CLASSIFICATION_DEFAULTS directly
+# because the default differs by wiki_linked status).
+# `pre_seed_cap` uses the CLASSIFICATION_DEFAULTS value unconditionally.
+S6_CLASSIFICATION_FIELDS = ("inherit_snowball", "pre_seed_cap")
 
 # Legal SectionStateObject field counts during the v0.9.0 -> v0.10.0 migration
 # rollout. 16 = pre-migration (v0.9.0); 17 = post-S2 (this migration);
@@ -362,16 +370,14 @@ def extend_classification_md(classification_path: Path, wiki_linked: bool) -> st
     the runtime picks cosine vs. Jaccard based on the project's
     `wiki_access_mode`.
 
-    The `wiki_linked` parameter is reserved for the S6 `inherit_snowball`
-    addition, which is gated to wiki-linked projects. At S2 / S4.5 R2 the
-    parameter is accepted but not consumed (the new S4.5 fields are inert
-    on non-wiki-linked projects: the synthesis thresholds and red-link cap
-    are read only by SK-34 Phase 2.5 and SK-16 Phase 4.5, both of which
-    no-op on `wiki_linked: false`; the coverage / fanout parameters apply
-    everywhere).
+    S6 adds two SK-36 `inherit-snowball-from-wiki` parameters:
+    `inherit_snowball` (defaults to `true` when `wiki_linked: true`, else
+    `false`) and `pre_seed_cap` (defaults to 10 unconditionally). The
+    `wiki_linked` parameter drives the conditional default for
+    `inherit_snowball`; all other S6/S2/S4.5 fields are wiki_linked-agnostic.
 
-    Idempotent: existing values are preserved; missing S2 / S4.5 fields are
-    appended in declaration order. Returns the new file text. Raises
+    Idempotent: existing values are preserved; missing S2 / S4.5 / S6 fields
+    are appended in declaration order. Returns the new file text. Raises
     ValueError if frontmatter is unparseable (caller maps to exit 7).
     """
     if not classification_path.is_file():
@@ -402,16 +408,22 @@ def extend_classification_md(classification_path: Path, wiki_linked: bool) -> st
         if m:
             existing_keys.add(m.group(1))
 
-    # Append S2 + S4.5 R2 fields if absent. Preserves trailing-blank-line
+    # Append S2 + S4.5 R2 + S6 fields if absent. Preserves trailing-blank-line
     # discipline. Order: S2 fields first (preserving the existing v0.9.0 → S2
     # migration order), then S4.5 R2 fields in conceptual grouping —
     # coverage-related (regression floor + parallel cap), synthesis-related
-    # (cosine + Jaccard thresholds), red-link-related (auto + cap).
+    # (cosine + Jaccard thresholds), red-link-related (auto + cap) — then S6
+    # fields (inherit_snowball wiki_linked-conditional, pre_seed_cap fixed).
     appended: list[str] = []
-    for key in (*S2_CLASSIFICATION_FIELDS, *S4_5_CLASSIFICATION_FIELDS):
+    for key in (*S2_CLASSIFICATION_FIELDS, *S4_5_CLASSIFICATION_FIELDS,
+                *S6_CLASSIFICATION_FIELDS):
         if key in existing_keys:
             continue
-        default = CLASSIFICATION_DEFAULTS[key]
+        # S6 special case: inherit_snowball default depends on wiki_linked.
+        if key == "inherit_snowball":
+            default = wiki_linked  # True if wiki_linked else False
+        else:
+            default = CLASSIFICATION_DEFAULTS[key]
         appended.append(f"{key}: {_yaml_scalar(default)}")
 
     if not appended:
