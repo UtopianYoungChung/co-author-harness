@@ -101,15 +101,28 @@ def extract_marketplace_self_referencing_versions(
         source = str(entry.get("source", "")).strip()
         if not source:
             continue
-        # Normalise to absolute path for comparison; treat "." / "./" as
-        # the marketplace.json's directory, which is plugin_root/.claude-plugin.
-        # The convention is that source is relative to marketplace.json's
-        # location, so source="." in plugin_root/.claude-plugin/marketplace.json
-        # resolves to plugin_root/.claude-plugin — but the harness convention
-        # (verified against the v0.10.0 marketplace.json) treats source="."
-        # as the plugin root one level up. We honour both interpretations:
-        # if either resolution lands on plugin_root, count the entry as
-        # self-referencing.
+        # Format check (v0.10.1 follow-up): the Claude Code marketplace
+        # loader's schema rejects bare "." as `Invalid input` for the
+        # `source` field. Accepted forms surfaced empirically against
+        # working examples are relative paths starting with "./" or
+        # "../", and absolute git/HTTPS URLs. We do not enforce git URLs
+        # here (the loader handles those); we only flag the bare-dot
+        # class that has shipped twice (v0.10.0 RC marketplace skew and
+        # v0.10.1 RC schema-format slip) so future RC gates catch it.
+        if source in (".", ".."):
+            self_versions.append(
+                (
+                    str(entry.get("name", "<unnamed>")).strip() or "<unnamed>",
+                    f"<INVALID_SOURCE_FORMAT: bare '{source}' rejected by "
+                    f"marketplace loader; use '{source}/' instead>",
+                )
+            )
+            continue
+        # Normalise to absolute path for comparison; treat "./" and
+        # "../" as relative-to-marketplace.json's-directory by Claude
+        # Code convention. We additionally try the parent-of-marketplace
+        # interpretation (some marketplaces co-locate the registration
+        # one directory up) so the check is robust to layout variation.
         candidates = [
             (marketplace_path.parent / source).resolve(),  # ./ relative to marketplace.json
             (marketplace_path.parent.parent / source).resolve(),  # ./ relative to plugin root

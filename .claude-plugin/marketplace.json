@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "co-author-harness-claude",
-      "source": ".",
+      "source": "./",
       "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d prefilter, provenance, wiki-first, snowball-driven reference scaffolding (v0.10.0); v0.10.1 arch/strategy doc mirrors + SAFEGUARD Check 8 Sub-check H (Register Appropriateness, advisory_until: H_two_revision_cycles). Run /plugin-commands for the full slash catalog.",
       "version": "0.10.1",
       "author": {
