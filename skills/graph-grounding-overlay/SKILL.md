@@ -180,7 +180,8 @@ A grounding-audit Category 8 violation (e.g., a `[source: graph-extracted]` find
 - **Upstream:** SK-15 `backfill-source-stubs-from-references` populates `wiki/sources/` stubs, which provides the mapping between citation keys and `raw/papers/*.pdf` paths that Phase 2 relies on.
 - **Downstream:** `grounding-audit` skill (Category 8 validates SK-20's output).
 - **Sibling:** SK-18 `advisor-escalation` is structurally analogous — both skills bridge an external source of claims (advisor MCP; graphify graph) into the pipeline with tag-preserved uncertainty inheritance. SK-18 extends grounding-audit with Category 7; SK-20 extends it with Category 8.
-- **Planned successors (not this skill):** SK-19 `graph-read-at-planner` (Coupling E.1, M1-timed planner input from god-nodes and suggested questions), SK-21 `graph-contradiction-sweep` (Coupling E.3, extends check-contradictions with cross-corpus edges). These are roadmapped but not part of the v0.3.0 pilot.
+- **Coupling E.1 — now implemented:** The `SK-19 graph-read-at-planner` placeholder is **retired**. Coupling E.1 is materialised at v0.10.0 via **SK-33 `seed-snowball-discovery`**'s graph-substrate iterate phase — see `references/AGENT_ORCHESTRATION.md §8.6 Coupling E.1`. The `graph-read-at-planner` token is preserved only as the coupling's historical identifier in the roadmap.
+- **Planned successor (not this skill):** SK-21 `graph-contradiction-sweep` (Coupling E.3, extends check-contradictions with cross-corpus edges). Roadmapped; not yet built.
 
 ## Failure modes and mitigations
 

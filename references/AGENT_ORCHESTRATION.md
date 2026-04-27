@@ -548,9 +548,11 @@ After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-
 
 ## 8.6 Graphify Grounding Couplings (E.1 and E.2)
 
-### Coupling E.1 — Graph-substrate snowball seeding (`graph-read-at-planner`, SK-33)
+### Coupling E.1 — Graph-substrate snowball seeding (SK-33 `seed-snowball-discovery`)
 
-At Ph1, the Planner dispatches **SK-33 `seed-snowball-discovery`**, whose iterate phase traverses `${wiki_path}/graphify-out/graph.json` as the primary snowball substrate before falling through to Scholar Gateway for graph-stub seeds. This materialises Coupling E.1 (`graph-read-at-planner`), previously roadmapped as an unimplemented placeholder in SK-20's §Dependencies section. Firing conditions mirror SK-20's Preconditions 1–3: `wiki_linked: true`, `graph.json` exists, and the graph's `captured_at` is fresh. When the graph is absent or stale, SK-33 no-ops the graph traversal and proceeds directly to Scholar Gateway (the same graceful fallback pattern as SK-20).
+At Ph1, the Planner dispatches **SK-33 `seed-snowball-discovery`** in two phases. The **seed phase** first follows the §1.5 wiki-first order (peer LLM wiki → Zotero → Scholar Gateway fall-through). The **iterate phase** then adds the graph-substrate variant: it traverses `${wiki_path}/graphify-out/graph.json` as the primary substrate before falling through to Scholar Gateway only for graph-stub seeds. Together the two phases materialise Coupling E.1 — previously roadmapped as the `graph-read-at-planner` placeholder in SK-20's §Dependencies (now retired; E.1 is implemented via SK-33's graph-substrate iterate phase as of v0.10.0-S1.5).
+
+**SK-33 firing and fallback.** SK-33 fires at Ph1 when `wiki_linked: true`. The graph-substrate iterate path additionally requires `graph.json` to exist and its `captured_at` to be fresh per SK-20 Precondition 3. When the graph is absent or stale, SK-33 logs `[graph-stale]` in `reviews/snowball_log.md` and continues in external-verifier-only mode for that pass — a graceful degradation, not a full skill no-op (contrast: SK-20 performs a full-skill no-op and emits `sk20_noop_YYYY-MM-DD.json`). Additionally, if `inherit_snowball: true` in `reviews/classification.md` (default for wiki-linked projects), SK-33 auto-invokes **SK-36 `inherit-snowball-from-wiki`** as a pre-seed step before its seed phase; this auto-invocation is a no-op until SK-36 reaches Active status (S6 target).
 
 **Directionality.** Coupling E.1 and E.2 are both read-couplings (the pipeline reads from graphify's output) but fire at different agents and phases: E.1 fires at the Planner's Ph1 seed stage; E.2 fires at the Evaluator's pre-flight before every Ph2+ round. Together they close the graphify → pipeline feedback loop at both ends of the pipeline.
 
