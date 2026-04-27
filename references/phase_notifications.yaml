@@ -713,9 +713,12 @@ ph1_ph2_signoff:
       ► E-COVERAGE-AUDIT-FAILED on {section_heading_path}.
       SK-NEW-B `claim-coverage-audit` was dispatched at run-phase-2 Step 0.5 but did not return a
       usable coverage score (reason: {reason_code} — see `skills/claim-coverage-audit/SKILL.md §2`
-      no-op reason codes for the canonical taxonomy: SECTION_AMBIGUOUS, EMPTY_SECTION_BODY,
-      EMPTY_REFERENCES_POOL, CLASSIFICATION_MISSING, IDEMPOTENT_HIT, plus any non-degradable
-      execution failure). NON-BLOCKING: Ph2 dispatch continues to Evaluator Step 0a; the
+      no-op reason codes for the canonical NON-DEGRADABLE taxonomy that fires THIS code:
+      SECTION_AMBIGUOUS, EMPTY_SECTION_BODY, EMPTY_REFERENCES_POOL, CLASSIFICATION_MISSING, plus any
+      non-degradable execution failure. The IDEMPOTENT_HIT reason code is NOT a failure — it is a
+      clean-exit-equivalent surfacing the prior audit's report path; the Planner treats it as
+      outcome (i) per `agents/planner.md §Phase 3.8` and does NOT emit this code).
+      NON-BLOCKING: Ph2 dispatch continues to Evaluator Step 0a; the
       eight `pre_phase_advance_check.py` clauses remain the binding admission contract.
       The section's `last_coverage_score` field is NOT updated for this round; cross-round
       regression detection is suspended for this section until a successful audit lands.
