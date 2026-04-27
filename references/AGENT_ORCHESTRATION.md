@@ -546,7 +546,15 @@ For bootstrapping from an existing draft or a course assignment, see `PROJECT_BO
 
 After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-14 `promote-lessons-to-wiki`** to materialize newly updated `lessons_learned.md` entries as a synthesis page in the peer `LLM wiki/` store. This is the Research → Wiki feedback loop codified in the 2026-04-13 synergy audit. The full protocol lives in `agents/reflector.md §Phase 3.5`; the skill file is `skills/promote-lessons-to-wiki.md`. Authoritative asymmetry is preserved: the project's `lessons_learned.md` is append-only source of truth, the wiki synthesis is a regenerable view. Firing is conditional (wiki must be reachable; lesson set must have changed; at least one lesson must be G/P-classifiable), and the outcome is recorded in reflection report §10.
 
-## 8.6 Graphify Grounding Overlay (Coupling E.2)
+## 8.6 Graphify Grounding Couplings (E.1 and E.2)
+
+### Coupling E.1 — Graph-substrate snowball seeding (`graph-read-at-planner`, SK-33)
+
+At Ph1, the Planner dispatches **SK-33 `seed-snowball-discovery`**, whose iterate phase traverses `${wiki_path}/graphify-out/graph.json` as the primary snowball substrate before falling through to Scholar Gateway for graph-stub seeds. This materialises Coupling E.1 (`graph-read-at-planner`), previously roadmapped as an unimplemented placeholder in SK-20's §Dependencies section. Firing conditions mirror SK-20's Preconditions 1–3: `wiki_linked: true`, `graph.json` exists, and the graph's `captured_at` is fresh. When the graph is absent or stale, SK-33 no-ops the graph traversal and proceeds directly to Scholar Gateway (the same graceful fallback pattern as SK-20).
+
+**Directionality.** Coupling E.1 and E.2 are both read-couplings (the pipeline reads from graphify's output) but fire at different agents and phases: E.1 fires at the Planner's Ph1 seed stage; E.2 fires at the Evaluator's pre-flight before every Ph2+ round. Together they close the graphify → pipeline feedback loop at both ends of the pipeline.
+
+### Coupling E.2 — Graphify grounding overlay (SK-20)
 
 Before every Evaluator round's Step 1 (Classification Gating), the Evaluator pre-flight invokes **SK-20 `graph-grounding-overlay`** to overlay graphify's knowledge-graph output (`LLM wiki/graphify-out/graph.json` + `GRAPH_REPORT.md`) onto the manuscript's citation set. This is the Graphify → Pipeline feedback loop codified in the 2026-04-16 synergy analysis; it fires in the reverse direction from Couplings C and D (which write into the wiki) — SK-20 reads graphify's output and injects findings into the review. The full protocol lives in `skills/graph-grounding-overlay/SKILL.md`; the output is written to `reviews/graph_overlay_YYYY-MM-DD.md`.
 
