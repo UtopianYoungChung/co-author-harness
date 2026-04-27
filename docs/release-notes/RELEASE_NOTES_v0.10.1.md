@@ -3,19 +3,23 @@
 # Release Notes — co-author-harness-claude v0.10.1
 
 **Release date:** 2026-04-27
-**Theme:** **Hardening patch** closing the two work items declared in v0.10.0's "Deferred to v0.10.1+" list — architecture- and strategy-doc mirrors for the four S4 binding decisions, plus the accessibility Sub-check H (Register Appropriateness) amendment — with one hot-fix for the v0.10.0 RC marketplace.json version-skew that was rejecting the `.plugin` loader install.
-**Verdict:** CLEARED — 0 blockers, 0 warnings across all four validation scripts at RC gate.
-**Status:** FINAL — five commits on `patch/v0.10.1` off `4a02b66` (v0.10.0 RC tip); annotated tag `v0.10.1`.
+**Theme:** **Hardening patch** closing the two work items declared in v0.10.0's "Deferred to v0.10.1+" list — architecture- and strategy-doc mirrors for the four S4 binding decisions, plus the accessibility Sub-check H (Register Appropriateness) amendment — with two marketplace.json hot-fixes: the v0.10.0 RC version-skew that was rejecting the `.plugin` loader install, and a subsequent source-format slip (bare `"."` rejected by the marketplace loader's schema; canonical form `"./"`) discovered post-RC-tag and folded into v0.10.1 via tag re-anchor.
+**Verdict:** CLEARED — 0 blockers, 0 warnings across all four validation scripts at RC gate (post-source-format-fix).
+**Status:** FINAL — eight commits on `patch/v0.10.1` off `4a02b66` (v0.10.0 RC tip); annotated tag `v0.10.1` re-anchored twice within ~30 min of original creation (no consumers existed at re-anchor time; force-move accepted as the first WORKING release tag).
 
 ---
 
 ## 1. One-paragraph summary
 
-v0.10.1 is a doc-only-plus-one-hot-fix hardening patch — no new skills, no schema changes, no phase-runner Step edits, §6.0 coupling-checklist EXEMPT throughout. Three layers landed in five commits. The hot-fix (commit `103faf4`) syncs `.claude-plugin/marketplace.json` to plugin.json (both at `0.10.0` mid-patch; both at `0.10.1` after RC) and extends `scripts/version-check.py` with a marketplace-self-referencing-version check that hard-gates future RCs on the same class of skew. The arch/strategy mirrors (commit `f614b34`) backport the four S4 binding decisions anchored at `agents/planner.md §Phase 3.8` into the architecture and strategy plan docs as cross-references, not duplications — the IDEMPOTENT_HIT outcome class missing from the architecture doc since S4 is now enumerated; the inline parallel-fanout cap of 8 is registered as Risk R-14; the cross-round coverage-regression hook is named at §5.2 Edit-2 closing prose with `agents/planner.md §Phase 3.8` as SOT; and the Phase 3.7-vs-3.8 halt-vs-continue asymmetry is anchored as the canonical example in §6.0 closing paragraph. The accessibility Sub-check H amendment (commits `0c408dc` + `2d5ea2e` + `edfe0a9`) operationalises the user's daily-language directive at three integration points: a passage-scoped variant covering the five non-technical passage roles (signpost orienting/contribution clauses, section framing, inter-section transitions, worked-example vignette bodies, consolidation anchor sentences); a manuscript-scoped variant under the new `register_class: technical | mixed | non-technical` field in `research_notes/directives.md`; and a presence-of-positive-markers compliance frame (concrete-referent anchoring, agent-verb-object default, plain-English connectives) inverted from the usual absence-of-negative-markers grammar to close the dilution back-door. H ships under `advisory_until: H_two_revision_cycles` with cycle-counting retirement via `h_advisory_cycles_observed` in `reviews/classification.md`. The plan doc's five Open Questions were adjudicated to the Default proposed answers per user direction 2026-04-27. The 32-skill invariant holds (H is overlay-internal per the plan doc's recommended path); SAFEGUARD Check 8's sub-check count expands from seven (A–G) to eight (A–H).
+v0.10.1 is a doc-only-plus-two-hot-fixes hardening patch — no new skills, no schema changes, no phase-runner Step edits, §6.0 coupling-checklist EXEMPT throughout. Three layers landed in five primary commits, with one initial RC gate commit, one post-RC marketplace fix (commit `7a53c02`), and this doc-backfill commit aligning the narrative artefacts with the final tag anchor. The first hot-fix (commit `103faf4`) syncs `.claude-plugin/marketplace.json` to plugin.json (both at `0.10.0` mid-patch; both at `0.10.1` after RC) and extends `scripts/version-check.py` with a marketplace-self-referencing-version check that hard-gates future RCs on the same class of skew. The second hot-fix (commit `7a53c02`, post-RC-tag) closes a sibling marketplace.json slip: `"source": "."` was rejected by the Claude Code marketplace loader's schema as `Invalid input`; canonical accepted form is `"source": "./"`. The fix is one character in `marketplace.json` plus a parallel guard in `scripts/version-check.py` that flags bare `"."`/`".."` as `<INVALID_SOURCE_FORMAT>` — both classes of marketplace.json slip (version skew + source format) now hard-gate at the validator before any future RC tag. The arch/strategy mirrors (commit `f614b34`) backport the four S4 binding decisions anchored at `agents/planner.md §Phase 3.8` into the architecture and strategy plan docs as cross-references, not duplications — the IDEMPOTENT_HIT outcome class missing from the architecture doc since S4 is now enumerated; the inline parallel-fanout cap of 8 is registered as Risk R-14; the cross-round coverage-regression hook is named at §5.2 Edit-2 closing prose with `agents/planner.md §Phase 3.8` as SOT; and the Phase 3.7-vs-3.8 halt-vs-continue asymmetry is anchored as the canonical example in §6.0 closing paragraph. The accessibility Sub-check H amendment (commits `0c408dc` + `2d5ea2e` + `edfe0a9`) operationalises the user's daily-language directive at three integration points: a passage-scoped variant covering the five non-technical passage roles (signpost orienting/contribution clauses, section framing, inter-section transitions, worked-example vignette bodies, consolidation anchor sentences); a manuscript-scoped variant under the new `register_class: technical | mixed | non-technical` field in `research_notes/directives.md`; and a presence-of-positive-markers compliance frame (concrete-referent anchoring, agent-verb-object default, plain-English connectives) inverted from the usual absence-of-negative-markers grammar to close the dilution back-door. H ships under `advisory_until: H_two_revision_cycles` with cycle-counting retirement via `h_advisory_cycles_observed` in `reviews/classification.md`. The plan doc's five Open Questions were adjudicated to the Default proposed answers per user direction 2026-04-27. The 32-skill invariant holds (H is overlay-internal per the plan doc's recommended path); SAFEGUARD Check 8's sub-check count expands from seven (A–G) to eight (A–H).
 
 ## 2. Work items
 
-### 2.1 Hot-fix — marketplace.json version-skew (commit `103faf4`)
+### 2.1 Hot-fixes — marketplace.json (commits `103faf4` + `7a53c02`)
+
+Two sibling marketplace.json slips were closed in v0.10.1, both at the validator level so the same classes of error fail at RC gate before tagging on future releases. They are documented as parallel sub-sections because the diagnostic chain is structurally identical — a marketplace.json field shipped malformed, the loader rejected the install, the data fix is trivial, and the validator extension is the load-bearing prophylactic.
+
+#### 2.1a Version-skew hot-fix (commit `103faf4`)
 
 **Problem.** v0.10.0 RC shipped with `.claude-plugin/marketplace.json` line 13 declaring `"version": "0.9.0"` while `.claude-plugin/plugin.json` had been bumped to `"0.10.0"` at the RC gate. The `.plugin` ZIP install path carries both files; the loader saw two disagreeing version assertions for the same plugin and rejected the install (user-reported symptom: "the .plugin file fails validation").
 
@@ -27,6 +31,21 @@ v0.10.1 is a doc-only-plus-one-hot-fix hardening patch — no new skills, no sch
 - `scripts/version-check.py` extended with `extract_marketplace_self_referencing_versions(plugin_root)` — reads `marketplace.json`, identifies `plugins[]` entries whose `source` field resolves to `plugin_root` (honouring both interpretations: relative-to-marketplace.json-directory and relative-to-plugin-root), and emits `BLOCKER` for any version disagreement with `plugin.json`. Absent `marketplace.json` is silent (not every plugin ships a co-located marketplace); present-but-no-self-referencing-entries is silent; mismatch hard-gates the gate.
 
 **Verification.** Validator output at v0.10.1 RC: `Marketplace self-referencing entries: co-author-harness-claude=0.10.1; Blockers: 0`. The hot-fix prevents recurrence — any future RC where the four version surfaces (manifest, README, CHANGELOG, marketplace) drift apart will fail the gate before tagging.
+
+#### 2.1b Source-format slip hot-fix (commit `7a53c02`, post-RC-tag)
+
+**Problem.** Post-RC-tag, the user attempted a marketplace install via `/plugin marketplace add B:\Agents\co-author-harness` and the loader rejected the file with `Failed to parse marketplace file ... plugins.0.source: Invalid input`. The `marketplace.json` had been authored with `"source": "."` since v0.10.0; the v0.10.1 version-skew hot-fix touched the version field but not the source field, so the format slip survived the RC gate intact.
+
+**Root cause.** The Claude Code marketplace loader's schema accepts relative paths starting with `"./"` or `"../"` (and absolute git/HTTPS URLs), but rejects bare `"."` and `".."`. Empirical schema check against two working `marketplace.json` examples confirmed both use the leading-prefix form (`"./co-author-harness"`, `"./"`). The §2.1a version-skew validator extension did not flag the format error because the source field's resolution logic accepted both forms — i.e., the function was syntactically permissive about the input that the *loader* was strict about.
+
+**Fix.**
+
+- `.claude-plugin/marketplace.json` `"source": "."` → `"source": "./"`. One-character data fix; relative path now valid against the marketplace loader schema. Resolves to plugin_root via the marketplace.json directory's parent (the `.claude-plugin/` → `co-author-harness/` traversal pattern preserved).
+- `scripts/version-check.py` `extract_marketplace_self_referencing_versions` now flags bare `"."` and `".."` as `<INVALID_SOURCE_FORMAT>`, with a guidance message naming the loader's accepted form (`"./"` or `"../"`). The check fires as a `BLOCKER` via the version-mismatch comparison in `main()` when the placeholder value is recorded — no schema-validator dependency, just a string check that happens to share machinery with §2.1a's version-skew gate.
+
+**Verification.** Validator output post-fix: `Marketplace self-referencing entries: co-author-harness-claude=0.10.1; Blockers: 0` (the new format check passes — `"./"` is the valid form). The fix prevents recurrence — any future RC where a marketplace.json `source` field reverts to bare `"."` or `".."` will fail the gate.
+
+**Tag re-anchor adjudication.** The annotated tag `v0.10.1` was originally created at commit `1f298bc` (the §2.1a + Sub-check H + arch/strategy-mirror RC). Within ~10 minutes of tag creation, the source-format slip surfaced via the user's install attempt; the tag was force-moved to commit `7a53c02` to make v0.10.1 the first WORKING release rather than the first attempt. The brand-newness of the tag (no consumers had fetched it) justified the force-move. A second tag re-anchor lands with this doc-backfill commit so the v0.10.1 narrative artefacts (RELEASE_NOTES, CHANGELOG, README) match the tag's final state. Force-pushed tags are normally discouraged; the criterion adopted here is *consumer count* — a tag with zero consumers can be re-anchored before consumers exist with no backward-compatibility cost.
 
 ### 2.2 Arch/strategy doc mirrors for the four S4 binding decisions (commit `f614b34`)
 
@@ -135,18 +154,20 @@ All four scripts pass with 0 blockers and 0 warnings. The newly-extended marketp
 
 ## 4. Commit ordering
 
-Five commits on `patch/v0.10.1` off `4a02b66` (v0.10.0 RC tip):
+Eight commits on `patch/v0.10.1` off `4a02b66` (v0.10.0 RC tip):
 
 | Commit | Subject | Layer |
 |---|---|---|
-| `103faf4` | v0.10.1 hot-fix: marketplace.json version skew + version-check.py guard | Hot-fix |
+| `103faf4` | v0.10.1 hot-fix: marketplace.json version skew + version-check.py guard | Hot-fix #1 |
 | `f614b34` | v0.10.1 docs: arch/strategy mirror points for 4 S4 binding decisions | Mirrors |
 | `0c408dc` | v0.10.1: Sub-check H spec foundation — sub_checks.md + READER_ACCESSIBILITY.md | H spec |
 | `2d5ea2e` | v0.10.1: Sub-check H — wire into overlay SKILL + SAFEGUARD + PHASE_PROTOCOL | H wire |
 | `edfe0a9` | v0.10.1: Sub-check H — phase wiring (run-phase-3, evaluator, bootstrap) | H wire |
-| (this) | v0.10.1 RC: version bumps + RELEASE_NOTES + CHANGELOG dated | RC gate |
+| `1f298bc` | RC gate: v0.10.1 version bumps + RELEASE_NOTES + CHANGELOG dated | RC gate (initial) |
+| `7a53c02` | v0.10.1 fix: marketplace.json source schema (bare `"."` → `"./"`) + validator guard | Hot-fix #2 (post-RC) |
+| (this) | v0.10.1 docs: backfill source-format slip into RELEASE_NOTES + CHANGELOG + README | Doc backfill (final RC) |
 
-Each commit passes the four-script gate independently; the cumulative state at RC tip is the verdict above.
+Each commit passes the four-script gate independently; the cumulative state at the final tag anchor is the verdict above. The two RC layers (initial at `1f298bc`, final at this doc-backfill commit) reflect the post-RC source-format slip; the intermediate `7a53c02` carries the data fix and validator guard, and this commit aligns the narrative artefacts with the eight-commit reality.
 
 ## 5. Deferred to v0.10.2+
 
@@ -171,6 +192,7 @@ Each commit passes the four-script gate independently; the cumulative state at R
 - **Plan doc** (`docs/superpowers/plans/2026-04-27-accessibility-subcheck-h-amendment.md`) authored 2026-04-27 mid-S3, captured the user's clarified daily-language directive (dual scope: within-manuscript non-technical passages + audience-conditioned whole-manuscript register) and the advisor's structured 1817-token amendment proposal. Status: PROPOSAL → ADOPTED (implicit at v0.10.1 implementation).
 - **User adjudication 2026-04-27.** All five plan-doc §10 Open Questions resolved to Default proposed answers per user direction.
 - **Audit at v0.10.1 open.** Two terminology slips in the handoff doc's enumeration of the four S4 binding decisions identified and corrected at the source rather than propagated into the doc-mirror prose.
+- **Post-RC source-format slip adjudication 2026-04-27.** User-reported install-time loader rejection (`plugins.0.source: Invalid input`) within ~10 min of original tag creation. Adjudication: tag re-anchor accepted on consumer-count criterion (zero consumers had fetched the original tag); `7a53c02` carries data fix + validator guard; doc backfill (this commit) aligns RELEASE_NOTES / CHANGELOG / README with the re-anchored tag's full eight-commit content.
 - **Tooling discipline.** Memory-captured constraints honoured throughout — GitKraken MCP for git ops; DC cmd.exe + .bat with `set PYTHONUTF8=1` on its own line for harness scripts; `py.exe` launcher with absolute paths; bash sandbox skipped for harness validation due to CIFS mount staleness.
 
 ---
