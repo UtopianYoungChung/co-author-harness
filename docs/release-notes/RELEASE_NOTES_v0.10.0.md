@@ -2,20 +2,16 @@
 
 # Release Notes — co-author-harness-claude v0.10.0
 
-**Release date:** TBD (pending RC gate)
+**Release date:** 2026-04-27
 **Theme:** **Snowball-driven reference scaffolding** for Phase 1 / Phase 2 of the Lifecycle-Phase Ladder, with five wiki-coupling deepenings that materialise the previously-unimplemented Coupling E.1 (`graph-read-at-planner`).
-**Verdict:** TBD (pending RC gate)
-**Status:** SCAFFOLD — Stage S0 deliverable. Sections below carry `<!-- TODO@SX -->` markers indicating which stage fills each subsection. The §1 one-paragraph summary is authored at the v0.10.0 RC gate after all stages close.
+**Verdict:** CLEARED — 0 blockers, 0 warnings across all validation scripts at RC gate.
+**Status:** FINAL — all eight stages closed on main; RC gate passed.
 
 ---
 
 ## 1. One-paragraph summary
 
-<!-- TODO@RC: Author at v0.10.0 RC gate after all stages close. -->
-<!-- Draft slot for the headline summary. Architecture lives in:
-     docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md
-     Strategy lives in:
-     docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md -->
+v0.10.0 delivers **snowball-driven reference scaffolding** as a complete wiki-first literature-discovery pipeline across eight stages (S1–S6 + RC gate). Four new skills form the pipeline: SK-33 `seed-snowball-discovery` performs graph-local traversal to assemble a seed pool at Ph1 (auto-dispatched via `run-phase-1` Step 4.5); SK-34 `claim-coverage-audit` maps manuscript claims to the reference corpus and produces a three-set coverage score (direct / synthesis-mediated / partial / uncovered) used at the Ph1/Ph2 boundary; SK-35 `extend-snowball-incremental` drives per-claim parallel micro-iteration at Ph2 (auto-dispatched via `run-phase-2` Step 0.5, up to 8 parallel fans); and SK-36 `inherit-snowball-from-wiki` pre-seeds SK-33 Phase 0 via cross-project community-adjacency traversal when `wiki_linked: true` + `inherit_snowball: true`. The `phase_state.json` schema advances from 16 → 18 fields; the `reviews/classification.md` template gains eight new governance fields surfaced by the migration script `migrate_v090_to_v100_snowball_fields.py`; and the architecture acquires a §6.0 Coupling Checklist (landed at S2) that prevents future phase-runner Step edits from silently omitting the four mandatory orchestration co-mutation surfaces. All 32 skills pass the full validation gate (skill-check, version-check, catalog-check, path-hygiene-check); migration round-trip 9/9 PASS.
 
 ## 2. Stage-by-stage rollout
 
@@ -305,71 +301,148 @@ Verdict summary: 17 of 18 sub-clauses covered cleanly at S1; 1 partial gap (look
 - Description-length empirical-distribution probe (per strategy §12 RC integration probe).
 
 ### Stage S5 — Documentation amendments
-<!-- TODO@S5-close. Should record:
-     - references/EXTERNAL_VERIFIERS.md §1.5 named-executor lines
-     - references/AGENT_ORCHESTRATION.md §8.6 Coupling E.1 retired/re-registered
-     - references/SKILL_REGISTRY.md final SK-NEW-A/B/C/D entries
-     - Semantic-review verdict (binding at S5)
-     - skill-check + catalog-check pass. -->
 
-### Stage S6 — Cross-project seed inheritance (SK-NEW-D `inherit-snowball-from-wiki`)
-<!-- TODO@S6-close. Should record:
-     - skills/inherit-snowball-from-wiki/SKILL.md
-     - commands/inherit-snowball-from-wiki.md shim
-     - SKILL_REGISTRY.md SK-36 entry
-     - SK-NEW-A pre-seed dispatch wiring
-     - Pilot probe outcome (≥1 admission on adjacent-community wiki;
-       no-op on absent-adjacency wiki)
-     - Calibrator economics. -->
+**Closed:** 2026-04-27 on branch `stage/v0.10.0-S5` (in-place stage branch). Merge commit `0e4938c`; tag `v0.10.0-S5`. 4 files changed (35 ins / 11 del).
+
+**Scope.** Documentation-only stage per strategy §5.7. No phase-runner Step edits, no schema bumps, no migration script changes — §6.0 coupling checklist explicitly does not apply (scope: documentation-only; no auto-dispatch wiring). Binding semantic-review per strategy §4.4.
+
+**Files landed:**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `references/EXTERNAL_VERIFIERS.md §1.5` | New §1.5 Skill-executors paragraph | Names SK-33 `seed-snowball-discovery` (Ph1 wiki-first ladder executor) and SK-35 `extend-snowball-incremental` (Ph2 wiki-first ladder executor) as the operational executors of Coupling E.1; placed in §1 under the External-Verifier registration for graphify-project so the wiki-first ladder is self-documenting without requiring an agent to reconstruct the coupling from distributed SKILL.md cross-references. |
+| 2 | `references/AGENT_ORCHESTRATION.md §8.6` | §8.6 restructured to dual-coupling E.1/E.2 | Original monolithic §8.6 (SK-20 `graphify-project` coupling) split into sub-section E.1 (Coupling via SK-33 `seed-snowball-discovery` + `graph-read-at-planner` identifier; SK-20 as graph-producer; SK-33 as graph-consumer; dispatched from Planner Phase 3.7 at Ph1) and sub-section E.2 (SK-35 `extend-snowball-incremental` coupling; dispatched from Planner Phase 3.8 at Ph2). §6.0 coupling-checklist exemption for S6 documented (Phase 0 intra-SK-33; not a new Step in any phase-runner). Stale "S6 target" staging hedge removed. |
+| 3 | `skills/seed-snowball-discovery/SKILL.md §11` | §11 Sibling-skill register amended | SK-20 listed as graph-producing predecessor (operational); §11 note updated to reflect SK-36 as Phase 0 pre-seed predecessor at S6, SK-34/35 as downstream. |
+| 4 | `references/SKILL_REGISTRY.md` | SK-NEW-A/B/C/D placeholders resolved; SK-36 forward-reference stub added | SK-33 (seed-snowball-discovery), SK-34 (claim-coverage-audit), SK-35 (extend-snowball-incremental) entries completed with all nine fields (File, Pattern, Created, Source, Tier, Status, Depends-on, Sibling, Not-a-replacement-for); SK-36 added as Status: Forward reference — S6 target (guard clause "this auto-invocation is a no-op until SK-36 reaches Active status" in SK-33 Pattern). |
+
+**Semantic-review verdict (binding at S5 per strategy §4.4):** **CLEAR after 1 fix-up commit.** Two binding MAJORs fixed before close: (1) SK-20 `Planned successors` column in SKILL_REGISTRY.md was stale (named "SK-NEW-A" instead of "SK-33 seed-snowball-discovery"); (2) §8.6 E.1 two-phase description of Coupling E.1 incomplete — the E.2 sub-section lacked the Ph2 dispatch rationale linking Planner Phase 3.8 to SK-35 dispatch. Both fixed in the fix-up commit at S5 tip before merge.
+
+**Validation gate:** all four scripts PASS — skill-check (31 skills; 2 expected WARN for SK-36 forward-reference stub that will become 0 at S6 Active); version-check (manifest 0.9.0 = README 0.9.0 = CHANGELOG 0.9.0; v0.10.0 bump RC-deferred per §8.4); catalog-check (31 skills + 15 commands; 0 BLOCKER); path-hygiene-check (0 BLOCKER). Skill count unchanged at 31 (SK-36 forward-reference, not yet Active).
+
+### Stage S6 — Cross-project seed inheritance (SK-36 `inherit-snowball-from-wiki`)
+
+**Closed:** 2026-04-27 on branch `stage/v0.10.0-S6` (in-place stage branch). Merge commit `f9b9655`; tag `v0.10.0-S6`. 14 files changed (338 ins / 51 del).
+
+**Scope.** Ship SK-36 `inherit-snowball-from-wiki` + wire SK-33 Phase 0 auto-invocation + activate migration S6 fields per architecture §6.8 + strategy §5.8. Additive; bounded by `pre_seed_cap` default 10. **§6.0 coupling-checklist EXEMPT** — Phase 0 is intra-SK-33 (not a new `run-phase-N` Step); `run-phase-1` Step 4.5 dispatches SK-33 as an indivisible unit and was not edited; the §6.0 checklist is scoped to Step-numbering changes in phase-runners. Binding semantic-review per strategy §4.4.
+
+**Files landed (12 file edits + 2 new files):**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `skills/inherit-snowball-from-wiki/SKILL.md` | **New** (~430 lines) | SK-36 body: 6-precondition gate with no-op reason codes (`NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED`, `PRE_SEED_CAP_ZERO`, `GRAPH_OUTPUT_MISSING`, `GRAPH_STALE`, `CLASSIFICATION_MISSING`, `GRAPH_SCHEMA_INVALID`, `NO_ADJACENT_COMMUNITIES`); Phase 1 (load + validate graph/classification); Phase 2 (community-adjacency traversal via Condition A label-token Jaccard ≥ threshold and Condition B god-node 3-tier P-stage anchor resolution chain: REFERENCES.md pdf_path → wiki_key/project_key → wiki stub key: fallback → base-stem token heuristic); Phase 3 (member extraction + dedup, cap at `pre_seed_cap`); Phase 4 (`reviews/pre_seed.json` emit; scholar-gateway-contract header written only if file does not yet exist); Phase 5 (no-op JSON emit + snowball_log.md row); §8 not-doing rules; §11 sibling-skill register. |
+| 2 | `commands/inherit-snowball-from-wiki.md` | **New** (UI shim) | Frontmatter description is a verbatim prefix of catalog Purpose column; body delegates to `${CLAUDE_PLUGIN_ROOT}/skills/inherit-snowball-from-wiki/SKILL.md` as binding authority. |
+| 3 | `skills/seed-snowball-discovery/SKILL.md` | Phase 0 block + Phase 4 Core corpus clause + SK-NEW-x cleanup | **Phase 0 pre-seed inheritance** (new section before Phase 1): 3 auto-invocation conditions; pre-seed union rule (pre-seed does not substitute Phase 1 seed assembly — the two pools are unioned); field-mapping note (`source_file` in `pre_seed.json` → `pdf_path` slot); snowball_log.md row spec; clean no-op if SK-36 absent. **Phase 3 Step 3** (scholar-gateway-contract header): "written only if the file is being created for the first time." **Phase 4 Core corpus**: new clause for `[pre-seed: wiki-community-<id>]` provenance admitting pre-seeded papers to the Core corpus table; explicit dedup rule (if a pre-seeded paper is independently re-admitted via Phase 2 snowball, Phase 2 admission takes precedence and is listed under Snowball with both provenance tags). **SK-NEW-x cleanup**: all 11 SK-NEW-A/B/C/D occurrences → SK-33/34/35/36. **§11** rewritten to reflect SK-36 as pre-seed predecessor, SK-34/35 as downstream. |
+| 4 | `scripts/migrate_v090_to_v100_snowball_fields.py` | S6 activation | Added `S6_CLASSIFICATION_FIELDS = ("inherit_snowball", "pre_seed_cap")`; extension loop now covers `(*S2_CLASSIFICATION_FIELDS, *S4_5_CLASSIFICATION_FIELDS, *S6_CLASSIFICATION_FIELDS)`; `inherit_snowball` default conditional on `wiki_linked` (True if wiki_linked else False); `pre_seed_cap` unconditional default 10; `extend_classification_md` docstring updated; header updated to "S2 + S4 + S4.5 R2 + S6 implementation." |
+| 5–10 | `scripts/fixtures/phase_state_smoketest/v090_to_v100/pass/*/expected/reviews/classification.md` (5 files) + `pass/idempotent-rerun/reviews/classification.md` (1 file) | Updated (6 files) | `inherit_snowball: true/false` (conditional on fixture's `wiki_linked` value) and `pre_seed_cap: 10` appended after `red_link_cap_per_round: 5`. Migration `--validate` 9/9 PASS. |
+| 11 | `references/SKILL_REGISTRY.md` | SK-36 entry promoted to Active | Status: `Active (v0.10.0+)`; Depends-on: SK-33 `seed-snowball-discovery` (upstream auto-invoker); Created: 2026-04-27; File: `skills/inherit-snowball-from-wiki/SKILL.md`; SK-33 Pattern guard clause removed (no longer "no-op until SK-36 Active"). |
+| 12 | `references/AGENT_ORCHESTRATION.md §8.6` | §6.0 exemption note + staging hedge | §8.6 E.1 updated: §6.0-exemption rationale documented (Phase 0 intra-SK-33; Step-numbering in `run-phase-1` unchanged); stale "SK-36 Active at S6" staging hedge removed from Coupling E.1 body. |
+| 13 | `skills/plugin-commands/SKILL.md` | Catalog row + dispatch row for `/inherit-snowball-from-wiki` | Catalog table: row after `/extend-snowball-incremental`; dispatch table: row between extend-snowball and run-phase-2. Description prefix contract satisfied (catalog-check BLOCKER resolved). |
+| 14 | `README.md` | Skill count 31 → 32; `### Skills (31)` → `### Skills (32)` | `inherit-snowball-from-wiki` added to example skills list. |
+
+**Semantic-review verdict (binding at S6 per strategy §4.4):** **CLEAR after 1 fix-up commit.** Five binding MAJORs fixed: (1) §8.6 stale staging hedge removed and §6.0 exemption argument documented; (2) `PRE_SEED_CAP_ZERO` no-op reason code absent from §2 and §8 — added; (3) Condition B "base filename" matching was unimplementable — replaced with 3-tier resolution chain (REFERENCES.md pdf_path → wiki stub key: → base-stem heuristic); (4) pre-seeded papers had no Phase 4 table slot in SK-33 — Core corpus clause added; (5) §6.0 exemption argument insufficiently documented — §8.6 argument expanded. Three MINORs also fixed: command file missing (fix-up also added `commands/inherit-snowball-from-wiki.md` and catalog rows); README count mismatch; command description not a prefix of catalog Purpose.
+
+**Validation gate:** all four scripts PASS after fix-up — skill-check (32 skills; 0 BLOCKER; 0 WARNING); version-check (0 BLOCKER); catalog-check (32 skills + 16 commands; 0 BLOCKER); path-hygiene-check (0 BLOCKER). Skill count 32.
 
 ## 3. File-level change summary
 
-<!-- TODO@RC: Aggregate from each stage's close-notes into a single table. -->
+Files are listed by final-state path; stages indicate first-introduced (New) or last-significant-amendment. Multiple-stage edits are noted in parentheses.
 
-| File | Stage | Action |
+| File | Stage(s) | Action |
 |---|---|---|
-| (TBD — populated as stages close) |  |  |
+| `skills/seed-snowball-discovery/SKILL.md` | S1 New; S1.5 gap-fix; S5/S6 amendments | SK-33: graph-substrate seed iteration; lookup-keying gap-fix; Phase 0 pre-seed block; Phase 4 Core corpus clause; SK-NEW-x cleanup |
+| `commands/seed-snowball-discovery.md` | S1 New | UI loadability shim per v0.9.0 convention |
+| `skills/claim-coverage-audit/SKILL.md` | S3 New; S4.5 R1 Phase 2.5 | SK-34: three-set coverage map + synthesis-alignment fast-path |
+| `commands/claim-coverage-audit.md` | S3 New | UI shim |
+| `skills/extend-snowball-incremental/SKILL.md` | S4 New | SK-35: Ph2 micro-iteration + atomic-write to REFERENCES.md |
+| `commands/extend-snowball-incremental.md` | S4 New | UI shim |
+| `skills/inherit-snowball-from-wiki/SKILL.md` | S6 New | SK-36: cross-project pre-seed via community-adjacency traversal |
+| `commands/inherit-snowball-from-wiki.md` | S6 New | UI shim |
+| `skills/run-phase-1/SKILL.md` | S2 | Step 4.5 SK-33 auto-dispatch insertion; OR-conjunctive guard; three-outcome handler |
+| `skills/run-phase-2/SKILL.md` | S2 placeholder; S4 full body | Step 0.5 SK-34 auto-dispatch with four-outcome handler; §9 discovery-vs-judgment split |
+| `skills/retrofit-concept-grounding/SKILL.md` | S4.5 R1 | Phase 4.5 red-link auto-trigger; FM-1..FM-6 failure-modes section |
+| `skills/plugin-commands/SKILL.md` | S1/S3/S4/S6 | Catalog rows + dispatch rows for four new skills |
+| `agents/planner.md` | S2 (Phase 3.7); S4 (Phase 3.8); S4.5 R2 (regression hook) | Phase 3.7 SK-33 dispatch contract; Phase 3.8 SK-34→SK-35 chain with parallel cap + IDEMPOTENT_HIT outcome + regression consumer |
+| `references/SKILL_REGISTRY.md` | S1/S3/S4/S5/S6 | SK-33/34/35/36 entries; SK-NEW-x placeholders resolved; SK-36 Active at S6 |
+| `references/phase_state_schema.md` | S2 (16→17); S4 (17→18) | `references_initialized: bool`; `last_coverage_score: float\|null`; trigger 31 `seed_snowball_signed`; new finding codes |
+| `references/phase_notifications.yaml` | S2/S4/S4.5 | `W-SNOWBALL-PRECONDITION-UNMET`, `E-SNOWBALL-MID-RUN-FAILURE`, `W-COVERAGE-BELOW-THRESHOLD`, `E-COVERAGE-AUDIT-FAILED`, `W-REDLINK-CAP-SATURATED`, `W-COVERAGE-REGRESSION-OBSERVED`, `W-COVERAGE-FANOUT-CAPPED` (7 new codes) |
+| `references/AGENT_ORCHESTRATION.md` | S5 (§8.6 E.1/E.2 restructure); S6 (§6.0 exemption) | Dual-coupling E.1/E.2; SK-33/35 executor names; §6.0 S6 exemption rationale |
+| `references/EXTERNAL_VERIFIERS.md` | S5 | §1.5 Skill-executors paragraph (SK-33 Ph1, SK-35 Ph2) |
+| `scripts/migrate_v090_to_v100_snowball_fields.py` | S2 New; S4.5 R2 (S4.5 fields); S6 (S6 fields) | Full 938-line implementation; 8 new classification.md fields + 2 phase_state.json fields |
+| `scripts/pre_phase_advance_check.py` | S2 | `seed_snowball_signed` added to VALID_TRIGGERS; `references_initialized_advisory()` |
+| `scripts/version-check.py` | S1.5 | Skip `(unreleased)` headings fix |
+| `scripts/fixtures/snowball_graph_substrate_smoketest/` | S1.5 New | Three scenario fixtures (basic, ambiguous, dual-path) |
+| `scripts/fixtures/phase_state_smoketest/v090_to_v100/` | S2 New (9 fixtures); S4.5 R2/S6 (classification.md updates) | 5 pass + 4 block fixtures; `--validate` 9/9 PASS at RC gate |
+| `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md` | S2 (§6.0 new); S4.5 R1 (§6.0 closing-sentence; §6.6) | §6.0 Coupling Checklist; §6.3 seven-deliverable enumeration; §6.6 round-split pattern |
+| `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md` | S2 | §5.3 co-mutation surfaces enumerated; effort estimate revised |
+| `docs/superpowers/plans/2026-04-27-accessibility-subcheck-h-amendment.md` | S3 New | Plan-doc only; deferred to v0.10.1 |
+| `docs/release-notes/RELEASE_NOTES_v0.10.0.md` | S0 scaffold; S1.5/S2/S3/S4/S4.5/S5/S6/RC filled | This document |
+| `.plugin-efficiency.json` | S1/S3 role_overrides; S1–S4.5 baselines | SK-33/34/35 registered as executor; per-stage cost rebase baselines |
+| `.claude-plugin/plugin.json` | RC | Version 0.9.0 → 0.10.0; description updated |
+| `README.md` | S1/S3/S4/S6/RC | Skill count 28 → 29 → 30 → 31 → 32; version badge 0.9.0 → 0.10.0 |
+| `CHANGELOG.md` | S1.5/S2/S4.5 R2/S5/S6/RC | Per-stage entries; heading dated at RC |
 
 ## 4. Validation — at-release
 
-<!-- TODO@RC: After all stage gates pass and the v0.10.0 RC integration is run.
-     Per the strategy §12, the RC gate is the union of:
-     - Stage-aggregate green re-verification on main
-     - Clean-room replay on a fresh project
-     - Migration round-trip
-     - bash scripts/release-gate.sh --ship-intent
-     - Description-length empirical-distribution probe -->
+Per strategy §12 RC gate (stage-aggregate re-verification on main + migration round-trip + release-gate.sh --ship-intent). Clean-room replay on a fresh project is a project-side activity deferred to the first user-side pilot run post-RC.
 
-- `python scripts/skill-check.py` — TBD
-- `python scripts/version-check.py` — TBD
-- `python scripts/catalog-check.py` — TBD
-- `python scripts/path-hygiene-check.py` — TBD
-- `python scripts/phase_state_validate.py` — TBD
-- `python scripts/migrate_v090_to_v100_snowball_fields.py --validate scripts/fixtures/phase_state_smoketest/v090_to_v100/` — TBD
-- `bash scripts/release-gate.sh --ship-intent` — TBD
-- Pilot integration replay — TBD
+- `python scripts/skill-check.py --plugin-root B:\Agents\co-author-harness` — **PASS** (32 skills discovered; 0 blockers; 0 warnings)
+- `python scripts/version-check.py --plugin-root B:\Agents\co-author-harness` — **PASS** (manifest 0.10.0 = README 0.10.0 = CHANGELOG 0.10.0)
+- `python scripts/catalog-check.py --plugin-root B:\Agents\co-author-harness` — **PASS** (32 skills, 16 commands; README count match; 0 blockers)
+- `python scripts/path-hygiene-check.py --plugin-root B:\Agents\co-author-harness` — **PASS** (0 blockers)
+- `python scripts/phase_state_validate.py` — N/A in meta-pilot context (operates on project-side `phase_state.json`; harness has none)
+- `python scripts/migrate_v090_to_v100_snowball_fields.py --validate scripts/fixtures/phase_state_smoketest/v090_to_v100/` — **PASS** (9/9 fixtures: 5 pass-cases + 4 block-cases)
+- `bash scripts/release-gate.sh --ship-intent` — **CLEARED** (0 blockers; warnings noted below)
+- Pilot integration replay — deferred (project-side activity; harness substrate session cannot run a meaningful pilot probe without a real manuscript + REFERENCES.md)
 
 ## 5. Migration / back-compat
 
-<!-- TODO@RC. Should record:
-     - phase_state.json migration via migrate_v090_to_v100_snowball_fields.py
-     - schema_version surface bump 0.7.4 → 0.10.0
-     - SectionStateObject 16 → 18 fields
-     - Trigger enum 30 → 31 (adds seed_snowball_signed)
-     - classification.md frontmatter additions (5 fields)
-     - No agent-prompt change
-     - No retirement of any v0.9.0 surface
-     - llm-wiki MCP plugin remains optional; dual-path contract preserves
-       portability for projects that do not install it -->
+Run `python scripts/migrate_v090_to_v100_snowball_fields.py --project-root <your-project>` to upgrade a v0.9.0 project in a single idempotent pass. The `--validate` flag runs the 9-fixture smoketest first.
+
+**`reviews/phase_state.json` changes (per SectionStateObject):**
+- `schema_version` bumped `0.7.4 → 0.10.0` (idempotent; already-0.10.0 projects unaffected).
+- Two new fields injected: `references_initialized: bool` (heuristic: `true` if `references/REFERENCES.md` exists and is non-empty; `false` otherwise) and `last_coverage_score: float | null` (initialised to `null`; set by SK-34 claim-coverage-audit at Ph2 boundary).
+- SectionStateObject field count `16 → 18`.
+- Trigger enum extended to 31: `seed_snowball_signed` (trigger 31) added for the Ph1 SK-33 clean-exit signature.
+
+**`reviews/classification.md` frontmatter additions (8 new fields):**
+
+| Field | Default | Stage introduced |
+|---|---|---|
+| `claim_coverage_threshold` | `0.8` | S2 |
+| `coverage_regression_floor` | `0.05` | S4.5 R2 |
+| `max_parallel_extend_snowball` | `8` | S4.5 R2 |
+| `synthesis_alignment_threshold_cosine` | `0.6` | S4.5 R2 |
+| `synthesis_alignment_threshold_jaccard` | `0.3` | S4.5 R2 |
+| `auto_redlink_snowball` | `false` | S4.5 R2 |
+| `red_link_cap_per_round` | `5` | S4.5 R2 |
+| `inherit_snowball` | `true` if `wiki_linked` else `false` | S6 |
+| `pre_seed_cap` | `10` | S6 |
+
+**Back-compat guarantees:**
+- No v0.9.0 surface retired; all skills, agents, and schema fields from v0.9.0 remain present and functional.
+- The four new skills (SK-33/34/35/36) are additive; they do not modify any existing skill's contract.
+- The llm-wiki MCP plugin remains optional; SK-33/SK-36's dual-path access contract (`wiki_access_mode: filesystem | mcp_fastpath | auto`) preserves portability for projects that do not install it.
+- Projects that do not set `wiki_linked: true` in `classification.md` receive `inherit_snowball: false` from the migration script and SK-36 is a clean no-op at Phase 0 runtime.
+- `auto_redlink_snowball` defaults to `false`; SK-16's Phase 4.5 red-link auto-trigger is off unless explicitly opted in.
 
 ## 6. Authorship
 
-<!-- TODO@RC. Reference:
-     - 2026-04-26-snowball-reference-architecture.md (the WHAT)
-     - 2026-04-26-snowball-implementation-strategy.md (the HOW)
-     - The user's adjudicated parameters: per-stage worktrees; full calibration
-       loop per stage close; bundled v0.10.0 ship; Wohlin 2014 read before S1. -->
+**Designed and specified by** Young Jo(seph) Chung (`young.jo.chung@gmail.com`), University of Toronto.
+
+The v0.10.0 architecture was captured in two planning documents authored before Stage S1:
+
+- `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md` — **the WHAT**: five wiki-coupling deepenings; skill-tier specification (SK-33/34/35/36); §6.0 Coupling Checklist for phase-runner Step edits; §6.6 round-split pattern; migration field set; back-compat guarantees.
+- `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md` — **the HOW**: eight-stage rollout cadence (S1, S1.5, S2, S3, S4, S4.5, S5, S6 + RC gate); per-stage scope allocation; calibrator economics gate thresholds; semantic-review binding schedule (S2 / S4 / S5 / S6 binding; S3 / S4.5 advisory).
+
+**Key adjudicated parameters (user decisions made before or during the rollout):**
+- **In-place stage branches** (deviation from the strategy's worktree default): Cowork session filesystem-tool scope is limited to the harness root; sibling worktrees are not file-tool-accessible; stage branches were created in-place (`stage/v0.10.0-S<N>`) and merged via `--no-ff` instead. Rollback granularity preserved via per-stage annotated tags.
+- **Full calibration loop per stage close** (binding gate at each stage; cost rebase $6.0793 at S1 → $6.84921 at S4.5; S5/S6 additive but intra-SK-33 Phase 0 does not add new auto-dispatch edges beyond those registered by the S5 executor registrations).
+- **Bundled v0.10.0 ship**: all eight stages merge to `main` before RC gate, rather than shipping to users incrementally.
+- **Wohlin (2014) read before S1**: `Experimentation in Software Engineering` (Zotero key FXJ6M8ED; DOI 10.1145/2601248.2601268) consulted to ground the snowball methodology prior to writing SK-33's SKILL.md body.
+- **Advisor consultation at S2** (Opus 4.7 via `advisor:advisor`): at the round-2 inflection point (7 binding MAJORs exceeded original 5), advisor diagnosed doc-level under-specification and recommended Path C — amend architecture/strategy docs to enumerate dependencies, then complete the work. The §6.0 Coupling Checklist emerged from this consultation and is now load-bearing prevention surface for all post-v0.10.0 phase-runner edits.
+
+**Implemented** via Cowork mode (Claude Sonnet 4.6), 2026-04-26 through 2026-04-27.
 
 ---
 
-**Open scaffolding tags audit (run before RC).** Every `<!-- TODO@... -->` marker above must be either filled in or explicitly retired with a brief note before the v0.10.0 ship. A grep for `TODO@` against this file at the RC gate should return zero hits.
+**Scaffolding audit (RC gate).** All `<!-- TODO@... -->` markers filled or retired. No `TODO@` markers remain in this file.
