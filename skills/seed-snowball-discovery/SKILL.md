@@ -67,6 +67,8 @@ Before assembling claim-derived seeds, check whether SK-36 `inherit-snowball-fro
 
 **Pre-seed union rule.** The pre-seed is **additive**: Phase 1 adds claim-derived seeds to the pre-seeded pool. Phase 3's per-claim admission filter prunes any pre-seeded paper that does not resolve at least one of the section's actual claims. Over-seeding self-corrects without user intervention (architecture §7 R-13 mitigation).
 
+**Field mapping note.** Each entry in `pre_seed_list` carries a `source_file` field (e.g., `raw/papers/<file>.pdf`). This field maps to the `pdf_path` slot used by Phase 2's `lookup_node_by_doi_or_pdf_path` resolver — the two field names differ, but the path values are identical. Phase 2's resolver handles the look-up transparently.
+
 **Log row.** Append a Phase 0 row to `reviews/snowball_log.md` recording: `phase_0_invoked: <true|false>`, `pre_seed_count: <k>`, `sk36_noop_reason: <code|null>`.
 
 ### Phase 1 — Seed assembly
@@ -147,14 +149,14 @@ For every paper admitted across Phases 1 and 2 that fell through to a Class 1 ve
 
 2. Run Class 3 retraction check (`mcp__zotero__scite_check_retractions`) on every admitted paper. A `retracted: true` result is binding under Rule 7a — the paper is removed from the snowball pool and the finding is logged as a BLOCKER. If Scite is unreachable, log `[VERIFIER UNREACHABLE — Scite]` in the verification row's Result column and re-attempt at Ph2 entry.
 
-3. Honour the Scholar Gateway render contract per `EXTERNAL_VERIFIERS.md §3.1`: every Scholar-Gateway-derived row carries the per-search provenance line; the snowball log file carries the `<!-- scholar-gateway-contract: v0.1 -->` top-of-file marker; the session footer is rendered once per snowball pass at the end of `snowball_log.md`.
+3. Honour the Scholar Gateway render contract per `EXTERNAL_VERIFIERS.md §3.1`: every Scholar-Gateway-derived row carries the per-search provenance line; the snowball log file carries the `<!-- scholar-gateway-contract: v0.1 -->` top-of-file marker **written only if the file is being created for the first time** (if `reviews/snowball_log.md` already exists from a prior SK-36 Phase 4 no-op row, do not write the header again); the session footer is rendered once per snowball pass at the end of `snowball_log.md`.
 
 ### Phase 4 — REFERENCES.md emission
 
 Author or rewrite `references/REFERENCES.md` per the SK-15 input format:
 
-- **Core corpus.** Papers admitted in Phase 1 with provenance `[seed: wiki]` or `[seed: zotero]` (i.e., already in the user's curated layer).
-- **Snowball.** Papers admitted in Phase 2 (any iteration), grouped by iteration depth (`Iteration 1`, `Iteration 2`, ...).
+- **Core corpus.** Papers admitted in Phase 0 (pre-seeded by SK-36, provenance `[pre-seed: wiki-community-<id>]`) OR in Phase 1 with provenance `[seed: wiki]` or `[seed: zotero]` (i.e., already in the user's curated or wiki layer). Pre-seeded papers are first-class seeds; they are assigned to the Core corpus table because they originate from the wiki layer of a prior project.
+- **Snowball.** Papers admitted in Phase 2 (any iteration), grouped by iteration depth (`Iteration 1`, `Iteration 2`, ...). If a pre-seeded paper is independently re-admitted via Phase 2 graph traversal (because it appears in the graph as a graph-local hit), Phase 2's admit entry takes precedence over the Phase 0 pre-seed entry, and the paper is listed under Snowball (Iteration 1) with both provenance tags recorded.
 - **Cited-via.** Papers referenced from inside read sources but not directly verified — these are flagged for a follow-up direct read; SK-33 does not auto-stub them.
 
 Each table row carries the canonical fields per SK-15: `project_key`, `wiki_key` (if `wiki_linked`), `authors`, `year`, `title`, `venue`, `pdf_path` (when Zotero PDF is attached), `provenance_tag`.

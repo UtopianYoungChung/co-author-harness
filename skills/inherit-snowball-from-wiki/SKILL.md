@@ -33,9 +33,9 @@ Before invoking this skill, verify all of the following. On any failure, no-op w
 
 3. **Graph output exists.** Resolve `wiki_path` from project CLAUDE.md. Verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing: `GRAPH_OUTPUT_MISSING`.
 
-4. **Graph is not stale.** Reuse SK-20 Precondition 3 verbatim: compare the `captured_at` field in `graph.json` against the most recent `Last updated:` date across the project's `references/REFERENCES.md` (if it exists) and `manuscript/<section>.md`. If the graph is older: `GRAPH_STALE`. (Contrast SK-33, which demotes to `[graph-stale]` warning and continues; SK-36 is a pre-seed step and its entire value depends on graph freshness — a stale pre-seed can propagate stale corpus assumptions into iteration 1.)
+4. **Graph is not stale.** Following the same pattern as SK-20 Precondition 3: compare the `captured_at` field in `graph.json` against the most recent `Last updated:` date across the project's `references/REFERENCES.md` (if it exists) and `manuscript/<section>.md`. (SK-36 is section-scoped so it checks the section file rather than SK-20's `manuscript/main.md`; the staleness logic is otherwise identical.) If the graph is older: `GRAPH_STALE`. (Contrast SK-33, which demotes to `[graph-stale]` warning and continues; SK-36 is a pre-seed step and its entire value depends on graph freshness — a stale pre-seed can propagate stale corpus assumptions into iteration 1.)
 
-5. **Classification is parseable.** `reviews/classification.md` exists and is parseable. Reads: `p_stage`, `paper_type`, `claim_coverage_threshold`, `pre_seed_cap` (default 10). If absent or unparseable: `CLASSIFICATION_MISSING`.
+5. **Classification is parseable.** `reviews/classification.md` exists and is parseable. Reads: `p_stage`, `paper_type`, `claim_coverage_threshold`, `pre_seed_cap` (default 10); and optionally `p_stage_anchors` (list of citation keys; used by Condition B — absence means Condition B evaluates false for all communities, not an error) and `key_references` (same role as `p_stage_anchors`; checked if `p_stage_anchors` absent). If absent or unparseable: `CLASSIFICATION_MISSING`.
 
 6. **Graph is schema-valid.** `graph.json` is well-formed JSON with top-level keys `nodes`, `links` (edges), and `hyperedges` (may be empty). If schema validation fails: `GRAPH_SCHEMA_INVALID`.
 
@@ -54,7 +54,7 @@ When SK-36 no-ops, write `reviews/sk36_noop_YYYY-MM-DD.json`:
 }
 ```
 
-Codes: `NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED`, `GRAPH_OUTPUT_MISSING`, `GRAPH_STALE`, `CLASSIFICATION_MISSING`, `GRAPH_SCHEMA_INVALID`, `NO_ADJACENT_COMMUNITIES` (all preconditions pass but adjacency check finds zero qualifying communities — this is a clean no-op, not a failure).
+Codes: `NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED` (opt-out via `inherit_snowball: false`), `PRE_SEED_CAP_ZERO` (cap explicitly set to 0 — increase `pre_seed_cap` to re-enable), `GRAPH_OUTPUT_MISSING`, `GRAPH_STALE`, `CLASSIFICATION_MISSING`, `GRAPH_SCHEMA_INVALID`, `NO_ADJACENT_COMMUNITIES` (all preconditions pass but adjacency check finds zero qualifying communities — this is a clean no-op, not a failure).
 
 ---
 
@@ -85,9 +85,13 @@ A graphify community is **adjacent** to the current section if **either** of the
 4. Community is adjacent under Condition A if Jaccard ≥ `synthesis_alignment_threshold_jaccard` from `classification.md` (default 0.3, per architecture plan §5.5.3).
 
 **Condition B — God-node is a P-stage anchor.**
-1. Resolve the god-nodes of the community to their `source_file` fields.
-2. Read `reviews/classification.md` for any explicit P-stage anchors: papers cited in the `p_stage_anchors` list or `key_references` field, if present.
-3. If any god-node's `source_file` path resolves to the same base filename as a P-stage anchor citation key in `classification.md`, the community is adjacent under Condition B.
+1. Resolve the god-nodes of the community to their `source_file` fields (e.g., `raw/papers/wohlin_2014.pdf`).
+2. Read `reviews/classification.md` for any explicit P-stage anchors: citation keys in the `p_stage_anchors` list or `key_references` field, if present. These are BibTeX-style identifiers (e.g., `Wohlin2014`).
+3. For each god-node `source_file`, resolve to a citation key using the following lookup chain:
+   - **REFERENCES.md lookup (preferred when file exists).** Search `references/REFERENCES.md` for a row whose `pdf_path` column matches `source_file`. Read that row's `wiki_key` or `project_key` column as the citation key.
+   - **Wiki stub lookup (fallback).** If no REFERENCES.md match, check whether `${wiki_path}/wiki/sources/<stem>.md` exists (where `<stem>` is the `source_file` base name without extension). If the stub exists, read its frontmatter `key:` field as the citation key.
+   - **Base-stem heuristic (last resort).** If neither lookup resolves, use the `source_file` base name without extension, lowercased with underscores and hyphens stripped, as a fuzzy token match against the `p_stage_anchors` values (case-insensitive token overlap). A match requires at least one author-name token and the year to overlap.
+4. If the resolved citation key matches any value in the `p_stage_anchors` or `key_references` list, the community is adjacent under Condition B. If `p_stage_anchors` and `key_references` are both absent from `classification.md`, Condition B evaluates to false for all communities (not an error).
 
 A community qualifies for pre-seeding if it satisfies **A OR B**. Record each qualifying community with its condition (A / B / both) and its similarity score (for Condition A) in the Phase 3 log entry.
 
@@ -146,7 +150,7 @@ If `NO_ADJACENT_COMMUNITIES` — all preconditions passed but adjacency step fou
 
 ### Phase 4 — Append snowball_log.md row
 
-Append a single structured row to `reviews/snowball_log.md` (creating the file with the `<!-- scholar-gateway-contract: v0.1 -->` header if it does not yet exist):
+Append a single structured row to `reviews/snowball_log.md` (creating the file with the `<!-- scholar-gateway-contract: v0.1 -->` header **only if the file does not yet exist**; if the file already exists with that header, do not write the header again):
 
 ```
 <YYYY-MM-DD> — SK-36 pre-seed — communities evaluated: <n> · adjacent: <n> · pre-seeded: <k>/<pre_seed_cap> · cap_applied: <true|false> · adjacency_conditions: A:<nA> B:<nB> both:<nBoth> · graph_captured: <captured_at>
@@ -220,7 +224,7 @@ If SK-36 no-oped for any reason (including `NO_ADJACENT_COMMUNITIES`), append:
 | `graph.json` malformed or unreadable | Phase 1 JSON parse error | No-op with `GRAPH_SCHEMA_INVALID`. Do not proceed on partial data. |
 | Community labels absent or empty in `GRAPH_REPORT.md` | Phase 1 extraction | Fall back to using node labels from `graph.json` `label` field for tokenisation. If still empty, that community is skipped; it is not eligible for Condition A. |
 | P-stage anchors absent from `classification.md` | Phase 2 Condition B | Condition B evaluates to false for all communities; Condition A alone drives adjacency. Not an error. |
-| Pre-seed cap is 0 in `classification.md` | Phase 3 | No-op with `INHERIT_SNOWBALL_DISABLED` — a cap of 0 is equivalent to disabling pre-seeding. Log the cap value in the no-op JSON. |
+| Pre-seed cap is 0 in `classification.md` | Phase 3 | No-op with `PRE_SEED_CAP_ZERO` — a cap of 0 is equivalent to disabling pre-seeding. Log the cap value in the no-op JSON. (Distinct from `INHERIT_SNOWBALL_DISABLED`, which reflects the explicit flag; remediation differs: increase `pre_seed_cap` vs. toggle the flag.) |
 | `pre_seed.json` already exists from a prior same-day run | Phase 3 emit | Overwrite. The file is a transient artefact produced per invocation; idempotency is not a hard requirement here (SK-33's idempotency check guards against re-running the full snowball on an already-initialised section). |
 | Wiki MCP fast-path unavailable | Phase 1/2 reads | Use filesystem reads silently; log `wiki_access_mode: filesystem` in the snowball_log row. The pre-seed quality is identical — the adjacency criterion is graph-topology-based, not MCP-dependent. |
 | Graph has nodes with no `source_file` field | Phase 3 extraction | Skip those nodes; they cannot be mapped to a pre-seedable paper. Log count of skipped nodes in the snowball_log row. |
