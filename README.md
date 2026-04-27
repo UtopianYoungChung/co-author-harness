@@ -27,11 +27,11 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 * **Multi-agent, phase-conditioned dispatch.** Agent prompts in [`agents/`](agents/) and orchestration in [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) define who runs when (e.g. Evaluator joins from Ph2 onward; full four-agent loop in Ph3/Ph4). Model allocation and obligations are written down—see [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **A ladder, not a free-for-all.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). M1–M5 milestones still describe the *project* arc; the phase ladder governs *review and revision*.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
-* **Slash-style skills, documented as files.** 32 skills under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`, `seed-snowball-discovery`, `claim-coverage-audit`, `extend-snowball-incremental`, `inherit-snowball-from-wiki`) with machine-checkable front matter—validated by the scripts below.
+* **Slash-style skills, documented as files.** Slash commands under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`, `seed-snowball-discovery`, `claim-coverage-audit`, `extend-snowball-incremental`, `inherit-snowball-from-wiki`) with machine-checkable front matter—validated by the scripts below.
 
-### Skills (32)
+### Skill catalog
 
-See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the slash-command table.
+See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the slash-command table; the count is derived by `scripts/catalog-check.py` from the contents of `skills/`.
 
 ---
 
@@ -74,10 +74,10 @@ Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](
 | [`agents/`](agents/) | Planner, Evaluator, Generator, Reflector prompts |
 | [`skills/`](skills/) | Slash-style skills (Ph rounds, checks, overlays, audits) |
 | [`references/`](references/) | Orchestration, protocols, style packages, templates, registries |
-| [`scripts/`](scripts/) | Validators, migration utilities, `release-gate.sh`, `build-release-zip.sh` |
+| [`scripts/`](scripts/) | Validators, migration utilities, `release-gate.sh`, `build-plugin.py`, `build-release-zip.sh` |
 | [`docs/agent-instructions/`](docs/agent-instructions/) | Architecture, governance, discovery, reference index |
-| [`legacy/`](legacy/) | Retired in-tree material—frozen reference, not the editing surface |
-| [`releases/`](releases/) | Plugin `.zip` builds from `scripts/build-release-zip.sh` (when committed) |
+| [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
+| [`releases/`](releases/) | Plugin archives — `.plugin` and legacy `.zip` builds from `scripts/build-plugin.py` and `scripts/build-release-zip.sh` |
 | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Published plugin `name` / `version` / `description` |
 
 ---

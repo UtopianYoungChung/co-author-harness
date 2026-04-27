@@ -191,6 +191,3 @@ Metrics are instruments, not verdicts. If the Evaluator's judgment says the piec
 
 Conversely, if metrics flag issues but the user and Evaluator agree the piece is ready (e.g., a MINOR that the venue does not care about), the user's decision wins (precedence rule 1).
 
----
-
-*Last updated: 2026-04-11. Created to address the formal success metrics gap identified in the package analysis.*

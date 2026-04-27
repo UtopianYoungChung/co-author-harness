@@ -1,6 +1,6 @@
 {
   "name": "co-author-harness",
-  "description": "Single-plugin marketplace for the co-author-harness-claude plugin: PhD-level academic-writing harness with the four-agent / Ph1-Ph4 ladder / phase_state / MCR / wiki-first / snowball-driven reference scaffolding.",
+  "description": "Single-plugin marketplace for the co-author-harness-claude plugin: PhD-level academic-writing review harness, four-agent loop on a four-phase ladder.",
   "owner": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"
@@ -9,7 +9,7 @@
     {
       "name": "co-author-harness-claude",
       "source": "./",
-      "description": "PhD academic-writing: four agents, Ph1-Ph4 ladder, MCR, phase_state, Check 8/§9d/§9e prefilters, provenance, wiki-first, snowball-driven reference scaffolding (v0.10.0); v0.10.1 arch/strategy doc mirrors + SAFEGUARD Check 8 Sub-check H (Register Appropriateness, advisory_until: H_two_revision_cycles); v0.10.2 §9e H pre-filter substrate, lay-term policy tightening (Latinate whitelist + register-shift signposting), H aggregator script, and three forward-looking plan docs. Run /plugin-commands for the full slash catalog.",
+      "description": "PhD-level academic-writing review for Claude Code. Four agents (Planner, Evaluator, Generator, Reflector) advance a per-section phase ledger under grounding discipline. Skills include snowball references, accessibility audit, and named-scholar style overlays.",
       "version": "0.10.2",
       "author": {
         "name": "Young Jo(seph) Chung",
@@ -21,22 +21,13 @@
         "research",
         "academic-writing",
         "peer-review",
+        "four-agent-loop",
+        "phase-ladder",
+        "grounding-protocol",
+        "snowball-references",
         "IS-research",
         "HCI",
-        "i-star",
-        "GORE",
-        "AORE",
-        "lifecycle-phase-ladder",
-        "phase-state-ledger",
-        "manuscript-convergence-report",
-        "stability-sub-mode",
-        "consolidation-anchors",
-        "wiki-first",
-        "llm-wiki",
-        "literature-discovery",
-        "zotero",
-        "EXTERNAL_VERIFIERS",
-        "snowball-references"
+        "zotero"
       ],
       "category": "research"
     }

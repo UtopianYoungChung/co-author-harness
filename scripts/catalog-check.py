@@ -54,11 +54,39 @@ def discover_skills(plugin_root: Path) -> Dict[str, Path]:
 
 
 def parse_readme_skill_count(plugin_root: Path) -> int | None:
+    """Return the count parsed from a `### Skills (N)` heading if present.
+
+    NOTE (v0.11.0-c2.6): an asserted count is a BLOCKER under plan §3.1
+    (Principle 2 — single source of truth). The c8 catalog-check inversion
+    moved enforcement from "heading must exist" to "heading must NOT
+    assert a count." This function now only exists to surface the
+    asserted value (if any) so the BLOCKER message can name it; it does
+    not signal validator health by itself.
+    """
     readme = read_text(plugin_root / "README.md")
     match = re.search(r"^###\s+Skills\s+\((\d+)\)\s*$", readme, re.M)
     if match:
         return int(match.group(1))
     return None
+
+
+def find_readme_skill_assertions(plugin_root: Path) -> List[str]:
+    """Find any asserted skill counts in README (plan §3.1).
+
+    Two patterns are flagged (per c8 spec):
+    1. `### Skills (N)` heading.
+    2. `\\bN skills\\b` bare prose.
+
+    The skill count is exclusively derived from `ls skills/` by this
+    validator; any assertion in README is a drift hazard.
+    """
+    readme = read_text(plugin_root / "README.md")
+    findings: List[str] = []
+    for match in re.finditer(r"###\s+Skills\s+\((\d+)\)", readme):
+        findings.append(f"`### Skills ({match.group(1)})` heading")
+    for match in re.finditer(r"\b(\d+)\s+skills\b", readme):
+        findings.append(f"`{match.group(1)} skills` prose")
+    return findings
 
 
 def parse_plugin_commands(plugin_root: Path) -> Set[str]:
@@ -187,11 +215,12 @@ def main() -> int:
     discovered_names = set(discovered.keys())
 
     readme_count = parse_readme_skill_count(plugin_root)
-    if readme_count is None:
-        blockers.append("README skill count heading not found: expected '### Skills (N)'")
-    elif readme_count != len(discovered_names):
+    asserted_findings = find_readme_skill_assertions(plugin_root)
+    for finding in asserted_findings:
         blockers.append(
-            f"README skills count ({readme_count}) != discovered skills ({len(discovered_names)})"
+            f"README asserts skill count via {finding} — the count must be derived from "
+            "the skills/ directory, not asserted in prose. See plan §3.1 (Principle 2). "
+            "Use `Skills (catalog)` or similar non-numeric form."
         )
 
     try:

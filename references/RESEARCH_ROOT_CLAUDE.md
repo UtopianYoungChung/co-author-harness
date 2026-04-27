@@ -161,6 +161,3 @@ When the user asks to start a new research project, the agent reads `PROJECT_BOO
 | GROUNDING_PROTOCOL.md | `.paper-package/GROUNDING_PROTOCOL.md` | Binding no-hallucination rules |
 | Year 2026 CLAUDE.md | Year 2026 root `CLAUDE.md` (peer folder, not under this Research root) | Year-level project notes (peer file, not parent) |
 
----
-
-*Last updated: 2026-04-12. Package location updated to `.paper-package/` (Option B deployment inside Research root). Created as the Research-root harness entry point. Delegates all academic writing work to the Package.*

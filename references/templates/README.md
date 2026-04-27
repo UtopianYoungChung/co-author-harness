@@ -63,4 +63,3 @@ The F1 template's `check_8_aggregate` and `check_8_subcheck_counters` fields are
 
 *Normative status.* Authoring stubs for P-3 artefact families. Referenced by `ARTEFACT_FRONTMATTER_SCHEMA.md §1` and by the release-gate script. Any new artefact family added after v0.7.4 must land its template here before the validator dispatch is wired.
 
-*Last updated: 2026-04-21 (v0.7.4 initial authorship).*

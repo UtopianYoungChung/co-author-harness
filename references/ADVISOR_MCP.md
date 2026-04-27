@@ -46,4 +46,3 @@ These are the **highest-leverage** moments discussed for submission defensibilit
 - `references/EXTERNAL_VERIFIERS.md` — citation / claim **verification** (Rule 7a), orthogonal to advisor strategic feedback.
 - `references/GROUNDING_PROTOCOL.md` — binding rules; advisor output remains **Indirect** until verified for prose.
 
-*Last updated: 2026-04-25 — EP-1/EP-2 entry points and plugin–MCP wiring.*
