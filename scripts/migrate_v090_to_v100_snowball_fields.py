@@ -7,10 +7,16 @@
 # reference-architecture.md §5.4` and the implementation strategy
 # `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §3.3`.
 #
-# **Status: S2 implementation** — the four S2-scoped functions are now
-# implemented; the S4 deliverable (`add_last_coverage_score_field`) is held
-# as a stage-gated no-op so the field count remains at {16, 17} until S4
-# lands the default-null value. The invariant check tolerates {16, 17, 18}.
+# **Status: S2 + S4 + S4.5 R2 implementation** — S2 shipped the four
+# S2-scoped functions (references_initialized field-add via heuristic;
+# schema_version bump; classification.md `claim_coverage_threshold` append;
+# fixture suite). S4 added `last_coverage_score` to the SectionStateObject
+# extension set (schema 17 -> 18). S4.5 R2 extends `extend_classification_md`
+# with six scalar fields surfacing parameters previously encoded inline at
+# S2/S4 (`coverage_regression_floor`, `max_parallel_extend_snowball`) or
+# shipping concurrently with consumers in SK-34 Phase 2.5 and SK-16
+# Phase 4.5 (synthesis thresholds + the two red-link fields). The
+# invariant check tolerates {16, 17, 18}.
 #
 # Scope (filled at S2)
 # --------------------
@@ -26,9 +32,17 @@
 #
 #   * reviews/classification.md
 #       - frontmatter additions:
-#           claim_coverage_threshold: 0.8           (S1, deferred — see note)
-#           auto_redlink_snowball: false            (S4.5)
-#           red_link_cap_per_round: 5               (S4.5)
+#           claim_coverage_threshold: 0.8           (S2; S1-deferred — see note)
+#           coverage_regression_floor: 0.05         (S4.5 R2)
+#           max_parallel_extend_snowball: 8         (S4.5 R2)
+#           synthesis_alignment_threshold_cosine: 0.6  (S4.5 R2; SK-34 Phase
+#                                                    2.5 consumer; mcp_fastpath
+#                                                    mode)
+#           synthesis_alignment_threshold_jaccard: 0.3 (S4.5 R2; filesystem
+#                                                    mode)
+#           auto_redlink_snowball: false            (S4.5 R2; SK-16 Phase 4.5
+#                                                    consumer)
+#           red_link_cap_per_round: 5               (S4.5 R2)
 #           inherit_snowball: <true|false>           (S6, default true if
 #                                                    wiki_linked: true)
 #           pre_seed_cap: 10                        (S6)
@@ -36,7 +50,12 @@
 #         to S1, but S1 closed without the addition. SK-NEW-B (which consumes
 #         the threshold) ships at S3, so the threshold is added by this
 #         migration at S2 to keep the consumer/producer ordering correct.
-#         The four S4.5/S6 fields are left untouched at S2.
+#       - **S4.5 R2 expansion:** the six scalar fields above land at S4.5 R2
+#         after their consumers (SK-34 Phase 2.5 synthesis-alignment fast-path
+#         and SK-16 Phase 4.5 red-link auto-trigger) ship at S4.5 R1. The
+#         synthesis thresholds use Option-B flat-scalar shape (per the S4.5 R2
+#         entry decision); the runtime picks cosine vs. Jaccard based on
+#         the project's `wiki_access_mode`. The two S6 fields remain queued.
 #
 # Idempotency
 # -----------
@@ -100,6 +119,10 @@ NEW_TRIGGER_NAME = "seed_snowball_signed"
 
 CLASSIFICATION_DEFAULTS = {
     "claim_coverage_threshold": 0.8,
+    "coverage_regression_floor": 0.05,
+    "max_parallel_extend_snowball": 8,
+    "synthesis_alignment_threshold_cosine": 0.6,
+    "synthesis_alignment_threshold_jaccard": 0.3,
     "auto_redlink_snowball": False,
     "red_link_cap_per_round": 5,
     "inherit_snowball": True,   # only set when wiki_linked: true; else False
@@ -107,9 +130,24 @@ CLASSIFICATION_DEFAULTS = {
 }
 
 # S2 implements the `claim_coverage_threshold` addition to classification.md
-# (per the strategy §3.4 deviation note above). The four S4.5/S6 fields are
-# left for their own stages.
+# (per the strategy §3.4 deviation note above). S4.5 R2 (this migration's
+# second wave) adds six scalar fields surfacing parameters previously encoded
+# inline at S2/S4 (`coverage_regression_floor`, `max_parallel_extend_snowball`)
+# or shipping concurrently with consumers in SK-34 Phase 2.5 and SK-16
+# Phase 4.5 (synthesis-alignment thresholds + the two red-link fields). The
+# synthesis thresholds use Option-B flat-scalar shape (per the S4.5 R2 entry
+# decision); the runtime picks cosine vs. Jaccard based on the project's
+# `wiki_access_mode`. The S6 `inherit_snowball` / `pre_seed_cap` fields
+# remain queued for their own stage.
 S2_CLASSIFICATION_FIELDS = ("claim_coverage_threshold",)
+S4_5_CLASSIFICATION_FIELDS = (
+    "coverage_regression_floor",
+    "max_parallel_extend_snowball",
+    "synthesis_alignment_threshold_cosine",
+    "synthesis_alignment_threshold_jaccard",
+    "auto_redlink_snowball",
+    "red_link_cap_per_round",
+)
 
 # Legal SectionStateObject field counts during the v0.9.0 -> v0.10.0 migration
 # rollout. 16 = pre-migration (v0.9.0); 17 = post-S2 (this migration);
@@ -309,19 +347,32 @@ def _split_frontmatter(text: str) -> tuple[str, str, str] | None:
 
 
 def extend_classification_md(classification_path: Path, wiki_linked: bool) -> str:
-    """Add the S2-scoped fields to `reviews/classification.md` frontmatter.
+    """Add the S2 + S4.5 R2 fields to `reviews/classification.md` frontmatter.
 
-    At S2 this only adds `claim_coverage_threshold: 0.8` (per the header
-    deviation note: the strategy assigned this field to S1, but S1 closed
-    without it; SK-NEW-B consumes the threshold at S3, so it lands at S2).
+    S2 added `claim_coverage_threshold: 0.8` (per the header deviation note:
+    the strategy assigned this field to S1, but S1 closed without it; SK-NEW-B
+    consumes the threshold at S3, so it lands at S2).
+
+    S4.5 R2 adds six scalar fields surfacing parameters previously encoded
+    inline at S2/S4 (`coverage_regression_floor`, `max_parallel_extend_snowball`)
+    or shipping concurrently with the consumers in SK-34 Phase 2.5 and SK-16
+    Phase 4.5 (`synthesis_alignment_threshold_cosine`, `_jaccard`,
+    `auto_redlink_snowball`, `red_link_cap_per_round`). The synthesis
+    thresholds use Option-B flat-scalar shape (per the S4.5 R2 entry decision);
+    the runtime picks cosine vs. Jaccard based on the project's
+    `wiki_access_mode`.
 
     The `wiki_linked` parameter is reserved for the S6 `inherit_snowball`
-    addition, which is gated to wiki-linked projects. At S2 the parameter is
-    accepted but not consumed.
+    addition, which is gated to wiki-linked projects. At S2 / S4.5 R2 the
+    parameter is accepted but not consumed (the new S4.5 fields are inert
+    on non-wiki-linked projects: the synthesis thresholds and red-link cap
+    are read only by SK-34 Phase 2.5 and SK-16 Phase 4.5, both of which
+    no-op on `wiki_linked: false`; the coverage / fanout parameters apply
+    everywhere).
 
-    Idempotent: existing values are preserved; missing S2 fields are appended.
-    Returns the new file text. Raises ValueError if frontmatter is unparseable
-    (caller maps to exit 7).
+    Idempotent: existing values are preserved; missing S2 / S4.5 fields are
+    appended in declaration order. Returns the new file text. Raises
+    ValueError if frontmatter is unparseable (caller maps to exit 7).
     """
     if not classification_path.is_file():
         # No classification.md to extend; treat as out-of-scope no-op (the
@@ -351,9 +402,13 @@ def extend_classification_md(classification_path: Path, wiki_linked: bool) -> st
         if m:
             existing_keys.add(m.group(1))
 
-    # Append S2 fields if absent. Preserves trailing-blank-line discipline.
+    # Append S2 + S4.5 R2 fields if absent. Preserves trailing-blank-line
+    # discipline. Order: S2 fields first (preserving the existing v0.9.0 → S2
+    # migration order), then S4.5 R2 fields in conceptual grouping —
+    # coverage-related (regression floor + parallel cap), synthesis-related
+    # (cosine + Jaccard thresholds), red-link-related (auto + cap).
     appended: list[str] = []
-    for key in S2_CLASSIFICATION_FIELDS:
+    for key in (*S2_CLASSIFICATION_FIELDS, *S4_5_CLASSIFICATION_FIELDS):
         if key in existing_keys:
             continue
         default = CLASSIFICATION_DEFAULTS[key]
