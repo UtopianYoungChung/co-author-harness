@@ -271,6 +271,13 @@ Each stage's content is specified in the architecture plan §6.1–§6.8. The im
 
 **Effort:** ~6 hours (Ph2 dispatch logic is sensitive; the chain is exercised end-to-end).
 
+**Binding decisions (S4 surface; SOT at `agents/planner.md §Phase 3.8`; architecture mirrors landed in v0.10.1 hardening per `CHANGELOG.md` "Deferred to v0.10.1+").** S4 implementation surfaced four Planner-side decisions whose authoritative spec lives in `agents/planner.md §Phase 3.8` rather than in the consumed `run-phase-2/SKILL.md §4 Step 0.5` (per architecture §6.0 row 4 single-source-of-truth):
+
+1. **Four-outcome handler** for SK-NEW-B `claim-coverage-audit` dispatch — `CLEAN` / `BELOW_THRESHOLD` / `AUDIT_FAILED` / `IDEMPOTENT_HIT`. IDEMPOTENT_HIT is clean-exit-equivalent (no notification, prior `last_coverage_score` preserved); the asymmetric notification treatment vs. AUDIT_FAILED is the load-bearing rationale for four outcomes rather than three. Architecture mirror: §5.2 Edit-2.
+2. **Inline parallel-fanout cap** of 8 SK-NEW-C invocations per Ph2 cycle (`max_parallel_extend_snowball`, default 8 in `reviews/classification.md`; surfaced at S4.5 R2). Excess uncovered claims rank by Rule-7a-criticality and defer with non-blocking `W-COVERAGE-FANOUT-CAPPED`. Architecture mirror: §7 R-14.
+3. **Cross-round coverage-regression hook** consuming `last_coverage_score` (`coverage_regression_floor`, default 0.05; surfaced at S4.5 R2). Non-gating; surfaces `W-COVERAGE-REGRESSION-OBSERVED` on `prior_score - new_score > regression_floor` for user adjudication. Consumer wiring lands at S4.5 R2; runs at every Ph2 entry that lands outcome (i) or (ii); skipped on outcomes (iii) and (iv). Architecture mirror: §5.2 Edit-2 closing prose.
+4. **Halt-vs-continue asymmetry** between Phase 3.7 outcome (iii) HALT (SK-NEW-A substrate failure — REFERENCES.md is the substrate the Generator drafts against, partial population is worse than none) and Phase 3.8 outcome (iii) CONTINUE (SK-NEW-B advisory failure — the audit signal informs downstream reads but is not the substrate, missing it widens the verification surface but does not corrupt anything). Architecture mirror: §6.0 closing paragraph (canonical example for row 4 of the coupling checklist).
+
 ### 5.6 Stage S4.5 — Wiki synthesis fast-path + red-link triggers
 
 **Worktree:** `../co-author-harness-S4.5`, branched off `v0.10.0-S4`.
@@ -282,6 +289,8 @@ Each stage's content is specified in the architecture plan §6.1–§6.8. The im
 **Stage-close gate:** as above, plus pilot project's `wiki/syntheses/` is exercised — at least one drafted claim resolves via synthesis alignment and is annotated `[via-synthesis: <key>]`; the red-link auto-trigger fires and is rate-limited at `red_link_cap_per_round`.
 
 **Effort:** ~4 hours.
+
+**S4 carry-overs (R2; surface for S4 binding decisions (b) and (c)).** S4.5 R2 surfaces in `reviews/classification.md` the two parameters that materialise S4 binding decisions (b) inline parallel-fanout cap and (c) cross-round coverage-regression hook (see §5.5 binding-decisions paragraph and architecture §6.6 R2 enumeration): `max_parallel_extend_snowball` (default 8) and `coverage_regression_floor` (default 0.05). The consumer wiring for the regression hook lands here in `agents/planner.md §Phase 3.8` (delivers the S4 round-2 fix's "S4.5-deferred consumer" promise; introduces `W-COVERAGE-REGRESSION-OBSERVED` per the baseline code-registration contract). The `extend_classification_md` migration step populates both defaults during v0.9.0 → v0.10.0 migration so post-migration projects always carry the explicit values.
 
 ### 5.7 Stage S5 — Documentation amendments
 
