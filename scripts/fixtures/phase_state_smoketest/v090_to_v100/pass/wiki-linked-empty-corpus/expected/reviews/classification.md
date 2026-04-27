@@ -4,6 +4,12 @@ default_final_phase: Ph3
 wiki_linked: true
 sd_sr_required: false
 claim_coverage_threshold: 0.8
+coverage_regression_floor: 0.05
+max_parallel_extend_snowball: 8
+synthesis_alignment_threshold_cosine: 0.6
+synthesis_alignment_threshold_jaccard: 0.3
+auto_redlink_snowball: false
+red_link_cap_per_round: 5
 ---
 
 # Classification — wiki-linked-empty-corpus

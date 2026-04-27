@@ -730,6 +730,147 @@ ph1_ph2_signoff:
       (Introduced v0.10.0 Stage S4; cross-refs: `skills/claim-coverage-audit/SKILL.md §2`,
       `skills/run-phase-2/SKILL.md §4 Step 0.5`, `agents/planner.md §Phase 3.8`.)
 
+  # v0.10.0 Stage S4 (declared at S4.5 R2 — S4 latent-gap catch-up) —
+  # emitted by the Planner at run-phase-2 Step 0.5 outcome (ii)
+  # BELOW_THRESHOLD when the audit's uncovered-count exceeds
+  # max_parallel_extend_snowball (default 8 per S4.5 R2 surfacing in
+  # reviews/classification.md; was inline-default at S4 tip). The Planner
+  # dispatches the first max_parallel_extend_snowball claims ranked by
+  # Rule-7a-criticality (claim-kind priority: result > mechanism > comparison
+  # > existential > theoretical commitment; ties broken by claim-locus
+  # order); deferred claims surface as MAJOR Evaluator findings carrying
+  # propose_extend_snowball remediation hint. NON-BLOCKING; Ph2 dispatch
+  # continues. Single-source-of-truth: agents/planner.md §Phase 3.8 inline
+  # parallel SK-NEW-C dispatch fanout cap paragraph.
+  coverage_fanout_capped:
+    presented_to_user: true
+    log_detail: "W-COVERAGE-FANOUT-CAPPED on {section_heading_path}: {uncovered_count} uncovered claims exceeds max_parallel_extend_snowball={cap}; Planner dispatched first {cap} ranked by Rule-7a-criticality; {deferred_count} claim(s) deferred and surface as MAJOR Evaluator findings with propose_extend_snowball hint."
+    user_template: |
+      ► W-COVERAGE-FANOUT-CAPPED on {section_heading_path}.
+      Claim-coverage audit at run-phase-2 Step 0.5 returned BELOW_THRESHOLD with
+      {uncovered_count} uncovered claims, exceeding the project's
+      `max_parallel_extend_snowball` parameter ({cap}; default 8 in
+      `reviews/classification.md`). The Planner auto-dispatched SK-NEW-C
+      `extend-snowball-incremental` for the first {cap} uncovered claims ranked
+      by Rule-7a-criticality (claim-kind priority: result > mechanism >
+      comparison > existential > theoretical commitment; ties broken by
+      claim-locus order). The remaining {deferred_count} claim(s) surface as
+      MAJOR findings in the Evaluator's `ph2_findings_<date>_<cycle_id>.md`
+      carrying the `propose_extend_snowball` remediation hint, identical to
+      the race-loser semantics for claims SK-NEW-C cannot resolve before
+      Step 4 reaches them.
+      NON-BLOCKING: the Ph2 cycle proceeds normally; the eight
+      `pre_phase_advance_check.py` clauses remain the binding admission
+      contract. The deferred claims are the same shape as race-losers — the
+      user's adjudication path is identical.
+      Recommended action at cycle close: review the deferred-claim list in
+      `reviews/claim_coverage_<date>_<cycle_id>.md`; either (a) raise
+      `max_parallel_extend_snowball` in `reviews/classification.md` for
+      projects with deep token / API budgets (worst-case Ph2 cost is
+      `cap × max_iterations=2 × per_seed_cap=5` verifier probes per cycle —
+      at cap 16 this doubles from 80 → 160 probes); (b) manually
+      `/extend-snowball-incremental <claim>` for any deferred-but-load-bearing
+      claim before the Ph2 round closes; (c) accept the deferred claims
+      surfacing as MAJOR Evaluator findings.
+      (Introduced v0.10.0 Stage S4 inline at `agents/planner.md §Phase 3.8`;
+      declared at S4.5 R2 as latent-gap catch-up; cross-refs:
+      `agents/planner.md §Phase 3.8` (single-source-of-truth: inline parallel
+      cap paragraph + Rule-7a-criticality ranking),
+      `skills/extend-snowball-incremental/SKILL.md §3 Phase 2`
+      (per-iteration max_iterations / per_seed_cap discipline),
+      architecture R-1 / R-12 (cost-blowout mitigation).)
+
+  # v0.10.0 Stage S4.5 R2 — emitted by the Planner at run-phase-2 Step 0.5
+  # outcome (i) Clean exit OR outcome (ii) BELOW_THRESHOLD when the new
+  # coverage score regresses from the prior round's last_coverage_score by
+  # more than coverage_regression_floor (default 0.05; configured in
+  # reviews/classification.md per the S4.5 R2 surfacing). NON-BLOCKING by
+  # design: the regression hook is a cross-round measurement, not a
+  # phase-advance gate. The eight pre_phase_advance_check.py clauses remain
+  # the binding admission contract. Skipped when the prior score is null
+  # (first-audit case) and on outcomes (iii) AUDIT-FAILED / (iv)
+  # IDEMPOTENT_HIT (no new score to compare; no round-over-round delta).
+  # Single-source-of-truth contract anchored at agents/planner.md §Phase 3.8;
+  # this block carries the user-template only.
+  coverage_regression_observed:
+    presented_to_user: true
+    log_detail: "W-COVERAGE-REGRESSION-OBSERVED on {section_heading_path}: cross-round coverage drop {regression} (prior {prior_score} → new {new_score}) exceeds coverage_regression_floor={regression_floor}; prior audit at {prior_audit_path}; non-blocking, Ph2 dispatch continues."
+    user_template: |
+      ► W-COVERAGE-REGRESSION-OBSERVED on {section_heading_path}.
+      Cross-round claim-coverage drop detected at run-phase-2 Step 0.5: the
+      section's coverage score fell from {prior_score} (prior round) to
+      {new_score} (this round) — a regression of {regression}, exceeding the
+      project's `coverage_regression_floor` parameter ({regression_floor};
+      default 0.05 in `reviews/classification.md`). The prior cycle's audit
+      report is at `{prior_audit_path}`.
+      NON-BLOCKING: this is a cross-round measurement, not a phase-advance gate.
+      Ph2 dispatch continues; the eight `pre_phase_advance_check.py` clauses
+      remain the binding admission contract. SK-NEW-C `extend-snowball-
+      incremental` is auto-dispatched on outcome (ii) BELOW_THRESHOLD per the
+      existing Phase 3.8 contract regardless of whether this regression
+      warning fires.
+      Typical causes: a Ph3 retraction pushed the section back to Ph2 with
+      new claims unanchored to the existing pool; an SK-NEW-C extension
+      introduced sources subsequently invalidated by directives.md; a
+      manuscript edit removed previously-resolving anchors.
+      Recommended action at cycle close: review the audit's `## Uncovered`
+      and `## Partially covered` tables; either (a) re-run
+      `/seed-snowball-discovery <section>` to refresh the pool from the new
+      claim register; (b) re-run `/extend-snowball-incremental` on regressed
+      claims; or (c) mark the regression as expected-by-design via
+      `reviews/classification.md` (raise `coverage_regression_floor` if the
+      new normal is a lower coverage band) or via `directives.md` with
+      explicit rationale.
+      (Introduced v0.10.0 Stage S4.5 R2; cross-refs:
+      `agents/planner.md §Phase 3.8` (single-source-of-truth contract;
+      coverage regression hook paragraph),
+      `skills/claim-coverage-audit/SKILL.md §4` (audit output),
+      `references/phase_state_schema.md §2` (last_coverage_score field;
+      v0.10.0 S4 schema addition).)
+
+  # v0.10.0 Stage S4.5 R1 — emitted by SK-16 `retrofit-concept-grounding` when
+  # the round's red-link queue exceeds `red_link_cap_per_round` (default 5;
+  # configured in reviews/classification.md at S4.5 R2). Excess red-links are
+  # logged as deferred-discovery candidates rather than triggering immediate
+  # SK-NEW-C `extend-snowball-incremental` dispatch. NON-BLOCKING: the SK-16
+  # round completes normally; deferred red-links do NOT block any
+  # Lifecycle-Phase advance (red-link auto-trigger is a wiki-collaboration
+  # accelerant, not a gating signal). Code-registration contract per
+  # phase_notifications.yaml convention; declaration is independent of the
+  # §6.0 phase-runner-Step-edit coupling checklist (S4.5 edits no Step).
+  # Cross-refs: docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md
+  # §6.6 (S4.5 R1 deliverable enumeration); architecture R-12 (rate-limit
+  # mitigation).
+  redlink_cap_saturated:
+    presented_to_user: true
+    log_detail: "W-REDLINK-CAP-SATURATED on round {round_id}: SK-16 `retrofit-concept-grounding` deferred {deferred_count} red-link admissions beyond red_link_cap_per_round={cap}; deferred candidates logged at {snowball_log_path} for user re-prioritisation; SK-16 round continues to completion (non-blocking)."
+    user_template: |
+      ► W-REDLINK-CAP-SATURATED on round {round_id}.
+      SK-16 `retrofit-concept-grounding` encountered {redlink_total} red-link candidates this round
+      (concept pages citing sources that have no `wiki/sources/<key>.md` page yet). Of these, the
+      first {cap} (the project's `red_link_cap_per_round` parameter from `reviews/classification.md`,
+      default 5) were auto-dispatched to SK-NEW-C `extend-snowball-incremental`; the remaining
+      {deferred_count} were logged as deferred-discovery candidates at `{snowball_log_path}` for
+      explicit user re-prioritisation at round close.
+      NON-BLOCKING: the SK-16 round completes normally; deferred red-links do NOT block any
+      Lifecycle-Phase advance. Red-link auto-trigger is a wiki-collaboration accelerant per
+      architecture §5.5.4, not a gating signal — the existing SK-16 Phase 4 (Report red-links)
+      convention continues to surface unresolved red-links in the report regardless of cap state.
+      Recommended action at round close: review the deferred-discovery candidates and either
+      (a) re-prioritise specific candidates by manually invoking `/extend-snowball-incremental` on
+      the corresponding citation; (b) raise `red_link_cap_per_round` in `classification.md` and
+      re-run SK-16 in a future round; or (c) accept that the deferred red-links remain ungrounded
+      this round (they will resurface in the next SK-16 invocation if the underlying citation
+      pattern is unchanged).
+      Selection criterion at the cap: SK-16 admits red-links in document order (the order they
+      appear during the concept-page sweep). Future v0.10.x extension may add a criticality-ranked
+      selection per Rule 7a; at S4.5 the document-order rule is the deterministic default.
+      (Introduced v0.10.0 Stage S4.5 R1; cross-refs:
+      `skills/retrofit-concept-grounding/SKILL.md §3` (Phase 4.5 red-link auto-trigger),
+      `skills/retrofit-concept-grounding/SKILL.md §8` (Failure modes — skip-and-continue contract),
+      `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §6.6` (S4.5 R1 deliverable enumeration),
+      architecture R-12 (rate-limit mitigation).)
+
   escalation_without_owner:
     presented_to_user: true
     log_detail: "E-ESCALATION-WITHOUT-OWNER on {section_heading_path} for finding {finding_id}."

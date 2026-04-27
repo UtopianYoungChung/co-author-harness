@@ -200,24 +200,109 @@ Verdict summary: 17 of 18 sub-clauses covered cleanly at S1; 1 partial gap (look
 **Acknowledged carry-over MINOR (deferred):** the three known-FP metrics persist; markdown numbering of fractional-step labels still pending S4 holistic decision; PHASE_PROTOCOL.md §6.3a vs phase_state_schema.md §3.1 trigger ambiguity still pending a broader hardening pass; `pre_phase_advance_check.py` tier-name → phase-name migration still v0.10.x patch scope. None block S3 close.
 
 ### Stage S4 — Phase-2 wiring + SK-NEW-C (`extend-snowball-incremental`)
-<!-- TODO@S4-close. Should record:
-     - skills/run-phase-2/SKILL.md Step 0.5 insertion + §9 amendment
-     - skills/extend-snowball-incremental/SKILL.md
-     - commands/extend-snowball-incremental.md shim
-     - SKILL_REGISTRY.md SK-35 entry
-     - phase_state_schema.md last_coverage_score addition
-     - Pilot probe outcome (auto-dispatch SK-NEW-B → SK-NEW-C exercised)
-     - Semantic-review verdict (binding at S4)
-     - Calibrator economics. -->
 
-### Stage S4.5 — Wiki synthesis fast-path + red-link triggers
-<!-- TODO@S4.5-close. Should record:
-     - skills/claim-coverage-audit/SKILL.md synthesis-alignment fast-path
-     - skills/retrofit-concept-grounding/SKILL.md red-link auto-trigger
-     - Pilot probe outcome (synthesis-covered count non-zero;
-       per-claim Scholar Gateway probe count drop ≥30% vs. S4 baseline;
-       red_link_cap_per_round rate-limit functional)
-     - Calibrator economics. -->
+**Closed:** 2026-04-26 on branch `stage/v0.10.0-S4` (in-place stage branch — same convention as S1, S1.5, S2, S3).
+
+**Scope.** Phase-2 wiring + SK-NEW-C `extend-snowball-incremental` (SK-35) ship + four orchestration co-mutations per architecture §6.5 + strategy §5.5. The §6.0 coupling checklist applies (S4 inserts Step 0.5 into `run-phase-2`; the four §6.0 surfaces are touched alongside the SKILL.md ship).
+
+**Files landed (9 files):**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `skills/extend-snowball-incremental/SKILL.md` | New (~5300 tokens) | SK-35 body per architecture §5.1 row 3 + §4.5: Phase 1 anchor selection (lexical / claim-kind match against existing pool); Phase 2 micro-iteration (mirrors SK-NEW-A iteration with `max_iterations=2` and `per_seed_cap=5`); Phase 2.5 direct-claim probe fallback; Phase 3 atomic-write to REFERENCES.md `snowball` table only via `.tmp` → atomic-rename; Phase 4 snowball-log row append. Failure mode: `[BLOCKER]` finding to Evaluator's `ph2_findings_<date>_<cycle_id>.md`. |
+| 2 | `commands/extend-snowball-incremental.md` | New (UI shim) | Frontmatter `description` strict-prefix of plugin-commands catalog Purpose. |
+| 3 | `references/SKILL_REGISTRY.md` | SK-35 entry inserted | Mirrors SK-33 / SK-34 nine-field shape. |
+| 4 | `skills/run-phase-2/SKILL.md` | Step 0.5 placeholder → full body + §9 amendment | Part (a) snowball-gate re-test carry-forward; Part (b) NEW claim-coverage audit dispatch with **four-outcome handler** (CLEAN / BELOW_THRESHOLD with auto SK-NEW-C + 8-parallel cap / AUDIT-FAILED non-blocking-CONTINUES / IDEMPOTENT_HIT clean-exit-equivalent); §9 discovery-vs-judgment-layer split per architecture §5.2 Edit-2 paragraph 4. Round-2: clarifying sentence about Step 0.5's executional placement (between Step 1 Phase 0 preflight and Step 3 Evaluator Step 0a) despite the 0.5 numeric label. |
+| 5 | `references/phase_state_schema.md` | §2 schema bump 17 → 18 + §6.1 new finding code | `last_coverage_score: float \| null` field added; non-null values must be in `[0.0, 1.0]`; new `SECTION_BAD_LAST_COVERAGE_SCORE_TYPE` MINOR finding code; §1.1 schema_version commentary updated; §2 sample JSON + §8 seed template both bumped. |
+| 6 | `agents/planner.md` | New Phase 3.8 inserted between Phase 3.7 and Phase 4 | Canonical Planner-side contract for the SK-NEW-B → SK-NEW-C chain. **Round-2 surgical fixes:** explicit fourth IDEMPOTENT_HIT outcome (resolves orchestrator-critic F1 four-way confusion across planner.md / phase_notifications.yaml / SK-34 §2); inline parallel SK-NEW-C dispatch fanout cap of 8 with Rule-7a-criticality ranking (claim-kind priority: result > mechanism > comparison > existential > theoretical commitment; ties broken by claim-locus order); coverage regression hook framed as "S4.5-deferred consumer" with "written but not yet consulted" framing; halt-vs-continue asymmetry rationale (Phase 3.7 outcome (iii) HALTS Ph1; Phase 3.8 outcome (iii) CONTINUES Ph2 — anchored at planner.md, not in consumed SKILL.md). |
+| 7 | `references/phase_notifications.yaml` | Two new codes declared | `W-COVERAGE-BELOW-THRESHOLD` (advisory, non-blocking) and `E-COVERAGE-AUDIT-FAILED` (error, non-blocking by design — audit is advisory). Round-2: `E-COVERAGE-AUDIT-FAILED` template clarifies `IDEMPOTENT_HIT` is **excluded** from the failure reason-code enumeration with explicit "NOT a failure" framing. |
+| 8 | `README.md` | Skill count 30 → 31 (round-2 promise-reviewer MINOR fix) | Example skill list adds `extend-snowball-incremental`. |
+| 9 | `skills/plugin-commands/SKILL.md` | User → command table row + Command catalog row | Both inserted adjacent to `/claim-coverage-audit`. |
+
+**§6.0 coupling-checklist sweep at S4:** four surfaces walked. Surface 1 (planner.md dispatch registration) — Phase 3.8 added per §6.5 expectation. Surface 2 (phase_notifications.yaml) — two new codes declared. Surface 3 (pre_phase_advance_check.py VALID_TRIGGERS) — verified-no-edit; the script's `REQUIRED_SECTION_FIELDS` enumerates only 15 fields (v0.7.3 baseline) and is extension-tolerant of S2/S4 schema additions per architecture §7 R-7; schema bump 17 → 18 invisible to the script. Surface 4 (halt-vs-continue reconciliation) — Phase 3.7 HALTS / Phase 3.8 CONTINUES asymmetry anchored authoritatively at planner.md per architecture §6.0 row 4; consumed SKILL.md cross-references rather than restates.
+
+**Architecture-plan deviation:** none at S4 within architecture §6.5 + §5.2 Edit-2 scope. The four binding decisions (four-outcome handler / inline parallel cap of 8 / S4.5-deferred regression hook / halt-vs-continue asymmetry rationale) are persisted in `agents/planner.md §Phase 3.8` prose; architecture-doc and strategy-doc amendments to mirror these decisions are a candidate for the v0.10.0 RC documentation pass.
+
+**Strategy-doc deviation:** none at S4. Three-deliverable scope per §5.5 honoured exactly (run-phase-2 + SK-NEW-C + schema bump); the §6.0 four-surface coupling adds the orchestration co-mutations as expected.
+
+**Calibrator economics:** pass. Cost rebase $6.323805 → **$6.754935** (+6.81% feature-attributed; SK-35 IS on the auto-dispatch graph unlike S3's manually-invokable SK-34). Subagent dispatch multiplier reflects the new SK-NEW-B → SK-NEW-C edge. 0/0/3 finding shape (0 BLOCKER, 0 MAJOR, 3 MINOR known-FP carry-overs from S2/S3: cyclomatic 39, chain depth, parallelisable fraction). New baseline recorded at `.plugin-efficiency.json baseline.projected_cost_per_invocation_usd_S4_rebase`.
+
+**Validation gate (per strategy §7.1):** all four scripts PASS — `skill-check.py` (31 skills, 0 BLOCKER), `version-check.py` (manifest 0.9.0 = README 0.9.0 = CHANGELOG 0.9.0; v0.10.0 frontmatter bump RC-deferred per §8.4), `catalog-check.py` (31 skills + 15 commands; README count match), `path-hygiene-check.py` (0 BLOCKER); `migrate_v090_to_v100_snowball_fields.py --validate` 9/9 fixtures pass.
+
+**Convergence pattern:** **2 rounds — exactly the §6.0 pre-flight prediction** (vs. S2's 5-round convergence). Round 1 surfaced 4 binding semantic-review MAJORs across md-reviewer + orchestrator-critic; round-2 fix commit `4d2f347` addressed all four surgically; round-2 orchestrator-critic verdict **CLEAN with 0 new issues**. The convergence simplicity vs. S2 reflects the architecture amendment landed at S2 making the Phase-3.8 dispatch contract fully specified before authoring; round-1 MAJORs were refinements, not architectural reframes.
+
+**Semantic-review verdict (binding at S4 per strategy §4.4):** **CLEAR after 2 rounds.** Final round-2 md-reviewer + orchestrator-critic + promise-reviewer passes. Marker at `artifacts/semantic-review/latest.json`.
+
+**Acknowledged carry-over MINORs (deferred to S4.5 / v0.10.0 RC):**
+
+- `CHANGELOG.md` and `RELEASE_NOTES_v0.10.0.md §2.S4` un-filled at S4 tip — promise-reviewer flagged MINOR-deferred-expected; landed at S4.5 R2 catch-up (this section is the catch-up).
+- `coverage_regression_floor` parameter not yet surfaced in `reviews/classification.md` template — landed at S4.5 R2.
+- `max_parallel_extend_snowball` parameter encoded inline at planner.md §Phase 3.8 with literal default 8 — surfaced in `reviews/classification.md` at S4.5 R2.
+- `W-COVERAGE-FANOUT-CAPPED` referenced in planner.md §Phase 3.8 inline-cap path but **never declared in `phase_notifications.yaml`** — latent gap not caught at S4 close, surfaced at S4.5 R1 grep, declared at S4.5 R2 catch-up.
+- Architecture- and strategy-doc amendments mirroring the four S4 binding decisions; candidate for v0.10.0 RC documentation pass per S4 close-notes.
+
+### Stage S4.5 — Wiki synthesis fast-path + red-link triggers + S4 carry-overs
+
+**Closed:** 2026-04-27 on branch `stage/v0.10.0-S4.5` (in-place stage branch — same convention as S1..S4). **Two-round close per architecture §6.6 round-split:** R1 ships primary deliverables; R2 ships S4 carry-overs + a S4 latent-gap catch-up.
+
+**§6.0 coupling-checklist sweep at S4.5 entry (verify-not-assume):** four rows walked against R1 edits. Row 1 (planner.md dispatch registration) **EXEMPT** — `agents/planner.md` mentions of SK-16 are descriptive (line 83 — "incremental SK-16 sibling" in Ph1 exit artefact; line 447 — SK-16 inside Reflector-full's close-out chain at Ph4); SK-16 → SK-NEW-C edge is internal to SK-16's procedure, not Planner-dispatched. Row 3 (pre_phase_advance_check.py VALID_TRIGGERS) **EXEMPT** — no new trigger added. Rows 2 + 4 **NOT EXEMPT** but resolved by baseline contracts not §6.0 coupling — user decisions: `W-REDLINK-CAP-SATURATED` user-visible warning at cap (declared in `phase_notifications.yaml` per the standard code-registration contract, not §6.0 coupling); skip-and-continue formalised as the partial-failure contract for SK-NEW-C dispatch failures inside SK-16's red-link queue (single-source-of-truth in `retrofit-concept-grounding/SKILL.md §Failure modes` — no phase-runner reads the contract). The §6.0 closing-sentence enumeration was empirically revised at S4.5 entry: the original "applies to S2, S4, S4.5" text reflected pre-S4 scope expectations (the predecessor architecture-plan author anticipated that the synthesis fast-path would reshape Step 0.5 logic) which the realised S4.5 design did not require. Documented in the §6.0 closing-sentence amendment landed at R1.
+
+#### Round 1 (closed 2026-04-27 — commit `91f4784`)
+
+**Scope.** Two existing SKILL.md amendments + one new W-* code declaration + architecture-plan §6.0 + §6.6 amendments.
+
+**Files landed (4 files):**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `skills/claim-coverage-audit/SKILL.md` | New Phase 2.5 inserted between Phase 2 / Phase 3; §1, §2 idempotency, §3, §4 output template, §6, §7 amended | Synthesis-alignment fast-path per architecture §5.5.3. Four-set output (covered / synthesis-covered / partially-covered / uncovered) — promotion rule: `covered` stays `covered`; `partially-covered` or `uncovered` may be promoted to `synthesis-covered` if any synthesis aligns above threshold. Coverage score formula `(covered + synthesis-covered) / total`; subscores `direct_coverage` / `synthesis_coverage` reported separately so downstream consumers (the cross-round regression-detection consumer at S4.5 R2; the Reflector Phase 2g audit) distinguish direct-citation coverage from synthesis-mediated coverage. Idempotency cache extended with `wiki/syntheses/` content hash. Thresholds 0.6 cosine (mcp_fastpath) / 0.3 Jaccard (filesystem) per architecture §5.5.6 `wiki_access_mode` conditioning; threshold parameters surface in classification.md at R2. Backward-compatible — silently no-ops on projects without `wiki/syntheses/`. Frontmatter `version` unchanged at 1.0 (additive amendment per S1.5 precedent). |
+| 2 | `skills/retrofit-concept-grounding/SKILL.md` | New Phase 4.5 inserted between Phase 4 / Phase 5; new §Failure modes section (FM-1..FM-6); Sibling skills updated | Red-link auto-trigger per architecture §5.5.4. Gated on `auto_redlink_snowball: true` AND `wiki_linked: true` in classification.md (default `false` at R2 surfacing — opt-in by design). Capped at `red_link_cap_per_round` (default 5; document-order selection at the cap; criticality-ranked selection deferred to v0.10.x). Per-dispatch SK-NEW-C failure: **skip-and-continue** — formalised at FM-1; the failed red-link is logged in `reviews/snowball_log.md` with the failure reason; processing advances to the next red-link in the queue; no per-failure W-* / E- code emitted (the snowball log is the audit trail; aggregate failures surface in the Phase 4.5 closing summary). Cap saturation: deferred-discovery candidates logged + `W-REDLINK-CAP-SATURATED` warning emitted per phase_notifications.yaml. Sibling-skill register: SK-NEW-C registered as downstream (added v0.10.0-S4.5 R1). Frontmatter `version` unchanged at 1.0. |
+| 3 | `references/phase_notifications.yaml` | `redlink_cap_saturated` block declared (W-REDLINK-CAP-SATURATED, non-blocking) | Mirrors `W-SNOWBALL-PRECONDITION-UNMET` shape; full user-template with round-close adjudication ladder per architecture R-12 (rate-limit mitigation). |
+| 4 | `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md` | §6.0 closing-sentence revised; §6.6 round-split paragraphs | §6.0: S4.5 moved to exempt list; empirical-staleness rationale documented (the original "applies to S2, S4, S4.5" text reflected pre-S4 scope expectations which the realised S4.5 design did not require). §6.6: R1 + R2 deliverables enumerated with the `W-REDLINK-CAP-SATURATED` baseline-code-registration distinction from §6.0 coupling, the skip-and-continue partial-failure contract, and the R2 carry-over surface set. |
+
+**R1 validation gate (4 scripts, all PASS):**
+- `skill-check.py` — 31 skills, 0 BLOCKER, 0 WARNING.
+- `version-check.py` — manifest 0.9.0 = README 0.9.0 = CHANGELOG 0.9.0; 0 BLOCKER (v0.10.0 frontmatter bump RC-deferred per strategy §8.4).
+- `catalog-check.py` — 31 skills + 15 commands; README count match; 0 BLOCKER.
+- `path-hygiene-check.py` — 0 BLOCKER.
+
+**R1 calibrator:** deferred to full-S4.5-close ceremony at R2 final-commit per user direction.
+**R1 semantic-review:** advisory at S4.5 (per strategy §4.4); not invoked at R1.
+
+#### Round 2 (closed 2026-04-27)
+
+**Scope.** S4 carry-over surfaces + S4 latent-gap catch-up.
+
+**Files landed (5 files plus 6 fixture files):**
+
+| # | File | Action | Notes |
+|---|---|---|---|
+| 1 | `scripts/migrate_v090_to_v100_snowball_fields.py` | `CLASSIFICATION_DEFAULTS` extended with 4 new entries; new `S4_5_CLASSIFICATION_FIELDS` tuple; `extend_classification_md` appends both S2 + S4.5 R2 fields; header docstring updated | Six new fields appended at R2 migration: `coverage_regression_floor` (default 0.05), `max_parallel_extend_snowball` (default 8), `synthesis_alignment_threshold_cosine` (default 0.6), `synthesis_alignment_threshold_jaccard` (default 0.3), `auto_redlink_snowball` (default `false`), `red_link_cap_per_round` (default 5). Synthesis thresholds use **Option-B flat-scalar shape** per the S4.5 R2 entry decision (over Option-A nested-map): easier to override one without the other, scalar-uniform schema, matches the SKILL.md cross-references already authored at R1. The `wiki_linked` parameter is reserved for the S6 `inherit_snowball` addition; at R2 the parameter is accepted but not consumed (the new S4.5 fields are inert on non-wiki-linked projects per the SKILL.md gate-checks). |
+| 2 | `scripts/fixtures/phase_state_smoketest/v090_to_v100/pass/{wiki-linked-with-corpus, wiki-linked-empty-corpus, not-wiki-linked, mixed-state}/expected/reviews/classification.md` | Updated (4 files) | 6 new fields appended after `claim_coverage_threshold: 0.8` in deterministic order (coverage-related → synthesis-related → red-link-related). |
+| 3 | `scripts/fixtures/phase_state_smoketest/v090_to_v100/pass/idempotent-rerun/{reviews,expected/reviews}/classification.md` | Updated (2 files) | Both input AND expected updated to reflect post-R2 v0.10.0 fully-migrated state — "already at v0.10.0 shape" per the fixture comment now means "all 7 fields present" (S2's `claim_coverage_threshold` + 6 S4.5 R2 fields). Migration `--validate` exit 0; rerun is no-op as expected. |
+| 4 | `agents/planner.md §Phase 3.8` | Coverage regression hook paragraph rewritten (consumer wiring landed); `max_parallel_extend_snowball` cap-source paragraph updated | Delivers the S4 round-2 fix's "S4.5-deferred consumer" promise: read-prior-score / read-floor / compare / write-new-score procedure. Non-gating; skipped on outcomes (iii) AUDIT-FAILED / (iv) IDEMPOTENT_HIT (no new score to compare; no round-over-round delta). Single-source-of-truth contract anchored here; `phase_notifications.yaml §4 coverage_regression_observed` carries the user-template; `run-phase-2/SKILL.md §4 Step 0.5` and `claim-coverage-audit/SKILL.md §4` reference rather than restate. Cap-source updated from "inline at S4 with literal default 8" to "sourced from `max_parallel_extend_snowball` in classification.md (default 8 per S4.5 R2 surfacing); missing-key reads fall through to default 8 (`extend_classification_md` populates the default during v0.9.0 → v0.10.0 migration, so post-migration projects always carry the explicit value)". |
+| 5 | `references/phase_notifications.yaml` | Two new W-* codes declared | `coverage_regression_observed` (W-COVERAGE-REGRESSION-OBSERVED, S4.5 R2) — emitted by Planner Phase 3.8 cross-round regression check when prior_score - new_score > coverage_regression_floor; non-blocking; full user-template with adjudication ladder (re-run /seed-snowball-discovery; re-run /extend-snowball-incremental on regressed claims; mark as expected-by-design via classification.md or directives.md). `coverage_fanout_capped` (W-COVERAGE-FANOUT-CAPPED, S4 latent-gap catch-up) — referenced in planner.md §Phase 3.8 since S4 round-2's inline-cap-of-8 path but never previously declared; non-blocking; mirrors W-COVERAGE-BELOW-THRESHOLD shape; full user-template explaining Rule-7a-criticality ranking + deferred-claim shape. |
+| 6 | `CHANGELOG.md` + `docs/release-notes/RELEASE_NOTES_v0.10.0.md §§2.S4, 2.S4.5` | Filled (this section is the catch-up) | Promise-reviewer flagged S4 catch-up as MINOR-deferred-expected at S4 close — landed here as planned. |
+
+**R2 validation gate:** migration `--validate` exit 0 (9/9 fixtures pass: 5 pass-cases + 4 block-cases). Final 4-script + calibrator gate runs at R2 final-commit (the S4.5 close ceremony).
+
+**R2 calibrator:** binding at S4.5 close per strategy §4.4. Pending at R2 final-commit; new baseline at `.plugin-efficiency.json baseline.projected_cost_per_invocation_usd_S4_5_rebase`.
+
+**R2 semantic-review:** advisory at S4.5 (per strategy §4.4); not invoked at R2.
+
+#### S4.5 close-summary
+
+**Cumulative S4.5 deliverables (R1 + R2):** 9 files modified, 6 fixture files updated, 2 new W-* codes (`W-REDLINK-CAP-SATURATED`, `W-COVERAGE-REGRESSION-OBSERVED`) + 1 latent-gap catch-up (`W-COVERAGE-FANOUT-CAPPED`), 1 architecture-plan amendment (§6.0 + §6.6), 6 new classification.md template fields surfaced, 2 SKILL.md procedural amendments (Phase 2.5 / Phase 4.5), 1 new SKILL.md section (Failure modes with FM-1..FM-6), 1 cross-round consumer wiring landed (Phase 3.8 regression hook).
+
+**Architecture-plan deviation:** none. The R2 design decision (Option-B flat-scalar threshold fields) is documented in the §6.6 round-split paragraphs landed at R1.
+
+**Strategy-doc deviation:** none. R1 + R2 split mirrors strategy §5.6 scope; the "S4 latent-gap catch-up" (W-COVERAGE-FANOUT-CAPPED) is treated as a S4 close-side deferred item resolved at S4.5 R2 — consistent with the strategy's tolerance for cross-stage carry-overs.
+
+**Semantic-review verdict:** advisory at S4.5 per strategy §4.4; not invoked. Any post-hoc binding-MAJOR finding can be addressed in a v0.10.x patch without violating the S4.5 close-gate contract.
+
+**Acknowledged carry-over (deferred to v0.10.0 RC):**
+- Architecture- and strategy-doc amendments to mirror the four S4 binding decisions (anchored at planner.md §Phase 3.8); candidate for v0.10.0 RC documentation pass per S4 close-notes.
+- Description-length empirical-distribution probe (per strategy §12 RC integration probe).
 
 ### Stage S5 — Documentation amendments
 <!-- TODO@S5-close. Should record:
