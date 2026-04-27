@@ -4,10 +4,12 @@
 # Dual-read validator for reviews/phase_state.json (v0.7.4) and, during the
 # v0.7.4 minor, the legacy reviews/tier_state.json (v0.7.3).
 #
-# Replaces scripts/tier_state_validate.py.  The tier-named read path is
-# deprecated at v0.7.4 and will be removed at v0.7.5 RC; during v0.7.4 a dual
-# read is supported so that projects migrating at their own cadence are not
-# broken.
+# Replaces the retired scripts/tier_state_validate.py (deleted at v0.11.0).
+# The tier-named read path was deprecated at v0.7.4; the dual-read window
+# closed at v0.7.5 RC. v0.11.0 removes the dual-read advisory entirely;
+# legacy reviews/tier_state.json on disk now emits a one-shot UPGRADE-REQUIRED
+# advisory pointing at the historical migration helpers (preserved in git
+# history; deleted from the working tree at v0.11.0 c5).
 #
 # Validation surface
 # ------------------
@@ -148,9 +150,11 @@ def _xlate_legacy(doc: dict) -> tuple[dict, list[Finding]]:
             severity=Severity.MINOR,
             path="$",
             message=(
-                "Read-through of reviews/tier_state.json under the v0.7.4 "
-                "dual-read path; will be removed at v0.7.5 RC.  Run "
-                "scripts/migrate_v073_to_v074_tier_to_phase.py to upgrade."
+                "Read-through of reviews/tier_state.json: the v0.7.4 dual-read "
+                "path was retired at v0.11.0 c5 along with the v0.7.3->v0.7.4 "
+                "migration helper. The legacy ledger remains parseable but no "
+                "v0.11.0+ write path will emit it; a fresh phase_state.json "
+                "must be authored to resume normal dispatch."
             ),
         )
     ]
