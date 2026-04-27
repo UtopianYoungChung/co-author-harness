@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.7.4",
+  "manuscript_id": "end-to-end-ladder-smoketest",
+  "default_final_phase": "Ph3",
+  "wiki_linked": false,
+  "sections": {
+    "1. Introduction": {
+      "heading_path": ["1. Introduction"],
+      "current_phase": "Ph1",
+      "last_approved_phase": null,
+      "ceiling_locked": false,
+      "section_ceiling_override": null,
+      "iteration_count_at_current_phase": 0,
+      "last_scope_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fingerprint_computed_at": "2026-04-27T00:00:00Z",
+      "cumulative_drift_lines_since_approval": 0,
+      "phase_goal_declared": "produce a complete first draft with classification and an advisory Evaluator note",
+      "phase_deliverable_path": "reviews/ph1_draft_completion.md",
+      "references_initialized": false,
+      "last_coverage_score": null,
+      "convergence_metric": null,
+      "ph1_pstage_declaration": "P2",
+      "ph3_last_activity_at": null,
+      "pre_mcr_deep_pass_completed": false,
+      "phase_entry_log": [
+        {
+          "timestamp": "2026-04-27T00:00:00Z",
+          "trigger": "initial_dispatch",
+          "actor": "planner",
+          "prev_phase": null,
+          "new_phase": "Ph1",
+          "notes": "smoketest fixture seed: section bootstrapped at Ph1 entry",
+          "model_used": null
+        }
+      ]
+    }
+  }
+}
