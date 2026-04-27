@@ -31,4 +31,3 @@ v0.7.4 retires the ambiguous *Tier* vocabulary that overloaded two unrelated sur
 
 Run `scripts/migrate_v073_to_v074_tier_to_phase.py` against any project carrying legacy tier-named artefacts; the script is idempotent and emits `reviews/migration_report_v073_to_v074.md`. During the v0.7.4 minor the validator retains a **dual-read path** — `scripts/phase_state_validate.py` accepts a legacy `tier_state.json` with a `DEPRECATION_WARNING` finding — which is removed at v0.7.5 RC.
 
-*Last updated: 2026-04-21 — v0.7.4 deprecation stub.*

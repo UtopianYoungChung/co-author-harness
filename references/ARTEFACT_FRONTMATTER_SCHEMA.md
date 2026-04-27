@@ -402,4 +402,3 @@ Neither is committed at v0.7.4.
 
 *Normative status.* Canonical schema contract for v0.7.4+ artefact frontmatter. Referenced by `co-author-harness/references/PHASE_PROTOCOL.md §3.3` (P-2 inheritance gate) and by `scripts/artefact_frontmatter_validate.py`. Any artefact family added after v0.7.4 must be specified here before its validator dispatch is written.
 
-*Last updated: 2026-04-22 (v0.8.0 P2.1b — F1 `adversarial_register` + `routing_rationale`; F4 `demoted_check_advisories`; F6 `check_profile` / `structural_delta_flag` / `parallel_dispatch` / `threshold_version`; §8 rules 8–10; same-day earlier history: 2026-04-21 v0.7.4 P-1 F6 landing, §8 rules 1–7, etc.).*

@@ -16,7 +16,7 @@ description: |
 
 > **File resolution (plugin context).** This plugin replaces the legacy `.paper-package/` deployment. All orchestration and rule documents — `REVIEW_ORCHESTRATION.md`, `AGENT_ORCHESTRATION.md`, `MASTER_research_and_paper_guidelines.md`, `DETERMINISTIC_CHECKS.md`, `GROUNDING_PROTOCOL.md`, `SAFEGUARD_LAYER.md`, `TOKEN_BUDGET_PROTOCOL.md`, `SUCCESS_METRICS.md`, `PROJECT_BOOTSTRAP.md`, `SKILL_REGISTRY.md` — plus the style references (`bacon_2009_well_crafted_sentence_guidelines.md`, `baird_2021_writing_guidelines.md`, `Sexton_Fiction_to_Academic_Writing_Guide.md`, `suchman_writing_style.md`, `research_paper_writing_guidelines.md`, `general_research_project_guidelines.md`, `project_writing_style_checklist.md`) and the worked walkthroughs in `examples/` live under `${CLAUDE_PLUGIN_ROOT}/references/`. Read from there. Any absolute Windows path (e.g. `D:\\OneDrive\\...\\Agents\\Paper\\Package`) mentioned below should be interpreted as `${CLAUDE_PLUGIN_ROOT}/references/`.
 
-# Reflector Agent — Lessons-Learned, Self-Annealing, and Grounding Enforcement (v0.7.4)
+# Reflector Agent — Lessons-Learned, Self-Annealing, and Grounding Enforcement
 
 **Role.** You are the Reflector. You run after every completed round (evaluation + generation cycle) to extract lessons, identify patterns, update project memory, propose improvements to the package, develop new skills, and **enforce the Grounding Protocol**. You are the self-annealing mechanism and the integrity auditor: without you, the same mistakes recur, improvements are lost, and hallucinations go undetected.
 
@@ -608,6 +608,3 @@ The round is complete when the user acknowledges the reflection.
 - **Ledger is the source of truth.** Every rate, count, or pattern claim that concerns tier history must trace to `reviews/phase_state.json`. Do not estimate from memory or from revision-log text; do not reconstruct from inference. If the ledger is incomplete or ambiguous, say so in §6 and proceed with the reduced denominator; do not fabricate rows.
 - **v0.8.0 register + routing.** Phase 2f §6.10 is semantic: it complements `artefact_frontmatter_validate.py` (`R-Refl-FM-*`) and Evaluator P-9 / P-15 filing discipline. Do not conflate **`R-Refl-RG-1`** (register vs findings frame) with **`R-Refl-RT-1`** (`primary_evidence` token vs F6 schedule / P-15 incidental path). **`R-Refl-DC-1`** (Phase 2g §2g.3) is cross-iteration F4 demoted recurrence only — not Check 8.
 
----
-
-*Last updated: 2026-04-22 (v0.8.0 P2.5 — Phase 2f §6.10 `R-Refl-RG-1 register_mismatch` + `R-Refl-RT-1 routing_ambiguity`; Phase 2g §2g.3 demoted-check recurrence + `R-Refl-DC-1`; read-list + template §§10d/10e + Phase 6 bullets; `phase_state_schema` sixteen-field cross-ref; title / YAML `description` v0.8.0 framing; prior v0.7.4 ladder history unchanged.)*

@@ -1,4 +1,4 @@
-# AGENT ORCHESTRATION — Four-Agent Architecture (v0.8.0)
+# AGENT ORCHESTRATION — Four-Agent Architecture
 
 **Purpose.** This file describes the four-agent system that operates on manuscripts governed by the Research and Academic Paper Writing Package. It defines roles, permissions, the dispatch loop, and user checkpoints.
 

@@ -133,6 +133,3 @@ When the Generator is editing a long manuscript:
 - Log each segment's changes independently in `revision_log.md`.
 - If the Generator runs out of context mid-segment, it stops, logs what was completed, and signals the Planner to schedule a continuation.
 
----
-
-*Last updated: 2026-04-11. Created to address the token/context budget gap identified in the package analysis.*

@@ -82,4 +82,3 @@ At v0.7.4 the tier identifiers in §2 will rename T1 → Ph1, T2 → Ph2, T3 →
 
 *Normative status.* This file is at precedence level 5 (package component) per `CLAUDE.md §5`. Project directives (level 4) override this file; venue and advisor instructions (levels 2 and 3) override both; the user's explicit instruction in the current conversation (level 1) is supreme. `GROUNDING_PROTOCOL.md` sits outside the ladder and is absolute — no model dispatch decision licenses a grounding violation.
 
-*Last updated: 2026-04-21. Authored as part of v0.7.3 "Tier-conditioned model dispatch" release. The allocation table (§2) was arrived at through a capability-to-load analysis that treated adversarial-integrity slots (Evaluator T2/T3/T4, Reflector-full T4) as the non-negotiable floor and downshifted every other slot to Sonnet 4.6 unless the role-load justified Opus 4.7. The Haiku 4.5 placement at Reflector-lightweight is a 30-day pilot (H-MA-2).*
