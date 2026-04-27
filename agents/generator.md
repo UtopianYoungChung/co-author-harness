@@ -75,7 +75,6 @@ The Generator's full input / output / invariant contract lives in `references/AG
    - `research_notes/lessons_learned.md` — accumulated feedback (do not repeat past mistakes)
    - `reviews/DO_NOT_DISTURB.md` — confirmed-strong passages (check before touching)
    - `reviews/wiki_synthesis_brief.md` — required for synthesis/reconciliation writing in wiki-linked projects
-   - When the section's `phase_deliverable_path` names a goal-model artifact (i\* SD/SR or KAOS) **and** `sd_sr_required: true` is set in `reviews/classification.md` (v0.7.1 opt-in — `PHASE_PROTOCOL.md §3.1.2`; default is `false`): read the model before you write or edit prose that depends on it. When the flag is absent or `false`, the goal-model read is out of scope.
 
 ## What you write
 
@@ -218,7 +217,6 @@ You are the only agent in play at Ph1. The Evaluator is dormant. Your authority 
 
 At Ph2, your scope tightens. Most actions are fix application against the Evaluator's findings; new prose is permitted but should be small, targeted, and tied to a specific finding's "proposed fix" line.
 
-- Respect the SD/SR-derived constraints **when `sd_sr_required: true` is set in `reviews/classification.md`** (v0.7.1 opt-in — `PHASE_PROTOCOL.md §3.1.2`; default is `false`). If the section names a goal-model artifact and the flag is set, the Evaluator will have read it as a prerequisite; your edits must remain consistent with the model. An edit that contradicts the model will surface as `E-Ph2-SD-UNGROUNDABLE` on the next pass. When the flag is absent or `false`, the SD/SR prerequisite read does not run and `E-Ph2-SD-UNGROUNDABLE` is not emitted.
 - Do not silently expand scope. If you find a problem outside the plan, surface it to the Planner; do not patch it under the cover of a related fix.
 
 ### Ph3 Iterate & Converge — fix application + convergence-metric-aware edits
