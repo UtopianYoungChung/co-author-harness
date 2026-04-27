@@ -668,6 +668,65 @@ ph1_ph2_signoff:
       manually set `references_initialized: true` in `reviews/phase_state.json` to skip retries).
       (Introduced v0.10.0 Stage S2; cross-ref: `skills/seed-snowball-discovery/SKILL.md §8`.)
 
+  # v0.10.0 Stage S4 — emitted by the Planner at run-phase-2 Step 0.5 when
+  # SK-NEW-B `claim-coverage-audit` returns BELOW_THRESHOLD verdict (coverage
+  # score < `claim_coverage_threshold` from reviews/classification.md, default
+  # 0.8). Non-blocking; Ph2 admission proceeds. Triggers SK-NEW-C
+  # `extend-snowball-incremental` auto-dispatch per uncovered claim, in
+  # parallel with Evaluator Step 0a so the Evaluator's Step 4 may read against
+  # the extended pool when SK-NEW-C lands sources in time. Race-loser
+  # claims surface as MAJOR Evaluator findings with `propose_extend_snowball`
+  # remediation hint per architecture §5.2 Edit-2.
+  coverage_below_threshold:
+    presented_to_user: true
+    log_detail: "W-COVERAGE-BELOW-THRESHOLD on {section_heading_path}: SK-NEW-B `claim-coverage-audit` returned coverage {score}/{total}={score_ratio} below threshold {threshold}; auto-dispatching SK-NEW-C `extend-snowball-incremental` per uncovered claim ({uncovered_count} claims); Ph2 dispatch proceeds in parallel."
+    user_template: |
+      ► W-COVERAGE-BELOW-THRESHOLD on {section_heading_path}.
+      Claim-coverage audit at run-phase-2 Step 0.5 returned coverage {score}/{total}={score_ratio},
+      below the configured threshold {threshold} (`claim_coverage_threshold` in reviews/classification.md;
+      default 0.8). The Planner is auto-dispatching SK-NEW-C `extend-snowball-incremental` for each of
+      the {uncovered_count} uncovered claim(s) listed in `reviews/claim_coverage_<date>_<cycle_id>.md`.
+      The Ph2 Evaluator pass proceeds in parallel; any uncovered claim that SK-NEW-C resolves before
+      the Evaluator's Step 4 reaches it will be read against the extended REFERENCES.md pool.
+      Claims SK-NEW-C cannot resolve in time surface as MAJOR Evaluator findings with the
+      `propose_extend_snowball` remediation hint. Ph2 admission is NOT blocked by this warning;
+      `last_coverage_score: {score_ratio}` is persisted to the SectionStateObject for cross-round
+      regression detection on Ph3 retraction → Ph2 re-entry paths.
+      (Introduced v0.10.0 Stage S4; cross-refs: `skills/run-phase-2/SKILL.md §4 Step 0.5`,
+      `skills/extend-snowball-incremental/SKILL.md`, `agents/planner.md §Phase 3.8`.)
+
+  # v0.10.0 Stage S4 — emitted by the Planner at run-phase-2 Step 0.5 when
+  # SK-NEW-B `claim-coverage-audit` is dispatched but its preconditions are
+  # unmet beyond the idempotency clause (per skills/claim-coverage-audit/SKILL.md
+  # §2 reason codes — EMPTY_REFERENCES_POOL, CLASSIFICATION_MISSING,
+  # EMPTY_SECTION_BODY, SECTION_AMBIGUOUS) OR when the audit raises a
+  # non-degradable execution error. NON-BLOCKING by design: Step 0.5 is
+  # advisory, so a missing audit does NOT refuse Ph2 admission; Ph2 dispatch
+  # continues to Evaluator Step 0a. The error is surfaced for user
+  # adjudication at cycle close. The audit is the upper-bound coverage signal,
+  # not a Ph2 admission gate; the eight pre_phase_advance_check.py clauses
+  # remain the binding contract for Ph2 → Ph3 advance.
+  coverage_audit_failed:
+    presented_to_user: true
+    log_detail: "E-COVERAGE-AUDIT-FAILED on {section_heading_path}: SK-NEW-B `claim-coverage-audit` did not return a usable coverage score (reason: {reason_code}); Ph2 dispatch proceeds without coverage signal; last_coverage_score NOT updated."
+    user_template: |
+      ► E-COVERAGE-AUDIT-FAILED on {section_heading_path}.
+      SK-NEW-B `claim-coverage-audit` was dispatched at run-phase-2 Step 0.5 but did not return a
+      usable coverage score (reason: {reason_code} — see `skills/claim-coverage-audit/SKILL.md §2`
+      no-op reason codes for the canonical taxonomy: SECTION_AMBIGUOUS, EMPTY_SECTION_BODY,
+      EMPTY_REFERENCES_POOL, CLASSIFICATION_MISSING, IDEMPOTENT_HIT, plus any non-degradable
+      execution failure). NON-BLOCKING: Ph2 dispatch continues to Evaluator Step 0a; the
+      eight `pre_phase_advance_check.py` clauses remain the binding admission contract.
+      The section's `last_coverage_score` field is NOT updated for this round; cross-round
+      regression detection is suspended for this section until a successful audit lands.
+      Recommended action at cycle close: address the reason code (e.g., populate REFERENCES.md
+      via `/seed-snowball-discovery <section>` for `EMPTY_REFERENCES_POOL`; populate
+      classification.md for `CLASSIFICATION_MISSING`; supply the section identifier explicitly
+      for `SECTION_AMBIGUOUS`) and re-run `/claim-coverage-audit <section>` manually to refresh
+      the coverage signal before the next Ph2 cycle.
+      (Introduced v0.10.0 Stage S4; cross-refs: `skills/claim-coverage-audit/SKILL.md §2`,
+      `skills/run-phase-2/SKILL.md §4 Step 0.5`, `agents/planner.md §Phase 3.8`.)
+
   escalation_without_owner:
     presented_to_user: true
     log_detail: "E-ESCALATION-WITHOUT-OWNER on {section_heading_path} for finding {finding_id}."
