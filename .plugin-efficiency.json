@@ -1,5 +1,5 @@
 {
-  "_comment": "v0.8.0 authoring substrate landed at Phase 1.1. Rates pinned against MODEL_ALLOCATION.md section 2 and CLAUDE.md section 12.9. input_tokens_per_second 16897.1 measured 2026-04-22 via anthropic-streaming-api TTFT. v0.10.0 Stage S1 (2026-04-26) registered seed-snowball-discovery as executor and recorded the S1 cost rebase. v0.10.0 Stage S1.5 (2026-04-26) recorded the S1.5 cost rebase. v0.10.0 Stage S2 (2026-04-27) recorded the S2 cost rebase under projected_cost_per_invocation_usd_S2_rebase; the S2 close required THREE fix cycles converging on a doc-level architectural amendment (new architecture section 6.0 coupling checklist + section 6.3 enumeration of seven deliverables; full story in docs/release-notes/RELEASE_NOTES_v0.10.0.md section 2.S2). v0.10.0 Stage S3 (2026-04-27) registered claim-coverage-audit as executor and recorded the S3 cost rebase under projected_cost_per_invocation_usd_S3_rebase; manually-invokable skill, no Ph2 wiring, no architecture amendment. Three known-false-positive metrics in baseline.",
+  "_comment": "v0.8.0 authoring substrate landed at Phase 1.1. Rates pinned against MODEL_ALLOCATION.md section 2 and CLAUDE.md section 12.9. input_tokens_per_second 16897.1 measured 2026-04-22 via anthropic-streaming-api TTFT. v0.10.0 Stage S1 (2026-04-26) registered seed-snowball-discovery as executor and recorded the S1 cost rebase. v0.10.0 Stage S1.5 (2026-04-26) recorded the S1.5 cost rebase. v0.10.0 Stage S2 (2026-04-27) recorded the S2 cost rebase under projected_cost_per_invocation_usd_S2_rebase; the S2 close required THREE fix cycles converging on a doc-level architectural amendment (new architecture section 6.0 coupling checklist + section 6.3 enumeration of seven deliverables; full story in docs/release-notes/RELEASE_NOTES_v0.10.0.md section 2.S2). v0.10.0 Stage S3 (2026-04-27) registered claim-coverage-audit as executor and recorded the S3 cost rebase under projected_cost_per_invocation_usd_S3_rebase; manually-invokable skill, no Ph2 wiring, no architecture amendment. v0.10.0 Stage S4 (2026-04-26) shipped extend-snowball-incremental (auto-classified orchestrator by calibrator on the auto-dispatch graph from run-phase-2 Step 0.5) and recorded the S4 cost rebase under projected_cost_per_invocation_usd_S4_rebase (catch-up at S4.5 R2 close per the deferral pattern); semantic-review CLEAR after 2 rounds. v0.10.0 Stage S4.5 (2026-04-27) two-round close: R1 ships primary deliverables (synthesis fast-path + red-link auto-trigger + W-REDLINK-CAP-SATURATED), R2 ships S4 carry-overs + W-COVERAGE-FANOUT-CAPPED latent-gap catch-up; recorded the S4.5 cost rebase under projected_cost_per_invocation_usd_S4_5_rebase. Three known-false-positive metrics in baseline.",
   "model_tiers": {
     "executor": {
       "model": "claude-sonnet-4-6",
@@ -237,6 +237,94 @@
       ],
       "stage_close_status": "pass (zero blocker; zero major; three minor of which two are documented false positives and one is pre-existing per-function-ceiling discipline carry-over from S2)",
       "semantic_review_verdict": "Not invoked at S3 (advisory per strategy section 5.4; user discretion). The three deliverables (SKILL.md + command shim + registry entry) ship without semantic-review pre-clearance; any post-hoc binding-MAJOR finding can be addressed in a v0.10.x patch.",
+      "recorded_date": "2026-04-27"
+    },
+    "projected_cost_per_invocation_usd_S4_rebase": {
+      "v0_10_0_S3_baseline": 6.323805,
+      "v0_10_0_S4_baseline": 6.754935,
+      "delta": 0.43113,
+      "delta_pct": 6.81,
+      "delta_attribution": {
+        "executor_count_growth": 0,
+        "orchestrator_count_growth": 1,
+        "artefact_count": 49,
+        "executor_token_growth_estimate": "skills/extend-snowball-incremental/SKILL.md = 6023 tokens (5669 body + 354 frontmatter; auto-classified orchestrator by calibrator since no role_override and skill is on the auto-dispatch graph from run-phase-2 Step 0.5); commands/extend-snowball-incremental.md shim 154 tokens; references/SKILL_REGISTRY.md SK-35 entry approximately 470 tokens; skills/run-phase-2/SKILL.md Step 0.5 placeholder->full body approximately 1500 tokens; agents/planner.md new Phase 3.8 approximately 3000 tokens; references/phase_state_schema.md schema bump approximately 400 tokens; references/phase_notifications.yaml two new codes (W-COVERAGE-BELOW-THRESHOLD, E-COVERAGE-AUDIT-FAILED) approximately 1200 tokens.",
+        "subagent_dispatch_multiplier_baseline_S3": 9.604,
+        "subagent_dispatch_multiplier_S4_estimate": "approximately 10.5 (precise S4-tip reading not separately captured; estimated by interpolation from R2 reading 10.62 minus the R1+R2 incremental deltas)",
+        "interpretation": "Cost +6.81% feature-attributed to SK-35's auto-dispatch wiring landing in this stage. Unlike S3's manually-invokable SK-NEW-B (which dropped the multiplier), SK-35 IS on the auto-dispatch graph from run-phase-2 Step 0.5 - the new SK-NEW-B -> SK-NEW-C edge increases the average dispatch path length. Plus the new Phase 3.8 in planner.md adds substantial substrate. Cost growth fully feature-attributed; zero bloat. Recorded at S4.5 R2 close as a catch-up (S4 close-side promise-reviewer flagged this entry as deferred-expected; landed here per the strategy section 8.4 frontmatter-version-bump-deferral pattern). Note: extend-snowball-incremental's auto-classified orchestrator tier is consistent with its run-phase-2 dispatch shape; if a future audit determines the per-iteration cost should be Sonnet-priced (executor) rather than Opus-priced, a role_override can be added in a v0.10.x patch."
+      },
+      "convergence_pattern": {
+        "fix_cycles_required": 1,
+        "binding_majors_per_cycle": [4, 0],
+        "interpretation": "S4 closed in two rounds (1 fix cycle) per the section 6.0 pre-flight prediction. Round 1 surfaced 4 binding semantic-review MAJORs (orchestrator-critic F1 four-way confusion across IDEMPOTENT_HIT vs. AUDIT-FAILED outcomes; F2 unbounded SK-NEW-C fanout on long uncovered lists; F3 documented-but-not-wired regression hook framing; F4 halt-vs-continue rationale missing). Round-2 fix commit 4d2f347 addressed all four surgically. Round-2 orchestrator-critic verdict CLEAN with 0 new issues. Convergence simplicity vs. S2's 5 rounds reflects the architecture amendment landed at S2 making the Phase-3.8 dispatch contract fully specified before authoring - round-1 MAJORs were refinements, not architectural reframes."
+      },
+      "minor_findings_at_close": [
+        {
+          "key": "cyclomatic_complexity_over_threshold",
+          "value": 39,
+          "threshold": 20,
+          "note": "Carry-over from S2: scripts/migrate_v090_to_v100_snowball_fields.py."
+        },
+        {
+          "key": "parallelisable_fraction_below_floor",
+          "value": null,
+          "threshold": 0.25,
+          "note": "Carry-over known FP; precise S4-tip reading not separately captured."
+        },
+        {
+          "key": "chain_depth_over_threshold",
+          "value": null,
+          "threshold": 15,
+          "note": "Carry-over known FP; precise S4-tip reading not separately captured."
+        }
+      ],
+      "stage_close_status": "pass (zero blocker; zero major; three minor - all documented false positives or pre-existing per-function-ceiling discipline carry-overs from S2)",
+      "semantic_review_verdict": "CLEAR after 2 rounds (target hit; matches section 6.0 pre-flight prediction). Round-2 md-reviewer + orchestrator-critic + promise-reviewer passes.",
+      "recorded_date": "2026-04-27 (catch-up at S4.5 R2 close)"
+    },
+    "projected_cost_per_invocation_usd_S4_5_rebase": {
+      "v0_10_0_S4_baseline": 6.754935,
+      "v0_10_0_S4_5_baseline": 6.84921,
+      "delta": 0.094275,
+      "delta_pct": 1.40,
+      "delta_attribution": {
+        "executor_count_growth": 0,
+        "orchestrator_count_growth": 0,
+        "artefact_count": 49,
+        "executor_token_growth_estimate": "Approximately +5500 tokens across two SKILL.md amendments (Phase 2.5 synthesis fast-path in claim-coverage-audit approximately +3300 tokens; Phase 4.5 + Failure modes in retrofit-concept-grounding approximately +3000 tokens) plus +1500 tokens in agents/planner.md Phase 3.8 regression-hook procedure plus +1800 tokens across three new W-* code blocks in phase_notifications.yaml (W-REDLINK-CAP-SATURATED at R1; W-COVERAGE-REGRESSION-OBSERVED + W-COVERAGE-FANOUT-CAPPED at R2) plus minor architecture-plan additions (section 6.0 closing-sentence revision + section 6.6 round-split paragraphs) and migration-script header revisions.",
+        "subagent_dispatch_multiplier_baseline_S4_estimate": "approximately 10.5",
+        "subagent_dispatch_multiplier_S4_5": 10.62,
+        "subagent_dispatch_multiplier_delta_estimate": "approximately +0.1",
+        "interpretation": "Cost +1.40% feature-attributed to the two SKILL.md procedural amendments + Phase 3.8 regression-hook procedure + 3 new W-* code blocks. Token growth concentrated in the executor tier (both amended SKILL.md files are executor-classified per role_overrides). Multiplier +0.1 reflects the new SK-16 -> SK-NEW-C edge documented in retrofit-concept-grounding/SKILL.md Sibling skills + extensive cross-references among architecture-plan, planner.md, phase_notifications.yaml, and the two SKILL.md files. No bloat; no role_overrides retune needed."
+      },
+      "convergence_pattern": {
+        "fix_cycles_required": 0,
+        "binding_majors_per_cycle": [],
+        "interpretation": "Two-round close per architecture section 6.6 R1+R2 split - NOT a fix-cycle pattern. R1 (commit 91f4784) ships primary deliverables (synthesis fast-path + red-link auto-trigger + W-REDLINK-CAP-SATURATED + architecture-plan amendment). R2 ships S4 carry-overs (classification.md template + Phase 3.8 regression-detection consumer wiring + W-COVERAGE-REGRESSION-OBSERVED + W-COVERAGE-FANOUT-CAPPED catch-up + CHANGELOG/RELEASE_NOTES catch-up). Both rounds passed all 4 validation scripts at first attempt; semantic-review advisory at S4.5 (per strategy section 4.4) and not invoked. Latent gap surfaced at R1 grep: W-COVERAGE-FANOUT-CAPPED referenced in planner.md section Phase 3.8 since S4 round-2 but never declared in phase_notifications.yaml; declared at R2 catch-up.",
+        "advisor_consultation_decisive": "Not invoked at S4.5."
+      },
+      "minor_findings_at_close": [
+        {
+          "key": "cyclomatic_complexity_over_threshold",
+          "value": 39,
+          "threshold": 20,
+          "note": "Carry-over from S2: scripts/migrate_v090_to_v100_snowball_fields.py (LOC 857 at S4.5 R2 close after R2 additions; per-function complexity remains under 14)."
+        },
+        {
+          "key": "parallelisable_fraction_below_floor",
+          "value": 0.048,
+          "threshold": 0.25,
+          "note": "Known false positive per baseline.parallelisable_fraction. Value 0.048 down slightly from S3's 0.073; calibrator heuristic noise."
+        },
+        {
+          "key": "chain_depth_over_threshold",
+          "value": 19,
+          "threshold": 15,
+          "note": "Known false positive per baseline.max_subagent_chain_depth. Value 19; within the +-3 noise envelope."
+        }
+      ],
+      "stage_close_status": "pass (zero blocker; zero major; three minor - all documented false positives or pre-existing carry-overs)",
+      "semantic_review_verdict": "Advisory at S4.5 (per strategy section 4.4); not invoked at R1 or R2.",
       "recorded_date": "2026-04-27"
     }
   }
