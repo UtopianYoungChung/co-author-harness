@@ -1,6 +1,6 @@
 ---
 name: seed-snowball-discovery
-description: "Ph1 entry skill — assemble references/REFERENCES.md from a section's claim register via Wohlin-style snowball saturation. Wiki-graph substrate first (Coupling E.1); Class 1 verifier fall-through; in-loop wiki/sources/ stub write-back; dual-path access (filesystem / mcp_fastpath). Stops on rate < ε (default 0.05) or 4 iterations. Trigger: /seed-snowball-discovery, fresh section, or references_initialized:false."
+description: "Ph1 entry skill — assemble references/REFERENCES.md from a section's claim register via Wohlin-style snowball saturation. Optional SK-36 pre-seed step at Phase 0 (wiki-community inheritance). Wiki-graph substrate first (Coupling E.1); Class 1 verifier fall-through; in-loop wiki/sources/ stub write-back; dual-path access (filesystem / mcp_fastpath). Stops on rate < ε (default 0.05) or 4 iterations. Trigger: /seed-snowball-discovery, fresh section, or references_initialized:false."
 trigger: when the user invokes /seed-snowball-discovery, when run-phase-1 Step 4.5 dispatches the seed-snowball gate on a fresh section, when references/REFERENCES.md is absent, or when classification.md carries references_initialized:false
 version: 1.0
 ---
@@ -15,15 +15,15 @@ version: 1.0
 
 `seed-snowball-discovery` is the **Ph1 entry skill** for projects whose `references/REFERENCES.md` does not yet exist or is not yet populated for the section under draft. It assembles a saturated reference pool from the section's claim register via a mechanised version of the snowball method (Wohlin 2014) — a seed phase that consults the wiki-first discovery order (`EXTERNAL_VERIFIERS.md §1.5`), an iterate phase that traverses backward and forward citations until saturation, and a verify phase that emits a Rule 7a verification log row for every admitted paper.
 
-The skill is the **operationalisation** of `EXTERNAL_VERIFIERS.md §1.5`, which mandates the wiki → Zotero → Class 1 ordering for *discovery* but does not name an executor. SK-NEW-A is the named executor.
+The skill is the **operationalisation** of `EXTERNAL_VERIFIERS.md §1.5`, which mandates the wiki → Zotero → Class 1 ordering for *discovery* but does not name an executor. SK-33 is the named executor.
 
 Output: a populated `references/REFERENCES.md` with three tables (`core corpus`, `snowball`, `cited-via`) per the format established by SK-15's input contract; an append-only procedure trace at `reviews/snowball_log.md`; and rows appended to `reviews/external_verification_log.md` for every Class-1-fall-through admission.
 
-The skill does **not** edit manuscript prose. It does not run at Ph2 or later (SK-NEW-C handles incremental extension at Ph2). It does not promote `wiki/sources/` stubs to `grounding_status: full` (that is SK-17's job at M5).
+The skill does **not** edit manuscript prose. It does not run at Ph2 or later (SK-35 handles incremental extension at Ph2). It does not promote `wiki/sources/` stubs to `grounding_status: full` (that is SK-17's job at M5).
 
 ## 2. Preconditions
 
-Before invoking this skill, verify all of the following. On any failure that is not gracefully degradable, abort with a clear `SK-NEW-A: no-op (<reason>)` message and return without producing artefacts.
+Before invoking this skill, verify all of the following. On any failure that is not gracefully degradable, abort with a clear `SK-33: no-op (<reason>)` message and return without producing artefacts.
 
 1. **`reviews/classification.md` exists and is parseable.** Reads `paper_type`, `p_stage`, `venue`, and (when present) the new v0.10.0 fields `claim_coverage_threshold`, `inherit_snowball`, `pre_seed_cap`. If absent or unparseable: no-op with `CLASSIFICATION_MISSING`. The user must run `/classify-manuscript` first.
 
@@ -31,7 +31,7 @@ Before invoking this skill, verify all of the following. On any failure that is 
 
 3. **At least one Class 1 verifier is reachable.** Probe Scholar Gateway via a whoami-class call (a minimal `semanticSearch` query with `topN: 1`). If unreachable AND no wiki is linked AND Zotero is unreachable, no-op with `NO_REACHABLE_VERIFIER` — the seed phase has no source. If Scholar Gateway is unreachable but Zotero is reachable, proceed in degraded mode (Zotero-only seed; Class 1 fall-through deferred until verifier returns).
 
-4. **Idempotency check.** Read `reviews/phase_state.json` for the target section. If `references_initialized: true` and `references/REFERENCES.md` exists with non-empty core corpus and snowball tables, no-op with `ALREADY_INITIALIZED`. The user must explicitly delete the field or invoke `/extend-snowball-incremental` (SK-NEW-C) to extend the existing pool.
+4. **Idempotency check.** Read `reviews/phase_state.json` for the target section. If `references_initialized: true` and `references/REFERENCES.md` exists with non-empty core corpus and snowball tables, no-op with `ALREADY_INITIALIZED`. The user must explicitly delete the field or invoke `/extend-snowball-incremental` (SK-35) to extend the existing pool.
 
 5. **Wiki-graph staleness check (when `wiki_linked: true`).** Resolve `wiki_path` from the project CLAUDE.md. If `${wiki_path}/graphify-out/graph.json` exists, compare its `captured_at` against `references/REFERENCES.md` and `manuscript/<section>.md` `Last updated:` markers. If the graph is older, emit a `[graph-stale]` warning into `reviews/snowball_log.md`'s opening row and proceed with **external-verifier-only** iteration (the graph-substrate variant of §5 is degraded to a no-op for this run; user is asked to re-run graphify before the next snowball pass). This mirrors `SK-20 Precondition 3` graceful-degradation discipline.
 
@@ -39,7 +39,7 @@ Before invoking this skill, verify all of the following. On any failure that is 
 
 ```json
 {
-  "skill": "SK-NEW-A",
+  "skill": "SK-33",
   "status": "noop",
   "reason_code": "<code>",
   "message": "<human readable>",
@@ -51,6 +51,23 @@ Before invoking this skill, verify all of the following. On any failure that is 
 Codes: `CLASSIFICATION_MISSING`, `NO_CLAIM_REGISTER`, `NO_REACHABLE_VERIFIER`, `ALREADY_INITIALIZED`, `WIKI_PATH_UNRESOLVABLE`, `GRAPH_STALE` (warning, not no-op), `GRAPH_JSON_UNREADABLE`, `INSUFFICIENT_SEEDS_AFTER_PHASE` (seed phase yielded zero candidates across all configured verifiers).
 
 ## 3. Procedure
+
+### Phase 0 — Pre-seed inheritance (when `wiki_linked: true` and `inherit_snowball: true`)
+
+Before assembling claim-derived seeds, check whether SK-36 `inherit-snowball-from-wiki` should run. This step is a no-op for non-wiki-linked projects or when `inherit_snowball: false` in `reviews/classification.md`.
+
+**Conditions for auto-invocation (all three must hold):**
+1. `wiki_linked: true` in project CLAUDE.md.
+2. `inherit_snowball: true` in `reviews/classification.md` (or field absent, which defaults to `true` for wiki-linked projects).
+3. `${wiki_path}/graphify-out/graph.json` exists and its `captured_at` is fresh per SK-20 Precondition 3.
+
+**If all three hold:** Invoke SK-36 `inherit-snowball-from-wiki`. On clean exit (SK-36 produced `reviews/pre_seed.json`), read `pre_seed.json` and load its `pre_seed_list` as the **initial `seed_set`** passed into Phase 1. The pre-seeded papers are tagged with their `provenance_tag` fields (e.g., `[pre-seed: wiki-community-<id>]`) so Phase 3's verification log can distinguish them from claim-derived seeds.
+
+**If SK-36 no-ops** (any reason code, including `NO_ADJACENT_COMMUNITIES`) or if `reviews/pre_seed.json` is absent after invocation: proceed with an empty `seed_set` and log `[phase-0: no-pre-seed]` in `reviews/snowball_log.md`. This is normal — pre-seeding is opportunistic.
+
+**Pre-seed union rule.** The pre-seed is **additive**: Phase 1 adds claim-derived seeds to the pre-seeded pool. Phase 3's per-claim admission filter prunes any pre-seeded paper that does not resolve at least one of the section's actual claims. Over-seeding self-corrects without user intervention (architecture §7 R-13 mitigation).
+
+**Log row.** Append a Phase 0 row to `reviews/snowball_log.md` recording: `phase_0_invoked: <true|false>`, `pre_seed_count: <k>`, `sk36_noop_reason: <code|null>`.
 
 ### Phase 1 — Seed assembly
 
@@ -138,25 +155,25 @@ Author or rewrite `references/REFERENCES.md` per the SK-15 input format:
 
 - **Core corpus.** Papers admitted in Phase 1 with provenance `[seed: wiki]` or `[seed: zotero]` (i.e., already in the user's curated layer).
 - **Snowball.** Papers admitted in Phase 2 (any iteration), grouped by iteration depth (`Iteration 1`, `Iteration 2`, ...).
-- **Cited-via.** Papers referenced from inside read sources but not directly verified — these are flagged for a follow-up direct read; SK-NEW-A does not auto-stub them.
+- **Cited-via.** Papers referenced from inside read sources but not directly verified — these are flagged for a follow-up direct read; SK-33 does not auto-stub them.
 
 Each table row carries the canonical fields per SK-15: `project_key`, `wiki_key` (if `wiki_linked`), `authors`, `year`, `title`, `venue`, `pdf_path` (when Zotero PDF is attached), `provenance_tag`.
 
 ## 4. In-loop wiki write-back (when `wiki_linked: true`)
 
-Per architecture plan §5.5.2, every paper SK-NEW-A admits triggers an immediate `${wiki_path}/wiki/sources/<key>.md` stub creation, calling SK-15's stub-template logic *inline* rather than batching for a post-snowball SK-15 invocation.
+Per architecture plan §5.5.2, every paper SK-33 admits triggers an immediate `${wiki_path}/wiki/sources/<key>.md` stub creation, calling SK-15's stub-template logic *inline* rather than batching for a post-snowball SK-15 invocation.
 
-**Atomic-write contract.** Borrowed verbatim from SK-15 §Phase 4: write `<wiki_path>/wiki/sources/<key>.md.tmp`, then atomic-rename. Concurrent SK-NEW-A invocations across sections in the same project serialise on `wiki/index.md` via OS-level file locking.
+**Atomic-write contract.** Borrowed verbatim from SK-15 §Phase 4: write `<wiki_path>/wiki/sources/<key>.md.tmp`, then atomic-rename. Concurrent SK-33 invocations across sections in the same project serialise on `wiki/index.md` via OS-level file locking.
 
 **Provenance preservation.** Each in-loop stub's frontmatter carries:
 
 ```yaml
-grounding_status: stub — created by SK-NEW-A iteration <i> from snowball seed <seed_doi> on <YYYY-MM-DD>
+grounding_status: stub — created by SK-33 iteration <i> from snowball seed <seed_doi> on <YYYY-MM-DD>
 ```
 
 This is distinct from SK-15's terminal-stage stub provenance (`stub — bibliographic extracted from <project> REFERENCES`); the Reflector's Phase 2.5 Category 7 audit can therefore distinguish proactive (snowball) vs. reactive (SK-15 backfill) stub origins. The two populations have different verification-debt profiles.
 
-**Skip condition.** If a `wiki/sources/<key>.md` page already exists with `grounding_status: full`, SK-NEW-A does NOT overwrite — it logs the skip in `snowball_log.md` and continues. SK-15's regeneration discipline applies here verbatim.
+**Skip condition.** If a `wiki/sources/<key>.md` page already exists with `grounding_status: full`, SK-33 does NOT overwrite — it logs the skip in `snowball_log.md` and continues. SK-15's regeneration discipline applies here verbatim.
 
 ## 5. Dual-path access contract
 
@@ -197,7 +214,7 @@ The stop rule is `rate < ε`, with ε surfaced in `classification.md` as `snowba
 
 ### State updates (via the Planner, not directly)
 
-- `reviews/phase_state.json` — Planner writes `references_initialized: true` to the target section after SK-NEW-A's clean exit, and appends a `seed_snowball_signed` row (trigger 31) to the section's `phase_entry_log`.
+- `reviews/phase_state.json` — Planner writes `references_initialized: true` to the target section after SK-33's clean exit, and appends a `seed_snowball_signed` row (trigger 31) to the section's `phase_entry_log`.
 
 - `reviews/classification.md` — Planner writes `references_initialized: true` to the project-level frontmatter on first-section completion (per architecture plan §5.2 Edit-1).
 
@@ -205,16 +222,16 @@ The stop rule is `rate < ε`, with ε surfaced in `classification.md` as `snowba
 
 | Failure | Detection | Handling |
 | --- | --- | --- |
-| Scholar Gateway returns `unique_articles: 0` for an iteration's queries | Phase 2 zero-admit | Log as `EXTERNAL_RECALL_ZERO`; iteration's `rate` is 0; saturation triggers immediately. The user is informed that the section's claim register may be too narrow or in a niche field; SK-NEW-C escalates to MAJOR-finding when the Generator drafts ungrounded claims. |
+| Scholar Gateway returns `unique_articles: 0` for an iteration's queries | Phase 2 zero-admit | Log as `EXTERNAL_RECALL_ZERO`; iteration's `rate` is 0; saturation triggers immediately. The user is informed that the section's claim register may be too narrow or in a niche field; SK-35 escalates to MAJOR-finding when the Generator drafts ungrounded claims. |
 | Scite unreachable for retraction check | Phase 3 step 2 | Per `EXTERNAL_VERIFIERS.md §7` failure-mode contract: log `[VERIFIER UNREACHABLE — Scite]` in the verification log row's Result column. Do NOT silently fall back to memory. Re-attempt at Ph2 entry. |
 | Wiki-graph contradicts a Class 1 finding (e.g., graph asserts paper A cites paper B, but Scholar Gateway returns no such edge) | Phase 2 cross-check | Log as `GRAPH_VS_EXTERNAL_DISAGREEMENT`; the higher-confidence layer wins (Class 1 over graph if graph confidence is INFERRED; graph wins if graph confidence is EXTRACTED and Scholar Gateway returned an UNCERTAIN result). The disagreement is preserved as a `[graph-disagrees]` annotation in `snowball_log.md` for later audit. |
 | Admitted paper is later flagged as retracted at re-check | Phase 3 step 2 (or later round) | Remove from REFERENCES.md; emit BLOCKER finding via the Evaluator's Step 8 register. |
 | In-loop wiki write fails (disk error, permission, conflicting edit) | Phase 4 atomic-rename | Roll back the partial stub; log `WRITE_FAILURE` in `snowball_log.md`; the snowball pool itself is preserved (the wiki stub is downstream of pool admission). User can re-run SK-15 manually to backfill the missing stubs. |
-| Concurrent SK-NEW-A invocations on the same project's REFERENCES.md | Phase 4 lock contention | Single-writer convention: SK-NEW-A writes `references/REFERENCES.md.tmp` then atomic-rename per the existing `phase_state_schema.md §5` pattern. Second invocation blocks on the lock; retries on release. |
+| Concurrent SK-33 invocations on the same project's REFERENCES.md | Phase 4 lock contention | Single-writer convention: SK-33 writes `references/REFERENCES.md.tmp` then atomic-rename per the existing `phase_state_schema.md §5` pattern. Second invocation blocks on the lock; retries on release. |
 
 ## 9. What you do NOT do
 
-1. **Do NOT edit manuscript prose.** SK-NEW-A is read-only against `manuscript/`. The Generator at Ph1 Step 6 reads the populated REFERENCES.md and drafts against it.
+1. **Do NOT edit manuscript prose.** SK-33 is read-only against `manuscript/`. The Generator at Ph1 Step 6 reads the populated REFERENCES.md and drafts against it.
 
 2. **Do NOT promote `wiki/sources/` stubs to `grounding_status: full`.** Only a direct-read pass (SK-17 at M5) does that. The in-loop write-back (§4) creates `stub` entries only.
 
@@ -226,7 +243,7 @@ The stop rule is `rate < ε`, with ε surfaced in `classification.md` as `snowba
 
 6. **Do NOT re-run graphify.** If the graph is stale, log `[graph-stale]` and proceed with external-only iteration (graceful degradation per §Preconditions clause 5). Re-running graphify is the user's decision because it modifies the wiki.
 
-7. **Do NOT modify `${wiki_path}/wiki/concepts/` or `wiki/syntheses/`.** Concept-page retrofit is SK-16's job. Synthesis authoring is SK-14's job. SK-NEW-A only writes to `wiki/sources/` (stubs) and `wiki/{index,log}.md` (append-only).
+7. **Do NOT modify `${wiki_path}/wiki/concepts/` or `wiki/syntheses/`.** Concept-page retrofit is SK-16's job. Synthesis authoring is SK-14's job. SK-33 only writes to `wiki/sources/` (stubs) and `wiki/{index,log}.md` (append-only).
 
 8. **Do NOT skip the per-iteration `interaction_id` regeneration.** Each iteration is a distinct Scholar Gateway "episode" per the tool's contract; reusing a UUID across iterations violates `EXTERNAL_VERIFIERS.md §2`.
 
@@ -234,14 +251,13 @@ The stop rule is `rate < ε`, with ε surfaced in `classification.md` as `snowba
 
 - "Ph1 seed" · "snowball discovery" · "build references" · "seed the corpus" · "/seed-snowball-discovery"
 - Auto-invoked by `run-phase-1` Step 4.5 when the section's `references_initialized` is `false` or absent and `references/REFERENCES.md` does not exist (per architecture plan §5.2 Edit-1).
-- NOT triggered for incremental extension at Ph2; that is SK-NEW-C `extend-snowball-incremental`.
+- NOT triggered for incremental extension at Ph2; that is SK-35 `extend-snowball-incremental`.
 
 ## 11. Sibling skills
 
-- **Upstream:** none. SK-NEW-A is the entry point of the v0.10.0 reference pipeline.
-- **Downstream consumers:** `SK-15 backfill-source-stubs-from-references` (consumes the populated REFERENCES.md for terminal-stage wiki backfill); `SK-NEW-B claim-coverage-audit` (Ph2 entry; reads REFERENCES.md against the Ph1 draft); `SK-NEW-C extend-snowball-incremental` (Ph2 in-loop; extends the snowball pool on uncovered claims).
-- **Pre-seed dependency:** when the wiki has accumulated cross-project content, `SK-NEW-D inherit-snowball-from-wiki` runs before SK-NEW-A's seed phase to pre-populate `seed_set` with adjacent-community papers (architecture plan §5.5.5).
-- **Audit:** `skills/grounding-audit` Phase 2.5 Category 7 (Rule 7a annotations) spot-checks SK-NEW-A's verification log rows; Category 8 (graph-grounding) traces graph-local admissions back to `graph.json` nodes.
+- **Pre-seed predecessor:** `SK-36 inherit-snowball-from-wiki` — auto-invoked at Phase 0 when `wiki_linked: true`, `inherit_snowball: true`, and `graph.json` is fresh. SK-36 pre-populates `seed_set` with adjacent-community papers from prior projects; SK-33 then saturates via claim-derived snowball from that starting pool. SK-36 is a no-op on first-run wikis with no accumulated community structure.
+- **Downstream consumers:** `SK-15 backfill-source-stubs-from-references` (consumes the populated REFERENCES.md for terminal-stage wiki backfill); `SK-34 claim-coverage-audit` (Ph2 entry; reads REFERENCES.md against the Ph1 draft); `SK-35 extend-snowball-incremental` (Ph2 in-loop; extends the snowball pool on uncovered claims).
+- **Audit:** `skills/grounding-audit` Phase 2.5 Category 7 (Rule 7a annotations) spot-checks SK-33's verification log rows; Category 8 (graph-grounding) traces graph-local admissions back to `graph.json` nodes.
 
 ## Notes on tier and scope
 
