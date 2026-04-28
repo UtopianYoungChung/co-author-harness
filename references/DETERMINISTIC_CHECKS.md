@@ -60,6 +60,8 @@ rg --count '---' <file>         # total em-dash count
 rg --count -- '—' <file>        # plain-text em-dashes (rare in LaTeX)
 ```
 
+**H-motivated em-dash insertion (named false-fix pattern).** When applying Sub-check H marker 4 (register-shift signposting), the Generator defaults to em-dash as the signposting vehicle — e.g. "not a political stance — it is a question of method." This satisfies M4 but adds to the §3 em-dash count. **Preferred M4 vehicles (§3-neutral):** semicolon for contrast bridges ("not a political stance; it is a question of method"), colon for specification pivots, explicit cue phrases (`consider concretely:`, `in plain terms:`, `to put this technically:`). On any H-motivated revision pass, verify that em-dash counts did not increase. If they did, flag the delta as a §3 regression even if the individual paragraph count is still ≤1 pair — the *pattern* is the tell. Cross-reference: `references/lay_term_lexicons.md §4` generalisation note 5; `skills/accessibility-overlay/references/sub_checks.md §H marker 4`; MASTER §E.2 ("do not let em-dash count go up when applying edits; models often add `---` or `—` when restructuring to satisfy a finding").
+
 ---
 
 ## 4. LLM tics (MAJOR on cluster, MINOR individually)

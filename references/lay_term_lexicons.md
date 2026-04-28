@@ -101,10 +101,39 @@ The list is the harness's working baseline and is extended per-project via the p
 
 ---
 
+## 4. Verified lay-term paraphrase examples (INF3006, 2026-04-27)
+
+**Purpose.** A reference set of confirmed successful lay-term transformations drawn from the INF3006Y manuscript. Each entry shows the original dense formulation alongside the paraphrase that passed Sub-check H marker review. The table is an *existence proof*, not a template: it demonstrates that propositional content survives the register shift, and anchors the Evaluator's calibration for similar formulations in other projects.
+
+**Source passage context.** The passage appears in INF3006Y's survey-framing paragraph, where the author positions the terminological survey as methodological rather than ideological. The passage is classified `register_class: mixed`; the framing sentences are non-technical passage-role (section framing) and therefore in H's scope.
+
+| Original formulation | Accepted paraphrase (manuscript form) | Marker gain | Draft-form note |
+|---|---|---|---|
+| "methodological, not polemical" | "not a political stance; it is a question of method" | M2 ("it is a question of") + M4 (semicolon bridges negation → positive claim) | Generator draft uses em-dash ("— it is a question of method"); final substitutes semicolon (§3-neutral; same M4 credit) |
+| "analytical distance from hype labels" | "deliberate distance from buzzwords" | M3 (`buzzwords` replaces Latinate `hype labels`) | No punctuation change required |
+| "premature theoretical commitment" | "committing too early to any single theoretical lens" | M2 (gerund agent: `committing`) + M3 (`too early` vs abstract `premature`) | No punctuation change required |
+| "actively contested framing whose built-in assumptions a theoretical survey ought to interrogate rather than defer to" | "a recent, still-debated label, and the assumptions it carries are part of what this survey needs to examine, not take for granted" | M2 (`this survey needs to examine`) + M3 (`not take for granted`) | Generator draft uses em-dash pair as parenthetical; final uses comma + "and" clause (no em-dash) |
+| "data points about how the field is currently carving its problem, not as maps I adopt" | "evidence of how the field is currently framing the problem, not as frameworks I follow" | M2 (`I follow`) + M3 (`not as frameworks I follow`) | No punctuation change required |
+
+**Sentence kept as-is.** "The underlying question… will very likely outlast it." — the sentence carries no dense nominalisations, its subject is a concrete referent (the research question), and `very likely` functions as a transparent epistemic marker rather than a stacked hedge. H adjudicated CLEAN without paraphrase.
+
+**Generalisation notes (provisional; refine as calibration log grows).**
+
+1. *Polemical / methodological opposition* → flip to first-person negation + plain declaration ("not X; it is Y") rather than noun-pair. The semicolon carries M4 as a contrast bridge without a separate signpost cue. (Em-dash also satisfies M4 but adds to the §3 count; see note 5 for the substitution rule that pins this down.)
+2. *Abstract-quality adjective + Latinate noun* ("analytical distance", "premature commitment") → verb the quality ("deliberately distance", "committing too early"). The gerund form typically picks up M2.
+3. *Relativised relative clause* ("whose built-in assumptions a survey ought to interrogate rather than defer to") → collapse to a plain subject-verb pair ("that this survey needs to examine, not take for granted"). One concrete agent + negation + plain verb = M2 + M3 in two tokens.
+4. *Field-as-map metaphor* ("not as maps I adopt") → plain tool-use metaphor ("not as frameworks I follow"). Metaphor substitution preserves M3 and opens M2 via active first-person.
+5. *Em-dash as draft M4, semicolon/colon in final*: The Generator's default M4 vehicle is the em-dash (least-resistance register-shift signal). Every em-dash used for M4 in a low-em-dash or zero-em-dash manuscript should be replaced with a semicolon (contrast pivot) or a colon (specification pivot) in the revision step. The substitution preserves M4 credit and eliminates the §3 count. Named as the 'H-motivated em-dash insertion' false-fix pattern in `DETERMINISTIC_CHECKS.md §3`. INF3006Y Reconciled baseline: zero em-dashes (all converted from Generator drafts).
+
+These generalisations feed the `aggregate_h_calibration.py` training corpus. Mark a generalisation `false_positive_candidate: true` in the calibration log if a later round produces a counterexample.
+
+---
+
 ## Versioning
 
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-04-27 (v0.10.2) | Initial extraction from prose-embedded lists in §9e, sub_checks.md, and READER_ACCESSIBILITY.md. Three lexicons (hedge / connective / domain-term) consolidated. Six-entry load-bearing-Latinate whitelist added (closure rule defined). Per-project override semantics documented; implementation deferred to v0.10.3 per Q4 adjudication 2026-04-27. |
+| 1.1 | 2026-04-28 (v0.12.1) | Added §4 (verified lay-term paraphrase examples) from INF3006Y successful H pass. Five transformation entries + one keep-as-is example + five provisional generalisation notes (including the H-motivated em-dash insertion / semicolon-substitution rule cross-referenced from `DETERMINISTIC_CHECKS.md §3`). Feeds `aggregate_h_calibration.py` corpus. |
 
 **Note.** This file is the canonical lexicon source; cross-references in `references/DETERMINISTIC_CHECKS.md §9e`, `skills/accessibility-overlay/references/sub_checks.md §H`, and `references/SAFEGUARD_LAYER.md §H` should resolve here rather than re-state the lists in prose. Single-source-of-truth discipline per architecture §6.0 row 4.
