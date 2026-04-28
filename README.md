@@ -50,6 +50,26 @@ See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the
 
 ---
 
+## Prerequisites
+
+The harness's review surface depends on two external connectors. Both are
+optional; the harness degrades gracefully when neither is connected, but
+several SAFEGUARD checks and the snowball-discovery skill require at
+least one of them to do useful work.
+
+- **Zotero MCP** — used by the snowball-discovery skill to look up
+  bibliographic metadata for cited sources and to admit new sources to
+  the project's reference pool. Without Zotero, snowball discovery
+  no-ops with `NO_REACHABLE_VERIFIER` per `skills/seed-snowball-discovery/SKILL.md §2`.
+- **Scholarly-search MCP** (or any Class 1 verifier MCP that exposes
+  Google Scholar, OpenAlex, or Crossref) — used by the snowball
+  discovery loop's verifier fall-through path. Same no-op behaviour
+  applies when the connector is absent.
+
+Sessions that do not invoke `/seed-snowball-discovery`,
+`/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
+proceed without either connector.
+
 ## Quick start
 
 1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).

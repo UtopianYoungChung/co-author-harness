@@ -561,9 +561,19 @@ def check_clause_c(ctx: CheckContext) -> None:
 
 
 def check_clause_d(ctx: CheckContext) -> None:
-    """(d) t1_pstage_declaration set before T2 admission.
+    """(d) t1_pstage_declaration set + classification.md present before T2 admission.
 
-    Fires only when target_tier == T2. A null pstage on T2 admission surfaces
+    Fires only when target_tier == T2. Two sub-checks:
+
+    (d.1) classification.md presence (added at v0.11.0 c11). The Ph1->Ph2
+    advance reads `reviews/classification.md` for paper type, P-stage,
+    venue, and default_final_phase. Without this file the Planner
+    cannot dispatch a Ph2 Evaluator pass against the right register —
+    the SAFEGUARD checks, the deterministic-check mandatory subset, and
+    the Reflector-lightweight integrity probe all read it. Missing
+    classification.md is a hard BLOCKER (E-CLASSIFICATION-MISSING-AT-T2).
+
+    (d.2) t1_pstage_declaration. A null pstage on T2 admission surfaces
     W-PSTAGE-UNAVAILABLE (warning, not error) unless the section has a
     non-null last_approved_tier (i.e., the T2 advance is not a first-time
     pass), in which case the null is treated as a hard error because the
@@ -572,6 +582,26 @@ def check_clause_d(ctx: CheckContext) -> None:
     if ctx.target_tier != "T2":
         return
     section = ctx.target_section
+
+    # (d.1) classification.md presence — v0.11.0 c11.
+    classification_path = ctx.project_root / "reviews" / "classification.md"
+    if not classification_path.exists():
+        ctx.findings.append(
+            Finding(
+                code="E-CLASSIFICATION-MISSING-AT-T2",
+                clause="d",
+                section=ctx.target_section_key,
+                message=(
+                    f"reviews/classification.md is missing at T2 admission. "
+                    f"The Ph1->Ph2 advance requires classification (paper type, "
+                    f"P-stage, venue, default_final_phase) before the Evaluator "
+                    f"can dispatch. Run /classify-manuscript or hand-author the "
+                    f"file at {classification_path}."
+                ),
+            )
+        )
+
+    # (d.2) t1_pstage_declaration populated.
     if section.get("t1_pstage_declaration") is None:
         if section.get("last_approved_tier") is None:
             # First-time T2 admission with no prior approval history;
