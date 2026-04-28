@@ -36,25 +36,145 @@ source_items:
 
 ## Sub-check A — Paragraph Cadence
 
-*(content added in Task 2)*
+**Property being calibrated:** A paragraph ≤200 words has a visible internal turn-point — a transition, a worked example, a counter-claim, or a thematic refocus — that changes the paragraph's direction mid-way.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 1, "The Problem of Labor Management," ~offset 15,600
+
+**Verbatim passage:**
+
+> Across a wide range of sectors, managers today face conflicting pressures on how to utilize their employees. On the one hand, they need to ensure that workers produce output, whether in goods or services, of sufficient quantity and quality. To this end, managers ensure workforce discipline through work simplification and standardization, automation and machine-paced work, rules and procedures, threats and rewards. On the other hand, organizational success increasingly depends on the ability of managers to harness the creativity and initiative of workers. To this end, managers empower the workforce through job enlargement and enrichment, cross training and multiskilling, and opportunities to participate in problem solving and decision making.
+
+**Marker audit:** Turn-point fires at "On the other hand" (explicit contrastive cue, on the `sub_checks.md` §A cue lexicon). The paragraph opens by naming a tension, spends two sentences developing the discipline pole ("On the one hand…"), then pivots at exactly the midpoint to develop the empowerment pole with symmetric structure ("To this end, managers…" appears in both halves). The turn-point is both lexically marked and structurally visible.
+
+**Annotation:** The symmetrical structure (same framing sentence applied to each pole) makes the cadence criterion legible at a glance — the pivot is not accidental or implicit but is the paragraph's organizing principle. This is the cleanest possible structural turn-point: it teaches by making the form transparent.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 5, "Plans," ~offset 195,800
+
+**Verbatim passage:**
+
+> The action's course is just the playing out of these antecedent factors, knowable in advance of and standing in a determinate relationship to the action itself. The alternative view is that plans are resources for situated action but do not in any strong sense determine its course. Although plans presuppose the embodied practices and changing circumstances of situated action, the efficiency of plans as representations comes precisely from the fact that they do not represent those practices and circumstances in all of their concrete detail. So, for example, in planning to run a series of rapids in a canoe, one is very likely to sit for a while above the falls and plan one's descent. The plan might go something like "I'll get as far over to the left as possible, try to make it between those two large rocks, then backferry hard to the right to make it around that next bunch." A great deal of deliberation, discussion, simulation, and reconstruction may go into such a plan. But however detailed, the plan stops short of the actual business of getting your canoe through the falls.
+
+**Marker audit:** Turn-point fires at "So, for example" (on the `sub_checks.md` §A cue lexicon: `for example`, `to illustrate`). The first three sentences are theoretical declarative (planning-model characterization); the pivot at "So, for example" shifts register entirely into a first-person narrative canoe scenario. The two halves are in different registers, making the turn-point a register-shift cadence rather than a structural-symmetry cadence.
+
+**Annotation:** Unlike the Vidal example, the turn-point here is a register shift (theoretical → vignette), not a structural pivot. The paragraph changes direction by changing mode — from abstract characterization to concrete scenario — which satisfies the cadence criterion via a different surface form.
+
+---
+
+**Calibration note:** Both are CLEAN. Vidal's turn-point is structural (symmetrical paired argument); Suchman's is a register-shift (theoretical declarative → first-person vignette). The Evaluator should not over-specify the surface form: any of the cue-lexicon items in `sub_checks.md §A` can anchor a CLEAN turn-point, whether the pivot is a counter-claim, a thematic refocus, or a register shift into a worked example.
 
 ---
 
 ## Sub-check B — Sentence-Length Variation (Rhythm)
 
-*(content added in Task 2)*
+**Property being calibrated:** A passage of four or more sentences has markedly variable sentence lengths (mix of short ≤12 words and long ≥25 words). The variation is felt as emphasis, not accident — short sentences land as punches after accumulation in long ones.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 2, "Lean Management and Employee Involvement," ~offset 140,400
+
+**Verbatim passage:**
+
+> Work intensification in global auto assembly preceded the global diffusion of lean, rising in the late 1960s following the intensification of global competition and declining profits. In Ruth Milkman's (1997: 12) case study of the GM assembly plant in Linden, New Jersey, the workers did not defend traditional, fordist arrangements, which they experienced as "relentless and dehumanizing." The primary complaints of these workers were that management treated them in a degrading manner and did not follow through on its promises of increased participation under lean. These workers embraced management's rhetoric of participation but this was never delivered, as managers continued to emphasize uninterrupted production in the face of severe pressures for output.
+
+**Marker audit:** Sentence-length profile: S1 ~26 words (declarative framing); S2 ~30 words (embedded citation + direct quote); S3 ~28 words (complaint characterization); S4 ~28 words (flat concluding statement). The variation is intra-sentence: the embedded direct quote "relentless and dehumanizing" (3 words) acts as a short emphatic pulse inside the long S2, creating a heavy-light-medium texture. The quoted phrase lands harder than the academic scaffolding around it — this is rhythm as emphasis.
+
+**Annotation:** The rhythm criterion does not require that full sentences alternate short/long. An embedded direct quote or clause can create the pulse within a sentence, as here. The Evaluator should audit for perceived rhythm variation, not merely for inter-sentence length difference.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 1, "Readings and Responses," ~offset 31,200
+
+**Verbatim passage:**
+
+> The project was initiated in response to a delegation of Xerox customer service managers, who traveled to PARC from Xerox's primary product development site in Rochester, New York, to report on a problem with the machine and to enlist research advice in its solution. The machine was a relatively large, feature-rich photocopier that had just been "launched," mainly as a placeholder to establish the company's presence in a particular market niche that was under threat from other, competitor, companies. The machine was advertised with a figure dressed in the white lab coat of the scientist/engineer but reassuring the viewer that all that was required to activate the machine's extensive functionality was to "press the green [start] button." It seemed that customers were refuting this message, however, complaining instead that the machine was, as the customer service managers reported it to us, "too complicated."
+
+**Marker audit:** Sentence-length profile: S1 ~50 words; S2 ~35 words; S3 ~40 words; S4 ~12 words. The first three sentences accumulate narrative weight; S4 — "It seemed that customers were refuting this message, however" — drops to 12 words. The drop is inter-sentence (full-length reversal), and it enacts the ironic reversal: the machine promised simplicity; users found it complex. The brevity of S4 performs the bluntness of the finding.
+
+**Annotation:** Unlike Vidal's intra-sentence pulse, Suchman's variation is inter-sentence — a full length drop from 35–50-word accumulation to a 12-word blunt reversal. Both satisfy rhythm; the Evaluator should not over-specify which form the variation takes.
+
+---
+
+**Calibration note:** Vidal's variation is intra-sentence (direct-quote pulse inside a long sentence); Suchman's is inter-sentence (full-length drop to a short landing). The criterion targets perceived rhythm variation, not a specific surface form. A paragraph where the shortest sentence exceeds 20 words (Sub-check B's "no short sentences" warning) is a rhythm flag regardless of mean — the Evaluator audits contrast, not average.
 
 ---
 
 ## Sub-check C — First-Use Definition
 
-*(content added in Task 2)*
+**Property being calibrated:** Every theoretical or domain construct carries a definition or worked illustration at or before its first use — in plain English, before the term does conceptual work in subsequent sentences.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 3, ~offset 190,300
+
+**Verbatim passage:**
+
+> The labor process is about the organization of work as such: the division of labor, cooperation, workflow, production control and quality control, etc. The valorization process is about the production and appropriation of surplus labor—output beyond that necessary to cover a worker's wages—within the capitalist employment relation.
+
+**Marker audit:** "Valorization process" is a technical Marxist term. Vidal defines it on the same sentence as its first substantive deployment, using a plain-English em-dash gloss — "output beyond that necessary to cover a worker's wages" — inserted directly into the sentence. The gloss comes before the term does conceptual work in subsequent paragraphs. Structure: term → em-dash → plain-English equivalent → wider context.
+
+**Annotation:** The em-dash gloss is the minimum viable first-use definition: it puts the plain-English content inside the same sentence as the term, so the reader is equipped before they need to apply the concept. Longer glosses, parenthetical definitions, or same-paragraph elaborations also satisfy Sub-check C — the minimum is co-occurrence on the same page, not co-occurrence in the same sentence.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 7, "Communicative Resources," ~offset 210,000
+
+**Verbatim passage:**
+
+> Language is efficient in the sense that, on the one hand, expressions have assigned to them conventional meanings that hold on any occasion of their use. The significance of a linguistic expression on some actual occasion, on the other hand, lies in its relationship to circumstances that are presupposed or indicated by, but not actually captured in, the expression itself. Language takes its significance from the embedding world, in other words, even while it transforms the world into something that can be thought of and talked about. Expressions that rely on their situation for significance are commonly called indexical, after the "indexes" of Charles Peirce (1933), the exemplary indexicals being first- and second-person pronouns, tense, and specific time and place adverbs such as here and now.
+
+**Marker audit:** "Indexical" is introduced only after two full sentences establish the distinction between conventional meaning and situated significance — the exact conceptual distinction the term names. By the time Peirce's label arrives, the reader already has the concept; the term is a name for something already understood. Concrete examples (pronouns, tense, "here," "now") complete the first-use definition on the same page. Structure: plain-English concept (pre-loaded) → term introduced → concrete examples.
+
+**Annotation:** Suchman's model is definition-before-term (concept pre-loaded before the label), the inverse of Vidal's definition-in-sentence. Both are CLEAN; the criterion does not require a particular syntactic form, only that the definition or illustration precedes the term's conceptual work in subsequent sentences.
+
+---
+
+**Calibration note:** Vidal's model is definition-in-sentence (em-dash gloss on the same sentence as first use); Suchman's is definition-before-term (concept pre-loaded across two sentences before the label). The Evaluator should accept both forms. A term introduced in sentence N with a gloss in sentence N+1 of the same paragraph also satisfies the criterion; the binding rule is that the definition precedes the term's use as a conceptual building-block, not that they appear in the same syntactic position.
 
 ---
 
 ## Sub-check D — Section-Opening Signpost
 
-*(content added in Task 2)*
+**Property being calibrated:** A section opens with a one-to-three-sentence preamble that (a) tells the reader where they have arrived in the argument (orienting clause) and (b) tells the reader what the section will contribute (contribution clause). Not a topic sentence — an explicit map-fragment.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 2, "Lean Management and Employee Involvement," opening paragraph, ~offset 120,100
+
+**Verbatim passage:**
+
+> This chapter examines arguments of the lean boosters that its performance effects are based in worker empowerment and those of its critics that it is a system of deskilling whose effects flow mainly from work intensification. I conclude that lean is not inherently one or the other. Lean tools can be highly effective for intensifying work, but the intensification of work is neither specific to lean nor is it what makes lean such an effective production model. Rather, lean has become the undisputed model of production in manufacturing, and is increasingly prominent in other sectors, because it is a system that combines tools for flexible production, process control, and continuous improvement. Following a discussion of empowerment and intensification, I briefly revisit debates about whether lean is best characterized as neofordist or postfordist.
+
+**Marker audit:** Orienting clause: "This chapter examines arguments of the lean boosters… and those of its critics…" — names the prior debate the chapter adjudicates (where the reader has arrived). Contribution clause: "I conclude that lean is not inherently one or the other" — announces the chapter's own finding up front. Internal sequence map: "Following a discussion of…, I briefly revisit…" — maps the route. The reader finishes the paragraph knowing the destination and the path.
+
+**Annotation:** This signpost is argumentative — it announces a conclusion, not just a topic. The contribution clause is a claim ("lean is not inherently one or the other"), not just a structural promise ("this chapter will discuss X"). Either form satisfies Sub-check D; the argumentative form is stronger because it gives the reader a thesis to hold while reading.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 5, "Plans," opening paragraph, ~offset 144,000
+
+**Verbatim passage:**
+
+> Every account of communication involves assumptions about action, in particular about the bases for action's coherence and intelligibility. This chapter and the next discuss two alternative views of action. The first, adopted by most researchers in artificial intelligence, locates the organization and significance of human action in underlying plans. At least as old as the Occidental hills, this view of purposeful action is the basis for traditional philosophies of rational action and for much of the behavioral sciences. It is hardly surprising, therefore, that it should be embraced by those newer fields concerned with intelligent artifacts, particularly cognitive science and information-processing psychology. On the planning view, plans are prerequisite to and prescribe action, at every level of detail. The alternative view, developed in Chapter 6 of this book, is that although the course of action can always be projected or reconstructed in terms of prior intentions and typical situations, the prescriptive significance of intentions for situated action is inherently vague.
+
+**Marker audit:** Orienting clause: "Every account of communication involves assumptions about action" — locates the reader in the book's overarching concern. Contribution clause: "This chapter and the next discuss two alternative views of action" — assigns each of the next two chapters a structural role. The paragraph then names both views and characterizes them, so the reader has a full cognitive scaffold before any argument begins.
+
+**Annotation:** Suchman's signpost is structural — it assigns chapter roles ("this chapter and the next") rather than announcing a conclusion. Both the argumentative form (Vidal) and the structural form (Suchman) satisfy Sub-check D; the minimum is that the orienting and contribution clauses are both present. A section that opens with a topic sentence ("This section discusses lean management") but neither locates the reader in the argument nor names what the section contributes fails D.
+
+---
+
+**Calibration note:** Vidal's signpost is argumentative (announces a conclusion); Suchman's is structural (assigns chapter roles across two chapters). Both satisfy D because both supply an orienting clause and a contribution clause. The Evaluator should not require a conclusion to be announced — assigning a structural function is a valid contribution clause. The Sub-check D / Sub-check H orthogonality (D checks structural presence; H checks register construction within the clauses) means a D-CLEAN signpost can still be H-MAJOR if the orienting clause is register-inappropriate.
 
 ---
 
