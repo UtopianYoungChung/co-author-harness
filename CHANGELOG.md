@@ -6,6 +6,99 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.11.0 — 2026-04-27
+
+**Architectural cut + structural anti-drift posture.** v0.11.0 responds to
+the v0.10.2 audit finding that governance-trailer drift had become the
+load-bearing source of the maintainer's "does the plugin deliver what it
+promised?" worry. The release deletes machinery that was not delivering,
+adds structural validators that hard-fail drift recurrence, and registers
+the small set of facts the plugin repeats across files in a single source
+of truth.
+
+### What changed
+
+- **c0** — Predecessor audit + definitive architectural plan.
+- **c1a / c1b / c1c** — SD/SR machinery cut. Removed across PHASE_PROTOCOL,
+  AGENT_ORCHESTRATION, AGENT_CONTRACTS, agents/{evaluator,generator,planner},
+  phase_notifications.yaml, pre_phase_advance_check.py, phase_state_schema,
+  run-phase-1, run-phase-2, classify-manuscript, plugin-commands, and
+  related minor surfaces. The v0.10.0->v0.11.0 migration helper at
+  `scripts/migrate_v0100_to_v0110_drop_sd_sr.py` removes the field from
+  consumers; idempotent; no rollback; advisory output only.
+- **c2 / c2.5 / c2.6** — Manifest hygiene. Description rewritten as
+  human-readable copy; keywords trimmed 18 -> 10 with substrate-resolution
+  posture; "Ships 32 skills" assertion dropped from both manifests;
+  catalog-check inverted (asserted skill count -> BLOCKER; absence ->
+  healthy).
+- **c3** — README repository-layout fix; skill count derived from
+  filesystem at validate-time rather than asserted in prose.
+- **c4** — SK-21 phantom roadmap references stripped from references/CLAUDE.md,
+  PROJECT_BOOTSTRAP.md, SKILL_REGISTRY.md, graph-grounding-overlay/SKILL.md.
+- **c5** — Eight superseded scripts deleted: migrate_convergence_log_v074,
+  migrate_v055_to_v060, migrate_v060_to_v070, migrate_v073_to_v074_tier_to_phase,
+  migrate_convergence_journal_v075, tier_state_canonicalize, tier_state_validate,
+  tier_notifications_loader. Active consumers (release-gate.sh,
+  phase_state_validate.py, phase_notifications_loader.py) updated.
+- **c6** — Historical audit artefacts relocated to docs/historical/.
+- **c7** — Version trailers stripped from 16 prose docs.
+- **c8** — Validator extensions:
+    * `manifest-coherence-check.py` (new) — description ≤300 chars,
+      keywords ≤12, substrate-resolution, asserted-count BLOCKER,
+      plugin.json / marketplace.json description parity.
+    * `version-check.py` extended with version-trailer detector
+      against the c7 invariant.
+    * `path-hygiene-check.py` extended with README-orphan rule and
+      untracked-files-in-tracked-directories rule (forensic §4 Gap 3).
+- **c9** — SSOT registry. `.claude-plugin/ssot.yaml` declares
+  authoritative facts (skill_count, command_count, manifest_version,
+  manifest_description); `scripts/ssot-check.py` enforces fact-consumer
+  parity. Both manifest descriptions registered as `skill_count`
+  consumers with `method=none` — closes the forensic §2.2
+  SSOT-inconsistency disposition (drop side at c2.5; enforce side at c9).
+- **c10** — End-to-end ladder smoketest fixture (skeleton scope per the
+  plan §3.5 4-8 hour estimate; full agent-dispatch simulation deferred
+  to c10.5). `scripts/end_to_end_smoketest.py` exercises the validator
+  chain plus pre_phase_advance_check.py against the fixture.
+- **c11** — Operational tightening. `pre_phase_advance_check.py` clause
+  (d) extended with classification.md presence check
+  (E-CLASSIFICATION-MISSING-AT-T2). README Prerequisites section
+  names Zotero MCP and scholarly-search MCP.
+
+### Plan amendments recorded
+
+- The catalog-check inversion (originally scoped at c8) was lifted
+  forward to c2.6 to unblock the validator-green invariant during c1a/c1b.
+  c8's remaining scope (manifest-coherence + version-trailer +
+  path-hygiene rules) shipped as planned.
+- c1 was decomposed into c1a + c1b + c1c. Cumulative diff matches plan
+  §2.1 spec.
+- The forensic §2.2 SSOT inconsistency was resolved with the combined
+  disposition: drop "Ships 32 skills" from descriptions (c2.5) AND
+  register descriptions as `skill_count` consumers in ssot.yaml (c9).
+- The forensic §4 four validator-gap closures land at c8: asserted-count
+  BLOCKER on manifest descriptions, description parity, untracked-files
+  rule, README-orphan rule.
+
+### Known follow-ups
+
+- c10.5: tighten the end-to-end smoketest to assert exit-0 from
+  pre_phase_advance_check.py against a fully-fleshed-out fixture
+  (multi-section + populated reference pool + deterministic-check
+  artefact + Generator revision_log row).
+- TIER_PROTOCOL.md and references/tier_notifications.yaml carry the
+  v0.7.4 tier-named state alongside the phase-named state. The tier->phase
+  rename completed at v0.7.5 RC; these files are slated for deletion in a
+  future cleanup commit but were intentionally left in place at v0.11.0
+  to avoid a sprawling rename PR alongside the architectural cut.
+- Substrate-doc references to the eight retired scripts (CHANGELOG,
+  RELEASE_NOTES_*, PHASE_PROTOCOL.md migration semantics,
+  AGENT_ORCHESTRATION.md historical pointers) were intentionally not
+  swept in c5; they serve as audit-trail breadcrumbs documenting the
+  historical migration paths.
+
+---
+
 ## v0.10.2 — 2026-04-27
 
 **Theme.** v0.10.1 deferred-items sweep with mixed substrate / forward-looking-spec strategy per user adjudication 2026-04-27 (Option A scope; single `patch/v0.10.2` branch). Closes the four items declared in v0.10.1's "Deferred to v0.10.2+" list — DETERMINISTIC_CHECKS §9e H pre-filter substrate (slot corrected from "§9b" per the v0.10.1 narrative; §9b was already taken by the v0.7.2 Reader cognitive load pre-filter); Sub-check H telemetry/aggregator + flag-retirement-decision plan doc; quantitative-thresholds plan doc; v0.10.0 pilot integration replay protocol plan doc. Plus a substantial mid-cycle policy tightening (S1.5) per user directive 2026-04-27 to refine the H lay-term policy across five tighten-points (Latinate exemption whitelist; concrete-referent operational definition; signpost orienting/contribution split with Ph2/Ph3 binding refinement; worked examples in §13.4 + new lexicon file; new fourth positive marker for register-shift signposting). Six commits on `patch/v0.10.2` off `9861762` (v0.10.1 merge tip).

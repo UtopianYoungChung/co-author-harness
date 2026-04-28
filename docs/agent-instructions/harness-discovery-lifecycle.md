@@ -50,7 +50,7 @@ The Planner determines the current milestone and rung by reading the project sta
 
 ## Bootstrapping a new project
 
-When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. The bootstrapping protocol creates the standard directory structure, seeds the project CLAUDE.md, and dispatches the Planner for initial classification (which under v0.8.2 includes the `default_final_phase` declaration and the opt-in `sd_sr_required` flag in `reviews/classification.md`).
+When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. The bootstrapping protocol creates the standard directory structure, seeds the project CLAUDE.md, and dispatches the Planner for initial classification (which includes the `default_final_phase` declaration in `reviews/classification.md`).
 
 **Quick reference — the standard project structure:**
 
@@ -62,7 +62,7 @@ When the user asks to start a new research project, the agent reads `references/
 │   ├── outline.md                # Structural outline (M3)
 │   └── revision_log.md           # Append-only change log
 ├── reviews/
-│   ├── classification.md         # Paper type, P-stage, venue, default_final_phase, sd_sr_required
+│   ├── classification.md         # Paper type, P-stage, venue, default_final_phase
 │   ├── phase_state.json          # 15-field per-section ledger (Planner-owned)
 │   ├── revision_plan.md          # Current action list
 │   ├── ph1_draft_completion.md   # Ph1 exit artefact
@@ -73,7 +73,6 @@ When the user asks to start a new research project, the agent reads `references/
 │   ├── safeguard_check8_*.md     # Reader-Experience findings (v0.7.2)
 │   ├── G4_signoff.md             # Ph4 (submission-bound) only
 │   ├── reflection_report.md      # Reflector output
-│   ├── sd_model.md, sr_model.md  # Only if sd_sr_required: true
 │   └── DO_NOT_DISTURB.md         # Frozen rules (append-only)
 ├── research_notes/
 │   ├── project_memo.md           # M1 artifact

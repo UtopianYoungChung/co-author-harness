@@ -12,7 +12,7 @@
 
 | Agent | Role | Primary output | Writes to manuscript? |
 |---|---|---|---|
-| **Planner** | Session initializer and dispatcher. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. **When `sd_sr_required: true` in `reviews/classification.md`** (v0.7.1 opt-in — see `PHASE_PROTOCOL.md §3.1.2`), additionally authors the Ph1 i* SD/SR models and runs the §3.1.1 structural-completeness validator; when the flag is absent or `false` (the v0.7.1 default), these sub-phases silently skip. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md`; plus `reviews/istar_sd.md`, `reviews/istar_sr.md` **only when `sd_sr_required: true`** | **Never** |
+| **Planner** | Session initializer and dispatcher. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md` | **Never** |
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
 | **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `manuscript/main.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
@@ -55,7 +55,7 @@ The v0.7.0 Lifecycle-Phase Ladder conditions agent engagement on the current pha
 
 | Phase | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| **Ph1 Plan & Draft** | Bootstraps state; drafts revision plan. **When `sd_sr_required: true`** (`PHASE_PROTOCOL.md §3.1.2`), also authors SD/SR models and runs §3.1.1 i* structural validator. | **Not engaged** | Drafts under P-stage register on diff scope (Rule 1 digest exception applies) | Lightweight integrity probe only |
+| **Ph1 Plan & Draft** | Bootstraps state; drafts revision plan. | **Not engaged** | Drafts under P-stage register on diff scope (Rule 1 digest exception applies) | Lightweight integrity probe only |
 | **Ph2 Review & Revise** | Dispatches; runs pre-phase-advance check | First engagement — full local-scope pass on changed sections | Applies findings under P-stage register | Lightweight integrity probe only |
 | **Ph3 Iterate & Converge** | Dispatches; runs MCR admission check at close-out | Full-scope pass; external verifiers optional; Coupling E.2 at Step 0.2 | Applies findings under P-stage register | Lightweight integrity probe only |
 | **Ph4 Finalize & Close** | Dispatches; runs MCR admission check; G.4 gate | Full-scope pass; external verifiers required; G.4 mandatory | Final edits under declared submission-bound register | **Reflector-full** five-phase close-out |
@@ -162,9 +162,6 @@ USER REQUEST
   ↓
 ① PLANNER — bootstraps 16-field section state; reads classification.md
    for P-stage; populates ph1_pstage_declaration.
-   When sd_sr_required: true (classification.md, v0.7.1 opt-in),
-   additionally authors SD/SR models and runs the §3.1.1
-   structural-completeness validator.
   ↓ ► PRESENTS PLAN TO USER ◄
 ③ GENERATOR — drafts under P-stage register on diff scope
    (Rule 1 digest exception applies at Ph1 only). NO Self-Ph1 Verdict.
@@ -376,7 +373,7 @@ The escalation log is a Planner-written, append-only markdown file that records 
 
 **Who writes it.** The Planner writes every escalation entry. Agents other than the Planner (Evaluator findings, Reflector audit remarks, user overrides) surface escalation triggers through their normal outputs; the Planner is the single point of truth that translates a triggered gate into a logged escalation. This preserves the single-writer invariant established for the round program and avoids three-way merge conflicts on a shared append-only file. (At v0.7.0 the Generator no longer surfaces self-Ph1 verdicts — Phase 3.5 is retired.)
 
-**Lifecycle.** The log is created empty when a round opens (on Planner dispatch at Ph1 or above — the Ph1 Plan & Draft lifecycle stage still produces logged transitions for `initial_dispatch`, `imodel_structural_validation_signed`, `ph1_draft_completion_signed`, and `user_approval`), appended to as escalations fire, and archived by the Reflector-full into the reflection report's `§escalation-trace` section at Ph4 close-out. Unlike the round program, the log is **not overwritten between rounds**; it is preserved in `reviews/escalation_log.md.<round-id>` so that cross-round escalation-pattern analysis remains possible. Gate-threshold calibration (`scripts/gate_threshold_tuner.py`) consumes this preserved history at Ph4 close per `PHASE_PROTOCOL.md §9.2`.
+**Lifecycle.** The log is created empty when a round opens (on Planner dispatch at Ph1 or above — the Ph1 Plan & Draft lifecycle stage still produces logged transitions for `initial_dispatch`, `ph1_draft_completion_signed`, and `user_approval`), appended to as escalations fire, and archived by the Reflector-full into the reflection report's `§escalation-trace` section at Ph4 close-out. Unlike the round program, the log is **not overwritten between rounds**; it is preserved in `reviews/escalation_log.md.<round-id>` so that cross-round escalation-pattern analysis remains possible. Gate-threshold calibration (`scripts/gate_threshold_tuner.py`) consumes this preserved history at Ph4 close per `PHASE_PROTOCOL.md §9.2`.
 
 **Gate definitions — canonical source.** The six v0.7.0 gates (EG-1, EG-3, EG-4, EG-5, EG-6, EG-7 — EG-2 retired) — firing conditions, target phases, phase activation — are defined canonically in `PHASE_PROTOCOL.md §4`. That section is the *single* normative register. This section does **not** redefine gates; it specifies only the log schema, the read/write roles, and the append semantics. If the two files ever diverge, `PHASE_PROTOCOL.md §4` wins.
 
@@ -419,7 +416,7 @@ The tuner's regex anchors on the column shape, not on the header, so the header 
 
 **Append semantics.** Entries are appended in chronological order of the triggering event (not the logging event). Out-of-order writes are prohibited; if two triggers fire concurrently, the Planner serializes them by the timestamp on the underlying artifact.
 
-**Phase status (v0.7.0).** The write path is live on the Planner only. The Planner creates the log on first dispatch at Ph1 (or the user-selected explicit phase when `/run-phase-N` is used) and appends on every subsequent transition under the 30-value trigger enum (`phase_state_schema.md §3.1`): Ph1 lifecycle triggers (`initial_dispatch`, `imodel_structural_validation_signed`, `ph1_draft_completion_signed`), Ph2/Ph3/Ph4 lifecycle triggers (`ph2_review_completion_signed`, `ph3_iteration_round`, `convergence_metric_stable`, `mcr_admission`, `ph3_convergence_signoff_terminal`, `ph3_stale_reengagement_signoff`), gate firings (EG-1, EG-3, EG-4, EG-5, EG-6, EG-7 — including the `eg1_ph4_downgrade_to_ph3` and `eg7_mcr_readmission_after_class_change`), drift-tolerance warnings (`ph3_drift_exceeded_tolerant`), staleness (`ph3_stale_detected`), user overrides (EG-6 via `/run-phase-N`), fingerprint demotions (`fingerprint_reset`), MCR cycle transitions, M5 wiki ingest (`m5_wiki_ingest`), and explicit user phase-downs (§6.4 of `PHASE_PROTOCOL.md`). The Reflector-full's Phase 2b at Ph4 reads the log to compute aggregated confirmation-failed history patterns (NEW-H-4) — at v0.7.0 this audit aggregates `confirmation_failed` rows imported from v0.6.0 → v0.7.0 migrated projects since the trigger no longer fires natively. Cross-round preservation (`reviews/escalation_log.md.<round-id>`) remains in effect.
+**Phase status (v0.7.0).** The write path is live on the Planner only. The Planner creates the log on first dispatch at Ph1 (or the user-selected explicit phase when `/run-phase-N` is used) and appends on every subsequent transition under the 30-value trigger enum (`phase_state_schema.md §3.1`): Ph1 lifecycle triggers (`initial_dispatch`, `ph1_draft_completion_signed`), Ph2/Ph3/Ph4 lifecycle triggers (`ph2_review_completion_signed`, `ph3_iteration_round`, `convergence_metric_stable`, `mcr_admission`, `ph3_convergence_signoff_terminal`, `ph3_stale_reengagement_signoff`), gate firings (EG-1, EG-3, EG-4, EG-5, EG-6, EG-7 — including the `eg1_ph4_downgrade_to_ph3` and `eg7_mcr_readmission_after_class_change`), drift-tolerance warnings (`ph3_drift_exceeded_tolerant`), staleness (`ph3_stale_detected`), user overrides (EG-6 via `/run-phase-N`), fingerprint demotions (`fingerprint_reset`), MCR cycle transitions, M5 wiki ingest (`m5_wiki_ingest`), and explicit user phase-downs (§6.4 of `PHASE_PROTOCOL.md`). The Reflector-full's Phase 2b at Ph4 reads the log to compute aggregated confirmation-failed history patterns (NEW-H-4) — at v0.7.0 this audit aggregates `confirmation_failed` rows imported from v0.6.0 → v0.7.0 migrated projects since the trigger no longer fires natively. Cross-round preservation (`reviews/escalation_log.md.<round-id>`) remains in effect.
 
 **Calibration (v0.7.0).** Scheduled Reflector-full runs are scoped to Ph4 at v0.7.0 (`PHASE_PROTOCOL.md §9.2`). Gate-calibration signals therefore surface at Ph4 close rather than every round. Persistent single-gate skew across Ph4 rounds surfaces a `[GATE CALIBRATION SIGNAL]` entry in §9 of the reflection report proposing an adjustment. The proposal is advisory — the user must accept before any threshold is rewritten. The `scripts/gate_threshold_tuner.py` multi-project aggregator continues to consume the same pipe-row schema.
 
@@ -514,7 +511,7 @@ The migration script produces an analogous seed for v0.6.0 → v0.7.4 projects, 
 
 **Status: retired since v0.6.0.** The **Tier Marshal**, introduced at v0.5.5 (Phase F.1 advisory rollout) as the package's fifth agent, was retired at v0.6.0 and remains retired at v0.7.0. The 24 predicates that constituted its preflight/postflight battery (P-1…P-13 and Q-1…Q-11) were bound to machinery that the v0.6.0 rewrite removed — the Phase 5.5 Tier Close-Out election (`Down / Stay / Up / Done`), the asymmetric-Down ratchet (`ascent_observed` array), the per-round `reviews/tier_closeout_<round>_<date>.md` benefit-delta artefact, and the `choice`-column `reviews/tier_decisions_log.md`. Under the v0.7.0 Lifecycle-Stage Ladder these objects do not exist; the predicates that guarded them have no referents and cannot fire.
 
-**Per-predicate retirement rationale.** See `PHASE_PROTOCOL.md §9.1` for the binding-by-binding audit (which predicate referenced which retired object, and why no v0.7.0 analog is required). In brief: P-7 and P-8 referenced the ratchet header and `ascent_observed` — both gone under the monotonicity invariant (current_phase never moves below last_approved_phase except via explicit EG-1 / EG-7 demotion or user retraction); Q-1 through Q-5 referenced the close-out artefact and decisions-log `choice` column — both gone under the binary Approve/Reject gate of `PHASE_PROTOCOL.md §6`; the remaining predicates either collapse into well-formedness checks on `phase_state.json` (now absorbed into the Planner's Phase 0 bootstrap, with the §3.1.1 i* structural-completeness validator added at v0.7.0) or into the pre-phase-advance check (absorbed into `scripts/pre_phase_advance_check.py` per `PHASE_PROTOCOL.md §7.3`). Confirmation Mode at Ph2 entry — itself retired at v0.7.0 — no longer absorbs any of these predicates.
+**Per-predicate retirement rationale.** See `PHASE_PROTOCOL.md §9.1` for the binding-by-binding audit (which predicate referenced which retired object, and why no v0.7.0 analog is required). In brief: P-7 and P-8 referenced the ratchet header and `ascent_observed` — both gone under the monotonicity invariant (current_phase never moves below last_approved_phase except via explicit EG-1 / EG-7 demotion or user retraction); Q-1 through Q-5 referenced the close-out artefact and decisions-log `choice` column — both gone under the binary Approve/Reject gate of `PHASE_PROTOCOL.md §6`; the remaining predicates either collapse into well-formedness checks on `phase_state.json` (now absorbed into the Planner's Phase 0 bootstrap) or into the pre-phase-advance check (absorbed into `scripts/pre_phase_advance_check.py` per `PHASE_PROTOCOL.md §7.3`). Confirmation Mode at Ph2 entry — itself retired at v0.7.0 — no longer absorbs any of these predicates.
 
 **Archived artefacts.** The v0.5.5 contract document `references/TIER_MARSHAL_CONTRACT.md`, the runners `scripts/marshal_preflight.py` / `scripts/marshal_postflight.py` / `scripts/_marshal_common.py`, and the F.1 report-template fixtures are preserved under `legacy/marshal-f1-retired/` with a README enumerating their historical role and the replacement path. The v0.5.5 migration helper `scripts/migrate_classification_to_tier.py` was superseded by `scripts/migrate_v055_to_v060.py`, which is itself superseded at v0.7.0 by `scripts/migrate_v060_to_v070.py` (Phase 7 of the v0.7.0 rollout).
 
@@ -667,7 +664,7 @@ At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **supers
 |---|---|---|---|
 | **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
 | **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
-| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 3: Generator may seed prose stubs. **When `sd_sr_required: true`** (`PHASE_PROTOCOL.md §3.1.2`), Planner additionally authors SD/SR models per `agents/planner.md §Ph1` and runs §3.1.1 i* structural-completeness validator; when the flag is absent or `false` (v0.7.1 default), these sub-activities silently skip. |
+| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 3: Generator may seed prose stubs aligned to the outline. |
 | **M4a — Paper Draft (review-ready)** | `manuscript/main.md` (initial draft depth) | **Ph2 Review & Revise** | First Evaluator engagement; Confirmation Mode retired |
 | **M4b — Paper Draft (converging)** | `manuscript/main.md` (iteration depth) | **Ph3 Iterate & Converge** | Unbounded loop with `convergence_metric` two-round stability test; Coupling E.2 graph-grounding overlay at Step 0.2 |
 | **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
@@ -716,26 +713,18 @@ Planner (Ph1; coordinates with M1 deliverable)
 | Coverage of core sources | Are the core sources identified at M1 actually annotated? |
 | P-stage discipline | Does the annotation set match the declared `ph1_pstage_declaration`? (P0: exploratory; P1: candidate-bounded; P2: claim-bounded.) |
 
-#### M3 deliverable — Structured Outline with i* SD/SR Models (at Ph1 sub-phase 3)
+#### M3 deliverable — Structured Outline (at Ph1 sub-phase 3)
 
 ```
-Planner (Ph1 — unconditional: orchestrates outline sub-phase.
-         When sd_sr_required: true in reviews/classification.md (PHASE_PROTOCOL.md §3.1.2):
-           authors SD/SR models per agents/planner.md §Ph1;
-           runs §3.1.1 structural-completeness validator;
-           writes imodel_structural_validation_signed row to phase_entry_log.
-         When sd_sr_required is absent or false (v0.7.1 default):
-           SD/SR authoring and validator both silently skip.)
+Planner (Ph1 — orchestrates outline sub-phase)
   → Generator (may seed prose stubs aligned to the outline)
   → Reflector-lightweight (optional)
 ```
 
-**Planner Ph1 criteria for the outline + i* models** (**conditional on `sd_sr_required: true`**; Master System Prompt §3 step 2 binds this deliverable to the SD/SR models when the opt-in is declared, in which case the §3.1.1 structural-completeness validator is the gate that admits Ph1 to Ph2):
+**Planner Ph1 criteria for the outline:**
 
 | Check | What it verifies |
 |---|---|
-| Structural completeness (§3.1.1) | No orphan actors, no unreferenced softgoals, no dangling dependencies — the validator emits PASS/FAIL into `reviews/imodel_validation.md` |
-| Goal-task decomposition | Are high-level stakeholder goals decomposed into tasks and softgoals per the GORE/AORE framing? |
 | Section coverage | Does the outline have one entry per top-level section that will be drafted at M4a/M4b? |
 | Deliverable path | Is `phase_deliverable_path` populated with the outline file's path? |
 

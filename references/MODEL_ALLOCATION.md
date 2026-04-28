@@ -1,6 +1,6 @@
 # MODEL_ALLOCATION.md — Tier-Conditioned Model Dispatch
 
-*Package reference, v0.7.3. Single source of truth for the per-tier × per-agent Claude-model mapping the Planner resolves at dispatch time. Binds the **AORE role-to-capability** mapping to the **Lifecycle-Stage Ladder** — T1 Plan & Draft / T2 Review & Revise / T3 Iterate & Converge / T4 Finalize & Close — so that model capability tracks adversarial load rather than paragraph volume. Read this file before any invocation that spawns a subagent; the Planner reads it unconditionally at every dispatch. At v0.7.4 the tier identifiers will rename to **Ph1–Ph4**; model assignments are expected to carry forward unchanged.*
+*Package reference, v0.7.3. Single source of truth for the per-tier × per-agent Claude-model mapping the Planner resolves at dispatch time. Binds the **role-to-capability** mapping to the **Lifecycle-Stage Ladder** — T1 Plan & Draft / T2 Review & Revise / T3 Iterate & Converge / T4 Finalize & Close — so that model capability tracks adversarial load rather than paragraph volume. Read this file before any invocation that spawns a subagent; the Planner reads it unconditionally at every dispatch. At v0.7.4 the tier identifiers will rename to **Ph1–Ph4**; model assignments are expected to carry forward unchanged.*
 
 ---
 

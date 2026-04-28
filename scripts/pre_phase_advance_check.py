@@ -27,12 +27,12 @@
 """pre_tier_advance_check.py — mandatory pre-flight guardrail before any section tier advance.
 
 Grounding:
-  - references/TIER_PROTOCOL.md §§3.1.1, 3.2.1, 3.3.1 (i* structural-completeness,
-    escalation-ownership carryforward, [T3-STALE] dual-state semantics).
+  - references/TIER_PROTOCOL.md §§3.2.1, 3.3.1 (escalation-ownership carryforward,
+    [T3-STALE] dual-state semantics).
   - references/TIER_PROTOCOL.md §6.3a (structured row schemas — contract for clause g).
   - references/TIER_PROTOCOL.md §9 (Manuscript Convergence Report — contract for clause f).
   - references/tier_state_schema.md §6 (failure codes, validator handoff).
-  - TIER_REDESIGN_v0.7-draft-5.md §7.3 (script specification, clauses a–g).
+  - TIER_REDESIGN_v0.7-draft-5.md §7.3 (script specification, clauses a–d, f, g).
 
 Usage
     pre_tier_advance_check.py
@@ -56,14 +56,6 @@ Reads
     reviews/t3_convergence_signoff.md         cumulative T3 signoff file.
     reviews/t4_ship_signoff.md                exit artefact for T4.
     reviews/convergence_log.md                escalation ownership ledger.
-    reviews/sd_model.md, reviews/sr_model.md  i* structural-completeness inputs
-                                              (read only when
-                                              sd_sr_required: true in
-                                              reviews/classification.md per
-                                              TIER_PROTOCOL.md §3.1.2;
-                                              v0.7.1 default is false).
-    reviews/classification.md                 read to resolve sd_sr_required
-                                              (v0.7.1 opt-in gate).
 
 Exit codes
     0  all clauses pass; advance may proceed.
@@ -76,8 +68,6 @@ Clauses (reference: draft-5 §7.3)
     (c) ESCALATED-finding owner assigned; every transferred_to carries non-empty
         transfer_rationale (Linear-Accountability defence).
     (d) t1_pstage_declaration populated before T2 admission.
-    (e) i* structural-completeness validator passes before T1 sign-off
-        (Cold-Start defence).
     (f) MCR clearance for T4 admission, including the ceiling-lock disjunction
         (§9.4) and computed [T3-STALE] = false on every in-scope section
         (§3.3.1, §9.3).
@@ -123,7 +113,10 @@ VALID_TRIGGERS = frozenset({
     "override_applied",
     "retraction",
     "t1_draft_completion_signed",
-    "imodel_structural_validation_signed",
+    # imodel_structural_validation_signed — RETIRED at v0.11.0; was tied to the
+    # i* SD/SR opt-in gate. Migrated rows in v0.10.x → v0.11.0 projects are
+    # preserved read-only by scripts/migrate_v0100_to_v0110_drop_sd_sr.py for
+    # audit continuity but never appear in fresh ledgers.
     "t2_review_completion_signed",
     "escalation_owner_transferred",
     "escalation_named_owner_assigned",
@@ -147,8 +140,8 @@ VALID_TRIGGERS = frozenset({
     # 2026-04-26-snowball-reference-architecture.md §6.3 row 6 of the §6.0
     # coupling checklist; Planner writes this row at run-phase-1 §3 Step 4.5
     # / agents/planner.md Phase 3.7 on SK-NEW-A clean exit). Within-phase
-    # artefact-completion trigger; analogous to imodel_structural_validation_signed.
-    # Per phase_state_schema.md §3.1 line 193 (Sub-B's S2 edit). Without this
+    # artefact-completion trigger that fires at SK-NEW-A clean exit, not at
+    # Phase 5.5. Per phase_state_schema.md §3.1 line 193 (Sub-B's S2 edit). Without this
     # entry, every Ph1->Ph2 advance with a trigger-31 row would fail clause (g)
     # row-shape conformance with TRIGGER_UNKNOWN.
     "seed_snowball_signed",
@@ -262,41 +255,6 @@ def _parse_iso(ts: str | None) -> datetime.datetime | None:
         return datetime.datetime.fromisoformat(ts)
     except ValueError:
         return None
-
-
-def _resolve_sd_sr_required(project_root: Path) -> bool:
-    """Read reviews/classification.md and resolve the v0.7.1 `sd_sr_required`
-    flag. Default is False (absent-means-false migration semantics).
-
-    The flag appears in classification.md as a bulleted Inputs entry:
-        - SD/SR required: true
-        - SD/SR required: false
-
-    Parsing is intentionally tolerant of whitespace, casing, and bullet
-    style. Any value other than a recognisable `true` returns `False`.
-    """
-    cls_path = project_root / "reviews" / "classification.md"
-    text = _read_text_or_none(cls_path)
-    if not text:
-        return False
-    for raw in text.splitlines():
-        line = raw.strip().lstrip("-*").strip()
-        lower = line.lower()
-        if lower.startswith("sd/sr required"):
-            # Accept "SD/SR required: true" and "**SD/SR required** true" shapes.
-            # Canonicalize by stripping asterisks, colons, and markup.
-            cleaned = (
-                lower.replace("*", "")
-                .replace("`", "")
-                .split(":", 1)
-            )
-            if len(cleaned) == 2:
-                value = cleaned[1].strip()
-                return value.startswith("true")
-            # No colon: try to pick up a trailing `true` or `false` token.
-            tokens = lower.split()
-            return "true" in tokens and "false" not in tokens
-    return False
 
 
 def _read_text_or_none(path: Path) -> str | None:
@@ -603,9 +561,19 @@ def check_clause_c(ctx: CheckContext) -> None:
 
 
 def check_clause_d(ctx: CheckContext) -> None:
-    """(d) t1_pstage_declaration set before T2 admission.
+    """(d) t1_pstage_declaration set + classification.md present before T2 admission.
 
-    Fires only when target_tier == T2. A null pstage on T2 admission surfaces
+    Fires only when target_tier == T2. Two sub-checks:
+
+    (d.1) classification.md presence (added at v0.11.0 c11). The Ph1->Ph2
+    advance reads `reviews/classification.md` for paper type, P-stage,
+    venue, and default_final_phase. Without this file the Planner
+    cannot dispatch a Ph2 Evaluator pass against the right register —
+    the SAFEGUARD checks, the deterministic-check mandatory subset, and
+    the Reflector-lightweight integrity probe all read it. Missing
+    classification.md is a hard BLOCKER (E-CLASSIFICATION-MISSING-AT-T2).
+
+    (d.2) t1_pstage_declaration. A null pstage on T2 admission surfaces
     W-PSTAGE-UNAVAILABLE (warning, not error) unless the section has a
     non-null last_approved_tier (i.e., the T2 advance is not a first-time
     pass), in which case the null is treated as a hard error because the
@@ -614,6 +582,26 @@ def check_clause_d(ctx: CheckContext) -> None:
     if ctx.target_tier != "T2":
         return
     section = ctx.target_section
+
+    # (d.1) classification.md presence — v0.11.0 c11.
+    classification_path = ctx.project_root / "reviews" / "classification.md"
+    if not classification_path.exists():
+        ctx.findings.append(
+            Finding(
+                code="E-CLASSIFICATION-MISSING-AT-T2",
+                clause="d",
+                section=ctx.target_section_key,
+                message=(
+                    f"reviews/classification.md is missing at T2 admission. "
+                    f"The Ph1->Ph2 advance requires classification (paper type, "
+                    f"P-stage, venue, default_final_phase) before the Evaluator "
+                    f"can dispatch. Run /classify-manuscript or hand-author the "
+                    f"file at {classification_path}."
+                ),
+            )
+        )
+
+    # (d.2) t1_pstage_declaration populated.
     if section.get("t1_pstage_declaration") is None:
         if section.get("last_approved_tier") is None:
             # First-time T2 admission with no prior approval history;
@@ -644,90 +632,12 @@ def check_clause_d(ctx: CheckContext) -> None:
 
 
 # ----------------------------------------------------------------- clause (e)
-
-
-def check_clause_e(ctx: CheckContext) -> None:
-    """(e) i* structural-completeness validator passes before T1 sign-off.
-
-    Implements the Cold-Start defence (TIER_PROTOCOL.md §3.1.1). At T1
-    sign-off (i.e., target_tier == T2), verify that either:
-      (i) the sd_model.md and sr_model.md files exist and are non-empty, and
-          the tier_entry_log contains an imodel_structural_validation_signed
-          row for this section; OR
-      (ii) the section carries the `imodel_structural_validation:
-           deferred_v060_migration` flag under a v0.6.0-origin cold-start.
-
-    Fires with E-IMODEL-STRUCTURALLY-INCOMPLETE on failure.
-
-    v0.7.1 opt-in gate (TIER_PROTOCOL.md §3.1.2): the Cold-Start defence
-    only applies when `sd_sr_required: true` is set in
-    `reviews/classification.md`. When the flag is absent or false
-    (absent-means-false migration semantics), no SD/SR models are
-    authored at T1, no structural validator row is expected in
-    tier_entry_log, and this clause is skipped entirely.
-    """
-    if ctx.target_tier != "T2":
-        return
-    # v0.7.1 opt-in gate: when sd_sr_required is absent or false in
-    # reviews/classification.md (TIER_PROTOCOL.md §3.1.2), the Cold-Start
-    # defence is out of scope — no SD/SR models are authored at T1 and no
-    # validator row is expected in tier_entry_log. Skip the clause entirely.
-    if not _resolve_sd_sr_required(ctx.project_root):
-        return
-    # Cold-start escape: any tier_entry_log row bearing the v0_7_state_rename
-    # trigger indicates a v0.6.0 migration; under §6.4 step 7 the structural-
-    # completeness validator runs on the next post-migration T1 sign-off, not
-    # retroactively. We treat the first post-migration T1 sign-off as the
-    # binding run, which means the run must exist in the log after the rename
-    # row. If the only imodel_structural_validation_signed row precedes the
-    # rename marker, we require a fresh run.
-    log = ctx.target_section.get("tier_entry_log", [])
-    rename_seen = False
-    validation_seen_after_rename = False
-    validation_seen_ever = False
-    for row in log:
-        trig = row.get("trigger")
-        if trig == "v0_7_state_rename":
-            rename_seen = True
-            continue
-        if trig == "imodel_structural_validation_signed":
-            validation_seen_ever = True
-            if rename_seen:
-                validation_seen_after_rename = True
-    if rename_seen:
-        ok = validation_seen_after_rename
-    else:
-        ok = validation_seen_ever
-
-    # Structural check on the model files themselves.
-    sd_path = ctx.project_root / "reviews" / "sd_model.md"
-    sr_path = ctx.project_root / "reviews" / "sr_model.md"
-    sd_text = _read_text_or_none(sd_path) or ""
-    sr_text = _read_text_or_none(sr_path) or ""
-    models_present = bool(sd_text.strip()) and bool(sr_text.strip())
-
-    if not (ok and models_present):
-        missing_parts: list[str] = []
-        if not models_present:
-            missing_parts.append("sd_model.md or sr_model.md missing/empty")
-        if not ok:
-            missing_parts.append(
-                "no imodel_structural_validation_signed row in tier_entry_log"
-                + (" after v0_7_state_rename" if rename_seen else "")
-            )
-        ctx.findings.append(
-            Finding(
-                code="E-IMODEL-STRUCTURALLY-INCOMPLETE",
-                clause="e",
-                section=ctx.target_section_key,
-                message=(
-                    "Cold-Start defence failed: "
-                    + "; ".join(missing_parts)
-                    + "."
-                ),
-            )
-        )
-
+#
+# RETIRED at v0.11.0. Was the Cold-Start defence tied to the i* SD/SR
+# opt-in gate (TIER_PROTOCOL.md §3.1.1 / §3.1.2). v0.11.0 removed the
+# entire opt-in surface; no clause-(e) check runs in fresh ledgers.
+# Migrated rows in v0.10.x → v0.11.0 projects are preserved read-only
+# by scripts/migrate_v0100_to_v0110_drop_sd_sr.py for audit continuity.
 
 # ----------------------------------------------------------------- clause (f)
 
@@ -1120,7 +1030,7 @@ def main(argv: list[str] | None = None) -> int:
     check_clause_b(ctx)
     check_clause_c(ctx)
     check_clause_d(ctx)
-    check_clause_e(ctx)
+    # check_clause_e — RETIRED at v0.11.0 (i* SD/SR Cold-Start defence)
     check_clause_f(ctx)
     check_clause_g(ctx)
 

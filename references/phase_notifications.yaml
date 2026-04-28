@@ -17,7 +17,7 @@
 #
 # Grounding
 # ---------
-# PHASE_PROTOCOL.md §§2–9 (phase semantics, i* validator, ph3 staleness, escalation
+# PHASE_PROTOCOL.md §§2–9 (phase semantics, ph3 staleness, escalation
 # gates, MCR), §3.3.2 (Ph3 stability sub-mode normative spec), §6.3 (30-trigger
 # enum with v0.7.4 additions), §11 (retirement register: Confirmation Mode /
 # Self-Ph1 Verdict surfaces retired at v0.7.0), §14 (LCR→MCR rename at v0.7.0);
@@ -58,8 +58,7 @@
 # Unchanged from v0.7.2
 # ---------------------
 # Four-agent contract (Planner / Evaluator / Generator / Reflector), Grounding
-# Protocol binding force, SD/SR opt-in gate (`sd_sr_required: false` default
-# per PHASE_PROTOCOL.md §3.1.2), SAFEGUARD Check 8 accessibility gate at Ph3
+# Protocol binding force, SAFEGUARD Check 8 accessibility gate at Ph3
 # (§3.3.3), MCR admission contract (§9.4), convergence-stability metric
 # threshold 0.03, [Ph3-STALE] 14-day default budget, ceiling_lock semantics.
 #
@@ -124,8 +123,8 @@ phase_transitions:
     user_template: |
       ► Ph1 Plan & Draft opened on {section_heading_path} (cycle {cycle_id}).
       Ceiling for this section resolves to {section_ceiling} (manuscript default_final_phase = {default_final_phase}).
-      At Ph1 the Planner authors the SD / SR models (only when `sd_sr_required: true` in classification.md; default false)
-      and the P-stage declaration; the Generator drafts prose; the Reflector runs a lightweight grounding audit.
+      At Ph1 the Planner authors the P-stage declaration; the Generator drafts prose;
+      the Reflector runs a lightweight grounding audit.
       No Evaluator engagement at this stage.
       Exit artefact: reviews/ph1_draft_completion.md (user-signed).
 
@@ -138,17 +137,10 @@ phase_transitions:
       ► Ph1 exit signed on {section_heading_path}. P-stage declaration on file: {pstage}.
       On your next `/approve` the section advances Ph1 → Ph2 Review & Revise.
 
-  # Trigger 13: imodel_structural_validation_signed
-  # Emitted only when `sd_sr_required: true` in reviews/classification.md
-  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false).
-  imodel_validation_signed:
-    trigger: imodel_structural_validation_signed
-    presented_to_user: true
-    log_detail: "i* structural-completeness validator passed for {section_heading_path} (PHASE_PROTOCOL.md §3.1.1; sd_sr_required=true)."
-    user_template: |
-      ► i* structural-completeness validator CLEAN on {section_heading_path}.
-      The Cold-Start defence is satisfied: SD / SR models have no orphan actors, unreferenced softgoals, or dangling dependencies.
-      Ph1 → Ph2 advance is now unblocked on your approval.
+  # Trigger 13 (imodel_structural_validation_signed) — RETIRED at v0.11.0.
+  # Was tied to the i* SD/SR opt-in gate that v0.11.0 removed entirely.
+  # Migrated rows in v0.10.x → v0.11.0 projects are preserved read-only by
+  # scripts/migrate_v0100_to_v0110_drop_sd_sr.py for audit continuity.
 
   # Trigger 2 (at Ph1 → Ph2): user_approval
   ph2_entry:
@@ -157,8 +149,7 @@ phase_transitions:
     log_detail: "Approval at Ph1 advanced {section_heading_path} to Ph2 Review & Revise (prev_phase: {prev_phase}; iteration_count at Ph1 = {iteration_count})."
     user_template: |
       ► Ph1 approved on {section_heading_path}. Section advances Ph1 → Ph2 Review & Revise.
-      The Evaluator joins the round for the first time and runs the full local-scope pass against SD / SR models
-      (when sd_sr_required=true; otherwise Evaluator runs the local-scope pass without SD/SR read-prerequisite).
+      The Evaluator joins the round for the first time and runs the full local-scope pass.
       Deterministic-check mandatory subset runs full-file (no Rule 1 digest exception at Ph2; Rule 1 retired at v0.7.0).
 
   # Trigger 14: ph2_review_completion_signed
@@ -564,7 +555,7 @@ ph3_loop:
       (At Ph1 / Ph2, exceeding the threshold would trigger fingerprint_reset.)
 
 # ---------------------------------------------------------------------------
-# 4. Ph2 / Ph1 sign-off surface notifications (P-stage and i* gating)
+# 4. Ph2 / Ph1 sign-off surface notifications (P-stage gating)
 # ---------------------------------------------------------------------------
 ph1_ph2_signoff:
 
@@ -613,34 +604,10 @@ ph1_ph2_signoff:
       The Ph1 → Ph2 advance requires a P-stage declaration (P0 / P1 / P2). Refused. Update classification.md and
       re-sign ph1_draft_completion.md to populate ph1_pstage_declaration.
 
-  # Raised only when `sd_sr_required: true` in reviews/classification.md
-  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false). When the flag
-  # is absent or false the §3.1.1 validator does not run and this failure is
-  # never raised.
-  imodel_structurally_incomplete:
-    presented_to_user: true
-    log_detail: "E-IMODEL-STRUCTURALLY-INCOMPLETE on {section_heading_path}: §3.1.1 validator did not pass before Ph1 → Ph2 advance (sd_sr_required=true)."
-    user_template: |
-      ► E-IMODEL-STRUCTURALLY-INCOMPLETE on {section_heading_path}.
-      The Ph1 → Ph2 advance requires a passing i* structural-completeness validator run (PHASE_PROTOCOL.md §3.1.1).
-      SD / SR models must have no orphan actors, unreferenced softgoals, or dangling dependencies.
-      Refused. Revise the model and re-run the validator; a `imodel_structural_validation_signed` row must appear
-      before the user_approval advance row.
-      (Raised only when `sd_sr_required: true` in reviews/classification.md per PHASE_PROTOCOL.md §3.1.2; v0.7.1 default is false.)
-
-  # Raised only when `sd_sr_required: true` in reviews/classification.md
-  # (PHASE_PROTOCOL.md §3.1.2; v0.7.1 opt-in gate, default false). When the flag
-  # is absent or false the Evaluator does not open the SD/SR models at Ph2 entry
-  # and this failure is never raised.
-  ph2_sd_ungroundable:
-    presented_to_user: true
-    log_detail: "E-Ph2-SD-UNGROUNDABLE on {section_heading_path}: Evaluator could not read a groundable sd_model.md / sr_model.md at Ph2 entry (sd_sr_required=true)."
-    user_template: |
-      ► E-Ph2-SD-UNGROUNDABLE on {section_heading_path}.
-      The Evaluator's Ph2 read-contract (PHASE_PROTOCOL.md §5.3) requires groundable SD / SR models at Ph2 entry.
-      None were found or the ones on disk failed structural validation. Refused. Re-run the Ph1 validator and
-      re-sign the Ph1 exit artefact before retrying the Ph2 entry.
-      (Raised only when `sd_sr_required: true` in reviews/classification.md per PHASE_PROTOCOL.md §3.1.2; v0.7.1 default is false.)
+  # E-IMODEL-STRUCTURALLY-INCOMPLETE and E-Ph2-SD-UNGROUNDABLE — RETIRED at v0.11.0.
+  # Both notifications were tied to the i* SD/SR opt-in gate that v0.11.0 removed.
+  # Migrated rows in v0.10.x → v0.11.0 projects are preserved read-only by
+  # scripts/migrate_v0100_to_v0110_drop_sd_sr.py for audit continuity.
 
   # v0.10.0 Stage S2 — emitted by the Planner at run-phase-1 Step 4.5 when
   # SK-NEW-A `seed-snowball-discovery` PASSED its preconditions but its execution
