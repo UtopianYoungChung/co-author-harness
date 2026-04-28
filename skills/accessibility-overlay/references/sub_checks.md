@@ -12,17 +12,23 @@ Scan every paragraph in the section. A paragraph is **flagged** if it exceeds 15
 
 Severity floors: MINOR if 151–200 words without turn-point; MAJOR if >200 words with or without turn-point; BLOCKER if >300 words with no turn-point and no sentence break signals (em-dash, colon, semicolon) — this pattern is the "wall of prose" that the constraint most directly targets.
 
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check A`*
+
 ## Sub-check B — Sentence-length distribution (Rhythm-Flag)
 
 Compute per-paragraph sentence-length mean (μ) and standard deviation (σ). A paragraph is **flagged** if μ > 28 and σ < 6 — the monotone-dense pattern. Paragraphs of three sentences or fewer are exempt (insufficient sample for σ). The flag also surfaces a "no short sentences" warning when the paragraph's shortest sentence exceeds 20 words — rhythm depends on contrast, not merely on average length.
 
 Severity floors: MINOR on any single flagged paragraph; MAJOR if two or more adjacent paragraphs trip the same flag (a monotone-dense stretch); never BLOCKER alone (rhythm is a diffuse property; BLOCKER is reserved for A, D, F).
 
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check B`*
+
 ## Sub-check C — First-use definition (First-Use-Flag)
 
 Enumerate theoretical and domain constructs introduced in the section (a construct is any italicized term, any term tagged in the project's `research_notes/glossary.md` if present, or any term appearing in `references/terminology_register.md`). For each construct, locate its first occurrence in the section and verify a definition or worked illustration appears within the same paragraph or the immediately preceding paragraph. This is binding even for terms the author considers field-standard: `affordance`, `operationalization`, `socio-technical`, `intentionality`, `delegation`, `situated action`, `contradiction-mapping`.
 
 Severity floors: MINOR per undefined construct (author can argue field-standardness); MAJOR if two or more undefined constructs appear in the same paragraph; BLOCKER if an undefined construct does conceptual work (is cited, contrasted, or built upon) in a subsequent paragraph without ever being defined.
+
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check C`*
 
 ## Sub-check D — Section-transition signposting (Signpost-Flag)
 
@@ -32,17 +38,23 @@ Severity floors: MINOR if one of the two clauses is present but weak; MAJOR if t
 
 > *Register quality within the orienting and contribution clauses is delegated to Sub-check H. D enforces structural presence; H enforces register construction.* (Added v0.10.1 with Sub-check H. The two checks remain orthogonal at the finding level — a signpost can be D-CLEAN with both clauses present and H-MAJOR if the clauses are register-inappropriate, and vice versa.)
 
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check D`*
+
 ## Sub-check E — Jargon discipline within paragraphs (Jargon-Density-Flag)
 
 Count new domain terms introduced per paragraph. A paragraph may introduce at most two new domain terms (a term is "new" if it has not been introduced earlier in the section or in a preceding section marked as its entry point in `references/terminology_register.md`). P-stage adjustment: P0 permits three (exploratory register); P2 permits one only (resolution register tolerates no ambiguity).
 
 Severity floors: MINOR on any paragraph that exceeds the P-stage cap by one term; MAJOR on any paragraph that exceeds the cap by two or more terms; never BLOCKER alone.
 
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check E`*
+
 ## Sub-check F — Worked examples at density spikes (Worked-Example-Flag)
 
 Detect density spikes: a tri-part decomposition, a multi-criteria evaluation, a contested-claim cluster (three or more cited positions with conflicting commitments), or an extended theoretical derivation. For each density spike, verify that the prose turns to a worked example, a vignette, or a concrete instantiation within the same or immediately following paragraph. The INF3001H loan-officer vignette is the canonical model; the INF3006Y three-positions map (Decomposition / Dissolution / Reframing) expects its own instantiation per position.
 
 Severity floors: MINOR if a density spike is followed by a gestural example (a phrase, not a vignette); MAJOR if a density spike is followed by further abstract prose; BLOCKER if a density spike exceeds one full page of abstract prose with no instantiation — this is the pattern the constraint names as "density without cadence."
+
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check F`*
 
 ## Sub-check G — Cumulative cognitive load / consolidation anchors (Consolidation-Anchor-Flag)
 
@@ -68,6 +80,8 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 **Advisory-until transitional flag.** Sub-check G carries an `advisory_until: next_manuscript_at_ph3` flag per `READER_ACCESSIBILITY.md §13.5`. Under the flag, G findings are emitted with severity and locators recorded, but the aggregate-verdict computation in the next section treats G findings as advisory: the `advisory_until_flag_active: true` output field tells the Planner to compute the TerminalSignoffRow decision on the A–F aggregate alone. The flag retires automatically on the first Ph3 entry of a manuscript whose Ph1 classification postdates 2026-04-23.
 
 **Stability sub-mode.** Under `run-phase-3-stability` (v0.8.0+ byte-stable inheritance pass), Sub-check G runs advisory-only regardless of the `advisory_until` flag. A G finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. The rationale is that G is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot; a stability pass that fired a G BLOCKER would either require a full-Ph3 escalation on every round (expensive) or would need a hash-summary caching layer not yet specified. The advisory path lets the reduced stability pass run cheaply while preserving G's recurrence trail through Reflector Phase 2g.
+
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check G`*
 
 ## Sub-check H — Register Appropriateness (Register-Flag, added v0.10.1)
 
@@ -100,6 +114,8 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
    The whitelist is canonical at `references/lay_term_lexicons.md` (added v0.10.2; per-project override deferred to v0.10.3 per Q4 2026-04-27 adjudication). Other Latinate connectives (`hitherto`, `heretofore`, `inasmuch as`, `prima facie` outside its term-of-art usage) remain on the flag list. The whitelist is closed-by-default — entries are added only when a connective passes the no-plain-English-equivalent test.
 4. **Register-shift signposting (added v0.10.2).** When register intentionally shifts within a passage — abstract-to-concrete, technical-to-narrative, or vice versa — the shift is announced via a signposting cue: `consider concretely:`, `in plain terms:`, `to put this technically:`, `taking a concrete case:`, `at the methodological level:`, or any equivalent that flags the tone change for the reader. Implicit register shifts (a sentence drops a methods-section label into narrative prose with no announcement; a vignette pivots into formal-academic register without warning) are flagged as register-discontinuity findings. Register *consistency* across adjacent passages of the same role is enforced implicitly: two consecutive signpost orienting clauses should hold the same register, and an unannounced shift between them fails this marker on the second clause. The marker captures the user's directive 2026-04-27: "Being consistent is also important. And, a proper signpost at every tone shift."
+
+   **M4 vehicle preference and §3 interaction (added post-v0.10.2).** Preferred M4 vehicles, in order: (1) **semicolon** for contrast-bridge pivots ("not a political stance; it is a question of method"); (2) **colon** for specification pivots ("the design implication: the framework must surface trade-offs, not collapse them"); (3) explicit signposting phrases from the list above. **Em-dash is last-resort**: it is a valid M4 signal but is counted by `references/DETERMINISTIC_CHECKS.md §3` (≤1 em-dash pair per paragraph; ≤0 under zero-em-dash discipline). A Generator that satisfies M4 via em-dash on a manuscript at its §3 em-dash limit has opened a §3 regression to close an H finding — the opposite of a fix. Preferred substitution: replace the em-dash with a semicolon or colon; same M4 credit, zero §3 cost. The INF3006Y Reconciled manuscript demonstrates this at scale: every em-dash in the Generator drafts was substituted with semicolons/commas in the final manuscript, landing zero em-dashes with H-CLEAN across all orienting clauses. This pattern is named in DETERMINISTIC_CHECKS §3 as the 'H-motivated em-dash insertion' false-fix pattern and documented with transformation examples at `references/lay_term_lexicons.md §4`.
 
 **Negative markers (presence flags violation).** Three counted patterns:
 
@@ -136,3 +152,5 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 **Stability sub-mode.** Under `run-phase-3-stability`, Sub-check H runs advisory-only mirroring Sub-check G's stability-sub-mode treatment. An H finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. Rationale matches G: H is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot.
 
 **Interaction with Sub-checks D, F, G.** D enforces section-opening structural presence; H enforces register quality within the orienting and contribution clauses (cross-reference at D's entry above). F locates density spikes; H audits the worked-example vignette's register quality. G locates threshold-crossing structural boundaries; H audits the consolidation anchor sentence's register quality. The two-Sub-check pattern (structural-Sub-check + register-Sub-check) is deliberate — D/F/G can be CLEAN while H is MAJOR if the structurally-required passage is registered inappropriately, and vice versa. When a Generator is applying a fix, the structural Sub-check's suggested_fix and H's suggested_fix can co-locate in the same paragraph but the two sentences should do distinct work.
+
+> *Model examples → `references/examples/model_prose_corpus.md §Sub-check H`*
