@@ -180,25 +180,145 @@ source_items:
 
 ## Sub-check E — Jargon Discipline
 
-*(content added in Task 3)*
+**Property being calibrated:** A paragraph introduces at most two new domain terms (P1 default; P0 allows three; P2 allows one). Complexity is permitted — but the complexity must be structural (argument form, parallel construction, multi-part decomposition), not lexical (term proliferation).
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 1, "The Problem of Labor Management," ~offset 25,200
+
+**Verbatim passage:**
+
+> The focus of my analysis is on the contradictory pressures managers face between ensuring labor discipline (so workers produce sufficient levels of output) versus empowering labor. This contradiction is manifest in conflicting pressures to use workers for routine manual versus abstract cognitive labor power; to provide minimal training versus substantial training (e.g. training in a single skill versus multiple skills or training in narrow skills versus broad skills); or to standardize work versus allowing discretion and autonomy. This contradiction exists across a wide range of occupations.
+
+**Marker audit:** New domain terms introduced: "labor discipline" (glossed in parentheses: "so workers produce sufficient levels of output") and "abstract cognitive labor power." All other vocabulary is plain: "contradictory pressures," "managers face," "standardize work," "discretion and autonomy." The three-part parallel construction (manual vs. cognitive; minimal vs. substantial training; standardize vs. discretion) is complex structurally but lexically plain. Term count: 2. P1 cap: 2. Result: CLEAN.
+
+**Annotation:** The paragraph makes a sophisticated theoretical point about the three-dimensional form of the management contradiction without exceeding the two-term cap. This demonstrates the key E principle: intellectual density should live in the argument structure, not in the density of technical vocabulary.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 6, "Situated Actions," ~offset 202,200
+
+**Verbatim passage:**
+
+> Normative sociology posits and then attempts to describe an objective world of social facts, or received norms, to which our attitudes and actions are a response. Emile Durkheim's famous maxim that the objective reality of social facts is sociology's fundamental principle (1938) has been the methodological premise of social studies since early in this century. Recognizing the human environment to be constituted crucially by others, sociological norms comprise a set of environmental conditions beyond the material to which human behavior is responsive: namely the sanctions of institutionalized group life. Human action, the argument goes, cannot be adequately explained without reference to these "social facts," which are to be treated as antecedent, external, and coercive vis-à-vis the individual actor.
+
+**Marker audit:** New domain terms introduced: "normative sociology" (characterized immediately in the sentence: "posits and then attempts to describe an objective world of social facts") and "social facts" (first appearance glossed as "received norms" in apposition; repeated throughout at established meaning). "Vis-à-vis" is used as a preposition ("coercive vis-à-vis the individual actor"), not as a term of art — it is on the `lay_term_lexicons.md` flagged list but functions grammatically here rather than conceptually; the Evaluator may treat it as borderline MINOR if other factors accumulate, but it does not raise the term count. Term count: 2. P1 cap: 2. Result: CLEAN.
+
+**Annotation:** Suchman introduces Durkheim's foundational structuralist premise using only two domain terms. The sentence "to be treated as antecedent, external, and coercive" names three properties but does not introduce three new terms — these are characterizing adjectives, not new constructs. The Evaluator should count constructs (entities with defined theoretical content), not technical-sounding words.
+
+---
+
+**Calibration note:** Both paragraphs make dense theoretical points with only two new terms. The Evaluator should audit construct count (entities with defined theoretical content), not sentence-level lexical density. A paragraph with many technical-sounding words can be E-CLEAN if those words are plain adjectives or established constructs that do not require first-use definition; conversely, a short paragraph that introduces three unnamed constructs in three sentences is E-MAJOR regardless of sentence simplicity.
 
 ---
 
 ## Sub-check F — Worked Example at Density Spike
 
-*(content added in Task 3)*
+**Property being calibrated:** When conceptual density rises (tri-part decomposition, multi-criteria evaluation, contested-claim cluster, or extended theoretical derivation), the prose turns to a concrete worked example, vignette, or instantiation within the same or immediately following paragraph. The example must be specific — a named institution, named person, or documented event — not gestural ("as seen in workplace studies…").
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 2, ~offset 140,500–140,700
+
+**Verbatim passage (density spike + example):**
+
+> Work intensification in global auto assembly preceded the global diffusion of lean, rising in the late 1960s following the intensification of global competition and declining profits. In Ruth Milkman's (1997: 12) case study of the GM assembly plant in Linden, New Jersey, the workers did not defend traditional, fordist arrangements, which they experienced as "relentless and dehumanizing." The primary complaints of these workers were that management treated them in a degrading manner and did not follow through on its promises of increased participation under lean. These workers embraced management's rhetoric of participation but this was never delivered, as managers continued to emphasize uninterrupted production in the face of severe pressures for output.
+
+**Marker audit:** Density spike: abstract causation claim ("work intensification preceded lean diffusion due to competitive pressure"). Example fires within two sentences: named scholar (Milkman 1997), named plant (GM Linden, New Jersey), worker voice ("relentless and dehumanizing"). The example is not illustrative decoration — it advances the argument by showing that workers' complaints were about management behavior and broken promises, not about lean as a production system, which is Vidal's counter-move against lean critics.
+
+**Annotation:** The example does argumentative work, not illustrative decoration — it distinguishes two explanations for worker resistance. This is the Sub-check F target: the example must do more than gesture at the abstract claim; it must carry the argument forward by grounding a specific distinction or mechanism.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 4, "Interactive Artifacts," ~offset 134,800
+
+**Verbatim passage (density spike + example):**
+
+> Anecdotal reports of occasions on which people approached the teletype to one of the ELIZA programs and, believing it to be connected to a colleague, engaged in some amount of "interaction" without detecting the true nature of their respondent led many to believe that Weizenbaum's program had passed a simple form of the Turing test. Notwithstanding its apparent interactional success, however, Weizenbaum himself denied the intelligence of the program on the basis of the underlying mechanism which he described as "a mere collection of procedures." The grounds for their success are clearest in DOCTOR, one of the ELIZA programs whose script equipped it to respond to the human user as if the computer were a Rogerian therapist and the user a patient. The DOCTOR program exploited the maxim that shared premises can remain unspoken: that the less we say in conversation, the more what is said is assumed to be self-evident in its meaning and implications.
+
+**Marker audit:** Density spike: abstract theoretical claims about intentional explanation and the Turing test criterion for machine intelligence. Example fires immediately: named programs (ELIZA, DOCTOR, Weizenbaum's lab), specific design role (Rogerian therapist), specific mechanism ("keyword scanning" / "shared premises can remain unspoken"). The example does not just illustrate "interactive artifacts" generically — it carries a specific argument about the gap between apparent interactional success and underlying mechanism.
+
+**Annotation:** Both the named program (DOCTOR) and the named mechanism ("shared premises can remain unspoken") are necessary for the example to do argumentative work. Removing the name leaves a gestural reference; removing the mechanism explanation leaves an anecdote. The specificity is the argument.
+
+---
+
+**Calibration note:** Both examples name specific institutions and artifacts (GM Linden / DOCTOR) and do argumentative work rather than illustrative decoration (distinguishing two explanations / demonstrating the mechanism-appearance gap). A gestural reference ("as seen in manufacturing environments") satisfies Sub-check F at MINOR; a named, specific case with a mechanism explanation is CLEAN. The INF3001H loan-officer vignette is the existing canonical model in `sub_checks.md`; the Vidal and Suchman examples demonstrate the same specificity principle in non-i* domains.
 
 ---
 
 ## Sub-check G — Consolidation Anchor
 
-*(content added in Task 3)*
+**Property being calibrated:** At each structural boundary where three or more load-bearing constructs have accumulated (or where the next section depends on two or more prior sections' material), the prose carries a one-sentence anchor that (a) names the accumulated constructs and (b) signals what the next movement will do with them. The canonical form is "At this point, the reader holds X, Y, Z; the next movement does W with them" — but any sentence performing both functions qualifies.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Chapter 3, "A Theory of Organizational Political Economy," ~offset 210,300
+
+**Verbatim passage:**
+
+> I now turn to develop my theory of organizational political economy. I begin with a brief specification of the management and workforce contradictions, which I argue are inherent to the employment relation. Next, I develop the institutionalist theory of growth stages. Following this, I develop a cultural-satisficing model of agency, a general model applied in my analysis of how managers and workers respond to contradictory pressures. To flesh out the political and cultural context of the organization in terms of labor process dynamics, I develop a theory of routine politics of production. Finally, to close the loop on how widespread satisficing is possible in a competitive market economy, I develop a theory of the permissive institutionalization of competitive fields.
+
+**Marker audit:** Structural boundary: transition from literature-review chapters (coordination vs. discipline; socialization vs. alienation) to the positive-theory chapters. The anchor performs function (b) — signals what the next movement will do — via a five-move forward map ("I begin… Next… Following this… Finally…"). Function (a) — naming accumulated constructs — is implicit in "the management and workforce contradictions" and "contradictory pressures," which refer to the constructs established in the prior chapters. This is a forward-consolidation anchor: it maps the road ahead rather than restating the road behind.
+
+**Annotation:** The Vidal anchor is purely forward — it maps the next five theory-building moves without restating what the prior chapters established. This satisfies Sub-check G because the naming of the accumulated material is compact ("management and workforce contradictions") and the forward signal is explicit and sequenced. The Evaluator should accept compact backward-references when the forward signal is detailed.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 5, "Plans," opening paragraph, ~offset 143,800
+
+**Verbatim passage:**
+
+> This chapter and the next discuss two alternative views of action. The first, adopted by most researchers in artificial intelligence, locates the organization and significance of human action in underlying plans. The alternative view, developed in Chapter 6 of this book, is that although the course of action can always be projected or reconstructed in terms of prior intentions and typical situations, the prescriptive significance of intentions for situated action is inherently vague. The coherence of situated action is tied in essential ways not to individual predispositions or conventional rules but to local interactions contingent on the actor's particular circumstances. A consequence of action's situated nature is that communication must incorporate both a sensitivity to local circumstances and resources for the remedy of troubles in understanding that inevitably arise. This chapter reviews the planning model of purposeful action and shared understanding.
+
+**Marker audit:** Structural boundary: chapter transition after Chapter 4's review of interactive artifacts, before Chapter 5's theory of plans. The passage performs both functions: (a) names accumulated constructs ("intentionality," "the planning model," the AI-adoption of the planning view — all established in Ch.4); (b) signals what comes next: "This chapter reviews the planning model…" and positions Ch.6 as the alternative. This is a bidirectional anchor — it closes the prior chapter's argument and maps the next two chapters.
+
+**Annotation:** Unlike Vidal's purely forward anchor, Suchman's is bidirectional — it closes the prior chapter's argument ("the coherence of situated action is tied… to local interactions") while mapping the next two chapters ("this chapter reviews…; Ch.6 develops the alternative"). Both satisfy Sub-check G. The criterion requires both functions (name accumulated material + signal next move); which function receives more space is a judgment call.
+
+---
+
+**Calibration note:** Vidal's anchor is forward-heavy (detailed five-move sequence; compact backward reference); Suchman's is bidirectional (closes prior argument; maps next two chapters). Both satisfy G because both name accumulated material AND signal the next move. The Evaluator should not require equal weight on both functions — a compact backward reference ("the constructs developed above") paired with a detailed forward signal, or a detailed backward summary paired with a brief "the next section turns to X," both satisfy the two-function requirement.
 
 ---
 
 ## Sub-check H — Register Appropriateness
 
-*(content added in Task 3)*
+**Property being calibrated:** Non-technical passages (signpost orienting clauses, section framing, inter-section transitions, worked-example vignette bodies, consolidation anchor sentences) carry at least two of four positive markers: (M1) concrete-referent anchoring — physical/material entity, named individual/group, or specific scenario; (M2) agent-verb-object construction — human or identifiable agents as grammatical subjects; (M3) plain-English discourse connectives from the `lay_term_lexicons.md` list; (M4) register-shift signposting when register intentionally shifts within the passage.
+
+### Vidal (2022) — Management Divided: Contradictions of Labor Management
+
+**Location:** Preface, ~offset 4,800
+
+**Verbatim passage:**
+
+> Managers in general were not focused on—let alone preoccupied with—labor control or work speedup, and in many cases were focused on cross training their workers and including them in problem solving and decision making around process improvement. To be sure, there was labor-management conflict, but this was generally about competing visions of efficiency and contestation over changing workplace routines, not about control, autonomy, or the pace of work.
+
+**Marker audit:** M1: concrete referents — "managers," "their workers," "workplace routines," "cross training," "problem solving," "process improvement" (named activities and role-holders). M2: agent-verb-object — "managers were focused on cross training their workers and including them in problem solving" (managers act on workers; active construction throughout). M3: plain connectives — "To be sure… but" (concessive structure); "not about control, autonomy, or the pace of work" (plain negation). M4: no register shift in the passage — not needed. Result: three of four positive markers (M1, M2, M3); H-CLEAN.
+
+**Annotation:** This passage reframes the book's intellectual motivation in daily English — explaining what the fieldwork found that didn't fit existing theory. The agents (managers, workers) act on concrete activities (cross training, problem solving), and the concessive "To be sure… but" is one of the most reliable M3 signals. Register-appropriateness does not require all four markers; three of four is comfortably CLEAN.
+
+---
+
+### Suchman (2007) — Human-Machine Reconfigurations: Plans and Situated Actions
+
+**Location:** Chapter 1, "Readings and Responses," ~offset 30,200
+
+**Verbatim passage:**
+
+> My engagement with the question of human–machine interaction, from which the book arose, began in 1979, when I arrived at PARC as a doctoral student interested in a critical anthropology of contemporary American institutions and with a background as well in ethnomethodology and interaction analysis. My more specific interest in the question of interactivity at the interface began when I became intrigued by an effort among my colleagues to design an interactive interface to a particular machine. The project was initiated in response to a delegation of Xerox customer service managers, who traveled to PARC from Xerox's primary product development site in Rochester, New York, to report on a problem with the machine and to enlist research advice in its solution.
+
+**Marker audit:** M1: concrete referents — named year (1979), named institution (PARC), named city (Rochester, New York), real agents (customer service managers, doctoral student, Xerox). M2: agent-verb-object — "I arrived at PARC," "I became intrigued," "customer service managers… traveled to PARC," "to report on a problem" (active agents throughout). M3: plain connectives — "began when," "in response to," "to report on and to enlist" (plain purpose constructions). M4: no register shift — not needed. Result: three of four positive markers (M1, M2, M3); H-CLEAN.
+
+**Annotation:** This is a research-history narrative — the structural role is framing the book's intellectual occasion. Named year, institution, and real agents make M1 and M2 easy to satisfy; the plain connectives ("began when," "in response to") make M3 straightforward. The passage has no nominalised stack and no passive abstraction — "the project was initiated" is passive but immediately followed by the active subject ("in response to a delegation… who traveled").
+
+---
+
+**Calibration note:** Vidal's passage is a theoretical reframing (explaining what fieldwork found that didn't fit theory) delivered in daily English; Suchman's is a research-history narrative (explaining how the author came to study the problem). Both non-technical passage roles satisfy H via concrete agents acting on concrete activities, with plain connectives. The Evaluator should note that a partially passive passage (Suchman: "the project was initiated") is not automatically H-MAJOR if the surrounding construction is agent-verb-object and the passive is brief and followed by an active subject. The compliance frame is presence-of-positive-markers, not absence-of-negative-markers.
 
 ---
 
