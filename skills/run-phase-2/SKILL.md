@@ -1,6 +1,6 @@
 ---
 name: run-phase-2
-description: "Ph2 Review & Revise — first Evaluator engagement. Run Step 0.5 preflight (snowball-gate re-test + claim-coverage audit dispatch via SK-34 with auto SK-35 extension on uncovered claims; both parts non-blocking at v0.10.0 S4 — BELOW_THRESHOLD, AUDIT-FAILED, and IDEMPOTENT_HIT outcomes all proceed to Step 0a) then full local-scope pass (Steps 1–3 + checklist + SAFEGUARD 1/4/5/8). Produces ph2_review_completion.md. Full-file reads mandatory. Trigger: \"Ph2,\" \"review pass,\" \"run phase 2,\" \"first evaluator pass,\" or after Ph1 approval."
+description: "Ph2 Review & Revise — first Evaluator engagement. Runs Step 0.5 preflight (snowball-gate re-test + claim-coverage audit dispatch with auto extension on uncovered claims; non-blocking) then a full local-scope pass (Steps 1–3 + checklist + SAFEGUARD 1/4/5/8). Produces reviews/ph2_review_completion.md. Full-file reads mandatory."
 trigger: when the user says "Ph2 review-and-revise," "run phase 2," "first evaluator pass," or when the Planner auto-advances after Ph1 approval
 version: 0.7.4
 ---
