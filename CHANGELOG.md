@@ -6,6 +6,97 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.12.3 — 2026-04-28
+
+**Marketplace-schema alignment patch.** v0.12.3 restructures
+`marketplace.json` to clear the Cowork remote-marketplace upload
+validator (`uploadAccountPlugin` endpoint), which rejected v0.12.2
+within minutes despite the static `loader-compat-check.py` returning
+CLEAR. No agent contract, skill, command, or governance-field
+change. Diagnosis and validator scope-limit lessons recorded below.
+
+### What changed
+
+- **`.claude-plugin/marketplace.json`** restructured along four axes:
+    * Added `$schema: "https://anthropic.com/claude-code/marketplace.schema.json"`
+      at the top of the document — the validator expects a schema
+      declaration; absent in v0.12.2 and prior.
+    * Removed top-level `description` and re-anchored it under
+      `metadata.description`. Per the marketplaces docs, `description`
+      is also accepted under `metadata` for backward compatibility;
+      the working peer (`token-optimizer` at
+      `rpm/plugin_01BueBLWJxwbkpJsWFnyw4nK/.claude-plugin/marketplace.json`)
+      places it there, suggesting the remote validator prefers — or
+      requires — the metadata anchor.
+    * Renamed top-level `name` from `co-author-harness` to
+      `joseph-chung-co-author-harness`, namespacing the marketplace
+      identifier with the maintainer's name. Token-optimizer uses
+      `<github-handle>-<plugin-name>`; the maintainer chose a
+      personal-name prefix instead. Either way, the bare
+      `co-author-harness` form was unverified against the validator
+      and presumed insufficient.
+    * Changed `plugins[0].category` from `"research"` to
+      `"productivity"`. `"research"` is not corroborated anywhere in
+      the marketplaces docs or the only working peer manifest;
+      `"productivity"` is the documented example value and a
+      confirmed-accepted enum member. Semantic accuracy traded for
+      validator acceptance; revisit if/when an enum schema with
+      `"research"` is published.
+
+- **`.claude-plugin/plugin.json`** unchanged except for the version
+  bump (0.12.2 → 0.12.3). The direct-install schema validated by the
+  Cowork plugin loader UI was correct in v0.12.2 and remains correct.
+
+### Architectural posture and rationale
+
+- **Two distribution paths, two schemas.** The Cowork plugin loader
+  has at least two install paths: direct local `.plugin` upload
+  (validates `plugin.json`) and remote `uploadAccountPlugin` to a
+  personal marketplace (validates `marketplace.json`). The schemas
+  are different. A bundle that passes one is not guaranteed to pass
+  the other. Recorded as a binding constraint in the agent's auto-
+  memory (`feedback_cowork_dual_plugin_install_paths.md`); future
+  plugin work for this maintainer must default to confirming the
+  install path before validating.
+
+- **Static verification scope limit.** The `loader-compat-check.py`
+  validator landed in v0.12.2 covers the direct-install schema only.
+  Its v0.12.2 CLEAR verdict was correct on its own terms but said
+  nothing about marketplace-upload acceptance. Going forward,
+  `loader-compat-check.py` should be extended with a
+  marketplace-schema axis (deferred from v0.12.3 to keep the diff
+  minimal); until extended, its CLEAR verdict must be qualified as
+  "structurally valid for direct local install" rather than
+  "loader-ready" in the unqualified sense.
+
+- **Diagnosis-before-fix discipline held.** v0.12.2's rejection
+  surfaced as a generic "Plugin validation failed for both files"
+  banner with no diagnostic detail. Reading the Cowork main.log at
+  `%APPDATA%\Claude\logs\main.log` narrowed the failure class to the
+  marketplace endpoint and its schema in roughly three turns — far
+  cheaper than patch-and-pray iteration. Recorded as
+  `reference_cowork_main_log.md` in the agent's auto-memory; future
+  plugin-load debugging must start with the log before any other
+  diagnostic step.
+
+### Skills, commands, agents, governance fields
+
+- No additions, removals, or renames. Skill count invariant holds;
+  no governance-field changes; no migration script required.
+
+### Deferred items (carried into v0.12.4 candidate scope)
+
+- Extend `scripts/loader-compat-check.py` with a marketplace-schema
+  validation axis covering `$schema` presence, `metadata.description`
+  vs top-level `description` placement, namespacing of top-level
+  `name`, and `category` enum membership when published.
+- Confirm whether bundling `marketplace.json` AND `plugin.json` in
+  the same `.plugin` archive is itself a rejection signal on the
+  direct-install path. Orthogonal to v0.12.3's failure; worth
+  validating once the marketplace path is unblocked.
+
+---
+
 ## v0.12.2 — 2026-04-28
 
 **Pre-shipment quality patch.** v0.12.2 ships a new static
