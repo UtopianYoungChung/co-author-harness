@@ -6,6 +6,74 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.12.2 — 2026-04-28
+
+**Pre-shipment quality patch.** v0.12.2 ships a new static
+loader-compatibility validator and clears the only quality finding
+the validator surfaced — three over-margin SKILL.md descriptions —
+before pushing the v0.12.x line to a GitHub Release. No agent
+contract, skill, command, or governance-field change.
+
+### What changed
+
+- **`scripts/loader-compat-check.py`** (new) — static loader-
+  compatibility validator covering ten axes: ZIP integrity (CRC +
+  truncation via `zipfile.testzip()`); file enumeration with
+  zero-byte / oversize audit; manifest schema (required fields,
+  semver, name shape, 300-char description budget, 12-keyword
+  budget); marketplace self-reference parity (plugin.json vs
+  marketplace.json version, description, source format); path-
+  encoding scan (no backslashes, traversal, non-ASCII bytes,
+  oversized components, reserved Windows basenames); required-files
+  presence (every `skills/<name>/` has `SKILL.md`; agents and
+  commands are `.md`; README and CHANGELOG at root); SKILL.md
+  frontmatter validity (CRLF-tolerant; YAML parses; `name` and
+  `description` populated; description ≤500 chars); no-nested-
+  archives; dry-run extract + rezip-byte-count sanity; peer-plugin
+  description-length distribution comparison (auto-discovers peer
+  root via Cowork-session sandbox convention). Cannot exercise
+  loader runtime (skill discovery, command registration, agent
+  dispatch wiring). Exit codes match `release-gate.sh` convention.
+
+- **Three SKILL.md description trims** (each preserves all
+  skill-triggering keywords; only metadata bloat, internal stage
+  codes, and trigger-field duplication were cut):
+    * `skills/claim-coverage-audit/SKILL.md`: 534 → 472 chars (−62).
+      Cut: version-stage labels (`v0.10.0-S3`, `S4 onward` — internal
+      release history with no triggering value) and the duplicate
+      "Manually-invokable" qualifier.
+    * `skills/run-phase-2/SKILL.md`: 534 → 327 chars (−207). Cut:
+      (a) the embedded `Trigger:` clause that duplicated the separate
+      `trigger:` field; (b) internal stage codes (`SK-34`, `SK-35`,
+      `BELOW_THRESHOLD`, `AUDIT-FAILED`, `IDEMPOTENT_HIT`) that
+      belong in the body, not the description.
+    * `skills/extend-snowball-incremental/SKILL.md`: 1029 → 477 chars
+      (−552). Cut: verbose tri-context dispatch enumeration (already
+      in `trigger:` field), procedural detail (anchor-for-
+      `SCHOLAR_GATEWAY` probes, parallel-invocation caps — body
+      material). Moved `snowball` earlier in the sentence to lift
+      triggering precedence.
+
+### Architectural posture and rationale
+
+- The condition (over-margin descriptions) predates v0.12.0 and was
+  present in v0.11.0 and earlier. The 500-char safety margin is
+  advisory rather than loader-fatal; `release-gate.sh` Phase 0.2 has
+  emitted it as a WARN across multiple releases and the harness has
+  shipped anyway. Closing it now is a pre-GitHub-Release polish step,
+  not a regression fix.
+- The new `loader-compat-check.py` is the validator that surfaced the
+  finding. It is a peer to the other `scripts/<purpose>-check.py`
+  validators and uses the same argparse + exit-code convention. It is
+  not yet wired into `release-gate.sh`; deferred to a future patch.
+
+### Skills, commands, agents, governance fields
+
+- No additions, removals, or renames. Skill count invariant holds; no
+  governance-field changes; no migration script required.
+
+---
+
 ## v0.12.1 — 2026-04-28
 
 **Reader-accessibility calibration patch.** Two coupled additions to
