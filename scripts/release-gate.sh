@@ -285,6 +285,42 @@ else
     echo ""
 fi
 
+# --- Phase 0.62: manifest coherence checks (v0.11.0 c8) -------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/manifest-coherence-check.py" ]]; then
+    echo "Manifest coherence checks (description / keywords / parity)"
+    if ! python3 "$PLUGIN_ROOT/scripts/manifest-coherence-check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/manifest-coherence-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/manifest-coherence-check.py passed"
+    fi
+    echo ""
+else
+    echo "Manifest coherence checks: script missing (scripts/manifest-coherence-check.py)"
+    echo "  [BLOCKER] cannot run manifest coherence checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.63: SSOT registry check (v0.11.0 c9) -------------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/ssot-check.py" ]]; then
+    echo "SSOT registry checks (.claude-plugin/ssot.yaml fact-consumer parity)"
+    if ! python3 "$PLUGIN_ROOT/scripts/ssot-check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/ssot-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/ssot-check.py passed"
+    fi
+    echo ""
+else
+    echo "SSOT registry checks: script missing (scripts/ssot-check.py)"
+    echo "  [BLOCKER] cannot run SSOT registry checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.65: [Retired at v0.7.0] Rule-digest build-and-verify ---------
 #
 # The tier-gated digest exception in GROUNDING_PROTOCOL Rule 1 (v0.6.0 and
@@ -456,62 +492,14 @@ else
 fi
 echo ""
 
-# --- Phase 0.695: convergence_journal P-12 migration (v0.8.0 P2.1d) --------
+# --- Phase 0.695: superseded migration script smoketests retired at v0.11.0 -
 #
-# proposals/v0.8.0_upgrade_architecture.md §9.2 P2.1d: dry-run determinism +
-# write idempotency on a temp copy (does not mutate the read-only fixture tree).
-# Fixture: scripts/fixtures/convergence_journal_smoketest/minimal_project/
-
-echo "migrate_convergence_journal_v075.py (v0.8.0 P2.1d)"
-CJ_MIGRATE="$PLUGIN_ROOT/scripts/migrate_convergence_journal_v075.py"
-CJ_SRC="$PLUGIN_ROOT/scripts/fixtures/convergence_journal_smoketest/minimal_project"
-CJ_JOURNAL="$CJ_SRC/reviews/convergence_journal.jsonl"
-if [[ -f "$CJ_MIGRATE" && -f "$CJ_JOURNAL" ]]; then
-    CJ_TMP1="$( mktemp )"
-    CJ_TMP2="$( mktemp )"
-    set +e
-    python3 "$CJ_MIGRATE" --project-root "$CJ_SRC" --dry-run >"$CJ_TMP1" 2>/dev/null
-    RC1=$?
-    python3 "$CJ_MIGRATE" --project-root "$CJ_SRC" --dry-run >"$CJ_TMP2" 2>/dev/null
-    RC2=$?
-    set -e
-    if [[ "$RC1" -ne 0 || "$RC2" -ne 0 ]]; then
-        echo "  [BLOCKER] migrate_convergence_journal_v075.py --dry-run failed (exit $RC1 / $RC2)"
-        BLOCKERS=$((BLOCKERS + 1))
-    elif cmp -s "$CJ_TMP1" "$CJ_TMP2"; then
-        echo "  [OK]      migrate_convergence_journal_v075.py: two dry-runs byte-identical"
-    else
-        echo "  [BLOCKER] migrate_convergence_journal_v075.py: dry-run stdout non-deterministic"
-        BLOCKERS=$((BLOCKERS + 1))
-    fi
-    rm -f "$CJ_TMP1" "$CJ_TMP2"
-
-    CJ_WORK="$( mktemp -d )"
-    mkdir -p "$CJ_WORK/reviews"
-    cp "$CJ_JOURNAL" "$CJ_WORK/reviews/convergence_journal.jsonl"
-    set +e
-    python3 "$CJ_MIGRATE" --project-root "$CJ_WORK" >/dev/null 2>&1
-    RCW1=$?
-    H1="$( python3 -c "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" "$CJ_WORK/reviews/convergence_journal.jsonl" )"
-    python3 "$CJ_MIGRATE" --project-root "$CJ_WORK" >/dev/null 2>&1
-    RCW2=$?
-    H2="$( python3 -c "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" "$CJ_WORK/reviews/convergence_journal.jsonl" )"
-    set -e
-    rm -rf "$CJ_WORK"
-    if [[ "$RCW1" -ne 0 || "$RCW2" -ne 0 ]]; then
-        echo "  [BLOCKER] migrate_convergence_journal_v075.py write pass failed (exit $RCW1 / $RCW2)"
-        BLOCKERS=$((BLOCKERS + 1))
-    elif [[ "$H1" == "$H2" ]]; then
-        echo "  [OK]      migrate_convergence_journal_v075.py: second write idempotent (SHA-256 stable)"
-    else
-        echo "  [BLOCKER] migrate_convergence_journal_v075.py: journal bytes changed on re-run"
-        BLOCKERS=$((BLOCKERS + 1))
-    fi
-else
-    echo "  [WARN]    convergence_journal migration smoketest skipped: runner or fixture missing"
-    WARNINGS=$((WARNINGS + 1))
-fi
-echo ""
+# The v0.8.0 P2.1d migrate_convergence_journal_v075.py determinism gate is
+# retired alongside the script itself in c5. The v0.10.0->v0.11.0 migration
+# (scripts/migrate_v0100_to_v0110_drop_sd_sr.py) carries its own idempotence
+# verification inline in its module docstring; the v0.9.0->v0.10.0 migration
+# (migrate_v090_to_v100_snowball_fields.py) is gate-checked via py_compile in
+# Phase 0.7 below.
 
 # --- Phase 0.7: Coupling automation and Phase D script syntax checks -------
 #
@@ -535,17 +523,13 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/sk20_autonomous_loop.py" \
     "$PLUGIN_ROOT/scripts/coupling_health_report.py" \
     "$PLUGIN_ROOT/scripts/install_preflight_assets.py" \
-    "$PLUGIN_ROOT/scripts/tier_notifications_loader.py" \
     "$PLUGIN_ROOT/scripts/gate_threshold_tuner.py" \
-    "$PLUGIN_ROOT/scripts/tier_state_validate.py" \
-    "$PLUGIN_ROOT/scripts/tier_state_canonicalize.py" \
-    "$PLUGIN_ROOT/scripts/migrate_v055_to_v060.py" \
-    "$PLUGIN_ROOT/scripts/migrate_v060_to_v070.py" \
+    "$PLUGIN_ROOT/scripts/migrate_v090_to_v100_snowball_fields.py" \
+    "$PLUGIN_ROOT/scripts/migrate_v0100_to_v0110_drop_sd_sr.py" \
     "$PLUGIN_ROOT/scripts/pre_phase_advance_check.py" \
     "$PLUGIN_ROOT/scripts/phase_state_validate.py" \
     "$PLUGIN_ROOT/scripts/artefact_frontmatter_validate.py" \
     "$PLUGIN_ROOT/scripts/paragraph_hash_map.py" \
-    "$PLUGIN_ROOT/scripts/migrate_convergence_journal_v075.py" \
     "$PLUGIN_ROOT/scripts/check8_g_prefilter.py" \
     "$PLUGIN_ROOT/scripts/provenance_prewrite_check.py" \
     "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"

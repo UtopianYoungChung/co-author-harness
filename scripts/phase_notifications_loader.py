@@ -77,9 +77,11 @@ def _emit_dual_read_warning(path: pathlib.Path) -> None:
     """Emit the W-DUAL-READ-LEGACY deprecation warning on stderr."""
     sys.stderr.write(
         f"[phase_notifications_loader] W-DUAL-READ-LEGACY — fell back to legacy "
-        f"{path.name} because phase_notifications.yaml is missing. The dual-read "
-        f"path is removed at v0.7.5 RC; run "
-        f"scripts/migrate_v073_to_v074_tier_to_phase.py to complete the rename.\n"
+        f"{path.name} because phase_notifications.yaml is missing. The legacy "
+        f"tier_notifications.yaml is parseable but unsupported at v0.11.0; the "
+        f"v0.7.3->v0.7.4 migration helper was retired at v0.11.0 c5. Author a "
+        f"fresh phase_notifications.yaml from the references/ template to resume "
+        f"normal notification rendering.\n"
     )
 
 

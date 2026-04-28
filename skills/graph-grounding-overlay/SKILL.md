@@ -181,7 +181,7 @@ A grounding-audit Category 8 violation (e.g., a `[source: graph-extracted]` find
 - **Downstream:** `grounding-audit` skill (Category 8 validates SK-20's output).
 - **Sibling:** SK-18 `advisor-escalation` is structurally analogous — both skills bridge an external source of claims (advisor MCP; graphify graph) into the pipeline with tag-preserved uncertainty inheritance. SK-18 extends grounding-audit with Category 7; SK-20 extends it with Category 8.
 - **Coupling E.1 — now implemented:** The `SK-19 graph-read-at-planner` placeholder is **retired**. Coupling E.1 is materialised at v0.10.0 via **SK-33 `seed-snowball-discovery`**'s graph-substrate iterate phase — see `references/AGENT_ORCHESTRATION.md §8.6 Coupling E.1`. The `graph-read-at-planner` token is preserved only as the coupling's historical identifier in the roadmap.
-- **Planned successor (not this skill):** SK-21 `graph-contradiction-sweep` (Coupling E.3, extends check-contradictions with cross-corpus edges). Roadmapped; not yet built.
+- **Coupling E.3 — retired at v0.11.0:** the originally roadmapped `SK-21 graph-contradiction-sweep` was retired with the c4 phantom-roadmap cleanup. If a contradiction-sweep need re-emerges, the existing `check-contradictions` skill is the established surface.
 
 ## Failure modes and mitigations
 

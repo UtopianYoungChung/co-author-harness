@@ -513,12 +513,11 @@ This package codifies five synergy couplings between a `Research/<project>/`, a 
 
 ### Coupling E — Graph-to-Pipeline family
 
-Coupling E has three planned sub-couplings, of which only E.2 is active in v0.3.1. The remaining two are proposed but deliberately unbuilt pending the E.2 pilot result:
+Coupling E has two active sub-couplings at v0.11.0. (The originally roadmapped E.3 contradiction-sweep extension and the SK-19 graph-read-at-planner roadmap entry were retired at v0.11.0 with the c4 phantom-roadmap cleanup; E.1 is now materialised inside SK-33 `seed-snowball-discovery` rather than as a separate skill.)
 
 | Sub-coupling | Direction | Fires at | Skill | Status |
 |---|---|---|---|---|
-| E.1 | Graphify → Planner (god-nodes, suggested questions, community hubs) | M1 project-memo generation | SK-19 `graph-read-at-planner` | **Proposed** — pending v0.3.2 |
-| E.2 | Graphify → Evaluator (graph-overlay findings A/B/C) | Evaluator pre-flight | SK-20 `graph-grounding-overlay` | **Active (pilot)** — v0.3.1 |
-| E.3 | Graphify → Evaluator (cross-corpus contradiction sweep) | `check-contradictions` extension | SK-21 `graph-contradiction-sweep` | **Proposed** — pending v0.3.2 |
+| E.1 | Graphify → Planner (god-nodes, suggested questions, community hubs) | Ph1 seed-snowball | SK-33 `seed-snowball-discovery` graph-substrate iterate phase | **Active** — v0.10.0 |
+| E.2 | Graphify → Evaluator (graph-overlay findings A/B/C) | Evaluator pre-flight | SK-20 `graph-grounding-overlay` | **Active** |
 
 **Activation flag.** A project that wants Coupling E to fire must include `coupling_e_on_review: true` in its CLAUDE.md Wiki linkage section (see §3 Step 5). Without this flag, SK-20 no-ops even if `wiki_linked: true`. This is a deliberate opt-in because the graph overlay changes how the Evaluator's findings are weighted, and a project should declare the expectation rather than inherit it silently. Bootstrap-time default for new wiki-linked projects is `true`; retrofit for existing projects is manual.
