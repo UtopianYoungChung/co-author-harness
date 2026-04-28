@@ -6,6 +6,65 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.12.1 — 2026-04-28
+
+**Reader-accessibility calibration patch.** Two coupled additions to
+the calibration substrate, derived from Sub-check H's first live
+revision pass on the INF3006Y manuscript (2026-04-27). The patch
+extends the Reflector's diagnostic vocabulary without altering any
+agent contract, skill, command, or governance field; both surfaces
+are advisory-tier and cross-reference each other.
+
+### What changed
+
+- **`references/DETERMINISTIC_CHECKS.md §3`** — names the
+  "H-motivated em-dash insertion" false-fix pattern. When the
+  Generator applies Sub-check H marker 4 (register-shift signposting),
+  its default vehicle is the em-dash, which adds to the §3 count even
+  when individual paragraph thresholds remain ≤1 pair. The new
+  paragraph documents §3-neutral M4 alternatives (semicolon for
+  contrast bridges, colon for specification pivots, explicit cue
+  phrases like `consider concretely:`, `in plain terms:`,
+  `to put this technically:`) and directs revision passes to flag
+  any em-dash count delta as a §3 regression — the *pattern* is the
+  tell. Cross-references `lay_term_lexicons.md §4` note 5,
+  `sub_checks.md §H marker 4`, and MASTER §E.2 (verbatim citation
+  verified against MASTER line 330).
+
+- **`references/lay_term_lexicons.md §4`** (new) — "Verified lay-term
+  paraphrase examples (INF3006, 2026-04-27)". A five-row transformation
+  table from the INF3006Y survey-framing paragraph, with each entry
+  carrying original formulation, accepted paraphrase, marker-gain
+  attribution, and a draft-form note (the column documenting the
+  Generator's typical em-dash → semicolon revision step). One
+  kept-as-is exemplar shows H adjudicating CLEAN without paraphrase
+  ("The underlying question… will very likely outlast it.") —
+  important calibration data, since transformation corpora often
+  show only the failure-to-pass arc. Five generalisation notes type
+  the patterns: polemical/methodological opposition; abstract-quality
+  adjective + Latinate noun; relativised relative clause; field-as-map
+  metaphor; em-dash-as-draft-M4 substitution rule. The corpus is
+  framed as an existence proof, not a template; closed extensibility
+  is preserved (next entries gated to Reflector Phase 4 cross-project
+  recurrence audit). Feeds `aggregate_h_calibration.py` training set.
+
+### Plan amendments recorded
+
+- Three internal-consistency edits applied during pre-commit review:
+  (a) §4 generalisation note 1 example shifted from em-dash form to
+  semicolon form (was contradicting note 5's substitution rule);
+  (b) note 5 made flush with notes 1–4 (continuous numbered list);
+  (c) §4 versioning row date and shipped-at-version corrected from
+  authoring-time placeholder ("2026-04-27 (post-v0.10.2)") to ship-
+  time canonical ("2026-04-28 (v0.12.1)").
+
+### Skills, commands, agents, governance fields
+
+- No additions, removals, or renames. Skill count invariant holds; no
+  governance-field changes; no migration script required.
+
+---
+
 ## v0.12.0 — 2026-04-28
 
 **Reader-accessibility calibration corpus.** v0.12.0 closes the
