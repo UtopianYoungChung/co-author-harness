@@ -1,4 +1,6 @@
 # Older / bulk artifact drops (single-release policy: do not commit)
+releases/
+references/
 legacy/
 proposals/
 .claude/
