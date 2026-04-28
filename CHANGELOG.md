@@ -6,6 +6,83 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.12.0 — 2026-04-28
+
+**Reader-accessibility calibration corpus.** v0.12.0 closes the
+zero-example gap in SAFEGUARD Check 8 Sub-checks A–G and the
+INF3006Y-only domain-overfit risk in Sub-check H by introducing a
+package-tier corpus of pre-verified model passages. The corpus draws
+from two scholarly authors who write complex sociotechnical argument
+in daily-English register — exactly the register the accessibility
+criteria are designed to produce — providing the Evaluator with a
+calibration anchor at the exact decision point of every Sub-check
+adjudication.
+
+### What changed
+
+- **New file** `references/examples/model_prose_corpus.md`: sixteen
+  verbatim passages, two per Sub-check A–H. One passage in each pair
+  is drawn from Vidal 2022 (cooperative knowledge work, sociotechnical
+  systems analysis), the other from Suchman 2007 (human-machine
+  reconfigurations, situated action). Each passage carries marker
+  audit, annotation against the relevant Sub-check criteria, and a
+  contrastive calibration note distinguishing it from a borderline
+  failure case. Frontmatter pins Zotero attachment keys for
+  provenance: Vidal full-text `TKH5M6RK` (parent `QH8Y3FE6`); Suchman
+  full-text `NT26F6GS` (parent `TJUP6UCB`).
+- **`skills/accessibility-overlay/SKILL.md`** — MANDATORY corpus load
+  block added (line 81), wiring the corpus into every overlay
+  invocation alongside the existing `READER_ACCESSIBILITY.md`
+  mandatory load.
+- **`skills/accessibility-overlay/references/sub_checks.md`** — eight
+  one-line cross-reference pointers added (one at the end of each
+  Sub-check A–H section), surfacing the calibration anchor at the
+  exact decision point.
+- **`references/READER_ACCESSIBILITY.md`** — pointer paragraph added
+  at the top of §13.4 worked-examples section, directing human
+  protocol readers to the corpus for A–G examples.
+
+### Architectural posture and rationale
+
+- **Package-tier, not project-tier.** The corpus has no per-project
+  override mechanism (design spec §7). Per-project override of
+  reader-accessibility calibration would invite drift toward the
+  same kind of governance-trailer skew v0.11.0 was structured to
+  prevent.
+- **Closed extensibility.** The corpus is designed to grow only via
+  Reflector Phase 4 cross-project recurrence audit. Single-project
+  examples must not be appended; the file's extensibility section
+  documents this discipline explicitly.
+- **Pre-verification.** Every passage was extracted from Zotero
+  full-text during the design session and verified against the
+  relevant Sub-check criteria before inclusion. They are CLEAN
+  examples by construction.
+
+### Plan amendments recorded
+
+- The implementation followed the seven-task subagent-driven plan at
+  `docs/superpowers/plans/2026-04-27-model-prose-corpus-implementation.md`
+  to spec. Tasks 1–3 ran serially (scaffold → A–D content → E–H
+  content); Tasks 4–6 ran in parallel (independent file edits);
+  Task 7 (harness integrity verification) ran in the controller. All
+  three release-gate scripts passed with zero blockers and zero
+  warnings before the release ceremony.
+
+### Deferred to v0.12.1
+
+- Generator-side guidance against Sub-check H marker 4 ("register-shift
+  signposting") defaulting to em-dash as the M4 vehicle, which inflates
+  the §3 em-dash count. The Sub-check H marker discipline document and
+  the lay-term lexicon §4 verified-paraphrase corpus from INF3006Y are
+  staged for the next patch.
+
+### Skills, commands, agents, governance fields
+
+- No additions, removals, or renames. Skill count invariant holds; no
+  governance-field changes; no migration script required.
+
+---
+
 ## v0.11.0 — 2026-04-27
 
 **Architectural cut + structural anti-drift posture.** v0.11.0 responds to
