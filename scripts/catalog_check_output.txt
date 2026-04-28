@@ -1,0 +1,7 @@
+CATALOG PARITY CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Discovered skills: 32
+- Discovered commands: 16
+- README skills count: <missing>
+- Blockers: 0
+- Warnings: 0

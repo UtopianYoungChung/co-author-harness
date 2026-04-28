@@ -1,0 +1,5 @@
+SKILL INTEGRITY CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Shipped skills discovered: 32
+- Blockers: 0
+- Warnings: 0

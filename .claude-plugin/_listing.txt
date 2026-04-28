@@ -1,0 +1,12 @@
+co-author-harness-claude-v0.12.2.plugin
+co-author-harness-claude-v0.12.3-PLUGINONLY-test.plugin
+co-author-harness-claude-v0.12.3-PLUGINONLY-test.zip
+co-author-harness-claude-v0.12.3-RENAMED-test.plugin
+co-author-harness-claude-v0.12.3-RENAMED-test.zip
+co-author-harness-claude-v0.12.3.plugin
+co-author-harness-claude.plugin
+marketplace.json
+plugin.json
+ssot.yaml
+_listing.txt
+_state.txt
