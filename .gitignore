@@ -1,6 +1,8 @@
 # Older / bulk artifact drops (single-release policy: do not commit)
 legacy/
 proposals/
+.claude/
+
 
 # Optional local unpack trees (regenerate from releases/ or source root)
 unpacked/
