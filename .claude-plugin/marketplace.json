@@ -1,9 +1,12 @@
 {
-  "name": "co-author-harness",
-  "description": "Single-plugin marketplace for the co-author-harness-claude plugin: PhD-level academic-writing review harness, four-agent loop on a four-phase ladder.",
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "joseph-chung-co-author-harness",
   "owner": {
     "name": "Young Jo(seph) Chung",
     "email": "jo.chung@utoronto.ca"
+  },
+  "metadata": {
+    "description": "Single-plugin marketplace for the co-author-harness-claude plugin: PhD-level academic-writing review harness, four-agent loop on a four-phase ladder."
   },
   "plugins": [
     {
@@ -29,7 +32,7 @@
         "HCI",
         "zotero"
       ],
-      "category": "research"
+      "category": "productivity"
     }
   ]
 }
