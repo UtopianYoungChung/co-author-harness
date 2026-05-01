@@ -20,6 +20,18 @@ These commitments are mutually reinforcing but *separable*. A piece can satisfy 
 
 ---
 
+## 1.1 C-1 verb-set and parallelism rules (added v0.13.0)
+
+C-1's "first-person navigation" commitment surfaces in practice through a canonical verb-set and a parallelism discipline. Both are operational specifications of C-1, not separate commitments.
+
+**Canonical verb-set.** The Suchman-inflected register prefers eight first-person verbs at the points where authorial judgment is being made: `I identify` (for hidden assumptions), `I read [X] as [Y]ing` (for inferential moves whose outcome the source author may not endorse), `I press [N] questions against [Z]` (for questions-framing predications), `I find` (for evaluative verdicts), `I trace` (for genealogies and provenance moves), `I group` (for category construction), `I mark` (for stipulative gestures), `I characterize` (for paraphrases that the source author may not endorse). Direct attribution (`Author et al. argue/concede/flag`) is preferred when the author would endorse the characterization; the `I read [X] as [Y]ing` indirect pattern is preferred when the assumption is implicit/contestable and the source author may not endorse.
+
+**Parallelism discipline.** When the same speech-act recurs at structurally parallel sites — hidden-assumption diagnoses across sibling subsections, questions-framing predications across position subsections, judgment-attribution moments across cited findings — those sites must ship in a single voice. Drift between sibling sites is a parallelism failure even if each site is individually C-1-compliant. **Practical rule:** when one sibling site is voice-corrected, the rest must be audited within the same revision round. The Reflector's voice audit (Check 6) treats sibling-site drift as a higher severity than isolated drift, on the rationale that parallelism failures compound the reader's load.
+
+**Provenance.** Verb-set and parallelism rules surfaced from the INF3006Y late-April 2026 sessions (handoffs `2026-04-29-204048` through `2026-04-30-180606` plus the v0.13.0 voice round 2). Source memo: `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.1.
+
+---
+
 ## 2. Why declare them
 
 Three reasons, in increasing order of importance:

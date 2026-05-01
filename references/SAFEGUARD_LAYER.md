@@ -377,6 +377,36 @@
 
 **Stability sub-mode interaction (v0.8.0+).** Under `run-phase-3-stability`, Sub-check H runs **advisory-only** mirroring Sub-check G's stability-sub-mode treatment. An H finding under stability mode is logged with `stability_advisory: true` and does not contribute to the §3.3.3 aggregate verdict.
 
+### J. Verdict-Edge Discipline — Intensifier-Stack Floor (added v0.13.0)
+
+**Scope.** Sentence-scoped at all tier rungs, applied to any sentence in any in-scope passage (including technical passages, since verdict-register creep is orthogonal to the H technical/non-technical scope distinction). Sub-check J does not consume `register_class` from `directives.md` because verdict register applies uniformly across audience classes — a technical-venue manuscript and a policy-audience manuscript are both held to a diagnostic-not-verdict register where the surveyed-literature tradition calls for it.
+
+**Provenance.** Authored 2026-04-30 (v0.13.0) per `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.2. Surfaced from the INF3006Y voice round 2 where the Fügener-finding diagnosis line shipped as "the endorsement dimension, far from being a stable attribute, is eroded by the very delegation patterns it is supposed to anchor" — three intensifiers stacked across a single clause that tipped the sentence from diagnostic into verdict register. Closes the gap diagnosed in §2 of the source memo: A–H measure prose-surface and structural quality, but none audit the modal-claim register at the sentence level.
+
+**Procedure.**
+
+1. **Resolve scope.** Sub-check J runs over every sentence in every in-scope passage (the same passage scope H operates over for its register-class-conditioned variant; the unioned set across A–H scopes for the manuscript-wide variant). Technical passages are in scope.
+2. **Audit intensifier classes per sentence-clause.** Count tokens of three classes within each clause:
+   - **Class (a) — emphatic determiners.** `the very X`, `the same X`, `precisely the X`, `exactly the X`, `the very same X`. Marker for emphatic foregrounding of a referent.
+   - **Class (b) — deontic-implicit phrasings.** `supposed to X`, `meant to X`, `should X but doesn't`, `was designed to X`, `is intended to X`. Marker for an implied normative gap between a system's design intent and its observed behavior.
+   - **Class (c) — verdict verbs.** `erodes`, `destroys`, `breaks down`, `is undermined by`, `collapses`, `fails`, `is corrupted by`, `is gutted by`. Marker for terminal/evaluative outcome assertion.
+3. **Apply the intensifier-stack floor.** A single sentence-clause containing **three or more** intensifier tokens distributed across at least **two of the three classes** fires a J finding. Stacks within a single class (three deontic verbs in the same clause, e.g.) are noted but do not fire — the cross-class stack is the verdict-creep signal, not the within-class repetition.
+4. **Emit per-finding telemetry with softening suggestion.** Each J finding carries (a) the offending sentence-clause as `evidence_text`, (b) the matched intensifier tokens with their classes, (c) a `suggested_softening` field constructed by the modal-distribution rule (see below), and (d) `false_positive_candidate: true|false` (default `false`).
+
+**Modal-distribution softening rule.** The default softening converts the verdict claim into a modal/equivocal claim while preserving the diagnostic content. The rule has three steps: (i) replace the class-(c) verdict verb with a modal-equivocal predicate (`is eroded by` → `may not remain stable under`; `destroys` → `is challenged by`; `is undermined by` → `is contested under`); (ii) drop or weaken the class-(a) emphatic determiner (`the very X` → `the X`; `precisely the X` → `the X`); (iii) preserve the class-(b) deontic-implicit phrasing if needed for the diagnostic content, or rephrase to recover the implicit-norm content without the deontic register. Example transformation: `is eroded by the very delegation patterns it is supposed to anchor` → `may not remain stable under the delegation patterns to which it is supposed to anchor accountability`. The "to which" rephrasing recovers the deontic content (the delegation-anchoring relationship) without the modal-claim escalation.
+
+**Severity floor.**
+
+- **MINOR** — one J finding in a passage that is otherwise A–H-CLEAN.
+- **MAJOR** — two or more J findings within a single section, or one J finding co-located with an H MAJOR / BLOCKER on the same passage.
+- **BLOCKER** — reserved for sustained verdict-register density across three or more consecutive sections (the verdict-creep manuscript-wide failure mode); BLOCKER is gated by the `advisory_until: J_two_revision_cycles` flag at v0.13.0 introduction, mirroring H's `advisory_until: H_two_revision_cycles` precedent.
+
+**Interaction with Sub-check H (orthogonal-at-finding-level pattern).** H audits register tone at the passage level (positive-marker construction, negative-marker counts, compliance frame); J audits modal-claim register at the sentence-clause level (intensifier stack across three classes). A passage can be H-CLEAN with the prose surface compliant on cadence, anchoring, and connective transparency, while a single sentence within that passage trips J's three-class stack threshold. The two findings are independent: H cannot suppress J; J cannot suppress H. When co-located, the Generator's `suggested_fix` for H and `suggested_softening` for J should be applied as a single revision pass, but the two findings remain individually evidenced.
+
+**Advisory-until scoping.** Sub-check J carries an `advisory_until: J_two_revision_cycles` transitional flag at v0.13.0 introduction, mirroring H's v0.10.1 introduction-time flag. Under the flag, J findings are recorded with their severities and locators, but the Planner's §3.3.3 accessibility gate reads only the A–H aggregate for the TerminalSignoffRow decision; a J BLOCKER on a flagged manuscript does not fire `E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF`. The flag retires after two complete revision cycles in which J has been available; retirement state is recorded in `reviews/classification.md` as `j_advisory_cycles_observed: <integer>`.
+
+**Stability sub-mode interaction.** Under `run-phase-3-stability`, Sub-check J runs **advisory-only** mirroring H's stability-sub-mode treatment. A J finding under stability mode is logged with `stability_advisory: true` and does not contribute to the §3.3.3 aggregate verdict.
+
 **Output format:**
 
 ```
@@ -410,8 +440,13 @@
     - <passage role + heading_path, e.g. "signpost_§3 line 12-15">: positive markers <count>; negative markers <count>; severity <MINOR/MAJOR/BLOCKER>; false_positive_candidate <true/false>; inherited_from_pre_h <true/false>
   - Advisory-until flag: <active: H_two_revision_cycles | retired>
   - h_advisory_cycles_observed: <integer>
+- J. Verdict-Edge Discipline: <n compliant> / <n sentence-clauses audited>  [sentence-scope manuscript-wide; orthogonal to register_class]
+  - Violations:
+    - <sentence-clause locator + heading_path, e.g. "§4.1 line 156 clause 2">: intensifier classes matched <a|b|c|combination>; tokens <list>; suggested_softening <text>; severity <MINOR/MAJOR/BLOCKER>; false_positive_candidate <true/false>
+  - Advisory-until flag: <active: J_two_revision_cycles | retired>
+  - j_advisory_cycles_observed: <integer>
 - Aggregate verdict: <PASS / BORDERLINE / MAJOR / BLOCKER>
-  - Rule: A single MAJOR = BORDERLINE. Two or more MAJORs in one section (or across the manuscript when Sub-check G or H contributes) = MAJOR aggregate. Any BLOCKER = BLOCKER aggregate. Any live BLOCKER at T3 blocks the `T3 → T3_converged` flip per `PHASE_PROTOCOL.md §3.3.3`, except that a Sub-check G BLOCKER under an active `advisory_until: next_manuscript_at_ph3` flag or a Sub-check H BLOCKER under an active `advisory_until: H_two_revision_cycles` flag is recorded as advisory and does not block the flip.
+  - Rule: A single MAJOR = BORDERLINE. Two or more MAJORs in one section (or across the manuscript when Sub-check G, H, or J contributes) = MAJOR aggregate. Any BLOCKER = BLOCKER aggregate. Any live BLOCKER at T3 blocks the `T3 → T3_converged` flip per `PHASE_PROTOCOL.md §3.3.3`, except that a Sub-check G BLOCKER under an active `advisory_until: next_manuscript_at_ph3` flag, a Sub-check H BLOCKER under an active `advisory_until: H_two_revision_cycles` flag, or a Sub-check J BLOCKER under an active `advisory_until: J_two_revision_cycles` flag is recorded as advisory and does not block the flip.
 ```
 
 **Severity aggregation and convergence contribution.** Check 8 feeds the T3 convergence gate directly. A live BLOCKER-grade Check 8 finding blocks the `T3 → T3_converged` flip regardless of line-diff stability; the Planner cannot close the `TerminalSignoffRow` while the finding is open (`PHASE_PROTOCOL.md §3.3.3`; `run-phase-3` SKILL.md §6). This is the architecture that makes T3 a genuine locus for reader-accessibility: a section can stop producing line diffs while still failing accessibility, and without this gate the convergence metric would issue `[CONVERGENCE-STABLE]` for a non-compliant section. Sub-checks A–F run per iteration at T3 at section scope; Sub-check G runs at T3 at full-manuscript scope, typically once per iteration round rather than per section; Sub-check H runs at T3 at passage scope (subset of section scope under `register_class: technical` and `mixed`; manuscript-scope under `register_class: non-technical`). The accessibility-finding trajectory (BLOCKER count, MAJOR count, and the A–F vs. G vs. H scale of each) is logged in `convergence_log.md` alongside the line-diff metric, making the reader-experience dimension visible to the iteration record at all three scales (local, cumulative, register). A Sub-check G BLOCKER under an active `advisory_until: next_manuscript_at_ph3` flag, or a Sub-check H BLOCKER under an active `advisory_until: H_two_revision_cycles` flag, is logged with its severity and locators but does not block the flip; the advisory is surfaced to the Reflector Phase 2g recurrence audit and to the eventual Ph4 close-out so the gap remains visible even though it is not enforced on the flagged manuscript.

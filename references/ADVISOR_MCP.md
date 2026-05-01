@@ -32,6 +32,21 @@ These are the **highest-leverage** moments discussed for submission defensibilit
 
 ---
 
+## 2.5 Tactical complement: the post-pass consult
+
+EP-1 and EP-2 are **strategic** entry points, gated to phase boundaries. They do not cover the tactical case where the executor has just finished an editorial pass that touched enough surface area that self-audit cannot reliably catch missed-instance and consistency-defect risks. A **post-pass consult** is the appropriate complement.
+
+| Field | Specification |
+|---|---|
+| **When** | Within a Ph3 round, after a completed editorial pass touching ≥ ~10 discrete edits, **before** the round closes. |
+| **Why** | Executor blind spots at the tactical level — sentence-pattern duplicates the executor refactored at one site but not another, internal-consistency drift between sibling fixes, reframings the executor’s own deferral-justifications obscure — are not what EP-1 / EP-2 catch. The advisor reading the post-pass file with no investment in the executor’s reasoning chain sees what the executor cannot. |
+| **How** | Frame the consult as a verdict on completed work. Supply both file paths (manuscript + change-record memo) so the advisor can cross-check executor claims against the file. The two-axis question shape works well: target selection (did the pass pick the right targets and miss any worse offenders) plus execution quality (do the new shapes preserve content, citations, register, without over-correction). Ask for concrete line references. |
+| **Disposition** | Accept the advisor’s reframing of deferred items where the executor’s deferral-justification turns out weaker than the advisor’s diagnosis — that finding type is the highest-leverage of the call, because the executor by definition could not have generated it. Record the consult and the resulting follow-up edits as a postscript section in the same memo that records the pass; do not start a new pass. |
+
+The post-pass consult is **not** a substitute for EP-1 or EP-2; it is orthogonal. A round can use both: EP-2 for normalization-blindspot at round close, post-pass within the round for tactical defects between sibling edits. Cost-gating, EXTERNAL tagging, and Step 1–7 procedure remain as in `advisor-escalation`. Provenance: first surfaced in INF3006Y `lessons_learned.md` L-26 (2026-04-28).
+
+---
+
 ## 3. Downstream on the ladder
 
 - Consultation **actionable items** flow to the **Planner** revision plan and may appear as `[source: advisor]` (see the skill) until independently verified for manuscript text at submission depth.

@@ -1,0 +1,40 @@
+====================================================
+=== skill-check =====================================
+====================================================
+SKILL INTEGRITY CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Shipped skills discovered: 32
+- Blockers: 0
+- Warnings: 0
+
+====================================================
+=== version-check ===================================
+====================================================
+VERSION CONSISTENCY CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Manifest version: 0.13.0
+- README latest version: 0.13.0
+- CHANGELOG top version: 0.13.0
+- Marketplace self-referencing entries: co-author-harness-claude=0.13.0
+- Blockers: 0
+- Warnings: 0
+
+====================================================
+=== catalog-check ===================================
+====================================================
+CATALOG PARITY CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Discovered skills: 32
+- Discovered commands: 16
+- README skills count: <missing>
+- Blockers: 0
+- Warnings: 0
+
+====================================================
+=== path-hygiene-check ==============================
+====================================================
+PATH HYGIENE CHECK
+- Plugin root: B:\Agents\co-author-harness
+- Blockers: 0
+
+=== done ============================================

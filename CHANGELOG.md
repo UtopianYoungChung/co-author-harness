@@ -6,6 +6,45 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.13.0 — 2026-04-30
+
+**What.** Voice / register / citation lessons batch from the INF3006Y late-April 2026 sessions. Six lesson clusters surfaced from the 2026-04-29 reverse-engineering handoff, the 2026-04-30 manuscript polish session, and the in-session voice round 2 + lay-term twin-fix. The patch closes operational-specificity gaps on existing C-1 / H surfaces and adds three new surfaces (Sub-check J under SAFEGUARD; new `CITATION_DISCIPLINE.md`; new top-level `EMDASH_BUNDLE_DISCIPLINE.md` with Generator binding). Per the Q5 versioning-policy answer, three new surfaces + one Generator default-behavior change put this batch firmly in MINOR territory.
+
+**Why.** Each lesson surfaced as a recurrent failure pattern. Voice/attribution drift across structurally parallel sites (the §3 hidden-assumption diagnoses; the §4.1/4.2/4.3 questions-framing predications) was C-1-discoverable in principle but not caught operationally because C-1 is a commitment, not a verb-set. Lay-term protocol violations recurred at structurally parallel sites (the §2 / §5 twin-paragraph pattern with identical "stipulating away" / "operational reductions that stabilize" phrases) but H lacked a twin-paragraph detector. Verdict-edge intensifier-stacking ("the very" + "supposed to" + "is eroded") drifted from diagnostic to verdict register without an existing sub-check to flag it. Citation discipline at register-boundary asides was operating implicitly but not codified. The em-dash bundle (humanizer rules 13 + 9 + 11) was partly captured at DETERMINISTIC_CHECKS §3 line 63 but the bundle-treatment discipline was not at top-level binding force, and a single em-dash audit was missing the co-occurrent rules 9 and 11.
+
+**How to apply.** Six clusters land in seven content patches:
+
+- **Cluster 3.1 — Voice / attribution discipline.** `STYLE_COMMITMENTS.md §1.1` (new): canonical first-person verb-set (`I identify`, `I read [X] as`, `I press`, `I find`, `I trace`, `I group`, `I mark`, `I characterize`); parallelism discipline requiring sibling-site audits within the same revision round; Reflector Check 6 treats sibling-site drift as higher severity than isolated drift.
+- **Cluster 3.2 — Verdict-edge / intensifier-stack discipline.** `SAFEGUARD_LAYER.md` Sub-check J (new, advisory_until J_two_revision_cycles): three-class intensifier counter (emphatic determiners / deontic-implicit phrasings / verdict verbs); cross-class stack of three or more fires; modal-distribution softening rule per the INF3006Y Fügener-finding precedent (`is eroded by the very X it is supposed to anchor` → `may not remain stable under the X to which it is supposed to anchor`).
+- **Cluster 3.3 — Twin-paragraph detection.** `skills/accessibility-overlay/references/sub_checks.md §H` step 1 augmented with `_twin_paragraph` probe; shibboleth phrases extracted from H finding's evidence field automatically; `twin_candidate_<location>` follow-on findings emitted on >0 outside-passage hits.
+- **Cluster 3.4 — Citation discipline at register-boundary asides.** `references/CITATION_DISCIPLINE.md` (new file): engagement-cite vs. demarcation-no-cite two-question test; INF3006Y precedent (`tool calls (Schick et al., 2023)` engagement-cite vs. `incentive-incompatibility` / `contract-net protocol` demarcation-no-cite); four edge cases.
+- **Cluster 3.5 — Lay-term protocol corpus addition.** `lay_term_lexicons.md §5` (new): seven drift-monitored paraphrase entries from the §2 / §5 twin-fix; mandatory `_corpus_drift` grep-cadence at every H-cycle; "Take X:" worked-example signpost-as-M4-vehicle pattern.
+- **Cluster 3.6 — Em-dash bundle elevation (top-level discipline + Generator binding).** `references/EMDASH_BUNDLE_DISCIPLINE.md` (new file, parallel binding force to GROUNDING_PROTOCOL): three co-occurrent rules (B1 em-dash / B2 negative parallelism / B3 triadic-list), mandatory co-audit at every Generator prose action, bundle delta check (post-action counts ≤ pre-action) enforced, multi-rule fixes commit in single revision pass; waiver requires explicit user instruction in current session naming paragraph + rule + rationale; inherited waivers from prior sessions invalid; Generator cannot self-waive. `agents/generator.md` second binding constraint added. `references/CLAUDE.md` row 9c registers the discipline.
+- **Cluster 3.6 (procedural) — Cross-file mirror grep discipline.** Memory entry under `feedback_*`: after any cross-file edit touching paired canonical files (.md/.tex), run two verifying greps before declaring sync complete (deprecated phrases must return zero; new phrases must return present in both files).
+
+**Files added or modified.**
+
+- `references/STYLE_COMMITMENTS.md` — new §1.1 (C-1 verb-set + parallelism rules)
+- `references/lay_term_lexicons.md` — new §5 (DRIFT-MONITORED corpus); v0.13.0 status header
+- `skills/accessibility-overlay/references/sub_checks.md` — new "Twin-paragraph probe (added v0.13.0)" sub-section under H step 1
+- `references/SAFEGUARD_LAYER.md` — new Sub-check J — Verdict-Edge Discipline; output-format augmented; aggregation rule line updated
+- `references/CITATION_DISCIPLINE.md` — new file (8 sections)
+- `references/EMDASH_BUNDLE_DISCIPLINE.md` — new file (6 sections)
+- `agents/generator.md` — Second binding constraint (em-dash bundle) at line 27
+- `references/CLAUDE.md` — rows 9c (EMDASH_BUNDLE_DISCIPLINE) and 9d (CITATION_DISCIPLINE) added to §3 components table
+- `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` — source memo
+- Memory: `feedback_cross_file_mirror_grep_discipline.md`
+
+**Lessons feed-forward (Reflector recurrence-audit candidates).**
+
+1. **Operational-specificity gap.** Three of the six clusters were "discoverable from C-1 / H principles in place but not operationally caught." The recurrence audit should monitor whether subsequent rounds emit findings against the new operational rules (verb-set, twin-paragraph probe, intensifier-stack floor) at meaningfully higher detection rates than prior rounds. If yes, the operational specificity is closing real gaps; if no, the lessons may have been overfit to INF3006Y.
+2. **Drift-monitored corpus path validation.** The `lay_term_lexicons.md §5` entries are anchored to live-manuscript source phrases. The `_corpus_drift` probe must run at every H-cycle on INF3006Y; first drift-detection on a contributing source phrase will validate or falsify the path-(a) approach. If multiple §5 entries flip to RETIRED within two cycles, the immutable `references/examples/` commit path becomes preferred for future corpora.
+3. **Bundle-treatment economy claim.** The em-dash bundle treatment claims "single audit pass with three-rule coverage" reduces Generator overhead vs. three separate audits. Reflector Phase 2g should monitor whether bundle-flagged paragraphs in subsequent rounds show co-occurrence of all three rules (validating the cluster-signal premise) or whether the rules fire independently (suggesting the bundle is a discipline-of-convenience rather than an empirical-cluster rule).
+
+**Severity / agent attribution.** No BLOCKER findings cleared; one D-02 / P0 register WARN closed (Edit 7 softening per cluster 3.2). No agent retirements or capability changes. Generator gains a second binding constraint (cluster 3.6, parallel to GROUNDING_PROTOCOL). Reflector Check 6 gains sibling-site drift weighting (cluster 3.1). Evaluator Sub-check H gains twin-paragraph probe (cluster 3.3) and Sub-check J (cluster 3.2). Skill count invariant unchanged. §6.0 coupling-checklist EXEMPT throughout (no schema change, no phase-runner step edit).
+
+---
+
 ## v0.12.3 — 2026-04-28
 
 **Marketplace-schema alignment patch.** v0.12.3 restructures
