@@ -1,4 +1,5 @@
 ---
+name: run-phase-4
 description: T4 Finalize & Close — strict superset of T3 with external verifiers required and G.4 sign-off
 ---
 

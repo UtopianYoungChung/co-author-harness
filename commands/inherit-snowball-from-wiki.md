@@ -1,4 +1,5 @@
 ---
+name: inherit-snowball-from-wiki
 description: Ph1 pre-seed — extract graphify community members adjacent to the current section and emit reviews/pre_seed.json for seed-snowball-discovery Phase 0; auto-invoked by seed-snowball-discovery when wiki_linked+inherit_snowball+graph.json fresh
 ---
 

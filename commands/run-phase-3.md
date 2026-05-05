@@ -1,4 +1,5 @@
 ---
+name: run-phase-3
 description: T3 Iterate & Converge — unbounded loop with convergence_metric two-round stability test
 ---
 

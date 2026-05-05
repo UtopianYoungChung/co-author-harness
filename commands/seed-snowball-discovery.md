@@ -1,4 +1,5 @@
 ---
+name: seed-snowball-discovery
 description: Ph1 entry — assemble references/REFERENCES.md from a section's claim register via Wohlin-style snowball saturation; wiki-graph substrate first; Class 1 verifier fall-through; in-loop wiki/sources/ stub write-back
 ---
 

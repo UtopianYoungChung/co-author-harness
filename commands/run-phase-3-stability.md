@@ -1,4 +1,5 @@
 ---
+name: run-phase-3-stability
 description: Ph3 stability sub-mode (v0.7.4, P-2) — reduced-envelope iteration admissible only when the manuscript is byte-stable
 ---
 

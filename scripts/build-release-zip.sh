@@ -168,6 +168,10 @@ zip -r -q -9 "$ZIP_PATH" . \
   -x "*/proposals/*" \
   -x "releases/*" \
   -x "*/releases/*" \
+  -x ".claude/*" \
+  -x "*/.claude/*" \
+  -x "*.plugin" \
+  -x "*.zip" \
   -x ".plugin-calibrator.json" \
   -x "docs/release-notes/RELEASE_NOTES_v0.5*.md" \
   -x "docs/release-notes/RELEASE_NOTES_v0.6*.md" \
@@ -207,6 +211,18 @@ fi
 BAD_PYC="$(unzip -l "$ZIP_PATH" | grep -c '\.pyc$' || true)"
 if [[ "$BAD_PYC" -gt 0 ]]; then
   printf 'error: zip contains %d .pyc entries\n' "$BAD_PYC" >&2
+  exit 6
+fi
+
+BAD_ARCHIVES="$(unzip -Z1 "$ZIP_PATH" | grep -Ec '\.(plugin|zip)$' || true)"
+if [[ "$BAD_ARCHIVES" -gt 0 ]]; then
+  printf 'error: zip contains %d nested archive entries\n' "$BAD_ARCHIVES" >&2
+  exit 6
+fi
+
+BAD_CLAUDE_STATE="$(unzip -Z1 "$ZIP_PATH" | grep -Ec '(^|/)\.claude/' || true)"
+if [[ "$BAD_CLAUDE_STATE" -gt 0 ]]; then
+  printf 'error: zip contains %d local .claude state entries\n' "$BAD_CLAUDE_STATE" >&2
   exit 6
 fi
 

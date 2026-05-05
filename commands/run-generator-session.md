@@ -1,4 +1,5 @@
 ---
+name: run-generator-session
 description: Session-sourced Generator — apply the current session's agreed revision instructions to manuscript/* under the real current_phase from reviews/phase_state.json
 ---
 

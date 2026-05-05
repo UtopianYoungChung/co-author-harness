@@ -1,4 +1,5 @@
 ---
+name: quick-deterministic
 description: Run fast mechanical pre-flight checks
 ---
 

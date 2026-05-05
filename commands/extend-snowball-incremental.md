@@ -1,4 +1,5 @@
 ---
+name: extend-snowball-incremental
 description: Ph2 in-loop snowball micro-iteration anchored on a single uncovered claim
 ---
 

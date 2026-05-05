@@ -1,4 +1,5 @@
 ---
+name: claim-coverage-audit
 description: Manually-invokable Ph1 → Ph2 admission audit — read manuscript/<section>.md and references/REFERENCES.md, deterministically extract claims, map each to resolving sources, emit a three-set coverage map (covered / partially-covered / uncovered) with score = covered/total at reviews/claim_coverage_<date>_<cycle_id>.md
 ---
 

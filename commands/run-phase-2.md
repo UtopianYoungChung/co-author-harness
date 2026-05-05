@@ -1,4 +1,5 @@
 ---
+name: run-phase-2
 description: T2 Review & Revise — first Evaluator-joined rung; full local-scope pass every entry
 ---
 

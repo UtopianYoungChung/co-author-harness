@@ -1,4 +1,5 @@
 ---
+name: plugin-commands
 description: List all plugin slash commands and usage moments
 ---
 

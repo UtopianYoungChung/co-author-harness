@@ -1,4 +1,5 @@
 ---
+name: run-phase-1
 description: T1 Plan & Draft — Planner bootstraps the 15-field section state; Generator drafts under the declared P-stage register
 ---
 

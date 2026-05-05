@@ -14,10 +14,10 @@ is excluded by definition. The `.gitignore` excludes `*.plugin` files, so
 the previously-built bundle (if present in `.claude-plugin/`) is invisible
 to `git ls-tree` and won't recurse into the new bundle.
 
-**Defense-in-depth.** The script filters `*.plugin` files from the bundle
+**Defense-in-depth.** The script filters archive files from the bundle
 even if `git ls-tree` returned them — protects against future `.gitignore`
-drift. A nested `*.plugin` file inside a `.plugin` archive violates the
-Cowork loader contract (zip cannot contain nested zip).
+drift. A nested archive file inside a `.plugin` archive violates the
+Cowork loader contract.
 
 **Output.** `<harness>/.claude-plugin/<plugin-name>.plugin` (plugin name read
 from `.claude-plugin/plugin.json`).
@@ -116,16 +116,17 @@ def main() -> int:
     files = [line for line in result.stdout.splitlines() if line.strip()]
     print(f"Tracked files: {len(files)}")
 
-    # Defense-in-depth: filter *.plugin files even if git ls-tree returned them.
-    # A nested .plugin inside a .plugin violates the Cowork loader contract
-    # (zip cannot contain nested zip). The .gitignore should already exclude
-    # *.plugin, so this filter is belt-and-braces against future drift.
-    filtered = [f for f in files if not f.endswith(".plugin")]
-    excluded_plugin_files = sorted(set(files) - set(filtered))
-    if excluded_plugin_files:
-        print(f"[WARN] excluding {len(excluded_plugin_files)} *.plugin file(s) "
+    # Defense-in-depth: filter archive files even if git ls-tree returned them.
+    # Nested archives violate the Cowork loader contract and can make upload
+    # installs fail. The .gitignore should already exclude generated archives,
+    # so this filter is belt-and-braces against future drift.
+    archive_suffixes = (".plugin", ".zip")
+    filtered = [f for f in files if not f.endswith(archive_suffixes)]
+    excluded_archive_files = sorted(set(files) - set(filtered))
+    if excluded_archive_files:
+        print(f"[WARN] excluding {len(excluded_archive_files)} archive file(s) "
               f"from bundle (defense-in-depth):", file=sys.stderr)
-        for f in excluded_plugin_files:
+        for f in excluded_archive_files:
             print(f"    {f}", file=sys.stderr)
     files = filtered
 
@@ -173,10 +174,10 @@ def main() -> int:
             else:
                 print(f"  [ERROR] missing from bundle: {required}", file=sys.stderr)
                 return 1
-        # Safety net: assert no nested *.plugin survived
-        nested = [n for n in names if n.endswith(".plugin")]
+        # Safety net: assert no nested archive survived.
+        nested = [n for n in names if n.endswith(archive_suffixes)]
         if nested:
-            print(f"[ERROR] nested .plugin file(s) in bundle: {nested}",
+            print(f"[ERROR] nested archive file(s) in bundle: {nested}",
                   file=sys.stderr)
             return 1
 

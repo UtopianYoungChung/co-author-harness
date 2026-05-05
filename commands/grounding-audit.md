@@ -1,4 +1,5 @@
 ---
+name: grounding-audit
 description: Run grounding protocol compliance audit
 ---
 

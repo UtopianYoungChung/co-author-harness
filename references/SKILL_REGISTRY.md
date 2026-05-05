@@ -71,6 +71,8 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ## Active skills
 
+**Current surface note (v0.14.0).** Active skills ship as `skills/<name>/SKILL.md` directories. The current ladder uses Ph1/Ph2/Ph3/Ph4 terminology, `reviews/phase_state.json`, `current_phase`, and `phase_entry_log`. Tier-era names such as `T1`, `T2`, `T3`, `T4`, `run-tier-*`, and `reviews/tier_state.json` appear below only in historical source notes, retired-skill migration notes, or ancestry descriptions.
+
 ### SK-01. `check-contradictions`
 - **File:** `skills/check-contradictions/SKILL.md`
 - **Pattern:** Theoretical contradiction between co-invoked sources (SAFEGUARD_LAYER Check 4)
@@ -96,74 +98,74 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Status:** Active
 
 ### SK-04. `classify-manuscript`
-- **File:** `skills/packaged/classify-manuscript.skill`
-- **Pattern:** Mandatory first-step classification before any review — gathers four inputs (paper type, P-stage, venue, depth), applies the gating table, and produces `reviews/classification.md`
+- **File:** `skills/classify-manuscript/SKILL.md`
+- **Pattern:** Mandatory first-step classification before any review — gathers paper type, P-stage, venue, and default final phase, applies the gating table, and produces `reviews/classification.md`
 - **Created:** 2026-04-11
 - **Source:** Tier 1 skill build — REVIEW_ORCHESTRATION.md §1 and §3 had no standalone entry point; users had to manually know to classify before reviewing
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Status:** Active
 
 ### SK-06. `run-reflection`
-- **File:** `skills/packaged/run-reflection.skill`
-- **Pattern:** Single-command entry point for the Reflector agent. **At v0.7.0 the Reflector dispatches in one of two modes**: (a) **lightweight** — Phases 1, 2.5, 2.6, 2f (tier-row contract audit), and 3 (memory-only) — invoked ad hoc within T1/T2/T3 cycles as an integrity probe, no skill proposals or plugin-update filings; (b) **full** — all five phases (evidence gathering, lesson extraction, grounding audit, memory update, skill development) plus the new audit phases 2d (T3 convergence trajectory), 2e ([T3-STALE] catalog and MCR volatility count), and 2f (tier-row contract audit) — invoked at T4 close-out only. Skill proposals and plugin-update proposals (`reviews/plugin_update_proposals.md`) are **full-mode-only** and route through the Planner three-filter gate (evidence-adequacy / non-duplication / tier-appropriateness) before the user sees them.
+- **File:** `skills/run-reflection/SKILL.md`
+- **Pattern:** Single-command entry point for the Reflector agent. The Reflector dispatches in two modes: (a) **lightweight** — evidence gathering, integrity probes, and memory-only learning during Ph1/Ph2/Ph3 rounds, with no skill proposals or plugin-update filings; (b) **full** — round-close evidence gathering, lesson extraction, grounding audit, memory update, skill development, convergence trajectory audit, `[Ph3-STALE]` / MCR volatility audit, and phase-row contract audit at Ph4 close-out. Skill proposals and plugin-update proposals (`reviews/plugin_update_proposals.md`) are **full-mode-only** and route through the Planner three-filter gate (evidence-adequacy / non-duplication / phase-appropriateness) before the user sees them.
 - **Created:** 2026-04-11; mode-split rewritten 2026-04-20 for v0.7.0
-- **Source:** Tier 1 skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Stage Ladder's unbounded T3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
-- **Tier:** Package (Cowork-installable .skill file)
+- **Source:** Early package skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Phase Ladder's unbounded Ph3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
+- **Tier:** Package
 - **Status:** Active
-- **Depends on:** `agents/reflector.md` Phases 1–6 (mode-gated as above), `references/TIER_PROTOCOL.md §11` (retirement ledger cross-reference), `agents/planner.md` (three-filter gatekeeper logic for proposal routing)
+- **Depends on:** `agents/reflector.md` Phases 1–6 (mode-gated as above), `references/PHASE_PROTOCOL.md §11` (retirement ledger cross-reference), `agents/planner.md` (three-filter gatekeeper logic for proposal routing)
 
 ### SK-07. `sentence-level-pass`
-- **File:** `skills/packaged/sentence-level-pass.md` (executable prompt); `.skill` stub also present
+- **File:** `skills/sentence-level-pass/SKILL.md`
 - **Pattern:** Targeted Bacon sentence-craft pass — 9-point checklist covering focus, balance, modification, variety, and rhythm; runs independently of the full pipeline
 - **Created:** 2026-04-11
 - **Source:** Tier 2 skill build — `bacon_2009_well_crafted_sentence_guidelines.md` had no standalone entry point; users had to invoke the full review to get sentence-level feedback
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 95.2% vs without_skill 42.8% (Δ +0.52)
 - **Status:** Active
 
 ### SK-08. `narrative-structure-pass`
-- **File:** `skills/packaged/narrative-structure-pass.md` (executable prompt); `.skill` stub also present
+- **File:** `skills/narrative-structure-pass/SKILL.md`
 - **Pattern:** Targeted Sexton narrative-structure pass — 10-item arc check covering central need, forward drive, show-then-tell, cause-and-effect, voice, and structural theme
 - **Created:** 2026-04-11
 - **Source:** Tier 2 skill build — `Sexton_Fiction_to_Academic_Writing_Guide.md` had no standalone entry point; arc checks were bundled into the full pipeline and never run in isolation
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 95.2% vs without_skill 42.8% (Δ +0.52)
 - **Status:** Active
 
 ### SK-09. `IS-theory-pass`
-- **File:** `skills/packaged/IS-theory-pass.md` (executable prompt); `.skill` stub also present
+- **File:** `skills/IS-theory-pass/SKILL.md`
 - **Pattern:** Targeted Baird IS-theory pass — five-element model, nine-step compliance table, six reviewer lenses, five rookie mistakes; IS-venue applicability gate included
 - **Created:** 2026-04-11
 - **Source:** Tier 2 skill build — `baird_2021_writing_guidelines.md` had no standalone entry point; IS-theory checks were embedded in Step 3 of the full review with no way to run them independently for quick venue-fit assessment
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 95.2% vs without_skill 42.8% (Δ +0.52)
 - **Status:** Active
 
 ### SK-10. `p-stage-checker`
-- **File:** `skills/packaged/p-stage-checker.md` (executable prompt); `.skill` stub also present
+- **File:** `skills/p-stage-checker/SKILL.md`
 - **Pattern:** Targeted P-stage verification — checks vocabulary drift, argument arc, five anti-patterns (premature RQs, missing forward handoff, P2 vocabulary in P1 conclusion), and contribution framing against declared P0/P1/P2 stage
 - **Created:** 2026-04-11
 - **Source:** Tier 3 skill build — P-stage verification was buried inside the full pipeline with no standalone entry point; without the skill, agents unilaterally reclassify manuscripts and miss the q-α/β/γ forward-handoff pattern
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 100.0% vs without_skill 41.1% (Δ +0.59)
 - **Status:** Active
 
 ### SK-11. `response-letter-review`
-- **File:** `skills/packaged/response-letter-review.md` (executable prompt); `.skill` stub also present
-- **Pattern:** Six-part response letter review — opening strength, discipline provenance, tone audit (defensive vs. constructive matrix), coverage completeness, scope hedging, SAFEGUARD Checks 1/4/5. At v0.7.0 this skill runs as a **manuscript-class within the Lifecycle-Stage Ladder** rather than a sibling ladder: response letters classify into T2 Review & Revise (mid-iteration) or T3 Iterate & Converge (resubmission-paired) depending on `reviews/classification.md`, and the same convergence-log and MCR machinery applies. The retired T3R sibling-rung framing is preserved only for migration-trail readability. Invoked via `/review-letter` (see Orchestration Commands below) and dispatched by the Planner when `reviews/classification.md` declares `paper_type: response-letter` or the user invokes the command directly.
+- **File:** `skills/response-letter-review/SKILL.md`
+- **Pattern:** Six-part response letter review — opening strength, discipline provenance, tone audit (defensive vs. constructive matrix), coverage completeness, scope hedging, and SAFEGUARD integrity checks. Response letters are treated as a manuscript class under the Lifecycle-Phase Ladder rather than a sibling ladder: the Planner classifies the response-letter document, routes the appropriate phase work, and preserves traceability between reviewer points, manuscript changes, and response prose. Invoked via `/review-letter` or directly as `response-letter-review`.
 - **Created:** 2026-04-11; reframed 2026-04-20 for v0.7.0 (T3R sibling ladder retired)
 - **Source:** Tier 3 skill build — `research_paper_writing_guidelines.md §8` response letter rules had no standalone review entry point; without the skill, agents miss edit traceability checks and structured priority-fix ranking
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 100.0% vs without_skill 41.1% (Δ +0.59)
 - **Status:** Active
-- **Lifecycle-Stage Ladder placement at v0.7.0:** Response-letter review is no longer a sibling ladder. When paired with a T4 manuscript pass (e.g., a resubmission), G.4 sign-off is required on the T4 manuscript per `REVIEW_ORCHESTRATION.md §3.3`; the response letter itself is reviewed at the manuscript's then-current tier. The retired T3R label is preserved in `TIER_PROTOCOL.md §11` for migration purposes only.
+- **Lifecycle-Phase Ladder placement:** Response-letter review is no longer a sibling ladder. When paired with a Ph4 manuscript pass (e.g., a resubmission), G.4 sign-off is required on the Ph4 manuscript per `REVIEW_ORCHESTRATION.md §3.3`; the response letter itself is reviewed under its declared phase and manuscript class. Historical T3R/T4R labels are preserved only in older release notes and migration history.
 
 ### SK-12. `grounding-audit`
-- **File:** `skills/packaged/grounding-audit.md` (executable prompt); `.skill` stub also present
+- **File:** `skills/grounding-audit/SKILL.md`
 - **Pattern:** Six-category GROUNDING_PROTOCOL compliance audit — citations (Rule 4), metrics (Rule 2), file paths (Rule 3), rule citations (Rule 1), gap-fill/fabrication (Rule 6), uncertainty markers (Rule 5); produces CLEAN or N VIOLATIONS verdict
 - **Created:** 2026-04-11
 - **Source:** Tier 3 skill build — `GROUNDING_PROTOCOL.md` grounding audit had no standalone entry point; without the skill, agents produce narrative audits that miss the formal category structure and N/A reporting for absent categories
-- **Tier:** Package (Cowork-installable .skill file)
+- **Tier:** Package
 - **Eval benchmark:** [ICI — see EVAL_METHODOLOGY.md] with_skill 100.0% vs without_skill 41.1% (Δ +0.59)
 - **Status:** Active
 
@@ -396,24 +398,24 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ## Orchestration Commands (v0.7.0)
 
-Net-new at v0.6.0; updated for v0.7.0 vocabulary (Lifecycle-Stage Ladder, Manuscript Convergence Report, T3_converged). These are **Planner-bound commands**, not skill files — they appear in the Planner's dispatch table at `agents/planner.md §Phase 2.5` and each resolves to one or more of the skills above under the ladder semantics of `references/TIER_PROTOCOL.md §§2–6`. They are registered here so users can discover them via SK-23 `plugin-commands` and the Evaluator can cross-reference them in findings.
+Net-new at v0.6.0; updated for current vocabulary (Lifecycle-Phase Ladder, Manuscript Convergence Report, `Ph3_converged`). These are **Planner-bound commands**, not skill files — they appear in the Planner's dispatch table at `agents/planner.md §Phase 2.5` and each resolves to one or more of the skills above under the ladder semantics of `references/PHASE_PROTOCOL.md`. They are registered here so users can discover them via SK-23 `plugin-commands` and the Evaluator can cross-reference them in findings.
 
 ### CMD-1. `/review`
 - **Dispatch target:** Planner Phase 2.5 command table.
-- **Pattern:** Default tier-agnostic review command. The Planner resolves scope precedence (1. `--section <heading-path>`, 2. `--subsection <heading-path>`, 3. most recent change per heading-path lookup, 4. first unlocked section below the applicable ceiling, 5. all-at-ceiling report) and then dispatches the matching `run-tier-N` skill per the section's `current_tier` in `reviews/tier_state.json`. The retired Confirmation Mode shortcut path is no longer attempted.
+- **Pattern:** Default phase-agnostic review command. The Planner resolves scope precedence (1. `--section <heading-path>`, 2. `--subsection <heading-path>`, 3. most recent change per heading-path lookup, 4. first unlocked section below the applicable ceiling, 5. all-at-ceiling report) and then dispatches the matching `run-phase-N` skill per the section's `current_phase` in `reviews/phase_state.json`. The retired Confirmation Mode shortcut path is no longer attempted.
 - **Sibling:** `/run-phase-1..4` are the explicit-dispatch analogs when the user wants to bypass the scope-inference rule.
 
 ### CMD-2. `/review-letter`
 - **Dispatch target:** Planner Phase 2.5 command table; resolves to SK-11 `response-letter-review`.
-- **Pattern:** Entry point for response-letter review at v0.7.0. The retired T3R sibling ladder is no longer invoked; instead, response letters classify into T2 Review & Revise (mid-iteration) or T3 Iterate & Converge (resubmission-paired) on the Lifecycle-Stage Ladder per the `paper_type` and `tier` declarations in `reviews/classification.md`. Escalation-out rules per `TIER_PROTOCOL.md §2.5` apply when the response letter triggers a T4 Finalize & Close manuscript pass.
+- **Pattern:** Entry point for response-letter review. The retired T3R sibling ladder is no longer invoked; instead, response letters classify as manuscript-class artifacts under the Lifecycle-Phase Ladder per `paper_type` and phase declarations in `reviews/classification.md`. Escalation-out rules per `PHASE_PROTOCOL.md` apply when the response letter triggers a Ph4 Finalize & Close manuscript pass.
 
 ### CMD-3. `/cancel-climb`
 - **Dispatch target:** Planner Phase 5.5 post-approval and Phase 6 Manuscript Convergence Report cycles.
-- **Pattern:** User-initiated cancellation of an in-flight climbing cycle (MCR section-by-section advance, T4 admission sequence, or multi-section ladder advance). Updates `reviews/tier_state.json` with `trigger: mcr_climbing_cancelled` in the `tier_entry_log` (renamed from `laggard_clearance_cancelled`); preserves `last_approved_tier` so no work is lost. Grounding: `TIER_PROTOCOL.md §6`.
+- **Pattern:** User-initiated cancellation of an in-flight climbing cycle (MCR section-by-section advance, Ph4 admission sequence, or multi-section ladder advance). Updates `reviews/phase_state.json` with `trigger: mcr_climbing_cancelled` in `phase_entry_log` (renamed from `laggard_clearance_cancelled`); preserves `last_approved_phase` so no work is lost. Grounding: `PHASE_PROTOCOL.md`.
 
 ### CMD-4. `/raise-ceiling`
-- **Dispatch target:** Planner Phase 2.5 command table; writes to `reviews/tier_state.json`.
-- **Pattern:** User-initiated upward revision of the applicable ceiling on a section, either by raising `section_ceiling_override` (per-section) or by raising `default_final_tier` (manuscript-wide). Emits `trigger: ceiling_raised` in the `tier_entry_log` (six-field row shape: `prev_tier`, `new_tier`, `trigger`, `actor`, `notes`, `timestamp`). The converse operation — locking a section at a lower ceiling — happens automatically on approval at that tier; `/cancel-climb` cannot lower the ceiling.
+- **Dispatch target:** Planner Phase 2.5 command table; writes to `reviews/phase_state.json`.
+- **Pattern:** User-initiated upward revision of the applicable ceiling on a section, either by raising `section_ceiling_override` (per-section) or by raising `default_final_phase` (manuscript-wide). Emits `trigger: ceiling_raised` in `phase_entry_log`. The converse operation — locking a section at a lower ceiling — happens automatically on approval at that phase; `/cancel-climb` cannot lower the ceiling.
 
 ---
 

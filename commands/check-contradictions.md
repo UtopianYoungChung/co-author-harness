@@ -1,4 +1,5 @@
 ---
+name: check-contradictions
 description: Run contradiction audit across co-invoked sources
 ---
 

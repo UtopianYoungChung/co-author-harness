@@ -1,4 +1,5 @@
 ---
+name: classify-manuscript
 description: Classify paper type, P-stage, venue, and default final tier (T1–T4 / T3R) of the v0.7.0 Lifecycle-Stage Ladder
 ---
 

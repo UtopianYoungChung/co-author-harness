@@ -36,7 +36,7 @@
 #       plugin-calibrator CLI is available, runs `audit-package-speed` and
 #       BLOCKs if `max_subagent_chain_depth` exceeds the config's
 #       `thresholds.max_chain_depth` (default 15).
-#  11. Builds a .zip bundle of the plugin source (excluding setup/, .mcpb-cache/, .git/, unpacked/, archives/, releases/).
+#  11. Builds a .zip bundle of the plugin source (excluding setup/, .mcpb-cache/, .git/, unpacked/, archives/, releases/, local .claude state, and nested archives).
 #  12. Inspects the in-archive plugin.json and reports its version and description length.
 #  13. If an --outputs-dir is supplied, scans for stale deliverables under filenames
 #      other than the current bundle name.
@@ -718,7 +718,8 @@ if (( BUILD == 1 )); then
     ( cd "$PLUGIN_ROOT" && zip -r "$BUNDLE_PATH" . \
         -x "setup/*" ".mcpb-cache/*" "**/.mcpb-cache/*" ".git/*" \
            "unpacked/*" "*/unpacked/*" "archives/*" "*/archives/*" \
-           "releases/*" "*/releases/*" > /dev/null )
+           "releases/*" "*/releases/*" ".claude/*" "*/.claude/*" \
+           "*.plugin" "*.zip" > /dev/null )
     echo "  Built: $( ls -la "$BUNDLE_PATH" | awk '{print $5" bytes"}' )"
 
     # Verify in-archive manifest matches source
@@ -731,6 +732,15 @@ if (( BUILD == 1 )); then
         echo "  [OK]      in-archive manifest matches source (version=$IN_ARCHIVE_VERSION, desc_len=$IN_ARCHIVE_DESC_LEN)"
     else
         echo "  [BLOCKER] in-archive manifest drift: source=$CURRENT_VERSION/$CURRENT_DESC_LEN  archive=$IN_ARCHIVE_VERSION/$IN_ARCHIVE_DESC_LEN"
+        BLOCKERS=$((BLOCKERS + 1))
+    fi
+
+    NESTED_ARCHIVES=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '\.(plugin|zip)$' || true )
+    LOCAL_CLAUDE_STATE=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '(^|/)\.claude/' || true )
+    if [[ "$NESTED_ARCHIVES" -eq 0 && "$LOCAL_CLAUDE_STATE" -eq 0 ]]; then
+        echo "  [OK]      bundle excludes nested archives and local .claude state"
+    else
+        echo "  [BLOCKER] bundle contains nested archives=$NESTED_ARCHIVES local_claude_state=$LOCAL_CLAUDE_STATE"
         BLOCKERS=$((BLOCKERS + 1))
     fi
     echo ""
