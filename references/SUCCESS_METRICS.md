@@ -185,6 +185,16 @@ A manuscript is **submission-ready** when:
 
 ---
 
+## 7a. Output economy metrics (v0.14.0)
+
+These metrics complement D1–D6 when measuring harness efficiency:
+
+- **Time-to-next-draft:** elapsed time from phase start to manuscript delta.
+- **Evidence-to-output ratio:** evidence packets written divided by human-facing Markdown reports emitted by default.
+- **Accepted-action yield:** approved actions completed divided by actions proposed.
+- **Report deferral compliance:** routine reports deferred until round close unless an escalation rule fired.
+- **Human-facing report default count** and **legacy report path mention count** (telemetry keys may live in `.plugin-efficiency.json` under `output_economy_baseline` / `output_economy_targets`).
+
 ## 8. When Metrics Conflict with Judgment
 
 Metrics are instruments, not verdicts. If the Evaluator's judgment says the piece is not ready but the metrics say it is (e.g., WFC = 0 but the argument is conceptually weak in a way no rule captures), the Evaluator's judgment wins. The Reflector should flag the gap and consider whether a new check or rule is needed.

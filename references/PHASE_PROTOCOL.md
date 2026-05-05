@@ -32,6 +32,8 @@ Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human appr
 
 **Reflector re-expansion — explicit reversal of v0.6.0 §9.2.** v0.6.0 scoped the scheduled Reflector to Ph4-only, calling this a "real capability reduction at intermediate phases" and deferring re-expansion to v0.6.1. v0.7.0 reverses this deferral and reinstates the Reflector in *lightweight* mode at Ph1, Ph2, and Ph3, reserving *full* mode for Ph4. The grounding-integrity, divergence, drift, and reflexivity checks that a lightweight Reflector performs are now stage-specific safety surfaces that cannot be deferred to Ph4 without compromising the lifecycle handoffs. Cost consequence: Reflector-lightweight invocation adds 60–120 seconds per round per section on the grounding-audit path; `TOKEN_BUDGET_PROTOCOL.md` absorbs this overhead.
 
+**Output economy clause (v0.14.0).** The Lifecycle-Phase Ladder certifies paper movement, not report volume. Ph1–Ph3 default to compact evidence packets plus decision checkpoints. Human-facing per-phase reports are required only when a phase gate blocks, a verifier fails, an unsafe edit condition appears, or the user explicitly requests the report. Ph4 or explicit round close assembles the final human-facing report from evidence packets, revision logs, and `reviews/phase_state.json`. Normative contract: `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 2. Theoretical framing

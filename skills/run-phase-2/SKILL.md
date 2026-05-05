@@ -9,6 +9,18 @@ version: 0.7.4
 
 **Grounding basis:** `references/PHASE_PROTOCOL.md §§3 (lifecycle), 3.2 (Ph2 charter), 7 (escalation gates; EG-3 cross-scope)`; `references/GROUNDING_PROTOCOL.md §Rule 1 full-file reads (phase-gated digest exception retired at v0.7.4)`; `references/phase_state_schema.md §2 (18-field section object at v0.10.0 S4 — `references_initialized` at S2, `last_coverage_score` at S4), §3.1 (31-trigger enum at v0.10.0 S2 — `seed_snowball_signed` added), §3a.1 (PhaseEntryLogRow shape), §6.1 failure codes including E-PSTAGE-REQUIRED-AT-Ph2`; `agents/evaluator.md`; `agents/planner.md §Phase 3.8` (canonical Ph2 Step 0.5 dispatch contract — three-outcome handler authoritative); `references/phase_notifications.yaml §§1 (ph2_entry, ph2_exit_signed), 4 (W-COVERAGE-BELOW-THRESHOLD, E-COVERAGE-AUDIT-FAILED at v0.10.0 S4; W-SNOWBALL-PRECONDITION-UNMET, E-SNOWBALL-MID-RUN-FAILURE at v0.10.0 S2)`; `skills/claim-coverage-audit/SKILL.md` (SK-34, S3 deliverable — Step 0.5 Part (b) dispatches this skill); `skills/extend-snowball-incremental/SKILL.md` (SK-35, S4 deliverable — auto-dispatched per uncovered claim from SK-34's BELOW_THRESHOLD verdict).
 
+## Output Profile
+
+Default profile: `silent_evidence`.
+
+Human-facing output during this phase is limited to:
+
+- the manuscript delta or action list the user must approve;
+- phase gate decisions;
+- exception reports for blockers, verifier failures, stale state, or unsafe edits.
+
+All routine check details are written to `reviews/.harness/evidence/<event_id>.json` (append `reviews/.harness/events.jsonl`) and summarized only in the final round report. Use `round_id` / `event_id` per `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 1. What this stage does
@@ -84,7 +96,17 @@ If any precondition fails, the Planner refuses dispatch and surfaces the failure
 | **`confirmation_failed` trigger** | **RETIRED (read-only)** | v0.6.0-migrated rows preserved; no v0.7.0 write emits it. |
 | **Two-column canonical-body diagnostic diff (R-03)** | **RETIRED** | No Confirmation Mode → no diagnostic. Evaluator's local-pass findings report replaces it. |
 
-## 7. Artefacts produced
+## 7. Required outputs
+
+- Manuscript delta or approved no-change rationale.
+- Compact entry in `manuscript/revision_log.md`.
+- State update in `reviews/phase_state.json` when the phase gate changes.
+- Evidence packet at `reviews/.harness/evidence/<event_id>.json` (and matching `events.jsonl` row) for the Ph2 evaluation cycle.
+- Human-facing exception report only when an escalation rule fires.
+
+### Exception report surfaces
+
+Legacy Markdown artefacts may still be produced when exception paths or verifier contracts require human-readable prose:
 
 - `reviews/ph2_deterministic_<YYYY-MM-DD>_<cycle_id>.md` — full-file deterministic subset report.
 - `reviews/ph2_findings_<YYYY-MM-DD>_<cycle_id>.md` — Evaluator Steps 1–3 + integrated checklist.

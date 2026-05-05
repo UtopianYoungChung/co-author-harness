@@ -60,7 +60,7 @@
 
 **Invariants.**
 - I-Planner-1: Never writes to `manuscript/*`.
-- I-Planner-2: Never writes to `reviews/step_findings/*` or `reviews/consolidated_findings_report.md`.
+- I-Planner-2: Never writes to `reviews/step_findings/*`. Never writes a **full** `reviews/consolidated_findings_report.md` as routine output; **compatibility pointers** at that path (short Markdown stub per `OUTPUT_ECONOMY_PROTOCOL.md` §9) and **F8** `reviews/final_round_report_<round_id>.md` assembly are permitted.
 - I-Planner-3: Every agent dispatch declares (a) the phase per `ROUTING_SPINE.md`, (b) the exit gate, (c) the entry artifact.
 - I-Planner-4: Every user checkpoint names the current phase and the next-expected phase.
 - I-Planner-5 (v0.7.3): Resolves the Claude model each dispatched subagent runs on from `MODEL_ALLOCATION.md §2`, passes the resolved string as the Agent tool's `model` parameter, and records the dispatch in `reviews/phase_state.json` `phase_entry_log[].notes` as `model_dispatch:{agent}:={model}` (or `model_override:{agent}-{tier}:={model}` under an active project directive). Refuses any round that would produce a capability inversion (Evaluator below Generator on `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}`) with `E-MA-CAPABILITY-INVERSION`. No per-agent frontmatter `model:` field is authoritative; if present on any agent definition, it is ignored in favour of the `MODEL_ALLOCATION.md` lookup.
@@ -320,6 +320,17 @@ At the close of every round, the Reflector verifies contract compliance with a l
 | Did the Planner dispatch an agent / model / phase combination that does not appear in the approved F6 dispatch plan (I-Planner-10 / P-1 plan-drift rule)? | Planner | `reviews/dispatch_plan_<cycle_id>.md` `dispatched_agents[]` entries vs. actors / phases / model strings observed in `phase_state.json log[]` for the same `cycle_id` (`R-Refl-DP-1` MAJOR) |
 | Did a round produce F1 / F2 / F3 / F5 artefacts without a corresponding F6 dispatch-plan artefact present (I-Planner-10 / P-1 plan-presence rule)? | Planner | Per-cycle `reviews/dispatch_plan_<cycle_id>.md` existence check; absence with any downstream artefact in the same cycle is `R-Refl-DP-2` BLOCKER |
 | Did any downstream artefact cite a `dispatch_plan_reference` whose target F6 lacks a populated `user_approval_signature` (I-Planner-10 / P-1 consent rule)? | Planner | F5 / F1 `dispatch_plan_reference` pointer dereferenced; target F6's `user_approval_signature.approved_at` must be non-empty; absence is `R-Refl-DP-3` BLOCKER |
+
+## Output economy contract (v0.14.0)
+
+Normative label: **Output Economy Contract** (this section). All agents preserve auditability without defaulting to report proliferation.
+
+- **Planner** owns output-profile selection (`silent_evidence`, `decision_checkpoint`, `final_report`, `exception_report` per `references/OUTPUT_ECONOMY_PROTOCOL.md`), `round_id` / `event_id` assignment, **F8** final round report assembly (the human-facing **final report**) at Ph4 or explicit round close, and **compatibility pointers** at legacy paths when required.
+- **Evaluator** owns **F7** evidence packets and short action lists; full Markdown findings (legacy F1) are **exception outputs** only.
+- **Generator** owns manuscript deltas and compact `revision_log.md` entries; not routine reader-facing findings reports.
+- **Reflector-lightweight** is blocker-triggered during Ph1–Ph3; **Reflector-full** runs at Ph4 or explicit round close.
+
+No agent may require a routine human-facing report when an evidence packet satisfies the audit need and no escalation rule has fired.
 
 Violations are recorded in `reviews/reflection_report.md` §6 (Contract Audit) and, if recurrent, escalated to `DO_NOT_DISTURB.md` as frozen corrective rules.
 

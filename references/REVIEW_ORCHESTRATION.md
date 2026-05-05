@@ -99,6 +99,16 @@ The Planner reads the `tier:` field from `reviews/classification.md` and the per
 
 **Migration from v0.6.0 (and transitively from v0.5.5).** Classification records written under v0.6.0 that carry `tier: T4_ready` are remapped at first read: `T4_ready → T3_converged`. The `tier_entry_log` pipe-row and JSON column names change from `from_tier` / `to_tier` to `prev_tier` / `new_tier`. Records that carry the retired trigger `confirmation_failed` are preserved **read-only** by `scripts/migrate_v060_to_v070.py` so that the Reflector-full's Phase 2b NEW-H-4 audit at T4 can still aggregate the historical Confirmation Mode dataset; the trigger does not fire natively at v0.7.0. Fresh v0.6.0 → v0.7.0 migrations emit a `migration_report_hold` row that the Planner must resolve before the next T2 dispatch. See `references/TIER_PROTOCOL.md §10` for the per-field migration map and `docs/release-notes/RELEASE_NOTES_v0.7.0.md` for the full breaking-change register.
 
+## 3a. Output modes (v0.14.0 output economy)
+
+Evaluator outputs are split into three forms:
+
+1. **`evidence_packet`:** machine-readable check evidence stored under `reviews/.harness/evidence/<event_id>.json` (F7), indexed in `reviews/.harness/events.jsonl`.
+2. **`action_list`:** short human-facing list of BLOCKER and MAJOR actions needed for manuscript movement, plus a MINOR count; details live in the evidence packet unless the user escalates.
+3. **`final_report`:** end-of-round synthesis assembled from evidence packets and revision logs (`reviews/final_round_report_<round_id>.md`, F8).
+
+Routine per-step detail is written as evidence packets. A Markdown findings report in the legacy F1 shape is an **exception output**, used when a blocker requires user adjudication, a phase gate fails, or the user requests the full report. Normative rules: `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 4. What to emit at each step (per-step findings format)

@@ -55,7 +55,9 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
    - `manuscript/revision_log.md` — what has been done so far
    - `reviews/classification.md` — existing classification, if any (v0.7.4 `default_final_phase:` field retained from v0.7.0 (originally `default_final_tier` at v0.6.0))
    - `reviews/phase_state.json` — the per-section ledger (v0.7.0). Sole writer: you. Readers: every agent. Schema: 9 top-level keys × 16-field SectionStateObject × 7-field PhaseEntryLogRow (v0.8.0 ledger shape on v0.7.4 `schema_version`; absent-means-null `model_used`).
-   - `reviews/consolidated_findings_report.md` — most recent findings, if any
+   - `reviews/final_round_report_<round_id>.md` — most recent round-close synthesis (v0.14.0+), if any
+- `reviews/.harness/events.jsonl` and `reviews/.harness/evidence/*.json` — output-economy audit trail (v0.14.0+)
+- `reviews/consolidated_findings_report.md` — legacy consolidated findings or **compatibility pointer**; treat as legacy if body is a pointer stub
    - `reviews/escalation_log.md` — prior-round gate firings (read-only during dispatch; you still append to it on current-round transitions). Row columns are `prev_phase -> new_phase` (renamed from v0.6.0 `from_tier -> to_tier` through v0.7.0 `prev_tier -> new_tier` to v0.7.4 `prev_phase -> new_phase`).
    - `reviews/convergence_log.md` — Ph3 per-iteration record (new at v0.7.0; append-only)
    - `reviews/ph3_convergence_signoff.md` — cumulative Ph3 signoff artefact (new at v0.7.0; carries `TerminalSignoffRow` and `ReengagementSignoffRow` entries per `phase_state_schema.md §3a.2`/§3a.3)
@@ -105,7 +107,7 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
 ## What you do NOT do
 
 - **Never edit the manuscript.** If you see a problem, describe it in the revision plan. The Generator applies fixes.
-- **Never produce review artefacts.** The Evaluator produces deterministic checks, step findings, and the consolidated report.
+- **Never author Evaluator-class artefacts** (step-level findings files, deterministic pass bodies, safeguard appendices). The Evaluator produces those surfaces. You **do** assemble **F8** final round reports and **compatibility pointers** per `OUTPUT_ECONOMY_PROTOCOL.md` (v0.14.0).
 - **Never skip user approval.** Every decision point (classification, plan, dispatch, MCR approval, tier close) is presented to the user before proceeding. The only exception is **auto-advance within an approved MCR climb** (`PHASE_PROTOCOL.md §9`) or **an approved `/review --chain`** (`PHASE_PROTOCOL.md §8.3`), and even those halt on rejection or on `W-Ph3-DRIFT-EXCEEDED-TOLERANT` surfacing during a Ph3 iteration.
 - **Never write to `phase_state.json` concurrently.** If mtime + sha256 check fails, present the `[CONCURRENCY-DETECTED]` prompt (`PHASE_PROTOCOL.md §8.7`) and wait for user resolution.
 - **Never auto-elect at any checkpoint.** User approval is authoritative; unread responses hold the checkpoint indefinitely.
@@ -151,6 +153,23 @@ cache = {
 5. **Logging.** The cache emits no ledger rows on hit; a `CACHE-INVALIDATED-EXTERNAL-WRITE` advisory is the only cache-related signal that reaches Phase 2f. Reflector Phase 2f files `R-Refl-Cache-1` **MAJOR** for a stale-key round-close (the F5 artefact's `grounding_basis` cites a file whose end-of-round hash differs from round-entry hash without an intervening write-through or documented invalidation) and `R-Refl-Cache-2` **MINOR** for a re-read storm (distinct file reads per round exceeding a threshold implausible under a correctly-invalidated cache — default threshold: 3× the count of distinct cached files in the round).
 
 **Why.** Iter-7 of INF3006Y attributed ~18% of its ~80% cost overrun to a re-read storm on the three keyed files (n=1; see Ph.D.-root CLAUDE.md §12.10). The cache is the structural fix; the Reflector audit is the insurance that the fix is actually in place.
+
+### Output Profile Routing (v0.14.0 output economy)
+
+Choose the active output profile per `references/OUTPUT_ECONOMY_PROTOCOL.md` for every dispatch tranche:
+
+- **`silent_evidence`** — default for routine checks; manuscript movement + F7 evidence + compact state updates only.
+- **`decision_checkpoint`** — when the user must approve, reject, defer, or choose scope; short human-facing checkpoint.
+- **`final_report`** — at Ph4 or explicit round close (see **Final Report Assembly** below).
+- **`exception_report`** — when a blocker, verifier failure, unsafe edit condition, or contradictory state halts manuscript movement.
+
+You own `round_id` at round open and monotonic `event_id` values for each evidence write. Route routine work away from legacy Markdown findings surfaces unless an escalation rule fires.
+
+### Final Report Assembly (v0.14.0 output economy)
+
+At Ph4 or explicit round close, read `reviews/.harness/events.jsonl`, filter lines for the active `round_id`, load each referenced F7 evidence packet, merge with `manuscript/revision_log.md` and `reviews/phase_state.json`, and write `reviews/final_round_report_<round_id>.md` following `references/templates/final_round_report.md`. If legacy Markdown reports exist for the round but no F7 packet covers a claim, treat those paths as **legacy evidence sources** and record `legacy_source: true` in the Evidence Summary prose.
+
+When a legacy report path is expected by an in-progress project, write a **compatibility pointer** at the legacy path instead of duplicating a full report. The pointer must name the replacement evidence packet path and the final report path (selection rule: `OUTPUT_ECONOMY_PROTOCOL.md` §9.1 — latest matching `events.jsonl` line, else greatest on-disk `event_id` for the round).
 
 ### Phase 0.6 — Round dispatch plan (v0.7.4 P-1; v0.8.0 F6 §7a.2 + P-16)
 

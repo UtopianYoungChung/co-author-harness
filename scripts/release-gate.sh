@@ -17,6 +17,8 @@
 #   6. Runs scripts/version-check.py for release-version consistency.
 #   7. Runs scripts/catalog-check.py for README and registry parity checks.
 #   8. Runs scripts/path-hygiene-check.py for maintainer-local path hygiene.
+#   8a. [v0.14.0] Runs scripts/output_economy_check.py then
+#       scripts/output_economy_smoketest.py (F7/F8 fixture + artefact validator).
 #   9. [Retired at v0.7.0] Rule-digest build-and-verify. The tier-gated digest
 #      exception (GROUNDING_PROTOCOL Rule 1, v0.6.0 and earlier) was retired in
 #      v0.7.0 in favour of full-file reads at every rung. `scripts/
@@ -281,6 +283,40 @@ if [[ -f "$PLUGIN_ROOT/scripts/path-hygiene-check.py" ]]; then
 else
     echo "Path hygiene checks: script missing (scripts/path-hygiene-check.py)"
     echo "  [BLOCKER] cannot run path hygiene checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.61: output economy guard + smoketest (v0.14.0) ---------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/output_economy_check.py" ]]; then
+    echo "Output economy static guard (phase skills + agent contracts)"
+    if ! python3 "$PLUGIN_ROOT/scripts/output_economy_check.py"; then
+        echo "  [BLOCKER] scripts/output_economy_check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/output_economy_check.py passed"
+    fi
+    echo ""
+else
+    echo "Output economy check: script missing (scripts/output_economy_check.py)"
+    echo "  [BLOCKER] cannot run output economy check"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+if [[ -f "$PLUGIN_ROOT/scripts/output_economy_smoketest.py" ]]; then
+    echo "Output economy smoketest (F7/F8 fixture)"
+    if ! python3 "$PLUGIN_ROOT/scripts/output_economy_smoketest.py"; then
+        echo "  [BLOCKER] scripts/output_economy_smoketest.py failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/output_economy_smoketest.py passed"
+    fi
+    echo ""
+else
+    echo "Output economy smoketest: script missing (scripts/output_economy_smoketest.py)"
+    echo "  [BLOCKER] cannot run output economy smoketest"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi

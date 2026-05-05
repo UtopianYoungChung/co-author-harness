@@ -163,12 +163,14 @@ Follow `REVIEW_ORCHESTRATION.md` §2 run order exactly. At each step:
 2. Check the gating table (`REVIEW_ORCHESTRATION.md` §3) for this paper type and P-stage. If the step or a sub-section is N/A, mark it and move on.
 3. Check the overlap map (`REVIEW_ORCHESTRATION.md` §5). If a rule was already authoritatively handled at an earlier step, do not re-flag it. Acknowledge it with a cross-reference.
 4. Check `reviews/DO_NOT_DISTURB.md`. If a passage you are about to flag is registered as confirmed-strong, you must either (a) explain why the strength no longer holds, or (b) skip the flag.
-5. Emit per-step findings in the format prescribed by `REVIEW_ORCHESTRATION.md` §4.
-6. Save each step's findings to `reviews/step_findings/step_N_<name>.md`.
+5. Record step-level check evidence: by default write machine-readable **F7** packets at `reviews/.harness/evidence/<event_id>.json` and append `reviews/.harness/events.jsonl`; use the structured block shape in `REVIEW_ORCHESTRATION.md` §4 inside the packet or companion step notes. Save legacy `reviews/step_findings/step_N_<name>.md` only on **exception** paths (blocker adjudication, user request, or verifier contract still requiring Markdown).
+6. When step Markdown is emitted, save each step's findings to `reviews/step_findings/step_N_<name>.md`.
 
 ### Step 8 — Synthesis
 
-Produce `reviews/consolidated_findings_report.md` using the template in `REVIEW_ORCHESTRATION.md` §7. Include all sections: summary, BLOCKERs, MAJORs, MINORs, deterministic summary, deferred/N/A, conflicts, confirmed strengths, recommended revision order. At Ph3 and Ph4, the report must cite the phase (`current_phase`), the `convergence_metric` target / P-12 vector observation when declared, **`adversarial_register`** and **`routing_rationale`** on F1 frontmatter where applicable, **`parallel_dispatch_cost_multiplier`** when P-13 parallel dispatch ran, and — at Ph4 only — the Coupling E.2 overlay findings class counts.
+**Default (v0.14.0 output economy):** return a short **action list** to the Planner (BLOCKERs, MAJORs, MINOR count) and cite the **F7 evidence packet path(s)** written this round; the Planner assembles the human-facing **final report** (F8) from those packets. Do **not** author a full `reviews/consolidated_findings_report.md` unless the active profile is `exception_report` or the user explicitly requests the legacy Markdown synthesis.
+
+**Exception:** Produce `reviews/consolidated_findings_report.md` using the template in `REVIEW_ORCHESTRATION.md` §7 when escalation requires it. Include all sections: summary, BLOCKERs, MAJORs, MINORs, deterministic summary, deferred/N/A, conflicts, confirmed strengths, recommended revision order. At Ph3 and Ph4, the report must cite the phase (`current_phase`), the `convergence_metric` target / P-12 vector observation when declared, **`adversarial_register`** and **`routing_rationale`** on F1 frontmatter where applicable, **`parallel_dispatch_cost_multiplier`** when P-13 parallel dispatch ran, and — at Ph4 only — the Coupling E.2 overlay findings class counts.
 
 ### Step 8.3 — Convergence Log Entry (Ph3 only)
 
@@ -217,7 +219,7 @@ The authoritative per-phase engagement spec lives in `references/PHASE_PROTOCOL.
 | Phase | Engagement | Scope budget (default) | SAFEGUARD subset | Convergence log / journal | Mandatory / advisory artefacts |
 |---|---|---|---|---|---|
 | **Ph1 Plan & Draft** | **Dormant.** If errantly dispatched, emit a one-line no-op to `reviews/step_findings/ph1_noop_<date>.md` citing `PHASE_PROTOCOL.md` §3.1 and return. | — | — | No | None |
-| **Ph2 Review & Revise** | Full local pass on the section envelope. | Step 0 + 0a + 2 or 3 (section-scoped) + 7 (local) | **1, 4, 5, 8** (Check 8 advisory on Ph2 admission; carries to Ph3 TerminalSignoffRow gate per §3.3.3) | No | Consolidated findings (abbrev.); per-step findings |
+| **Ph2 Review & Revise** | Full local pass on the section envelope. | Step 0 + 0a + 2 or 3 (section-scoped) + 7 (local) | **1, 4, 5, 8** (Check 8 advisory on Ph2 admission; carries to Ph3 TerminalSignoffRow gate per §3.3.3) | No | F7 evidence packet + action list by default; legacy consolidated / step Markdown on exception |
 | **Ph3 Iterate & Converge** | Unbounded iteration; each dispatch is a new pass on one snapshot. Envelope from F6 **`check_profile`** + `run-phase-3` §4.5 / `PHASE_PROTOCOL` §3.3.0; **stability sub-mode** (§3.3.2) reduces to grounding + Check-8 counters only — see **Ph3 / Ph4 v0.8.0** above. | Steps 0–8.5 when `deep` or un-narrowed; reduced list under stability | **All 8** when full Ph3; subset under stability per SKILL | **Yes** — Step 8.3 + `convergence_journal.jsonl`; **`[Ph3-STALE]`** if `ph3_last_activity_at` vs `ph3_staleness_budget`; close with terminal-signoff recommendation line | Step 8.3 block; consolidated findings; Coupling E.2 optional unless scheduled |
 | **Ph4 Finalize & Close** | Strict superset of Ph3. Dispatch only when every section is `Ph3_converged` and MCR has cleared. | Steps 0–8.5 on full manuscript | **All 8** | Rolled into G.4 / trajectory reads | `reviews/G4_signoff.md` certification block; Coupling E.2 **mandatory**; **EG-1** (`eg1_ph4_downgrade_to_ph3`); **EG-7** (`eg7_mcr_readmission_after_class_change`) |
 

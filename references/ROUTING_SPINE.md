@@ -20,6 +20,8 @@
 | 6 | **Ship** | `/ship`, `/land-and-deploy` — merge, deploy, monitor | G.4 sign-off + submission-bound depth + venue-ready artifact | **M5** Final Paper | Evaluator (G.4) | All green from Test phase | `reviews/G4_signoff.md` + submission-ready manuscript |
 | 7 | **Reflect** | `/retro`, `/document-release` — extract lessons, update docs | Lessons-learned, memory update, skill proposal, package improvement | After every round | Reflector | Full round evidence | `reviews/reflection_report.md`, `research_notes/lessons_learned.md`, optional `skills/*.md` |
 
+**Output economy rule (v0.14.0).** Phase exit is certified by manuscript movement, state correctness, and evidence availability. Per-step reports are evidence, not the product. The default human-facing synthesis is the final round report at `reviews/final_round_report_<round_id>.md` (see `references/OUTPUT_ECONOMY_PROTOCOL.md`). Legacy table cells above remain valid when exception paths emit Markdown artefacts.
+
 **Critical property.** Phases are *sequential within a round* and *cyclical across rounds*. A round is the atomic unit of forward motion; Review → Test → Ship may iterate (Review → Test → Generator-fix → Review → …) until Test is clean, then Ship runs exactly once per submission boundary, then Reflect closes the round.
 
 ---

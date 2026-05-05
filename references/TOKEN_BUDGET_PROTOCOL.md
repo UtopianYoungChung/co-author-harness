@@ -52,6 +52,12 @@ This pass reads only the segment summaries (first and last paragraphs of each se
 
 The Evaluator merges per-segment findings and the cross-segment addendum into one Consolidated Findings Report. The report notes which findings are segment-local and which are cross-segment.
 
+### 2.5 Report deferral for long manuscripts (v0.14.0 output economy)
+
+For Long and Extended manuscripts, per-segment findings are stored as **evidence packets** by default (`references/OUTPUT_ECONOMY_PROTOCOL.md`). The Evaluator emits only segment-local action lists during the round. The final round report assembles the human-facing cross-segment synthesis after all in-scope segments finish or when the user explicitly closes the round.
+
+If context limits interrupt a segment, write an evidence packet with `evidence_status: "partial"`, include the completed checks in `checks_run`, and add the skipped work to `final_report_inputs.checks_skipped`. The final report must show the partial status instead of treating the segment as clean.
+
 ---
 
 ## 3. Chapter Segmentation (Extended manuscripts)

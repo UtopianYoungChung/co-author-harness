@@ -9,6 +9,12 @@ version: 0.8.0
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — judgment-pass structure, SAFEGUARD invocation + Ph4 severity floor escalation, convergence metric, [Ph3-STALE], Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.4 (Ph4 charter; pre-MCR deep gate), 7 (EG-1, EG-7), 8 (G.4 sign-off), 9 (MCR)`; `references/MASTER_research_and_paper_guidelines.md §G.4`; `references/EXTERNAL_VERIFIERS.md`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 6.1`; `skills/run-phase-3/SKILL.md §4.5`; `agents/reflector.md §§Phase 2b, 3, 4, 5`; `skills/ingest-m5-to-wiki/SKILL.md`; `phase_notifications.yaml §§1, 7`.
 
+## Output Profile
+
+Default profile: `final_report`.
+
+Ph4 is the primary **final round report** assembly locus: the Planner synthesizes `reviews/final_round_report_<round_id>.md` from F7 evidence, revision logs, and `phase_state.json` per `references/OUTPUT_ECONOMY_PROTOCOL.md`. Human-facing checkpoints still use `decision_checkpoint` or `exception_report` when gates block.
+
 ---
 
 ## 1. What this stage does
@@ -151,10 +157,17 @@ Fires when a Rule 1–7 grounding violation surfaces at the terminal rung. The s
 
 Fires when the manuscript's (or a section's) classification changes during Ph4 Finalize & Close — e.g., venue switch, P-stage promotion, or Class-1 verifier set change. The section is DEMOTED `Ph4 → Ph3` (trigger `eg7_mcr_readmission_after_class_change`, trigger 22). At least one Ph3 iteration must run before the MCR is replayed for re-admission.
 
-## 9. Artefacts produced
+## 9. Required outputs
 
+- `reviews/final_round_report_<round_id>.md` — F8 human-facing synthesis (Planner assembly).
+- F7 evidence packets for Ph4 verifier and safeguard passes under `reviews/.harness/evidence/<event_id>.json` with `events.jsonl` rows.
 - `reviews/mcr_<YYYY-MM-DD>.md` — the MCR admission artefact.
-- All Ph3 artefacts (see `skills/run-phase-3/SKILL.md §9`) at Ph4 severity floors.
+- Updated `reviews/phase_state.json` reflecting terminal transitions and wiki ingest triggers.
+
+### Exception report surfaces
+
+Additional Markdown artefacts at Ph4 severity floors (see `skills/run-phase-3/SKILL.md` exception list where the full Ph3 stack is replayed), plus:
+
 - `reviews/ph4_external_verifier_<cycle_id>.md` — required-verifier probe results.
 - `reviews/reflection_report.md` — Ph4 close-out Reflector-full output; includes Phase 2b aggregated confirmation-failed history audit per NEW-H-4.
 - `reviews/g4_signoff_<YYYY-MM-DD>.md` — G.4 sign-off artefact.

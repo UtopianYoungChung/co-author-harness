@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-artefact_frontmatter_validate.py — validator for reviews/*.md artefact frontmatter.
+artefact_frontmatter_validate.py — validator for reviews/*.md artefact frontmatter
+and output-economy F7 JSON evidence packets.
 
 Enforces the schema contract at references/ARTEFACT_FRONTMATTER_SCHEMA.md §8
 (rules 1–10 as of v0.8.0 P2.1b).
@@ -128,6 +129,37 @@ VALID_ADVERSARIAL_REGISTERS = {"refinement", "certification"}
 VALID_F6_CHECK_PROFILES = {"refine", "structural", "deep"}
 # v0.8.0 P2.1b — F6 threshold_version RC tag (schema §8 rule 9)
 VALID_F6_THRESHOLD_VERSIONS = {"v0.7.5-provisional", "v0.8.0-provisional"}
+
+# v0.14.0 — output economy F7/F8 (references/OUTPUT_ECONOMY_PROTOCOL.md)
+ROUND_ID_RE = re.compile(r"^round_\d{4}-\d{2}-\d{2}_\d{3}$")
+EVENT_ID_RE = re.compile(r"^round_\d{4}-\d{2}-\d{2}_\d{3}__[a-z0-9_]+__\d{3}$")
+VALID_F7_PHASES = {"Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4", "round_close"}
+VALID_F7_EVIDENCE_STATUS = {"complete", "partial", "incomplete"}
+F7_ALLOWED_TOP_LEVEL = {
+    "artifact_family",
+    "document_type",
+    "round_id",
+    "event_id",
+    "phase",
+    "target",
+    "evidence_status",
+    "created_at",
+    "checks_run",
+    "blockers",
+    "major_actions",
+    "minor_actions_count",
+    "manuscript_delta_summary",
+    "state_updates",
+    "source_reads",
+    "final_report_inputs",
+}
+F8_ALLOWED_TOP_LEVEL = {
+    "artifact_family",
+    "document_type",
+    "round_id",
+    "evidence_status",
+    "created_at",
+}
 # v0.8.0 P2.1b — F4 demoted_check_advisories[].severity (schema §6.2)
 VALID_DEMOTED_SEVERITIES = {"MINOR", "MAJOR", "ADVISORY", "BLOCKER"}
 
@@ -754,12 +786,281 @@ def _check_cross_field(fm: Dict[str, Any], path: Path, doc_type: str) -> List[Fi
     return findings
 
 
+def _load_json_object(path: Path) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return None, f"read failed: {exc}"
+    try:
+        root = json.loads(text)
+    except json.JSONDecodeError as exc:
+        return None, f"JSON parse error: {exc}"
+    if not isinstance(root, dict):
+        return None, f"JSON root is not an object (got {type(root).__name__})"
+    return root, None
+
+
+def validate_f7_json(path: Path) -> List[Finding]:
+    fm, err = _load_json_object(path)
+    if err is not None:
+        return [Finding(path, "R-Refl-FM-7", "BLOCKER", "<file>", err)]
+    findings: List[Finding] = []
+
+    if fm.get("artifact_family") != "F7":
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "artifact_family",
+                f"expected 'F7', got {fm.get('artifact_family')!r}",
+            )
+        )
+    if fm.get("document_type") != "evidence_packet":
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-7",
+                "MAJOR",
+                "document_type",
+                f"expected 'evidence_packet' for JSON lane, got {fm.get('document_type')!r}",
+            )
+        )
+
+    rid = fm.get("round_id")
+    if not isinstance(rid, str) or not ROUND_ID_RE.match(rid):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "round_id",
+                f"round_id must match round_YYYY-MM-DD_NNN, got {rid!r}",
+            )
+        )
+
+    eid = fm.get("event_id")
+    if not isinstance(eid, str) or not EVENT_ID_RE.match(eid):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "event_id",
+                f"event_id must match <round_id>__<kind>__NNN pattern, got {eid!r}",
+            )
+        )
+    if isinstance(rid, str) and isinstance(eid, str) and not eid.startswith(rid + "__"):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-4",
+                "MAJOR",
+                "event_id",
+                f"event_id must begin with round_id + '__' (round_id={rid!r})",
+            )
+        )
+
+    phase = fm.get("phase")
+    if not isinstance(phase, str) or phase not in VALID_F7_PHASES:
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "phase",
+                f"phase must be one of {sorted(VALID_F7_PHASES)}, got {phase!r}",
+            )
+        )
+
+    target = fm.get("target")
+    if not isinstance(target, str) or not target.strip():
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-1",
+                "MAJOR",
+                "target",
+                "target must be a non-empty string",
+            )
+        )
+
+    evs = fm.get("evidence_status")
+    if not isinstance(evs, str) or evs not in VALID_F7_EVIDENCE_STATUS:
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "evidence_status",
+                f"evidence_status must be one of {sorted(VALID_F7_EVIDENCE_STATUS)}, got {evs!r}",
+            )
+        )
+
+    cat = fm.get("created_at")
+    if not isinstance(cat, str) or len(cat) < 10:
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-1",
+                "MAJOR",
+                "created_at",
+                "created_at must be an ISO-8601-like non-empty string",
+            )
+        )
+
+    if "checks_run" in fm and not isinstance(fm["checks_run"], list):
+        findings.append(
+            Finding(path, "R-Refl-FM-2", "MAJOR", "checks_run", "checks_run must be a list")
+        )
+    if "blockers" in fm and not isinstance(fm["blockers"], list):
+        findings.append(
+            Finding(path, "R-Refl-FM-2", "MAJOR", "blockers", "blockers must be a list")
+        )
+    if "major_actions" in fm and not isinstance(fm["major_actions"], list):
+        findings.append(
+            Finding(path, "R-Refl-FM-2", "MAJOR", "major_actions", "major_actions must be a list")
+        )
+    if "minor_actions_count" in fm:
+        mac = fm["minor_actions_count"]
+        if isinstance(mac, bool) or not isinstance(mac, int) or mac < 0:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-2",
+                    "MAJOR",
+                    "minor_actions_count",
+                    "minor_actions_count must be int ≥ 0",
+                )
+            )
+    if "manuscript_delta_summary" in fm and not isinstance(fm["manuscript_delta_summary"], str):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "manuscript_delta_summary",
+                "manuscript_delta_summary must be a string",
+            )
+        )
+    if "state_updates" in fm and not isinstance(fm["state_updates"], dict):
+        findings.append(
+            Finding(path, "R-Refl-FM-2", "MAJOR", "state_updates", "state_updates must be an object")
+        )
+    if "source_reads" in fm and not isinstance(fm["source_reads"], list):
+        findings.append(
+            Finding(path, "R-Refl-FM-2", "MAJOR", "source_reads", "source_reads must be a list")
+        )
+    if "final_report_inputs" in fm and not isinstance(fm["final_report_inputs"], dict):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "final_report_inputs",
+                "final_report_inputs must be an object",
+            )
+        )
+
+    for field in fm:
+        if field not in F7_ALLOWED_TOP_LEVEL:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-3",
+                    "MAJOR",
+                    field,
+                    f"unknown field '{field}' in strict F7 evidence_packet",
+                )
+            )
+
+    return findings
+
+
+def validate_f8_frontmatter(fm: Dict[str, Any], path: Path) -> List[Finding]:
+    findings: List[Finding] = []
+
+    if fm.get("artifact_family") != "F8":
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "artifact_family",
+                f"expected 'F8', got {fm.get('artifact_family')!r}",
+            )
+        )
+    if fm.get("document_type") != "final_round_report":
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-7",
+                "MAJOR",
+                "document_type",
+                f"expected 'final_round_report', got {fm.get('document_type')!r}",
+            )
+        )
+
+    rid = fm.get("round_id")
+    if not isinstance(rid, str) or not ROUND_ID_RE.match(rid):
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "round_id",
+                f"round_id must match round_YYYY-MM-DD_NNN, got {rid!r}",
+            )
+        )
+
+    evs = fm.get("evidence_status")
+    if not isinstance(evs, str) or evs not in VALID_F7_EVIDENCE_STATUS:
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-2",
+                "MAJOR",
+                "evidence_status",
+                f"evidence_status must be one of {sorted(VALID_F7_EVIDENCE_STATUS)}, got {evs!r}",
+            )
+        )
+
+    cat = fm.get("created_at")
+    if not isinstance(cat, str) or len(cat) < 10:
+        findings.append(
+            Finding(
+                path,
+                "R-Refl-FM-1",
+                "MAJOR",
+                "created_at",
+                "created_at must be an ISO-8601-like non-empty string",
+            )
+        )
+
+    for field in fm:
+        if field not in F8_ALLOWED_TOP_LEVEL:
+            findings.append(
+                Finding(
+                    path,
+                    "R-Refl-FM-3",
+                    "MAJOR",
+                    field,
+                    f"unknown field '{field}' in strict F8 final_round_report frontmatter",
+                )
+            )
+
+    return findings
+
+
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
 
 
 def validate_path(path: Path) -> List[Finding]:
+    if path.suffix.lower() == ".json":
+        return validate_f7_json(path)
+
     fm, err = extract_frontmatter(path)
     if err is not None:
         return [Finding(path, "R-Refl-FM-7", "BLOCKER", "<file>", err)]
@@ -770,6 +1071,10 @@ def validate_path(path: Path) -> List[Finding]:
     if not fm:
         return [Finding(path, "R-Refl-FM-1", "MAJOR", "document_type",
                         "empty frontmatter block; document_type required")]
+
+    doc_type = fm.get("document_type")
+    if doc_type == "final_round_report":
+        return validate_f8_frontmatter(fm, path)
 
     findings: List[Finding] = []
     findings.extend(validate_common(fm, path))
@@ -784,8 +1089,14 @@ def collect_paths(args: argparse.Namespace) -> List[Path]:
         if not d.is_dir():
             sys.stderr.write(f"error: --dir is not a directory: {d}\n")
             sys.exit(2)
-        glob = "**/*.md" if args.recursive else "*.md"
-        paths = sorted(d.glob(glob))
+        if args.recursive:
+            md_paths = sorted(d.rglob("*.md"))
+            json_paths = sorted(d.rglob("*.json"))
+        else:
+            md_paths = sorted(d.glob("*.md"))
+            json_paths = sorted(d.glob("*.json"))
+        # Stable combined order: Markdown first, then JSON (deterministic)
+        paths = md_paths + json_paths
     else:
         paths = [Path(p) for p in args.files]
         for p in paths:
@@ -798,7 +1109,8 @@ def collect_paths(args: argparse.Namespace) -> List[Path]:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Validate reviews/*.md artefact frontmatter per "
-                    "references/ARTEFACT_FRONTMATTER_SCHEMA.md",
+                    "references/ARTEFACT_FRONTMATTER_SCHEMA.md, plus F7 JSON "
+                    "evidence packets and F8 final round reports (v0.14.0 output economy).",
     )
     parser.add_argument("files", nargs="*", help="file paths to validate")
     parser.add_argument("--dir", help="validate every *.md under this directory")

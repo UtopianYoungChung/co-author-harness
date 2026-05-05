@@ -1,6 +1,8 @@
 # Older / bulk artifact drops (single-release policy: do not commit)
 releases/
-references/
+# Do not ignore references/ wholesale: package normative law lives there
+# (schemas/, templates/, protocols). v0.14.0 — blanket references/ hid new
+# tracked paths from `git add`. Ignore only known bulk subtrees if needed.
 legacy/
 proposals/
 .claude/

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/f7_evidence_packet.schema.json",
+  "title": "F7 evidence_packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_family",
+    "document_type",
+    "round_id",
+    "event_id",
+    "phase",
+    "target",
+    "evidence_status",
+    "created_at"
+  ],
+  "properties": {
+    "artifact_family": { "const": "F7" },
+    "document_type": { "const": "evidence_packet" },
+    "round_id": {
+      "type": "string",
+      "pattern": "^round_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{3}$"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^round_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{3}__[a-z0-9_]+__[0-9]{3}$"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4", "round_close"]
+    },
+    "target": { "type": "string", "minLength": 1 },
+    "evidence_status": {
+      "type": "string",
+      "enum": ["complete", "partial", "incomplete"]
+    },
+    "created_at": { "type": "string", "minLength": 1 },
+    "checks_run": { "type": "array" },
+    "blockers": { "type": "array" },
+    "major_actions": { "type": "array" },
+    "minor_actions_count": { "type": "integer", "minimum": 0 },
+    "manuscript_delta_summary": { "type": "string" },
+    "state_updates": { "type": "object" },
+    "source_reads": { "type": "array", "items": { "type": "string" } },
+    "final_report_inputs": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "checks_skipped": { "type": "array" },
+        "baseline_metrics": { "type": "object" },
+        "notes": { "type": "array" }
+      }
+    }
+  }
+}

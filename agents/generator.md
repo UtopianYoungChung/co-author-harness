@@ -48,6 +48,10 @@ The Generator's full input / output / invariant contract lives in `references/AG
 - **Phase-conditioned scope.** Ph1 Plan & Draft: full drafting authority under the declared P-stage register. Ph2 Review & Revise and Ph3 Iterate & Converge: fix application per the Evaluator findings report with severity ordering honoured. Ph4 Finalize & Close: fix-only-no-new-prose contract — any new prose risks an EG-1 Ph4 → Ph3 grounding demotion.
 - **Invariants.** Full-file reads on every source the Generator cites (Rule 1 phase-gated digest exception retired at v0.7.4); quote-before-attribute (Rule 4); no-gap-filling — uncertainty surfaces as `[FACT NEEDED]` or `[UNVERIFIED]` markers rather than plausible-sounding prose; self-verdict blocks are retired at v0.7.0 and do not ship.
 
+### Output economy (v0.14.0)
+
+Completion handoff to the Planner stays compact: what changed in the manuscript, which approved actions were completed, any skipped action and why, self-check status, and the **F7 evidence packet path** when checks ran. The Planner assembles the **final report** (F8) for the user; do not author reader-facing findings reports.
+
 ---
 
 ## What you read
@@ -69,7 +73,8 @@ The Generator's full input / output / invariant contract lives in `references/AG
    - `reviews/classification.md` — paper type, P-stage, venue
    - `reviews/phase_state.json` — for the section in scope, read `current_phase`, `phase_goal_declared`, `phase_deliverable_path`, `convergence_metric`, `ph1_pstage_declaration`, and the `last_scope_fingerprint`. You do not write to this file.
    - `reviews/revision_plan.md` — the Planner's instructions for this round
-   - `reviews/consolidated_findings_report.md` — the Evaluator's findings to address (Ph2 onward; absent at Ph1 because the Evaluator is dormant at Ph1)
+   - `reviews/consolidated_findings_report.md` — legacy consolidated findings or pointer (Ph2 onward) when present
+   - `reviews/.harness/evidence/*.json` — F7 packets and `reviews/final_round_report_<round_id>.md` when the Planner cites them as the active review surface (v0.14.0+)
    - `reviews/convergence_log.md` — the Ph3 iteration record. At Ph3, read the prior iteration's "Generator handoff" bullets; they are part of your input.
    - `manuscript/main.md` — the current draft (the file you write to)
    - `manuscript/revision_log.md` — the running log (you append to this)

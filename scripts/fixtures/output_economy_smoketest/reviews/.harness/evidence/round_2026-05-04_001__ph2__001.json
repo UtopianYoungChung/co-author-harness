@@ -1,0 +1,22 @@
+{
+  "artifact_family": "F7",
+  "document_type": "evidence_packet",
+  "round_id": "round_2026-05-04_001",
+  "event_id": "round_2026-05-04_001__ph2__001",
+  "phase": "Ph2",
+  "target": "manuscript/main.md",
+  "evidence_status": "complete",
+  "created_at": "2026-05-04T12:00:00Z",
+  "checks_run": [],
+  "blockers": [],
+  "major_actions": [],
+  "minor_actions_count": 0,
+  "manuscript_delta_summary": "Fixture delta",
+  "state_updates": {},
+  "source_reads": [],
+  "final_report_inputs": {
+    "checks_skipped": [],
+    "baseline_metrics": {},
+    "notes": []
+  }
+}

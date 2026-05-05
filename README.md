@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.10.2-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-0.14.0-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -119,10 +119,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.13.0`
+`0.14.0`
 
 | Release | Highlights |
 | --- | --- |
+| **0.14.0** | Output economy (Option C architecture): F7 JSON evidence packets under `reviews/.harness/evidence/`, append-only `reviews/.harness/events.jsonl`, F8 `final_round_report_<round_id>.md` assembled by the Planner, protocol at `references/OUTPUT_ECONOMY_PROTOCOL.md`, JSON schema `references/schemas/f7_evidence_packet.schema.json`, template `references/templates/final_round_report.md`. Phase skills and agents updated for default evidence-first outputs; `scripts/output_economy_check.py` + `scripts/output_economy_smoketest.py` wired into `release-gate.sh` and maintainer checks in root `CLAUDE.md`. `artefact_frontmatter_validate.py` gains F7/F8 lanes. |
 | **0.13.0** | Voice / register / citation lessons batch from the INF3006Y late-April 2026 sessions. Six-cluster patch lands in three new files (`references/EMDASH_BUNDLE_DISCIPLINE.md` — top-level discipline note binding the Generator at every prose action with no exceptions; `references/CITATION_DISCIPLINE.md` — engagement-cite vs. demarcation-no-cite two-question test; `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` — source memo) plus four targeted file amendments (`STYLE_COMMITMENTS.md §1.1` C-1 verb-set + parallelism rules; `lay_term_lexicons.md §5` drift-monitored corpus with `_corpus_drift` §9e probe and the worked-example signpost-as-M4-vehicle pattern; `skills/accessibility-overlay/references/sub_checks.md §H` twin-paragraph probe under H step 1 with `_twin_paragraph` §9e suffix; `references/SAFEGUARD_LAYER.md` Sub-check J — Verdict-Edge Discipline with intensifier-stack-floor diagnosis and modal-distribution softening rule, advisory_until J_two_revision_cycles). Generator binding clause added to `agents/generator.md` second binding constraint. Memory entry for cross-file mirror grep discipline. Source memo: `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md`. No agent contract retirements; no skill count change; no governance-field change. |
 | **0.12.3** | Marketplace-schema alignment patch. `marketplace.json` restructured to clear the Cowork remote-marketplace upload validator: added `$schema` declaration, moved top-level `description` into `metadata.description`, namespaced top-level `name` to `joseph-chung-co-author-harness`, and changed `plugins[0].category` from `"research"` to `"productivity"` (the only documented and confirmed-accepted enum value). `plugin.json` unchanged except for the version bump. Diagnosed via Cowork `main.log` after v0.12.2 cleared the static `loader-compat-check.py` validator but was rejected by the remote `uploadAccountPlugin` endpoint within minutes — confirming the validator's scope limit (covers direct-install schema only, not marketplace-upload schema). No agent contract, skill, command, or governance-field change. |
 | **0.12.2** | Pre-shipment quality patch. New `scripts/loader-compat-check.py` static loader-compatibility validator (10 axes — ZIP integrity, manifest schema, marketplace parity, path encoding, required-files presence, SKILL.md frontmatter, no-nested-archives, extract-rezip sanity, peer-plugin description-length distribution). Three over-margin SKILL.md descriptions trimmed to clear the 500-char safety margin enforced by `release-gate.sh` Phase 0.2: `claim-coverage-audit` (534 → 472), `run-phase-2` (534 → 327), `extend-snowball-incremental` (1029 → 477). All trims preserve triggering keywords; only metadata bloat, internal stage codes, and trigger-field duplication were cut. No agent contract, skill, command, or governance-field change. |

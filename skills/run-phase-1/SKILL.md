@@ -9,6 +9,18 @@ version: 0.7.4
 
 **Grounding basis:** `references/PHASE_PROTOCOL.md §§3 (lifecycle), 3.1 (Ph1 charter), 6.3 (trigger enum), 7 (escalation gates)`; `references/GROUNDING_PROTOCOL.md §Rule 1 full-file reads (phase-gated digest exception retired at v0.7.4)`; `references/phase_state_schema.md §2 (section object incl. v0.10.0 `references_initialized`), §3.1 (trigger enum incl. trigger 31 `seed_snowball_signed`), §3a.1 (PhaseEntryLogRow shape)`; `AGENT_ORCHESTRATION.md §3 (agent-role matrix — Reflector-lightweight at Ph1, no Evaluator)`; `phase_notifications.yaml §1 (ph1_entry, ph1_exit_signed)`; `skills/seed-snowball-discovery/SKILL.md` (SK-NEW-A; dispatched at Step 4.5 to scaffold `references/REFERENCES.md` on fresh sections).
 
+## Output Profile
+
+Default profile: `silent_evidence`.
+
+Human-facing output during this phase is limited to:
+
+- the manuscript delta or action list the user must approve;
+- phase gate decisions;
+- exception reports for blockers, verifier failures, stale state, or unsafe edits.
+
+All routine check details are written to `reviews/.harness/evidence/<event_id>.json` (append `reviews/.harness/events.jsonl`) and summarized only in the final round report. Use `round_id` / `event_id` per `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 1. What this stage does
@@ -71,7 +83,17 @@ The advance rule is canonically specified in `references/PHASE_PROTOCOL.md §4`.
 
 Any Ph1 artefact or revision-log entry that attempts to emit a Self-Ph1 Verdict block is logged by the Planner as a `SAFEGUARD Check 1 (scope drift)` violation and discarded.
 
-## 6. Artefacts produced
+## 6. Required outputs
+
+- Manuscript delta or approved no-change rationale.
+- Compact entry in `manuscript/revision_log.md`.
+- State update in `reviews/phase_state.json` when the phase gate changes.
+- Evidence packet at `reviews/.harness/evidence/<event_id>.json` (and matching `events.jsonl` row) capturing deterministic summary, Rule-1 scope, and snowball outcomes for this cycle.
+- Human-facing exception report only when an escalation rule fires.
+
+### Exception report surfaces
+
+Legacy Markdown paths may still be written when SK-NEW-A, deterministic tooling, or probes require human-readable artefacts:
 
 - `references/REFERENCES.md` — populated three-table reference pool (core corpus, snowball, cited-via), **produced by SK-NEW-A dispatched at Step 4.5** when `references_initialized` is `false` or absent and the file does not yet exist. Idempotent re-runs emit `ALREADY_INITIALIZED` no-op and do not regenerate the file.
 - `reviews/snowball_log.md` — append-only snowball procedure trace, **produced by SK-NEW-A at Step 4.5** (per its §6); records seed-phase admits, per-iteration backward/forward admits (graph-local vs. external split), saturation signal, and the per-iteration `interaction_id` UUIDs.

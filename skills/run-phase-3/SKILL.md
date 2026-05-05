@@ -9,6 +9,18 @@ version: 0.8.0
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — convergence metric, [CONVERGENCE-STABLE], [Ph3-STALE], SAFEGUARD invocation, Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.3 (Ph3 charter), 3.3.0 (check_profile / halo_scope), 3.3.1a (P-12 vector), 3.3.3 (Check 8 gate), 3.3.4 (convergence_journal.jsonl), 5 (review pipeline), 7 (escalation gates), 9 (MCR; §3.4 pre-MCR deep pass)`; `references/REVIEW_ORCHESTRATION.md §§Steps 0a/0.2/0b/1–7/8/8.5`; `references/SAFEGUARD_LAYER.md`; `references/DETERMINISTIC_CHECKS.md` (authoritative halo_scope matrix for P-10); `references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a (F6 check_profile)`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 3a.3, 4.3`; `agents/evaluator.md §Step 8.5`; `phase_notifications.yaml §§1, 3`; `scripts/migrate_convergence_journal_v075.py`; `scripts/paragraph_hash_map.py`.
 
+## Output Profile
+
+Default profile: `silent_evidence`.
+
+Human-facing output during this phase is limited to:
+
+- the manuscript delta or action list the user must approve;
+- phase gate decisions;
+- exception reports for blockers, verifier failures, stale state, or unsafe edits.
+
+All routine check details are written to `reviews/.harness/evidence/<event_id>.json` (append `reviews/.harness/events.jsonl`) and summarized only in the final round report. Use `round_id` / `event_id` per `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 1. What this stage does
@@ -133,12 +145,22 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §10` for the shared Approve/Re
 - **User Approve with `applicable_ceiling == "Ph3"` → ceiling-lock.** Approval can ceiling-lock at Ph3 if the section's ceiling is Ph3; no flip to `Ph3_converged` is required — the section terminates at Ph3 with `ceiling_locked: true`.
 - **User Defer.** `ph3_last_activity_at` is NOT refreshed by a defer row, so deferral can accumulate staleness.
 
-## 9. Artefacts produced
+## 9. Required outputs
+
+- Manuscript delta or approved no-change rationale per iteration.
+- Compact entries in `manuscript/revision_log.md`.
+- State updates in `reviews/phase_state.json` when gates fire.
+- Evidence packet(s) at `reviews/.harness/evidence/<event_id>.json` (and `events.jsonl` rows) per iteration capturing deterministic, findings envelope, safeguard, and convergence signals.
+- Human-facing exception report only when an escalation rule fires.
+
+### Exception report surfaces
+
+Legacy Markdown stacks may still be emitted on exception paths or when the user requests full prose artefacts:
 
 - `reviews/ph3_deterministic_<YYYY-MM-DD>_<cycle_id>.md` — full Step 0a output.
 - `reviews/graph_overlay_<YYYY-MM-DD>.md` — Coupling E.2 overlay findings.
 - `reviews/ph3_findings_<YYYY-MM-DD>_<cycle_id>.md` — Steps 1–7 raw findings.
-- `reviews/consolidated_findings_report.md` — Step 8 synthesis.
+- `reviews/consolidated_findings_report.md` — Step 8 synthesis (exception or explicit request).
 - `reviews/safeguard_layer_results.md` — Step 8.5 all-eight-check audit.
 - `reviews/ph3_recheck_<YYYY-MM-DD>_<cycle_id>.md` — Evaluator re-check after Generator fixes.
 - `reviews/convergence_log.md` — ESCALATED-finding ownership; appended on every escalation, frozen by the terminal signoff row.

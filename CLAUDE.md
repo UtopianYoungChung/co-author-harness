@@ -21,6 +21,8 @@ python scripts/skill-check.py
 python scripts/version-check.py
 python scripts/catalog-check.py
 python scripts/path-hygiene-check.py
+python scripts/output_economy_check.py
+python scripts/output_economy_smoketest.py
 ```
 
 For full release packaging (bash): `scripts/release-gate.sh` (see script header for flags).

@@ -6,6 +6,16 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.14.0 — 2026-05-04
+
+**What.** Output economy (evidence-first defaults): F7 JSON evidence packets, F8 final round reports, `OUTPUT_ECONOMY_PROTOCOL.md`, schema and template, phase-skill and agent contract updates, `output_economy_check.py` / `output_economy_smoketest.py`, and `artefact_frontmatter_validate.py` F7/F8 lanes wired into `release-gate.sh`.
+
+**Why.** Reduces default Markdown report volume per round while preserving machine-checkable evidence and a single human-facing round report; documents compatibility pointers for legacy paths.
+
+**How to apply.** Read `references/OUTPUT_ECONOMY_PROTOCOL.md`; run `python scripts/output_economy_check.py` and `python scripts/output_economy_smoketest.py` before release; Planner assembles F8 per agent instructions.
+
+---
+
 ## v0.13.0 — 2026-04-30
 
 **What.** Voice / register / citation lessons batch from the INF3006Y late-April 2026 sessions. Six lesson clusters surfaced from the 2026-04-29 reverse-engineering handoff, the 2026-04-30 manuscript polish session, and the in-session voice round 2 + lay-term twin-fix. The patch closes operational-specificity gaps on existing C-1 / H surfaces and adds three new surfaces (Sub-check J under SAFEGUARD; new `CITATION_DISCIPLINE.md`; new top-level `EMDASH_BUNDLE_DISCIPLINE.md` with Generator binding). Per the Q5 versioning-policy answer, three new surfaces + one Generator default-behavior change put this batch firmly in MINOR territory.

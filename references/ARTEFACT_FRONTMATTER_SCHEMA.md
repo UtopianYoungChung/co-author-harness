@@ -12,7 +12,9 @@ This file is NORMATIVE. The validator at `scripts/artefact_frontmatter_validate.
 
 ## 1. Family taxonomy
 
-Every artefact that lives under `reviews/` and is read by any agent under v0.7.4+ belongs to exactly one of six frontmatter families. The family is declared by the `document_type` frontmatter field, which is required on every artefact.
+Every **Markdown** artefact that lives under `reviews/` and is read by any agent under v0.7.4+ belongs to exactly one of **six legacy** frontmatter families (F1–F6). The family is declared by the `document_type` frontmatter field, which is required on every such artefact.
+
+At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `reviews/.harness/evidence/`) and **F8** (Markdown final round reports under `reviews/`). F7 does not use YAML frontmatter; F8 does. Both are validated by `scripts/artefact_frontmatter_validate.py` on its JSON and Markdown lanes respectively (`references/OUTPUT_ECONOMY_PROTOCOL.md` is normative for semantics).
 
 | Family | `document_type` value | Produced by | Read by | Hash-inherited under P-2? |
 |---|---|---|---|---|
@@ -22,8 +24,10 @@ Every artefact that lives under `reviews/` and is read by any agent under v0.7.4
 | F4 Reflector-full | `reflector_full_report` | Reflector (T4 close-out only) | Planner (skill-proposal gatekeeping), user | No (written once, not inherited) |
 | F5 Planner consolidated-findings | `planner_consolidated_findings` | Planner (per-round aggregation) | User, Reflector (Phase 2f) | Yes |
 | F6 Planner dispatch plan | `planner_dispatch_plan` | Planner (Phase 0.6, P-1) | User (approval), Reflector (Phase 2f) | No (written once at round entry, not inherited) |
+| F7 Output-economy evidence | `evidence_packet` | Evaluator (routine checks); other writers on exception paths | Planner (final assembly), Reflector audits | Yes (when re-run produces a new packet) |
+| F8 Final round report | `final_round_report` | Planner (Ph4 / round close) | User | No |
 
-New artefact types introduced after v0.7.4 must either (a) extend one of the six families by adding optional fields in a subsequent SCHEMA minor, or (b) file a seventh family via a plugin-update proposal. Ad-hoc `document_type` values are rejected by the validator.
+New **legacy** `document_type` values on Markdown under `reviews/*.md` introduced after v0.7.4 must either (a) extend one of the six F1–F6 families by adding optional fields in a subsequent SCHEMA minor, or (b) file a new family via a plugin-update proposal. Ad-hoc `document_type` values are rejected by the validator on the Markdown lane. F7/F8 are registered families with dedicated validation (JSON lane vs F8 frontmatter lane).
 
 ## 2. Fields common to all families
 
@@ -354,9 +358,62 @@ threshold_version:        # string; RC tag, e.g. v0.7.5-provisional (budget/thre
 
 F6 is not inherited. No hash is computed. Rationale: the dispatch plan is round-scoped by construction; a subsequent round that carries forward dispatch identical to the prior round is still a distinct round whose consent trail requires its own plan artefact. P-2 stability sub-mode does NOT admit F6 inheritance; the stability-mode round authors a new, short-form F6 that records the stability envelope explicitly (`stability_sub_mode_anticipated: true` and the reduced `checks_scheduled` list).
 
+## 7b. Family F7 — evidence_packet (JSON)
+
+Artefact path: `reviews/.harness/evidence/<event_id>.json` (JSON file; **not** YAML-frontmatter Markdown).
+
+Machine-readable JSON Schema mirror: `references/schemas/f7_evidence_packet.schema.json`.
+
+### 7b.1 Required fields
+
+```yaml
+artifact_family: F7          # required, string, exactly F7
+document_type: evidence_packet # required, string, exactly evidence_packet
+round_id: round_YYYY-MM-DD_NNN
+event_id: <round_id>__<kind>__NNN   # must start with round_id + "__"
+phase: Ph1|Ph2|Ph3|Ph3_converged|Ph4|round_close
+target: manuscript/main.md     # non-empty string; section anchor allowed
+evidence_status: complete|partial|incomplete
+created_at: ISO-8601           # UTC Z preferred
+```
+
+### 7b.2 Optional payload fields
+
+```yaml
+checks_run: []
+blockers: []
+major_actions: []
+minor_actions_count: 0
+manuscript_delta_summary: ""
+state_updates: {}
+source_reads: []
+final_report_inputs:
+  checks_skipped: []
+  baseline_metrics: {}
+  notes: []
+```
+
+F7 uses **strict** unknown-field rejection at the top level (same spirit as F1). F7 deliberately omits legacy common fields (`cycle_id`, `model_used`, `schema_version`, …).
+
+## 7c. Family F8 — final_round_report (Markdown + YAML frontmatter)
+
+Artefact path: `reviews/final_round_report_<round_id>.md`.
+
+### 7c.1 Required frontmatter fields
+
+```yaml
+artifact_family: F8
+document_type: final_round_report
+round_id: round_YYYY-MM-DD_NNN
+evidence_status: complete|partial|incomplete
+created_at: ISO-8601
+```
+
+F8 uses **strict** unknown-field rejection in frontmatter only. Body prose is unconstrained by this schema. Section order for the body is normative in `references/templates/final_round_report.md`.
+
 ## 8. Validation rules (enforced by `scripts/artefact_frontmatter_validate.py`)
 
-The validator runs against any `reviews/*.md` artefact. Dispatch is by `document_type`. Rules:
+The validator runs against `reviews/*.md` artefacts on the Markdown lane and against `*.json` files passed explicitly or via `--dir` on the JSON lane. Legacy F1–F6 dispatch is by `document_type` in YAML frontmatter. F7 is validated only on `.json` inputs. F8 is validated when `document_type: final_round_report` appears in YAML frontmatter. Rules:
 
 1. **Required-field presence.** Every required field per family must be present; absence is `R-Refl-FM-1`.
 2. **Type conformance.** Every field must match its declared type; mismatch is `R-Refl-FM-2`.

@@ -9,6 +9,12 @@ version: 0.8.0
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 semantics — this skill inherits convergence-metric, [Ph3-STALE], SAFEGUARD Check 8 aggregation, and renamed surfaces from the common envelope, then overrides the Evaluator envelope to the reduced stability pass); `references/PHASE_PROTOCOL.md §§3.3.0, 3.3.2 (stability sub-mode), 3.3.4, 3.3.5, 3.4`; `references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a`; `references/AGENT_CONTRACTS.md §2 (I-Planner-10)`; `references/DETERMINISTIC_CHECKS.md §9b`; `references/GROUNDING_PROTOCOL.md §Rule 1`; `references/phase_state_schema.md §2.1`; `agents/evaluator.md §Step 8.5`; `skills/run-phase-3/SKILL.md §4.5`; `phase_notifications.yaml §§3, 3.3.2`.
 
+## Output Profile
+
+Default profile: `silent_evidence`.
+
+This sub-mode is the **exemplar for output economy**: inherit prior findings when the substrate is byte-stable, run only drift-sensitive checks, and emit a **compact clean-admission F7 event** instead of a new full Markdown report stack. Escalations still use `exception_report`. Use `round_id` / `event_id` per `references/OUTPUT_ECONOMY_PROTOCOL.md`.
+
 ---
 
 ## 1. What this sub-mode does
@@ -137,9 +143,15 @@ Do not invoke `run-phase-3-stability` when:
 - The section carries a live Check 8 BLOCKER from the prior iteration (the Planner refused the prior `TerminalSignoffRow` with `E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF`; the next round must be a full Ph3 that addresses the BLOCKER — inheritance is not admissible on a live BLOCKER state).
 - The prior iteration was itself a stability pass that surfaced nothing AND the user is seeking to escalate for external-verifier probing (at that point the user wants the full Ph3 envelope explicitly; a second stability pass would just re-confirm inheritance without adding the signal the user wants).
 
-## 8. Exit artefacts
+## 8. Required outputs
 
-- **On clean admission:** a new row in `reviews/ph3_convergence_signoff.md` (non-terminal, per-iteration), a new journal line in `reviews/convergence_journal.jsonl` with `cycle_id` unique to this stability pass, and a new F5 consolidated-findings artefact at `reviews/consolidated_findings_<date>_stability.md` that cites the prior iteration's F1 by `manuscript_hash` rather than re-authoring findings.
+- F7 evidence packet for the stability pass at `reviews/.harness/evidence/<event_id>.json` plus `events.jsonl` row (clean admission or partial).
+- Updated `reviews/convergence_journal.jsonl` with `cycle_id` unique to this stability pass when the pass runs.
+- New row in `reviews/ph3_convergence_signoff.md` (non-terminal) on clean admission.
+
+### Exception report surfaces
+
+- **On clean admission (legacy compatibility):** a new F5 consolidated-findings artefact at `reviews/consolidated_findings_<date>_stability.md` may still be emitted when a prose artefact is required for downstream audits; prefer citing the F7 packet path inside that F5 body when both exist.
 - **On escalation:** a `stability_mode_escalated_to_full_ph3` row (trigger 30) in `reviews/phase_state.json log[]`, a short `reviews/stability_escalation_<date>.md` artefact (F3 family, `reflector_lightweight_probe` document_type with the specific escalation-reason), and then the downstream full-Ph3 artefacts produced by the chained `run-phase-3` dispatch.
 - **On S-0 drop-through (never entered stability mode):** no stability-specific artefact. The F6 authored at Phase 0.6 records the drop-through reason in `notes` for the Reflector's Phase 2f DP-family audit.
 

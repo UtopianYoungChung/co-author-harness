@@ -155,7 +155,7 @@ A full round for an M4/M5 manuscript proceeds:
 
 1. Planner reads state, classifies, produces `reviews/revision_plan.md`. **Present to user.**
 2. Run `scripts/run-evaluator-preflight.ps1` (gate + coupling health update).
-3. Evaluator runs Steps 0a–8, emits `reviews/consolidated_findings_report.md`. **Present to user.**
+3. Evaluator runs Steps 0a–8, records routine check evidence under `reviews/.harness/evidence/<event_id>.json`, and returns a short action list; the Planner may still assemble `reviews/consolidated_findings_report.md` on **exception paths** (blocker, verifier failure, or explicit user request). **Present to user** at decision checkpoints.
 4. Planner merges approved findings into the revision plan. **Present to user.**
 5. Generator applies edits, logs in `manuscript/revision_log.md`, self-checks. **Present to user.**
 6. Evaluator re-checks (regression, drift, spot-check of top fixes). **Present to user.**
@@ -173,7 +173,7 @@ For cases where you know exactly which agent you need:
 | Utterance | Agent | Reads | Writes |
 |---|---|---|---|
 | *"Run the planner"* | Planner | user utterance, classification, directives, prior reflection | `classification.md`, `revision_plan.md` |
-| *"Evaluate the manuscript"* | Evaluator | manuscript, review-orchestration, integrity-gate files | per-step findings, consolidated report |
+| *"Evaluate the manuscript"* | Evaluator | manuscript, review-orchestration, integrity-gate files | F7 evidence packets, short action list; legacy Markdown findings on exception paths |
 | *"Co-author §N"* / *"Write the intro"* | Generator | revision plan, findings, rule files, grounding protocol | `main.md`, `revision_log.md` |
 | *"Reflect on this round"* | Reflector | every round artifact, prior lessons, skill registry | `reflection_report.md`, `lessons_learned.md` |
 
@@ -277,14 +277,19 @@ The Planner mediates. You make the final call. The disagreement is recorded in t
 
 The package produces many files per round. In order of importance to you as a reader:
 
-1. `reviews/consolidated_findings_report.md` — what the Evaluator found, severity-tagged, with proposed fixes.
-2. `reviews/reflection_report.md` — what the Reflector learned, plus any proposed directives or skills awaiting your approval.
-3. `manuscript/revision_log.md` — per-round append-only log of what the Generator changed and why.
-4. `reviews/revision_plan.md` — the current action list.
-5. `research_notes/lessons_learned.md` — the accumulated cross-round memory for this project.
-6. `reviews/G4_signoff.md` — submission-bound sign-off, when it exists.
+1. `reviews/final_round_report_<round_id>.md` — normal reader-facing synthesis after round close (F8). Assembled from evidence packets and the revision log.
+2. `reviews/.harness/evidence/<event_id>.json` plus `reviews/.harness/events.jsonl` — machine-readable audit trail for routine checks (F7). Read when you need drill-down beyond the final report.
+3. `reviews/reflection_report.md` — what the Reflector learned, plus any proposed directives or skills awaiting your approval.
+4. `manuscript/revision_log.md` — per-round append-only log of what the Generator changed and why.
+5. `reviews/revision_plan.md` — the current action list.
+6. `research_notes/lessons_learned.md` — the accumulated cross-round memory for this project.
+7. `reviews/G4_signoff.md` — submission-bound sign-off, when it exists.
 
-The other artifacts (per-step findings, deterministic pass results, safeguard layer results, drift and reflexivity check outputs) are evidence for the first six; read them when you are disputing a finding or diagnosing a failure.
+Routine review evidence is recorded in `reviews/.harness/evidence/<event_id>.json` and indexed by `reviews/.harness/events.jsonl`. The normal reader-facing artifact for a closed round is the round-close report at `reviews/final_round_report_<round_id>.md`.
+
+Do not write `reviews/consolidated_findings_report.md` as a routine per-review output for new rounds. Use that path only as a **backward-compatibility pointer** for in-progress projects that already expect it, or as an **exception report** when a blocker, unsafe edit condition, verifier failure, or explicit user request requires a human-facing Markdown report before round close.
+
+The other artefacts (legacy per-step findings, deterministic pass results, safeguard layer results, drift and reflexivity check outputs) are supporting evidence; read them when you are disputing a finding or diagnosing a failure.
 
 ---
 

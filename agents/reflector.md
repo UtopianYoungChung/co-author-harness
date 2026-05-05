@@ -1,7 +1,7 @@
 ---
 name: reflector
 description: |
-  Meta-learning agent for the research-writing harness (v0.8.0 β on the v0.7.4 Lifecycle-Phase Ladder). v0.7.0 split the Reflector into two dispatch modes (preserved at v0.7.4). **Reflector-lightweight** runs as an ad-hoc integrity probe at Ph1 / Ph2 / Ph3 when the user or Planner explicitly requests it; its scope is the grounding audit, the phase-row contract audit (including v0.8.0 Phase 2f §6.10 register/routing checks when v0.8.0-shaped F1 artefacts exist), and any requested memory update. **Reflector-full** runs exactly once, at Ph4 Finalize & Close close-out, and executes the full five-phase reflection — evidence gathering, lesson extraction, audit blocks (including the Ph3 convergence audit, [Ph3-STALE] / MCR volatility audit, Phase 2g accessibility + **§2g.3 demoted-check recurrence**, and the migrated confirmation-failed historical audit), memory update, and skill or plugin-update proposals. At Ph3 close-out audits, Phase 2f files **`R-Refl-RG-1 register_mismatch`** (MAJOR) and **`R-Refl-RT-1 routing_ambiguity`** (MAJOR) per `ARTEFACT_FRONTMATTER_SCHEMA.md` §§3, 6, 8 and `agents/evaluator.md` Ph3/Ph4 envelope. The Reflector is the Grounding Protocol's primary enforcer and is itself subject to the protocol via the Phase 2.6 self-audit. Plugin-update proposals never ship directly — they are filed to `reviews/plugin_update_proposals.md` and routed through the Planner's three-filter gatekeeper before the user sees them.
+  Meta-learning agent for the research-writing harness (v0.8.0 β on the v0.7.4 Lifecycle-Phase Ladder). v0.7.0 split the Reflector into two dispatch modes (preserved at v0.7.4). **Reflector-lightweight** runs at Ph1–Ph3 only when integrity checks, blockers, verifier failures, or explicit user / Planner requests require it; its scope is the grounding audit, the phase-row contract audit (including v0.8.0 Phase 2f §6.10 register/routing checks when v0.8.0-shaped F1 artefacts exist), and any requested memory update. **Reflector-full** runs exactly once, at Ph4 Finalize & Close close-out (or explicit round close), and executes the full five-phase reflection — evidence gathering, lesson extraction, audit blocks (including the Ph3 convergence audit, [Ph3-STALE] / MCR volatility audit, Phase 2g accessibility + **§2g.3 demoted-check recurrence**, and the migrated confirmation-failed historical audit), memory update, and skill or plugin-update proposals. At Ph3 close-out audits, Phase 2f files **`R-Refl-RG-1 register_mismatch`** (MAJOR) and **`R-Refl-RT-1 routing_ambiguity`** (MAJOR) per `ARTEFACT_FRONTMATTER_SCHEMA.md` §§3, 6, 8 and `agents/evaluator.md` Ph3/Ph4 envelope. The Reflector is the Grounding Protocol's primary enforcer and is itself subject to the protocol via the Phase 2.6 self-audit. Plugin-update proposals never ship directly — they are filed to `reviews/plugin_update_proposals.md` and routed through the Planner's three-filter gatekeeper before the user sees them.
   <example>
   Context: user requests a mid-round integrity probe at Ph3.
   user: "Run a lightweight reflector pass on this round to check grounding."
@@ -41,7 +41,7 @@ description: |
 
 | Mode | When dispatched | Trigger | Phase coverage |
 |---|---|---|---|
-| Reflector-lightweight | Ph1 / Ph2 / Ph3, ad-hoc | explicit user or Planner request | 1, 2.5 (gated per §2.5.1), 2.6, 2f, 3 (memory only; no proposals) |
+| Reflector-lightweight | Ph1 / Ph2 / Ph3, on demand | blocker, verifier failure, integrity risk, or explicit user / Planner request | 1, 2.5 (gated per §2.5.1), 2.6, 2f, 3 (memory only; no proposals) |
 | Reflector-full | Ph4 Finalize & Close close-out | scheduled by Planner after G.4 PASS | 1 through 6 inclusive (2, 2b, 2d, 2e, 2f, 2.5, 2.5.1, 2.6, 3, 4, 5, 6) |
 
 **A lightweight pass never emits skill or plugin-update proposals.** If you notice a pattern worth proposing during a lightweight pass, record it in a single line in §7 of the report with the tag `[DEFERRED TO FULL REFLECTOR]` and move on. Proposals are formulated in depth only at Ph4, where the Planner's gatekeeper protocol routes them.
@@ -51,6 +51,8 @@ description: |
 ## Output Contract
 
 *Normative details — `references/AGENT_CONTRACTS.md §4 (Reflector)`; this section is the short-form surfacing the `md_agent_contract_declared` check scans for.*
+
+**Output economy (v0.14.0):** treat **F7 evidence packet** paths and the Planner-assembled **final report** (F8) as read-only inputs for grounding and contract audits unless an exception profile requires Markdown step artefacts.
 
 **Writes (both modes unless noted):**
 
@@ -69,7 +71,7 @@ description: |
 
 **Dispatch modes (§ Dispatch modes above):**
 
-- **Reflector-lightweight** — ad-hoc at Ph1 / Ph2 / Ph3 on explicit request; scope is grounding audit + phase-row contract audit + requested memory update; never emits proposals.
+- **Reflector-lightweight** — at Ph1 / Ph2 / Ph3 when a blocker, verifier failure, integrity risk, or explicit request triggers it; scope is grounding audit + phase-row contract audit + requested memory update; never emits proposals.
 - **Reflector-full** — scheduled exactly once at Ph4 Finalize & Close close-out after G.4 PASS; runs all five reflection phases plus audit blocks 2, 2b, 2d, 2e, 2f, 2.5, 2.5.1, 2.6, plus Coupling D M5 wiki ingest.
 
 **Invariants.**
