@@ -421,6 +421,24 @@ if [[ -f "$PLUGIN_ROOT/scripts/audit/audit_citations.py" ]]; then
     echo ""
 fi
 
+# --- Phase 0.60d3: MANIFEST.md link + CLAUDE.md preservation (v0.15.0-pre PR-4b) ---
+
+if [[ -f "$PLUGIN_ROOT/scripts/manifest_links_check.py" ]]; then
+    echo "MANIFEST.md link + CLAUDE.md preservation (scripts/manifest_links_check.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/manifest_links_check.py"; then
+        echo "  [BLOCKER] manifest_links_check failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      manifest_links_check passed"
+    fi
+    echo ""
+else
+    echo "MANIFEST.md link check: script missing"
+    echo "  [BLOCKER] cannot run manifest_links_check"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
