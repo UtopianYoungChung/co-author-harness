@@ -379,6 +379,48 @@ else
     echo ""
 fi
 
+# --- Phase 0.60d2: citation auditor smoketest (v0.15.0-pre PR-4a) ----------
+
+if [[ -f "$PLUGIN_ROOT/scripts/audit/test_citations.py" ]]; then
+    echo "Citation auditor smoketest (scripts/audit/test_citations.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/audit/test_citations.py"; then
+        echo "  [BLOCKER] citation auditor smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      citation auditor smoketest passed"
+    fi
+    echo ""
+else
+    echo "Citation auditor smoketest: script missing"
+    echo "  [BLOCKER] cannot run citation auditor smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# Live-tree citation audit. Inviolable severity — any unresolved
+# [GP §N] / GROUNDING_PROTOCOL.md §Rule N citation in references/, agents/,
+# or skills/ fails closed. The smoketest above proves the auditor itself
+# works; this block runs it against the actual harness package.
+if [[ -f "$PLUGIN_ROOT/scripts/audit/audit_citations.py" ]]; then
+    echo "Live citation audit (references/, agents/, skills/, commands/)"
+    LIVE_AUDIT_FAILED=0
+    for target in references agents skills commands; do
+        if [[ -d "$PLUGIN_ROOT/$target" ]]; then
+            if ! python3 "$PLUGIN_ROOT/scripts/audit/audit_citations.py" \
+                    "$PLUGIN_ROOT/$target" --quiet; then
+                echo "  [BLOCKER] unresolved GROUNDING_PROTOCOL citations in $target/"
+                LIVE_AUDIT_FAILED=1
+            fi
+        fi
+    done
+    if [[ $LIVE_AUDIT_FAILED -eq 0 ]]; then
+        echo "  [OK]      all canonical GP citations resolve against gp-N anchors"
+    else
+        BLOCKERS=$((BLOCKERS + 1))
+    fi
+    echo ""
+fi
+
 # --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
