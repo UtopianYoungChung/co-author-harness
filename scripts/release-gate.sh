@@ -307,7 +307,25 @@ else
     echo ""
 fi
 
-# --- Phase 0.60a: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
+# --- Phase 0.60a: stage/profile migration smoketest (v0.15.0-pre PR-3b.1) ---
+
+if [[ -f "$PLUGIN_ROOT/scripts/migrate_v0150pre_stage_profile_smoketest.py" ]]; then
+    echo "stage/profile migration smoketest (scripts/migrate_v0150pre_stage_profile_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/migrate_v0150pre_stage_profile_smoketest.py"; then
+        echo "  [BLOCKER] stage/profile migration smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      stage/profile migration smoketest passed"
+    fi
+    echo ""
+else
+    echo "stage/profile migration smoketest: script missing"
+    echo "  [BLOCKER] cannot run stage/profile migration smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60b: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
 
 if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
     echo "GROUNDING_PROTOCOL stable anchors (scripts/grounding_anchors_check.py)"
@@ -325,7 +343,7 @@ else
     echo ""
 fi
 
-# --- Phase 0.60b: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
+# --- Phase 0.60c: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
     echo "Audit suite smoketest (scripts/audit/test_audit.py)"

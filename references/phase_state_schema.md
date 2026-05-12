@@ -58,6 +58,17 @@ The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_
 
 Every value of the `sections` map is an object with the following eighteen fields (no omissions tolerated for the two fields the validator enforces as required; other fields are contract-required but not per-field-enforced by `phase_state_validate.py` — see §6.1). The sixteenth field, `pre_mcr_deep_pass_completed`, is additive at v0.8.0 under β-P-9a; a ledger that omits it is tolerated at shape-validation time and treated as `false` by the MCR admission gate. The seventeenth field, `references_initialized`, is additive at v0.10.0 Stage S2 under the snowball-driven reference-scaffolding bundle; a ledger that omits it is tolerated at shape-validation time and treated as `false` by SK-NEW-A's idempotency guard. The eighteenth field, `last_coverage_score`, is additive at v0.10.0 Stage S4 under the same bundle; a ledger that omits it is tolerated at shape-validation time and treated as `null` by SK-NEW-B's cross-round regression-detection logic at `agents/planner.md §Phase 3.8`.
 
+### 2.2 Optional `stage` / `profile` (v0.15.0-pre PR-3b.1)
+
+Two **optional** shadow fields are accepted on every `SectionStateObject`:
+
+| Field | Type | Legal values | Notes |
+|---|---|---|---|
+| `stage` | string \| null | `"draft"` / `"iterate"` / `"finalize"` | Lifecycle axis decoupled from `current_phase`. Backfilled by `scripts/migrate_v0150pre_add_stage_profile.py` from existing `current_phase` (`Ph1→draft`, `Ph2/Ph3/Ph3_converged→iterate`, `Ph4→finalize`). |
+| `profile` | string \| null | `"refine"` / `"structural"` / `"deep"` / `"stability"` | Scope dial, meaningful only when `stage == "iterate"`. Backfilled from `check_profile` when present, else `"refine"`. |
+
+**Status at PR-3b.1.** Purely additive. Absence is tolerated; presence is enum-type-checked by `scripts/phase_state_validate.py` (BLOCKER on bad enum value). No agent, skill, or readiness gate reads `stage` or `profile` yet — that wiring lands in PR-3b.2 (MCR convergence keying) and PR-3b.3 (skill aliases). `current_phase` remains the source of truth for behaviour at 3b.1. The migration helper is idempotent; existing ledgers continue to validate without re-write.
+
 ```json
 {
   "heading_path": ["1. Introduction"],

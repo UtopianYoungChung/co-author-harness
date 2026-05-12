@@ -82,6 +82,15 @@ SUPPORTED_SCHEMA_VERSION = "0.7.4"
 PHASE_ORDER = ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"]
 PHASE_INDEX = {p: i for i, p in enumerate(PHASE_ORDER)}
 
+# v0.15.0-pre PR-3b.1 — additive stage/profile shadow fields. The validator
+# accepts but does not require either field; downstream consumers may use the
+# new axis without forcing all writers to migrate at once. The migration
+# helper `scripts/migrate_v0150pre_add_stage_profile.py` backfills these from
+# `current_phase`. Behaviour, vocabulary, and MCR keying are unchanged at
+# 3b.1 — those are 3b.2+. See references/phase_state_schema.md §2.2.
+VALID_STAGES = {"draft", "iterate", "finalize"}
+VALID_PROFILES = {"refine", "structural", "deep", "stability"}
+
 # Required SectionStateObject top-level fields (v0.7.4 15-field schema).
 REQUIRED_SECTION_FIELDS = {
     "current_phase",
@@ -374,6 +383,38 @@ def _validate_section(
                 path=f"sections[{section_path!r}]",
                 message=f"current_phase {cp!r} does not match last log row's "
                         f"new_phase {last!r}",
+            ))
+
+    # v0.15.0-pre PR-3b.1: optional `stage` and `profile` shadow fields.
+    # Additive — absence is tolerated; presence is type-checked against the
+    # legal enum. Inter-field consistency (e.g. stage=draft implies
+    # profile is null) is intentionally NOT enforced at this layer; the
+    # migration helper guarantees consistency on derive, and 3b.2 will wire
+    # the downstream readers. The validator's job here is to catch typos
+    # before they reach the MCR-keying logic.
+    if "stage" in section:
+        stage = section["stage"]
+        if stage is not None and stage not in VALID_STAGES:
+            findings.append(Finding(
+                code="SECTION_BAD_STAGE",
+                severity=Severity.BLOCKER,
+                path=f"sections[{section_path!r}].stage",
+                message=(
+                    f"stage {stage!r} not in {sorted(VALID_STAGES)}; see "
+                    f"references/phase_state_schema.md §2.2"
+                ),
+            ))
+    if "profile" in section:
+        profile = section["profile"]
+        if profile is not None and profile not in VALID_PROFILES:
+            findings.append(Finding(
+                code="SECTION_BAD_PROFILE",
+                severity=Severity.BLOCKER,
+                path=f"sections[{section_path!r}].profile",
+                message=(
+                    f"profile {profile!r} not in {sorted(VALID_PROFILES)}; "
+                    f"see references/phase_state_schema.md §2.2"
+                ),
             ))
 
     # v0.8.0 P2.1a (beta-P-9a): soft type-check on the pre-MCR Ph3-deep
