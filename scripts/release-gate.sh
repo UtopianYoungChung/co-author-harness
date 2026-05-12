@@ -307,7 +307,25 @@ else
     echo ""
 fi
 
-# --- Phase 0.60a: stage/profile migration smoketest (v0.15.0-pre PR-3b.1) ---
+# --- Phase 0.60a: phase-skill alias parity (v0.15.0-pre PR-3b.3) ----------
+
+if [[ -f "$PLUGIN_ROOT/scripts/alias_parity_smoketest.py" ]]; then
+    echo "Phase-skill alias parity smoketest (scripts/alias_parity_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/alias_parity_smoketest.py"; then
+        echo "  [BLOCKER] alias parity smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      alias parity smoketest passed"
+    fi
+    echo ""
+else
+    echo "Phase-skill alias parity smoketest: script missing"
+    echo "  [BLOCKER] cannot run alias parity smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60b: stage/profile migration smoketest (v0.15.0-pre PR-3b.1) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/migrate_v0150pre_stage_profile_smoketest.py" ]]; then
     echo "stage/profile migration smoketest (scripts/migrate_v0150pre_stage_profile_smoketest.py)"
@@ -325,7 +343,7 @@ else
     echo ""
 fi
 
-# --- Phase 0.60b: MCR convergence evidence smoketest (v0.15.0-pre PR-3b.2) -
+# --- Phase 0.60c: MCR convergence evidence smoketest (v0.15.0-pre PR-3b.2) -
 
 if [[ -f "$PLUGIN_ROOT/scripts/mcr_convergence_evidence_smoketest.py" ]]; then
     echo "MCR convergence evidence smoketest (scripts/mcr_convergence_evidence_smoketest.py)"
@@ -343,7 +361,7 @@ else
     echo ""
 fi
 
-# --- Phase 0.60c: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
+# --- Phase 0.60d: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
 
 if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
     echo "GROUNDING_PROTOCOL stable anchors (scripts/grounding_anchors_check.py)"
@@ -361,7 +379,7 @@ else
     echo ""
 fi
 
-# --- Phase 0.60d: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
+# --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
     echo "Audit suite smoketest (scripts/audit/test_audit.py)"

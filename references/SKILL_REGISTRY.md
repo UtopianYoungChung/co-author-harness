@@ -394,6 +394,33 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Sibling:** SK-33 `seed-snowball-discovery` (SK-36 is the pre-seed predecessor — SK-33 auto-invokes SK-36 when opt-in conditions hold; SK-36 pre-seeds the pool SK-33 then saturates); SK-35 `extend-snowball-incremental` (orthogonal — SK-36 operates at Ph1 pre-seed time; SK-35 operates at Ph2 in-loop for single-claim gap-closing)
 - **Not a replacement for:** SK-33 `seed-snowball-discovery` (SK-36 pre-seeds; SK-33 saturates — when `inherit_snowball: true`, SK-36 runs first and SK-33 resumes from the pre-seeded pool, not from zero; SK-36 cannot replace the saturation iteration); manual cross-project curation (SK-36 uses graphify communities as a proxy for relevance — the proxy is useful but not equivalent to an expert selection of prior project sources)
 
+### SK-37. `run-draft`
+- **File:** `skills/run-draft/SKILL.md` (new at v0.15.0-pre PR-3b.3)
+- **Pattern:** **Alias** for SK-25 `run-phase-1`. Both names resolve to the same canonical workflow under the v0.15.0-pre `stage × profile` vocabulary (`stage=draft`). The alias body redirects readers to `skills/run-phase-1/SKILL.md` and adds no new logic. Old name remains canonical; the alias exists to surface the new vocabulary alongside legacy phase-numbered names without breaking project scripts or muscle memory.
+- **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
+- **Tier:** Package
+- **Status:** Active (vocabulary alias only; behaviour identical to canonical)
+- **Depends on:** `skills/run-phase-1/SKILL.md` (canonical body — the alias is a redirect, not a copy); `references/phase_state_schema.md §2.2` (the `stage` / `profile` shadow fields the vocabulary aligns with, additive at PR-3b.1).
+- **Sibling:** SK-25 `run-phase-1` (canonical); SK-38 `run-iterate` (sibling alias for Ph3); SK-39 `run-finalize` (sibling alias for Ph4). `/run-phase-2` deliberately has no alias at PR-3b.3 — Ph2 is the rung the architecture intends to merge into `/run-iterate refine` later.
+
+### SK-38. `run-iterate`
+- **File:** `skills/run-iterate/SKILL.md` (new at v0.15.0-pre PR-3b.3)
+- **Pattern:** **Alias** for SK-26 `run-phase-3`. Both names resolve to the same canonical workflow under the v0.15.0-pre `stage × profile` vocabulary (`stage=iterate`; `profile` dial follows `skills/run-phase-3/SKILL.md §4.5`). The alias body redirects readers to the canonical and adds no new logic. PR-3b.3 does not collapse `run-phase-3-stability` — that skill remains canonical for the byte-stable inheritance pass and is invoked directly.
+- **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
+- **Tier:** Package
+- **Status:** Active (vocabulary alias only; behaviour identical to canonical)
+- **Depends on:** `skills/run-phase-3/SKILL.md` (canonical body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 `W-MCR-CONVERGENCE-EVIDENCE` advisory reads the `profile:` field this vocabulary aligns with).
+- **Sibling:** SK-26 `run-phase-3` (canonical); SK-31 `run-phase-3-stability` (stability sub-mode, invoked directly); SK-37 `run-draft`; SK-39 `run-finalize`.
+
+### SK-39. `run-finalize`
+- **File:** `skills/run-finalize/SKILL.md` (new at v0.15.0-pre PR-3b.3)
+- **Pattern:** **Alias** for SK-27 `run-phase-4`. Both names resolve to the same canonical workflow under the v0.15.0-pre `stage × profile` vocabulary (`stage=finalize`). The alias body redirects readers to the canonical and adds no new logic. MCR admission, G.4 sign-off, external-verifier requirements, and Reflector-full close-out are unchanged — see canonical for spec.
+- **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
+- **Tier:** Package
+- **Status:** Active (vocabulary alias only; behaviour identical to canonical)
+- **Depends on:** `skills/run-phase-4/SKILL.md` (canonical body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 advisory at MCR boundary).
+- **Sibling:** SK-27 `run-phase-4` (canonical); SK-37 `run-draft`; SK-38 `run-iterate`.
+
 ---
 
 ## Orchestration Commands (v0.7.0)
