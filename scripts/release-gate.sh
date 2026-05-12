@@ -439,6 +439,62 @@ else
     echo ""
 fi
 
+# --- Phase 0.60d4: token-budget smoketest + measurement (v0.15.0-pre PR-4d, WARN-ONLY) ---
+
+if [[ -f "$PLUGIN_ROOT/scripts/token_budget_smoketest.py" ]]; then
+    echo "Token-budget smoketest (scripts/token_budget_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/token_budget_smoketest.py"; then
+        echo "  [BLOCKER] token-budget smoketest failed (script regression)"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      token-budget smoketest passed"
+    fi
+    echo ""
+else
+    echo "Token-budget smoketest: script missing"
+    echo "  [BLOCKER] cannot run token-budget smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# Token-budget measurement is WARN-ONLY at PR-4d per the v0.15.0
+# architecture (measurement-first; the Reflector split + later slims
+# will pull breaching files under the threshold). Breaches do NOT
+# increment BLOCKERS. The script always exits 0 in normal mode; we
+# treat any non-zero exit as an environment issue (tiktoken missing).
+if [[ -f "$PLUGIN_ROOT/scripts/token_budget_check.py" ]]; then
+    echo "Token-budget measurement (warn-only; PR-4d)"
+    TOKEN_BUDGET_REPORT="$PLUGIN_ROOT/reviews/token_budget_report.json"
+    if ! python3 "$PLUGIN_ROOT/scripts/token_budget_check.py" --quiet \
+            --out "$TOKEN_BUDGET_REPORT"; then
+        echo "  [WARN]    token-budget script could not run (tiktoken missing?)"
+        WARNINGS=$((WARNINGS + 1))
+    else
+        BREACH_COUNT=$(python3 - "$TOKEN_BUDGET_REPORT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("unknown")
+else:
+    print(len(data.get("breaches", [])))
+PY
+)
+        if [[ "$BREACH_COUNT" == "0" ]]; then
+            echo "  [OK]      token-budget measurement complete; no breaches"
+        else
+            echo "  [WARN]    token-budget measurement found $BREACH_COUNT budget breach(es)"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+        echo "            report: reviews/token_budget_report.json"
+    fi
+    echo ""
+fi
+
 # --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then

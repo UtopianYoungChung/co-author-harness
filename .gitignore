@@ -61,3 +61,4 @@ artifacts/semantic-review/
 # verification outputs do not.
 reviews/advisor_consultation_*.md
 reviews/ground_truth_verification_*.md
+reviews/token_budget_report.json
