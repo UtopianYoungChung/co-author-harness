@@ -325,7 +325,25 @@ else
     echo ""
 fi
 
-# --- Phase 0.60b: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
+# --- Phase 0.60b: MCR convergence evidence smoketest (v0.15.0-pre PR-3b.2) -
+
+if [[ -f "$PLUGIN_ROOT/scripts/mcr_convergence_evidence_smoketest.py" ]]; then
+    echo "MCR convergence evidence smoketest (scripts/mcr_convergence_evidence_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/mcr_convergence_evidence_smoketest.py"; then
+        echo "  [BLOCKER] MCR convergence evidence smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      MCR convergence evidence smoketest passed"
+    fi
+    echo ""
+else
+    echo "MCR convergence evidence smoketest: script missing"
+    echo "  [BLOCKER] cannot run MCR convergence evidence smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60c: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
 
 if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
     echo "GROUNDING_PROTOCOL stable anchors (scripts/grounding_anchors_check.py)"
@@ -343,7 +361,7 @@ else
     echo ""
 fi
 
-# --- Phase 0.60c: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
+# --- Phase 0.60d: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
     echo "Audit suite smoketest (scripts/audit/test_audit.py)"

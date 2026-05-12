@@ -662,6 +662,119 @@ def _is_mcr_cleared(section: dict[str, Any], default_final_tier: str) -> bool:
     return bool(section.get("ceiling_locked")) and last_approved == applicable
 
 
+# v0.15.0-pre PR-3b.2 — deterministic convergence evidence at the MCR
+# boundary. This helper produces an *advisory* signal only. It does not
+# substitute for the human terminal signoff that flips Ph3 -> Ph3_converged
+# (planner.md §3 TerminalSignoffRow); `_is_mcr_cleared` is intentionally
+# untouched and `E-MCR-NOT-CLEARED` continues to gate admission. The signal
+# exists so future readers can align with a mechanical convergence test
+# instead of inspecting the convergence_log by eye.
+_NON_REFINE_PROFILES = frozenset({"deep", "structural", "stability"})
+
+_CONV_LOG_ROW_RE = re.compile(
+    r"^\s*-\s*iteration_index:\s*(?P<idx>\d+)\s*$", re.MULTILINE
+)
+
+
+def _parse_convergence_log_iteration_rows(text: str) -> list[dict[str, str]]:
+    """Parse the iteration-row form of convergence_log.md.
+
+    Each row is a YAML-ish block starting with `- iteration_index: <int>`.
+    We collect the immediately-following key: value lines until the next
+    iteration_index marker. Unknown keys are preserved verbatim — the helper
+    is consumer-shaped, not validator-shaped.
+
+    Returns rows in file order (oldest first).
+    """
+    rows: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip()
+        m = re.match(r"^\s*-\s*iteration_index:\s*(\d+)\s*$", line)
+        if m:
+            if current is not None:
+                rows.append(current)
+            current = {"iteration_index": m.group(1)}
+            continue
+        if current is None:
+            continue
+        # Stop accumulating once we hit a non-key-value line that signals a
+        # different block type (defensive — convergence_log is mixed-content).
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("- finding_id:"):
+            # A different block shape — flush current and stop reading.
+            rows.append(current)
+            current = None
+            continue
+        if ":" in stripped and not stripped.startswith("-"):
+            key, val = stripped.split(":", 1)
+            current[key.strip()] = val.strip()
+    if current is not None:
+        rows.append(current)
+    return rows
+
+
+def _row_section_key(row: dict[str, str]) -> str | None:
+    """Return the normalized section key carried by a convergence-log row.
+
+    Historical rows may omit a section key entirely. PR-3b.2 treats such rows
+    as project-scoped for backward compatibility. When a row does carry a
+    section key, the advisory must only fire for the matching section.
+    """
+    for field in ("section", "Section", "heading_path", "section_heading_path"):
+        value = row.get(field)
+        if value:
+            return value.strip().strip("[]").replace("/", " > ")
+    return None
+
+
+def _compute_mcr_convergence_evidence(
+    section: dict[str, Any], convergence_log_text: str | None
+) -> bool:
+    """Return True iff the last two iteration rows in convergence_log.md
+    satisfy the strict non-refine stability definition:
+
+        * both rows carry an explicit `profile:` field in
+          {deep, structural, stability} — `refine` and missing both disqualify
+        * both rows carry `findings_count_delta: 0`
+        * both rows carry the SAME non-null `convergence_metric` value
+
+    Strict semantics by design: a missing `profile` field is treated as
+    "no advisory evidence available," NOT as a finding. The advisory is
+    purely additive; absence does not block anything.
+
+    If convergence-log rows carry a section key, the last two relevant rows
+    must match the section under review. Rows without a section key are treated
+    as project-scoped for backward compatibility with older logs.
+    """
+    if not convergence_log_text:
+        return False
+    rows = _parse_convergence_log_iteration_rows(convergence_log_text)
+    section_key = _heading_key(section.get("heading_path", []))
+    matching_rows: list[dict[str, str]] = []
+    for row in rows:
+        row_key = _row_section_key(row)
+        if row_key is None or row_key == section_key:
+            matching_rows.append(row)
+    rows = matching_rows
+    if len(rows) < 2:
+        return False
+    last_two = rows[-2:]
+    for row in last_two:
+        profile = row.get("profile")
+        if profile not in _NON_REFINE_PROFILES:
+            return False
+        if row.get("findings_count_delta") != "0":
+            return False
+    metric_a = last_two[0].get("convergence_metric")
+    metric_b = last_two[1].get("convergence_metric")
+    if not metric_a or not metric_b or metric_a in ("null", "None"):
+        return False
+    return metric_a == metric_b
+
+
 def _is_t3_stale(section: dict[str, Any], budget_days: int, now: datetime.datetime) -> bool:
     """Compute [T3-STALE] per Option A (TIER_PROTOCOL.md §3.3.1)."""
     if section.get("current_tier") != "T3":
@@ -726,6 +839,33 @@ def check_clause_f(ctx: CheckContext) -> None:
                 ),
             )
         )
+
+    # v0.15.0-pre PR-3b.2 — advisory convergence-evidence emission. This is
+    # additive: it does not change `_is_mcr_cleared`, does not affect the
+    # exit code (W- prefix routes to warnings per main()), and does not
+    # substitute for the TerminalSignoffRow that authorizes Ph3 -> Ph3_converged.
+    log_path = ctx.project_root / "reviews" / "convergence_log.md"
+    log_text = _read_text_or_none(log_path)
+    if log_text:
+        for s in sections:
+            key = _heading_key(s.get("heading_path", []))
+            if _compute_mcr_convergence_evidence(s, log_text):
+                ctx.findings.append(
+                    Finding(
+                        code="W-MCR-CONVERGENCE-EVIDENCE",
+                        clause="f",
+                        section=key,
+                        message=(
+                            "Last two convergence_log iteration rows show "
+                            "stability under a non-refine profile (deep / "
+                            "structural / stability). Evidence-only — does "
+                            "NOT authorize MCR admission; the terminal "
+                            "signoff in ph3_convergence_signoff.md is the "
+                            "authority. See phase_state_schema.md §2.2 "
+                            "and PR-3b.2 release notes."
+                        ),
+                    )
+                )
 
 
 # ----------------------------------------------------------------- clause (g)
