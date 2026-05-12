@@ -495,6 +495,24 @@ PY
     echo ""
 fi
 
+# --- Phase 0.60d5: Reflector split parity (v0.15.0-pre PR-4c) -------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/reflector_split_parity_smoketest.py" ]]; then
+    echo "Reflector split parity (scripts/reflector_split_parity_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/reflector_split_parity_smoketest.py"; then
+        echo "  [BLOCKER] reflector split parity smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      reflector split parity smoketest passed"
+    fi
+    echo ""
+else
+    echo "Reflector split parity: script missing"
+    echo "  [BLOCKER] cannot run reflector split parity smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
