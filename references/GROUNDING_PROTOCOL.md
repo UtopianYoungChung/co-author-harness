@@ -6,8 +6,11 @@
 
 **Principle.** Every factual claim an agent makes must be traceable to a verifiable source. If the source has not been verified in the current session, the claim must be marked as unverified. If the source cannot be found, the agent must say so rather than fill the gap.
 
+**Stable anchors (v0.15.0-pre).** Every rule heading carries an HTML anchor of the form `<a id="gp-N"></a>` (or `gp-Na` for sub-rules like 7a) so external auditors can resolve `[GP §N]`-style citations deterministically against this file. The forthcoming `scripts/audit/audit_citations.py` (PR-4) uses these anchors to break the citation-grounding self-attestation loop: the script verifies an anchor exists at the cited rule, the LLM never self-verifies. Anchor IDs are stable across renames of the visible heading text; if you rename a rule, do not change its anchor.
+
 ---
 
+<a id="gp-1"></a>
 ## Rule 1 — Read Before Cite
 
 **No agent may cite a file, section, or passage without having read it in the current session.**
@@ -58,6 +61,7 @@ If an agent cites a rule, line, or passage it has not read in the current sessio
 
 ---
 
+<a id="gp-2"></a>
 ## Rule 2 — Compute Before Report
 
 **No agent may report a count, metric, or pattern match without having actually computed it.**
@@ -87,6 +91,7 @@ If an agent reports a count it did not compute, the Reflector flags it as:
 
 ---
 
+<a id="gp-3"></a>
 ## Rule 3 — Verify Before Reference
 
 **No agent may reference a file path without having verified it exists.**
@@ -115,6 +120,7 @@ If an agent references a path that does not exist and is not being created in th
 
 ---
 
+<a id="gp-4"></a>
 ## Rule 4 — Quote Before Attribute
 
 **No agent may attribute a position to an author without being able to point to the specific passage in a source the agent (or a prior agent in the chain) has actually read.**
@@ -152,6 +158,7 @@ Tier: [unknown — no read, no artifact, no indirection marked]
 
 ---
 
+<a id="gp-5"></a>
 ## Rule 5 — Mark Uncertainty
 
 **When an agent is unsure about a factual claim, it must use an explicit uncertainty marker rather than presenting the claim as verified.**
@@ -188,6 +195,7 @@ If the Reflector finds a factual claim without a marker that turns out to be wro
 
 ---
 
+<a id="gp-6"></a>
 ## Rule 6 — No Gap-Filling
 
 **When information is missing, the agent must leave a marked gap rather than fill it with plausible-sounding content.**
@@ -225,6 +233,7 @@ If the Reflector finds fabricated content (a claim that does not trace to any so
 
 ---
 
+<a id="gp-7"></a>
 ## Rule 7 — Chain of Verification
 
 **Every factual claim in the system must have a traceable verification chain: who verified it, when, and from what source.**
@@ -268,6 +277,7 @@ The Reflector's grounding audit (see below) checks the verification chain for ev
 
 ---
 
+<a id="gp-7a"></a>
 ## Rule 7a — External Verification (Scholar Gateway, Consensus, Zotero/Scite)
 
 **A claim whose source has not been read in the current session may be treated as `[externally verified]` (and any upstream `[UNVERIFIED]` marker removed) only if a Class 1 verifier — as enumerated in `EXTERNAL_VERIFIERS.md` — returned a corroborating result in the current session AND the verification was logged.**

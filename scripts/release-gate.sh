@@ -307,7 +307,25 @@ else
     echo ""
 fi
 
-# --- Phase 0.60a: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
+# --- Phase 0.60a: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
+
+if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
+    echo "GROUNDING_PROTOCOL stable anchors (scripts/grounding_anchors_check.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/grounding_anchors_check.py"; then
+        echo "  [BLOCKER] grounding_anchors_check.py reported missing or misplaced anchors"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      grounding_anchors_check.py passed"
+    fi
+    echo ""
+else
+    echo "GROUNDING_PROTOCOL stable anchors: script missing (scripts/grounding_anchors_check.py)"
+    echo "  [BLOCKER] cannot run grounding_anchors_check"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60b: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
     echo "Audit suite smoketest (scripts/audit/test_audit.py)"
