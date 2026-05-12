@@ -49,6 +49,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+from resolve_includes import resolve_includes_in_text
+
 # Resolve harness root from this script's location: scripts/build-plugin.py
 HARNESS = Path(__file__).resolve().parent.parent
 
@@ -151,6 +153,13 @@ def main() -> int:
                 continue
             # Use forward slashes in archive (zip convention)
             arcname = rel.replace("\\", "/")
+            if src.suffix.lower() == ".md":
+                source_text = src.read_text(encoding="utf-8")
+                if "<!-- include:" in source_text:
+                    rendered = resolve_includes_in_text(source_text, src, HARNESS)
+                    z.writestr(arcname, rendered)
+                    total_size += len(rendered.encode("utf-8"))
+                    continue
             z.write(src, arcname=arcname)
             total_size += src.stat().st_size
 

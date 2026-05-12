@@ -185,7 +185,7 @@ Each dispatch loads the agent's full prompt from `agents/<role>.md` and honors t
 
 Skills are targeted shortcuts. Available in the current deployment:
 
-- `/quick-deterministic` — run only `DETERMINISTIC_CHECKS.md`, no Review.
+- `/quick-deterministic` — invoke `scripts/audit/run_all.py` and summarize `reviews/findings.json`, no Review. (The script is the runtime; `DETERMINISTIC_CHECKS.md` is rule rationale, not a runtime artifact.)
 - `/check-contradictions` — run SAFEGUARD Check 4 (theoretical contradictions between co-invoked sources) in isolation.
 - `/check-abstract-body` — run the abstract-vs-body promise audit.
 - `/suchman-register-audit` — check C-1 (Suchman commitment) register consistency.

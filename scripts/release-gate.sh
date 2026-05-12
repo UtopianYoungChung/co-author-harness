@@ -17,7 +17,9 @@
 #   6. Runs scripts/version-check.py for release-version consistency.
 #   7. Runs scripts/catalog-check.py for README and registry parity checks.
 #   8. Runs scripts/path-hygiene-check.py for maintainer-local path hygiene.
-#   8a. [v0.14.0] Runs scripts/output_economy_check.py then
+#   8a. [v0.15.0-pre] Runs scripts/snippet-check.py for packaging-time
+#       include resolution and anti-duplication of extracted policy blocks.
+#   8b. [v0.14.0] Runs scripts/output_economy_check.py then
 #       scripts/output_economy_smoketest.py (F7/F8 fixture + artefact validator).
 #   9. [Retired at v0.7.0] Rule-digest build-and-verify. The tier-gated digest
 #      exception (GROUNDING_PROTOCOL Rule 1, v0.6.0 and earlier) was retired in
@@ -283,6 +285,58 @@ if [[ -f "$PLUGIN_ROOT/scripts/path-hygiene-check.py" ]]; then
 else
     echo "Path hygiene checks: script missing (scripts/path-hygiene-check.py)"
     echo "  [BLOCKER] cannot run path hygiene checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60: snippet include guard (v0.15.0-pre) ----------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/snippet-check.py" ]]; then
+    echo "Snippet include guard (resolve includes + anti-duplication)"
+    if ! python3 "$PLUGIN_ROOT/scripts/snippet-check.py"; then
+        echo "  [BLOCKER] scripts/snippet-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/snippet-check.py passed"
+    fi
+    echo ""
+else
+    echo "Snippet include guard: script missing (scripts/snippet-check.py)"
+    echo "  [BLOCKER] cannot run snippet include guard"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.60a: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
+
+if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
+    echo "Audit suite smoketest (scripts/audit/test_audit.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/audit/test_audit.py"; then
+        echo "  [BLOCKER] audit suite smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      audit suite smoketest passed"
+    fi
+    echo ""
+else
+    echo "Audit suite smoketest: script missing (scripts/audit/test_audit.py)"
+    echo "  [BLOCKER] cannot run audit suite smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+if [[ -f "$PLUGIN_ROOT/scripts/tests/test_resolve_includes.py" ]]; then
+    echo "resolve_includes unit tests (scripts/tests/test_resolve_includes.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/tests/test_resolve_includes.py"; then
+        echo "  [BLOCKER] resolve_includes unit tests failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      resolve_includes unit tests passed"
+    fi
+    echo ""
+else
+    echo "resolve_includes unit tests: script missing (scripts/tests/test_resolve_includes.py)"
+    echo "  [BLOCKER] cannot run resolve_includes unit tests"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi

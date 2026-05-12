@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Set, Tuple
 
+from resolve_includes import resolve_includes_in_text
+
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 ALLOWED_DISCOURAGED_SECTION_RE = re.compile(
@@ -136,7 +138,7 @@ def main() -> int:
         if not path.is_file():
             errors.append(f"missing file {rel}")
             continue
-        text = path.read_text(encoding="utf-8")
+        text = resolve_includes_in_text(path.read_text(encoding="utf-8"), path, root)
         errors.extend(check_file(rel, text, PHASE_REQUIRED_PHRASES, True))
 
     planner_path = root / "agents" / "planner.md"

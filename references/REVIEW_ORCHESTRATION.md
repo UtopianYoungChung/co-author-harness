@@ -196,7 +196,13 @@ This writes `reviews/coupling_health.md` + `reviews/coupling_health.json` so rep
 
 ### 6.2 Mechanical language checks (Step 0a)
 
-Run `DETERMINISTIC_CHECKS.md`. Its output is a count report:
+Invoke the audit suite — **do not LLM-count the patterns yourself**. As of v0.15.0-pre, the runtime is `scripts/audit/run_all.py`; `DETERMINISTIC_CHECKS.md` is rule rationale, not the source of patterns.
+
+```
+python scripts/audit/run_all.py <manuscript> --out reviews/findings.json
+```
+
+The script writes `reviews/findings.json` (schema in `scripts/audit/schema.py`). Read the JSON and emit a count block of this shape:
 
 ```
 Deterministic check results
