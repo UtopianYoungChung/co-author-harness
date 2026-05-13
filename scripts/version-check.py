@@ -45,6 +45,24 @@ def extract_readme_latest_version(plugin_root: Path) -> Optional[str]:
     return None
 
 
+def extract_readme_badge_version(plugin_root: Path) -> Optional[str]:
+    """Capture the shields.io Version badge embedded near the top of README.md.
+
+    Added at v0.15.0 — the v0.14.0 → v0.15.0 release prep caught a silent
+    drift where the `## Version` line was bumped but the badge was not, and
+    the GitHub README continued to render the stale badge. The badge is the
+    most user-visible version surface and must match the manifest.
+    """
+    text = read_text(plugin_root / "README.md")
+    match = re.search(
+        r"!\[Version\]\(https://img\.shields\.io/badge/Version-(\d+\.\d+\.\d+)-",
+        text,
+    )
+    if match:
+        return match.group(1)
+    return None
+
+
 def extract_changelog_latest_version(plugin_root: Path) -> Optional[str]:
     """Return the version of the most recent *released* CHANGELOG entry.
 
@@ -223,6 +241,7 @@ def main() -> int:
         return 1
 
     readme_version = extract_readme_latest_version(plugin_root)
+    readme_badge_version = extract_readme_badge_version(plugin_root)
     changelog_version = extract_changelog_latest_version(plugin_root)
     marketplace_versions = extract_marketplace_self_referencing_versions(plugin_root)
 
@@ -231,6 +250,13 @@ def main() -> int:
     elif readme_version != manifest_version:
         blockers.append(
             f"README latest version ({readme_version}) != manifest version ({manifest_version})"
+        )
+
+    if readme_badge_version is None:
+        blockers.append("README shields.io Version badge not found near top of README.md")
+    elif readme_badge_version != manifest_version:
+        blockers.append(
+            f"README badge version ({readme_badge_version}) != manifest version ({manifest_version})"
         )
 
     if changelog_version is None:
@@ -265,6 +291,7 @@ def main() -> int:
     print(f"- Plugin root: {plugin_root}")
     print(f"- Manifest version: {manifest_version}")
     print(f"- README latest version: {readme_version or '<missing>'}")
+    print(f"- README badge version:  {readme_badge_version or '<missing>'}")
     print(f"- CHANGELOG top version: {changelog_version or '<missing>'}")
     print(f"- Marketplace self-referencing entries: {marketplace_summary}")
     print(f"- Blockers: {len(blockers)}")
