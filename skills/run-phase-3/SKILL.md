@@ -9,6 +9,15 @@ version: 0.8.0
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — convergence metric, [CONVERGENCE-STABLE], [Ph3-STALE], SAFEGUARD invocation, Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.3 (Ph3 charter), 3.3.0 (check_profile / halo_scope), 3.3.1a (P-12 vector), 3.3.3 (Check 8 gate), 3.3.4 (convergence_journal.jsonl), 5 (review pipeline), 7 (escalation gates), 9 (MCR; §3.4 pre-MCR deep pass)`; `references/REVIEW_ORCHESTRATION.md §§Steps 0a/0.2/0b/1–7/8/8.5`; `references/SAFEGUARD_LAYER.md`; `references/DETERMINISTIC_CHECKS.md` (authoritative halo_scope matrix for P-10); `references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a (F6 check_profile)`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 3a.3, 4.3`; `agents/evaluator.md §Step 8.5`; `phase_notifications.yaml §§1, 3`; `migrate_convergence_journal_v075.py` (removed from the package tree at v0.7.5 RC; see `CHANGELOG.md`); `scripts/paragraph_hash_map.py`.
 
+## PR-3b.4 Compatibility
+
+The public stage surface is now `/run-iterate`. This file remains the
+compatibility body for the full iterate workflow. Legacy `/run-phase-2`
+invocations route to `/run-iterate` with `profile: refine`, and legacy
+`/run-phase-3-stability` invocations route to `/run-iterate` with
+`profile: stability`. Do not advertise Ph2 as a separate public stage in new
+guidance.
+
 ## Output Profile
 
 <!-- include: _snippets/output-profile.md -->
@@ -67,10 +76,11 @@ Each full Ph3 iteration is opened under a fresh F6 `planner_dispatch_plan` (`ART
 | **`deep`** | **Full Ph3 parity** with the pre-v0.8.0 ladder: Steps 0a (full deterministic set on the section), 0.2 (Coupling E.2), 0b (optional external verifiers at Ph3), Steps 1–7 on the full section body, Step 8, Step 8.5 (all eight SAFEGUARD checks). This profile satisfies the **pre-MCR Ph3-deep pass** safety net (`phase_state_schema.md` §2.1 `pre_mcr_deep_pass_completed`; Planner flips the bool on the Phase 5.5 log-write that closes an iteration whose F6 carried `check_profile: deep`). |
 | **`refine`** | **P-10 diff-scoped tightening:** deterministic checks, SAFEGUARD invocations, and judgment steps run on the **diff + declared `halo_scope`** for each scheduled check (`paragraph` \| `immediate_neighbour` \| `containing_section`) per the authoritative matrix in `DETERMINISTIC_CHECKS.md` + `SAFEGUARD_LAYER.md`. Rule 1 full-file grounding floor still applies where the protocol binds it. Steps 0.2 / 0b / 1–7 / 8 / 8.5 execute **only** for checks the F6 `checks_scheduled[]` enumerates; do not silently expand scope beyond the dispatch plan. |
 | **`structural`** | **Section-structure pass:** heading/boundary/anchor-class edits; broader than `refine` when `structural_delta_flag: true` on the F6 row. Envelope is still **F6-driven** — default expectation is full-body structural verification (Steps 1–7 on affected headings) plus Step 0a on structural-risk checks and Step 8.5 on all eight SAFEGUARD checks unless the F6 explicitly narrows `checks_scheduled[]` under user-approved modification. |
+| **`stability`** | **Byte-stable inheritance pass:** route through `skills/run-iterate/SKILL.md`'s stability profile. It preserves the old S-0 gate and reduced grounding + deterministic Check 8 counter envelope from legacy `run-phase-3-stability`, escalates via trigger 30 on any finding, and never satisfies `pre_mcr_deep_pass_completed`. |
 
 **User override** of `check_profile` at the F6 approval checkpoint is recorded in F6 `notes` (`PHASE_PROTOCOL.md §3.3.0`).
 
-**Relationship to `run-phase-3-stability`:** A stability-mode round (`stability_sub_mode_anticipated: true`) always runs the **reduced** grounding + Check-8-counter envelope in that skill; on trigger 30 escalation, the chained **full** `run-phase-3` pass picks up `check_profile` from the **new** F6 the Planner emits for the escalated round (often `deep` if the escalation was structural or verifier-drift).
+**Relationship to `run-phase-3-stability`:** `run-phase-3-stability` is a legacy compatibility command for `/run-iterate --profile stability`. A stability-mode round (`stability_sub_mode_anticipated: true` or `profile: stability`) always runs the reduced grounding + Check-8-counter envelope; on trigger 30 escalation, the chained full iterate pass picks up `check_profile` from the new F6 the Planner emits for the escalated round (often `deep` if the escalation was structural or verifier-drift).
 
 ## 5. Dispatch sequence (per iteration)
 

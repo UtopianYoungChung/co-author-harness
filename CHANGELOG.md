@@ -6,6 +6,24 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## Unreleased
+
+### PR-3b.4 compatibility landing
+
+**What changed.** The public lifecycle surface is now the three-stage ladder
+`/run-draft` -> `/run-iterate` -> `/run-finalize`. Former Ph2 review routes to
+`/run-iterate --profile refine`, and former Ph3 stability routes to
+`/run-iterate --profile stability`.
+
+**Compatibility.** Legacy `/run-phase-2` and `/run-phase-3-stability` commands
+remain shipped as compatibility routers so existing project automation,
+historical ledgers, and slash-command histories continue to resolve. They should
+not be advertised as separate public stages in new guidance.
+
+**Validation.** `scripts/alias_parity_smoketest.py` now pins the compatibility
+routing contract instead of pinning the old PR-3b.3 absence/preservation
+contract.
+
 ## v0.15.0 — 2026-05-13
 
 **What.** Strict-Layers architecture — a coordinated nine-commit stack that promotes regex-in-markdown to executable scripts, closes the citation self-attestation loop, lands a backwards-compatible lifecycle bridge with new vocabulary aliases, adds a routing-index progressive-disclosure layer, splits the Reflector by dispatch mode, and ships warn-only token-budget measurement.

@@ -22,10 +22,12 @@ If `reviews/convergence_log.md` carries the `profile:` field per iteration row, 
 | Old name (canonical) | New alias (v0.15.0-pre) | Stage | Profile |
 |---|---|---|---|
 | `/run-phase-1` | `/run-draft` | `draft` | — |
-| `/run-phase-3` | `/run-iterate` | `iterate` | refine / structural / deep / stability |
+| `/run-phase-2` | `/run-iterate --profile refine` | `iterate` | refine |
+| `/run-phase-3` | `/run-iterate` | `iterate` | refine / structural / deep |
+| `/run-phase-3-stability` | `/run-iterate --profile stability` | `iterate` | stability |
 | `/run-phase-4` | `/run-finalize` | `finalize` | — |
 
-`/run-phase-2` deliberately has no alias at PR-3b.3 — Ph2 is the rung the architecture intends to merge into `/run-iterate refine` later (PR-3b.4); aliasing it now would lock in a surface we may collapse.
+`/run-phase-2` is now a legacy compatibility route to `/run-iterate --profile refine`; it is not a separate public stage.
 
 ## Where the canonical spec lives
 
