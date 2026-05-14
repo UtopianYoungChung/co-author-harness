@@ -89,6 +89,8 @@ Phase-work checks — Evaluator Steps 0a–8.5 and Planner Phase 0 preflight —
 
 **The orchestrating agent in the main conversation loop does not execute phase steps directly.** Applying harness rules from training-data recall instead of reading the authoritative plugin files is a Grounding Protocol violation (see `references/GROUNDING_PROTOCOL.md` Rule 1) and produces findings that cannot be distinguished from confabulation.
 
+**Version does not govern protocol.** Do not check or report the harness version as a basis for protocol decisions. The dispatch model is version-agnostic: proper subagent dispatch and in-session reference reads are always required, regardless of what version the `plugin.json` or `CHANGELOG.md` reports. An agent that says "this time I'll use proper protocol because version X is installed" is confabulating — the protocol obligation is unconditional. To read the authoritative installed version: read `.claude-plugin/plugin.json`; do not recall or infer it from CHANGELOG, README, or training data.
+
 **Required reads before any phase-work check (Grounding Protocol Rule 1).** Every subagent must read these files in-session before acting — not from memory:
 
 - `references/GROUNDING_PROTOCOL.md` — Rules 1–7 (absolute, no override)
