@@ -99,7 +99,7 @@ Phase-work checks — Evaluator Steps 0a–8.5 and Planner Phase 0 preflight —
 - `references/SAFEGUARD_LAYER.md` — Sub-check A–H definitions
 - `agents/evaluator.md` — Evaluator role and Output Contract (full read required)
 
-**Optional mechanical enforcement.** `scripts/phase_write_guard.py` is a PreToolUse hook that fires a grounding reminder whenever `phase_state.json`, `.harness/evidence/`, or `.harness/events.jsonl` are about to be written. To install it in a paper project, add to the project's `.claude/settings.json`:
+**Optional mechanical enforcement.** `scripts/phase_write_guard.py` is a PreToolUse hook that fires a grounding reminder whenever `reviews/phase_state.json`, `reviews/.harness/evidence/`, or `reviews/.harness/events.jsonl` are about to be written. To install it in a paper project, add to the project's `.claude/settings.json`:
 
 ```json
 {
