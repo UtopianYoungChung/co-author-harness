@@ -72,3 +72,42 @@ Full ladder and cross-project rules: [docs/agent-instructions/harness-governance
 
 
 **Package invocation rules** inside the bundle: `references/CLAUDE.md`.
+
+---
+
+## Agent dispatch guardrail (binding)
+
+Phase-work checks — Evaluator Steps 0a–8.5 and Planner Phase 0 preflight — **MUST** be dispatched as the corresponding `co-author-harness-claude:*` subagent:
+
+| Role | Agent type | Scope |
+|------|------------|-------|
+| Planner | `co-author-harness-claude:planner` | Phase 0 preflight, F6 dispatch plan, `phase_state.json` updates |
+| Evaluator | `co-author-harness-claude:evaluator` | Steps 0a–8.5, findings, `convergence_journal.jsonl` |
+| Generator | `co-author-harness-claude:generator` | Fix application after BLOCKER/MAJOR findings |
+| Reflector (probe) | `co-author-harness-claude:reflector-probe` | Ad-hoc mid-round integrity probe (Ph1–Ph3) |
+| Reflector (close-out) | `co-author-harness-claude:reflector-closeout` | Full five-phase reflection at Ph4 close |
+
+**The orchestrating agent in the main conversation loop does not execute phase steps directly.** Applying harness rules from training-data recall instead of reading the authoritative plugin files is a Grounding Protocol violation (see `references/GROUNDING_PROTOCOL.md` Rule 1) and produces findings that cannot be distinguished from confabulation.
+
+**Required reads before any phase-work check (Grounding Protocol Rule 1).** Every subagent must read these files in-session before acting — not from memory:
+
+- `references/GROUNDING_PROTOCOL.md` — Rules 1–7 (absolute, no override)
+- `references/REVIEW_ORCHESTRATION.md` — Steps 0a/0.2/0b/1–8.5 sequence
+- `references/PHASE_PROTOCOL.md` — phase ladder, convergence window, terminal gate
+- `references/SAFEGUARD_LAYER.md` — Sub-check A–H definitions
+- `agents/evaluator.md` — Evaluator role and Output Contract (full read required)
+
+**Optional mechanical enforcement.** `scripts/phase_write_guard.py` is a PreToolUse hook that fires a grounding reminder whenever `phase_state.json`, `.harness/evidence/`, or `.harness/events.jsonl` are about to be written. To install it in a paper project, add to the project's `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "python <path-to-harness>/scripts/phase_write_guard.py" }]
+      }
+    ]
+  }
+}
+```
