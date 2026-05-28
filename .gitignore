@@ -62,3 +62,7 @@ artifacts/semantic-review/
 reviews/advisor_consultation_*.md
 reviews/ground_truth_verification_*.md
 reviews/token_budget_report.json
+
+# (cleanup 2026-05-27) ignore local scratch dir and stray .claude-plugin test zips
+scratch/
+.claude-plugin/*.zip
