@@ -1,0 +1,64 @@
+# Older / bulk artifact drops (single-release policy: do not commit)
+releases/
+# Do not ignore references/ wholesale: package normative law lives there
+# (schemas/, templates/, protocols). v0.14.0 — blanket references/ hid new
+# tracked paths from `git add`. Ignore only known bulk subtrees if needed.
+legacy/
+proposals/
+.claude/
+
+
+# Optional local unpack trees (regenerate from releases/ or source root)
+unpacked/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local probe / scratch
+.write-probe
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.swp
+*~
+
+# Plugin bundles (build artefacts; built by scripts/build-plugin.py from
+# git ls-tree HEAD; landing them inside .claude-plugin/ alongside the
+# manifests is intentional for upload visibility, but the file itself
+# must never be tracked — committing a *.plugin would cause the next
+# rebuild to nest the prior bundle inside the new one (zip-cannot-contain-
+# nested-zip per Cowork plugin loader contract).
+*.plugin
+
+# Pre-built release ZIPs (use GitHub Releases UI for distribution; do
+# not track in-tree — they bloat both the repo and any .plugin bundle
+# rebuild via git ls-tree).
+releases/*.zip
+
+# Calibrator + semantic-review + pre-flight session outputs. Per the
+# v0.10.0 stage close-notes convention, these are session-scope and
+# regenerated on every run; the latest.json convenience pointer is also
+# session-scope. The .plugin-efficiency.json config at the repo root
+# stays tracked (it's the calibrator config, not output).
+artifacts/efficiency/
+artifacts/runs/
+artifacts/v0.10.0_preflight/
+artifacts/semantic-review/
+
+# Session-scope handoff documents. Per the project's prior-session
+# convention these stay untracked; some older handoffs slipped into the
+# tree before the convention was codified — drop them via git rm --cached.
+.claude/handoffs/
+
+# Session-specific review outputs. Reviewer-emitted templates that are
+# part of the Reflector convention (e.g., reviews/plugin_update_proposals.md
+# as the canonical example) stay tracked; per-session consultation /
+# verification outputs do not.
+reviews/advisor_consultation_*.md
+reviews/ground_truth_verification_*.md
+reviews/token_budget_report.json
