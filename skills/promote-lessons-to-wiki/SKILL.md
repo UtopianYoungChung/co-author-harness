@@ -16,7 +16,7 @@ You are materializing **Coupling C** — the Reflector-to-Synthesis feedback loo
 
 Before invoking this skill, verify all of the following. Abort with a clear error if any fails.
 
-1. **Wiki exists.** The path `LLM wiki/wiki/` (relative to the workspace root the user has mounted, or absolute per the user's CLAUDE.md) is present with subfolders `sources/`, `concepts/`, `entities/`, `syntheses/`, and files `index.md` + `log.md`.
+1. **Wiki exists.** The path `knowledge/LLM wiki/wiki/` (relative to the workspace root the user has mounted, or absolute per the user's CLAUDE.md) is present with subfolders `sources/`, `concepts/`, `entities/`, `syntheses/`, and files `index.md` + `log.md`.
 2. **Project has lessons.** The target project has `research_notes/lessons_learned.md` with at least one `L-xx` entry.
 3. **Project has a source page in the wiki** (or the manuscript has been ingested). The generalizing synthesis must cite the project's own manuscript via `[[sources/<key>]]`. If the source page does not exist, stop and ask the user whether to (a) ingest the manuscript first (Coupling D), or (b) proceed with a stub placeholder marked `TODO-ground`.
 4. **No uncommitted review round in flight.** Check `reviews/` for a report whose date is newer than the latest L-xx entry. If a review has produced findings that have not yet been appended as a lesson, ask the user whether to wait.
@@ -27,8 +27,8 @@ Before invoking this skill, verify all of the following. Abort with a clear erro
 
 1. Read `research_notes/lessons_learned.md` in full. Enumerate L-01, L-02, …, L-N.
 2. Read `research_notes/directives.md` if present. Note any P-stage, venue, voice register, or audience commitments that qualify the scope of the lessons.
-3. Read the project's source page at `LLM wiki/wiki/sources/<key>.md`. Extract the source key, the paper's P-stage (if recorded), and the concepts it already wikilinks to.
-4. Read `LLM wiki/wiki/index.md` to see which `concepts/` and `syntheses/` pages already exist. Do not invent wikilinks to nonexistent pages without marking them as red-link candidates.
+3. Read the project's source page at `knowledge/LLM wiki/wiki/sources/<key>.md`. Extract the source key, the paper's P-stage (if recorded), and the concepts it already wikilinks to.
+4. Read `knowledge/LLM wiki/wiki/index.md` to see which `concepts/` and `syntheses/` pages already exist. Do not invent wikilinks to nonexistent pages without marking them as red-link candidates.
 
 ### Phase 2 — Classify each lesson for generalizability
 
@@ -45,7 +45,7 @@ Produce the classification table explicitly before drafting.
 
 ### Phase 3 — Draft the synthesis page
 
-Write to `LLM wiki/wiki/syntheses/lessons-<project-slug>-<YYYY-MM-DD>.md`. Use this structure:
+Write to `knowledge/LLM wiki/wiki/syntheses/lessons-<project-slug>-<YYYY-MM-DD>.md`. Use this structure:
 
 ```markdown
 ---
@@ -106,9 +106,9 @@ inbound_projects: [<project path from workspace root>]
 
 ### Phase 4 — Update the wiki index and log
 
-1. Append a new row to the Syntheses table in `LLM wiki/wiki/index.md`:
+1. Append a new row to the Syntheses table in `knowledge/LLM wiki/wiki/index.md`:
    `| <Title> | <YYYY-MM-DD> | [[syntheses/<filename-without-ext>]] |`
-2. Append a new entry to `LLM wiki/wiki/log.md`:
+2. Append a new entry to `knowledge/LLM wiki/wiki/log.md`:
    ```
    ## [<YYYY-MM-DD>] promote | Coupling C — <project> lessons → synthesis
 
@@ -123,7 +123,7 @@ inbound_projects: [<project path from workspace root>]
 Add a **non-destructive** header note to `<project path>/research_notes/lessons_learned.md` — immediately after the "**How to add entries.**" paragraph in the preamble, before L-01. Do NOT modify any L-xx entry. The note reads:
 
 ```
-**Cross-project view (<YYYY-MM-DD>).** L-<range> have been promoted to the LLM wiki as a generalizing synthesis page: `LLM wiki/wiki/syntheses/<filename>`. That page is a *view* into cross-project relevance (Coupling C of the Research↔Wiki synergy architecture, <audit date>). This file remains the **authoritative, append-only store**; edits to lessons happen here, and the synthesis page is regenerated when L-<range> change or when L-<next>+ is appended.
+**Cross-project view (<YYYY-MM-DD>).** L-<range> have been promoted to the LLM wiki as a generalizing synthesis page: `knowledge/LLM wiki/wiki/syntheses/<filename>`. That page is a *view* into cross-project relevance (Coupling C of the Research↔Wiki synergy architecture, <audit date>). This file remains the **authoritative, append-only store**; edits to lessons happen here, and the synthesis page is regenerated when L-<range> change or when L-<next>+ is appended.
 ```
 
 If the header note already exists from a prior run, **update its date and L-range** rather than adding a second note.
@@ -132,7 +132,7 @@ If the header note already exists from a prior run, **update its date and L-rang
 
 Perform these checks and report results:
 
-1. **File count.** `ls LLM wiki/wiki/syntheses/` — the new file is listed.
+1. **File count.** `ls knowledge/LLM wiki/wiki/syntheses/` — the new file is listed.
 2. **Link resolution.** Every `[[sources/...]]`, `[[concepts/...]]`, `[[syntheses/...]]`, `[[entities/...]]` in the new page resolves to an existing file. Report any red links as **red-link candidates** — do not fabricate content for them.
 3. **Index registration.** `grep` the new filename in `index.md`: expect exactly one hit.
 4. **Log registration.** `grep` the new filename in `log.md`: expect exactly one hit.
@@ -155,9 +155,9 @@ Perform these checks and report results:
 | ... | ... | ... |
 
 ### Files written / edited
-- `LLM wiki/wiki/syntheses/lessons-<slug>-<date>.md` — created (<word count>)
-- `LLM wiki/wiki/index.md` — Syntheses row appended
-- `LLM wiki/wiki/log.md` — promote entry appended
+- `knowledge/LLM wiki/wiki/syntheses/lessons-<slug>-<date>.md` — created (<word count>)
+- `knowledge/LLM wiki/wiki/index.md` — Syntheses row appended
+- `knowledge/LLM wiki/wiki/log.md` — promote entry appended
 - `<project>/research_notes/lessons_learned.md` — preamble back-pointer inserted (no L-xx edits)
 
 ### Red-link candidates (if any)

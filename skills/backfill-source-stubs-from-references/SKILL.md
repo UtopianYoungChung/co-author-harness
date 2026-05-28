@@ -2,7 +2,7 @@
 name: backfill-source-stubs-from-references
 description: >-
   Generate wiki source-page stubs in batch from a project's `references/REFERENCES.md`,
-  populating `LLM wiki/wiki/sources/` so concept pages can be grounded under the Grounding
+  populating `knowledge/LLM wiki/wiki/sources/` so concept pages can be grounded under the Grounding
   Protocol. Each stub is marked `grounding_status - stub` pending direct read-through.
 trigger: when the user asks to backfill wiki sources from a project's REFERENCES, populate the wiki source corpus, unblock Coupling B (concept-page grounding), or materialize Coupling A-revised
 created_by: Reflector (Coupling A-revised automation)
@@ -17,7 +17,7 @@ You are executing **Coupling A-revised** — the pipeline → wiki back-propagat
 
 ## Preconditions
 
-1. **Wiki exists** at the path declared by the workspace CLAUDE.md (expected: `LLM wiki/wiki/` with subfolders `sources/`, `concepts/`, `entities/`, `syntheses/`).
+1. **Wiki exists** at the path declared by the workspace CLAUDE.md (expected: `knowledge/LLM wiki/wiki/` with subfolders `sources/`, `concepts/`, `entities/`, `syntheses/`).
 2. **Project has a REFERENCES file** at `<project>/references/REFERENCES.md` in the format established by INF3006Y_AgencyDelegation (source-root aliases + core corpus table + snowball table + cited-via table).
 3. **The REFERENCES file is current.** Check the `Last updated:` footer. If older than the latest manuscript revision, ask the user whether to proceed with a potentially stale corpus.
 4. **The wiki has at least one existing source page.** If the wiki is empty, this is a bootstrap run; proceed, but flag to the user that Coupling D (self-ingestion) has not been codified yet.
@@ -31,7 +31,7 @@ You are executing **Coupling A-revised** — the pipeline → wiki back-propagat
    - `project_key` is the citation key in REFERENCES (e.g. `haslam2013`).
    - `wiki_key` is the wiki-style key: `author-year-keyword` (e.g. `haslam-2013-humanness`). Pick the keyword from the most semantically load-bearing noun in the title, not from the venue.
 3. **Do NOT enumerate "cited but not read directly" rows** unless the user explicitly asks for them. Those citations are indirection-marked in the manuscript (per the read-via convention) and should not get their own wiki pages until they are read directly.
-4. Read `LLM wiki/wiki/index.md` to identify which wiki keys already exist. Produce a **delta list**: new keys to create vs. existing keys to skip.
+4. Read `knowledge/LLM wiki/wiki/index.md` to identify which wiki keys already exist. Produce a **delta list**: new keys to create vs. existing keys to skip.
 
 ### Phase 2 — Classify grounding priority
 
@@ -47,7 +47,7 @@ Produce the priority table explicitly before writing any file.
 
 ### Phase 3 — Generate stubs
 
-For each key flagged P1 or P2 (or P3 if the user opted in), write `LLM wiki/wiki/sources/<wiki-key>.md` using this template:
+For each key flagged P1 or P2 (or P3 if the user opted in), write `knowledge/LLM wiki/wiki/sources/<wiki-key>.md` using this template:
 
 ```markdown
 ---
@@ -96,10 +96,10 @@ This page was created on <date> by skill SK-15 (`backfill-source-stubs-from-refe
 
 ### Phase 4 — Update the wiki index and log
 
-1. Append a new row to the Sources table in `LLM wiki/wiki/index.md` for each new stub:
+1. Append a new row to the Sources table in `knowledge/LLM wiki/wiki/index.md` for each new stub:
    `| <wiki-key> | <Title> (stub) | <Authors short> | <Year> | [[sources/<wiki-key>]] |`
    Preserve the existing ordering convention; place stubs after already-present non-stub entries.
-2. Append one consolidated entry to `LLM wiki/wiki/log.md`:
+2. Append one consolidated entry to `knowledge/LLM wiki/wiki/log.md`:
    ```
    ## [<YYYY-MM-DD>] backfill | Coupling A-revised — <project> REFERENCES → wiki sources
 
@@ -144,8 +144,8 @@ This page was created on <date> by skill SK-15 (`backfill-source-stubs-from-refe
 <bulleted list of `sources/<key>.md` paths>
 
 ### Files edited
-- `LLM wiki/wiki/index.md` — <n> new Sources rows
-- `LLM wiki/wiki/log.md` — 1 backfill entry
+- `knowledge/LLM wiki/wiki/index.md` — <n> new Sources rows
+- `knowledge/LLM wiki/wiki/log.md` — 1 backfill entry
 
 ### Unblocked Coupling B retrofits
 <list of concept pages that can now cite newly-stubbed sources, with the proposed source→concept mapping>

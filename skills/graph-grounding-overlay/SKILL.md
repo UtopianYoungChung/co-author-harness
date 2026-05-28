@@ -6,7 +6,7 @@ created_by: Reflector (Coupling E.2 pilot)
 created_from: >-
   Synergy analysis 2026-04-16 — graphify produces 43 nodes / 53 edges / 7
   communities / confidence-tagged extractions / section-level provenance at
-  `LLM wiki/graphify-out/`, but no plugin file references it. SK-20 is the
+  `knowledge/LLM wiki/graphify-out/`, but no plugin file references it. SK-20 is the
   minimum-viable pilot: a single Evaluator pre-flight hook that converts graph
   topology into findings in the pipeline's native output format, preserving
   uncertainty inheritance through graph-specific source tags.

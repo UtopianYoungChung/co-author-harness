@@ -18,8 +18,8 @@ You are executing **Coupling B** — the concept-page grounding retrofit that cl
 
 ## Preconditions
 
-1. **Target concept page exists** at `LLM wiki/wiki/concepts/<name>.md` with existing prose content.
-2. **Relevant source stubs exist** in `LLM wiki/wiki/sources/` — if the page cites sources that have no wiki page, the retrofit reports them as **red-link candidates** and does not fabricate links.
+1. **Target concept page exists** at `knowledge/LLM wiki/wiki/concepts/<name>.md` with existing prose content.
+2. **Relevant source stubs exist** in `knowledge/LLM wiki/wiki/sources/` — if the page cites sources that have no wiki page, the retrofit reports them as **red-link candidates** and does not fabricate links.
 3. **Source pages' `source_key` frontmatter resolves** — the skill uses the `source_key` field to construct wikilinks, not the filename (though they should match).
 4. **The page is not currently under live edit** — check for a conflicting modification timestamp; if the page was updated in the last hour by another agent, ask the user whether to proceed.
 
@@ -170,7 +170,7 @@ If invoked a second time on the same page after SK-15 has added more source stub
 
 ## Notes on tier and scope
 
-Package-tier skill. Applies to any concept page in `LLM wiki/wiki/concepts/` following the wiki's standard schema. The G/P/L/D classification used by SK-14 does not apply here; concept grounding is uniformly surgical.
+Package-tier skill. Applies to any concept page in `knowledge/LLM wiki/wiki/concepts/` following the wiki's standard schema. The G/P/L/D classification used by SK-14 does not apply here; concept grounding is uniformly surgical.
 
 ## Failure modes (v0.10.0-S4.5 R1)
 
