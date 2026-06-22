@@ -49,6 +49,8 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
    - `REVIEW_ORCHESTRATION.md` — the review runbook (classification, gating, run order)
    - `AGENT_ORCHESTRATION.md` — the four-agent architecture and loop protocol (§§3.0/3.1/3.2/8.2a/8.2b updated for v0.7.4)
    - `MASTER_research_and_paper_guidelines.md` — Parts A–B (principles) and G.0 (severity tiers), skimmed
+   - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments, including C-6 scoped-metaphor applicability when the piece uses load-bearing theory terms, spatial/mechanical metaphors, or ontology/modeling vocabulary
+   - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally when the requested artifact is a formal ontology, ontology module, formalization-bound taxonomy/term set, or ontology audit; record whether BFO alignment is explicit, proposed, rejected, or not applicable
 2. **Project files (always):**
    - Project `CLAUDE.md` — project-specific classification, directives, do-not-do list
    - `manuscript/main.md` — the current draft (read in full)

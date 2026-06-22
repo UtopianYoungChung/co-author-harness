@@ -32,7 +32,8 @@ Everything else is on-demand per the routing table below.
 | **Long manuscript (> 8,000 words)** | `TOKEN_BUDGET_PROTOCOL.md` (segmentation + state preservation) |
 | **Assessing improvement / readiness** | `SUCCESS_METRICS.md` (D1–D6 quality framework) |
 | **Submission-bound depth (cited claims must be externally verifiable)** | `EXTERNAL_VERIFIERS.md`; `ADVISOR_MCP.md` (EP-1/EP-2 escalation points) |
-| **Applying / flagging a prose-craft or theory-shape rule** | `STYLE_COMMITMENTS.md` (C-1 Suchman / C-2 Bacon / C-3 Sexton / C-4 Baird in-force test); the named source file for C-N |
+| **Applying / flagging a prose-craft or theory-shape rule** | `STYLE_COMMITMENTS.md` (C-1 Suchman / C-2 Bacon / C-3 Sexton / C-4 Baird in-force test; C-5 reader-accessibility always-on; C-6 rhetorical–analytical separation / scoped metaphor); the named source file for C-N |
+| **Building, extending, formalizing, or auditing a BFO-aligned ontology** | `BFO_ONTOLOGY_DESIGN.md` (conditional trigger boundary, construction loop, terminology, definition, taxonomy, provenance, validation, BFO conformance profile, relation discipline, lifecycle/versioning, and blocking release gate) |
 | **Generator writing prose** | `EMDASH_BUNDLE_DISCIPLINE.md` (binding B1/B2/B3 bundle); `CITATION_DISCIPLINE.md` (term-of-art two-question test) |
 | **Reflector post-round** | `DRIFT_CHECK.md` (Phase 2.6 MASTER/component reconciliation); `REFLEXIVITY_CHECK.md` (Phase 2.7 authorship-identity audit) |
 | **Skill-benchmark evidence** | `EVAL_METHODOLOGY.md` (disclosure standard; undisclosed scores reclassify as ICI) |
@@ -94,12 +95,18 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 
 | File | Role |
 |---|---|
-| `STYLE_COMMITMENTS.md` | Declares Suchman/Bacon/Sexton/Baird as named commitments C-1…C-4 with relaxation procedure |
+| `STYLE_COMMITMENTS.md` | Declares Suchman/Bacon/Sexton/Baird (C-1…C-4) plus C-5 reader-accessibility and C-6 rhetorical–analytical separation / scoped metaphor as named commitments, with relaxation procedure |
 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Narrative arc, openings, show-don't-tell, cause-effect |
 | `MASTER_research_and_paper_guidelines.md` | Cross-venue playbook for tone, claims, theory, audience, structure |
 | `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` | Pre-drafting argumentative-rigor checklist |
 | `M1_M2_M3_PLANNING_PHASE_README.md` | Planning-phase orientation |
 | `PARAGRAPH_DEFINITIONS.md` | Canonical paragraph-class definitions |
+
+### Formal ontology design
+
+| File | Role |
+|---|---|
+| `BFO_ONTOLOGY_DESIGN.md` | Canonical conditional, actor-neutral policy for BFO-aligned formal ontology construction and audit; includes BFO conformance profile, relation discipline, lifecycle/versioning, a blocking release gate, source map, and anti-drift trigger boundary. The policy is actor-neutral; its evaluation/generation/escalation duties are bound to agents in the harness role files (planner/generator/evaluator). |
 
 ### External verification and metrics
 

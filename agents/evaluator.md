@@ -58,6 +58,8 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
    - `references/PHASE_PROTOCOL.md` — the Lifecycle-Phase Ladder spec (v0.7.4); §3.1–§3.4 for per-phase Evaluator contracts; **§7** for escalation gates (EG-1 … EG-7); §6 for row shapes; §11 for the retirement ledger.
    - `references/phase_state_schema.md` — **16-field** `SectionStateObject` at v0.8.0 (§2, including `pre_mcr_deep_pass_completed`), 30-trigger enum (§6), 7-field log row with `model_used` (§5.1), failure codes (§6.1).
    - The component files for Steps 1–7 (per the orchestration's run order and gating table).
+   - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments; read when reviewing terminology, metaphor, voice, theory-shape, or any finding that cites C-1 through C-6
+   - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally for formal ontology artifacts and audits; report rule-specific evidence and do not apply BFO construction rules to ordinary philosophical ontology, metaphor analysis, schemas, or generic knowledge graphs
 2. **Project files (always):**
    - `round_program.md` — the user-authored round control file (if present). If it narrows the evaluation scope, limit findings to the specified scope and declare the constraint in the findings report header as a `Scope constraint` field.
    - Project `CLAUDE.md` — project-specific classification, directives, do-not-do list.

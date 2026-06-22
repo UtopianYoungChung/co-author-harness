@@ -6,7 +6,7 @@
 
 ---
 
-## 1. The four commitments
+## 1. The commitments
 
 | # | Commitment | Source(s) | What it commits us to | What it commits us against |
 |---|---|---|---|---|
@@ -15,8 +15,27 @@
 | **C-3** | **Sexton narrative arc** | `Sexton_Fiction_to_Academic_Writing_Guide.md` | A red thread traceable through the piece; show-then-tell openings; cause-and-effect structuring of argument; resolution that closes promises made in the abstract | Section-as-silo structure; "data dump then discussion" patterns; openings that begin with definitions or literature reviews |
 | **C-4** | **Baird IS-theory shape** | `baird_2021_writing_guidelines.md` | Five-element model satisfaction (phenomenon → IT artefact → mechanism → outcome → contribution); explicit "draws on vs extends" framing; provenance for every named construct | Theory-borrowing without limitation acknowledgement; contribution-claim inflation; constructs deployed without traceable origin |
 | **C-5** | **Reader-accessibility meta-rule** (new at v0.7.2) | Ph.D.-root CLAUDE.md §13 (Hard Constraint #8); `SAFEGUARD_LAYER.md` Check 8; `skills/accessibility-overlay/SKILL.md`; Sweller's cognitive-load taxonomy | Extraneous-load reduction on the prose surface without collapsing intrinsic load: paragraph cadence with turn-points, sentence-length variation, first-use definition for every construct, section-transition signposting, jargon discipline at or below the P-stage cap, worked examples at density spikes | Monotone-dense paragraphs that exceed 150 words with no turn-point; cold-open sections that dive into theory without orienting or contribution clauses; constructs deployed before definition; paragraphs that introduce more than two new domain terms; density spikes followed by further abstract prose rather than a vignette; **also prohibits the opposite failure — dilution that collapses intrinsic load or substitutes lay-register paraphrase for disciplinary vocabulary** |
+| **C-6** | **Rhetorical–analytical separation & scoped metaphor** (added 2026-06-18; full text §1.0a) | `STYLE_COMMITMENTS.md` §1.0a; INF3006Y supervisor meeting 2026-06-18 | The same term for the same concept; rhetorical devices kept clear of any unstated analytical commitment; every load-bearing metaphor declares what it is used for and which aspect bears load; the ontology behind spatial/mechanical metaphors made explicit | Terminology varied for colour where the concept is identical; rhetorical force standing in for an underspecified analytical claim; load-bearing metaphors (`layer`, `cube`, `above`, `below`, `control`, `weight`) deployed with their default geometry unexamined |
 
-These commitments are mutually reinforcing but *separable*. A piece can satisfy C-1 and C-2 while genuinely needing to violate C-3 (e.g., a methods note that is structurally a list, not an arc). C-5 is the **meta-rule that operationalises** C-1…C-4: it is binding at every P-stage and every tier rung (T2 onward), and it is the only commitment that cannot be suspended via the §4 relaxation procedure — accessibility is Hard Constraint #8 of the Ph.D.-root CLAUDE.md and inherits the binding force of §9 (non-negotiable rules). The Planner names which of C-1…C-4 apply to the current piece at classification time; the Generator and Evaluator hold the piece against *those* plus C-5 always.
+These commitments are mutually reinforcing but *separable*. A piece can satisfy C-1 and C-2 while genuinely needing to violate C-3 (e.g., a methods note that is structurally a list, not an arc). C-5 is the **meta-rule that operationalises** C-1…C-4: it is binding at every P-stage and every tier rung (T2 onward), and it is the only commitment that cannot be suspended via the §4 relaxation procedure — accessibility is Hard Constraint #8 of the Ph.D.-root CLAUDE.md and inherits the binding force of §9 (non-negotiable rules). The Planner names which of C-1…C-4 and C-6 apply to the current piece at classification time; the Generator and Evaluator hold the piece against *those* plus C-5 always.
+
+---
+
+## 1.0a C-6 rhetorical-analytical separation and scoped metaphor (added 2026-06-18)
+
+C-6 governs prose where a term, image, or model does double duty as both an evocative presentation device and an analytical category. It is especially relevant to theory-shape language such as `layer`, `cube`, `above`, `below`, `control`, `weight`, `machine`, `system`, `AI`, `human`, `static`, and any project-specific metaphor used to structure an argument.
+
+**Analytical wording discipline.** When the same concept is meant, use the same term. Do not vary terminology for color if the terms are analytically equivalent. Before drafting or revising a theory paragraph, identify the load-bearing terms and ask whether each term's intended meaning is clear, shared with the likely reader, and distinguishable from adjacent usages.
+
+**Rhetorical device separation.** Rhetorical devices may be used to make a passage evocative, persuasive, or readable, but the Generator must not let them carry an unstated analytical commitment. The Evaluator should flag a C-6 issue when a sentence's force depends on color, flourish, or emotional emphasis while the analytical claim remains underspecified.
+
+**Metaphor scope rule.** Every load-bearing metaphor must state what the metaphor is being used for and which aspect is load-bearing. If the prose says a construct is `above` another, it must say whether `above` means authority, control, abstraction level, implementation dependency, visibility, or something else. If the prose says a relation has `weight`, it must say whether weight is a numeric/scalar variable, a qualitative salience marker, or only a metaphor.
+
+**Ontology follow-through.** When a metaphor supplies structure, the next analytical question is ontological: what entities, relations, boundaries, and role distinctions does the metaphor imply? For layer/cube/spatial metaphors, the Generator must test whether the relation is actually vertical, horizontal, reversible, or situation-dependent rather than assuming the metaphor's default geometry.
+
+**Application default.** The Planner records C-6 as applicable whenever a paper, thesis chapter, memo, response letter, or section uses load-bearing theory terms, spatial/mechanical metaphors, or an ontology/modeling vocabulary. The Generator may invoke it by name ("applying C-6: scoped metaphor"). The Evaluator names it explicitly in findings (for example, `[MAJOR - C-6: scoped-metaphor violation]`) so the author can dispute the commitment or the finding.
+
+**Provenance.** This rule was extracted from the INF3006Y supervisor meeting of 2026-06-18. The canonical cleaned transcript is `D:\OneDrive\Documents\Zoom\2026-06-18 10.55.36 INF3006Y\audio1635915339.clean.txt`; a categorised summary is at `B:\Agents\research\2026-06-18_INF3006Y_supervision-meeting_notes.md` §4.5. *(Correction, 2026-06-19: the filename `audio1635915339_transcript.txt` and the timecodes `01:10:32–01:20:46` cited in the original version of this note were not verifiable against the transcript and have been replaced; the cleaned transcript carries line numbers, not timecodes.)* The writing guidance spans approximately lines 644–728 — separate rhetorical devices from analytical wording; use identical words for identical meanings; identify which terms are metaphorical; specify what a metaphor is used for and which aspect is load-bearing; distinguish literal (e.g., scalar) variables from metaphorical ones — with the related "ontology behind the metaphor" discussion at approximately lines 472–545.
 
 ---
 
@@ -48,7 +67,7 @@ Three reasons, in increasing order of importance:
 
 | Pipeline stage | Behaviour change |
 |---|---|
-| **Planner classification** | The Planner records, in the revision plan, which of C-1…C-4 apply to this piece. Default: all four for a research paper at standard or submission-bound depth; C-2 only for short response letters; C-3 + C-4 for a thesis chapter; selective for course essays. |
+| **Planner classification** | The Planner records, in the revision plan, which of C-1…C-4 and C-6 apply to this piece. Default: all four of C-1…C-4 for a research paper at standard or submission-bound depth; C-2 only for short response letters; C-3 + C-4 for a thesis chapter; selective for course essays. **C-6 applies by default to any piece using load-bearing theory terms, spatial/mechanical metaphors, or an ontology/modeling vocabulary** (see §1.0a Application default). |
 | **Generator prose actions** | The Generator may invoke a commitment by reference ("applying C-1: rewriting in first-person navigation"). It may not silently apply a commitment that the Planner did not record as applicable. |
 | **Evaluator findings** | A finding that cites a commitment must name it (e.g., `[MAJOR — C-2: sentence rhythm]`). The author can then dispute the *commitment* rather than only the *finding*. |
 | **Reflector — voice audit** | When the voice audit (`SAFEGUARD_LAYER.md` Check 6) flags drift, the Reflector decides whether the drift is *toward the commitments* (a fix), *away from the commitments* (a regression), or *across the commitments themselves* (a contested point — surface to user). |
@@ -71,7 +90,7 @@ Relaxation is a normal operation, not an exception. The commitments are position
 ## 5. What this prohibits
 
 - **Tacit imposition.** The Generator may not apply prose patterns drawn from C-1…C-4 to a piece for which the Planner has not recorded the commitment as applicable.
-- **Performative neutrality.** The Evaluator may not flag a violation of C-1…C-4 with language that implies the rule is neutral hygiene (e.g., "the prose is bad" rather than "C-2 sentence-rhythm violation"). The commitment must be named so the author can dispute it.
+- **Performative neutrality.** The Evaluator may not flag a violation of C-1…C-4 or C-6 with language that implies the rule is neutral hygiene (e.g., "the prose is bad" rather than "C-2 sentence-rhythm violation," or "this metaphor is confusing" rather than "C-6 scoped-metaphor violation"). The commitment must be named so the author can dispute it.
 - **Cross-commitment over-claim.** A finding tied to one commitment may not be presented as evidence for the others. C-1 and C-3 are independent stances; satisfying one does not satisfy the other.
 
 ---

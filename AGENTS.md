@@ -41,12 +41,15 @@ The agent **must** read the package component files and follow the orchestration
 | User refers to the package by name or shorthand                         | "Run the master guidelines," "Use the style package," "Apply the writing rules"                                                                              |
 | User pastes academic text and asks for feedback                         | (any draft + "what do you think?")                                                                                                                           |
 | User asks to bootstrap a new research project                           | "Set up a new project for X," "Create the folder structure for Y"                                                                                            |
+| User asks to build, extend, formalize, or audit a BFO-aligned ontology  | "Build this BFO domain ontology," "Audit these ontology definitions," "Formalize this taxonomy"                                                             |
 | User invokes an agent role                                              | "Run the planner," "Evaluate the manuscript," "Reflect on this round"                                                                                        |
 | User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-draft`, `/run-iterate`, `/run-finalize`, legacy `/run-phase-*` compatibility commands, `/run-reflection`, `/run-generator-session`, `/quick-deterministic`, `/check-contradictions` |
 | User asks about project lifecycle or milestones                         | "Where is this project?", "What milestone am I at?", "What's next?"                                                                                          |
 
 
 **When not triggered:** If the user asks about non-writing tasks (data analysis, coding, general Q&A), do not invoke the package unless the task involves producing or reviewing academic prose.
+
+**Formal ontology trigger:** For the BFO-aligned ontology trigger, read `references/BFO_ONTOLOGY_DESIGN.md`. Its trigger boundary is binding: do not apply formal BFO construction rules merely because prose uses philosophical ontology, conceptual analysis, modeling vocabulary, or metaphor.
 
 ---
 
