@@ -6,7 +6,7 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
-## Unreleased
+## v0.16.0 — 2026-06-25
 
 ### PR-3b.4 compatibility landing
 
@@ -23,6 +23,31 @@ not be advertised as separate public stages in new guidance.
 **Validation.** `scripts/alias_parity_smoketest.py` now pins the compatibility
 routing contract instead of pinning the old PR-3b.3 absence/preservation
 contract.
+
+### BFO ontology design guideline + C-6 scoped-metaphor commitment
+
+**What changed.** New canonical reference `references/BFO_ONTOLOGY_DESIGN.md` — an operational policy for building,
+extending, formalizing, or auditing BFO-aligned domain ontologies (realism, univocity, single-rooted `is_a` structure,
+disciplined provenance), paraphrasing Arp, Smith & Spear, *Building Ontologies with Basic Formal Ontology* (MIT Press,
+2015), ch. 3–4. New style commitment **C-6 — “rhetorical–analytical separation & scoped metaphor”** in
+`STYLE_COMMITMENTS.md §1.0a`: the same term for the same concept; rhetorical force kept clear of any unstated analytical
+commitment; every load-bearing metaphor (`layer`, `cube`, `above`, `below`, `control`, `weight`, `machine`, `system`,
+`AI`, `human`, `static`) declares what it is used for and which aspect bears load, with the ontology behind
+spatial/mechanical metaphors made explicit. Adds a `references/MANIFEST.md` routing entry and binds the Planner,
+Evaluator, Generator, and root `AGENTS.md` / `CLAUDE.md` to both surfaces.
+
+**Why.** Both surfaces operationalize directives from the INF3006Y supervisor meetings (C-6 dated 2026-06-18,
+reinforced 2026-06-25): separate rhetorical from analytical wording, and make the ontology behind metaphors explicit.
+The BFO guideline carries a strict trigger boundary — it governs formal ontology artifacts only (ontology, module,
+term/definition set, or an audit of one), never ordinary philosophical or metaphor uses of “ontology,” schemas, or
+knowledge graphs.
+
+**How to apply.** The Planner names whether C-6 applies at classification time; the Generator and Evaluator hold the
+piece against it. Apply `BFO_ONTOLOGY_DESIGN.md` only when the requested artifact is a formal ontology or an audit of
+one; otherwise record BFO alignment as a proposal or question rather than assuming it.
+
+**Provenance.** Landed unversioned at commit `5182c9f` (2026-06-22); formalized into this release 2026-06-25. Also in
+0.16.0: wiki-path migration to `knowledge/LLM wiki/` across the affected skills (`f7d4548`).
 
 ## v0.15.0 — 2026-05-13
 
