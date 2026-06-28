@@ -555,7 +555,7 @@ At Ph1, the Planner dispatches **SK-33 `seed-snowball-discovery`** in two phases
 
 ### Coupling E.2 — Graphify grounding overlay (SK-20)
 
-Before every Evaluator round's Step 1 (Classification Gating), the Evaluator pre-flight invokes **SK-20 `graph-grounding-overlay`** to overlay graphify's knowledge-graph output (`LLM wiki/graphify-out/graph.json` + `GRAPH_REPORT.md`) onto the manuscript's citation set. This is the Graphify → Pipeline feedback loop codified in the 2026-04-16 synergy analysis; it fires in the reverse direction from Couplings C and D (which write into the wiki) — SK-20 reads graphify's output and injects findings into the review. The full protocol lives in `skills/graph-grounding-overlay/SKILL.md`; the output is written to `reviews/graph_overlay_YYYY-MM-DD.md`.
+Before every Evaluator round's Step 1 (Classification Gating), the Evaluator pre-flight invokes **SK-20 `graph-grounding-overlay`** to overlay graphify's knowledge-graph output (`knowledge/LLM wiki/graphify-out/graph.json` + `GRAPH_REPORT.md`) onto the manuscript's citation set. This is the Graphify → Pipeline feedback loop codified in the 2026-04-16 synergy analysis; it fires in the reverse direction from Couplings C and D (which write into the wiki) — SK-20 reads graphify's output and injects findings into the review. The full protocol lives in `skills/graph-grounding-overlay/SKILL.md`; the output is written to `reviews/graph_overlay_YYYY-MM-DD.md`.
 
 **Deterministic gate first.** Before attempting SK-20, run:
 
@@ -569,7 +569,7 @@ If `should_run_sk20` is false, SK-20 should not run. The gate script already emi
 **Firing conditions (all must be true, else SK-20 no-ops cleanly):**
 
 1. Project CLAUDE.md declares `wiki_linked: true` and `coupling_e_on_review: true`.
-2. `LLM wiki/graphify-out/graph.json` and `GRAPH_REPORT.md` exist.
+2. `knowledge/LLM wiki/graphify-out/graph.json` and `GRAPH_REPORT.md` exist.
 3. The graph's `captured_at` timestamp is no older than the most recent `Last updated:` timestamp on the project's `references/REFERENCES.md` or `manuscript/main.md`.
 4. `reviews/classification.md` exists (SK-20 uses it to tune P-stage severity adjustments).
 5. The manuscript has at least one in-text citation.

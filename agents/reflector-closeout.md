@@ -94,7 +94,7 @@ Cross-round aggregation that the per-round Evaluator cannot see. Scoped to close
    - **Recurrence signal.** When the same `check_id` appears in ≥ 3 demoted rows spanning ≥ 2 distinct `source_iteration` values, file **`R-Refl-DC-1 demoted_check_recurrence` (MAJOR)** with the aggregate table and source citations. This is cross-iteration accounting, not Evaluator-style re-adjudication.
    - **Hygiene.** When `demoted_check_advisories` is absent on every F4 file, record `§2g.3: no demoted rows accumulated` in §10e and emit no `R-Refl-DC-1`.
 
-3. **Cross-project recurrence.** When `wiki_linked: true`, read `LLM wiki/reflections/accessibility_recurrence_register.md` (absent → no-op). Merge current project's Sub-check counts; query for two-plus-project recurrence → package-tier signal → Phase 4 candidate filed as `A5-accessibility-recurrence`.
+3. **Cross-project recurrence.** When `wiki_linked: true`, read `knowledge/LLM wiki/reflections/accessibility_recurrence_register.md` (absent → no-op). Merge current project's Sub-check counts; query for two-plus-project recurrence → package-tier signal → Phase 4 candidate filed as `A5-accessibility-recurrence`.
 
 4. **BORDERLINE-permitted signoff audit.** Walk `TerminalSignoffRow` in `reviews/ph3_convergence_signoff.md`; count BORDERLINE-permitted signoffs. Two or more → accumulated accessibility debt PATTERN in §10e.
 
