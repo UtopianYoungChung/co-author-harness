@@ -511,6 +511,8 @@ This package codifies five synergy couplings between a `Research/<project>/`, a 
 
 *Recorded in Coupling D registration (Step 5): `wiki_linked`, `projected_wiki_key`, and the per-coupling activation flags become the project's wiki-facing interface. The bootstrap agent does not decide the couplings' outcomes; it only records intent.*
 
+**Research-process readiness (Abbott, added 2026-06-28).** Bootstrapping a project directory is necessary but not sufficient for Ph1 drafting. `references/abbott_2014_research_process_guidelines.md` gives the Planner an explicit account of the **preliminary→midphase→endphase** work that is *upstream* of drafting: a stabilized design/question (≈5 iterations), an orienting preliminary bibliography, filing discipline, and a phase-appropriate search regime (browsing/bibliography in the preliminary phase; brute-force snowball only once claims are narrowed — the regime `seed-snowball-discovery` operationalizes). The Planner reads that file before dispatching Ph1 drafting or a snowball run on a fresh section and records any readiness gap rather than drafting an unstabilized argument (Abbott guideline §6 checklist).
+
 ### Coupling E — Graph-to-Pipeline family
 
 Coupling E has two active sub-couplings at v0.11.0. (The originally roadmapped E.3 contradiction-sweep extension and the SK-19 graph-read-at-planner roadmap entry were retired at v0.11.0 with the c4 phantom-roadmap cleanup; E.1 is now materialised inside SK-33 `seed-snowball-discovery` rather than as a separate skill.)

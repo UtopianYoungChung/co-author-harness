@@ -128,6 +128,30 @@ A citation placed at the end of a compound sentence implicitly claims that the c
 
 ---
 
+## L-P5: Route an External Source to the Layer Whose Contract It Extends, Not Uniformly to a Prose Pass
+
+**Source.** Three-manuals integration (Turabian, Abbott *Digital Paper*, Blue Book), 2026-06-28, landed as v0.17.0. Reflection report: `reviews/reflection_report_2026-06-28_three-manuals.md`. Plan: `docs/superpowers/plans/2026-06-28-three-manuals-integration.md`.
+
+**The lesson.**
+
+The harness's five prior source absorptions (Bacon, Sexton, Baird, Suchman, Eubanks) were all prose-craft passes, which implicitly trained the pattern "external source → invocable prose pass + `references/<source>_guidelines.md`." Three new manuals falsified the generality of that pattern. Each belonged in a *different* substrate, and treating them uniformly as prose passes would have mis-filed two of the three:
+
+- **Blue Book** (grammar/punctuation correctness) → the *mechanical/deterministic* layer (`DETERMINISTIC_CHECKS.md §3b` work queue) plus a judgment skill — not a rhetoric pass.
+- **Turabian** (citation *form*) → the *citation* layer, orthogonal to `CITATION_DISCIPLINE.md`'s *whether-to-cite* judgment.
+- **Abbott** (research *process*) → the *Planner/discovery* layer as a read-surface with **no skill at all** — process guidance is not a prose operation.
+
+**How to apply.**
+
+- Before absorbing a source, ask **which existing contract it extends** (mechanical-deterministic, citation-form, citation-judgment, sentence-craft, narrative-structure, research-process, accessibility), and wire it there. The `references/<source>_guidelines.md` read-surface is universal; the *operation-surface* (skill / SAFEGUARD hook / agent invariant / no-op) is chosen per layer.
+- A source becomes an invocable skill **only** where it licenses a recurring, decidable operation. Process and read-only guidance stays a read-surface (Abbott: no skill), matching the precedent that overlay-internal checks need no `SKILL_REGISTRY` entry.
+- When two absorbed sources legislate the same decidable item (Blue Book ↔ Turabian Part III mechanics), declare **one authority per item** via project-declared precedence and emit `[CONFLICT]` rather than silently choosing — the discipline-coherence rationale of `CITATION_DISCIPLINE.md §3`, generalized from citations to mechanics.
+
+**Scope.** Applies to every future external-source absorption. Especially load-bearing when the source is a *manual* (process/format/mechanics) rather than a *style essay*, because manuals most often extend a non-prose contract.
+
+**Promotion.** Operationalized this round in: `references/blue_book_grammar_guidelines.md §6`, `references/turabian_chicago_guidelines.md §5`, `references/abbott_2014_research_process_guidelines.md §4/§6`, `DETERMINISTIC_CHECKS.md §3b`, `AGENT_CONTRACTS.md I-Gen-9`.
+
+---
+
 *End of package-level lessons. This file is maintained by the Reflector and updated after every cross-project insight.*
 
-*Last updated: 2026-04-13.*
+*Last updated: 2026-06-28.*

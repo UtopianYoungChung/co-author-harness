@@ -6,6 +6,8 @@
 
 **Provenance.** Authored 2026-04-30 (v0.13.0) per `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.4. Surfaced from the INF3006Y v0.13.0 §2 closing-aside revision where "contract-net protocol coordinating a fleet of warehouse robots" was held to the demarcation-no-cite standard rather than the engagement-cite standard, on the discipline-coherence rationale documented in §3 below.
 
+**Relationship to citation FORM (added 2026-06-28).** This file decides **whether** a citation belongs (engagement vs. demarcation). It does **not** decide **how** the citation is rendered — that is `turabian_chicago_guidelines.md` (style selection, note/bibliography/reference-list form, parenthetical and block-quote placement) and its `citation-format-pass` skill. The two surfaces are orthogonal and both run at Evaluator Step 4: this file first (does the cite belong?), then citation-form conformance (is the existing cite correctly formed?). A missing citation that is a *judgment* question routes here; a malformed *existing* citation routes to `turabian_chicago_guidelines.md`.
+
 ---
 
 ## 1. The two-question test

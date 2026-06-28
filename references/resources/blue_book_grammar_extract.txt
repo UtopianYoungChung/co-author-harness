@@ -1,0 +1,2517 @@
+Our blog containing over 500 articles, including reader questions and
+our responses, extensively exploring English grammar and punctuation
+more broadly than possible in the book.
+Dozens of free one-minute videos by Jane Straus on English language
+usage
+Recommendations for further reading and study
+The Blue Book of Grammar and Punctuation and the website represent
+American English rules and guidelines. Explore the Grammar Blog tab on
+the website, which includes some exploration of the differences between
+US and UK English.
+The point of grammar proficiency is to be clear and direct and to avoid
+misunderstanding. We hope you will come away from this book with this
+mantra: “Think before you write.” Be sure every sentence conveys what
+you mean, with no possibility of ambiguity or inadvertent meaninglessness.
+That being said, as George Orwell wrote in 1946, “Break any of these rules
+sooner than say anything outright barbarous.”
+We hope you find The Blue Book to be both enjoyable and invaluable.
+NOTE
+The authors researched the leading reference books on American
+English grammar and punctuation, including The Chicago Manual of
+Style, The Associated Press Stylebook, Fowler's Modern English Usage,
+Bernstein's The Careful Writer, and many others. The authors provide
+rules, guidance, and examples based on areas of general agreement
+among the authorities. Where the authorities differ, this book provides
+options to follow based on the reader's purpose in writing, with this
+general advice: be consistent.
+CHAPTER 1 
+GRAMMAR
+FINDING NOUNS, VERBS, AND SUBJECTS
+Definitions
+A noun is a word or set of words for a person, place, thing, or idea. A
+noun of more than one word (tennis court, gas station) is called a
+compound noun.
+There are common nouns and proper nouns. Common nouns are words
+for a general class of people, places, things, and ideas (man, city, award,
+honesty). They are not capitalized. Proper nouns are always capitalized.
+They name specific people, places, and things (Joe, Chicago, Academy
+Award).
+A verb is a word or set of words that shows action (runs, is going, has
+been painting); feeling (loves, envies); or state of being (am, are, is,
+have been, was, seem).
+NOTE
+We will use the standard of underlining subjects once and verbs twice.
+Examples: He ran around the block.
+I like my friend.
+They seem friendly.
+State-of-being verbs are called linking verbs. They include all forms of the
+verb to be (be, being, been, am, is, are, was, were), plus such words as look,
+feel, appear, act, go, followed by an adjective. (See the “Adjectives and
+Adverbs” section later in this chapter.)
+Examples: You look happy.
+We feel fine.
+He went ballistic.
+Verbs often consist of more than one word. For instance, had been breaking
+down is a four-word verb. It has a two-word main verb, breaking down (also
+called a phrasal verb), and two helping verbs (had and been). Helping
+verbs are so named because they help clarify the intended meaning.
+Many verbs can function as helping verbs, including is, shall, must, do, has,
+can, keep, get, start, help, etc.
+You will sometimes hear the word participle, which is the form of a verb
+used with helping verbs to make verb tenses or is used to form adjectives.
+For instance, breaking and broken are the present and past participles,
+respectively, of the verb break. A broken dish is an example of a phrase
+containing a participle as an adjective (see the “Adjectives and Adverbs”
+section later in this chapter).
+Verbs often take direct objects, which receive the action of the verb carried
+out by the subject.
+Examples: I like cake. (cake receives the action, like, done by the
+subject, I)
+She lifts weights. (weights receives the action, lifts, done by
+the subject, She)
+Verbs may also take indirect objects, which receive the direct object. You
+can spot an indirect object if it makes sense to place to or from in front of it.
+Examples: I gave Joe the cake. (The indirect object, Joe, receives the
+direct object, cake, given by the subject, I. Note that you
+could also say I gave the cake to Joe.)
+She did me a favor. (The indirect object, me, is affected by
+the direct object, favor, done by the subject, She. Note that
+you could also say She did a favor for me.)
+Sometimes verbs require prepositions to complete a sentence. (See the
+“Prepositions” section later in this chapter.) A noun affected by a
+preposition is called simply the object of a preposition.
+Examples: Stop talking about them. (The object of the preposition about
+is them.)
+I saw someone inside the house. (The object of the
+preposition inside is the house.)
+Gerund is another verb-related term we'll mention only briefly. Gerunds
+are also called verbal nouns, because they are formed when verbs have -ing
+added to them and are used as nouns.
+Example: Walking is great exercise. (The –ing word, the gerund, is the
+subject of the sentence.)
+A subject is the noun, pronoun (see the “Pronouns” section later in
+this chapter), or set of words that performs the verb.
+Examples: The woman hurried.
+Woman is the subject.
+She was late.
+She is the subject.
+The Shape of Water won an Academy Award.
+The Shape of Water is the subject.
+Rule 1. To find the subject and verb, always find the verb first. Then ask
+who or what performed the verb.
+Examples: The jet engine passed inspection.
+Passed is the verb. Who or what passed? The engine, so
+engine is the subject. (If you included the word jet as the
+subject, lightning will not strike you. But technically, jet is
+an adjective here and is part of what is known as the
+complete subject.)
+From the ceiling hung the chandelier.
+The verb is hung. Now, if you think ceiling is the subject,
+slow down. Ask who or what hung. The answer is the
+chandelier, not the ceiling. Therefore, chandelier is the
+subject.
+Rule 2. Sentences can have more than one subject and more than one verb.
+Examples: I like cake, and he likes ice cream. (Two subjects and two
+verbs)
+He and I like cake. (Two subjects and one verb)
+She lifts weights and jogs daily. (One subject and two verbs)
+Rule 3. If a verb follows to, it is called an infinitive, and it is not the main
+verb. You will find the main verb either before or after the infinitive.
+Examples: He is trying to leave.
+To leave is an infinitive; the main verb is trying.
+To leave was his wish.
+The main verb is was.
+NOTE
+One of the most stubborn superstitions in English is that it is wrong to
+insert a word between the to and the verb in an infinitive. This is called
+a split infinitive (to gladly pay, to not go). There is no English scholar
+alive who will say a split infinitive is technically wrong. However, split
+infinitives tend to be clumsy and unnecessary. Experienced writers do
+not use them without good reason.
+Rule 4. Any request or command, such as Stop! or Walk quickly, has the
+understood subject you, because if we ask who is to stop or walk quickly,
+the answer must be “you.”
+Example: (You) Please bring me some coffee.
+Bring is the verb. Who will do the bringing? The subject you
+is understood.
+SUBJECT-VERB AGREEMENT
+Being able to find the right subject and verb will help you correct errors of
+subject-verb agreement.
+Basic rule. A singular subject (she, Bill, car) takes a singular verb (is, goes,
+shines), whereas a plural subject takes a plural verb.
+Example: The list of items is/are on the desk.
+If you know that list is the subject, then you will choose is for
+the verb. 
+Exceptions to the Basic rule:  
+a. The first-person pronoun I takes a plural verb (I go, I
+drive).
+b. The basic form of the verb is used after certain main
+verbs such as watch, see, hear, feel, help, let, and make
+(He watched Ronaldo score the winning goal.)
+Rule 1. A subject will come before a phrase beginning with of. This is a key
+rule for understanding subjects. The word of is the culprit in many, perhaps
+most, subject-verb mistakes.
+Hasty writers, speakers, readers, and listeners might miss the all-too-
+common mistake in the following sentence:
+Incorrect: A bouquet of yellow roses lend color and fragrance to the
+room.
+Correct: A bouquet of yellow roses lends… (bouquet lends, not roses
+lend)
+Rule 2. Two singular subjects connected by or, either/or, or neither/nor
+require a singular verb.
+Examples: My aunt or my uncle is arriving by train today.
+Neither Juan nor Carmen is available.
+Either Kiana or Casey is helping today with stage
+decorations.
+Rule 3. The verb in an or, either/or, or neither/nor sentence agrees with the
+noun or pronoun closest to it.
+Examples: Neither the plates nor the serving bowl goes on that shelf.
+Neither the serving bowl nor the plates go on that shelf.
+This rule can lead to bumps in the road. For example, if I is one of two (or
+more) subjects, it could lead to this odd sentence:
+Awkward: Neither she, my friends, nor I am going to the festival.
+If possible, it's best to reword such grammatically correct but awkward
+sentences.
+Better: Neither she, I, nor my friends are going to the festival.
+OR
+She, my friends, and I are not going to the festival. 
+ 
+See the “Pronouns” section, Rules 11a and 11b for more
+discussion of subject-verb agreement with pronouns.
+Rule 4. As a general rule, use a plural verb with two or more subjects when
+they are connected by and.
+Example: A car and a bike are my means of transportation.
+But note these exceptions:
+Exceptions: Breaking and entering is against the law.
+The bed and breakfast was charming.
+In those sentences, breaking and entering and bed and breakfast are
+compound nouns.
+NOTE
+Some think it is incorrect to place a personal pronoun first in a multi-
+subject sentence.
+Examples: I, my dad, and my step-mom are going to the movies.
+She and Orville bought a dog.
+While not grammatically incorrect per se, it is a courtesy to place the
+pronoun last, except when awkward to do so as shown under Rule 3
+above.
+Rule 5a. Sometimes the subject is separated from the verb by such words as
+along with, as well as, besides, not, etc. These words and phrases are not
+part of the subject. Ignore them and use a singular verb when the subject is
+singular.
+Examples: The politician, along with the newsmen, is expected shortly.
+Excitement, as well as nervousness, is the cause of her
+shaking.
+Rule 5b. Parentheses are not part of the subject.
+Examples: Joe (and his trusty mutt) was always welcome.
+If this seems awkward, try rewriting the sentence.
+Rule 6. In sentences beginning with here or there, the true subject follows
+the verb.
+Examples: There are four hurdles to jump.
+There is a high hurdle to jump.
+Here are the keys.
+NOTE
+The word there's, a contraction of there is, leads to bad habits in
+informal sentences like There's a lot of people here today, because it's
+easier to say “there's” than “there are.” Take care never to use there's
+with a plural subject.
+Rule 7. Use a singular verb with distances, periods of time, sums of money,
+etc., when considered as a unit.
+Examples: Three miles is too far to walk.
+Five years is the maximum sentence for that offense.
+Ten dollars is a high price to pay.
+BUT
+Ten dollars (i.e., dollar bills) were scattered on the floor.
+Rule 8a. With words that indicate portions—e.g., a lot, a majority, percent,
+some, all—Rule 1 given earlier in this section is reversed, and we are
+guided by the noun after of. If the noun after of is singular, use a singular
+verb. If it is plural, use a plural verb.
+Examples: A lot of the pie has disappeared.
+A lot of the pies have disappeared. 
+Fifty percent of the pie has disappeared. 
+Fifty percent of the pies have disappeared. 
+A third of the city is unemployed. 
+A third of the people are unemployed. 
+All of the pie is gone. 
+All of the pies are gone. 
+Some of the pie is missing. 
+Some of the pies are missing.
+NOTE
+Some teachers, editors, and the SAT testing service, perhaps for
+convenience, have considered none to be strictly singular. However,
+authorities agree that none has been both singular and plural since Old
+English and still is. If in context it seems like a singular to you, use a
+singular verb; if it seems like a plural, use a plural verb. When none is
+clearly intended to mean “not one,” it is followed by a singular verb.
+Rule 8b. With collective nouns such as group, jury, family, audience,
+population, the verb might be either singular or plural, depending on the
+writer's intent.
+Examples: All of my family has arrived OR have arrived.
+Most of the jury is here OR are here.
+A third of the population was not in favor OR were not in
+favor of the bill.
+NOTE
+Anyone who uses a plural verb with a collective noun must take care to
+be accurate—and also consistent. It must not be done carelessly. The
+following is the sort of flawed sentence one sees and hears a lot these
+days:
+The staff is deciding how they want to vote.
+Careful speakers and writers would avoid assigning the
+singular is and the plural they to staff in the same
+sentence.
+Consistent: The staff are deciding how they want to vote.
+Rewriting such sentences is recommended whenever possible. The
+preceding sentence would read even better as:
+The staff members are deciding how they want to vote.
+Rule 9. The word were replaces was in sentences that express a wish or are
+contrary to fact:
+Example: If Joe were here, you'd be sorry.
+Shouldn't Joe be followed by was, not were, given that Joe is singular? But
+Joe isn't actually here, so we say were, not was. The sentence demonstrates
+the subjunctive mood, which is used to express a hypothetical, wishful,
+imaginary, compulsory, or factually contradictory thought. The subjunctive
+mood pairs singular subjects with what we usually think of as plural verbs.
+Examples: I wish it were Friday.
+She requested that he raise his hand. 
+The foreman demanded that Joe wear safety goggles.
+In the first example, a wishful statement, not a fact, is being expressed;
+therefore, were, which we usually think of as a plural verb, is used with the
+singular subject it. (Technically, it is the singular subject of the object clause
+in the subjunctive mood: it were Friday.)
+Normally, he raise would sound terrible to us. However, in the second
+example, where a request is being expressed, the subjunctive mood is
+correct.
+Note: The subjunctive mood is losing ground in spoken English but should
+still be used in formal speech and writing.
+IRREGULAR VERBS
+English verbs are either regular or irregular. We call a verb regular when
+we add ed (wanted, looked) or sometimes just d (created, loved) to form
+what are called the simple past tense and the past participle (see third and
+fourth paragraphs below). A regular verb's simple past tense and past
+participle are always identical.
+Not so with irregular verbs. They form the simple past tense and the past
+participle in any number of unpredictable ways. Some irregular verbs, like
+let, shut, and spread, never change, whether present or past. Others, like feel
+and teach, become modified versions of themselves (felt, taught) to form
+both the past tense and the past participle. Still others, like break and sing,
+change to form the past tense (broke, sang) and change again to form the
+past participle (broken, sung). And then there are a few really weird ones,
+like go: its past participle (gone) is recognizable enough, but its simple past
+tense is a strange new word (went).
+Let's get back to the irregular verb break. The simple past tense is broke,
+which we use in sentences like I broke your dish. We use the past participle,
+broken, to form compound verbs in sentences like I have broken your
+dish. The compound verb have broken is so called because we've added a
+helping verb (have) to the main verb's past participle (broken). Be careful
+never to add a helping verb to the simple past form of an irregular verb—I
+have broke your dish is an embarrassing confession in more ways than one.
+The past participle of an irregular verb can also function as an adjective: a
+broken dish. But the simple past form, if it differs from the participle,
+cannot function as an adjective: a broke dish is substandard English.
+There are far fewer irregular verbs than regular ones, but we use them all
+the time. “The ten commonest verbs in English (be, have, do, say, make, go,
+take, come, see, and get) are all irregular,” notes Steven Pinker, an
+American experimental psychologist and linguist, “and about 70% of the
+time we use a verb, it is an irregular verb.” Pinker acknowledges 180
+irregular English verbs, but there is an online Extended Irregular Verb
+Dictionary which contains over 470 irregular verbs, including rare ones
+such as bestrew, enwind, and hagride.
+Proper use of irregular verbs requires old-fashioned memorization—there
+are no secret formulas or shortcuts. This is why these words can create
+havoc for conscientious speakers of English.
+CLAUSES AND PHRASES
+Definitions
+A clause is a group of words containing a subject and verb. An
+independent clause is a simple sentence. It can stand on its own.
+Examples: She is hungry.
+I am feeling well today.
+A dependent clause cannot stand on its own. It needs an independent
+clause to complete a sentence. Dependent clauses often begin with
+such words as although, since, if, when, and because.
+Examples: Although she is hungry…
+Whoever is hungry…
+Because I am feeling well…
+Dependent Independent
+Although she is hungry, she will give him some of her food.
+Whatever they decide,I will agree to.
+A phrase is a group of words without a subject-verb component, used
+as a single part of speech.
+Examples: Best friend (this phrase acts as a noun)
+Needing help (this phrase acts as an adjective; see the
+“Adjectives and Adverbs” section later in this chapter)
+With the blue shirt (this prepositional phrase acts as an
+adjective; see the “Prepositions” section later in this chapter)
+For twenty days (this prepositional phrase acts as an adverb)
+PRONOUNS
+Definition
+A pronoun (I, me, he, she, herself, you, it, that, they, each, few, many,
+who, whoever, whose, someone, everybody, etc.) is a word that takes
+the place of a noun. In the sentence Joe saw Jill, and he waved at her,
+the pronouns he and her take the place of Joe and Jill, respectively.
+There are three types of pronouns: subject (for example, he); object
+(him); or possessive (his).
+Rule 1. Subject pronouns are used when the pronoun is the subject of the
+sentence. You can remember subject pronouns easily by filling in the blank
+subject space for a simple sentence.
+Example: ___ did the job.
+I, he, she, we, they, who, whoever, etc., all qualify and are, therefore,
+subject pronouns.
+Rule 2. Subject pronouns are also used if they rename the subject. They will
+follow to be verbs, such as is, are, was, were, am, will be, had been, etc.
+Examples: It is he.
+This is she speaking.
+It is we who are responsible for the decision to downsize.
+NOTE
+In informal English, most people tend to follow to be verbs with object
+pronouns like me, her, them. Many English scholars tolerate this
+distinction between formal and casual English.
+Example: It could have been them.
+Technically correct: It could have been they.
+Example: It is just me at the door.
+Technically correct: It is just I at the door.
+Rule 3. This rule surprises even language watchers: when who refers to a
+personal pronoun (I, you, he, she, we, they), it takes the verb that agrees
+with that pronoun.
+Correct: It is I who am sorry. (I am)
+Incorrect: It is I who is sorry.
+Correct: It is you who are mistaken. (you are)
+Incorrect: It is you who's mistaken.
+Rule 4. In addition to subject pronouns, there are also object pronouns,
+known more specifically as direct object, indirect object, and object of a
+preposition (for more detail, see the definition of a verb in the Finding
+Nouns, Verbs, and Subjects section). Object pronouns include me, him,
+herself, us, them, themselves.
+Examples: Jean saw him.
+Him is the direct object of the verb saw.
+ 
+Give her the book.
+The direct object of give is book, and her is the indirect
+object. Indirect objects always have an implied to or for in
+front of them: Give [to] her the book. Do [for] me a favor.
+ 
+Are you talking to me?
+Me is the object of the preposition to.
+Rule 5. The pronouns who, that, and which become singular or plural
+depending on the subject. If the subject is singular, use a singular verb. If it
+is plural, use a plural verb.
+Example: He is the only one of those men who is always on time.
+The word who refers to one. Therefore, use the singular verb
+is.
+Sometimes we must look more closely to find a verb's true subject:
+Example: He is one of those men who are always on time.
+The word who refers to men. Therefore, use the plural verb
+are.
+In sentences like this last example, many would mistakenly insist that one is
+the subject, requiring is always on time. But look at it this way: Of those
+men who are always on time, he is one.
+Rule 6. Pronouns that are singular (I, he, she, it, everyone, everybody,
+anyone, anybody, no one, nobody, someone, somebody, each, either,
+neither, etc.) require singular verbs. This rule is frequently overlooked
+when using the pronouns each, either, and neither, followed by of. Those
+three pronouns always take singular verbs. Do not be misled by what
+follows of.
+Examples: Each of the girls sings well.
+Either of us is capable of doing the job.
+Neither of them is available to speak right now.
+Exception 1: The singular pronouns I and you take plural verbs.
+Examples: I sing well.
+You sing well.
+She sings well.
+Exception 2: When each follows a noun or pronoun in certain sentences,
+even experienced writers sometimes get tripped up:
+Incorrect: The women each gave her approval.
+Correct: The women each gave their approval.
+Incorrect: The words are and there each ends with a silent vowel.
+Correct: The words are and there each end with a silent vowel.
+These examples do not contradict Rule 6, because each is not the subject,
+but rather an adjunct describing the true subject.
+Rule 7. To decide whether to use the subject or object pronoun after the
+words than or as, mentally complete the sentence.
+Examples: Tranh is as smart as she/her.
+If we mentally complete the sentence, we would say Tranh is
+as smart as she is. Therefore, she is the correct answer.
+Zoe is taller than I/me.
+Mentally completing the sentence, we have Zoe is taller than
+I am.
+Daniel would rather talk to her than I/me.
+We can interpret this sentence in two ways: Daniel would
+rather talk to her than to me. OR Daniel would rather talk
+to her than I would. A sentence's meaning can change
+considerably, depending on the pronoun you choose.
+Rule 8. The possessive pronouns yours, his, hers, its, ours, theirs, and
+whose never need apostrophes. Avoid mistakes like her's and your's.
+Rule 9. The only time it's has an apostrophe is when it is a contraction for it
+is or it has. The only time who's has an apostrophe is when it means who is
+or who has. There is no apostrophe in oneself. Avoid “one's self,” a
+common error.
+Examples: It's been a cold morning.
+The thermometer reached its highest reading.
+He's the one who's always on time.
+He's the one whose wife is always on time.
+Keeping oneself ready is important.
+Rule 10. Pronouns that end in -self or -selves are called reflexive pronouns.
+There are nine reflexive pronouns: myself, yourself, himself, herself, itself,
+oneself, ourselves, yourselves, and themselves.
+Reflexive pronouns are used when both the subject and the object of a verb
+are the same person or thing.
+Example: Joe helped himself.
+If the object of a preposition refers to a previous noun or pronoun, use a
+reflexive pronoun:
+Example: Joe bought it for himself.
+Reflexive pronouns help avoid confusion and nonsense. Without them, we
+might be stuck with sentences like Joe helped Joe.
+Correct: I worked myself to the bone.
+The object myself is the same person as the subject I,
+performing the act of working.
+Incorrect: My brother and myself did it.
+Correct: My brother and I did it.
+Don't use myself unless the pronoun I or me precedes it in the
+sentence.
+Incorrect: Please give it to John or myself.
+Correct: Please give it to John or me.
+Correct: You saw me being myself.
+Myself refers back to me in the act of being.
+A sentence like Help yourself looks like an exception to the rule until we
+realize it's shorthand for You may help yourself.
+In certain cases, a reflexive pronoun may come first.
+Example: Doubting himself, the man proceeded cautiously.
+Reflexive pronouns are also used for emphasis.
+Example: He himself finished the whole job.
+Rule 11a. The use of they and their with singular pronouns is frowned upon
+by many traditionalists. To be consistent, it is a good practice to try to avoid
+they and its variants (e.g., them, their, themselves) with previously singular
+nouns or pronouns.
+Not consistent: Someone has to do it, and they have to do it well.
+The problem is that someone is singular, but they is plural. If we change
+they to he or she, we get a rather clumsy sentence, even if it is technically
+correct.
+Technically
+correct:
+Someone has to do it, and he or she has to do it
+well.
+Replacing an inconsistent sentence with a poorly written one is a bad
+bargain. The better option is to rewrite.
+Rewritten: Someone has to do it, and has to do it well.
+Many writers abhor the he or she solution. Following are more examples of
+why rewriting is a better idea than using he or she or him or her to keep
+sentences consistent.
+Inconsistent: No one realizes when their time is up.
+Awkward: No one realizes when his or her time is up.
+Rewritten: None realize when their time is up.
+Inconsistent: If you see anyone on the trail, tell them to be careful.
+Awkward: If you see anyone on the trail, tell him or her to be careful.
+Rewritten: Tell anyone you see on the trail to be careful.
+Rule 11b. When rewriting is not practical and gender-neutrality is desired,
+use they, them, their, themself, or themselves with singular nouns, proper
+nouns, and pronouns. (This is sometimes referred to as the singular they,
+which has a long history in the English language.)
+Example: If you see Charlie on the trail, tell them to be careful.
+Rule 12 When a pronoun is linked with a noun by and, mentally remove the
+and + noun phrase to avoid trouble.
+Incorrect: Her and her friend came over.
+If we remove and her friend, we're left with the
+ungrammatical Her came over.
+Correct: She and her friend came over.
+Incorrect: I invited he and his wife.
+If we remove and his wife, we're left with the ungrammatical
+I invited he.
+Correct: I invited him and his wife.
+Incorrect: Bill asked my sister and I.
+If we remove my sister and, we're left with the
+ungrammatical Bill asked I.
+Correct: Bill asked my sister and me.
+NOTE
+Do not combine a subject pronoun and an object pronoun in phrases like
+her and I or he and me. Whenever and or or links an object pronoun
+(her, me) and a subject pronoun (he, I), one of those pronouns will
+always be wrong.
+Incorrect: Her and I went home.
+Correct: She and I went home. (She went and I went.)
+Rule 13. If two people possess the same item, and one of the joint owners is
+written as a pronoun, use the possessive form for both.
+Incorrect: Maribel and my home
+Incorrect: mine and Maribel's home
+Correct: Maribel's and my home
+Incorrect: he and Maribel's home
+Incorrect: him and Maribel's home
+Correct: his and Maribel's home
+Incorrect: you and Maribel's home
+Incorrect: yours and Maribel's home
+Correct: Maribel's and your home
+Note: As the above examples demonstrate, when one of the co-owners is
+written as a pronoun, use possessive adjectives (my, your, her, our, their).
+Avoid possessive pronouns (mine, yours, hers, ours, theirs) in such
+constructions.
+WHO VS. WHOM
+The pronoun who is always subjective. Use who wherever you would use
+the subjective pronouns I, he, she, we, or they. It is correct to say Who
+wants to go? because we would say I want to go or We want to go.
+The pronoun whom is always an object. Use whom wherever you would use
+the objective pronouns me, him, her, us, or them. It is not correct to say
+Who did you choose? We would say Whom because you choose me or
+them.
+Handy memory aid: Use this they or them method to decide whether who or
+whom is correct:
+they = who
+them = whom
+Examples: Who/Whom wrote the letter?
+They wrote the letter. Therefore, who is correct.
+Who/Whom should I vote for?
+Should I vote for them? Therefore, whom is correct.
+We all know who/whom pulled that prank.
+This sentence contains two clauses: we all know and
+who/whom pulled that prank. We are interested in the second
+clause because it contains the who/whom. They pulled that
+prank. Therefore, who is correct.
+We wondered who/whom the book was about.
+This sentence contains two clauses: we wondered and
+who/whom the book was about. Again, we are interested in
+the second clause because it contains the who/whom. The
+book was about them. Therefore, whom is correct.
+Note: This rule is compromised by an odd infatuation people have with
+whom—and not for good reasons. At its worst, the use of whom becomes a
+form of one-upmanship some employ to appear sophisticated. The
+following is an example of the pseudo-sophisticated whom.
+Incorrect: a woman whom I think is a genius
+In this case whom is not the object of I think. Put I think at
+the end and the mistake becomes obvious: a woman whom is
+a genius, I think.
+Correct: a woman who I think is a genius
+Learn to spot and avoid this too-common pitfall.
+WHOEVER VS. WHOMEVER
+To determine whether to use whoever or whomever, the they/them rule in
+the previous section applies:
+they = whoever
+them = whomever
+Rule 1. The presence of whoever or whomever generally indicates a
+dependent clause. Use whoever or whomever to agree with the verb in that
+dependent clause, regardless of the rest of the sentence.
+Examples: Give it to whoever/whomever asks for it first.
+They ask for it first. Therefore, whoever is correct.
+We will hire whoever/whomever you recommend.
+You recommend them. Therefore, whomever is correct.
+We will hire whoever/whomever is most qualified.
+They are most qualified. Therefore, whoever is correct.
+Rule 2. When the entire whoever/whomever clause is the subject of the verb
+that follows the clause, analyze the clause to determine whether to use
+whoever or whomever.
+Examples: Whoever is elected will serve a four-year term.
+Whoever is the subject of is elected. The clause whoever is
+elected is the subject of will serve.
+Whomever you elect will serve a four-year term.
+Whomever is the object of elect. Whomever you elect is the
+subject of will serve.
+A word to the wise: Whomever is even more of a vogue word than whom.
+Many use it indiscriminately to sound cultured, figuring that no one will
+know any better.
+WHO, THAT, WHICH
+Rule 1. Who and sometimes that refer to people. That and which refer to
+groups or things.
+Examples: Anya is the one who rescued the bird.
+“The Man That Got Away” is a great song with a
+grammatical title.
+Lokua is on the team that won first place.
+She belongs to a great organization, which specializes in
+saving endangered species.
+Rule 2a. That introduces what is called an essential clause (also known as
+a restrictive or defining clause). Essential clauses add information that is
+vital to the point of the sentence.
+Example: I do not trust products that claim “all natural ingredients”
+because this phrase can mean almost anything.
+We would not know the type of products being discussed
+without the that clause.
+Rule 2b. Which introduces a nonessential clause (also known as a
+nonrestrictive or nondefining clause), which adds supplementary
+information.
+Example: The product claiming “all natural ingredients,” which
+appeared in the Sunday newspaper, is on sale.
+The product is already identified. Therefore, which appeared
+in the Sunday newspaper is a nonessential clause containing
+additional, but not essential, information.
+NOTE
+Essential clauses do not have commas introducing or surrounding them,
+whereas nonessential clauses are introduced or surrounded by commas.
+Rule 3. If that has already appeared in a sentence, writers sometimes use
+which to introduce the next clause, whether it is essential or nonessential.
+This is done to avoid awkward formations.
+Example: That which doesn't kill you makes you stronger.
+This sentence is far preferable to the ungainly but technically
+correct That that doesn't kill you makes you stronger.
+NOTE
+The distinction between that and which, though a useful guideline, is
+not universally accepted as a hard-and-fast rule. For many centuries and
+up to the present, which has been routinely used by great writers and
+journalists to introduce essential clauses.
+ADJECTIVES AND ADVERBS
+Definitions
+An adjective is a word or set of words that modifies (i.e., describes) a
+noun or pronoun. Adjectives may come before the word they modify.
+Examples: That is a cute puppy.
+She likes a high school senior.
+Adjectives may also follow the word they modify:
+Examples: That puppy looks cute.
+The technology is state-of-the-art.
+An adverb is a word or set of words that modifies verbs, adjectives, or
+other adverbs. Adverbs answer how, when, where, or to what extent—
+how often or how much (e.g., daily, completely).
+Examples: He speaks slowly (tells how).
+He speaks very slowly (the adverb very tells how slowly). 
+They arrived today (tells when). 
+They will arrive in an hour (this adverb phrase tells when). 
+Let's go outside (tells where). 
+We looked in the basement (this adverb phrase tells where). 
+Bernie left to avoid trouble (this adverb phrase tells why). 
+Jorge works out strenuously (tells to what extent). 
+Jorge works out whenever possible (this adverb phrase tells
+to what extent).
+Rule 1. Many adverbs end in -ly, but many do not. Generally, if a word can
+have -ly added to its adjective form, place it there to form an adverb.
+Examples: She thinks quick/quickly.
+How does she think? Quickly.
+She is a quick/quickly thinker.
+Quick is an adjective describing thinker, so no -ly is
+attached.
+She thinks fast/fastly.
+Fast answers the question how, so it is an adverb. But fast
+never has -ly attached to it.
+We performed bad/badly.
+Badly describes how we performed, so -ly is added.
+Rule 2. Adverbs that answer the question how sometimes cause
+grammatical problems. It can be a challenge to determine if -ly should be
+attached. Avoid the trap of -ly with linking verbs such as taste, smell, look,
+feel, which pertain to the senses. Adverbs are often misplaced in such
+sentences, which require adjectives instead.
+Examples: Pat's roses smell sweet/sweetly.
+Do the roses actively smell with noses? No; in this case,
+smell is a linking verb—which requires an adjective to
+modify roses—so no -ly.
+The painter looked angry/angrily to us.
+Did the painter look with eyes, or are we describing the
+painter's appearance? We are describing appearance (the
+painter appeared angry), so no -ly.
+The painter looked angry/angrily at the paint splotches.
+Here the painter actively looked (using eyes), so the -ly is
+added. 
+Avoid this common mistake:
+Incorrect: Ingrid feels badly about the news.
+Ingrid is not feeling with fingers, so no -ly. 
+Correct: Ingrid feels bad about the news.
+Rule 3. The word good is an adjective, whose adverb equivalent is well.
+Examples: You did a good job.
+Good describes the job.
+You did the job well.
+Well answers how.
+You smell good today.
+Good describes your fragrance, not how you smell with your
+nose, so using the adjective is correct.
+You smell well for someone with a cold.
+You are actively smelling with your nose here, so use the
+adverb.
+Rule 4. The word well can be an adjective, too. When referring to health,
+we often use well rather than good.
+Examples: You do not look well today.
+I don't feel well, either.
+Rule 5. Adjectives come in three forms, also called degrees. An adjective
+in its normal or usual form is called a positive degree adjective. There are
+also the comparative and superlative degrees, which are used for
+comparison, as in the following examples:
+PositiveComparativeSuperlative
+sweet sweeter sweetest
+bad worse worst
+efficientmore efficientmost efficient
+A common error in using adjectives and adverbs arises from using the
+wrong form of comparison. To compare two things, always use a
+comparative adjective:
+Example: She is the cleverer of the two women (never cleverest)
+The word cleverest is what is called the superlative form of clever. Use it
+only when comparing three or more things:
+Example: She is the cleverest of them all.
+Incorrect: Chocolate or vanilla: which do you like best?
+Correct: Chocolate or vanilla: which do you like better?
+Rule 6. There are also three degrees of adverbs. In formal usage, do not
+drop the -ly from an adverb when using the comparative form.
+Incorrect: Terry spoke quicker than Nguyen did.
+Correct: Terry spoke more quickly than Nguyen did.
+Incorrect: Talk quieter.
+Correct: Talk more quietly.
+Incorrect: Alfredo is the more efficient assembly worker in the unit.
+Correct: Alfredo is the most efficient assembly worker in the unit.
+Rule 7. When this, that, these, and those are followed by a noun, they are
+adjectives. When they appear without a noun following them, they are
+pronouns.
+Examples: This house is for sale.
+This is an adjective.
+ 
+This is for sale.
+This is a pronoun.
+PREPOSITIONS
+Definition
+A preposition is a word or set of words that indicates location (in,
+near, beside, on top of) or some other relationship between a noun or
+pronoun and other parts of the sentence (about, after, besides, instead
+of, in accordance with). A preposition isn't a preposition unless it goes
+with a related noun or pronoun, called the object of the preposition.
+Examples: Let's meet before noon.
+Before is a preposition; noon is its object.
+We've never met before.
+There is no object; before is an adverb modifying met.
+Rule 1. A preposition generally, but not always, goes before its noun or
+pronoun. One of the undying myths of English grammar is that you may not
+end a sentence with a preposition. But look at the first example that follows.
+No one should feel compelled to say, or even write, That is something with
+which I cannot agree. Just do not use extra prepositions when the meaning
+is clear without them.
+Correct: That is something I cannot agree with.
+Correct: Where did you get this?
+Incorrect: Where did you get this at?
+Correct: How many of you can I depend on?
+Correct: Where did he go?
+Incorrect: Where did he go to?
+Rule 2a. The preposition like means “similar to” or “similarly to.” It should
+be followed by an object of the preposition (noun, pronoun, noun phrase),
+not by a subject and verb. Rule of thumb: Avoid like when a verb is
+involved.
+Correct: You look like your mother.
+That is, you look similar to her. (Mother is the object of the
+preposition like.)
+Incorrect: You look like your mother does.
+(Avoid like with noun + verb.)
+Rule 2b. Instead of like, use as, as if, as though, or the way when following
+a comparison with a subject and verb.
+Correct: You look the way your mother does.
+Incorrect: Do like I ask. (No one would say Do similarly to I ask.)
+Correct: Do as I ask.
+Incorrect: You look like you're angry.
+Correct: You look as if you're angry. (OR as though)
+Some speakers and writers, to avoid embarrassment, use as when they mean
+like. The following incorrect sentence came from a grammar guide:
+Incorrect: They are considered as any other English words.
+Correct: They are considered as any other English words would be.
+Correct: They are considered to be like any other English words.
+Remember: like means “similar to” or “similarly to”; as means “in the same
+manner that.” Rule of thumb: Do not use as unless there is a verb involved.
+Incorrect: I, as most people, try to use good grammar.
+Correct: I, like most people, try to use good grammar.
+Correct: I, as most people do, try to use good grammar.
+NOTE
+The rule distinguishing like from as, as if, as though, and the way is
+increasingly ignored, but English purists still insist upon it.
+Rule 3. The preposition of should never be used in place of the helping verb
+have.
+Correct: I should have done it.
+Incorrect: I should of done it.
+See also COUPLE OF; OFF OF; OUT OF; OUTSIDE OF in Chapter 5,
+“Confusing Words and Homonyms.”
+Rule 4. It is a good practice to follow different with the preposition from.
+Most traditionalists avoid different than. Although it is an overstatement to
+call different than incorrect, it remains polarizing: A is different than B
+comes across as sloppy to a lot of literate readers. If you can replace
+different than with different from without having to rewrite the rest of the
+sentence, why not do so?
+Polarizing: You're different than I am.
+Unchallengeable: You're different from me.
+See also DIFFERENT FROM, DIFFERENT THAN in Chapter 5,
+“Confusing Words and Homonyms.”
+Rule 5. Use into rather than in to express motion toward something. Use in
+to tell the location.
+Correct: I swam in the pool.
+Correct: I walked into the house.
+Correct: I looked into the matter.
+Incorrect: I dived in the water.
+Correct: I dived into the water.
+Incorrect: Throw it in the trash.
+Correct: Throw it into the trash.
+EFFECTIVE WRITING
+Rule 1. Use concrete rather than vague language.
+Vague: The weather was of an extreme nature on the West Coast.
+This sentence raises frustrating questions: When did this
+extreme weather occur? What does “of an extreme nature”
+mean? Where on the West Coast did this take place?
+Concrete: California had unusually cold weather last week.
+Rule 2. Use active voice whenever possible. Active voice means the subject
+is performing the verb. Passive voice means the subject receives the action.
+Active: Barry hit the ball.
+Passive: The ball was hit.
+Notice that the party responsible for the action—in the previous example,
+whoever hit the ball—may not even appear when using passive voice. So
+passive voice is a useful option when the responsible party is not known.
+Example: My watch was stolen.
+NOTE
+The passive voice has often been criticized as something employed by
+people in power to avoid responsibility:
+Example: Mistakes were made.
+Translation: I made mistakes.
+Rule 3. Avoid overusing there is, there are, it is, it was, etc.
+Example: There is a case of meningitis that was reported in the
+newspaper.
+Revision: A case of meningitis was reported in the newspaper.
+Even
+better:
+The newspaper reported a case of meningitis. (Active voice)
+Example: It is important to signal before making a left turn.
+Revision: Signaling before making a left turn is important.
+OR
+Signaling before a left turn is important.
+OR
+You should signal before making a left turn.
+Example: There are some revisions that must be made.
+Revision: Some revisions must be made. (Passive voice)
+Even
+better:
+Please make some revisions. (Active voice)
+Rule 4. To avoid confusion (and pompousness), don't use two negatives to
+make a positive without good reason.
+Unnecessary: They are not unwilling to help.
+Better: They are willing to help.
+Sometimes a not un- construction may be desirable, perhaps even
+necessary:
+Example: The book is uneven but not uninteresting.
+However, the novelist-essayist George Orwell warned of its abuse with this
+deliberately silly sentence: “A not unblack dog was chasing a not unsmall
+rabbit across a not ungreen field.”
+Rule 5. Use consistent grammatical form when offering several ideas. This
+is called parallel construction.
+Correct: I admire people who are honest, reliable, and sincere.
+Note that are applies to and makes sense with each of the
+three adjectives at the end.
+Incorrect: I admire people who are honest, reliable, and have sincerity.
+In this version, are does not make sense with have sincerity,
+and have sincerity doesn't belong with the two adjectives
+honest and reliable.
+Correct: You should check your spelling, grammar, and punctuation.
+Note that check your applies to and makes sense with each of
+the three nouns at the end.
+Incorrect: You should check your spelling, grammar, and punctuate
+properly.
+Here, check your does not make sense with punctuate
+properly, and punctuate properly doesn't belong with the two
+nouns spelling and grammar. The result is a jarringly inept
+sentence.
+Rule 6. Word order can make or ruin a sentence. If you start a sentence with
+an incomplete phrase or clause, such as While crossing the street or
+Forgotten by history, it must be followed closely by the person or thing it
+describes. Furthermore, that person or thing is always the main subject of
+the sentence. Breaking this rule results in the dreaded, all-too-common
+dangling modifier, or dangler.
+Dangler: Forgotten by history, his autograph was worthless.
+The problem: his autograph shouldn't come right after history,
+because he was forgotten, not his autograph.
+Correct: He was forgotten by history, and his autograph was worthless.
+Dangler: Born in Chicago, my first book was about the 1871 fire.
+The problem: the sentence wants to say I was born in Chicago,
+but to a careful reader, it says that my first book was born
+there.
+Correct: I was born in Chicago, and my first book was about the 1871
+fire.
+Adding -ing to a verb (as in crossing in the example that follows) results in
+a versatile word called a participle, which can be a noun, adjective, or
+adverb. Rule 6 applies to all sentences with a participle in the beginning.
+Participles require placing the actor immediately after the opening phrase or
+clause.
+Dangler: While crossing the street, the bus hit her. (Wrong: the bus was
+not crossing.)
+Correct: While crossing the street, she was hit by a bus.
+OR
+She was hit by a bus while crossing the street.
+Rule 7. Place descriptive words and phrases as close as is practical to the
+words they modify.
+Ill-
+advised:
+I have a cake that Mollie baked in my lunch bag.
+Cake is too far from lunch bag, making the sentence
+ambiguous and silly.
+Better: In my lunch bag is a cake that Mollie baked.
+Rule 8. A sentence fragment is usually an oversight, or a bad idea. It occurs
+when you have only a phrase or dependent clause but are missing an
+independent clause.
+Sentence fragment: After the show ended.
+Full sentence: After the show ended, we had coffee.
+Rule 9a. When writing dialogue, indent each new line, enclose it in
+quotation marks, and attribute it to the speaker. Once the speakers are
+established, their attributions may be dropped until needed again for clarity.
+Each change in speaker also begins a new line.
+Example: “I want to know where the coins are,” Bartholomew said. 
+“I have no idea,” Jacoby replied. 
+Bartholomew stared at him. 
+“You do know,” he said. 
+“I do not.” 
+Jacoby gazed back at him blankly. 
+“Then explain why I found the red dirt on your shoes,”
+Bartholomew said.
+If a speaker's dialogue continues beyond one paragraph, an opening
+quotation mark is placed at the start of each new line. The closing quotation
+mark appears at the end of the dialogue.
+Example: “Then explain why I found the red dirt on your shoes. You
+and I both know there is only one place it could have come
+from. 
+“You must tell me where the coins are, and you will tell me. 
+“And after you tell me, you will deal with Ricardo yourself.”
+Rule 9b. A writer can apply many different attributive verbs in describing
+dialogue. Just a few examples are added, declared, muttered, responded,
+and yelled.
+Examples: “You will deal with Ricardo yourself as to why the coins
+were removed,” Bartholomew added. 
+“I will not,” Jacoby responded.
+While such verbs help to color dialogue and keep it moving, good dialogue
+will establish context and mood without over-relying on them. The right
+words and intonation will convey the spirit of a conversation. In some
+cases, an attributive verb can be redundant.
+Example: “You will deal with Ricardo, and you will bear the
+consequences,” Bartholomew insisted. (The dialogue
+contains the insistence; the attributive verb can simply be
+said.)
+CHAPTER 2 
+PUNCTUATION
+SPACING WITH PUNCTUATION
+Rule 1. With a computer, use only one space following periods, commas,
+semicolons, colons, exclamation points, question marks, and quotation
+marks. The space needed after these punctuation marks is proportioned
+automatically.
+Rule 2. Use no spaces on either side of a hyphen.
+(For more rules about hyphens, see the Hyphens section later in this
+chapter.)
+Example: We borrowed twenty-three sheets of paper.
+Note: For spacing with dashes, see the Dashes section later in this chapter.
+PERIODS
+Rule 1. Use a period at the end of a complete sentence that is a statement.
+Example: I know him well.
+Rule 2. If the last item in the sentence is an abbreviation that ends in a
+period, do not follow it with another period.
+Incorrect: This is Alice Smith, M.D..
+Correct: This is Alice Smith, M.D.
+Correct: Please shop, cook, etc. We will do the laundry.
+Rule 3. Question marks and exclamation points replace and eliminate
+periods at the end of a sentence.
+COMMAS
+Commas and periods are the most frequently used punctuation marks.
+Commas customarily indicate a brief pause; they're not as final as periods.
+Rule 1. Use commas to separate words and word groups in a simple series
+of three or more items.
+Example: My estate goes to my husband, son, daughter-in-law, and
+nephew.
+Note: When the last comma in a series comes before and or or (after
+daughter-in-law in the above example), it is known as the Oxford comma.
+Most newspapers and magazines drop the Oxford comma in a simple series,
+apparently feeling it's unnecessary. However, omission of the Oxford
+comma can sometimes lead to misunderstandings.
+Example: We had coffee, cheese and crackers and grapes.
+Adding a comma after crackers makes it clear that cheese and crackers
+represents one dish. In cases like this, clarity demands the Oxford comma.
+We had coffee, cheese and crackers, and grapes.
+Fiction and nonfiction books generally prefer the Oxford comma. Writers
+must decide Oxford or no Oxford and not switch back and forth, except
+when omitting the Oxford comma could cause confusion as in the cheese
+and crackers example.
+Rule 2. Use a comma to separate two adjectives when the order of the
+adjectives is interchangeable.
+Example: He is a strong, healthy man.
+We could also say healthy, strong man.
+Example: We stayed at an expensive summer resort.
+We would not say summer expensive resort, so no comma.
+Another way to determine if a comma is needed is to mentally put and
+between the two adjectives. If the result still makes sense, add the comma.
+In the examples above, a strong and healthy man makes sense, but an
+expensive and summer resort does not.
+Rule 3a. Many inexperienced writers run two independent clauses together
+by using a comma instead of a period. This results in the dreaded run-on
+sentence or, more technically, a comma splice.
+Incorrect: He walked all the way home, he shut the door.
+There are several simple remedies:
+Correct: He walked all the way home. He shut the door.
+Correct: After he walked all the way home, he shut the door.
+Correct: He walked all the way home, and he shut the door.
+Rule 3b. In sentences where two independent clauses are joined by
+connectors such as and, or, but, etc., put a comma at the end of the first
+clause.
+Incorrect: He walked all the way home and he shut the door.
+Correct: He walked all the way home, and he shut the door.
+Incorrect: Did he walk all the way home or did he take a bus?
+Correct: Did he walk all the way home, or did he take a bus?
+Some writers omit the comma if the clauses are both quite short:
+Example: I paint and he writes.
+Rule 3c. If the subject does not appear in front of the second verb, a comma
+is generally unnecessary.
+Example: Morty thought quickly but still did not answer correctly.
+But sometimes a comma in this situation is necessary to avoid confusion.
+Confusing: I saw that she was busy and prepared to leave.
+Clearer with comma: I saw that she was busy, and prepared to leave.
+Without a comma, the reader is liable to think that “she” was the one who
+was prepared to leave.
+Rule 3d. A comma is placed before the word because only if needed for
+clarity.
+Example:The twins attended Tulane because their parents went there.
+This sentence clearly conveys that the main reason the twins went to Tulane
+was because their parents attended Tulane.
+The twins didn't attend Tulane because their parents went there.
+This sentence is ambiguous. We're not sure whether they didn't go to Tulane
+because they wanted to go somewhere other than where their parents went
+to college, or whether the twins did go to Tulane but for reasons other than
+that their parents went there.
+The twins didn't attend Tulane, because their parents went there.
+With the comma before because, the sentence more clearly conveys that the
+twins desired a college other than the one their parents attended.
+Rule 4a. When starting a sentence with a dependent clause, use a comma
+after it.
+Example: If you are not sure about this, let me know now.
+Follow the same policy with introductory phrases.
+Example: Having finally arrived in town, we went shopping.
+However, if the introductory phrase is clear and brief (three or four words),
+the comma is optional.
+Example: When in town we go shopping.
+But always add a comma if it would avoid confusion.
+Example: Last Sunday, evening classes were canceled. (The comma
+prevents a misreading.)
+When an introductory phrase begins with a preposition, a comma may not
+be necessary even if the phrase contains more than three or four words.
+Example: Into the sparkling crystal ball he gazed.
+If such a phrase contains more than one preposition, a comma may be used
+unless a verb immediately follows the phrase.
+Examples:
+Between your house on Main Street and my house on Grand Avenue, the
+mayor's mansion stands proudly.
+Between your house on Main Street and my house on Grand Avenue is the
+mayor's mansion.
+Rule 4b. But often a comma is unnecessary when the sentence starts with
+an independent clause followed by a dependent clause.
+Example: Let me know now if you are not sure about this.
+Rule 5a. Use commas to set off nonessential words, clauses, and phrases
+(see the “Who, That, Which” section in Chapter One, Rule 2b).
+Incorrect: Jill who is my sister shut the door.
+Correct: Jill, who is my sister, shut the door.
+Incorrect: The actor knowing it was late hurried home.
+Correct: The actor, knowing it was late, hurried home.
+In the preceding examples, note the comma after sister and late.
+Nonessential words, clauses, and phrases that occur midsentence must be
+enclosed by commas. The closing comma is called an appositive comma.
+Many writers forget to add this important comma. Following are two
+instances of the need for an appositive comma with one or more nouns.
+Incorrect: My best friend, Joe arrived.
+Correct: My best friend, Joe, arrived.
+Incorrect: The three items, a book, a pen, and paper were on the table.
+Correct: The three items, a book, a pen, and paper, were on the table.
+Rule 5b. If something or someone is sufficiently identified, the description
+that follows is considered nonessential and should be surrounded by
+commas.
+Examples: Freddy, who has a limp, was in an auto accident.
+If we already know which Freddy is meant, the description is
+not essential.
+The boy who has a limp was in an auto accident.
+We do not know which boy is meant without further
+description; therefore, no commas are used.
+This leads to a persistent problem. Look at the following sentence:
+Example: My brother Bill is here.
+Now, see how adding two commas changes that sentence's meaning:
+Example: My brother, Bill, is here.
+Careful writers and readers understand that the first sentence means I have
+more than one brother. The commas in the second sentence mean that Bill is
+my only brother.
+Why? In the first sentence, Bill is essential information: it identifies which
+of my two (or more) brothers I'm speaking of. This is why no commas
+enclose Bill.
+In the second sentence, Bill is nonessential information—whom else but
+Bill could I mean?—hence the commas.
+Comma misuse is nothing to take lightly. It can lead to a train wreck like
+this:
+Example: Mark Twain's book, Tom Sawyer, is a delight.
+Because of the commas, that sentence states that Twain wrote only one
+book. In fact, he wrote more than two dozen of them.
+Rule 6a. Use a comma after certain words that introduce a sentence, such as
+well, yes, why, hello, hey, etc.
+Examples: Why, I can't believe this!
+No, you can't have a dollar.
+Rule 6b. Use commas to set off expressions that interrupt the sentence flow
+(nevertheless, after all, by the way, on the other hand, however, etc.).
+Example: I am, by the way, very nervous about this.
+Rule 6c. In general, use commas to set off the word too midsentence.
+However, it is usually not necessary to precede too with a comma at the end
+of a sentence.
+Examples: My sister, too, loves artichokes.
+My sister loves artichokes too.
+Rule 7. Use commas to set off the name, nickname, term of endearment, or
+title of a person directly addressed.
+Examples: Will you, Aisha, do that assignment for me?
+Yes, old friend, I will.
+Good day, Captain.
+Rule 8. Use a comma to separate the day of the month from the year, and—
+what most people forget!—always put one after the year, also.
+Example: It was in the Sun's June 5, 2013, edition.
+No comma is necessary for just the month and year.
+Example: It was in a June 2013 article.
+A comma may be advisable with other incomplete dates.
+Examples: Our planning meetings will take place on Friday, November
+13 and Thursday, December 10.
+Our planning meetings will take place on November 13 and
+December 10.
+Rule 9. Use a comma to separate a city from its state, and remember to put
+one after the state, also.
+Example: I'm from the Akron, Ohio, area.
+Rule 10. Traditionally, if a person's name is followed by Sr. or Jr., a comma
+follows the last name: Martin Luther King, Jr. This comma is no longer
+considered mandatory. However, if a comma does precede Sr. or Jr.,
+another comma must follow the entire name when it appears midsentence.
+Correct: Al Mooney Sr. is here.
+Correct: Al Mooney, Sr., is here.
+Incorrect: Al Mooney, Sr. is here.
+Rule 11. Similarly, use commas to enclose degrees or titles used with
+names.
+Example: Al Mooney, M.D., is here.
+Rule 12a. Use commas to introduce or interrupt direct quotations of
+dialogue or text.
+Examples: He said, “I don't care.”
+“Why,” I asked, “don't you care?” 
+Toni Morrison wrote, “If there's a book that you want to
+read, but it hasn't been written yet, then you must write it.”
+This rule is optional with one-word quotations.
+Example: He said “Stop.”
+If a quotation is preceded by introductory words such as that, whether, if, a
+comma is normally not needed.
+Example: Was it James Baldwin who wrote that “nothing can be
+changed until it is faced”?
+A comma is not necessary to introduce titles of articles, chapters, songs, etc.
+(see Quotation Marks, Rule 6).
+Example: I recently read an interesting article titled “A Poor Woman's
+Journey.”
+Rule 12b. If the quotation comes before he said, she wrote, they reported,
+Dana insisted, or a similar attribution, end the quoted material with a
+comma, even if it is only one word.
+Examples: “I don't care,” he said.
+“Stop,” he said.
+Rule 12c. If a quotation functions as a subject or object in a sentence, it
+might not need a comma.
+Examples: Is “I don't care” all you can say to me?
+Saying “Stop the car” was a mistake.
+Rule 12d. If a quoted question ends in midsentence, the question mark
+replaces a comma.
+Example: “Will you still be my friend?” LaDonna asked.
+Rule 13. Use a comma to separate a statement from a question.
+Example: I can go, can't I?
+Rule 14. Use a comma to separate contrasting parts of a sentence.
+Example: That is my money, not yours.
+Rule 15a. Use a comma before and after certain introductory words or
+terms, such as namely, that is, i.e., e.g., including, and for instance, when
+they are followed by a series of items.
+Example: You may be required to bring many items, e.g., sleeping bags,
+pans, and warm clothing.
+Rule 15b. Commas should precede the term etc. and enclose it if it is placed
+midsentence.
+Example: Sleeping bags, pans, warm clothing, etc., are in the tent.
+NOTE
+The abbreviation i.e. means “that is”; e.g. means “for example.”
+SEMICOLONS
+It's no accident that a semicolon is a period atop a comma. Like commas,
+semicolons indicate an audible pause—slightly longer than a comma's, but
+short of a period's full stop.
+Semicolons have other functions, too. But first, a caveat: avoid the common
+mistake of using a semicolon to replace a colon (see the “Colons” section).
+Incorrect: I have one goal; to find her.
+Correct: I have one goal: to find her.
+Rule 1a. A semicolon can replace a period if the writer wishes to narrow
+the gap between two closely linked sentences (independent clauses).
+Examples: Call me tomorrow; you can give me an answer then.
+We have paid our dues; we expect all the privileges listed in
+the contract.
+Rule 1b. Avoid a semicolon when a dependent clause comes before an
+independent clause.
+Incorrect:Although they tried; they failed.
+Correct:Although they tried, they failed.
+Rule 2. Use a semicolon before such words and terms as namely, however,
+therefore, that is, i.e., for example, e.g., for instance, etc., when they
+introduce a complete sentence. It is also preferable to use a comma after
+these words and terms.
+Example: Bring any two items; however, sleeping bags and tents are in
+short supply.
+Rule 3. Use a semicolon to separate units of a series when one or more of
+the units contain commas.
+Incorrect: The conference has people who have come from Moscow,
+Idaho, Springfield, California, Alamo, Tennessee, and other
+places as well.
+Note that with only commas, that sentence is hopeless.
+Correct: The conference has people who have come from Moscow,
+Idaho; Springfield, California; Alamo, Tennessee; and other
+places as well. 
+Note that a semicolon, rather than a comma, after Tennessee
+is correct because and other places as well also constitutes a
+unit of the series.
+Correct: Dante Martinez, a registered nurse; Susan Brooks, a
+dietician; and Chien-Ling Ko, a physical therapist, attended
+the meeting.
+In this case, attended the meeting is not a unit of the series and therefore is
+preceded only by a comma.
+Rule 4. A semicolon may be used between independent clauses joined by a
+connector, such as and, but, or, nor, etc., when one or more commas appear
+in the first clause.
+Example: When I finish here, and I will soon, I'll be glad to help you;
+and that is a promise I will keep.
+Rule 5. Do not capitalize ordinary words after a semicolon.
+Incorrect: I am here; You are over there.
+Correct: I am here; you are over there.
+COLONS
+A colon means “that is to say” or “here's what I mean.” Colons and
+semicolons should never be used interchangeably.
+Rule 1a. Use a colon to introduce an item or a series of items. Do not
+capitalize the first item after the colon (unless it's a proper noun).
+Examples: You know what to do: practice.
+You may be required to bring many things: sleeping bags,
+pans, utensils, and warm clothing.
+I want the following items: butter, sugar, and flour.
+I need an assistant who can do the following: input data,
+write reports, and complete tax forms.
+Rule 1b. A capital letter generally does not introduce a word, phrase, or
+incomplete sentence following a colon.
+Examples: He got what he worked for: a promotion. 
+He got what he worked for: a promotion that paid a higher
+wage.
+Rule 2. Avoid using a colon before a list when it directly follows a verb or
+preposition that would ordinarily need no punctuation in that sentence.
+Not
+recommended:
+I want: butter, sugar, and flour.
+Recommended: I want butter, sugar, and flour.
+OR
+Here is what I want: butter, sugar, and flour.
+Not
+recommended:
+I've seen the greats, including: Barrymore, Guinness,
+and Streep.
+Recommended: I've seen the greats, including Barrymore, Guinness,
+and Streep.
+Rule 3. When listing items one by one, one per line, following a colon,
+capitalization and ending punctuation are optional when using single words
+or phrases preceded by letters, numbers, or bullet points. If each point is a
+complete sentence, capitalize the first word and end the sentence with
+appropriate ending punctuation. Otherwise, there are no hard and fast rules,
+except to be consistent.
+Examples: I want an assistant who can do the following:
+a. input data
+b. write reports
+c. complete tax forms
+The following are requested:
+Wool sweaters for possible cold weather.
+Wet suits for snorkeling.
+Introductions to the local dignitaries.
+These are the pool rules:
+1. Do not run.
+2. If you see unsafe behavior, report it to the lifeguard.
+3. Did you remember your towel?
+4. Have fun!
+Rule 4. A colon instead of a semicolon may be used between independent
+clauses when the second sentence explains, illustrates, paraphrases, or
+expands on the first sentence.
+Example: He got what he worked for: he really earned that promotion.
+If a complete sentence follows a colon, as in the previous example,
+authorities are divided over whether to capitalize the first word. Some
+writers and editors feel that capitalizing a complete sentence after a colon is
+always advisable. Others advise against it. Still others regard it as a
+judgment call: If what follows the colon is closely related to what precedes
+it, there is no need for a capital. But if what follows is a general or formal
+statement, many writers and editors capitalize the first word.
+Example: Remember the old saying: Be careful what you wish for.
+Rule 5. Capitalize the first word of a complete or full-sentence quotation
+that follows a colon.
+Example: The host made an announcement: “You are all staying for
+dinner.”
+Rule 6. Capitalize the first word after a colon if the information following
+the colon requires two or more complete sentences.
+Example: Dad gave us these rules to live by: Work hard. Be honest.
+Always show up on time.
+Rule 7. If a quotation contains two or more sentences, many writers and
+editors introduce it with a colon rather than a comma.
+Example: Dad often said to me: “Work hard. Be honest. Always show
+up on time.”
+Rule 8. For extended quotations introduced by a colon, some style manuals
+say to indent one-half inch on both the left and right margins; others say to
+indent only on the left margin. Quotation marks are not used.
+Example: The author of Touched, Jane Straus, wrote in the first
+chapter:
+Georgia went back to her bed and stared at the intricate
+patterns of burned moth wings in the translucent glass of the
+overhead light. Her father was in “hyper mode” again where
+nothing could calm him down.
+Rule 9. Use a colon rather than a comma to follow the salutation in a
+business letter, even when addressing someone by his or her first name.
+(Never use a semicolon after a salutation.) A comma is used after the
+salutation in more informal correspondence.
+Formal: Dear Ms. Rodriguez:
+Informal: Dear Dave,
+QUOTATION MARKS
+The rules set forth in this section are customary in the United States. Great
+Britain and other countries in the Commonwealth of Nations are governed
+by quite different conventions. Nowhere is this more apparent than in Rule
+4 in this section, a rule that has the advantage of being far simpler than
+Britain's and the disadvantage of being far less logical.
+Rule 1. Use double quotation marks to set off a direct (word-for-word)
+quotation.
+Correct: “I hope you will be here,” he said.
+Incorrect: He said that he “hoped I would be there.” (The quotation
+marks are incorrect because hoped I would be there does not
+state the speaker's exact words.)
+Rule 2a. Always capitalize the first word in a complete quotation, even
+midsentence.
+Example: Lamarr said, “The case is far from over, and we will win.”
+Rule 2b. Do not capitalize quoted material that continues a sentence.
+Example: Lamarr said that the case was “far from over” and that “we
+will win.”
+Rule 3a. Use commas to introduce or interrupt direct quotations of dialogue
+or text.
+Examples: He said, “I don't care.”
+“Why,” I asked, “don't you care?” 
+Toni Morrison wrote, “If there's a book that you want to
+read, but it hasn't been written yet, then you must write it.”
+This rule is optional with one-word quotations.
+Example: He said “Stop.”
+Rule 3b. If the quotation comes before he said, she wrote, they reported,
+Dana insisted, or a similar attribution, end the quoted material with a
+comma, even if it is only one word.
+Examples: “I don't care,” he said.
+“Stop,” he said.
+Rule 3c. If a quotation functions as a subject or object in a sentence, it
+might not need a comma.
+Examples: Is “I don't care” all you can say to me? 
+Saying “Stop the car” was a mistake.
+Rule 4. Periods and commas ALWAYS go inside quotation marks.
+Examples: The sign read, “Walk.” Then it read, “Don't Walk,” then,
+“Walk,” all within thirty seconds.
+He yelled, “Hurry up.”
+Rule 5a. The placement of question marks with quotation marks follows
+logic. If a question is within the quoted material, a question mark should be
+placed inside the quotation marks. The same method is used for
+exclamation marks.
+Examples: Alberta asked, “Will you still be my friend?”
+The question “Will you still be my friend?” is part of the
+quotation. 
+Alberta yelled in frustration, “I cannot be your friend!”  
+The exclamation “I cannot be your friend!” is part of the
+quotation.
+Do you agree with the saying “All's fair in love and war”?
+The question Do you agree with the saying? is outside the
+quotation. 
+I hate when you say, “All's fair in love and war”! 
+The exclamation I hate when you say! is outside the
+quotation.
+Rule 5b. If a quoted question ends in midsentence, the question mark
+replaces a comma.
+Example: “Will you still be my friend?” Alberta asked.
+Rule 6. Quotation marks are used for components, such as chapter titles in a
+book, individual episodes of a TV series, songs from a Broadway show or a
+music album, titles of articles or essays in print or online, and shorter works
+such as short stories and poems.
+It is customary in American publishing to put the title of an entire
+composition in italics. Put the title of a short work—one that is or could be
+part of a larger undertaking—in quotation marks. (If you do not have
+italics capability, quotation marks will do.)
+A “composition” is a creative, journalistic, or scholarly enterprise that is
+whole, complex, a thing unto itself. This includes books, movies, plays,
+TV shows, newspapers, magazines, websites, music albums, operas,
+musical theater, paintings, sculptures, and other works of art.
+Example: Richard Burton performed the song “Camelot” in the 1960
+Broadway musical Camelot.
+Although the word is the same, “Camelot” the song takes quotation marks
+because it's part of a larger work—namely, a full-length show called
+Camelot.
+Rule 7. Use single quotation marks for quotations within quotations.
+Examples: Dan said, “In a town outside Brisbane, I saw ‘Tourists go
+home’ written on a wall. But then someone told me, ‘Pay it
+no mind, lad.’”
+Byung-hoon warned, “Mother will be angry. ‘Wait until your
+father gets home,’ she'll say.”
+Note that the periods and commas go inside both the single and double
+quotation marks. Also note that, as a courtesy, there is visible space
+between adjacent single and double quotation marks.
+While American style has periods and commas going inside single and
+double quotation marks, question marks follow logic. Question marks in a
+quotation within a quotation can get tricky.
+Example: “Why do you keep saying, ‘This doesn't make sense’?”
+Rule 8a. Quotation marks are often used with technical terms, terms used in
+an unusual way, or other expressions that vary from standard usage.
+Examples: It's an oil-extraction method known as “fracking.”
+He did some “experimenting” in his college days.
+I had a visit from my “friend” the tax man.
+Rule 8b. Never use single quotation marks in sentences like the previous
+three.
+Incorrect: I had a visit from my ‘friend’ the tax man.
+The single quotation marks in the above sentence are intended to send a
+message to the reader that friend is being used in a special way: in this
+case, sarcastically. Avoid this invalid usage. Single quotation marks are
+valid only within a quotation, as per Rule 7, above.
+Rule 9. When quoted material runs more than one paragraph, start each new
+paragraph with opening quotation marks, but do not use closing quotation
+marks until the end of the passage.
+Example: Francis wrote: “I don't paint anymore. For a while I thought
+it was just a phase that I'd get over.
+“Now, I don't even try.”
+Note: For extended quotations, see Rule 8 of Colons for an option that does
+not use quotation marks.
+QUESTION MARKS
+Rule 1. Use a question mark only after a direct question.
+Correct: Will you go with me?
+Incorrect: I'm asking if you will go with me?
+Rule 2a. A question mark replaces a period at the end of a sentence.
+Incorrect: Will you go with me?.
+Rule 2b. Because of Rule 2a, capitalize the word that follows a question
+mark.
+Some writers choose to overlook this rule in special cases.
+Example: Will you go with me? with Joe? with anyone?
+Rule 3a. Avoid the common trap of using question marks with indirect
+questions, which are statements that contain questions. Use a period after
+an indirect question.
+Incorrect: I wonder if he will go with me?
+Correct: I wonder if he will go with me.
+OR
+I wonder: Will he go with me?
+Rule 3b. Some sentences are statements—or demands—in the form of a
+question. They are called rhetorical questions because they don't require or
+expect an answer. Many should be written without question marks.
+Examples: Why don't you take a break.
+Would you kids knock it off.
+What wouldn't I do for you!
+Rule 4. Use a question mark when a sentence is half statement and half
+question.
+Example: You do care, don't you?
+Rule 5. The placement of question marks with quotation marks follows
+logic. If a question is within the quoted material, a question mark should be
+placed inside the quotation marks.
+Examples: Alberta asked, “Will you still be my friend?”
+The question “Will you still be my friend?” is part of the
+quotation.
+Do you agree with the saying “All's fair in love and war”?
+The question Do you agree with the saying? is outside the
+quotation.
+PARENTHESES AND BRACKETS
+Parentheses and brackets must never be used interchangeably.
+Parentheses
+Rule 1. Use parentheses to enclose information that clarifies or is used as an
+aside.
+Example: He finally answered (after taking five minutes to think) that
+he did not understand the question.
+If material in parentheses ends a sentence, the period goes after the
+parentheses.
+Example: He gave me a nice bonus ($500).
+Commas could have been used in the first example; a colon could have
+been used in the second example. The use of parentheses indicates that the
+writer considered the information less important—almost an afterthought.
+Rule 2a. Periods go inside parentheses only if an entire sentence is inside
+the parentheses.
+Example: Please read the analysis. (You'll be amazed.)
+This is a rule with a lot of wiggle room. An entire sentence in parentheses is
+often acceptable without an enclosed period:
+Example: Please read the analysis (you'll be amazed).
+Rule 2b. Take care to punctuate correctly when punctuation is required both
+inside and outside parentheses.
+Example: You are late (aren't you?).
+Note the question mark within the parentheses. The period
+after the parentheses is necessary to bring the entire sentence
+to a close.
+Rule 3. Parentheses, despite appearances, are not part of the subject.
+Example: Joe (and his trusty mutt) was always welcome.
+If this seems awkward, try rewriting the sentence:
+Example: Joe (accompanied by his trusty mutt) was always welcome.
+Rule 4. Commas are more likely to follow parentheses than precede them.
+Incorrect: When he got home, (it was already dark outside) he fixed
+dinner.
+Correct: When he got home (it was already dark outside), he fixed
+dinner.
+Brackets
+Brackets are far less common than parentheses, and they are only used in
+special cases. Brackets (like single quotation marks) are used exclusively
+within quoted material.
+Rule 1. Brackets are interruptions. When we see them, we know they've
+been added by someone else. They are used to explain or comment on the
+quotation.
+Examples: “Four score and seven [today we'd say eighty-seven] years
+ago…”
+“Bill shook hands with [his son] Al.”
+Rule 2. When quoting something that has a spelling or grammar mistake or
+presents material in a confusing way, insert the term sic in italics and
+enclose it in nonitalic (unless the surrounding text is italic) brackets.
+Sic (“thus” in Latin) is shorthand for, “This is exactly what the original
+material says.”
+Example: She wrote, “I would rather die then [sic] be seen wearing the
+same outfit as my sister.”
+The [sic] indicates that then was mistakenly used instead of
+than.
+Rule 3. In formal writing, brackets are often used to maintain the integrity
+of both a quotation and the sentences others use it in.
+Example: “[T]he better angels of our nature” gave a powerful ending to
+Lincoln's first inaugural address.
+President Abraham Lincoln's memorable phrase came
+midsentence, so the word the was not originally capitalized.
+APOSTROPHES
+Rule 1. Using an apostrophe to show singular possession
+Rule 1a. To show possession with a singular noun, add an apostrophe plus
+the letter s.
+Examples: a woman's hat
+the boss's wife
+Mrs. Chang's house
+Rule 1b. Many common nouns end in the letter s (lens, cactus, bus, etc.). So
+do a lot of proper nouns (Mr. Jones, Texas, Christmas). There are
+conflicting policies and theories about how to show possession when
+writing such nouns. There is no right answer; the best advice is to choose a
+formula and stay consistent.
+Rule 1c. Some writers and editors add only an apostrophe to all nouns
+ending in s. And some add an apostrophe + s to every proper noun, be it
+Hastings's or Jones's.
+One method, common in newspapers and magazines, is to add an
+apostrophe + s (’s) to common nouns ending in s, but only a stand-alone
+apostrophe to proper nouns ending in s.
+Examples: the class's hours
+Mr. Jones’ golf clubs
+the canvas's size
+Texas’ weather
+Note: We sometimes hear that an inanimate object cannot possess, e.g., the
+canvas's size should be written the size of the canvas. However, this idea is
+routinely ignored by good writers (the rocket's red glare).
+Care must be taken to place the apostrophe outside the word in question.
+For instance, if talking about a pen belonging to Mr. Hastings, many people
+would wrongly write Mr. Hasting's pen (his name is not Mr. Hasting).
+Correct: Mr. Hastings’ pen
+A widely used technique favored for its simplicity is to write the word as
+we would speak it. For example, since most people saying “Mr. Hastings’
+pen” would not pronounce an added s, we would write Mr. Hastings’ pen
+with no added s. But most people would pronounce an added s in “Jones's,”
+so we'd write it as we say it: Mr. Jones's golf clubs. This method explains
+the punctuation of for goodness’ sake.
+This method works well with names ending in a silent s.
+Correct:René Descartes’ life
+Rule 2. Using an apostrophe to show plural possession
+Rule 2a. Regular nouns are nouns that form their plurals by adding either
+the letter s or es (guy, guys; letter, letters; actress, actresses; etc.). To show
+plural possession, simply put an apostrophe after the s.
+Correct: guys’ night out (guy + s + apostrophe)
+Incorrect: guy's night out (implies only one guy)
+Correct: two actresses’ roles (actress + es + apostrophe)
+Incorrect: two actress's roles
+Rule 2b. Do not use an apostrophe + s to make a regular noun plural.
+Incorrect: Apostrophe's are confusing.
+Correct: Apostrophes are confusing.
+Incorrect: We've had many happy Christmas's.
+Correct: We've had many happy Christmases.
+In special cases, such as when forming a plural of a word that is not
+normally a noun, some writers add an apostrophe for clarity.
+Example: Here are some do's and don'ts.
+In that sentence, the verb do is used as a plural noun, and the apostrophe
+was added because the writer felt that dos was confusing. Not all writers
+agree; some see no problem with dos and don'ts.
+However, with single lowercase letters, it is advisable to use apostrophes.
+Example:My a’s look like u’s.
+Imagine the confusion if you wrote that sentence without apostrophes.
+Readers would see as and us, and feel lost.
+Rule 2c. English also has many irregular nouns (child, nucleus, tooth,
+etc.). These nouns become plural by changing their spelling, sometimes
+becoming quite different words. You may find it helpful to write out the
+entire irregular plural noun before adding an apostrophe or an apostrophe +
+s.
+Incorrect: two childrens’ hats
+The plural is children, not childrens.
+Correct: two children's hats (children + apostrophe + s)
+Incorrect: the teeths’ roots
+Correct: the teeth's roots
+Rule 2d. Things can get really confusing with the possessive plurals of
+proper names ending in s, ch, or z, such as Hastings, Jones, Birch, and
+Sanchez.
+If you're the guest of the Ford family—the Fords—you're the Fords’ guest
+(Ford + s + apostrophe). But what if it's the Hastings family?
+Most would call them the “Hastings.” But that would refer to a family
+named “Hasting.” If someone's name ends in s, ch, or z, we must add es for
+the plural. The plural of Hastings is Hastingses. The members of the Birch
+family are the Birches.
+To show possession, add an apostrophe.
+Incorrect: the Hastings’ dog
+Correct: the Hastingses’ dog (Hastings + es + apostrophe)
+Incorrect: the Jones’ car
+Correct: the Joneses’ car
+Incorrect: the Birchs’ home
+Correct: the Birches’ home
+Incorrect: the Sanchez’ new baby, the Sanchezs’ new baby
+Correct: the Sanchezes’ new baby
+In serious writing, this rule must be followed no matter how strange or
+awkward the results.
+Rule 2e. Never use an apostrophe to make a name plural.
+Incorrect: The Wilson's are here.
+Correct: The Wilsons are here.
+Incorrect: We visited the Sanchez's.
+Correct: We visited the Sanchezes.
+Rule 3. With a singular compound noun (for example, mother-in-law),
+show possession with an apostrophe + s at the end of the word.
+Example: my mother-in-law's hat
+If the compound noun (e.g., brother-in-law) is to be made plural, form the
+plural first (brothers-in-law), and then use the apostrophe + s.
+Example: my two brothers-in-law's hats
+Rule 4a. If two people possess the same item, put the apostrophe + s after
+the second name only.
+Example: Cesar and Maribel's home is constructed of redwood.
+However, if one of the joint owners is written as a pronoun, use the
+possessive form for both.
+Incorrect: Maribel and my home
+Incorrect: mine and Maribel's home
+Correct: Maribel's and my home.
+Incorrect: he and Maribel's home
+Incorrect: him and Maribel's home
+Correct: his and Maribel's home
+Incorrect: you and Maribel's home
+Incorrect: yours and Maribel's home
+Correct: Maribel's and your home
+Note: As the above examples demonstrate, when one of the co-owners is
+written as a pronoun, use possessive adjectives (my, your, her, our, their).
+Avoid possessive pronouns (mine, yours, hers, ours, theirs) in such
+constructions.
+It should be mentioned that compound possessives are often clunky as well
+as confusing. For instance, a picture of her and Cesar's house could refer to
+a photo of “her” in front of the house that Cesar owns or a photo of the
+house that she and Cesar co-own. Big difference. Such ambiguous
+sentences should just be rewritten.
+Rule 4b. In cases of separate rather than joint possession, use the possessive
+form for both.
+Examples: Cesar's and Maribel's homes are both lovely.
+They don't own the homes jointly.
+Cesar and Maribel's homes are both lovely.
+The homes belong to both of them.
+Rule 5. Use an apostrophe with contractions. The apostrophe is placed
+where a letter or letters have been removed.
+Examples: Doesn't, it's, 'tis, can't, you'd, should've, rock 'n’ roll, etc.
+Incorrect: Does'nt
+Rule 6. There are various approaches to plurals for abbreviations, single
+letters, and numerals.
+Many writers and editors prefer an apostrophe after single capitalized
+letters. (See Rule 2b. in regard to single lowercase letters.)
+Example: I made straight A's.
+With groups of two or more capital letters, apostrophes seem less necessary.
+Examples: There are two new MPs on the base.
+He learned his ABCs.
+She consulted with three M.D.s. 
+Some write M.D.'s to give the s separation from the second
+period.
+There are different schools of thought about years and decades. The
+following examples are all in widespread use:
+Examples: the 1990s
+the 1990's
+the ’90s
+the 90's
+Awkward: the ’90's
+Rule 7. Amounts of time or money are sometimes used as possessive
+adjectives that require apostrophes.
+Incorrect: three days leave
+Correct: three days’ leave
+Incorrect: my two cents worth
+Correct: my two cents’ worth
+Rule 8. The personal pronouns hers, ours, yours, theirs, its, whose, and the
+pronoun oneself never take an apostrophe.
+Example: Feed a horse grain. It's better for its health.
+Incorrect: Who's glasses are these?
+Correct: Whose glasses are these?
+Incorrect: Talking to one's self in public is odd.
+Correct: Talking to oneself in public is odd.
+Rule 9. When an apostrophe comes before a word or number, take care that
+it's truly an apostrophe (’) rather than a single quotation mark (‘).
+Incorrect: ‘Twas the night before Christmas.
+Correct: ’Twas the night before Christmas.
+Incorrect: I voted in‘08.
+Correct: I voted in’08.
+NOTE
+Serious writers avoid the word ’til as an alternative to until. The correct
+word is till, which is many centuries older than until.
+Rule 10. Beware of false possessives, which often occur with nouns ending
+in s. Don't add apostrophes to noun-derived adjectives ending in s. Close
+analysis is the best guide.
+Incorrect: We enjoyed the New Orleans’ cuisine.
+In the preceding sentence, the word the makes no sense unless New Orleans
+is being used as an adjective to describe cuisine. In English, nouns
+frequently become adjectives. Adjectives rarely if ever take apostrophes.
+Incorrect: I like that Beatles’ song.
+Correct: I like that Beatles song.
+Again, Beatles is an adjective, modifying song.
+Incorrect: He's a United States’ citizen.
+Correct: He's a United States citizen.
+Rule 11. Beware of nouns ending in y; do not show possession by changing
+the y to -ies.
+Correct: the company's policy
+Incorrect: the companies policy
+To show possession when a noun ending in y becomes plural, write ies’ Do
+not write y's.
+Correct: three companies’ policies
+Incorrect: three company's policies
+Exception: Names and other proper nouns ending in y become plural simply
+by adding an s. They do not form their plurals with an apostrophe, or by
+changing the y to ies.
+Correct: The Flannerys are coming over.
+Incorrect: The Flannery's are coming over.
+Incorrect:The Flanneries are coming over.
+Correct: The Flannerys’ house was robbed.
+Incorrect: The Flanneries’ house was robbed.
+HYPHENS
+There are two things to keep in mind about this misunderstood punctuation
+mark. First, there should not be spaces around hyphens. Second, hyphens
+should not be used interchangeably with dashes (with the exception of Rule
+6 below), which are noticeably longer.
+Hyphens’ main purpose is to glue words together. They notify the reader
+that two or more elements in a sentence are linked. Although there are rules
+and customs governing hyphens, there are also situations when writers must
+decide whether to add them for clarity.
+Hyphens Between Words
+Rule 1a. Generally, hyphenate two or more words when they come before a
+noun they modify and act as a single idea. This is called a compound
+adjective.
+Examples: an off-campus apartment
+state-of-the-art design
+When a compound adjective follows a noun, a hyphen is usually not
+necessary.
+Example: The apartment is off campus.
+However, some established compound adjectives are always hyphenated.
+Double-check with a dictionary or online.
+Example: The design is state-of-the-art.
+Rule 1b. Use suspended hyphens when two or more compound adjectives
+come before the noun they modify.
+Example: We offer the finest protective equipment, including latex- and
+phthalate-free gloves.
+Incorrect: You can expect a three-four-week delay in processing.
+Correct: You can expect a three- to four-week delay in processing.
+This is equivalent to writing You can expect a three-week to four-week
+delay in processing.
+Rule 2a. A hyphen is frequently required when forming original compound
+verbs for vivid writing, humor, or special situations.
+Examples: The slacker video-gamed his way through life.
+Queen Victoria throne-sat for six decades.
+Rule 2b. When writing out new, original, or unusual compound nouns,
+writers should hyphenate whenever doing so avoids confusion.
+Examples: I changed my diet and became a no-meater.
+No-meater is too confusing without the hyphen.
+The slacker was a video gamer.
+Video gamer is clear without a hyphen, although some
+writers might prefer to hyphenate it.
+Writers using familiar compound verbs and nouns should consult a
+dictionary or look online to decide if these verbs and nouns should be
+hyphenated.
+Rule 3. An often overlooked rule for hyphens: The adverb very and adverbs
+ending in ly are not hyphenated.
+Incorrect: the very-elegant watch
+Incorrect: the finely-tuned watch
+This rule applies only to adverbs. The following two examples are correct
+because the ly words are not adverbs:
+Correct: the friendly-looking dog
+Correct: a family-owned cafe
+Rule 4. Hyphens are often used to tell the ages of people and things. A
+handy rule, whether writing about years, months, or any other period of
+time, is to use hyphens unless the period of time (years, months, weeks,
+days) is written in plural form:
+With hyphens: We have a two-year-old child.
+We have a two-year-old.
+No hyphens: The child is two years old. (Because years is plural.)
+Exception: The child is one year old. (Or day, week, month, etc.)
+Note that when hyphens are involved in expressing ages, two hyphens are
+required. Many writers forget the second hyphen:
+Incorrect: We have a two-year old child.
+Without the second hyphen, the sentence is about an “old
+child.”
+Rule 5. Never hesitate to add a hyphen if it solves a possible problem.
+Following are two examples of well-advised hyphens:
+Confusing: Springfield has little town charm.
+With
+hyphen:
+Springfield has little-town charm.
+Without the hyphen, the sentence seems to say that
+Springfield is a dreary place. With the hyphen, little-town
+becomes a compound adjective, making the writer's
+intention clear: Springfield is a charming small town.
+Confusing: She had a concealed weapons permit.
+With
+hyphen:
+She had a concealed-weapons permit.
+With no hyphen, we can only guess: Was the weapons
+permit hidden from sight, or was it a permit for concealed
+weapons? The hyphen makes concealed-weapons a
+compound adjective, so the reader knows that the writer
+meant a permit for concealed weapons.
+Rule 6. When using numbers, hyphenate spans or estimates of time,
+distance, or other quantities. Remember not to use spaces around hyphens.
+Examples: 3:15-3:45 p.m.
+1999-2016
+300-325 people
+Note: Most publishers use the slightly longer en dash (see the “Dashes”
+section) instead of a hyphen in this situation.
+Examples: 3:15–3:45 p.m.
+1999–2016
+300–325 people
+Rule 7a. In general, with physical quantities, use a hyphen when the unit,
+abbreviation, or symbol is spelled out.
+Examples: 80-pound bag six-centimeter caterpillar (Note: the number
+is spelled out here because it’s less than ten and not used
+with a symbol or abbreviation.)
+100-meter dash
+Rule 7b. In general, hyphens are not used between the numeral and the
+abbreviation or symbol, even when they are in adjectival form.
+Examples: 80 lb. bag
+6 cm caterpillar
+100 m dash (Note: use a period when abbreviating English
+units but not when abbreviating metric units.)
+NOTE
+Rules 7a. and 7b. are based on standard usages in mathematical,
+statistical, technical, and scientific texts. However, specialized fields
+such as healthcare, education, and science often adhere to their own
+specific stylebook. In those cases, the stylebook should serve as the
+writer's guiding authority.
+Rule 8. Hyphenate all compound numbers from twenty-one through ninety-
+nine.
+Examples: thirty-two children
+one thousand two hundred twenty-one dollars
+Rule 9a. Hyphenate all spelled-out fractions. But do not hyphenate
+fractions introduced with a or an.
+Examples: More than one-third of registered voters oppose the measure. 
+More than a third of registered voters oppose the measure.
+Rule 9b. When writing out numbers with fractions, hyphenate only the
+fractions unless the construction is a compound adjective.
+Correct: The sign is five and one-half feet long.
+Correct: A five-and-one-half-foot-long sign.
+Incorrect: The sign is five-and-one-half feet long.
+See also Rule 2b in Chapter 4, “Writing Numbers.”
+Rule 10a. Do not hyphenate proper nouns of more than one word when
+they are used as compound adjectives.
+Incorrect: She is an Academy-Award nominee.
+Correct: She is an Academy Award nominee.
+Rule 10b. However, hyphenate most double last names.
+Example: Sir Winthrop Heinz-Eakins will attend.
+Rule 11. Many editors do not hyphenate certain well-known expressions.
+They believe that set phrases, because of their familiarity (e.g., high school,
+twentieth century), can go before a noun without risk of confusing the
+reader.
+Examples: a high school senior  
+an ice cream cone
+a twentieth century throwback
+However, other editors prefer hyphenating all compound modifiers, even
+those with low risk of ambiguity.
+Examples: a high-school senior
+an ice-cream cone
+a twentieth-century throwback
+Rule 12. When in doubt, look it up. Some familiar phrases may require
+hyphens. For instance, is a book up to date or up-to-date? Don't guess; have
+a dictionary close by, or look it up online.
+Hyphens with Prefixes and Suffixes
+A prefix (a, un, de, ab, sub, post, anti, etc.) is a letter or set of letters placed
+before a root word. The word prefix itself contains the prefix pre. Prefixes
+expand or change a word's meaning, sometimes radically: the prefixes a,
+un, ir, and dis, for example, change words into their opposites (e.g.,
+political, apolitical; friendly, unfriendly; regular, irregular, honor,
+dishonor).
+Rule 1. Hyphenate prefixes when they come before proper nouns or proper
+adjectives.
+Examples: trans-American
+mid-July
+Rule 2. In describing family relations, great requires a hyphen, but grand
+becomes part of the word without a hyphen.
+Examples: My grandson and my granduncle never met.
+My great-great-grandfather fought in the Civil War.
+Do not hyphenate half brother or half sister.
+Rule 3. For clarity, many writers hyphenate prefixes ending in a vowel
+when the root word begins with the same letter.
+Examples: ultra-ambitious
+semi-invalid
+However, in recognition of the modern trend toward spare hyphenation, do
+not hyphenate after pre and re prefixes when the root word begins with e.
+Rule 4. Hyphenate all words beginning with the prefixes self-, ex- (i.e.,
+former), and all-.
+Examples: self-assured
+ex-mayor
+all-knowing
+Rule 5. Use a hyphen with the prefix re when omitting the hyphen would
+cause confusion with another word.
+Examples: Will she recover from her illness?
+I have re-covered the sofa twice.
+Omitting the hyphen would cause confusion with recover.
+I must re-press the shirt.
+Omitting the hyphen would cause confusion with repress.
+The stamps have been reissued.
+A hyphen after re- is not needed because there is no
+confusion with another word.
+Rule 6. Writers often hyphenate prefixes when they feel a word might be
+distracting or confusing without the hyphen.
+Examples: de-ice
+With no hyphen we get deice, which might stump readers.
+co-worker
+With no hyphen we get coworker, which could be distracting
+because it starts with cow.
+A suffix (y, er, ism, able, etc.) is a letter or set of letters that follows a root
+word. Suffixes form new words or alter the original word to perform a
+different task. For example, the noun scandal can be made into the adjective
+scandalous by adding the suffix ous. It becomes the verb scandalize by
+adding the suffix ize.
+Rule 1. Suffixes are not usually hyphenated. Some exceptions:
+-style, -elect, -free, -based.
+Examples: Modernist-style paintings
+Mayor-elect Smith
+sugar-free soda
+oil-based sludge
+Rule 2. For clarity, writers often hyphenate when the last letter in the root
+word is the same as the first letter in the suffix.
+Examples: graffiti-ism
+wiretap-proof
+Rule 3. Use discretion—and sometimes a dictionary—before deciding to
+place a hyphen before a suffix. But do not hesitate to hyphenate a rare usage
+if it avoids confusion.
+Examples: the annual dance-athon
+an eel-esque sea creature
+Although the preceding hyphens help clarify unusual terms, they are
+optional and might not be every writer's choice. Still, many readers would
+scratch their heads for a moment over danceathon and eelesque.
+DASHES
+Dashes can be a complex topic with many subtle uses. The various types
+include the en dash, em dash, 2-em dash, and 3-em dash. We will limit our
+discussion to the most common uses of the en and em dashes as they will
+fulfill the bulk of the needs of most writers.
+Em dashes, like commas, semicolons, colons, ellipses, and parentheses,
+indicate added emphasis, an interruption, or an abrupt change of thought.
+Experienced writers know that these marks are not interchangeable. Note
+how dashes subtly change the tone of the following sentences:
+Examples: You are the friend, the only friend, who offered to help me.
+You are the friend—the only friend—who offered to help me.
+I pay the bills; she has all the fun.
+I pay the bills—she has all the fun.
+I wish you would … oh, never mind.
+I wish you would—oh, never mind.
+Rule 1. Words and phrases between dashes are not generally part of the
+subject.
+Example: Joe—and his trusty mutt—was always welcome.
+Rule 2. Dashes replace otherwise mandatory punctuation, such as the
+commas after Iowa and 2013 in the following examples:
+Without
+dash:
+The man from Ames, Iowa, arrived.
+With dash: The man—he was from Ames, Iowa—arrived.
+Without
+dash:
+The May 1, 2013, edition of the Ames Sentinel arrived in
+June.
+With dash: The Ames Sentinel—dated May 1, 2013—arrived in June.
+Rule 3. Some writers and publishers prefer spaces around dashes.
+Example: Joe — and his trusty mutt — was always welcome.
+En dashes are shorter than em dashes and longer than hyphens. Like
+hyphens, they can be used for number ranges (see Rule 6 of “Hyphens
+Between Words”).
+Examples: The student council will meet Thursday, 3:15–3:45 p.m.
+During the years 1999–2016, Joshua lived in Fargo, North
+Dakota.
+We expect 300–325 people at the reception.
+En dashes also can be used to punctuate open compound adjectives like
+New York based artist or Charles Dickens inspired writer. New York and
+Charles Dickens are called open compounds in these cases because we
+would not normally hyphenate them. Some writers and publishers prefer
+using an en dash for these situations, but a hyphen would work as well.
+Examples: New York–based artist
+Charles Dickens–inspired writer
+However, consider the open compound expression apple orchard scented
+candle. Using an en dash for this phrase may better clarify the intent for
+readers over using a hyphen.
+Example: apple orchard–scented candle
+Some methods for forming these punctuation marks on a PC:
+En dash—hold down the Alt key and type 0150 on the numeric keypad
+Em dash—hold down the Alt key and type 0151 on the numeric
+keypad
+On a Mac:
+En dash—press option+hyphen key
+Em dash—press option+shift+hyphen key
+ELLIPSES
+Definition
+An ellipsis (plural: ellipses) is a punctuation mark consisting of three
+dots.
+Use an ellipsis when omitting a word, phrase, line, paragraph, or more from
+a quoted passage. Ellipses save space or remove material that is less
+relevant. They are useful in getting right to the point without delay or
+distraction:
+Full
+quotation:
+“Today, after hours of careful thought, the governor
+vetoed the bill.”
+With ellipsis: “Today … the governor vetoed the bill.”
+Although ellipses are used in many ways, the three-dot method is the
+simplest. Newspapers, magazines, and books of fiction and nonfiction use
+various approaches that they find suitable.
+Some writers and editors feel that no spaces are necessary.
+Example: I don’t know …I’m not sure.
+A commonly used method we favor is to enclose the ellipsis with a space
+on each side.
+Example: I don’t know … I’m not sure.
+A four-dot method may be used to indicate the period at the end of a
+sentence, then the ellipsis to indicate omitted material.
+Example: I don’t know.… I’m not sure.
+Even more rigorous methods used by some publishers and in legal works
+require fuller explanations that can be found in other reference books.
+Rule 1. Many writers use an ellipsis whether the omission occurs at the
+beginning of a sentence, in the middle of a sentence, or between sentences.
+A common way to delete the beginning of a sentence is to follow the
+opening quotation mark with an ellipsis, plus a bracketed capital letter:
+Example: “…[A]fter hours of careful thought, the governor vetoed the
+bill.”
+Other writers omit the ellipsis in such cases, feeling the bracketed capital
+letter gets the point across.
+For more on brackets, see “Parentheses and Brackets,” earlier in this
+chapter.
+Rule 2. Ellipses can express hesitation, changes of mood, suspense, or
+thoughts trailing off. Writers also use ellipses to indicate a pause or
+wavering in an otherwise straightforward sentence.
+Examples: I don't know … I'm not sure.
+Pride is one thing, but what happens if she …?
+He said, “I … really don't … understand this.”
+EXCLAMATION POINTS
+Rule 1. Use an exclamation point to show emotion, emphasis, or surprise.
+Examples: I'm truly shocked by your behavior!
+Yay! We won!
+Rule 2. An exclamation point replaces a period at the end of a sentence. It
+also replaces a midsentence comma.
+Incorrect: I'm truly shocked by your behavior!.
+Correct: I'm truly shocked by your behavior!
+Incorrect:“I'm truly shocked by your behavior!,” I told her.
+Correct:“I'm truly shocked by your behavior!” I told her.
+Rule 3. Avoid using an exclamation point in formal business writing.
+Rule 4. Overuse of exclamation points is a sign of undisciplined writing.
+The writer F. Scott Fitzgerald once said, “An exclamation point is like
+laughing at your own joke.” Do not use even one of these marks unless
+you're convinced it is justified.
+SLASHES
+Despite its popularity, the slash (/), technically known as a virgule, is
+frowned upon by purists. Other than to indicate dates (9/11/2001) or to
+separate lines of poetry (“Celery, raw / Develops the jaw”), it has few
+defensible uses.
+Usually a hyphen, or in some cases the word or, will suffice. Instead of
+writing the novelist/poet Eve Jones, make it the novelist-poet Eve Jones.
+Rather than available to any man/woman who is qualified, make it any man
+or woman.
+The slash has always been a handy tool for taking notes and writing rough
+outlines. Substituting w/o for without, y/o for years old, and b/c for because
+can save valuable time and space.
+However, most slashes can—and should—be removed from a final draft.
+Writers should replace a construction like any man/woman with any man or
+woman in their finished work.
+“The virgule is a mark that doesn't appear much in first-rate writing,” says
+Bryan A. Garner in A Dictionary of Modern American Usage. “Use it as a
+last resort.”
+CHAPTER 3 
+CAPITALIZATION
+Capitalization is the writing of a word with its first letter in uppercase and
+the remaining letters in lowercase. Experienced writers are stingy with
+capitals. It is best not to use them if there is any doubt.
+Rule 1. Capitalize the first word of a document and the first word after a
+period.
+Rule 2. Capitalize proper nouns—and adjectives derived from proper
+nouns.
+Examples: the Golden Gate Bridge
+the Grand Canyon
+a Russian song
+a Shakespearean sonnet
+a Freudian slip
+With the passage of time, some words originally derived from proper nouns
+have taken on a life, and authority, of their own and no longer require
+capitalization.
+Examples: herculean (from the mythological hero Hercules)
+quixotic (from the hero of the classic novel Don Quixote)
+draconian (from ancient-Athenian lawgiver Draco)
+The main function of capitals is to focus attention on particular elements
+within any group of people, places, or things. We can speak of a lake in the
+middle of the country, or we can be more specific and say Lake Michigan,
+which distinguishes it from every other lake on earth.
+Capitalization Reference List
+Brand names
+Companies
+Days of the week and months of the year
+Governmental matters
+Congress (but congressional), the U.S. Constitution (but
+constitutional), the Electoral College, Department of Agriculture.
+Note: Many authorities do not capitalize federal or state unless it is
+part of the official title: State Water Resources Control Board, but state
+water board; Federal Communications Commission, but federal
+regulations.
+Historical episodes and eras
+the Inquisition, the American Revolutionary War, the Great Depression
+Holidays
+Institutions
+Oxford College, the Juilliard School of Music
+Manmade structures
+the Empire State Building, the Eiffel Tower, the Titanic
+Manmade territories
+Berlin, Montana, Cook County
+Natural and manmade landmarks
+Mount Everest, the Hoover Dam
+Nicknames and epithets
+Andrew “Old Hickory” Jackson; Babe Ruth, the Sultan of Swat
+Organizations
+American Center for Law and Justice, Norwegian Ministry of the
+Environment
+Planets
+Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, but policies
+vary on capitalizing earth, and it is usually not capitalized unless it is
+being discussed specifically as a planet: We learned that Earth travels
+through space at 66,700 miles per hour.
+Races, nationalities, and tribes
+Eskimo, Navajo, East Indian, Caucasian, African American
+Religions and names of deities
+Note: Capitalize the Bible (but biblical). Do not capitalize heaven,
+hell, the devil, satanic.
+Special occasions
+the Olympic Games, the Cannes Film Festival
+Streets and roads
+Lowercase Reference List
+Here is a list of categories not capitalized unless an item contains a
+proper noun or proper adjective (or, sometimes, a trademark). In such
+cases, only the proper noun or adjective is capitalized.
+Animals
+antelope, black bear, Bengal tiger, yellow-bellied sapsucker, German
+shepherd
+Elements
+Always lowercase, even when the name is derived from a proper noun:
+einsteinium, nobelium, californium
+Foods
+Lowercase except for brand names, proper nouns and adjectives, or
+custom-named recipes: Tabasco sauce, Russian dressing, pepper
+crusted bluefin tuna, Mandy's Bluefin Surprise
+Heavenly bodies besides planets
+Never capitalize the moon or the sun.
+Medical conditions
+Epstein-Barr syndrome, tuberculosis, Parkinson's disease
+Minerals
+Plants, vegetables, and fruits
+poinsettia, Douglas fir, Jerusalem artichoke, organic celery, Golden
+Delicious apples
+Seasons and seasonal data
+spring, summertime, the winter solstice, the autumnal equinox,
+daylight saving time
+Rule 3. A thorny aspect of capitalization: where does it stop? When does
+the Iraq war become the Iraq War? Why is the legendary Hope Diamond
+not the Hope diamond? Everyone writes New York City, so why does the
+Associated Press Stylebook recommend New York state? There aren't
+always easy formulas or logical explanations. Research with reference
+books and search engines is the best strategy.
+In the case of brand names, companies are of little help, because they
+capitalize any word that applies to their merchandise. Domino's Pizza or
+Domino's pizza? Is it Ivory Soap or Ivory soap, a Hilton Hotel or a Hilton
+hotel? Most writers don't capitalize common nouns that simply describe
+the products (pizza, soap, hotel), but it's not always easy to determine
+where a brand name ends. There is Time magazine but also the New York
+Times Magazine. No one would argue with Coca-Cola or Pepsi Cola, but a
+case could be made for Royal Crown cola.
+If a trademark starts with a lowercase word or letter (e.g., eBay, iPhone),
+many authorities advise capitalizing it to begin a sentence.
+Example: EBay opened strong in trading today.
+Rule 4. Capitalize titles when they are used before names, unless the title is
+followed by a comma. Do not capitalize the title if it is used after a name or
+instead of a name.
+Examples: The president will address Congress.
+Chairman of the Board William Bly will preside at the
+conference.
+The chairman of the board, William Bly, will preside.
+The senators from Iowa and Ohio are expected to attend.
+Also expected to attend are Senators Buzz James and Eddie
+Twain.
+The governors, lieutenant governors, and attorneys general
+called for a special task force.
+Governor Fortinbrass, Lieutenant Governor Poppins, and
+Attorney General Dalloway will attend.
+NOTE
+Out of respect, some writers and publishers choose to capitalize the
+highest ranks in government, royalty, religion, etc.
+Examples: The President arrived.
+The Queen spoke.
+The Pope decreed.
+Many American writers believe this to be a wrongheaded policy in a
+country where, theoretically, all humans are perceived as equal.
+Rule 5. Titles are not the same as occupations. Do not capitalize
+occupations before full names.
+Examples: director Steven Spielberg
+owner Helen Smith
+coach Biff Sykes
+Sometimes the line between title and occupation gets blurred. One example
+is general manager: is it a title or an occupation? Opinions differ. Same
+with professor: The Associated Press Stylebook considers professor a job
+description rather than a title and recommends using lowercase even before
+the full name: professor Robert Ames.
+However, titles replacing someone's first name are generally capitalized.
+Example: Here comes Professor Ames.
+Rule 6a. Capitalize a formal title when it is used as a direct address. The
+more formal the title, the more likely it is to be capitalized.
+Examples: Will you take my temperature, Doctor?
+We're sorry to report, Captain, that we're headed for choppy
+waters. 
+That's what you say, mister. 
+Good afternoon, sweetheart.
+Rule 6b. Capitalize relatives’ family names (kinship names) when they
+immediately precede a personal name or when they are used alone in place
+of a personal name.
+Examples: I found out that Mom is here.
+You look good, Grandpa.
+Andy and Opie loved Aunt Bee's apple pies.
+However, these monikers are not capitalized when they are used with
+possessive nouns or pronouns; when preceded by articles such as a, an, or
+the; when they follow the personal name; or when they do not refer to a
+specific person.
+Examples: I found out that my mom is here.
+Joe's grandpa looks good. 
+He's the father of her first child.
+The James brothers were notorious robbers.
+There's not one mother I know who would allow that.
+Rule 6c. Capitalize nicknames in all cases.
+Examples: Meet my brothers, Junior and Scooter.
+I just met two guys named Junior and Scooter.
+Rule 7. Capitalize specific geographical regions. Do not capitalize points of
+the compass.
+Examples: We had three relatives visit from the West.
+Go west three blocks and then turn left.
+We left Florida and drove north.
+We live in the Southeast.
+We live in the southeast section of town.
+Most of the West Coast is rainy this time of year. (referring
+to the United States)
+The west coast of Scotland is rainy this time of year.
+Some areas have come to be capitalized for their fame or notoriety:
+Examples: I'm from New York's Upper West Side.
+I'm from the South Side of Chicago.
+You live in Northern California; he lives in Southern
+California.
+Rule 8. In general, do not capitalize the word the before proper nouns.
+Examples: We visited the Grand Canyon.
+They're fans of the Grateful Dead.
+In special cases, if the word the is an inseparable part of something's official
+title, it may be capitalized.
+Example: We visited The Hague.
+Rule 9. It is not necessary to capitalize city, town, county, etc., if it comes
+before the proper name.
+Examples: the city of New York
+New York City
+the county of Marin
+Marin County
+Rule 10a. Always capitalize the first word in a complete quotation, even
+midsentence.
+Example: Lamarr said, “The case is far from over, and we will win.”
+Rule 10b. Do not capitalize quoted material that continues a sentence.
+Example: Lamarr said that the case was “far from over” and that “we
+will win.”
+Rule 11. For emphasis, writers sometimes capitalize a midsentence
+independent clause or question.
+Examples: One of her cardinal rules was, Never betray a friend.
+It made me wonder, What is mankind's destiny?
+Rule 12. Capitalize the names of specific course titles, but not general
+academic subjects.
+Examples: I must take history and Algebra 101.
+He has a double major in European economics and
+philosophy.
+Rule 13. Capitalize art movements.
+Example: I like Surrealism, but I never understood Abstract
+Expressionism.
+Rule 14. Do not capitalize the first item in a list that follows a colon.
+Example: Bring the following: paper, a pencil, and a snack.
+For more on capitalization after a colon, go to “Colons,” Rules 1, 3, and 4,
+in Chapter Two.
+Rule 15. Do not capitalize “the national anthem.”
+Rule 16a. Composition titles: which words should be capitalized in titles of
+books, plays, films, songs, poems, essays, chapters, etc.? This is a vexing
+matter, and policies vary. The usual advice is to capitalize only the
+“important” words. But this isn't really very helpful. Aren't all words in a
+title important?
+The following rules for capitalizing composition titles are virtually
+universal.
+Capitalize the title's first and last word.
+Capitalize all adjectives, adverbs, and nouns.
+Capitalize all pronouns (including it).
+Capitalize all verbs, including all forms of the state of being verbs (am,
+is, are, was, will be, etc.).
+Capitalize no, not, and the interjection O (e.g., How Long Must I Wait,
+O Lord?).
+Do not capitalize an article (a, an, the) unless it is first or last in the
+title.
+Do not capitalize a coordinating conjunction (and, or, nor, but, for,
+yet, so) unless it is first or last in the title.
+Do not capitalize the word to, with or without an infinitive, unless it is
+first or last in the title.
+Otherwise, styles, methods, and opinions vary; for instance. certain short
+conjunctions (e.g., as, if, how, that) are capped by some, lowercased by
+others.
+A major bone of contention is prepositions. The Associated Press
+Stylebook recommends capitalizing all prepositions of more than three
+letters (e.g., with, about, across). Other authorities advise lowercase until a
+preposition reaches five or more letters. Still others say not to capitalize
+any preposition, even big words like regarding or underneath.
+Hyphenated words in a title also present problems. There are no set rules
+except to always capitalize the first element, even if it would not otherwise
+be capitalized, such as to in My To-go Order (some would write My To-Go
+Order). Some writers, editors, and publishers choose not to capitalize
+words following hyphens unless they are proper nouns or proper adjectives
+(Ex-Marine but ex-husband). Others capitalize any word that would
+otherwise be capped in titles (Prize-Winning, Up-to-Date).
+Rule. 16b. Many books have subtitles. When including these, put a colon
+after the work's title and follow the same rules of composition capitalization
+for the subtitle.
+Example: The King's English: A Guide to Modern Usage
+Note that A is capitalized because it is the first word of the subtitle.
+Suppose you are reviewing a book whose title on the cover is in capital
+letters: THE STUFF OF THOUGHT. Beneath, in smaller capital letters, is
+the subtitle, LANGUAGE AS A WINDOW INTO HUMAN NATURE. All
+sides would agree that the main title should be written, The Stuff of
+Thought. But depending on which capitalization policy you choose, the
+subtitle might be any of the following:
+Language As a Window Into Human Nature
+Language as a Window Into Human Nature
+Language As a Window into Human Nature
+Language as a Window into Human Nature
+Any title of more than two words can be a challenge. How would you
+capitalize a title such as not yet rich? Since the first and last word in any
+title are always capitalized, the only question is whether to cap yet. In this
+case, yet is an adverb, and adverbs are always capped. So make it Not Yet
+Rich.
+Now suppose the title is rich yet miserable. This time yet is one of the seven
+coordinating conjunctions (the others are and, or, nor, but, for, and so).
+Since coordinating conjunctions are not capitalized in titles, the right
+answer is Rich yet Miserable.
+Here are two correctly capitalized titles: Going up the Road and Going Up
+in a Balloon. In the first title, up is a preposition, and short prepositions are
+not capitalized. In the second title, Up is an adverb and should be capped.
+Along the same lines, compare the following three sentences: I Got It off
+the Internet, Please Put It Off for Today, and I Hit the Off Switch. In the
+first example, the preposition off is lowercase. But the word must be capped
+in the second example because put off, meaning “to postpone,” is a two-
+word phrasal verb (a verb of two or more words). One-word verbs, helping
+verbs (see Chapter 1, “Finding Nouns, Verbs, and Subjects”), and phrasal
+verbs are always capitalized. Off is also capped in the third sentence
+because the word functions as an adjective in that title, and adjectives are
+always capitalized.
+Although the seven coordinating conjunctions are not capitalized, you may
+have noticed there are many more than seven conjunctions in English. Most
+of these are called subordinating conjunctions, because they join a
+subordinate clause to a main clause. Familiar examples include as,
+although, before, since, until, when.
+There are three approaches to capping subordinating conjunctions:
+capitalize them all, lowercase them all, or capitalize them if they are words
+of four letters or more. Take your pick.
+Capitalizing composition titles is fraught with gray areas. Pick a policy and
+be consistent.
+CHAPTER 4 
+WRITING NUMBERS
+Except for a few basic rules, spelling out numbers versus using figures (also
+called numerals) is largely a matter of writers’ preference. Again,
+consistency is the key.
+Policies and philosophies vary from medium to medium. America's two
+most influential style and usage guides have different approaches: The
+Associated Press Stylebook recommends spelling out the numbers zero
+through nine and using numerals thereafter—until one million is reached.
+Here are four examples of how to write numbers above 999,999 in AP
+style: 1 million; 20 million; 20,040,086; 2.7 trillion.
+The Chicago Manual of Style recommends spelling out the numbers zero
+through one hundred and using figures thereafter—except for whole
+numbers used in combination with hundred, thousand, hundred thousand,
+million, billion, and beyond (e.g., two hundred; twenty-eight thousand; three
+hundred thousand; one million). In Chicago style, as opposed to AP style,
+we would write four hundred, eight thousand, and twenty million with no
+numerals—but like AP, Chicago style would require numerals for 401;
+8,012; and 20,040,086.
+This is a complex topic, with many exceptions, and there is no consistency
+we can rely on among blogs, books, newspapers, and magazines. This
+chapter will confine itself to rules that all media seem to agree on.
+Rule 1. Spell out all numbers beginning a sentence.
+Examples: Twenty-three hundred sixty-one victims were hospitalized.
+Twenty twenty was quite a year.
+Note: The Associated Press Stylebook makes an exception for years.
+Example: 2020 was quite a year.
+Rule 2a. Hyphenate all compound numbers from twenty-one through
+ninety-nine.
+Examples: Forty-three people were injured in the train wreck.
+Twenty-seven of them were hospitalized.
+Rule 2b. Hyphenate all written-out fractions.
+Examples: We recovered about two-thirds of the stolen cash.
+One-half is slightly less than five-eighths.
+However, do not hyphenate terms like a third or a half.
+Rule 3a. With figures of four or more digits, use commas. Count three
+spaces to the left to place the first comma. Continue placing commas after
+every three digits. Important: Do not include decimal points when doing the
+counting.
+Examples: 1,054 people
+$2,417,592.21
+Note: Some choose not to use commas with four-digit numbers, but this
+practice is not recommended.
+Rule 3b. It is not necessary to use a decimal point or a dollar sign when
+writing out sums of less than a dollar.
+Not advised: He had only $0.60.
+Better: He had only sixty cents.
+OR
+He had only 60 cents.
+Rule 3c. Do not add the word “dollars” to figures preceded by a dollar sign.
+Incorrect: I have $1,250 dollars in my checking account.
+Correct: I have $1,250 in my checking account.
+Rule 4a. For clarity, use noon and midnight rather than 12:00 PM and 12:00
+AM.
+NOTE
+AM and PM are also written A.M. and P.M., a.m. and p.m., and am and
+pm. Some put a space between the time and AM or PM.
+Examples: 8 AM
+3:09 P.M.
+11:20 P.M.
+Others write times using no space before AM or PM.
+Examples: 8AM
+3:09P.M.
+11:20p.m.
+For the top of the hour, some write 9:00 PM, whereas others drop the
+:00 and write 9 PM (or 9 p.m., 9pm, etc.).
+Rule 4b. Using numerals for the time of day has become widely accepted.
+Examples: The flight leaves at 6:22 a.m.
+Please arrive by 12:30 sharp.
+However, some writers prefer to spell out the time, particularly when using
+o'clock.
+Examples: She takes the four thirty-five train.
+The baby wakes up at five o'clock in the morning.
+Rule 5. Mixed fractions are often expressed in figures unless they begin a
+sentence.
+Examples: We expect a 5½ percent wage increase.
+Five and one-half percent was the expected wage increase.
+Rule 6. The simplest way to express large numbers is usually best.
+Example: twenty-three hundred (simpler than two thousand three
+hundred)
+Large round numbers are often spelled out, but be consistent within a
+sentence.
+Consistent: You can earn from one million to five million dollars.
+Inconsistent: You can earn from one million dollars to 5 million dollars.
+Inconsistent: You can earn from $1 million to five million dollars.
+Rule 7. Write decimals using figures.
+Example: A meter is about 1.1 times longer than a yard.
+As a courtesy to readers, many writers put a zero in front of the decimal
+point with numbers less than one.
+Examples:The plant grew 0.79 inches last year.
+The plant grew only 0.07 inches this year.
+(Note: For clarity, when needing the symbols for inches or feet, we
+recommend using the double-prime [″] or the prime [′], respectively, rather
+than double or single quotation marks.)
+Rule 8a. When writing out a number of three or more digits, the word and
+is not necessary. However, use the word and to express any decimal points
+that may accompany these numbers.
+Examples: five thousand two hundred eighty feet  
+one thousand one hundred fifty-four dollars
+one thousand one hundred fifty-four dollars and sixty-one
+cents
+Simpler: eleven hundred fifty-four dollars and sixty-one cents
+Rule 8b. When writing out numbers above 999, do not use commas.
+Incorrect: one thousand, one hundred fifty-four dollars, and sixty-one
+cents.
+Correct: one thousand one hundred fifty-four dollars and sixty-one
+cents.
+Rule 9. When it's important to ensure a number is not misinterpreted, some
+writers will indicate the number in both numerals and written out. The
+number in parentheses comes second.
+Incorrect: Add (73) seventy-three grams of sodium chloride to the
+beaker.
+Incorrect: Add (seventy-three) 73 grams of sodium chloride to the
+beaker.
+Correct: Add 73 (seventy-three) grams of sodium chloride to the
+beaker.
+Correct: Add seventy-three (73) grams of sodium chloride to the
+beaker.
+Rule 10. The following examples are typical when using figures to express
+dates.
+Examples: the 30th of June, 1934
+June 30, 1934 (no -th necessary)
+Rule 11a. When spelling out decades, do not capitalize them.
+Example: During the eighties and nineties, the U.S. economy grew.
+Rule 11b. When expressing decades using figures, it is simpler to put an
+apostrophe before the incomplete numeral and no apostrophe between the
+number and the s.
+Preferred: During the ’80s and ’90s, the U.S. economy grew.
+Awkward:During the 80s and 90s, the U.S. economy grew.
+Though not as common, some writers place an apostrophe after the number:
+Example: During the 80's and 90's, the U.S. economy grew.
+Awkward: During the ’80's and ’90's, the U.S. economy grew.
+Rule 11c. You may also express decades in complete numerals. Again, it is
+cleaner to avoid an apostrophe between the year and the s.
+Example: During the 1980s and 1990s, the U.S. economy grew.
+Rule 12. Single-digit numbers are usually spelled out, but when they aren't,
+you are just as likely to see 2s and 3s as 2's and 3's. With double digits and
+above, many (but not everyone) regard the apostrophe as superfluous: I
+scored in the high 90s.

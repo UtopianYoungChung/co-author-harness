@@ -61,6 +61,8 @@ If routing is ambiguous, state the single recommended next command in one line a
 | `/check-contradictions` | Run contradiction audit across co-invoked sources. | Theory consistency checks. |
 | `/check-abstract-body` | Verify abstract promises are paid off in body. | Abstract/body alignment checks. |
 | `/sentence-level-pass` | Run Bacon-style sentence craft pass. | Line-level prose tightening. |
+| `/grammar-mechanics-pass` | Run Blue Book grammar-and-punctuation **correctness** pass — mechanical scan (it's/its, comma splices, that/which, Oxford comma, compound-modifier hyphenation, number style) plus judgment pass on subject–verb agreement and restrictiveness. Defers em-dashes to em-dash discipline, craft to `sentence-level-pass`, citation form to Turabian. | Copyedit / proofread for mechanical correctness. |
+| `/citation-format-pass` | Run Turabian/Chicago citation-**form** conformance pass — single-style consistency (notes-bibliography vs. author-date), note/bibliography/reference-list form, shortened-note discipline, parenthetical and block-quote placement, parenthetical↔reference-list orphan check. Orthogonal to `CITATION_DISCIPLINE.md` (form, not whether-to-cite). | Check or fix citation/bibliography formatting against declared style. |
 | `/narrative-structure-pass` | Run Sexton-style narrative arc pass. | Structure and flow improvements. |
 | `/IS-theory-pass` | Run Baird IS-theory criteria pass. | IS venue/theory manuscript checks. |
 | `/p-stage-checker` | Verify manuscript matches declared P-stage. | Stage drift and anti-pattern checks. |

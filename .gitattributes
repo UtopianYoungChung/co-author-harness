@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and perform LF normalization.
+# eol=lf forces LF in the working tree on checkout regardless of core.autocrlf,
+# so SKILL.md frontmatter never reaches the marketplace packager with CRLF
+# (CRLF in frontmatter breaks the strict YAML validator). See v0.16.0 upload fix.
+* text=auto eol=lf

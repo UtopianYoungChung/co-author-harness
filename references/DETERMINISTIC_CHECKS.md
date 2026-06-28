@@ -64,6 +64,31 @@ rg --count -- '—' <file>        # plain-text em-dashes (rare in LaTeX)
 
 ---
 
+## 3b. Grammar mechanics (Blue Book) — work queue for `grammar-mechanics-pass` (added 2026-06-28)
+
+Regex-detectable correctness candidates from `blue_book_grammar_guidelines.md`. These are **candidates**, not violations — most require the judgment pass to confirm (the same two-layer pattern §9a/§9b use). The pre-filter surfaces them cheaply; `skills/grammar-mechanics-pass/SKILL.md` Phase 2 judges them. Em-dashes are **out of scope here** — they are owned by §3 above.
+
+| Rule | Pattern | Scope | Threshold | Severity | Fix hint |
+|---|---|---|---|---|---|
+| its / it's confusion (BB §2.4) | `\bit's\b` (verify "it is"/"it has"); `\bits'\b` (always wrong) | per occurrence | each `it's` verified | MAJOR if possessive intent | `it's`→`its` when possessive; `its'` is never valid. |
+| Comma splice candidate (BB §2.1) | independent clause `, ` + independent clause, no coordinating conjunction | per sentence | 0 confirmed | MAJOR | Semicolon, conjunction, or period. |
+| Nonrestrictive `which` without comma / restrictive `that` with comma (BB §1.4) | `\w+\s+which\b` not preceded by comma; `, that\b` | per occurrence | judgment | MAJOR if meaning changes | Essential→`that` no commas; nonessential→`which` commas. |
+| `-ly` adverb hyphenated to adjective (BB §2.5) | `\b\w+ly-\w+` | per occurrence | 0 | MINOR | Drop the hyphen ("highly regarded"). |
+| Decade/possessive apostrophe error (BB §2.4) | `\b\d{4}'s\b` | per occurrence | 0 | MINOR | `1990s`, not `1990's`. |
+| Sentence-initial digit (BB §4 Rule 1) | line/sentence starting `^\d` | per sentence | 0 | MINOR | Spell out or recast. |
+| 4+ digit figure without grouping comma (BB §4 Rule 3a) | `\b\d{4,}\b` (non-year, non-citation) | per occurrence | venue-dependent | MINOR | Group by threes per declared style. |
+
+**Venue note.** Oxford-comma and number-spell-out thresholds are **declared-style-dependent** (`research_notes/directives.md` `citation_style`). The pre-filter flags **inconsistency within the manuscript** and sentence-initial digits unconditionally; it does **not** impose a single threshold. A declared-style conflict is emitted as `[CONFLICT]`, not silently resolved (`blue_book_grammar_guidelines.md §6`).
+
+**Quick sweep:**
+```
+rg --count -- "\bit's\b" <file>
+rg -n -- "\b\w+ly-\w+" <file>
+rg -n -- "\b[0-9]{4}'s\b" <file>
+```
+
+---
+
 ## 4. LLM tics (MAJOR on cluster, MINOR individually)
 
 From MASTER §A.4.2. The "humanness pass." Each pattern is a tell; multiple hits compound.

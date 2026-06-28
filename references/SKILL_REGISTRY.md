@@ -421,6 +421,28 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Depends on:** `skills/run-phase-4/SKILL.md` (canonical body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 advisory at MCR boundary).
 - **Sibling:** SK-27 `run-phase-4` (canonical); SK-37 `run-draft`; SK-38 `run-iterate`.
 
+### SK-40. `grammar-mechanics-pass`
+- **File:** `skills/grammar-mechanics-pass/SKILL.md` (new at 2026-06-28)
+- **Pattern:** Blue Book grammar-and-punctuation **correctness** pass — mechanical scan (it's/its, comma splices, that/which, Oxford comma, compound-modifier hyphenation, number style) plus a judgment pass on subject–verb agreement and restrictiveness. Closes the gap where the harness owned sentence *craft* (SK via `sentence-level-pass`) and em-dash *discipline* (DETERMINISTIC §3) but had no standalone correctness/copyedit surface.
+- **Created:** 2026-06-28 (three-manuals integration — `docs/superpowers/plans/2026-06-28-three-manuals-integration.md`)
+- **Tier:** Package
+- **Status:** Active
+- **Pattern source:** `references/blue_book_grammar_guidelines.md §§1–7`
+- **Depends on:** `references/blue_book_grammar_guidelines.md` (read-before-act prerequisite); `references/DETERMINISTIC_CHECKS.md` grammar-mechanics work queue (Phase-1 pre-filter); `research_notes/directives.md` `citation_style` (venue-sensitive precedence).
+- **Non-overlap (deliberate):** defers em-dash policy to `EMDASH_BUNDLE_DISCIPLINE.md` / `DETERMINISTIC_CHECKS.md §3`; defers sentence craft to `sentence-level-pass` (Bacon); defers citation form to `turabian_chicago_guidelines.md` and citation *judgment* to `CITATION_DISCIPLINE.md`.
+- **Sibling:** SK for `sentence-level-pass` (Bacon, craft) — this is the correctness counterpart.
+
+### SK-41. `citation-format-pass`
+- **File:** `skills/citation-format-pass/SKILL.md` (new at 2026-06-28)
+- **Pattern:** Turabian/Chicago citation-**form** conformance — single-style consistency (notes-bibliography vs. author-date), note/bibliography/reference-list form, shortened-note discipline, parenthetical and block-quote citation placement, parenthetical↔reference-list orphan check. Closes the gap where the harness owned the *whether-to-cite* judgment (`CITATION_DISCIPLINE.md`) but had no *how-the-cite-is-rendered* surface.
+- **Created:** 2026-06-28 (three-manuals integration PR-2 — `docs/superpowers/plans/2026-06-28-three-manuals-integration.md`)
+- **Tier:** Package
+- **Status:** Active
+- **Pattern source:** `references/turabian_chicago_guidelines.md §§1–6`
+- **Depends on:** `references/turabian_chicago_guidelines.md` (read-before-act prerequisite); `research_notes/directives.md` `citation_style` (selects NB vs. AD); declared-style precedence for shared mechanics (`turabian_chicago_guidelines.md §5`).
+- **Non-overlap (deliberate):** orthogonal to `CITATION_DISCIPLINE.md` (form, not whether-to-cite); does not verify source existence (`EXTERNAL_VERIFIERS.md` / `GROUNDING_PROTOCOL.md`); defers shared mechanics conflicts to declared style via `[CONFLICT]`.
+- **Sibling:** SK-40 `grammar-mechanics-pass` (shares the declared-style `[CONFLICT]` discipline on mechanics).
+
 ---
 
 ## Orchestration Commands (v0.7.0)

@@ -1,0 +1,1846 @@
+15.2 The Requirements of Citation
+To fulfill the requirements of citation, you need to know when to
+include a source citation in your paper and what information about
+the source to include.
+15.2.1 Situations Requiring Citations
+Chapter 7, particularly 7.9, discusses in depth when you should cite
+materials from other sources. Briefly, you should always provide a
+citation in the following situations:
+■ when you quote exact words from a source (see also chapter 25 on
+quotations)
+■ when you paraphrase ideas that are associated with a specific
+source, even if you don ’ t quote exact words from it
+■ when you use any idea, data, or method attributable to any source
+you consulted
+As noted in 15.1, you may also use citations to point readers to
+sources that are relevant to a particular portion of your argument but
+not quoted or paraphrased. Such citations demonstrate that you are
+familiar with these sources, even if they present claims at odds with
+your own.
+15.2.2 Information Required in Citations
+Over the long tradition of citing sources, as researchers in different
+fields began to write in different ways, they also developed distinctive
+ways of citing and documenting their sources. When citation
+methods became standardized, researchers had to choose from not
+just one or two standards but many.
+Citation styles differ in the elements included and in the format of
+these elements, but they have the same aim: to give readers the
+information they need to identify and find a source. For most
+sources, including books, articles, unpublished documents, and other
+written material, in print or electronic form, that information must
+answer these questions:
+■ Who wrote, edited, or translated the text (sometimes all three)?
+■ What data identify the text? This includes the title and subtitle of
+the work; title of the journal, collection, or series it appears in, as
+well as volume number, edition number, or other identifying
+information; and page numbers or other locating information if
+the reference is to a specific part of a larger text.
+■ Who published the text and when? This includes the name of the
+publisher and the place and date of publication — or an indication
+that the document has not been published.
+■ Where can the text be found? Most printed sources can be found in
+a library or bookstore, information that goes without saying. For a
+source obtained online, a URL or the name of a commercial
+database will help readers find it. For an item from a one-of-a-kind
+collection, data will include the place where the collection is
+housed.
+Details vary for other sources, such as sound and video
+recordings, but they answer the same four questions: Who wrote,
+edited, translated, or was otherwise responsible for creating the
+source? What data identify it? Who published it and when? Where
+can it be found?
+Your readers will expect you to use the citation style appropriate
+to their particular field, not just because they are familiar with this
+style but because when you use it, you show them that you
+understand their values and practices. The details may seem trivial:
+when to use capitals, periods, commas, and even where to put a
+space. But if you do not get these small matters right, many of your
+readers will question whether they can trust you on the bigger ones.
+Few researchers try to memorize all these details. Instead, they learn
+the forms of the citations they use most so that they do not need to
+look them up repeatedly. Then, for citing sources that are less
+common or have unusual elements, they consult a book like this one.
+15.3 Two Citation Styles
+This book covers the two most common citation forms: notes-
+bibliography style, or simply bibliography style (used widely in the
+humanities and in some social sciences), and author-date style (used
+in most social sciences and in the natural and physical sciences, and
+referred to in the previous edition of this book as parenthetical
+citations-reference list style). If you are not certain which style to use
+in a paper, consult your instructor.
+You may be asked to use different styles in different settings (for
+example, an art history course and a political science course). Within
+a specific paper, however, always follow a single style consistently.
+If you are new to research, read this section for a brief description
+of how the two citation styles work. Then, if you are using
+bibliography style, read chapter 16 for an overview of this style, and
+refer to chapter 17 for detailed guidelines and examples for citing
+most types of sources you ’ re likely to consult. If you are using
+author-date style, the overview and detailed guidelines are in
+chapters 18 and 19, respectively.
+15.3.1 Bibliography Style
+In bibliography-style citations, you signal that you have used a
+source by placing a superscript number at the end of the sentence in
+which you refer to it:
+He concludes that “ being a person is not a pat formula, but a quest,
+a mystery, a leap of faith. ”1
+You then cite the source of that quotation in a correspondingly
+numbered note that provides information about the source (author,
+title, and facts of publication) plus relevant page numbers. Notes are
+printed at the bottom of the page (called footnotes) or in a list
+collected at the end of your paper or the end of each chapter (called
+endnotes). All notes have the same general form:
+N:       1. Jaron Lanier, You Are Not a Gadget: A Manifesto (New
+York: Alfred A. Knopf, 2010), 5.
+If you cite the same text again, you can shorten subsequent notes:
+N:       5. Lanier, Not a Gadget, 133 – 34.
+In most cases, you also list sources at the end of the paper in a
+bibliography. That list normally includes every source you cited in a
+note and sometimes others you consulted but did not cite. Each
+bibliography entry includes the same information contained in a full
+note, but in a slightly different form:
+B:   Lanier, Jaron. You Are Not a Gadget: A Manifesto. New York:
+Alfred A. Knopf, 2010.
+15.3.2 Author-Date Style
+In author-date citations, you signal that you have used a source by
+placing a parenthetical citation (including author, date, and relevant
+page numbers) next to your reference to it:
+He concludes that “ being a person is not a pat formula, but a quest,
+a mystery, a leap of faith ”  (Lanier 2010, 5).
+At the end of the paper, you list all sources in a reference list.
+That list normally includes every source you cited in a parenthetical
+citation and sometimes others you consulted but did not cite. Each
+reference list entry includes complete bibliographical information for
+a source. The publication date immediately follows the name of the
+author, making it easy to follow a parenthetical citation to its
+corresponding entry in the reference list:
+R:   Lanier, Jaron. 2010. You Are Not a Gadget: A Manifesto. New
+York: Alfred A. Knopf.
+15.4 Electronic Sources
+The standard citation forms evolved in the age of print, but
+researchers now increasingly rely on sources that are found online or
+in another electronic medium. These sources have been used long
+enough for researchers to have created standard citation forms
+adapted to their special characteristics.
+15.4.1 Online Sources
+15.4.1.1 INFORMATION IN CITATIONS. When you cite online sources, you
+include many of the same pieces of information as you would for
+print sources, but sometimes this information is difficult to find,
+unavailable, or subject to change without notice. These factors can
+make it more difficult for your readers to find the sources you ’ ve
+cited, and in some cases they may make you question the authority
+and reliability of a source.
+■ Many websites have no identifiable author, publisher, or sponsor.
+This makes them the equivalent of any other anonymous source,
+unlikely to be authoritative or reliable enough to use without
+serious qualification (see 3.4.3). The same caution applies to
+content such as user comments that are posted under
+pseudonyms, even if the website or blog they are posted on is
+considered a reliable source.
+■ Online content can be revised without notice, and there are no
+standards for indicating revisions. A revision date on one website
+may indicate correction of a spelling error while on another it may
+mark changes in factual data or claims.
+■ Online content may be simultaneously available from more than
+one site, some more reliable than others.
+■ Most online sources are located through a URL (uniform resource
+locator), but URLs come and go. You cannot always be certain they
+will be available months, weeks, or even days later, and their
+disappearance would make it difficult or impossible for you or
+your readers to find the content you originally consulted.
+In your research, choose online sources carefully. When
+information is available on multiple websites or in multiple media
+(print and online), consult the most reliable version available, and
+always cite the version you consulted.
+15.4.1.2 TWO CATEGORIES OF SOURCES. Online sources fall into two
+categories.
+1.  Many online sources are like print sources in everything except
+medium — for example, an article published in an online journal
+instead of in a printed journal. Other sources of this type include
+online books, newspaper and magazine articles, and public
+documents. Cite an online source of this type similarly to a print
+source, beginning with standard facts of publication (author ’ s
+name, title, date, and so forth). At the end of the citation, add the
+date you accessed the material and the URL (see 15.4.1.3) or the
+name of the database through which you accessed the source (see
+15.4.1.4). You can find examples of how to cite such items under
+the relevant type of source in chapter 17 (for bibliography style)
+and chapter 19 (for author-date style).
+2.  Other types of online sources, such as institutional or personal
+websites and social networking services, are unique to the
+medium. Unlike more traditional media, these sources often lack
+one or more of the standard facts of publication. To cite such a
+source, you will need to give as much information as possible
+about it in addition to a URL and access date (see 15.4.1.3).
+Examples of how to cite these items appear in 17.7 (for
+bibliography style) and 19.7 (for author-date style).
+15.4.1.3 URLS AND ACCESS DATES. For any source you cite, you must
+always include the full facts of publication in addition to a URL. If
+the URL changes, interested readers will often be able to find your
+source by searching for the author, title, and other facts of
+publication.
+Capitalize the components of a URL exactly as they appear on
+your screen. If the URL ends in a slash, include it. Do not enclose the
+URL in brackets. It is best not to break a URL at the end of a line, but
+if you need to do so, see 20.4.2 for some guidelines.
+If a website gives a preferred form of the URL along with the
+citation data for a source, use that rather than the URL in your
+browser ’ s address bar. Some sources are identified by a DOI (digital
+object identifier). URLs based on DOIs are more persistent and
+stable than ordinary URLs. To cite a source that includes a DOI,
+append the DOI to http://dx.doi.org/ in your citation. For examples,
+see the sections on journal articles in figure 16.1 (for bibliography
+style) or figure 18.1 (for author-date style) and in chapters 17 and 19.
+In addition, every citation of an online source should include the
+date you last accessed it. If the source is revised or deleted, readers
+(and your instructor) will want to know when the source was last
+available to you. Chapters 17 and 19 provide many examples of access
+dates in citations.
+15.4.1.4 COMMERCIAL DATABASES. Many online sources, including
+journals and other periodicals and some electronic books, are
+accessible only through a commercial database with restricted access
+(often through a university or other major library). If such a database
+lists a recommended URL along with the source, use that one instead
+of the one in your address bar. A URL based on a DOI, if available, is
+the best option (see 15.4.1.3). If no suitably short and direct URL
+exists, however, you may substitute the name of the database for the
+URL (e.g., LexisNexis Academic). For examples, see 17.1.10
+(bibliography style) and 19.1.10 (author-date style).
+15.4.2 Other Electronic Media
+Publications available in other electronic media, such as an
+electronic book available for download or as a CD- or DVD-ROM, can
+often be cited similarly to printed books, with the addition of
+information about the medium or file format; see 17.1.10 and 17.5.8
+(for bibliography style) or 19.1.10 and 19.5.8 (for author-date style).
+If a source is available in more than one electronic medium (for
+example, in more than one electronic book format), or both
+electronically and in print form, consult the most reliable and
+authoritative version (see 3.4), and always cite the version you
+consulted.
+15.5 Preparation of Citations
+You can ease the process of preparing and checking citations if you
+anticipate what you will need.
+■ Use the most authoritative sources, in their most reliable version.
+If you find second- or thirdhand information, track down the
+original source.
+■ If a source is available in multiple versions, always cite the one you
+actually consulted. There may be small but important differences
+between the versions that could affect the accuracy of your
+quotations or other references to the source.
+■ Record all bibliographical information before you take notes. See
+figure 16.1 (for bibliography style) or figure 18.1 (for author-date
+style) for templates showing what information is needed for
+several common types of sources.
+■ Record the page number(s) for every quotation and paraphrase.
+■ As you draft, clearly indicate every place where you may need to
+cite a source. It is much easier to remove an unnecessary citation
+when you revise than to remember where you may have relied on
+someone else ’ s ideas.
+■ When your draft is in its final form, consult chapter 17 or 19 to
+ensure that each citation is in the correct form, including
+punctuation and spacing.
+■ You can assemble your bibliography or reference list either as you
+consult your sources or as you draft and revise. Be sure to check
+each detail carefully.
+Getting each citation right may be tedious, but as with every other
+phase of research, if you anticipate what you need and manage the
+process from the beginning, you can complete even this least exciting
+part of research faster, more easily, and more reliably.
+15.6 Citation Management Software
+If you do the bulk of your bibliographic research online, you may
+want to consider using citation management software to collect data
+about your sources. Programs like EndNote, RefWorks, and Zotero
+are designed to help you build a “ library ”  of citations for a variety of
+source types. Later you can plug these citations directly into your
+paper in one of the citation styles described in this manual (referred
+to in most programs as either “ Turabian ”  or “ Chicago ”  style). A few
+things to keep in mind:
+■ Double-check your data. As you build your library, check each field
+against the actual source as soon as you acquire the data for it.
+Make sure that authors ’  names, titles of works, dates, and so forth
+are accurate and that they are entered in the appropriate fields.
+You will need to do this whether you entered the data yourself or
+exported the citation from a library catalog or other database.
+■ Double-check your citations. Once they ’ ve been inserted in your
+paper, make sure each citation is correctly formatted and
+punctuated according to the citation style you ’ ve chosen. Review
+your final draft with extra care. Citation software programs do
+make errors, and it remains your responsibility to ensure that your
+citations are accurate. For examples of bibliography-style citations,
+see chapters 16 and 17; for author-date style, see chapters 18 and
+19.
+■ Always keep at least two copies of your citations library. If your
+school lets you keep a copy on its server, make sure you also have a
+copy on a local drive.
+These programs work best for papers that cite only a few types of
+the most common sources. Articles in academic journals, especially,
+are easy to work with. If you cite many different types of sources,
+expect to spend extra time correcting your citations library and
+editing your final paper. You may choose instead to record the
+information in the correct citation format yourself, using a word
+processor or spreadsheet application.
+=====16.1=====
+A citation style used widely in the humanities and in some social
+sciences is the notes-bibliography style, or bibliography style for
+short. This chapter presents an overview of the basic pattern for
+citations in bibliography style, including bibliography entries, full
+notes, shortened notes, and parenthetical notes. Examples of notes are
+identified with an N; examples of bibliography entries are identified
+with a B.
+In bibliography style, you signal that you have used a source by
+placing a superscript number at the end of the sentence in which you
+quote or otherwise refer to that source:
+According to one scholar, “ The railroads had made Chicago the most
+important meeting place between East and West. ”4
+You then cite the source of that information in a correspondingly
+numbered note that provides information about the source (author,
+title, and facts of publication) plus relevant page numbers. Notes are
+printed at the bottom of the page (called footnotes) or in a list collected
+at the end of your paper or the end of each chapter (called endnotes).
+All notes have the same general form:
+N:       4. William Cronon, Nature ’ s Metropolis: Chicago and the Great
+West (New York: W. W. Norton, 1991), 92 – 93.
+If you cite the same text again, you can shorten subsequent notes:
+N:       8. Cronon, Nature ’ s Metropolis, 383.
+In most cases, you also list sources at the end of the paper in a
+bibliography. That list normally includes every source you cited in a
+note and sometimes others you consulted but did not cite. Each
+bibliography entry includes the same information contained in a full
+note, but in a slightly different form:
+B:  Cronon, William. Nature ’ s Metropolis: Chicago and the Great
+West. New York: W. W. Norton, 1991.
+Readers expect you to follow the rules for correct citations exactly.
+These rules cover not only what data you must include and their order
+but also punctuation, capitalization, italicizing, and so on. To get your
+citations right, you must pay close attention to many minute details
+that few researchers can easily remember. Chapter 17 provides a ready
+reference guide to those details.
+16.1 Basic Patterns
+Although sources and their citations come in almost endless variety,
+you are likely to use only a few kinds. While you may need to look up
+details to cite some unusual sources, you can easily learn the basic
+patterns for the few kinds you will use most often. You can then create
+templates that will help you record bibliographical data quickly and
+reliably as you read.
+The rest of this section describes the basic patterns, and figure 16.1
+provides templates for and examples of several common types of
+sources. Chapter 17 includes examples of a wide range of sources,
+including exceptions to the patterns discussed here.
+Figure 16.1. Templates for notes and bibliography entries
+The following templates show what elements should be included in
+what order when citing several common types of sources in notes (N)
+and bibliographies (B). They also show punctuation, capitalization of
+titles, and when to use italics or quotation marks. Gray shading shows
+abbreviations (or their spelled-out versions) and other terms as they
+would actually appear in a citation. ## stands in for footnote number.
+XX stands in for page numbers actually cited, YY for a full span of
+page numbers for an article or a chapter.
+For further examples, explanations, and variations, see chapter 17.
+For templates of shortened note forms, see figure 16.2.
+Books
+1. Single Author or Editor
+N:       ##. Author ’ s First and Last Names, Title of Book: Subtitle of
+Book (Place of Publication: Publisher ’ s Name, Date of
+Publication), XX – XX.
+1. Malcolm Gladwell, The Tipping Point: How Little Things Can
+Make a Big Difference (Boston: Little, Brown, 2000), 64 – 65.
+B:  Author ’ s Last Name, Author ’ s First Name. Title of Book: Subtitle
+of Book. Place of Publication: Publisher ’ s Name, Date of
+Publication.
+Gladwell, Malcolm. The Tipping Point: How Little Things Can
+Make a Big Difference. Boston: Little, Brown, 2000.
+For a book with an editor instead of an author, adapt the pattern as
+follows:
+N:       ##. Editor ’ s First and Last Names, ed., Title of Book …
+7. Joel Greenberg, ed., Of Prairie, Woods, and Water …
+B:  Editor ’ s Last Name, Editor ’ s First Name, ed. Title of Book …
+Greenberg, Joel, ed. Of Prairie, Woods, and Water …
+2. Multiple Authors
+For a book with two authors, use the following pattern:
+N:       ##. Author #1 ’ s First and Last Names and Author #2 ’ s First
+and Last Names, Title of Book: Subtitle of Book (Place of
+Publication: Publisher ’ s Name, Date of Publication), XX – XX.
+2. Peter Morey and Amina Yaqin, Framing Muslims:
+Stereotyping and Representation after 9/11 (Cambridge, MA:
+Harvard University Press, 2011), 52.
+B:  Author #1 ’ s Last Name, Author #1 ’ s First Name, and Author #2 ’ s
+First and Last Names. Title of Book: Subtitle of Book. Place of
+Publication: Publisher ’ s Name, Date of Publication.
+Morey, Peter, and Amina Yaqin. Framing Muslims: Stereotyping
+and Representation after 9/11. Cambridge, MA: Harvard
+University Press, 2011.
+For a book with three authors, adapt the pattern as follows:
+N:       ##. Author #1 ’ s First and Last Names, Author #2 ’ s First and
+Last Names, and Author #3 ’ s First and Last Names, Title of Book
+…
+5. Joe Soss, Richard C. Fording, and Sanford F. Schram,
+Disciplining the Poor …
+B:  Author #1 ’ s Last Name, Author #1 ’ s First Name, Author #2 ’ s First
+and Last Names, and Author #3 ’ s First and Last Names. Title
+of Book …
+Soss, Joe, Richard C. Fording, and Sanford F. Schram.
+Disciplining the Poor …
+For a book with four or more authors, adapt the note pattern only as
+follows:
+N:       ##. Author #1 ’ s First and Last Names et al., Title of Book …
+15. Jay M. Bernstein et al., Art and Aesthetics after Adorno …
+3. Author(s) Plus Editor or Translator
+For a book with an author plus an editor, use the following pattern:
+N:       ##. Author ’ s First and Last Names, Title of Book: Subtitle of
+Book, ed. Editor ’ s First and Last Names (Place of Publication:
+Publisher ’ s Name, Date of Publication), XX – XX.
+9. Jane Austen, Persuasion: An Annotated Edition, ed. Robert
+Morrison (Cambridge, MA: Belknap Press of Harvard University
+Press, 2011), 311 – 12.
+B:  Author ’ s Last Name, Author ’ s First Name. Title of Book: Subtitle
+of Book. Edited by Editor ’ s First and Last Names. Place of
+Publication: Publisher ’ s Name, Date of Publication.
+Austen, Jane. Persuasion: An Annotated Edition. Edited by
+Robert Morrison. Cambridge, MA: Belknap Press of Harvard
+University Press, 2011.
+If a book has a translator instead of an editor, substitute the words
+trans, and Translated by and the translator ’ s name for the editor data.
+4. Edition Number
+N:       ##. Author ’ s First and Last Names, Title of Book: Subtitle of
+Book, Edition Number ed. (Place of Publication: Publisher ’ s
+Name, Date of Publication), XX – XX.
+11. John Van Maanen, Tales of the Field: On Writing
+Ethnography, 2nd ed. (Chicago: University of Chicago Press, 2011),
+84.
+B:  Author ’ s Last Name, Author ’ s First Name. Title of Book: Subtitle
+of Book. Edition Number ed. Place of Publication: Publisher ’ s
+Name, Date of Publication.
+Van Maanen, John. Tales of the Field: On Writing Ethnography.
+2nd ed. Chicago: University of Chicago Press, 2011.
+5. Single Chapter in an Edited Book
+N:       ##. Chapter Author ’ s First and Last Names, “ Title of Chapter:
+Subtitle of Chapter, ”  in Title of Book: Subtitle of Book, ed.
+Editor ’ s First and Last Names (Place of Publication: Publisher ’ s
+Name, Date of Publication), XX – XX.
+15. Á ngeles Ram í rez, “ Muslim Women in the Spanish Press:The
+Persistence of Subaltern Images, ”  in Muslim Women in War and
+Crisis: Representation and Reality, ed. Faegheh Shirazi (Austin:
+University of Texas Press, 2010), 231.
+B:  Chapter Author ’ s Last Name, Chapter Author ’ s First Name. “ Title
+of Chapter: Subtitle of Chapter. ”  In Title of Book: Subtitle of
+Book, edited by Editor ’ s First and Last Names, YY – YY. Place
+of Publication: Publisher ’ s Name, Date of Publication.
+Ram í rez, Á ngeles. Muslim Women in the Spanish Press: The
+Persistence of Subaltern Images. ”  In Muslim Women in War
+and Crisis Representation and Reality, edited by Faegheh
+Shirazi, 227 – 44. Austin: University of Texas Press, 2010.
+Journal Articles
+6. Journal Article in Print
+N:       ##. Author ’ s First and Last Names, “ Title of Article: Subtitle of
+Article, ”  Title of Journal Volume Number, Issue Number (Date of
+Publication): XX – XX.
+4. Alexandra Bogren, “ Gender and Alcohol: The Swedish Press
+Debate, ”  Journal of Gender Studies 20, no. 2 (June 2011): 156.
+B:  Author ’ s Last Name, Author ’ s First Name. “ Title of Article:
+Subtitle of Article. ”  Title of Journal Volume Number, Issue
+Number (Date of Publication): YY – YY.
+Bogren, Alexandra. “ Gender and Alcohol: The Swedish Press
+Debate. ”  Journal of Gender Studies 20, no. 2 (June 2011):
+155 – 69.
+For an article with multiple authors, follow the relevant pattern for
+authors ’  names in template 2.
+7. Journal Article Online
+For a journal article consulted online, include an access date and a
+URL. For articles that include a DOI, form the URL by appending the
+DOI to http://dx.doi.org/ rather than using the URL in your address
+bar. The DOI for the Kiser article in the example below is
+10.1086/658052.
+N:       ##. Author ’ s First and Last Names, “ Title of Article: Subtitle of
+Article, ”  Title of Journal Volume Number, Issue Number (Date of
+Publication): XX – XX, accessed Date of Access, URL.
+5. Lisa J. Kiser, “ Silencing the Lambs: Economics, Ethics, and
+Animal Life in Medieval Franciscan Hagiography, ”  Modern
+Philology 108, no. 3 (February 2011): 340, accessed September 18,
+2011, http://dx.doi.org/10.1086/658052.
+B:  Author ’ s Last Name, Author ’ s First Name. “ Title of Article:
+Subtitle of Article. ”  Title of Journal Volume Number, Issue
+Number (Date of Publication): YY – YY. Accessed Date of
+Access. URL.
+Kiser, Lisa J. “ Silencing the Lambs: Economics, Ethics, and
+Animal Life in Medieval Franciscan Hagiography. ”  Modern
+Philology 108, no. 3 (February 2011): 323 – 42. Accessed
+September 18, 2011. http://dx.doi.org/10.1086/658052.
+See 15.4.1 for more details.
+16.1.1 Order of Elements
+The order of elements in notes and bibliography entries follows the
+same general pattern for all types of sources: author, title, facts of
+publication. However, notes present authors ’  names in standard order
+(first name first), while bibliography entries present them in inverted
+order (last name first) for alphabetical listing. Notes citing specific
+passages usually include page numbers or other locating information;
+bibliography entries do not, though they do include a full span of page
+numbers for a source that is part of a larger whole, such as an article or
+a chapter.
+16.1.2 Punctuation
+In notes, separate most elements with commas; in bibliography
+entries, separate them with periods. In notes, enclose facts of
+publication in parentheses; in bibliography entries, do not. The styles
+are different because a note is intended to be read like text, where a
+period might signal the end of a citation. Bibliographies are designed
+as lists in which each source has its own entry, so periods can be used
+without confusion to separate the elements of author, title, and
+publication data.
+16.1.3 Capitalization
+Capitalize most titles headline style, but capitalize titles in foreign
+languages sentence style. (See 22.3.1 for both styles.) Capitalize proper
+nouns in the usual way (see chapter 22).
+16.1.4 Italics and Quotation Marks
+Titles of larger entities (books, journals) are printed in italics; titles of
+smaller entities (chapters, articles) are printed in roman type and
+enclosed in quotation marks. Titles of unpublished works (such as
+dissertations) are printed in roman type and enclosed in quotation
+marks, even if they are book length. See also 22.3.2.
+16.1.5 Numbers
+In titles, any numbers are spelled out or given in numerals exactly as
+they are in the original. Page numbers that are in roman numerals in
+the original are presented in lowercase roman numerals. All other
+numbers (such as chapter numbers or figure numbers) are given in
+arabic numerals, even if they are in roman numerals or spelled out in
+the original.
+16.1.6 Abbreviations
+In notes, abbreviate terms such as editor and translator (ed. and
+trans.). In bibliography entries, these terms are often spelled out when
+they introduce a name (Edited by) but abbreviated when they conclude
+it (ed.). The plural is usually formed by adding s (eds.) unless the
+abbreviation ends in an s (use trans. for both singular and plural).
+Terms such as volume, edition, and number (vol., ed., and no.) are
+always abbreviated.
+16.1.7 Indentation
+Notes are indented like other paragraphs in the text: the first line is
+indented and all following lines are flush left. Bibliography entries
+have a hanging indentation: the first line is flush left and all following
+lines are indented the same amount as the first line of a paragraph.
+16.2 Bibliographies
+Papers that use the notes-bibliography citation style typically include
+both notes and a bibliography that lists all sources cited in the notes.
+Although the same information appears in both notes and
+bibliography, readers need it in both places, because they use notes
+and bibliographies differently. Notes let readers quickly check the
+source for a particular reference without disrupting the flow of their
+reading. Bibliographies show readers the extent of your research and
+its relationship to prior work. Bibliographies also help readers use your
+sources in their own research. So unless you have only a handful of
+sources or your instructor tells you otherwise, always include both
+notes and a bibliography in your papers. If you do not include a
+bibliography, make sure that your notes present complete information
+for each source, at least the first time you cite it.
+16.2.1 Types of Bibliographies
+In most cases, your bibliography should include every work you cite in
+your text. (For exceptions, see 16.2.3.) You may also include works that
+were important to your thinking but that you did not specifically
+mention in the text. Label this kind Bibliography or Sources
+Consulted. See figure A.15 in the appendix for a sample page of a
+bibliography.
+There are other options:
+■ Selected bibliography. Some bibliographies do not include all works
+cited in notes, either to save space or to omit minor references
+unlikely to interest readers. You may use a selected bibliography if
+you have good reasons and your instructor or advisor approves.
+Label it Selected Bibliography and add a headnote that explains
+your principle of selection.
+■ Single-author bibliography. Some writers list works by one person,
+usually as a separate list in addition to a standard bibliography, but
+sometimes as the only bibliography in a single-author study with few
+other sources. Label such a list Works of [Author ’ s Name] or some
+appropriate descriptive title (Published Works of Writings of, and so
+on). You can arrange it chronologically or alphabetically by title. If
+chronologically, list titles published in the same year alphabetically.
+■ Annotated bibliography. Some writers annotate each bibliography
+entry with a brief description of the work ’ s contents or relevance to
+their research. In most cases, if you annotate one entry you should
+annotate them all. But researchers sometimes annotate only the
+most important works or those whose relevance to their research
+may not be evident. If your annotations are brief phrases, add them
+in brackets after the publication data (note that there is no period
+within or after the bracketed entry):
+B:  Toulmin, Stephen. The Uses of Argument. Cambridge: Cambridge
+University Press, 1958. [a seminal text describing argument in
+nonsymbolic language]
+You may also add full-sentence annotations on a new line with
+paragraph indentation:
+B:  Toulmin, Stephen. The Uses of Argument. Cambridge: Cambridge
+University Press, 1958.
+This is the seminal text in describing the structure of an argument
+in nonsymbolic language.
+16.2.2 Arrangement of Entries
+16.2.2.1 ALPHABETICAL BY AUTHOR. A bibliography is normally a single list
+of all sources arranged alphabetically by the last name of the author,
+editor, or whoever is first in each entry. (For alphabetizing foreign
+names, compound names, and other special cases, see 16.2.2.2.) Most
+word processors provide an alphabetical sorting function; if you use it,
+first make sure each entry is followed by a hard return. If you are
+writing a thesis or dissertation, your department or university may
+specify that you should alphabetize the entries letter by letter or word
+by word; see 16.58-61 of The Chicago Manual of Style, 16th edition
+(2010), for an explanation of these two systems.
+If your bibliography includes two or more works written, edited, or
+translated by the same individual, arrange the entries alphabetically by
+title (ignoring articles such as a or the). For all entries after the first,
+replace the individual ’ s name with a long dash, called a 3-em dash (see
+21.7.3). For edited or translated works, put a comma and the
+appropriate designation (ed., trans., and so on) after the dash. List all
+such works before any that the individual coauthored or coedited. Note
+that it is best to make all these adjustments manually —after you have
+sorted your complete bibliography alphabetically by name.
+B:  Gates, Henry Louis, Jr. America behind the Color Line: Dialogues
+with African Americans. New York: Warner Books, 2004.
+_______. Black in Latin America. New York: New York University
+Press, 2011.
+_______, ed. The Classic Slave Narratives. New York: Penguin
+Putnam, 2002.
+_______. The Signifying Monkey: A Theory of African-American
+Literary Criticism. New York: Oxford University Press, 1988.
+_______. Tradition and the Black Atlantic: Critical Theory in the
+African Diaspora. New York: BasicCivitas, 2010.
+Gates, Henry Louis, Jr., and Cornel West. The African-American
+Century: How Black Americans Have Shaped Our Country.
+New York: Free Press, 2000.
+The same principles apply to works by a single group of authors
+named in the same order.
+B:  Marty, Martin E., and R. Scott Appleby, eds. Accounting for
+Fundamentalisms. Chicago: University of Chicago Press, 2004.
+_______. The Glory and the Power: The Fundamentalist Challenge
+to the Modern World. Boston: Beacon Press, 1992.
+Marty, Martin E., and Micah Marty. When True Simplicity Is
+Gained: Finding Spiritual Clarity in a Complex World. Grand
+Rapids, Ml: William B. Eerdmans, 1998.
+If a source does not have a named author or editor, alphabetize it
+based on the first element of the citation, generally a title. Ignore
+articles such as a or the.
+B:  Account of the Operations of the Great Trigonometrical Survey of
+India. 22 vols.Dehra Dun: Survey of India, 1870 – 1910.
+“ The Great Trigonometrical Survey of India. ”  Calcutta Review 38
+(1863): 26 – 62.
+“ State and Prospects of Asia. ”  Quarterly Review 63, no. 126
+(March 1839): 369 – 402.
+16.2.2.2 SPECIAL TYPES OF NAMES. Some authors ’  names consist of more
+than a readily identifiable “ first name ”  and “ last name. ”  In many cases
+you can determine the correct order by consulting your library ’ s
+catalog. For historical names, a good source is Merriam-Webster ’ s
+Biographical Dictionary. This section outlines some general principles
+for alphabetizing such names in your bibliography. In shortened or
+parenthetical notes, use the last name exactly as inverted (shown
+below in boldface). If your paper involves many names from a
+particular foreign language, follow the conventions for that language.
+■ Compound names. Alphabetize compound last names, including
+hyphenated names, by the first part of the compound. If a woman
+uses both her own family name and her husband ’ s but does not
+hyphenate them, generally alphabetize by the second surname.
+While many foreign languages have predictable patterns for
+compound names (see below), others — such as French and German
+— do not.
+Kessler-Harris, Alice 
+Hine, Darlene Clark 
+  
+Mies van der Rohe, Ludwig 
+Teilhard de Chardin, Pierre
+■ Names with particles. Depending on the language, particles such as
+de, di, D ’ , and van may or may not be considered the first part of a
+last name for alphabetizing. Consult one of the resources noted
+above if you are unsure about a particular name. Note that particles
+may be either lower cased or capitalized, and some are followed by
+an apostrophe.
+de Gaulle, Charles 
+di Leonardo, Micaela 
+Van Rensselaer, Stephen 
+  
+Beauvoir, Simone de 
+Kooning, Willem de 
+Medici, Lorenzo de ’
+■ Names beginning with “ Mac, ”  “ Saint, ” or “ O ’ . ” Names that begin
+with Mac, Saint, or O ’ can have many variations in abbreviations
+(Mc, St.), spelling (Sainte, San), capitalization (Macmillan,
+McAllister), and hyphenation or apostrophes (O ’ Neill or Odell;
+Saint-Gaudens or St. Denis). Alphabetize all such names based on
+the letters actually present; do not group them because they are
+similar.
+■ Spanish names. Many Spanish last names are compound names
+consisting of an individual ’ s paternal and maternal family names,
+sometimes joined by the conjunction y. Alphabetize such names
+under the first part.
+Ortega y Gasset, José 
+S á nchez Mendoza, Juana
+■ Arabic names. Alphabetize Arabic last names that begin with the
+particle al- or el- ( “ the ” ) under the element following the particle.
+Names that begin with Abu, Abd, and Ibn, like English names
+beginning with Mac or Saint, should be alphabetized under these
+terms.
+Hakim, Tawfiq al- 
+Jamal, Muhammad Hamid al- 
+  
+Abu Zafar Nadvi, Syed 
+Ibn Saud, Aziz
+■ Chinese and Japanese names. If an author with a Chinese or
+Japanese name follows traditional usage (family name followed by
+given name), do not invert the name or insert a comma between the
+“ first ”  and “ last ”  names. If the author follows Westernized usage
+(given name followed by family name), treat the name as you would
+an English name.
+Traditional usage Westernized usage
+Chao Wu-chi Tsou, Tang
+Yoshida Shigeru Kurosawa, Noriaki
+16.2.2.3 OTHER THAN ALPHABETICAL. Occasionally, readers will find an
+order other than alphabetical more useful. Single-author
+bibliographies are often more usefully arranged chronologically, as are
+specialized listings such as newspaper articles, archival records, and so
+on. You may also find it useful to invent an order for a specific purpose
+— for example, a list of topographical maps arranged by state or
+region. If you do use an order other than alphabetical or chronological,
+explain your choice in a headnote.
+16.2.2.4 CATEGORIZED LISTINGS. You may organize a longer bibliography
+into categories to help readers see related sources as a group. Some
+common ways of categorizing longer bibliographies into sections
+include these:
+■ By the physical form of sources. You can create separate lists for
+manuscripts, archival collections, recordings, and so on.
+■ By the primacy of sources. You can separate primary sources from
+secondary and tertiary ones, as in a single-author bibliography.
+■ By the field of sources. You can group sources by field, either
+because your readers will have different interests (as in the
+bibliography to this book) or because you mix work from fields not
+usually combined. For example, a work on the theory and
+psychology of comic literature might categorize sources as follows:
+Theory of Comedy, Psychological Studies, Literary Criticism,
+Comic Works.
+If you categorize sources, present them in either separate
+bibliographies or a single one divided into sections. Introduce each
+separate bibliography or section with a subheading and, if necessary, a
+headnote. In a single bibliography, use the same principle of order
+within each section (usually alphabetical), and do not list a source in
+more than one section unless it clearly could be categorized in two or
+more ways. If you use different principles of order, create separate
+bibliographies, each with its own explanatory heading.
+16.2.3 Sources That May Be Omitted
+By convention, you may omit the following types of sources from a
+bibliography:
+■ newspaper articles (see 17.4)
+■ classical, medieval, and early English literary works (17.5.1) and (in
+some cases) well-known English-language plays (17.8.5.2)
+■ the Bible and other sacred works (17.5.2)
+■ well-known reference works, such as major dictionaries and
+encyclopedias (17.5.3)
+■ brief published items, such as reviews of published works or
+performances (17.5.4), abstracts (17.5.5), and pamphlets and reports
+(17.5.6)
+■ unpublished interviews and personal communications (17.6.3), blog
+entries and comments (17.7.2), and postings to social networks
+(17.7.3) or electronic discussion groups or mailing lists (17.7.4)
+■ individual documents in unpublished manuscript collections (17.6.4)
+■ some sources in the visual and performing arts, including artworks
+(17.8.1) and live performances (17.8.2)
+■ the US Constitution (17.9.5), legal cases (17.9.7), and some other
+public documents (17.9.2.5)
+You may choose to include in your bibliography a specific work from
+one of these categories that is critical to your argument or frequently
+cited.
+If you use many such sources from a single larger entity — for
+example, several documents from a single manuscript collection — you
+may cite the larger entity, as discussed in the relevant sections of
+chapter 17.
+16.3 Notes
+Writers use several different kinds of notes, depending on their field,
+their readers, and the nature of their project. This section explains
+your options and how to choose among them.
+16.3.1 Footnotes versus Endnotes
+Your department may specify whether you should use footnotes or
+endnotes, especially for a thesis or dissertation. If not, you should
+generally choose footnotes, which are easier to read. Endnotes force
+readers to flip to the back of the paper or of each chapter to check
+every citation. If you include substantive comments in endnotes (see
+16.3.5), readers may ignore them because they cannot tell without
+turning back which notes are substantive and which only cite sources.
+On the other hand, choose endnotes when your footnotes are so
+long or numerous that they take up too much space on the page,
+making your report unattractive and difficult to read. Also, endnotes
+better accommodate tables, quoted poetry, and anything else that
+requires a lot of room or complex formatting.
+If you use endnotes and include only a few substantive notes, you
+can reduce the risk that readers will miss them by separating
+substantive notes from source notes. Number source notes and print
+them as endnotes. Signal substantive notes with asterisks and other
+symbols (see 16.3.3) and print them as footnotes.
+16.3.2 Referencing Notes in Text
+Whenever you refer to or otherwise use material from a source, you
+must insert into your text a superscript number that directs your
+reader to a note that gives bibliographical information about that
+source. Put the number at the end of the sentence or clause containing
+the quotation or other material (see also 25.2). Normally, the note
+number should follow any mark of punctuation, including a closing
+parenthesis.
+Magic was a staple of the Kinahan charm.1
+“ This, ”  wrote George Templeton Strong, “ is what our tailors can do. ”2
+(In an earlier book he had said quite the opposite.)3
+If, however, the note refers to material before a dash, put the reference
+number before the dash:
+The bias surfaced in the Shotwell series4— though not obviously.
+Do not include more than one reference number at the same
+location (such as 5, 6). Instead, use one number and include all
+citations or comments in a single note (see 16.3.5).
+Avoid putting a note number inside or at the end of a chapter title
+or subtitle. If your note applies to the entire chapter, omit the number
+and put an unnumbered footnote on the first page, before any
+numbered notes. You may, on the other hand, attach a note number to
+a subhead.
+16.3.3 Numbering Notes
+Number notes consecutively, beginning with 1. If your paper has
+separate chapters, restart each chapter with note 1. Do not skip a
+number or use numbers such as 5a.
+If you use endnotes for source citations but footnotes for
+substantive comments (see 16.3.1), do not number the footnotes.
+Instead, label the first footnote on a page with an asterisk (*). If you
+have more than one footnote on a page, use superscript symbols in the
+sequence* †  ǂ  § .
+For notes to tables, see 26.2.2.
+16.3.4 Formatting Notes
+Use regular paragraph indents for both footnotes and endnotes. Begin
+each note with its reference number, formatted not as a superscript
+but as regular text. Put a period and a space between the number and
+the text of the note. For notes labeled with symbols (see 16.3.3), a
+space but not a period should appear between the symbol and the text
+of the note.
+If your local guidelines allow it, you may instead use superscripts
+for reference numbers and symbols in notes. You should then begin
+the text of each note with an intervening space but no period.
+16.3.4.1 FOOTNOTES. Begin every footnote on the page on which you
+reference it. Put a short rule between the last line of text and the first
+footnote on each page, including any notes that run over from previous
+pages, even if your word processor doesn ’ t do so automatically. If a
+footnote runs over to the next page, it is best if it breaks in
+midsentence, so that readers do not think the note is finished and
+overlook the part on the next page. Single-space each footnote. If you
+have more than one footnote on a page, put a blank line between notes.
+See figure A.10 for a sample page of text with footnotes.
+16.3.4.2 ENDNOTES. Endnotes should be listed together after the end of
+the text and any appendixes but before the bibliography. Single-space
+each note, and put a blank line between notes. Label the list Notes. If
+you restart numbering for each chapter, add a subheading before the
+first note to each chapter: “ Chapter 1 ”  and so forth. See figure A.14 for
+a sample page of endnotes.
+16.3.5 Complex Notes
+16.3.5.1 CITATIONS. If you cite several sources to make a single point,
+group them into a single note to avoid cluttering your text with
+reference numbers. List the citations in the same order in which the
+references appear in the text; separate citations with semicolons.
+Only when we gather the work of several scholars — Walter
+Sutton ’ s explications of some of Whitman ’ s shorter poems; Paul
+Fussell ’ s careful study of structure in “ Cradle ” ; S. K. Coffman ’ s
+close readings of “ Crossing Brooklyn Ferry ”  and “ Passage to
+India ”— do we begin to get a sense of both the extent and the
+specificity of Whitman ’ s forms.1
+N:       1. Sutton, “ The Analysis of Free Verse Form, Illustrated by a
+Reading of Whitman, ”  Journal of Aesthetics and Art Criticism 18
+(December 1959): 241 – 54; Fussell, “ Whitman ’ s Curious Warble:
+Reminiscence and Reconciliation, ”  in The Presence of Whitman,
+ed. R. W. B. Lewis (New York: Columbia University Press, 1962),
+28 – 51; Coffman, “‘ Crossing Brooklyn Ferry ’ : A Note on the
+Catalogue Technique in Whitman ’ s Poetry, ”  Modern Philology 51,
+no. 4 (May 1954): 225 – 32; Coffman, “ Form and Meaning in
+Whitman ’ s ‘ Passage to India, ’”  PMLA 70, no. 3 (June 1955): 337 –
+49.
+It is also useful to group citations when you refer readers to a
+number of additional sources (called a “ string cite ” ):
+N:       2. For accounts of the coherence-making processes of
+consciousness from, respectively, psychological,
+neuropsychological, and philosophical points of view, see Bernard
+J. Baars, A Cognitive Theory of Consciousness (New York:
+Cambridge University Press, 1988); Gerald Edelman, Bright Air,
+Brilliant Fire: On the Matter of the Mind (New York: Basic Books,
+1992); and Daniel Dennett, Consciousness Explained (Boston:
+Little, Brown, 1991).
+16.3.5.2 CITATIONS AND COMMENTS. If a note includes both a citation and a
+substantive comment, put the citation first with a period after it,
+followed by the comment in a separate sentence.
+To come to Paris was to experience the simultaneous pleasures of
+the best contemporary art and the most vibrant art center.9
+N:       9. Natt, “ Paris Art Schools, ”  269. Gilded Age American artists
+traveled to other European art centers, most notably Munich, but
+Paris surpassed all others in size and importance.
+When you include a quotation in a note, put the citation after the
+terminal punctuation of the quotation.
+Property qualifications dropped out of US practice for petit juries
+gradually during the nineteenth century but remained in force for
+grand juries in some jurisdictions until the mid-twentieth century.33
+N:       33. “ A grand jury inquires into complaints and accusations
+brought before it and, based on evidence presented by the state,
+issues bills of indictment. ”  Kermit Hall, The Magic Mirror: Law in
+American History (New York: Oxford University Press, 1989), 172.
+Be judicious in your use of substantive comments in notes. If a
+point is critical to your argument, include it in the text. If it is
+peripheral, think carefully about whether it is important enough to
+mention in a note.
+=====18=====
+quotation from another source, readers expect you to obtain the
+original to verify not only that the quotation is accurate but also that
+it fairly represents what the original meant.
+If the original source is unavailable, however, cite it as “ quoted
+in ”  the secondary source in your note. For the bibliography entry,
+adapt the “ quoted in ”  format as needed.
+N:       8. Louis Zukofsky, “ Sincerity and Objectification, ”  Poetry 37
+(February 1931): 269, quoted in Bonnie Costello, Marianne
+Moore: Imaginary Possessions (Cambridge, MA: Harvard
+University Press, 1981), 78.
+B:  Zukofsky, Louis. “ Sincerity and Objectification. ”  Poetry 37
+(February 1931): 269. Quoted in Bonnie Costello, Marianne
+Moore: Imaginary Possessions. Cambridge, MA: Harvard
+University Press, 1981.
+The same situation may arise with a quotation you find in a
+secondary source drawn from a primary source (see 3.1.1). Often you
+will not be able to consult the primary source, especially if it is in an
+unpublished manuscript collection. In this case, follow the principles
+outlined above.
+18     Author-Date Style: The Basic Form
+18.1   Basic Patterns
+18.1.1   Order of Elements
+18.1.2   Punctuation
+18.1.3   Capitalization
+18.1.4   Italicsand Quotation Marks
+18.1.5   Numbers
+18.1.6   Abbreviations
+18.1.7   Indentation
+18.2   Reference Lists
+18.2.1   Arrangement of Entries
+18.2.2   Sources That May Be Omitted
+18.3   Parenthetical Citations
+18.3.1   Placement in Text
+18.3.2   Special Elements and Format Issues
+18.3.3   Footnotes and Parenthetical Citations
+A citation style used widely in most social sciences and in the natural
+and physical sciences is the author-date style, so called because the
+author ’ s name and the date of publication are the critical elements for
+identifying sources. This chapter presents an overview of the basic
+pattern for citations in author-date style, including both reference list
+entries and parenthetical citations. Examples of parenthetical citations
+are identified with a P; examples of reference list entries are identified
+with an R.
+In author-date style, you signal that you have used a source by
+placing a parenthetical citation (including author, date, and relevant
+page numbers) next to your reference to that source:
+According to one scholar, “ The railroads had made Chicago the most
+important meeting place between East and West ”  (Cronon 1991, 92 –
+93).
+At the end of the paper, you list all sources in a reference list. That
+list normally includes every source you cited in a parenthetical citation
+and sometimes others you consulted but did not cite. Since
+parenthetical citations do not include complete bibliographical
+information for a source, you must include that information in your
+reference list. All reference list entries have the same general form:
+R: Cronon, William. 1991. Nature ’ s Metropolis: Chicago and the Great
+West. New York: W. W. Norton.
+Readers expect you to follow the rules for correct citations exactly.
+These rules cover not only what data you must include and their order
+but also punctuation, capitalization, italicizing, and so on. To get your
+citations right, you must pay close attention to many minute details
+that few researchers can easily remember. Chapter 19 provides a ready
+reference guide to those details.
+18.1 Basic Patterns
+Although sources and their citations come in almost endless variety,
+you are likely to use only a few kinds. While you may need to look up
+details to cite some unusual sources, you can easily learn the basic
+patterns for the few kinds you will use most often. You can then create
+templates that will help you record bibliographical data quickly and
+reliably as you read.
+The rest of this section describes the basic patterns, and figure 18.1
+provides templates for several common types of sources. Chapter 19
+includes examples of a wide range of sources, including exceptions to
+the patterns discussed here.
+18.1.1 Order of Elements
+The order of elements in reference list entries follows the same general
+pattern for all types of sources: author, date (year) of publication, title,
+other facts of publication. Parenthetical citations include only the first
+two of these elements. If they cite specific passages, they also include
+page numbers or other locating information; reference list entries do
+not, though they do include a full span of page numbers for a source
+that is part of a larger whole, such as an article or a chapter.
+18.1.2 Punctuation
+In reference list entries, separate most elements with periods; in
+parenthetical citations, do not use a punctuation mark between the
+author and the date, but separate the date from a page number with a
+comma.
+18.1.3 Capitalization
+Capitalize most titles headline style, but capitalize titles in foreign
+languages sentence style. (See 22.3.1 for both styles.) Capitalize proper
+nouns in the usual way (see chapter 22). In some fields, you may be
+required to use sentence style for most titles except for titles of
+journals, magazines, and newspapers; check your local guidelines.
+Figure 18.1. Templates for reference list entries and parenthetical
+citations
+The following templates show what elements should be included in
+what order when citing several common types of sources in reference
+lists (R) and parenthetical citations (P). They also show punctuation,
+capitalization of titles, and when to use italics or quotation marks. Gray
+shading shows abbreviations (or their spelled-out versions) and other
+terms as they would actually appear in a citation. XX stands in for
+page numbers actually cited, YY for a full span of page numbers for
+an article or a chapter.
+Books
+1. Single Author or Editor
+R:  Author ’ s Last Name, Author ’ s First Name. Year of Publication.
+Title of Book: Subtitle of Book. Place of Publication:
+Publisher ’ s Name.
+Gladwell, Malcolm. 2000. The Tipping Point: How Little Things an
+Make a Big Difference. Boston: Little, Brown.
+P:  (Author ’ s Last Name Year of Publication, XX – XX)
+(Gladwell 2000, 64 – 65)
+For a book with an editor instead of an author, adapt the pattern as
+follows:
+R:  Editor ’ s Last Name, Editor ’ s First Name, ed. Year of Publication
+…
+Greenberg, Joel, ed. 2008 …
+P:  (Editor ’ s Last Name Year of Publication, XX – XX)
+(Greenberg 2008, 75 – 80)
+2. Multiple Authors
+For a book with two authors, use the following pattern:
+R:  Author #1 ’ s Last Name, Author #1 ’ s First Name, and Author #2 ’ s
+First and Last Names. Year of Publication. Title of Book:
+Subtitle of Book. Place of Publication Publisher ’ s Name.
+Morey, Peter, and Amina Yaqin. 2011. Framing Muslims:
+Stereotyping and Representation after 9/11. Cambridge, MA:
+Harvard University Press.
+P:  (Author #1 ’ s Last Name and Author #2 ’ s Last Name Year of
+Publication, XX – XX)
+(Morey and Yaqin 2011, 52)
+For a book with three authors, adapt the pattern as follows:
+R:  Author #1 ’ s Last Name, Author #1 ’ s First Name, Author #2 ’ s First
+and Last Names and Author #3 ’ s First and Last Names. Year
+of Publication …
+Soss, Joe, Richard C. Fording, and Sanford F. Schram. 2011 …
+P:  (Author #1 ’ s Last Name, Author #2 ’ s Last Name, and Author #3 ’ s
+Last Name Yea of Publication, XX – XX)
+(Soss, Fording, and Schram 2011, 135 – 36)
+For a book with four or more authors, adapt the parenthetical citation
+pattern only as follows:
+P:  (Author #1 ’ s Last Name et al. Year of Publication, XX – XX)
+(Bernstein et al. 2010, 114 – 15)
+3. Author(s) Plus Editor or Translator
+For a book with an author plus an editor, use the following pattern:
+R:  Author ’ s Last Name, Author ’ s First Name. Year of Publication.
+Title of Book: Subtitle of Book. Edited by Editor ’ s First and
+Last Names. Place of Publication: Publisher ’ s Name.
+Austen, Jane. 2011. Persuasion: An Annotated Edition. Edited by
+Robert Morrison. Cambridge, MA: Belknap Press of Harvard
+University Press.
+P:  (Author ’ s Last Name Year of Publication, XX – XX)
+(Austen 2011, 311 – 12)
+If a book has a translator instead of an editor, substitute the phrase
+Translated by and the translator ’ s name for the editor data in the
+reference list entry.
+4. Edition Number
+R:  Author ’ s Last Name, Author ’ s First Name. Year of Publication.
+Title of Book: Subtitle of Book. Edition Number ed. Place of
+Publication: Publisher ’ s Name.
+Van Maanen, John. 2011. Tales of the Field: On Writing
+Ethnography. 2nd ed. Chicago: University of Chicago Press.
+P:  (Author ’ s Last Name Year of Publication, XX – XX)
+(Van Maanen 2011, 84)
+5. Single Chapter in an Edited Book
+R:  Chapter Author ’ s Last Name, Chapter Author ’ s First Name. Year
+of Publication. “ Title of Chapter: Subtitle of Chapter. ”  In Title
+of Book: Subtitle of Book, edited by Editor ’ s First and Last
+Names, YY – YY. Place of Publication: Publisher ’ s Name.
+Ramirez, Angeles. 2010. “ Muslim Women in the Spanish Press:
+The Persistence of Subaltern Images. ”  In Muslim Women in
+War and Crisis: Representation and Reality, edited by Faegheh
+Shirazi, 227 – 14. Austin: University of Texas Press.
+P:  (Chapter Author ’ s Last Name Year of Publication, XX – XX)
+(Ramirez 2010, 231)
+Journal Articles
+6. Journal Article in Print
+R:  Author ’ s Last Name, Author ’ s First Name. Year of Publication.
+“ Title of Article: Subtitle of Article. ”  Title of Journal Volume
+Number, Issue Number (Additional Date Information): YY – YY.
+Bogren, Alexandra. 2011. “ Gender and Alcohol: The Swedish Press
+Debate. ”  Journal of Gender Studies 20, no. 2 (June): 155 – 69.
+P:  (Author ’ s Last Name Year of Publication, XX – XX)
+(Bogren 2011, 156)
+For an article with multiple authors, follow the relevant pattern for
+authors ’  names in template 2.
+7. Journal Article Online
+For a journal article consulted online, include an access date and a
+URL. For articles that include a DOI, form the URL by appending the
+DOI to http://dx.doi.org/ rather than using the URL in your address bar.
+The DOI for the Kiser article in the example below is 10.1086/658052.
+R:  Author ’ s Last Name, Author ’ s First Name. Year of Publication.
+“ Title of Article: Subtitle of Article. ”  Title of Journal Volume
+Number, Issue Number (Additional Date Information): YY – YY.
+Accessed Date of Access. URL.
+Kiser, Lisa J. 2011. “ Silencing the Lambs: Economics, Ethics, and
+Animal Life in Medieval Franciscan Hagiography. ”  Modern
+Philology 108, no. 3 (February): 323 – 42. Accessed September
+18, 2011. http://dx.doi.org/10.1086/658052.
+P:  (Author ’ s Last Name Year of Publication, xx)
+(Kiser 2011, 340)
+See 15.4.1 for more details.
+18.1.4 Italics and Quotation Marks
+Titles of larger entities (books, journals) are printed in italics; titles of
+smaller entities (chapters, articles) are printed in roman type and
+enclosed in quotation marks. Titles of unpublished works (such as
+dissertations) are printed in roman type and enclosed in quotation
+marks, even if they are book length. See also 22.3.2.
+18.1.5 Numbers
+In titles, any numbers are spelled out or given in numerals exactly as
+they are in the original. Page numbers that are in roman numerals in
+the original are presented in lowercase roman numerals. All other
+numbers (such as chapter numbers or figure numbers) are given in
+arabic numerals, even if they are in roman numerals or spelled out in
+the original.
+18.1.6 Abbreviations
+Abbreviate terms such as editor and translator (ed. and trans.) when
+they come after a name, but spell them out when they introduce it
+(Edited by). The plural is usually formed by adding s (eds.) unless the
+abbreviation ends in an s (use trans. for both singular and plural).
+Terms such as volume, edition, and number (vol., ed., and no.) are
+always abbreviated.
+18.1.7 Indentation
+Reference list entries have a hanging indentation: the first line is flush
+left and all following lines are indented the same amount as the first
+line of a paragraph. Parenthetical citations are placed within the text
+and are not indented.
+18.2 Reference Lists
+In papers that use author-date style, the reference list presents full
+bibliographical information for all the sources cited in parenthetical
+citations (other than a few special types of sources; see 18.2.2). You
+may also include works that were important to your thinking but that
+you did not specifically mention in the text. In addition to providing
+bibliographical information, reference lists show readers the extent of
+your research and its relationship to prior work, and they help readers
+use your sources in their own research. If you use the author-date
+citation style, you must include a reference list in your paper.
+Label the list References. See figure A.16 in the appendix for a
+sample page of a reference list.
+18.2.1 Arrangement of Entries
+18.2.1.1 ALPHABETICAL AND CHRONOLOGICAL BY AUTHOR. A reference list is
+normally a single list of all sources arranged alphabetically by the last
+name of the author, editor, or whoever is first in each entry. (For
+alphabetizing foreign names, compound names, and other special
+cases, see 18.2.1.2.) Most word processors provide an alphabetical
+sorting function; if you use it, first make sure each entry is followed by
+a hard return. If you are writing a thesis or dissertation, your
+department or university may specify that you should alphabetize the
+entries letter by letter or word by word; see 16.58 – 61 of The Chicago
+Manual of Style, 16th edition (2010), for an explanation of these two
+systems.
+If your reference list includes two or more works written, edited, or
+translated by the same individual, arrange the entries chronologically
+by publication date. For all entries after the first, replace the
+individual ’ s name with a long dash, called a 3-em dash (see 21.7.3).
+For edited or translated works, put a comma and the appropriate
+designation (ed., trans., and so on) after the dash. List all such works
+before any that the individual coauthored or coedited. Note that it is
+best to make all these adjustments manually —after you have sorted
+your complete reference list alphabetically by name.
+R:  Gates, Henry Louis, Jr. 1988. The Signifying Monkey: A Theory of
+African-American Literary Criticism. New York: Oxford
+University Press.
+_______, ed. 2002. The Classic Slave Narratives. New York:
+Penguin Putnam.
+_______. 2004. America behind the Color Line: Dialogues with
+African Americans. New York: Warner Books.
+_______. 2010. Tradition and the Black Atlantic: Critical Theory in
+the African Diaspora. New York: BasicCivitas.
+_______. 2011. Black in Latin America. New York: New York
+University Press.
+Gates, Henry Louis, Jr., and Cornel West. 2000. The African-
+American Century: How Black Americans Have Shaped Our
+Country. New York: Free Press.
+The same principles apply to works by a single group of authors
+named in the same order.
+R:  Marty, Martin E., and R. Scott Appleby. 1992. The Glory and the
+Power: The Fundamentalist Challenge to the Modern World.
+Boston: Beacon Press.
+_______, eds. 2004. Accounting for Fundamentalisms. Chicago:
+University of Chicago Press.
+Marty, Martin E., and Micah Marty. 1998. When True Simplicity Is
+Gained: Finding Spiritual Clarity in a Complex World. Grand
+Rapids, Ml: William B. Eerdmans.
+If your reference list includes more than one work published in the
+same year by an author or group of authors named in the same order,
+arrange the entries alphabetically by title (ignoring articles such as a or
+the). Add the letters a, b, c, and so forth to the year, set in roman type
+without an intervening space. Your parenthetical citations to these
+works should include the letters (see 18.3.2).
+R:  Fogel, Robert William. 2004a. The Escape from Hunger and
+Premature Death, 1700 – 2100: Europe, America, and the Third
+World. New York: Cambridge University Press.
+_______. 2004b. “ Technophysio Evolution and the Measurement of
+Economic Growth. ”  Journal of Evolutionary Economics 14, no.
+2: 217 – 21.
+If a book or journal article does not have an author or editor (or
+other named compiler, such as a translator), put the title first in your
+reference list entry and alphabetize based on it, ignoring articles such
+as a or the.
+R:  Account of the Operations of the Great Trigonometrical Survey of
+India. 1870 – 1910. 22 vols. Dehra Dun: Survey of India.
+“ The Great Trigonometrical Survey of India. ”  1863. Calcutta
+Review 38:26-62.
+“ State and Prospects of Asia. ”  1839. Quarterly Review 63, no. 126
+(March): 369 – 402.
+For magazine and newspaper articles without authors, use the title
+of the magazine or newspaper in place of the author (see 19.3 and
+19.4). For other types of sources, see the relevant section in chapter 19
+for guidance; if not stated otherwise, use a title in this position.
+18.2.1.2 SPECIAL TYPES OF NAMES. Some authors ’  names consist of more
+than a readily identifiable “ first name ”  and “ last name. ”  In many cases
+you can determine the correct order by consulting your library ’ s
+catalog. For historical names, a good source is Merriam-Webster ’ s
+Biographical Dictionary. This section outlines some general principles
+for alphabetizing such names in your reference list. In shortened or
+parenthetical notes, use the last name exactly as inverted (shown
+below in boldface). If your paper involves many names from a
+particular foreign language, follow the conventions for that language.
+■ Compound names. Alphabetize compound last names, including
+hyphenated names, by the first part of the compound. If a woman
+uses both her own family name and her husband ’ s but does not
+hyphenate them, generally alphabetize by the second surname.
+While many foreign languages have predictable patterns for
+compound names (see below), others — such as French and German
+— do not.
+Kessler-Harris, Alice 
+Hine, Darlene Clark 
+  
+Mies van der Rohe, Ludwig 
+Teilhard de Chardin, Pierre
+■ Names with particles. Depending on the language, particles such as
+de, di, D, ’  and van may or may not be considered the first part of a
+last name for alphabetizing. Consult one of the resources noted
+above if you are unsure about a particular name. Note that particles
+may be either lowercased or capitalized, and some are followed by
+an apostrophe.
+de Gaulle, Charles 
+di Leonardo, Micaela 
+Van Rensselaer, Stephen 
+  
+Beauvoir, Simone de 
+Kooning, Willem de 
+Medici, Lorenzo de ’
+■ Names beginning with “ Mac, ”  “ Saint, ”  or “  O ’ . ” Names that begin
+with Mac, Saint, or O ’  can have many variations in abbreviations
+(Mc, St.), spelling (Sainte, San), capitalization (Macmillan,
+McAllister), and hyphenation or apostrophes (O ’ Neill or Odell;
+Saint-Gaudens or St. Denis). Alphabetize all such names based on
+the letters actually present; do not group them because they are
+similar.
+■ Spanish names. Many Spanish last names are compound names
+consisting of an individual ’ s paternal and maternal family names,
+sometimes joined by the conjunction y. Alphabetize such names
+under the first part.
+Ortega y Gasset, José 
+Sanchez Mendoza, Juana
+■ Arabic names. Alphabetize Arabic last names that begin with the
+particle al- or el- ( “ the ” ) under the element following the particle.
+Names that begin with Abu, Abd, and Ibn, like English names
+beginning with Mac or Saint, should be alphabetized under these
+terms.
+Hakim, Tawfiq al- 
+Jamal, Muhammad Hamid al- 
+  
+Abu Zafar Nadvi, Syed 
+Ibn Saud, Aziz
+■ Chinese and Japanese names. If an author with a Chinese or
+Japanese name follows traditional usage (family name followed by
+given name), do not invert the name or insert a comma between the
+“ first ”  and “ last ”  names. If the author follows Westernized usage
+(given name followed by family name), treat the name as you would
+an English name.
+Traditional usage Westernized usage
+Chao Wu-chi Tsou, Tang
+Yoshida Shigeru Kurosawa, Noriaki
+18.2.1.3 CATEGORIZED LISTINGS. Because readers following a parenthetical
+citation will have only an author and a date to help them identify the
+relevant reference list entry, organize the list as described above except
+in rare cases. Under the following circumstances, you may consider
+dividing the list into separate categories:
+■ If you have more than three or four entries for a special type of
+source, such as manuscripts, archival collections, recordings, and so
+on, list them separately from the rest of your entries.
+■ If it is critical to distinguish primary sources from secondary and
+tertiary ones, list the entries in separate sections.
+If you categorize sources, introduce each separate section with a
+subheading and, if necessary, a headnote. Order the entries within
+each section according to the principles given above, and do not list a
+source in more than one section unless it clearly could be categorized
+in two or more ways.
+18.2.2 Sources That May Be Omitted
+By convention, you may omit the following types of sources from a
+reference list:
+■ classical, medieval, and early English literary works (19.5.1) and (in
+some cases) well-known English-language plays (19.8.5.2)
+■ the Bible and other sacred works (19.5.2)
+■ well-known reference works, such as major dictionaries and
+encyclopedias (19.5.3)
+■ anonymous unpublished interviews and personal communications
+(19.6.3), individual blog entries and comments (19.7.2), and postings
+to social networks (19.7.3) or electronic discussion groups or mailing
+lists (19.7.4)
+■ some sources in the visual and performing arts, including artworks
+(19.8.1) and live performances (19.8.2)
+■ the US Constitution (19.9.5) and some other public documents
+(19.9)
+You may choose to include in your reference list a specific work from
+one of these categories that is critical to your argument or frequently
+cited.
+18.3 Parenthetical Citations
+Parenthetical citations include enough information for readers to find
+the full citation in your reference list — usually the author ’ s name, the
+date of publication, and (if you are citing a specific passage), a page
+number or other locating information. The name and date must match
+those in the relevant reference list entry exactly. (Note that both the
+elements and the punctuation in parenthetical citations are slightly
+different from those used in bibliography-style parenthetical notes,
+which are described in 16.4.3; do not confuse or combine the two
+styles.)
+18.3.1 Placement in Text
+Whenever you refer to or otherwise use material from a source, you
+must insert into your text a parenthetical citation with basic
+identifying information about that source. Normally, the parenthetical
+citation should be placed at the end of the sentence or clause
+containing the quotation or other material. But if the author ’ s name is
+mentioned in the text, put the rest of the citation (in parentheses)
+immediately after the author ’ s name. The closing parenthesis precedes
+a comma, period, or other punctuation mark when the quotation is run
+into the text. See also 25.2.
+“ What on introspection seems to happen immediately and without
+effort is often a complex symphony of processes that take time to
+complete ”  (LeDoux 2003, 116).
+While one school claims that “ material culture may be the most
+objective source of information we have concerning America ’ s past ”
+(Deetz 1996, 259), others disagree.
+The color blue became more prominent in the eighteenth century
+(Pastoureau 2001, 124).
+According to Gould (2007, 428), the song “ spreads a deadpan
+Liverpudlian irony over the most clichéd sentiment in all of popular
+music. ”
+With a block quotation, however, the parenthetical citation follows
+the terminal punctuation mark.
+He concludes with the following observation:
+The new society that I sought to depict and that I wish to judge is
+only being born. Time has not yet fixed its form; the great revolution
+that created it still endures, and in what is happening in our day it is
+almost impossible to discern what will pass away with the revolution
+itself and what will remain after it. (Tocqueville 2000, 673)
+See figure A.11 for a sample page of text with parenthetical citations.
+18.3.2 Special Elements and Format Issues
+The basic pattern for parenthetical citations is described in 18.1, and
+templates for several common types of sources appear in figure 18.1.
+This section covers special elements that may need to be included and
+special format issues that may arise in parenthetical citations of all
+types.
+In the following situations, treat the name of an editor, translator,
+or other compiler of a work as you would an author ’ s name, unless
+otherwise specified.
+18.3.2.1 AUTHORS WITH SAME LAST NAME. If you cite works by more than
+one author with the same last name, add the author ’ s first initial to
+each parenthetical citation, even if the dates are different. If the initials
+are the same, spell out the first names.
+(J. Smith 2011, 140) 
+(T. Smith 2008, 25 – 26) 
+  
+(Howard Bloom 2005, 15) 
+(Harold Bloom 2010, 270)
+18.3.2.2 WORKS WITH SAME AUTHOR AND DATE. If you cite more than one
+work published in the same year by an author or group of authors
+named in the same order, arrange the entries alphabetically by title in
+your reference list and add the letters a, b, c, and so forth to the year
+(see 18.2.1.1). Use the same designations in your parenthetical
+citations (letters set in roman type, without an intervening space after
+the date).
+(Davis 2009a, 74) 
+(Davis 2009b, 59 – 60)
+18.3.2.3 NO AUTHOR. If you cite a book or journal article without an
+author, use the title in place of the author in your reference list (see
+18.2.1). In parenthetical citations, use a shortened title composed of up
+to four distinctive words from the full title, and print the title in italics
+or roman as in the reference list.
+(Account of Operations 1870 – 1910) 
+( “ Great Trigonometrical Survey ”  1863, 26)
+For magazine and newspaper articles without authors, use the title of
+the magazine or newspaper in place of the author in both locations
+(see 19.3 and 19.4). For other types of sources, see the relevant section
+in chapter 19 for guidance; if not stated otherwise, use a shortened title
+in this position.
+18.3.2.4 NO DATE. If you cite a published work without a date, use the
+designation n.d. ( “ no date ” ) in place of the date in both your reference
+list and parenthetical citations. Use roman type and lowercase letters.
+(Smith n.d., 5)
+For other types of sources, see the relevant section in chapter 19 for
+guidance.
+18.3.2.5 MORE THAN ONE WORK CITED. If you cite several sources to make a
+single point, group them into a single parenthetical citation. List them
+alphabetically, chronologically, or in order of importance (depending
+on the context), and separate them with semicolons.
+Several theorists disagreed strongly with this position (Armstrong and
+Malacinski 2003; Pickett and White 2009; Beigl 2010).
+18.3.3 Footnotes and Parenthetical Citations
+If you wish to make substantive comments on the text, use footnotes
+instead of parenthetical citations. See 16.3.2 – 16.3.4 for note
+placement, numbering, and format. To cite a source within a footnote,
+use the normal parenthetical citation form.
+N:      10. As Michael Pollan (2007, 374) observed, “ We don ’ t know
+the most basic things about mushrooms. ”
+=====25 QUOT=====
+vs. or v. versus (in legal contexts, use v.)
+25     Quotations
+25.1   Quoting Accurately and Avoiding Plagiarism
+25.2   Incorporating Quotations into Your Text
+25.2.1   Run-in Quotations
+25.2.2   Block Quotations
+25.3   Modifying Quotations
+25.3.1   Permissible Changes
+25.3.2   Omissions
+This chapter offers general guidelines for presenting quotations.
+Although all of the examples are in English, the guidelines also apply
+to quotations from other languages (see also 22.2.1).
+Quoting directly from a source is just one of several options for
+representing the work of others in your paper; for a discussion of the
+alternatives and when to use them, see 7.4. Whichever option you
+choose, you must cite the source of the words or ideas. Chapter 15
+provides an introduction to citation practices, and the following
+chapters describe two common citation styles (chapters 16 and 17,
+bibliography style; chapters 18 and 19, author-date style).
+If you are writing a thesis or a dissertation, your department or
+university may have specific requirements for presenting quotations,
+which are usually available from the office of theses and
+dissertations. If you are writing a class paper, your instructor may
+also ask you to follow certain principles for presenting quotations.
+Review these requirements before you prepare your paper. They take
+precedence over the guidelines suggested here. For style guides in
+various disciplines, see the bibliography.
+If your dissertation will be submitted to an external dissertation
+repository, you may need to obtain formal permission from copyright
+holders for certain types of quotations. See chapter 4 of The Chicago
+Manual of Style, 16th edition (2010).
+25.1 Quoting Accurately and Avoiding
+Plagiarism
+Accurate quotation is crucial to the scholarly enterprise, so you must
+■ use only reliable, relevant sources (see chapter 3)
+■ transcribe words exactly as they are in the original, or modify them
+only as described in 25.3
+■ accurately report the sources in your bibliography or reference list
+(see chapters 16 and 18) so that readers can consult them for
+themselves
+The ethics of scholarship also require that whenever you quote
+words or rely on tables, graphics, or data from another source, you
+clearly indicate what you borrowed and from where, using the
+appropriate citation style (see chapter 15). If you do not, you risk a
+charge of plagiarism. But even if you do cite a source accurately, you
+still risk a charge of plagiarism if you use the exact words of the
+source but fail to identify them as a quotation in one of the ways
+given in 25.2. For a fuller discussion of plagiarism, see 7.9.
+25.2 Incorporating Quotations into Your Text
+You can incorporate a quotation into your text in one of two ways,
+depending on its length. If the quotation is four lines or less, run it
+into your text and enclose it in quotation marks. If it is five lines or
+longer, set it off as a block quotation, without quotation marks.
+Follow the same principles for quotations within footnotes or
+endnotes.
+You may use a block quotation for a quotation shorter than five
+lines if you want to emphasize it or compare it to a longer quotation.
+25.2.1 Run-in Quotations
+When quoting a passage of less than five lines, enclose the exact
+words quoted in double quotation marks. There are several ways to
+integrate a quotation into the flow of your text; see 7.5. You may
+introduce it with the name of the author accompanied by a term such
+as notes, claims, argues, or according to. (Note that these terms are
+usually in the present tense, rather than noted, claimed, and so forth,
+but some disciplines follow different practices.) In this case, put a
+comma before the quotation.
+Ricoeur writes, “ The boundary between plot and argument is no
+easier to trace. ”
+As Ricoeur notes, “ The boundary between plot and argument is no
+easier to trace. ”
+If you weave a quotation more tightly into the syntax of your
+sentence, such as with the word that, do not put a comma before it.
+Ricoeur warns us that “ the boundary between plot and argument is
+no easier to trace. ”
+If you put the attributing phrase in the middle of a quotation, set
+it off with commas.
+“ The boundary between plot and argument, ”  says Ricoeur, “ is no
+easier to trace. ”
+For the use of commas, periods, and other punctuation marks
+relative to quotations, see 21.12.2 and 25.3.1; for permissible changes
+to capitalization and other elements, see 25.3.1.
+25.2.1.1 PLACEMENT OF CITATIONS. If you cite the source of a quotation in
+a footnote or endnote, where you place the superscript note number
+(see 16.3.2) depends on where the quotation falls within a sentence.
+If the quotation is at the end of the sentence, put the number after
+the closing quotation mark.
+According to Litwack, “ Scores of newly freed slaves viewed
+movement as a vital expression of their emancipation. ”4
+If the quotation ends in the middle of a sentence, put the number
+at the end of the clause that includes the quotation, which often is the
+end of the sentence.
+“ Scores of newly freed slaves viewed movement as a vital
+expression of their emancipation, ”  according to Litwack.4
+Litwack argues that “ scores of newly freed slaves viewed movement
+as a vital expression of their emancipation, ”4 and he proceeds to
+prove this assertion.
+The same placement options apply to citations given
+parenthetically with either bibliography-style (16.4.3) or author-date
+citations (see 18.3.1), with two notable differences:
+■ If a period or comma would normally precede the closing
+quotation mark, place it outside the quotation, following the
+closing parenthesis.
+The authors seek to understand “ how people categorize the
+objects they encounter in everyday situations ”  (Bowker and Star
+1999, 59).
+To determine “ how people categorize the objects they encounter
+in everyday situations ”  (Bowker and Star 1999, 59), the authors
+devised a study.
+■ When the author ’ s name is mentioned in text along with the
+quotation, place the date next to the author ’ s name, regardless of
+where it appears relative to the quotation.
+“ Scores of newly freed slaves viewed movement as a vital
+expression of their emancipation, ”  according to Litwack (1999,
+482).
+Litwack ’ s (1999, 482) observation that “ scores of newly freed
+slaves …”
+25.2.1.2 SPECIAL PUNCTUATION. For a quotation within a quotation, use
+single quotation marks for the inner set of quoted words.
+Rothko, argues Ball, “ wanted to make works that wrought a
+transcendent effect, that dealt with spiritual concerns: ‘ Paintings
+must be like miracles, ’  he once said. ”
+If you run two or more lines of poetry into your text, separate
+them with a slash (/), with a space before and after it. In most cases,
+however, use block quotations for poetry (see 25.2.2.2).
+They reduce life to a simple proposition: “ All things have rest, and
+ripen toward the grave; / In silence, ripen, fall, and cease. ”
+25.2.2 Block Quotations
+25.2.2.1 PROSE. Present a prose quotation of five or more lines as a
+block quotation. Introduce the quotation in your own words in the
+text; see 7.5. If you introduce the quotation with a complete sentence,
+end the sentence with a colon. If you use only an attribution phrase
+such as notes, claims, argues, or according to along with the
+author ’ s name, end the phrase with a comma. If you weave the
+quotation into the syntax of your sentence, do not use any
+punctuation before the quotation if no punctuation would ordinarily
+appear there (see the second example below).
+Single-space a block quotation, and leave a blank line before and
+after it. Do not add quotation marks at the beginning or end, but
+preserve any quotation marks in the original. Indent the entire
+quotation as far as you indent the first line of a paragraph. (In
+literary studies and other fields concerned with close analysis of
+texts, you should indent the first line of a block quotation further
+than the rest of the quotation if the text is indented in the original;
+see also 25.3.) For other punctuation and capitalization within the
+quotation, see 25.3.1.
+Jackson begins by evoking the importance of home:
+Housing is an outward expression of the inner human nature; no
+society can be fully understood apart from the residences of its
+members. A nineteenth-century melody declares, “ There ’ s no
+place like home, ”  and even though she had Emerald City at her
+feet, Dorothy could think of no place she would rather be than at
+home in Kansas. Our homes are our havens from the world.1
+In the rest of his introduction, he discusses …
+If you quote more than one paragraph, do not add extra line
+space between them, but indent the first line of the second and
+subsequent paragraphs farther than the rest of the quotation.
+He observed that
+governments ordinarily perish by powerlessness or by tyranny. In
+the first case, power escapes them; in the other, it is torn from
+them.
+Many people, on seeing democratic states fall into anarchy,
+have thought that government in these states was naturally weak
+and powerless. The truth is that when war among their parties has
+once been set aflame, government loses its action on society.
+(Tocqueville, 248)
+If you cite the source in a footnote or endnote, place the note number
+as a superscript at the end of the block quotation, as in the first
+example above (see also 16.3.2). If you cite the source
+parenthetically, put the citation after the terminal punctuation of a
+block quotation, as in the second example above. (Note that this
+differs from its placement with a run-in quotation, as explained in
+25.2.1.1.)
+25.2.2.2 POETRY AND DRAMA. Present a quotation of two or more lines
+from poetry as a block quotation. Begin each line of the poem on a
+new line, with punctuation at the ends of lines as in the original. For
+most papers, indent a block of poetry as you would a prose
+quotation; if a line is too long to fit on a single line, indent the
+runover farther than the rest of the quotation. (In a dissertation or
+other longer paper that includes many poetry quotations, center each
+left-aligned quotation on the page relative to the longest line.)
+Whitman ’ s poem includes some memorable passages:
+My tongue, every atom of my blood, form ’ d from this soil, this air,
+Born here of parents born here from parents the same, and their
+parents the same
+I, now thirty-seven years old in perfect health begin,
+Hoping to cease not till death.
+If you are quoting a poem with an unusual alignment, reproduce
+the alignment of the original to the best of your ability.
+This is what Herbert captured so beautifully:
+Sure there was wine   
+Before my sighs did drie it: there was corn
+Before my tears did drown it.                
+Is the yeare onely lost to me?                           
+Have I no bayes to crown it?                 
+No flowers, no garlands gay? all blasted?                   
+All wasted?                
+If you quote two or more lines of dialogue from a dramatic work,
+set the quotation apart in a block quotation formatted as you would
+prose. Present each speaker ’ s name so that it is distinct from the
+dialogue, such as in all capital letters or in a different font. Begin
+each speech on a new line, and indent runovers farther than the rest
+of the quotation.
+Then the play takes an unusual turn:
+R. ROISTER DOISTER. Except I have her to my wife, I shall run mad. 
+ 
+M. MERYGREEKE. Nay, “ unwise ”  perhaps, but I warrant you for
+“ mad. ”
+25.2.2.3 EPIGRAPHS. An epigraph is a quotation that establishes a theme
+of your paper. For epigraphs used in the front matter of a thesis or
+dissertation, see A.2.1. Treat an epigraph at the beginning of a
+chapter or section as a block quotation. On the line below it, give the
+author and the title, flush right and preceded by an em dash (or two
+hyphens; see 21.7.2). You do not need a more formal citation for an
+epigraph. Leave two blank lines between the source line and the
+beginning of text. See also figure A.9.
+The city, however, does not tell its past, but contains it like the
+lines of a hand.
+— Italo Calvino, Invisible Cities
+25.3 Modifying Quotations
+When you do your research, you must record the exact wording,
+spelling, capitalization, and punctuation of any text you plan to
+quote, even if they do not follow the guidelines in this manual. When
+you incorporate the quotation into your paper, however, you may
+make minor adjustments to fit the syntax of the surrounding text or
+to emphasize certain parts of the quotation.
+Note that disciplines have different standards for issues discussed
+in this section, such as modifying initial capital and lowercase letters
+and using ellipses for omissions. For papers in most disciplines,
+follow the general guidelines. For papers in literary studies and other
+fields concerned with close analysis of texts, follow the stricter
+guidelines given under some topics. If you are not sure which set to
+follow, consult your local guidelines or your instructor.
+25.3.1 Permissible Changes
+25.3.1.1 SPELLING. If the original source contains an obvious
+typographic error, correct it without comment.
+Original: These conclusions are not definate, but they are certainly
+suggestive.
+Clayton admits that his conclusions are “ not definite. ”
+If, however, such an error reveals something significant about the
+source or is relevant to your argument, preserve it in your quotation.
+Immediately following the error, insert the Latin word sic ( “ so ” ),
+italicized and enclosed in brackets, to identify it as the author ’ s error.
+It is considered bad manners to call out errors just to embarrass a
+source.
+Original: The average American does not know how to spell and
+cannot use a coma properly.
+Russell exemplifies her own argument by claiming that the average
+American “ cannot use a coma [sic] properly. ”
+When quoting from an older source or one that represents dialect
+with nonstandard spelling, preserve idiosyncrasies of spelling, and
+do not use sic. If you modernize or alter all of the spelling and
+punctuation for clarity, inform your readers in a note or preface.
+25.3.1.2 CAPITALIZATION AND PUNCTUATION. In most disciplines, you may
+change the initial letter of a quoted passage from capital to lowercase
+or from lowercase to capital without noting the change. If you weave
+the quotation into the syntax of your sentence, begin it with a
+lowercase letter. Otherwise, begin it with a capital letter if it begins
+with a complete sentence, with a lowercase letter if it does not. You
+may also make similar changes when you use ellipses; see 25.3.2.
+Original: As a result of these factors, the Mexican people were
+bound to benefit from the change.
+Fernandez claims, “ The Mexican people were bound to benefit from
+the change. ”
+Fernandez claims that “ the Mexican people were bound to benefit
+from the change. ”
+Fernandez points out that “ as a result of these factors, the Mexican
+people were bound to benefit from the change. ”
+“ The Mexican people, ”  notes Fernandez, “ were bound to benefit
+from the change. ”
+Depending on how you work the quotation in the text, you may
+also omit a final period or change it to a comma.
+Fernandez notes that the Mexicans were “ bound to benefit from the
+change ”  as a result of the factors he discusses.
+“ The Mexican people were bound to benefit from the change, ”
+argues Fernandez.
+Likewise, if the original passage ends with a colon or semicolon,
+you may delete it or change it to a period or a comma, depending on
+the structure of your sentence (see 21.12.2.1).
+In literary studies and other fields concerned with close analysis
+of texts, indicate any change in capitalization by putting the altered
+letter in brackets. (For the use of ellipsis dots in literary studies, see
+25.3.2.3.)
+“…  [T]he Mexican people were bound to benefit from the change, ”
+argues Fernandez.
+Fernandez points out that “ [a]s a result of these factors, the Mexican
+people were bound to benefit from the change. ”
+In any discipline, if you put double quotation marks around a
+passage that already includes double quotation marks, change the
+internal marks to single quotation marks for clarity (see 25.2.1.2).
+25.3.1.3 ITALICS. You may italicize for emphasis words that are not
+italicized in the original, but you must indicate the change with the
+notation italics mine or emphasis added, placed either in the
+quotation or in its citation. Within the quotation, add the notation in
+square brackets immediately after the italicized words. In a citation,
+add the notation after the page number, preceded by a semicolon
+(see also 16.3.5). In general, avoid adding italics to passages that
+include italics in the original; if it becomes necessary, you may
+distinguish these with the notation italics in original or, for example,
+Flaubert ’ s italics.
+According to Schultz, “ By the end of 2010, every democracy
+[emphasis added] will face the challenge of nuclear terrorism. ”1
+Brown notes simply that the destruction of the tribes “ had all
+happened in less than ten years ” (271; italics mine).
+25.3.1.4 INSERTIONS. If you need to insert a word or more of
+explanation, clarification, or correction into a quotation, enclose the
+insertion in brackets. If you find yourself making many such
+insertions, consider paraphrasing or weaving smaller quotations into
+your text instead.
+As she observes, “ These masters [Picasso, Braque, Matisse]
+rebelled against academic training. ”
+She observes that Picasso, Braque, and Matisse “ rebelled against
+academic training. ”
+25.3.1.5 NOTES. If you quote a passage that includes a superscript note
+number but do not quote the note itself, you may omit the note
+number.
+25.3.2 Omissions
+If you omit words, phrases, sentences, or even paragraphs from a
+quotation because they seem irrelevant, be careful not to change or
+misrepresent the meaning of the original source. Not only must you
+preserve words that might change the entire meaning of the
+quotation (such as not, never, or always), but you must also preserve
+important qualifications. The quotation shown in the following
+example would be a misrepresentation of the author ’ s meaning. (See
+also 4.2.3.)
+Original: The change was sure to be beneficial once the immediate
+troubles subsided.
+Yang claims, “ The change was sure to be beneficial. ”
+25.3.2.1 INSERTING ELLIPSES. To indicate the omission of a word, phrase,
+or sentence, use ellipsis dots — three periods with spaces between
+them. To avoid breaking an ellipsis over the line, use your word
+processor ’ s ellipsis character or, alternatively, use a nonbreaking
+space before and after the middle dot. You will also need to use a
+nonbreaking space between the ellipsis and any punctuation mark
+that follows. (Any mark that precedes the ellipsis, including a period,
+may appear at the end of the line above.) Since the dots stand for
+words omitted, they always go inside the quotation marks or block
+quotation.
+How you use ellipses in certain situations depends on your
+discipline. For most disciplines, follow the general method; for
+literary studies and other fields concerned with close analysis of
+texts, follow the textual studies method (see 25.3.2.3). If you are not
+sure which method to follow, consult your local guidelines or your
+instructor. See 25.3.1 for adjustments to capitalization and
+punctuation with omissions.
+25.3.2.2 GENERAL METHOD FOR ELLIPSES. You may shorten a quotation
+such as the following in several different ways.
+Original: When a nation is wrong, it should say so and apologize to
+the wronged party. It should conduct itself according to the standards
+of international diplomacy. It should also take steps to change the
+situation.
+If you omit words within a sentence, use three ellipsis dots as
+described above (25.3.2.1).
+“ When a nation is wrong, it should …  apologize to the wronged
+party. ”
+If you omit material between sentences and the material
+preceding the omission is a grammatically complete sentence, use a
+terminal punctuation mark immediately following that sentence.
+Leave a space between that punctuation mark and the first ellipsis
+dot. Follow this practice even if the omission includes the end of the
+preceding sentence as long as what is left is grammatically complete
+(as in the second example here).
+“ When a nation is wrong, it should say so and apologize to the
+wronged party … . It should also take steps to change the situation. ”
+“ When a nation is wrong, it should say so … . It should also take
+steps to change the situation. ”
+If you omit material between sentences so that the material
+preceding and following the omission combines to form a
+grammatically complete sentence, do not include terminal
+punctuation before the ellipsis. To avoid misrepresenting the
+author ’ s meaning, however, it is generally better to use one of the
+shortening options above or to use two separate quotations in this
+situation.
+“ When a nation is wrong, it should say so and …  take steps to
+change the situation. ”
+The same principles apply with other types of punctuation marks,
+which precede or follow an ellipsis depending on where the words
+are omitted. In some situations, such as the second example below,
+consider using a more selective quotation.
+“ How hot was it? …  No one could function in that climate. ”
+“ The merchant ’ s stock included dry goods and sundry other items … ,
+all for purchase by the women of the town. ”
+or
+The merchant stocked “ dry goods and sundry other items ”  for the
+town ’ s women.
+Since in many contexts it is obvious when a quotation has been
+shortened, you need not use ellipsis points in the following
+situations:
+■ before or after a quoted phrase, incomplete sentence, or other
+fragment from the original that is clearly not a complete sentence;
+if you omit anything within the fragment, however, use ellipsis
+points at the appropriate place:
+Smith wrote that the president had been “ very much impressed ”
+by the paper that stressed “ using the economic resources …  of all
+the major powers. ”
+■ at the beginning of a quotation, even if the beginning of the
+sentence from the original has been omitted (but see 25.3.2.3 for
+the textual studies method for ellipses).
+■ at the end of a quotation, even if the end of the sentence from the
+original has been omitted
+25.3.2.3 TEXTUAL STUDIES METHOD FOR ELLIPSES. The textual studies
+method uses ellipses more strictly than the general method to
+represent omissions of material at the beginning and end of quoted
+sentences. If you use this method, follow the principles of the general
+method except as noted below.
+Original: When a nation is wrong, it should say so and apologize to
+the wronged party. It should conduct itself according to the
+standards of international diplomacy. It should also take steps to
+change the situation.
+■ If you omit material between sentences but quote the sentence
+preceding the omission in full, include the terminal punctuation
+mark from the original. Leave a space between that punctuation
+mark and the first ellipsis dot, as in the general method, shown in
+the first example below. However, if the omission includes the end
+of the preceding sentence (even if what is left is a grammatically
+complete sentence), put a space instead of a punctuation mark
+immediately following that sentence. After the space, use three
+ellipsis dots to represent the omission, followed by a space and the
+terminal punctuation mark from the original (as in the second
+example here).
+“ When a nation is wrong, it should say so and apologize to the
+wronged party … . It should also take steps to change the
+situation. ”
+but
+“ When a nation is wrong, it should say so … . It should also take
+steps to change the situation. ”
+■ If you begin a quotation with a sentence that is grammatically
+complete despite an omission at the beginning of the sentence,
+indicate the omission with an ellipsis. If the first word is
+capitalized in the quotation but not in the original, indicate the
+changed letter in brackets (see 25.3.1).
+“…  [I]t should say so and apologize to the wronged party. ”
+■ If you end a quotation with a sentence that is grammatically
+complete despite an omission at the end of the sentence, indicate
+the omission with a space and a three-dot ellipsis, followed by a
+space and the terminal punctuation from the original, as you
+would for an omitted ending between sentences.
+“ When a nation is wrong, it should say so … . ”
+25.3.2.4 OMITTING A PARAGRAPH OR MORE. The following practice applies
+to both the general and textual studies methods of handling
+omissions.
+If you omit a full paragraph or more within a block quotation,
+indicate that omission with a period and three ellipsis dots at the end
+of the paragraph before the omission. If the quotation includes
+another paragraph after the omission, indent the first line of the new
+paragraph. If it starts in the middle of a paragraph, begin with three
+ellipsis points after the indentation.
+Merton writes:
+A brand-new conscience was just coming into existence as an
+actual, operating function of a soul. My choices were just about to
+become responsible … .
+…  Since no man ever can, or could, live by himself and for
+himself alone, the destinies of thousands of other people were
+bound to be affected.
+25.3.2.5 OMITTING A LINE OR MORE OF POETRY. For both the general and
+textual studies methods, show the omission of one or more complete
+lines of a poem quoted in a block quotation by a line of ellipsis points
+about as long as the line above it.
+The key passage reads as follows:
+Weep no more, woeful shepherds, weep no more, 
+For Lycidas your sorrow is not dead, 
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+To all that wander in that perilous flood.

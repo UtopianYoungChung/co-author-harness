@@ -1,6 +1,6 @@
 ---
 name: claim-coverage-audit
-description: "Ph1 → Ph2 admission audit. Reads manuscript/<section>.md and references/REFERENCES.md, extracts the section's claims, maps each claim to resolving sources in the pool, emits a three-set coverage map (covered / partially-covered / uncovered) plus a coverage score at reviews/claim_coverage_<date>_<cycle_id>.md. Manually invokable via /claim-coverage-audit; auto-invoked by run-phase-2 Step 0.5. Deterministic — same inputs produce byte-identical findings modulo timestamp."
+description: "Ph1 → Ph2 admission audit. Reads manuscript/{section}.md and references/REFERENCES.md, extracts the section's claims, maps each claim to resolving sources in the pool, emits a three-set coverage map (covered / partially-covered / uncovered) plus a coverage score at reviews/claim_coverage_{date}_{cycle_id}.md. Manually invokable via /claim-coverage-audit; auto-invoked by run-phase-2 Step 0.5. Deterministic — same inputs produce byte-identical findings modulo timestamp."
 trigger: when the user runs /claim-coverage-audit on a section, when the user wants a coverage check on a Ph1-completed draft before Ph2 dispatch, or (from S4 onward) when run-phase-2 Step 0.5 dispatches the audit before Evaluator Step 0a
 version: 1.0
 ---

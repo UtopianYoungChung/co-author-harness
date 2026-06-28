@@ -6,6 +6,24 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.17.0 — 2026-06-28
+
+### Three external-manual integration (Turabian, Abbott, Blue Book)
+
+**What changed.** Absorbed three writing authorities into the harness under the established source-absorption pattern (`references/<source>_guidelines.md` + optional paired skill + binding hooks), routing each to the layer whose contract it actually extends rather than treating them uniformly:
+
+- **Blue Book of Grammar & Punctuation** (Kaufman & Straus) → mechanical/correctness layer. New `references/blue_book_grammar_guidelines.md`; new skill **SK-40 `grammar-mechanics-pass`**; new `DETERMINISTIC_CHECKS.md §3b` grammar-mechanics work queue; Generator invariant **I-Gen-9** (read-before-copyedit, declared-style precedence, em-dash deferral).
+- **Turabian / Chicago** → citation-*form* + mechanical style. New `references/turabian_chicago_guidelines.md`; new skill **SK-41 `citation-format-pass`** (orthogonal to `CITATION_DISCIPLINE.md`'s whether-to-cite judgment, cross-referenced both ways).
+- **Abbott, *Digital Paper*** → research-*process* layer (read-surface, **no skill**). New `references/abbott_2014_research_process_guidelines.md`; readiness hooks in `PROJECT_BOOTSTRAP.md` and `seed-snowball-discovery` (preliminary→midphase→endphase model; brute-force-is-midphase rule complements the Wohlin snowball).
+
+**Why.** The harness owned sentence *craft* (Bacon) and em-dash *discipline* but had no correctness/copyedit surface and no citation-*form* surface; Abbott fills the pre-drafting research-process gap upstream of Ph1.
+
+**How to apply.** `/grammar-mechanics-pass` for copyedit/proofread; `/citation-format-pass` for Turabian/Chicago citation conformance; the Planner reads the Abbott guideline at bootstrap and before snowball runs. Shared mechanics conflicts (Blue Book ↔ Turabian Part III) resolve by declared `citation_style`, emitting `[CONFLICT]` rather than silently choosing.
+
+**Provenance.** `docs/superpowers/plans/2026-06-28-three-manuals-integration.md`. Raw source extractions committed under `references/resources/`. Skill count 35 → 37.
+
+---
+
 ## v0.16.0 — 2026-06-25
 
 ### PR-3b.4 compatibility landing
