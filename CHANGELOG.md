@@ -6,6 +6,22 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.18.0 — 2026-06-29
+
+### D-STYLE profile-routing check + canonical pre-flight consolidation + surface-floor validators
+
+**What changed.** Added an executable consumption layer for the workspace-level D-STYLE research-writing architecture (reference/d-style-research-architecture.md):
+
+- New `scripts/d_style_profile_check.py` (schema 1.1.0): validates the optional `research_notes/directives.md` `d_style_profile` block (enum validation, inherit-by-absence defaults), emits active D-STYLE obligations, and runs surface-floor validators for argument (claim/reason/evidence/warrant/limit), visual-evidence (source/scale/method/limit), and assistance-disclosure cues. New `scripts/d_style_profile_smoketest.py` (5 cases).
+- Canonical pre-flight consolidation: `scripts/audit/run_all.py` gains `--project-root`, emitting both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json` from one command; legacy positional API preserved.
+- Wiring: profile-routing pre-flight documented in `DETERMINISTIC_CHECKS.md` section 0, cited by `agents/evaluator.md` before Step 0a, scheduled by `agents/planner.md`, routed in `MANIFEST.md`, admitted in `ARTEFACT_FRONTMATTER_SCHEMA.md` checks_scheduled, and seeded in `PROJECT_BOOTSTRAP.md`.
+
+**Why.** D-STYLE was documented and routed but had no executable reader for its profile declaration. This consumes the profile at pre-flight time and gives the routed obligations a deterministic floor.
+
+**How to apply.** Run `python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date YYYY-MM-DD`. Treat surface findings as a floor only: a `*_SURFACE_PRESENT` result means the cues exist, not that warrant exposure, visual honesty, or argument adequacy are sufficient — adequacy remains Evaluator judgment (D-STYLE section 9 keeps an open front for stronger substantive validators).
+
+**Severity / attribution.** Maintainer increment; no agent-contract retirement. Surface validators are advisory floor checks; missing assistance disclosure is MAJOR under project_local and BLOCKER under venue_required or overseer_escalate.
+
 ## v0.17.0 — 2026-06-28
 
 ### Three external-manual integration (Turabian, Abbott, Blue Book)
