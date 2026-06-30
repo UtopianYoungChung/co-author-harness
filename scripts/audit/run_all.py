@@ -26,6 +26,7 @@ from audit_style import (
     audit_sentence_length,
     audit_voice,
 )
+from audit_craft import audit_craft
 from d_style_profile_check import build_report as build_d_style_profile_report
 from schema import Finding, FindingsReport
 
@@ -38,6 +39,7 @@ AUDITORS: List[Tuple[str, Auditor]] = [
     ("voice", audit_voice),
     ("sentence_length", audit_sentence_length),
     ("passive_voice", audit_passive_voice),
+    ("craft", audit_craft),
 ]
 
 
@@ -83,6 +85,7 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--date", help="Date stamp for D-STYLE profile output (YYYY-MM-DD)")
     parser.add_argument("--d-style-profile-out", type=Path, help="Optional D-STYLE profile JSON path")
     parser.add_argument("--skip-d-style-profile", action="store_true", help="Skip project-level D-STYLE routing")
+    parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. Lets run_all act as a blocking pre-send gate. C-7 caution: 'any' also gates on advisory craft/voice/length findings, which are C-7 candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for an automated gate, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
 
     if not args.target.is_file():
@@ -114,6 +117,13 @@ def main(argv: List[str] | None = None) -> int:
         )
     if not args.stdout and profile_report and profile_output:
         print(f"OK wrote {profile_output} -- d_style_profile: {profile_report['verdict']}")
+    counts = report.counts()
+    if args.fail_on == "any" and counts["total"] > 0:
+        print(f"[GATE] {counts['total']} findings; failing per --fail-on=any", file=sys.stderr)
+        return 2
+    if args.fail_on == "inviolable" and counts["by_severity"].get("inviolable", 0) > 0:
+        print("[GATE] inviolable findings present; failing per --fail-on=inviolable", file=sys.stderr)
+        return 2
     return 0
 
 
