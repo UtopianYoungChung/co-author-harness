@@ -190,6 +190,8 @@
 
 **Procedure:**
 
+0. **Establish the author's idiolect baseline (C-7).** *Before* counting any register marker, sample the author's own signature so that drift is scored against the author, not only against a borrowed exemplar. Source the baseline in priority order: (a) prior accepted prose by this author/project — a **confident** baseline; (b) failing that, the least-revised passages of the current draft — a **provisional** baseline. Record the baseline's sentence-length distribution (mean and spread, not a maximum — Moran: "average sentence length, not some arbitrary maximum, is what counts"), repetition habits, point of view, contraction use, and any characteristic device or metaphor. See `voice_preservation_guidelines.md` §§2,5. This baseline reclasses the markers below: a pattern that matches the baseline, is not a comprehension defect, and is plausibly intentional is **idiolect**, reported as a strength, not a negative marker. **Two guards:** (i) a *confident* baseline gives full force (idiolect-flattening is [MAJOR], matching craft flags fully suppressed); a *provisional* baseline makes every C-7 claim [MINOR]/ADVISORY and craft flags are **noted, not suppressed** ("possible idiolect — baseline provisional; confirm with author"). (ii) Recurrence alone does not protect a feature — a recurring mechanical error or surviving LLM tic is a defect, not idiolect, and is still flagged.
+
 1. **Count positive voice markers** (from MASTER §A.4.2 positive markers and §I.2–I.3):
 
    | Marker | Register | How to check | Count method |
@@ -219,6 +221,8 @@
    - **Ratio > 0.7:** Voice is human-sounding. No action needed.
    - **Ratio 0.4–0.7:** Voice is borderline. Read the three most-revised paragraphs aloud; propose specific fixes if they feel machine-generated.
    - **Ratio < 0.4:** Voice has degraded. Flag as MAJOR ("AI-assisted revision has flattened the voice"). Propose specific restorations calibrated to the declared register: for a **Suchman-interlocutor** paper, restore a first-person hinge, add an interlocutory section opening, or replace a synthesis close with a forward-opening reframing (see `suchman_writing_style.md` Moves 1, 2, 7); for a **Vidal-cartographer** paper, restore a plain-verdict sentence following a paired construction.
+
+   **C-7 distinction (binding when C-7 is applicable).** A low ratio alone does not establish a C-7 defect. Decide *which* baseline the prose drifted from: drift away from the **author's own idiolect baseline** (Step 0) is a C-7 regression — flag `[MAJOR — C-7: idiolect flattened]` and restore the author's own signature, not the exemplar's; drift away only from the **borrowed register exemplar** while the author's baseline is intact is often acceptable and is at most a C-1 contest the author may dispute — do **not** "restore" by overwriting the author's voice with the exemplar's. If a style rewrite this round stripped an identity-layer feature (sentence-length signature, repetition tolerance, point of view, cadence, humor, evaluative stance, characteristic metaphor) without citing a correctness, clutter, or C-5 warrant, flag it as a C-7 violation regardless of the ratio.
 
 4. **Read one paragraph aloud.** Pick the paragraph that was most heavily revised in this round. Read it aloud (or simulate the experience by attending to rhythm, stress, and breath). If you stumble or lose the thread, flag the paragraph for sentence-variety or modification-load review.
 

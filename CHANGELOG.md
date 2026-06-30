@@ -6,6 +6,27 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.19.0 — 2026-06-30
+
+### C-7 authorial voice-fingerprint preservation — the first protective style commitment
+
+**What changed.** Added a seventh declared style commitment, **C-7 (authorial voice-fingerprint preservation)**, and the substrate to ground it:
+
+- New `references/voice_preservation_guidelines.md` — absorbs four craft authorities (Moran *First You Write a Sentence*; Zinsser *On Writing Well*; Strunk *Elements of Style*, original edition; Abbott *Methods of Discovery* + *Digital Paper*), corroborated by Turabian ch. 11 and the Penguin "Good style" chapter, under the v0.17.0 source-absorption pattern. Encodes the mechanics/identity split, the idiolect non-target list, the anti-pattern catalogue, and the baseline-before-register operationalization.
+- `references/STYLE_COMMITMENTS.md` — C-7 row in the §1 table; new §1.0c full text; updates to the interaction table (Planner/Reflector), the §4 relaxation procedure (C-7 relaxes *inverse* to C-1…C-4 — on by default, suspended when a borrowed/house voice is chosen), §5 prohibitions (idiolect-stripping on taste), and §6 open fronts (C-7↔C-1 tension; baseline source).
+- `references/SAFEGUARD_LAYER.md` Check 6 — new Step 0 establishes the author's idiolect baseline *before* register-marker counting; the degraded-voice verdict now distinguishes drift from the author's baseline (a C-7 regression) from drift from a borrowed exemplar (often acceptable).
+- Skills tuned with a C-7 carve-out: `sentence-level-pass` (v1.1→1.2; monotony/passive/length flags yield to baseline idiolect; Moran "average not maximum") and `narrative-structure-pass` (v1.0→1.1; Check 7 "Consistent voice" no longer fires on baseline idiolect).
+- Agent wiring: `generator.md` (burden-of-proof-on-rewrite), `evaluator.md` (`[MAJOR — C-7]` finding + baseline-first scoring), `planner.md` (records C-7 applicability at classification).
+- **Review-hardening (post-review pass).** Two guards added so C-7 cannot be over-claimed: (i) **baseline-confidence tiering** — a baseline from accepted prior prose carries full force, but a baseline from only the least-revised current draft is *provisional* (C-7 findings drop to [MINOR]/ADVISORY; craft flags are noted, not suppressed, pending author confirmation); (ii) **disciplined-idiolect guard** — recurrence alone does not protect a feature, so a recurring mechanical error or surviving LLM tic is still flagged, not shielded. Propagated through `voice_preservation_guidelines.md` §§2,5, `STYLE_COMMITMENTS.md §1.0c`, `SAFEGUARD_LAYER.md` Check 6 Step 0, and both craft skills. Also: `.gitignore` now ignores the stray `scripts/audit/reviews/` auditor-output dir (canonical findings live at project-root `reviews/`).
+
+**Why.** C-1…C-6 were all *convergent* — they say what prose should move toward — so idiolect-bearing features (sentence-length signature, repetition tolerance, point of view, cadence, humor, evaluative stance) had no defender and were silently optimized away. The pre-existing voice audit (Check 6) scored "humanness" only against borrowed exemplars (Suchman/Vidal), so the harness could flatten an author *in the name of* protecting voice. C-7 is the first **protective** commitment: it names what must not be lost and scores voice against the author's own baseline first.
+
+**How to apply.** C-7 is on by default for any piece in the author's own voice; suspend it via `research_notes/directives.md` only when adopting a borrowed/house voice. Style rewrites must now cite a correctness, clutter, or C-5 accessibility warrant before touching an identity-layer feature — taste alone is a C-7 violation. Full rationale + per-book analysis: `docs/analysis/2026-06-30_voice-fingerprint-analysis-and-C7-rationale.md`.
+
+**Severity / attribution.** Maintainer increment; additive, no agent-contract retirement, no breaking change to C-1…C-6. *Grounding caveat:* the absorbed *Elements of Style* is Strunk's original, not Strunk & White; White's "Approach to Style" is not relied on.
+
+---
+
 ## v0.18.0 — 2026-06-29
 
 ### D-STYLE profile-routing check + canonical pre-flight consolidation + surface-floor validators

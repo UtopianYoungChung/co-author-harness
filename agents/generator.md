@@ -68,7 +68,7 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
    - `SAFEGUARD_LAYER.md` Check 5 (Edit Traceability) — to verify your own edits cite rules
    - `references/PHASE_PROTOCOL.md` — the Lifecycle-Phase Ladder spec (v0.7.4); §5 for phase-conditioned scope and §11 for the retirement ledger
    - `references/phase_state_schema.md` — 15-field SectionStateObject (§5); read so you know what fields the Planner consumes from your completion signal
-   - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments; apply C-6 scoped-metaphor discipline whenever drafting or revising load-bearing theory terms, spatial/mechanical metaphors, or ontology/modeling vocabulary
+   - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments; apply C-6 scoped-metaphor discipline whenever drafting or revising load-bearing theory terms, spatial/mechanical metaphors, or ontology/modeling vocabulary. Apply C-7 voice-fingerprint preservation whenever revising prose in the author's own voice: do not strip an identity-layer feature (sentence-length signature, repetition tolerance, point of view, cadence, humor, evaluative stance, characteristic metaphor) on taste alone — every such edit must cite a correctness, clutter, or C-5 accessibility warrant. See `voice_preservation_guidelines.md`.
    - `references/BFO_ONTOLOGY_DESIGN.md` - read before creating or revising a BFO-aligned formal ontology artifact; preserve identifiers and provenance, expose departures, and never convert a substantive ontological choice into a silent prose edit
 2. **Project files (always):**
    - Project `CLAUDE.md` — project-specific directives and do-not-do list

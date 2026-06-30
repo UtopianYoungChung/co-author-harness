@@ -4,8 +4,8 @@ description: 'Run a targeted Sexton narrative-structure pass — 10-item arc che
 trigger: when the user asks for structural feedback, narrative review, arc check, opening rewrite, does the paper have a through-line, or Sexton pass
 created_by: Reflector
 created_from: Tier 2 skill build, 2026-04-11 — Sexton_Fiction_to_Academic_Writing_Guide.md had no standalone entry point
-pattern_source: Sexton_Fiction_to_Academic_Writing_Guide.md §§1–10 (Checklist for an Impactful Academic Paper)
-version: 1.0
+pattern_source: Sexton_Fiction_to_Academic_Writing_Guide.md §§1–10 (Checklist for an Impactful Academic Paper); voice_preservation_guidelines.md (C-7 idiolect carve-out)
+version: 1.1
 ---
 # Narrative-Structure Pass (Sexton)
 
@@ -33,7 +33,7 @@ For each item, assess the manuscript and assign a verdict: **PASS**, **PARTIAL**
 | **4** | **Show then tell** | Sexton §2 | For each major claim, is there a concrete illustration within 2 paragraphs? Are long runs of unsupported abstraction avoided? | [MAJOR] per claim lacking concrete grounding |
 | **5** | **Concrete and specific** | Sexton §3 | Are methods, constructs, and sources named specifically (not "our approach," "the method," "some scholars")? Are verbs precise (not "addresses," "looks at," "deals with")? | [MINOR] per vague instance |
 | **6** | **Cause and effect** | Sexton §4 | Are logical links explicit ("therefore," "because," "as a result")? Do design choices follow from analysis, or do they appear unmotivated? | [MAJOR] per unmotivated jump |
-| **7** | **Consistent voice** | Sexton §5 | Is formality level consistent? Is there melodrama ("revolutionary," "completely changes")? Is sentence length varied? | [MINOR] per consistency break |
+| **7** | **Consistent voice** | Sexton §5 | Is formality level consistent? Is there melodrama ("revolutionary," "completely changes")? Is sentence length varied? **C-7 carve-out:** a feature that recurs in the author's idiolect baseline (flat affect, deliberate repetition, a characteristic length signature) is *consistency*, not a break — do not flag it; name it C-7 idiolect. Flag only genuine *inconsistency* (register that shifts mid-piece) or unearned melodrama. Two guards: protect only *disciplined* idiolect (a recurring genuine weakness is still a finding, not voice), and treat a baseline drawn only from the current draft as *provisional* (note rather than suppress; confirm with the author). | [MINOR] per consistency break (not per idiolect feature) |
 | **8** | **Title and roadmap** | Sexton §6 | Is the title informative and specific? Does the introduction include a structural roadmap after the contribution statement? | [MINOR] if title is generic; [MINOR] if roadmap is missing |
 | **9** | **Sufficient development** | Sexton §7 | Is the core of the paper (theory, mapping, analysis, example) substantial (~80% of content), or is it thin with a long "future work" section? | [MAJOR] if middle is thin relative to intro+conclusion |
 | **10** | **Theme through structure** | Sexton §8 | Does the main contribution emerge organically from the evidence and argument, or is it only declared in the introduction and conclusion (a "bookend" pattern)? | [MAJOR] if contribution is bookend-only |

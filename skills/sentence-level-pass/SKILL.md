@@ -4,8 +4,8 @@ description: 'Run a targeted Bacon sentence-craft pass on academic prose — 9-p
 trigger: when the user asks for line editing, sentence-level feedback, prose polish, Bacon pass, fix the sentences, or tighten the prose
 created_by: Reflector
 created_from: Tier 2 skill build, 2026-04-11 — bacon_2009_well_crafted_sentence_guidelines.md had no standalone entry point
-pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist
-version: 1.1
+pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist; voice_preservation_guidelines.md (C-7 idiolect carve-out)
+version: 1.2
 ---
 # Sentence-Level Pass (Bacon)
 
@@ -26,7 +26,7 @@ Run these counts on the manuscript (or the section the user specifies):
 | Sentences > 60 words | grep/count | 0 (each is a finding) |
 | Average sentence length | compute | ~15–20 for technical; ~25 for prestige/essay; flag if > 30 |
 | Max sentence length | compute | flag if > 50 |
-| Consecutive sentences of similar length (±3 words, 3+ in a row) | scan | flag clusters as monotony |
+| Consecutive sentences of similar length (±3 words, 3+ in a row) | scan | flag clusters as monotony **unless the pattern recurs in the author's baseline (C-7 idiolect — see carve-out below)** |
 | Em-dash (U+2014 `—` and LaTeX `---` in body prose) | `rg` count; per-paragraph if needed | **Total** in scope; any paragraph with **2+** em-dashes or **increase** vs. prior version if available → [MINOR] candidate (`research_paper_writing_guidelines.md` §7, `DETERMINISTIC_CHECKS.md` §3). **Rewrites must not** swap commas for em-dashes for “emphasis.” |
 | Dummy subjects (*it is*, *there is*, *there are*, *there remain*) | grep | flag each; not all are violations, but each must earn its place |
 | Passive voice clusters (3+ consecutive passive clauses) | scan | flag the cluster |
@@ -96,6 +96,15 @@ Walk the manuscript paragraph by paragraph. For each paragraph, check these nine
 - **Do not rewrite sentences.** Report findings and propose fixes. The Generator rewrites; the Evaluator verifies.
 - **Do not run safeguard checks.** This is a craft pass, not a post-review integrity check.
 - **Do not flag items already handled by DETERMINISTIC_CHECKS.md** (em-dashes, LLM tics, absolutes). Those are mechanical; this skill is judgment-based. If both overlap, note the overlap and skip the item here.
+
+### C-7 idiolect carve-out (when C-7 is applicable)
+
+Before flagging **monotony**, a **passive cluster**, or a **long sentence** as a craft defect, check it against the author's idiolect baseline (prior accepted prose, or the least-revised passages of the current draft; see `voice_preservation_guidelines.md` §5 and `SAFEGUARD_LAYER.md` Check 6 Step 0):
+
+- **Average, not maximum, governs length.** Per Moran, "average sentence length, not some arbitrary maximum, is what counts. Long sentences and long words are fine so long as they bump up against short ones." Do not impose a per-sentence ceiling; flag length only when the *average* runs high or a long sentence is not relieved by short ones nearby.
+- **Repetition can be signature.** "How much a writer tolerates repetition comprises a key part of his voice." Repetition that recurs in the baseline and is not a comprehension defect is idiolect, not monotony.
+- A pattern that matches the baseline and carries no comprehension (C-5) cost is **reported as a strength or [INFO]**, not [MINOR] — and named as C-7 ("baseline idiolect, not a defect") so the author can dispute it. Only flag it if it *also* triggers an independent C-5 accessibility defect, and say so explicitly.
+- **Two guards on the carve-out.** (1) *Disciplined idiolect only:* recurrence does not protect a genuine defect. A recurring mechanical error (its/it's, dangling-modifier habit) or a surviving LLM tic is still flagged — the carve-out shields a signature the author would defend, not a slip the author would concede. (2) *Provisional baselines don't fully suppress:* if the baseline is drawn only from the least-revised current draft (no accepted prior prose), do not silently suppress the flag — **note** it ("possible baseline idiolect; baseline provisional — confirm with author") and leave it at [MINOR] for the author's judgment.
 
 ---
 

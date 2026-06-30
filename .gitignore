@@ -63,6 +63,11 @@ reviews/advisor_consultation_*.md
 reviews/ground_truth_verification_*.md
 reviews/token_budget_report.json
 
+# Stray auditor output when run_all.py is invoked with cwd=scripts/audit/.
+# The canonical findings.json lives at the project-root reviews/; this dir is
+# a generated scratch artifact and must never be committed.
+scripts/audit/reviews/
+
 # (cleanup 2026-05-27) ignore local scratch dir and stray .claude-plugin test zips
 scratch/
 .claude-plugin/*.zip
