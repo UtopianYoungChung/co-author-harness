@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Resolve and validate a project's D-STYLE profile.
 
-This is a routing check, not a judgment check. It reads the optional
+This is a routing and surface-validation check, not a quality-judgment check. It reads the optional
 ``d_style_profile`` block in ``research_notes/directives.md``, validates the
 declared enum values, resolves inherit-by-absence defaults, and emits the
-review obligations the Planner/Evaluator must consider.
+review obligations the Planner/Evaluator must consider. When passed a manuscript,
+it also checks that claim/warrant, visual-evidence, and assistance-boundary
+surfaces are visible enough for Evaluator judgment.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -47,6 +50,7 @@ class Finding:
     code: str
     message: str
     field: str | None = None
+    locator: str | None = None
 
 
 def _strip_inline_comment(value: str) -> str:
@@ -219,9 +223,9 @@ def build_obligations(profile: dict[str, str]) -> list[dict[str, str]]:
         obligations.append(
             {
                 "id": "visual_evidence_ethics",
-                "status": "active_unenforced",
-                "source": "D-STYLE open front",
-                "note": "Evaluator must review scale choices, transformations, source lines, and display limits.",
+                "status": "active",
+                "source": "D-STYLE",
+                "note": "Pre-flight checks for source, scale/axis, transformation/method, and display-limit surfaces; Evaluator judges adequacy.",
             }
         )
     elif profile["evidence_display_policy"] == "project_defined":
@@ -256,9 +260,9 @@ def build_obligations(profile: dict[str, str]) -> list[dict[str, str]]:
         obligations.append(
             {
                 "id": "assistance_boundary_project_local",
-                "status": "active_unenforced",
-                "source": "D-STYLE open front",
-                "note": "Log material AI/reviewer/collaborator assistance per project-local rules.",
+                "status": "active",
+                "source": "D-STYLE",
+                "note": "Pre-flight checks for assistance disclosure or assistance log surfaces; Evaluator judges adequacy.",
             }
         )
 
@@ -310,6 +314,207 @@ def build_obligations(profile: dict[str, str]) -> list[dict[str, str]]:
     return obligations
 
 
+def _has_any(text: str, patterns: Iterable[str]) -> bool:
+    return any(re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE) for pattern in patterns)
+
+
+def _line_for(text: str, pattern: str) -> int | None:
+    match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
+    if not match:
+        return None
+    return text[: match.start()].count("\n") + 1
+
+
+def _locator(path: Path | None, line: int | None) -> str | None:
+    if path is None or line is None:
+        return None
+    return f"{path}:{line}"
+
+
+def _has_visual_evidence(text: str) -> bool:
+    return _has_any(
+        text,
+        [
+            r"^\s*(figure|fig\.|table|chart|graph)\s+\d+",
+            r"!\[[^\]]*\]\([^)]+\)",
+            r"<img\b",
+            r"\|[^\n]*\|[^\n]*\n\s*\|[-:\s|]+\|",
+        ],
+    )
+
+
+def validate_argument_surface(text: str, manuscript_path: Path | None) -> list[Finding]:
+    checks = [
+        (
+            "DSTYLE_ARGUMENT_CLAIM_SURFACE_MISSING",
+            "claim",
+            "No explicit claim/thesis/argument surface detected.",
+            [r"\b(claim|thesis|argument)\b", r"\b(i|we|this paper|this memo|this chapter)\s+argue[s]?\b"],
+        ),
+        (
+            "DSTYLE_ARGUMENT_REASON_SURFACE_MISSING",
+            "reason",
+            "No explicit reason/because/explanation surface detected.",
+            [r"\b(reason|because|explains?|therefore|so that|in order to)\b"],
+        ),
+        (
+            "DSTYLE_ARGUMENT_EVIDENCE_SURFACE_MISSING",
+            "evidence",
+            "No explicit evidence/citation/example/source surface detected.",
+            [r"\b(evidence|data|example|source|according to)\b", r"\([A-Z][A-Za-z-]+(?:\s+and\s+[A-Z][A-Za-z-]+)?\s+\d{4}"],
+        ),
+        (
+            "DSTYLE_ARGUMENT_WARRANT_SURFACE_MISSING",
+            "warrant",
+            "No explicit warrant/assumption/premise/stakes surface detected.",
+            [r"\b(warrant|assumption|premise|stakes|so what|this matters because)\b"],
+        ),
+        (
+            "DSTYLE_ARGUMENT_LIMIT_SURFACE_MISSING",
+            "limit",
+            "No explicit objection/limitation/scope/alternative surface detected.",
+            [r"\b(objection|counterargument|limitation|limit|scope|alternative explanation|however|although)\b"],
+        ),
+    ]
+
+    findings: list[Finding] = []
+    for code, field, message, patterns in checks:
+        if not _has_any(text, patterns):
+            findings.append(Finding("MAJOR", code, message, field))
+    if not findings:
+        line = _line_for(text, r"\b(claim|thesis|argument)\b")
+        findings.append(
+            Finding(
+                "INFO",
+                "DSTYLE_ARGUMENT_SURFACE_PRESENT",
+                "Claim/reason/evidence/warrant/limit surfaces detected; Evaluator must judge adequacy.",
+                "argument_surface",
+                _locator(manuscript_path, line),
+            )
+        )
+    return findings
+
+
+def validate_visual_evidence_surface(
+    profile: dict[str, str],
+    text: str,
+    manuscript_path: Path | None,
+) -> list[Finding]:
+    if profile["evidence_display_policy"] != "visual_ethics_required" and not _has_visual_evidence(text):
+        return []
+
+    if not _has_visual_evidence(text):
+        return [
+            Finding(
+                "INFO",
+                "DSTYLE_VISUAL_EVIDENCE_NOT_PRESENT",
+                "Visual-evidence policy is active, but no table/figure/image surface was detected.",
+                "evidence_display_policy",
+            )
+        ]
+
+    findings: list[Finding] = []
+    requirements = [
+        (
+            "DSTYLE_VISUAL_SOURCE_SURFACE_MISSING",
+            "No visual-evidence source/caption/source-note surface detected.",
+            [r"\b(source|caption|note:|data source)\b"],
+        ),
+        (
+            "DSTYLE_VISUAL_SCALE_SURFACE_MISSING",
+            "No visual-evidence scale/axis/unit/denominator surface detected.",
+            [r"\b(scale|axis|axes|unit|denominator|n\s*=|sample)\b"],
+        ),
+        (
+            "DSTYLE_VISUAL_TRANSFORM_SURFACE_MISSING",
+            "No visual-evidence method/transformation/aggregation/filter surface detected.",
+            [r"\b(method|transform|transformation|aggregate|aggregation|filtered?|normalized?|coded?)\b"],
+        ),
+        (
+            "DSTYLE_VISUAL_LIMIT_SURFACE_MISSING",
+            "No visual-evidence limitation/interpretive caution surface detected.",
+            [r"\b(limit|limitation|caution|interpret|cannot show|does not show)\b"],
+        ),
+    ]
+    for code, message, patterns in requirements:
+        if not _has_any(text, patterns):
+            findings.append(Finding("MAJOR", code, message, "visual_evidence"))
+    if not findings:
+        line = _line_for(text, r"^\s*(figure|fig\.|table|chart|graph)\s+\d+|!\[[^\]]*\]\([^)]+\)")
+        findings.append(
+            Finding(
+                "INFO",
+                "DSTYLE_VISUAL_EVIDENCE_SURFACE_PRESENT",
+                "Visual-evidence source, scale, method, and limit surfaces detected; Evaluator must judge adequacy.",
+                "visual_evidence",
+                _locator(manuscript_path, line),
+            )
+        )
+    return findings
+
+
+def validate_assistance_boundary_surface(
+    profile: dict[str, str],
+    text: str,
+    project_root: Path,
+) -> list[Finding]:
+    policy = profile["assistance_disclosure_policy"]
+    disclosure_in_text = _has_any(
+        text,
+        [
+            r"\b(assistance|acknowledg(?:e|ement)|ai-assisted|artificial intelligence|language model|co-author harness|reviewer feedback|advisor feedback)\b",
+        ],
+    )
+    candidate_logs = [
+        project_root / "research_notes" / "assistance_log.md",
+        project_root / "research_notes" / "disclosure.md",
+        project_root / "reviews" / "assistance_log.md",
+    ]
+    existing_logs = [path for path in candidate_logs if path.exists()]
+
+    if disclosure_in_text or existing_logs:
+        locator = str(existing_logs[0]) if existing_logs else _locator(None, None)
+        return [
+            Finding(
+                "INFO",
+                "DSTYLE_ASSISTANCE_SURFACE_PRESENT",
+                "Assistance disclosure/log surface detected; Evaluator must judge policy adequacy.",
+                "assistance_disclosure_policy",
+                locator,
+            )
+        ]
+
+    severity = "BLOCKER" if policy in {"venue_required", "overseer_escalate"} else "MAJOR"
+    return [
+        Finding(
+            severity,
+            "DSTYLE_ASSISTANCE_SURFACE_MISSING",
+            "No assistance disclosure or assistance-log surface detected for the active D-STYLE policy.",
+            "assistance_disclosure_policy",
+        )
+    ]
+
+
+def validate_substantive_surfaces(
+    profile: dict[str, str],
+    text: str | None,
+    project_root: Path,
+    manuscript_path: Path | None,
+) -> list[Finding]:
+    if text is None:
+        return []
+    findings: list[Finding] = []
+    findings.extend(validate_argument_surface(text, manuscript_path))
+    findings.extend(validate_visual_evidence_surface(profile, text, manuscript_path))
+    findings.extend(validate_assistance_boundary_surface(profile, text, project_root))
+    return findings
+
+
+def surface_finding_codes(findings: Iterable[Finding]) -> list[str]:
+    prefixes = ("DSTYLE_ARGUMENT_", "DSTYLE_VISUAL_", "DSTYLE_ASSISTANCE_")
+    return [finding.code for finding in findings if finding.code.startswith(prefixes)]
+
+
 def verdict(findings: Iterable[Finding]) -> str:
     severities = {finding.severity for finding in findings}
     if "BLOCKER" in severities:
@@ -321,7 +526,11 @@ def verdict(findings: Iterable[Finding]) -> str:
     return "CLEAN"
 
 
-def build_report(project_root: Path, directives_path: Path) -> dict[str, object]:
+def build_report(
+    project_root: Path,
+    directives_path: Path,
+    manuscript_path: Path | None = None,
+) -> dict[str, object]:
     if directives_path.exists():
         text = directives_path.read_text(encoding="utf-8")
         raw_profile, profile_declared = parse_profile(text)
@@ -331,16 +540,22 @@ def build_report(project_root: Path, directives_path: Path) -> dict[str, object]
 
     resolved = resolve_profile(raw_profile)
     findings = validate_profile(raw_profile, resolved, profile_declared)
+    manuscript_text: str | None = None
+    if manuscript_path is not None:
+        manuscript_text = manuscript_path.read_text(encoding="utf-8")
+        findings.extend(validate_substantive_surfaces(resolved, manuscript_text, project_root, manuscript_path))
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "check": "d_style_profile",
         "project_root": str(project_root),
         "directives_path": str(directives_path),
+        "manuscript_path": str(manuscript_path) if manuscript_path else None,
         "directives_exists": directives_path.exists(),
         "profile_declared": profile_declared,
         "raw_profile": raw_profile,
         "resolved_profile": resolved,
         "active_obligations": build_obligations(resolved),
+        "surface_findings": surface_finding_codes(findings),
         "findings": [asdict(finding) for finding in findings],
         "verdict": verdict(findings),
     }
@@ -350,6 +565,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, help="Project root containing research_notes/")
     parser.add_argument("--directives-path", help="Optional explicit directives.md path")
+    parser.add_argument("--manuscript", help="Optional manuscript path for substantive D-STYLE surface checks")
     parser.add_argument("--date", help="Date stamp override (YYYY-MM-DD)")
     parser.add_argument("--output", help="Optional output JSON path")
     parser.add_argument("--no-write", action="store_true", help="Print only; do not write a review artifact")
@@ -362,7 +578,8 @@ def main() -> int:
         if args.directives_path
         else project_root / "research_notes" / "directives.md"
     )
-    report = build_report(project_root, directives_path)
+    manuscript_path = Path(args.manuscript).resolve() if args.manuscript else None
+    report = build_report(project_root, directives_path, manuscript_path)
 
     output_path: Path | None = None
     if not args.no_write:
@@ -376,6 +593,7 @@ def main() -> int:
         "profile_declared": report["profile_declared"],
         "resolved_profile": report["resolved_profile"],
         "active_obligation_ids": [item["id"] for item in report["active_obligations"]],
+        "surface_findings": report["surface_findings"],
         "report_path": str(output_path) if output_path else None,
     }
     print(json.dumps(envelope, indent=2))

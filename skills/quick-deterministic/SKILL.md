@@ -1,6 +1,6 @@
 ---
 name: quick-deterministic
-description: 'Run the canonical mechanical pre-flight on a manuscript via `python scripts/audit/run_all.py`, adding `--project-root` when available so D-STYLE profile routing is emitted. Summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
+description: 'Run the canonical mechanical pre-flight on a manuscript via `python scripts/audit/run_all.py`, adding `--project-root` when available so D-STYLE profile routing and surface validation are emitted. Summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
 trigger: when the user asks for a quick check, a mechanical pass, a deterministic scan, or a pre-flight
 created_by: Reflector
 created_from: v0.15.0-pre — promoted from LLM-prosecuted regex counting to a scripts-first audit suite
@@ -19,12 +19,13 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
    ```
    python scripts/audit/run_all.py <target> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
    ```
-   The script writes `reviews/findings.json`, writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing was skipped.
+   The script writes `reviews/findings.json`, writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing and surface validation were skipped.
 
-3. **Read `reviews/findings.json` and, when present, `reviews/d_style_profile_YYYY-MM-DD.json`.** Each mechanical finding carries `check_id`, `category`, `severity`, `locator (file:line)`, `evidence`, `rule_ref`, and `tentative`. The D-STYLE profile report carries the resolved routing obligations.
+3. **Read `reviews/findings.json` and, when present, `reviews/d_style_profile_YYYY-MM-DD.json`.** Each mechanical finding carries `check_id`, `category`, `severity`, `locator (file:line)`, `evidence`, `rule_ref`, and `tentative`. The D-STYLE profile report carries the resolved routing obligations and surface findings for argument/warrant exposure, visual evidence, and assistance disclosure/logging.
 
 4. **Emit a count block** with these sections:
    - **Total findings** by severity (`default` / `inviolable`) and category.
+   - **D-STYLE verdict** plus any MAJOR/BLOCKER surface findings from `d_style_profile_YYYY-MM-DD.json`.
    - **Per-check-id counts** with at most three example locators each.
    - **Tentative findings** listed separately — they need human/LLM adjudication (e.g., absolutes `must`/`cannot` whose severity depends on whether they are prescriptive).
    - **Verdict.** Pass if zero `inviolable` findings; otherwise fail.

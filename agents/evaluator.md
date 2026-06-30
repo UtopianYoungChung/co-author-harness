@@ -150,12 +150,17 @@ Before SK-20 and Step 0a, run the canonical pre-flight:
 
 This writes both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
 Cite the D-STYLE profile report in the deterministic summary. Treat its
-`active_obligations[]` as the D-STYLE routing surface for this round: it tells you whether to
-foreground warrant exposure, source-role classification, candidate-vs-canonical status,
-visual-evidence ethics, assistance-boundary review, venue/template precedence, or supervisor-facing
-scope. A `BLOCKER` verdict means a malformed profile must be fixed or explicitly waived by the
-Planner before the review proceeds. An `ADVISORY` verdict may proceed, but `tbd` fields must be
-surfaced before any claim of argument readiness, promotion, or submission-readiness.
+`active_obligations[]` as the routing surface and its `findings[]` as D-STYLE
+pre-flight findings for this round. The report tells you whether to foreground
+warrant exposure, source-role classification, candidate-vs-canonical status,
+visual-evidence ethics, assistance-boundary review, venue/template precedence,
+or supervisor-facing scope. A `BLOCKER` verdict means the review stops unless the
+Planner explicitly waives the issue. A `MAJOR` verdict may proceed only if the
+missing surface is carried into the findings/action list. An `ADVISORY` verdict may
+proceed, but `tbd` fields must be surfaced before any claim of argument readiness,
+promotion, or submission-readiness. Passing D-STYLE surface checks does not clear
+the underlying judgment; it only confirms that the manuscript exposes a surface you
+can evaluate.
 
 Before Step 0a, run:
 

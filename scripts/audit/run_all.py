@@ -52,6 +52,7 @@ def audit_target(path: Path) -> FindingsReport:
 def run_d_style_profile(
     project_root: Path,
     *,
+    manuscript_path: Path | None = None,
     date: str | None = None,
     output: Path | None = None,
 ) -> tuple[dict[str, object], Path]:
@@ -59,7 +60,7 @@ def run_d_style_profile(
 
     project_root = project_root.resolve()
     directives_path = project_root / "research_notes" / "directives.md"
-    report = build_d_style_profile_report(project_root, directives_path)
+    report = build_d_style_profile_report(project_root, directives_path, manuscript_path)
     stamp = date or datetime.now().strftime("%Y-%m-%d")
     output_path = output.resolve() if output else project_root / "reviews" / f"d_style_profile_{stamp}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,6 +98,7 @@ def main(argv: List[str] | None = None) -> int:
     if args.project_root and not args.skip_d_style_profile:
         profile_report, profile_output = run_d_style_profile(
             args.project_root,
+            manuscript_path=args.target.resolve(),
             date=args.date,
             output=args.d_style_profile_out,
         )

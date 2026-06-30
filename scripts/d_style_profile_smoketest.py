@@ -13,7 +13,7 @@ HERE = Path(__file__).resolve().parent
 CHECK = HERE / "d_style_profile_check.py"
 
 
-def run_check(project_root: Path, *, strict: bool = False) -> tuple[int, dict]:
+def run_check(project_root: Path, *, strict: bool = False, manuscript: Path | None = None) -> tuple[int, dict]:
     cmd = [
         sys.executable,
         str(CHECK),
@@ -22,6 +22,8 @@ def run_check(project_root: Path, *, strict: bool = False) -> tuple[int, dict]:
         "--date",
         "2026-06-29",
     ]
+    if manuscript:
+        cmd.extend(["--manuscript", str(manuscript)])
     if strict:
         cmd.append("--strict-exit")
     result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
@@ -36,6 +38,12 @@ def write_directives(project_root: Path, body: str) -> None:
     directives = project_root / "research_notes" / "directives.md"
     directives.parent.mkdir(parents=True, exist_ok=True)
     directives.write_text(body, encoding="utf-8")
+
+
+def write_manuscript(project_root: Path, body: str) -> Path:
+    manuscript = project_root / "manuscript.md"
+    manuscript.write_text(body, encoding="utf-8")
+    return manuscript
 
 
 def test_valid_thesis_qe_profile_routes_obligations() -> None:
@@ -104,6 +112,86 @@ d_style_profile:
         assert "DSTYLE_PROFILE_BAD_ENUM" in codes
 
 
+def test_substantive_surfaces_pass_when_exposed() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: turabian_author_date
+  source_role_policy: strict_role_classification
+  evidence_display_policy: visual_ethics_required
+  assistance_disclosure_policy: project_local
+  harness_profile: thesis_qe
+""",
+        )
+        manuscript = write_manuscript(
+            project,
+            """# Draft
+
+This paper argues a bounded claim: narration matters when jurisdictional explanations stop.
+The reason is that the cases show a residual coordination problem because registration alone
+does not explain the observed shift. The evidence includes Example 1 and Smith (2020).
+The warrant is that role recognition must be observable to the relevant reader; this matters
+because otherwise the claim would be only a naming preference. A limitation is that the
+argument is scoped to the observed substrate.
+
+Table 1. Example coding summary
+
+| case | count |
+|---|---:|
+| A | 3 |
+
+Source: project coding notes. Unit: case. Method: aggregated coded examples. Limitation:
+small sample, so the table does not show population prevalence.
+
+Assistance: AI-assisted review identified wording issues; the author retained responsibility
+for claims and sources.
+""",
+        )
+        code, payload = run_check(project, manuscript=manuscript)
+        assert code == 0
+        assert payload["verdict"] == "CLEAN"
+        assert "DSTYLE_ARGUMENT_SURFACE_PRESENT" in payload["surface_findings"]
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ARGUMENT_SURFACE_PRESENT" in codes
+        assert "DSTYLE_VISUAL_EVIDENCE_SURFACE_PRESENT" in codes
+        assert "DSTYLE_ASSISTANCE_SURFACE_PRESENT" in codes
+
+
+def test_substantive_surfaces_fail_when_missing() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: turabian_author_date
+  source_role_policy: strict_role_classification
+  evidence_display_policy: visual_ethics_required
+  assistance_disclosure_policy: venue_required
+  harness_profile: venue_submission
+""",
+        )
+        manuscript = write_manuscript(project, "# Draft\n\nThis draft is short and polished.\n")
+        code, payload = run_check(project, manuscript=manuscript, strict=True)
+        assert code == 2
+        assert payload["verdict"] == "BLOCKER"
+        assert "DSTYLE_ASSISTANCE_SURFACE_MISSING" in payload["surface_findings"]
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ARGUMENT_CLAIM_SURFACE_MISSING" in codes
+        assert "DSTYLE_ASSISTANCE_SURFACE_MISSING" in codes
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -111,6 +199,8 @@ def main() -> int:
         test_valid_thesis_qe_profile_routes_obligations,
         test_absent_profile_inherits_defaults,
         test_bad_enum_is_strict_blocker,
+        test_substantive_surfaces_pass_when_exposed,
+        test_substantive_surfaces_fail_when_missing,
     ]
     failures: list[str] = []
     for test in tests:

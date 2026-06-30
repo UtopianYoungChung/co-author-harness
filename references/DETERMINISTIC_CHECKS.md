@@ -9,7 +9,7 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
-## 0. D-STYLE profile-routing pre-flight
+## 0. D-STYLE canonical pre-flight
 
 Before Step 0a counters, run the canonical pre-flight:
 
@@ -21,20 +21,32 @@ This emits `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`
 The lower-level helper is `scripts/d_style_profile_check.py`, but the canonical
 pre-flight entrypoint is `scripts/audit/run_all.py --project-root ...`. The D-STYLE
 portion validates the optional `research_notes/directives.md` `d_style_profile` enum
-values, resolves inherit-by-absence defaults, and lists active D-STYLE obligations for
-the round. It is a routing check:
-`visual_evidence_ethics`, `claim_reason_evidence_warrant`, and `assistance_boundary_*`
-entries tell the Evaluator what to review; they do not automatically prove those obligations
-are satisfied.
+values, resolves inherit-by-absence defaults, lists active D-STYLE obligations for
+the round, and checks the manuscript for the required reader-auditable surfaces.
+
+The D-STYLE findings are surface validators, not quality judgments. They check
+that the Evaluator has visible surfaces to judge:
+
+- claim, reason, evidence, warrant/stakes, and objection/limit;
+- visual-evidence source, scale/axis/unit, method/transformation, and display-limit
+  cues when visual evidence is present or required; and
+- assistance disclosure or assistance-log cues under the active disclosure policy.
+
+Missing argument or visual-evidence surfaces are MAJOR. Missing assistance surfaces
+are MAJOR under `project_local` and BLOCKER under `venue_required` or
+`overseer_escalate`. Passing the surface validators does not prove the argument,
+evidence display, or disclosure is adequate; it proves those issues are exposed for
+Evaluator judgment.
 
 **Output stub:**
 
 ```text
-### D-STYLE profile-routing pre-flight
+### D-STYLE canonical pre-flight
 - profile_declared: <true|false>
 - resolved_profile: <question_type>/<citation_style>/<harness_profile>
 - active_obligations: <comma-separated obligation ids>
 - findings: <n>  verdict: <CLEAN|ADVISORY|MAJOR|BLOCKER>
+- surface_findings: <argument/visual/assistance finding ids>
 - report: reviews/d_style_profile_YYYY-MM-DD.json
 ```
 
