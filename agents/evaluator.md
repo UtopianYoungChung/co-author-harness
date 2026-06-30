@@ -78,6 +78,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
 
 - `reviews/coupling_readiness_YYYY-MM-DD.json` (SK-20 gate artifact).
 - `reviews/sk20_noop_YYYY-MM-DD.json` (only when SK-20 preconditions fail).
+- `reviews/d_style_profile_YYYY-MM-DD.json` (D-STYLE profile-routing pre-flight).
 - `reviews/step_0a_deterministic.md` (or `step_0a_deterministic_<date>.md` for subsequent rounds).
 - `reviews/step_findings/step_N_<name>.md` for each step walked.
 - `reviews/consolidated_findings_report.md` (the Step 8 synthesis).
@@ -142,6 +143,19 @@ Ph4 consumes the accumulated F4 block as prior context; Reflector Phase **2g.3**
 ## Procedure
 
 ### Step 0 — Coupling E.2 gate
+
+Before SK-20 and Step 0a, run the canonical pre-flight:
+
+`python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --out "reviews/findings.json"`
+
+This writes both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
+Cite the D-STYLE profile report in the deterministic summary. Treat its
+`active_obligations[]` as the D-STYLE routing surface for this round: it tells you whether to
+foreground warrant exposure, source-role classification, candidate-vs-canonical status,
+visual-evidence ethics, assistance-boundary review, venue/template precedence, or supervisor-facing
+scope. A `BLOCKER` verdict means a malformed profile must be fixed or explicitly waived by the
+Planner before the review proceeds. An `ADVISORY` verdict may proceed, but `tbd` fields must be
+surfaced before any claim of argument readiness, promotion, or submission-readiness.
 
 Before Step 0a, run:
 

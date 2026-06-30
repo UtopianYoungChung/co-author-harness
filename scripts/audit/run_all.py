@@ -8,9 +8,15 @@ below; the schema and run-surface do not change.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Tuple
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
 from audit_style import (
     audit_absolutes,
@@ -20,6 +26,7 @@ from audit_style import (
     audit_sentence_length,
     audit_voice,
 )
+from d_style_profile_check import build_report as build_d_style_profile_report
 from schema import Finding, FindingsReport
 
 Auditor = Callable[[str, Path], List[Finding]]
@@ -42,6 +49,24 @@ def audit_target(path: Path) -> FindingsReport:
     return report
 
 
+def run_d_style_profile(
+    project_root: Path,
+    *,
+    date: str | None = None,
+    output: Path | None = None,
+) -> tuple[dict[str, object], Path]:
+    """Write the project-level D-STYLE profile-routing report."""
+
+    project_root = project_root.resolve()
+    directives_path = project_root / "research_notes" / "directives.md"
+    report = build_d_style_profile_report(project_root, directives_path)
+    stamp = date or datetime.now().strftime("%Y-%m-%d")
+    output_path = output.resolve() if output else project_root / "reviews" / f"d_style_profile_{stamp}.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    return report, output_path
+
+
 def main(argv: List[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -49,15 +74,33 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("target", type=Path)
     parser.add_argument("--out", type=Path, default=Path("reviews/findings.json"))
     parser.add_argument("--stdout", action="store_true", help="Print JSON instead of writing")
+    parser.add_argument(
+        "--project-root",
+        type=Path,
+        help="Project root containing research_notes/; enables the D-STYLE profile pre-flight",
+    )
+    parser.add_argument("--date", help="Date stamp for D-STYLE profile output (YYYY-MM-DD)")
+    parser.add_argument("--d-style-profile-out", type=Path, help="Optional D-STYLE profile JSON path")
+    parser.add_argument("--skip-d-style-profile", action="store_true", help="Skip project-level D-STYLE routing")
     args = parser.parse_args(argv)
 
     if not args.target.is_file():
         print(f"[BLOCKER] target not found: {args.target}", file=sys.stderr)
         return 2
+    if args.project_root and not args.project_root.is_dir():
+        print(f"[BLOCKER] project root not found: {args.project_root}", file=sys.stderr)
+        return 2
 
     report = audit_target(args.target)
+    profile_report: dict[str, object] | None = None
+    profile_output: Path | None = None
+    if args.project_root and not args.skip_d_style_profile:
+        profile_report, profile_output = run_d_style_profile(
+            args.project_root,
+            date=args.date,
+            output=args.d_style_profile_out,
+        )
     if args.stdout:
-        import json
         print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
     else:
         report.write(args.out)
@@ -67,6 +110,8 @@ def main(argv: List[str] | None = None) -> int:
             f"(default: {counts['by_severity'].get('default', 0)}, "
             f"inviolable: {counts['by_severity'].get('inviolable', 0)})"
         )
+    if not args.stdout and profile_report and profile_output:
+        print(f"OK wrote {profile_output} -- d_style_profile: {profile_report['verdict']}")
     return 0
 
 

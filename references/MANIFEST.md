@@ -23,7 +23,7 @@ Everything else is on-demand per the routing table below.
 
 | If your task is… | Read these before acting |
 |---|---|
-| **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md` (the runbook); `DETERMINISTIC_CHECKS.md` (mechanical pre-flight rationale — but invoke `scripts/audit/run_all.py`, not the LLM, per PR-2) |
+| **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md` (the runbook); `DETERMINISTIC_CHECKS.md` (mechanical pre-flight rationale — invoke canonical `scripts/audit/run_all.py --project-root ...`, not the LLM, per PR-2; this also emits the D-STYLE profile-routing report) |
 | **Per-section phase advancement (Ph1 → Ph4)** | `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1) |
 | **Dispatching subagents** | `AGENT_ORCHESTRATION.md` (loop); `MODEL_ALLOCATION.md` (Opus-floor invariants); `AGENT_CONTRACTS.md` (per-agent obligations); `agents/<role>.md` (the role's full prompt) |
 | **Authoring Evaluator / Reflector artefacts** | `ARTEFACT_FRONTMATTER_SCHEMA.md` (F1–F8 families); `OUTPUT_ECONOMY_PROTOCOL.md` (default outputs, evidence packets, escalations) |

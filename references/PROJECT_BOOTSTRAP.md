@@ -292,6 +292,8 @@ constraints that modify how the package rules apply to this project.
 Directives here override the package's cross-venue rules within this project
 (per precedence rule 4 in Package CLAUDE.md §4).
 
+> **On session start.** Before beginning work on this project, read the global style authority `B:\Agents\reference\turabian-author-date-quickref.md` (Turabian Author-Date; see `D-STYLE` in `B:\Agents\AGENTS.md`). In-conversation user instructions and venue/template requirements still take precedence over it.
+
 ---
 
 # Manuscript register class (v0.10.1)
@@ -308,6 +310,18 @@ Directives here override the package's cross-venue rules within this project
 # register_class governs target-audience register requirements.
 # Silent absence inherits the default `technical` for back-compat safety.
 register_class: technical
+
+# D-STYLE profile (workspace research-writing architecture)
+# This routing declaration narrows the global D-STYLE defaults for the project.
+# Absent fields inherit D-STYLE. Use `tbd` only during orientation; replace it
+# before claiming argument readiness.
+d_style_profile:
+  question_type: tbd
+  citation_style: tbd
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  harness_profile: standard_research_review
 
 ---
 

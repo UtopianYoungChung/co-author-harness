@@ -199,10 +199,12 @@ This writes `reviews/coupling_health.md` + `reviews/coupling_health.json` so rep
 Invoke the audit suite — **do not LLM-count the patterns yourself**. As of v0.15.0-pre, the runtime is `scripts/audit/run_all.py`; `DETERMINISTIC_CHECKS.md` is rule rationale, not the source of patterns.
 
 ```
-python scripts/audit/run_all.py <manuscript> --out reviews/findings.json
+python scripts/audit/run_all.py <manuscript> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
 ```
 
-The script writes `reviews/findings.json` (schema in `scripts/audit/schema.py`). Read the JSON and emit a count block of this shape:
+The script writes `reviews/findings.json` (schema in `scripts/audit/schema.py`) and,
+when `--project-root` is supplied, `reviews/d_style_profile_YYYY-MM-DD.json`. Read the
+JSON and emit a count block of this shape:
 
 ```
 Deterministic check results

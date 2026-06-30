@@ -1,6 +1,6 @@
 ---
 name: quick-deterministic
-description: 'Run the mechanical pre-flight on a manuscript via `python scripts/audit/run_all.py`. Emits `reviews/findings.json` then summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
+description: 'Run the canonical mechanical pre-flight on a manuscript via `python scripts/audit/run_all.py`, adding `--project-root` when available so D-STYLE profile routing is emitted. Summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
 trigger: when the user asks for a quick check, a mechanical pass, a deterministic scan, or a pre-flight
 created_by: Reflector
 created_from: v0.15.0-pre — promoted from LLM-prosecuted regex counting to a scripts-first audit suite
@@ -17,11 +17,11 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 2. **Invoke the audit suite:**
    ```
-   python scripts/audit/run_all.py <target> --out reviews/findings.json
+   python scripts/audit/run_all.py <target> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
    ```
-   The script writes `reviews/findings.json` and prints a one-line summary.
+   The script writes `reviews/findings.json`, writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing was skipped.
 
-3. **Read `reviews/findings.json`.** Each finding carries `check_id`, `category`, `severity`, `locator (file:line)`, `evidence`, `rule_ref`, and `tentative`.
+3. **Read `reviews/findings.json` and, when present, `reviews/d_style_profile_YYYY-MM-DD.json`.** Each mechanical finding carries `check_id`, `category`, `severity`, `locator (file:line)`, `evidence`, `rule_ref`, and `tentative`. The D-STYLE profile report carries the resolved routing obligations.
 
 4. **Emit a count block** with these sections:
    - **Total findings** by severity (`default` / `inviolable`) and category.

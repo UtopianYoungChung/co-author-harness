@@ -315,7 +315,7 @@ dispatched_agents:        # list of objects; one entry per agent expected to eng
     model_allocation:     # string, one of {opus-4-7, sonnet-4-6, haiku-4-5}; the resolved model per references/MODEL_ALLOCATION.md §2
     scope:                # string, one of {per_section, manuscript_level, cycle_level}; per-section is the default, manuscript_level applies under P-7 batching, cycle_level is Planner-only orchestration
     purpose:              # string (≤ 140 chars); one-line rationale the user can skim
-checks_scheduled:         # list of strings; the deterministic and judgment checks planned to run this round; drawn from {safeguard_1..8, grounding_audit, deterministic_step_0a, coupling_e2_overlay, accessibility_overlay, contract_verification}
+checks_scheduled:         # list of strings; the deterministic and judgment checks planned to run this round; drawn from {safeguard_1..8, grounding_audit, d_style_profile_check, deterministic_step_0a, coupling_e2_overlay, accessibility_overlay, contract_verification}
 user_approval_required:   # boolean; MUST be true at v0.7.4 (the field is present to future-proof against v0.7.5+ relaxation proposals)
 ```
 
@@ -458,4 +458,3 @@ Neither is committed at v0.7.4.
 ---
 
 *Normative status.* Canonical schema contract for v0.7.4+ artefact frontmatter. Referenced by `co-author-harness/references/PHASE_PROTOCOL.md §3.3` (P-2 inheritance gate) and by `scripts/artefact_frontmatter_validate.py`. Any artefact family added after v0.7.4 must be specified here before its validator dispatch is written.
-

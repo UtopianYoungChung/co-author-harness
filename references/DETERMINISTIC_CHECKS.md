@@ -9,6 +9,35 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
+## 0. D-STYLE profile-routing pre-flight
+
+Before Step 0a counters, run the canonical pre-flight:
+
+```powershell
+python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --out "reviews/findings.json"
+```
+
+This emits `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
+The lower-level helper is `scripts/d_style_profile_check.py`, but the canonical
+pre-flight entrypoint is `scripts/audit/run_all.py --project-root ...`. The D-STYLE
+portion validates the optional `research_notes/directives.md` `d_style_profile` enum
+values, resolves inherit-by-absence defaults, and lists active D-STYLE obligations for
+the round. It is a routing check:
+`visual_evidence_ethics`, `claim_reason_evidence_warrant`, and `assistance_boundary_*`
+entries tell the Evaluator what to review; they do not automatically prove those obligations
+are satisfied.
+
+**Output stub:**
+
+```text
+### D-STYLE profile-routing pre-flight
+- profile_declared: <true|false>
+- resolved_profile: <question_type>/<citation_style>/<harness_profile>
+- active_obligations: <comma-separated obligation ids>
+- findings: <n>  verdict: <CLEAN|ADVISORY|MAJOR|BLOCKER>
+- report: reviews/d_style_profile_YYYY-MM-DD.json
+```
+
 **Tool assumption.** The patterns below are written for ripgrep (`rg`) which is what Claude uses via the Grep tool. They translate cleanly to `grep -E`, editor find-in-files, or simple scripts. LaTeX-specific patterns assume `.tex` source; Markdown/plain-text patterns are noted where they differ.
 
 ---
