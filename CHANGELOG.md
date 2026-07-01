@@ -6,6 +6,47 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.21.0 — 2026-07-01
+
+### C-8 companion skills + the C-6↔M-1 interaction (from two live-run validations)
+
+**What changed.** Completed the C-8 skill set and folded in two findings the live validation earned:
+
+- New skill **SK-43 `definition-derivation-check`** (`skills/definition-derivation-check/SKILL.md`) — the isolated **M-1** pass: classifies each load-bearing term as derived / imported-motivated / stipulated, with the **C-6 upfront-glossary carve-in** (keys-only glossaries pass; a glossary that pre-states a derived construct's payoff is a `[MINOR — C-6↔C-8/M-1]` note). P2-gated.
+- New skill **SK-44 `dissolution-move-check`** (`skills/dissolution-move-check/SKILL.md`) — the isolated **M-2** pass: scores each rival-engagement site on charitable reconstruction / named buried assumption / dissolution-vs-contradiction; strawman → `[MAJOR]`. P2-gated (a P1 piece holding positions open is correct non-convergence, not an M-2 failure).
+- Both ship with command shims, `/plugin-commands` catalog rows, and `SKILL_REGISTRY.md` entries.
+- **C-6↔C-8/M-1 interaction encoded.** `references/analytic_construction_guidelines.md §2 M-1` gains the reconciliation rule (a terminological glossary is M-1-compatible if keys-only; flag only entries that pre-state a derived construct's payoff); `STYLE_COMMITMENTS.md §1.0a` (C-6) and `§1.0d` (C-8) both carry the interaction note and the `[MINOR — C-6↔C-8/M-1]` finding code.
+- **Applicability gate tightened.** `analytic-move-audit` and `analytic_construction_guidelines.md §5` now admit advisor-facing **conceptual briefs and working drafts toward a proposal** explicitly (genre label does not decide scope; the presence of a built conceptual argument does), closing the reviewer-judgment gap the first live-run exposed.
+- `STYLE_COMMITMENTS.md §6` open-front updated: the companion-skill set is now complete.
+
+**Why.** Two live-runs against QE2026 advisor artifacts validated the C-8 machinery and surfaced two real gaps. (1) The seven-move `analytic-move-audit` bundled M-1 and M-2, but those are the two highest-value, most-often-botched theory moves and deserve isolated single-purpose passes. (2) The P2 reciprocity draft's upfront "one word, one meaning" glossary sat exactly on a previously-unencoded fault line — the project's **C-6** terminological-consistency discipline pushes toward front-loaded stipulation while **C-8/M-1** pushes toward deferred derivation. Neither commitment's text acknowledged the other. (3) A substantive P1 supervision brief fell through the "memo" exclusion by reviewer judgment rather than by rule. The two-run contrast also confirmed the **P-stage gate** works: the same skill suppressed M-1/M-2/M-7 on the P1 brief (deliberate non-convergence read as appropriate deferral) and fired them on the P2 draft (catching the glossary/derivation tension).
+
+**How to apply.** Run `/definition-derivation-check` for a fast M-1-only "did I stipulate or derive this?" audit, or `/dissolution-move-check` for an M-2-only "am I contradicting or dissolving?" audit; both refuse below P2. Author an upfront glossary as *keys-only* to satisfy C-6 without deflating a C-8/M-1 derivation. Rationale for the whole C-8 line: `docs/analysis/2026-07-01_abbott-system-of-professions-analytic-construction-and-C8-rationale.md §5`.
+
+**Severity / attribution.** Maintainer increment; additive, no breaking change to C-1…C-8 or agent contracts. The two companion skills are P2-gated and orthogonal to SK-42.
+
+---
+
+## v0.20.0 — 2026-07-01
+
+### C-8 analytic-construction discipline — claiming the analytic-move layer between C-2 and C-4
+
+**What changed.** Added an eighth declared style commitment, **C-8 (analytic-construction discipline)**, and the substrate + standalone skill to ground it:
+
+- New `references/analytic_construction_guidelines.md` — absorbs one sustained exemplar, Abbott's *The System of Professions* (1988), under the source-absorption pattern. Encodes seven analytic moves (M-1 definitional deferral; M-2 reconstruct-then-dissolve; M-3 counterexample-as-demolition; M-4 anaphoric demonstration; M-5 cadential verdict; M-6 calibrated confidence; M-7 meta-reflexivity), each with a verified grounding quotation and an operational test; the P-stage gating (M-1/M-2/M-7 are P2-only); the M-4/M-5 protective carve-outs; and a §6 reflexive coda mapping Abbott's *jurisdiction* theory onto the harness's own division of expert labor.
+- New skill **SK-42 `analytic-move-audit`** (`skills/analytic-move-audit/SKILL.md`) + `commands/analytic-move-audit.md` shim + `/plugin-commands` catalog row + `SKILL_REGISTRY.md` entry. Standalone Abbott pass; P-stage-gated; carries the M-4/M-5 carve-outs that overturn a `sentence-level-pass` monotony/concision flag on demonstrative anaphora and cadential verdicts.
+- `references/STYLE_COMMITMENTS.md` — C-8 row in the §1 table; new §1.0d full text; updates to the summary paragraph (C-8 as convergent, occupying the analytic-move layer), the §3 interaction table (Planner records C-8 applicability + P-stage; new Reflector analytic-move row), the §4 relaxation procedure (per-move suspension; P-stage gating by construction), §5 prohibitions (argument-feature stripping on "concision"; C-4≠C-8 over-claim), and §6 open fronts (M-6↔C-1 tension; the designed-but-unshipped companion skills; the reflexive jurisdiction lens).
+- Agent wiring: `generator.md` (draft/revise under the moves; do not flatten M-4/M-5 on concision), `evaluator.md` (`[MAJOR — C-8/M-x]` findings, P-stage gate, carve-out overturn), `planner.md` (records C-8 applicability **and P-stage** at classification).
+- `references/MANIFEST.md` — indexes the new C-8 substrate and (retroactively) the C-7 substrate.
+
+**Why.** C-4 (Baird) audits whether a theory *has* the right parts; nothing audited whether those parts were *earned* by the argument. That analytic-move vacancy sat between C-2 (clause craft) and C-4 (static theory anatomy) with no claimant — and, exactly as idiolect did before C-7, an unowned feature got mishandled by the nearest adjacent check (a mechanical monotony flag reading Abbott's demonstrative anaphora as a rhythm defect). C-8 claims the vacancy and supplies the protective carve-outs so the craft skills stop mis-flagging argumentative features. The choice of Abbott is deliberate and non-colliding: the harness already absorbed Abbott-the-methodologist for C-7 (*Methods of Discovery*, *Digital Paper*); C-8 absorbs Abbott-the-theorist (*System of Professions*) — C-7 protects the writer's voice, C-8 governs the writer's argumentative moves.
+
+**How to apply.** C-8 is on by default for any piece that builds or extends a theory or conceptual argument; the Planner also records the P-stage, which gates the move set (P0/P1 → M-3/M-5/M-6; P2 → all seven). Suspend a single move or the whole commitment via `research_notes/directives.md` for venues that expect flat assertion or up-front stipulation. Run the standalone pass with `/analytic-move-audit`. Full rationale + per-move analysis + the reflexive jurisdiction lens: `docs/analysis/2026-07-01_abbott-system-of-professions-analytic-construction-and-C8-rationale.md`.
+
+**Severity / attribution.** Maintainer increment; additive, no agent-contract retirement, no breaking change to C-1…C-7. *Grounding caveat:* all Abbott 1988 quotations verified character-for-character against the uploaded full-text extract; chapter-level locators are used because the digital edition lacks stable pagination.
+
+---
+
 ## v0.19.0 — 2026-06-30
 
 ### C-7 authorial voice-fingerprint preservation — the first protective style commitment

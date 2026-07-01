@@ -443,6 +443,37 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Non-overlap (deliberate):** orthogonal to `CITATION_DISCIPLINE.md` (form, not whether-to-cite); does not verify source existence (`EXTERNAL_VERIFIERS.md` / `GROUNDING_PROTOCOL.md`); defers shared mechanics conflicts to declared style via `[CONFLICT]`.
 - **Sibling:** SK-40 `grammar-mechanics-pass` (shares the declared-style `[CONFLICT]` discipline on mechanics).
 
+### SK-42. `analytic-move-audit`
+- **File:** `skills/analytic-move-audit/SKILL.md` (new at 2026-07-01)
+- **Pattern:** Targeted Abbott analytic-construction pass — audits the seven M-moves that assemble a claim (M-1 definitional deferral, M-2 reconstruct-then-dissolve, M-3 counterexample-as-demolition, M-4 anaphoric demonstration, M-5 cadential verdict, M-6 calibrated confidence, M-7 meta-reflexivity). Implements commitment **C-8**. Occupies the previously unclaimed **analytic-move layer** between `sentence-level-pass` (C-2, clause craft) and `IS-theory-pass` (C-4, static theory anatomy): C-4 audits whether the theory *has* the right parts; SK-42 audits whether those parts were *earned*.
+- **Created:** 2026-07-01 (v0.20.0 — `docs/analysis/2026-07-01_abbott-system-of-professions-analytic-construction-and-C8-rationale.md`)
+- **Tier:** Package
+- **Status:** Active
+- **Pattern source:** `references/analytic_construction_guidelines.md §2` (M-1…M-7 operational tests) + `§5` (P-stage gating, severity); Abbott, *The System of Professions* (1988).
+- **Depends on:** `references/analytic_construction_guidelines.md` (read-before-act prerequisite); `reviews/classification.md` P-stage (gates the move set — P0/P1 restricts to M-3/M-5/M-6; P2 admits all seven).
+- **Non-overlap (deliberate):** orthogonal to `IS-theory-pass` (SK-09, theory *anatomy* not move *dynamics*), `sentence-level-pass` (SK-07, clause craft not argument), and `narrative-structure-pass` (SK-08, whole-piece arc not the single move). Carries M-4/M-5 carve-outs that overturn a `sentence-level-pass` monotony/concision flag on demonstrative anaphora and cadential verdicts.
+- **Sibling:** SK-13 `suchman-register-audit` (C-1 register) and the C-7 idiolect carve-out in SK-07/SK-08 — SK-42 is the convergent analytic-move counterpart to those voice-layer surfaces.
+
+### SK-43. `definition-derivation-check`
+- **File:** `skills/definition-derivation-check/SKILL.md` (new at 2026-07-01, v0.21.0)
+- **Pattern:** Focused single-move pass on **C-8 / M-1 (definitional deferral)** — classifies each load-bearing term as *derived* (from the theory's questions), *imported* (cited, acceptable if motivated), or *stipulated* (fiat → finding), and applies the **C-6 upfront-glossary carve-in** (keys-only glossaries pass; a glossary that pre-states a *derived* construct's payoff is a `[MINOR — C-6↔C-8/M-1]` interaction note). The narrow, near-deterministic complement to SK-42's full pass.
+- **Created:** 2026-07-01 (surfaced by the two-run live validation — the QE2026 reciprocity draft's upfront glossary sat exactly on the C-6↔M-1 seam).
+- **Tier:** Package
+- **Status:** Active
+- **Pattern source:** `references/analytic_construction_guidelines.md §2 M-1` + `§5`; Abbott 1988.
+- **Depends on:** `references/analytic_construction_guidelines.md` (read-before-act); `reviews/classification.md` P-stage — **P2-gated** (M-1 is a P2 move; reports out-of-scope at P0/P1).
+- **Sibling:** SK-42 `analytic-move-audit` (bundled seven-move pass); SK-44 `dissolution-move-check` (the M-2 companion).
+
+### SK-44. `dissolution-move-check`
+- **File:** `skills/dissolution-move-check/SKILL.md` (new at 2026-07-01, v0.21.0)
+- **Pattern:** Focused single-move pass on **C-8 / M-2 (reconstruct → locate buried assumption → dissolve)** — scores each rival-engagement site on three components (charitable reconstruction / named buried assumption / dissolution vs. mere contradiction) and flags strawman (`[MAJOR]`) and contradiction-without-dissolution (`[MINOR]`/`[MAJOR]` by centrality). Rewards the Abbott shape of relocating a dispute one level up.
+- **Created:** 2026-07-01.
+- **Tier:** Package
+- **Status:** Active
+- **Pattern source:** `references/analytic_construction_guidelines.md §2 M-2` + `§5`; Abbott 1988.
+- **Depends on:** `references/analytic_construction_guidelines.md` (read-before-act); `reviews/classification.md` P-stage — **P2-gated** (a P1 piece that holds rival positions open is doing correct non-convergence, not failing M-2; reports out-of-scope at P0/P1).
+- **Sibling:** SK-42 `analytic-move-audit`; SK-43 `definition-derivation-check`.
+
 ---
 
 ## Orchestration Commands (v0.7.0)
