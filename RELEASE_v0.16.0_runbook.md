@@ -93,7 +93,7 @@ re-add `co-author-harness-claude`) so the runtime picks up **0.16.0** from
 
 ## Rollback (if needed)
 
-The pre-edit index backup is `..\..\ROOT_ARCHITECTURE_INDEX.md.bak_2026-06-25` (governance
+The pre-edit index backup is `..\..\governance\overseer-governance\annexes\root-architecture\backups\ROOT_ARCHITECTURE_INDEX.md.bak_2026-06-25` (governance
 refresh, unrelated to the plugin). For the plugin itself, the bump and fixes are isolated
 to: `plugin.json`, `marketplace.json`, `README.md`, `CHANGELOG.md`, `.gitattributes`, and
 `skills/claim-coverage-audit/SKILL.md`. `git revert 1d1987f` (and the fix commit) undoes
