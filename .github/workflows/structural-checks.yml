@@ -1,0 +1,74 @@
+# Structural checks — drift alarm for pushed commits.
+# scripts/release-gate.sh remains the release authority. CI runs the gate's
+# no-argument correctness checks; it does NOT run the gate's packaging steps
+# (zip build, description-length probes, .plugin-efficiency gate) nor the
+# fixture-argument validators (phase_state_validate, artefact_frontmatter_validate,
+# paragraph_hash_map determinism), which the gate invokes with fixture paths.
+# Honest-scope note (2026-07-07 coherence audit): CI is a subset of the gate,
+# by design; the previous header's claim of "same check set" was false and is retired.
+# Introduced by docs/analysis/2026-07-06_systematic-improvement-plan.md WS-5;
+# expanded by docs/analysis/2026-07-07_full-links-coherence-audit.md.
+
+name: structural-checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install pyyaml tiktoken
+      - name: Structural + registry checks
+        run: |
+          set -e
+          for script in \
+            skill-check.py \
+            version-check.py \
+            catalog-check.py \
+            path-hygiene-check.py \
+            snippet-check.py \
+            output_economy_check.py \
+            output_economy_smoketest.py \
+            version-planes-check.py \
+            commitment-interactions-check.py \
+            retirement-sweep-check.py
+          do
+            echo "::group::$script"
+            python scripts/"$script"
+            echo "::endgroup::"
+          done
+      - name: Coherence + contract checks (gate parity, no-arg subset)
+        run: |
+          set -e
+          for script in \
+            grounding_anchors_check.py \
+            manifest_links_check.py \
+            manifest-coherence-check.py \
+            ssot-check.py \
+            alias_parity_smoketest.py \
+            migrate_v0150pre_stage_profile_smoketest.py \
+            mcr_convergence_evidence_smoketest.py \
+            token_budget_smoketest.py \
+            reflector_split_parity_smoketest.py \
+            d_style_profile_smoketest.py \
+            end_to_end_smoketest.py \
+            phase_notifications_smoketest.py
+          do
+            echo "::group::$script"
+            python scripts/"$script"
+            echo "::endgroup::"
+          done
+      - name: Test suites
+        run: |
+          set -e
+          python scripts/audit/test_audit.py
+          python scripts/audit/test_citations.py
+          python scripts/tests/test_resolve_includes.py

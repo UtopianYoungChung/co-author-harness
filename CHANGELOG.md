@@ -6,6 +6,62 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.24.0 — 2026-07-07
+
+### Deferred-register closure — one ladder, one vocabulary, one authority per fact, every authority checked
+
+**What changed.** The nine open items from the coherence audit (`2026-07-07_full-links-coherence-audit.md §4`), executed as a single linked program (full dispositions: `docs/analysis/2026-07-07_deferred-register-closure.md`):
+
+- **Migration completed (items 1–3).** `REVIEW_ORCHESTRATION.md §3.3` rewritten phase-native with schema-verified spellings (stable tier-era *codes* keep historical spellings, each annotated); `AGENT_CONTRACTS.md §2` Evaluator contract reconciled — phase-gated preconditions, F7-default outputs, depth names mapped to `check_profile` envelopes, I-Refl-3 renumbered to the split reflectors; **T3R settled**: retired as an independent sibling per the newest authority (SKILL_REGISTRY v0.14.0 banner) — response-letter review is a manuscript-class within Ph3, `T3R` a historical label, legacy `tier=T3R` records still routing.
+- **Migration enforced (items 4–5).** New `scripts/retirement-sweep-check.py` over `references/schemas/retired_surfaces.json` (15 retired scripts with provenance): no retired or missing script cited as live on live surfaces without a historical marker; unknown danglers always block. First sweep: 24 violations, zero unknown, all annotated in place. Count planes `section_state_field_count` (18) and `trigger_enum_count` (31) added to `version_planes.json` — the audit's dominant drift class is now design-time-blocked. Wired into gate (0.55/0.56), CI, both maintainer blocks, MANIFEST.
+- **Contracts made portable (item 6).** Truncated/host-pinned MCP UUID namespaces in `seed-snowball-discovery` and `tool-contract-roundtrip` replaced with symbolic tool identities + resolve-at-runtime instructions.
+- **Orphans disposed (items 7–9).** `GROUND_TRUTH.md` routed (binding P-stage vocabulary source, cited from classify-manuscript); planning-phase README marked historical; `protocol_constants.py` pickup failure documented in-file; convergence-journal fixture quarantined; packaging canonicalized to release-gate Phase 1; PHASE_PROTOCOL §2.2 marked reserved (no renumber — citation stability); new `phase_notifications_smoketest.py` (validates 37 entries, the deprecated forwarding stub, and loader import) wired into gate + CI; quick-deterministic coverage seam documented.
+
+**Why.** The nine items were one defect expressed nine ways: the v0.7.4 tier→phase migration was declared complete but never enforced, so its residue kept resurfacing as danglers, forks, and pre-ladder contracts. This closure finishes the migration where it was incomplete and installs the checks that make incompleteness a blocker rather than an audit finding.
+
+**How to apply.** Nothing changes for normal use. Maintainers gain `python scripts/retirement-sweep-check.py` and `python scripts/phase_notifications_smoketest.py`. Sole remaining fork: the recorded agent-file ladder fork (planner v0.8.0 / evaluator+generator v0.7.4) — harmonization still rides with a future dispatch-surface test. Stale `.claude/worktrees/` need a manual prune (host permissions).
+
+**Severity / attribution.** Maintainer increment. One judgment call exercised under delegated authority: the T3R disposition (newest-declaration rule). 23/23 checks green.
+
+---
+
+## v0.23.0 — 2026-07-07
+
+### Full-links coherence audit — healing schema-count drift, retirement residue, and the CI coverage gap
+
+**What changed.** A four-lane parallel audit of the complete dependency graph (references↔MANIFEST, agent contracts, skills/commands/registries, scripts wiring) followed by ~45 anchor-verified mechanical fixes and CI expansion. Full report with finding classes, per-lane evidence, and the open judgment register: `docs/analysis/2026-07-07_full-links-coherence-audit.md`.
+
+Headlines: every agent contract now agrees with `phase_state_schema.md` (18-field SectionStateObject, 31-trigger enum, 7-field `phase_entry_log` row with `model_used`); the planner's stale "Rule 1 digest exception applies at Ph1" leak is retired language everywhere; evaluator/orchestration pointers into the emptied reflector router now target the split files; `/run-iterate` shim, skill, and catalog agree it is the canonical iterate surface; the 0.15.1 stage×profile fork is recorded in `version_planes.json` (registry philosophy: record deliberately, never widen silently); SKILL_REGISTRY current-claim rows are phase-native; MANIFEST no longer overclaims completeness; `references/terminology_register.md` exists (three live files cited it for years while it didn't); four committed check-output dumps left `scripts/`; CI runs 21 checks instead of 9 — including `end_to_end_smoketest.py` and `d_style_profile_smoketest.py`, both formerly orphaned, the former catching two regressions introduced and fixed within this very cycle.
+
+**Why.** Three growth patterns generated nearly all findings: schema-ahead-of-contracts (counts asserted in 10+ files with no registry guard), retirement residue (retired scripts/vocabulary cited as current in live protocol files), and alarm-narrower-than-gate (CI claimed "same check set" at 9/25). Each fix follows the established registry-over-prose direction; the remaining enforcement gap (a retirement-sweep check) heads the deferred register.
+
+**How to apply.** Nothing changes for normal use. Maintainers: the CI honest-scope header names what stays gate-only; report §4 holds the nine open judgment items, led by the `REVIEW_ORCHESTRATION.md` tier-vocabulary rewrite, the pre-ladder `AGENT_CONTRACTS.md §2` evaluator contract, and the T3R retired-vs-sibling ontology decision.
+
+**Severity / attribution.** Maintainer increment; additive/corrective, no behavioral contract redesign (count corrections align contracts to the schema authority they already cite). Audit lanes run as four parallel read-only subagents; every edit anchor-verified; 21/21 checks green post-remediation.
+
+---
+
+## v0.22.0 — 2026-07-06
+
+### Registry-over-prose hardening — version planes, commitment interactions, judgment-layer evals, CI
+
+**What changed.** A structural-integrity cycle driven by an evidence-first audit and an adversarial plan review (13 findings integrated; plan + review trail: `docs/analysis/2026-07-06_systematic-improvement-plan.md`):
+
+- **WS-2 `references/schemas/version_planes.json` + `scripts/version-planes-check.py`** — snapshot-mode registry of every current-value version assertion for the non-package planes (lifecycle ladder, phase-state schema, evaluator envelope, stage × profile vocabulary), including the *known fork* (planner/PHASE_PROTOCOL assert v0.8.0; evaluator/generator assert v0.7.4). The check makes silent assertion drift and fork-widening blockers while tolerating the recorded fork. Harmonization to a single current value per plane is deliberately deferred — it edits agent dispatch descriptions and must ride with a dispatch-surface test.
+- **WS-3 `references/schemas/commitment_interactions.json` + `scripts/commitment-interactions-check.py`** — all 28 C-1…C-8 pair classifications explicit (4 declared-tension, 4 protective-overlap, 4 meta-rule, 16 no-known-tension); adding C-9 without its 8 pair entries is a blocker. Moves interaction-collision discovery (cf. the C-6↔C-8/M-1 live-run find at v0.21.0) from live-run to design time. STYLE_COMMITMENTS.md remains authoritative for tension *content*.
+- **WS-4 golden-manuscript eval scaffold** — `scripts/fixtures/golden/` (`golden_p2_theory.md`, 6 seeded defects across C-5/C-6/C-8; `golden_p1_brief.md`, false-positive control for the P2-gated moves; `manifest.json` with findings-file schema + code-family-first matching rule) and `scripts/eval/golden_eval_score.py` (deterministic scorer: per-defect recall, P1 false positives, `--baseline` regression exit). The scorer's smoke test caught and fixed a real matcher bug (broad-family steal), validating the schema-first design.
+- **WS-5 CI** — `.github/workflows/structural-checks.yml` runs the full nine-check set on push/PR; the two new checks are wired simultaneously into `release-gate.sh` (Phase 0.55), root `CLAUDE.md`, and `AGENTS.md`, so gate and alarm enforce the same set.
+- **WS-1 hygiene** — `RELEASE_v0.16.0_runbook.md` → `docs/release-notes/` (not gitignored `releases/`, which would have dropped it from version control); `extract_pdf_comments.py` → `scripts/`; `pdf_comments_dump.txt` → `scratch/` (disclosed untracking); `agents/reflector.md` "retained for one minor" replaced with an explicit retirement condition (host dispatch surface no longer names `reflector`).
+- `references/MANIFEST.md` rows for the two new registries.
+
+**Why.** The deterministic layer was regression-tested; the facts the agents must quote (version planes) and the spaces that grow quadratically (commitment pairs) were guarded only by prose, and the judgment layer had no regression measure at all. Each fix applies the package's own established pattern — one machine-readable authority + one check — to a surface that lacked it.
+
+**How to apply.** Run the two new checks standalone or via `release-gate.sh`. After editing any judgment skill: run the pass over both golden fixtures (strip the inline defect markers before dispatch), transcribe findings into the manifest's findings schema, score with `golden_eval_score.py`, and treat recall drop / new P1 false positive as a release blocker once two baselines exist. Deferred register (harmonization sweep, context-economy trim, STYLE_COMMITMENTS §3/§6 demotion, convergence-metric calibration): plan §9.
+
+**Severity / attribution.** Maintainer increment; additive, no agent-contract changes, no skill retirement. Adversarial review by clean-context agent; two of its BLOCKER findings (gitignored relocation target; day-one-blocker registry design) materially changed the implementation.
+
+---
+
 ## v0.21.0 — 2026-07-01
 
 ### C-8 companion skills + the C-6↔M-1 interaction (from two live-run validations)

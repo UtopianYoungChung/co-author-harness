@@ -1,0 +1,200 @@
+{
+  "schema": "version-planes/v1",
+  "mode": "snapshot",
+  "snapshot_date": "2026-07-07",
+  "notes": "Snapshot-mode registry (plan 2026-07-06 §4, [AR-4/AR-5]). Records the OBSERVED per-file version assertions for each non-package plane, including known forks. scripts/version-planes-check.py verifies (1) every quoted assertion is still present in its file — silent drift is a blocker; (2) no NEW distinct value appears for a plane inside registered files — fork-widening is a blocker. Harmonization to a single current value per plane is a deferred cycle (plan §9). The package plane delegates to version-check.py; no static value is stored here.",
+  "planes": {
+    "package": {
+      "authority": ".claude-plugin/plugin.json",
+      "delegated_to": "scripts/version-check.py",
+      "assertions": []
+    },
+    "lifecycle_ladder": {
+      "authority": "references/PHASE_PROTOCOL.md",
+      "known_fork": true,
+      "fork_note": "PHASE_PROTOCOL.md and planner.md assert v0.8.0; evaluator.md and generator.md assert v0.7.4. Recorded, tolerated, scheduled for harmonization (plan §9).",
+      "widening_patterns": [
+        "v(\\d+\\.\\d+\\.\\d+(?:-pre)?)(?: β [A-Za-z0-9]+ package on the v\\d+\\.\\d+\\.\\d+)? Lifecycle-Phase Ladder",
+        "Lifecycle-Phase Ladder spec \\(v(\\d+\\.\\d+\\.\\d+)\\)"
+      ],
+      "allowed_values": [
+        "0.8.0",
+        "0.7.4"
+      ],
+      "assertions": [
+        {
+          "file": "references/PHASE_PROTOCOL.md",
+          "assertion": "PHASE_PROTOCOL — v0.8.0 Lifecycle-Phase Ladder (canonical)",
+          "value": "0.8.0"
+        },
+        {
+          "file": "agents/planner.md",
+          "assertion": "v0.8.0 Lifecycle-Phase Ladder",
+          "value": "0.8.0"
+        },
+        {
+          "file": "agents/evaluator.md",
+          "assertion": "v0.8.0 β Ph3 package on the v0.7.4 Lifecycle-Phase Ladder",
+          "value": "0.7.4"
+        },
+        {
+          "file": "agents/evaluator.md",
+          "assertion": "the Lifecycle-Phase Ladder spec (v0.7.4)",
+          "value": "0.7.4"
+        },
+        {
+          "file": "agents/generator.md",
+          "assertion": "(v0.7.4 Lifecycle-Phase Ladder)",
+          "value": "0.7.4"
+        },
+        {
+          "file": "agents/generator.md",
+          "assertion": "the Lifecycle-Phase Ladder spec (v0.7.4)",
+          "value": "0.7.4"
+        }
+      ]
+    },
+    "phase_state_schema": {
+      "authority": "agents/planner.md",
+      "known_fork": false,
+      "widening_patterns": [
+        "schema_version surface still `(\\d+\\.\\d+\\.\\d+)`"
+      ],
+      "allowed_values": [
+        "0.7.4"
+      ],
+      "assertions": [
+        {
+          "file": "agents/planner.md",
+          "assertion": "schema_version surface still `0.7.4` until RC",
+          "value": "0.7.4"
+        }
+      ]
+    },
+    "evaluator_envelope": {
+      "authority": "agents/evaluator.md",
+      "known_fork": false,
+      "widening_patterns": [
+        "v(\\d+\\.\\d+\\.\\d+) β Ph3 package"
+      ],
+      "allowed_values": [
+        "0.8.0"
+      ],
+      "assertions": [
+        {
+          "file": "agents/evaluator.md",
+          "assertion": "v0.8.0 β Ph3 package",
+          "value": "0.8.0"
+        }
+      ]
+    },
+    "stage_profile_vocabulary": {
+      "authority": "skills/run-draft/SKILL.md",
+      "known_fork": true,
+      "widening_patterns": [
+        "v(\\d+\\.\\d+\\.\\d+-pre) stage × profile vocabulary",
+        "v(\\d+\\.\\d+\\.\\d+-pre) PR-4c"
+      ],
+      "allowed_values": [
+        "0.15.0-pre",
+        "0.15.1"
+      ],
+      "assertions": [
+        {
+          "file": "skills/run-draft/SKILL.md",
+          "assertion": "v0.15.0-pre stage × profile vocabulary",
+          "value": "0.15.0-pre"
+        },
+        {
+          "file": "skills/run-finalize/SKILL.md",
+          "assertion": "v0.15.0-pre stage × profile vocabulary",
+          "value": "0.15.0-pre"
+        },
+        {
+          "file": "agents/reflector.md",
+          "assertion": "v0.15.0-pre PR-4c",
+          "value": "0.15.0-pre"
+        },
+        {
+          "file": "skills/run-iterate/SKILL.md",
+          "assertion": "v0.15.x stage x profile vocabulary",
+          "value": "0.15.1"
+        }
+      ],
+      "fork_note": "run-draft/run-finalize assert v0.15.0-pre; run-iterate and the legacy routers moved to 0.15.1 (frontmatter version + 'v0.15.x' prose). Recorded 2026-07-07 coherence audit; harmonization deferred with the ladder sweep."
+    },
+    "section_state_field_count": {
+      "authority": "references/phase_state_schema.md",
+      "known_fork": false,
+      "widening_patterns": [
+        "(\\d+)-field SectionStateObject",
+        "(\\d+)-field section state"
+      ],
+      "allowed_values": [
+        "18"
+      ],
+      "assertions": [
+        {
+          "file": "references/phase_state_schema.md",
+          "assertion": "the following eighteen fields",
+          "value": "18"
+        },
+        {
+          "file": "agents/planner.md",
+          "assertion": "18-field SectionStateObject",
+          "value": "18"
+        },
+        {
+          "file": "agents/generator.md",
+          "assertion": "18-field SectionStateObject (§2)",
+          "value": "18"
+        },
+        {
+          "file": "references/AGENT_CONTRACTS.md",
+          "assertion": "18-field",
+          "value": "18"
+        },
+        {
+          "file": "skills/plugin-commands/SKILL.md",
+          "assertion": "18-field section state",
+          "value": "18"
+        }
+      ],
+      "note": "Derived-count plane added 2026-07-07 (deferred-register item 5): counts fixed in the coherence audit are guarded like version strings; schema file is authority."
+    },
+    "trigger_enum_count": {
+      "authority": "references/phase_state_schema.md",
+      "known_fork": false,
+      "widening_patterns": [
+        "(\\d+)-trigger enum",
+        "(\\d+)-value trigger enum"
+      ],
+      "allowed_values": [
+        "31"
+      ],
+      "assertions": [
+        {
+          "file": "agents/planner.md",
+          "assertion": "31-trigger enum",
+          "value": "31"
+        },
+        {
+          "file": "agents/evaluator.md",
+          "assertion": "31-trigger enum",
+          "value": "31"
+        },
+        {
+          "file": "agents/reflector-probe.md",
+          "assertion": "31-trigger enum",
+          "value": "31"
+        },
+        {
+          "file": "references/AGENT_ORCHESTRATION.md",
+          "assertion": "31-value trigger enum",
+          "value": "31"
+        }
+      ],
+      "note": "Derived-count plane added 2026-07-07; schema §3.1 (31 values) is authority."
+    }
+  }
+}

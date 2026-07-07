@@ -75,6 +75,32 @@ d_style_profile:
         assert data["resolved_profile"]["harness_profile"] == "thesis_qe"
 
 
+def test_notes_bibliography_citation_style_is_valid() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: conceptual
+  citation_style: turabian_notes_bibliography
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  harness_profile: thesis_qe
+""",
+        )
+        code, payload = run_check(project)
+        assert code == 0
+        assert payload["verdict"] == "CLEAN"
+        assert payload["resolved_profile"]["citation_style"] == "turabian_notes_bibliography"
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_PROFILE_BAD_ENUM" not in codes
+
+
 def test_absent_profile_inherits_defaults() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         project = Path(tmp)
@@ -197,6 +223,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     tests = [
         test_valid_thesis_qe_profile_routes_obligations,
+        test_notes_bibliography_citation_style_is_valid,
         test_absent_profile_inherits_defaults,
         test_bad_enum_is_strict_blocker,
         test_substantive_surfaces_pass_when_exposed,

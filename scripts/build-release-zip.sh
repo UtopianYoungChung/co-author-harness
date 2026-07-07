@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# NOTE (2026-07-07): scripts/release-gate.sh Phase 1 is the CANONICAL packaging
+# path (it builds the zip inline after the full check battery). This script is a
+# convenience wrapper for ad-hoc builds only; if the two ever disagree, the gate wins.
 # build-release-zip.sh — canonical packaging recipe for co-author-harness-claude
 #
 # Codifies the exclusion list that was tribal knowledge through v0.7.3:

@@ -4,14 +4,14 @@ description: 'Run a targeted Blue Book grammar-and-punctuation correctness pass 
 trigger: when the user asks for a copyedit, grammar pass, punctuation check, Blue Book pass, proofread, or fix the mechanics
 created_by: maintainer
 created_from: Three-manuals integration, 2026-06-28 — docs/superpowers/plans/2026-06-28-three-manuals-integration.md §4
-pattern_source: blue_book_grammar_guidelines.md §§1–7
-version: 1.0
+pattern_source: blue_book_grammar_guidelines.md §§1–7; turabian_chicago_guidelines.md §5 (Part III item map, Turabian sub-pass added v1.1, 2026-07-01)
+version: 1.1
 ---
 # Grammar-Mechanics Pass (Blue Book)
 
 You are running a targeted **correctness** review on academic prose: grammar and punctuation mechanics, not rhetoric or rhythm. This skill draws on `blue_book_grammar_guidelines.md`.
 
-**Prerequisite:** Read `blue_book_grammar_guidelines.md` in the package before proceeding. Do not rely on memory; rules and precedence may have changed. If the project declares a `citation_style` in `research_notes/directives.md`, note it — it governs venue-sensitive items (Oxford comma, number threshold). **When the declared style is Chicago/Turabian, also read `turabian_chicago_guidelines.md §5`** — it is the precedence authority for any mechanical item it legislates (serial comma, number spell-out threshold, possessives, compounds), and the Blue Book yields to it on those items while remaining the source of the judgment heuristics (agreement, restrictiveness). On any conflict, emit `[CONFLICT]`; never silently choose.
+**Prerequisite:** Read `blue_book_grammar_guidelines.md` in the package before proceeding. Do not rely on memory; rules and precedence may have changed. If the project declares a `citation_style` in `research_notes/directives.md`, note it — it governs venue-sensitive items (Oxford comma, number threshold). **When the declared style is Chicago/Turabian (`turabian_author_date` or `turabian_notes_bibliography`), also read `turabian_chicago_guidelines.md §5` including the §5.1 Part III item map** — it is the precedence authority for every mechanical item Part III legislates (numbers, possessives, compounds, serial comma, other punctuation, title capitalization, titles-of-works italic/quotation-mark treatment, and abbreviations), and the Blue Book yields to it on those items while remaining the source of the judgment heuristics (agreement, restrictiveness, who/whom). When a Turabian style is declared you run the **Phase 2.5 Turabian Part III sub-pass** below; when it is not, skip Phase 2.5 and use the Blue Book default throughout. On any conflict, emit `[CONFLICT]`; never silently choose.
 
 ---
 
@@ -55,6 +55,22 @@ Walk the manuscript sentence by sentence. Apply the checks the regex cannot deci
 - Missing/!inconsistent Oxford comma against declared style, compound-modifier hyphen, capitalization slip → **[MINOR]**.
 - Venue-sensitive item where the declared style differs from the Blue Book default → **[CONFLICT]**: flag both, do not silently choose (per `blue_book_grammar_guidelines.md §6`).
 
+### Phase 2.5 — Turabian Part III sub-pass (only when a Turabian style is declared)
+
+Run this phase **only** if `citation_style` is `turabian_author_date` or `turabian_notes_bibliography`. Apply the `turabian_chicago_guidelines.md §5.1` item map. For each item the map assigns to Turabian, Turabian is the authority; where the Blue Book default in Phases 1–2 differs, keep the Turabian rule and emit `[CONFLICT]` naming both so the record shows the divergence was resolved by declared style, not silently.
+
+| # | Item (§5.1) | What to check | Typical severity |
+|---|---|---|---|
+| **T1** | Numbers (ch. 23, 23.1) | Whole numbers one–one hundred and round multiples spelled out; figures otherwise; internally consistent. Flag threshold violations and mixed style. Percentages/dates/ranges → note "confirm ch. 23" rather than asserting an edge rule. | [MINOR]; [CONFLICT] if it contradicts a Blue Book flag |
+| **T2** | Possessives (ch. 20, 20.2) | Turabian possessive formation, including singular nouns ending in *s*. | [MINOR] |
+| **T3** | Compounds / hyphenation (ch. 20, 20.3) | Turabian compound rules; no hyphen after *-ly* (shared — not a conflict). | [MINOR] |
+| **T4** | Serial comma (ch. 21) | Chicago **requires** it — a missing serial comma is a [MINOR] error here, not a style-preference flag. | [MINOR] |
+| **T5** | Title capitalization (ch. 22, 22.3.1) | Headline style for English titles; sentence style for foreign-language titles. Applies to titles of works in prose and captions. | [MINOR] |
+| **T6** | Titles of works: italic vs. quotation marks (ch. 22, 22.3) | Larger works (books, journals) italic; smaller works (articles, chapters, poems) in quotation marks — **in prose**, not only in the reference list. Flag a title mention that uses the wrong treatment or is left unformatted. | [MINOR] |
+| **T7** | Abbreviations (ch. 24) | Turabian abbreviation form (e.g., *ed.*/*trans.* usage; no plural *-s* when the abbreviation already ends in *s*). Latin abbreviations/units/degrees → note "confirm ch. 24". | [MINOR] |
+
+Do **not** re-adjudicate quotation mechanics (ch. 25 → `citation-format-pass` §4) or table/figure numbering and placement (ch. 26 → `turabian-format-pass`); if you notice an issue there, flag "out of scope — see [that pass]" and move on. The judgment heuristics of Phase 2 (agreement, that/which, who/whom) stay Blue Book-owned even under a Turabian style.
+
 ### Phase 3 — Output
 
 ```markdown
@@ -79,6 +95,11 @@ Walk the manuscript sentence by sentence. Apply the checks the regex cannot deci
 |---|---|---|---|---|---|
 | 1 | §X ¶N (line L) | 2 | Nonrestrictive clause introduced with "that", no commas | [MAJOR] | Change to ", which …," or recast |
 | 2 | ... | ... | ... | ... | ... |
+
+### Turabian Part III sub-pass (only if a Turabian style is declared)
+- Ran: <yes — turabian_author_date | turabian_notes_bibliography | no — non-Turabian/none declared>
+- Items flagged: T1 numbers <n>; T2 possessives <n>; T3 compounds <n>; T4 serial comma <n>; T5 title caps <n>; T6 title italic/quotes <n>; T7 abbreviations <n>
+- Deferred to manual (edge cases): <list or none>
 
 ### Summary
 - MAJORs: <n>  MINORs: <n>  CONFLICTs: <n>

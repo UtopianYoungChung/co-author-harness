@@ -1,3 +1,0 @@
-PATH HYGIENE CHECK
-- Plugin root: B:\Agents\co-author-harness
-- Blockers: 0

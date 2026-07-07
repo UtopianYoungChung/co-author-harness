@@ -24,6 +24,9 @@ python scripts/path-hygiene-check.py
 python scripts/snippet-check.py
 python scripts/output_economy_check.py
 python scripts/output_economy_smoketest.py
+python scripts/version-planes-check.py
+python scripts/commitment-interactions-check.py
+python scripts/retirement-sweep-check.py
 ```
 
 For full release packaging (bash): `scripts/release-gate.sh` (see script header for flags).

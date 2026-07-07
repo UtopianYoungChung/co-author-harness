@@ -29,7 +29,7 @@
 **Outputs (write).** Full enumeration matches `agents/planner.md §"What you write"`.
 
 *Every round:*
-- `reviews/phase_state.json` — per-section lifecycle ledger (sole writer). 16-field `SectionStateObject` per `phase_state_schema.md §2`; atomic `.tmp → rename` with mtime+sha256 concurrency check.
+- `reviews/phase_state.json` — per-section lifecycle ledger (sole writer). 18-field `SectionStateObject` per `phase_state_schema.md §2`; atomic `.tmp → rename` with mtime+sha256 concurrency check.
 - `reviews/classification.md` — four-field classification (paper type, P-stage, venue, `default_final_phase`) plus optional `section_ceiling_override` and `fingerprint_mode`. Created or updated.
 - `reviews/revision_plan.md` — prioritized, rule-cited action list for Generator and Evaluator. During re-check mode, the Planner appends a **retain/revert addendum** categorizing each Generator change as RETAIN, REVERT, or PARTIAL per the Retain/Revert Protocol (`AGENT_ORCHESTRATION.md §7`).
 - `reviews/dispatch_plan_<cycle_id>.md` — F6 frontmatter artefact authored at Phase 0.6 per I-Planner-10; declares `sections_in_scope`, `dispatched_agents[]`, `checks_scheduled[]`, and (when Ph3 is in scope) the v0.8.0 profile quartet.
@@ -92,29 +92,29 @@
 **Role metaphor.** Independent reviewer. Treats the manuscript as unfamiliar text. Does not write prose. Does not know how any given passage came to be the way it is, and does not care; only reads what is there.
 
 **Preconditions for invocation.**
-- An artifact of the correct type exists at the expected path (memo for M1 review, references for M2, outline for M3, `main.md` for M4–M5).
+- The target section exists in `manuscript/*` and its `reviews/phase_state.json` SectionStateObject sits at a phase that engages the Evaluator: **Ph2, Ph3, or Ph4** (`PHASE_PROTOCOL.md §§3.2–3.4`). The Evaluator is dormant at Ph1. *(Milestone-artifact preconditions — memo/M1, references/M2, outline/M3, `main.md`/M4–M5 — are the retired pre-ladder formulation, kept only in `docs/release-notes/` history.)*
 - `reviews/classification.md` exists (dispatched by Planner) OR Evaluator is invoked in test-only mode against `DETERMINISTIC_CHECKS.md` / `SAFEGUARD_LAYER.md`.
 
 **Inputs (read).**
 - The target artifact.
 - `REVIEW_ORCHESTRATION.md` + the component files it references for the applicable phase.
-- `DETERMINISTIC_CHECKS.md`, `SAFEGUARD_LAYER.md`, `DRIFT_CHECK.md`, `REFLEXIVITY_CHECK.md`, `EXTERNAL_VERIFIERS.md` as dictated by phase (Review, Test, Ship).
+- `DETERMINISTIC_CHECKS.md`, `SAFEGUARD_LAYER.md`, `DRIFT_CHECK.md`, `REFLEXIVITY_CHECK.md`, `EXTERNAL_VERIFIERS.md` as dictated by the section's current phase (`PHASE_PROTOCOL.md §§3.1–3.4`) and the F6 `check_profile` envelope (`refine` | `structural` | `deep`; `agents/evaluator.md` **Ph3 / Ph4 v0.8.0** sectiont, Ship).
 - `reviews/DO_NOT_DISTURB.md` (to respect frozen rules).
 - `research_notes/directives.md` (to respect author overrides).
 
 **Outputs (write).**
-- `reviews/step_0a_deterministic.md` (Test phase).
-- `reviews/step_findings/step_N_*.md` for N ∈ {1…7} (Review phase).
-- `reviews/consolidated_findings_report.md`.
-- `reviews/safeguard_layer_results.md`, `reviews/drift_check.md`, `reviews/reflexivity_check.md` (Test phase).
-- `reviews/G4_signoff.md` (Ship phase only).
+- **Default (v0.14.0 output economy):** the F7 evidence packet + short action list (`ARTEFACT_FRONTMATTER_SCHEMA.md`; `schemas/f7_evidence_packet.schema.json`). Full Markdown findings (legacy F1 `reviews/consolidated_findings_report.md`) are **exception outputs only** — emitted when the user asks, when a BLOCKER needs prose justification, or at Ph4 close-out.
+- `reviews/step_0a_deterministic.md` (deterministic pre-flight record).
+- `reviews/safeguard_layer_results.md`; `reviews/drift_check.md` / `reviews/reflexivity_check.md` when the phase envelope schedules them.
+- `reviews/G4_signoff.md` (**Ph4 only** — the G.4 certification the Evaluator alone signs).
+- Ph3: convergence-journal row (`PHASE_PROTOCOL.md §8.7`) feeding the convergence trajectory.
 - `reviews/DO_NOT_DISTURB.md` (append only, only on user-approved freeze).
 
 **Invariants.**
 - I-Eval-1: Never writes to `manuscript/*`.
 - I-Eval-2: Every finding cites (a) location in the artifact, (b) rule source (file + line/section), (c) severity, (d) proposed fix or explicit "accept as-is" rationale.
 - I-Eval-3: Never silently carries findings across phases. Each phase's output stands alone.
-- I-Eval-4: At submission-bound depth, every cited claim is verified per `EXTERNAL_VERIFIERS.md` Rule 7a or flagged as unverified-and-blocking.
+- I-Eval-4: At Ph4 (formerly `submission-bound` depth), every cited claim is verified per `EXTERNAL_VERIFIERS.md` Rule 7a or flagged as unverified-and-blocking.
 - I-Eval-5: Does not adjudicate between its own findings and user overrides — flags the conflict for the Planner.
 - I-Eval-6 (v0.7.3): Runs on the Planner-dispatched model per `MODEL_ALLOCATION.md §2`; does not override the model at dispatch time or reason about its own capability assignment. A dormant-at-T1 invocation (trigger-absent row for an Evaluator `actor` at a T1 row) is a dispatch-contract violation; the Reflector Phase 2f audit flags it as `E-MA-DORMANT-ACTOR-ENGAGED`.
 - I-Eval-7 (v0.7.4): When the Evaluator delegates a sub-pass (a SAFEGUARD Check 8 sub-check run, a graph-grounding overlay, or a targeted deterministic-counter probe) to a subagent, invariants I-SubAgent-1..3 of §4.5 apply. The Evaluator's F1 findings artefact cites the subagent's F2/F3 artefact by path; the verdict is consumed as-returned and is not re-derived from the subagent's raw counters. If the Evaluator disagrees with a subagent verdict on audit-integrity grounds, the permitted move is `refuse-and-redispatch` (recorded as a fresh dispatch envelope) — never silent re-adjudication.
@@ -125,9 +125,9 @@
 - Exit gate from `ROUTING_SPINE.md` §3 evaluates to TRUE or the failure is documented with a specific, named cause.
 
 **Scope budget per dispatch.**
-- At `quick` depth: maximum 1 step (typically Step 0a deterministic checks).
-- At `standard` depth: maximum Steps 0a–8.5 on a single manuscript version.
-- At `submission-bound` depth: same as standard plus external verifiers. The Evaluator does not re-run Steps 1–7 on the same text twice in the same round; if the Generator edits, the Evaluator runs a re-check (SAFEGUARD Check 1 + spot-checks), not a full re-pass.
+- Ph2 (or F6 `check_profile: refine`): local-scope pass — Step 0a + the scheduled local steps on the section envelope.
+- Ph3 `structural` / `deep`: up to Steps 0a–8.5 on a single manuscript version, diff+halo-narrowed unless `deep` (`agents/evaluator.md` **Ph3 / Ph4 v0.8.0**).
+- Ph4: the full Ph3 `deep` envelope plus REQUIRED external verifiers (`EXTERNAL_VERIFIERS.md`). *(The retired `quick`/`standard`/`submission-bound` depth names map to these envelopes; `submission-bound` ≙ Ph4.)* The Evaluator does not re-run Steps 1–7 on the same text twice in the same round; if the Generator edits, the Evaluator runs a re-check (SAFEGUARD Check 1 + spot-checks), not a full re-pass.
 - If `round_program.md` narrows the scope (e.g., "evaluate §3 only"), the Evaluator limits findings to the specified scope and declares the constraint in the findings report header.
 
 **Failure modes and recovery.**
@@ -227,7 +227,7 @@ The `Hypothesis` field is the critical addition: it forces the Generator to arti
 **Invariants.**
 - I-Refl-1: Never writes to `manuscript/*` or to Planner/Evaluator review artifacts (those are frozen on reflection entry).
 - I-Refl-2: Every proposed directive cites the round evidence that justifies it.
-- I-Refl-3: Runs `DRIFT_CHECK.md` Phase 2.6 and `REFLEXIVITY_CHECK.md` Phase 2.7 on every round; submission-bound rounds cannot close without both resolved.
+- I-Refl-3: Runs the grounding audit as Phase 2.5 and the Reflector self-audit as Phase 2.6 (`agents/reflector-probe.md` / `agents/reflector-closeout.md`); `DRIFT_CHECK.md` and `REFLEXIVITY_CHECK.md` are invoked when the phase envelope schedules them, and Ph4 close-out rounds cannot close with either unresolved.
 - I-Refl-4: Proposes a new skill only when all five skill-creation gates in `AGENT_ORCHESTRATION.md` §9 are met.
 - I-Refl-5: Does not re-litigate findings the Evaluator already dispositioned unless new evidence has emerged.
 - I-Refl-6 (v0.7.3): Runs on the Planner-dispatched model per `MODEL_ALLOCATION.md §2` — Haiku 4.5 in lightweight mode (30-day pilot under H-MA-2), Opus 4.7 in full mode at T4 close-out. The Phase 2f audit is extended to verify model-selection consistency against the allocation table: flags `E-MA-DORMANT-ACTOR-ENGAGED` (invariant I-MA-1), `R-Refl-MA-1` capability-inversion (invariant I-MA-2, BLOCKER), and `R-Refl-MA-3` orphan-override (invariant I-MA-3, MAJOR). Lightweight-mode telemetry is appended to `reviews/reflection_report.md` under the `model_dispatch_audit` heading on every run.

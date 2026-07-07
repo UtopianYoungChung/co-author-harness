@@ -289,6 +289,44 @@ else
     echo ""
 fi
 
+# --- Phase 0.55: registry checks (2026-07-06 improvement plan WS-2/WS-3) ---
+
+for REG_CHECK in version-planes-check.py commitment-interactions-check.py retirement-sweep-check.py; do
+    if [[ -f "$PLUGIN_ROOT/scripts/$REG_CHECK" ]]; then
+        echo "Registry check ($REG_CHECK)"
+        if ! python3 "$PLUGIN_ROOT/scripts/$REG_CHECK"; then
+            echo "  [BLOCKER] scripts/$REG_CHECK reported blocking issues"
+            BLOCKERS=$((BLOCKERS + 1))
+        else
+            echo "  [OK]      scripts/$REG_CHECK passed"
+        fi
+        echo ""
+    else
+        echo "Registry check: script missing (scripts/$REG_CHECK)"
+        echo "  [BLOCKER] cannot run $REG_CHECK"
+        BLOCKERS=$((BLOCKERS + 1))
+        echo ""
+    fi
+done
+
+# --- Phase 0.56: notification-catalog smoketest (2026-07-07 audit item 9) --
+
+if [[ -f "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py" ]]; then
+    echo "Notification catalog smoketest (scripts/phase_notifications_smoketest.py)"
+    if ! python3 "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py"; then
+        echo "  [BLOCKER] scripts/phase_notifications_smoketest.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/phase_notifications_smoketest.py passed"
+    fi
+    echo ""
+else
+    echo "Notification catalog smoketest: script missing"
+    echo "  [BLOCKER] cannot run phase_notifications_smoketest.py"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.60: snippet include guard (v0.15.0-pre) ----------------------
 
 if [[ -f "$PLUGIN_ROOT/scripts/snippet-check.py" ]]; then

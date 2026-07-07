@@ -1,2 +1,0 @@
-{"accessibility_gate_state":"CLEAN","check8_aggregate":"PASS","convergence_metric":0.05,"cycle_id":"ph3_iter1_batch_2026-04-20","delta_lines":10,"iteration":1,"manuscript_hash":null,"new_findings_count":3,"timestamp":null}
-{"accessibility_gate_state":"BORDERLINE","check8_aggregate":"BORDERLINE","convergence_metric":0.03,"cycle_id":"ph3_iter1_batch_2026-04-20","delta_lines":4,"iteration":2,"manuscript_hash":null,"new_findings_count":5,"timestamp":null}

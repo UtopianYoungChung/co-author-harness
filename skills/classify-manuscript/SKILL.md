@@ -21,7 +21,7 @@ If the user has not provided all four inputs, ask for them in a single question.
 | Input | Options |
 |---|---|
 | **Paper type** | `theory` · `empirical` · `conceptual/survey` · `essay/positioning` · `response-letter` · `other` |
-| **P-stage** | `P0` (phenomenon collection) · `P1` (characterization) · `P2` (research-problem definition) |
+| **P-stage** | `P0` (phenomenon collection) · `P1` (characterization) · `P2` (research-problem definition) — stage definitions and the wider P/R/K/S/T/V vocabulary: `references/GROUND_TRUTH.md` (binding) |
 | **Venue** | journal or conference name, or `course essay`, `thesis chapter`, `cross-venue` |
 | **Review depth** | *(retired at v0.5.0 — dispatch reads `tier:` directly; v0.4.x records parse under the transitional mapping below)* |
 | **Tier** (default `T3`) | `T0` · `T1` · `T2` · `T3` · `T3R` · `T4` — full ladder active at v0.5.0 per `TIER_PROTOCOL.md §2`. Default `T3` unless the user requests otherwise. **Automatically recommend `T3R`** when `paper_type: response-letter`. **Automatically recommend `T4`** whenever a `submission-bound` trigger applies (see below). Legacy `review_depth` values in v0.4.x classification records are migrated on first read under the transitional mapping `quick↔T1, standard↔T3, submission-bound↔T4`; new classifications do not use `review_depth`. |

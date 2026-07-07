@@ -42,7 +42,7 @@ This is the main signal of a lightweight pass: a ledger-integrity check on `revi
 
 **3. Row shape check.** Every row in every `phase_entry_log[]` must carry exactly seven fields `timestamp, trigger, prev_phase, new_phase, actor, notes, model_used` (absent-means-null `model_used`). Surviving v0.6.0 shape → `[ROW-SHAPE-MIGRATION-INCOMPLETE]` BLOCKER. Surviving v0.7.0–v0.7.3 tier-named shape → `[ROW-SHAPE-V074-RENAME-INCOMPLETE]` BLOCKER. Unknown extras → BLOCKER.
 
-**4. Trigger enum check.** Each row's `trigger` must be in the 30-trigger enum (`phase_state_schema.md §6`). Unknown → BLOCKER. `confirmation_failed` is migrated-read-only at v0.7.0+; a new row with that trigger dated after 2026-04-19 is a Planner-contract violation.
+**4. Trigger enum check.** Each row's `trigger` must be in the 31-trigger enum (`phase_state_schema.md §6`). Unknown → BLOCKER. `confirmation_failed` is migrated-read-only at v0.7.0+; a new row with that trigger dated after 2026-04-19 is a Planner-contract violation.
 
 **5. Monotonicity check.** `new_phase ≥ prev_phase` unless `trigger ∈ {retraction, eg1_ph4_downgrade_to_ph3, eg7_mcr_readmission_after_class_change}`. Violations with non-exempt trigger → BLOCKER.
 

@@ -56,7 +56,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
    - `SAFEGUARD_LAYER.md` — the post-review integrity checks (run after the consolidated report).
    - `MASTER_research_and_paper_guidelines.md` — Parts A–J as needed per step.
    - `references/PHASE_PROTOCOL.md` — the Lifecycle-Phase Ladder spec (v0.7.4); §3.1–§3.4 for per-phase Evaluator contracts; **§7** for escalation gates (EG-1 … EG-7); §6 for row shapes; §11 for the retirement ledger.
-   - `references/phase_state_schema.md` — **16-field** `SectionStateObject` at v0.8.0 (§2, including `pre_mcr_deep_pass_completed`), 30-trigger enum (§6), 7-field log row with `model_used` (§5.1), failure codes (§6.1).
+   - `references/phase_state_schema.md` — **18-field** `SectionStateObject` at v0.8.0 (§2, including `pre_mcr_deep_pass_completed`), 31-trigger enum (§6), 7-field log row with `model_used` (§5.1), failure codes (§6.1).
    - The component files for Steps 1–7 (per the orchestration's run order and gating table).
    - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments; read when reviewing terminology, metaphor, voice, theory-shape, or any finding that cites C-1 through C-8. For C-7 (authorial voice-fingerprint preservation), also read `voice_preservation_guidelines.md`: score voice against the author's own idiolect baseline before any borrowed register, and flag any style rewrite that stripped an identity-layer feature (sentence-length signature, repetition tolerance, point of view, cadence, humor, evaluative stance, characteristic metaphor) without a correctness, clutter, or C-5 warrant as `[MAJOR — C-7: idiolect flattened]`. For C-8 (analytic-construction discipline), when the piece builds or extends a theory or conceptual argument, also read `analytic_construction_guidelines.md` and gate the move set by P-stage (P0/P1 → M-3/M-5/M-6; P2 → all seven): flag a contested central construct stipulated rather than derived as `[MAJOR — C-8/M-1]`, a strawmanned or merely-contradicted rival as `[MAJOR/MINOR — C-8/M-2]`, and uniform confidence across claims of different warrant as `[MAJOR — C-8/M-6]`; and **overturn** any `sentence-level-pass` monotony or concision flag that in fact hits demonstrative anaphora (M-4) or a cadential verdict (M-5), recording it as a strength. Every C-8 finding names the move so the author can dispute the commitment. Standalone entry: `skills/analytic-move-audit/SKILL.md`.
    - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally for formal ontology artifacts and audits; report rule-specific evidence and do not apply BFO construction rules to ordinary philosophical ontology, metaphor analysis, schemas, or generic knowledge graphs
@@ -117,7 +117,7 @@ Every Ph3 / Ph4 F1 `evaluator_findings` artefact carries **`adversarial_register
 - **`refinement`** — iteration-facing softgoals: local edits, convergence, sentence-level and diff-scoped critique without submission-certification framing.
 - **`certification`** — submission-readiness framing: venue rules, register-wide audits (e.g., IS-theory, Suchman), G.4-class claims.
 
-File findings in the register that matches the rhetorical frame of the check that **primarily** motivated the finding. **Do not** flip the register mid-round; overrides happen only at the F6 user checkpoint (`PHASE_PROTOCOL.md` §3.3.0). Reflector **`R-Refl-RG-1 register_mismatch`** (MAJOR; `agents/reflector.md` Phase 2f §6.10) audits register vs findings at Ph3 close — honest filing beats silent drift.
+File findings in the register that matches the rhetorical frame of the check that **primarily** motivated the finding. **Do not** flip the register mid-round; overrides happen only at the F6 user checkpoint (`PHASE_PROTOCOL.md` §3.3.0). Reflector **`R-Refl-RG-1 register_mismatch`** (MAJOR; `agents/reflector-probe.md` Phase 2f §6.10) audits register vs findings at Ph3 close — honest filing beats silent drift.
 
 ### Diff-scope and context halo (P-10)
 
@@ -136,7 +136,7 @@ Demoted checks (Ph4-default under P-9) may still surface **incidentally** during
 - **Route to F4 advisories** when the finding’s **primary evidence** is a **demoted** check identity observed while executing a *different* Ph3-primary check. Append a row to F4 optional **`demoted_check_advisories`** with `check_id`, `finding_summary`, `severity` (typically MINOR), `source_iteration`, and **`routing_rationale: "primary_evidence=<check_id>"`** per `ARTEFACT_FRONTMATTER_SCHEMA.md` §6.
 - **Keep on F1** when the Ph3-primary check (e.g., sentence-level pass) is the primary evidence, even if the prose also matches a demoted pattern.
 
-Ph4 consumes the accumulated F4 block as prior context; Reflector Phase **2g.3** + **`R-Refl-DC-1`** (`agents/reflector.md`) scans cross-iteration advisories.
+Ph4 consumes the accumulated F4 block as prior context; Reflector Phase **2g.3** + **`R-Refl-DC-1`** (`agents/reflector-closeout.md`) scans cross-iteration advisories.
 
 ---
 

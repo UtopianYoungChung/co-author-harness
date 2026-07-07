@@ -1,0 +1,33 @@
+{
+  "schema": "golden-eval-manifest/v1",
+  "created": "2026-07-06",
+  "notes": "Seeded-defect inventory for judgment-layer regression evals (plan 2026-07-06 §6, WS-4). Fixtures carry inline <!-- DEFECT --> / <!-- CONTROL --> markers; a scored run must be produced WITHOUT showing the reviewer agent those markers (strip comments before dispatch, or instruct the pass to ignore HTML comments is NOT sufficient — strip them).",
+  "findings_file_schema": {
+    "description": "A scored run is a JSON file: {\"fixture\": <filename>, \"pass\": <skill-or-agent name>, \"findings\": [{\"finding_code\": str, \"severity\": str, \"location_hint\": str}]}. finding_code is the harness code family (e.g. 'C-6', 'C-8/M-1', 'C-6↔C-8/M-1', 'C-5/Check8-A').",
+    "matching_rule": "code-family-first [AR-8]: a finding matches a seeded defect iff the defect's expected_code_family is a substring of the finding's finding_code (after stripping severity brackets), OR vice versa. location_hint is used only as a tiebreaker when one code family has multiple seeded instances in a fixture. Severity is reported but not required to match for recall. On the P1 control fixture, ANY finding whose code family is in p2_gated_families counts as a false positive.",
+    "p2_gated_families": ["C-8/M-1", "C-8/M-2", "C-8/M-7", "M-1", "M-2", "M-7"]
+  },
+  "fixtures": {
+    "golden_p2_theory.md": {
+      "p_stage": "P2",
+      "role": "detection",
+      "defects": [
+        {"defect_id": "D1", "location_hint": "Glossary, 'Calibrated reliance' entry", "expected_code_family": "C-6↔C-8/M-1", "expected_severity": "MINOR", "p_stage_gate": "P2", "description": "Glossary entry pre-states the payoff of the construct the argument exists to earn (keys-only carve-in violated)."},
+        {"defect_id": "D2", "location_hint": "§3 first paragraph, 'we stipulate'", "expected_code_family": "C-8/M-1", "expected_severity": "MAJOR", "p_stage_gate": "P2", "description": "Contested central construct stipulated by fiat, never derived."},
+        {"defect_id": "D3", "location_hint": "§3 second paragraph, Lee and See", "expected_code_family": "C-8/M-2", "expected_severity": "MAJOR", "p_stage_gate": "P2", "description": "Rival strawmanned and contradicted; no charitable reconstruction, no named buried assumption, no dissolution."},
+        {"defect_id": "D4", "location_hint": "§3 third paragraph, 'sits above ... carries weight'", "expected_code_family": "C-6", "expected_severity": "MAJOR", "p_stage_gate": "any", "description": "Load-bearing spatial/mechanical metaphor with no scope declaration."},
+        {"defect_id": "D5", "location_hint": "§3 fourth paragraph (operationalization)", "expected_code_family": "C-5/Check8-A", "expected_severity": "MAJOR", "p_stage_gate": "any", "description": "Monotone-dense paragraph >150 words, no turn-point, no worked example at density spike."},
+        {"defect_id": "D6", "location_hint": "§3 final paragraph, 'epistemic gradient'", "expected_code_family": "C-5/Check8-C", "expected_severity": "MINOR", "p_stage_gate": "any", "description": "Construct deployed before first-use definition (definition deferred to a later section without orientation)."}
+      ]
+    },
+    "golden_p1_brief.md": {
+      "p_stage": "P1",
+      "role": "false-positive-control",
+      "controls": [
+        {"control_id": "K1", "location_hint": "§2 second paragraph, open naming", "must_not_fire": "C-8/M-1", "description": "Open definition at P1 is correct non-convergence."},
+        {"control_id": "K2", "location_hint": "§2 third paragraph, rivals held open", "must_not_fire": "C-8/M-2", "description": "Undissolved rivals at P1 are appropriate deferral."}
+      ]
+    }
+  },
+  "baseline_runs": []
+}

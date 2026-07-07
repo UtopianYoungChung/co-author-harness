@@ -898,8 +898,8 @@ integrity:
       ► [STATE-CORRUPT] on {manuscript_id}.
       `reviews/phase_state.json` failed well-formedness validation. Planner halts before dispatch.
       Options: restore from `reviews/phase_state.json.bak.{timestamp}` (or `reviews/tier_state.json.v073.bak` if
-      the project is still mid-v0.7.4-migration), re-run `scripts/migrate_v073_to_v074_tier_to_phase.py`
-      (or `scripts/migrate_v060_to_v070.py` if the file is still at v0.6.0; or `scripts/migrate_v055_to_v060.py`
+      the project is still mid-v0.7.4-migration), re-run `scripts/migrate_v073_to_v074_tier_to_phase.py [retired from tree]`
+      (or `scripts/migrate_v060_to_v070.py [retired from tree]` if the file is still at v0.6.0; or `scripts/migrate_v055_to_v060.py`
       if at v0.5.5), or hand-edit and re-bootstrap.
 
   concurrency_detected:
@@ -930,7 +930,7 @@ integrity:
       ► Dual-read warning on {manuscript_id}.
       `scripts/phase_state_validate.py` accepted a legacy `reviews/tier_state.json` under the v0.7.4 minor's
       dual-read path. The dual-read path is removed at v0.7.5 RC — run
-      `python scripts/migrate_v073_to_v074_tier_to_phase.py --project-root <project>` to produce
+      `python scripts/migrate_v073_to_v074_tier_to_phase.py [retired from tree] --project-root <project>` to produce
       `reviews/phase_state.json` and silence this warning.
       W-DUAL-READ-LEGACY.
 

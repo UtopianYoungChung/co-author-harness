@@ -1,7 +1,7 @@
 ---
 name: reflector
 description: |
-  Reflector compatibility router (v0.15.0-pre PR-4c). The Reflector was split into two mode-specific agent files: `agents/reflector-probe.md` for ad-hoc mid-round lightweight integrity probes (Ph1/Ph2/Ph3) and `agents/reflector-closeout.md` for the full five-phase reflection at Ph4 Finalize & Close. This file is retained for one minor as a routing surface so legacy dispatch paths that name "reflector" continue to resolve. New dispatch flows should target `reflector-probe` or `reflector-closeout` directly by name. Shared epistemics — binding constraint, dispatch modes, output contract, invariants, read/write boundary — live in `references/_snippets/reflection-grounding.md` and are included verbatim by both split files.
+  Reflector compatibility router (v0.15.0-pre PR-4c). The Reflector was split into two mode-specific agent files: `agents/reflector-probe.md` for ad-hoc mid-round lightweight integrity probes (Ph1/Ph2/Ph3) and `agents/reflector-closeout.md` for the full five-phase reflection at Ph4 Finalize & Close. This file is retained as a routing surface so legacy dispatch paths that name "reflector" continue to resolve; retirement condition (recorded 2026-07-06): delete only when the host dispatch surface no longer names `reflector` as an agent type. New dispatch flows should target `reflector-probe` or `reflector-closeout` directly by name. Shared epistemics — binding constraint, dispatch modes, output contract, invariants, read/write boundary — live in `references/_snippets/reflection-grounding.md` and are included verbatim by both split files.
   <example>
   Context: mid-round Ph3 integrity probe.
   user: "Run a lightweight reflector pass on this round to check grounding."
@@ -15,6 +15,8 @@ description: |
 ---
 
 # Reflector — Compatibility Router (v0.15.0-pre PR-4c)
+
+> **Retirement condition (2026-07-06, supersedes "retained for one minor"):** this router is deleted only when the host dispatch surface no longer lists `reflector` as an agent type. Until then it is load-bearing. See `docs/analysis/2026-07-06_systematic-improvement-plan.md` §3.
 
 This file is a thin router. The substantive Reflector prompt was split into two mode-specific files at v0.15.0-pre PR-4c to reduce the 20,113-token always-loaded surface that fired warn-only at PR-4d. Both halves share an epistemic preamble that lives in a single snippet.
 

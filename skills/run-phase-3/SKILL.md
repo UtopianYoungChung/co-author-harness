@@ -179,9 +179,9 @@ Legacy Markdown stacks may still be emitted on exception paths or when the user 
 - **EG-5 (DETERMINISTIC_CHECKS threshold breach).** Any-phase; MINOR unless an absolute-or-cannot claim is implicated.
 - **EG-6 (override inconsistency warning).** Non-blocking. Fires if the user's `/run-phase-N` override target is inconsistent with `current_phase` or `applicable_ceiling`.
 
-## 11. Relationship to T3R (response-letter sibling)
+## 11. Relationship to T3R (response-letter manuscript-class)
 
-T3R (response-letter review, SK-11 `response-letter-review`) is an **independent sibling** of Ph3 at v0.7.0, not a sub-mode. A response letter or rebuttal document follows a different artefact contract (opening strength, discipline provenance, tone audit, coverage completeness, scope hedging, SAFEGUARD integrity checks) and does not feed the staircase's main Ph1→Ph2→Ph3→Ph3_converged→Ph4 advancement. Dispatch T3R via SK-11 directly; do not route through this skill.
+**Disposition settled 2026-07-07 (aligning with the SKILL_REGISTRY v0.14.0 retirement banner):** the former independent T3R sibling ladder is **retired**; response-letter review is a **manuscript-class within Ph3**, entered via `/response-letter-review`. `T3R` survives only as the historical label of that entry point. A response letter or rebuttal document still follows its own artefact contract (opening strength, discipline provenance, tone a A response letter or rebuttal document follows a different artefact contract (opening strength, discipline provenance, tone audit, coverage completeness, scope hedging, SAFEGUARD integrity checks) and does not feed the staircase's main Ph1→Ph2→Ph3→Ph3_converged→Ph4 advancement. Dispatch T3R via SK-11 directly; do not route through this skill.
 
 ## 12. What this stage does NOT do
 

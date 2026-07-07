@@ -131,7 +131,7 @@ After reading MASTER Parts A–D and `research_paper_writing_guidelines.md`:
 
 10. **[MINOR] "AI Team Capability" missing verb (R3 minor).** Label in model is noun phrase without action verb. → *Fixed Rev04.*
 
-11. **[MINOR] Citation order inconsistencies.** LNCS requires sequential first-appearance ordering. Per lessons §F3. → *Fixed Rev06; verified by `scripts/check_citation_order.py`.*
+11. **[MINOR] Citation order inconsistencies.** LNCS requires sequential first-appearance ordering. Per lessons §F3. → *Fixed Rev06; verified by `scripts/check_citation_order.py [retired from tree]`.*
 
 ---
 
@@ -375,7 +375,7 @@ This project predates the formalized harness (the package was finalized in April
 | Harness component | CAiSE_Rev01 equivalent |
 |---|---|
 | `REVIEW_ORCHESTRATION.md` (seven-step pipeline) | Informal but present: deterministic checks → content review → sentence craft → integration pass |
-| `DETERMINISTIC_CHECKS.md` | `lessons_caise_revision.md` §A1–A3 (absolute language), `scripts/check_citation_order.py` (citation verification) |
+| `DETERMINISTIC_CHECKS.md` | `lessons_caise_revision.md` §A1–A3 (absolute language), `scripts/check_citation_order.py [retired from tree]` (citation verification) |
 | `SAFEGUARD_LAYER.md` | `self_critique.md` (internal adversarial review), `revision_traceability_matrix.md` (traceability), `section_by_section_review_for_external_feedback.md` (external QA) |
 | `AGENT_ORCHESTRATION.md` (four agents) | Informal: Planner (revision plan v2), Evaluator (self-critique), Generator (8 revision iterations), Reflector (lessons learned) |
 | `PROJECT_BOOTSTRAP.md` (directory template) | Partially matches: `manuscript/`, `research_notes/`, `research_notes/review/` all present. Missing: `reviews/` directory (findings scattered across research_notes), `skills/` directory, `CLAUDE.md` project file (directives served this function). |

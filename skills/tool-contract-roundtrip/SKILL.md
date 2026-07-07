@@ -106,10 +106,10 @@ For each verifier, call `mcp__mcp-registry__search_mcp_registry` with the verifi
 
 For each advertised tool, confirm the runtime namespace by consulting the session's tool list. A namespace that appears in `EXTERNAL_VERIFIERS.md` as `mcp__*__<tool>` (literal asterisk) or as a registry UUID not matching the runtime UUID is a **placeholder defect** (MAJOR if still in a released version; BLOCKER if introduced in a version bump that has not yet shipped). This is the exact defect class SK-22 was built to catch.
 
-Record runtime namespaces in the probe report:
+Record runtime namespaces in the probe report. **UUID namespaces are host-installation-specific runtime IDs, not stable contract names** — always re-resolve them via tool search at probe time; the UUIDs below are *observed examples from one host* (2026-07 session) and citing them as invocable literals elsewhere in the package is exactly the stale-UUID defect this skill exists to detect:
 
 ```
-Runtime namespaces (as of <date>):
+Runtime namespaces (observed example, host-specific — re-resolve, do not copy):
 - Scholar Gateway semanticSearch: mcp__70599628-0640-490e-bb1b-450b0e8248a9__semanticSearch
 - Consensus search: mcp__a28b93ab-2ce7-493f-b02d-f03a8ebe522f__search
 - HuggingFace Papers paper_search: mcp__ab9ac1e8-8aca-4de3-afba-92c86249d5aa__paper_search

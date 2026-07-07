@@ -58,3 +58,7 @@ If the user asks for a narrow check ("just em-dashes"):
 - `scripts/audit/schema.py` — Finding/FindingsReport schema.
 - `scripts/audit/audit_style.py` — pattern catalogue.
 - `references/DETERMINISTIC_CHECKS.md` — rule rationale (now an explanation file, no longer the runtime source of patterns).
+
+## Coverage seam (recorded 2026-07-07)
+
+`run_all.py` dispatches the seven style/craft auditors plus (with `--project-root`) the D-STYLE profile pass. It does **not** run citation/grounding audits — those live in `scripts/audit/audit_citations.py`, invoked separately by `release-gate.sh`. A "quick check" therefore covers style, craft, and D-STYLE surfaces only. Note also that the script has **no default target**: the invoking agent supplies the manuscript path (`manuscript/main.md` by convention).

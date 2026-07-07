@@ -152,6 +152,33 @@ The harness's five prior source absorptions (Bacon, Sexton, Baird, Suchman, Euba
 
 ---
 
+## L-P6: A `style_lint` PASS Is Not a C-6 Pass — Hand-Edits Bypass the Only Layer That Enforces C-6
+
+**Source.** Workspace/process root-cause analysis, 2026-07-03. Diagnosis note: `B:/Agents/reference/c6-gap-analysis-and-mitigation.md`. Recurring failure: two load-bearing vocabularies ("reciprocity", "ratifies", following an earlier "answerability leaks") entered live QE2026 prose and slipped past both D-STYLE and this harness.
+
+**Scope.** Workspace/process lesson (D-STYLE `B:/Agents/reference/` + hand-edit workflow). The harness C-6 policy itself (`STYLE_COMMITMENTS.md §1.0a`) is correct and unchanged; the gap is in *when* it gets invoked. Recorded here because the invocation-timing failure mode is not project-specific and a cross-project deterministic backstop is proposed separately (see `reviews/plugin_update_proposals.md` P-R-6 / A10).
+
+**The lesson.**
+
+C-6 (rhetorical-vs-analytical separation and scoped metaphor, `STYLE_COMMITMENTS.md §1.0a`) is a **judgment** commitment, owned by the Generator at write-time and the Evaluator at review-time. No deterministic script enforces it: `DETERMINISTIC_CHECKS.md` measures jargon density and glossary-dump form, not term-definedness, single-sense use, or loaded/unscoped metaphor. The workspace's own mechanical gate, `style_lint.py`, was likewise structurally blind to C-6 (it checked em-dash density, long sentences, agented passive, nominalization, hedges — never term-definedness or metaphor scope).
+
+The two misses entered through **direct hand-edits made after the last Generator and Evaluator passes**, in response to review comments, gated only by the mechanical lint. Because the one place C-6 lives is the Generator/Evaluator judgment, and that judgment was never invoked on those spans, the commitment could not fire. When the harness *was* invoked it worked — the Evaluator caught an undefined "standing" at an earlier version. The failure is specific to hand-edits gated only by a mechanical lint.
+
+**The standing rule.**
+
+A `style_lint.py` PASS is **not** sufficient for C-6. A prose edit that introduces or changes a load-bearing term or a metaphor is not complete on a mechanical PASS alone; it must receive a C-6 judgment pass on the changed span — route through the Generator, or run a targeted C-6 pass (`analytic-move-audit` / `definition-derivation-check`, or a local Evaluator pass). Trigger: an edit that adds an abstract noun or a figurative verb is C-6-checked. This process rule is primary; tooling is a backstop, not a substitute.
+
+**How to apply.**
+
+- Treat any hand-edit that adds/changes a load-bearing term or metaphor as C-6-triggering, regardless of whether it was made in response to review comments.
+- Do not close such an edit on a mechanical-lint PASS; obtain a Generator or targeted-audit C-6 judgment on the changed span first.
+- Workspace tooling now added (Layers 2–4, all in `B:/Agents/reference/`, primary rule is Layer 1 behavior): `style_lint.py` reads `c6_watchlist.txt` and emits a REVIEW per watchlisted evocative/loaded term or unscoped metaphor (forces a look, does not adjudicate); `terminology_register.md` holds approved load-bearing terms with their single agreed sense plus preferred plain replacements; the Layer-1 rule is registered in the "C-6 enforcement" section of `d-style-research-architecture.md`.
+- Known limit: the tripwire is heuristic — it flags only watchlisted terms and will miss a novel loaded term, so the judgment rule remains primary.
+
+**Promotion.** Operationalized in the workspace (`B:/Agents/reference/style_lint.py`, `c6_watchlist.txt`, `terminology_register.md`, `d-style-research-architecture.md`). A cross-project deterministic tripwire in the harness is proposed as an advisory, gatekept item (see `reviews/plugin_update_proposals.md` P-R-6 / A10); no active harness check was modified.
+
+---
+
 *End of package-level lessons. This file is maintained by the Reflector and updated after every cross-project insight.*
 
-*Last updated: 2026-06-28.*
+*Last updated: 2026-07-03.*

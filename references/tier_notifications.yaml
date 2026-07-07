@@ -24,8 +24,8 @@
 # Schema contract:       references/PHASE_PROTOCOL.md §4 (renamed from TIER_PROTOCOL.md)
 # Loader script:         scripts/phase_notifications_loader.py
 # State file:            reviews/phase_state.json (was reviews/tier_state.json)
-# Validator:             scripts/phase_state_validate.py (was scripts/tier_state_validate.py)
-# Migration:             scripts/migrate_v073_to_v074_tier_to_phase.py
+# Validator:             scripts/phase_state_validate.py (was scripts/tier_state_validate.py [retired from tree])
+# Migration:             scripts/migrate_v073_to_v074_tier_to_phase.py [retired from tree]
 #
 # DUAL-READ WINDOW
 # ----------------
@@ -36,7 +36,7 @@
 # The dual-read path is **removed at v0.7.5 RC**; after v0.7.5, any caller
 # resolving this file will fail with a missing-config error rather than
 # silently loading a stale template. Projects still on legacy paths should run
-# `scripts/migrate_v073_to_v074_tier_to_phase.py` to complete the rename
+# `scripts/migrate_v073_to_v074_tier_to_phase.py [retired from tree]` to complete the rename
 # before upgrading to v0.7.5.
 #
 # LAST UPDATED

@@ -134,4 +134,32 @@ Five Reflector-full proposals filed from INF3006Y Co Author Ph4 close-out. Three
 
 ---
 
+## Session: workspace C-6 gap close-out (2026-07-03)
+
+One Reflector proposal filed from a workspace/process root-cause analysis (not a manuscript close-out). Advisory and gatekept; **PROPOSAL only, not an applied change.** No active harness check was modified in filing this.
+
+### P-R-6 — Upstream the deterministic C-6 term/metaphor tripwire into the harness
+
+**Raw source:** `B:/Agents/reference/c6-gap-analysis-and-mitigation.md` (workspace diagnosis, 2026-07-03) and workspace lesson `research_notes/lessons_learned.md` L-P6.
+
+**Proposal (advisory).** Add a deterministic C-6 term/metaphor tripwire to the harness itself — a check in `references/DETERMINISTIC_CHECKS.md` (and/or a small companion script) that reads a maintained watchlist and flags watchlisted evocative/loaded terms and unscoped metaphors as a **REVIEW** (forces a look; does not adjudicate). The intent is to place the backstop in *every* project rather than only in the workspace `style_lint.py`, mirroring the workspace mitigation now proven in QE2026.
+
+**Motivation.** C-6 (`STYLE_COMMITMENTS.md §1.0a`) is a judgment commitment owned by the Generator (write-time) and Evaluator (review-time); `DETERMINISTIC_CHECKS.md` measures jargon density and glossary-dump form, not term-definedness / single-sense / loaded-metaphor, so no deterministic C-6 backstop exists. Two load-bearing terms ("reciprocity", "ratifies") reached live prose via hand-edits gated only by a mechanical lint that never triggered the C-6 judgment. A watchlist-driven REVIEW tripwire converts a silent pass into a forced look at the one moment C-6 is otherwise bypassed.
+
+**Filter results (Reflector self-assessment; Planner adjudicates):**
+
+| Filter | Verdict | Note |
+|---|---|---|
+| (a) cite grounding evidence | PASS | Cites `c6-gap-analysis-and-mitigation.md` and the implemented workspace artifacts (`style_lint.py` watchlist read, `c6_watchlist.txt`, `terminology_register.md`). |
+| (b) name skill/package affected | PASS | Names `references/DETERMINISTIC_CHECKS.md` (new C-6 term/metaphor check) and an optional companion script; relates to `STYLE_COMMITMENTS.md §1.0a` (policy unchanged). |
+| (c) declare R- or A-code | PROPOSED — **A10** `A10-c6-term-metaphor-tripwire` | Reflector proposes the code per the standing remediation note; Planner reserves the right to re-assign on formalization. |
+
+**Known limit (stated up front).** The tripwire is **heuristic**. It flags only watchlisted terms and will miss a novel loaded term or a metaphor not on the list; it forces a look but does **not** adjudicate C-6. The process rule — a `style_lint`/mechanical PASS is not a C-6 pass; term/metaphor edits get a Generator or targeted-audit C-6 judgment (L-P6) — remains **primary**. The check is a backstop, not a substitute for the judgment.
+
+**Evidence caveat.** n=2 within one workspace (the "answerability leaks" precedent plus this round's "reciprocity"/"ratifies"); cross-project recurrence is plausible on first principles (any project hand-editing load-bearing terms after the last agent pass is exposed) but not yet observed in a second project. Does not gate the proposal; strengthens it if a second project surfaces the same miss.
+
+**Aggregate verdict (Reflector):** ADVANCED to the Planner gatekeeper for the three-filter pass and user sign-off. **No `DETERMINISTIC_CHECKS.md` or any active check was modified in filing this.**
+
+---
+
 *File maintained by the Planner per `agents/planner.md §§78, 335`. The Reflector writes into an internal buffer; this file is the user-facing view.*

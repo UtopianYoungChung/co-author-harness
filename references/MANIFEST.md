@@ -1,6 +1,6 @@
 # MANIFEST.md — references/ Routing Index
 
-**Status.** This file is an **index, not an authority layer.** It lists every reference file under `references/` (plus the agents/, skills/, commands/ surfaces an invocation typically consults) and routes the reader by task to the correct file. The **rules themselves** live in those files; MANIFEST.md has no normative content of its own.
+**Status.** This file is an **index, not an authority layer.** It indexes the principal reference files under `references/` (style-substrate guideline files, templates, resources, and examples may be unlisted; the index is not a completeness guarantee) (plus the agents/, skills/, commands/ surfaces an invocation typically consults) and routes the reader by task to the correct file. The **rules themselves** live in those files; MANIFEST.md has no normative content of its own.
 
 **Why this file exists.** Before v0.15.0-pre PR-4b, `references/CLAUDE.md §2` enumerated ~13 inline "Before X, read Y" routes that every agent loaded eagerly on every invocation. PR-4b moves that catalog here and slims CLAUDE.md to a small precedence + invocation surface. Agents consult MANIFEST when they need to know which reference applies; they do not read every file in this list.
 
@@ -72,6 +72,10 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 |---|---|---|
 | `PHASE_PROTOCOL.md` (renamed from `TIER_PROTOCOL.md` at v0.7.4) | Lifecycle-Phase Ladder Ph1–Ph4; `§3.3.2` stability sub-mode; `§3.3.3` Check 8 accessibility gate; `§6.*` `phase_state.json` schema | Every phase-advance decision; v0.15.0-pre PR-3b.1 added optional `stage`/`profile` shadow fields |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |
+| `schemas/f7_evidence_packet.schema.json` | JSON Schema for F7 evidence packets (consumed by `ARTEFACT_FRONTMATTER_SCHEMA.md`, `OUTPUT_ECONOMY_PROTOCOL.md`) | Output-economy validation |
+| `VERDICT_CACHE_CONTRACT.md` | P-14 paragraph-hash verdict carryover cache contract | Ph3 verdict reuse; currently unwired — no live consumer routes here (2026-07-07 audit) |
+| `schemas/version_planes.json` | Snapshot-mode registry of non-package version-plane assertions (lifecycle ladder, phase-state schema, evaluator envelope, stage x profile vocabulary); guarded by `scripts/version-planes-check.py` | Maintainer check surface; re-snapshot deliberately on any version-assertion change (plan 2026-07-06 WS-2) |
+| `schemas/commitment_interactions.json` | Declare-or-fail registry of all C-x pairwise interaction classifications; guarded by `scripts/commitment-interactions-check.py`; STYLE_COMMITMENTS.md remains authoritative for tension content | Maintainer check surface; every new commitment requires full pair coverage (plan 2026-07-06 WS-3) |
 | `MODEL_ALLOCATION.md` | Phase-conditioned Claude-model mapping; §3 Opus 4.7 floor (Evaluator-Ph2/Ph3/Ph4, Reflector-full-Ph4) | Planner at every dispatch; Reflector at Phase 2f |
 | `AGENT_ORCHESTRATION.md` | Four-agent architecture (Planner, Evaluator, Generator, Reflector); §8.6 Coupling E.2 graph overlay | Dispatching agents or running the full loop |
 | `AGENT_CONTRACTS.md` | Per-agent declarative contracts: preconditions, inputs, outputs, invariants, done criteria, failure modes | Read with `agents/<role>.md`; contracts win on obligations, prompts win on method |
@@ -101,7 +105,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Narrative arc, openings, show-don't-tell, cause-effect |
 | `MASTER_research_and_paper_guidelines.md` | Cross-venue playbook for tone, claims, theory, audience, structure |
 | `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` | Pre-drafting argumentative-rigor checklist |
-| `M1_M2_M3_PLANNING_PHASE_README.md` | Planning-phase orientation |
+| `M1_M2_M3_PLANNING_PHASE_README.md` | Planning-phase orientation (historical — milestone-era document; superseded by the Lifecycle-Phase Ladder, retained for ancestry) |
 | `PARAGRAPH_DEFINITIONS.md` | Canonical paragraph-class definitions |
 
 ### Formal ontology design
@@ -144,7 +148,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 
 Atomic policy fragments resolved at packaging time by `scripts/resolve_includes.py`. Each `_snippets/*.md` file is intended to be ≤ 60 lines and represent a single normative block reused across multiple skills. Consumers reference snippets via the `<!-- include: _snippets/<name>.md -->` sentinel.
 
-Current snippets:
+Current snippets: `_snippets/reflection-grounding.md` (shared reflector epistemic preamble, included by both split reflector agents).
 - `_snippets/output-profile.md` — the canonical routine `silent_evidence` block (PR-1). Used by phase skills (`run-phase-1`, `run-phase-2`, `run-phase-3`).
 
 Anti-duplication: `scripts/snippet-check.py` verifies the snippet's content does not appear verbatim outside `_snippets/` at release-gate time.

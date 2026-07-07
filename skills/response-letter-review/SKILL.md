@@ -6,7 +6,7 @@ created_by: Reflector
 created_from: Tier 3 skill build, 2026-04-11 — research_paper_writing_guidelines.md §8 had no standalone review entry point
 pattern_source: research_paper_writing_guidelines.md §8 + SAFEGUARD_LAYER.md Checks 1, 4, 5
 tier_binding: >
-  T3R (v0.5.0+) — Incremental Tier Protocol response-letter mini-tier. Invoked by the Planner when the classification record carries tier=T3R or paper_type=response-letter. Emits the three T3R artifacts (`reviews/response_letter_findings_<date>.md`, `reviews/response_letter_reframe_brief_<date>.md`, `manuscript/response_letter.md`) under `TIER_PROTOCOL.md §2.5` contract.
+  Response-letter manuscript-class within Ph3 (disposition settled 2026-07-07; the former independent T3R sibling ladder is retired — T3R survives as this entry point's historical label, v0.5.0 ancestry). Invoked by the Planner when the classification record carries paper_type=response-letter (legacy records carrying tier=T3R route here). Emits the three T3R artifacts (`reviews/response_letter_findings_<date>.md`, `reviews/response_letter_reframe_brief_<date>.md`, `manuscript/response_letter.md`) under `TIER_PROTOCOL.md §2.5` contract.
 version: 1.1
 ---
 # Response-Letter Review

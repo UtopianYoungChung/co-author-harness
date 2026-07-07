@@ -52,7 +52,7 @@ Two hazards are called out explicitly and are the subject of ongoing audit.
 
 ## 6. Absent-means-inherit migration semantics
 
-Projects that predate v0.7.3 have no `model_dispatch` field in `reviews/tier_state.json` and no entries in their `reviews/classification.md` that speak to model selection. Such projects inherit the allocation in §2 unconditionally at first Planner invocation under v0.7.3; no migration script is required, and no user-visible ledger field is added. If a project wants to opt out of a specific slot's default — for example, to force Opus 4.7 at the Generator-T3 slot during a contested revision round — the opt-out is declared in `research_notes/directives.md` as a project directive, which sits at precedence level 4 in `CLAUDE.md §5` and outranks this file (precedence level 5, package component). The directive syntax is:
+Projects that predate v0.7.3 have no `model_dispatch` field in `reviews/tier_state.json` and no entries in their `reviews/classification.md` that speak to model selection. Such projects inherit the allocation in §2 unconditionally at first Planner invocation under v0.7.3; no migration script is required, and no user-visible ledger field is added. If a project wants to opt out of a specific slot's default — for example, to force Opus 4.7 at the Generator-T3 slot during a contested revision round — the opt-out is declared in `research_notes/directives.md` as a project directive, which sits at precedence level 4 in `CLAUDE.md §4` and outranks this file (precedence level 5, package component). The directive syntax is:
 
 ```
 D-NN: Model dispatch override — Generator-T3 := Opus 4.7
@@ -76,9 +76,9 @@ Findings from Phase 2f model-selection audit are appended to the same `reviews/r
 
 Opus 4.6 is deprecating and is not in the allocation. Any project directive that hard-codes `claude-opus-4-6` will be rejected at dispatch with `E-MA-DEPRECATED-MODEL`; the Planner will prompt the user to choose between Opus 4.7 (capability-equivalent forward) and Sonnet 4.6 (cost-efficient alternative). The model strings the Planner passes are documented in §2; these strings are the contract surface, and any future model family release (e.g., a hypothetical Opus 5.0) will require a v0.7.5 or later package version with updated allocation and updated capability-ordering in §5.
 
-At v0.7.4 the tier identifiers in §2 will rename T1 → Ph1, T2 → Ph2, T3 → Ph3, T4 → Ph4 in concert with the broader Tier → Phase rename. Model assignments carry forward unchanged under that rename; the ledger migration script at `scripts/migrate_v073_to_v074.py` (to be authored as part of v0.7.4) rewrites identifiers only.
+At v0.7.4 the tier identifiers in §2 will rename T1 → Ph1, T2 → Ph2, T3 → Ph3, T4 → Ph4 in concert with the broader Tier → Phase rename. Model assignments carry forward unchanged under that rename; the ledger migration script at ``migrate_v073_to_v074_tier_to_phase.py` (script retired from the tree)` (to be authored as part of v0.7.4) rewrites identifiers only.
 
 ---
 
-*Normative status.* This file is at precedence level 5 (package component) per `CLAUDE.md §5`. Project directives (level 4) override this file; venue and advisor instructions (levels 2 and 3) override both; the user's explicit instruction in the current conversation (level 1) is supreme. `GROUNDING_PROTOCOL.md` sits outside the ladder and is absolute — no model dispatch decision licenses a grounding violation.
+*Normative status.* This file is at precedence level 5 (package component) per `CLAUDE.md §4`. Project directives (level 4) override this file; venue and advisor instructions (levels 2 and 3) override both; the user's explicit instruction in the current conversation (level 1) is supreme. `GROUNDING_PROTOCOL.md` sits outside the ladder and is absolute — no model dispatch decision licenses a grounding violation.
 

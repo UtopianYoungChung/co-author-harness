@@ -12,7 +12,7 @@ v0.7.4 retires the ambiguous *Tier* vocabulary that overloaded two unrelated sur
 | -------------------------------------------- | ---------------------------------------------------------- |
 | `references/TIER_PROTOCOL.md`                | [`references/PHASE_PROTOCOL.md`](./PHASE_PROTOCOL.md)      |
 | `reviews/tier_state.json`                    | `reviews/phase_state.json`                                 |
-| `scripts/tier_state_validate.py`             | `scripts/phase_state_validate.py`                          |
+| `scripts/tier_state_validate.py [retired from tree]`             | `scripts/phase_state_validate.py`                          |
 | `reviews/t1_draft_completion.md`             | `reviews/ph1_draft_completion.md`                          |
 | `reviews/t2_review_completion.md`            | `reviews/ph2_review_completion.md`                         |
 | `reviews/t3_convergence_signoff.md`          | `reviews/ph3_convergence_signoff.md`                       |

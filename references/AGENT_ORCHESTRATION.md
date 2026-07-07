@@ -41,7 +41,7 @@ Each agent's full operating instructions are in `agents/`:
 | `agents/planner.md` | Planner |
 | `agents/evaluator.md` | Evaluator |
 | `agents/generator.md` | Generator (Co-Author) |
-| `agents/reflector.md` | Reflector (Lessons-Learned) |
+| `agents/reflector.md` (compatibility router) → `agents/reflector-probe.md` / `agents/reflector-closeout.md` | Reflector (Lessons-Learned) |
 
 When dispatching an agent (via the Agent tool, a skill, or a direct instruction), include the agent's prompt file content as context. The agent prompt file is the agent's complete operating manual; it references the package files the agent needs to read.
 
@@ -403,7 +403,7 @@ Field semantics:
     - Next expected artifact: reviews/findings_2026-04-19.md
 ```
 
-The indented block is parsed by the Reflector-full Phase 2b trajectory collector (`agents/reflector.md §Phase 2b step 1`) for richer divergence-audit reporting, and is safely skipped by `gate_threshold_tuner.py` (the regex matches only lines beginning with `|` at column 0). Neither consumer requires the block; it is optional provenance, not contract.
+The indented block is parsed by the Reflector-full Phase 2b trajectory collector (`agents/reflector-closeout.md §Phase 2b step 1`) for richer divergence-audit reporting, and is safely skipped by `gate_threshold_tuner.py` (the regex matches only lines beginning with `|` at column 0). Neither consumer requires the block; it is optional provenance, not contract.
 
 **Header.** The first line of the file is always a single `# Escalation Log — <round-id>` heading; the Planner writes this on round open and never rewrites it. The second line is a pipe-table header and separator so that the body reads as a valid markdown table:
 
@@ -416,7 +416,7 @@ The tuner's regex anchors on the column shape, not on the header, so the header 
 
 **Append semantics.** Entries are appended in chronological order of the triggering event (not the logging event). Out-of-order writes are prohibited; if two triggers fire concurrently, the Planner serializes them by the timestamp on the underlying artifact.
 
-**Phase status (v0.7.0).** The write path is live on the Planner only. The Planner creates the log on first dispatch at Ph1 (or the user-selected explicit phase when `/run-phase-N` is used) and appends on every subsequent transition under the 30-value trigger enum (`phase_state_schema.md §3.1`): Ph1 lifecycle triggers (`initial_dispatch`, `ph1_draft_completion_signed`), Ph2/Ph3/Ph4 lifecycle triggers (`ph2_review_completion_signed`, `ph3_iteration_round`, `convergence_metric_stable`, `mcr_admission`, `ph3_convergence_signoff_terminal`, `ph3_stale_reengagement_signoff`), gate firings (EG-1, EG-3, EG-4, EG-5, EG-6, EG-7 — including the `eg1_ph4_downgrade_to_ph3` and `eg7_mcr_readmission_after_class_change`), drift-tolerance warnings (`ph3_drift_exceeded_tolerant`), staleness (`ph3_stale_detected`), user overrides (EG-6 via `/run-phase-N`), fingerprint demotions (`fingerprint_reset`), MCR cycle transitions, M5 wiki ingest (`m5_wiki_ingest`), and explicit user phase-downs (§6.4 of `PHASE_PROTOCOL.md`). The Reflector-full's Phase 2b at Ph4 reads the log to compute aggregated confirmation-failed history patterns (NEW-H-4) — at v0.7.0 this audit aggregates `confirmation_failed` rows imported from v0.6.0 → v0.7.0 migrated projects since the trigger no longer fires natively. Cross-round preservation (`reviews/escalation_log.md.<round-id>`) remains in effect.
+**Phase status (v0.7.0).** The write path is live on the Planner only. The Planner creates the log on first dispatch at Ph1 (or the user-selected explicit phase when `/run-phase-N` is used) and appends on every subsequent transition under the 31-value trigger enum (`phase_state_schema.md §3.1`): Ph1 lifecycle triggers (`initial_dispatch`, `ph1_draft_completion_signed`), Ph2/Ph3/Ph4 lifecycle triggers (`ph2_review_completion_signed`, `ph3_iteration_round`, `convergence_metric_stable`, `mcr_admission`, `ph3_convergence_signoff_terminal`, `ph3_stale_reengagement_signoff`), gate firings (EG-1, EG-3, EG-4, EG-5, EG-6, EG-7 — including the `eg1_ph4_downgrade_to_ph3` and `eg7_mcr_readmission_after_class_change`), drift-tolerance warnings (`ph3_drift_exceeded_tolerant`), staleness (`ph3_stale_detected`), user overrides (EG-6 via `/run-phase-N`), fingerprint demotions (`fingerprint_reset`), MCR cycle transitions, M5 wiki ingest (`m5_wiki_ingest`), and explicit user phase-downs (§6.4 of `PHASE_PROTOCOL.md`). The Reflector-full's Phase 2b at Ph4 reads the log to compute aggregated confirmation-failed history patterns (NEW-H-4) — at v0.7.0 this audit aggregates `confirmation_failed` rows imported from v0.6.0 → v0.7.0 migrated projects since the trigger no longer fires natively. Cross-round preservation (`reviews/escalation_log.md.<round-id>`) remains in effect.
 
 **Calibration (v0.7.0).** Scheduled Reflector-full runs are scoped to Ph4 at v0.7.0 (`PHASE_PROTOCOL.md §9.2`). Gate-calibration signals therefore surface at Ph4 close rather than every round. Persistent single-gate skew across Ph4 rounds surfaces a `[GATE CALIBRATION SIGNAL]` entry in §9 of the reflection report proposing an adjustment. The proposal is advisory — the user must accept before any threshold is rewritten. The `scripts/gate_threshold_tuner.py` multi-project aggregator continues to consume the same pipe-row schema.
 
@@ -441,7 +441,7 @@ The phase-state ledger is a Planner-written, single-writer JSON file that carrie
 
 **Who writes it.** The **Planner is the sole writer**. No other agent mutates `phase_state.json`. The Evaluator, Generator, and Reflector read the ledger at session bootstrap and at every agent dispatch; they never write to it. This single-writer invariant is load-bearing for the concurrency contract (see "Persistence and concurrency" below) and for the Reflector-full's audit that every `user_approval` row traces to an explicit user action (success metric M3 in `PHASE_PROTOCOL.md §11`).
 
-**Who reads it.** Every agent, every dispatch. The Reflector-full reads the aggregated `phase_entry_log` array at Ph4 close for Phase 2b's aggregated confirmation-failed history audit (`PHASE_PROTOCOL.md §9.2`, NEW-H-4) — at v0.7.0 this audit walks `confirmation_failed` rows imported from migrated v0.6.0 projects, since the trigger does not fire natively. The migration script `scripts/migrate_v060_to_v070.py` reads v0.6.0 `tier_state.json` and writes the v0.7.0 schema per `PHASE_PROTOCOL.md §10.1`, preserving `confirmation_failed` rows read-only.
+**Who reads it.** Every agent, every dispatch. The Reflector-full reads the aggregated `phase_entry_log` array at Ph4 close for Phase 2b's aggregated confirmation-failed history audit (`PHASE_PROTOCOL.md §9.2`, NEW-H-4) — at v0.7.0 this audit walks `confirmation_failed` rows imported from migrated v0.6.0 projects, since the trigger does not fire natively. The migration script `scripts/migrate_v060_to_v070.py [retired from tree]` reads v0.6.0 `tier_state.json` and writes the v0.7.0 schema per `PHASE_PROTOCOL.md §10.1`, preserving `confirmation_failed` rows read-only.
 
 **Lifecycle.** Created once per project at first `/review` (fresh project) or at migration (v0.6.0 → v0.7.0 project). Lives across the project's lifetime. Never overwritten between sessions. Never archived to a round-suffixed copy (unlike `escalation_log.md.<round-id>`) — the ledger itself is cross-round state, and the `phase_entry_log` array inside it is the audit trail.
 
@@ -541,7 +541,7 @@ For bootstrapping from an existing draft or a course assignment, see `PROJECT_BO
 
 ## 8.5 Wiki Synthesis Promotion (Coupling C)
 
-After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-14 `promote-lessons-to-wiki`** to materialize newly updated `lessons_learned.md` entries as a synthesis page in the peer `LLM wiki/` store. This is the Research → Wiki feedback loop codified in the 2026-04-13 synergy audit. The full protocol lives in `agents/reflector.md §Phase 3.5`; the skill file is `skills/promote-lessons-to-wiki.md`. Authoritative asymmetry is preserved: the project's `lessons_learned.md` is append-only source of truth, the wiki synthesis is a regenerable view. Firing is conditional (wiki must be reachable; lesson set must have changed; at least one lesson must be G/P-classifiable), and the outcome is recorded in reflection report §10.
+After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-14 `promote-lessons-to-wiki`** to materialize newly updated `lessons_learned.md` entries as a synthesis page in the peer `LLM wiki/` store. This is the Research → Wiki feedback loop codified in the 2026-04-13 synergy audit. The full protocol lives in `agents/reflector-closeout.md` Phase 3 (Update Project Memory); the skill file is `skills/promote-lessons-to-wiki/SKILL.md`. Authoritative asymmetry is preserved: the project's `lessons_learned.md` is append-only source of truth, the wiki synthesis is a regenerable view. Firing is conditional (wiki must be reachable; lesson set must have changed; at least one lesson must be G/P-classifiable), and the outcome is recorded in reflection report §10.
 
 ## 8.6 Graphify Grounding Couplings (E.1 and E.2)
 
@@ -775,7 +775,7 @@ Ph4 is the strict superset of Ph3. **Legal Ph4 → Ph3 demotions** at v0.8.0: EG
 
 ### 10.3 Migration of v0.6.0 milestone-tagged projects
 
-Projects that originated under the v0.6.0 milestone framing migrate via `scripts/migrate_v060_to_v070.py`. The script:
+Projects that originated under the v0.6.0 milestone framing migrate via `scripts/migrate_v060_to_v070.py [retired from tree]`. The script:
 
 - Maps the project's most recent milestone tag (in `reviews/round_program.md` or in the v0.6.0 `tier_state.json`) onto the v0.7.4 phase per the §10.1 supersession table.
 - Injects `phase_goal_declared` defaulted to the milestone deliverable name (e.g. "M3 deliverable — Structured Outline").

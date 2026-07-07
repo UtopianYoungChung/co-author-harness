@@ -44,6 +44,8 @@ Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human appr
 
 The top-level hard goal is **"produce a submission-ready research paper grounded in reviewed literature."** Each of the four phases owns one sub-goal, and each phase declares its own dependency contract between the human researcher and the agent society — the agent set is not the same across phases, only the human depender is. **Ph1 (Plan & Draft)** produces a complete first draft with explicit problem statement, theoretical framework, methodology, analysis, and synthesis arc; every section declares its P-stage per EYgp. **Ph2 (Review & Revise)** produces an externally-reviewable draft that has survived an independent Evaluator pass; every BLOCKER and every MAJOR finding is RESOLVED, ACKNOWLEDGED with rationale, or ESCALATED with a named owner of record (softgoals: argumentative rigor, grounding integrity, register compliance). **Ph3 (Iterate & Converge)** converges on a draft the human researcher has actively declared satisfactory through user-gated unbounded review–revise rounds; staleness is monitored within Ph3 and gates re-admission at MCR (§3.3.1, §9.3) (softgoals: voice consistency, theoretical contradiction resolution, stakeholder alignment, narrative drive). **Ph4 (Finalize & Close)** ships a submission-bound artefact and closes the knowledge-production loop; external verifiers are exhausted, the Reflector runs its full meta-learning pass, and wiki ingestion plus plugin-update proposals route to the Planner as sole gatekeeper (softgoals: provenance integrity, reproducibility, institutional learning). The per-phase agent-society contract — who depends on whom for what at each phase — is enumerated in §5.
 
+*(§2.2 reserved — heading removed in an earlier revision; number retained so §2.3+ citations stay stable.)*
+
 ### 2.3 Relation to P-stages (unchanged) and milestones (superseded)
 
 Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P0 / P1 / P2). The axes reduce from three (Ph × P × M) to two (Ph × P). The P-stage remains the vocabulary-and-claim-maturity axis per `EYgp_Research_process_and_artifacts.md` (P0 = collected phenomenon readings, P1 = phenomenon characterization, P2 = research-question definition). The milestone axis is absorbed into the phase axis by the supersession clause in §4, which explicitly supersedes `AGENT_ORCHESTRATION.md §10.1`'s artefact-anchored milestone definitions with declared reason.
@@ -202,7 +204,7 @@ The contract:
 - **Logging.** When the gate fires, the Planner writes a row to `phase_entry_log` with trigger **`ph3_accessibility_blocker_surfaced`** (see `phase_state_schema.md §6`, new trigger). The row's `notes` field names the failing Check 8 sub-check(s) (A/B/C/D/E/F/G/H) and the affected locator(s); a Sub-check G finding logged under an active `advisory_until: next_manuscript_at_ph3` flag, or a Sub-check H finding logged under an active `advisory_until: H_two_revision_cycles` flag, carries the `advisory_under_flag: true` annotation so the Reflector Phase 2g recurrence audit can separate advisory G/H findings from gate-firing A–F BLOCKERs. When the gate clears, the successful terminal signoff row's `notes` field documents that the accessibility BLOCKER is resolved ("Check 8 aggregate: PASS at terminal signoff").
 - **Independence from line-diff stability.** Check 8 can fire BLOCKER while the line-diff metric is stable (the paradigmatic case the gate exists to catch) and the line-diff metric can be unstable while Check 8 passes. Both dimensions must resolve for `[CONVERGENCE-STABLE]` to issue and for the `TerminalSignoffRow` to write.
 
-The gate is plan-originated and is the architectural commitment that makes Ph3 the Lifecycle-Stage Ladder's genuine locus for reader-accessibility work. The alternative designs considered — a parallel float metric summed into the line-diff score, a soft advisory that did not block the flip, deferring all accessibility audit to Ph4 — were rejected because (i) a composite metric obscures which dimension is failing, (ii) a soft advisory reproduces the pre-v0.7.2 loophole, and (iii) deferring to Ph4 mixes submission-bound certification with accessibility repair, raising the cost of accessibility fixes and risking EG-1 demotion cascades.
+The gate is plan-originated and is the architectural commitment that makes Ph3 the Lifecycle-Phase Ladder's genuine locus for reader-accessibility work. The alternative designs considered — a parallel float metric summed into the line-diff score, a soft advisory that did not block the flip, deferring all accessibility audit to Ph4 — were rejected because (i) a composite metric obscures which dimension is failing, (ii) a soft advisory reproduces the pre-v0.7.2 loophole, and (iii) deferring to Ph4 mixes submission-bound certification with accessibility repair, raising the cost of accessibility fixes and risking EG-1 demotion cascades.
 
 #### 3.3.4 P-4 convergence-log contract split (v0.7.4)
 
@@ -217,7 +219,7 @@ The split, materialized at v0.7.4:
   {
     "cycle_id":                  "<str>",                   // e.g. "ph3_iter4_batch_2026-04-20"
     "iteration":                 <int>,                     // 1-indexed, strictly increasing within a Ph3 round
-    "convergence_metric":        "<float|null|object>",     // v0.7.4: scalar diff_lines/total_section_lines. v0.8.0 P-12: four-component object (see §3.3.1a; migration: scripts/migrate_convergence_journal_v075.py).
+    "convergence_metric":        "<float|null|object>",     // v0.7.4: scalar diff_lines/total_section_lines. v0.8.0 P-12: four-component object (see §3.3.1a; migration: scripts/migrate_convergence_journal_v075.py [retired from tree]).
     "check8_aggregate":          "<PASS|BORDERLINE|MAJOR|BLOCKER|null>",
     "manuscript_hash":           "<str|null>",              // SHA-256 of the F1/F2/F3/F5 substrate; enables P-2 stability-mode
     "paragraph_hash_map":        "<object|null>",           // v0.8.0 P-10: optional { "p-0000": "<sha256-hex>", ... } from scripts/paragraph_hash_map.py — writer lands when Planner Phase 0.6 emits the map; null until then
@@ -542,7 +544,7 @@ Three structured row shapes are consumed by tooling across v0.7.0. Their full-sc
 
 **Row-shape enforcement.** `pre_phase_advance_check.py` clause (g) at §7.3 (script-level) validates every row in `phase_entry_log` and in `ph3_convergence_signoff.md` against these schemas. Rows missing required fields, carrying disallowed field combinations (e.g., both `is_terminal: true` and `is_reengagement: true`), or violating length bounds fail with `E-ROW-SHAPE-VIOLATION`.
 
-### 6.4 Migration semantics (`scripts/migrate_v060_to_v070.py`)
+### 6.4 Migration semantics (`scripts/migrate_v060_to_v070.py [retired from tree]`)
 
 Idempotent single-pass migration:
 
@@ -797,7 +799,7 @@ Every wall-clock estimate in the MCR carries a **+50 % per-cycle iteration reser
 
 ## 12. Migration from v0.6.0
 
-*Source: draft-5 §6.4.* Cross-reference: `scripts/migrate_v060_to_v070.py`.
+*Source: draft-5 §6.4.* Cross-reference: `scripts/migrate_v060_to_v070.py [retired from tree]`.
 
 ### 12.1 Project-level migration
 

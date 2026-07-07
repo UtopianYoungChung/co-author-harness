@@ -22,7 +22,14 @@ from typing import Iterable
 
 FIELDS = {
     "question_type": {"conceptual", "practical", "applied", "mixed", "tbd"},
-    "citation_style": {"turabian_author_date", "venue_template", "acm", "lncs", "tbd"},
+    "citation_style": {
+        "turabian_author_date",
+        "turabian_notes_bibliography",
+        "venue_template",
+        "acm",
+        "lncs",
+        "tbd",
+    },
     "source_role_policy": {"strict_role_classification", "venue_default", "project_defined"},
     "evidence_display_policy": {"standard", "visual_ethics_required", "project_defined"},
     "assistance_disclosure_policy": {"project_local", "venue_required", "overseer_escalate"},

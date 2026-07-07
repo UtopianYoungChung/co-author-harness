@@ -1,0 +1,23 @@
+{
+  "schema": "retired-surfaces/v1",
+  "created": "2026-07-07",
+  "notes": "Provenance registry for retired scripts (closure of the release-gate header's long-deferred retirement-sweep gap; 2026-07-07 coherence-audit item 4). scripts/retirement-sweep-check.py scans live surfaces (references/, agents/, skills/, commands/, root CLAUDE.md/AGENTS.md/README.md) for scripts/<name> citations whose targets do not exist. A citation line is compliant only if it carries a historical marker (retired / removed / historical / since retired / legacy / migration-only / never existed). Registered names get provenance in the finding; unregistered missing names are flagged as unknown danglers.",
+  "historical_markers": ["retired", "removed", "historical", "since retired", "legacy", "migration-only", "never existed", "no longer runnable", "archived"],
+  "retired_scripts": {
+    "tier_state_validate.py": {"retired_at": "v0.7.5 RC", "successor": "phase_state_validate.py"},
+    "tier_state_canonicalize.py": {"retired_at": "v0.7.5 RC", "successor": "manual canonicalization per fingerprint_mode rules"},
+    "migrate_v073_to_v074_tier_to_phase.py": {"retired_at": "v0.7.5 RC", "successor": null},
+    "migrate_v073_to_v074.py": {"retired_at": "n/a", "successor": null, "note": "citation typo for migrate_v073_to_v074_tier_to_phase.py; never existed under this name"},
+    "migrate_v060_to_v070.py": {"retired_at": "v0.7.5 RC", "successor": null},
+    "migrate_v055_to_v060.py": {"retired_at": "v0.7.5 RC", "successor": null},
+    "migrate_classification_to_tier.py": {"retired_at": "v0.7.0", "successor": null},
+    "marshal_preflight.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": "Planner pre-flight absorption"},
+    "marshal_postflight.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": "Planner post-flight absorption"},
+    "_marshal_common.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": null},
+    "verify_rule_digest.py": {"retired_at": "v0.7.0 (rule-digest retirement)", "successor": "full-file reads (Grounding Rule 1)"},
+    "build_rule_digest.py": {"retired_at": "v0.7.0 (rule-digest retirement)", "successor": "full-file reads (Grounding Rule 1)"},
+    "migrate_convergence_journal_v075.py": {"retired_at": "v0.11.0 c5", "successor": null},
+    "migrate_convergence_log_v074.py": {"retired_at": "v0.11.0", "successor": null},
+    "check_citation_order.py": {"retired_at": "n/a", "successor": "audit/audit_citations.py", "note": "never existed; walkthrough-era aspiration"}
+  }
+}
