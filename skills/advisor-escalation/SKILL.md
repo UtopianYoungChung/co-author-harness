@@ -32,7 +32,7 @@ These are **recommended** consult moments; they do not replace user approval, MC
 
 ## Procedural flow (Steps 1–7)
 
-You are executing the advisor-escalation bridge. **Opus 4.7** pricing applies to the advisor MCP server as configured; see Step 1.
+You are executing the advisor-escalation bridge. **Claude Fable 5** pricing applies to the advisor MCP server as configured (US$10 in / US$50 out per MTok, list pricing verified 2026-07-07); see Step 1.
 
 **Prerequisite reads.** Before proceeding, read these files (skip if already read in this session):
 
@@ -53,7 +53,7 @@ You are executing the advisor-escalation bridge. **Opus 4.7** pricing applies to
 | **Theoretical reframing** | "Should we pivot from Leonardi's relational framing to Suchman's situated action?" |
 | **Submission-readiness judgment** | "Is this ready for CAiSE or does it need another round?" |
 | **Strategic dead-end** | The Evaluator keeps flagging the same BLOCKER and the Generator cannot resolve it — the problem may be structural, not editorial |
-| **User explicitly requests advisor** | "Ask the advisor about X," "Escalate this to Opus," `/advisor-escalation` |
+| **User explicitly requests advisor** | "Ask the advisor about X," "Escalate this to the advisor" (or a named advisor model), `/advisor-escalation` |
 | **EP-1 (post-Ph2, pre-Ph3)** | Scheduled **Advisor MCP** read after Ph2 exit, before deep Ph3 — see `references/ADVISOR_MCP.md` |
 | **EP-2 (pre-MCR/Ph4)** | Scheduled read after `Ph3_converged`, before MCR/Ph4 — see `references/ADVISOR_MCP.md` |
 | **Cross-project strategic question** | "How does the INF3006Y framing relate to the CAiSE revision?" |
@@ -73,7 +73,7 @@ Before calling the advisor, present the user with:
 
 ```
 Advisor escalation: estimated ~<N> input tokens (manuscript + framing files + question).
-Opus 4.7 pricing applies. Proceed? [y/n]
+Claude Fable 5 pricing applies (US$10/MTok in, US$50/MTok out). Proceed? [y/n]
 ```
 
 To estimate input tokens:
@@ -244,6 +244,6 @@ For every `[source: advisor]` item in the audited artifact:
 - **Do not let the advisor override DO_NOT_DISTURB rules.** If the advisor recommends something that conflicts with a DND entry, flag the conflict to the user but do not apply the recommendation.
 - **Do not write advisor recommendations directly into the manuscript.** The advisor informs the Planner's strategy; the Generator writes prose. The advisor's words are not manuscript text.
 - **Do not skip the re-classification step.** Even if the advisor's tagging looks correct, run the heuristic. The regex catches what the model misses; the model catches what the regex can't represent. Both layers are needed.
-- **Do not call the advisor without cost confirmation.** No silent Opus 4.7 spend.
+- **Do not call the advisor without cost confirmation.** No silent Fable 5 spend.
 - **Do not treat advisor output as verified.** Every factual claim from the advisor is Indirect tier until independently verified. The advisor is a hypothesis generator, not a fact source.
 - **Do not call the advisor for mechanical checks.** The harness's own tools are faster, cheaper, and deterministic.

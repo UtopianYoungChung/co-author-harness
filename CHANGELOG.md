@@ -6,6 +6,22 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.25.0 — 2026-07-07
+
+### Advisor-surface alignment — Fable 5 baseline inherited from advisor plugin v0.4.0
+
+**What changed.** The peer advisor plugin (`B:\Agents\platform\Advisor`) was audited and updated 2026-07-07 (v0.3.0 → v0.4.0): advisor model `claude-opus-4-7` → `claude-fable-5`, server pricing defaults US$15/US$75 → **US$10/US$50 per MTok** (Fable 5 list pricing, externally verified). This release aligns the harness's consumer surfaces: `skills/advisor-escalation/SKILL.md` (procedural-flow preamble, Step 1 cost-gate block, trigger-table example de-pinned from a model name, closing rule) and `references/SKILL_REGISTRY.md` SK-18 (re-worded "frontier-class advisor output" with a dated model pin rather than a bare model name).
+
+**Why.** The Step 1 cost gate quoted Opus 4.x pricing against a server that now bills Fable 5 — every estimate would disagree with the server's footer telemetry, and the footer's model string (`claude-fable-5`) would look anomalous against skill text naming Opus 4.7. The harness's own drift rule (context contract §10: version stamped in every footer so the bridge skill can warn on drift) is the mechanism this fixes.
+
+**How to apply.** Nothing changes procedurally. Steps 1–7, EXTERNAL-tag re-classification, EP-1/EP-2 entry points, and artifact filing are untouched. Users see updated pricing in the cost gate and `Advisor: claude-fable-5 … contract v1.4.0` in proof-of-life footers.
+
+**Known remaining drift (out of scope, recorded).** (1) `references/MODEL_ALLOCATION.md` and `agents/planner.md` still pin dispatch models `claude-opus-4-7` / `claude-sonnet-4-6` / `claude-haiku-4-5` for the four-agent loop — that is the *subagent dispatch* plane, not the advisor plane; migrating it requires re-validating the capability ordering and `E-MA-DEPRECATED-MODEL` list, deferred to its own cycle. (2) Advisor-plugin audit finding F-4 (contract doc defines through v1.3.0; server stamps v1.4.0; packer implements neither) awaits an owner decision on the advisor side.
+
+**Severity / attribution.** Maintainer increment, doc-plane only. Source: advisor plugin audit `Advisor/advisor-audit-2026-07-07.md` findings F-2/F-6.
+
+---
+
 ## v0.24.0 — 2026-07-07
 
 ### Deferred-register closure — one ladder, one vocabulary, one authority per fact, every authority checked
