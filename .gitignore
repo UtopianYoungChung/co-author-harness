@@ -62,6 +62,7 @@ artifacts/semantic-review/
 reviews/advisor_consultation_*.md
 reviews/ground_truth_verification_*.md
 reviews/token_budget_report.json
+reviews/findings.json
 
 # Stray auditor output when run_all.py is invoked with cwd=scripts/audit/.
 # The canonical findings.json lives at the project-root reviews/; this dir is
