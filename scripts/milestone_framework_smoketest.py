@@ -24,13 +24,25 @@ F9_TEMPLATE = ROOT / "references" / "templates" / "f9_milestone_handoff.json"
 
 CASES = {
     "valid_native_chain": 0,
+    "valid_native_bootstrap": 0,
+    "valid_not_applicable_empty_records": 0,
     "missing_milestone_purpose": 4,
     "m4_plan_as_deliverable": 4,
     "m5_checklist_as_deliverable": 4,
     "missing_feedback_provenance": 4,
     "two_primary_lineages": 4,
     "handoff_without_approval": 4,
+    "ready_with_null_approval_evidence": 4,
+    "consumed_with_null_approval_evidence": 4,
+    "ready_with_null_packet_binding": 4,
+    "consumed_with_null_packet_binding": 4,
+    "legacy_without_migration_boundary": 4,
+    "accepted_m1_without_deliverable": 4,
+    "accepted_m2_without_deliverable": 4,
+    "accepted_m3_without_deliverable": 4,
     "not_applicable_without_authority": 4,
+    "not_applicable_incomplete_override": 4,
+    "not_applicable_status_without_override": 4,
 }
 
 
@@ -170,6 +182,20 @@ def _feedback(milestone: str) -> dict[str, Any]:
     }
 
 
+def _override(milestones: list[str], handoffs: list[str]) -> dict[str, Any]:
+    return {
+        "authority": "user",
+        "reason": "The higher-authority project contract excludes this milestone.",
+        "scope": "Milestone deliverable and handoff",
+        "timestamp": "2026-07-13T18:00:00Z",
+        "affected_milestones": milestones,
+        "affected_handoffs": handoffs,
+        "substitute_evidence": "reviews/not_applicable_approval.md",
+        "revalidation_obligations": ["Revalidate if the project contract changes."],
+        "event_type": "authorized_override",
+    }
+
+
 def _valid_ledger() -> dict[str, Any]:
     milestones: dict[str, Any] = {}
     for milestone in ("M1", "M2", "M3", "M4", "M5"):
@@ -205,18 +231,109 @@ def _valid_ledger() -> dict[str, Any]:
 
 def _case_ledgers() -> dict[str, dict[str, Any]]:
     cases = {name: copy.deepcopy(_valid_ledger()) for name in CASES}
+    bootstrap = cases["valid_native_bootstrap"]["milestones"]
+    for milestone in ("M1", "M2", "M3", "M4", "M5"):
+        bootstrap[milestone]["status"] = "in_progress" if milestone == "M1" else "not_started"
+        bootstrap[milestone]["artifacts"] = []
+        bootstrap[milestone]["feedback_records"] = []
+        bootstrap[milestone]["approval"] = {
+            "status": "pending",
+            "authority": None,
+            "evidence_path": None,
+            "approved_at": None,
+        }
+        bootstrap[milestone]["handoff"] = {
+            "status": "not_ready",
+            "packet_path": None,
+            "packet_sha256": None,
+        }
+
+    for milestone in ("M4", "M5"):
+        target = cases["valid_not_applicable_empty_records"]["milestones"][milestone]
+        target["status"] = "not_applicable"
+        target["applicability"] = "not_applicable"
+        target["artifacts"] = []
+        target["feedback_records"] = []
+        target["approval"] = {"status": "not_applicable", "authority": None, "evidence_path": None, "approved_at": None}
+        target["handoff"] = {"status": "not_applicable", "packet_path": None, "packet_sha256": None}
+        target["dependency_state"] = "not_applicable"
+        target["authorized_override"] = _override([milestone], [f"{milestone}_terminal" if milestone == "M5" else f"{milestone}_to_next"])
+
     del cases["missing_milestone_purpose"]["milestones"]["M2"]["purpose"]
     cases["m4_plan_as_deliverable"]["milestones"]["M4"]["artifacts"][0]["artifact_kind"] = "plan"
     cases["m5_checklist_as_deliverable"]["milestones"]["M5"]["artifacts"][0]["artifact_kind"] = "checklist"
     del cases["missing_feedback_provenance"]["milestones"]["M3"]["feedback_records"][0]["source_sha256"]
     cases["two_primary_lineages"]["primary_lineage"] = ["main", "alternate"]
     cases["handoff_without_approval"]["milestones"]["M2"]["approval"]["status"] = "pending"
+
+    for name, status in (
+        ("ready_with_null_approval_evidence", "ready"),
+        ("consumed_with_null_approval_evidence", "consumed"),
+    ):
+        target = cases[name]["milestones"]["M2"]
+        target["handoff"]["status"] = status
+        target["approval"]["authority"] = None
+        target["approval"]["evidence_path"] = None
+        target["approval"]["approved_at"] = None
+
+    for name, status in (
+        ("ready_with_null_packet_binding", "ready"),
+        ("consumed_with_null_packet_binding", "consumed"),
+    ):
+        target = cases[name]["milestones"]["M2"]
+        target["handoff"]["status"] = status
+        target["handoff"]["packet_path"] = None
+        target["handoff"]["packet_sha256"] = None
+
+    cases["legacy_without_migration_boundary"]["mode"] = "legacy"
+
+    for milestone in ("M1", "M2", "M3"):
+        target = cases[f"accepted_{milestone.lower()}_without_deliverable"]["milestones"][milestone]
+        target["artifacts"] = [
+            {
+                **_artifact(milestone),
+                "role": "transition_control",
+                "artifact_kind": "plan",
+            },
+            {
+                **_artifact(milestone),
+                "role": "evidence",
+                "artifact_kind": "review",
+            },
+            {
+                **_artifact(milestone),
+                "role": "derived_view",
+                "artifact_kind": "status_view",
+            },
+            {
+                **_artifact(milestone),
+                "role": "export",
+                "artifact_kind": "rendered_export",
+            },
+        ]
+
     target = cases["not_applicable_without_authority"]["milestones"]["M3"]
     target["status"] = "not_applicable"
     target["applicability"] = "not_applicable"
     target["approval"] = {"status": "not_applicable", "authority": None, "evidence_path": None, "approved_at": None}
     target["handoff"] = {"status": "not_applicable", "packet_path": None, "packet_sha256": None}
     target["dependency_state"] = "not_applicable"
+
+    incomplete = cases["not_applicable_incomplete_override"]["milestones"]["M3"]
+    incomplete["status"] = "not_applicable"
+    incomplete["applicability"] = "not_applicable"
+    incomplete["approval"] = {"status": "not_applicable", "authority": None, "evidence_path": None, "approved_at": None}
+    incomplete["handoff"] = {"status": "not_applicable", "packet_path": None, "packet_sha256": None}
+    incomplete["dependency_state"] = "not_applicable"
+    incomplete["authorized_override"] = {
+        "authority": "user",
+        "reason": "The milestone is excluded.",
+        "scope": "M3",
+        "substitute_evidence": "reviews/not_applicable_approval.md",
+        "event_type": "authorized_override",
+    }
+
+    cases["not_applicable_status_without_override"]["milestones"]["M3"]["status"] = "not_applicable"
     return cases
 
 
