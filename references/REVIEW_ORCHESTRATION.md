@@ -37,7 +37,7 @@ Before opening the draft, record four inputs:
 | 1 | Lifecycle | `general_research_project_guidelines.md` | Is the piece at the right milestone? Is scope consistent with its stage? |
 | 2 | Cross-venue playbook | `research_paper_writing_guidelines.md` | Claims, hedging, theory framing, audience, citations, response-letter craft, workflow. |
 | 3 | IS shape (if applicable) | `baird_2021_writing_guidelines.md` | Five-element model, nine-step process, Who/What/Why/When/Where/How lenses. Skip if paper is not IS theory or empirical. |
-| 4 | Sentence craft | `bacon_2009_well_crafted_sentence_guidelines.md` | Focus, balance, modification, variety, revision heuristics §10. |
+| 4 | Sentence craft | `bacon_2009_well_crafted_sentence_guidelines.md` | **Concept-introduction priority gate** (provenance, derivation continuity, scope authority), then focus, semantic-predication integrity, balance, modification, variety, and revision heuristics §10. |
 | 5 | Narrative craft | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Arc, show/tell, cause–effect, openings, title, voice. |
 | 6 | Project invocation rules | `CLAUDE.md` (this folder) | Confirm precedence; record any conflicts with venue/advisor rules. |
 | 7 | Integrated checklist | `project_writing_style_checklist.md` | The deduplicating pass: every applicable checkbox for this stage and paper type, with severity. |
@@ -154,6 +154,8 @@ Many rules appear in multiple files. Use this map to avoid re-processing the sam
 | External theories "drawn on," not extended | Playbook §3.1 | MASTER §B.4 | Apply at Step 2. Don't re-check. |
 | Agency of models (models are instruments) | MASTER §B.4 row 3 | Playbook §3.4 | Apply at Step 2. |
 | First-person navigation, asymmetric rhythm, lived-in detail | MASTER §A.4.2, §I, §J | Bacon §3.1–3.3, §9.5 | Apply at Step 4 (Bacon) for craft; Step 0a handles the LLM-tic counts. MASTER §I/J are the authoritative voice reference; Bacon provides the structural rules. |
+| Semantic-predication integrity | Bacon §3.6; `sentence-level-pass` Check 10 | `project_writing_style_checklist.md` Part 3 §6 | Apply the five judgment tests at Step 4. Step 7 verifies coverage but does not duplicate a recorded finding. A claim-changing bearer mismatch is MAJOR. |
+| Concept-introduction priority gate | Bacon §3.7; `sentence-level-pass` Phase 2 priority gate | `project_writing_style_checklist.md` Part 3 §6 | Run before ordinary sentence craft at Step 4 and verify at Step 7. An unintroduced construct or unsupported field-wide unit claim that changes the analytical frame is MAJOR even if its definition is grammatically clear. |
 | Sentence length distribution (~15–20 tech / ~25 prestige / avoid 60+) | MASTER §F.5 | Bacon §9.5 | Apply at Step 0a deterministic pass. |
 | "Synonyms are the enemy" / construct provenance | `project_writing_style_checklist.md` Part 4 §15 | Baird Step 6; Playbook §3.6 | Apply at Step 7. |
 | P0/P1/P2 stage anti-patterns | `project_writing_style_checklist.md` Part 0 | MASTER §C.2 | Apply at classification (§1 of this file) and at Step 7. |

@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.24.0-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-0.26.0-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -122,10 +122,11 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.25.0`
+`0.26.0`
 
 | Release | Highlights |
 | --- | --- |
+| **0.26.0** | Precision-gate cycle (surfaced by the QE2026 First-Principles RE Essay Ph4 pass). Adds two mandatory Step-4 judgment gates to the sentence-craft layer: a **concept-introduction priority gate** (Bacon §3.7 — introduction-provenance, derivation-continuity, scope-authority, reader-reconstruction tests; a fluent definition of an unintroduced construct is MAJOR when frame-changing) and **semantic-predication integrity** as `sentence-level-pass` Check 10 (Bacon §3.6 — bearer, contrast-set, domain-collocation, transformation-continuity, and conceptual-debt tests; *precision and clarification outrank vividness*, so an image whose implication a later clause must repair is a finding). Wired through `agents/evaluator.md`, `references/REVIEW_ORCHESTRATION.md` (Step 4 + overlap map), `references/project_writing_style_checklist.md`, and `references/bacon_2009_well_crafted_sentence_guidelines.md §§3.6–3.7`; `sentence-level-pass` → v1.4. Two new regression smoketests (`concept_introduction_contract_smoketest.py`, `semantic_predication_contract_smoketest.py`) encode the live QE2026 fixtures and are enforced by `release-gate.sh`. Additive — no schema or four-agent-contract change. |
 | **0.25.0** | Advisor-surface alignment with advisor plugin v0.4.0 — the advisor MCP server's model baseline moved `claude-opus-4-7` → `claude-fable-5` (US$10/US$50 per MTok list pricing, verified 2026-07-07). `advisor-escalation` SKILL cost-gate text and pricing updated; SK-18 registry entry re-worded frontier-class with dated model pin. No procedure, schema, or gate change. |
 | **0.24.0** | Deferred-register closure (report: `docs/analysis/2026-07-07_deferred-register-closure.md`) — the nine open items from the coherence audit, executed as one program: tier→phase migration completed on the last three tier-speaking surfaces (REVIEW_ORCHESTRATION §3.3 rewritten phase-native; AGENT_CONTRACTS §2 Evaluator contract reconciled to F7/check_profile envelopes; T3R settled as a retired sibling — response letters are a Ph3 manuscript-class); migration made enforceable (`retirement-sweep-check.py` + `schemas/retired_surfaces.json`, closing the gate header's oldest deferred gap; 18-field/31-trigger count planes registered); MCP UUID namespaces made symbolic; orphans disposed (GROUND_TRUTH routed from classify-manuscript, notifications smoketest created + wired, packaging canonicalized to the gate). 23/23 checks green. Sole remaining vocabulary fork: the recorded agent-file ladder fork, deferred pending a dispatch-surface test. |
 | **0.23.0** | Full-links coherence audit (report: `docs/analysis/2026-07-07_full-links-coherence-audit.md`). Four-lane dependency-graph audit; ~45 anchor-verified fixes: schema-count drift healed everywhere (18-field SectionStateObject, 31-trigger enum, 7-field log row), planner Ph1 digest-exception leak removed, reflector-split pointer fallout repaired, run-iterate canonicality reconciled with its shim+catalog, v0.7.0 ladder assertions lifted to v0.8.0 on non-agent surfaces, stage×profile 0.15.1 fork recorded in the version-planes registry, SKILL_REGISTRY tier-era dependency rows migrated, MANIFEST honesty + missing rows, `terminology_register.md` created (was cited-but-absent), committed check dumps quarantined, CI expanded 9→21 checks including two previously-orphaned smoketests that caught two live regressions during the cycle. Open judgment items in report §4. |

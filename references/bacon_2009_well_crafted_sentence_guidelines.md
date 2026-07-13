@@ -69,6 +69,33 @@ When revising, ask **who is doing something?** and **what are they doing?**
 
 **Caveat:** If a tip **worsens** clarity, substance, or precision, **discard it for that sentence**.
 
+### 3.6 Semantic-predication integrity (harness extension)
+
+A focused grammatical subject can still carry a false or misleading predicate. After identifying the subject and predicate, apply these judgment tests:
+
+- **Bearer test:** Is the predicate actually true of the grammatical subject? If the claim concerns an ascription, representation, model, classification, or act of treating X as Y, make that modelling act—not the world-level entity—the subject.
+- **Contrast-set test:** When a restrictive *that/who* clause identifies the subject, state the contrasting class it implies. If that contrast is unintended or incoherent, remove the restriction or recast the clause.
+- **Domain-collocation test:** Verify that the noun phrase names the intended domain concept, not merely a grammatical combination with a different ordinary-language reading (for example, *patient safety*, not *safe patients*).
+- **Transformation-continuity test:** Read the sentence with its neighbors. If one sentence introduces an analytic operation, the next must not silently transfer a property of that operation to the real-world entity being represented.
+- **Conceptual-debt test:** Ask whether an image, analogy, example, or figurative phrase creates a misleading implication that nearby prose must retract, disclaim, or repair. If the clarification is needed only because the device introduced the confusion, remove the device and state the distinction directly.
+
+This is a semantic-predication integrity check, not a preference for concrete subjects. A concrete subject should be rejected when it is not the truthful bearer of the predicate.
+
+First distinguish rhetorical from analytical use. Local, unmistakable personification can be legitimate prose when no definition or inference depends on it. Definitional, ontological, and model-interpreting sentences receive no such exemption: their grammatical bearer must match their analytical bearer.
+
+In research prose, precision and clarification outrank vividness. A device earns its space only when it lowers the reader's inferential burden without temporarily misstating the claim. Successful repair in a following clause does not erase conceptual debt created by the opening phrase.
+
+### 3.7 Concept introduction and derivation continuity (harness extension)
+
+Before judging whether a newly defined term is clear, ask: **Where did this term come from?** A definition is not a bridge. The preceding prose must establish why the term is needed and how it follows from the concept already under discussion.
+
+- **Introduction-provenance test:** Identify the problem, entity, distinction, or analytical need that licenses the new term.
+- **Derivation-continuity test:** Name the operation that moves between levels or concepts, including who performs it. For example, world-level parties become model-level actors through a modeler's act of representation; *actor* should not simply appear as “the field's working unit.”
+- **Scope-authority test:** Field-wide claims such as *the basic unit*, *the central mechanism*, or *the field's working unit* require explicit support. Otherwise state the local analytical role.
+- **Reader reconstruction test:** If a reader must supply an unstated premise to connect the old concept to the new one, write the premise or recast the transition.
+
+This check precedes ordinary sentence polish. Fluent prose does not compensate for an unearned conceptual arrival.
+
 ---
 
 ## 4. Chapter 3 — Well-balanced sentences (coordination)

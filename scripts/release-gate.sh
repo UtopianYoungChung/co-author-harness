@@ -311,6 +311,38 @@ done
 
 # --- Phase 0.56: notification-catalog smoketest (2026-07-07 audit item 9) --
 
+if [[ -f "$PLUGIN_ROOT/scripts/concept_introduction_contract_smoketest.py" ]]; then
+    echo "Concept-introduction contract smoketest"
+    if ! python3 "$PLUGIN_ROOT/scripts/concept_introduction_contract_smoketest.py"; then
+        echo "  [BLOCKER] concept-introduction contract smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      concept-introduction contract smoketest passed"
+    fi
+    echo ""
+else
+    echo "Concept-introduction contract smoketest: script missing"
+    echo "  [BLOCKER] cannot run concept-introduction contract smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+if [[ -f "$PLUGIN_ROOT/scripts/semantic_predication_contract_smoketest.py" ]]; then
+    echo "Semantic-predication contract smoketest"
+    if ! python3 "$PLUGIN_ROOT/scripts/semantic_predication_contract_smoketest.py"; then
+        echo "  [BLOCKER] semantic-predication contract smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      semantic-predication contract smoketest passed"
+    fi
+    echo ""
+else
+    echo "Semantic-predication contract smoketest: script missing"
+    echo "  [BLOCKER] cannot run semantic-predication contract smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 if [[ -f "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py" ]]; then
     echo "Notification catalog smoketest (scripts/phase_notifications_smoketest.py)"
     if ! python3 "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py"; then

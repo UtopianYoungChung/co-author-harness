@@ -88,7 +88,9 @@ When an item's severity depends on context (e.g. a missing construct definition 
 
 ### 6. Subject-Verb Focus (Bacon)
 
+- [ ] **[PRIORITY; MAJOR when frame-changing] Concept Introduction:** Apply the **introduction-provenance test** and **derivation-continuity test** to every new analytical term, unit, category, or field-level generalization. Does the preceding prose explain why the concept is needed and name the operation connecting it to what came before? Reject a fluent definition that makes the reader ask “Where did that come from?”
 - [ ] **Populate the Prose:** Are the grammatical subjects of your sentences aligned with the actual "characters" or actors of your narrative (whether human, AI, or institutional components)?
+- [ ] **[MAJOR when claim-changing] Semantic-Predication Integrity:** For each definitional, modelling, or ontological sentence, does the predicate truthfully apply to its grammatical subject? Apply the **bearer test**, **contrast-set test**, **domain-collocation test**, adjacent-sentence transformation-continuity test, and **conceptual-debt test**; do not confuse a world-level entity with the model, representation, or ascription made of it. Distinguish local rhetorical personification from analytical predication, but allow no rhetorical exemption where a definition or inference depends on the wording. Remove an illustration whose misleading implication requires immediate repair; precision and clarification outrank vividness.
 - [ ] **Active Voice Priority:** Are verbs primarily in the active voice using strong action verbs (e.g., "enables," "constrains," "demonstrates" instead of "looks at" or passive constructings)?
 - [ ] **Short Subject Phrases:** Are the subjects of the sentences kept relatively short, allowing the reader to reach the main verb quickly?
 - [ ] **Avoid Buried Subjects:** Have long, heavy introductory phrases been trimmed or reconstructed so the subject isn't hidden?

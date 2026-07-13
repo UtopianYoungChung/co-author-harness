@@ -1,11 +1,11 @@
 ---
 name: sentence-level-pass
-description: 'Run a targeted Bacon sentence-craft pass on academic prose — 9-point checklist covering focus, balance, modification, variety, and rhythm, emitting per-sentence findings with rewrites. Use when: "line editing", "sentence-level feedback", "prose polish", "Bacon pass", "tighten the prose".'
+description: 'Run a targeted Bacon sentence-craft pass on academic prose — a concept-introduction priority gate plus a 10-point checklist covering focus, semantic predication, balance, modification, variety, and rhythm, emitting per-sentence findings with rewrites. Use when: "line editing", "sentence-level feedback", "prose polish", "Bacon pass", "tighten the prose".'
 trigger: when the user asks for line editing, sentence-level feedback, prose polish, Bacon pass, fix the sentences, or tighten the prose
 created_by: Reflector
 created_from: Tier 2 skill build, 2026-04-11 — bacon_2009_well_crafted_sentence_guidelines.md had no standalone entry point
 pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist; voice_preservation_guidelines.md (C-7 idiolect carve-out)
-version: 1.2
+version: 1.4
 ---
 # Sentence-Level Pass (Bacon)
 
@@ -33,9 +33,28 @@ Run these counts on the manuscript (or the section the user specifies):
 
 Record counts in the output block (Phase 3).
 
-### Phase 2 — 9-point judgment pass
+### Phase 2 — 10-point judgment pass
 
-Walk the manuscript paragraph by paragraph. For each paragraph, check these nine points (derived from Bacon §10 Quick Revision Checklist):
+Walk the manuscript paragraph by paragraph. For each paragraph, check these ten points (derived from Bacon §10 Quick Revision Checklist, with the semantic-predication integrity extension in §3.6):
+
+#### Priority gate — concept introduction and derivation continuity
+
+Run this gate **before** accepting grammatical clarity, rhythm, or semantic predication. A sentence that defines a term fluently can still fail because the term arrives without a reason for appearing.
+
+- **Introduction-provenance test:** For every newly introduced analytical term, category, unit, or field-level generalization, ask: *Where did this term come from?* The preceding prose must identify the problem, entity, distinction, or modelling need that makes the term necessary.
+- **Derivation-continuity test:** State the transformation that carries the reader from the prior concept to the new one. When moving from world-level parties to model-level actors, name the modelling operation and its author; do not jump directly to a definition.
+- **Scope-authority test:** Reject unsupported formulations such as “the field's working unit,” “the basic unit,” or “the central mechanism” unless the manuscript has established that scope or a source warrants it.
+- **Reader reconstruction test:** A careful reader should not have to invent the missing bridge. If the natural response is “Where did that come from?”, the gate fails even when every sentence is grammatical.
+
+An unintroduced construct or unsupported field-level scope claim that changes the analytical frame is **[MAJOR]**. A missing bridge for a secondary, already familiar term is **[MINOR]**. This is a **priority gate**: do not downgrade a failure to style merely because the subsequent definition is accurate.
+
+**Regression example:**
+
+> How those parties enter the analysis is a further step. The field's working unit is the *actor*: a unit constructed within a model and represented as capable of intentional participation.
+
+This fails because *actor* is asserted as the field's unit without being derived from the preceding parties or from a modelling operation. Prefer:
+
+> The next step is to represent those parties in a requirements model. The modeler does so by constructing *actors*: units represented as capable of intentional participation.
 
 | # | Check | Source | What to look for |
 |---|---|---|---|
@@ -48,12 +67,26 @@ Walk the manuscript paragraph by paragraph. For each paragraph, check these nine
 | **7** | **Appositives and absolutes** | Bacon §8.1–8.3 | Are there opportunities to define, list, or zoom across details using appositives or absolutes that are currently missed? Are heavy lists serving as subjects? |
 | **8** | **Emphasis devices** | Bacon §9.1–9.4 | Are clefts, inversions, or fragments used only where genre and moment support them? Are they absent where they would strengthen a key claim? |
 | **9** | **Variety and rhythm** | Bacon §9.5 | Read the paragraph "aloud" (simulate auditory processing). Is there monotonous length or structure? Does the paragraph mix short and long sentences? Is there at least one structural shift (e.g., cumulative after a series of SVO)? |
+| **10** | **Semantic-predication integrity** | Bacon §3.6 extension | Apply five tests: **Bearer test** — is the predicate true of the grammatical subject, or only of an ascription, representation, model, or treatment of it? **Contrast-set test** — does a restrictive *that/who* clause imply an unintended class of contrasting cases? **Domain-collocation test** — does the noun phrase name the established domain concept rather than a grammatically possible but misleading state? **Transformation-continuity test** — if the preceding sentence introduces a modelling or analytic act, does this sentence keep that act, rather than the world-level entity, as the bearer of the abstraction? **Conceptual-debt test** — does an image, analogy, example, or figurative phrase create a misleading implication that nearby prose must retract, disclaim, or repair? If so, state the distinction directly and remove the device. |
+
+Classify the use before assigning severity. A clearly rhetorical personification may pass when it is local, recognizable, and carries no definition or inference. The same wording in an analytical, definitional, or model-interpreting claim must pass all five tests; rhetorical license cannot repair a category error in a load-bearing claim.
+
+For research prose, **precision and clarification outrank vividness**. An illustrative phrase does not earn its space merely by being understandable. It must reduce the reader's inferential burden without weakening, widening, or temporarily falsifying the claim. A phrase that creates conceptual debt is a finding even when the following clause successfully repays that debt.
 
 **Severity assignment:**
 - Dangling modifier, broken parallelism in a series, or wrong restrictive/nonrestrictive punctuation that changes meaning → **[MAJOR]**
 - Dummy-subject pileup (3+ in one paragraph), passive cluster (3+ consecutive), or sentence > 60 words → **[MAJOR]**
+- A failed bearer test or conceptual-debt test that changes the sentence's ontological or analytical claim → **[MAJOR]**. A misleading contrast set, domain collocation, or non-load-bearing illustrative detour is **[MINOR]** unless it changes the argument, in which case it is **[MAJOR]**.
 - Monotonous rhythm, missed appositive opportunity, or suboptimal active/passive choice → **[MINOR]**
 - Genre-sensitive: if a passive or dummy subject is justified by topic continuity or academic convention, it is **not a finding** (Bacon §3.4).
+
+**Regression example (all four tests):**
+
+> The hospital that wants safe patients is a modelling abstraction, not a claim that the institution has the same kind of inner life as a nurse.
+
+Do not clear this sentence merely because *hospital* is a concrete subject. The hospital is world-level; the modelling abstraction is the ascription of wanting. The restrictive *that wants* creates an unintended contrast class, and *safe patients* does not name the domain objective *patient safety*. Prefer:
+
+> Saying that a hospital wants patient safety is a modelling abstraction, not a claim that the institution has the same kind of inner life as a nurse.
 
 ### Phase 3 — Output
 

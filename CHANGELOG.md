@@ -6,6 +6,27 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.26.0 — 2026-07-12
+
+### Precision-gate cycle — a definition is not an introduction, and precision outranks vividness
+
+**What changed.** Two mandatory judgment gates were added to the Step-4 sentence-craft layer and threaded across every surface that names it:
+
+- **Concept-introduction priority gate** (`bacon_2009_well_crafted_sentence_guidelines.md §3.7`, new). Before ordinary craft checks, every newly introduced analytical term, category, unit, or field-level generalization must pass the **introduction-provenance**, **derivation-continuity**, **scope-authority**, and **reader-reconstruction** tests: the prose must name the need and the operation that connect the new construct to the concept preceding it. A fluent definition does **not** clear an unintroduced construct; a frame-changing failure is **MAJOR**.
+- **Semantic-predication integrity** as `sentence-level-pass` **Check 10** (`bacon_2009_well_crafted_sentence_guidelines.md §3.6`, new). Every definitional, modelling, or ontological sentence is tested with the **bearer**, **contrast-set**, **domain-collocation**, **transformation-continuity**, and **conceptual-debt** tests. A concrete, well-focused subject is not a pass; the predicate must be true of the entity that actually bears it, not of a model, representation, or ascription of it. *Precision and clarification outrank vividness*: an image or analogy whose implication a following clause must retract or repair is a finding even when the repair succeeds.
+
+Wiring: `agents/evaluator.md` (both gates mandatory at every applicable review depth), `references/REVIEW_ORCHESTRATION.md` (Step 4 routing + overlap map), `references/project_writing_style_checklist.md` (Part 3), and `skills/sentence-level-pass/SKILL.md` (→ **v1.4**: priority-gate section + Check 10 in the 10-point checklist; description updated). Two regression smoketests — `scripts/concept_introduction_contract_smoketest.py` and `scripts/semantic_predication_contract_smoketest.py` — assert the gate language stays present across all five surfaces and pin the live QE2026 fixtures (the L21 "the field's working unit is the *actor*" derivation failure and the "a hospital wants patient safety" anthropomorphism). Both are enforced by `scripts/release-gate.sh`.
+
+**Why.** Surfaced during the QE2026 First-Principles RE Essay Ph4 precision pass. Two recurrent defect classes were slipping past the existing clarity and predication checks: (1) an analytical term arriving by fluent definition with no derivation from the preceding problem or entity ("a definition is not an introduction"), and (2) figurative or anthropomorphic phrasing that a neighbouring clause then had to disclaim, leaving conceptual debt. Earlier checks judged focus and grammatical clarity but neither the *provenance* of a construct nor the *truthful bearer* of a predicate, so both failures read as clean prose. Making them named, ordered gates — with the exact failures frozen as fixtures — converts a recurring reviewer miss into a design-time blocker.
+
+**How to apply.** Nothing changes for normal invocation. Evaluators now run the concept-introduction gate first at Step 4 and the semantic-predication check on every definitional/modelling/ontological sentence; both yield MAJOR when the failure changes the frame or the claim. Maintainers gain `python scripts/concept_introduction_contract_smoketest.py` and `python scripts/semantic_predication_contract_smoketest.py` (also run by the release gate).
+
+**Known remaining drift (out of scope, recorded).** The Cowork-installed plugin cache still carries `sentence-level-pass` at **v1.2** and lacks both gates; the canonical checkout is v1.4. Redeploy/reinstall of the installed cache is deferred to its own step and is not resolved by this release.
+
+**Severity / attribution.** Maintainer feature increment, judgment-layer only; additive with no schema, ledger, or four-agent-contract change. All maintainer structural checks and both new smoketests green. Source: QE2026 First-Principles RE Essay precision-pass handoff (2026-07-12).
+
+---
+
 ## v0.25.0 — 2026-07-07
 
 ### Advisor-surface alignment — Fable 5 baseline inherited from advisor plugin v0.4.0

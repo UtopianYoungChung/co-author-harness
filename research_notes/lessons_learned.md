@@ -179,6 +179,36 @@ A `style_lint.py` PASS is **not** sufficient for C-6. A prose edit that introduc
 
 ---
 
+## L-P7: A Definition Is Not an Introduction, and Precision Outranks Vividness
+
+**Source.** QE2026 First-Principles RE Essay Ph4 precision pass, 2026-07-12; landed as v0.26.0. The pass surfaced two defects that had cleared earlier clarity and predication review: (1) "The field's working unit is the *actor*" — a load-bearing construct arriving by fluent definition with no derivation from the *parties* introduced before it (the L21 failure), and (2) a hospital that "wants patient safety" — an anthropomorphic predication whose implication the next clause had to retract.
+
+**The lesson.**
+
+A sentence can define a term fluently, focus a concrete subject grammatically, and still fail on two axes the existing sentence-craft checks did not test: the *provenance* of a construct and the *truthful bearer* of a predicate.
+
+- **Introduction ≠ definition.** Every newly introduced analytical term, category, unit, or field-level generalization must be *derived* from a preceding problem, entity, distinction, or modelling operation. A definition supplies the meaning; it does not supply the reason the construct appears here, now, connected to what came before. When the derivation is missing, a fluent definition reads as clean prose while leaving the reader asking "Where did that come from?"
+- **Precision outranks vividness.** An image, analogy, or example earns its space only if it lowers the reader's inferential burden *without* temporarily misstating the claim. A figurative phrase that creates a misleading implication — an ascription/representation/model predicated of the world-level entity itself — is a finding *even when a following clause successfully repairs it*. The repair is evidence the debt was incurred.
+
+**Failure patterns to watch for.**
+
+- **Definition-as-introduction**: a term is defined but never derived; the fluency masks the missing bridge.
+- **Scope overclaim without derivation**: a field-wide formulation ("the field's working unit is X") asserted as harmless style, carrying unsupported scope plus a missing derivation — MAJOR, not a stylistic nicety.
+- **World/model level conflation**: predicating of a world-level *party* what is true only of the *actor* constructed to represent it, or vice versa (bearer-test failure). Keep the levels explicit: *party* is world-level; *actor* is constructed in a model; *agent* names a world-level role occupant.
+- **Conceptual debt / repair-after-image**: an anthropomorphism or metaphor whose implication the surrounding prose must disclaim.
+
+**How to apply.**
+
+- At Step 4, run the **concept-introduction priority gate** *before* ordinary craft checks: apply the introduction-provenance, derivation-continuity, scope-authority, and reader-reconstruction tests to each new construct. A frame-changing failure is **MAJOR**.
+- On every definitional, modelling, or ontological sentence, run **semantic-predication integrity (Check 10)**: bearer, contrast-set, domain-collocation, transformation-continuity, and conceptual-debt tests. Do not clear a sentence because its subject is concrete or well focused; a claim-changing bearer or conceptual-debt failure is **MAJOR**.
+- Do not accept a disclaimer or later repair as a cure for a misleading image — state the distinction directly and remove the device.
+
+**Scope.** Applies to all manuscripts reviewed at sentence-craft depth or higher, and is especially load-bearing for theory-building and modelling prose that introduces analytical vocabulary (agent/actor/party, goal/softgoal, and similar) where a fluent definition most easily substitutes for a derivation. Complements L-P6: L-P6 governs *when* the C-6 judgment fires on hand-edits; L-P7 governs *what* two of those judgments now test.
+
+**Promotion.** Operationalized this cycle in: `references/bacon_2009_well_crafted_sentence_guidelines.md §§3.6–3.7`, `skills/sentence-level-pass/SKILL.md` (→ v1.4: priority-gate section + Check 10), `agents/evaluator.md` (both gates mandatory at every applicable review depth, Step 4), `references/REVIEW_ORCHESTRATION.md` (Step 4 routing + overlap map), and `references/project_writing_style_checklist.md` (Part 3). Regression-pinned by `scripts/concept_introduction_contract_smoketest.py` and `scripts/semantic_predication_contract_smoketest.py`, both enforced by `scripts/release-gate.sh`.
+
+---
+
 *End of package-level lessons. This file is maintained by the Reflector and updated after every cross-project insight.*
 
-*Last updated: 2026-07-03.*
+*Last updated: 2026-07-12.*
