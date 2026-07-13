@@ -426,8 +426,6 @@ def _validate_artifacts(
         if not isinstance(artifact, dict):
             continue
         artifact_path = f"milestone_framework.milestones.{milestone}.artifacts[{index}]"
-        if artifact.get("lineage_id") != primary_lineage and artifact.get("role") == "deliverable" and record.get("status") == "accepted":
-            findings.append(_finding("MF-LINEAGE", f"{artifact_path}.lineage_id", "accepted deliverable is outside the declared primary lineage"))
         if record.get("status") == "accepted":
             payload = _file_binding(
                 project_root, artifact.get("path"), artifact.get("sha256"), artifact.get("bytes"),
@@ -624,7 +622,7 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
         if not _override_rule_resolves(project_root, override.get("rule"), override.get("authority")):
             findings.append(_finding(
                 "MF-OVERRIDE", f"milestone_framework.milestones.{milestone}.authorized_override.rule",
-                "override rule must resolve to a named heading anchor in a package reference",
+                "override rule must resolve in the authority-appropriate package reference or contained project-local contract",
             ))
         _file_binding(
             project_root,

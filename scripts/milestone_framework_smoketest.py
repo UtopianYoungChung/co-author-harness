@@ -85,6 +85,8 @@ REAL_CASES = {
     "implicit_supersession": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "explicit_supersession": ("READY", 0, None, None),
     "cyclic_supersession": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "accepted_primary_supersedes_preserved": ("READY", 0, None, None),
+    "accepted_unsuperseded_nonprimary": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "ph4_without_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_retracted_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_empty_sections": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
@@ -705,6 +707,18 @@ def _write_real_case(case: str, project: Path) -> None:
         record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
         _reset_milestone(milestones["M4"])
         _reset_milestone(milestones["M5"])
+    elif case in {"accepted_primary_supersedes_preserved", "accepted_unsuperseded_nonprimary"}:
+        record = milestones["M5"]
+        primary = next(item for item in record["artifacts"] if item["role"] == "deliverable")
+        alternate = copy.deepcopy(primary)
+        alternate["lineage_id"] = "alternate"
+        alternate["path"] = "research_notes/m5_preserved_alternate.md"
+        alternate["sha256"], alternate["bytes"] = _write_bound_file(
+            project, alternate["path"], "preserved alternate M5 manuscript\n"
+        )
+        record["artifacts"].append(alternate)
+        if case == "accepted_primary_supersedes_preserved":
+            primary["supersedes_lineage_id"] = "alternate"
     elif case == "ph4_without_mcr_admission":
         pass
     elif case == "ph4_retracted_mcr_admission":
@@ -829,6 +843,12 @@ def main() -> int:
                 )
             if expected_code and expected_code not in codes:
                 failures.append(f"real/{name} missing expected finding {expected_code}")
+            if name == "missing_project_local_override":
+                messages = [finding.get("message", "") for finding in payload.get("findings", [])]
+                if not any("authority-appropriate" in message for message in messages):
+                    failures.append(
+                        "real/missing_project_local_override diagnostic must describe authority-appropriate resolution"
+                    )
             if "Traceback" in stderr:
                 failures.append(f"real/{name} emitted a traceback")
 
