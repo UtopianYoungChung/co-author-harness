@@ -39,11 +39,30 @@ LIVE_DIRS = ["references", "agents", "skills", "commands"]
 LIVE_FILES = ["CLAUDE.md", "AGENTS.md", "README.md"]
 CITE = re.compile(r"scripts/([A-Za-z0-9_\-.]+\.(?:py|sh))")
 RETIRED_MILESTONE_SPLIT = ("M4a", "M4b")
-MILESTONE_SPLIT_ARCHIVAL_ALLOWLIST = {
-    Path("references/PHASE_PROTOCOL.md"),
-    Path("references/phase_state_schema.md"),
-    Path("references/SKILL_REGISTRY.md"),
-}
+
+
+def _is_archive_or_history(path: Path) -> bool:
+    """Return whether *path* is structurally inside archival material."""
+    return any(
+        part.lower() in {"archive", "archives", "history", "historical"}
+        for part in path.parts
+    )
+
+
+def retired_milestone_split_findings(
+    path: Path, line: str, historical_markers: list[str]
+) -> list[str]:
+    """Return retired split tokens used in current voice on one live line."""
+    if _is_archive_or_history(path):
+        return []
+    low = line.lower()
+    if any(marker.lower() in low for marker in historical_markers):
+        return []
+    return [
+        token
+        for token in RETIRED_MILESTONE_SPLIT
+        if re.search(rf"\b{re.escape(token)}\b", line)
+    ]
 
 
 def live_surface_files() -> list[Path]:
@@ -96,14 +115,12 @@ def main() -> int:
                         f"script {name!r} (not in retired_surfaces.json). Fix "
                         f"the citation or register the retirement."
                     )
-            if rel not in MILESTONE_SPLIT_ARCHIVAL_ALLOWLIST:
-                for token in RETIRED_MILESTONE_SPLIT:
-                    if re.search(rf"\b{token}\b", line):
-                        blockers.append(
-                            f"{rel}:{lineno}: retired milestone split token {token!r} "
-                            "on a live role/package surface. Use orthogonal unsplit M1-M5 "
-                            "milestones and route history to MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md."
-                        )
+            for token in retired_milestone_split_findings(rel, line, markers):
+                blockers.append(
+                    f"{rel}:{lineno}: retired milestone split token {token!r} "
+                    "in current voice on a live role/package surface. Use orthogonal "
+                    "unsplit M1-M5 milestones, or mark genuine history on the same line."
+                )
             low_line = line.lower()
             if any(mk in low_line for mk in markers):
                 continue
