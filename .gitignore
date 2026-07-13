@@ -6,6 +6,7 @@ releases/
 legacy/
 proposals/
 .claude/
+.worktrees/
 
 
 # Optional local unpack trees (regenerate from releases/ or source root)
