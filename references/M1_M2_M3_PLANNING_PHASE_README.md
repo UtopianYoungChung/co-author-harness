@@ -22,7 +22,7 @@
    - M1 criteria include "Exemplar enumeration" and "Premise mapping"
    - M2 criteria include "Framework transfer justification" and "Epistemological clarity"
    - M3 criteria include "Alternative positions addressed," "Tension resolution," and "Illustration flagging"
-   - This file tells you what the Evaluator will check.
+   - This file tells you what the Planner checks at Ph1. The Evaluator remains dormant until Ph2.
 
 2. **`M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` — The operational playbook**
    - Has concrete decision trees and checklists for each check
@@ -59,7 +59,7 @@
    - You: "Resolve it — models capture current dependencies, not stable entities"
    - ✓ Done
 
-**After M1, hand off to Evaluator:** Does the memo pass the exemplar and tension checks? If not, Generator revises.
+**After M1, run the Planner feedback gate:** The Planner records attributable user/advisor feedback, applies the exemplar and tension checks as Planner evidence, and requests revision where needed. The Evaluator is not engaged at Ph1.
 
 ---
 
@@ -86,7 +86,7 @@
    - You: "Illustration — constructed scenario grounded in evidence from platform work, clinical systems, policing."
    - ✓ Labeled in annotation with empirical backing noted
 
-**After M2, hand off to Evaluator:** Do the annotations justify every framework transfer? Are sources epistemologically classified?
+**After M2, run the Planner feedback gate:** The Planner records attributable user/advisor feedback and checks whether each framework transfer is justified and each source is epistemologically classified. The Evaluator is not engaged at Ph1.
 
 ---
 
@@ -116,7 +116,7 @@
    - You: "§2.3 Loan-Officer Case [ILLUSTRATIVE SCENARIO]. Realism grounded in: Seeber et al. (platform work), Herrmann & Pfeiffer (clinical decision support), predictive policing literature."
    - ✓ Done — flagged and grounded
 
-**After M3, hand off to Evaluator:** Does the outline show all alternatives addressed? All tensions resolved? All illustrations grounded?
+**After M3, run the Planner feedback gate:** The Planner records attributable user/advisor feedback and checks whether alternatives, tensions, and illustrations are handled. The Evaluator first engages after Ph2 entry.
 
 ---
 
@@ -146,10 +146,10 @@ A: M1 typically 1–2 sessions (memo + feedback loop). M2 typically 1–2 sessio
 
 ## Getting Started
 
-1. **Read** `AGENT_ORCHESTRATION.md` §10 to see what the Evaluator will check.
+1. **Read** `AGENT_ORCHESTRATION.md` §10 to see what the Planner checks and how milestone handoffs coordinate with Ph1.
 2. **Read** `.paper-package/research_notes/lessons_learned.md` (L-P1, L-P2, L-P3) to understand *why*.
 3. **Use** `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` as your playbook for each milestone.
-4. **Hand off** to the Evaluator at the end of each milestone for feedback.
+4. **Complete** the Planner-owned feedback gate and accepted F9 handoff at the end of each milestone; preserve the real source of user/advisor feedback.
 
 ---
 

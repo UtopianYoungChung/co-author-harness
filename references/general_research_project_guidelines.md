@@ -2,6 +2,8 @@
 
 This document outlines a generalized, milestone-driven framework for developing a sustained academic research paper. It is abstracted from successful, structured course assignments and provides a robust path from initial ideation to a final manuscript.
 
+**Normative lifecycle contract.** This document explains the default intellectual progression. `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` is authoritative for deliverable roles, feedback provenance, approval, lineage, exact-byte bindings, reopening, and handoff evidence. Milestones M1-M5 govern project deliverables and accepted handoffs; phases Ph1-Ph4 independently govern revision/readiness.
+
 ## Overview of the Milestone Structure
 A strong research paper is not produced in a single draft. It requires progressively developing an intellectual "itch" into a clear tension, surveying a contested landscape of literature, and structuring an argument. 
 
@@ -59,3 +61,11 @@ The process is divided into five core milestones:
 - **Elaboration:** Fleshing out underdeveloped sections identified during the draft review.
 - **Tone & Adherence Check:** Ensuring the paper fulfills all intended research questions and adheres to the planned scope discipline (e.g., remaining an analytical survey rather than a metaphysical manifesto).
 - **Final Formatting & Presentation:** Preparing the document for submission and/or accompanying oral presentation reflecting on the intellectual journey.
+
+---
+
+## Feedback and Handoff Discipline
+
+Each milestone produces its named deliverable, passes an explicit feedback and adjudication gate, receives approval, and emits hash-bound F9 evidence for the next milestone. Planner checks, user/advisor feedback, Evaluator findings, and retrospective applications retain their real provenance; they are not interchangeable labels.
+
+A plan, gate, checklist, review, report, generated view, or export may support or block progress but cannot replace the milestone deliverable. In particular, M4 is the complete manuscript at review-ready depth and M5 is the final manuscript at submission-bound depth. Acceptance of M4 or M5 certifies exact manuscript bytes; later byte changes stale the prior approval and require revalidation under `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`.

@@ -25,6 +25,7 @@ Everything else is on-demand per the routing table below.
 |---|---|
 | **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md` (the runbook); `DETERMINISTIC_CHECKS.md` (mechanical pre-flight rationale — invoke canonical `scripts/audit/run_all.py --project-root ...`, not the LLM, per PR-2; this also emits the D-STYLE profile-routing report) |
 | **Per-section phase advancement (Ph1 → Ph4)** | `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1) |
+| **Project lifecycle, milestones, feedback, approval, or handoffs (M1 → M5)** | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10 (axis coordination and phase-conditioned dispatch) |
 | **Dispatching subagents** | `AGENT_ORCHESTRATION.md` (loop); `MODEL_ALLOCATION.md` (Opus-floor invariants); `AGENT_CONTRACTS.md` (per-agent obligations); `agents/<role>.md` (the role's full prompt) |
 | **Authoring Evaluator / Reflector artefacts** | `ARTEFACT_FRONTMATTER_SCHEMA.md` (F1–F8 families); `OUTPUT_ECONOMY_PROTOCOL.md` (default outputs, evidence packets, escalations) |
 | **Bootstrapping a new project** | `PROJECT_BOOTSTRAP.md`; `RESEARCH_ROOT_CLAUDE.md` (root-level governance) |
@@ -71,6 +72,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | File | Role | When authoritative |
 |---|---|---|
 | `PHASE_PROTOCOL.md` (renamed from `TIER_PROTOCOL.md` at v0.7.4) | Lifecycle-Phase Ladder Ph1–Ph4; `§3.3.2` stability sub-mode; `§3.3.3` Check 8 accessibility gate; `§6.*` `phase_state.json` schema | Every phase-advance decision; v0.15.0-pre PR-3b.1 added optional `stage`/`profile` shadow fields |
+| `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` | Canonical M1-M5 deliverable, feedback, adjudication, lineage, approval, reopening, handoff, migration, and gate-outcome contract | Every project milestone decision and every M1-M5 handoff |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |
 | `schemas/f7_evidence_packet.schema.json` | JSON Schema for F7 evidence packets (consumed by `ARTEFACT_FRONTMATTER_SCHEMA.md`, `OUTPUT_ECONOMY_PROTOCOL.md`) | Output-economy validation |
 | `VERDICT_CACHE_CONTRACT.md` | P-14 paragraph-hash verdict carryover cache contract | Ph3 verdict reuse; currently unwired — no live consumer routes here (2026-07-07 audit) |
@@ -105,7 +107,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Narrative arc, openings, show-don't-tell, cause-effect |
 | `MASTER_research_and_paper_guidelines.md` | Cross-venue playbook for tone, claims, theory, audience, structure |
 | `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` | Pre-drafting argumentative-rigor checklist |
-| `M1_M2_M3_PLANNING_PHASE_README.md` | Planning-phase orientation (historical — milestone-era document; superseded by the Lifecycle-Phase Ladder, retained for ancestry) |
+| `M1_M2_M3_PLANNING_PHASE_README.md` | Ph1 orientation for M1-M3 Planner checks, feedback gates, and handoffs |
 | `PARAGRAPH_DEFINITIONS.md` | Canonical paragraph-class definitions |
 
 ### Formal ontology design

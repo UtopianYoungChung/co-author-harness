@@ -654,13 +654,15 @@ If any gate fails, the Reflector records the pattern as a lesson instead of a sk
 
 ---
 
-## 10. Lifecycle Dispatch — Milestones Unified into the Lifecycle-Phase Ladder
+## 10. Lifecycle Dispatch — Coordinating Milestones and Phases
 
-At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **superseded** by the Lifecycle-Phase Ladder's phase vocabulary (Ph1, Ph2, Ph3, Ph4). Each milestone maps onto a phase or onto a sub-phase within a phase; the milestone names are preserved as **deliverable tags** for users who carry the older mental model, but the dispatch contract is now phase-based. This section specifies the supersession mapping, the phase-conditioned agent dispatch for each former milestone, and the migration path for projects that originated under the v0.6.0 milestone framing.
+Milestones and phases are orthogonal. Milestones name project deliverables and accepted handoffs. Phases name the revision/readiness state of the active artifact or sections. M1-M3 normally execute within Ph1; M4 spans Ph2-Ph3; M5 closes at Ph4. Neither vocabulary supersedes the other.
 
-### 10.1 Supersession mapping (v0.6.0 → v0.7.0)
+This section specifies their normal coordination and phase-conditioned agent dispatch. The canonical project-level deliverable, feedback, lineage, acceptance, and handoff contract is `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `PHASE_PROTOCOL.md` remains canonical for section revision/readiness.
 
-| v0.6.0 Milestone | Artifact | v0.7.0 Phase | v0.7.0 Sub-phase or notes |
+### 10.1 Axis coordination
+
+| Milestone | Artifact | Normal phase binding | Dispatch notes |
 |---|---|---|---|
 | **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
 | **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
@@ -669,15 +671,15 @@ At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **supers
 | **M4b — Paper Draft (converging)** | `manuscript/main.md` (iteration depth) | **Ph3 Iterate & Converge** | Unbounded loop with `convergence_metric` two-round stability test; Coupling E.2 graph-grounding overlay at Step 0.2 |
 | **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
-**Why the supersession.** The milestone framing was ordered (M1 → M2 → ... → M5) but the agent-engagement contract was **uniform across milestones**: every milestone could in principle dispatch the full four-agent loop. This blurred the boundary between drafting (where the Generator's freedom is highest) and converging (where the Evaluator's policing is tightest). The Lifecycle-Phase Ladder makes the boundary explicit — Ph1 has no Evaluator at all, Ph4 requires external verifiers — and the milestone vocabulary becomes redundant. Preserving the milestone names as deliverable tags (e.g. "the M1 deliverable is the project memo, authored at Ph1 sub-phase 1") keeps the older mental model usable without requiring two parallel dispatch contracts.
+The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where the Planner records user/advisor feedback and checklist evidence without engaging the Evaluator. M4 remains the manuscript deliverable while Ph2-Ph3 govern its review and convergence. M5 certifies the exact final manuscript bytes at Ph4.
 
-### 10.2 Dispatch per former milestone (v0.7.0)
+### 10.2 Dispatch per milestone
 
 #### M1 deliverable — Project Memo (at Ph1 sub-phase 1)
 
 ```
 Planner (Ph1 bootstrap; reads classification.md for P-stage; populates ph1_pstage_declaration)
-  → Generator (drafts memo under P-stage register; diff-scoped, Rule 1 digest exception applies)
+  → Generator (drafts memo under P-stage register; diff-scoped, full-file grounding applies)
   → Reflector-lightweight (optional integrity probe; no lessons_learned.md write)
 ```
 
@@ -693,7 +695,7 @@ Planner (Ph1 bootstrap; reads classification.md for P-stage; populates ph1_pstag
 | Argumentative framing | When the memo claims a disciplinary placement or integration (e.g., "Problem X belongs in Discipline Y"), are existing research programs named that demonstrate the claimed integration? Presence of claim ≠ demonstration of claim. |
 | Premise mapping | When the memo introduces theoretical premises (e.g., "Actors are provisional stabilizations" + "We use models"), are potential internal tensions between premises identified and noted for resolution at Ph2? |
 
-**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset on the memo text under the Rule 1 phase-gated digest exception (Ph1 only). The Evaluator does not engage at Ph1, so the deterministic checks are run by the Planner as part of the pre-phase-advance check (clause (g) of `pre_phase_advance_check.py`).
+**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset on the memo text under the unconditional Grounding Protocol. The Evaluator does not engage at Ph1, so the deterministic checks are run by the Planner as part of the pre-phase-advance check (clause (g) of `pre_phase_advance_check.py`).
 
 #### M2 deliverable — Annotated References (at Ph1 sub-phase 2)
 
@@ -773,14 +775,14 @@ Planner (runs MCR admission check; rejects with [MCR-FIRST-RESPONSE] if any sect
 
 Ph4 is the strict superset of Ph3. **Legal Ph4 → Ph3 demotions** at v0.8.0: EG-1 (`eg1_ph4_downgrade_to_ph3`, trigger 23) on Rule 1–7 grounding violation; EG-7 (`eg7_mcr_readmission_after_class_change`, trigger 22) when `reviews/classification.md` changes after MCR admission. Both demotions emit a TerminalSignoffRow → ReengagementSignoffRow pair and refresh `ph3_last_activity_at`.
 
-### 10.3 Migration of v0.6.0 milestone-tagged projects
+### 10.3 Historical phase-ledger migration
 
 Projects that originated under the v0.6.0 milestone framing migrate via `scripts/migrate_v060_to_v070.py [retired from tree]`. The script:
 
-- Maps the project's most recent milestone tag (in `reviews/round_program.md` or in the v0.6.0 `tier_state.json`) onto the v0.7.4 phase per the §10.1 supersession table.
+- Maps the project's most recent milestone tag (in `reviews/round_program.md` or in the v0.6.0 `tier_state.json`) onto the v0.7.4 phase per the §10.1 coordination table.
 - Injects `phase_goal_declared` defaulted to the milestone deliverable name (e.g. "M3 deliverable — Structured Outline").
 - Injects `phase_deliverable_path` defaulted to the canonical artifact path from §10.1.
 - Sets `ph3_last_activity_at` to the migration timestamp for sections at `Ph3` (so the staleness clock starts at migration, not at the unknown v0.6.0 last-activity).
 - Emits a `migration_report_hold` row in `phase_entry_log` that the Planner must resolve before the next Ph2 dispatch — typically by user confirmation that the inferred phase and goal are correct.
 
-For projects bootstrapped fresh under v0.7.0, the milestone vocabulary is optional documentation; the dispatch contract is purely tier-based.
+That retired script migrated the historical phase ledger only. It does not establish current milestone deliverable, feedback, approval, or lineage evidence. Native and legacy milestone state now follow `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; migration never infers acceptance from the historical phase mapping.
