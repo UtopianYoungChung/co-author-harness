@@ -149,8 +149,28 @@
         "lineage_id": {
           "type": "string",
           "minLength": 1
+        },
+        "source_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["role"],
+            "properties": {
+              "role": {"const": "export"}
+            }
+          },
+          "then": {
+            "required": ["source_sha256"]
+          }
+        }
+      ]
     },
     "feedback_record": {
       "type": "object",
@@ -333,8 +353,14 @@
           "minLength": 1
         },
         "authority": {
-          "type": "string",
-          "minLength": 1
+          "enum": [
+            "user",
+            "venue",
+            "advisor",
+            "instructor",
+            "committee",
+            "project_local_contract"
+          ]
         },
         "reason": {
           "type": "string",

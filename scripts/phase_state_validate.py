@@ -72,6 +72,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+# Isolated Python (`-I -S`) omits the script directory from sys.path.  Add only
+# this trusted sibling directory so the shared stdlib-only validator remains
+# importable without enabling user or site packages.
+_SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+
 from milestone_framework_validate import validate_document as validate_milestone_document
 
 # -----------------------------------------------------------------------------

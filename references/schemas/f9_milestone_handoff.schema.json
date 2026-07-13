@@ -13,6 +13,7 @@
     "to_milestone",
     "predecessor_packet",
     "deliverable",
+    "released_export",
     "inputs_consumed",
     "decisions_frozen",
     "feedback_dispositions",
@@ -69,6 +70,12 @@
     },
     "deliverable": {
       "$ref": "#/$defs/deliverable"
+    },
+    "released_export": {
+      "anyOf": [
+        {"$ref": "#/$defs/export_binding"},
+        {"type": "null"}
+      ]
     },
     "inputs_consumed": {
       "type": "array",
@@ -214,8 +221,20 @@
           },
           "predecessor_packet": {
             "$ref": "#/$defs/binding"
+          },
+          "released_export": {
+            "$ref": "#/$defs/export_binding"
           }
         }
+      }
+    },
+    {
+      "if": {
+        "required": ["from_milestone"],
+        "properties": {"from_milestone": {"enum": ["M1", "M2", "M3", "M4"]}}
+      },
+      "then": {
+        "properties": {"released_export": {"type": "null"}}
       }
     }
   ],
@@ -265,6 +284,19 @@
           "type": "integer",
           "minimum": 1
         }
+      }
+    },
+    "export_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes", "source_sha256"],
+      "properties": {
+        "role": {"const": "export"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "source_path": {"type": "string", "minLength": 1},
+        "source_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
     "feedback_disposition": {

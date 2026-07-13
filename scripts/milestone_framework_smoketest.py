@@ -47,10 +47,15 @@ CASES = {
     "not_applicable_without_authority": 4,
     "not_applicable_incomplete_override": 4,
     "not_applicable_status_without_override": 4,
+    "export_without_source_binding": 4,
 }
 
 REAL_CASES = {
     "valid_native_chain": ("READY", 0, None, None),
+    "valid_ph2_target": ("READY", 0, "Ph2", None),
+    "valid_ph4_target": ("READY", 0, "Ph4", None),
+    "valid_ph4_before_closure": ("READY", 0, "Ph4", None),
+    "valid_ph4_ceiling_locked": ("READY", 0, "Ph4", None),
     "valid_approved_legacy_migration": ("LEGACY_READY", 0, None, None),
     "authorized_not_applicable": ("NOT_APPLICABLE", 0, "M4", None),
     "absent_namespace": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
@@ -68,6 +73,19 @@ REAL_CASES = {
     "malformed_derived_claim": ("MISCONFIGURED", 4, None, "MF-DERIVED"),
     "manual_status_claims_authority": ("MISCONFIGURED", 4, None, "MF-STATUS"),
     "list_shaped_approval": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "fabricated_f9_authority": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "fabricated_matching_authority": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "missing_approval_evidence": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "mismatched_f9_approval_evidence": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "rejected_generator_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
+    "allowed_advisor_override": ("NOT_APPLICABLE", 0, "M4", None),
+    "reordered_artifacts_feedback_lineage": ("READY", 0, None, None),
+    "active_multi_lineage": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "superseded_multi_lineage": ("READY", 0, None, None),
+    "ph4_without_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "ph4_retracted_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "export_source_mismatch": ("MISCONFIGURED", 4, None, "MF-EXPORT"),
+    "terminal_f9_export_mismatch": ("MISCONFIGURED", 4, None, "MF-EXPORT"),
     "list_shaped_sections": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "list_shaped_milestones": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
 }
@@ -211,7 +229,7 @@ def _feedback(milestone: str) -> dict[str, Any]:
 
 def _override(milestones: list[str], handoffs: list[str]) -> dict[str, Any]:
     return {
-        "rule": "MF-OVERRIDE",
+        "rule": "references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md#3-authority-and-precedence",
         "authority": "user",
         "reason": "The higher-authority project contract excludes this milestone.",
         "scope": "Milestone deliverable and handoff",
@@ -357,6 +375,11 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
     del incomplete["authorized_override"]["rule"]
 
     cases["not_applicable_status_without_override"]["milestones"]["M3"]["status"] = "not_applicable"
+    cases["export_without_source_binding"]["milestones"]["M5"]["artifacts"].append({
+        **_artifact("M5"),
+        "role": "export",
+        "artifact_kind": "released_manuscript_export",
+    })
     return cases
 
 
@@ -368,17 +391,24 @@ def _write_bound_file(project: Path, relative: str, content: str) -> tuple[str, 
     return hashlib.sha256(payload).hexdigest(), len(payload)
 
 
-def _phase_document(ledger: dict[str, Any]) -> dict[str, Any]:
+def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[str, Any]:
+    if current_phase == "Ph4":
+        previous_phase = "Ph3_converged"
+        trigger = "mcr_admission"
+    else:
+        previous_phase = "Ph1"
+        trigger = "user_approval"
     return {
         "schema_version": "0.7.4",
         "terminal_phase_reached": True,
         "sections": {
             "1. Test": {
-                "current_phase": "Ph4",
+                "current_phase": current_phase,
+                "pre_mcr_deep_pass_completed": current_phase == "Ph4",
                 "phase_entry_log": [{
-                    "prev_phase": "Ph3_converged",
-                    "new_phase": "Ph4",
-                    "trigger": "user_approval",
+                    "prev_phase": previous_phase,
+                    "new_phase": current_phase,
+                    "trigger": trigger,
                     "actor": "user",
                     "notes": "Fixture reached terminal state.",
                     "timestamp": "2026-07-13T18:00:00Z",
@@ -424,6 +454,7 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
                 "sha256": artifact_hash,
                 "bytes": artifact_bytes,
             },
+            "released_export": None,
             "inputs_consumed": [],
             "decisions_frozen": [],
             "feedback_dispositions": [{
@@ -458,15 +489,63 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
         "bytes": export_bytes,
         "verified_at": "2026-07-13T18:00:00Z",
         "lineage_id": manuscript["lineage_id"],
+        "source_path": manuscript["path"],
+        "source_sha256": manuscript["sha256"],
     })
+    export = ledger["milestones"]["M5"]["artifacts"][-1]
+    _rewrite_packet(
+        project,
+        ledger,
+        "M5",
+        lambda packet: packet.update({
+            "released_export": {
+                key: export[key]
+                for key in ("role", "path", "sha256", "bytes", "source_path", "source_sha256")
+            }
+        }),
+    )
+    _write_bound_file(
+        project,
+        "reviews/ph3_convergence_signoff.md",
+        "---\nphase: Ph3\n---\nis_terminal: true\napproved_by: user\n",
+    )
     return ledger
+
+
+def _rewrite_packet(project: Path, ledger: dict[str, Any], milestone: str, mutate: Any) -> None:
+    handoff = ledger["milestones"][milestone]["handoff"]
+    packet_path = project / handoff["packet_path"]
+    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    mutate(packet)
+    payload = (json.dumps(packet, indent=2) + "\n").encode("utf-8")
+    packet_path.write_bytes(payload)
+    handoff["packet_sha256"] = hashlib.sha256(payload).hexdigest()
+
+
+def _reset_milestone(record: dict[str, Any], status: str = "not_started") -> None:
+    record.update({
+        "status": status,
+        "artifacts": [],
+        "feedback_records": [],
+        "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
+        "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
+        "dependency_state": "current",
+        "authorized_override": None,
+    })
 
 
 def _write_real_case(case: str, project: Path) -> None:
     ledger = _materialize_native_project(project)
     milestones = ledger["milestones"]
 
-    if case == "valid_approved_legacy_migration":
+    document_phase = "Ph4"
+    if case == "valid_ph2_target":
+        document_phase = "Ph2"
+        milestones["M4"]["status"] = "in_progress"
+        milestones["M4"]["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
+        milestones["M4"]["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
+        _reset_milestone(milestones["M5"])
+    elif case == "valid_approved_legacy_migration":
         evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "migration approved\n")
         report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", "migration report\n")
         ledger["mode"] = "legacy"
@@ -479,7 +558,7 @@ def _write_real_case(case: str, project: Path) -> None:
             "report_path": "reviews/migration_report.md",
             "report_sha256": report_hash,
         }
-    elif case == "authorized_not_applicable":
+    elif case in {"authorized_not_applicable", "allowed_advisor_override", "rejected_generator_override"}:
         target = milestones["M4"]
         target.update({
             "status": "not_applicable", "applicability": "not_applicable",
@@ -490,6 +569,10 @@ def _write_real_case(case: str, project: Path) -> None:
             "authorized_override": _override(["M4"], ["M4_to_M5"]),
         })
         _write_bound_file(project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n")
+        if case == "allowed_advisor_override":
+            target["authorized_override"]["authority"] = "advisor"
+        elif case == "rejected_generator_override":
+            target["authorized_override"]["authority"] = "generator"
         milestones["M5"].update({
             "status": "not_started", "artifacts": [], "feedback_records": [],
             "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
@@ -541,14 +624,90 @@ def _write_real_case(case: str, project: Path) -> None:
         })
     elif case == "list_shaped_approval":
         milestones["M2"]["approval"] = []
+    elif case == "fabricated_f9_authority":
+        _rewrite_packet(project, ledger, "M5", lambda packet: packet["approval"].update({"authority": "generator"}))
+    elif case == "fabricated_matching_authority":
+        milestones["M5"]["approval"]["authority"] = "generator"
+        _rewrite_packet(project, ledger, "M5", lambda packet: packet["approval"].update({"authority": "generator"}))
+    elif case == "missing_approval_evidence":
+        (project / milestones["M5"]["approval"]["evidence_path"]).unlink()
+    elif case == "mismatched_f9_approval_evidence":
+        _write_bound_file(project, "reviews/fabricated_approval.md", "fabricated approval\n")
+        _rewrite_packet(
+            project, ledger, "M5",
+            lambda packet: packet["approval"].update({"evidence_path": "reviews/fabricated_approval.md"}),
+        )
+    elif case == "reordered_artifacts_feedback_lineage":
+        evidence_hash, evidence_bytes = _write_bound_file(project, "reviews/reordered_evidence.md", "supporting evidence\n")
+        milestones["M3"]["artifacts"].insert(0, {
+            "role": "evidence", "artifact_kind": "review",
+            "path": "reviews/reordered_evidence.md", "sha256": evidence_hash, "bytes": evidence_bytes,
+            "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "alternate",
+        })
+    elif case in {"active_multi_lineage", "superseded_multi_lineage"}:
+        record = milestones["M3"]
+        alternate = copy.deepcopy(record["artifacts"][0])
+        alternate["lineage_id"] = "alternate"
+        alternate["path"] = "research_notes/m3_alternate.md"
+        alternate["sha256"], alternate["bytes"] = _write_bound_file(project, alternate["path"], "alternate M3\n")
+        record["artifacts"].append(alternate)
+        record["status"] = "in_progress" if case == "active_multi_lineage" else "superseded"
+        record["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
+        record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
+        _reset_milestone(milestones["M4"])
+        _reset_milestone(milestones["M5"])
+    elif case == "ph4_without_mcr_admission":
+        pass
+    elif case == "ph4_retracted_mcr_admission":
+        pass
+    elif case == "export_source_mismatch":
+        export = next(item for item in milestones["M5"]["artifacts"] if item["role"] == "export")
+        export["source_sha256"] = "f" * 64
+    elif case == "terminal_f9_export_mismatch":
+        _rewrite_packet(
+            project, ledger, "M5",
+            lambda packet: packet["released_export"].update({"sha256": "e" * 64}),
+        )
     elif case == "list_shaped_milestones":
         ledger["milestones"] = []
 
-    document: Any = _phase_document(ledger)
+    document: Any = _phase_document(ledger, document_phase)
     if case == "absent_namespace":
         del document["milestone_framework"]
     elif case == "list_shaped_sections":
         document["sections"] = []
+    elif case == "ph4_without_mcr_admission":
+        document["sections"]["1. Test"]["phase_entry_log"][0]["trigger"] = "user_approval"
+    elif case == "valid_ph4_before_closure":
+        document["terminal_phase_reached"] = False
+    elif case == "valid_ph4_ceiling_locked":
+        section = document["sections"]["1. Test"]
+        section.update({
+            "current_phase": "Ph2",
+            "ceiling_locked": True,
+            "last_approved_phase": "Ph2",
+            "section_ceiling_override": "Ph2",
+            "pre_mcr_deep_pass_completed": False,
+            "phase_entry_log": [{
+                "prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval",
+                "actor": "user", "notes": "Approved at explicit ceiling.",
+                "timestamp": "2026-07-13T18:00:00Z", "model_used": None,
+            }],
+        })
+    elif case == "ph4_retracted_mcr_admission":
+        section = document["sections"]["1. Test"]
+        section["phase_entry_log"].extend([
+            {
+                "prev_phase": "Ph4", "new_phase": "Ph3", "trigger": "retraction",
+                "actor": "user", "notes": "Retracted admission.",
+                "timestamp": "2026-07-13T18:01:00Z", "model_used": None,
+            },
+            {
+                "prev_phase": "Ph3", "new_phase": "Ph4", "trigger": "user_approval",
+                "actor": "user", "notes": "Invalid direct return.",
+                "timestamp": "2026-07-13T18:02:00Z", "model_used": None,
+            },
+        ])
     reviews = project / "reviews"
     reviews.mkdir(parents=True, exist_ok=True)
     (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
@@ -670,6 +829,18 @@ def main() -> int:
         print(f"json_parse_error: expected=2 actual={parse_failure.returncode}")
         if parse_failure.returncode != 2:
             failures.append(f"JSON parse error expected 2, got {parse_failure.returncode}")
+
+        for isolated_script in (VALIDATOR, PHASE_VALIDATOR):
+            isolated = subprocess.run(
+                [sys.executable, "-I", "-S", str(isolated_script), "--project-root", str(integration_project), "--json"],
+                capture_output=True, text=True, check=False,
+            )
+            print(f"stdlib_isolation/{isolated_script.name}: expected=0 actual={isolated.returncode}")
+            if isolated.returncode != 0 or "ModuleNotFoundError" in isolated.stderr:
+                failures.append(
+                    f"stdlib isolation failed for {isolated_script.name}: "
+                    f"exit={isolated.returncode}, stderr={isolated.stderr.strip()!r}"
+                )
 
     if failures:
         print("FAIL: " + "; ".join(failures))
