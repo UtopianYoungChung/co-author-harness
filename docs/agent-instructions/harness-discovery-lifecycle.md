@@ -26,7 +26,7 @@ Every research project under this root follows the **Lifecycle-Phase Ladder** de
 
 **Ph1 Plan & Draft → Ph2 Review & Revise → Ph3 Iterate & Converge → Ph4 Finalize & Close**
 
-The ladder is climb-only, user-gated, and arbitrated by a per-section ledger at `reviews/phase_state.json` with a 15-field `SectionStateObject` and a 30-trigger enum. Agent engagement is phase-conditioned: the Evaluator is dormant at Ph1, joins at Ph2, and the full four-agent loop runs at Ph3/Ph4. Full-file reads are the universal grounding floor at every rung.
+The ladder is climb-only, user-gated, and arbitrated by a per-section ledger at `reviews/phase_state.json` with an 18-field `SectionStateObject` and a 31-trigger enum. Agent engagement is phase-conditioned: the Evaluator is dormant at Ph1, joins at Ph2, and the full four-agent loop runs at Ph3/Ph4. Full-file reads are the universal grounding floor at every rung.
 
 Admission to Ph4 is gated by the **Manuscript Convergence Report (MCR)**: every section must reach `current_phase: Ph3_converged`, and no section may carry a computed `[Ph3-STALE]` flag.
 
@@ -63,7 +63,7 @@ When the user asks to start a new research project, the agent reads `references/
 │   └── revision_log.md           # Append-only change log
 ├── reviews/
 │   ├── classification.md         # Paper type, P-stage, venue, default_final_phase
-│   ├── phase_state.json          # 15-field per-section ledger (Planner-owned)
+│   ├── phase_state.json          # 18-field per-section ledger (Planner-owned)
 │   ├── revision_plan.md          # Current action list
 │   ├── ph1_draft_completion.md   # Ph1 exit artefact
 │   ├── ph2_review_completion.md  # Ph2 exit artefact

@@ -36,7 +36,7 @@ phase_2f_audit:
     R-Refl-2f-1_notes_length_nonconformance: 0   # notes > 280 chars without [...] truncation marker
     R-Refl-2f-2_missing_actor: 0                 # actor field missing or out of {planner, evaluator, generator, reflector, user}
     R-Refl-2f-3_nonmonotonic_transition: 0       # phase demotion without a monotonicity-exempt trigger
-    R-Refl-2f-4_unknown_trigger: 0               # trigger outside the v0.7.4 30-trigger enum
+    R-Refl-2f-4_unknown_trigger: 0               # trigger outside the v0.7.4 31-trigger enum
   verdict: CLEAN                     # one of {CLEAN, ADVISORY, MAJOR}
 
 # -------------------------------------------------------------------------

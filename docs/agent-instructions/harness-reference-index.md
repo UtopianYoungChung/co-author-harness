@@ -33,7 +33,7 @@ Entries below use paths **under this harness** unless noted. Rows that point to 
 | STYLE_COMMITMENTS.md | `references/STYLE_COMMITMENTS.md` | Package-tier commitments (C-5 = accessibility) |
 | PROJECT_BOOTSTRAP.md | `references/PROJECT_BOOTSTRAP.md` | New project setup protocol |
 | SKILL_REGISTRY.md | `references/SKILL_REGISTRY.md` | Three-tier skill registry |
-| phase_state_schema.md | `references/phase_state_schema.md` | 15-field `SectionStateObject` + 30-trigger enum |
+| phase_state_schema.md | `references/phase_state_schema.md` | 18-field `SectionStateObject` + 31-trigger enum |
 | phase_state_validate.py | `scripts/phase_state_validate.py` | Validator (monotonicity with 3 documented exemptions) |
 | release-gate.sh | `scripts/release-gate.sh` | Release-gate probe |
 | Portfolio CLAUDE.md | `../Ph.D. Research/CLAUDE.md` | Peer root governing papers-in-flight |
