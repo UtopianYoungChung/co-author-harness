@@ -316,6 +316,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "rule",
         "authority",
         "reason",
         "scope",
@@ -327,6 +328,10 @@
         "event_type"
       ],
       "properties": {
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        },
         "authority": {
           "type": "string",
           "minLength": 1

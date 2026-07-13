@@ -184,6 +184,7 @@ def _feedback(milestone: str) -> dict[str, Any]:
 
 def _override(milestones: list[str], handoffs: list[str]) -> dict[str, Any]:
     return {
+        "rule": "MF-OVERRIDE",
         "authority": "user",
         "reason": "The higher-authority project contract excludes this milestone.",
         "scope": "Milestone deliverable and handoff",
@@ -325,13 +326,8 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
     incomplete["approval"] = {"status": "not_applicable", "authority": None, "evidence_path": None, "approved_at": None}
     incomplete["handoff"] = {"status": "not_applicable", "packet_path": None, "packet_sha256": None}
     incomplete["dependency_state"] = "not_applicable"
-    incomplete["authorized_override"] = {
-        "authority": "user",
-        "reason": "The milestone is excluded.",
-        "scope": "M3",
-        "substitute_evidence": "reviews/not_applicable_approval.md",
-        "event_type": "authorized_override",
-    }
+    incomplete["authorized_override"] = _override(["M3"], ["M3_to_M4"])
+    del incomplete["authorized_override"]["rule"]
 
     cases["not_applicable_status_without_override"]["milestones"]["M3"]["status"] = "not_applicable"
     return cases
