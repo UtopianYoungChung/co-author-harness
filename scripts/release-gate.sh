@@ -343,6 +343,24 @@ else
     echo ""
 fi
 
+# --- Phase 0.58: pre-advance guardrail phase-surface smoketest (2026-07-13
+#     audit C1) — regression-pins load_ledger to reviews/phase_state.json. ----
+if [[ -f "$PLUGIN_ROOT/scripts/pre_phase_advance_phase_state_smoketest.py" ]]; then
+    echo "Pre-advance guardrail phase-surface smoketest"
+    if ! python3 "$PLUGIN_ROOT/scripts/pre_phase_advance_phase_state_smoketest.py"; then
+        echo "  [BLOCKER] pre-advance guardrail phase-surface smoketest failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      pre-advance guardrail phase-surface smoketest passed"
+    fi
+    echo ""
+else
+    echo "Pre-advance guardrail phase-surface smoketest: script missing"
+    echo "  [BLOCKER] cannot run pre-advance guardrail phase-surface smoketest"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 if [[ -f "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py" ]]; then
     echo "Notification catalog smoketest (scripts/phase_notifications_smoketest.py)"
     if ! python3 "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py"; then

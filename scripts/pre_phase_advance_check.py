@@ -1,44 +1,39 @@
 #!/usr/bin/env python3
 # =============================================================================
-# [v0.7.3-READ-ONLY] DEPRECATION NOTICE — v0.7.4 forwarding artefact.
+# pre_phase_advance_check.py — authoritative pre-advance guardrail (v0.7.4+).
 #
-# This script is retained under its tier-named filename during the v0.7.4
-# minor for back-compatibility. It continues to function against legacy
-# `reviews/tier_state.json` through the dual-read window, but the
-# authoritative pre-advance guardrail is renamed `pre_phase_advance_check.py`
-# at v0.7.4 and operates against `reviews/phase_state.json` under the
-# Lifecycle-Phase Ladder (Ph1/Ph2/Ph3/Ph4) vocabulary.
+# Operates against the phase-named ledger `reviews/phase_state.json` under the
+# Lifecycle-Phase Ladder (Ph1/Ph2/Ph3/Ph4). The clause implementations retain
+# their stable T-coded internal API; `load_ledger` translates the Ph-coded
+# ledger in memory (field names, enum values, and the eight renamed triggers).
+# The retired tier-named surface (`reviews/tier_state.json`,
+# `pre_tier_advance_check.py`) is never read or written.
 #
-# Callers should migrate to `scripts/pre_phase_advance_check.py` and the
-# phase-named ledger before upgrading beyond v0.7.4. This tier-named file is
-# **removed at v0.7.5 RC**; after v0.7.5 any invocation will fail with a
-# missing-script error rather than silently evaluate a stale guardrail.
-#
-# Mental rename map (apply when reading the docstrings below):
-#   T1/T2/T3/T4              -> Ph1/Ph2/Ph3/Ph4
-#   current_tier             -> current_phase
-#   tier_state.json          -> phase_state.json
-#   T3_converged             -> Ph3_converged
-#   [T3-STALE]               -> [Ph3-STALE]
-#   default_final_tier       -> default_final_phase
-#   eg1_t4_downgrade_to_t3   -> eg1_ph4_downgrade_to_ph3
-#   t{1,2,3}_*_completion.md -> ph{1,2,3}_*_completion.md
+# Internal T-code map (identifiers below only; never an on-disk surface):
+#   T1/T2/T3/T4              <- Ph1/Ph2/Ph3/Ph4
+#   current_tier             <- current_phase
+#   T3_converged             <- Ph3_converged
+#   [T3-STALE]               <- [Ph3-STALE]
+#   default_final_tier       <- default_final_phase
+#   eg1_t4_downgrade_to_t3   <- eg1_ph4_downgrade_to_ph3
+#   t{1,2,3}_* triggers      <- ph{1,2,3}_* triggers (see load_ledger trigger_map)
 # =============================================================================
-"""pre_tier_advance_check.py — mandatory pre-flight guardrail before any section tier advance.
+"""pre_phase_advance_check.py — mandatory pre-flight guardrail before any section phase advance.
 
 Grounding:
-  - references/TIER_PROTOCOL.md §§3.2.1, 3.3.1 (escalation-ownership carryforward,
-    [T3-STALE] dual-state semantics).
-  - references/TIER_PROTOCOL.md §6.3a (structured row schemas — contract for clause g).
-  - references/TIER_PROTOCOL.md §9 (Manuscript Convergence Report — contract for clause f).
-  - references/tier_state_schema.md §6 (failure codes, validator handoff).
+  - references/PHASE_PROTOCOL.md §§3.2.1, 3.3.1 (escalation-ownership carryforward,
+    [Ph3-STALE] dual-state semantics).
+  - references/PHASE_PROTOCOL.md §6.3a (structured row schemas — contract for clause g).
+  - references/PHASE_PROTOCOL.md §9 (Manuscript Convergence Report — contract for clause f).
+  - references/phase_state_schema.md §6 (failure codes, validator handoff).
   - TIER_REDESIGN_v0.7-draft-5.md §7.3 (script specification, clauses a–d, f, g).
 
 Usage
-    pre_tier_advance_check.py
+    pre_phase_advance_check.py
         --project-root <path>
         --section <heading-path-json>     # e.g., '["3. Theory"]'
-        --target-tier <T1|T2|T3|T4>       # tier the advance is moving *into*
+        --target-tier <Ph1|Ph2|Ph3|Ph4>   # phase the advance is moving *into*
+                                          # (T1–T4 accepted as legacy aliases)
 
 Optional
     --t3-staleness-budget-days <int>      Override default 14-day budget for the
@@ -50,29 +45,29 @@ Optional
                                           only when target_tier == T4).
 
 Reads
-    reviews/tier_state.json                   the v0.7.0 ledger.
-    reviews/t1_draft_completion.md            exit artefact for T1.
-    reviews/t2_review_completion.md           exit artefact for T2.
-    reviews/t3_convergence_signoff.md         cumulative T3 signoff file.
-    reviews/t4_ship_signoff.md                exit artefact for T4.
+    reviews/phase_state.json                  the phase-named ledger (schema_version 0.7.4).
+    reviews/ph1_draft_completion.md           exit artefact for Ph1.
+    reviews/ph2_review_completion.md          exit artefact for Ph2.
+    reviews/ph3_convergence_signoff.md        cumulative Ph3 signoff file.
+    reviews/ph4_ship_signoff.md               exit artefact for Ph4.
     reviews/convergence_log.md                escalation ownership ledger.
 
 Exit codes
     0  all clauses pass; advance may proceed.
     1  one or more clauses failed; see stdout/stderr for the named codes.
-    2  bad invocation (unknown tier, unreadable file, etc.).
+    2  bad invocation (unknown phase, unreadable file, etc.).
 
 Clauses (reference: draft-5 §7.3)
-    (a) exit-artefact present and well-formed for the prior tier.
-    (b) required SectionStateObject fields populated for the target tier.
+    (a) exit-artefact present and well-formed for the prior phase.
+    (b) required SectionStateObject fields populated for the target phase.
     (c) ESCALATED-finding owner assigned; every transferred_to carries non-empty
         transfer_rationale (Linear-Accountability defence).
-    (d) t1_pstage_declaration populated before T2 admission.
-    (f) MCR clearance for T4 admission, including the ceiling-lock disjunction
-        (§9.4) and computed [T3-STALE] = false on every in-scope section
+    (d) ph1_pstage_declaration populated before Ph2 admission.
+    (f) MCR clearance for Ph4 admission, including the ceiling-lock disjunction
+        (§9.4) and computed [Ph3-STALE] = false on every in-scope section
         (§3.3.1, §9.3).
-    (g) row-shape conformance of every row in tier_entry_log and
-        t3_convergence_signoff.md against the §6.3a schemas.
+    (g) row-shape conformance of every row in phase_entry_log and
+        ph3_convergence_signoff.md against the §6.3a schemas.
 """
 
 from __future__ import annotations
@@ -90,14 +85,15 @@ from typing import Any
 
 # ----------------------------------------------------------------- constants
 
-SCHEMA_VERSION_EXPECTED = "0.7.0"
+SCHEMA_VERSION_EXPECTED = "0.7.4"
 TIER_ENUM_CURRENT = ("T1", "T2", "T3", "T3_converged", "T4")
 TIER_ENUM_APPROVED = ("T1", "T2", "T3", "T4")  # T3_converged is never a last_approved_tier
 TIER_ENUM_TARGET = ("T1", "T2", "T3", "T4")  # target tier of an advance
 ACTOR_ENUM = ("planner", "evaluator", "generator", "reflector", "user")
 DEFAULT_T3_STALENESS_BUDGET_DAYS = 14
 
-# Canonical trigger enum replicated from tier_state_schema.md §3.1. Migrated
+# Canonical trigger enum replicated (in internal T-coded form) from
+# phase_state_schema.md §3.1. Migrated
 # rows may still reference the retired `confirmation_failed` trigger; it is
 # accepted on read but never emitted by v0.7.0 write paths.
 VALID_TRIGGERS = frozenset({
@@ -145,6 +141,13 @@ VALID_TRIGGERS = frozenset({
     # entry, every Ph1->Ph2 advance with a trigger-31 row would fail clause (g)
     # row-shape conformance with TRIGGER_UNKNOWN.
     "seed_snowball_signed",
+    # v0.7.2 accessibility gate (trigger 28), v0.7.4 P-7 manuscript-level
+    # batching (trigger 29), and v0.7.4 P-2 stability escalation (trigger 30).
+    # All three were introduced with phase-era names and have no tier-coded
+    # alias in load_ledger's trigger_map — accepted verbatim.
+    "ph3_accessibility_blocker_surfaced",
+    "ph3_iteration_round_manuscript",
+    "stability_mode_escalated_to_full_ph3",
 })
 
 # v0.10.0 S2 — Non-blocking advisory on the v0.10.0 references_initialized
@@ -197,10 +200,10 @@ PRIOR_TIER_FOR_TARGET: dict[str, str] = {
     "T4": "T3",
 }
 ARTEFACT_PATH: dict[str, str] = {
-    "T1": "reviews/t1_draft_completion.md",
-    "T2": "reviews/t2_review_completion.md",
-    "T3": "reviews/t3_convergence_signoff.md",
-    "T4": "reviews/t4_ship_signoff.md",
+    "T1": "reviews/ph1_draft_completion.md",
+    "T2": "reviews/ph2_review_completion.md",
+    "T3": "reviews/ph3_convergence_signoff.md",
+    "T4": "reviews/ph4_ship_signoff.md",
 }
 
 
@@ -268,32 +271,81 @@ def _read_text_or_none(path: Path) -> str | None:
 
 
 def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load tier_state.json and resolve the target section.
+    """Load phase_state.json and expose its phase-native ledger to the guardrail.
 
     Returns (ledger, section). Exits code 2 on any structural failure encountered
     before the clause checks can even be reached.
     """
-    tier_state_path: Path = ctx_args.project_root / "reviews" / "tier_state.json"
-    if not tier_state_path.exists():
+    phase_state_path: Path = ctx_args.project_root / "reviews" / "phase_state.json"
+    if not phase_state_path.exists():
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: {tier_state_path} not found.\n"
+            f"[pre_phase_advance_check] error: {phase_state_path} not found.\n"
         )
         sys.exit(2)
     try:
-        ledger = json.loads(tier_state_path.read_text(encoding="utf-8"))
+        phase_ledger = json.loads(phase_state_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: failed to read or parse "
-            f"{tier_state_path}: {exc}\n"
+            f"[pre_phase_advance_check] error: failed to read or parse "
+            f"{phase_state_path}: {exc}\n"
         )
         sys.exit(2)
-    if ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
+    if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: ledger schema_version "
-            f"{ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}; "
-            "run migrate_v060_to_v070.py first.\n"
+            f"[pre_phase_advance_check] error: ledger schema_version "
+            f"{phase_ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}.\n"
         )
         sys.exit(2)
+
+    # The clause implementations retain their stable T-coded internal API.
+    # Translate the authoritative Ph-coded ledger in memory; never create or
+    # read the retired tier_state.json surface.
+    phase_to_tier = {
+        "Ph1": "T1", "Ph2": "T2", "Ph3": "T3",
+        "Ph3_converged": "T3_converged", "Ph4": "T4",
+    }
+    field_map = {
+        "current_phase": "current_tier",
+        "last_approved_phase": "last_approved_tier",
+        "iteration_count_at_current_phase": "iteration_count_at_current_tier",
+        "phase_goal_declared": "tier_goal_declared",
+        "phase_deliverable_path": "tier_deliverable_path",
+        "ph1_pstage_declaration": "t1_pstage_declaration",
+        "ph3_last_activity_at": "t3_last_activity_at",
+        "phase_entry_log": "tier_entry_log",
+    }
+    trigger_map = {
+        "ph1_draft_completion_signed": "t1_draft_completion_signed",
+        "ph2_review_completion_signed": "t2_review_completion_signed",
+        "ph3_iteration_round": "t3_iteration_round",
+        "ph3_convergence_signoff_row": "t3_convergence_signoff_row",
+        "ph3_stale_reengagement_signoff": "t3_stale_reengagement_signoff",
+        "ph3_convergence_signoff_terminal": "t3_convergence_signoff_terminal",
+        "mcr_blocked_ph3_stale": "mcr_blocked_t3_stale",
+        "eg1_ph4_downgrade_to_ph3": "eg1_t4_downgrade_to_t3",
+    }
+    ledger = dict(phase_ledger)
+    ledger["default_final_tier"] = phase_to_tier.get(
+        phase_ledger.get("default_final_phase"), "T3"
+    )
+    translated_sections: list[dict[str, Any]] = []
+    for raw in phase_ledger.get("sections", {}).values():
+        section_copy = dict(raw)
+        for source, target in field_map.items():
+            if source in raw:
+                section_copy[target] = raw[source]
+        for key in ("current_tier", "last_approved_tier"):
+            section_copy[key] = phase_to_tier.get(section_copy.get(key), section_copy.get(key))
+        translated_log = []
+        for raw_row in raw.get("phase_entry_log", []):
+            row = dict(raw_row)
+            row["prev_tier"] = phase_to_tier.get(row.pop("prev_phase", None), row.get("prev_tier"))
+            row["new_tier"] = phase_to_tier.get(row.pop("new_phase", None), row.get("new_tier"))
+            row["trigger"] = trigger_map.get(row.get("trigger"), row.get("trigger"))
+            translated_log.append(row)
+        section_copy["tier_entry_log"] = translated_log
+        translated_sections.append(section_copy)
+    ledger["sections"] = translated_sections
 
     try:
         heading_path = json.loads(ctx_args.section)
@@ -303,7 +355,7 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
             raise ValueError("not a JSON list of strings")
     except (ValueError, json.JSONDecodeError) as exc:
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: --section must be a JSON list of "
+            f"[pre_phase_advance_check] error: --section must be a JSON list of "
             f"strings (e.g., '[\"3. Theory\"]'): {exc}\n"
         )
         sys.exit(2)
@@ -316,8 +368,8 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
             break
     if section is None:
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: section {target_key!r} not found "
-            "in tier_state.json.\n"
+            f"[pre_phase_advance_check] error: section {target_key!r} not found "
+            "in phase_state.json.\n"
         )
         sys.exit(2)
     return ledger, section
@@ -368,7 +420,9 @@ def check_clause_a(ctx: CheckContext) -> None:
             )
         )
         return
-    if f"tier: {prior_tier}" not in m.group("body"):
+    prior_phase = prior_tier.replace("T", "Ph", 1)
+    if (f"tier: {prior_tier}" not in m.group("body") and
+            f"phase: {prior_phase}" not in m.group("body")):
         ctx.findings.append(
             Finding(
                 code="E-ARTEFACT-TIER-MISMATCH",
@@ -376,7 +430,7 @@ def check_clause_a(ctx: CheckContext) -> None:
                 section=ctx.target_section_key,
                 message=(
                     f"Prior-tier exit artefact {artefact_path} does not declare "
-                    f"`tier: {prior_tier}` in its frontmatter."
+                    f"`phase: {prior_phase}` in its frontmatter."
                 ),
             )
         )
@@ -422,7 +476,7 @@ REQUIRED_SECTION_FIELDS = (
 def check_clause_b(ctx: CheckContext) -> None:
     """(b) Required SectionStateObject fields populated for the target tier.
 
-    All 15 fields must be present (per tier_state_schema.md §2 invariant). The
+    All 15 fields must be present (per phase_state_schema.md §2 invariant). The
     tier-dependent requirement is that `tier_goal_declared` and
     `tier_deliverable_path` must be non-empty, and `convergence_metric` must be
     a float (not null) when the target tier is T4 (i.e., the section is
@@ -513,7 +567,7 @@ def check_clause_c(ctx: CheckContext) -> None:
     """(c) ESCALATED-finding owner present; transferred_to paired with transfer_rationale.
 
     Implements the Linear-Accountability defence (TIER_PROTOCOL.md §3.2.1 and
-    tier_state_schema.md §6.1 codes E-ESCALATION-WITHOUT-OWNER /
+    phase_state_schema.md §6.1 codes E-ESCALATION-WITHOUT-OWNER /
     E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE).
     """
     log_path = ctx.project_root / "reviews" / "convergence_log.md"
@@ -807,12 +861,15 @@ def check_clause_f(ctx: CheckContext) -> None:
     )
     stale_sections: list[str] = []
     unadmitted_sections: list[str] = []
+    missing_deep_pass: list[str] = []
     for s in sections:
         key = _heading_key(s.get("heading_path", []))
         if not _is_mcr_cleared(s, default_final_tier):
             unadmitted_sections.append(key)
         if _is_t3_stale(s, ctx.t3_staleness_budget_days, ctx.now_utc):
             stale_sections.append(key)
+        if s.get("pre_mcr_deep_pass_completed") is not True:
+            missing_deep_pass.append(key)
     if unadmitted_sections:
         ctx.findings.append(
             Finding(
@@ -837,6 +894,16 @@ def check_clause_f(ctx: CheckContext) -> None:
                     + ", ".join(stale_sections)
                     + ". User must sign a re-engagement row on each before MCR admission."
                 ),
+            )
+        )
+    if missing_deep_pass:
+        ctx.findings.append(
+            Finding(
+                code="E-MCR-PRE-DEEP-PASS-REQUIRED",
+                clause="f",
+                section="<manuscript>",
+                message=("Sections missing a completed deep pre-MCR pass: "
+                         + ", ".join(missing_deep_pass)),
             )
         )
 
@@ -1103,7 +1170,7 @@ def check_clause_g(ctx: CheckContext) -> None:
     """(g) Row-shape conformance in tier_entry_log and t3_convergence_signoff.md.
 
     Iterates the last 100 rows of tier_entry_log (for performance; Reflector-
-    full at T4 does a full scan per tier_state_schema.md §3a.4) and every row
+    full at T4 does a full scan per phase_state_schema.md §3a.4) and every row
     in t3_convergence_signoff.md.
     """
     log = ctx.target_section.get("tier_entry_log", [])
@@ -1125,17 +1192,19 @@ def check_clause_g(ctx: CheckContext) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Mandatory pre-flight guardrail before any section tier advance. "
-            "Runs the seven-clause check from TIER_PROTOCOL.md §7.3."
+            "Mandatory pre-flight guardrail before any section phase advance. "
+            "Runs the seven-clause check from PHASE_PROTOCOL.md §7.3."
         ),
     )
     parser.add_argument("--project-root", type=Path, required=True)
     parser.add_argument("--section", type=str, required=True)
     parser.add_argument(
         "--target-tier",
+        "--target-phase",
+        dest="target_tier",
         type=str,
         required=True,
-        choices=TIER_ENUM_TARGET,
+        choices=TIER_ENUM_TARGET + ("Ph1", "Ph2", "Ph3", "Ph4"),
     )
     parser.add_argument(
         "--t3-staleness-budget-days",
@@ -1146,10 +1215,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
+    # Normalize phase-named targets to the stable T-coded internal API.
+    args.target_tier = {"Ph1": "T1", "Ph2": "T2", "Ph3": "T3", "Ph4": "T4"}.get(
+        args.target_tier, args.target_tier
+    )
+
     args.project_root = args.project_root.resolve()
     if not args.project_root.is_dir():
         sys.stderr.write(
-            f"[pre_tier_advance_check] error: --project-root {args.project_root} "
+            f"[pre_phase_advance_check] error: --project-root {args.project_root} "
             "is not a directory.\n"
         )
         return 2
@@ -1203,15 +1277,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for f in errors:
             sys.stderr.write(
-                f"[pre_tier_advance_check] [ERROR] ({f.code}, clause {f.clause}, {f.section}) {f.message}\n"
+                f"[pre_phase_advance_check] [ERROR] ({f.code}, clause {f.clause}, {f.section}) {f.message}\n"
             )
         for f in warnings:
             sys.stdout.write(
-                f"[pre_tier_advance_check] [WARN] ({f.code}, clause {f.clause}, {f.section}) {f.message}\n"
+                f"[pre_phase_advance_check] [WARN] ({f.code}, clause {f.clause}, {f.section}) {f.message}\n"
             )
         if not errors and not warnings:
             sys.stdout.write(
-                f"[pre_tier_advance_check] all seven clauses pass for "
+                f"[pre_phase_advance_check] all seven clauses pass for "
                 f"section {ctx.target_section_key} → {ctx.target_tier}.\n"
             )
 
