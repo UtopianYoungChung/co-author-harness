@@ -30,11 +30,12 @@ Grounding: `PHASE_PROTOCOL.md §§1–3` (lifecycle-phase-ladder semantics, per-
   "sections": {
     "<heading-path-slug>": <SectionStateObject>,
     ...
-  }
+  },
+  "milestone_framework": <MilestoneFrameworkObject>  // optional additive namespace
 }
 ```
 
-**Top-level shape.** The object carries eight keys. The `sections` entry is a JSON **object** keyed by heading-path slug — not an array — to match the validator's `sections[path]` access pattern (`scripts/phase_state_validate.py` `_validate_doc`). A flat-map layout is also tolerated as a legacy read path (top-level keys whose values are objects are treated as sections when no `sections` key is present); new writes always use the `sections: {...}` form.
+**Top-level shape.** The established phase fields remain unchanged, with one optional additive `milestone_framework` namespace. The `sections` entry is a JSON **object** keyed by heading-path slug — not an array — to match the validator's `sections[path]` access pattern (`scripts/phase_state_validate.py` `_validate_doc`). A flat-map layout is also tolerated as a legacy read path (top-level keys whose values are objects are treated as sections when no `sections` key is present); new writes always use the `sections: {...}` form.
 
 The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_validate.py`; BLOCKER findings halt Phase 0.
 
@@ -51,6 +52,15 @@ The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_
 | `phase_vocabulary` | string | `"lifecycle_v0.7.4"` (exact match) | Fixed string identifying that this ledger uses the v0.7.4 Lifecycle-Phase Ladder vocabulary. The value is reserved for future minor-version vocabulary rolls. Renamed at v0.7.4 from `tier_vocabulary: "lifecycle_v0.7"`. |
 | `milestone_assignment` | object | fixed mapping (see below) | Records the authoritative M1–M5 → Ph1–Ph4 supersession mapping per `PHASE_PROTOCOL.md §4`. Default: `{"M1":"Ph1","M2":"Ph1","M3":"Ph1","M4a":"Ph2","M4b":"Ph3","M5":"Ph4"}`. Projects ceiling-locked below Ph4 may elide higher-phase keys. |
 | `sections` | object | `{heading_path_slug: SectionStateObject, ...}` | Keys are heading-path slugs; order is manuscript heading order (JSON object key-order preserved). Elements are never deleted; retracted approvals mutate the object in place. Empty `sections` on a manuscript with at least one heading fails `DOC_NO_SECTIONS` (MAJOR). |
+| `milestone_framework` | object | contract version `"1.0.0"` | Optional additive M1-M5 feedback/handoff namespace. Its strict shape is `references/schemas/milestone_framework.schema.json`; semantics are defined by `references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`. |
+
+### 1.2 Additive milestone namespace
+
+`reviews/phase_state.json` is the one lifecycle-state authority for both orthogonal axes: `sections` records Ph1-Ph4 section state, while `milestone_framework` records M1-M5 project deliverables and handoffs. The namespace does not create a second ledger and does not allow milestone acceptance to stand in for phase advancement (or the reverse).
+
+The namespace contract is `contract_version: "1.0.0"`. It declares exactly one `primary_lineage` and exactly M1-M5 under `milestones`; accepted artifact and F9 state binds current project-relative paths, SHA-256 values, and byte counts. F9 packets and generated views are evidence derived from this file, never state authorities.
+
+**Ownership.** The Planner is the sole writer and must use the same atomic-write, advisory-lock, and concurrent-change checks as every other `phase_state.json` update. `scripts/milestone_framework_validate.py`, `scripts/phase_state_validate.py`, renderers, and all non-Planner agents are read-only. When the namespace is present, `phase_state_validate.py` calls the shared semantic implementation in `milestone_framework_validate.py`; it does not duplicate milestone predicates. Absence remains tolerated by the phase validator for pre-framework projects, while the dedicated milestone validator reports absent state as `MISCONFIGURED`.
 
 ---
 
@@ -442,4 +452,3 @@ Freshly-bootstrapped `phase_state.json` for a new v0.7.4 manuscript with two sec
 *2026-04-26 (v0.10.0 Stage S2 — snowball-driven reference-scaffolding bundle): `SectionStateObject` 16 → 17 fields via `references_initialized: bool` (S4 will land the 18th field `last_coverage_score: float | null`); §3.1 trigger enum 30 → 31 via `seed_snowball_signed` (within-phase artefact-completion row, Planner actor, `Ph1 → Ph1`); §1.1 schema_version commentary updated to identify v0.10.0 RC as the vocabulary roll point (the bump from `"0.7.4"` to `"0.10.0"` lands via `scripts/migrate_v090_to_v100_snowball_fields.py`); validator type-check `SECTION_BAD_REFERENCES_INITIALIZED_TYPE` (MINOR) added to §6.1; SK-NEW-A `seed-snowball-discovery` preflight `ALREADY_INITIALIZED` no-op cross-referenced under "Contracts enforced elsewhere"; seed template bumped. See `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §5.4` and `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §3.3`.*
 
 *2026-04-26 (v0.10.0 Stage S4 — same bundle, Ph2-side wiring): `SectionStateObject` 17 → 18 fields via `last_coverage_score: float | null` (final v0.10.0 shape); validator type-check `SECTION_BAD_LAST_COVERAGE_SCORE_TYPE` (MINOR; non-null values must be a number in `[0.0, 1.0]`) added to §6.1; SK-NEW-B `claim-coverage-audit` cross-round regression-detection at `agents/planner.md §Phase 3.8` cross-referenced under "Contracts enforced elsewhere"; §2 sample JSON and §8 seed template both bumped to include the field at `null`. The trigger enum is unchanged at 31 values (S4 introduces no new trigger); `last_coverage_score` is a state field written at every Ph2 audit clean-exit / below-threshold path, not a phase-advance gate. See `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §§4.4, 5.4, 6.5` and `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §5.5`.*
-

@@ -72,6 +72,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from milestone_framework_validate import validate_document as validate_milestone_document
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -590,6 +592,19 @@ def main(argv: list[str]) -> int:
         findings.extend(dual_read_findings)
 
     _validate_doc(doc, findings)
+    if isinstance(doc, dict) and "milestone_framework" in doc:
+        milestone_result = validate_milestone_document(project_root, doc)
+        for milestone_finding in milestone_result.findings:
+            findings.append(Finding(
+                code=milestone_finding.code,
+                severity=(
+                    Severity.BLOCKER
+                    if milestone_finding.severity.value == "BLOCKER"
+                    else Severity.MAJOR
+                ),
+                path=milestone_finding.path,
+                message=milestone_finding.message,
+            ))
 
     # Render.
     if args.json:

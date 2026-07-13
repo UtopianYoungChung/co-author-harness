@@ -9,8 +9,10 @@ the two real schemas created in Task 2.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -21,6 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MILESTONE_SCHEMA = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 F9_TEMPLATE = ROOT / "references" / "templates" / "f9_milestone_handoff.json"
+VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
+PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 
 CASES = {
     "valid_native_chain": 0,
@@ -43,6 +47,29 @@ CASES = {
     "not_applicable_without_authority": 4,
     "not_applicable_incomplete_override": 4,
     "not_applicable_status_without_override": 4,
+}
+
+REAL_CASES = {
+    "valid_native_chain": ("READY", 0, None, None),
+    "valid_approved_legacy_migration": ("LEGACY_READY", 0, None, None),
+    "authorized_not_applicable": ("NOT_APPLICABLE", 0, "M4", None),
+    "absent_namespace": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
+    "missing_purpose_real": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
+    "m4_plan_only_real": ("MISCONFIGURED", 4, "M4", "MF-ROLE"),
+    "m5_checklist_only_real": ("MISCONFIGURED", 4, "M5", "MF-ROLE"),
+    "missing_feedback_provenance_real": ("MISCONFIGURED", 4, None, "MF-FEEDBACK"),
+    "two_primary_lineages_real": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "artifact_lineage_mismatch": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "successor_without_consumed_handoff": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "na_without_complete_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
+    "stale_deliverable_hash": ("MISCONFIGURED", 4, None, "MF-BINDING"),
+    "stale_f9_packet_hash": ("MISCONFIGURED", 4, None, "MF-BINDING"),
+    "reopened_upstream_current_downstream": ("MISCONFIGURED", 4, None, "MF-REOPEN"),
+    "malformed_derived_claim": ("MISCONFIGURED", 4, None, "MF-DERIVED"),
+    "manual_status_claims_authority": ("MISCONFIGURED", 4, None, "MF-STATUS"),
+    "list_shaped_approval": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "list_shaped_sections": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
+    "list_shaped_milestones": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
 }
 
 
@@ -333,6 +360,212 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
     return cases
 
 
+def _write_bound_file(project: Path, relative: str, content: str) -> tuple[str, int]:
+    path = project / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = content.encode("utf-8")
+    path.write_bytes(payload)
+    return hashlib.sha256(payload).hexdigest(), len(payload)
+
+
+def _phase_document(ledger: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": "0.7.4",
+        "terminal_phase_reached": True,
+        "sections": {
+            "1. Test": {
+                "current_phase": "Ph4",
+                "phase_entry_log": [{
+                    "prev_phase": "Ph3_converged",
+                    "new_phase": "Ph4",
+                    "trigger": "user_approval",
+                    "actor": "user",
+                    "notes": "Fixture reached terminal state.",
+                    "timestamp": "2026-07-13T18:00:00Z",
+                    "model_used": None,
+                }],
+            }
+        },
+        "milestone_framework": ledger,
+    }
+
+
+def _materialize_native_project(project: Path) -> dict[str, Any]:
+    ledger = _valid_ledger()
+    previous_packet: dict[str, str] | None = None
+    for index, milestone in enumerate(("M1", "M2", "M3", "M4", "M5")):
+        record = ledger["milestones"][milestone]
+        artifact = record["artifacts"][0]
+        artifact_hash, artifact_bytes = _write_bound_file(
+            project, artifact["path"], f"{milestone} canonical deliverable\n"
+        )
+        artifact["sha256"] = artifact_hash
+        artifact["bytes"] = artifact_bytes
+
+        feedback = record["feedback_records"][0]
+        feedback_hash, _ = _write_bound_file(
+            project, feedback["source_path"], f"{milestone} feedback evidence\n"
+        )
+        feedback["source_sha256"] = feedback_hash
+        _write_bound_file(project, record["approval"]["evidence_path"], f"{milestone} approved\n")
+
+        next_milestone = ("M2", "M3", "M4", "M5", None)[index]
+        packet = {
+            "artifact_family": "F9",
+            "contract_version": "1.0.0",
+            "project": "smoke-project",
+            "lineage_id": "main",
+            "from_milestone": milestone,
+            "to_milestone": next_milestone,
+            "predecessor_packet": previous_packet,
+            "deliverable": {
+                "role": "deliverable",
+                "path": artifact["path"],
+                "sha256": artifact_hash,
+                "bytes": artifact_bytes,
+            },
+            "inputs_consumed": [],
+            "decisions_frozen": [],
+            "feedback_dispositions": [{
+                "feedback_id": feedback["feedback_id"],
+                "disposition": feedback["disposition"],
+                "rationale": feedback["rationale"],
+            }],
+            "open_debts": [],
+            "next_milestone_instructions": [],
+            "approval": {
+                "authority": "user",
+                "evidence_path": record["approval"]["evidence_path"],
+                "approved_at": record["approval"]["approved_at"],
+            },
+        }
+        packet_path = f"reviews/.harness/milestones/{milestone}_packet.json"
+        packet_hash, _ = _write_bound_file(
+            project, packet_path, json.dumps(packet, indent=2) + "\n"
+        )
+        record["handoff"]["packet_path"] = packet_path
+        record["handoff"]["packet_sha256"] = packet_hash
+        previous_packet = {"path": packet_path, "sha256": packet_hash}
+
+    manuscript = ledger["milestones"]["M5"]["artifacts"][0]
+    export_path = "exports/final-paper.pdf"
+    export_hash, export_bytes = _write_bound_file(project, export_path, "released export\n")
+    ledger["milestones"]["M5"]["artifacts"].append({
+        "role": "export",
+        "artifact_kind": "released_manuscript_export",
+        "path": export_path,
+        "sha256": export_hash,
+        "bytes": export_bytes,
+        "verified_at": "2026-07-13T18:00:00Z",
+        "lineage_id": manuscript["lineage_id"],
+    })
+    return ledger
+
+
+def _write_real_case(case: str, project: Path) -> None:
+    ledger = _materialize_native_project(project)
+    milestones = ledger["milestones"]
+
+    if case == "valid_approved_legacy_migration":
+        evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "migration approved\n")
+        report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", "migration report\n")
+        ledger["mode"] = "legacy"
+        ledger["migration_boundary"] = {
+            "authority": "user",
+            "evidence_path": "reviews/migration_approval.md",
+            "evidence_sha256": evidence_hash,
+            "approved_at": "2026-07-13T18:00:00Z",
+            "completed_through": "M5",
+            "report_path": "reviews/migration_report.md",
+            "report_sha256": report_hash,
+        }
+    elif case == "authorized_not_applicable":
+        target = milestones["M4"]
+        target.update({
+            "status": "not_applicable", "applicability": "not_applicable",
+            "artifacts": [], "feedback_records": [],
+            "approval": {"status": "not_applicable", "authority": None, "evidence_path": None, "approved_at": None},
+            "handoff": {"status": "not_applicable", "packet_path": None, "packet_sha256": None},
+            "dependency_state": "not_applicable",
+            "authorized_override": _override(["M4"], ["M4_to_M5"]),
+        })
+        _write_bound_file(project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n")
+        milestones["M5"].update({
+            "status": "not_started", "artifacts": [], "feedback_records": [],
+            "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
+            "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
+        })
+    elif case == "absent_namespace":
+        pass
+    elif case == "missing_purpose_real":
+        del milestones["M2"]["purpose"]
+    elif case == "m4_plan_only_real":
+        milestones["M4"]["artifacts"][0]["artifact_kind"] = "plan"
+    elif case == "m5_checklist_only_real":
+        milestones["M5"]["artifacts"][0]["artifact_kind"] = "checklist"
+    elif case == "missing_feedback_provenance_real":
+        del milestones["M3"]["feedback_records"][0]["source_sha256"]
+    elif case == "two_primary_lineages_real":
+        ledger["primary_lineage"] = ["main", "alternate"]
+    elif case == "artifact_lineage_mismatch":
+        milestones["M3"]["artifacts"][0]["lineage_id"] = "alternate"
+    elif case == "successor_without_consumed_handoff":
+        milestones["M2"]["handoff"]["status"] = "ready"
+    elif case == "na_without_complete_override":
+        target = milestones["M4"]
+        target["status"] = "not_applicable"
+        target["applicability"] = "not_applicable"
+        target["authorized_override"] = None
+    elif case == "stale_deliverable_hash":
+        (project / milestones["M3"]["artifacts"][0]["path"]).write_text("drifted bytes\n", encoding="utf-8")
+    elif case == "stale_f9_packet_hash":
+        (project / milestones["M3"]["handoff"]["packet_path"]).write_text("{}\n", encoding="utf-8")
+    elif case == "reopened_upstream_current_downstream":
+        milestones["M2"]["status"] = "reopened"
+        milestones["M2"]["approval"]["status"] = "reopened"
+    elif case == "malformed_derived_claim":
+        view_hash, view_bytes = _write_bound_file(project, "reviews/lifecycle_view.md", "generated: true\n")
+        milestones["M5"]["artifacts"].append({
+            "role": "derived_view", "artifact_kind": "lifecycle_status_view",
+            "path": "reviews/lifecycle_view.md", "sha256": view_hash, "bytes": view_bytes,
+            "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "main",
+        })
+    elif case == "manual_status_claims_authority":
+        status_hash, status_bytes = _write_bound_file(
+            project, "reviews/manual_status.md", "Authoritative lifecycle status: M5 accepted.\n"
+        )
+        milestones["M5"]["artifacts"].append({
+            "role": "evidence", "artifact_kind": "manual_status",
+            "path": "reviews/manual_status.md", "sha256": status_hash, "bytes": status_bytes,
+            "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "main",
+        })
+    elif case == "list_shaped_approval":
+        milestones["M2"]["approval"] = []
+    elif case == "list_shaped_milestones":
+        ledger["milestones"] = []
+
+    document: Any = _phase_document(ledger)
+    if case == "absent_namespace":
+        del document["milestone_framework"]
+    elif case == "list_shaped_sections":
+        document["sections"] = []
+    reviews = project / "reviews"
+    reviews.mkdir(parents=True, exist_ok=True)
+    (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+
+def _run_real_validator(project: Path, target: str | None) -> tuple[int, dict[str, Any], str]:
+    command = [sys.executable, str(VALIDATOR), "--project-root", str(project), "--json"]
+    if target:
+        command.extend(["--target", target])
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        payload = {}
+    return result.returncode, payload, result.stderr
+
+
 def main() -> int:
     required_files = (MILESTONE_SCHEMA, F9_SCHEMA, F9_TEMPLATE)
     missing = [str(path.relative_to(ROOT)) for path in required_files if not path.is_file()]
@@ -361,6 +594,82 @@ def main() -> int:
             print(f"{name}: expected={expected} actual={actual}")
             if actual != expected:
                 failures.append(f"{name} expected {expected}, got {actual}")
+
+        for name, (expected_outcome, expected_exit, target, expected_code) in REAL_CASES.items():
+            project = directory / f"real-{name}"
+            project.mkdir()
+            _write_real_case(name, project)
+            actual_exit, payload, stderr = _run_real_validator(project, target)
+            codes = {finding.get("code") for finding in payload.get("findings", [])}
+            actual_outcome = payload.get("outcome")
+            print(
+                f"real/{name}: expected={expected_outcome}/{expected_exit} "
+                f"actual={actual_outcome}/{actual_exit} codes={sorted(code for code in codes if code)}"
+            )
+            if actual_exit != expected_exit or actual_outcome != expected_outcome:
+                failures.append(
+                    f"real/{name} expected {expected_outcome}/{expected_exit}, "
+                    f"got {actual_outcome}/{actual_exit}; stderr={stderr.strip()!r}"
+                )
+            if expected_code and expected_code not in codes:
+                failures.append(f"real/{name} missing expected finding {expected_code}")
+            if "Traceback" in stderr:
+                failures.append(f"real/{name} emitted a traceback")
+
+        integration_project = directory / "phase-integration"
+        integration_project.mkdir()
+        _write_real_case("valid_native_chain", integration_project)
+        integration = subprocess.run(
+            [sys.executable, str(PHASE_VALIDATOR), "--project-root", str(integration_project), "--json"],
+            capture_output=True, text=True, check=False,
+        )
+        print(f"phase_state_integration: expected=0 actual={integration.returncode}")
+        if integration.returncode != 0:
+            failures.append(
+                f"phase_state integration expected 0, got {integration.returncode}: "
+                f"{integration.stdout.strip()} {integration.stderr.strip()}"
+            )
+
+        invalid_integration_project = directory / "phase-integration-invalid"
+        invalid_integration_project.mkdir()
+        _write_real_case("stale_deliverable_hash", invalid_integration_project)
+        invalid_integration = subprocess.run(
+            [sys.executable, str(PHASE_VALIDATOR), "--project-root", str(invalid_integration_project), "--json"],
+            capture_output=True, text=True, check=False,
+        )
+        try:
+            invalid_findings = json.loads(invalid_integration.stdout)
+        except json.JSONDecodeError:
+            invalid_findings = []
+        invalid_codes = {finding.get("code") for finding in invalid_findings if isinstance(finding, dict)}
+        print(
+            f"phase_state_invalid_namespace: expected=4/MF-BINDING "
+            f"actual={invalid_integration.returncode}/{sorted(code for code in invalid_codes if code)}"
+        )
+        if invalid_integration.returncode != 4 or "MF-BINDING" not in invalid_codes:
+            failures.append(
+                "phase_state invalid namespace did not reuse milestone semantic validation: "
+                f"exit={invalid_integration.returncode}, codes={sorted(code for code in invalid_codes if code)}"
+            )
+
+        usage = subprocess.run(
+            [sys.executable, str(VALIDATOR), "--project-root", str(integration_project), "--target", "M6"],
+            capture_output=True, text=True, check=False,
+        )
+        print(f"cli_usage_error: expected=1 actual={usage.returncode}")
+        if usage.returncode != 1:
+            failures.append(f"CLI usage error expected 1, got {usage.returncode}")
+
+        parse_project = directory / "parse-failure"
+        (parse_project / "reviews").mkdir(parents=True)
+        (parse_project / "reviews" / "phase_state.json").write_text("{\n", encoding="utf-8")
+        parse_failure = subprocess.run(
+            [sys.executable, str(VALIDATOR), "--project-root", str(parse_project)],
+            capture_output=True, text=True, check=False,
+        )
+        print(f"json_parse_error: expected=2 actual={parse_failure.returncode}")
+        if parse_failure.returncode != 2:
+            failures.append(f"JSON parse error expected 2, got {parse_failure.returncode}")
 
     if failures:
         print("FAIL: " + "; ".join(failures))
