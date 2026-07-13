@@ -114,6 +114,9 @@ python scripts/path-hygiene-check.py
 python scripts/snippet-check.py
 python scripts/output_economy_check.py
 python scripts/output_economy_smoketest.py
+python scripts/version-planes-check.py
+python scripts/commitment-interactions-check.py
+python scripts/retirement-sweep-check.py
 ```
 
 Full release packaging: `scripts/release-gate.sh` (see script header). Release zip: `scripts/build-release-zip.sh`—artefact naming and notes in [`CHANGELOG.md`](CHANGELOG.md).

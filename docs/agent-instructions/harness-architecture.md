@@ -4,21 +4,21 @@
 
 ---
 
-## Package substrate (v0.8.7)
+## Package substrate (version: see `.claude-plugin/plugin.json` — no prose version pin per the root rule)
 
 The canonical harness substrate lives at the top level of this directory:
 
 ```
 co-author-harness/
 ├── .claude-plugin/plugin.json   # plugin manifest — authoritative version
-├── agents/                      # four-agent prompts (planner, evaluator, generator, reflector)
-├── skills/                      # slash-command skills (run-phase-1…4, run-phase-3-stability, run-reflection, etc.)
+├── agents/                      # agent prompts (planner, evaluator, generator; reflector router + reflector-probe / reflector-closeout split)
+├── skills/                      # slash-command skills (public ladder run-draft / run-iterate / run-finalize; canonical run-phase-1/3/4 + legacy routers; run-reflection, etc.)
 ├── references/                  # canonical governance references (AGENT_ORCHESTRATION, REVIEW_ORCHESTRATION, GROUNDING_PROTOCOL, PHASE_PROTOCOL, etc.)
 ├── scripts/                     # phase_state_validate.py, pre_phase_advance_check.py, release-gate.sh, migration scripts
 ├── research_notes/              # package-tier lessons_learned.md
 ├── reviews/                     # package-tier review artefacts (ground-truth verification)
 ├── legacy/                      # plugin-internal legacy (marshal-f1, rule-digest-v060, etc.)
-├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip` files; tracked in git when committed)
+├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip`) and `scripts/build-plugin.py` (`.plugin`); gitignored — local artefacts only
 ├── CHANGELOG.md, README.md
 ├── docs/                        # agent-instructions/, concepts/, release-notes/RELEASE_NOTES_v*.md, …
 └── CLAUDE.md                    # harness root instructions (this repo)

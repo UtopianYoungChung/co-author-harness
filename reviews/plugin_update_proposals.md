@@ -119,10 +119,10 @@ Five Reflector-full proposals filed from INF3006Y Co Author Ph4 close-out. Three
 
 | ID | Status | A-code | Target release |
 |---|---|---|---|
-| P-R-1 | ADVANCED — awaiting user sign-off | `A6-scale-coverage-metacheck` | v0.8.2 |
-| P-R-2 | ADVANCED — awaiting user sign-off | `A7-advisory-until-template` | v0.8.2 |
-| P-R-3 | ADVANCED — awaiting user sign-off | `A8-provenance-prewrite-check` | v0.8.1.1 or v0.8.2 |
-| P-R-4 | ADVANCED — awaiting user sign-off | `A9-sub-check-g-prefilter-script` | v0.8.1.1 (architectural-completeness) |
+| P-R-1 | IMPLEMENTED — shipped v0.8.4 (see close-out above; target surface `agents/reflector.md` Phase 2g since split to `agents/reflector-closeout.md` at v0.15.0) | `A6-scale-coverage-metacheck` | v0.8.4 |
+| P-R-2 | IMPLEMENTED — shipped v0.8.4 (see close-out above) | `A7-advisory-until-template` | v0.8.4 |
+| P-R-3 | IMPLEMENTED — shipped v0.8.4 (see close-out above) | `A8-provenance-prewrite-check` | v0.8.4 |
+| P-R-4 | IMPLEMENTED — shipped v0.8.4 (see close-out above) | `A9-sub-check-g-prefilter-script` | v0.8.4 |
 | P-R-5 | IMPLEMENTED (this session) | — | v0.8.1 (shipped) |
 
 **Reflector remediation note (filed in memory for next Reflector-full run):** Future Reflector-full proposals MUST declare an R- or A-code in the raw buffer. When the code is absent, the Planner must formalize by assigning one; this adds a handoff round that could be avoided if the Reflector proposes a code with the candidate. Reference: `agents/planner.md §78` and `agents/reflector.md §86`. Propose codes in the nominal `A<next-free-integer>-<slug>` or `R<next-free-integer>-<slug>` form; the Planner reserves the right to re-assign on formalization.
