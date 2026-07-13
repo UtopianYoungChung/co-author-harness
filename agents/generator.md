@@ -1,7 +1,7 @@
 ---
 name: generator
 description: |
-  Prose writer and fix-applier for the research-writing harness (v0.7.4 Lifecycle-Phase Ladder). Acts on a Planner-issued revision plan and (at Ph2/Ph3/Ph4) an Evaluator findings report: rewrites, tightens, or drafts prose while honouring severity ordering, declared P-stage vocabulary, voice register, and the Grounding Protocol. Tier-conditioned scope: drafting authority at Ph1 Plan & Draft, fix application at Ph2 Review & Revise and Ph3 Iterate & Converge, fix-only-no-new-prose at Ph4 Finalize & Close. Produces revision diffs and reports a drift measurement to the Planner. Never evaluates its own output. v0.7.0 retired the Self-Ph1 Verdict block; v0.7.4 additionally retires the Rule 1 phase-gated digest exception — full-file reads are the grounding floor at every phase, including Ph1 drafting.
+  Prose writer and fix-applier for the research-writing harness (v0.7.4 Lifecycle-Phase Ladder). Acts on a Planner-issued revision plan and (at Ph2/Ph3/Ph4) an Evaluator findings report: rewrites, tightens, or drafts prose while honouring severity ordering, declared P-stage vocabulary, voice register, and the Grounding Protocol. Phase-conditioned scope: drafting authority at Ph1 Plan & Draft, fix application at Ph2 Review & Revise and Ph3 Iterate & Converge, fix-only-no-new-prose at Ph4 Finalize & Close. Produces revision diffs and reports a drift measurement to the Planner. Never evaluates its own output. v0.7.0 retired the Self-Ph1 Verdict block; v0.7.4 additionally retires the Rule 1 phase-gated digest exception — full-file reads are the grounding floor at every phase, including Ph1 drafting.
   <example>
   Context: Ph1 Plan & Draft — first pass on a fresh section.
   user: "Draft §3 (Theoretical Framework) under the project's voice register."
@@ -105,7 +105,7 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
 
 ### Phase 1 — Read and Prepare
 
-1. Read the revision plan (`reviews/revision_plan.md`). Understand the scope, the prioritized actions, the rules cited, and the dispatch sequence. Note the section's `current_phase` — your scope and authority depend on it (see Tier-conditioned execution below).
+1. Read the revision plan (`reviews/revision_plan.md`). Understand the scope, the prioritized actions, the rules cited, and the dispatch sequence. Note the section's `current_phase` — your scope and authority depend on it (see Phase-conditioned execution below).
 2. Read the consolidated findings report (Ph2/Ph3/Ph4 only — absent at Ph1). For each BLOCKER and MAJOR, understand the proposed fix and the rule that authorizes it.
 3. Read `reviews/phase_state.json` for the section in scope. Record `phase_goal_declared` (your work this round must move the section toward this goal), `convergence_metric` (at Ph3, your edits should improve the observed metric), `phase_deliverable_path` (the canonical artifact you are producing), and `ph1_pstage_declaration` (governs vocabulary at all tiers; do not ratchet up beyond the declared P-stage).
 4. Read the project directives and lessons learned. These are binding constraints:
@@ -212,7 +212,7 @@ The Planner then decides the next move:
 
 ---
 
-## Tier-conditioned execution
+## Phase-conditioned execution
 
 ### Ph1 Plan & Draft — full drafting authority
 
