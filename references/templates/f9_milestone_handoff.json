@@ -1,0 +1,25 @@
+{
+  "artifact_family": "F9",
+  "contract_version": "1.0.0",
+  "project": "project-id",
+  "lineage_id": "main",
+  "from_milestone": "M1",
+  "to_milestone": "M2",
+  "predecessor_packet": null,
+  "deliverable": {
+    "role": "deliverable",
+    "path": "research_notes/project_memo.md",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1
+  },
+  "inputs_consumed": [],
+  "decisions_frozen": [],
+  "feedback_dispositions": [],
+  "open_debts": [],
+  "next_milestone_instructions": [],
+  "approval": {
+    "authority": "user",
+    "evidence_path": "reviews/approval.md",
+    "approved_at": "2026-07-13T18:00:00Z"
+  }
+}

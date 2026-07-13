@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/f9_milestone_handoff.schema.json",
+  "title": "F9 milestone handoff evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_family",
+    "contract_version",
+    "project",
+    "lineage_id",
+    "from_milestone",
+    "to_milestone",
+    "predecessor_packet",
+    "deliverable",
+    "inputs_consumed",
+    "decisions_frozen",
+    "feedback_dispositions",
+    "open_debts",
+    "next_milestone_instructions",
+    "approval"
+  ],
+  "properties": {
+    "artifact_family": {
+      "const": "F9"
+    },
+    "contract_version": {
+      "const": "1.0.0"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lineage_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "from_milestone": {
+      "enum": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ]
+    },
+    "to_milestone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        null
+      ]
+    },
+    "predecessor_packet": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/binding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deliverable": {
+      "$ref": "#/$defs/deliverable"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "decisions_frozen": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "feedback_dispositions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/feedback_disposition"
+      }
+    },
+    "open_debts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "next_milestone_instructions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "approval": {
+      "$ref": "#/$defs/approval"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "from_milestone"
+        ],
+        "properties": {
+          "from_milestone": {
+            "const": "M1"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "to_milestone": {
+            "const": "M2"
+          },
+          "predecessor_packet": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "from_milestone"
+        ],
+        "properties": {
+          "from_milestone": {
+            "const": "M2"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "to_milestone": {
+            "const": "M3"
+          },
+          "predecessor_packet": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "from_milestone"
+        ],
+        "properties": {
+          "from_milestone": {
+            "const": "M3"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "to_milestone": {
+            "const": "M4"
+          },
+          "predecessor_packet": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "from_milestone"
+        ],
+        "properties": {
+          "from_milestone": {
+            "const": "M4"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "to_milestone": {
+            "const": "M5"
+          },
+          "predecessor_packet": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "from_milestone"
+        ],
+        "properties": {
+          "from_milestone": {
+            "const": "M5"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "to_milestone": {
+            "type": "null"
+          },
+          "predecessor_packet": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "deliverable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "role": {
+          "const": "deliverable"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "feedback_disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feedback_id",
+        "disposition",
+        "rationale"
+      ],
+      "properties": {
+        "feedback_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "enum": [
+            "pending",
+            "accepted",
+            "partially_accepted",
+            "rejected",
+            "deferred",
+            "informational"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "evidence_path",
+        "approved_at"
+      ],
+      "properties": {
+        "authority": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_at": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
