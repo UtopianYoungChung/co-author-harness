@@ -2,7 +2,7 @@
 
 **Purpose.** This file prescribes eight structured checks that run **after** the consolidated findings report is drafted (Step 8) but **before** the author approves edits. It is Step 8.5 in `REVIEW_ORCHESTRATION.md`. Its job is to catch problems the seven-step review does not prescribe: regression from edits, drift between rounds, abstract-body inconsistency, unacknowledged theoretical contradictions, untraceable edits, voice degradation from AI-assisted revision, unwarranted inter-sentential logical connectives, and reader-experience / prose-architecture failure.
 
-**When to run.** Always, at every review depth (`quick`, `standard`, `submission-bound`). For `quick` depth, run checks 1, 4, and 5 only. For `standard`, run checks 1, 2, 3, 4, 5, 6, and 8 (Check 7 is `submission-bound` only because it consumes the full §9a pre-filter). For `submission-bound`, run all eight. At the Lifecycle-Stage Ladder rungs: Evaluator dormant at **T1**; at **T2** run checks 1, 4, 5, and **8** (accessibility baseline); at **T3** run all eight; at **T4** run all eight. See `agents/evaluator.md §Step 8.5` for tier-conditioned dispatch.
+**When to run.** Always, at every phase at which the Evaluator engages, per the Lifecycle-Phase Ladder: Evaluator dormant at **Ph1**; at **Ph2** run checks 1, 4, 5, and **8** (accessibility baseline); at **Ph3** and **Ph4** run all eight. The full routing table is '### Which checks run at which phase rung' below. See `agents/evaluator.md §Step 8.5` for phase-conditioned dispatch. *(The v0.4.x review-depth vocabulary — `quick` / `standard` / `submission-bound` — is retired; Check 7's pre-filter coupling now binds to Ph4.)*
 
 **Relationship to other package files.**
 - `DETERMINISTIC_CHECKS.md` catches mechanical tics **before** the judgment review.
@@ -491,9 +491,9 @@
 
 Checks 1, 4, and 5 run at all depths because they catch the highest-severity problems (regression, contradiction, untraceable edits) with the lowest time cost. Checks 2, 3, 6, and 8 are deferred at `quick` depth because they require reading the full piece. Check 7 runs only at `submission-bound` because its judgment pass over the §9a pre-filter queue is expensive and its violations are rarely BLOCKER-level below submission.
 
-### Which checks run at which tier rung (v0.7.2 Lifecycle-Stage Ladder)
+### Which checks run at which phase rung (introduced v0.7.2 under the stage vocabulary; phase-named per the v0.7.4 rename)
 
-| Check | T1 (dormant) | T2 | T3 | T4 |
+| Check | Ph1 (dormant) | Ph2 | Ph3 | Ph4 |
 |---|---|---|---|---|
 | 1 — Regression Guard | — | **Yes** | **Yes** | **Yes** |
 | 2 — Drift Detection | — | No | **Yes** | **Yes** |
@@ -504,7 +504,7 @@ Checks 1, 4, and 5 run at all depths because they catch the highest-severity pro
 | 7 — Inter-Sentential Logical Connective Audit | — | No | **Yes** | **Yes** |
 | 8 — Reader-Experience / Prose Architecture Audit | — | **Yes** (Sub-checks A–F + H passage-scope subset, section-scoped, baseline) | **Yes** (Sub-checks A–H, manuscript-scoped, convergence-gating; H passage-scope under `register_class: technical`/`mixed` or manuscript-scope under `non-technical`) | **Yes** (Sub-checks A–H, strict superset) |
 
-**T2 adds Check 8 to the subset.** The v0.7.2 change from the prior (1, 4, 5) subset reflects the architectural shift that makes accessibility a T2-entry audit at the rung where prose is still plastic. At T2 the audit runs Sub-checks A–F plus the H passage-scope subset (the five non-technical passage roles are section-resolvable so H runs at T2); Sub-check G is manuscript-scoped and cannot be evaluated on a section in isolation, so at T2 it emits only an advisory note that the check will run at T3. **T3 adds Checks 2, 3, 6, and 7 over the T2 subset, promotes Check 8's scope from section to full manuscript, and activates Sub-checks G and H at full severity** (G subject to the `advisory_until: next_manuscript_at_ph3` transitional flag; H subject to the `advisory_until: H_two_revision_cycles` transitional flag; both per their respective Sub-check procedures and `READER_ACCESSIBILITY.md §13.5`). Check 8 is convergence-gating at T3 rather than advisory. **T4 is the strict superset and is identical to the `submission-bound` depth column, with Sub-checks G and H CLEAN required once their respective transitional flags have retired.**
+**Ph2 adds Check 8 to the subset.** The v0.7.2 change from the prior (1, 4, 5) subset reflects the architectural shift that makes accessibility a Ph2-entry audit at the rung where prose is still plastic. At Ph2 the audit runs Sub-checks A–F plus the H passage-scope subset (the five non-technical passage roles are section-resolvable so H runs at Ph2); Sub-check G is manuscript-scoped and cannot be evaluated on a section in isolation, so at Ph2 it emits only an advisory note that the check will run at Ph3. **Ph3 adds Checks 2, 3, 6, and 7 over the Ph2 subset, promotes Check 8's scope from section to full manuscript, and activates Sub-checks G and H at full severity** (G subject to the `advisory_until: next_manuscript_at_ph3` transitional flag; H subject to the `advisory_until: H_two_revision_cycles` transitional flag; both per their respective Sub-check procedures and `READER_ACCESSIBILITY.md §13.5`). Check 8 is convergence-gating at Ph3 rather than advisory. **Ph4 is the strict superset, with Sub-checks G and H CLEAN required once their respective transitional flags have retired.** *(Formerly stated as 'identical to the `submission-bound` depth column' under the retired v0.4.x depth vocabulary.)*
 
 ---
 
@@ -517,7 +517,7 @@ When a new integrity check is identified through a review application, add it to
 - An output format
 - A depth-gating row
 
-Update `REVIEW_ORCHESTRATION.md` §2 (run order) and §3.3 (depth table) to reflect the new check. Update the G.4 sign-off table in MASTER to include the new check. Follow the self-annealing pattern: the lesson that surfaced the need for the check should be recorded in the project's `lessons_learned.md` or in the package's `examples/` walkthrough that exposed the gap. A check that feeds a tier gate (as Check 8 feeds T3 convergence) must additionally cite the gate in `TIER_PROTOCOL.md` and the corresponding `run-tier-N/SKILL.md` termination step.
+Update `REVIEW_ORCHESTRATION.md` §2 (run order) and §3.3 (phase table) to reflect the new check. Update the G.4 sign-off table in MASTER to include the new check. Follow the self-annealing pattern: the lesson that surfaced the need for the check should be recorded in the project's `lessons_learned.md` or in the package's `examples/` walkthrough that exposed the gap. A check that feeds a phase gate (as Check 8 feeds Ph3 convergence) must additionally cite the gate in `PHASE_PROTOCOL.md` and the corresponding `skills/run-phase-N/SKILL.md` termination step.
 
 ---
 

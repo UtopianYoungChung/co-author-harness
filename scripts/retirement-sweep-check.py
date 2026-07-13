@@ -15,6 +15,13 @@ missing names are UNKNOWN DANGLERS (typo or undeclared retirement) and
 always block. CHANGELOG.md, docs/, releases/, scratch/ are out of scope
 by design — history may speak freely there.
 
+Extended 2026-07-13 (audit C6): the registry's `retired_phrases` section
+adds negative string assertions over the same live surfaces — stale
+schema-count claims ("15-field", "30-trigger", ...) and retired ladder
+vocabulary ("Lifecycle-Stage Ladder") block unless the line carries a
+historical marker. Complements the snapshot-mode version-planes check,
+which can only verify that registered assertions are present.
+
 Exit 0 = clean; exit 1 = blockers.
 """
 
@@ -49,8 +56,10 @@ def main() -> int:
     reg = json.loads(REGISTRY.read_text(encoding="utf-8"))
     markers = [m.lower() for m in reg["historical_markers"]]
     retired = reg["retired_scripts"]
+    phrases = reg.get("retired_phrases", {})
+    phrase_pairs = [(ph.lower(), ph) for ph in phrases]
     blockers: list[str] = []
-    scanned = cited = 0
+    scanned = cited = phrase_hits = 0
 
     for path in live_surface_files():
         scanned += 1
@@ -81,11 +90,26 @@ def main() -> int:
                         f"script {name!r} (not in retired_surfaces.json). Fix "
                         f"the citation or register the retirement."
                     )
+            low_line = line.lower()
+            if any(mk in low_line for mk in markers):
+                continue
+            for low_ph, ph in phrase_pairs:
+                if low_ph in low_line:
+                    phrase_hits += 1
+                    meta = phrases[ph]
+                    blockers.append(
+                        f"{rel}:{lineno}: retired phrase {ph!r} in live voice "
+                        f"(superseded_by: {meta.get('superseded_by')}). Update "
+                        f"the claim or annotate the line with a historical "
+                        f"marker."
+                    )
 
     print("RETIREMENT SWEEP CHECK")
     print(f"- Registry: {REGISTRY.relative_to(PLUGIN_ROOT)} "
           f"({len(retired)} retired names)")
-    print(f"- Live-surface files scanned: {scanned}; script citations: {cited}")
+    print(f"- Live-surface files scanned: {scanned}; script citations: {cited}; "
+          f"retired-phrase hits: {phrase_hits}")
+    print(f"- Retired phrases registered: {len(phrases)}")
     print(f"- Blockers: {len(blockers)}")
     for b in blockers:
         print(f"  BLOCKER: {b}")

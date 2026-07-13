@@ -45,7 +45,7 @@ If an agent cites a rule, line, or passage it has not read in the current sessio
 **Why this was retired.** The v0.6.0 narrowing to `{T1}` (from the v0.5.5 `{T1 reflex, T2 local}` surface) already signalled the direction of travel — each version of the exception was harder to audit than the prior version and covered fewer cases than it was once meant to. Three v0.6.0-era pressures made the surface untenable at v0.7.0:
 
 1. **Audit overhead vs. coverage.** The exception's five conditions (scope, version binding, release verification, contestation trigger, tier-down on miss) each required a Reflector audit line per invocation. The Reflector work to audit a single T1 digest citation approached the cost of reading the source file directly.
-2. **Lifecycle-Stage Ladder semantics.** At v0.7.0 the rungs are lifecycle stages, not review-depth modes. T1 Plan & Draft is the widest-scope rung because it is the drafting stage — a digest is not appropriate for drafting work where the author may need to actually re-examine a rule in context.
+2. **Lifecycle-Stage Ladder semantics (vocabulary since renamed to the Lifecycle-Phase Ladder).** At v0.7.0 the rungs are lifecycle stages, not review-depth modes. T1 Plan & Draft is the widest-scope rung because it is the drafting stage — a digest is not appropriate for drafting work where the author may need to actually re-examine a rule in context.
 3. **Single-code-path grounding.** Retiring the exception collapses the audit logic into a single invariant: "every citation is a full-file read." The Reflector's Grounding Audit (§ below) becomes a single rule rather than a rule plus an exception surface; projects can reason about grounding without tier-conditioning.
 
 **What retirement means for a running project.**

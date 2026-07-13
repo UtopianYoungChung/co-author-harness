@@ -654,7 +654,7 @@ If any gate fails, the Reflector records the pattern as a lesson instead of a sk
 
 ---
 
-## 10. Lifecycle Dispatch — Milestones Unified into the Lifecycle-Stage Ladder
+## 10. Lifecycle Dispatch — Milestones Unified into the Lifecycle-Phase Ladder
 
 At v0.7.0 the v0.6.0 milestone vocabulary (M1, M2, M3, M4a, M4b, M5) is **superseded** by the Lifecycle-Phase Ladder's phase vocabulary (Ph1, Ph2, Ph3, Ph4). Each milestone maps onto a phase or onto a sub-phase within a phase; the milestone names are preserved as **deliverable tags** for users who carry the older mental model, but the dispatch contract is now phase-based. This section specifies the supersession mapping, the phase-conditioned agent dispatch for each former milestone, and the migration path for projects that originated under the v0.6.0 milestone framing.
 

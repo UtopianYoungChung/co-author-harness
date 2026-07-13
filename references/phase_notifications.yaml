@@ -18,7 +18,7 @@
 # Grounding
 # ---------
 # PHASE_PROTOCOL.md §§2–9 (phase semantics, ph3 staleness, escalation
-# gates, MCR), §3.3.2 (Ph3 stability sub-mode normative spec), §6.3 (30-trigger
+# gates, MCR), §3.3.2 (Ph3 stability sub-mode normative spec), §6.3 (31-trigger
 # enum with v0.7.4 additions), §11 (retirement register: Confirmation Mode /
 # Self-Ph1 Verdict surfaces retired at v0.7.0), §14 (LCR→MCR rename at v0.7.0);
 # phase_state_schema.md §3.1 (30-value trigger enum), §3a (row schemas including
@@ -107,7 +107,7 @@ phase_vocabulary: lifecycle_v0.7.4
 manuscript_agnostic: true
 
 # ---------------------------------------------------------------------------
-# 1. Phase-transition notifications (bound to the 30-trigger enum of §6.3)
+# 1. Phase-transition notifications (bound to the 31-trigger enum of §6.3)
 #    — trigger 28 (`ph3_accessibility_blocker_surfaced`) is new at v0.7.2;
 #    triggers 29 (`ph3_iteration_round_manuscript`) and 30
 #    (`stability_mode_escalated_to_full_ph3`) are new at v0.7.4 and are

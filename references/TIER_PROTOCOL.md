@@ -23,7 +23,7 @@ v0.7.4 retires the ambiguous *Tier* vocabulary that overloaded two unrelated sur
 | flag `[T3-STALE]`                            | flag `[Ph3-STALE]`                                         |
 | field `default_final_tier` (classification)  | field `default_final_phase`                                |
 | trigger `eg1_t4_downgrade_to_t3`             | trigger `eg1_ph4_downgrade_to_ph3`                         |
-| "Lifecycle-Stage Ladder"                     | "Lifecycle-Phase Ladder"                                   |
+| "Lifecycle-Stage Ladder" *(renamed)*         | "Lifecycle-Phase Ladder"                                   |
 
 > **Note.** The response-letter sibling ladder `T4R` is **preserved, not renamed** — it does not participate in the main Ph1–Ph4 advancement.
 

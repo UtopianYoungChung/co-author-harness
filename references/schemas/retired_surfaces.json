@@ -1,23 +1,118 @@
 {
-  "schema": "retired-surfaces/v1",
-  "created": "2026-07-07",
-  "notes": "Provenance registry for retired scripts (closure of the release-gate header's long-deferred retirement-sweep gap; 2026-07-07 coherence-audit item 4). scripts/retirement-sweep-check.py scans live surfaces (references/, agents/, skills/, commands/, root CLAUDE.md/AGENTS.md/README.md) for scripts/<name> citations whose targets do not exist. A citation line is compliant only if it carries a historical marker (retired / removed / historical / since retired / legacy / migration-only / never existed). Registered names get provenance in the finding; unregistered missing names are flagged as unknown danglers.",
-  "historical_markers": ["retired", "removed", "historical", "since retired", "legacy", "migration-only", "never existed", "no longer runnable", "archived"],
-  "retired_scripts": {
-    "tier_state_validate.py": {"retired_at": "v0.7.5 RC", "successor": "phase_state_validate.py"},
-    "tier_state_canonicalize.py": {"retired_at": "v0.7.5 RC", "successor": "manual canonicalization per fingerprint_mode rules"},
-    "migrate_v073_to_v074_tier_to_phase.py": {"retired_at": "v0.7.5 RC", "successor": null},
-    "migrate_v073_to_v074.py": {"retired_at": "n/a", "successor": null, "note": "citation typo for migrate_v073_to_v074_tier_to_phase.py; never existed under this name"},
-    "migrate_v060_to_v070.py": {"retired_at": "v0.7.5 RC", "successor": null},
-    "migrate_v055_to_v060.py": {"retired_at": "v0.7.5 RC", "successor": null},
-    "migrate_classification_to_tier.py": {"retired_at": "v0.7.0", "successor": null},
-    "marshal_preflight.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": "Planner pre-flight absorption"},
-    "marshal_postflight.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": "Planner post-flight absorption"},
-    "_marshal_common.py": {"retired_at": "v0.7.0 (Tier Marshal retirement)", "successor": null},
-    "verify_rule_digest.py": {"retired_at": "v0.7.0 (rule-digest retirement)", "successor": "full-file reads (Grounding Rule 1)"},
-    "build_rule_digest.py": {"retired_at": "v0.7.0 (rule-digest retirement)", "successor": "full-file reads (Grounding Rule 1)"},
-    "migrate_convergence_journal_v075.py": {"retired_at": "v0.11.0 c5", "successor": null},
-    "migrate_convergence_log_v074.py": {"retired_at": "v0.11.0", "successor": null},
-    "check_citation_order.py": {"retired_at": "n/a", "successor": "audit/audit_citations.py", "note": "never existed; walkthrough-era aspiration"}
+ "schema": "retired-surfaces/v1",
+ "created": "2026-07-07",
+ "notes": "Provenance registry for retired scripts (closure of the release-gate header's long-deferred retirement-sweep gap; 2026-07-07 coherence-audit item 4). scripts/retirement-sweep-check.py scans live surfaces (references/, agents/, skills/, commands/, root CLAUDE.md/AGENTS.md/README.md) for scripts/<name> citations whose targets do not exist. A citation line is compliant only if it carries a historical marker (retired / removed / historical / since retired / legacy / migration-only / never existed). Registered names get provenance in the finding; unregistered missing names are flagged as unknown danglers. Extended 2026-07-13 (audit C6): retired_phrases adds negative string assertions — stale schema-count claims and retired ladder vocabulary are blocked on live surfaces unless the line carries a historical marker. This closes the drift class the snapshot-mode version-planes check cannot see (it verifies registered strings are present, not that stale counterclaims are absent).",
+ "historical_markers": [
+  "retired",
+  "removed",
+  "historical",
+  "since retired",
+  "legacy",
+  "migration-only",
+  "never existed",
+  "no longer runnable",
+  "archived",
+  "rename",
+  "superseded",
+  "supersession",
+  "formerly"
+ ],
+ "retired_scripts": {
+  "tier_state_validate.py": {
+   "retired_at": "v0.7.5 RC",
+   "successor": "phase_state_validate.py"
+  },
+  "tier_state_canonicalize.py": {
+   "retired_at": "v0.7.5 RC",
+   "successor": "manual canonicalization per fingerprint_mode rules"
+  },
+  "migrate_v073_to_v074_tier_to_phase.py": {
+   "retired_at": "v0.7.5 RC",
+   "successor": null
+  },
+  "migrate_v073_to_v074.py": {
+   "retired_at": "n/a",
+   "successor": null,
+   "note": "citation typo for migrate_v073_to_v074_tier_to_phase.py; never existed under this name"
+  },
+  "migrate_v060_to_v070.py": {
+   "retired_at": "v0.7.5 RC",
+   "successor": null
+  },
+  "migrate_v055_to_v060.py": {
+   "retired_at": "v0.7.5 RC",
+   "successor": null
+  },
+  "migrate_classification_to_tier.py": {
+   "retired_at": "v0.7.0",
+   "successor": null
+  },
+  "marshal_preflight.py": {
+   "retired_at": "v0.7.0 (Tier Marshal retirement)",
+   "successor": "Planner pre-flight absorption"
+  },
+  "marshal_postflight.py": {
+   "retired_at": "v0.7.0 (Tier Marshal retirement)",
+   "successor": "Planner post-flight absorption"
+  },
+  "_marshal_common.py": {
+   "retired_at": "v0.7.0 (Tier Marshal retirement)",
+   "successor": null
+  },
+  "verify_rule_digest.py": {
+   "retired_at": "v0.7.0 (rule-digest retirement)",
+   "successor": "full-file reads (Grounding Rule 1)"
+  },
+  "build_rule_digest.py": {
+   "retired_at": "v0.7.0 (rule-digest retirement)",
+   "successor": "full-file reads (Grounding Rule 1)"
+  },
+  "migrate_convergence_journal_v075.py": {
+   "retired_at": "v0.11.0 c5",
+   "successor": null
+  },
+  "migrate_convergence_log_v074.py": {
+   "retired_at": "v0.11.0",
+   "successor": null
+  },
+  "check_citation_order.py": {
+   "retired_at": "n/a",
+   "successor": "audit/audit_citations.py",
+   "note": "never existed; walkthrough-era aspiration"
   }
+ },
+ "retired_phrases": {
+  "15-field": {
+   "superseded_by": "18-field SectionStateObject (v0.10.0 S4)",
+   "note": "stale count claim (pre-v0.8.0 shape)"
+  },
+  "16-field": {
+   "superseded_by": "18-field SectionStateObject (v0.10.0 S4)",
+   "note": "stale count claim (v0.8.0 shape)"
+  },
+  "17-field": {
+   "superseded_by": "18-field SectionStateObject (v0.10.0 S4)",
+   "note": "stale count claim (v0.10.0 S2 interim shape)"
+  },
+  "sixteen canonical fields": {
+   "superseded_by": "eighteen canonical fields",
+   "note": "prose form of the 16-field claim"
+  },
+  "30-trigger": {
+   "superseded_by": "31-trigger enum (v0.10.0 S2, seed_snowball_signed)",
+   "note": "stale enum count"
+  },
+  "30 legal values": {
+   "superseded_by": "31 legal values",
+   "note": "stale enum count, prose form"
+  },
+  "six-field row": {
+   "superseded_by": "7-field PhaseEntryLogRow (v0.7.4, model_used)",
+   "note": "stale log-row shape"
+  },
+  "Lifecycle-Stage Ladder": {
+   "superseded_by": "Lifecycle-Phase Ladder (v0.7.4 rename)",
+   "note": "retired ladder vocabulary in live voice"
+  }
+ }
 }
