@@ -87,11 +87,11 @@ Save this record to `reviews/classification.md` in the project folder if a proje
 
 ## Step 5 — Hand off to the review
 
-After the user confirms the classification, tell them which skill or step to run next (tier-bound dispatch — v0.5.0+):
-- `run-tier-standard` when the classification record declares `tier: T3` (the default)
-- `run-tier-submission` when the classification record declares `tier: T4` (submission-bound)
-- `run-tier-reflex` when the classification record declares `tier: T1` (diff-scoped reflex pass)
-- `response-letter-review` when the classification record declares `tier: T3R` (response-letter mini-tier)
+After the user confirms the classification, tell them which skill or step to run next (classification-bound dispatch; skill names phase-named at v0.7.4):
+- `run-phase-3` (formerly `run-tier-standard`) when the classification record declares `tier: T3` (the default)
+- `run-phase-4` (formerly `run-tier-submission`) when the classification record declares `tier: T4` (submission-bound)
+- `run-phase-1` (formerly `run-tier-reflex`) when the classification record declares `tier: T1` (diff-scoped reflex pass)
+- `response-letter-review` when the classification record declares `tier: T3R` (retired as an independent sibling at v0.24.0 — response-letter review is a manuscript-class within Ph3; legacy `tier: T3R` records still route here)
 - For `tier: T0` (state probe only): terminate at the Planner Phase 0 survey; no manuscript-touching skill is dispatched.
 - For `tier: T2` (local-scope): the Planner dispatches a scoped Evaluator pass directly; no separate skill entry point.
 

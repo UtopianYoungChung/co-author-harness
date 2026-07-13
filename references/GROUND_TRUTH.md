@@ -193,7 +193,7 @@ When any package file or skill cites an axis stage (P0/P1/P2, R0–R2, K0–K2, 
 4. **Report** findings in `reviews/ground_truth_verification_<date>.md` (one row per divergence). The first verification run is recorded at `reviews/ground_truth_verification_2026-04-17.md` and serves as the baseline.
 5. **Update** the paraphrasing file only when the user approves. The workbook is immutable from the package's side; changes to it come from the EYgp source.
 
-The `skills/packaged/eygp-framework-checker.md` skill automates steps 1–4 for a given manuscript or draft.
+The `eygp-framework-checker` skill (SK-28) automated steps 1–4 for a given manuscript or draft; it was retired at v0.7.0 with its stubs removed (see `references/SKILL_REGISTRY.md` Retired Skills). SK-10 `p-stage-checker` covers the P-axis subset.
 
 ---
 
@@ -202,7 +202,7 @@ The `skills/packaged/eygp-framework-checker.md` skill automates steps 1–4 for 
 | Package file | What it paraphrases from the workbook | Relationship |
 |---|---|---|
 | `project_writing_style_checklist.md` Part 0 | P0 / P1 / P2 definitions and anti-patterns | Paraphrase; verified in `reviews/ground_truth_verification_2026-04-17.md` §P. Workbook wins on definitional questions. |
-| `skills/packaged/p-stage-checker.md` | P0 / P1 / P2 vocabulary, arc, contribution framing | Paraphrase; same verification entry. Paraphrase extends the workbook with review-process heuristics that are out of scope for the workbook and therefore not ground-truth-conflicts. |
+| `skills/p-stage-checker/SKILL.md` | P0 / P1 / P2 vocabulary, arc, contribution framing | Paraphrase; same verification entry. Paraphrase extends the workbook with review-process heuristics that are out of scope for the workbook and therefore not ground-truth-conflicts. |
 | `DETERMINISTIC_CHECKS.md §8` | P2 vocabulary patterns in P0/P1 conclusions; premature numbered RQs | Derived pattern set, not a paraphrase. Verified that the workbook's P2 row (`q1 q11 q21 ...`) supports the "labeled q-items" pattern the check relies on. |
 | `project_writing_style_checklist.md` Part 0 V0 tag note | V0 tag conventions (`#V0`, `#V0a`) | Direct transcription of `Sheet2!B4` tag bullet; ground-truth match. |
 

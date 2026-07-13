@@ -39,7 +39,7 @@ All eight checks run at Ph3 (full) and Ph4 (`SAFEGUARD_LAYER.md`). At Ph3 stabil
 
 Authority: `PHASE_PROTOCOL.md §§3.3, 3.3.1a, 3.3.4`.
 
-- **Legacy scalar:** `float in [0, 1]` (line-diff ratio). Preserved inside a P-12 object as `legacy_scalar` after migration (`scripts/migrate_convergence_journal_v075.py`).
+- **Legacy scalar:** `float in [0, 1]` (line-diff ratio). Preserved inside a P-12 object as `legacy_scalar` after migration (`scripts/migrate_convergence_journal_v075.py` *[retired from tree]*).
 - **v0.8.0 P-12 object:** four components (`grounding_clean`, `check8_aggregate_ok`, `findings_count_delta`, `line_delta`) plus optional `legacy_scalar`.
 - **Journal location:** `reviews/convergence_journal.jsonl` (per-iteration mechanical-state log). The Planner is sole writer. Each row carries `cycle_id`, `convergence_metric`, `manuscript_hash`, and optional `paragraph_hash_map`.
 

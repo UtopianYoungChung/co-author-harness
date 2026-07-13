@@ -1,6 +1,6 @@
 # EVAL METHODOLOGY — Skill Benchmark Disclosure
 
-**Purpose.** This file documents the methodology behind the benchmark scores reported in `skills/SKILL_REGISTRY.md` for SK-07 through SK-12. Without this disclosure, those scores cannot be cited as evidence of skill efficacy; they are at best internal-confidence indicators. The package's own `research_paper_writing_guidelines.md` §3 would flag undocumented benchmarks as over-claim, and that standard must apply to the package itself.
+**Purpose.** This file documents the methodology behind the benchmark scores reported in `references/SKILL_REGISTRY.md` for SK-07 through SK-12. Without this disclosure, those scores cannot be cited as evidence of skill efficacy; they are at best internal-confidence indicators. The package's own `research_paper_writing_guidelines.md` §3 would flag undocumented benchmarks as over-claim, and that standard must apply to the package itself.
 
 **Status.** As of 2026-04-13 the existing benchmark numbers in `SKILL_REGISTRY.md` are reclassified from *evidence* to **internal-confidence indicators (ICI)** until this file is populated with the disclosures specified below. Package documentation must reference these scores with the `[ICI — see EVAL_METHODOLOGY.md]` tag.
 

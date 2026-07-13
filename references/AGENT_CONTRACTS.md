@@ -213,7 +213,7 @@ The `Hypothesis` field is the critical addition: it forces the Generator to arti
 **Inputs (read).**
 - Every artifact the round produced.
 - `research_notes/lessons_learned.md` (prior lessons, to check for recurrence).
-- `skills/SKILL_REGISTRY.md` (to check for duplicate-skill proposals).
+- `references/SKILL_REGISTRY.md` (to check for duplicate-skill proposals).
 - All package files (authoritative-read access).
 
 **Outputs (write).**
@@ -222,7 +222,7 @@ The `Hypothesis` field is the critical addition: it forces the Generator to arti
 - `reviews/DO_NOT_DISTURB.md` (append only, with user approval).
 - `research_notes/directives.md` (propose only — marked `[PROPOSED]` until user accepts).
 - `skills/*.md` (new skill files, with user approval).
-- `skills/SKILL_REGISTRY.md` (append on skill creation).
+- `references/SKILL_REGISTRY.md` (append on skill creation).
 
 **Invariants.**
 - I-Refl-1: Never writes to `manuscript/*` or to Planner/Evaluator review artifacts (those are frozen on reflection entry).

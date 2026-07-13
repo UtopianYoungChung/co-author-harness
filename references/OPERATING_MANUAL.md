@@ -190,7 +190,7 @@ Skills are targeted shortcuts. Available in the current deployment:
 - `/check-abstract-body` — run the abstract-vs-body promise audit.
 - `/suchman-register-audit` — check C-1 (Suchman commitment) register consistency.
 
-Use a skill when you want a fast, targeted check without dispatching a full agent. If a skill surfaces a BLOCKER, escalate to a full Evaluator round to understand the broader implications. The Reflector proposes new skills when a pattern recurs across rounds or projects; they appear in `skills/SKILL_REGISTRY.md` with their phase, input, output, and quality tier.
+Use a skill when you want a fast, targeted check without dispatching a full agent. If a skill surfaces a BLOCKER, escalate to a full Evaluator round to understand the broader implications. The Reflector proposes new skills when a pattern recurs across rounds or projects; they appear in `references/SKILL_REGISTRY.md` with their phase, input, output, and quality tier.
 
 ---
 

@@ -433,7 +433,7 @@ The validator runs against `reviews/*.md` artefacts on the Markdown lane and aga
 
 Existing v0.7.3 artefacts do not carry the full frontmatter contract. Migration is **absent-means-advisory**: the validator emits an advisory (`R-Refl-FM-6-legacy`) but does not block, on the theory that v0.7.3 artefacts are read-only carriers of historical state and re-writing them retroactively would mutate the audit trail.
 
-The `scripts/migrate_v073_to_v074_tier_to_phase.py` migration (Task #3) does NOT extend artefact frontmatter. That extension happens organically — new artefacts produced at v0.7.4+ carry the full schema; legacy artefacts keep their reduced shape.
+The `scripts/migrate_v073_to_v074_tier_to_phase.py` *[retired from tree]* migration (Task #3) does NOT extend artefact frontmatter. That extension happens organically — new artefacts produced at v0.7.4+ carry the full schema; legacy artefacts keep their reduced shape.
 
 ## 10. Interaction with P-2 stability sub-mode
 

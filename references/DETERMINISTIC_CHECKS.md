@@ -245,7 +245,7 @@ From `project_writing_style_checklist.md` Part 0. Each pattern is a P-stage warn
 
 ### 8a. EYgp ground-truth verification (all axes)
 
-This sub-section is a **pre-filter**, not a pass/fail check; it raises candidates for the `eygp-framework-checker` skill (see `skills/packaged/eygp-framework-checker.md`). The patterns detect stage-label usage on any of the six EYgp axes so the framework checker can verify them against `GROUND_TRUTH.md`.
+This sub-section is a **pre-filter**, not a pass/fail check; it raises candidates for the P-stage / framework-conformance review lane (formerly the `eygp-framework-checker` skill, SK-28 — retired at v0.7.0 with stubs removed; SK-10 `p-stage-checker` covers the P-axis subset; see `references/SKILL_REGISTRY.md` Retired Skills). The patterns detect stage-label usage on any of the six EYgp axes so the framework checker can verify them against `GROUND_TRUTH.md`.
 
 | Marker class | Pattern | What to emit |
 |---|---|---|
@@ -254,7 +254,7 @@ This sub-section is a **pre-filter**, not a pass/fail check; it raises candidate
 | Artefact-genre phrase tied to a stage | `\b(technical\s+(sketch|outline|note)|working\s+paper|published\s+paper)\b` | file:line + matched phrase (these map 1-to-1 to S1/S2/S3/S4/S5 in `Sheet1`) |
 | Thesis-chapter phrase tied to a stage | `\b(Bib|Motivation|Research\s+Objectives|Related\s+work|Contributions|Background\s+on\s+subject-matter\s+area|Solution\s+chapters|Tools\s+chapter|Validation\s+chapter)\b` | file:line + matched phrase (maps to workbook thesis-chapter cells) |
 
-**Emission rule.** Every match adds one candidate location to the `eygp-framework-checker` work queue. A location may match multiple markers; aggregate them.
+**Emission rule.** Every match adds one candidate location to the pre-filter's candidate queue (formerly the `eygp-framework-checker` work queue; skill retired at v0.7.0). A location may match multiple markers; aggregate them.
 
 **Output stub:**
 
@@ -265,7 +265,7 @@ This sub-section is a **pre-filter**, not a pass/fail check; it raises candidate
 - Readiness-tick claims found: <n>
 - Artefact-genre phrases: <n>
 - Thesis-chapter phrases: <n>
-- Candidate locations for eygp-framework-checker: <total unique>
+- Candidate locations (EYgp pre-filter): <total unique>
 ```
 
 **Scope.** This pre-filter is run on any artefact under review (manuscript, classification record, project memo, revision plan). It does **not** modify §8 severities — those remain the package's prose-style rules. It only produces a queue for the cross-axis framework check.

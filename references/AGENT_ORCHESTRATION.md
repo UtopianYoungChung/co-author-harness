@@ -16,7 +16,7 @@
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
 | **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `manuscript/main.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
-| **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Invokes SK-14 (Coupling C wiki synthesis) and SK-16 (Coupling D M5 wiki ingest). | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `skills/SKILL_REGISTRY.md` (append) | **Never** |
+| **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Invokes SK-14 (Coupling C wiki synthesis) and SK-16 (Coupling D M5 wiki ingest). | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `references/SKILL_REGISTRY.md` (append) | **Never** |
 
 **The critical constraint:** The Generator never evaluates its own output, and the Evaluator never writes prose. This separation is what makes the system trustworthy. The Reflector-full audits both; the Reflector-lightweight runs an integrity probe only.
 
@@ -26,7 +26,7 @@
 
 1. **Evaluator Confirmation Mode at Ph2 entry** — retired in full (all six steps). Every Ph2 entry runs a fresh Evaluator local-scope pass. Rationale: the shortcut path depended on Self-Ph1 Verdict continuity, which no longer exists.
 2. **Generator Self-Ph1 Verdict (Phase 3.5)** — retired. No Self-Ph1 Verdict blocks may appear in v0.7.0 `revision_log.md` entries; emission is a scope-drift violation.
-3. **`confirmation_failed` trigger** — retired from the active enum but read-only preserved for v0.6.0 → v0.7.0 migrated projects (see `scripts/migrate_v060_to_v070.py`).
+3. **`confirmation_failed` trigger** — retired from the active enum but read-only preserved for v0.6.0 → v0.7.0 migrated projects (see `scripts/migrate_v060_to_v070.py` *[retired from tree]*).
 
 EG-2 (Self-Ph1 verdict mismatch) is retired under §8.2a v0.7.0 gate-semantics deltas because its referent no longer exists.
 
@@ -221,7 +221,7 @@ Not every round requires all four agents. The user can shortcut:
 | `reviews/reflection_report.md` | read | read | read | **write** |
 | `research_notes/directives.md` | read | read | read | **read + append (PROPOSED only)** |
 | `research_notes/lessons_learned.md` | read | read | read | **read + append** |
-| `skills/SKILL_REGISTRY.md` | read | read | read | **read + append** |
+| `references/SKILL_REGISTRY.md` | read | read | read | **read + append** |
 | `skills/*.md` (skill files) | read | read | read | **write (new skills, with user approval)** |
 | Package files (`research-writing-harness/*` except skills/) | read | read | read | read (propose changes via reflection report) |
 
@@ -513,7 +513,7 @@ The migration script produces an analogous seed for v0.6.0 → v0.7.4 projects, 
 
 **Per-predicate retirement rationale.** See `PHASE_PROTOCOL.md §9.1` for the binding-by-binding audit (which predicate referenced which retired object, and why no v0.7.0 analog is required). In brief: P-7 and P-8 referenced the ratchet header and `ascent_observed` — both gone under the monotonicity invariant (current_phase never moves below last_approved_phase except via explicit EG-1 / EG-7 demotion or user retraction); Q-1 through Q-5 referenced the close-out artefact and decisions-log `choice` column — both gone under the binary Approve/Reject gate of `PHASE_PROTOCOL.md §6`; the remaining predicates either collapse into well-formedness checks on `phase_state.json` (now absorbed into the Planner's Phase 0 bootstrap) or into the pre-phase-advance check (absorbed into `scripts/pre_phase_advance_check.py` per `PHASE_PROTOCOL.md §7.3`). Confirmation Mode at Ph2 entry — itself retired at v0.7.0 — no longer absorbs any of these predicates.
 
-**Archived artefacts.** The v0.5.5 contract document `references/TIER_MARSHAL_CONTRACT.md`, the runners `scripts/marshal_preflight.py` / `scripts/marshal_postflight.py` / `scripts/_marshal_common.py`, and the F.1 report-template fixtures are preserved under `legacy/marshal-f1-retired/` with a README enumerating their historical role and the replacement path. The v0.5.5 migration helper `scripts/migrate_classification_to_tier.py` was superseded by `scripts/migrate_v055_to_v060.py`, which is itself superseded at v0.7.0 by `scripts/migrate_v060_to_v070.py` (Phase 7 of the v0.7.0 rollout).
+**Archived artefacts.** The v0.5.5 contract document `references/TIER_MARSHAL_CONTRACT.md`, the runners `scripts/marshal_preflight.py` / `scripts/marshal_postflight.py` / `scripts/_marshal_common.py`, and the F.1 report-template fixtures are archived under `legacy/marshal-f1-retired/` with a README enumerating their historical role and the replacement path *(the archive directory has since been removed from the tree; recover from git history)*. The v0.5.5 migration helper `scripts/migrate_classification_to_tier.py` was superseded by `scripts/migrate_v055_to_v060.py`, which is itself superseded at v0.7.0 by `scripts/migrate_v060_to_v070.py` (Phase 7 of the v0.7.0 rollout).
 
 **Function absorption.** The Marshal's two structural duties migrate into the Planner:
 
