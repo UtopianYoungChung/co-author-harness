@@ -8,7 +8,8 @@
     "contract_version",
     "mode",
     "primary_lineage",
-    "milestones"
+    "milestones",
+    "events"
   ],
   "properties": {
     "contract_version": {
@@ -61,6 +62,10 @@
           "$ref": "#/$defs/manuscript_milestone"
         }
       }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/milestone_event" }
     }
   },
   "allOf": [
@@ -104,6 +109,44 @@
         "string",
         "null"
       ]
+    },
+    "milestone_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "event_type", "timestamp", "milestone", "lineage_id", "actor", "authority", "reason", "evidence_path", "evidence_sha256", "caused_by_sequence", "bindings"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "event_type": {
+          "enum": ["milestone_started", "feedback_recorded", "feedback_adjudicated", "milestone_accepted", "handoff_ready", "handoff_consumed", "milestone_reopened", "downstream_stale", "downstream_revalidated", "milestone_superseded", "authorized_override", "migration_hold", "migration_accepted"]
+        },
+        "timestamp": { "type": "string", "minLength": 1 },
+        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5"] },
+        "lineage_id": { "type": "string", "minLength": 1 },
+        "actor": { "enum": ["planner", "user", "advisor", "venue", "instructor", "committee", "project_local_contract"] },
+        "authority": { "enum": ["user", "venue", "advisor", "instructor", "committee", "project_local_contract", null] },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidence_path": { "$ref": "#/$defs/nullable_path" },
+        "evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "caused_by_sequence": { "type": ["integer", "null"], "minimum": 1 },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["binding_type", "path", "sha256"],
+            "properties": {
+              "binding_type": { "enum": ["artifact", "feedback", "approval", "handoff_packet", "override", "migration", "previous_content", "current_content"] },
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      },
+      "allOf": [{
+        "if": { "properties": { "evidence_path": { "type": "string" } } },
+        "then": { "properties": { "evidence_sha256": { "$ref": "#/$defs/sha256" } } },
+        "else": { "properties": { "evidence_sha256": { "type": "null" } } }
+      }]
     },
     "artifact": {
       "type": "object",

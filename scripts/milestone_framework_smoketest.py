@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MILESTONE_SCHEMA = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 F9_TEMPLATE = ROOT / "references" / "templates" / "f9_milestone_handoff.json"
+EVENT_TEMPLATE = ROOT / "references" / "templates" / "milestone_event.json"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 
@@ -48,6 +49,8 @@ CASES = {
     "not_applicable_incomplete_override": 4,
     "not_applicable_status_without_override": 4,
     "export_without_source_binding": 4,
+    "missing_events": 4,
+    "event_missing_reason": 4,
 }
 
 REAL_CASES = {
@@ -102,6 +105,14 @@ REAL_CASES = {
     "stale_override_evidence": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
     "list_shaped_sections": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "list_shaped_milestones": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
+    "missing_accepted_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "unordered_events": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "stale_without_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "stale_bad_cause": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "obsolete_acceptance_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "event_artifact_binding_mismatch": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "event_f9_binding_mismatch": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "invalid_event_timestamp": ("MISCONFIGURED", 4, None, "MF-EVENT"),
 }
 
 
@@ -282,11 +293,23 @@ def _valid_ledger() -> dict[str, Any]:
             "dependency_state": "current",
             "authorized_override": None,
         }
+    events = []
+    sequence = 1
+    for milestone in ("M1", "M2", "M3", "M4", "M5"):
+        for event_type in (("milestone_started", "feedback_recorded", "feedback_adjudicated", "milestone_accepted", "handoff_ready", "handoff_consumed") if milestone != "M5" else ("milestone_started", "feedback_recorded", "feedback_adjudicated", "milestone_accepted", "handoff_ready")):
+            events.append({
+                "sequence": sequence, "event_type": event_type, "timestamp": f"2026-07-13T18:{sequence:02d}:00Z",
+                "milestone": milestone, "lineage_id": "main", "actor": "planner", "authority": "user",
+                "reason": f"Recorded {event_type} for {milestone}.", "evidence_path": None,
+                "evidence_sha256": None, "caused_by_sequence": None, "bindings": [],
+            })
+            sequence += 1
     return {
         "contract_version": "1.0.0",
         "mode": "native",
         "primary_lineage": "main",
         "milestones": milestones,
+        "events": events,
     }
 
 
@@ -308,6 +331,7 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
             "packet_path": None,
             "packet_sha256": None,
         }
+    cases["valid_native_bootstrap"]["events"] = [copy.deepcopy(cases["valid_native_bootstrap"]["events"][0])]
 
     for milestone in ("M4", "M5"):
         target = cases["valid_not_applicable_empty_records"]["milestones"][milestone]
@@ -319,6 +343,12 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
         target["handoff"] = {"status": "not_applicable", "packet_path": None, "packet_sha256": None}
         target["dependency_state"] = "not_applicable"
         target["authorized_override"] = _override([milestone], [f"{milestone}_terminal" if milestone == "M5" else f"{milestone}_to_next"])
+        cases["valid_not_applicable_empty_records"]["events"].append({
+            "sequence": len(cases["valid_not_applicable_empty_records"]["events"]) + 1,
+            "event_type": "authorized_override", "timestamp": "2026-07-13T19:00:00Z", "milestone": milestone, "lineage_id": "main",
+            "actor": "planner", "authority": "user", "reason": f"Authorized {milestone} N/A.",
+            "evidence_path": "reviews/not_applicable_approval.md", "evidence_sha256": "3" * 64, "caused_by_sequence": None, "bindings": [],
+        })
 
     del cases["missing_milestone_purpose"]["milestones"]["M2"]["purpose"]
     cases["m4_plan_as_deliverable"]["milestones"]["M4"]["artifacts"][0]["artifact_kind"] = "plan"
@@ -395,6 +425,8 @@ def _case_ledgers() -> dict[str, dict[str, Any]]:
         "role": "export",
         "artifact_kind": "released_manuscript_export",
     })
+    del cases["missing_events"]["events"]
+    del cases["event_missing_reason"]["events"][0]["reason"]
     return cases
 
 
@@ -452,7 +484,18 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
             project, feedback["source_path"], f"{milestone} feedback evidence\n"
         )
         feedback["source_sha256"] = feedback_hash
-        _write_bound_file(project, record["approval"]["evidence_path"], f"{milestone} approved\n")
+        for event_type in ("feedback_recorded", "feedback_adjudicated"):
+            feedback_event = next(event for event in ledger["events"] if event["milestone"] == milestone and event["event_type"] == event_type)
+            feedback_event.update({
+                "evidence_path": feedback["source_path"], "evidence_sha256": feedback_hash,
+                "bindings": [{"binding_type": "feedback", "path": feedback["source_path"], "sha256": feedback_hash}],
+            })
+        approval_hash, _ = _write_bound_file(project, record["approval"]["evidence_path"], f"{milestone} approved\n")
+        accepted_event = next(event for event in ledger["events"] if event["milestone"] == milestone and event["event_type"] == "milestone_accepted")
+        accepted_event.update({
+            "evidence_path": record["approval"]["evidence_path"], "evidence_sha256": approval_hash,
+            "bindings": [{"binding_type": "artifact", "path": artifact["path"], "sha256": artifact_hash}],
+        })
 
         next_milestone = ("M2", "M3", "M4", "M5", None)[index]
         packet = {
@@ -491,6 +534,10 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
         )
         record["handoff"]["packet_path"] = packet_path
         record["handoff"]["packet_sha256"] = packet_hash
+        for event_type in ("handoff_ready", "handoff_consumed"):
+            event = next((item for item in ledger["events"] if item["milestone"] == milestone and item["event_type"] == event_type), None)
+            if event is not None:
+                event["bindings"] = [{"binding_type": "handoff_packet", "path": packet_path, "sha256": packet_hash}]
         previous_packet = {"path": packet_path, "sha256": packet_hash}
 
     manuscript = ledger["milestones"]["M5"]["artifacts"][0]
@@ -535,6 +582,11 @@ def _rewrite_packet(project: Path, ledger: dict[str, Any], milestone: str, mutat
     payload = (json.dumps(packet, indent=2) + "\n").encode("utf-8")
     packet_path.write_bytes(payload)
     handoff["packet_sha256"] = hashlib.sha256(payload).hexdigest()
+    for event in ledger.get("events", []):
+        if event.get("milestone") == milestone and event.get("event_type") in {"handoff_ready", "handoff_consumed"}:
+            event["bindings"] = [{
+                "binding_type": "handoff_packet", "path": handoff["packet_path"], "sha256": handoff["packet_sha256"],
+            }]
 
 
 def _reset_milestone(record: dict[str, Any], status: str = "not_started") -> None:
@@ -547,6 +599,12 @@ def _reset_milestone(record: dict[str, Any], status: str = "not_started") -> Non
         "dependency_state": "current",
         "authorized_override": None,
     })
+
+
+def _resequence_events(ledger: dict[str, Any]) -> None:
+    for sequence, event in enumerate(ledger["events"], 1):
+        event["sequence"] = sequence
+        event["timestamp"] = f"2026-07-13T18:{sequence:02d}:00Z"
 
 
 def _write_real_case(case: str, project: Path) -> None:
@@ -591,6 +649,13 @@ def _write_real_case(case: str, project: Path) -> None:
             project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n"
         )
         target["authorized_override"]["substitute_evidence_sha256"] = override_hash
+        ledger["events"].append({
+            "sequence": len(ledger["events"]) + 1, "event_type": "authorized_override",
+            "timestamp": "2026-07-13T19:00:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner",
+            "authority": "user", "reason": "Authorized M4 as not applicable.",
+            "evidence_path": target["authorized_override"]["substitute_evidence"],
+            "evidence_sha256": override_hash, "caused_by_sequence": None, "bindings": [],
+        })
         if case == "allowed_advisor_override":
             target["authorized_override"]["authority"] = "advisor"
         elif case == "rejected_generator_override":
@@ -616,6 +681,13 @@ def _write_real_case(case: str, project: Path) -> None:
             (project / target["authorized_override"]["substitute_evidence"]).write_text(
                 "changed authorization evidence\n", encoding="utf-8"
             )
+        override_event = next(event for event in ledger["events"] if event["milestone"] == "M4" and event["event_type"] == "authorized_override")
+        override_event["authority"] = target["authorized_override"]["authority"]
+        ledger["events"] = [
+            event for event in ledger["events"]
+            if event["milestone"] != "M4" or event["event_type"] in {"milestone_started", "authorized_override"}
+        ]
+        _resequence_events(ledger)
         milestones["M5"].update({
             "status": "not_started", "artifacts": [], "feedback_records": [],
             "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
@@ -698,8 +770,16 @@ def _write_real_case(case: str, project: Path) -> None:
         alternate["sha256"], alternate["bytes"] = _write_bound_file(project, alternate["path"], "alternate M3\n")
         record["artifacts"].append(alternate)
         record["status"] = "in_progress" if case in {"active_distinct_lineages", "active_duplicate_lineage"} else "superseded"
+        ledger["events"] = [event for event in ledger["events"] if event["milestone"] != "M3" or event["event_type"] in {"milestone_started", "feedback_recorded", "feedback_adjudicated"}]
         if case == "explicit_supersession":
             alternate["supersedes_lineage_id"] = "main"
+            ledger["events"].append({
+                "sequence": 1, "event_type": "milestone_superseded", "timestamp": "2026-07-13T19:00:00Z",
+                "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user",
+                "reason": "Alternate lineage explicitly superseded the prior M3 lineage.", "evidence_path": None,
+                "evidence_sha256": None, "caused_by_sequence": None,
+                "bindings": [{"binding_type": "current_content", "path": alternate["path"], "sha256": alternate["sha256"]}],
+            })
         elif case == "cyclic_supersession":
             alternate["supersedes_lineage_id"] = "main"
             record["artifacts"][0]["supersedes_lineage_id"] = "alternate"
@@ -707,6 +787,7 @@ def _write_real_case(case: str, project: Path) -> None:
         record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
         _reset_milestone(milestones["M4"])
         _reset_milestone(milestones["M5"])
+        _resequence_events(ledger)
     elif case in {"accepted_primary_supersedes_preserved", "accepted_unsuperseded_nonprimary"}:
         record = milestones["M5"]
         primary = next(item for item in record["artifacts"] if item["role"] == "deliverable")
@@ -733,6 +814,33 @@ def _write_real_case(case: str, project: Path) -> None:
         )
     elif case == "list_shaped_milestones":
         ledger["milestones"] = []
+    elif case == "missing_accepted_event":
+        ledger["events"] = [event for event in ledger["events"] if not (event["milestone"] == "M3" and event["event_type"] == "milestone_accepted")]
+    elif case == "unordered_events":
+        ledger["events"][1]["sequence"] = ledger["events"][0]["sequence"]
+    elif case == "stale_without_event":
+        ledger["milestones"]["M4"]["dependency_state"] = "needs_revalidation"
+    elif case == "stale_bad_cause":
+        ledger["milestones"]["M4"]["dependency_state"] = "needs_revalidation"
+        ledger["events"].append({
+            "sequence": len(ledger["events"]) + 1, "event_type": "downstream_stale", "timestamp": "2026-07-13T19:30:00Z",
+            "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 stale.",
+            "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": 1, "bindings": [],
+        })
+    elif case == "obsolete_acceptance_event":
+        ledger["events"].append({
+            "sequence": len(ledger["events"]) + 1, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z",
+            "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 reopened.",
+            "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": [],
+        })
+    elif case == "event_artifact_binding_mismatch":
+        event = next(item for item in ledger["events"] if item["milestone"] == "M3" and item["event_type"] == "milestone_accepted")
+        event["bindings"][0]["sha256"] = "f" * 64
+    elif case == "event_f9_binding_mismatch":
+        event = next(item for item in ledger["events"] if item["milestone"] == "M3" and item["event_type"] == "handoff_consumed")
+        event["bindings"][0]["sha256"] = "f" * 64
+    elif case == "invalid_event_timestamp":
+        ledger["events"][0]["timestamp"] = "2026-07-13 18:00"
 
     document: Any = _phase_document(ledger, document_phase)
     if case == "absent_namespace":
@@ -797,7 +905,7 @@ def _run_real_validator(project: Path, target: str | None) -> tuple[int, dict[st
 
 
 def main() -> int:
-    required_files = (MILESTONE_SCHEMA, F9_SCHEMA, F9_TEMPLATE)
+    required_files = (MILESTONE_SCHEMA, F9_SCHEMA, F9_TEMPLATE, EVENT_TEMPLATE)
     missing = [str(path.relative_to(ROOT)) for path in required_files if not path.is_file()]
     if missing:
         print("MISCONFIGURED: missing Task 2 schema/template files: " + ", ".join(missing))
@@ -807,6 +915,8 @@ def main() -> int:
     f9_schema = json.loads(F9_SCHEMA.read_text(encoding="utf-8"))
     f9_template = json.loads(F9_TEMPLATE.read_text(encoding="utf-8"))
     _validate(f9_template, f9_schema, f9_schema)
+    event_template = json.loads(EVENT_TEMPLATE.read_text(encoding="utf-8"))
+    _validate(event_template, milestone_schema["$defs"]["milestone_event"], milestone_schema)
 
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="milestone-framework-") as temp_dir:

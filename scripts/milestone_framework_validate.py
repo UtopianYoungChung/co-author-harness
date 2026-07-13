@@ -9,6 +9,7 @@ remain in one implementation.
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import re
@@ -102,6 +103,22 @@ class GateValidationResult:
         return not self.findings
 
 
+def _signed_status(path: Path) -> str | None:
+    """Return one explicit positive signoff status, rejecting ambiguity/negation."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    statuses = [
+        match.group(1).strip().upper()
+        for line in text.splitlines()
+        if (match := re.fullmatch(r"\s*status\s*:\s*([A-Za-z _-]+)\s*", line, re.IGNORECASE))
+    ]
+    if len(statuses) != 1 or statuses[0] not in {"PASS", "APPROVED", "SIGNED"}:
+        return None
+    return statuses[0]
+
+
 def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValidationResult:
     """Validate a pre-transition milestone boundary using canonical semantics."""
     if boundary not in GATE_BOUNDARIES:
@@ -172,16 +189,26 @@ def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValid
                 "MF-GATE-M5", "milestone_framework.milestones.M5",
                 "terminal close requires current-hash M5 approval, a ready F9 handoff, and no stale dependency",
             ))
+        for upstream in ("M1", "M2", "M3", "M4"):
+            upstream_record = milestones.get(upstream)
+            upstream_approval = upstream_record.get("approval") if isinstance(upstream_record, dict) else None
+            upstream_handoff = upstream_record.get("handoff") if isinstance(upstream_record, dict) else None
+            if isinstance(upstream_record, dict) and (
+                upstream_record.get("dependency_state") == "needs_revalidation"
+                or upstream_record.get("status") == "reopened"
+                or (isinstance(upstream_approval, dict) and upstream_approval.get("status") == "reopened")
+                or (isinstance(upstream_handoff, dict) and upstream_handoff.get("status") == "needs_revalidation")
+            ):
+                findings.append(_finding(
+                    "MF-GATE-M5", f"milestone_framework.milestones.{upstream}",
+                    f"terminal close is blocked while upstream {upstream} is reopened or needs revalidation",
+                ))
         for relative in ("reviews/G4_signoff.md", "reviews/ph4_ship_signoff.md"):
             path = project_root / relative
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeError):
-                text = ""
-            if not text.strip() or not re.search(r"\b(PASS|signed|approved)\b", text, re.IGNORECASE):
+            if _signed_status(path) is None:
                 findings.append(_finding(
                     "MF-GATE-M5", relative,
-                    f"terminal close requires current signed evidence at {relative}",
+                    f"terminal close requires exactly one explicit `status: PASS|APPROVED|SIGNED` at {relative}",
                 ))
     return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
 
@@ -190,12 +217,143 @@ def _finding(code: str, path: str, message: str, severity: Severity = Severity.B
     return Finding(code=code, severity=severity, path=path, message=message)
 
 
+def _validate_events(
+    project_root: Path,
+    ledger: dict[str, Any],
+    milestones: dict[str, Any],
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+) -> None:
+    events = ledger.get("events")
+    if not isinstance(events, list):
+        return
+    sequences = [event.get("sequence") for event in events if isinstance(event, dict)]
+    if sequences != list(range(1, len(events) + 1)):
+        findings.append(_finding("MF-EVENT", "milestone_framework.events", "event sequence must be append-only, unique, and contiguous from 1"))
+    parsed_times: list[datetime.datetime] = []
+    for index, event in enumerate(events):
+        timestamp = event.get("timestamp") if isinstance(event, dict) else None
+        try:
+            if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
+                raise ValueError
+            parsed = datetime.datetime.fromisoformat(timestamp[:-1] + "+00:00")
+        except ValueError:
+            findings.append(_finding("MF-EVENT", f"milestone_framework.events[{index}].timestamp", "event timestamp must be strict ISO-8601 UTC ending in Z"))
+            continue
+        parsed_times.append(parsed)
+    if len(parsed_times) == len(events) and parsed_times != sorted(parsed_times):
+        findings.append(_finding("MF-EVENT", "milestone_framework.events", "event timestamps must be nondecreasing in sequence order"))
+    observed: dict[str, list[dict[str, Any]]] = {milestone: [] for milestone in MILESTONES}
+    for index, event in enumerate(events):
+        if not isinstance(event, dict):
+            continue
+        milestone = event.get("milestone")
+        event_type = event.get("event_type")
+        if milestone in observed and isinstance(event_type, str):
+            observed[milestone].append(event)
+        if event.get("lineage_id") != ledger.get("primary_lineage") and event_type not in {"milestone_superseded"}:
+            findings.append(_finding("MF-EVENT", f"milestone_framework.events[{index}].lineage_id", "current-state event lineage must match primary_lineage"))
+        base = f"milestone_framework.events[{index}]"
+        path = event.get("evidence_path")
+        digest = event.get("evidence_sha256")
+        if path is not None or digest is not None:
+            _file_binding(project_root, path, digest, None, f"{base}.evidence_path", findings, evidence, "MF-EVENT")
+        bindings = event.get("bindings")
+        if isinstance(bindings, list):
+            for binding_index, binding in enumerate(bindings):
+                if isinstance(binding, dict):
+                    _file_binding(
+                        project_root, binding.get("path"), binding.get("sha256"), None,
+                        f"{base}.bindings[{binding_index}]", findings, evidence, "MF-EVENT",
+                    )
+        cause = event.get("caused_by_sequence")
+        if event_type in {"downstream_stale", "downstream_revalidated"}:
+            expected_type = "milestone_reopened" if event_type == "downstream_stale" else "downstream_stale"
+            cause_event = events[cause - 1] if isinstance(cause, int) and 0 < cause <= len(events) and cause < event.get("sequence", 0) else None
+            if not isinstance(cause_event, dict) or cause_event.get("event_type") != expected_type:
+                findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", f"{event_type} must causally reference an earlier {expected_type} event"))
+        elif cause is not None:
+            findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", "caused_by_sequence is reserved for downstream stale/revalidated causality"))
+    for milestone, record in milestones.items():
+        if not isinstance(record, dict) or milestone not in observed:
+            continue
+        milestone_events = observed[milestone]
+        event_types = {event.get("event_type") for event in milestone_events}
+        required: set[str] = set()
+        status = record.get("status")
+        handoff = record.get("handoff")
+        approval = record.get("approval")
+        if status == "in_progress":
+            required.add("milestone_started")
+        if status == "accepted":
+            required.add("milestone_accepted")
+        feedback_records = record.get("feedback_records")
+        if isinstance(feedback_records, list) and feedback_records:
+            required.add("feedback_recorded")
+            if all(isinstance(item, dict) and item.get("disposition") for item in feedback_records):
+                required.add("feedback_adjudicated")
+        if status == "reopened" or (isinstance(approval, dict) and approval.get("status") == "reopened"):
+            required.add("milestone_reopened")
+        if status == "superseded":
+            required.add("milestone_superseded")
+        if record.get("applicability") == "not_applicable":
+            required.add("authorized_override")
+        if isinstance(handoff, dict) and handoff.get("status") in {"ready", "consumed"}:
+            required.add("handoff_ready")
+        if isinstance(handoff, dict) and handoff.get("status") == "consumed":
+            required.add("handoff_consumed")
+        if record.get("dependency_state") == "needs_revalidation" or (isinstance(handoff, dict) and handoff.get("status") == "needs_revalidation"):
+            required.add("downstream_stale")
+        for event_type in sorted(required - event_types):
+            findings.append(_finding(
+                "MF-EVENT", f"milestone_framework.events",
+                f"{milestone} state requires an append-only {event_type} event",
+            ))
+        if record.get("applicability") == "not_applicable":
+            override = record.get("authorized_override")
+            override_event = next((event for event in reversed(milestone_events) if event.get("event_type") == "authorized_override"), None)
+            if isinstance(override, dict) and isinstance(override_event, dict) and (
+                override_event.get("authority") != override.get("authority")
+                or override_event.get("evidence_path") != override.get("substitute_evidence")
+                or override_event.get("evidence_sha256") != override.get("substitute_evidence_sha256")
+            ):
+                findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} override event must bind its authority and substitute evidence"))
+        lifecycle = [event for event in milestone_events if event.get("event_type") in {"milestone_accepted", "milestone_reopened", "milestone_superseded"}]
+        expected_lifecycle = {"accepted": "milestone_accepted", "reopened": "milestone_reopened", "superseded": "milestone_superseded"}.get(status)
+        if expected_lifecycle and lifecycle and lifecycle[-1].get("event_type") != expected_lifecycle:
+            findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest lifecycle event for {milestone} must be {expected_lifecycle}"))
+        if status == "accepted":
+            accepted = next((event for event in reversed(milestone_events) if event.get("event_type") == "milestone_accepted"), None)
+            artifacts = record.get("artifacts")
+            deliverable = next((item for item in artifacts if isinstance(item, dict) and item.get("role") == "deliverable" and item.get("lineage_id") == ledger.get("primary_lineage")), None) if isinstance(artifacts, list) else None
+            approval_state = record.get("approval")
+            if isinstance(accepted, dict) and isinstance(deliverable, dict):
+                expected_binding = {"binding_type": "artifact", "path": deliverable.get("path"), "sha256": deliverable.get("sha256")}
+                if expected_binding not in accepted.get("bindings", []):
+                    findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} acceptance event must bind the accepted deliverable hash"))
+                if isinstance(approval_state, dict) and accepted.get("evidence_path") != approval_state.get("evidence_path"):
+                    findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} acceptance event must bind approval evidence"))
+        if isinstance(handoff, dict) and handoff.get("status") in {"ready", "consumed"}:
+            expected_handoff = "handoff_consumed" if handoff.get("status") == "consumed" else "handoff_ready"
+            handoff_events = [event for event in milestone_events if event.get("event_type") in {"handoff_ready", "handoff_consumed"}]
+            current_event = handoff_events[-1] if handoff_events else None
+            if not isinstance(current_event, dict) or current_event.get("event_type") != expected_handoff:
+                findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest handoff event for {milestone} must be {expected_handoff}"))
+            elif {"binding_type": "handoff_packet", "path": handoff.get("packet_path"), "sha256": handoff.get("packet_sha256")} not in current_event.get("bindings", []):
+                findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} handoff event must bind the current F9 hash"))
+        stale_events = [event for event in milestone_events if event.get("event_type") in {"downstream_stale", "downstream_revalidated"}]
+        if record.get("dependency_state") == "current" and stale_events and stale_events[-1].get("event_type") == "downstream_stale":
+            findings.append(_finding("MF-EVENT", "milestone_framework.events", f"{milestone} cannot be current while its latest dependency event is downstream_stale"))
+
+
 def _schema_code(path: list[Any], message: str) -> str:
     tokens = {str(token) for token in path}
     if "authorized_override" in tokens or "migration_boundary" in tokens:
         return "MF-OVERRIDE"
     if "feedback_records" in tokens:
         return "MF-FEEDBACK"
+    if "events" in tokens:
+        return "MF-EVENT"
     if "primary_lineage" in tokens or "lineage_id" in tokens:
         return "MF-LINEAGE"
     if "approval" in tokens or "handoff" in tokens:
@@ -645,6 +803,7 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
     milestones = ledger.get("milestones")
     if not isinstance(milestones, dict):
         return _result(target, ledger, findings, evidence)
+    _validate_events(project_root, ledger, milestones, findings, evidence)
 
     primary_lineage = ledger.get("primary_lineage")
     predecessor: dict[str, str] | None = None

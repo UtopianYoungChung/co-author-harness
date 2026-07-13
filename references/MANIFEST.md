@@ -73,6 +73,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 |---|---|---|
 | `PHASE_PROTOCOL.md` (renamed from `TIER_PROTOCOL.md` at v0.7.4) | Lifecycle-Phase Ladder Ph1–Ph4; `§3.3.2` stability sub-mode; `§3.3.3` Check 8 accessibility gate; `§6.*` `phase_state.json` schema | Every phase-advance decision; v0.15.0-pre PR-3b.1 added optional `stage`/`profile` shadow fields |
 | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` | Canonical M1-M5 deliverable, feedback, adjudication, lineage, approval, reopening, handoff, migration, and gate-outcome contract | Every project milestone decision and every M1-M5 handoff |
+| `templates/milestone_event.json` | Authoring shape for one append-only milestone event inside `phase_state.json` | Planner milestone transaction writes and event-contract tests |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |
 | `schemas/f7_evidence_packet.schema.json` | JSON Schema for F7 evidence packets (consumed by `ARTEFACT_FRONTMATTER_SCHEMA.md`, `OUTPUT_ECONOMY_PROTOCOL.md`) | Output-economy validation |
 | `VERDICT_CACHE_CONTRACT.md` | P-14 paragraph-hash verdict carryover cache contract | Ph3 verdict reuse; currently unwired — no live consumer routes here (2026-07-07 audit) |

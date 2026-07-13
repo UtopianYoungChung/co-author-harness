@@ -1,0 +1,14 @@
+{
+  "sequence": 1,
+  "event_type": "milestone_started",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "milestone": "M1",
+  "lineage_id": "main",
+  "actor": "planner",
+  "authority": "user",
+  "reason": "M1 work was explicitly authorized to begin.",
+  "evidence_path": null,
+  "evidence_sha256": null,
+  "caused_by_sequence": null,
+  "bindings": []
+}

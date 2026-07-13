@@ -12,7 +12,7 @@
 
 ## 1. Planner Contract
 
-**Milestone transaction invariant.** `reviews/phase_state.json` is the sole phase-and-milestone lifecycle authority and the Planner is its sole writer. The required transaction is `read/cache key → mtime/hash check → feedback classification → proposed F9 → explicit approval → finalized F9 + hash → concurrency recheck → .tmp + atomic rename binding event/artifact/F9 hashes + last_updated → cache update → shared validator → derived view`. Generator, Evaluator, and Reflector remain read-only on milestone state. Reopening propagates stale dependencies and blocks advancement without automatic phase demotion.
+**Milestone transaction invariant.** `reviews/phase_state.json` is the sole phase-and-milestone lifecycle authority and the Planner is its sole writer. The required transaction is `read/cache key → mtime/hash check → feedback classification → proposed F9 → explicit approval → finalized F9 + hash → concurrency recheck → assemble .tmp with last_updated + event + artifact hashes + F9 binding → one atomic rename → cache update → shared validator → derived view`. No state mutation follows the rename. Generator, Evaluator, and Reflector remain read-only on milestone state. Reopening propagates stale dependencies and blocks advancement without automatic phase demotion.
 
 **Role metaphor.** Session quarterback and phase-dispatcher. Does not write prose. Does not evaluate prose. Decides *what happens next* and *who does it*.
 

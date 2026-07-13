@@ -117,6 +117,8 @@ Milestone event types are:
 
 `milestone_started | feedback_recorded | feedback_adjudicated | milestone_accepted | handoff_ready | handoff_consumed | milestone_reopened | downstream_stale | downstream_revalidated | milestone_superseded | authorized_override | migration_hold | migration_accepted`
 
+The append-only `milestone_framework.events[]` array is part of the sole `phase_state.json` authority. Every event carries `sequence` (unique, contiguous from 1), strict UTC `timestamp`, `event_type`, `milestone`, `lineage_id`, `actor`, `authority`, non-empty `reason`, optional exact-byte `evidence_path` + `evidence_sha256`, `caused_by_sequence`, and typed `bindings[]` (`artifact`, `feedback`, `approval`, `handoff_packet`, `override`, `migration`, `previous_content`, or `current_content`). `downstream_stale` causally references an earlier `milestone_reopened`; `downstream_revalidated` references the stale event it clears. Other events carry `caused_by_sequence: null`. Current accepted, reopened, superseded, ready, consumed, and needs-revalidation states must be justified by the latest relevant event, not by an obsolete pre-reopen event. Acceptance binds the current deliverable and approval evidence; handoff events bind the current F9 hash. Full historical replay beyond current-state justification remains a future migration/replay extension; validators already enforce ordering, causality, current-state consistency, and exact-byte bindings.
+
 ## 9. Gate outcomes and exit semantics
 
 Applicability and readiness are separate. Validators and compatible preflight gates use:
