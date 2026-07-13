@@ -667,8 +667,7 @@ This section specifies their normal coordination and phase-conditioned agent dis
 | **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
 | **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
 | **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 3: Generator may seed prose stubs aligned to the outline. |
-| **M4a — Paper Draft (review-ready)** | `manuscript/main.md` (initial draft depth) | **Ph2 Review & Revise** | First Evaluator engagement; Confirmation Mode retired |
-| **M4b — Paper Draft (converging)** | `manuscript/main.md` (iteration depth) | **Ph3 Iterate & Converge** | Unbounded loop with `convergence_metric` two-round stability test; Coupling E.2 graph-grounding overlay at Step 0.2 |
+| **M4 — Paper Draft** | `manuscript/main.md` | **Ph2 Review & Revise → Ph3 Iterate & Converge** | Ph2 is the review-ready dispatch stage and first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
 | **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
 The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where the Planner records user/advisor feedback and checklist evidence without engaging the Evaluator. M4 remains the manuscript deliverable while Ph2-Ph3 govern its review and convergence. M5 certifies the exact final manuscript bytes at Ph4.
@@ -727,10 +726,10 @@ Planner (Ph1 — orchestrates outline sub-phase)
 
 | Check | What it verifies |
 |---|---|
-| Section coverage | Does the outline have one entry per top-level section that will be drafted at M4a/M4b? |
+| Section coverage | Does the outline have one entry per top-level section that will be drafted at M4 across its Ph2-Ph3 dispatch stages? |
 | Deliverable path | Is `phase_deliverable_path` populated with the outline file's path? |
 
-#### M4a deliverable — Paper Draft (review-ready) at Ph2
+#### M4 dispatch stage — Review-ready draft at Ph2
 
 ```
 Planner (runs pre_phase_advance_check.py clauses (a)(b)(d)(e)(g) for Ph2 entry)
@@ -743,7 +742,7 @@ Planner (runs pre_phase_advance_check.py clauses (a)(b)(d)(e)(g) for Ph2 entry)
 
 Ph2 is the first rung that engages the Evaluator. The Rule 1 phase-gated digest exception **does not apply** at Ph2; full-file reads are mandatory.
 
-#### M4b deliverable — Paper Draft (converging) at Ph3
+#### M4 dispatch stage — Converging draft at Ph3
 
 ```
 Planner (runs pre_phase_advance_check.py clauses (a)(b)(c)(d)(e)(g) for Ph3 entry; sets ph3_last_activity_at on advance)

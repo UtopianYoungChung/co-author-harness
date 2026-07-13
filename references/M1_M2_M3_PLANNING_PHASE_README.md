@@ -131,16 +131,16 @@
 ## Common Questions
 
 **Q: Do I have to do M1–M3?**
-A: If you're making a disciplinary placement, theoretical transfer, or integration claim, yes. Otherwise, it's recommended but not mandatory. If you skip them, external review will catch the gaps.
+A: M1–M3 are the normal planning chain. A milestone may be resolved as `not_applicable` only when a higher-authority record authorizes that outcome and records the reason, scope, and substitute evidence required by `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`. Absence or informal omission is `MISCONFIGURED`, not permission to proceed.
 
 **Q: What if I already have a draft?**
 A: You can still run the M1–M3 checklist on the draft to identify gaps. It's less efficient than planning first, but it works.
 
 **Q: What if the checklist doesn't apply to my paper?**
-A: Some of the checks are conditional (e.g., exemplar enumeration only applies if you make a disciplinary placement claim). Skip the checks that don't apply. Focus on the ones that do.
+A: Some checks are conditional (for example, exemplar enumeration applies only to a disciplinary-placement claim). Record a non-applicable check through the governing criterion's authorized resolution, including its reason and substitute evidence where required; do not silently omit it.
 
 **Q: How long does this take?**
-A: M1 typically 1–2 sessions (memo + feedback loop). M2 typically 1–2 sessions (annotate references + feedback). M3 typically 1 session (outline + feedback). Total: 3–5 sessions vs. 8–10 sessions of drafting + revision if you skip planning.
+A: M1 typically 1–2 sessions (memo + feedback loop). M2 typically 1–2 sessions (annotate references + feedback). M3 typically 1 session (outline + feedback). Total: 3–5 sessions vs. 8–10 sessions of drafting and revision when the planning chain is not completed first.
 
 ---
 

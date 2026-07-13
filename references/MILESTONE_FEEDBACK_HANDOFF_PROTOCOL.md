@@ -97,7 +97,7 @@ Every blocking record must be adjudicated before its handoff can become ready. D
 
 F9 is a machine-readable JSON evidence family stored under `reviews/.harness/milestones/`, normally as `M1_to_M2.json`, `M2_to_M3.json`, `M3_to_M4.json`, `M4_to_M5.json`, and a terminal M5 packet. F9 is evidence, not lifecycle state. `reviews/phase_state.json` binds each packet path and SHA-256.
 
-An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A handoff is not accepted without approval evidence. The successor must record consumption before dependent work can claim a ready chain.
+An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A handoff cannot become `ready` without approval evidence. The successor must record consumption before dependent work can claim a ready chain.
 
 An F9 Markdown rendering, if produced, is a `derived_view`; it carries its source binding, generation time, and a do-not-edit marker.
 

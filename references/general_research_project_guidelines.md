@@ -66,6 +66,6 @@ The process is divided into five core milestones:
 
 ## Feedback and Handoff Discipline
 
-Each milestone produces its named deliverable, passes an explicit feedback and adjudication gate, receives approval, and emits hash-bound F9 evidence for the next milestone. Planner checks, user/advisor feedback, Evaluator findings, and retrospective applications retain their real provenance; they are not interchangeable labels.
+Each milestone produces its named deliverable, passes an explicit feedback and adjudication gate, receives approval, and emits hash-bound F9 evidence for the successor milestone or a terminal packet at M5. Planner checks, user/advisor feedback, Evaluator findings, and retrospective applications retain their real provenance; they are not interchangeable labels.
 
 A plan, gate, checklist, review, report, generated view, or export may support or block progress but cannot replace the milestone deliverable. In particular, M4 is the complete manuscript at review-ready depth and M5 is the final manuscript at submission-bound depth. Acceptance of M4 or M5 certifies exact manuscript bytes; later byte changes stale the prior approval and require revalidation under `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`.
