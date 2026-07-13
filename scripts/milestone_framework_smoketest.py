@@ -80,12 +80,24 @@ REAL_CASES = {
     "rejected_generator_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
     "allowed_advisor_override": ("NOT_APPLICABLE", 0, "M4", None),
     "reordered_artifacts_feedback_lineage": ("READY", 0, None, None),
-    "active_multi_lineage": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
-    "superseded_multi_lineage": ("READY", 0, None, None),
+    "active_distinct_lineages": ("READY", 0, None, None),
+    "active_duplicate_lineage": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "implicit_supersession": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
+    "explicit_supersession": ("READY", 0, None, None),
+    "cyclic_supersession": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "ph4_without_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_retracted_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "ph4_empty_sections": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "ph4_nonobject_section": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "ph4_list_ceiling_override": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "ph4_dict_ceiling_override": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "export_source_mismatch": ("MISCONFIGURED", 4, None, "MF-EXPORT"),
     "terminal_f9_export_mismatch": ("MISCONFIGURED", 4, None, "MF-EXPORT"),
+    "valid_project_local_override": ("NOT_APPLICABLE", 0, "M4", None),
+    "missing_project_local_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
+    "outside_project_local_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
+    "absolute_project_local_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
+    "stale_override_evidence": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
     "list_shaped_sections": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "list_shaped_milestones": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
 }
@@ -237,6 +249,7 @@ def _override(milestones: list[str], handoffs: list[str]) -> dict[str, Any]:
         "affected_milestones": milestones,
         "affected_handoffs": handoffs,
         "substitute_evidence": "reviews/not_applicable_approval.md",
+        "substitute_evidence_sha256": "3" * 64,
         "revalidation_obligations": ["Revalidate if the project contract changes."],
         "event_type": "authorized_override",
     }
@@ -558,7 +571,11 @@ def _write_real_case(case: str, project: Path) -> None:
             "report_path": "reviews/migration_report.md",
             "report_sha256": report_hash,
         }
-    elif case in {"authorized_not_applicable", "allowed_advisor_override", "rejected_generator_override"}:
+    elif case in {
+        "authorized_not_applicable", "allowed_advisor_override", "rejected_generator_override",
+        "valid_project_local_override", "missing_project_local_override", "outside_project_local_override",
+        "absolute_project_local_override", "stale_override_evidence",
+    }:
         target = milestones["M4"]
         target.update({
             "status": "not_applicable", "applicability": "not_applicable",
@@ -568,11 +585,35 @@ def _write_real_case(case: str, project: Path) -> None:
             "dependency_state": "not_applicable",
             "authorized_override": _override(["M4"], ["M4_to_M5"]),
         })
-        _write_bound_file(project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n")
+        override_hash, _ = _write_bound_file(
+            project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n"
+        )
+        target["authorized_override"]["substitute_evidence_sha256"] = override_hash
         if case == "allowed_advisor_override":
             target["authorized_override"]["authority"] = "advisor"
         elif case == "rejected_generator_override":
             target["authorized_override"]["authority"] = "generator"
+        elif case in {
+            "valid_project_local_override", "missing_project_local_override", "outside_project_local_override",
+            "absolute_project_local_override",
+        }:
+            target["authorized_override"]["authority"] = "project_local_contract"
+            if case == "valid_project_local_override":
+                _write_bound_file(project, "directives.md", "## Override authority\n\nProject-local exception.\n")
+                target["authorized_override"]["rule"] = "directives.md#override-authority"
+            elif case == "missing_project_local_override":
+                target["authorized_override"]["rule"] = "missing-directives.md#override-authority"
+            else:
+                if case == "outside_project_local_override":
+                    _write_bound_file(project.parent, "outside-directives.md", "## Override authority\n")
+                    target["authorized_override"]["rule"] = "../outside-directives.md#override-authority"
+                else:
+                    _write_bound_file(project, "directives.md", "## Override authority\n")
+                    target["authorized_override"]["rule"] = f"{project / 'directives.md'}#override-authority"
+        if case == "stale_override_evidence":
+            (project / target["authorized_override"]["substitute_evidence"]).write_text(
+                "changed authorization evidence\n", encoding="utf-8"
+            )
         milestones["M5"].update({
             "status": "not_started", "artifacts": [], "feedback_records": [],
             "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
@@ -644,14 +685,22 @@ def _write_real_case(case: str, project: Path) -> None:
             "path": "reviews/reordered_evidence.md", "sha256": evidence_hash, "bytes": evidence_bytes,
             "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "alternate",
         })
-    elif case in {"active_multi_lineage", "superseded_multi_lineage"}:
+    elif case in {
+        "active_distinct_lineages", "active_duplicate_lineage", "implicit_supersession", "explicit_supersession",
+        "cyclic_supersession",
+    }:
         record = milestones["M3"]
         alternate = copy.deepcopy(record["artifacts"][0])
-        alternate["lineage_id"] = "alternate"
+        alternate["lineage_id"] = "main" if case == "active_duplicate_lineage" else "alternate"
         alternate["path"] = "research_notes/m3_alternate.md"
         alternate["sha256"], alternate["bytes"] = _write_bound_file(project, alternate["path"], "alternate M3\n")
         record["artifacts"].append(alternate)
-        record["status"] = "in_progress" if case == "active_multi_lineage" else "superseded"
+        record["status"] = "in_progress" if case in {"active_distinct_lineages", "active_duplicate_lineage"} else "superseded"
+        if case == "explicit_supersession":
+            alternate["supersedes_lineage_id"] = "main"
+        elif case == "cyclic_supersession":
+            alternate["supersedes_lineage_id"] = "main"
+            record["artifacts"][0]["supersedes_lineage_id"] = "alternate"
         record["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
         record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
         _reset_milestone(milestones["M4"])
@@ -708,6 +757,14 @@ def _write_real_case(case: str, project: Path) -> None:
                 "timestamp": "2026-07-13T18:02:00Z", "model_used": None,
             },
         ])
+    elif case == "ph4_empty_sections":
+        document["sections"] = {}
+    elif case == "ph4_nonobject_section":
+        document["sections"] = {"1. Test": ["not", "an", "object"]}
+    elif case == "ph4_list_ceiling_override":
+        document["sections"]["1. Test"]["section_ceiling_override"] = ["Ph2"]
+    elif case == "ph4_dict_ceiling_override":
+        document["sections"]["1. Test"]["section_ceiling_override"] = {"phase": "Ph2"}
     reviews = project / "reviews"
     reviews.mkdir(parents=True, exist_ok=True)
     (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")

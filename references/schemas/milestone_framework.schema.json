@@ -156,6 +156,10 @@
         },
         "source_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "supersedes_lineage_id": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "allOf": [
@@ -168,6 +172,16 @@
           },
           "then": {
             "required": ["source_sha256"]
+          }
+        },
+        {
+          "if": {
+            "required": ["supersedes_lineage_id"]
+          },
+          "then": {
+            "properties": {
+              "role": {"const": "deliverable"}
+            }
           }
         }
       ]
@@ -344,6 +358,7 @@
         "affected_milestones",
         "affected_handoffs",
         "substitute_evidence",
+        "substitute_evidence_sha256",
         "revalidation_obligations",
         "event_type"
       ],
@@ -400,6 +415,9 @@
         "substitute_evidence": {
           "type": "string",
           "minLength": 1
+        },
+        "substitute_evidence_sha256": {
+          "$ref": "#/$defs/sha256"
         },
         "revalidation_obligations": {
           "type": "array",

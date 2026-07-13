@@ -26,9 +26,6 @@ TARGETS = (*MILESTONES, "Ph2", "Ph4")
 OVERRIDE_AUTHORITIES = frozenset({
     "user", "venue", "advisor", "instructor", "committee", "project_local_contract"
 })
-ACTIVE_MILESTONE_STATUSES = frozenset({
-    "in_progress", "feedback_pending", "revision_required", "accepted", "reopened"
-})
 
 
 class Outcome(str, Enum):
@@ -249,26 +246,43 @@ def _canonical_path(project_root: Path, relative: Any) -> Path | None:
     return candidate
 
 
-def _override_rule_resolves(rule: Any) -> bool:
-    if not isinstance(rule, str) or "#" not in rule:
-        return False
-    relative, anchor = rule.split("#", 1)
-    if not relative.startswith("references/") or not anchor:
-        return False
-    source = (ROOT / relative).resolve()
-    try:
-        source.relative_to((ROOT / "references").resolve())
-        text = source.read_text(encoding="utf-8")
-    except (ValueError, OSError, UnicodeError):
-        return False
-    anchors = set()
+def _document_anchors(text: str) -> set[str]:
+    anchors = set(re.findall(r"<a\s+id=[\"']([^\"']+)[\"']\s*>", text, re.IGNORECASE))
     for line in text.splitlines():
         match = re.match(r"^#{1,6}\s+(.+?)\s*$", line)
         if not match:
             continue
         slug = re.sub(r"[^a-z0-9\s-]", "", match.group(1).lower())
         anchors.add(re.sub(r"[\s-]+", "-", slug).strip("-"))
-    return anchor in anchors
+    return anchors
+
+
+def _override_rule_resolves(project_root: Path, rule: Any, authority: Any) -> bool:
+    if not isinstance(rule, str) or "#" not in rule:
+        return False
+    relative, anchor = rule.split("#", 1)
+    if not relative or not anchor:
+        return False
+    if authority == "project_local_contract":
+        locator = Path(relative)
+        if locator.is_absolute() or ".." in locator.parts:
+            return False
+        source = _canonical_path(project_root, relative)
+        if source is None:
+            return False
+    else:
+        if not relative.startswith("references/"):
+            return False
+        source = (ROOT / relative).resolve()
+        try:
+            source.relative_to((ROOT / "references").resolve())
+        except ValueError:
+            return False
+    try:
+        text = source.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return False
+    return anchor in _document_anchors(text)
 
 
 def _file_binding(
@@ -351,15 +365,57 @@ def _validate_artifacts(
         return None
     deliverables = [item for item in artifacts if isinstance(item, dict) and item.get("role") == "deliverable"]
     primary = [item for item in deliverables if item.get("lineage_id") == primary_lineage]
-    active_lineages = {
+    active_lineages = [
         item.get("lineage_id") for item in deliverables
         if isinstance(item.get("lineage_id"), str) and item.get("lineage_id")
-    }
-    if record.get("status") in ACTIVE_MILESTONE_STATUSES and len(active_lineages) > 1:
+    ]
+    if len(active_lineages) != len(set(active_lineages)):
         findings.append(_finding(
             "MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts",
-            "active milestone has concurrently current deliverables on distinct lineages",
+            "simultaneous active deliverable candidates must have distinct lineage IDs",
         ))
+    explicit_supersessions = 0
+    known_lineages = set(active_lineages)
+    supersession_edges: dict[str, str] = {}
+    for index, item in enumerate(deliverables):
+        superseded = item.get("supersedes_lineage_id")
+        if superseded is None:
+            continue
+        if superseded == item.get("lineage_id") or superseded not in known_lineages:
+            findings.append(_finding(
+                "MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts[{index}].supersedes_lineage_id",
+                "supersedes_lineage_id must name a different deliverable lineage in the same milestone",
+            ))
+        else:
+            explicit_supersessions += 1
+            supersession_edges[item["lineage_id"]] = superseded
+    for origin in supersession_edges:
+        visited: set[str] = set()
+        cursor = origin
+        while cursor in supersession_edges:
+            if cursor in visited:
+                findings.append(_finding(
+                    "MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts",
+                    "deliverable supersession links must be acyclic",
+                ))
+                break
+            visited.add(cursor)
+            cursor = supersession_edges[cursor]
+    if record.get("status") == "superseded" and explicit_supersessions == 0:
+        findings.append(_finding(
+            "MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts",
+            "superseded milestone state requires an explicit artifact-level supersedes_lineage_id link",
+        ))
+    if record.get("status") == "accepted":
+        superseded_targets = set(supersession_edges.values())
+        unsuperseded = [
+            item for item in deliverables if item.get("lineage_id") not in superseded_targets
+        ]
+        if len(unsuperseded) != 1 or unsuperseded[0].get("lineage_id") != primary_lineage:
+            findings.append(_finding(
+                "MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts",
+                "accepted milestone must have exactly one unsuperseded deliverable on the primary lineage",
+            ))
     if record.get("status") == "accepted" and len(primary) != 1:
         findings.append(_finding("MF-LINEAGE", f"milestone_framework.milestones.{milestone}.artifacts", "accepted milestone must have exactly one deliverable on the primary lineage"))
     deliverable = primary[0] if primary else (deliverables[0] if deliverables else None)
@@ -565,15 +621,21 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
                 "MF-OVERRIDE", f"milestone_framework.milestones.{milestone}.authorized_override.authority",
                 f"override authority must be one of {sorted(OVERRIDE_AUTHORITIES)}",
             ))
-        if not _override_rule_resolves(override.get("rule")):
+        if not _override_rule_resolves(project_root, override.get("rule"), override.get("authority")):
             findings.append(_finding(
                 "MF-OVERRIDE", f"milestone_framework.milestones.{milestone}.authorized_override.rule",
                 "override rule must resolve to a named heading anchor in a package reference",
             ))
-        substitute = override.get("substitute_evidence")
-        candidate = _canonical_path(project_root, substitute)
-        if candidate is None or not candidate.is_file():
-            findings.append(_finding("MF-OVERRIDE", f"milestone_framework.milestones.{milestone}.authorized_override.substitute_evidence", "substitute evidence must exist inside the project"))
+        _file_binding(
+            project_root,
+            override.get("substitute_evidence"),
+            override.get("substitute_evidence_sha256"),
+            None,
+            f"milestone_framework.milestones.{milestone}.authorized_override.substitute_evidence",
+            findings,
+            evidence,
+            "MF-OVERRIDE",
+        )
 
     m5 = milestones.get("M5")
     if isinstance(m5, dict) and m5.get("status") == "accepted":
@@ -616,18 +678,42 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
             phase_order = {"Ph1": 1, "Ph2": 2, "Ph3": 3, "Ph3_converged": 3, "Ph4": 4}
             default_ceiling = document.get("default_final_phase", "Ph4")
             requires_terminal_signoff = False
+            valid_proof_surfaces = 0
+            if not sections:
+                findings.append(_finding(
+                    "MF-PHASE", "sections",
+                    "Ph4 target requires at least one section with a valid MCR or ceiling-lock proof surface",
+                ))
+            if not isinstance(default_ceiling, str) or default_ceiling not in phase_order:
+                findings.append(_finding(
+                    "MF-PHASE", "default_final_phase",
+                    "default_final_phase must be a legal phase string for Ph4 validation",
+                ))
+                default_ceiling = "Ph4"
             for section_name, section in sections.items():
                 if not isinstance(section, dict):
+                    findings.append(_finding(
+                        "MF-PHASE", f"sections[{section_name!r}]",
+                        "Ph4 section proof surface must be a JSON object",
+                    ))
                     continue
                 ceilings = [default_ceiling]
-                if section.get("section_ceiling_override"):
-                    ceilings.append(section["section_ceiling_override"])
+                override = section.get("section_ceiling_override")
+                if override is not None:
+                    if not isinstance(override, str) or override not in phase_order:
+                        findings.append(_finding(
+                            "MF-PHASE", f"sections[{section_name!r}].section_ceiling_override",
+                            "section_ceiling_override must be null or a legal phase string",
+                        ))
+                        continue
+                    ceilings.append(override)
                 applicable_ceiling = min(ceilings, key=lambda phase: phase_order.get(phase, 99))
                 ceiling_clear = (
                     section.get("ceiling_locked") is True
                     and section.get("last_approved_phase") == applicable_ceiling
                 )
                 if ceiling_clear:
+                    valid_proof_surfaces += 1
                     continue
                 requires_terminal_signoff = True
                 if section.get("current_phase") != "Ph4":
@@ -651,11 +737,18 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
                         "MF-PHASE", f"sections[{section_name!r}].phase_entry_log",
                         "Ph4 target requires an explicit Ph3_converged to Ph4 mcr_admission row",
                     ))
+                else:
+                    valid_proof_surfaces += 1
                 if section.get("pre_mcr_deep_pass_completed") is not True:
                     findings.append(_finding(
                         "MF-PHASE", f"sections[{section_name!r}].pre_mcr_deep_pass_completed",
                         "Ph4 MCR continuity requires the pre-MCR deep pass to be complete",
                     ))
+            if sections and valid_proof_surfaces == 0:
+                findings.append(_finding(
+                    "MF-PHASE", "sections",
+                    "Ph4 target has no valid unretracted MCR admission or ceiling-lock proof surface",
+                ))
             if requires_terminal_signoff:
                 signoff = _canonical_path(project_root, "reviews/ph3_convergence_signoff.md")
                 try:
