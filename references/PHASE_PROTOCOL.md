@@ -16,10 +16,10 @@
 
 v0.7.0 replaces the v0.6.0 Progressive Approval Staircase (four rungs of progressively deeper review on homogeneous prose) with a **four-stage lifecycle ladder** plus a T4R sibling ladder. Each stage is a distinct phase of the manuscript's life; each stage has a named phase goal, a mandatory exit artefact, and a reassigned agent configuration.
 
-- **Ph1 Plan & Draft** — Planner + Generator only. Produce a complete first draft articulating a coherent research intentionality. Exit artefact: user-signed `reviews/ph1_draft_completion.md`. Absorbs milestones M1, M2, M3. Evaluator dormant. Reflector lightweight (grounding audit only). Rule 1 digest exception applies, narrowly (§10).
-- **Ph2 Review & Revise** — Planner + Evaluator + Generator + Reflector-lightweight. Produce an externally-reviewable draft that has survived one full-file Evaluator pass. Exit artefact: user-approved `reviews/ph2_review_completion.md`. Absorbs milestone M4a. Confirmation Mode retired; Ph2 entry is gated by the signed Ph1 exit artefact.
-- **Ph3 Iterate & Converge** — Full four-agent loop (Reflector-lightweight). Converge on a draft the human researcher actively declares satisfactory. User-gated unbounded iteration loop with a cumulative signoff file. Exit artefact: terminal row appended to `reviews/ph3_convergence_signoff.md` bearing `is_terminal: true`, which flips `current_phase: Ph3 → Ph3_converged`. Absorbs milestone M4b.
-- **Ph4 Finalize & Close** — Full four-agent loop (Reflector-full). Ship a submission-bound artefact and close the institutional-learning loop. MCR-gated admission (§9). Exit artefact: `reviews/ph4_ship_signoff.md` + G.4 sign-off. Absorbs milestone M5.
+- **Ph1 Plan & Draft** — Planner + Generator only. Produce a complete first draft articulating a coherent research intentionality. Exit artefact: user-signed `reviews/ph1_draft_completion.md`. M1→M2→M3 supply its planning foundation. Evaluator dormant. Reflector lightweight (grounding audit only). Rule 1 digest exception applies, narrowly (§10).
+- **Ph2 Review & Revise** — Planner + Evaluator + Generator + Reflector-lightweight. Produce an externally-reviewable draft that has survived one full-file Evaluator pass. Exit artefact: user-approved `reviews/ph2_review_completion.md`. M4 begins as the manuscript deliverable; Ph2 entry is gated by the consumed M1→M2→M3 chain.
+- **Ph3 Iterate & Converge** — Full four-agent loop (Reflector-lightweight). Converge the M4 manuscript the human researcher actively declares satisfactory. User-gated unbounded iteration loop with a cumulative signoff file. Exit artefact: terminal row appended to `reviews/ph3_convergence_signoff.md` bearing `is_terminal: true`, which flips `current_phase: Ph3 → Ph3_converged`.
+- **Ph4 Finalize & Close** — Full four-agent loop (Reflector-full). Consume accepted M4, ship the M5 submission-bound artefact, and close the institutional-learning loop. MCR- and milestone-gated admission (§9). Exit artefact: `reviews/ph4_ship_signoff.md` + G.4 sign-off.
 - **T4R Response-Letter Sibling** — renamed from T3R at v0.7.0 to reflect its terminal-artefact nature. Entered independently via `/review-letter`; does **not** interact with the main ladder or consume `phase_state.json`.
 
 **Advisor MCP (optional external feedback — plugin-bridged).** For projects that want **submission-defensibility–oriented** external consultation, the package recommends two **scheduled** `advisor-escalation` moments (see `references/ADVISOR_MCP.md`): **EP-1** after Ph2 review completion, before deep Ph3 iteration; **EP-2** after all in-scope sections reach `Ph3_converged`, before MCR clearance and Ph4. The co-author-harness **plugin** exposes `/advisor-escalation`; the **host** must connect the **advisor** MCP server so the `consult_advisor` tool is available. Filed `reviews/advisor_consultation_*.md` artefacts are auditable; they do **not** replace user approval on the ladder, `EXTERNAL_VERIFIERS` citation checks, or MCR/Ph4 gates.
@@ -46,9 +46,9 @@ The top-level hard goal is **"produce a submission-ready research paper grounded
 
 *(§2.2 reserved — heading removed in an earlier revision; number retained so §2.3+ citations stay stable.)*
 
-### 2.3 Relation to P-stages (unchanged) and milestones (superseded)
+### 2.3 Relation to P-stages and milestones
 
-Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P0 / P1 / P2). The axes reduce from three (Ph × P × M) to two (Ph × P). The P-stage remains the vocabulary-and-claim-maturity axis per `EYgp_Research_process_and_artifacts.md` (P0 = collected phenomenon readings, P1 = phenomenon characterization, P2 = research-question definition). The milestone axis is absorbed into the phase axis by the supersession clause in §4, which explicitly supersedes `AGENT_ORCHESTRATION.md §10.1`'s artefact-anchored milestone definitions with declared reason.
+Phases, milestones, and EYgp P-stages remain distinct questions recorded in one authority. Phases track revision/readiness, milestones track accepted dependency-bearing deliverables, and P-stages track vocabulary-and-claim maturity (P0 = collected phenomenon readings, P1 = phenomenon characterization, P2 = research-question definition). Section §4 and `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` define their bindings.
 
 ---
 
@@ -63,7 +63,7 @@ Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P
 | **Phase goal** | Produce a complete first draft articulating a coherent research intentionality. |
 | **Primary deliverables** | `manuscript/main.md` at prose-completeness; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). |
 | **Exit artefact** | `reviews/ph1_draft_completion.md` — Planner-signed declaration that every section has prose, every in-text citation has a `wiki/sources/` stub (via the new incremental SK-16 sibling), every placeholder is explicit. |
-| **Absorbs milestones** | M1, M2, M3 (all three map to Ph1 per the §4 supersession). |
+| **Milestone relationship** | M1→M2→M3 normally supply the consumed planning chain required for Ph2 entry. |
 | **Active agents** | Planner, Generator. |
 | **Evaluator** | **Dormant** — no adversarial review at draft stage. |
 | **Reflector mode** | Lightweight: grounding audit only (Rule 1 read-before-cite); non-blocking. |
@@ -83,7 +83,7 @@ Under v0.7.0, phases absorb milestones M1–M5 but preserve the EYgp P-stages (P
 | **Phase goal** | Produce an externally-reviewable draft that has survived one full-file Evaluator pass. |
 | **Primary deliverables** | `reviews/evaluator_findings_t2.md`; revised `manuscript/main.md`. |
 | **Exit artefact** | `reviews/ph2_review_completion.md` — Generator-signed per-finding disposition record. Every finding carries `disposition: RESOLVED / ACKNOWLEDGED / ESCALATED`; every `ESCALATED` finding carries a `named_owner` field **and is bound to the Ph2→Ph3 transition contract specified in §3.2.1**. |
-| **Absorbs milestone** | M4a (first reviewed-and-revised pass — plan-originated subdivision per §4). |
+| **Milestone relationship** | Produces and reviews M4; M4 remains one manuscript milestone through Ph3. |
 | **Active agents** | Planner, Evaluator, Generator, Reflector-lightweight. |
 | **Reflector mode** | Lightweight: grounding-integrity safety; non-blocking. |
 | **Deterministic checks** | `DETERMINISTIC_CHECKS.md` full content. |
@@ -113,7 +113,7 @@ The contract preserves linear accountability across the cyclical Ph3 loop: every
 | **Phase goal** | Converge on a draft the human researcher actively declares satisfactory. |
 | **Primary deliverable (contract-split at v0.7.4, P-4; amended v0.8.0 P-10 / P-12)** | A **two-file** artefact set: `reviews/convergence_log.md` retains responsibility for **Trajectory-synthesis prose only** — append-only per-iteration narrative of what the user directive was at each boundary, which bundles were folded in, which DND artefacts were verified, which three-path choice was offered; named-owner status on any still-`ESCALATED` finding (including `current_owner` / `transferred_to` / `transfer_rationale` per §3.2.1) continues to live in the prose. `reviews/convergence_journal.jsonl` carries the **per-iteration mechanical state** — one JSON line per iteration under the **P-4 core nine keys** `{cycle_id, iteration, convergence_metric, check8_aggregate, manuscript_hash, new_findings_count, delta_lines, accessibility_gate_state, timestamp}` plus **optional v0.8.0 keys** (`paragraph_hash_map` per §3.3.4) — see §3.3.4. Both files become append-frozen at the terminal signoff. |
 | **Exit artefact** | `reviews/ph3_convergence_signoff.md` — **cumulative** signoff artefact with a new row per iteration. Each row is a machine-readable structured entry consumed by the Ph4 Reflector-full pass. Two row sub-types: **terminal** rows (`is_terminal: true`, flips `Ph3 → Ph3_converged`) and **re-engagement** rows (`is_reengagement: true`, used to clear `[Ph3-STALE]` per §3.3.1). Full row contracts in §6.3a. |
-| **Absorbs milestone** | M4b (iterative revision cycles — plan-originated subdivision per §4). |
+| **Milestone relationship** | Iterates M4 toward acceptance and its Ph4 handoff. |
 | **Active agents** | Full four-agent loop (Planner, Evaluator, Generator, Reflector-lightweight). |
 | **Reflector mode** | Lightweight: confirmation-failed history tracking, drift check, reflexivity check. Lessons extraction is deferred to Ph4. |
 | **Iteration bound** | None. Ph3 is a user-gated unbounded loop. |
@@ -290,7 +290,7 @@ The termination-ranking contract preserves user agency (ceiling-lock is *always*
 | **Phase goal** | Ship a submission-bound artefact and close the institutional-learning loop. |
 | **Primary deliverables** | `submission_bundle/` (final manuscript, response letter if applicable, supplementary materials, cover letter); `reviews/lessons_learned_final.md` (Reflector-full extraction); `wiki/ingest_report_m5.md` (Coupling D); `reviews/plugin_update_proposals.md` (routed through the Planner). |
 | **Exit artefact** | `reviews/ph4_ship_signoff.md` — G.4 sign-off plus user acknowledgment that the submission bundle is complete. Flipping `terminal_tier_reached: true` is irreversible. |
-| **Absorbs milestone** | M5. |
+| **Milestone relationship** | Produces and approves M5, including the released export binding. |
 | **Active agents** | Full four-agent loop (Planner, Evaluator, Generator, Reflector-full). |
 | **Reflector mode** | **Full.** Lessons extraction, wiki ingest (Coupling D), concept-page retrofit (Coupling B), incremental stub backfill reconciliation against the Ph4 authoritative SK-16 pass (Coupling A-revised), lessons-to-wiki promotion (Coupling C), skill-retirement proposals under R1–R5, skill-addition proposals under the A1–A5 set (§5.4), tool-contract roundtrip probe. |
 | **Planner as gatekeeper** | The Reflector emits raw proposal candidates; the Planner is the sole agent authorized to formalize them into `plugin_update_proposals.md`. No Reflector-emitted proposal lands directly in the artefact. (§5.2.) |
@@ -340,30 +340,11 @@ The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at 
 
 ---
 
-## 4. Milestone supersession (replaces `AGENT_ORCHESTRATION.md §10.1`)
+## 4. Milestone and phase orthogonality
 
-*Source: draft-5 §4.*
+`MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` defines the canonical M1–M5 deliverable chain: project memo → annotated references → structured outline → manuscript → submission-bound final. Milestones are not repurposed as phase labels and M4 is not split. Phases answer how deeply the current manuscript is being revised; milestones answer which dependency-bearing deliverable has been accepted and handed forward. M1–M3 normally occur during Ph1, M4 spans Ph1 drafting through Ph3 convergence, and M5 closes in Ph4. The additive `milestone_framework` namespace in `phase_state.json` records this relationship without creating another lifecycle authority.
 
-### 4.1 Supersession clause
-
-This section supersedes `AGENT_ORCHESTRATION.md §10.1`'s definition of M1–M5. The v0.6.0 definitions bind M1 to *Project Memo*, M2 to *Annotated References*, M3 to *Structured Outline*, M4 to *Paper Draft* (single milestone), and M5 to *Final Paper*. Under v0.7.0, the milestone axis is absorbed into the phase axis, and the milestone labels are repurposed to name the *workflow activities* each phase owns. The pre-drafting milestones (M1–M3) collapse into Ph1 because the absence of an Evaluator at Ph1 makes subdividing them procedurally inert; the drafting milestone (M4) is split into M4a (first review) and M4b (iteration) because those activities differ in kind, not merely in rigor.
-
-The declared reason for supersession is that the v0.6.0 definitions describe *artefacts* (memo, references, outline, draft, paper), while the v0.7.0 definitions describe *activities* (ideation, lit review, method, first review, iteration). Under the lifecycle framing the activity axis is primary; the artefact axis is subsumed into the per-phase exit-artefact contracts in §§3.1–3.4. The v0.6.0 artefact names are preserved as recommended outputs within Ph1 (memo under `research_notes/project_memo.md`, annotated references under `research_notes/annotated_references.md`, outline under `manuscript/outline.md`), but they are no longer milestone-defining.
-
-### 4.2 M1–M5 under v0.7.0
-
-| Milestone (v0.7.0) | Phase | Activity | Recommended v0.6.0 artefact (not milestone-defining) |
-|---|---|---|---|
-| **M1 — Concept / ideation / problem framing** | Ph1 | Problem statement drafted. | `research_notes/project_memo.md` |
-| **M2 — Literature review / theoretical framing** | Ph1 | Generator drafts literature-review prose; incremental SK-16 sibling produces wiki source stubs. Full `grounding-audit` required (Q-E exception). | `research_notes/annotated_references.md` |
-| **M3 — Method + early draft** | Ph1 | Method and initial analysis sections drafted to prose-completeness. | `manuscript/outline.md` (as scaffolding within `main.md`) |
-| **M4a — First reviewed-and-revised pass** | Ph2 | First Evaluator engagement; BLOCKER/MAJOR disposition; named-owner records for ESCALATED. | `manuscript/main.md` at first-reviewed state |
-| **M4b — Iterative revision cycles** | Ph3 | Cumulative signoff-row iteration; user-gated unbounded loop. | `manuscript/main.md` at convergence state |
-| **M5 — Submission-bound final** | Ph4 | Submission bundle; Reflector-full; institutional learning. | `manuscript/main.md` at submission-bound depth |
-
-### 4.3 Downstream consequence
-
-Because §4.1 supersedes `AGENT_ORCHESTRATION.md §10.1`, the reduced-loop dispatch for M1–M3 specified in `AGENT_ORCHESTRATION.md §10.2` must be rewritten to fire within Ph1 under the new semantics. The rewrite reassigns §10.2's M1-specific pre-drafting loop to a new Ph1 sub-phase with the Planner and Generator as its only active agents. This is a rewrite target tracked in the v0.7.0 release notes.
+Legacy projects may retain historical labels only behind an approved migration boundary. Derived views may summarize the map but never overwrite or reinterpret recorded history.
 
 ---
 
@@ -583,6 +564,10 @@ The re-mapping reflects the lifecycle reality: v0.6.0's "escalate to Ph3" langua
 ---
 
 ## 8. Approval semantics
+
+### Milestone-aware phase gates
+
+Milestones govern deliverable dependencies; phases govern revision readiness. The pre-advance guard delegates milestone predicates to `milestone_framework_validate.validate_gate`: Ph1→Ph2 requires M1, M2, and M3 to compute `READY`, `LEGACY_READY`, or authorized `NOT_APPLICABLE` and to form one consumed predecessor chain; Ph4 admission requires accepted M4 and a ready F9 packet (the admission transaction may atomically mark it consumed) in addition to the MCR/section clauses; Ph4 terminal close is a distinct preflight requiring current-hash M5 approval, no stale upstream dependency, a ready terminal packet, signed `reviews/G4_signoff.md`, and signed `reviews/ph4_ship_signoff.md`. The Planner flips `terminal_phase_reached` only after that close transaction succeeds. `MISCONFIGURED` always blocks. Reopening or hash drift blocks through stale dependencies but never auto-demotes a phase. Planner/user adjudication is required.
 
 *Source: draft-5 §8.1 and v0.6.0 §6 (preserved with §6.4 phase-down broadening to §8.5 below).*
 

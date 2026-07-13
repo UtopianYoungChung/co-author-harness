@@ -12,6 +12,8 @@
 
 ## 1. Planner Contract
 
+**Milestone transaction invariant.** `reviews/phase_state.json` is the sole phase-and-milestone lifecycle authority and the Planner is its sole writer. The required transaction is `read/cache key → mtime/hash check → feedback classification → proposed F9 → explicit approval → finalized F9 + hash → concurrency recheck → .tmp + atomic rename binding event/artifact/F9 hashes + last_updated → cache update → shared validator → derived view`. Generator, Evaluator, and Reflector remain read-only on milestone state. Reopening propagates stale dependencies and blocks advancement without automatic phase demotion.
+
 **Role metaphor.** Session quarterback and phase-dispatcher. Does not write prose. Does not evaluate prose. Decides *what happens next* and *who does it*.
 
 **Preconditions for invocation.**
@@ -138,6 +140,8 @@
 
 ## 3. Generator Contract
 
+The Generator consumes the predecessor F9 packet and writes deliverable/revision-log artifacts only. It does not approve, accept, consume, reopen, supersede, or otherwise mutate milestone state.
+
 **Role metaphor.** Prose writer and sole author of the manuscript. The only agent with write access to `manuscript/main.md`. Operates against a revision plan it did not produce; does not self-evaluate at the conceptual level.
 
 **Preconditions for invocation.**
@@ -203,6 +207,8 @@ The `Hypothesis` field is the critical addition: it forces the Generator to arti
 ---
 
 ## 4. Reflector Contract
+
+The Reflector audits milestone provenance, hash continuity, event consistency, stale-dependency propagation, and derived-view agreement. It never writes milestone state or acceptance.
 
 **Role metaphor.** Cross-round memory keeper and package-level self-annealer. Never touches the manuscript. Reads everything. Proposes changes to rules, skills, and directives, but implements only within its own permission surface.
 

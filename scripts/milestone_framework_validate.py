@@ -23,6 +23,7 @@ MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.s
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
 TARGETS = (*MILESTONES, "Ph2", "Ph4")
+GATE_BOUNDARIES = ("ph1_to_ph2", "ph4_admission", "ph4_terminal_close")
 OVERRIDE_AUTHORITIES = frozenset({
     "user", "venue", "advisor", "instructor", "committee", "project_local_contract"
 })
@@ -86,6 +87,103 @@ class ValidationResult:
             "findings": [finding.json_value() for finding in self.findings],
             "evidence_bindings": list(self.evidence_bindings),
         }
+
+
+@dataclass(frozen=True)
+class GateValidationResult:
+    """Pre-transition milestone result; phases consume this without reimplementation."""
+
+    boundary: str
+    outcomes: dict[str, str]
+    findings: tuple[Finding, ...]
+
+    @property
+    def exit_permitted(self) -> bool:
+        return not self.findings
+
+
+def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValidationResult:
+    """Validate a pre-transition milestone boundary using canonical semantics."""
+    if boundary not in GATE_BOUNDARIES:
+        raise ValueError(f"unknown milestone gate boundary: {boundary}")
+    target_map = {
+        "ph1_to_ph2": ("M1", "M2", "M3"),
+        "ph4_admission": ("M4",),
+        "ph4_terminal_close": ("M5",),
+    }
+    base = validate_document(project_root, document)
+    findings = list(base.findings)
+    outcomes: dict[str, str] = {}
+    for milestone in target_map[boundary]:
+        outcomes[milestone] = validate_document(project_root, document, milestone).outcome.value
+    if not isinstance(document, dict):
+        return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
+    framework = document.get("milestone_framework")
+    milestones = framework.get("milestones") if isinstance(framework, dict) else None
+    if not isinstance(milestones, dict):
+        return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
+
+    if boundary == "ph1_to_ph2":
+        for milestone in target_map[boundary]:
+            record = milestones.get(milestone)
+            if not isinstance(record, dict) or record.get("applicability") == "not_applicable":
+                continue
+            handoff = record.get("handoff")
+            if not isinstance(handoff, dict) or handoff.get("status") != "consumed":
+                findings.append(_finding(
+                    "MF-GATE-CHAIN", f"milestone_framework.milestones.{milestone}.handoff",
+                    "Ph1 to Ph2 requires each applicable M1-M3 predecessor packet to be consumed",
+                ))
+    elif boundary == "ph4_admission":
+        record = milestones.get("M4")
+        approval = record.get("approval") if isinstance(record, dict) else None
+        handoff = record.get("handoff") if isinstance(record, dict) else None
+        if (
+            not isinstance(record, dict)
+            or record.get("status") != "accepted"
+            or not isinstance(approval, dict)
+            or approval.get("status") != "approved"
+            or not isinstance(handoff, dict)
+            or handoff.get("status") not in {"ready", "consumed"}
+        ):
+            findings.append(_finding(
+                "MF-GATE-M4", "milestone_framework.milestones.M4",
+                "Ph4 admission requires accepted M4 and a ready or transaction-consumed F9 handoff",
+            ))
+        if not (project_root / "reviews" / "ph3_convergence_signoff.md").is_file():
+            findings.append(_finding(
+                "MF-PHASE", "reviews/ph3_convergence_signoff.md",
+                "Ph4 admission requires the canonical Ph3 convergence signoff; retired t3 paths are invalid",
+            ))
+    else:
+        record = milestones.get("M5")
+        approval = record.get("approval") if isinstance(record, dict) else None
+        handoff = record.get("handoff") if isinstance(record, dict) else None
+        if (
+            not isinstance(record, dict)
+            or record.get("status") != "accepted"
+            or record.get("dependency_state") != "current"
+            or not isinstance(approval, dict)
+            or approval.get("status") != "approved"
+            or not isinstance(handoff, dict)
+            or handoff.get("status") not in {"ready", "consumed"}
+        ):
+            findings.append(_finding(
+                "MF-GATE-M5", "milestone_framework.milestones.M5",
+                "terminal close requires current-hash M5 approval, a ready F9 handoff, and no stale dependency",
+            ))
+        for relative in ("reviews/G4_signoff.md", "reviews/ph4_ship_signoff.md"):
+            path = project_root / relative
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                text = ""
+            if not text.strip() or not re.search(r"\b(PASS|signed|approved)\b", text, re.IGNORECASE):
+                findings.append(_finding(
+                    "MF-GATE-M5", relative,
+                    f"terminal close requires current signed evidence at {relative}",
+                ))
+    return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
 
 
 def _finding(code: str, path: str, message: str, severity: Severity = Severity.BLOCKER) -> Finding:

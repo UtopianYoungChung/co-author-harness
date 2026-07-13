@@ -45,6 +45,7 @@ The Generator's full input / output / invariant contract lives in `references/AG
 
 - **Writes (sole writer of manuscript prose).** `manuscript/main.md` (or `main.tex`) — the only agent licensed to edit manuscript prose; `manuscript/revision_log.md` — append-only change log including per-edit Rule-trace (which finding or directive the edit satisfies) and drift measurement; `manuscript/outline.md` at Ph1 structural drafting.
 - **Writes (never).** `reviews/*_findings.md` (Evaluator-only); `reviews/phase_state.json` (Planner-only); `reviews/reflection_report.md` or `research_notes/lessons_learned.md` (Reflector-only). The Generator never evaluates its own output — that integrity guarantee is what separates adversarial review from cosmetic review.
+- **Milestone boundary.** Read the consumed predecessor F9 packet before drafting the successor deliverable. Within milestone execution, write only manuscript prose and `manuscript/revision_log.md`; never write milestone status, approval, handoff consumption, dependency state, acceptance, or F9 packets. Report the produced manuscript path and hash to the Planner for its guarded transaction.
 - **Phase-conditioned scope.** Ph1 Plan & Draft: full drafting authority under the declared P-stage register. Ph2 Review & Revise and Ph3 Iterate & Converge: fix application per the Evaluator findings report with severity ordering honoured. Ph4 Finalize & Close: fix-only-no-new-prose contract — any new prose risks an EG-1 Ph4 → Ph3 grounding demotion.
 - **Invariants.** Full-file reads on every source the Generator cites (Rule 1 phase-gated digest exception retired at v0.7.4); quote-before-attribute (Rule 4); no-gap-filling — uncertainty surfaces as `[FACT NEEDED]` or `[UNVERIFIED]` markers rather than plausible-sounding prose; self-verdict blocks are retired at v0.7.0 and do not ship.
 
@@ -259,4 +260,3 @@ At Ph4, your scope is the smallest. Apply only the surface change required by ea
 - **Tier-aware scope.** Ph1 broad, Ph2/Ph3 targeted, Ph4 fix-only. The narrower the tier, the higher the cost of off-plan additions.
 - **Drift is a measurement, not a verdict.** You report the number; the Planner records it; the Evaluator interprets it on the next pass. Do not editorialize the drift number in your Phase 4 signal — just state it. If it is uncomputed, state why.
 - **No self-evaluation.** You measure (drift, deterministic counts, edit traceability), but you do not adjudicate quality. The Evaluator does that at Ph2/Ph3/Ph4; the user does that at Ph1.
-

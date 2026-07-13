@@ -8,6 +8,8 @@ escalation-gate firing notice, a Ph3 loop signal, a Ph1/Ph2 signoff notice,
 a response-letter (T4R sibling-ladder) notice, an integrity warning, a
 Manuscript Convergence Report notice, a fallback message, or a Ph3
 stability-sub-mode signal.
+Milestone gate outcomes are selected through the ``milestone_gate`` class;
+their ``notification_id`` values are notifications, not lifecycle triggers.
 
 Renders inline placeholders of the form ``{{key}}`` from a dict of context
 values; unfilled placeholders are rendered as the literal text in braces so
@@ -191,6 +193,7 @@ _ALLOWED_CLASSES = {
     "mcr",
     "fallbacks",
     "ph3_stability_sub_mode",
+    "milestone_gate",
     # legacy aliases — v0.7.4 minor only
     "dispatch",
     "gates",
@@ -207,7 +210,7 @@ def _select(config: dict, cls: str, key: str) -> str | None:
     if isinstance(entry, str):
         return entry.strip()
     if isinstance(entry, dict):
-        return entry.get("long", entry.get("short", "")).strip()
+        return entry.get("long", entry.get("short", entry.get("message", entry.get("user_template", "")))).strip()
     return None
 
 

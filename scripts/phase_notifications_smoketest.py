@@ -12,6 +12,7 @@ Exit 0 = pass; exit 1 = blockers.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -30,7 +31,7 @@ def walk_entries(node, out):
     message-bearing field (user_template / log_detail / message / template)."""
     if isinstance(node, dict):
         keys = set(node)
-        if "trigger" in keys and ({"user_template", "log_detail", "message", "template"} & keys):
+        if ({"trigger", "notification_id"} & keys) and ({"user_template", "log_detail", "message", "template"} & keys):
             out.append(node)
         for v in node.values():
             walk_entries(v, out)
@@ -59,7 +60,7 @@ def main() -> int:
         if not entries:
             blockers.append(f"{cat.name}: no notification-shaped entries found")
             continue
-        empty = [e["trigger"] for e in entries
+        empty = [e.get("trigger", e.get("notification_id")) for e in entries
                  if not str(e.get("user_template") or e.get("log_detail")
                             or e.get("message") or e.get("template") or "").strip()]
         if empty:
@@ -85,6 +86,14 @@ def main() -> int:
             print("- phase_notifications_loader.py imports cleanly")
         except Exception as exc:  # noqa: BLE001 — any import failure is the finding
             blockers.append(f"loader import failure: {exc}")
+        rendered = subprocess.run(
+            [sys.executable, str(LOADER), "--class", "milestone_gate", "--key", "ready", "--context", '{"milestone":"M3"}'],
+            capture_output=True, text=True, check=False,
+        )
+        if rendered.returncode != 0 or "M3 is READY" not in rendered.stdout:
+            blockers.append(f"milestone notification loader failed: rc={rendered.returncode} stderr={rendered.stderr.strip()}")
+        else:
+            print("- milestone_gate/ready renders by notification_id class")
     else:
         blockers.append("scripts/phase_notifications_loader.py missing")
 

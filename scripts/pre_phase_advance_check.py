@@ -82,6 +82,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import milestone_framework_validate as milestone_validator
+
 
 # ----------------------------------------------------------------- constants
 
@@ -241,6 +243,33 @@ class CheckContext:
     )
 
 
+@dataclass(frozen=True)
+class MilestoneGateResult:
+    """Read-only milestone result consumed by the phase guardrail."""
+
+    outcomes: dict[str, str]
+    findings: tuple[milestone_validator.Finding, ...]
+
+
+def check_milestone_gate(
+    project_root: Path,
+    document: Any,
+    target_phase: str,
+    terminal_close: bool = False,
+) -> MilestoneGateResult:
+    """Select a shared pre-transition gate; no milestone predicate lives here."""
+    boundary = (
+        "ph1_to_ph2" if target_phase == "Ph2"
+        else "ph4_terminal_close" if terminal_close
+        else "ph4_admission" if target_phase == "Ph4"
+        else None
+    )
+    if boundary is None:
+        return MilestoneGateResult({}, ())
+    result = milestone_validator.validate_gate(project_root, document, boundary)
+    return MilestoneGateResult(result.outcomes, result.findings)
+
+
 # ----------------------------------------------------------------- helpers
 
 
@@ -386,7 +415,7 @@ def check_clause_a(ctx: CheckContext) -> None:
 
     Well-formed = exists, non-empty, begins with a YAML frontmatter block
     carrying at minimum a `tier:` field matching the prior tier. For T4 target,
-    the prior-tier artefact is `t3_convergence_signoff.md` and the additional
+    the prior-tier artefact is `ph3_convergence_signoff.md` and the additional
     requirement is that the terminal row is present (checked inline here by a
     cheap scan for `is_terminal: true`; the full §6.3a row-shape check lives
     in clause (g)).
@@ -942,7 +971,7 @@ _T3_SIGNOFF_BLOCK_SPLIT_RE = re.compile(r"^(?:-{3,}|- )\s*$", re.MULTILINE)
 
 
 def _parse_t3_signoff_rows(text: str) -> list[dict[str, str]]:
-    """Parse t3_convergence_signoff.md rows as loose YAML-ish blocks.
+    """Parse ph3_convergence_signoff.md rows as loose YAML-ish blocks.
 
     We expect each row to be a YAML block delimited by `---` markers or by
     top-level "- row_timestamp:" entries. This parser tolerates both layouts
@@ -1040,7 +1069,7 @@ def _check_tier_entry_log_row(
 def _check_signoff_row(
     ctx: CheckContext, row: dict[str, str], idx: int
 ) -> list[Finding]:
-    """Validate one row from t3_convergence_signoff.md against §3a.2 / §3a.3."""
+    """Validate one row from ph3_convergence_signoff.md against §3a.2 / §3a.3."""
     findings: list[Finding] = []
     is_terminal = row.get("is_terminal", "").lower() == "true"
     is_reengagement = row.get("is_reengagement", "").lower() == "true"
@@ -1051,7 +1080,7 @@ def _check_signoff_row(
                 clause="g",
                 section=ctx.target_section_key,
                 message=(
-                    f"t3_convergence_signoff.md row[{idx}] has both "
+                    f"ph3_convergence_signoff.md row[{idx}] has both "
                     "`is_terminal: true` and `is_reengagement: true`; mutually exclusive."
                 ),
             )
@@ -1063,7 +1092,7 @@ def _check_signoff_row(
                 clause="g",
                 section=ctx.target_section_key,
                 message=(
-                    f"t3_convergence_signoff.md row[{idx}] has neither "
+                    f"ph3_convergence_signoff.md row[{idx}] has neither "
                     "`is_terminal: true` nor `is_reengagement: true`; exactly one required."
                 ),
             )
@@ -1078,7 +1107,7 @@ def _check_signoff_row(
                     clause="g",
                     section=ctx.target_section_key,
                     message=(
-                        f"t3_convergence_signoff.md row[{idx}] missing "
+                        f"ph3_convergence_signoff.md row[{idx}] missing "
                         f"required field `{field_}`."
                     ),
                 )
@@ -1092,7 +1121,7 @@ def _check_signoff_row(
                         clause="g",
                         section=ctx.target_section_key,
                         message=(
-                            f"t3_convergence_signoff.md terminal row[{idx}] missing "
+                            f"ph3_convergence_signoff.md terminal row[{idx}] missing "
                             f"required field `{field_}`."
                         ),
                     )
@@ -1106,7 +1135,7 @@ def _check_signoff_row(
                     clause="g",
                     section=ctx.target_section_key,
                     message=(
-                        f"t3_convergence_signoff.md terminal row[{idx}] has "
+                        f"ph3_convergence_signoff.md terminal row[{idx}] has "
                         "null/empty convergence_metric_value."
                     ),
                 )
@@ -1119,7 +1148,7 @@ def _check_signoff_row(
                     clause="g",
                     section=ctx.target_section_key,
                     message=(
-                        f"t3_convergence_signoff.md terminal row[{idx}] has "
+                        f"ph3_convergence_signoff.md terminal row[{idx}] has "
                         f"illegal t3_verdict {verdict!r}."
                     ),
                 )
@@ -1132,7 +1161,7 @@ def _check_signoff_row(
                     clause="g",
                     section=ctx.target_section_key,
                     message=(
-                        f"t3_convergence_signoff.md re-engagement row[{idx}] "
+                        f"ph3_convergence_signoff.md re-engagement row[{idx}] "
                         "missing required field `cleared_stale_at`."
                     ),
                 )
@@ -1145,7 +1174,7 @@ def _check_signoff_row(
                     clause="g",
                     section=ctx.target_section_key,
                     message=(
-                        f"t3_convergence_signoff.md re-engagement row[{idx}] "
+                        f"ph3_convergence_signoff.md re-engagement row[{idx}] "
                         "carries `t3_verdict` (only legal on terminal rows)."
                     ),
                 )
@@ -1158,7 +1187,7 @@ def _check_signoff_row(
                 clause="g",
                 section=ctx.target_section_key,
                 message=(
-                    f"t3_convergence_signoff.md row[{idx}] `notes` exceeds "
+                    f"ph3_convergence_signoff.md row[{idx}] `notes` exceeds "
                     f"560-char bound ({len(notes)} chars)."
                 ),
             )
@@ -1167,18 +1196,18 @@ def _check_signoff_row(
 
 
 def check_clause_g(ctx: CheckContext) -> None:
-    """(g) Row-shape conformance in tier_entry_log and t3_convergence_signoff.md.
+    """(g) Row-shape conformance in tier_entry_log and ph3_convergence_signoff.md.
 
     Iterates the last 100 rows of tier_entry_log (for performance; Reflector-
     full at T4 does a full scan per phase_state_schema.md §3a.4) and every row
-    in t3_convergence_signoff.md.
+    in ph3_convergence_signoff.md.
     """
     log = ctx.target_section.get("tier_entry_log", [])
     tail = log[-100:]
     for i, row in enumerate(tail):
         ctx.findings.extend(_check_tier_entry_log_row(ctx, row, i))
 
-    signoff_path = ctx.project_root / "reviews" / "t3_convergence_signoff.md"
+    signoff_path = ctx.project_root / "reviews" / "ph3_convergence_signoff.md"
     text = _read_text_or_none(signoff_path)
     if text:
         rows = _parse_t3_signoff_rows(text)
@@ -1212,8 +1241,17 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_T3_STALENESS_BUDGET_DAYS,
     )
     parser.add_argument("--strict-clause-f", action="store_true")
+    parser.add_argument(
+        "--terminal-close",
+        action="store_true",
+        help="validate the Ph4 terminal-close boundary (M5 + G.4) instead of Ph4 admission",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+
+    target_phase = args.target_tier.replace("T", "Ph", 1)
+    if args.terminal_close and target_phase != "Ph4":
+        parser.error("--terminal-close is legal only with --target-phase Ph4 (or T4)")
 
     # Normalize phase-named targets to the stable T-coded internal API.
     args.target_tier = {"Ph1": "T1", "Ph2": "T2", "Ph3": "T3", "Ph4": "T4"}.get(
@@ -1227,6 +1265,43 @@ def main(argv: list[str] | None = None) -> int:
             "is not a directory.\n"
         )
         return 2
+
+    phase_path = args.project_root / "reviews" / "phase_state.json"
+    try:
+        phase_document = json.loads(phase_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"[pre_phase_advance_check] error: failed to read {phase_path}: {exc}\n")
+        return 2
+    milestone_gate = check_milestone_gate(
+        args.project_root, phase_document, target_phase, args.terminal_close
+    )
+    if milestone_gate.findings:
+        if args.json:
+            print(json.dumps({
+                "target_phase": target_phase,
+                "milestone_outcomes": milestone_gate.outcomes,
+                "errors": [finding.json_value() for finding in milestone_gate.findings],
+                "warnings": [],
+            }, indent=2))
+        else:
+            for milestone, outcome in milestone_gate.outcomes.items():
+                sys.stderr.write(f"[pre_phase_advance_check] milestone {milestone}: {outcome}\n")
+            for finding in milestone_gate.findings:
+                sys.stderr.write(f"[pre_phase_advance_check] [ERROR] ({finding.code}, milestone, {finding.path}) {finding.message}\n")
+        return 1
+    if not args.json:
+        for milestone, outcome in milestone_gate.outcomes.items():
+            sys.stdout.write(f"[pre_phase_advance_check] milestone {milestone}: {outcome}\n")
+    if args.terminal_close:
+        if args.json:
+            print(json.dumps({
+                "target_phase": target_phase,
+                "boundary": "ph4_terminal_close",
+                "milestone_outcomes": milestone_gate.outcomes,
+                "errors": [],
+                "warnings": [],
+            }, indent=2))
+        return 0
 
     ledger, section = load_ledger(args)
 

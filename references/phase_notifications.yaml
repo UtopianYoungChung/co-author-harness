@@ -33,6 +33,7 @@
 #   - Cross-cutting Tier → Phase rename throughout: T1/T2/T3/T4 → Ph1/Ph2/Ph3/Ph4;
 #     `tier_transitions` → `phase_transitions`; `tier_vocabulary` → `phase_vocabulary`;
 #     all placeholder names re-scoped (`prev_tier` → `prev_phase`, `current_tier`
+
 #     → `current_phase`, `default_final_tier` → `default_final_phase`, etc.).
 #   - Filename renamed `tier_notifications.yaml` → `phase_notifications.yaml`.
 #     The legacy filename ships during the v0.7.4 minor as a forwarding stub
@@ -102,6 +103,32 @@
 #                                field (v0.7.4 addition; absent-means-null)
 
 config_version: 4.0
+
+milestone_gate:
+  ready:
+    notification_id: milestone_gate_ready
+    presented_to_user: true
+    message: "Milestone {milestone} is READY; its verified F9 handoff may feed the next boundary."
+  legacy_ready:
+    notification_id: milestone_gate_legacy_ready
+    presented_to_user: true
+    message: "Milestone {milestone} is LEGACY_READY under the approved migration boundary; provenance remains distinguishable from native history."
+  not_applicable:
+    notification_id: milestone_gate_not_applicable
+    presented_to_user: true
+    message: "Milestone {milestone} is authorized NOT_APPLICABLE under {override_rule}; substitute evidence is bound."
+  misconfigured:
+    notification_id: milestone_gate_misconfigured
+    presented_to_user: true
+    message: "Milestone gate is MISCONFIGURED and phase advancement is blocked: {finding_code} at {finding_path}."
+  stale_dependency:
+    notification_id: milestone_gate_stale_dependency
+    presented_to_user: true
+    message: "A reopened or hash-drifted upstream milestone made {milestone} stale; no phase was auto-demoted."
+  remediation:
+    notification_id: milestone_gate_remediation
+    presented_to_user: true
+    message: "Planner/user action required: revalidate, reopen, or explicitly supersede the stale handoff, then rerun the milestone validator."
 schema_version: 0.7.4
 phase_vocabulary: lifecycle_v0.7.4
 manuscript_agnostic: true
