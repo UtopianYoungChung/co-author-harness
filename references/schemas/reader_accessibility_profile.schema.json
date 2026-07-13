@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reader_accessibility_profile.schema.json",
+  "type": "object",
+  "required": ["schema_version", "profile_version", "decision_status", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "corpus_drift"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "profile_version": {"const": "1.0.0"},
+    "decision_status": {"enum": ["provisional", "accepted", "retired"]},
+    "decision_record": {"type": "string", "minLength": 1},
+    "normative_authority": {"const": "references/READER_ACCESSIBILITY.md"},
+    "package_contributors": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"type": "string"}},
+    "policy_telos": {"type": "string", "minLength": 20},
+    "phase_values": {"type": "array", "prefixItems": [{"const": "Ph1"}, {"const": "Ph2"}, {"const": "Ph3"}, {"const": "Ph4"}], "items": false},
+    "passage_roles": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "sub_checks": {"type": "object", "required": ["A", "B", "C", "D", "E", "F", "G", "H"], "additionalProperties": false, "patternProperties": {"^[A-H]$": {"type": "object", "required": ["name", "scope", "deterministic_disposition", "gate_contribution", "binds_at", "advisory_at"], "properties": {"name": {"type": "string"}, "scope": {"type": "string"}, "deterministic_disposition": {"enum": ["candidate_probe", "judgment_only"]}, "gate_contribution": {"enum": ["aggregate", "aggregate_after_transition"]}, "binds_at": {"type": "array", "items": {"enum": ["Ph1", "Ph2", "Ph3", "Ph4"]}}, "advisory_at": {"type": "array", "items": {"enum": ["Ph1", "Ph2", "Ph3", "Ph4"]}}, "threshold_key": {"type": "string"}, "do_not_flag_guards": {"type": "array", "items": {"type": "string"}}, "ph2_role_overrides": {"type": "object"}}, "additionalProperties": false}}},
+    "aggregate": {"type": "object", "required": ["members", "clean", "borderline", "major", "blocker"]},
+    "adjacent_advisory_checks": {"type": "object", "required": ["VE"]},
+    "thresholds": {"type": "object", "required": ["cadence", "rhythm", "jargon", "consolidation", "register"]},
+    "transitions": {"type": "object", "required": ["G", "H", "VE"]},
+    "register_scope": {"type": "object", "required": ["technical", "mixed", "non-technical"]},
+    "lexicons": {"type": "object", "required": ["plain_connectives", "latinate_whitelist", "hedges", "nominalisation_suffixes", "prepositions"]},
+    "domain_token_exclusions": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "override_contract": {"type": "object", "required": ["directives", "plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"]},
+    "remediation_order": {"type": "array", "minItems": 5, "items": {"type": "string"}},
+    "corpus_drift": {"type": "object", "required": ["implemented", "dispatch", "source_paths", "source_phrases"], "properties": {"implemented": {"const": true}, "dispatch": {"const": "scripts/check8_h_prefilter.py"}, "source_paths": {"type": "array", "minItems": 2, "items": {"type": "string"}}, "source_phrases": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}}, "additionalProperties": false}
+  }
+}

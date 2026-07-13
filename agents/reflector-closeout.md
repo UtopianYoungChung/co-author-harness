@@ -87,7 +87,7 @@ Cross-round aggregation that the per-round Evaluator cannot see. Scoped to close
 
    **1a. §9d G-candidate scale signal (A6, v0.8.4).** For every `reviews/deterministic_<cycle_id>.md` with a `### Cumulative cognitive load pre-filter (Sub-check G)` block, read `G-candidate boundaries (both gap-exceeded AND zero-cue): <n>`. If `n ≥ 3` in any single round, record a PATTERN in §10e — manuscript-scale construct accumulation at structural boundaries without pre-heading or opening consolidation cues; candidate lesson to tighten section map / anchor placement.
 
-2. **Within-project recurrence.** For each Sub-check (A–F), count consecutive-rounds firings within one section. Two-plus consecutive rounds in one section → project-scoped lesson candidate in `lessons_learned.md`. Non-consecutive recurrence → PATTERN (weaker signal).
+2. **Within-project recurrence.** For each profile-active Sub-check (A–H), count consecutive-rounds firings within one section. Count adjacent VE findings in a separate recurrence stream; VE never changes the Check 8 aggregate. Two-plus consecutive rounds in one section → project-scoped lesson candidate in `lessons_learned.md`. Non-consecutive recurrence → PATTERN (weaker signal).
 
    **§2g.3 — Demoted-check recurrence (v0.8.0 P-15).** Aggregate `demoted_check_advisories[]` from every F4-shaped artefact. Build a table keyed by `check_id` with row count, distinct `source_iteration` values, max severity, routing_rationale samples.
 

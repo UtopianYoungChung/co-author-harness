@@ -6,6 +6,8 @@
 
 **Status (2026-04-30, v0.13.0).** §5 added — verified lay-term paraphrase examples from the INF3006Y 2026-04-30 §2 / §5 twin-fix, anchored under a new drift-detection grep-cadence requirement (mandatory at every H-cycle, implemented as `_corpus_drift` probe in `DETERMINISTIC_CHECKS.md §9e`). The drift-detection mechanism is the operational fallback for live-manuscript projects where source-snapshot stability cannot be assumed; it converts the §4-retired-on-drift principle from post-hoc audit to active monitoring. See §5 below and source memo `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.5.
 
+**Resolved override polarity.** `references/policies/reader_accessibility.v1.json` is authoritative: project hedge and plain-connective files **replace** their defaults; a project Latinate whitelist **supplements** the package whitelist; project terminology and glossary files **extend** domain-token exclusions. `scripts/reader_accessibility_policy.py` applies containment checks and records every contributing path/hash.
+
 **Override mechanism (forward-looking, deferred to v0.10.3+).** Each lexicon may be overridden per-project by a corresponding file under `research_notes/`: `research_notes/hedge_terms.md` for the hedge list; `research_notes/connective_terms.md` for the connective list; `research_notes/latinate_whitelist.md` for the Latinate whitelist. The override mechanism is: if the project file exists, it replaces the built-in default; if absent, the built-in default is used. This file's lists ARE the built-in defaults.
 
 ---

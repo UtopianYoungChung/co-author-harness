@@ -122,6 +122,10 @@ REAL_CASES = {
     "feedback_wrong_milestone_binding": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "cross_subject_revalidation": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "retired_milestone_assignment": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
+    "policy_hash_drift": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_missing_m1_intent": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_missing_m3_profile": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_missing_m4_current_hash": ("MISCONFIGURED", 4, None, "MF-POLICY"),
 }
 
 
@@ -898,6 +902,36 @@ def _write_real_case(case: str, project: Path) -> None:
             {"sequence": cause + 1, "event_type": "downstream_stale", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 stale.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": cause, "bindings": []},
             {"sequence": cause + 2, "event_type": "downstream_revalidated", "timestamp": "2026-07-13T19:32:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "Wrong subject revalidation.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": cause + 1, "bindings": []},
         ])
+
+    if case.startswith("policy_"):
+        profile_path = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
+        profile_hash = hashlib.sha256(profile_path.read_bytes()).hexdigest()
+        resolved_hash, _ = _write_bound_file(project, "reviews/reader_accessibility_resolved.json", "{}\n")
+        corpus_path = ROOT / "references" / "examples" / "model_prose_corpus.md"
+        check8_hash, _ = _write_bound_file(project, "reviews/safeguard_check8.md", "Aggregate verdict: CLEAN\n")
+        ledger["policy_bindings"] = {"reader_accessibility": {
+            "profile_path": "references/policies/reader_accessibility.v1.json",
+            "profile_sha256": "0" * 64 if case == "policy_hash_drift" else profile_hash,
+            "resolved_path": "reviews/reader_accessibility_resolved.json",
+            "resolved_sha256": resolved_hash,
+            "source_bindings": [{"path": "references/examples/model_prose_corpus.md", "sha256": hashlib.sha256(corpus_path.read_bytes()).hexdigest()}],
+            "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None} for key in ("G", "H", "VE")},
+        }}
+        milestones["M1"]["policy_evidence"] = {"intended_readers": ["careful disciplinary reader"]}
+        milestones["M3"]["policy_evidence"] = {"profile_path": "reviews/reader_accessibility_resolved.json", "profile_sha256": resolved_hash}
+        for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
+            milestones[milestone]["policy_evidence"] = {
+                "profile_path": "reviews/reader_accessibility_resolved.json", "profile_sha256": resolved_hash,
+                "manuscript_sha256": milestones[milestone]["artifacts"][0]["sha256"],
+                "check8_path": "reviews/safeguard_check8.md", "check8_sha256": check8_hash,
+                "aggregate_verdict": "CLEAN", "phase": phase,
+            }
+        if case == "policy_missing_m1_intent":
+            milestones["M1"].pop("policy_evidence")
+        elif case == "policy_missing_m3_profile":
+            milestones["M3"].pop("policy_evidence")
+        elif case == "policy_missing_m4_current_hash":
+            milestones["M4"]["policy_evidence"].pop("manuscript_sha256")
 
     document: Any = _phase_document(ledger, document_phase)
     if case == "absent_namespace":

@@ -23,7 +23,7 @@ Everything else is on-demand per the routing table below.
 
 | If your task is… | Read these before acting |
 |---|---|
-| **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md` (the runbook); `DETERMINISTIC_CHECKS.md` (mechanical pre-flight rationale — invoke canonical `scripts/audit/run_all.py --project-root ...`, not the LLM, per PR-2; this also emits the D-STYLE profile-routing report) |
+| **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md`; `READER_ACCESSIBILITY.md`; resolve `policies/reader_accessibility.v1.json` through `scripts/reader_accessibility_policy.py`; invoke canonical `scripts/audit/run_all.py --project-root ... --phase PhN`, which emits D-STYLE plus the separate profile-bound Check 8 candidate artifact |
 | **Per-section phase advancement (Ph1 → Ph4)** | `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1); `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` (pre-transition milestone gates) |
 | **Project lifecycle, milestones, feedback, approval, or handoffs (M1 → M5)** | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10 (axis coordination and phase-conditioned dispatch) |
 | **Dispatching subagents** | `AGENT_ORCHESTRATION.md` (loop); `MODEL_ALLOCATION.md` (Opus-floor invariants); `AGENT_CONTRACTS.md` (per-agent obligations); `agents/<role>.md` (the role's full prompt) |
@@ -76,6 +76,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `templates/milestone_event.json` | Authoring shape for one append-only milestone event inside `phase_state.json` | Planner milestone transaction writes and event-contract tests |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |
 | `schemas/f7_evidence_packet.schema.json` | JSON Schema for F7 evidence packets (consumed by `ARTEFACT_FRONTMATTER_SCHEMA.md`, `OUTPUT_ECONOMY_PROTOCOL.md`) | Output-economy validation |
+| `policies/reader_accessibility.v1.json` + `schemas/reader_accessibility_profile.schema.json` | Single machine-readable Check 8 profile and its validation contract; hashes are stored externally, never in the profile | Every Ph2–Ph4 Check 8 dispatch and MF-POLICY validation |
 | `VERDICT_CACHE_CONTRACT.md` | P-14 paragraph-hash verdict carryover cache contract | Ph3 verdict reuse; currently unwired — no live consumer routes here (2026-07-07 audit) |
 | `schemas/version_planes.json` | Snapshot-mode registry of non-package version-plane assertions (lifecycle ladder, phase-state schema, evaluator envelope, stage x profile vocabulary); guarded by `scripts/version-planes-check.py` | Maintainer check surface; re-snapshot deliberately on any version-assertion change (plan 2026-07-06 WS-2) |
 | `schemas/commitment_interactions.json` | Declare-or-fail registry of all C-x pairwise interaction classifications; guarded by `scripts/commitment-interactions-check.py`; STYLE_COMMITMENTS.md remains authoritative for tension content | Maintainer check surface; every new commitment requires full pair coverage (plan 2026-07-06 WS-3) |
@@ -96,7 +97,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `SAFEGUARD_LAYER.md` | Post-review integrity: regression, drift, consistency, contradictions, traceability, voice | Step 8.5 after consolidated report, before author approval |
 | `DRIFT_CHECK.md` | MASTER/component reconciliation gate; Quote/Claim/Structural drift; hard gate before G.4 | Reflector at Phase 2.6 every round |
 | `REFLEXIVITY_CHECK.md` | Authorship-identity instrumentation; substitution-vs-augmentation audit | Reflector at Phase 2.7; mandatory at submission-bound depth |
-| `READER_ACCESSIBILITY.md` | Sub-check A–H accessibility criteria; SK-30 overlay materialises Check 8 findings | Step 8.5 Sub-check H; SAFEGUARD Check 8 aggregation |
+| `READER_ACCESSIBILITY.md` | Package-local semantic authority for Sub-check A–H; machine projection at `policies/reader_accessibility.v1.json`; VE is adjacent and non-gating | Step 8.5; SAFEGUARD Check 8 aggregation; MF-POLICY |
 
 ### Style and craft
 

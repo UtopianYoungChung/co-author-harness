@@ -18,6 +18,7 @@
   "feedback_dispositions": [],
   "open_debts": [],
   "next_milestone_instructions": [],
+  "policy_evidence": null,
   "approval": {
     "authority": "user",
     "evidence_path": "reviews/approval.md",

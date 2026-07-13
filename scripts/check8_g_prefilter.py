@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
 
+from reader_accessibility_policy import load_profile
+
 # Consolidation-cue lexicon (§9d table, row 3)
 _CONSOL = re.compile(
     r"\b(?:(?:at this point)|(?:so far)|(?:to this point)|(?:up to now)|"
@@ -39,7 +41,10 @@ _BACKWARD = re.compile(
 _RE_MD_HEAD = re.compile(r"(?m)^(?:(#{1,2})\s+.+)$")
 _RE_TEX_HEAD = re.compile(r"\\(?:chapter|section)\*?\s*\{[^}]*\}")
 
-_ENVELOPES = {"P0": 800, "P1": 700, "P2": 600}
+_PROFILE = load_profile()
+_ENVELOPES = _PROFILE["thresholds"]["consolidation"]["candidate_gap_words"]
+_PARAGRAPH_GAP = _PROFILE["thresholds"]["consolidation"]["candidate_gap_paragraphs"]
+_LONG_MANUSCRIPT = _PROFILE["thresholds"]["consolidation"]["long_manuscript_candidate_words"]
 
 
 def _word_count(s: str) -> int:
@@ -125,7 +130,7 @@ def analyze(
     else:
         wc_text = text
     total_wc = _word_count(wc_text)
-    over_5000 = total_wc > 5000
+    over_5000 = total_wc > _LONG_MANUSCRIPT
 
     headings = _find_headings(path, text)
     n = len(headings)
@@ -166,7 +171,7 @@ def analyze(
         o_cue = opening_total  # for reporting: total matches in opening para
 
         gap_w = pw > env
-        gap_p = pc > 6 and gap_w
+        gap_p = pc > _PARAGRAPH_GAP and gap_w
         g_cand = gap_w and (pre_cue == 0) and (opening_total == 0)
 
         out.append(
@@ -239,7 +244,7 @@ def render_block(
         lines.append("  - (none)")
     lines.append(f"- Manuscript word count total: {total_wc}")
     lines.append(
-        f"- Manuscript over 5,000-word envelope (per Sub-check G BLOCKER rule): "
+        f"- Manuscript over profile long-manuscript proxy envelope (Evaluator judgment still required): "
         f"{'yes' if over_5000 else 'no'}"
     )
     return "\n".join(lines) + "\n"

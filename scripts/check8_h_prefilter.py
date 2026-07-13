@@ -33,46 +33,50 @@ import argparse
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
+
+from reader_accessibility_policy import load_profile
+
+_PROFILE = load_profile()
 
 # Nominalisation suffix probe — five suffixes (-ing intentionally excluded
 # per §9e exclusion-list rationale; pilot showed ~30% FP inflation on
 # participial constructions).
 _RE_NOMINAL = re.compile(
-    r"\b\w+(?:tion|ment|ance|ence|ity|ness)\b",
+    r"\b\w+(?:" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["nominalisation_suffixes"]) + r")\b",
     re.IGNORECASE,
 )
 
 # Exclusion list — content-bearing nominals whose removal would lose
 # meaning, not register inflation. Mirrors §9e table row 1 prose.
-_NOMINAL_EXCLUSIONS = frozenset(
-    [
-        "introduction", "conclusion", "abstract", "methodology", "discussion",
-        "reference", "definition", "condition", "relation", "application",
-        "operation", "representation", "description", "interpretation",
-        "specification", "implementation", "verification", "evaluation",
-        "presentation", "generation", "orientation",
-    ]
-)
+_NOMINAL_EXCLUSIONS = frozenset(_PROFILE["domain_token_exclusions"])
 
 # Prepositional-phrase probe — 13-preposition cover set per §9e table row 2.
 _RE_PREP_PHRASE = re.compile(
-    r"\b(of|in|for|with|to|by|on|at|from|under|over|through|via)\s+\w+",
+    r"\b(" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["prepositions"]) + r")\s+\w+",
     re.IGNORECASE,
 )
 
 # Hedging probe — built-in 15-marker default. Override-by-project mechanism
 # spec'd in §9e but deferred to v0.10.3 per Q4 adjudication 2026-04-27.
 _RE_HEDGE = re.compile(
-    r"\b(may|might|could|perhaps|possibly|likely|suggests|indicates|"
-    r"appears|seems|somewhat|relatively|generally|typically)\b",
+    r"\b(" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["hedges"]) + r")\b",
     re.IGNORECASE,
 )
 
 # Default thresholds per §9e (Q1 adjudication 2026-04-27: adopt defaults).
-_THRESHOLD_NOM = 0.08          # ratio (count / word_count)
-_THRESHOLD_PREP_RUN = 3        # consecutive-PP count
-_THRESHOLD_HEDGE_PER100 = 2.0  # per 100 words
+_THRESHOLD_NOM = _PROFILE["thresholds"]["register"]["nominalisation_density_candidate"]
+_THRESHOLD_PREP_RUN = _PROFILE["thresholds"]["register"]["prepositional_run_candidate"]
+_THRESHOLD_HEDGE_PER100 = _PROFILE["thresholds"]["register"]["hedges_per_100_words_candidate"]
+
+
+def _corpus_drift(manuscript_text: str, profile: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Return deterministic source-phrase presence candidates for H adjudication."""
+    active = profile or _PROFILE
+    return [
+        {"source_phrase": phrase, "present": phrase.casefold() in manuscript_text.casefold(), "candidate_status": "present" if phrase.casefold() in manuscript_text.casefold() else "drift_candidate"}
+        for phrase in active["corpus_drift"]["source_phrases"]
+    ]
 
 # Sentence splitter — naive but sufficient for prepositional-run probe.
 # Splits on `.`/`!`/`?` followed by whitespace + capital, with allowance

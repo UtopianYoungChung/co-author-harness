@@ -25,6 +25,19 @@ check_8_subcheck_counters:
   sub_d_signpost_flag_count: 0
   sub_e_jargon_density_flag_count: 0
   sub_f_worked_example_flag_count: 0
+  sub_g_consolidation_flag_count: 0
+  sub_h_register_flag_count: 0
+reader_accessibility_policy:
+  profile_path: reviews/reader_accessibility_resolved.json
+  profile_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  manuscript_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  check8_evidence_path: reviews/safeguard_check8.md
+  check8_evidence_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  phase: Ph3
+  candidate_artifact_path: reviews/reader_accessibility_candidates.json
+  candidate_artifact_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+check_8_adjacent_advisories:
+  ve_finding_count: 0
 dnd_byte_verification:
   anchors_verified: true
   anchor_count: 0

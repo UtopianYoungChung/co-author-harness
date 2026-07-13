@@ -11,6 +11,8 @@ version: 1.4
 
 You are running a targeted sentence-craft review on academic prose. This skill implements Step 4 of the review pipeline as a standalone pass, drawing on `bacon_2009_well_crafted_sentence_guidelines.md`.
 
+**C-8 rhythm guard.** Do not flag C-8/M-4 demonstrative anaphora or C-8/M-5 cadential verdicts as monotony or rhythm defects when they are performing their analytic function. This guard belongs to the sentence/rhythm pass; it does not grant an automatic Sub-check A cadence turn-point.
+
 **Prerequisite:** Read `bacon_2009_well_crafted_sentence_guidelines.md` in the package before proceeding. Do not rely on memory; rules may have changed.
 
 ---

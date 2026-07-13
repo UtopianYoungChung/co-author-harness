@@ -70,6 +70,21 @@ check_8_subcheck_counters:
   sub_d_signpost_flag_count:         # integer, ≥ 0
   sub_e_jargon_density_flag_count:   # integer, ≥ 0
   sub_f_worked_example_flag_count:   # integer, ≥ 0
+  sub_g_consolidation_flag_count:     # integer, ≥ 0
+  sub_h_register_flag_count:          # integer, ≥ 0
+
+reader_accessibility_policy:
+  profile_path:             # string; resolved profile evidence path
+  profile_sha256:           # 64-char lowercase SHA-256
+  manuscript_sha256:        # current manuscript SHA-256 audited by Check 8
+  check8_evidence_path:     # current Check 8 evidence path
+  check8_evidence_sha256:   # current Check 8 evidence SHA-256
+  phase:                    # one of {Ph2, Ph3, Ph4}
+  candidate_artifact_path:  # deterministic A/D/E/F/G/H candidate artifact
+  candidate_artifact_sha256:# candidate artifact SHA-256
+
+check_8_adjacent_advisories:
+  ve_finding_count:         # integer, ≥ 0; recurrence only, never aggregate
 
 dnd_byte_verification:
   anchors_verified:       # boolean
@@ -88,6 +103,8 @@ routing_rationale:      # string; MUST be of the form primary_evidence=<check_id
 reviewer_agreement_rate:  # float, [0.0, 1.0]; declared convergence metric when applicable
 contradiction_density:    # float, ≥ 0.0; per-1000-word basis; declared when applicable
 ```
+
+These bindings are part of the F1 inheritance substrate. VE remains outside `check_8_subcheck_counters` and the A–H aggregate.
 
 ### 3.2 Optional fields
 

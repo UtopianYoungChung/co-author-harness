@@ -1,5 +1,7 @@
 # Sub-checks A–H — threshold values, severity floors, detection procedures
 
+**Machine policy routing.** Load `references/policies/reader_accessibility.v1.json` through `scripts/reader_accessibility_policy.py`. In particular, `thresholds.cadence` owns the provisional bands and severity mapping. Lexicon matches are candidates only: a cadence credit requires overlay **functional confirmation** of a transition, counter-move, worked example, or thematic refocus. Sub-check B, not A, protects C-8/M-4 demonstrative anaphora and C-8/M-5 cadential verdicts from false rhythm findings.
+
 > **Loaded by** `SKILL.md` at the Sub-check dispatch step. This file is the authoritative specification of the eight Sub-checks; the SKILL.md body routes and aggregates, this file defines. All threshold numerics (word counts, σ cut-offs, term caps, accumulation thresholds) and severity floors live here to keep the SKILL.md body routing-focused.
 
 ---
@@ -8,9 +10,9 @@ Each Sub-check maps to one finding class. The Evaluator's native finding shape i
 
 ## Sub-check A — Paragraph cadence (Cadence-Flag)
 
-Scan every paragraph in the section. A paragraph is **flagged** if it exceeds 150 words **and** contains no internal turn-point (transition cue, worked example, counter-claim, or thematic refocus). Turn-points are detected via a small cue lexicon: `however`, `but`, `yet`, `still`, `by contrast`, `conversely`, `suppose`, `for example`, `to illustrate`, `consider`, `take the case of`, `reframing`, `which is to say`, `put differently`. A paragraph that spans a single argumentative move and exceeds 200 words is flagged independently of turn-point presence.
+Apply `thresholds.cadence`. Cue-lexicon matches nominate turn-point candidates; they count only after functional confirmation as a transition, counter-move, worked example, or thematic refocus. The provisional bands require zero confirmed turns through 150 words, one at 151–200, and two at 201–300.
 
-Severity floors: MINOR if 151–200 words without turn-point; MAJOR if >200 words with or without turn-point; BLOCKER if >300 words with no turn-point and no sentence break signals (em-dash, colon, semicolon) — this pattern is the "wall of prose" that the constraint most directly targets.
+Severity floors come from `thresholds.cadence`: a band deficit is MINOR at 151–200 and MAJOR at 201–300. Above `hard_ceiling_words`, assign MAJOR plus `mandatory_split: true`; assign BLOCKER only when there are zero functionally confirmed turns and zero internal sentence-break signals.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check A`*
 
@@ -77,7 +79,7 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
 **Interaction with Sub-check D.** D and G are orthogonal and additive. D audits local section-opening preambles; G audits cumulative anchor placement at structural boundaries. A section opening can satisfy D while omitting the G anchor, and vice versa. When a Generator is applying a fix, D-targeting preambles and G-targeting anchors can co-locate in the same paragraph, but the two sentences should do distinct work.
 
-**Advisory-until transitional flag.** Sub-check G carries an `advisory_until: next_manuscript_at_ph3` flag per `READER_ACCESSIBILITY.md §13.5`. Under the flag, G findings are emitted with severity and locators recorded, but the aggregate-verdict computation in the next section treats G findings as advisory: the `advisory_until_flag_active: true` output field tells the Planner to compute the TerminalSignoffRow decision on the A–F aggregate alone. The flag retires automatically on the first Ph3 entry of a manuscript whose Ph1 classification postdates 2026-04-23.
+**Transition binding.** Read G's transition meaning from `transitions.G` and its live state only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G`. When active, severity is recorded while G is excluded from the gate aggregate. Do not infer state from dates or classification prose.
 
 **Stability sub-mode.** Under `run-phase-3-stability` (v0.8.0+ byte-stable inheritance pass), Sub-check G runs advisory-only regardless of the `advisory_until` flag. A G finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. The rationale is that G is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot; a stability pass that fired a G BLOCKER would either require a full-Ph3 escalation on every round (expensive) or would need a hash-summary caching layer not yet specified. The advisory path lets the reduced stability pass run cheaply while preserving G's recurrence trail through Reflector Phase 2g.
 
@@ -149,7 +151,7 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 - **MAJOR.** Sustained negative-marker density across three or more consecutive non-technical passages; or zero positive markers in a consolidation anchor or section transition (these two passage roles are weighted because they bear cumulative-load mitigation).
 - **BLOCKER.** Reserved for `register_class: non-technical` manuscript-wide variant when more than 50% of non-technical passages emit MAJOR findings. BLOCKER is gated by the `advisory_until: H_two_revision_cycles` flag — even on a `register_class: non-technical` manuscript, the BLOCKER does not gate the §3.3.3 TerminalSignoffRow until the advisory period clears.
 
-**Advisory-until transitional flag.** Sub-check H carries an `advisory_until: H_two_revision_cycles` flag, mirroring the Sub-check G `advisory_until: next_manuscript_at_ph3` precedent. Under the flag, H findings are recorded with severity and contribute to the Reflector Phase 2g recurrence trail from day one, but the aggregate verdict computation excludes H findings while the flag is active. The flag retires after two complete revision cycles in which H has been available and the user has had opportunity to act on findings; retirement criterion is recorded in `reviews/classification.md` as `h_advisory_cycles_observed: <integer>` (incremented at every Ph3 close where the overlay ran with H in scope; field added to classification template at v0.10.1). After retirement, H findings join the aggregate identically to A–G.
+**Transition binding.** Read H's transition meaning from `transitions.H` and its live state only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H`. Calibration and classification files are evidence, not counters. When active, H findings remain in recurrence evidence but outside the gate aggregate.
 
 **Per-finding telemetry: `false_positive_candidate` flag.** Each H finding emits an additional `false_positive_candidate: true|false` field that the user can set during review (default `false` at emission; user toggles `true` if the finding is judged a false positive). The flag feeds a project-side calibration log (`reviews/h_calibration_<cycle_id>.md`, append-only) that informs the v0.10.2 retirement decision: if the false-positive rate across two revision cycles exceeds a threshold (TBD at retirement adjudication; provisionally 30%), the Planner three-filter gate considers either the threshold-tightening alternative or wholesale H retirement. Cheap to add at emission; load-bearing for the binding decision.
 

@@ -819,7 +819,68 @@ def _validate_packet(
                 "MF-HANDOFF", f"{base}.packet.approval",
                 "F9 approval authority, evidence path, and time must exactly match milestone approval state",
             ))
+    record_policy = record.get("policy_evidence")
+    if record_policy is not None and packet.get("policy_evidence") != record_policy:
+        findings.append(_finding(
+            "MF-POLICY", f"{base}.packet.policy_evidence",
+            "F9 policy evidence must exactly match milestone policy evidence",
+        ))
     return {"path": handoff.get("packet_path"), "sha256": handoff.get("packet_sha256")}
+
+
+def _validate_reader_accessibility_policy(
+    project_root: Path,
+    ledger: dict[str, Any],
+    milestones: dict[str, Any],
+    deliverables: dict[str, dict[str, Any] | None],
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+) -> None:
+    bindings = ledger.get("policy_bindings")
+    if not isinstance(bindings, dict) or "reader_accessibility" not in bindings:
+        return
+    binding = bindings.get("reader_accessibility")
+    base = "milestone_framework.policy_bindings.reader_accessibility"
+    if not isinstance(binding, dict):
+        findings.append(_finding("MF-POLICY", base, "reader-accessibility policy binding must be an object"))
+        return
+    canonical = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
+    expected_path = "references/policies/reader_accessibility.v1.json"
+    if binding.get("profile_path") != expected_path or not canonical.is_file():
+        findings.append(_finding("MF-POLICY", f"{base}.profile_path", "profile path must bind the canonical package profile"))
+    elif binding.get("profile_sha256") != hashlib.sha256(canonical.read_bytes()).hexdigest():
+        findings.append(_finding("MF-POLICY", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
+    _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
+    for index, source in enumerate(binding.get("source_bindings", [])):
+        if not isinstance(source, dict):
+            continue
+        relative = source.get("path")
+        if isinstance(relative, str) and relative.startswith("references/"):
+            package_source = (ROOT / relative).resolve()
+            if not package_source.is_file() or hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256"):
+                findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor is missing or stale"))
+        else:
+            _file_binding(project_root, relative, source.get("sha256"), None, f"{base}.source_bindings[{index}]", findings, evidence, "MF-POLICY")
+    m1 = milestones.get("M1", {}).get("policy_evidence") if isinstance(milestones.get("M1"), dict) else None
+    if not isinstance(m1, dict) or not m1.get("intended_readers"):
+        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M1.policy_evidence", "M1 must record intended readers"))
+    m3 = milestones.get("M3", {}).get("policy_evidence") if isinstance(milestones.get("M3"), dict) else None
+    if not isinstance(m3, dict) or m3.get("profile_path") != binding.get("resolved_path") or m3.get("profile_sha256") != binding.get("resolved_sha256"):
+        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M3.policy_evidence", "M3 must bind the resolved profile path and hash"))
+    for milestone in ("M4", "M5"):
+        record = milestones.get(milestone)
+        policy = record.get("policy_evidence") if isinstance(record, dict) else None
+        deliverable = deliverables.get(milestone)
+        path = f"milestone_framework.milestones.{milestone}.policy_evidence"
+        required = ("profile_path", "profile_sha256", "manuscript_sha256", "check8_path", "check8_sha256", "aggregate_verdict", "phase")
+        if not isinstance(policy, dict) or any(policy.get(key) is None for key in required):
+            findings.append(_finding("MF-POLICY", path, f"{milestone} must carry complete current-manuscript Check 8 policy evidence"))
+            continue
+        if policy.get("profile_path") != binding.get("resolved_path") or policy.get("profile_sha256") != binding.get("resolved_sha256"):
+            findings.append(_finding("MF-POLICY", path, f"{milestone} resolved policy binding is stale or differently configured"))
+        if not isinstance(deliverable, dict) or policy.get("manuscript_sha256") != deliverable.get("sha256"):
+            findings.append(_finding("MF-POLICY", path, f"{milestone} Check 8 evidence is not bound to the current manuscript hash"))
+        _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")
 
 
 def validate_document(project_root: Path, document: Any, target: str | None = None) -> ValidationResult:
@@ -885,6 +946,10 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
             previous_handoff = previous.get("handoff") if isinstance(previous, dict) else None
             if not isinstance(previous_approval, dict) or previous_approval.get("status") != "approved" or not isinstance(previous_handoff, dict) or previous_handoff.get("status") != "consumed":
                 findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}", "successor work started before predecessor approval and consumed handoff"))
+
+    _validate_reader_accessibility_policy(
+        project_root, ledger, milestones, deliverables, findings, evidence,
+    )
 
     for index, milestone in enumerate(MILESTONES[:-1]):
         record = milestones.get(milestone)

@@ -35,6 +35,13 @@
       "type": "string",
       "minLength": 1
     },
+    "policy_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reader_accessibility": {"$ref": "#/$defs/reader_accessibility_binding"}
+      }
+    },
     "milestones": {
       "type": "object",
       "additionalProperties": false,
@@ -109,6 +116,35 @@
         "string",
         "null"
       ]
+    },
+    "reader_accessibility_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_path", "profile_sha256", "resolved_path", "resolved_sha256", "source_bindings", "transitions"],
+      "properties": {
+        "profile_path": {"type": "string", "minLength": 1},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "resolved_path": {"type": "string", "minLength": 1},
+        "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "source_bindings": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/binding"}},
+        "transitions": {"type": "object", "additionalProperties": false, "required": ["G", "H", "VE"], "properties": {"G": {"$ref": "#/$defs/transition_state"}, "H": {"$ref": "#/$defs/transition_state"}, "VE": {"$ref": "#/$defs/transition_state"}}}
+      }
+    },
+    "binding": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "transition_state": {"type": "object", "additionalProperties": false, "required": ["state", "observed_count", "last_event_sequence"], "properties": {"state": {"enum": ["active", "retired"]}, "observed_count": {"type": "integer", "minimum": 0}, "last_event_sequence": {"type": ["integer", "null"], "minimum": 1}}},
+    "policy_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "intended_readers": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "profile_path": {"type": "string", "minLength": 1},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "manuscript_sha256": {"$ref": "#/$defs/sha256"},
+        "check8_path": {"type": "string", "minLength": 1},
+        "check8_sha256": {"$ref": "#/$defs/sha256"},
+        "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"]},
+        "phase": {"enum": ["Ph2", "Ph3", "Ph4"]}
+      }
     },
     "milestone_event": {
       "type": "object",
@@ -610,7 +646,8 @@
               "type": "null"
             }
           ]
-        }
+        },
+        "policy_evidence": {"$ref": "#/$defs/policy_evidence"}
       },
       "allOf": [
         {

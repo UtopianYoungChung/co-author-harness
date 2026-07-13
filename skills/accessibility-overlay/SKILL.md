@@ -35,6 +35,8 @@ version: 1.5
 
 You are executing the **Reader-Experience defence** overlay — the eight Sub-checks A–H of SAFEGUARD Check 8 in structured, Evaluator-native findings form. The overlay is **additive**: it does not replace any existing step, does not modify the manuscript, and does not mutate the DETERMINISTIC_CHECKS §9b pre-filter output it consumes. Every finding it produces carries a sub-check locator (A–H) and a line/span anchor (or, for Sub-check G, a structural-boundary locator; for Sub-check H, a passage-role + heading-path locator) so that downstream Reflector Phase 2g recurrence accounting can trace it back to the text that generated it.
 
+**Machine authority and membership.** Before dispatch, resolve `references/policies/reader_accessibility.v1.json` with `scripts/reader_accessibility_policy.py` and bind the returned profile/source hashes. Numeric thresholds, override polarity, phase geometry, aggregate membership, and transition meanings come from that resolved profile. Live transition counters/events come only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility`. Check 8 is exactly A–H. Verdict-Edge (VE) is an adjacent Reflector advisory and never participates in this overlay aggregate or gate.
+
 Sub-checks A–F audit **local accessibility** — paragraph cadence, sentence rhythm, first-use definition, section-opening signposting, jargon density per paragraph, worked examples at density spikes. Sub-check G audits **cumulative accessibility** — whether the manuscript carries one-sentence consolidation anchors at structural boundaries where construct accumulation has crossed a working-memory-tax threshold. Sub-check H audits **register accessibility** (added v0.10.1) — whether structurally-required non-technical passages (signpost orienting/contribution clauses, section framing, inter-section transitions, worked-example vignette bodies, consolidation anchor sentences) carry positive register markers (concrete-referent anchoring, agent-verb-object construction, plain-English connectives) rather than abstraction-stacked academic register. The three scales have distinct dispatch geometries: A–F run at section scope on every invocation; G runs at full-manuscript scope only, which restricts its binding engagement to T3 and T4 (at T2 the overlay records an advisory note that G will run at T3); H runs at passage scope under `register_class: technical`/`mixed` (subset of section scope, so resolvable at T2) or at manuscript scope under `register_class: non-technical` (T3+ only). Under the v0.8.0+ `run-phase-3-stability` sub-mode, both Sub-check G and Sub-check H run advisory-only and do not force escalation to a full Ph3 pass.
 
 Accessibility here means **extraneous-load reduction** (Sub-checks A–F), **germane-load consolidation across the manuscript** (Sub-check G), and **register-tone construction within structurally-required passages** (Sub-check H): the prose surface should carry the argument without spending the reader's working memory on prose-bookkeeping within a paragraph, the manuscript should consolidate accumulated material at structural boundaries so the reader's cumulative mental model stays navigable, and the non-technical passages that carry the cumulative-load mitigation work should read in daily English rather than cold academic register. The overlay does not judge the intellectual difficulty of the material (intrinsic load) and does not ask the Generator to dilute the argument; it judges the eight surface properties specified in Ph.D.-root CLAUDE.md §13.3 and returns findings the Generator can act on. Sub-check H's compliance frame is presence-of-positive-markers rather than absence-of-negative-markers — a deliberate inversion that closes the dilution back-door (the alternative grammar would punish register craft rather than rewarding it).
@@ -53,7 +55,7 @@ Before invoking this skill, verify all of the following. Abort with a clear `acc
 
 ### Sub-check H back-compat grace period (v0.10.1)
 
-First H run on a previously-non-H manuscript (any manuscript whose `reviews/classification.md` lacks the `h_advisory_cycles_observed` field) records `inherited_from_pre_h: true` in the H finding artefact and runs MINOR-only regardless of detected severity for that one iteration. The grace gives the author a one-round signal of where H would otherwise fire MAJOR/BLOCKER without the punitive verdict. The next iteration runs H at full severity (still under `advisory_until: H_two_revision_cycles`). Detection: if `h_advisory_cycles_observed` is absent or `0` AND the overlay is producing H findings for the first time in this project, set the grace flag.
+First H run on a previously-non-H manuscript records `inherited_from_pre_h: true` and runs MINOR-only for that iteration. Detect the first observation from the bound H transition event/counter in `phase_state.json.milestone_framework.policy_bindings.reader_accessibility`, never from missing classification prose.
 
 ### No-op reason codes (machine-readable)
 
@@ -91,9 +93,9 @@ After running all Sub-checks in scope (A–F + H passage-subset at T2 section-di
 - **MAJOR** — two or more Sub-checks produced MAJOR findings, or the same Sub-check produced two or more independent MAJORs; no BLOCKERs.
 - **BLOCKER** — one or more Sub-checks produced a BLOCKER finding, regardless of MAJOR or MINOR counts.
 
-**Sub-check G contribution to the aggregate.** When the `advisory_until_g_flag_active: true` output field is set (manuscript's Ph1 classification predates 2026-04-23), Sub-check G findings are recorded with their severities but do **not** contribute to the aggregate verdict the Planner reads for the TerminalSignoffRow decision; the Planner computes on the A–F (and H, where retired) aggregate alone while the flag is active. When the flag has retired (manuscript's Ph1 classification postdates 2026-04-23), G findings contribute identically to A–F.
+**Sub-check G contribution to the aggregate.** Resolve the G transition from the policy binding. While active, record G severity but exclude it from the gate aggregate; after retirement, G contributes identically to A–F.
 
-**Sub-check H contribution to the aggregate (added v0.10.1).** When the `advisory_until_h_flag_active: true` output field is set (manuscript's `reviews/classification.md` shows `h_advisory_cycles_observed < 2`), Sub-check H findings are recorded with their severities but do **not** contribute to the aggregate verdict; the Planner computes on the A–G aggregate alone while the H flag is active. When the H flag has retired (`h_advisory_cycles_observed >= 2`), H findings contribute identically to A–G. Under the `run-phase-3-stability` sub-mode, both Sub-check G and Sub-check H findings are emitted with `stability_advisory: true` and do not contribute to the aggregate regardless of their respective `advisory_until` flag states.
+**Sub-check H contribution to the aggregate.** Resolve the H transition from the policy binding. While active, record H severity but exclude it from the gate aggregate; after retirement, H contributes identically to A–G. Stability sub-mode keeps both G and H advisory regardless of transition state.
 
 The aggregate verdict is the canonical value the Planner reads from `reviews/safeguard_layer_results.md` §Check 8 when evaluating the TerminalSignoffRow accessibility gate (`PHASE_PROTOCOL.md §3.3.3`). On **BLOCKER**, the Planner refuses the terminal signoff write with `E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF`. On **BORDERLINE**, terminal signoff is permitted but the advisory `[CONVERGENCE-BORDERLINE-ACCESSIBILITY]` is surfaced and recorded in the TerminalSignoffRow `notes` for Reflector Phase 2g recurrence accounting.
 
@@ -108,15 +110,16 @@ Cycle: <cycle_id>
 P-stage: <P0|P1|P2|unknown>
 Tier: <T2|T3|T4>
 Stability sub-mode: <active|inactive>
-Sub-check G advisory_until flag: <active:next_manuscript_at_ph3|retired>
-Sub-check H advisory_until flag: <active:H_two_revision_cycles|retired>
+Resolved policy SHA-256: <sha256>
+Sub-check G transition state: <active|retired>  (from milestone_framework.policy_bindings.reader_accessibility.transitions.G)
+Sub-check H transition state: <active|retired>  (from milestone_framework.policy_bindings.reader_accessibility.transitions.H)
 register_class_resolved: <technical|mixed|non-technical>
-h_advisory_cycles_observed: <integer>
+h_observed_count: <integer from policy binding>
 inherited_from_pre_h: <true|false>
 Overlay version: accessibility-overlay@v1.5
 
 ## Aggregate verdict: <CLEAN|BORDERLINE|MAJOR|BLOCKER>
-Aggregate computed over: <A–F | A–G | A–H>  (G excluded if its advisory_until active or stability sub-mode active; H excluded if its advisory_until active or stability sub-mode active)
+Aggregate computed over: <A–F | A–G | A–H>  (G/H contribution resolved from bound transition state; both excluded in stability sub-mode)
 
 ## Sub-check A — Paragraph cadence
 <per-finding blocks, or "CLEAN">
@@ -138,12 +141,12 @@ Aggregate computed over: <A–F | A–G | A–H>  (G excluded if its advisory_un
 
 ## Sub-check G — Consolidation anchors at structural boundaries
 <per-finding blocks with structural-boundary locators, or "CLEAN", or "DEFERRED_TO_T3" at T2 dispatch, or "NOOP: G_REQUIRES_FULL_MANUSCRIPT" if the dispatch scope was a section path>
-<advisory_until_g_flag_active: true|false>
+<g_transition_state: active|retired>
 <stability_advisory: true|false>
 
 ## Sub-check H — Register Appropriateness
 <per-finding blocks with passage_role + heading_path locators (e.g. signpost_§3, framing_§5, transition_§4_to_§5, vignette_§7_line_120, anchor_end_§3); for each finding: positive_markers_count, negative_markers_count, severity, false_positive_candidate (default false), inherited_from_pre_h (true on grace-period round)>
-<advisory_until_h_flag_active: true|false>
+<h_transition_state: active|retired>
 <stability_advisory: true|false>
 <register_class_resolved: technical|mixed|non-technical>
 

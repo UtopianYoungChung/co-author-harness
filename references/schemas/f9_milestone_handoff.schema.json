@@ -112,6 +112,9 @@
     },
     "approval": {
       "$ref": "#/$defs/approval"
+    },
+    "policy_evidence": {
+      "anyOf": [{"$ref": "#/$defs/policy_evidence"}, {"type": "null"}]
     }
   },
   "allOf": [
@@ -349,6 +352,20 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    },
+    "policy_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_path", "profile_sha256"],
+      "properties": {
+        "profile_path": {"type": "string", "minLength": 1},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "manuscript_sha256": {"$ref": "#/$defs/sha256"},
+        "check8_path": {"type": "string", "minLength": 1},
+        "check8_sha256": {"$ref": "#/$defs/sha256"},
+        "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"]},
+        "phase": {"enum": ["Ph2", "Ph3", "Ph4"]}
       }
     }
   }

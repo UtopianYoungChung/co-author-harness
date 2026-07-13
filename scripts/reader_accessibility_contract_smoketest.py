@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Contract smoke tests for the package-local reader-accessibility policy."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+PROFILE = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
+SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_profile.schema.json"
+LOADER = ROOT / "scripts" / "reader_accessibility_policy.py"
+
+ACCESSIBILITY_CASES = (
+    "dangling_external_hard_constraint_authority",
+    "threshold_repeated_outside_profile",
+    "cadence_over_200_semantics_disagree",
+    "documented_override_is_not_loaded",
+    "h_prefilter_not_dispatched_by_canonical_runner",
+    "g_proxy_mislabeled_as_construct_threshold",
+    "claimed_corpus_drift_probe_missing",
+    "transition_state_owned_by_normative_prose",
+    "planner_trigger_28_names_only_a_to_f",
+    "subcheck_set_disagrees_a_to_h_vs_j",
+    "m4_em_dash_fix_violates_resolved_style_profile",
+    "m4_or_m5_evidence_missing_policy_hash",
+    "hard_ceiling_major_vs_deterministic_blocker",
+    "persistence_hash_reset_does_not_rewrite_severity",
+    "candidate_requires_functional_confirmation",
+    "c8_m4_m5_guard_is_rhythm_not_cadence",
+    "ve_excluded_before_and_after_advisory_retirement",
+    "profile_has_no_self_hash",
+    "phase_enum_has_no_passage_roles",
+    "profile_has_no_stubs",
+    "override_polarity",
+    "policy_hash_drift_is_mf_policy",
+    "malformed_input_is_controlled",
+)
+
+
+def check(condition: bool, case: str, message: str) -> None:
+    if not condition:
+        raise AssertionError(f"{case}: {message}")
+
+
+def main() -> int:
+    check(PROFILE.is_file(), ACCESSIBILITY_CASES[0], f"missing {PROFILE}")
+    check(SCHEMA.is_file(), ACCESSIBILITY_CASES[0], f"missing {SCHEMA}")
+    check(LOADER.is_file(), ACCESSIBILITY_CASES[0], f"missing {LOADER}")
+    profile = json.loads(PROFILE.read_text(encoding="utf-8"))
+    check("canonical_sha256" not in json.dumps(profile), "profile_has_no_self_hash", "self hash present")
+    check(set(profile["sub_checks"]) == set("ABCDEFGH"), "subcheck_set_disagrees_a_to_h_vs_j", "aggregate sub-check set is not A-H")
+    check(profile["aggregate"]["members"] == list("ABCDEFGH"), "subcheck_set_disagrees_a_to_h_vs_j", "aggregate membership drift")
+    check(profile["adjacent_advisory_checks"]["VE"]["gate_contribution"] == "none", "ve_excluded_before_and_after_advisory_retirement", "VE contributes to gate")
+    check(set(profile["phase_values"]) == {"Ph1", "Ph2", "Ph3", "Ph4"}, "phase_enum_has_no_passage_roles", "phase enum polluted")
+    forbidden = ("todo", "tbd", "placeholder", "fill me", "stub")
+    lowered = json.dumps(profile).lower()
+    check(not any(word in lowered for word in forbidden), "profile_has_no_stubs", "profile contains unfinished data")
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import reader_accessibility_policy as policy
+    import milestone_framework_smoketest as milestone_fixture
+    import milestone_framework_validate as milestone_validator
+
+    policy.validate_profile(profile)
+    ceiling_major = policy.evaluate_cadence(301, 1, 0, profile)
+    wall_blocker = policy.evaluate_cadence(301, 0, 0, profile)
+    check(ceiling_major["current_severity"] == "MAJOR" and ceiling_major["mandatory_split"], "hard_ceiling_major_vs_deterministic_blocker", "structured ceiling paragraph is not MAJOR/split")
+    check(wall_blocker["current_severity"] == "BLOCKER", "hard_ceiling_major_vs_deterministic_blocker", "wall paragraph is not BLOCKER")
+    check(policy.evaluate_cadence(230, 2, 0, profile)["current_severity"] == "CLEAN", "cadence_over_200_semantics_disagree", "two functionally confirmed turns must pass 201-300")
+    check(policy.evaluate_cadence(230, 0, 1, profile)["current_severity"] == "MAJOR", "candidate_requires_functional_confirmation", "break signal or candidate was auto-credited")
+    persistence = policy.update_persistence("abc", "abc", 2, "MINOR")
+    reset = policy.update_persistence("abc", "def", 2, "MINOR")
+    check(persistence["unchanged_rounds"] == 3 and persistence["current_severity"] == "MINOR", "persistence_hash_reset_does_not_rewrite_severity", "persistence rewrote severity")
+    check(reset["unchanged_rounds"] == 0, "persistence_hash_reset_does_not_rewrite_severity", "edit did not reset persistence")
+
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td)
+        notes = project / "research_notes"
+        notes.mkdir()
+        (notes / "directives.md").write_text("register_class: mixed\n", encoding="utf-8")
+        (notes / "plain_connectives.txt").write_text("because\ntherefore\n", encoding="utf-8")
+        (notes / "hedges.txt").write_text("may\nmight\n", encoding="utf-8")
+        (notes / "latinate_whitelist.txt").write_text("therewith\n", encoding="utf-8")
+        (notes / "terminology.txt").write_text("actor dependency\n", encoding="utf-8")
+        resolved = policy.resolve_policy(project, profile_path=PROFILE)
+        lex = resolved["resolved_profile"]["lexicons"]
+        check(lex["plain_connectives"] == ["because", "therefore"], "override_polarity", "plain connectives did not replace")
+        check(lex["hedges"] == ["may", "might"], "override_polarity", "hedges did not replace")
+        check("therewith" in lex["latinate_whitelist"] and len(lex["latinate_whitelist"]) > 1, "override_polarity", "Latinate file did not supplement")
+        check("actor dependency" in resolved["resolved_profile"]["domain_token_exclusions"], "override_polarity", "terminology did not extend")
+        check(resolved["register_class"] == "mixed", "documented_override_is_not_loaded", "directives override not loaded")
+        manuscript = project / "manuscript.md"
+        manuscript.write_text("# Opening\n\nThis section turns to an example because the reader needs a map.\n", encoding="utf-8")
+        audit_proc = subprocess.run([sys.executable, str(ROOT / "scripts/audit/run_all.py"), str(manuscript), "--project-root", str(project), "--phase", "Ph2", "--cycle-id", "contract", "--skip-d-style-profile", "--out", str(project / "reviews/findings.json")], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check(audit_proc.returncode == 0 and "Traceback" not in audit_proc.stderr + audit_proc.stdout, "h_prefilter_not_dispatched_by_canonical_runner", "canonical runner failed accessibility dispatch")
+        candidates = json.loads((project / "reviews/reader_accessibility_candidates_contract.json").read_text(encoding="utf-8"))
+        check(candidates["sub_checks"]["H"]["applicable"] and "orienting_clause" in candidates["sub_checks"]["H"]["ph2_scope"], "h_prefilter_not_dispatched_by_canonical_runner", "H Ph2 orienting role not dispatched")
+        check(candidates["sub_checks"]["B"]["deterministic_disposition"] == "judgment_only" and candidates["sub_checks"]["D"]["deterministic_disposition"] == "candidate_probe", "h_prefilter_not_dispatched_by_canonical_runner", "deterministic disposition missing")
+        check(any(binding["path"].endswith("model_prose_corpus.md") for binding in candidates["source_bindings"]), "claimed_corpus_drift_probe_missing", "mandatory model corpus hash absent")
+
+        (notes / "hedges.txt").write_text("# empty replacement\n", encoding="utf-8")
+        malformed_override = subprocess.run([sys.executable, str(LOADER), "--project-root", str(project)], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check(malformed_override.returncode == 4 and "Traceback" not in malformed_override.stderr + malformed_override.stdout, "malformed_input_is_controlled", "malformed override escaped controlled contract")
+
+        bad = project / "bad.json"
+        bad.write_text("{not-json", encoding="utf-8")
+        proc = subprocess.run([sys.executable, str(LOADER), "--profile", str(bad), "--project-root", str(project)], capture_output=True, text=True)
+        check(proc.returncode == 4 and "Traceback" not in proc.stderr + proc.stdout, "malformed_input_is_controlled", "malformed profile escaped controlled contract")
+
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td)
+        ledger = milestone_fixture._materialize_native_project(project)
+        resolved_path = project / "reviews" / "reader_accessibility_resolved.json"
+        resolved_path.write_text("{}\n", encoding="utf-8")
+        resolved_hash = __import__("hashlib").sha256(resolved_path.read_bytes()).hexdigest()
+        ledger["policy_bindings"] = {"reader_accessibility": {"profile_path": "references/policies/reader_accessibility.v1.json", "profile_sha256": "0" * 64, "resolved_path": "reviews/reader_accessibility_resolved.json", "resolved_sha256": resolved_hash, "source_bindings": [{"path": "references/examples/model_prose_corpus.md", "sha256": __import__("hashlib").sha256((ROOT / "references/examples/model_prose_corpus.md").read_bytes()).hexdigest()}], "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None} for key in ("G", "H", "VE")}}}
+        result = milestone_validator.validate_document(project, milestone_fixture._phase_document(ledger))
+        check(any(finding.code == "MF-POLICY" for finding in result.findings), "policy_hash_drift_is_mf_policy", "stale package policy hash did not produce MF-POLICY")
+
+    milestone_schema_text = (ROOT / "references/schemas/milestone_framework.schema.json").read_text(encoding="utf-8")
+    f9_schema_text = (ROOT / "references/schemas/f9_milestone_handoff.schema.json").read_text(encoding="utf-8")
+    check("policy_bindings" in milestone_schema_text and "policy_evidence" in f9_schema_text, "m4_or_m5_evidence_missing_policy_hash", "milestone/F9 policy evidence schema missing")
+
+    required_text = {
+        "references/READER_ACCESSIBILITY.md": ("references/policies/reader_accessibility.v1.json",),
+        "references/DETERMINISTIC_CHECKS.md": ("thresholds.cadence", "proxy candidate"),
+        "references/SAFEGUARD_LAYER.md": ("Check-8-Adjacent", "A-H aggregate", "adjacent_advisory_checks.VE"),
+        "skills/accessibility-overlay/references/sub_checks.md": ("thresholds.cadence", "functional confirmation"),
+        "agents/planner.md": ("profile-active", "trigger 28"),
+        "scripts/audit/run_all.py": ("check8_g_prefilter", "check8_h_prefilter"),
+    }
+    for rel, needles in required_text.items():
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        for needle in needles:
+            check(needle in text, "threshold_repeated_outside_profile", f"{rel} lacks routed contract marker {needle!r}")
+    sentence = (ROOT / "skills" / "sentence-level-pass" / "SKILL.md").read_text(encoding="utf-8")
+    check("M-4" in sentence and "M-5" in sentence and "rhythm" in sentence, "c8_m4_m5_guard_is_rhythm_not_cadence", "C-8 guard not relocated")
+    hsrc = (ROOT / "scripts" / "check8_h_prefilter.py").read_text(encoding="utf-8")
+    check("_corpus_drift" in hsrc, "claimed_corpus_drift_probe_missing", "corpus drift probe absent")
+    print(f"OK reader_accessibility_contract_smoketest ({len(ACCESSIBILITY_CASES)} cases)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
