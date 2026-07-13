@@ -234,7 +234,7 @@ def _validate_events(
     for index, event in enumerate(events):
         timestamp = event.get("timestamp") if isinstance(event, dict) else None
         try:
-            if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
+            if not isinstance(timestamp, str) or re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", timestamp) is None:
                 raise ValueError
             parsed = datetime.datetime.fromisoformat(timestamp[:-1] + "+00:00")
         except ValueError:
@@ -272,6 +272,16 @@ def _validate_events(
             cause_event = events[cause - 1] if isinstance(cause, int) and 0 < cause <= len(events) and cause < event.get("sequence", 0) else None
             if not isinstance(cause_event, dict) or cause_event.get("event_type") != expected_type:
                 findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", f"{event_type} must causally reference an earlier {expected_type} event"))
+            elif cause_event.get("lineage_id") != event.get("lineage_id"):
+                findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", f"{event_type} cause must share the affected lineage"))
+            elif event_type == "downstream_stale" and (
+                cause_event.get("milestone") not in MILESTONES
+                or milestone not in MILESTONES
+                or MILESTONES.index(cause_event["milestone"]) >= MILESTONES.index(milestone)
+            ):
+                findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", "downstream_stale must reference a genuinely upstream reopened milestone"))
+            elif event_type == "downstream_revalidated" and cause_event.get("milestone") != milestone:
+                findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", "downstream_revalidated must reference the stale event for the same milestone and lineage"))
         elif cause is not None:
             findings.append(_finding("MF-EVENT", f"{base}.caused_by_sequence", "caused_by_sequence is reserved for downstream stale/revalidated causality"))
     for milestone, record in milestones.items():
@@ -292,6 +302,18 @@ def _validate_events(
             required.add("feedback_recorded")
             if all(isinstance(item, dict) and item.get("disposition") for item in feedback_records):
                 required.add("feedback_adjudicated")
+            for feedback in feedback_records:
+                if not isinstance(feedback, dict):
+                    continue
+                expected_feedback = {
+                    "binding_type": "feedback",
+                    "path": feedback.get("source_path"),
+                    "sha256": feedback.get("source_sha256"),
+                }
+                for event_type in ("feedback_recorded", "feedback_adjudicated"):
+                    matching = [event for event in milestone_events if event.get("event_type") == event_type]
+                    if not any(expected_feedback in event.get("bindings", []) for event in matching):
+                        findings.append(_finding("MF-EVENT", "milestone_framework.events", f"{milestone} {event_type} must bind current feedback path and hash"))
         if status == "reopened" or (isinstance(approval, dict) and approval.get("status") == "reopened"):
             required.add("milestone_reopened")
         if status == "superseded":
@@ -318,10 +340,20 @@ def _validate_events(
                 or override_event.get("evidence_sha256") != override.get("substitute_evidence_sha256")
             ):
                 findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} override event must bind its authority and substitute evidence"))
-        lifecycle = [event for event in milestone_events if event.get("event_type") in {"milestone_accepted", "milestone_reopened", "milestone_superseded"}]
-        expected_lifecycle = {"accepted": "milestone_accepted", "reopened": "milestone_reopened", "superseded": "milestone_superseded"}.get(status)
-        if expected_lifecycle and lifecycle and lifecycle[-1].get("event_type") != expected_lifecycle:
-            findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest lifecycle event for {milestone} must be {expected_lifecycle}"))
+        lifecycle = [event for event in milestone_events if event.get("event_type") in {"milestone_started", "milestone_accepted", "milestone_reopened", "milestone_superseded", "authorized_override", "migration_hold", "migration_accepted"}]
+        allowed_latest = {
+            "not_started": {"migration_hold"},
+            "in_progress": {"milestone_started"},
+            "not_applicable": {"authorized_override"},
+            "accepted": {"milestone_accepted", "migration_accepted"},
+            "reopened": {"milestone_reopened"},
+            "superseded": {"milestone_superseded"},
+        }.get(status, set())
+        latest_lifecycle = lifecycle[-1] if lifecycle else None
+        if status == "not_started" and lifecycle and latest_lifecycle.get("event_type") not in allowed_latest:
+            findings.append(_finding("MF-EVENT", "milestone_framework.events", f"not-started {milestone} cannot retain unexplained prior lifecycle events"))
+        elif status != "not_started" and (not isinstance(latest_lifecycle, dict) or latest_lifecycle.get("event_type") not in allowed_latest):
+            findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest lifecycle event for {milestone} is inconsistent with state {status}"))
         if status == "accepted":
             accepted = next((event for event in reversed(milestone_events) if event.get("event_type") == "milestone_accepted"), None)
             artifacts = record.get("artifacts")
@@ -341,6 +373,14 @@ def _validate_events(
                 findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest handoff event for {milestone} must be {expected_handoff}"))
             elif {"binding_type": "handoff_packet", "path": handoff.get("packet_path"), "sha256": handoff.get("packet_sha256")} not in current_event.get("bindings", []):
                 findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} handoff event must bind the current F9 hash"))
+        elif isinstance(handoff, dict) and handoff.get("status") in {"not_ready", "not_applicable"}:
+            handoff_events = [event for event in milestone_events if event.get("event_type") in {"handoff_ready", "handoff_consumed"}]
+            if handoff_events and (
+                not isinstance(latest_lifecycle, dict)
+                or latest_lifecycle.get("sequence", 0) <= handoff_events[-1].get("sequence", 0)
+                or latest_lifecycle.get("event_type") not in {"milestone_started", "milestone_reopened", "authorized_override", "migration_hold"}
+            ):
+                findings.append(_finding("MF-EVENT", "milestone_framework.events", f"{milestone} {handoff.get('status')} handoff requires a later reset-authorizing lifecycle event"))
         stale_events = [event for event in milestone_events if event.get("event_type") in {"downstream_stale", "downstream_revalidated"}]
         if record.get("dependency_state") == "current" and stale_events and stale_events[-1].get("event_type") == "downstream_stale":
             findings.append(_finding("MF-EVENT", "milestone_framework.events", f"{milestone} cannot be current while its latest dependency event is downstream_stale"))
@@ -789,6 +829,8 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
     if not isinstance(document, dict):
         findings.append(_finding("MF-STRUCTURE", "$", "phase state must be a JSON object"))
         return _result(target, None, findings, evidence)
+    if "milestone_assignment" in document:
+        findings.append(_finding("MF-STRUCTURE", "milestone_assignment", "retired M4a/M4b milestone_assignment is archival input only and forbidden in current ledgers"))
     if "sections" in document and not isinstance(document["sections"], dict):
         findings.append(_finding("MF-STRUCTURE", "sections", "sections must be a JSON object"))
     if "milestone_framework" not in document:

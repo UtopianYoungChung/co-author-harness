@@ -13,6 +13,7 @@ from pathlib import Path
 
 from milestone_framework_smoketest import (
     _materialize_native_project,
+    _drop_milestone_events,
     _override,
     _phase_document,
     _resequence_events,
@@ -73,6 +74,7 @@ def main() -> int:
         })
         _reset_milestone(na_ledger["milestones"]["M4"])
         _reset_milestone(na_ledger["milestones"]["M5"])
+        _drop_milestone_events(na_ledger, "M4", "M5")
         na_doc = _phase_document(na_ledger, "Ph2")
         na_result = check_milestone_gate(na_root, na_doc, "Ph2")
         assert not na_result.findings and na_result.outcomes["M3"] == "NOT_APPLICABLE"
@@ -113,6 +115,7 @@ def main() -> int:
         m4_ready["milestone_framework"]["events"] = [event for event in m4_ready["milestone_framework"]["events"] if not (event["milestone"] == "M4" and event["event_type"] == "handoff_consumed")]
         _resequence_events(m4_ready["milestone_framework"])
         _reset_milestone(m4_ready["milestone_framework"]["milestones"]["M5"])
+        _drop_milestone_events(m4_ready["milestone_framework"], "M5")
         assert not check_milestone_gate(root, m4_ready, "Ph4").findings
         checks += 1
 
@@ -175,6 +178,7 @@ def main() -> int:
         admission_root = root / "admission"; admission_root.mkdir()
         admission_ledger = _materialize_native_project(admission_root)
         _reset_milestone(admission_ledger["milestones"]["M5"])
+        _drop_milestone_events(admission_ledger, "M5")
         section = {
             "heading_path": ["1. Test"], "current_phase": "Ph3_converged", "last_approved_phase": "Ph3",
             "ceiling_locked": False, "section_ceiling_override": None, "iteration_count_at_current_phase": 0,

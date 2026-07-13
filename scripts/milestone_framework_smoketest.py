@@ -113,6 +113,15 @@ REAL_CASES = {
     "event_artifact_binding_mismatch": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "event_f9_binding_mismatch": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "invalid_event_timestamp": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "invalid_event_date_z": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "invalid_event_offset": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "invalid_event_naive": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "invalid_event_malformed": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "accepted_to_in_progress_old_events": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "valid_reopen_restart_transition": ("READY", 0, None, None),
+    "feedback_wrong_milestone_binding": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "cross_subject_revalidation": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "retired_milestone_assignment": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
 }
 
 
@@ -607,6 +616,11 @@ def _resequence_events(ledger: dict[str, Any]) -> None:
         event["timestamp"] = f"2026-07-13T18:{sequence:02d}:00Z"
 
 
+def _drop_milestone_events(ledger: dict[str, Any], *milestones: str) -> None:
+    ledger["events"] = [event for event in ledger["events"] if event["milestone"] not in set(milestones)]
+    _resequence_events(ledger)
+
+
 def _write_real_case(case: str, project: Path) -> None:
     ledger = _materialize_native_project(project)
     milestones = ledger["milestones"]
@@ -618,6 +632,12 @@ def _write_real_case(case: str, project: Path) -> None:
         milestones["M4"]["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
         milestones["M4"]["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
         _reset_milestone(milestones["M5"])
+        next_sequence = len(ledger["events"]) + 1
+        ledger["events"].extend([
+            {"sequence": next_sequence, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 reopened for Ph2 work.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
+            {"sequence": next_sequence + 1, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 restarted in Ph2.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
+        ])
+        _drop_milestone_events(ledger, "M5")
     elif case == "valid_approved_legacy_migration":
         evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "migration approved\n")
         report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", "migration report\n")
@@ -693,6 +713,7 @@ def _write_real_case(case: str, project: Path) -> None:
             "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
             "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
         })
+        _drop_milestone_events(ledger, "M5")
     elif case == "absent_namespace":
         pass
     elif case == "missing_purpose_real":
@@ -787,6 +808,7 @@ def _write_real_case(case: str, project: Path) -> None:
         record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
         _reset_milestone(milestones["M4"])
         _reset_milestone(milestones["M5"])
+        _drop_milestone_events(ledger, "M4", "M5")
         _resequence_events(ledger)
     elif case in {"accepted_primary_supersedes_preserved", "accepted_unsuperseded_nonprimary"}:
         record = milestones["M5"]
@@ -841,10 +863,47 @@ def _write_real_case(case: str, project: Path) -> None:
         event["bindings"][0]["sha256"] = "f" * 64
     elif case == "invalid_event_timestamp":
         ledger["events"][0]["timestamp"] = "2026-07-13 18:00"
+    elif case == "invalid_event_date_z":
+        ledger["events"][0]["timestamp"] = "2026-07-13Z"
+    elif case == "invalid_event_offset":
+        ledger["events"][0]["timestamp"] = "2026-07-13T18:00:00+00:00"
+    elif case == "invalid_event_naive":
+        ledger["events"][0]["timestamp"] = "2026-07-13T18:00:00"
+    elif case == "invalid_event_malformed":
+        ledger["events"][0]["timestamp"] = "not-a-time"
+    elif case == "accepted_to_in_progress_old_events":
+        ledger["milestones"]["M3"]["status"] = "in_progress"
+        ledger["milestones"]["M3"]["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
+        ledger["milestones"]["M3"]["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
+    elif case == "valid_reopen_restart_transition":
+        record = ledger["milestones"]["M3"]
+        record["status"] = "in_progress"
+        record["approval"] = {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None}
+        record["handoff"] = {"status": "not_ready", "packet_path": None, "packet_sha256": None}
+        ledger["events"].extend([
+            {"sequence": len(ledger["events"]) + 1, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 reopened.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
+            {"sequence": len(ledger["events"]) + 2, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 restarted.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
+        ])
+        _reset_milestone(ledger["milestones"]["M4"]); _reset_milestone(ledger["milestones"]["M5"])
+        ledger["events"] = [event for event in ledger["events"] if event["milestone"] not in {"M4", "M5"}]
+        _resequence_events(ledger)
+    elif case == "feedback_wrong_milestone_binding":
+        source = ledger["milestones"]["M2"]["feedback_records"][0]
+        event = next(item for item in ledger["events"] if item["milestone"] == "M3" and item["event_type"] == "feedback_recorded")
+        event.update({"evidence_path": source["source_path"], "evidence_sha256": source["source_sha256"], "bindings": [{"binding_type": "feedback", "path": source["source_path"], "sha256": source["source_sha256"]}]})
+    elif case == "cross_subject_revalidation":
+        cause = len(ledger["events"]) + 1
+        ledger["events"].extend([
+            {"sequence": cause, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z", "milestone": "M2", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M2 reopened.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
+            {"sequence": cause + 1, "event_type": "downstream_stale", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 stale.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": cause, "bindings": []},
+            {"sequence": cause + 2, "event_type": "downstream_revalidated", "timestamp": "2026-07-13T19:32:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "Wrong subject revalidation.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": cause + 1, "bindings": []},
+        ])
 
     document: Any = _phase_document(ledger, document_phase)
     if case == "absent_namespace":
         del document["milestone_framework"]
+    elif case == "retired_milestone_assignment":
+        document["milestone_assignment"] = {"M4a": "Ph2", "M4b": "Ph3"}
     elif case == "list_shaped_sections":
         document["sections"] = []
     elif case == "ph4_without_mcr_admission":

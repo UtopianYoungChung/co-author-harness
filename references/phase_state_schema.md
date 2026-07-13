@@ -23,10 +23,6 @@ Grounding: `PHASE_PROTOCOL.md §§1–3` (lifecycle-phase-ladder semantics, per-
   "terminal_phase_reached": false | true,
   "last_updated":           "<ISO-8601 UTC timestamp>",
   "phase_vocabulary":       "lifecycle_v0.7.4",
-  "milestone_assignment":   {
-    "M1":  "Ph1", "M2":  "Ph1", "M3":  "Ph1",
-    "M4a": "Ph2", "M4b": "Ph3", "M5":  "Ph4"
-  },
   "sections": {
     "<heading-path-slug>": <SectionStateObject>,
     ...
@@ -50,7 +46,6 @@ The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_
 | `terminal_phase_reached` | boolean | `true` only after a Ph4 Finalize & Close approval | Flipping to `true` dispatches the Reflector-full for the round and closes the Ph4 cycle. Planner-only write. Renamed at v0.7.4 from `terminal_tier_reached`. |
 | `last_updated` | string | ISO-8601 UTC timestamp with `Z` suffix | MUST be the wall-clock time of the last successful atomic write to the file, and MUST be ≥ all `phase_entry_log` rows' timestamps written in the same session. The Planner refuses to advance if the on-disk `last_updated` is newer than its in-memory copy (`[CONCURRENCY-DETECTED]`). |
 | `phase_vocabulary` | string | `"lifecycle_v0.7.4"` (exact match) | Fixed string identifying that this ledger uses the v0.7.4 Lifecycle-Phase Ladder vocabulary. The value is reserved for future minor-version vocabulary rolls. Renamed at v0.7.4 from `tier_vocabulary: "lifecycle_v0.7"`. |
-| `milestone_assignment` | object | fixed mapping (see below) | Records the authoritative M1–M5 → Ph1–Ph4 supersession mapping per `PHASE_PROTOCOL.md §4`. Default: `{"M1":"Ph1","M2":"Ph1","M3":"Ph1","M4a":"Ph2","M4b":"Ph3","M5":"Ph4"}`. Projects ceiling-locked below Ph4 may elide higher-phase keys. |
 | `sections` | object | `{heading_path_slug: SectionStateObject, ...}` | Keys are heading-path slugs; order is manuscript heading order (JSON object key-order preserved). Elements are never deleted; retracted approvals mutate the object in place. Empty `sections` on a manuscript with at least one heading fails `DOC_NO_SECTIONS` (MAJOR). |
 | `milestone_framework` | object | contract version `"1.0.0"` | Optional additive M1-M5 feedback/handoff namespace. Its strict shape is `references/schemas/milestone_framework.schema.json`; semantics are defined by `references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`. |
 
@@ -329,7 +324,7 @@ Projects carrying `reviews/tier_state.json` at `schema_version: "0.7.3"` were hi
 
 ### 7.2 v0.6.0 → v0.7.0 (archival)
 
-`scripts/migrate_v060_to_v070.py [retired from tree]` is retained for projects still on v0.6.0. It performs the ten-field → fifteen-field widening, introduces `phase_vocabulary` and `milestone_assignment`, renames `T4_ready → T3_converged`, and emits the v0.6.0→v0.7.0 migration report. Projects still on v0.5.5 or earlier run `migrate_v055_to_v060.py` first. After v0.7.0 migration, run the v0.7.3→v0.7.4 migration per §7.1.
+`scripts/migrate_v060_to_v070.py [retired from tree]` historically introduced the now-retired `milestone_assignment` split. Current migration treats that field only as archival input, removes it from the live projection, and requires explicit unsplit M1–M5 adjudication under `milestone_framework`. Projects still on v0.5.5 or earlier run `migrate_v055_to_v060.py` first.
 
 ### 7.3 Archive and idempotency
 
@@ -350,10 +345,6 @@ Freshly-bootstrapped `phase_state.json` for a new v0.7.4 manuscript with two sec
   "terminal_phase_reached": false,
   "last_updated": "2026-04-22T14:05:22Z",
   "phase_vocabulary": "lifecycle_v0.7.4",
-  "milestone_assignment": {
-    "M1": "Ph1", "M2": "Ph1", "M3": "Ph1",
-    "M4a": "Ph2", "M4b": "Ph3", "M5": "Ph4"
-  },
   "sections": {
     "1. Introduction": {
       "heading_path": ["1. Introduction"],

@@ -401,7 +401,7 @@ Addition proposals at Ph4 cite one of A1–A5; retirement proposals cite one of 
 
 v0.7.0 **lifts both invariants simultaneously with the `schema_version` bump to `"0.7.0"`.** The new invariants are:
 
-- **Top-level invariant (v0.7.0).** The object has *at most* the set of v0.6.0 top-level keys plus `{tier_vocabulary, milestone_assignment}`. Additional top-level keys remain rejected.
+- **Current top-level invariant.** New writes use `phase_vocabulary` plus the additive `milestone_framework` namespace. The retired `milestone_assignment` field and its M4a/M4b split are historical migration input only and MUST NOT be emitted into a current ledger.
 - **Section-level invariant (v0.7.0).** Every element of `sections` has *exactly* the v0.6.0 ten fields plus the v0.7.0 five-field extension listed in §6.2. **Fifteen fields total, no extras, no omissions.**
 
 The sixteen-field `SectionStateObject` count (v0.8.0 widens from fifteen with `pre_mcr_deep_pass_completed` per `phase_state_schema.md` §2) is a deliberate design commitment. The Option A resolution of the `[Ph3-STALE]` representation (see §3.3.1) explicitly preserves this invariant: the staleness flag is computed from `ph3_last_activity_at` on each Planner pass rather than stored as a separate persisted boolean. The `TierEntryLogRow` and the two `ph3_convergence_signoff.md` row shapes are structured payloads *within* the existing `phase_entry_log` array and the existing signoff file, not new top-level or section-level fields; their required-field contracts are specified in §6.3a.
@@ -418,11 +418,8 @@ The validator (`scripts/phase_state_validate.py`) is updated to enforce the new 
    "fingerprint_mode":   "strict" | "tolerant" | "off",
    "terminal_tier_reached": false | true,
    "last_updated":          "<ISO-8601 UTC>",
-+  "tier_vocabulary":       "lifecycle_v0.7",
-+  "milestone_assignment":  {
-+    "M1": "Ph1", "M2": "Ph1", "M3": "Ph1",
-+    "M4a": "Ph2", "M4b": "Ph3", "M5": "Ph4"
-+  },
++  "phase_vocabulary":      "lifecycle_v0.7.4",
++  "milestone_framework":   { "contract_version": "1.0.0", "milestones": {"M1": {}, "M2": {}, "M3": {}, "M4": {}, "M5": {}}, "events": [] },
    "sections": [ <SectionStateObject>, ... ]
  }
 ```
@@ -530,7 +527,7 @@ Three structured row shapes are consumed by tooling across v0.7.0. Their full-sc
 Idempotent single-pass migration:
 
 1. Bump `schema_version` from `0.6.0` to `0.7.0`.
-2. Insert `tier_vocabulary: "lifecycle_v0.7"` and `milestone_assignment` with the default mapping from §4.2.
+2. Historical migration inserted `tier_vocabulary`; current migration must translate it to `phase_vocabulary` and bootstrap or explicitly hold the unsplit M1–M5 `milestone_framework`. Never emit the retired `milestone_assignment` or M4a/M4b split.
 3. Translate `current_phase: "Ph4_ready"` → `"Ph3_converged"` in every section. Preserve historical semantics by writing a `phase_entry_log` row with trigger `v0_7_state_rename` noting the pre-migration state.
 4. Populate `phase_goal_declared` and `phase_deliverable_path` per `current_phase` from the fixed lookup table derived from §§3.1–3.4.
 5. Leave `convergence_metric: null` unless the section is at Ph3 (in which case emit a warning: "v0.6.0 Ph3 state has no convergence metric; re-run the Ph3 loop to populate").
@@ -792,7 +789,7 @@ Per project under `Ph.D. Research/` (or equivalent portfolio root):
 
 1. **Detect migration necessity.** Read `reviews/phase_state.json`; if `schema_version == "0.7.0"` → no-op (idempotent second-run case). If `schema_version == "0.6.0"` → proceed. Any other version → migration error; run `migrate_v055_to_v060.py` first.
 2. **Bump `schema_version`** from `"0.6.0"` to `"0.7.0"`.
-3. **Insert `tier_vocabulary: "lifecycle_v0.7"` and `milestone_assignment`** at the top level per the default mapping in §4.2.
+3. **Translate vocabulary and bootstrap milestone state.** Produce `phase_vocabulary` and an explicit native/legacy `milestone_framework` adjudication. Do not emit retired `milestone_assignment`, M4a, or M4b fields.
 4. **Translate `current_phase: "Ph4_ready" → "Ph3_converged"`** in every section. Preserve historical semantics by writing a `phase_entry_log` row with trigger `v0_7_state_rename`.
 5. **Populate the five new per-section fields** per §6.2:
    - `phase_goal_declared` — from the fixed lookup table derived from §§3.1–3.4 keyed by `current_phase`.
