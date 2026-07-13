@@ -38,6 +38,12 @@ REGISTRY = PLUGIN_ROOT / "references" / "schemas" / "retired_surfaces.json"
 LIVE_DIRS = ["references", "agents", "skills", "commands"]
 LIVE_FILES = ["CLAUDE.md", "AGENTS.md", "README.md"]
 CITE = re.compile(r"scripts/([A-Za-z0-9_\-.]+\.(?:py|sh))")
+RETIRED_MILESTONE_SPLIT = ("M4a", "M4b")
+MILESTONE_SPLIT_ARCHIVAL_ALLOWLIST = {
+    Path("references/PHASE_PROTOCOL.md"),
+    Path("references/phase_state_schema.md"),
+    Path("references/SKILL_REGISTRY.md"),
+}
 
 
 def live_surface_files() -> list[Path]:
@@ -90,6 +96,14 @@ def main() -> int:
                         f"script {name!r} (not in retired_surfaces.json). Fix "
                         f"the citation or register the retirement."
                     )
+            if rel not in MILESTONE_SPLIT_ARCHIVAL_ALLOWLIST:
+                for token in RETIRED_MILESTONE_SPLIT:
+                    if re.search(rf"\b{token}\b", line):
+                        blockers.append(
+                            f"{rel}:{lineno}: retired milestone split token {token!r} "
+                            "on a live role/package surface. Use orthogonal unsplit M1-M5 "
+                            "milestones and route history to MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md."
+                        )
             low_line = line.lower()
             if any(mk in low_line for mk in markers):
                 continue

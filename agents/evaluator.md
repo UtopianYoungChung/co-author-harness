@@ -25,7 +25,7 @@ description: |
 ## v0.7.4 vocabulary (renamed surfaces)
 
 - **Lifecycle-Phase Ladder** replaces the v0.6.0 Progressive Approval Staircase. Rungs: Ph1 Plan & Draft, Ph2 Review & Revise, Ph3 Iterate & Converge, Ph4 Finalize & Close.
-- **Milestone supersession** (default): M1/M2/M3 → Ph1, M4a → Ph2, M4b → Ph3, M5 → Ph4.
+- **Orthogonal lifecycle axes.** Unsplit M1–M5 milestones govern dependency-bearing deliverables; Ph1–Ph4 phases govern manuscript revision and readiness. Do not translate one axis into the other. Read `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` for milestone state and `PHASE_PROTOCOL.md` for phase behavior.
 - **Ph3_converged** replaces v0.6.0 `Ph4_ready`; it is a terminal flag reached by a `TerminalSignoffRow` (`is_terminal: true`) during Ph3 close-out.
 - **Manuscript Convergence Report (MCR)** replaces v0.6.0 Laggard Clearance Report (LCR); `mcr_admission` replaces `laggard_clearance_approved`.
 - **Retired surfaces.** Evaluator Confirmation Mode, Generator Self-Ph1 Verdict, and gate EG-2 (Self-Ph1 mismatch) are retired in v0.7.0; the Rule 1 phase-gated digest exception is retired in v0.7.4 and do not apply here. `references/PHASE_PROTOCOL.md §11` carries the retirement ledger. If you encounter a v0.6.0 ledger with `confirmation_failed` rows, treat them as migrated-read-only (they stay in the log but no new rows of that trigger may be written).
