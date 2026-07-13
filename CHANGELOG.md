@@ -6,6 +6,30 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.27.0 — 2026-07-13
+
+### Audit-remediation cycle — green checks are not coherence
+
+**What changed.** A full harness audit (2026-07-13; report at `reviews/harness_audit_2026-07-13.md`) ran the 10-script maintainer suite (all green) and then a three-lane semantic sweep, which surfaced drift the deterministic layer structurally cannot see. Remediation, one commit per theme:
+
+- **Guardrail migration completed.** `scripts/pre_phase_advance_check.py` — the in-flight tier_state → phase_state migration finished: `load_ledger` reads `reviews/phase_state.json` under `SCHEMA_VERSION_EXPECTED = "0.7.4"` (constant restored; inline literals removed) through an in-memory Ph→T translation shim; `VALID_TRIGGERS` completed against `phase_state_schema.md §3.1` (canonical triggers 28 `ph3_accessibility_blocker_surfaced` and 30 `stability_mode_escalated_to_full_ph3` added; trigger 13 stays excluded per its v0.11.0 retirement); header/docstring re-voiced from the stale v0.7.3 deprecation banner; CLI accepts `Ph1–Ph4` (`--target-phase` alias) with `T1–T4` as legacy aliases. New regression smoketest `pre_phase_advance_phase_state_smoketest.py` wired into `release-gate.sh` (Phase 0.58).
+- **Dispatch-critical reference re-voiced.** `references/MODEL_ALLOCATION.md` (read by the Planner at every dispatch) was frozen at v0.7.3: tier vocabulary, live writes to the retired `tier_state.json`, and a future-tense promise of the v0.7.4 rename. Now phase-named throughout; the model pins (Opus 4.7 / Sonnet 4.6 / Haiku 4.5) are deliberately unchanged and the v0.25.0 deferral of that plane is recorded in-file (§8).
+- **Counterclaim sweep.** Residual 15/16-field and 30-trigger claims (pre-v0.10.0 shapes) corrected to the 18-field/31-trigger canon in `references/CLAUDE.md`, `agents/planner.md`, `AGENT_ORCHESTRATION.md` (§ ledger description now names the two v0.10.0 snowball fields), `docs/agent-instructions/*`, `templates/F3_reflector_lightweight_probe.md`, `phase_notifications.yaml`, `READER_ACCESSIBILITY.md`; `SKILL_REGISTRY.md` SK-25/26/27 live clauses migrated off tier residue (six-field `tier_entry_log` row → 7-field `phase_entry_log` with `model_used`).
+- **Ghost and retired citations.** `skills/SKILL_REGISTRY.md` → `references/SKILL_REGISTRY.md` (6 citations across 4 files — the Reflector's actual write target); `classify-manuscript` Step 5 dispatch table re-pointed from retired `run-tier-*` names; `eygp-framework-checker` (SK-28) no longer cited as live; phantom `legacy/` archive claims re-worded; retired migration scripts annotated `[retired from tree]`; `tier_state_canonicalize.py` "retained" contradiction fixed.
+- **SAFEGUARD routing re-keyed.** `SAFEGUARD_LAYER.md` "when to run" and the per-rung table migrated from the retired v0.4.x review-depth vocabulary (`quick`/`standard`/`submission-bound`) and T-labels to phase routing.
+- **Drift class design-time-blocked.** `retirement-sweep-check.py` + `schemas/retired_surfaces.json` extended with **`retired_phrases`** — negative string assertions ("15-field", "16-field", "17-field", "sixteen canonical fields", "30-trigger", "30 legal values", "six-field row", "Lifecycle-Stage Ladder") that block on live surfaces unless the line carries a historical marker. This complements the snapshot-mode `version-planes-check.py`, which verifies registered assertions are *present* but cannot see stale counterclaims.
+- **Housekeeping.** Retired T-labels on live command descriptions → Ph-labels; `harness-architecture.md` prose version pin removed (manifest is the sole version authority) and reflector-split/public-ladder/releases-gitignored corrections; README maintainer list matched to CLAUDE.md/AGENTS.md (10 scripts); `plugin_update_proposals.md` summary table reconciled with its own v0.8.4 close-out; committed v0.13-era validator outputs removed from `outputs/`.
+
+**Why.** The audit's structural lesson: every deterministic check was green while `references/CLAUDE.md` misstated the ledger shape and the Planner's dispatch-time reference instructed writes to a retired surface. Presence-mode checks (assertion still present) cannot catch absence-mode drift (stale counterclaim still present). The `retired_phrases` extension converts this audit's most expensive finding class into a release-gate blocker.
+
+**How to apply.** Nothing changes procedurally. Two audit-report corrections are recorded in-place: `ph3_iteration_round_manuscript` is canonical trigger 29 (the original S2.1(b) finding was wrong — the real gap was the tier-era enum), and `run-evaluator-preflight.ps1` is a per-project seed script (`PROJECT_BOOTSTRAP.md §2.11`), not a ghost.
+
+**Known remaining (deliberate).** The agent-file ladder fork (planner v0.8.0 / evaluator+generator v0.7.4) stays recorded-not-harmonized in `version_planes.json`; the subagent-dispatch model plane stays on Opus 4.7/Sonnet 4.6/Haiku 4.5 pending its own re-validation cycle; classification's T-coded `tier:` field is a live surface by design and was not re-voiced.
+
+**Severity / attribution.** Maintainer increment, doc-plane + one guardrail script. Source: 2026-07-13 audit (Cowork session), fix commits C1–C6.
+
+---
+
 ## v0.26.0 — 2026-07-12
 
 ### Precision-gate cycle — a definition is not an introduction, and precision outranks vividness
