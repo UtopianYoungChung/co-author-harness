@@ -73,8 +73,9 @@ def main() -> int:
     check(wall_blocker["current_severity"] == "BLOCKER", "hard_ceiling_major_vs_deterministic_blocker", "wall paragraph is not BLOCKER")
     check(policy.evaluate_cadence(230, 2, 0, profile)["current_severity"] == "CLEAN", "cadence_over_200_semantics_disagree", "two functionally confirmed turns must pass 201-300")
     check(policy.evaluate_cadence(230, 0, 1, profile)["current_severity"] == "MAJOR", "candidate_requires_functional_confirmation", "break signal or candidate was auto-credited")
-    persistence = policy.update_persistence("abc", "abc", 2, "MINOR")
-    reset = policy.update_persistence("abc", "def", 2, "MINOR")
+    approval = [{"sequence": 3, "event": "revision_approved", "approved": True, "content_sha256": "abc"}]
+    persistence = policy.update_persistence("abc", "abc", 2, "MINOR", approval)
+    reset = policy.update_persistence("abc", "def", 2, "MINOR", approval)
     check(persistence["unchanged_rounds"] == 3 and persistence["current_severity"] == "MINOR", "persistence_hash_reset_does_not_rewrite_severity", "persistence rewrote severity")
     check(reset["unchanged_rounds"] == 0, "persistence_hash_reset_does_not_rewrite_severity", "edit did not reset persistence")
 
@@ -115,10 +116,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         project = Path(td)
         ledger = milestone_fixture._materialize_native_project(project)
-        resolved_path = project / "reviews" / "reader_accessibility_resolved.json"
-        resolved_path.write_text("{}\n", encoding="utf-8")
-        resolved_hash = __import__("hashlib").sha256(resolved_path.read_bytes()).hexdigest()
-        ledger["policy_bindings"] = {"reader_accessibility": {"profile_path": "references/policies/reader_accessibility.v1.json", "profile_sha256": "0" * 64, "resolved_path": "reviews/reader_accessibility_resolved.json", "resolved_sha256": resolved_hash, "source_bindings": [{"path": "references/examples/model_prose_corpus.md", "sha256": __import__("hashlib").sha256((ROOT / "references/examples/model_prose_corpus.md").read_bytes()).hexdigest()}], "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None} for key in ("G", "H", "VE")}}}
+        clean = milestone_validator.validate_document(project, milestone_fixture._phase_document(ledger))
+        check(not any(finding.code == "MF-POLICY" for finding in clean.findings), "policy_hash_drift_is_mf_policy", "real resolver output did not round-trip into phase state")
+        ledger["policy_bindings"]["reader_accessibility"]["profile_sha256"] = "0" * 64
         result = milestone_validator.validate_document(project, milestone_fixture._phase_document(ledger))
         check(any(finding.code == "MF-POLICY" for finding in result.findings), "policy_hash_drift_is_mf_policy", "stale package policy hash did not produce MF-POLICY")
 
@@ -138,6 +138,18 @@ def main() -> int:
         text = (ROOT / rel).read_text(encoding="utf-8")
         for needle in needles:
             check(needle in text, "threshold_repeated_outside_profile", f"{rel} lacks routed contract marker {needle!r}")
+    parity_surfaces = [
+        "references/PHASE_PROTOCOL.md", "references/SAFEGUARD_LAYER.md",
+        "references/DETERMINISTIC_CHECKS.md", "references/ARTEFACT_FRONTMATTER_SCHEMA.md",
+        "references/templates/F1_evaluator_findings.md", "skills/accessibility-overlay/SKILL.md",
+        "skills/accessibility-overlay/references/sub_checks.md", "skills/run-phase-3-stability/SKILL.md",
+        "agents/evaluator.md",
+    ]
+    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "Sub-check J", "G/H/J", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150")
+    for rel in parity_surfaces:
+        prose = (ROOT / rel).read_text(encoding="utf-8")
+        for phrase in forbidden_semantics:
+            check(phrase not in prose, "threshold_repeated_outside_profile", f"{rel} repeats retired/numeric authority {phrase!r}")
     sentence = (ROOT / "skills" / "sentence-level-pass" / "SKILL.md").read_text(encoding="utf-8")
     check("M-4" in sentence and "M-5" in sentence and "rhythm" in sentence, "c8_m4_m5_guard_is_rhythm_not_cadence", "C-8 guard not relocated")
     hsrc = (ROOT / "scripts" / "check8_h_prefilter.py").read_text(encoding="utf-8")

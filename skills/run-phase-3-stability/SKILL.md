@@ -46,11 +46,11 @@ unchanged:
   no SAFEGUARD checks outside the inherited/check-counter path.
 - Trigger-30 escalation to a full iterate pass on any finding.
 
-### 3.2a Legacy Reference: Sub-check G/H/J Advisory Treatment
+### 3.2a Profile-bound G/H and adjacent VE treatment
 
 This subsection preserves the historical `§3.2a` anchor cited by
 `references/SAFEGUARD_LAYER.md`. Under `/run-iterate --profile stability`,
-Sub-checks G, H, and J remain advisory-only when inherited from a byte-stable
+Sub-checks G and H follow their bound transition states when inherited from a byte-stable
 prior pass. Findings carry `stability_advisory: true`, do not contribute to the
 §3.3.3 aggregate verdict, and do not force escalation by themselves. They are
 handed to Reflector recurrence accounting. Grounding findings or deterministic

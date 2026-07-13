@@ -18,6 +18,9 @@ from typing import Callable, List, Tuple
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+AUDIT_DIR = Path(__file__).resolve().parent
+if str(AUDIT_DIR) not in sys.path:
+    sys.path.insert(0, str(AUDIT_DIR))
 
 from audit_style import (
     audit_absolutes,
@@ -31,7 +34,7 @@ from audit_craft import audit_craft
 import check8_g_prefilter
 import check8_h_prefilter
 from d_style_profile_check import build_report as build_d_style_profile_report
-from reader_accessibility_policy import resolve_policy
+from reader_accessibility_policy import PolicyError, resolve_policy
 from schema import Finding, FindingsReport
 
 Auditor = Callable[[str, Path], List[Finding]]
@@ -81,10 +84,11 @@ def run_accessibility_prefilters(
     phase: str,
     cycle_id: str,
     output: Path | None = None,
+    profile_path: Path | None = None,
 ) -> tuple[dict[str, object], Path]:
     """Emit a separate schema-defined candidate artifact; do not overload Finding."""
 
-    resolved = resolve_policy(project_root)
+    resolved = resolve_policy(project_root, profile_path=profile_path) if profile_path is not None else resolve_policy(project_root)
     profile = resolved["resolved_profile"]
     text = manuscript_path.read_text(encoding="utf-8")
     paragraphs = [part.strip() for part in text.split("\n\n") if part.strip()]
@@ -92,7 +96,7 @@ def run_accessibility_prefilters(
     a_candidates = []
     for index, paragraph in enumerate(paragraphs, start=1):
         words = len(re.findall(r"[\w']+", paragraph))
-        hits = [cue for cue in cues if cue.casefold() in paragraph.casefold()]
+        hits = [cue for cue in cues if re.search(r"(?<!\w)" + re.escape(cue) + r"(?!\w)", paragraph, re.I)]
         if words > profile["thresholds"]["cadence"]["bands"][0]["max_words"]:
             a_candidates.append({"paragraph": index, "word_count": words, "candidate_cues": hits, "candidate_status": "overlay_functional_confirmation_required"})
     p_stage = check8_g_prefilter._parse_pstage(project_root)
@@ -100,8 +104,8 @@ def run_accessibility_prefilters(
     for heading in re.finditer(r"(?m)^#{1,6}\s+(.+)$", text):
         tail = text[heading.end():].lstrip("\n")
         opening = tail.split("\n\n", 1)[0] if tail else ""
-        orienting = bool(re.search(r"\b(having|after|so far|in the preceding|this section|the previous section|up to this point)\b", opening, re.I))
-        contribution = bool(re.search(r"\b(this section|what follows|I now|I turn to|the next move|we will|I will show|the contribution here)\b", opening, re.I))
+        orienting = bool(re.search(r"\b(having established|after|so far|in the preceding|the previous section|up to this point)\b", opening, re.I))
+        contribution = bool(re.search(r"\b(this section (?:shows|argues|develops|examines)|what follows|I now|I turn to|the next move|we will|I will show|the contribution here)\b", opening, re.I))
         if not (orienting and contribution):
             d_candidates.append({"heading": heading.group(1).strip(), "missing": [name for name, present in (("orienting_clause", orienting), ("contribution_clause", contribution)) if not present], "candidate_status": "overlay_required"})
     seen_terms: set[str] = set()
@@ -115,12 +119,23 @@ def run_accessibility_prefilters(
             e_candidates.append({"paragraph": index, "new_terms": new_terms, "candidate_cap": cap, "candidate_status": "overlay_required"})
     f_candidates = []
     for index, paragraph in enumerate(paragraphs, start=1):
-        triadic = bool(re.search(r"\bFirst,\b[\s\S]{20,400}?\bSecond,\b[\s\S]{20,400}?\bThird,\b", paragraph, re.I))
+        triadic = bool(re.search(r"\bFirst,[\s\S]{5,400}?\bSecond,[\s\S]{5,400}?\bThird,", paragraph, re.I))
         questions = paragraph.count("?")
         if triadic or questions >= 3:
             f_candidates.append({"paragraph": index, "markers": [name for name, present in (("triadic_enumerator", triadic), ("rhetorical_question_stack", questions >= 3)) if present], "candidate_status": "worked_example_judgment_required"})
     g_stats, total_words, headings, long_proxy = check8_g_prefilter.analyze(text, manuscript_path, p_stage)
-    h_bundles = check8_h_prefilter.analyse(text, manuscript_path)
+    paragraph_roles = []
+    after_heading = False
+    for paragraph in paragraphs:
+        if re.match(r"^#{1,6}\s+", paragraph):
+            paragraph_roles.append("section_framing")
+            after_heading = True
+        elif after_heading:
+            paragraph_roles.append("orienting_clause")
+            after_heading = False
+        else:
+            paragraph_roles.append("technical_body")
+    h_bundles = check8_h_prefilter.analyse(text, manuscript_path, profile, phase=phase, register_class=resolved["register_class"], passage_roles=paragraph_roles)
     artifact: dict[str, object] = {
         "schema_version": "reader_accessibility_candidates.v1",
         "phase": phase,
@@ -132,14 +147,14 @@ def run_accessibility_prefilters(
         "candidate_only": True,
         "evaluator_judgment_required": True,
         "sub_checks": {
-            "A": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "candidates": a_candidates},
+            "A": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": a_candidates},
             "B": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "judgment_only", "reason": "rhythm and C-8 functional guards require Evaluator judgment"},
             "C": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "judgment_only", "reason": "first-use conceptual work cannot be established by token order alone"},
             "D": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": d_candidates},
             "E": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": e_candidates},
             "F": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": f_candidates},
             "G": {"applicable": phase in {"Ph3", "Ph4"}, "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate", "total_words": total_words, "headings": headings, "long_manuscript_proxy": long_proxy, "candidates": [s.__dict__ for s in g_stats if s.g_candidate]},
-            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "bundles": [{"locator": b.locator, "word_count": b.word_count, "candidate_status": "overlay_required" if b.any_fired else "short_circuit_candidate", "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles], "_corpus_drift": check8_h_prefilter._corpus_drift(text, profile)},
+            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "bundles": [{"locator": b.locator, "passage_role": b.passage_role, "binding_status": b.binding_status, "word_count": b.word_count, "candidate_status": "overlay_required" if b.any_fired else "short_circuit_candidate", "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles], "_corpus_drift": check8_h_prefilter._corpus_drift(text, profile, resolved.get("project_identity"))},
         },
     }
     output_path = output.resolve() if output else project_root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json"
@@ -166,6 +181,7 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--phase", choices=["Ph1", "Ph2", "Ph3", "Ph4"], default="Ph2", help="Phase geometry for accessibility candidate dispatch")
     parser.add_argument("--cycle-id", default="iter0", help="Accessibility candidate cycle id")
     parser.add_argument("--accessibility-out", type=Path, help="Separate reader-accessibility candidate JSON path")
+    parser.add_argument("--accessibility-profile", type=Path, help="Explicit package-contained accessibility profile (testing/migration only)")
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
     parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. Lets run_all act as a blocking pre-send gate. C-7 caution: 'any' also gates on advisory craft/voice/length findings, which are C-7 candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for an automated gate, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
@@ -190,10 +206,16 @@ def main(argv: List[str] | None = None) -> int:
     accessibility_report: dict[str, object] | None = None
     accessibility_output: Path | None = None
     if args.project_root and not args.skip_accessibility:
-        accessibility_report, accessibility_output = run_accessibility_prefilters(
-            args.project_root.resolve(), args.target.resolve(), phase=args.phase,
-            cycle_id=args.cycle_id, output=args.accessibility_out,
-        )
+        try:
+            accessibility_report, accessibility_output = run_accessibility_prefilters(
+                args.project_root.resolve(), args.target.resolve(), phase=args.phase,
+                cycle_id=args.cycle_id, output=args.accessibility_out,
+                profile_path=args.accessibility_profile,
+            )
+        except (PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+            payload = {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}
+            print(json.dumps(payload, ensure_ascii=False))
+            return 4
     if args.stdout:
         print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
     else:

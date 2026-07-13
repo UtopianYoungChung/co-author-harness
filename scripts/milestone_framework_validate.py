@@ -838,6 +838,8 @@ def _validate_reader_accessibility_policy(
 ) -> None:
     bindings = ledger.get("policy_bindings")
     if not isinstance(bindings, dict) or "reader_accessibility" not in bindings:
+        if ledger.get("mode") == "native":
+            findings.append(_finding("MF-POLICY", "milestone_framework.policy_bindings.reader_accessibility", "native projects must initialize the reader-accessibility binding at bootstrap"))
         return
     binding = bindings.get("reader_accessibility")
     base = "milestone_framework.policy_bindings.reader_accessibility"
@@ -851,28 +853,74 @@ def _validate_reader_accessibility_policy(
     elif binding.get("profile_sha256") != hashlib.sha256(canonical.read_bytes()).hexdigest():
         findings.append(_finding("MF-POLICY", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
     _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
+    resolved_artifact = (project_root / str(binding.get("resolved_path"))).resolve()
+    try:
+        resolved_payload = json.loads(resolved_artifact.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
+        resolved_payload = {}
+    if isinstance(resolved_payload, dict) and (resolved_payload.get("profile_path") != binding.get("profile_path") or resolved_payload.get("profile_sha256") != binding.get("profile_sha256") or resolved_payload.get("source_bindings") != binding.get("source_bindings")):
+        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "phase-state binding must exactly match resolver-emitted profile and source bindings"))
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict):
             continue
         relative = source.get("path")
-        if isinstance(relative, str) and relative.startswith("references/"):
-            package_source = (ROOT / relative).resolve()
+        scope = source.get("scope")
+        if scope == "package":
+            package_source = (ROOT / str(relative)).resolve()
+            try: package_source.relative_to(ROOT.resolve())
+            except ValueError:
+                findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor escapes package root"))
+                continue
             if not package_source.is_file() or hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256"):
                 findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor is missing or stale"))
-        else:
+        elif scope == "project":
             _file_binding(project_root, relative, source.get("sha256"), None, f"{base}.source_bindings[{index}]", findings, evidence, "MF-POLICY")
+        else:
+            findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}].scope", "policy source binding must declare package or project scope"))
+    try:
+        profile = json.loads(canonical.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        profile = {"transitions": {}}
+    for key in ("G", "H", "VE"):
+        state = binding.get("transitions", {}).get(key, {})
+        required_count = profile.get("transitions", {}).get(key, {}).get("required_observed_count")
+        events = state.get("events", []) if isinstance(state, dict) else []
+        for event_index, event in enumerate(events):
+            if isinstance(event, dict):
+                _file_binding(project_root, event.get("evidence_path"), event.get("evidence_sha256"), None, f"{base}.transitions.{key}.events[{event_index}].evidence_path", findings, evidence, "MF-POLICY")
+        sequences = [event.get("sequence") for event in events if isinstance(event, dict)]
+        if sequences != sorted(set(sequences)):
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.events", "transition events must be append-only with unique increasing sequence"))
+        observed_events = [event for event in events if isinstance(event, dict) and event.get("event") == "policy_transition_observed" and event.get("approved") is True]
+        observed_count = max((event.get("observed_count", -1) for event in observed_events), default=0)
+        if state.get("observed_count") != observed_count:
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.observed_count", "transition counter must derive from approved Planner observation events"))
+        if state.get("state") == "retired":
+            retirement = [event for event in events if isinstance(event, dict) and event.get("event") == "planner_transition_approved" and event.get("approved") is True and event.get("observed_count", 0) >= (required_count or 1)]
+            if state.get("observed_count", 0) < (required_count or 1) or not retirement:
+                findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}", "retirement requires the profile count and matching Planner-owned approval evidence"))
+    def started(name: str) -> bool:
+        record = milestones.get(name)
+        return isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable", "legacy_unverified"}
     m1 = milestones.get("M1", {}).get("policy_evidence") if isinstance(milestones.get("M1"), dict) else None
-    if not isinstance(m1, dict) or not m1.get("intended_readers"):
+    if started("M1") and (not isinstance(m1, dict) or not m1.get("intended_readers")):
         findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M1.policy_evidence", "M1 must record intended readers"))
     m3 = milestones.get("M3", {}).get("policy_evidence") if isinstance(milestones.get("M3"), dict) else None
-    if not isinstance(m3, dict) or m3.get("profile_path") != binding.get("resolved_path") or m3.get("profile_sha256") != binding.get("resolved_sha256"):
+    if started("M3") and (not isinstance(m3, dict) or m3.get("profile_path") != binding.get("resolved_path") or m3.get("profile_sha256") != binding.get("resolved_sha256")):
         findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M3.policy_evidence", "M3 must bind the resolved profile path and hash"))
     for milestone in ("M4", "M5"):
         record = milestones.get(milestone)
+        if not started(milestone):
+            if isinstance(record, dict) and record.get("policy_evidence") is not None:
+                findings.append(_finding("MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence", "future not-started milestones must not fabricate policy evidence"))
+            continue
         policy = record.get("policy_evidence") if isinstance(record, dict) else None
         deliverable = deliverables.get(milestone)
         path = f"milestone_framework.milestones.{milestone}.policy_evidence"
-        required = ("profile_path", "profile_sha256", "manuscript_sha256", "check8_path", "check8_sha256", "aggregate_verdict", "phase")
+        accepted = record.get("status") in {"accepted", "superseded"} or record.get("handoff", {}).get("status") in {"ready", "consumed"}
+        started_required = ("profile_path", "profile_sha256", "manuscript_sha256", "phase")
+        required = started_required + (("check8_path", "check8_sha256", "aggregate_verdict") if accepted else ())
         if not isinstance(policy, dict) or any(policy.get(key) is None for key in required):
             findings.append(_finding("MF-POLICY", path, f"{milestone} must carry complete current-manuscript Check 8 policy evidence"))
             continue
@@ -880,7 +928,23 @@ def _validate_reader_accessibility_policy(
             findings.append(_finding("MF-POLICY", path, f"{milestone} resolved policy binding is stale or differently configured"))
         if not isinstance(deliverable, dict) or policy.get("manuscript_sha256") != deliverable.get("sha256"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} Check 8 evidence is not bound to the current manuscript hash"))
-        _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")
+        if accepted:
+            _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")
+            check_path = (project_root / str(policy.get("check8_path"))).resolve()
+            try:
+                sidecar = json.loads(check_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"Check 8 sidecar must be canonical JSON: {exc}"))
+                continue
+            subchecks = sidecar.get("subchecks") if isinstance(sidecar, dict) else None
+            if not isinstance(subchecks, dict) or set(subchecks) != set("ABCDEFGH"):
+                findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 sidecar must carry exactly A-H verdicts"))
+                continue
+            severities = list(subchecks.values())
+            recomputed = "BLOCKER" if "BLOCKER" in severities else ("MAJOR" if severities.count("MAJOR") >= 2 else ("BORDERLINE" if severities.count("MAJOR") == 1 else "CLEAN"))
+            expected_sidecar = {"profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
+            if any(sidecar.get(key) != value for key, value in expected_sidecar.items()) or sidecar.get("aggregate_verdict") != recomputed or sidecar.get("ve", {}).get("gate_contribution") != "none":
+                findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 content does not match evidence fields or recomputed A-H aggregate"))
 
 
 def validate_document(project_root: Path, document: Any, target: str | None = None) -> ValidationResult:

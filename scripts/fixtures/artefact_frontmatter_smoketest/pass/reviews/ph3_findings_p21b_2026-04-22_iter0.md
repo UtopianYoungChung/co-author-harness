@@ -28,14 +28,14 @@ check_8_subcheck_counters:
   sub_g_consolidation_flag_count: 0
   sub_h_register_flag_count: 0
 reader_accessibility_policy:
-  profile_path: reviews/reader_accessibility_resolved.json
-  profile_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-  manuscript_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-  check8_evidence_path: reviews/safeguard_check8.md
-  check8_evidence_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  profile_path: reviews/.harness/policy/reader_accessibility_resolved.json
+  profile_sha256: "b3752dae773622cd65ac018d1e7011c38b5ded03a3ed57b131edc30c248daefb"
+  manuscript_sha256: "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04"
+  check8_evidence_path: reviews/.harness/policy/check8_evidence.json
+  check8_evidence_sha256: "25ca6fbdb49c525518816c2bdea795e1dc19602bc3c5e46ebb7144ff73d735de"
   phase: Ph3
-  candidate_artifact_path: reviews/reader_accessibility_candidates.json
-  candidate_artifact_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  candidate_artifact_path: reviews/.harness/policy/reader_accessibility_candidates.json
+  candidate_artifact_sha256: "3f8ce2a265bf4ead5077bbfe53d9094a009d4f7b68d7c15e36f197b1e8739bba"
 check_8_adjacent_advisories:
   ve_finding_count: 0
 dnd_byte_verification:

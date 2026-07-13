@@ -126,6 +126,13 @@ REAL_CASES = {
     "policy_missing_m1_intent": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_missing_m3_profile": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_missing_m4_current_hash": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_native_binding_omitted": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_valid_bootstrap": ("READY", 0, None, None),
+    "policy_valid_m1_started": ("READY", 0, None, None),
+    "policy_valid_m3_started": ("READY", 0, None, None),
+    "policy_retired_without_events": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_valid_retired_transition": ("READY", 0, None, None),
+    "policy_forged_check8_content": ("MISCONFIGURED", 4, None, "MF-POLICY"),
 }
 
 
@@ -584,6 +591,7 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
         "reviews/ph3_convergence_signoff.md",
         "---\nphase: Ph3\n---\nis_terminal: true\napproved_by: user\n",
     )
+    _install_reader_accessibility_policy(project, ledger)
     return ledger
 
 
@@ -602,6 +610,40 @@ def _rewrite_packet(project: Path, ledger: dict[str, Any], milestone: str, mutat
             }]
 
 
+def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) -> None:
+    """Install a real resolver artifact and exact progressive policy evidence."""
+    import reader_accessibility_policy as policy
+    resolved = policy.resolve_policy(project)
+    resolved_path = project / "reviews/.harness/policy/reader_accessibility_resolved.json"
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_path.write_text(json.dumps(resolved, indent=2) + "\n", encoding="utf-8")
+    binding = policy.phase_state_binding(resolved, resolved_path, project)
+    ledger["policy_bindings"] = {"reader_accessibility": binding}
+    milestones = ledger["milestones"]
+    milestones["M1"]["policy_evidence"] = {"intended_readers": ["careful disciplinary reader"]}
+    milestones["M3"]["policy_evidence"] = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"]}
+    for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
+        manuscript = milestones[milestone]["artifacts"][0]
+        subchecks = {key: "CLEAN" for key in "ABCDEFGH"}
+        sidecar = {
+            "schema_version": "check8_evidence.v1", "profile_path": binding["resolved_path"],
+            "profile_sha256": binding["resolved_sha256"], "manuscript_path": manuscript["path"],
+            "manuscript_sha256": manuscript["sha256"], "phase": phase,
+            "subchecks": subchecks, "ve": {"gate_contribution": "none", "finding_count": 0},
+            "aggregate_verdict": "CLEAN",
+        }
+        check_path = f"reviews/.harness/policy/{milestone.lower()}_check8.json"
+        check_hash, _ = _write_bound_file(project, check_path, json.dumps(sidecar, indent=2) + "\n")
+        evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"], "manuscript_sha256": manuscript["sha256"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
+        milestones[milestone]["policy_evidence"] = evidence
+    predecessor = None
+    for milestone in ("M1", "M2", "M3", "M4", "M5"):
+        evidence = milestones[milestone].get("policy_evidence")
+        _rewrite_packet(project, ledger, milestone, lambda packet, evidence=evidence, predecessor=predecessor: packet.update({"policy_evidence": evidence, "predecessor_packet": predecessor}))
+        handoff = milestones[milestone]["handoff"]
+        predecessor = {"path": handoff["packet_path"], "sha256": handoff["packet_sha256"]}
+
+
 def _reset_milestone(record: dict[str, Any], status: str = "not_started") -> None:
     record.update({
         "status": status,
@@ -612,6 +654,7 @@ def _reset_milestone(record: dict[str, Any], status: str = "not_started") -> Non
         "dependency_state": "current",
         "authorized_override": None,
     })
+    record.pop("policy_evidence", None)
 
 
 def _resequence_events(ledger: dict[str, Any]) -> None:
@@ -669,6 +712,7 @@ def _write_real_case(case: str, project: Path) -> None:
             "dependency_state": "not_applicable",
             "authorized_override": _override(["M4"], ["M4_to_M5"]),
         })
+        target.pop("policy_evidence", None)
         override_hash, _ = _write_bound_file(
             project, target["authorized_override"]["substitute_evidence"], "authorized N/A\n"
         )
@@ -717,6 +761,7 @@ def _write_real_case(case: str, project: Path) -> None:
             "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
             "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
         })
+        milestones["M5"].pop("policy_evidence", None)
         _drop_milestone_events(ledger, "M5")
     elif case == "absent_namespace":
         pass
@@ -904,34 +949,52 @@ def _write_real_case(case: str, project: Path) -> None:
         ])
 
     if case.startswith("policy_"):
-        profile_path = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
-        profile_hash = hashlib.sha256(profile_path.read_bytes()).hexdigest()
-        resolved_hash, _ = _write_bound_file(project, "reviews/reader_accessibility_resolved.json", "{}\n")
-        corpus_path = ROOT / "references" / "examples" / "model_prose_corpus.md"
-        check8_hash, _ = _write_bound_file(project, "reviews/safeguard_check8.md", "Aggregate verdict: CLEAN\n")
-        ledger["policy_bindings"] = {"reader_accessibility": {
-            "profile_path": "references/policies/reader_accessibility.v1.json",
-            "profile_sha256": "0" * 64 if case == "policy_hash_drift" else profile_hash,
-            "resolved_path": "reviews/reader_accessibility_resolved.json",
-            "resolved_sha256": resolved_hash,
-            "source_bindings": [{"path": "references/examples/model_prose_corpus.md", "sha256": hashlib.sha256(corpus_path.read_bytes()).hexdigest()}],
-            "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None} for key in ("G", "H", "VE")},
-        }}
-        milestones["M1"]["policy_evidence"] = {"intended_readers": ["careful disciplinary reader"]}
-        milestones["M3"]["policy_evidence"] = {"profile_path": "reviews/reader_accessibility_resolved.json", "profile_sha256": resolved_hash}
-        for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
-            milestones[milestone]["policy_evidence"] = {
-                "profile_path": "reviews/reader_accessibility_resolved.json", "profile_sha256": resolved_hash,
-                "manuscript_sha256": milestones[milestone]["artifacts"][0]["sha256"],
-                "check8_path": "reviews/safeguard_check8.md", "check8_sha256": check8_hash,
-                "aggregate_verdict": "CLEAN", "phase": phase,
-            }
+        binding = ledger["policy_bindings"]["reader_accessibility"]
+        if case == "policy_hash_drift":
+            binding["profile_sha256"] = "0" * 64
         if case == "policy_missing_m1_intent":
             milestones["M1"].pop("policy_evidence")
         elif case == "policy_missing_m3_profile":
             milestones["M3"].pop("policy_evidence")
         elif case == "policy_missing_m4_current_hash":
             milestones["M4"]["policy_evidence"].pop("manuscript_sha256")
+        elif case == "policy_native_binding_omitted":
+            ledger.pop("policy_bindings")
+        elif case == "policy_valid_bootstrap":
+            for record in milestones.values(): _reset_milestone(record)
+            ledger["events"] = []
+        elif case == "policy_valid_m1_started":
+            intended = milestones["M1"]["policy_evidence"]
+            _reset_milestone(milestones["M1"], "in_progress")
+            milestones["M1"]["policy_evidence"] = intended
+            for name in ("M2", "M3", "M4", "M5"): _reset_milestone(milestones[name])
+            ledger["events"] = [event for event in ledger["events"] if event["milestone"] == "M1" and event["event_type"] == "milestone_started"]
+            _resequence_events(ledger)
+        elif case == "policy_valid_m3_started":
+            profile_evidence = milestones["M3"]["policy_evidence"]
+            _reset_milestone(milestones["M3"], "in_progress")
+            milestones["M3"]["policy_evidence"] = profile_evidence
+            for name in ("M4", "M5"): _reset_milestone(milestones[name])
+            ledger["events"] = [event for event in ledger["events"] if event["milestone"] in {"M1", "M2"} or (event["milestone"] == "M3" and event["event_type"] == "milestone_started")]
+            _resequence_events(ledger)
+        elif case == "policy_retired_without_events":
+            binding["transitions"]["H"] = {"state": "retired", "observed_count": 0, "events": []}
+        elif case == "policy_valid_retired_transition":
+            event_hash, _ = _write_bound_file(project, "reviews/.harness/policy/h_transition.md", "Planner-approved H observations.\n")
+            common = {"actor": "planner", "authority": "user", "approved": True, "evidence_path": "reviews/.harness/policy/h_transition.md", "evidence_sha256": event_hash}
+            binding["transitions"]["H"] = {"state": "retired", "observed_count": 2, "events": [
+                {**common, "sequence": 1, "event": "policy_transition_observed", "observed_count": 1},
+                {**common, "sequence": 2, "event": "policy_transition_observed", "observed_count": 2},
+                {**common, "sequence": 3, "event": "planner_transition_approved", "observed_count": 2},
+            ]}
+        elif case == "policy_forged_check8_content":
+            evidence = milestones["M4"]["policy_evidence"]
+            sidecar_path = project / evidence["check8_path"]
+            sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            sidecar["subchecks"]["A"] = "BLOCKER"
+            forged_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
+            evidence["check8_sha256"] = forged_hash
+            _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
 
     document: Any = _phase_document(ledger, document_phase)
     if case == "absent_namespace":

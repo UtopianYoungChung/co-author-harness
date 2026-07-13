@@ -21,6 +21,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
 PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class PolicyError(ValueError):
@@ -49,23 +50,147 @@ def _list_file(path: Path) -> list[str]:
     return list(dict.fromkeys(values))
 
 
-def validate_profile(profile: dict[str, Any]) -> None:
-    required = {"schema_version", "profile_version", "decision_status", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "corpus_drift"}
-    missing = sorted(required - set(profile))
+def _object(value: Any, path: str, required: set[str], optional: set[str] = set()) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise PolicyError(f"{path} must be an object")
+    missing = required - set(value)
     if missing:
-        raise PolicyError(f"missing profile keys: {', '.join(missing)}")
-    if any("canonical_sha256" in key for key in profile):
-        raise PolicyError("profile must not self-hash")
+        raise PolicyError(f"{path} missing: {', '.join(sorted(missing))}")
+    extra = set(value) - required - optional
+    if extra:
+        raise PolicyError(f"{path} has unexpected fields: {', '.join(sorted(extra))}")
+    return value
+
+
+def _strings(value: Any, path: str, *, nonempty: bool = True) -> list[str]:
+    if not isinstance(value, list) or (nonempty and not value) or any(not isinstance(x, str) or not x.strip() for x in value):
+        raise PolicyError(f"{path} must be a{' non-empty' if nonempty else ''} string array")
+    if len(value) != len(set(value)):
+        raise PolicyError(f"{path} must contain unique values")
+    return value
+
+
+def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0) -> float:
+    valid = isinstance(value, int) and not isinstance(value, bool) if integer else isinstance(value, (int, float)) and not isinstance(value, bool)
+    if not valid or value < minimum:
+        raise PolicyError(f"{path} must be a number >= {minimum}")
+    return value
+
+
+def validate_profile(profile: dict[str, Any]) -> None:
+    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "corpus_drift"}
+    _object(profile, "profile", required)
+    def reject_self_hash(value: Any, path: str = "profile") -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key == "canonical_sha256":
+                    raise PolicyError(f"canonical_sha256 forbidden at {path}.{key}")
+                reject_self_hash(nested, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, nested in enumerate(value):
+                reject_self_hash(nested, f"{path}[{index}]")
+    reject_self_hash(profile)
+    if profile["schema_version"] != "1.0.0" or profile["profile_version"] != "1.0.0":
+        raise PolicyError("unsupported profile version")
+    if profile["decision_record"] != "ADR-ACCESS-01" or profile["normative_authority"] != "references/READER_ACCESSIBILITY.md":
+        raise PolicyError("decision record or normative authority is invalid")
+    _strings(profile["package_contributors"], "package_contributors")
     if tuple(profile["phase_values"]) != PHASES:
         raise PolicyError("phase_values must be exactly Ph1-Ph4")
-    if set(profile["sub_checks"]) != set("ABCDEFGH") or profile["aggregate"].get("members") != list("ABCDEFGH"):
+    _strings(profile["passage_roles"], "passage_roles")
+    checks = _object(profile["sub_checks"], "sub_checks", set("ABCDEFGH"))
+    common = {"name", "scope", "deterministic_disposition", "gate_contribution", "binds_at", "advisory_at"}
+    for letter, value in checks.items():
+        check = _object(value, f"sub_checks.{letter}", common, {"threshold_key", "do_not_flag_guards", "ph2_role_overrides"})
+        if check["deterministic_disposition"] not in {"candidate_probe", "judgment_only"}:
+            raise PolicyError(f"sub_checks.{letter}.deterministic_disposition is invalid")
+        expected_gate = "aggregate_after_transition" if letter in {"G", "H"} else "aggregate"
+        if check["gate_contribution"] != expected_gate:
+            raise PolicyError(f"sub_checks.{letter}.gate_contribution is invalid")
+        for key in ("binds_at", "advisory_at"):
+            values = _strings(check[key], f"sub_checks.{letter}.{key}")
+            if any(v not in PHASES for v in values):
+                raise PolicyError(f"sub_checks.{letter}.{key} contains invalid phase")
+    aggregate = _object(profile["aggregate"], "aggregate", {"members", "clean", "borderline", "major", "blocker"})
+    if set(profile["sub_checks"]) != set("ABCDEFGH") or aggregate["members"] != list("ABCDEFGH"):
         raise PolicyError("Check 8 aggregate membership must be exactly A-H")
-    ve = profile.get("adjacent_advisory_checks", {}).get("VE", {})
+    adjacent = _object(profile["adjacent_advisory_checks"], "adjacent_advisory_checks", {"VE"})
+    ve = _object(adjacent["VE"], "adjacent_advisory_checks.VE", {"name", "scope", "gate_contribution", "aggregate_member", "route", "transition_key", "follow_up_home"})
     if ve.get("gate_contribution") != "none" or ve.get("aggregate_member") is not False:
         raise PolicyError("VE must remain outside the Check 8 aggregate")
-    cadence = profile["thresholds"]["cadence"]
+    thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "jargon", "consolidation", "register"})
+    cadence = _object(thresholds["cadence"], "thresholds.cadence", {"unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
     if cadence.get("hard_ceiling_words") != 300 or not cadence.get("functional_confirmation_required"):
         raise PolicyError("provisional cadence decision is malformed")
+    if cadence["candidate_semantics"] != "nomination_only":
+        raise PolicyError("thresholds.cadence.candidate_semantics must be nomination_only")
+    bands = cadence["bands"]
+    if not isinstance(bands, list) or len(bands) != 3:
+        raise PolicyError("thresholds.cadence.bands must contain three bands")
+    expected_min = 0
+    for index, band_value in enumerate(bands):
+        band = _object(band_value, f"thresholds.cadence.bands[{index}]", {"min_words", "max_words", "required_functional_turn_points", "deficit_severity"})
+        for key in ("min_words", "max_words", "required_functional_turn_points"):
+            _number(band[key], f"thresholds.cadence.bands[{index}].{key}", integer=True)
+        if band["min_words"] != expected_min or band["max_words"] < band["min_words"]:
+            raise PolicyError("thresholds.cadence.bands must be ordered and contiguous")
+        if band["deficit_severity"] not in {"CLEAN", "MINOR", "MAJOR"}:
+            raise PolicyError("thresholds.cadence band deficit severity is invalid")
+        expected_min = band["max_words"] + 1
+    if bands[-1]["max_words"] != cadence["hard_ceiling_words"]:
+        raise PolicyError("thresholds.cadence.bands must end at hard ceiling")
+    above = _object(cadence["above_ceiling"], "thresholds.cadence.above_ceiling", {"current_severity_floor", "mandatory_split", "blocker_when"})
+    if above != {"current_severity_floor": "MAJOR", "mandatory_split": True, "blocker_when": "zero functional turn-points AND zero internal sentence-break signals"}:
+        raise PolicyError("thresholds.cadence.above_ceiling is invalid")
+    persistence = _object(cadence["persistence"], "thresholds.cadence.persistence", {"identity_key", "reset_on_content_hash_change", "changes_current_severity", "planner_workflow_trigger_after_unchanged_rounds"})
+    if persistence["identity_key"] != "paragraph_content_sha256" or persistence["reset_on_content_hash_change"] is not True or persistence["changes_current_severity"] is not False:
+        raise PolicyError("thresholds.cadence.persistence semantics are invalid")
+    _number(persistence["planner_workflow_trigger_after_unchanged_rounds"], "thresholds.cadence.persistence.planner_workflow_trigger_after_unchanged_rounds", integer=True, minimum=1)
+    rhythm = _object(thresholds["rhythm"], "thresholds.rhythm", {"minimum_sentence_count", "mean_words_above", "standard_deviation_below", "short_sentence_words_at_most", "long_sentence_words_at_least"})
+    for key, value in rhythm.items(): _number(value, f"thresholds.rhythm.{key}")
+    jargon = _object(thresholds["jargon"], "thresholds.jargon", {"new_domain_terms_per_paragraph"})
+    stages = _object(jargon["new_domain_terms_per_paragraph"], "thresholds.jargon.new_domain_terms_per_paragraph", {"P0", "P1", "P2"})
+    for key, value in stages.items(): _number(value, f"thresholds.jargon.new_domain_terms_per_paragraph.{key}", integer=True)
+    consolidation = _object(thresholds["consolidation"], "thresholds.consolidation", {"construct_accumulation", "prior_sections_dependency", "candidate_gap_words", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words", "deterministic_gap_is_proxy_only"})
+    _object(consolidation["candidate_gap_words"], "thresholds.consolidation.candidate_gap_words", {"P0", "P1", "P2"})
+    if consolidation["deterministic_gap_is_proxy_only"] is not True: raise PolicyError("consolidation proxy flag must be true")
+    register = _object(thresholds["register"], "thresholds.register", {"minimum_positive_markers", "positive_marker_count", "nominalisation_density_candidate", "prepositional_run_candidate", "hedges_per_100_words_candidate", "functional_removability_required", "severity_model"})
+    for key, value in register.items():
+        if key not in {"functional_removability_required", "severity_model"}: _number(value, f"thresholds.register.{key}")
+    if register["functional_removability_required"] is not True: raise PolicyError("register functional-removability flag must be true")
+    severity_model = _object(register["severity_model"], "thresholds.register.severity_model", {"minor_negative_markers_min", "minor_negative_markers_max", "major_consecutive_passages", "weighted_roles", "ph2_orienting_zero_positive", "nontechnical_blocker_major_fraction_above"})
+    for key in ("minor_negative_markers_min", "minor_negative_markers_max", "major_consecutive_passages"): _number(severity_model[key], f"thresholds.register.severity_model.{key}", integer=True, minimum=1)
+    _strings(severity_model["weighted_roles"], "thresholds.register.severity_model.weighted_roles")
+    if severity_model["ph2_orienting_zero_positive"] != "blocker_candidate" or not 0 < severity_model["nontechnical_blocker_major_fraction_above"] < 1: raise PolicyError("thresholds.register.severity_model is invalid")
+    transitions = _object(profile["transitions"], "transitions", {"G", "H", "VE"})
+    for key, value in transitions.items():
+        required_transition = {"meaning", "required_observed_count", "retirement_event", "workflow_effect_while_active", "state_owner"}
+        optional_transition = {"workflow_effect_after_retirement"}
+        transition = _object(value, f"transitions.{key}", required_transition, optional_transition)
+        _number(transition["required_observed_count"], f"transitions.{key}.required_observed_count", integer=True, minimum=1)
+        if transition["retirement_event"] != "planner_transition_approved": raise PolicyError(f"transitions.{key}.retirement_event invalid")
+    scope = _object(profile["register_scope"], "register_scope", {"technical", "mixed", "non-technical"})
+    for key, value in scope.items(): _strings(value, f"register_scope.{key}")
+    lexicons = _object(profile["lexicons"], "lexicons", {"plain_connectives", "latinate_whitelist", "hedges", "nominalisation_suffixes", "prepositions"})
+    for key, value in lexicons.items(): _strings(value, f"lexicons.{key}")
+    _strings(profile["domain_token_exclusions"], "domain_token_exclusions")
+    contract = _object(profile["override_contract"], "override_contract", {"directives", "plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"})
+    _object(contract["directives"], "override_contract.directives", {"path", "register_class_key", "project_identity_key"})
+    if contract["directives"] != {"path": "research_notes/directives.md", "register_class_key": "register_class", "project_identity_key": "project_id"}:
+        raise PolicyError("override_contract.directives path or keys are invalid")
+    expected_paths = {"plain_connectives": "research_notes/plain_connectives.txt", "hedges": "research_notes/hedges.txt", "latinate_whitelist": "research_notes/latinate_whitelist.txt", "terminology": "research_notes/terminology.txt", "glossary": "research_notes/glossary.txt"}
+    for key in ("plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"):
+        _object(contract[key], f"override_contract.{key}", {"path", "polarity"})
+        if contract[key]["path"] != expected_paths[key]: raise PolicyError(f"override_contract.{key} path is invalid")
+    _strings(profile["remediation_order"], "remediation_order")
+    corpus = _object(profile["corpus_drift"], "corpus_drift", {"implemented", "dispatch", "source_paths", "declared_contributors"})
+    if corpus["implemented"] is not True or corpus["dispatch"] != "scripts/check8_h_prefilter.py": raise PolicyError("corpus_drift dispatch is invalid")
+    _strings(corpus["source_paths"], "corpus_drift.source_paths")
+    if not isinstance(corpus["declared_contributors"], list) or not corpus["declared_contributors"]: raise PolicyError("corpus_drift.declared_contributors must be non-empty")
+    for index, contributor in enumerate(corpus["declared_contributors"]):
+        item = _object(contributor, f"corpus_drift.declared_contributors[{index}]", {"project_id", "source_paths", "source_phrases"})
+        _strings(item["source_paths"], f"corpus_drift.declared_contributors[{index}].source_paths")
+        _strings(item["source_phrases"], f"corpus_drift.declared_contributors[{index}].source_phrases")
     if profile.get("decision_status") != "provisional":
         raise PolicyError("ADR-ACCESS-01 has no proven acceptance; status must remain provisional")
     serialized = json.dumps(profile).lower()
@@ -83,7 +208,12 @@ def load_profile(path: Path = DEFAULT_PROFILE) -> dict[str, Any]:
         raise PolicyError(f"profile unreadable: {exc}") from exc
     if not isinstance(data, dict):
         raise PolicyError("profile root must be an object")
-    validate_profile(data)
+    try:
+        validate_profile(data)
+    except PolicyError:
+        raise
+    except (TypeError, KeyError, AttributeError, IndexError) as exc:
+        raise PolicyError(f"profile nested shape is invalid: {exc}") from exc
     return data
 
 
@@ -107,16 +237,23 @@ def evaluate_cadence(word_count: int, functional_turn_points: int, internal_brea
     return {"word_count": word_count, "required_functional_turn_points": required, "functional_turn_points": functional_turn_points, "internal_break_signals": internal_break_signals, "current_severity": severity, "mandatory_split": mandatory_split}
 
 
-def update_persistence(previous_content_sha256: str | None, current_content_sha256: str, prior_unchanged_rounds: int, current_severity: str) -> dict[str, Any]:
-    unchanged = prior_unchanged_rounds + 1 if previous_content_sha256 == current_content_sha256 else 0
-    return {"paragraph_content_sha256": current_content_sha256, "unchanged_rounds": unchanged, "current_severity": current_severity, "planner_workflow_escalation_candidate": unchanged >= 2}
+def update_persistence(previous_content_sha256: str | None, current_content_sha256: str, prior_unchanged_rounds: int, current_severity: str, approved_revision_evidence: list[dict[str, Any]] | None = None, previous_approval_sequence: int | None = None) -> dict[str, Any]:
+    eligible = [event for event in (approved_revision_evidence or []) if isinstance(event, dict) and event.get("event") == "revision_approved" and event.get("approved") is True and event.get("content_sha256") == current_content_sha256 and isinstance(event.get("sequence"), int)]
+    newest_sequence = max((event["sequence"] for event in eligible), default=None)
+    approved = newest_sequence is not None and (previous_approval_sequence is None or newest_sequence > previous_approval_sequence)
+    unchanged = prior_unchanged_rounds + 1 if previous_content_sha256 == current_content_sha256 and approved else (prior_unchanged_rounds if previous_content_sha256 == current_content_sha256 else 0)
+    return {"paragraph_content_sha256": current_content_sha256, "unchanged_rounds": unchanged, "current_severity": current_severity, "planner_workflow_escalation_candidate": unchanged >= 2 and approved, "approved_revision_evidence_observed": approved, "last_approval_sequence": newest_sequence if approved else previous_approval_sequence}
 
 
 def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE) -> dict[str, Any]:
     profile_path = profile_path.resolve()
     profile = load_profile(profile_path)
     resolved = copy.deepcopy(profile)
-    bindings = [{"path": str(profile_path), "sha256": _hash(profile_path), "role": "package_profile"}]
+    try:
+        profile_relative = profile_path.relative_to(ROOT).as_posix()
+    except ValueError as exc:
+        raise PolicyError("profile path must be contained by package root") from exc
+    bindings = [{"scope": "package", "path": profile_relative, "sha256": _hash(profile_path), "role": "package_profile"}]
     for relative in profile["package_contributors"]:
         contributor = (ROOT / relative).resolve()
         try:
@@ -125,8 +262,9 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
             raise PolicyError(f"package contributor escapes harness root: {relative}") from exc
         if not contributor.is_file():
             raise PolicyError(f"package contributor is missing: {relative}")
-        bindings.append({"path": str(contributor), "sha256": _hash(contributor), "role": "package_contributor"})
+        bindings.append({"scope": "package", "path": Path(relative).as_posix(), "sha256": _hash(contributor), "role": "package_contributor"})
     register_class = "technical"
+    project_identity = None
     if project_root is not None:
         project_root = project_root.resolve()
         if not project_root.is_dir():
@@ -135,10 +273,14 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
         directives = _contained(project_root, contract["directives"]["path"])
         if directives.is_file():
             text = directives.read_text(encoding="utf-8")
-            match = re.search(r"(?mi)^\s*register_class\s*:\s*(technical|mixed|non-technical)\s*$", text)
-            if match:
-                register_class = match.group(1).lower()
-            bindings.append({"path": str(directives), "sha256": _hash(directives), "role": "directives"})
+            raw_register = re.search(r"(?mi)^\s*register_class\s*:\s*([^#\r\n]+?)\s*$", text)
+            if raw_register:
+                register_class = raw_register.group(1).strip().lower()
+                if register_class not in {"technical", "mixed", "non-technical"}:
+                    raise PolicyError(f"invalid register_class: {register_class}")
+            identity = re.search(r"(?mi)^\s*project_id\s*:\s*([^#\r\n]+?)\s*$", text)
+            if identity: project_identity = identity.group(1).strip()
+            bindings.append({"scope": "project", "path": directives.relative_to(project_root).as_posix(), "sha256": _hash(directives), "role": "directives"})
         for key in ("plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"):
             rule = contract[key]
             path = _contained(project_root, rule["path"])
@@ -153,8 +295,17 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
                 resolved["lexicons"][key] = list(dict.fromkeys(resolved["lexicons"][key] + values))
             else:
                 resolved["domain_token_exclusions"] = list(dict.fromkeys(resolved["domain_token_exclusions"] + values))
-            bindings.append({"path": str(path), "sha256": _hash(path), "role": f"project_{key}", "polarity": rule["polarity"]})
-    return {"contract_version": "1.0.0", "profile_path": str(profile_path), "profile_sha256": _hash(profile_path), "register_class": register_class, "resolved_profile": resolved, "source_bindings": bindings}
+            bindings.append({"scope": "project", "path": path.relative_to(project_root).as_posix(), "sha256": _hash(path), "role": f"project_{key}", "polarity": rule["polarity"]})
+    return {"contract_version": "1.0.0", "profile_path": profile_relative, "profile_sha256": _hash(profile_path), "register_class": register_class, "project_identity": project_identity, "resolved_profile": resolved, "source_bindings": bindings}
+
+
+def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_root: Path) -> dict[str, Any]:
+    """Build the exact phase-state binding shape from a written resolver artifact."""
+    path = resolved_path.resolve()
+    try: relative = path.relative_to(project_root.resolve()).as_posix()
+    except ValueError as exc: raise PolicyError("resolved artifact escapes project root") from exc
+    if not path.is_file(): raise PolicyError("resolved artifact is missing")
+    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "transitions": {key: {"state": "active", "observed_count": 0, "events": []} for key in ("G", "H", "VE")}}
 
 
 def main(argv: list[str] | None = None) -> int:

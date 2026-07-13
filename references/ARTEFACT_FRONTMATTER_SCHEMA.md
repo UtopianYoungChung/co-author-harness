@@ -151,7 +151,7 @@ section_9a_counters:
 
 # DETERMINISTIC_CHECKS §9b — accessibility pre-filter (v0.7.2+)
 section_9b_counters:
-  cadence_flag_count:                  # integer, ≥ 0; paragraphs exceeding ~150 words without internal turn-point
+  cadence_flag_count:                  # integer, ≥ 0; candidates under thresholds.cadence
   signpost_flag_count:                 # integer, ≥ 0; sections opening without the preamble
   jargon_density_flag_count:           # integer, ≥ 0; paragraphs introducing > 2 new domain terms
 

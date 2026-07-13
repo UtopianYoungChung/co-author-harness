@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -1092,6 +1093,46 @@ def validate_path(path: Path) -> List[Finding]:
     findings: List[Finding] = []
     findings.extend(validate_common(fm, path))
     findings.extend(validate_family(fm, path))
+    if doc_type == "evaluator_findings" and not findings:
+        findings.extend(validate_reader_accessibility_evidence(fm, path))
+    return findings
+
+
+def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> List[Finding]:
+    """Bind F1's human view to exact Check 8/profile/manuscript/candidate bytes."""
+    findings: List[Finding] = []
+    policy = fm["reader_accessibility_policy"]
+    project_root = path.parent.parent if path.parent.name == "reviews" else path.parent
+    def bound(relative: str, expected: str, field: str) -> Path | None:
+        candidate = (project_root / relative).resolve()
+        try: candidate.relative_to(project_root.resolve())
+        except ValueError:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", field, "binding escapes project root")); return None
+        if not candidate.is_file() or hashlib.sha256(candidate.read_bytes()).hexdigest() != expected:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", field, "binding is missing or stale")); return None
+        return candidate
+    profile_path = bound(policy["profile_path"], policy["profile_sha256"], "reader_accessibility_policy.profile_path")
+    candidate_path = bound(policy["candidate_artifact_path"], policy["candidate_artifact_sha256"], "reader_accessibility_policy.candidate_artifact_path")
+    check8_path = bound(policy["check8_evidence_path"], policy["check8_evidence_sha256"], "reader_accessibility_policy.check8_evidence_path")
+    manuscript_path = None
+    grounding = fm.get("grounding_basis", [])
+    if grounding:
+        manuscript_path = bound(grounding[0], policy["manuscript_sha256"], "reader_accessibility_policy.manuscript_sha256")
+    if check8_path is not None:
+        try: sidecar = json.loads(check8_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.check8_evidence_path", f"invalid Check 8 JSON: {exc}")); return findings
+        subchecks = sidecar.get("subchecks", {})
+        if not isinstance(subchecks, dict) or set(subchecks) != set("ABCDEFGH"):
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_subcheck_counters", "Check 8 evidence must contain exactly A-H"))
+        else:
+            verdicts = list(subchecks.values())
+            aggregate = "BLOCKER" if "BLOCKER" in verdicts else ("MAJOR" if verdicts.count("MAJOR") >= 2 else ("BORDERLINE" if verdicts.count("MAJOR") == 1 else "CLEAN"))
+            expected = {"profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
+            if any(sidecar.get(key) != value for key, value in expected.items()) or aggregate != fm["check_8_aggregate"]:
+                findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
+            if sidecar.get("ve", {}).get("gate_contribution") != "none" or sidecar.get("ve", {}).get("finding_count") != fm["check_8_adjacent_advisories"]["ve_finding_count"]:
+                findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_adjacent_advisories", "VE evidence is missing, mismatched, or contributes to gate"))
     return findings
 
 

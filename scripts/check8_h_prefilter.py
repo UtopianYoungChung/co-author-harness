@@ -37,46 +37,13 @@ from typing import Any, List, Tuple
 
 from reader_accessibility_policy import load_profile
 
-_PROFILE = load_profile()
 
-# Nominalisation suffix probe — five suffixes (-ing intentionally excluded
-# per §9e exclusion-list rationale; pilot showed ~30% FP inflation on
-# participial constructions).
-_RE_NOMINAL = re.compile(
-    r"\b\w+(?:" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["nominalisation_suffixes"]) + r")\b",
-    re.IGNORECASE,
-)
-
-# Exclusion list — content-bearing nominals whose removal would lose
-# meaning, not register inflation. Mirrors §9e table row 1 prose.
-_NOMINAL_EXCLUSIONS = frozenset(_PROFILE["domain_token_exclusions"])
-
-# Prepositional-phrase probe — 13-preposition cover set per §9e table row 2.
-_RE_PREP_PHRASE = re.compile(
-    r"\b(" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["prepositions"]) + r")\s+\w+",
-    re.IGNORECASE,
-)
-
-# Hedging probe — built-in 15-marker default. Override-by-project mechanism
-# spec'd in §9e but deferred to v0.10.3 per Q4 adjudication 2026-04-27.
-_RE_HEDGE = re.compile(
-    r"\b(" + "|".join(re.escape(item) for item in _PROFILE["lexicons"]["hedges"]) + r")\b",
-    re.IGNORECASE,
-)
-
-# Default thresholds per §9e (Q1 adjudication 2026-04-27: adopt defaults).
-_THRESHOLD_NOM = _PROFILE["thresholds"]["register"]["nominalisation_density_candidate"]
-_THRESHOLD_PREP_RUN = _PROFILE["thresholds"]["register"]["prepositional_run_candidate"]
-_THRESHOLD_HEDGE_PER100 = _PROFILE["thresholds"]["register"]["hedges_per_100_words_candidate"]
-
-
-def _corpus_drift(manuscript_text: str, profile: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def _corpus_drift(manuscript_text: str, profile: dict[str, Any], project_identity: str | None) -> list[dict[str, Any]]:
     """Return deterministic source-phrase presence candidates for H adjudication."""
-    active = profile or _PROFILE
-    return [
-        {"source_phrase": phrase, "present": phrase.casefold() in manuscript_text.casefold(), "candidate_status": "present" if phrase.casefold() in manuscript_text.casefold() else "drift_candidate"}
-        for phrase in active["corpus_drift"]["source_phrases"]
-    ]
+    contributor = next((item for item in profile["corpus_drift"]["declared_contributors"] if item["project_id"] == project_identity), None)
+    if contributor is None:
+        return []
+    return [{"project_id": project_identity, "source_paths": contributor["source_paths"], "source_phrase": phrase, "present": phrase.casefold() in manuscript_text.casefold(), "candidate_status": "present" if phrase.casefold() in manuscript_text.casefold() else "drift_candidate"} for phrase in contributor["source_phrases"]]
 
 # Sentence splitter — naive but sufficient for prepositional-run probe.
 # Splits on `.`/`!`/`?` followed by whitespace + capital, with allowance
@@ -142,6 +109,8 @@ class ProbeResult:
 @dataclass
 class PassageBundle:
     locator: str
+    passage_role: str
+    binding_status: str
     word_count: int
     nominalisation: ProbeResult
     prep_run: ProbeResult
@@ -156,25 +125,31 @@ class PassageBundle:
         )
 
 
-def _probe_nominalisation(text: str, wc: int) -> ProbeResult:
+def _regex(items: list[str], *, capture: bool = False) -> re.Pattern[str]:
+    body = "|".join(re.escape(item) for item in sorted(items, key=len, reverse=True))
+    return re.compile(r"\b(" + body + r")\b" if capture else r"\b\w+(?:" + body + r")\b", re.IGNORECASE)
+
+
+def _probe_nominalisation(text: str, wc: int, profile: dict[str, Any]) -> ProbeResult:
     """Nominalisation density probe (§9e table row 1)."""
     if wc == 0:
-        return ProbeResult("nominalisation", 0, 0.0, _THRESHOLD_NOM, False)
-    raw_hits = _RE_NOMINAL.findall(text)
+        return ProbeResult("nominalisation", 0, 0.0, profile["thresholds"]["register"]["nominalisation_density_candidate"], False)
+    raw_hits = _regex(profile["lexicons"]["nominalisation_suffixes"]).findall(text)
     # Apply exclusion list (case-insensitive).
-    filtered = [h for h in raw_hits if h.lower() not in _NOMINAL_EXCLUSIONS]
+    exclusions = {item.casefold() for item in profile["domain_token_exclusions"]}
+    filtered = [hit for hit in raw_hits if hit.casefold() not in exclusions]
     count = len(filtered)
     ratio = count / wc
     return ProbeResult(
         "nominalisation",
         count,
         round(ratio, 4),
-        _THRESHOLD_NOM,
-        ratio > _THRESHOLD_NOM,
+        profile["thresholds"]["register"]["nominalisation_density_candidate"],
+        ratio > profile["thresholds"]["register"]["nominalisation_density_candidate"],
     )
 
 
-def _probe_prep_run(text: str) -> ProbeResult:
+def _probe_prep_run(text: str, profile: dict[str, Any]) -> ProbeResult:
     """Prepositional-phrase longest-run probe (§9e table row 2)."""
     sentences = _RE_SENTENCE_SPLIT.split(text)
     longest_run = 0
@@ -183,7 +158,8 @@ def _probe_prep_run(text: str) -> ProbeResult:
         # Approximate consecutivity via char-distance threshold (≤8 chars
         # of intervening text means "consecutive" in practice — captures
         # cases like "of the X of the Y" where the "the" is the gap).
-        matches = list(_RE_PREP_PHRASE.finditer(sent))
+        prep = re.compile(r"\b(" + "|".join(re.escape(item) for item in profile["lexicons"]["prepositions"]) + r")\s+\w+", re.IGNORECASE)
+        matches = list(prep.finditer(sent))
         if not matches:
             continue
         run = 1
@@ -203,51 +179,64 @@ def _probe_prep_run(text: str) -> ProbeResult:
         "prep_run",
         longest_run,
         float(longest_run),
-        float(_THRESHOLD_PREP_RUN),
-        longest_run >= _THRESHOLD_PREP_RUN,
+        float(profile["thresholds"]["register"]["prepositional_run_candidate"]),
+        longest_run >= profile["thresholds"]["register"]["prepositional_run_candidate"],
     )
 
 
-def _probe_hedging(text: str, wc: int) -> ProbeResult:
+def _probe_hedging(text: str, wc: int, profile: dict[str, Any]) -> ProbeResult:
     """Hedging density probe (§9e table row 3)."""
     if wc == 0:
-        return ProbeResult("hedging", 0, 0.0, _THRESHOLD_HEDGE_PER100, False)
-    count = len(_RE_HEDGE.findall(text))
+        return ProbeResult("hedging", 0, 0.0, profile["thresholds"]["register"]["hedges_per_100_words_candidate"], False)
+    count = len(_regex(profile["lexicons"]["hedges"], capture=True).findall(text))
     per100 = (count / wc) * 100.0
     return ProbeResult(
         "hedging",
         count,
         round(per100, 2),
-        _THRESHOLD_HEDGE_PER100,
-        per100 > _THRESHOLD_HEDGE_PER100,
+        profile["thresholds"]["register"]["hedges_per_100_words_candidate"],
+        per100 > profile["thresholds"]["register"]["hedges_per_100_words_candidate"],
     )
 
 
-def analyse_passage(text: str, locator: str, is_tex: bool) -> PassageBundle:
+def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, Any], passage_role: str, binding_status: str) -> PassageBundle:
     """Run all three probes on a single passage (paragraph-or-equivalent)."""
     probe_text = _tex_simplify(text) if is_tex else text
     wc = _word_count(probe_text)
     return PassageBundle(
         locator=locator,
+        passage_role=passage_role,
+        binding_status=binding_status,
         word_count=wc,
-        nominalisation=_probe_nominalisation(probe_text, wc),
-        prep_run=_probe_prep_run(probe_text),
-        hedging=_probe_hedging(probe_text, wc),
+        nominalisation=_probe_nominalisation(probe_text, wc, profile),
+        prep_run=_probe_prep_run(probe_text, profile),
+        hedging=_probe_hedging(probe_text, wc, profile),
     )
 
 
-def analyse(text: str, path: Path) -> List[PassageBundle]:
+def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, phase: str = "Ph3", register_class: str = "technical", passage_roles: list[str] | None = None) -> List[PassageBundle]:
     """Probe every paragraph in the manuscript and return bundles."""
+    active = profile or load_profile()
     is_tex = path.suffix.lower() in {".tex", ".ltx"}
     bundles: List[PassageBundle] = []
     # Walk paragraphs at offsets so we can build per-paragraph locators.
     cursor = 0
-    for para in _split_paragraphs(text):
+    paragraphs = _split_paragraphs(text)
+    roles = passage_roles or ["orienting_clause" if index == 0 else "technical_body" for index in range(len(paragraphs))]
+    for para, role in zip(paragraphs, roles):
         idx = text.find(para, cursor)
         if idx < 0:
             idx = cursor
         loc = _find_paragraph_locator(text, idx)
-        bundle = analyse_passage(para, loc, is_tex)
+        allowed_roles = active["register_scope"][register_class]
+        in_scope = "all_passages" in allowed_roles or role in allowed_roles
+        if not in_scope:
+            cursor = idx + len(para)
+            continue
+        binding = "binding" if phase in active["sub_checks"]["H"]["binds_at"] else "advisory"
+        if phase == "Ph2" and role in active["sub_checks"]["H"].get("ph2_role_overrides", {}):
+            binding = active["sub_checks"]["H"]["ph2_role_overrides"][role]
+        bundle = analyse_passage(para, loc, is_tex, active, role, binding)
         bundles.append(bundle)
         cursor = idx + len(para)
     return bundles

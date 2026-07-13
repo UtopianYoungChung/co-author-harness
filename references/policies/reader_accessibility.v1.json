@@ -56,12 +56,12 @@
     "rhythm": {"minimum_sentence_count": 4, "mean_words_above": 28, "standard_deviation_below": 6, "short_sentence_words_at_most": 12, "long_sentence_words_at_least": 25},
     "jargon": {"new_domain_terms_per_paragraph": {"P0": 3, "P1": 2, "P2": 1}},
     "consolidation": {"construct_accumulation": 3, "prior_sections_dependency": 2, "candidate_gap_words": {"P0": 800, "P1": 700, "P2": 600}, "candidate_gap_paragraphs": 6, "short_manuscript_guidance_words": 3000, "long_manuscript_candidate_words": 5000, "deterministic_gap_is_proxy_only": true},
-    "register": {"minimum_positive_markers": 2, "positive_marker_count": 4, "nominalisation_density_candidate": 0.08, "prepositional_run_candidate": 3, "hedges_per_100_words_candidate": 2.0, "functional_removability_required": true}
+    "register": {"minimum_positive_markers": 2, "positive_marker_count": 4, "nominalisation_density_candidate": 0.08, "prepositional_run_candidate": 3, "hedges_per_100_words_candidate": 2.0, "functional_removability_required": true, "severity_model": {"minor_negative_markers_min": 1, "minor_negative_markers_max": 2, "major_consecutive_passages": 3, "weighted_roles": ["orienting_clause", "consolidation_anchor", "inter_section_transition"], "ph2_orienting_zero_positive": "blocker_candidate", "nontechnical_blocker_major_fraction_above": 0.5}}
   },
   "transitions": {
-    "G": {"meaning": "new manuscript reaches Ph3", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"},
-    "H": {"meaning": "two complete revision cycles with H in scope", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"},
-    "VE": {"meaning": "two complete observed advisory cycles", "workflow_effect_while_active": "recurrence telemetry only", "workflow_effect_after_retirement": "recurrence telemetry only", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"}
+    "G": {"meaning": "new manuscript reaches Ph3", "required_observed_count": 1, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"},
+    "H": {"meaning": "two complete revision cycles with H in scope", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"},
+    "VE": {"meaning": "two complete observed advisory cycles", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "recurrence telemetry only", "workflow_effect_after_retirement": "recurrence telemetry only", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"}
   },
   "register_scope": {
     "technical": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor"],
@@ -77,7 +77,7 @@
   },
   "domain_token_exclusions": ["introduction", "conclusion", "abstract", "methodology", "discussion", "reference", "definition", "condition", "relation", "application", "operation", "representation", "description", "interpretation", "specification", "implementation", "verification", "evaluation", "presentation", "generation", "orientation"],
   "override_contract": {
-    "directives": {"path": "research_notes/directives.md", "register_class_key": "register_class"},
+    "directives": {"path": "research_notes/directives.md", "register_class_key": "register_class", "project_identity_key": "project_id"},
     "plain_connectives": {"path": "research_notes/plain_connectives.txt", "polarity": "replace"},
     "hedges": {"path": "research_notes/hedges.txt", "polarity": "replace"},
     "latinate_whitelist": {"path": "research_notes/latinate_whitelist.txt", "polarity": "supplement"},
@@ -85,5 +85,5 @@
     "glossary": {"path": "research_notes/glossary.txt", "polarity": "extend_domain_token_exclusions"}
   },
   "remediation_order": ["preserve propositional content", "add concrete or agentive construction", "add a plain connective", "signal a genuine register shift", "prefer semicolon or colon when the resolved style profile limits em dashes", "re-run deterministic candidates", "Evaluator confirms functional compliance"],
-  "corpus_drift": {"implemented": true, "dispatch": "scripts/check8_h_prefilter.py", "source_paths": ["references/lay_term_lexicons.md", "references/examples/model_prose_corpus.md"], "source_phrases": ["stipulated, operationalizable", "stipulates away the very", "operational reductions that stabilize", "in this register-boundary light", "task allocation under a coordination protocol", "decision authority over a defined choice space", "behavior arising from local agent rules"]}
+  "corpus_drift": {"implemented": true, "dispatch": "scripts/check8_h_prefilter.py", "source_paths": ["references/lay_term_lexicons.md", "references/examples/model_prose_corpus.md"], "declared_contributors": [{"project_id": "reader-accessibility-calibration", "source_paths": ["references/examples/model_prose_corpus.md"], "source_phrases": ["stipulated, operationalizable", "stipulates away the very", "operational reductions that stabilize", "in this register-boundary light", "task allocation under a coordination protocol", "decision authority over a defined choice space", "behavior arising from local agent rules"]}]}
 }

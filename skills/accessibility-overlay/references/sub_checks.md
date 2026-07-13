@@ -10,9 +10,9 @@ Each Sub-check maps to one finding class. The Evaluator's native finding shape i
 
 ## Sub-check A — Paragraph cadence (Cadence-Flag)
 
-Apply `thresholds.cadence`. Cue-lexicon matches nominate turn-point candidates; they count only after functional confirmation as a transition, counter-move, worked example, or thematic refocus. The provisional bands require zero confirmed turns through 150 words, one at 151–200, and two at 201–300.
+Apply `thresholds.cadence` directly. Cue-lexicon matches nominate turn-point candidates; they count only after functional confirmation as a transition, counter-move, worked example, or thematic refocus. Do not restate the bands here.
 
-Severity floors come from `thresholds.cadence`: a band deficit is MINOR at 151–200 and MAJOR at 201–300. Above `hard_ceiling_words`, assign MAJOR plus `mandatory_split: true`; assign BLOCKER only when there are zero functionally confirmed turns and zero internal sentence-break signals.
+Severity floors and above-ceiling behavior come from `thresholds.cadence.bands` and `thresholds.cadence.above_ceiling`; this procedure does not own numeric or recurrence semantics.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check A`*
 
@@ -81,7 +81,7 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
 **Transition binding.** Read G's transition meaning from `transitions.G` and its live state only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G`. When active, severity is recorded while G is excluded from the gate aggregate. Do not infer state from dates or classification prose.
 
-**Stability sub-mode.** Under `run-phase-3-stability` (v0.8.0+ byte-stable inheritance pass), Sub-check G runs advisory-only regardless of the `advisory_until` flag. A G finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. The rationale is that G is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot; a stability pass that fired a G BLOCKER would either require a full-Ph3 escalation on every round (expensive) or would need a hash-summary caching layer not yet specified. The advisory path lets the reduced stability pass run cheaply while preserving G's recurrence trail through Reflector Phase 2g.
+**Stability sub-mode.** `run-phase-3-stability` reads G's profile transition meaning and bound live state. Byte stability does not create a second advisory flag or retirement authority.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check G`*
 
@@ -145,17 +145,13 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 - **`register_class: mixed`** → H applies to non-technical passage roles plus the abstract, introduction, and conclusion (the four-section list — abstract / introduction / conclusion / non-technical passages). Theory / methodology / results sections remain exempt.
 - **`register_class: non-technical`** → H applies manuscript-wide. Technical paragraphs (those that fail the functional removability test) still retain their domain terms but are also held to the positive-marker construction requirements at the sentence level.
 
-**Severity floors:**
-
-- **MINOR.** One or two negative markers in a non-technical passage; or zero positive markers in a passage that ships at least one structural-role assignment.
-- **MAJOR.** Sustained negative-marker density across three or more consecutive non-technical passages; or zero positive markers in a consolidation anchor or section transition (these two passage roles are weighted because they bear cumulative-load mitigation).
-- **BLOCKER.** Reserved for `register_class: non-technical` manuscript-wide variant when more than 50% of non-technical passages emit MAJOR findings. BLOCKER is gated by the `advisory_until: H_two_revision_cycles` flag — even on a `register_class: non-technical` manuscript, the BLOCKER does not gate the §3.3.3 TerminalSignoffRow until the advisory period clears.
+**Severity floors.** Apply `thresholds.register.severity_model` and `sub_checks.H.ph2_role_overrides` directly. Do not restate their numbers here.
 
 **Transition binding.** Read H's transition meaning from `transitions.H` and its live state only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H`. Calibration and classification files are evidence, not counters. When active, H findings remain in recurrence evidence but outside the gate aggregate.
 
-**Per-finding telemetry: `false_positive_candidate` flag.** Each H finding emits an additional `false_positive_candidate: true|false` field that the user can set during review (default `false` at emission; user toggles `true` if the finding is judged a false positive). The flag feeds a project-side calibration log (`reviews/h_calibration_<cycle_id>.md`, append-only) that informs the v0.10.2 retirement decision: if the false-positive rate across two revision cycles exceeds a threshold (TBD at retirement adjudication; provisionally 30%), the Planner three-filter gate considers either the threshold-tightening alternative or wholesale H retirement. Cheap to add at emission; load-bearing for the binding decision.
+**Per-finding telemetry.** H may emit `false_positive_candidate` for calibration, but calibration files do not own retirement criteria or state. Transition requirements come from `transitions.H`; only matching append-only Planner observation and approval events under the policy binding can retire H.
 
-**Back-compatibility grace period.** First H run on a previously-non-H manuscript records `inherited_from_pre_h: true` in the finding artefact and runs MINOR-only regardless of detected severity for that one iteration. The grace period gives the author a one-round signal of where H would otherwise fire MAJOR/BLOCKER without the punitive verdict; the next iteration runs H at full severity (still under `advisory_until: H_two_revision_cycles`).
+**Back-compatibility evidence.** `inherited_from_pre_h` may be retained as provenance, but it cannot rewrite severity or transition state. Only the profile meaning plus bound Planner events control workflow effect.
 
 **Stability sub-mode.** Under `run-phase-3-stability`, Sub-check H runs advisory-only mirroring Sub-check G's stability-sub-mode treatment. An H finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. Rationale matches G: H is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot.
 
