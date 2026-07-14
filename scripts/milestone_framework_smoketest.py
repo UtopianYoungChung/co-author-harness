@@ -79,6 +79,7 @@ REAL_CASES = {
     "m4_plan_only_real": ("MISCONFIGURED", 4, "M4", "MF-ROLE"),
     "m5_checklist_only_real": ("MISCONFIGURED", 4, "M5", "MF-ROLE"),
     "missing_feedback_provenance_real": ("MISCONFIGURED", 4, None, "MF-FEEDBACK"),
+    "stale_feedback_contemporaneity_evidence": ("MISCONFIGURED", 4, None, "MF-FEEDBACK"),
     "two_primary_lineages_real": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "artifact_lineage_mismatch": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "successor_without_consumed_handoff": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
@@ -282,9 +283,12 @@ def _feedback(milestone: str) -> dict[str, Any]:
         "source_path": f"reviews/{milestone.lower()}_review.md",
         "source_sha256": "1" * 64,
         "source_actor": "planner",
+        "source_authority": "project_local_contract",
         "source_milestone": milestone,
         "target_milestone": milestone,
         "received_at": "2026-07-13T18:00:00Z",
+        "contemporaneity_evidence_path": f"reviews/{milestone.lower()}_receipt.md",
+        "contemporaneity_evidence_sha256": "1" * 64,
         "lineage_id": "main",
         "blocking": False,
         "disposition": "informational",
@@ -632,6 +636,10 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
             project, feedback["source_path"], f"{milestone} feedback evidence\n"
         )
         feedback["source_sha256"] = feedback_hash
+        receipt_hash, _ = _write_bound_file(
+            project, feedback["contemporaneity_evidence_path"], f"{milestone} feedback receipt evidence\n"
+        )
+        feedback["contemporaneity_evidence_sha256"] = receipt_hash
         for event_type in ("feedback_recorded", "feedback_adjudicated"):
             feedback_event = next(event for event in ledger["events"] if event["milestone"] == milestone and event["event_type"] == event_type)
             feedback_event.update({
@@ -930,6 +938,9 @@ def _write_real_case(case: str, project: Path) -> None:
         milestones["M5"]["artifacts"][0]["artifact_kind"] = "checklist"
     elif case == "missing_feedback_provenance_real":
         del milestones["M3"]["feedback_records"][0]["source_sha256"]
+    elif case == "stale_feedback_contemporaneity_evidence":
+        receipt_path = milestones["M3"]["feedback_records"][0]["contemporaneity_evidence_path"]
+        (project / receipt_path).write_text("drifted receipt evidence\n", encoding="utf-8")
     elif case == "two_primary_lineages_real":
         ledger["primary_lineage"] = ["main", "alternate"]
     elif case == "artifact_lineage_mismatch":

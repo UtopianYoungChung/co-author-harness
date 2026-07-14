@@ -137,19 +137,57 @@ def _candidate_role(path: str) -> str:
     return "deliverable"
 
 
+def _feedback_candidate(path: str) -> bool:
+    lower = path.lower()
+    return any(word in lower for word in ("feedback", "comment", "retrospective", "guidance", "directive", "audit")) or (
+        "harness" in lower and "review" in lower
+    )
+
+
+def _artifact_discovery_reasons(path: Path) -> list[str]:
+    lower_name = path.name.lower()
+    normalized = re.sub(r"[^a-z0-9]+", "_", lower_name).strip("_")
+    reasons: list[str] = []
+    if MILESTONE_RE.search(path.name):
+        reasons.append("milestone_token")
+    if "project_memo" in normalized or ("project" in normalized and "memo" in normalized):
+        reasons.append("project_memo_name")
+    if "annotated_references" in normalized or "annotated_bibliography" in normalized:
+        reasons.append("annotated_references_name")
+    if "outline" in normalized:
+        reasons.append("outline_name")
+    manuscript_location_candidate = (
+        "manuscript" in {part.lower() for part in path.parts}
+        and path.suffix.lower() in {".md", ".tex", ".pdf", ".docx"}
+    )
+    if (
+        "manuscript" in normalized
+        or lower_name in {"main.md", "main.tex", "manuscript.md", "manuscript.tex"}
+        or manuscript_location_candidate
+    ):
+        reasons.append("manuscript_name_or_location")
+    return reasons
+
+
 def _artifact_candidates(project: Path) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for path in sorted(project.rglob("*"), key=lambda item: item.as_posix().lower()):
         if not path.is_file() or ".harness" in path.parts:
             continue
         relative = _relative(project, path)
-        match = MILESTONE_RE.search(path.name)
-        if match is None:
+        if _feedback_candidate(relative):
             continue
+        reasons = _artifact_discovery_reasons(path)
+        if not reasons:
+            continue
+        match = MILESTONE_RE.search(path.name)
         payload = path.read_bytes()
         candidates.append({
             "path": relative,
-            "milestone": f"M{match.group(1)}",
+            "milestone_hint": f"M{match.group(1)}" if match else None,
+            "role_hint": _candidate_role(relative),
+            "hint_authority": "non_authoritative",
+            "discovery_reasons": reasons,
             "sha256": _sha(payload),
             "bytes": len(payload),
             "location_class": "archive" if any(part.lower() in {"archive", "archived"} for part in path.parts) else "live",
@@ -157,20 +195,25 @@ def _artifact_candidates(project: Path) -> list[dict[str, Any]]:
     return candidates
 
 
-def _feedback(project: Path) -> dict[str, list[str]]:
-    result = {key: [] for key in FEEDBACK_CLASSES}
+def _feedback_candidates(project: Path) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
     for path in sorted(project.rglob("*"), key=lambda item: item.as_posix().lower()):
         if not path.is_file() or ".harness" in path.parts:
             continue
-        lower = _relative(project, path).lower()
-        if "feedback" in lower or "comment" in lower:
-            result["direct_milestone_feedback"].append(_relative(project, path))
-        elif "retrospective" in lower:
-            result["retrospective_application"].append(_relative(project, path))
-        elif "harness" in lower and "review" in lower:
-            result["harness_review_evidence"].append(_relative(project, path))
-        elif "guidance" in lower or "directive" in lower:
-            result["cross_cutting_guidance"].append(_relative(project, path))
+        relative = _relative(project, path)
+        if not _feedback_candidate(relative):
+            continue
+        payload = path.read_bytes()
+        match = MILESTONE_RE.search(path.name)
+        result.append({
+            "path": relative,
+            "evidence_class": None,
+            "milestone_hint": f"M{match.group(1)}" if match else None,
+            "hint_authority": "non_authoritative",
+            "sha256": _sha(payload),
+            "bytes": len(payload),
+            "location_class": "archive" if any(part.lower() in {"archive", "archived"} for part in path.parts) else "live",
+        })
     return result
 
 
@@ -179,6 +222,7 @@ def discover(project_root: Path) -> dict[str, Any]:
     _reject_reparse_tree(project)
     ledgers = _load_ledgers(project)
     candidates = _artifact_candidates(project)
+    feedback_candidates = _feedback_candidates(project)
     findings: list[dict[str, str]] = []
     holds: list[dict[str, Any]] = []
     for name, document in sorted(ledgers.items()):
@@ -199,8 +243,13 @@ def discover(project_root: Path) -> dict[str, Any]:
         })
     grouped: dict[str, list[dict[str, Any]]] = {}
     for candidate in candidates:
-        if _candidate_role(candidate["path"]) == "deliverable":
-            grouped.setdefault(candidate["milestone"], []).append(candidate)
+        holds.append({
+            "hold_id": f"unadjudicated-artifact:{candidate['path']}",
+            "code": "UNADJUDICATED_ARTIFACT",
+            "paths": [candidate["path"]],
+        })
+        if candidate["role_hint"] == "deliverable" and candidate["milestone_hint"] is not None:
+            grouped.setdefault(candidate["milestone_hint"], []).append(candidate)
     for milestone, group in sorted(grouped.items()):
         if {item["location_class"] for item in group} == {"archive", "live"}:
             paths = sorted(item["path"] for item in group)
@@ -209,6 +258,12 @@ def discover(project_root: Path) -> dict[str, Any]:
                 "code": "ARCHIVE_LIVE_AMBIGUITY",
                 "paths": paths,
             })
+    for candidate in feedback_candidates:
+        holds.append({
+            "hold_id": f"unadjudicated-feedback:{candidate['path']}",
+            "code": "UNADJUDICATED_FEEDBACK",
+            "paths": [candidate["path"]],
+        })
     path_failures: list[dict[str, str]] = []
     for ledger_name, document in sorted(ledgers.items()):
         for json_path, value in _iter_path_values(document):
@@ -219,20 +274,20 @@ def discover(project_root: Path) -> dict[str, Any]:
                 continue
             if not candidate.exists():
                 path_failures.append({"ledger": ledger_name, "json_path": json_path, "value": value})
-    feedback = _feedback(project)
     return {
-        "matrix_version": "1.0.0",
+        "matrix_version": "1.1.0",
         "artifact_candidates": candidates,
         "proposed_roles": [
-            {"path": item["path"], "milestone": item["milestone"], "role": _candidate_role(item["path"]), "lineage_id": item["location_class"]}
+            {"path": item["path"], "milestone_hint": item["milestone_hint"], "role_hint": item["role_hint"], "lineage_hint": item["location_class"], "authority": "non_authoritative"}
             for item in candidates
         ],
         "lineage_graph": {
-            "nodes": [{"path": item["path"], "lineage_id": item["location_class"], "milestone": item["milestone"]} for item in candidates],
+            "nodes": [{"path": item["path"], "lineage_hint": item["location_class"], "milestone_hint": item["milestone_hint"], "authority": "non_authoritative"} for item in candidates],
             "edges": [],
         },
-        "feedback_classes": feedback,
-        "feedback_status": "captured" if any(feedback.values()) else "not captured under prior contract",
+        "feedback_candidates": feedback_candidates,
+        "feedback_classes": {key: [] for key in FEEDBACK_CLASSES},
+        "feedback_status": "not captured under prior contract",
         "path_failures": path_failures,
         "ledger_shape_findings": findings,
         "holds": sorted(holds, key=lambda item: item["hold_id"]),
@@ -262,7 +317,7 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
         raise MigrationError(f"adjudication must be contained UTF-8 JSON: {exc}") from exc
     if not isinstance(value, dict):
         raise MigrationError("adjudication must be a JSON object")
-    required = {"authority", "approved_at", "evidence_path", "evidence_sha256", "primary_lineage", "completed_through", "phase_source", "resolved_holds", "artifact_roles"}
+    required = {"authority", "approved_at", "evidence_path", "evidence_sha256", "primary_lineage", "completed_through", "phase_source", "resolved_holds", "artifact_roles", "feedback_adjudications"}
     missing = sorted(required - set(value))
     if missing:
         raise MigrationError(f"adjudication missing required fields: {missing}")
@@ -295,15 +350,21 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
     if not isinstance(candidates, list) or any(not isinstance(item, dict) for item in candidates):
         raise MigrationError("evidence matrix artifact_candidates is malformed")
     known = {item.get("path"): item for item in candidates if isinstance(item.get("path"), str)}
+    if set(value["artifact_roles"]) != set(known):
+        raise MigrationError("every discovered artifact candidate must be explicitly adjudicated")
     for artifact_path, role in value["artifact_roles"].items():
         if artifact_path not in known or not isinstance(role, dict):
             raise MigrationError(f"artifact role references an unknown candidate: {artifact_path}")
-        if role.get("milestone") not in MILESTONES or role.get("role") not in {"deliverable", "transition_control", "evidence", "derived_view", "export"}:
+        disposition = role.get("migration_disposition")
+        if disposition == "exclude_unrelated":
+            if set(role) != {"migration_disposition", "rationale"} or not isinstance(role.get("rationale"), str) or not role["rationale"].strip():
+                raise MigrationError(f"excluded artifact candidate requires only a non-empty rationale: {artifact_path}")
+        elif disposition != "admit":
+            raise MigrationError(f"artifact migration disposition is invalid: {artifact_path}")
+        elif role.get("milestone") not in MILESTONES or role.get("role") not in {"deliverable", "transition_control", "evidence", "derived_view", "export"}:
             raise MigrationError(f"artifact role is invalid: {artifact_path}")
-        if not isinstance(role.get("lineage_id"), str) or not role["lineage_id"]:
+        elif not isinstance(role.get("lineage_id"), str) or not role["lineage_id"]:
             raise MigrationError(f"artifact lineage is missing: {artifact_path}")
-        if role["milestone"] != known[artifact_path].get("milestone"):
-            raise MigrationError(f"artifact role milestone disagrees with discovered milestone: {artifact_path}")
         candidate_path = _contained(project, artifact_path)
         if not candidate_path.is_file():
             raise MigrationError(f"adjudicated artifact candidate is missing: {artifact_path}")
@@ -314,12 +375,79 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
         ):
             raise MigrationError(f"adjudicated artifact candidate bytes changed: {artifact_path}")
 
+    feedback_candidates = matrix.get("feedback_candidates")
+    if not isinstance(feedback_candidates, list) or any(not isinstance(item, dict) for item in feedback_candidates):
+        raise MigrationError("evidence matrix feedback_candidates is malformed")
+    feedback_known = {
+        item.get("path"): item for item in feedback_candidates if isinstance(item.get("path"), str)
+    }
+    feedback_adjudications = value["feedback_adjudications"]
+    if not isinstance(feedback_adjudications, dict):
+        raise MigrationError("feedback_adjudications must be an object")
+    if set(feedback_adjudications) != set(feedback_known):
+        raise MigrationError("every discovered feedback candidate must be explicitly adjudicated")
+    feedback_fields = {
+        "migration_disposition", "feedback_id", "evidence_class", "source_actor", "source_authority",
+        "source_milestone", "target_milestone", "received_at",
+        "contemporaneity_evidence_path", "contemporaneity_evidence_sha256",
+        "lineage_id", "blocking", "disposition", "rationale", "successor_effect",
+    }
+    feedback_ids: set[str] = set()
+    for feedback_path, decision in feedback_adjudications.items():
+        if not isinstance(decision, dict):
+            raise MigrationError(f"feedback adjudication fields are invalid: {feedback_path}")
+        source = _contained(project, feedback_path)
+        source_payload = source.read_bytes() if source.is_file() else b""
+        if (
+            _sha(source_payload) != feedback_known[feedback_path].get("sha256")
+            or len(source_payload) != feedback_known[feedback_path].get("bytes")
+        ):
+            raise MigrationError(f"adjudicated feedback candidate bytes changed: {feedback_path}")
+        if decision.get("migration_disposition") in {"unavailable_under_prior_contract", "exclude_unrelated"}:
+            if set(decision) != {"migration_disposition", "rationale"} or not isinstance(decision.get("rationale"), str) or not decision["rationale"].strip():
+                raise MigrationError(f"excluded or unavailable feedback candidate requires only a non-empty rationale: {feedback_path}")
+            continue
+        if decision.get("migration_disposition") != "admit" or set(decision) != feedback_fields:
+            raise MigrationError(f"feedback adjudication fields are invalid: {feedback_path}")
+        if not isinstance(decision["feedback_id"], str) or not decision["feedback_id"] or decision["feedback_id"] in feedback_ids:
+            raise MigrationError(f"feedback_id must be non-empty and unique: {feedback_path}")
+        feedback_ids.add(decision["feedback_id"])
+        if decision["evidence_class"] not in FEEDBACK_CLASSES:
+            raise MigrationError(f"feedback evidence class is invalid: {feedback_path}")
+        if (
+            not isinstance(decision["source_actor"], str)
+            or not decision["source_actor"].strip()
+            or decision["source_authority"] not in AUTHORITIES
+        ):
+            raise MigrationError(f"feedback actor or authority is invalid: {feedback_path}")
+        if decision["source_milestone"] not in MILESTONES or decision["target_milestone"] not in MILESTONES:
+            raise MigrationError(f"feedback milestone binding is invalid: {feedback_path}")
+        _strict_date(decision["received_at"], f"feedback received_at for {feedback_path}")
+        if not isinstance(decision["lineage_id"], str) or not decision["lineage_id"]:
+            raise MigrationError(f"feedback lineage is missing: {feedback_path}")
+        if not isinstance(decision["blocking"], bool) or decision["disposition"] not in {
+            "pending", "accepted", "partially_accepted", "rejected", "deferred", "informational"
+        }:
+            raise MigrationError(f"feedback disposition is invalid: {feedback_path}")
+        if any(not isinstance(decision[field], str) or not decision[field] for field in ("rationale", "successor_effect")):
+            raise MigrationError(f"feedback rationale or successor effect is missing: {feedback_path}")
+        contemporaneity = _contained(project, decision["contemporaneity_evidence_path"])
+        if (
+            not contemporaneity.is_file()
+            or _sha(contemporaneity.read_bytes()) != decision["contemporaneity_evidence_sha256"]
+        ):
+            raise MigrationError(f"feedback contemporaneity evidence path/hash does not match current bytes: {feedback_path}")
+        if decision["evidence_class"] == "direct_milestone_feedback" and decision["source_milestone"] != decision["target_milestone"]:
+            raise MigrationError(f"direct milestone feedback must bind the same source and target milestone: {feedback_path}")
+        if decision["evidence_class"] == "retrospective_application" and MILESTONES.index(decision["source_milestone"]) <= MILESTONES.index(decision["target_milestone"]):
+            raise MigrationError(f"retrospective feedback must originate after its target milestone: {feedback_path}")
+
     boundary_index = MILESTONES.index(value["completed_through"])
     primary = value["primary_lineage"]
     deliverable_lineages = {
         role["lineage_id"]
         for role in value["artifact_roles"].values()
-        if isinstance(role, dict) and role.get("role") == "deliverable"
+        if isinstance(role, dict) and role.get("migration_disposition") == "admit" and role.get("role") == "deliverable"
     }
     if primary not in deliverable_lineages:
         raise MigrationError("primary_lineage must name an adjudicated deliverable lineage backed by a real candidate")
@@ -328,6 +456,7 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
             artifact_path
             for artifact_path, role in value["artifact_roles"].items()
             if role.get("milestone") == milestone
+            and role.get("migration_disposition") == "admit"
             and role.get("role") == "deliverable"
             and role.get("lineage_id") == primary
         ]
@@ -344,13 +473,15 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
             raise MigrationError("all archive/live hold paths must be explicitly classified")
         primary_deliverables = [
             path for path in hold_paths
-            if value["artifact_roles"][path].get("role") == "deliverable"
+            if value["artifact_roles"][path].get("migration_disposition") == "admit"
+            and value["artifact_roles"][path].get("role") == "deliverable"
             and value["artifact_roles"][path].get("lineage_id") == primary
         ]
         if len(primary_deliverables) != 1:
             raise MigrationError("archive/live hold must select exactly one primary-lineage deliverable")
         if any(
-            value["artifact_roles"][path].get("lineage_id") == primary
+            value["artifact_roles"][path].get("migration_disposition") == "admit"
+            and value["artifact_roles"][path].get("lineage_id") == primary
             for path in hold_paths if path not in primary_deliverables
         ):
             raise MigrationError("archive/live alternatives must remain distinct and non-primary")
@@ -420,6 +551,8 @@ def _framework(project: Path, matrix: dict[str, Any], adjudication: dict[str, An
     milestones = {key: _record(key) for key in MILESTONES}
     by_path = {item["path"]: item for item in matrix["artifact_candidates"]}
     for path, role in sorted(adjudication["artifact_roles"].items()):
+        if role["migration_disposition"] != "admit":
+            continue
         candidate = by_path[path]
         milestones[role["milestone"]]["artifacts"].append({
             "role": role["role"],
@@ -431,6 +564,56 @@ def _framework(project: Path, matrix: dict[str, Any], adjudication: dict[str, An
             "lineage_id": role["lineage_id"],
             **({"source_sha256": role["source_sha256"]} if role["role"] == "export" and "source_sha256" in role else {}),
         })
+    feedback_by_path = {item["path"]: item for item in matrix["feedback_candidates"]}
+    events: list[dict[str, Any]] = []
+    ordered_feedback = sorted(
+        (
+            item for item in adjudication["feedback_adjudications"].items()
+            if item[1].get("migration_disposition") == "admit"
+        ),
+        key=lambda item: (adjudication["approved_at"], item[1]["target_milestone"], item[1]["feedback_id"], item[0]),
+    )
+    for path, decision in ordered_feedback:
+        candidate = feedback_by_path[path]
+        target = decision["target_milestone"]
+        feedback_record = {
+            "feedback_id": decision["feedback_id"],
+            "evidence_class": decision["evidence_class"],
+            "source_path": path,
+            "source_sha256": candidate["sha256"],
+            "source_actor": decision["source_actor"],
+            "source_authority": decision["source_authority"],
+            "source_milestone": decision["source_milestone"],
+            "target_milestone": target,
+            "received_at": decision["received_at"],
+            "contemporaneity_evidence_path": decision["contemporaneity_evidence_path"],
+            "contemporaneity_evidence_sha256": decision["contemporaneity_evidence_sha256"],
+            "lineage_id": decision["lineage_id"],
+            "blocking": decision["blocking"],
+            "disposition": decision["disposition"],
+            "rationale": decision["rationale"],
+            "successor_effect": decision["successor_effect"],
+        }
+        milestones[target]["feedback_records"].append(feedback_record)
+        binding = {"binding_type": "feedback", "path": path, "sha256": candidate["sha256"]}
+        for event_type, reason in (
+            ("feedback_recorded", "Legacy feedback provenance was reconstructed at migration from explicitly adjudicated evidence."),
+            ("feedback_adjudicated", "Legacy feedback class and milestone effect were classified at migration by explicit adjudication."),
+        ):
+            events.append({
+                "sequence": len(events) + 1,
+                "event_type": event_type,
+                "timestamp": adjudication["approved_at"],
+                "milestone": target,
+                "lineage_id": decision["lineage_id"],
+                "actor": "planner",
+                "authority": adjudication["authority"],
+                "reason": reason,
+                "evidence_path": decision["contemporaneity_evidence_path"],
+                "evidence_sha256": decision["contemporaneity_evidence_sha256"],
+                "caused_by_sequence": None,
+                "bindings": [binding],
+            })
     return {
         "contract_version": "1.0.0",
         "mode": "legacy",
@@ -445,7 +628,7 @@ def _framework(project: Path, matrix: dict[str, Any], adjudication: dict[str, An
         },
         "primary_lineage": adjudication["primary_lineage"],
         "milestones": milestones,
-        "events": [],
+        "events": events,
     }
 
 
@@ -546,6 +729,7 @@ def _verify_existing_transaction(
             or report.get("phase_source") != adjudication.get("phase_source")
             or report.get("resolved_holds") != adjudication.get("resolved_holds")
             or report.get("artifact_roles") != adjudication.get("artifact_roles")
+            or report.get("feedback_adjudications") != adjudication.get("feedback_adjudications")
         ):
             raise MigrationError("adjudication bytes or decisions do not match the migration report")
         authority = adjudication["authority"]
@@ -765,6 +949,22 @@ def apply_migration(
     migration_id = _sha((source_hashes[source_name] + _sha(adjudication_payload)).encode("ascii"))[:16]
     migration_relative = f"reviews/.harness/migrations/{migration_id}"
     report_relative = f"{migration_relative}/migration_report.json"
+    admitted_feedback = sorted(
+        path for path, decision in adjudication["feedback_adjudications"].items()
+        if decision.get("migration_disposition") == "admit"
+    )
+    unavailable_feedback = sorted(
+        path for path, decision in adjudication["feedback_adjudications"].items()
+        if decision.get("migration_disposition") == "unavailable_under_prior_contract"
+    )
+    excluded_feedback = sorted(
+        path for path, decision in adjudication["feedback_adjudications"].items()
+        if decision.get("migration_disposition") == "exclude_unrelated"
+    )
+    excluded_artifacts = sorted(
+        path for path, decision in adjudication["artifact_roles"].items()
+        if decision.get("migration_disposition") == "exclude_unrelated"
+    )
     report = {
         "migration_id": migration_id,
         "adjudication_outcome": "approved",
@@ -778,10 +978,21 @@ def apply_migration(
         "primary_lineage": adjudication["primary_lineage"],
         "resolved_holds": adjudication["resolved_holds"],
         "artifact_roles": adjudication["artifact_roles"],
+        "feedback_adjudications": adjudication["feedback_adjudications"],
+        "inventory_outcomes": {
+            "admitted_feedback": admitted_feedback,
+            "unavailable_feedback": unavailable_feedback,
+            "excluded_feedback": excluded_feedback,
+            "excluded_artifacts": excluded_artifacts,
+        },
         "phase_source": adjudication["phase_source"],
         "adjudication_path": _relative(project, adjudication_file),
         "adjudication_sha256": _sha(adjudication_payload),
-        "feedback_status": matrix["feedback_status"],
+        "feedback_status": (
+            "captured by explicit adjudication"
+            if admitted_feedback
+            else "not captured under prior contract"
+        ),
         "evidence_matrix": matrix,
         "historical_approval_policy": "No milestone approval or F9 handoff was inferred from legacy completion.",
     }

@@ -88,12 +88,13 @@ def main() -> int:
             "completed_through": "M1",
             "phase_source": "reviews/phase_state.json",
             "resolved_holds": [],
+            "feedback_adjudications": {},
             "artifact_roles": {
                 "archive/milestone1_memo.md": {
-                    "milestone": "M1", "role": "evidence", "lineage_id": "archive",
+                    "migration_disposition": "admit", "milestone": "M1", "role": "evidence", "lineage_id": "archive",
                 },
                 "manuscript/milestone1_memo.md": {
-                    "milestone": "M1", "role": "deliverable", "lineage_id": "live",
+                    "migration_disposition": "admit", "milestone": "M1", "role": "deliverable", "lineage_id": "live",
                 },
             },
         }
@@ -114,7 +115,7 @@ def main() -> int:
         base["artifact_roles"] = {}
         write_json(adjudication, base)
         empty_roles = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
-        assert empty_roles.returncode == 2 and "deliverable" in empty_roles.stderr.lower()
+        assert empty_roles.returncode == 2 and "explicitly adjudicated" in empty_roles.stderr.lower()
 
         base["artifact_roles"] = json.loads(json.dumps(valid_roles))
         base["primary_lineage"] = "arbitrary"
@@ -129,16 +130,16 @@ def main() -> int:
         assert bad_phase_source.returncode == 2 and "phase_source" in bad_phase_source.stderr.lower()
 
         base["phase_source"] = "reviews/phase_state.json"
-        base["artifact_roles"]["manuscript/milestone1_memo.md"]["milestone"] = "M2"
+        base["artifact_roles"]["manuscript/milestone1_memo.md"]["milestone"] = "M6"
         write_json(adjudication, base)
         wrong_milestone = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
-        assert wrong_milestone.returncode == 2 and "discovered milestone" in wrong_milestone.stderr.lower()
+        assert wrong_milestone.returncode == 2 and "artifact role is invalid" in wrong_milestone.stderr.lower()
 
         base["artifact_roles"] = json.loads(json.dumps(valid_roles))
         del base["artifact_roles"]["archive/milestone1_memo.md"]
         write_json(adjudication, base)
         incomplete_hold = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
-        assert incomplete_hold.returncode == 2 and "hold paths" in incomplete_hold.stderr.lower()
+        assert incomplete_hold.returncode == 2 and "explicitly adjudicated" in incomplete_hold.stderr.lower()
 
         base["artifact_roles"] = json.loads(json.dumps(valid_roles))
         base["completed_through"] = "M2"

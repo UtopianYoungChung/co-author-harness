@@ -287,9 +287,12 @@
         "source_path",
         "source_sha256",
         "source_actor",
+        "source_authority",
         "source_milestone",
         "target_milestone",
         "received_at",
+        "contemporaneity_evidence_path",
+        "contemporaneity_evidence_sha256",
         "lineage_id",
         "blocking",
         "disposition",
@@ -320,6 +323,16 @@
           "type": "string",
           "minLength": 1
         },
+        "source_authority": {
+          "enum": [
+            "user",
+            "venue",
+            "advisor",
+            "instructor",
+            "committee",
+            "project_local_contract"
+          ]
+        },
         "source_milestone": {
           "enum": [
             "M1",
@@ -341,6 +354,13 @@
         "received_at": {
           "type": "string",
           "minLength": 1
+        },
+        "contemporaneity_evidence_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contemporaneity_evidence_sha256": {
+          "$ref": "#/$defs/sha256"
         },
         "lineage_id": {
           "type": "string",

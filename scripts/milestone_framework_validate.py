@@ -651,6 +651,16 @@ def _validate_feedback(
             project_root, feedback.get("source_path"), feedback.get("source_sha256"), None,
             f"{path}.source_path", findings, evidence, "MF-FEEDBACK",
         )
+        _file_binding(
+            project_root,
+            feedback.get("contemporaneity_evidence_path"),
+            feedback.get("contemporaneity_evidence_sha256"),
+            None,
+            f"{path}.contemporaneity_evidence_path",
+            findings,
+            evidence,
+            "MF-FEEDBACK",
+        )
         artifacts = record.get("artifacts")
         primary_deliverable = next((
             artifact for artifact in artifacts

@@ -87,7 +87,7 @@ Feedback records use exactly one evidence class:
 
 `direct_milestone_feedback` is contemporaneous attributable feedback on the named milestone. `retrospective_application` applies later feedback or principles to earlier work without rewriting that evidence as contemporaneous. `harness_review_evidence` covers Planner, Evaluator, Reflector, deterministic, or external-verifier review evidence. `cross_cutting_guidance` applies across milestones or projects.
 
-Every record binds `feedback_id`, evidence class, source path and SHA-256, source actor, source and target milestones, receipt time, lineage, blocking status, disposition, rationale, and successor effect. Disposition is one of:
+Every record binds `feedback_id`, evidence class, source path and SHA-256, the attributable source actor and authority class, source and target milestones, receipt time, a contemporaneity-evidence path and SHA-256, lineage, blocking status, disposition, rationale, and successor effect. The source actor names the historical person or role and is not the author of a later migration event. The contemporaneity binding is the retained evidence for the receipt-time claim; unavailable legacy history stays `not captured under prior contract` rather than receiving invented metadata. Disposition is one of:
 
 `pending | accepted | partially_accepted | rejected | deferred | informational`
 

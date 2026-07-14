@@ -17,6 +17,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import migrate_legacy_milestones as migration
 CASES = (
     "dry_run_writes_nothing",
+    "generic_artifact_candidates_are_unclassified_hints",
+    "unrelated_artifact_hint_can_be_explicitly_excluded",
     "archive_live_ambiguity_creates_hold",
     "missing_feedback_is_not_captured_not_invented",
     "array_sections_migrate_to_object",
@@ -24,7 +26,9 @@ CASES = (
     "inf_m1_m3_archive_live_divergence_creates_holds",
     "inf_array_sections_are_controlled",
     "inf_simultaneous_tier_phase_blocks_apply",
-    "inf_feedback_taxonomy_preserves_direct_vs_retrospective",
+    "inf_feedback_requires_explicit_typed_adjudication",
+    "misleading_feedback_filename_cannot_auto_classify",
+    "adjudication_can_override_filename_milestone_hint",
     "approved_migration_is_idempotent",
     "rollback_manifest_restores_original_hash",
 )
@@ -122,17 +126,26 @@ def approved_adjudication(project: Path, matrix: dict) -> Path:
     boundary = "M3"
     artifact_roles = {}
     for candidate in matrix["artifact_candidates"]:
-        if candidate["milestone"] not in {"M1", "M2", "M3"}:
+        milestone = candidate.get("milestone_hint")
+        if milestone is None and candidate["path"] == "manuscript/main.md":
+            milestone = "M4"
+        if milestone not in {"M1", "M2", "M3", "M4", "M5"}:
+            artifact_roles[candidate["path"]] = {
+                "migration_disposition": "exclude_unrelated",
+                "rationale": "Synthetic helper has no milestone evidence for this generic candidate.",
+            }
             continue
         if candidate["location_class"] == "live":
             artifact_roles[candidate["path"]] = {
-                "milestone": candidate["milestone"],
+                "migration_disposition": "admit",
+                "milestone": milestone,
                 "role": "deliverable",
                 "lineage_id": "live",
             }
         else:
             artifact_roles[candidate["path"]] = {
-                "milestone": candidate["milestone"],
+                "migration_disposition": "admit",
+                "milestone": milestone,
                 "role": "evidence",
                 "lineage_id": "archive",
             }
@@ -146,6 +159,7 @@ def approved_adjudication(project: Path, matrix: dict) -> Path:
         "phase_source": matrix["ledger_sources"][0],
         "resolved_holds": [hold["hold_id"] for hold in matrix["holds"]],
         "artifact_roles": artifact_roles,
+        "feedback_adjudications": {},
     }
     path = project / "adjudication.json"
     write_json(path, adjudication)
@@ -201,14 +215,60 @@ def main() -> int:
         base = Path(directory)
 
         project = make_project(base / "dry")
+        (project / "manuscript" / "INF3130 Term Paper Chung.tex").write_text(
+            "Synthetic venue-named manuscript source.\n", encoding="utf-8"
+        )
+        (project / "manuscript" / "INF3130 Term Paper Chung.pdf").write_bytes(b"%PDF-synthetic\n")
+        (project / "manuscript" / "INF3130 Term Paper Chung.aux").write_text(
+            "Synthetic build byproduct.\n", encoding="utf-8"
+        )
         before = {p.relative_to(project).as_posix(): sha(p.read_bytes()) for p in project.rglob("*") if p.is_file()}
         dry = run("--project-root", str(project))
         assert dry.returncode == 0, dry.stdout + dry.stderr
         matrix = json.loads(dry.stdout)
+        assert matrix["matrix_version"] == "1.1.0"
         after = {p.relative_to(project).as_posix(): sha(p.read_bytes()) for p in project.rglob("*") if p.is_file()}
         assert before == after
         assert set(("artifact_candidates", "proposed_roles", "lineage_graph", "feedback_classes", "path_failures", "ledger_shape_findings", "holds")) <= set(matrix)
         completed.append("dry_run_writes_nothing")
+
+        by_path = {item["path"]: item for item in matrix["artifact_candidates"]}
+        assert by_path["manuscript/main.md"]["milestone_hint"] is None
+        assert by_path["manuscript/main.md"]["role_hint"] == "deliverable"
+        assert by_path["research_notes/milestone1_project_memo.md"]["milestone_hint"] == "M1"
+        assert by_path["manuscript/INF3130 Term Paper Chung.tex"]["milestone_hint"] is None
+        assert by_path["manuscript/INF3130 Term Paper Chung.pdf"]["milestone_hint"] is None
+        assert "manuscript/INF3130 Term Paper Chung.aux" not in by_path
+        assert all("milestone" not in item for item in matrix["artifact_candidates"])
+        assert any(
+            hold["code"] == "UNADJUDICATED_ARTIFACT"
+            and hold["paths"] == ["manuscript/main.md"]
+            for hold in matrix["holds"]
+        )
+        completed.append("generic_artifact_candidates_are_unclassified_hints")
+
+        excluded_project = make_project(base / "excluded-artifact")
+        template = excluded_project / "research_notes" / "outline_template.md"
+        template.write_text("# Generic outline template, not a project milestone\n", encoding="utf-8")
+        excluded_matrix = json.loads(run("--project-root", str(excluded_project)).stdout)
+        excluded_adjudication = approved_adjudication(excluded_project, excluded_matrix)
+        excluded_doc = json.loads(excluded_adjudication.read_text(encoding="utf-8"))
+        excluded_doc["artifact_roles"]["research_notes/outline_template.md"] = {
+            "migration_disposition": "exclude_unrelated",
+            "rationale": "This is a reusable template rather than project milestone evidence.",
+        }
+        write_json(excluded_adjudication, excluded_doc)
+        excluded_result = run(
+            "--project-root", str(excluded_project), "--apply", "--adjudication", str(excluded_adjudication)
+        )
+        assert excluded_result.returncode == 0, excluded_result.stdout + excluded_result.stderr
+        excluded_ledger = json.loads((excluded_project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+        assert all(
+            item["path"] != "research_notes/outline_template.md"
+            for milestone in excluded_ledger["milestone_framework"]["milestones"].values()
+            for item in milestone["artifacts"]
+        )
+        completed.append("unrelated_artifact_hint_can_be_explicitly_excluded")
 
         ambiguous = make_project(base / "ambiguous", ambiguous=True)
         result = run("--project-root", str(ambiguous))
@@ -304,17 +364,166 @@ def main() -> int:
         (guides / "milestone1_principles_retrospective.md").write_text(
             "Synthetic later audit applied to M1.\n", encoding="utf-8"
         )
+        receipt_log = inf_feedback / "reviews" / "historical_receipt_log.md"
+        receipt_log.write_text(
+            "Synthetic retained receipt evidence for the two fixture feedback records.\n", encoding="utf-8"
+        )
         feedback_result = run("--project-root", str(inf_feedback))
         assert feedback_result.returncode == 0 and "Traceback" not in feedback_result.stderr
-        feedback_classes = json.loads(feedback_result.stdout)["feedback_classes"]
-        assert feedback_classes["direct_milestone_feedback"] == [
-            "resources_and_guides/Feedback Milestone 3.md"
+        feedback_matrix = json.loads(feedback_result.stdout)
+        assert feedback_matrix["feedback_classes"] == {key: [] for key in migration.FEEDBACK_CLASSES}
+        assert feedback_matrix["feedback_status"] == "not captured under prior contract"
+        candidates = {item["path"]: item for item in feedback_matrix["feedback_candidates"]}
+        assert set(candidates) == {
+            "resources_and_guides/Feedback Milestone 3.md",
+            "resources_and_guides/milestone1_principles_retrospective.md",
+        }
+        assert all(item["evidence_class"] is None for item in candidates.values())
+        feedback_adjudication = approved_adjudication(inf_feedback, feedback_matrix)
+        adjudication_doc = json.loads(feedback_adjudication.read_text(encoding="utf-8"))
+        common = {
+            "migration_disposition": "admit",
+            "source_actor": "Prof. Darlington",
+            "source_authority": "advisor",
+            "received_at": "2026-07-13T20:30:00Z",
+            "contemporaneity_evidence_path": "reviews/historical_receipt_log.md",
+            "contemporaneity_evidence_sha256": sha(receipt_log.read_bytes()),
+            "lineage_id": "live",
+            "blocking": False,
+            "disposition": "informational",
+            "rationale": "Explicit synthetic migration adjudication.",
+            "successor_effect": "Preserve the historical classification without inferring approval.",
+        }
+        adjudication_doc["feedback_adjudications"] = {
+            "resources_and_guides/Feedback Milestone 3.md": {
+                **common,
+                "feedback_id": "legacy-direct-m3",
+                "evidence_class": "direct_milestone_feedback",
+                "source_milestone": "M3",
+                "target_milestone": "M3",
+            },
+            "resources_and_guides/milestone1_principles_retrospective.md": {
+                **common,
+                "feedback_id": "legacy-retro-m1",
+                "evidence_class": "retrospective_application",
+                "source_milestone": "M3",
+                "target_milestone": "M1",
+            },
+        }
+        write_json(feedback_adjudication, adjudication_doc)
+        migrated_feedback = run(
+            "--project-root", str(inf_feedback), "--apply", "--adjudication", str(feedback_adjudication)
+        )
+        assert migrated_feedback.returncode == 0, migrated_feedback.stdout + migrated_feedback.stderr
+        feedback_ledger = json.loads((inf_feedback / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+        milestones = feedback_ledger["milestone_framework"]["milestones"]
+        assert [item["evidence_class"] for item in milestones["M3"]["feedback_records"]] == [
+            "direct_milestone_feedback"
         ]
-        assert feedback_classes["retrospective_application"] == [
-            "resources_and_guides/milestone1_principles_retrospective.md"
+        assert [item["evidence_class"] for item in milestones["M1"]["feedback_records"]] == [
+            "retrospective_application"
         ]
-        assert all("milestone1" not in path.lower() for path in feedback_classes["direct_milestone_feedback"])
-        completed.append("inf_feedback_taxonomy_preserves_direct_vs_retrospective")
+        direct_record = milestones["M3"]["feedback_records"][0]
+        assert direct_record["source_actor"] == "Prof. Darlington"
+        assert direct_record["source_authority"] == "advisor"
+        assert direct_record["contemporaneity_evidence_path"] == "reviews/historical_receipt_log.md"
+        assert direct_record["contemporaneity_evidence_sha256"] == sha(receipt_log.read_bytes())
+        migration_events = feedback_ledger["milestone_framework"]["events"]
+        assert migration_events
+        assert all(event["timestamp"] == adjudication_doc["approved_at"] for event in migration_events)
+        assert all(event["actor"] == "planner" for event in migration_events)
+        assert all(event["authority"] == adjudication_doc["authority"] for event in migration_events)
+        completed.append("inf_feedback_requires_explicit_typed_adjudication")
+
+        misleading = make_project(base / "misleading-feedback")
+        misleading_guides = misleading / "resources_and_guides"
+        misleading_guides.mkdir()
+        misleading_path = misleading_guides / "milestone1_retrospective_feedback.md"
+        misleading_path.write_text("Synthetic ambiguous feedback marker.\n", encoding="utf-8")
+        (misleading_guides / "directives.md").write_text(
+            "Synthetic project directives that are not attributable feedback.\n", encoding="utf-8"
+        )
+        (misleading_guides / "milestone1_principles_audit.md").write_text(
+            "Synthetic legacy principles audit with unproven class.\n", encoding="utf-8"
+        )
+        misleading_matrix = json.loads(run("--project-root", str(misleading)).stdout)
+        assert misleading_matrix["feedback_classes"] == {key: [] for key in migration.FEEDBACK_CLASSES}
+        item = next(
+            candidate for candidate in misleading_matrix["feedback_candidates"]
+            if candidate["path"] == "resources_and_guides/milestone1_retrospective_feedback.md"
+        )
+        assert item["evidence_class"] is None
+        audit_item = next(
+            candidate for candidate in misleading_matrix["feedback_candidates"]
+            if candidate["path"] == "resources_and_guides/milestone1_principles_audit.md"
+        )
+        assert audit_item["evidence_class"] is None
+        assert any(
+            hold["code"] == "UNADJUDICATED_FEEDBACK" and item["path"] in hold["paths"]
+            for hold in misleading_matrix["holds"]
+        )
+        unavailable_adjudication = approved_adjudication(misleading, misleading_matrix)
+        unavailable_doc = json.loads(unavailable_adjudication.read_text(encoding="utf-8"))
+        unavailable_doc["feedback_adjudications"] = {
+            candidate["path"]: {
+                "migration_disposition": (
+                    "exclude_unrelated" if candidate["path"].endswith("directives.md")
+                    else "unavailable_under_prior_contract"
+                ),
+                "rationale": (
+                    "This is project policy, not feedback."
+                    if candidate["path"].endswith("directives.md")
+                    else "Actor, date, and class cannot be proven from retained legacy evidence."
+                ),
+            }
+            for candidate in misleading_matrix["feedback_candidates"]
+        }
+        write_json(unavailable_adjudication, unavailable_doc)
+        unavailable_result = run(
+            "--project-root", str(misleading), "--apply", "--adjudication", str(unavailable_adjudication)
+        )
+        assert unavailable_result.returncode == 0, unavailable_result.stdout + unavailable_result.stderr
+        unavailable_ledger = json.loads((misleading / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+        assert all(
+            not milestone["feedback_records"]
+            for milestone in unavailable_ledger["milestone_framework"]["milestones"].values()
+        )
+        unavailable_report = next((misleading / "reviews" / ".harness" / "migrations").glob("*/migration_report.json"))
+        unavailable_report_doc = json.loads(unavailable_report.read_text(encoding="utf-8"))
+        assert unavailable_report_doc["feedback_status"] == "not captured under prior contract"
+        assert unavailable_report_doc["inventory_outcomes"]["unavailable_feedback"] == sorted(
+            candidate["path"] for candidate in misleading_matrix["feedback_candidates"]
+            if not candidate["path"].endswith("directives.md")
+        )
+        assert unavailable_report_doc["inventory_outcomes"]["excluded_feedback"] == [
+            "resources_and_guides/directives.md"
+        ]
+        completed.append("misleading_feedback_filename_cannot_auto_classify")
+
+        remapped = make_project(base / "remapped-artifact")
+        (remapped / "research_notes" / "milestone1_project_memo.md").unlink()
+        misleading_memo = remapped / "research_notes" / "milestone2_project_memo.md"
+        misleading_memo.write_text("# Synthetic memo with misleading milestone token\n", encoding="utf-8")
+        remapped_matrix = json.loads(run("--project-root", str(remapped)).stdout)
+        remapped_adjudication = approved_adjudication(remapped, remapped_matrix)
+        remapped_doc = json.loads(remapped_adjudication.read_text(encoding="utf-8"))
+        assert next(
+            item for item in remapped_matrix["artifact_candidates"] if item["path"] == "research_notes/milestone2_project_memo.md"
+        )["milestone_hint"] == "M2"
+        remapped_doc["artifact_roles"]["research_notes/milestone2_project_memo.md"]["milestone"] = "M1"
+        write_json(remapped_adjudication, remapped_doc)
+        remapped_result = run(
+            "--project-root", str(remapped), "--apply", "--adjudication", str(remapped_adjudication)
+        )
+        assert remapped_result.returncode == 0, remapped_result.stdout + remapped_result.stderr
+        remapped_ledger = json.loads((remapped / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+        m1_paths = [
+            item["path"]
+            for item in remapped_ledger["milestone_framework"]["milestones"]["M1"]["artifacts"]
+            if item["role"] == "deliverable"
+        ]
+        assert m1_paths == ["research_notes/milestone2_project_memo.md"]
+        completed.append("adjudication_can_override_filename_milestone_hint")
 
         commit_path = migration_dir / "commit.json"
         commit_path.unlink()
