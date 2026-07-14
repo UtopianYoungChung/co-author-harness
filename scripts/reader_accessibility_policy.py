@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import argparse
 import copy
+import getpass
 import hashlib
 import json
 import os
 import re
+import socket
+import subprocess
 import sys
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import stat_result
@@ -535,8 +539,8 @@ def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0)
     return value
 
 
-def validate_profile(profile: dict[str, Any]) -> None:
-    validate_schema_file(profile, PROFILE_SCHEMA)
+def validate_profile(profile: dict[str, Any], schema_path: Path = PROFILE_SCHEMA) -> None:
+    validate_schema_file(profile, schema_path)
     required = {"schema_version", "profile_version", "decision_status", "decision_record", "decision_approval", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
     _object(profile, "profile", required)
     def reject_self_hash(value: Any, path: str = "profile") -> None:
@@ -549,7 +553,7 @@ def validate_profile(profile: dict[str, Any]) -> None:
             for index, nested in enumerate(value):
                 reject_self_hash(nested, f"{path}[{index}]")
     reject_self_hash(profile)
-    if profile["schema_version"] != "1.0.0" or profile["profile_version"] != "1.0.0":
+    if profile["schema_version"] != "1.0.0" or not re.fullmatch(r"1\.0\.\d+", profile["profile_version"]):
         raise PolicyError("unsupported profile version")
     if profile["decision_record"] != "ADR-ACCESS-01" or profile["normative_authority"] != "references/READER_ACCESSIBILITY.md":
         raise PolicyError("decision record or normative authority is invalid")
@@ -694,20 +698,28 @@ def validate_profile(profile: dict[str, Any]) -> None:
             raise PolicyError(f"override polarity mismatch: {key}")
 
 
-def load_profile(path: Path = DEFAULT_PROFILE) -> dict[str, Any]:
+def _load_profile_bytes(payload: bytes, schema_path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise PolicyError(f"profile unreadable: {exc}") from exc
     if not isinstance(data, dict):
         raise PolicyError("profile root must be an object")
     try:
-        validate_profile(data)
+        validate_profile(data, schema_path)
     except PolicyError:
         raise
     except (TypeError, KeyError, AttributeError, IndexError) as exc:
         raise PolicyError(f"profile nested shape is invalid: {exc}") from exc
     return data
+
+
+def load_profile(path: Path = DEFAULT_PROFILE, schema_path: Path = PROFILE_SCHEMA) -> dict[str, Any]:
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        raise PolicyError(f"profile unreadable: {exc}") from exc
+    return _load_profile_bytes(payload, schema_path)
 
 
 def evaluate_cadence(word_count: int, functional_turn_points: int, internal_break_signals: int, profile: dict[str, Any]) -> dict[str, Any]:
@@ -865,7 +877,480 @@ def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_r
     for key in ("attestation_view_pin", "exemplar_view_pin"):
         if expected.get(key) != resolved.get(key):
             raise PolicyError(f"initial semantic pin mismatch for {key}; deliberate profile repin required")
-    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "attestation_view_pin": resolved["attestation_view_pin"], "exemplar_view_pin": resolved["exemplar_view_pin"], "graph_sha256_provenance": resolved["graph_sha256_provenance"], "register_provenance": copy.deepcopy(resolved["register_provenance"]), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
+    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "attestation_view_pin": resolved["attestation_view_pin"], "exemplar_view_pin": resolved["exemplar_view_pin"], "pin_epoch": expected["pin_epoch"], "pinned_at": expected["pinned_at"], "graph_sha256_provenance": resolved["graph_sha256_provenance"], "register_provenance": copy.deepcopy(resolved["register_provenance"]), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _atomic_bytes(path: Path, payload: bytes) -> None:
+    """Same-directory, fsynced atomic replacement."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _atomic_create_bytes(path: Path, payload: bytes) -> None:
+    """Publish complete bytes only when the destination is still absent."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError as exc:
+            raise PolicyError(f"destination appeared concurrently; refusing overwrite: {path}") from exc
+        except OSError as exc:
+            raise PolicyError(f"exclusive atomic publication failed for {path}: {exc}") from exc
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _json_bytes(value: Any) -> bytes:
+    return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def repin_pin_affecting_paths() -> set[str]:
+    return {
+        "references/policies/reader_accessibility.v1.json",
+        "references/policies/repin_log.jsonl",
+        "references/policies/repin_log.md",
+        "reviews/.repin.lock",
+    }
+
+
+def classify_repin_dirty_paths(paths: list[str], pin_paths: set[str] | None = None) -> tuple[list[str], list[str]]:
+    pin_paths = pin_paths or repin_pin_affecting_paths()
+    normalized = sorted({Path(path).as_posix() for path in paths})
+    pin = [path for path in normalized if path in pin_paths or path.startswith("reviews/.harness/repin/")]
+    return pin, [path for path in normalized if path not in pin]
+
+
+def repin_dirty_refusal(pin_paths: list[str], unrelated_paths: list[str], *, allow_unrelated_dirty: bool) -> str | None:
+    if pin_paths:
+        return "pin-affecting paths are dirty: " + ", ".join(pin_paths)
+    if unrelated_paths and not allow_unrelated_dirty:
+        return "unrelated dirty paths require --allow-unrelated-dirty: " + ", ".join(unrelated_paths)
+    return None
+
+
+def repin_prior_diff_refusal(paths: list[str]) -> str | None:
+    prior = [path for path in paths if path in repin_pin_affecting_paths() or path.startswith("reviews/.harness/repin/")]
+    return "uncommitted prior re-pin diff: " + ", ".join(sorted(prior)) if prior else None
+
+
+def _git_dirty_paths(root: Path) -> list[str]:
+    if not (root / ".git").exists():
+        return []
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=root,
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
+    if top.returncode != 0:
+        raise PolicyError(f"git worktree discovery failed during re-pin preflight: {top.stderr.strip()}")
+    if Path(top.stdout.strip()).resolve() != root.resolve():
+        raise PolicyError("re-pin harness root is not the git worktree root")
+    proc = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
+    if proc.returncode != 0:
+        raise PolicyError(f"git status failed during re-pin preflight: {proc.stderr.strip()}")
+    paths: list[str] = []
+    fields = proc.stdout.split("\0")
+    index = 0
+    while index < len(fields):
+        entry = fields[index]
+        index += 1
+        if not entry:
+            continue
+        if len(entry) < 4 or entry[2] != " ":
+            raise PolicyError(f"git status returned malformed porcelain entry: {entry!r}")
+        status = entry[:2]
+        paths.append(entry[3:])
+        if "R" in status or "C" in status:
+            if index >= len(fields) or not fields[index]:
+                raise PolicyError("git status returned a rename/copy without its source path")
+            paths.append(fields[index])
+            index += 1
+    return paths
+
+
+def _tracked_path_dirty(path: Path) -> bool:
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=path.parent, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if top.returncode != 0:
+        return False
+    repository = Path(top.stdout.strip()).resolve()
+    try:
+        relative = path.resolve().relative_to(repository).as_posix()
+    except ValueError:
+        return False
+    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", "--", relative], cwd=repository, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if tracked.returncode != 0:
+        return False
+    status = subprocess.run(["git", "status", "--porcelain=v1", "--", relative], cwd=repository, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if status.returncode != 0:
+        raise PolicyError(f"git status failed for tracked graph during re-pin preflight: {status.stderr.strip()}")
+    return bool(status.stdout.strip())
+
+
+def _schema_supports_repin(schema_path: Path) -> bool:
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        expected = schema["properties"]["domain_native_register"]["properties"]["expected_verification"]
+        return {"pin_epoch", "pinned_at"} <= set(expected.get("required", [])) and {"pin_epoch", "pinned_at"} <= set(expected.get("properties", {}))
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        return False
+
+
+def _patch_bump(version: str) -> str:
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not match:
+        raise PolicyError(f"profile_version is not semantic: {version}")
+    return f"{match.group(1)}.{match.group(2)}.{int(match.group(3)) + 1}"
+
+
+def _delta_class(old_attestation: str, new_attestation: str, old_exemplar: str, new_exemplar: str) -> str:
+    attestation = old_attestation != new_attestation
+    exemplar = old_exemplar != new_exemplar
+    if attestation and exemplar:
+        return "both"
+    if attestation:
+        return "attestation"
+    if exemplar:
+        return "exemplar"
+    return "none"
+
+
+def _read_repin_rows(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    result = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise PolicyError(f"repin ledger line {number} is invalid JSON: {exc}") from exc
+        if not isinstance(row, dict):
+            raise PolicyError(f"repin ledger line {number} is not an object")
+        result.append(row)
+    return result
+
+
+def _render_repin_log(rows: list[dict[str, Any]]) -> str:
+    lines = ["# Register Re-pin Log", "", "Derived from `repin_log.jsonl`; do not edit.", "", "| Event epoch | Pinned at | Dry run | Delta | Trigger | Snapshot |", "|---:|---|---|---|---|---|"]
+    for row in rows:
+        lines.append(f"| {row['epoch']} | {row['pinned_at']} | {str(row['dry_run']).lower()} | {row['delta_class']} | {row['trigger']} | `{row['snapshot_ref']}` |")
+    return "\n".join(lines) + "\n"
+
+
+def backfill_repin_commit(harness_root: Path, epoch: int, commit: str, *, confirm: Callable[[str], bool] | None = None) -> dict[str, Any]:
+    """Backfill the post-commit audit pointer without recomputing any pin."""
+    if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit) is None:
+        raise PolicyError("re-pin commit must be a 40- or 64-character lowercase hex object id")
+    harness_root = harness_root.resolve()
+    lock_path = harness_root / "reviews/.repin.lock"
+    token = _acquire_repin_lock(lock_path, force_lock=False, confirm=confirm or _confirmation)
+    try:
+        ledger_path = harness_root / "references/policies/repin_log.jsonl"
+        rows = _read_repin_rows(ledger_path)
+        matches = [row for row in rows if row.get("epoch") == epoch]
+        if len(matches) != 1:
+            raise PolicyError(f"re-pin epoch {epoch} must identify exactly one ledger row")
+        if matches[0].get("commit") not in {None, commit}:
+            raise PolicyError(f"re-pin epoch {epoch} already records a different commit")
+        matches[0]["commit"] = commit
+        markdown_path = harness_root / "references/policies/repin_log.md"
+        ledger_before = ledger_path.read_bytes()
+        markdown_before = markdown_path.read_bytes() if markdown_path.is_file() else None
+        try:
+            _atomic_bytes(ledger_path, b"".join((json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8") for row in rows))
+            _atomic_bytes(markdown_path, _render_repin_log(rows).encode("utf-8"))
+        except Exception:
+            _atomic_bytes(ledger_path, ledger_before)
+            if markdown_before is None:
+                markdown_path.unlink(missing_ok=True)
+            else:
+                _atomic_bytes(markdown_path, markdown_before)
+            raise
+        return {"status": "READY", "epoch": epoch, "commit": commit, "pins_recomputed": False}
+    finally:
+        _release_repin_lock(lock_path, token)
+
+
+def _confirmation(message: str) -> bool:
+    sys.stderr.write(message + " [yes/no]: ")
+    sys.stderr.flush()
+    return sys.stdin.readline().strip().lower() in {"yes", "y"}
+
+
+def _lock_state(lock_path: Path) -> tuple[bool, str]:
+    try:
+        value = json.loads(lock_path.read_text(encoding="utf-8"))
+        started = datetime.fromisoformat(str(value["started_at"]).replace("Z", "+00:00"))
+        stale_after = int(value.get("stale_after", 1800))
+        stale = (datetime.now(timezone.utc) - started).total_seconds() > stale_after
+        return stale, f"lock held by pid={value.get('pid')} host={value.get('host')} since {value.get('started_at')}"
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        return True, f"lock is unreadable: {exc}"
+
+
+def _acquire_repin_lock(lock_path: Path, *, force_lock: bool, confirm: Callable[[str], bool]) -> str:
+    """Acquire with O_EXCL and return the ownership token used for safe release."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    if lock_path.exists():
+        stale, detail = _lock_state(lock_path)
+        if not stale:
+            raise PolicyError(detail + "; active re-pin locks cannot be force-recovered")
+        if not force_lock:
+            raise PolicyError(detail + "; stale lock recovery requires --force-lock plus explicit confirmation")
+        if not confirm("Force recovery of existing re-pin lock?"):
+            raise PolicyError("force-lock requires explicit user confirmation")
+        try:
+            lock_path.unlink()
+        except OSError as exc:
+            raise PolicyError(f"could not remove confirmed stale lock: {exc}") from exc
+    token = uuid.uuid4().hex
+    value = {"lock_id": token, "pid": os.getpid(), "host": socket.gethostname(), "started_at": _utc_now(), "stale_after": 1800}
+    try:
+        descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise PolicyError("re-pin lock was acquired concurrently; retry after the holder exits") from exc
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(_json_bytes(value))
+            stream.flush()
+            os.fsync(stream.fileno())
+    except Exception:
+        lock_path.unlink(missing_ok=True)
+        raise
+    return token
+
+
+def _release_repin_lock(lock_path: Path, token: str) -> None:
+    try:
+        current = json.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if current.get("lock_id") == token:
+        lock_path.unlink(missing_ok=True)
+
+
+def _open_project_round(project_root: Path) -> bool:
+    """Read Planner-owned per-section log tails; never infer from global mtimes."""
+    phase_path = project_root / "reviews/phase_state.json"
+    if not phase_path.is_file():
+        return False
+    try:
+        state = json.loads(phase_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PolicyError(f"project phase_state.json is unreadable while checking open rounds: {exc}") from exc
+    sections = state.get("sections", {})
+    if not isinstance(sections, dict):
+        raise PolicyError("project phase_state.json sections must be an object while checking open rounds")
+    opening = {
+        "initial_dispatch",
+        "ph3_iteration_round",
+        "ph3_iteration_round_manuscript",
+        "stability_mode_escalated_to_full_ph3",
+    }
+    for name, section in sections.items():
+        if not isinstance(section, dict) or not isinstance(section.get("phase_entry_log", []), list):
+            raise PolicyError(f"project section {name!r} has malformed phase_entry_log")
+        events = section.get("phase_entry_log", [])
+        if events and isinstance(events[-1], dict) and events[-1].get("trigger") in opening:
+            return True
+    return False
+
+
+def _delta_report(old_snapshot: dict[str, Any] | None, current: dict[str, Any]) -> dict[str, Any]:
+    old_snapshot = old_snapshot or {}
+    old_members = set(old_snapshot.get("attestation_member_ids", []))
+    new_members = set(current["attestation_member_ids"])
+    old_lines = set(old_snapshot.get("exemplar_hash_lines", []))
+    new_lines = set(current["exemplar_hash_lines"])
+    old_unresolved = set(old_snapshot.get("unresolved_seed_ids", []))
+    new_unresolved = set(current["unresolved_seed_ids"])
+    old_warning = any(row.get("code") == "RA-DNR-DEGENERATE" for row in old_snapshot.get("warnings", []) if isinstance(row, dict))
+    new_warning = any(row.get("code") == "RA-DNR-DEGENERATE" for row in current["warnings"])
+    return {
+        "resolved_seed_count": [len(old_snapshot.get("seed_resolution_map", {})) if old_snapshot else None, len(current["seed_resolution_map"])],
+        "primary_communities": [old_snapshot.get("primary_communities") if old_snapshot else None, current["primary_communities"]],
+        "degeneracy_warning": ["present" if old_warning else ("cleared" if old_snapshot else None), "present" if new_warning else "cleared"],
+        "unresolved_seed_ids": {"added": sorted(new_unresolved - old_unresolved, key=_utf8_key), "removed": sorted(old_unresolved - new_unresolved, key=_utf8_key)},
+        "membership": {"added_count": len(new_members - old_members), "removed_count": len(old_members - new_members), "added_sample": sorted(new_members - old_members, key=_utf8_key)[:10], "removed_sample": sorted(old_members - new_members, key=_utf8_key)[:10]},
+        "exemplar_tuples_changed": sorted(old_lines ^ new_lines, key=_utf8_key),
+    }
+
+
+def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None, workspace_root: Path | None,
+              project_root: Path | None, trigger: str, dry_run: bool, allow_unrelated_dirty: bool,
+              force_lock: bool, confirm: Callable[[str], bool] = _confirmation) -> dict[str, Any]:
+    """Execute the accepted two-phase re-pin contract without writing phase_state.json."""
+    harness_root = harness_root.resolve()
+    profile_path = profile_path.resolve()
+    canonical_profile = (harness_root / "references/policies/reader_accessibility.v1.json").resolve()
+    if profile_path != canonical_profile:
+        raise PolicyError(f"re-pin profile must be the canonical package profile: {canonical_profile}")
+    schema_path = harness_root / "references/schemas/reader_accessibility_profile.schema.json"
+    if not _schema_supports_repin(schema_path):
+        raise PolicyError("schema migration required: add expected_verification.pin_epoch and pinned_at before re-pin")
+    lock_path = harness_root / "reviews/.repin.lock"
+    lock_token = _acquire_repin_lock(lock_path, force_lock=force_lock, confirm=confirm)
+    try:
+        # The O_EXCL lock is already held, so its untracked status is owned by
+        # this invocation rather than a prior re-pin diff. A pre-existing lock
+        # cannot reach this point because acquisition refuses it first.
+        dirty = [path for path in _git_dirty_paths(harness_root) if path != "reviews/.repin.lock"]
+        prior_refusal = repin_prior_diff_refusal(dirty)
+        if prior_refusal:
+            raise PolicyError(prior_refusal)
+        pin_dirty, unrelated = classify_repin_dirty_paths(dirty)
+        refusal = repin_dirty_refusal(pin_dirty, unrelated, allow_unrelated_dirty=allow_unrelated_dirty)
+        if refusal:
+            raise PolicyError(refusal)
+        if project_root is not None and _open_project_round(project_root.resolve()):
+            raise PolicyError("project has an open round; rebind request is deferred until it closes")
+        try:
+            old_profile_bytes = profile_path.read_bytes()
+        except OSError as exc:
+            raise PolicyError(f"profile unreadable: {exc}") from exc
+        profile = _load_profile_bytes(old_profile_bytes, schema_path)
+        old_profile_hash = hashlib.sha256(old_profile_bytes).hexdigest()
+        _, effective_workspace, _, _ = _resolve_register_roots(
+            profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root
+        )
+        graph_path = _contained(effective_workspace, profile["domain_native_register"]["corpus_binding"]["graph"]["path"])
+        if _tracked_path_dirty(graph_path):
+            raise PolicyError(f"pin-affecting tracked graph is dirty: {graph_path}")
+        current = resolve_domain_native_register(profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root)
+        expected = profile["domain_native_register"]["expected_verification"]
+        delta_class = _delta_class(expected["attestation_view_pin"], current["attestation_view_pin"], expected["exemplar_view_pin"], current["exemplar_view_pin"])
+        ledger_path = harness_root / "references/policies/repin_log.jsonl"
+        prior_rows = _read_repin_rows(ledger_path)
+        event_epoch = max([expected["pin_epoch"], *[int(row.get("epoch", 0)) for row in prior_rows]]) + 1
+        snapshot_ref = f"reviews/.harness/repin/epoch-{event_epoch}.snapshot.json"
+        previous_snapshot = None
+        if prior_rows:
+            candidate = harness_root / prior_rows[-1].get("snapshot_ref", "")
+            if candidate.is_file():
+                previous_snapshot = json.loads(candidate.read_text(encoding="utf-8"))
+        snapshot = {
+            "epoch": event_epoch, "captured_at": _utc_now(),
+            "graph_sha256_provenance": current["graph_sha256_provenance"],
+            "graph_mtime_utc_provenance": current["graph_mtime_utc_provenance"],
+            "attestation_view_pin": current["attestation_view_pin"], "exemplar_view_pin": current["exemplar_view_pin"],
+            "seed_resolution_map": current["seed_resolution_map"], "seed_resolution_ties": current["seed_resolution_ties"],
+            "unresolved_seed_ids": current["unresolved_seed_ids"], "primary_communities": current["primary_communities"],
+            "warnings": current["warnings"], "attestation_member_ids": current["attestation_member_ids"],
+            "member_count": len(current["attestation_member_ids"]), "exemplar_hash_lines": current["exemplar_hash_lines"],
+        }
+        _atomic_bytes(harness_root / snapshot_ref, _json_bytes(snapshot))
+        report = _delta_report(previous_snapshot, current)
+        pinned_at = _utc_now()
+        new_profile_hash = old_profile_hash
+        intended_profile_bytes = old_profile_bytes
+        applied = False
+        if delta_class != "none" and not dry_run:
+            sys.stderr.write("Register re-pin delta report:\n" + json.dumps(report, indent=2, ensure_ascii=False) + "\n")
+            sys.stderr.flush()
+            if not confirm("Apply the reported semantic register re-pin?"):
+                (harness_root / snapshot_ref).unlink(missing_ok=True)
+                raise PolicyError("real re-pin delta requires explicit user confirmation")
+            updated = copy.deepcopy(profile)
+            updated["profile_version"] = _patch_bump(updated["profile_version"])
+            updated_expected = updated["domain_native_register"]["expected_verification"]
+            updated_expected.update(attestation_view_pin=current["attestation_view_pin"], exemplar_view_pin=current["exemplar_view_pin"], pin_epoch=event_epoch, pinned_at=pinned_at)
+            updated["domain_native_register"]["corpus_binding"]["graph"]["observed_sha256_at_review"] = current["graph_sha256_provenance"]
+            validate_profile(updated, schema_path)
+            intended_profile_bytes = _json_bytes(updated)
+            new_profile_hash = hashlib.sha256(intended_profile_bytes).hexdigest()
+            applied = True
+        unchanged_fields = delta_class == "none"
+        row = {
+            "epoch": event_epoch, "pinned_at": pinned_at, "dry_run": dry_run,
+            "attestation_view_pin": {"old": None if unchanged_fields else expected["attestation_view_pin"], "new": None if unchanged_fields else current["attestation_view_pin"]},
+            "exemplar_view_pin": {"old": None if unchanged_fields else expected["exemplar_view_pin"], "new": None if unchanged_fields else current["exemplar_view_pin"]},
+            "profile_sha256": {"old": None if unchanged_fields else old_profile_hash, "new": None if unchanged_fields else (new_profile_hash if applied else None)},
+            "graph_sha256_provenance": current["graph_sha256_provenance"], "delta_class": delta_class,
+            "delta_summary": report, "snapshot_ref": snapshot_ref, "trigger": trigger,
+            "operator": getpass.getuser(), "commit": None,
+        }
+        rows = prior_rows + [row]
+        ledger_before = ledger_path.read_bytes() if ledger_path.is_file() else None
+        ledger_after = (b"" if ledger_before is None else ledger_before) + (json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+        markdown_path = harness_root / "references/policies/repin_log.md"
+        markdown_before = markdown_path.read_bytes() if markdown_path.is_file() else None
+        if profile_path.read_bytes() != old_profile_bytes:
+            (harness_root / snapshot_ref).unlink(missing_ok=True)
+            raise PolicyError("profile changed after compute/confirmation; refusing concurrent overwrite")
+        try:
+            if applied:
+                _atomic_bytes(profile_path, intended_profile_bytes)
+            _atomic_bytes(ledger_path, ledger_after)
+            _atomic_bytes(markdown_path, _render_repin_log(rows).encode("utf-8"))
+            if applied and (profile_path.read_bytes() != intended_profile_bytes or _hash(profile_path) != new_profile_hash):
+                raise PolicyError("atomic profile full-byte read-back assertion failed")
+        except Exception:
+            if markdown_before is None:
+                markdown_path.unlink(missing_ok=True)
+            else:
+                _atomic_bytes(markdown_path, markdown_before)
+            if ledger_before is None:
+                ledger_path.unlink(missing_ok=True)
+            else:
+                _atomic_bytes(ledger_path, ledger_before)
+            if applied and profile_path.is_file() and profile_path.read_bytes() == intended_profile_bytes:
+                _atomic_bytes(profile_path, old_profile_bytes)
+            (harness_root / snapshot_ref).unlink(missing_ok=True)
+            raise
+        request_path = None
+        request_reused = False
+        if project_root is not None:
+            if _open_project_round(project_root.resolve()):
+                raise PolicyError("project opened a round during re-pin; request write refused")
+            current_expected = (updated if applied else profile)["domain_native_register"]["expected_verification"]
+            current_profile_hash = new_profile_hash if applied else old_profile_hash
+            source_row = next((item for item in reversed(rows) if item.get("delta_class") != "none" and item.get("profile_sha256", {}).get("new") == current_profile_hash), row)
+            request_path = project_root.resolve() / "reviews/repin_rebind_request.json"
+            request_fields = {"pin_epoch": current_expected["pin_epoch"], "profile_sha256": current_profile_hash,
+                              "attestation_view_pin": current["attestation_view_pin"], "exemplar_view_pin": current["exemplar_view_pin"],
+                              "delta_class": source_row["delta_class"], "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{source_row['epoch']}", "status": "pending"}
+            existed = request_path.exists()
+            if existed:
+                try:
+                    existing_request = json.loads(request_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise PolicyError(f"existing rebind request changed or is unreadable; refusing overwrite: {exc}") from exc
+                comparable = {key: existing_request.get(key) for key in request_fields}
+                if comparable != request_fields or not isinstance(existing_request.get("request_id"), str):
+                    raise PolicyError("a different rebind request is already pending; Planner must apply or archive it before retry")
+                request_reused = True
+            else:
+                request = {"request_id": str(uuid.uuid4()), **request_fields}
+                _atomic_create_bytes(request_path, _json_bytes(request))
+        return {"status": "READY", "delta_class": delta_class, "delta_report": report, "epoch": event_epoch,
+                "applied": applied, "dry_run": dry_run, "snapshot_ref": snapshot_ref,
+                "rebind_request": str(request_path) if request_path else None, "request_reused": request_reused,
+                "read_back_verified": applied,
+                "commit_proposal": "chore(accessibility): re-pin domain-native register views" if applied else None}
+    finally:
+        _release_repin_lock(lock_path, lock_token)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -892,13 +1377,33 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", type=Path)
     parser.add_argument("--render-view", action="store_true", help="render the generated human-readable numeric policy view")
+    parser.add_argument("--repin", action="store_true", help="run the deliberate semantic register re-pin workflow")
+    parser.add_argument("--dry-run", action="store_true", help="record and snapshot a re-pin computation without applying a real delta")
+    parser.add_argument("--trigger", choices=("milestone", "snowball", "mf-policy-discovery", "manual"), default="manual")
+    parser.add_argument("--allow-unrelated-dirty", action="store_true")
+    parser.add_argument("--force-lock", action="store_true")
+    parser.add_argument("--backfill-repin-commit", metavar="OBJECT_ID", help="backfill the commit field for an existing re-pin event; never recomputes pins")
+    parser.add_argument("--repin-epoch", type=int, help="ledger event epoch used with --backfill-repin-commit")
     args = parser.parse_args(argv)
     try:
-        result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
+        if args.backfill_repin_commit:
+            if args.repin_epoch is None:
+                raise PolicyError("--backfill-repin-commit requires --repin-epoch")
+            result = backfill_repin_commit(args.harness_root or ROOT, args.repin_epoch, args.backfill_repin_commit)
+        elif args.repin:
+            effective_harness = args.harness_root or ROOT
+            result = run_repin(
+                harness_root=effective_harness, profile_path=args.profile,
+                wiki_root=args.wiki_root, workspace_root=args.workspace_root,
+                project_root=args.project_root, trigger=args.trigger, dry_run=args.dry_run,
+                allow_unrelated_dirty=args.allow_unrelated_dirty, force_lock=args.force_lock,
+            )
+        else:
+            result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
     except PolicyError as exc:
         print(json.dumps({"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}))
         return 4
-    payload = render_policy_view(result["resolved_profile"]) if args.render_view else json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+    payload = render_policy_view(result["resolved_profile"]) if args.render_view and not args.repin else json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(payload, encoding="utf-8", newline="\n")

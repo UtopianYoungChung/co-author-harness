@@ -6,6 +6,18 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.28.1 — 2026-07-14
+
+### Deliberate domain-register re-pin workflow
+
+**What changed.** `/repin-register` operationalizes the accepted semantic-pin policy without introducing a second hasher. `reader_accessibility_policy.py --repin` now owns preflight, single-snapshot resolution, delta classification, package-scoped audit snapshots, append-only JSONL logging and its derived Markdown view, explicit confirmation, atomic profile patching with read-back, and optional project rebind-request emission. No-delta events use `delta_class: none` and leave profile bytes and version untouched. Real deltas patch-bump the policy profile and advance its binding epoch.
+
+Project bindings now carry `pin_epoch` and `pinned_at`. The milestone validator distinguishes profile hash drift, attestation drift, exemplar drift, and a stale binding epoch. Epoch enforcement is softened exactly at the cycle boundary: an old open round remains valid, while a pending rebind blocks a newly opened cycle. The Planner remains the sole `phase_state.json` writer and alone applies and archives rebind requests.
+
+**Safety and evidence.** Fresh and stale locks refuse by default; force recovery needs explicit confirmation. Pin-affecting dirt always blocks, unrelated dirt needs an explicit flag, and the schema-first gate fails closed before any apply. `repin_register_smoketest.py` covers all eight accepted criteria and is release-gated alongside the existing accessibility and milestone suites. All tests use temporary fixtures; no live INF3130 or RE project tree is written.
+
+**Severity / attribution.** Patch release implementing the accepted 2026-07-14 Joseph/Cowork/Codex architecture. Version intent: v0.28.1.
+
 ## v0.28.0 — 2026-07-14
 
 ### Milestone feedback and handoff framework

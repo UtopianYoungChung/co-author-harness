@@ -6,7 +6,7 @@
   "required": ["schema_version", "profile_version", "decision_status", "decision_record", "decision_approval", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
-    "profile_version": {"const": "1.0.0"},
+    "profile_version": {"type": "string", "pattern": "^1\\.0\\.[0-9]+$"},
     "decision_status": {"const": "accepted"},
     "decision_record": {"const": "ADR-ACCESS-01"},
     "decision_approval": {"const": {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"}},
@@ -25,7 +25,7 @@
         "c7_fence":{"const":{"anchor_scope":["domain_conventions","argument_derivation"],"protected_identity_layer":["sentence_length_signature","cadence","repetition_tolerance","point_of_view","humor","evaluative_stance","characteristic_metaphor"],"conflict_resolution":"surface_for_adjudication"}},
         "derivations":{"const":{"write":{"profile_keys":["domain_native_register.exemplar_members","domain_native_register.warrant_layers"],"discipline":"condition drafting on retrieved near-neighbor passages; retrieval does not determine generation"},"review":{"profile_keys":["domain_native_register.corpus_binding","domain_native_register.warrant_layers"],"discipline":"absence of attestation or exemplar warrant is advisory only"},"revise":{"profile_keys":["domain_native_register.warrant_layers.surface","domain_native_register.c7_fence"],"discipline":"substitute an attested construction while preserving propositional content and identity-layer boundaries"}}},
         "honesty_constraints":{"const":["corpus retrieval conditions generation but does not determine it","warrant absence is advisory only","Evaluator retains residual domain-native judgment"]},
-        "expected_verification":{"type":"object","additionalProperties":false,"required":["attestation_view_pin","exemplar_view_pin"],"properties":{"attestation_view_pin":{"$ref":"#/$defs/sha"},"exemplar_view_pin":{"$ref":"#/$defs/sha"}}}
+        "expected_verification":{"type":"object","additionalProperties":false,"required":["attestation_view_pin","exemplar_view_pin","pin_epoch","pinned_at"],"properties":{"attestation_view_pin":{"$ref":"#/$defs/sha"},"exemplar_view_pin":{"$ref":"#/$defs/sha"},"pin_epoch":{"type":"integer","minimum":1},"pinned_at":{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"}}}
       }
     },
     "phase_values": {"const": ["Ph1", "Ph2", "Ph3", "Ph4"]},

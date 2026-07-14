@@ -146,7 +146,7 @@ def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValid
     findings = list(base.findings)
     outcomes: dict[str, str] = {}
     for milestone in target_map[boundary]:
-        target_result = validate_document(project_root, document, milestone)
+        target_result = validate_document(project_root, document, milestone, opening_new_cycle=True)
         outcomes[milestone] = target_result.outcome.value
         findings.extend(target_result.findings)
     if not isinstance(document, dict):
@@ -871,6 +871,26 @@ def _validate_packet(
     return {"path": handoff.get("packet_path"), "sha256": handoff.get("packet_sha256")}
 
 
+def reader_policy_staleness_codes(binding: dict[str, Any], current: dict[str, Any], *, opening_new_cycle: bool) -> list[str]:
+    """Return independent MF-POLICY stale reasons in deterministic order."""
+    checks = (
+        ("profile_sha256", "MF-POLICY-PROFILE-STALE"),
+        ("attestation_view_pin", "MF-POLICY-ATTESTATION-PIN-STALE"),
+        ("exemplar_view_pin", "MF-POLICY-EXEMPLAR-PIN-STALE"),
+    )
+    codes = [code for key, code in checks if binding.get(key) != current.get(key)]
+    if opening_new_cycle and isinstance(binding.get("pin_epoch"), int) and isinstance(current.get("pin_epoch"), int) and binding["pin_epoch"] < current["pin_epoch"]:
+        codes.append("MF-POLICY-PIN-EPOCH-STALE")
+    return codes
+
+
+def policy_epoch_findings(binding: dict[str, Any], profile_epoch: int, request: dict[str, Any] | None, *, opening_new_cycle: bool) -> list[str]:
+    """Apply epoch softening: only a newly opened cycle is held for rebind."""
+    pending = isinstance(request, dict) and request.get("status") == "pending"
+    stale = isinstance(binding.get("pin_epoch"), int) and binding["pin_epoch"] < profile_epoch
+    return ["MF-POLICY-PIN-EPOCH-STALE"] if opening_new_cycle and (stale or pending) else []
+
+
 def _validate_reader_accessibility_policy(
     project_root: Path,
     ledger: dict[str, Any],
@@ -878,6 +898,7 @@ def _validate_reader_accessibility_policy(
     deliverables: dict[str, dict[str, Any] | None],
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    opening_new_cycle: bool,
 ) -> None:
     bindings = ledger.get("policy_bindings")
     if not isinstance(bindings, dict) or "reader_accessibility" not in bindings:
@@ -904,10 +925,31 @@ def _validate_reader_accessibility_policy(
             findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "source binding escapes declared root")); return
     canonical = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
     expected_path = "references/policies/reader_accessibility.v1.json"
+    canonical_hash = hashlib.sha256(canonical.read_bytes()).hexdigest() if canonical.is_file() else None
+    profile_expected = expected_resolved.get("resolved_profile", {}).get("domain_native_register", {}).get("expected_verification", {})
+    current_policy = {"profile_sha256": canonical_hash, "attestation_view_pin": expected_resolved.get("attestation_view_pin"), "exemplar_view_pin": expected_resolved.get("exemplar_view_pin"), "pin_epoch": profile_expected.get("pin_epoch")}
+    epoch_gap = isinstance(binding.get("pin_epoch"), int) and isinstance(profile_expected.get("pin_epoch"), int) and binding["pin_epoch"] < profile_expected["pin_epoch"]
     if binding.get("profile_path") != expected_path or not canonical.is_file():
         findings.append(_finding("MF-POLICY-PROFILE-STALE", f"{base}.profile_path", "profile path must bind the canonical package profile"))
-    elif binding.get("profile_sha256") != hashlib.sha256(canonical.read_bytes()).hexdigest():
-        findings.append(_finding("MF-POLICY-PROFILE-STALE", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
+    elif not epoch_gap:
+        messages = {
+            "MF-POLICY-PROFILE-STALE": ("profile_sha256", "stored policy hash differs from the current package profile"),
+            "MF-POLICY-ATTESTATION-PIN-STALE": ("attestation_view_pin", "attestation semantic view changed; deliberate versioned repin required"),
+            "MF-POLICY-EXEMPLAR-PIN-STALE": ("exemplar_view_pin", "exemplar semantic view changed; deliberate versioned repin required"),
+        }
+        for code in reader_policy_staleness_codes(binding, current_policy, opening_new_cycle=False):
+            field, message = messages[code]
+            findings.append(_finding(code, f"{base}.{field}", message))
+    request_path = project_root / "reviews/repin_rebind_request.json"
+    request = None
+    if request_path.is_file():
+        try:
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            request = {"status": "pending"}
+    if isinstance(profile_expected.get("pin_epoch"), int):
+        for code in policy_epoch_findings(binding, profile_expected["pin_epoch"], request, opening_new_cycle=opening_new_cycle):
+            findings.append(_finding(code, f"{base}.pin_epoch", "binding epoch predates the current profile epoch; Planner must apply the pending rebind before opening a new cycle"))
     resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
     try:
         resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
@@ -915,19 +957,15 @@ def _validate_reader_accessibility_policy(
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
         resolved_payload = None
     stable_keys = ("profile_path", "profile_sha256", "source_bindings", "project_identity", "register_class", "passage_scope_class", "resolved_profile", "attestation_view_pin", "exemplar_view_pin")
-    if not isinstance(resolved_payload, dict) or any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys):
+    if not isinstance(resolved_payload, dict) or (not epoch_gap and any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys)):
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy gate projection differs from fresh resolver output"))
-    if binding.get("attestation_view_pin") != expected_resolved.get("attestation_view_pin"):
-        findings.append(_finding("MF-POLICY-ATTESTATION-PIN-STALE", f"{base}.attestation_view_pin", "attestation semantic view changed; deliberate versioned repin required"))
-    if binding.get("exemplar_view_pin") != expected_resolved.get("exemplar_view_pin"):
-        findings.append(_finding("MF-POLICY-EXEMPLAR-PIN-STALE", f"{base}.exemplar_view_pin", "exemplar semantic view changed; deliberate versioned repin required"))
     recorded_provenance = binding.get("register_provenance")
     fresh_provenance = expected_resolved.get("register_provenance")
     invariant_keys = ("register_class", "attestation_view_pin", "exemplar_view_pin", "seed_resolution_map", "seed_resolution_ties", "unresolved_seed_ids", "primary_communities", "attestation_member_ids", "exemplar_hash_lines", "warnings")
     def provenance_paths(value: Any) -> list[tuple[Any, Any, Any]]:
         if not isinstance(value, dict) or not isinstance(value.get("provenance"), list): return []
         return sorted((entry.get("role"), entry.get("path"), entry.get("sha256")) for entry in value["provenance"] if isinstance(entry, dict) and entry.get("role") != "graph_provenance_only")
-    if not isinstance(recorded_provenance, dict) or not isinstance(fresh_provenance, dict) or any(recorded_provenance.get(key) != fresh_provenance.get(key) for key in invariant_keys) or provenance_paths(recorded_provenance) != provenance_paths(fresh_provenance):
+    if not isinstance(recorded_provenance, dict) or (not epoch_gap and (not isinstance(fresh_provenance, dict) or any(recorded_provenance.get(key) != fresh_provenance.get(key) for key in invariant_keys) or provenance_paths(recorded_provenance) != provenance_paths(fresh_provenance))):
         findings.append(_finding("MF-POLICY-PROVENANCE", f"{base}.register_provenance", "semantic register provenance projection is incomplete or inconsistent with the fresh resolver"))
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict):
@@ -940,7 +978,7 @@ def _validate_reader_accessibility_policy(
             except ValueError:
                 findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor escapes package root"))
                 continue
-            if not package_source.is_file() or hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256"):
+            if not package_source.is_file() or (not epoch_gap and hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256")):
                 findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor is missing or stale"))
         elif scope == "project":
             _file_binding(project_root, relative, source.get("sha256"), None, f"{base}.source_bindings[{index}]", findings, evidence, "MF-POLICY")
@@ -1488,6 +1526,7 @@ def validate_document(
     project_root: Path, document: Any, target: str | None = None,
     exemplar_registry_path: Path | None = None,
     _exemplar_snapshot_hook: Callable[[str, str, Path], None] | None = None,
+    opening_new_cycle: bool = False,
 ) -> ValidationResult:
     """Validate the additive namespace in an already-parsed phase document."""
     findings: list[Finding] = []
@@ -1583,6 +1622,7 @@ def validate_document(
 
     _validate_reader_accessibility_policy(
         project_root, ledger, milestones, deliverables, findings, evidence,
+        opening_new_cycle=opening_new_cycle,
     )
 
     for index, milestone in enumerate(MILESTONES[:-1]):
@@ -1836,6 +1876,7 @@ def main(argv: list[str]) -> int:
     parser = UsageArgumentParser(description="Validate milestone feedback and F9 handoff state.")
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--target", choices=TARGETS)
+    parser.add_argument("--opening-new-cycle", action="store_true", help="enforce dispatch-bound pin epoch; target readiness alone does not open a cycle")
     parser.add_argument("--json", action="store_true")
     parser.add_argument(
         "--exemplar-registry", type=Path, default=EXEMPLAR_REGISTRY_PATH,
@@ -1851,7 +1892,7 @@ def main(argv: list[str]) -> int:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         sys.stderr.write(f"error: could not read {phase_path}: {exc}\n")
         return 2
-    result = validate_document(project_root, document, args.target, args.exemplar_registry)
+    result = validate_document(project_root, document, args.target, args.exemplar_registry, opening_new_cycle=args.opening_new_cycle)
     if args.json:
         sys.stdout.write(json.dumps(result.json_value(), indent=2) + "\n")
     else:

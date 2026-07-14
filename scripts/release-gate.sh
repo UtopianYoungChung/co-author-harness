@@ -376,6 +376,7 @@ fi
 MILESTONE_FRAMEWORK_TESTS=(
     milestone_framework_smoketest.py
     reader_accessibility_contract_smoketest.py
+    repin_register_smoketest.py
     render_lifecycle_state_smoketest.py
     migrate_legacy_milestones_smoketest.py
     native_project_bootstrap_smoketest.py

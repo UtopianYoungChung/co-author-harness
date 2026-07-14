@@ -1,6 +1,6 @@
 {
   "name": "co-author-harness-claude",
-  "version": "0.28.0",
+  "version": "0.28.1",
   "description": "PhD-level academic-writing review for Claude Code. Four agents (Planner, Evaluator, Generator, Reflector) advance a per-section phase ledger under grounding discipline. Skills include snowball references, accessibility audit, and named-scholar style overlays.",
   "author": {
     "name": "Young Jo(seph) Chung",

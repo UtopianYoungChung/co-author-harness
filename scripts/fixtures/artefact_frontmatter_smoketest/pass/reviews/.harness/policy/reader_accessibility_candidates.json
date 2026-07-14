@@ -5,12 +5,12 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "f84c011fa52c711ae08a0ff2d2b60276b9e897170efa94699c8dae4b7e16d8cc",
+  "profile_sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "f84c011fa52c711ae08a0ff2d2b60276b9e897170efa94699c8dae4b7e16d8cc",
+      "sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
       "role": "package_profile"
     },
     {
