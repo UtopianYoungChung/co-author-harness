@@ -194,7 +194,8 @@ def main() -> int:
             }],
         }
         admission_doc = {
-            "schema_version": "0.7.4", "default_final_phase": "Ph4", "terminal_phase_reached": False,
+            "schema_version": "0.7.4", "manuscript_id": "smoke-project",
+            "default_final_phase": "Ph4", "terminal_phase_reached": False,
             "sections": {"1. Test": section}, "milestone_framework": admission_ledger,
         }
         (admission_root / "reviews" / "phase_state.json").write_text(json.dumps(admission_doc), encoding="utf-8")

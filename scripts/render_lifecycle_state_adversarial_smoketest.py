@@ -114,12 +114,42 @@ def main() -> int:
         if accepted_source.read_bytes() != before:
             raise AssertionError("renderer mutated the authoritative ledger")
 
+        import render_lifecycle_state as renderer  # type: ignore
+        raced_payload = renderer.render_bytes(accepted.resolve(), FIXED_TIME)
+        raced_view = accepted / "reviews" / "lifecycle_state.md"
+        raced_sentinel = b"preserve old lifecycle view\n"
+        raced_view.write_bytes(raced_sentinel)
         packet = accepted / ledger["milestones"]["M1"]["handoff"]["packet_path"]
-        preserved = (accepted / "reviews" / "lifecycle_state.md").read_bytes()
         packet.write_text("{}\n", encoding="utf-8")
+        try:
+            renderer._publish(accepted.resolve(), raced_payload)
+        except renderer.RenderError:
+            pass
+        else:
+            raise AssertionError("F9 mutation between render and publish was accepted")
+        if raced_view.read_bytes() != raced_sentinel:
+            raise AssertionError("F9 race replaced the prior lifecycle view")
+
+        preserved = (accepted / "reviews" / "lifecycle_state.md").read_bytes()
         stale = _render(accepted)
         if stale.returncode != 4 or (accepted / "reviews" / "lifecycle_state.md").read_bytes() != preserved:
             raise AssertionError("stale F9 binding was published or not rejected")
+
+        for case in (
+            "forged_f9_project_identity",
+            "forged_f9_from_milestone",
+            "forged_f9_to_milestone",
+        ):
+            forged = parent / case
+            forged.mkdir()
+            mf._write_real_case(case, forged)
+            forged_view = forged / "reviews" / "lifecycle_state.md"
+            forged_view.write_bytes(b"preserve forged-case sentinel\n")
+            forged_result = _render(forged)
+            if forged_result.returncode != 4 or "MF-DERIVED" not in forged_result.stdout + forged_result.stderr:
+                raise AssertionError(f"renderer did not reject {case}: {forged_result!r}")
+            if forged_view.read_bytes() != b"preserve forged-case sentinel\n":
+                raise AssertionError(f"renderer published over {case}")
 
         # Symlink/reparse tests are conditional because Windows may deny creation.
         linked = _bootstrap(parent, "linked-source")

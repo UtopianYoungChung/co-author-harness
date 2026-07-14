@@ -757,6 +757,7 @@ def _validate_packet(
     deliverable: dict[str, Any] | None,
     primary_lineage: Any,
     predecessor: dict[str, str] | None,
+    project_identity: str | None,
     f9_schema: dict[str, Any],
     findings: list[Finding],
     evidence: list[dict[str, Any]],
@@ -784,6 +785,22 @@ def _validate_packet(
         return None
     if packet.get("lineage_id") != primary_lineage:
         findings.append(_finding("MF-LINEAGE", f"{base}.packet.lineage_id", "F9 packet lineage does not match primary lineage"))
+    expected_successor = {"M1": "M2", "M2": "M3", "M3": "M4", "M4": "M5", "M5": None}[milestone]
+    if packet.get("from_milestone") != milestone:
+        findings.append(_finding(
+            "MF-HANDOFF", f"{base}.packet.from_milestone",
+            "F9 source milestone must match the ledger milestone that binds the packet",
+        ))
+    if packet.get("to_milestone") != expected_successor:
+        findings.append(_finding(
+            "MF-HANDOFF", f"{base}.packet.to_milestone",
+            "F9 destination milestone must be the adjacent successor bound by the ledger position",
+        ))
+    if project_identity is not None and packet.get("project") != project_identity:
+        findings.append(_finding(
+            "MF-HANDOFF", f"{base}.packet.project",
+            "F9 project identity must match the authoritative phase-state project identity",
+        ))
     if packet.get("predecessor_packet") != predecessor:
         findings.append(_finding("MF-HANDOFF", f"{base}.packet.predecessor_packet", "F9 predecessor binding does not match the prior packet"))
     if deliverable is not None:
@@ -1007,6 +1024,22 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
     _validate_events(project_root, ledger, milestones, findings, evidence)
 
     primary_lineage = ledger.get("primary_lineage")
+    phase_identity = document.get("manuscript_id")
+    binding = ledger.get("policy_bindings", {}).get("reader_accessibility", {}) if isinstance(ledger.get("policy_bindings"), dict) else {}
+    policy_identity = binding.get("project_identity") if isinstance(binding, dict) else None
+    phase_identity = phase_identity if isinstance(phase_identity, str) and phase_identity.strip() else None
+    policy_identity = policy_identity if isinstance(policy_identity, str) and policy_identity.strip() else None
+    if phase_identity is not None and policy_identity is not None and phase_identity != policy_identity:
+        findings.append(_finding(
+            "MF-HANDOFF", "manuscript_id",
+            "phase-state manuscript_id and resolved reader-accessibility project_identity disagree",
+        ))
+    project_identity = phase_identity or policy_identity
+    if ledger.get("mode") == "native" and project_identity is None:
+        findings.append(_finding(
+            "MF-HANDOFF", "manuscript_id",
+            "native milestone state requires an authoritative project identity for F9 binding",
+        ))
     predecessor: dict[str, str] | None = None
     deliverables: dict[str, dict[str, Any] | None] = {}
     for index, milestone in enumerate(MILESTONES):
@@ -1033,7 +1066,7 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
                 findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}.approval.evidence_path", "approval evidence path must exist inside the project"))
         packet = _validate_packet(
             project_root, milestone, record, deliverable, primary_lineage, predecessor,
-            f9_schema, findings, evidence,
+            project_identity, f9_schema, findings, evidence,
         )
         if packet is not None:
             predecessor = packet

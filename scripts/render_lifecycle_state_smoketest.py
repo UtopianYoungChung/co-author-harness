@@ -54,7 +54,7 @@ def main() -> int:
         text = first.decode("utf-8")
         for expected in (
             "generated: true",
-            "derived_from: reviews/phase_state.json#milestone_framework",
+            "derived_from: reviews/phase_state.json",
             "source_sha256:",
             f"generated_at: {FIXED_TIME}",
             "| M1 | Establish the project's focus",
@@ -62,6 +62,8 @@ def main() -> int:
         ):
             if expected not in text:
                 raise AssertionError(f"generated lifecycle view omitted {expected!r}")
+        if "---\n\nDO NOT EDIT: generated lifecycle view\n\n# Lifecycle State" not in text:
+            raise AssertionError("generated body does not begin with the required do-not-edit line")
 
         _assert_ok(_run(RENDERER, "--project-root", str(project), "--generated-at", FIXED_TIME), "rerender")
         if view.read_bytes() != first:
@@ -70,7 +72,7 @@ def main() -> int:
         edited = text.replace("| in_progress | none |", "| accepted | none |", 1).encode("utf-8")
         view.write_bytes(edited)
         check = _run(RENDERER, "--project-root", str(project), "--generated-at", FIXED_TIME, "--check")
-        if check.returncode != 4 or "MF-DERIVED" not in check.stdout + check.stderr:
+        if check.returncode != 4 or "[MAJOR] MF-DERIVED" not in check.stdout + check.stderr:
             raise AssertionError(f"manual edit was not reported as MF-DERIVED: {check!r}")
         if view.read_bytes() != edited:
             raise AssertionError("--check modified a manually edited lifecycle view")

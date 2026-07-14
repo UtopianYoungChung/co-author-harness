@@ -80,6 +80,11 @@ REAL_CASES = {
     "fabricated_matching_authority": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "missing_approval_evidence": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "mismatched_f9_approval_evidence": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "forged_f9_project_identity": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "forged_f9_from_milestone": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "forged_f9_to_milestone": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "native_missing_project_identity": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "project_identity_disagreement": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "rejected_generator_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
     "allowed_advisor_override": ("NOT_APPLICABLE", 0, "M4", None),
     "reordered_artifacts_feedback_lineage": ("READY", 0, None, None),
@@ -468,6 +473,7 @@ def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[
         trigger = "user_approval"
     return {
         "schema_version": "0.7.4",
+        "manuscript_id": "smoke-project",
         "terminal_phase_reached": True,
         "sections": {
             "1. Test": {
@@ -827,6 +833,37 @@ def _write_real_case(case: str, project: Path) -> None:
             project, ledger, "M5",
             lambda packet: packet["approval"].update({"evidence_path": "reviews/fabricated_approval.md"}),
         )
+    elif case == "forged_f9_project_identity":
+        _rewrite_packet(project, ledger, "M5", lambda packet: packet.update({"project": "other-project"}))
+    elif case == "forged_f9_from_milestone":
+        _rewrite_packet(
+            project, ledger, "M5",
+            lambda packet: packet.update({
+                "from_milestone": "M4", "to_milestone": "M5", "released_export": None,
+            }),
+        )
+    elif case == "forged_f9_to_milestone":
+        export = next(item for item in milestones["M5"]["artifacts"] if item["role"] == "export")
+        _rewrite_packet(
+            project, ledger, "M4",
+            lambda packet: packet.update({
+                "from_milestone": "M5",
+                "to_milestone": None,
+                "released_export": {
+                    key: export[key]
+                    for key in ("role", "path", "sha256", "bytes", "source_path", "source_sha256")
+                },
+            }),
+        )
+        m4_handoff = milestones["M4"]["handoff"]
+        _rewrite_packet(
+            project, ledger, "M5",
+            lambda packet: packet.update({
+                "predecessor_packet": {
+                    "path": m4_handoff["packet_path"], "sha256": m4_handoff["packet_sha256"],
+                }
+            }),
+        )
     elif case == "reordered_artifacts_feedback_lineage":
         evidence_hash, evidence_bytes = _write_bound_file(project, "reviews/reordered_evidence.md", "supporting evidence\n")
         milestones["M3"]["artifacts"].insert(0, {
@@ -1069,6 +1106,10 @@ def _write_real_case(case: str, project: Path) -> None:
         document["sections"]["1. Test"]["section_ceiling_override"] = ["Ph2"]
     elif case == "ph4_dict_ceiling_override":
         document["sections"]["1. Test"]["section_ceiling_override"] = {"phase": "Ph2"}
+    elif case == "native_missing_project_identity":
+        document.pop("manuscript_id", None)
+    elif case == "project_identity_disagreement":
+        document["milestone_framework"]["policy_bindings"]["reader_accessibility"]["project_identity"] = "other-project"
     reviews = project / "reviews"
     reviews.mkdir(parents=True, exist_ok=True)
     (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
