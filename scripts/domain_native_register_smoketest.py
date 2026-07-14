@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Portable contract tests for the domain-native register semantic pin."""
+"""Portable contract tests for the domain-native register semantic pin.
+
+AUTHORITATIVE HOME for pin-contract coverage (asymmetry, degeneracy_guard,
+seed_resolution / multi-hit disambiguation, MF pin-stale vs graph non-gating).
+``reader_accessibility_contract_smoketest.py`` invokes this suite; semantics
+and adversarial accessibility smoketests do not duplicate these cases.
+"""
 from __future__ import annotations
 
 import copy
@@ -72,6 +78,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); wiki,workspace=write_fixture(root)
         resolved=policy.resolve_domain_native_register(profile, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT)
+        assert resolved["path_roots"]["path_roots_mode"] == "override"
         assert len(resolved["seed_resolution_map"]) == 3 and len(resolved["unresolved_seed_ids"]) == 9
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"].endswith("_source")
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-understanding-why-software-process-modelling"] == "icse-alpha"
@@ -181,6 +188,17 @@ def main() -> int:
         else: raise AssertionError("link divergence passed")
     live = policy.resolve_domain_native_register(profile)
     expected = model["expected_verification"]
+    assert live["path_roots"]["path_roots_mode"] == "profile"
+    assert live["path_roots"]["effective"]["wiki_root"] == model["corpus_binding"]["path_roots"]["wiki_root"]
+    assert live["path_roots"]["effective"]["workspace_root"] == model["corpus_binding"]["path_roots"]["workspace_root"]
+    drifted = copy.deepcopy(profile)
+    drifted["domain_native_register"]["corpus_binding"]["path_roots"]["wiki_root"] = "B:/Agents/knowledge/LLM wiki-DRIFT"
+    try:
+        policy.resolve_domain_native_register(drifted, wiki_root=policy.DEFAULT_WIKI_ROOT)
+    except policy.PolicyError as exc:
+        assert "wiki_root module default diverges" in str(exc)
+    else:
+        raise AssertionError("profile/default wiki_root divergence passed")
     assert live["attestation_view_pin"] == expected["attestation_view_pin"]
     assert live["exemplar_view_pin"] == expected["exemplar_view_pin"]
     assert live["graph_sha256_provenance"] == hashlib.sha256((Path("B:/Agents")/model["corpus_binding"]["graph"]["path"]).read_bytes()).hexdigest()

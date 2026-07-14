@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Adversarial integration tests for the reader-accessibility policy boundary."""
+"""Adversarial integration tests for the reader-accessibility policy boundary.
+
+Domain-native pin-contract cases live in ``domain_native_register_smoketest.py``
+(asymmetry, degeneracy, seed resolution); this suite covers cadence/profile/H
+prefilter boundaries only.
+"""
 
 from __future__ import annotations
 

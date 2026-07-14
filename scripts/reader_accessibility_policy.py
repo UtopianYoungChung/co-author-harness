@@ -37,6 +37,90 @@ class PolicyError(ValueError):
     pass
 
 
+def _profile_path_roots(profile: dict[str, Any]) -> dict[str, Path]:
+    """Read corpus_binding.path_roots from the profile (authority for live wiki/workspace)."""
+    try:
+        declared = profile["domain_native_register"]["corpus_binding"]["path_roots"]
+        return {
+            "wiki_root": Path(declared["wiki_root"]),
+            "workspace_root": Path(declared["workspace_root"]),
+            "harness_root": Path(declared["harness_root"]),
+        }
+    except (KeyError, TypeError) as exc:
+        raise PolicyError(
+            "domain_native_register.corpus_binding.path_roots missing or malformed"
+        ) from exc
+
+
+def _resolve_register_roots(
+    profile: dict[str, Any],
+    *,
+    wiki_root: Path | None,
+    workspace_root: Path | None,
+    harness_root: Path | None,
+) -> tuple[Path, Path, Path, dict[str, Any]]:
+    """Resolve roots from profile path_roots; allow fixture overrides.
+
+    Live wiki/workspace roots come from the profile const. Module DEFAULT_* must
+    match that const (guards hardcoded drift). Fixture callers may inject other
+    roots; those are recorded as path_roots_mode=override. The running package
+    root (ROOT / explicit harness_root) is the authority for relative package
+    paths so worktrees and alternate installs stay valid even when they differ
+    from path_roots.harness_root.
+    """
+    declared = _profile_path_roots(profile)
+    profile_wiki = declared["wiki_root"]
+    profile_workspace = declared["workspace_root"]
+    profile_harness = declared["harness_root"]
+
+    if wiki_root is None:
+        wiki = profile_wiki
+    else:
+        wiki = Path(wiki_root)
+        if wiki.resolve() == DEFAULT_WIKI_ROOT.resolve() and wiki.resolve() != profile_wiki.resolve():
+            raise PolicyError(
+                "wiki_root module default diverges from profile corpus_binding.path_roots.wiki_root"
+            )
+
+    if workspace_root is None:
+        workspace = profile_workspace
+    else:
+        workspace = Path(workspace_root)
+        if (
+            workspace.resolve() == DEFAULT_WORKSPACE_ROOT.resolve()
+            and workspace.resolve() != profile_workspace.resolve()
+        ):
+            raise PolicyError(
+                "workspace_root module default diverges from profile "
+                "corpus_binding.path_roots.workspace_root"
+            )
+
+    harness = Path(harness_root) if harness_root is not None else ROOT
+
+    meta: dict[str, Any] = {
+        "profile_path_roots": {
+            "wiki_root": profile_wiki.as_posix(),
+            "workspace_root": profile_workspace.as_posix(),
+            "harness_root": profile_harness.as_posix(),
+        },
+        "effective": {
+            "wiki_root": wiki.as_posix(),
+            "workspace_root": workspace.as_posix(),
+            "harness_root": harness.as_posix(),
+        },
+    }
+    if wiki.resolve() == profile_wiki.resolve() and workspace.resolve() == profile_workspace.resolve():
+        meta["path_roots_mode"] = "profile"
+    else:
+        meta["path_roots_mode"] = "override"
+    if harness.resolve() != profile_harness.resolve():
+        meta["harness_root_note"] = (
+            "running package root differs from profile path_roots.harness_root "
+            "(worktree or alternate install); relative package paths resolve from the running root"
+        )
+    return wiki, workspace, harness, meta
+
+
 class _MissingInput(PolicyError):
     pass
 
@@ -300,14 +384,22 @@ def _utf8_key(value: str) -> bytes:
 
 
 def resolve_domain_native_register(
-    profile: dict[str, Any], *, wiki_root: Path = DEFAULT_WIKI_ROOT,
-    workspace_root: Path = DEFAULT_WORKSPACE_ROOT, harness_root: Path = ROOT,
+    profile: dict[str, Any], *, wiki_root: Path | None = None,
+    workspace_root: Path | None = None, harness_root: Path | None = None,
     _snapshot_hook: Callable[[str, str, Path | None], None] | None = None,
 ) -> dict[str, Any]:
-    """Resolve the two semantic register views with explicit injected roots."""
+    """Resolve the two semantic register views.
+
+    Omitting wiki/workspace roots uses profile ``corpus_binding.path_roots``.
+    Fixture callers may inject alternate roots (recorded as override).
+    """
     model = profile.get("domain_native_register")
     if not isinstance(model, dict):
         raise PolicyError("profile.domain_native_register is missing")
+    wiki_root, workspace_root, harness_root, path_roots_meta = _resolve_register_roots(
+        profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root
+    )
+    profile_wiki = Path(path_roots_meta["profile_path_roots"]["wiki_root"])
     graph_rel = model["corpus_binding"]["graph"]["path"]
     graph_path = _contained(workspace_root, graph_rel)
     snapshots = _SnapshotSet(_snapshot_hook)
@@ -377,7 +469,7 @@ def resolve_domain_native_register(
             pdf_snapshot = snapshots.capture_optional(pdf_path, "surface_warrant_pdf")
             if pdf_snapshot is not None:
                 pdf_hash = pdf_snapshot.sha256; provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
-                if wiki_root.resolve() == DEFAULT_WIKI_ROOT.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
+                if wiki_root.resolve() == profile_wiki.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
                     raise PolicyError(f"expected exemplar PDF hash mismatch: {key}")
         exemplar_lines.append(f"{key}\t{normalize_tier(grounding)}\t{pdf_hash}")
     exemplar_pin = hashlib.sha256("\n".join(sorted(exemplar_lines, key=_utf8_key)).encode("utf-8")).hexdigest()
@@ -393,7 +485,7 @@ def resolve_domain_native_register(
     if len(resolution) <= guard["resolved_seed_count_lte"] or len(primary) < guard["primary_communities_lt"]:
         warnings.append({"code":"RA-DNR-DEGENERATE","severity":"WARNING","message":"semantic attestation view is based on a thin resolved seed set"})
     snapshots.verify_all()
-    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"provenance":provenance}
+    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"path_roots":path_roots_meta,"provenance":provenance}
 
 
 def _contained(root: Path, relative: str) -> Path:
@@ -701,8 +793,8 @@ def update_persistence(previous_content_sha256: str | None, current_content_sha2
 
 
 def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
-                   wiki_root: Path = DEFAULT_WIKI_ROOT, workspace_root: Path = DEFAULT_WORKSPACE_ROOT,
-                   harness_root: Path = ROOT) -> dict[str, Any]:
+                   wiki_root: Path | None = None, workspace_root: Path | None = None,
+                   harness_root: Path | None = None) -> dict[str, Any]:
     profile_path = profile_path.resolve()
     profile = load_profile(profile_path)
     resolved = copy.deepcopy(profile)
@@ -780,9 +872,24 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--project-root", type=Path)
-    parser.add_argument("--wiki-root", type=Path, default=DEFAULT_WIKI_ROOT)
-    parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE_ROOT)
-    parser.add_argument("--harness-root", type=Path, default=ROOT)
+    parser.add_argument(
+        "--wiki-root",
+        type=Path,
+        default=None,
+        help="override wiki root (default: profile corpus_binding.path_roots.wiki_root)",
+    )
+    parser.add_argument(
+        "--workspace-root",
+        type=Path,
+        default=None,
+        help="override workspace root (default: profile corpus_binding.path_roots.workspace_root)",
+    )
+    parser.add_argument(
+        "--harness-root",
+        type=Path,
+        default=None,
+        help="override harness/package root (default: directory containing this package)",
+    )
     parser.add_argument("--out", type=Path)
     parser.add_argument("--render-view", action="store_true", help="render the generated human-readable numeric policy view")
     args = parser.parse_args(argv)

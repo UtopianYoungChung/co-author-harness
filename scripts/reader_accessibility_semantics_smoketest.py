@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Third-pass semantic adversarial tests for accessibility evidence."""
+"""Third-pass semantic adversarial tests for accessibility evidence.
+
+Domain-native semantic-pin contract tests (asymmetry, degeneracy_guard,
+seed_resolution, MF graph non-gating) are NOT duplicated here — see
+``scripts/domain_native_register_smoketest.py`` (invoked via the contract suite).
+"""
 from __future__ import annotations
 import copy, hashlib, json, shutil, sys, tempfile
 from pathlib import Path
