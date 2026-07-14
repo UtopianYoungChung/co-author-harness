@@ -43,6 +43,15 @@ def rejected_by_both(mutate) -> None:
     except policy.PolicyError: pass
     else: raise AssertionError("runtime accepted schema-invalid mutation")
 
+def accepted_by_schema_rejected_by_runtime(mutate, expected_message: str) -> None:
+    profile = policy.load_profile(); mutate(profile)
+    schema = json.loads((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
+    assert not list(jsonschema.Draft202012Validator(schema).iter_errors(profile)), "schema rejected structurally valid cadence profile"
+    try: policy.validate_profile(profile)
+    except policy.PolicyError as exc:
+        assert expected_message in str(exc), f"unexpected cadence error: {exc}"
+    else: raise AssertionError("runtime accepted semantically incoherent cadence profile")
+
 def main() -> int:
     mutations = [
         lambda p: p["thresholds"]["cadence"].update(unit="sentences"),
@@ -54,18 +63,40 @@ def main() -> int:
         lambda p: p.update(remediation_order=["one"]),
         lambda p: p["sub_checks"]["A"].update(threshold_key=""),
         lambda p: p["sub_checks"]["H"].update(ph2_role_overrides={"orienting_clause":"wrong"}),
-        lambda p: p["thresholds"]["cadence"]["bands"].__setitem__(slice(None), [{"min_words":0,"max_words":149,"required_functional_turn_points":0,"deficit_severity":"CLEAN"},{"min_words":150,"max_words":199,"required_functional_turn_points":1,"deficit_severity":"MINOR"},{"min_words":200,"max_words":300,"required_functional_turn_points":2,"deficit_severity":"MAJOR"}]),
         lambda p: p["thresholds"]["consolidation"]["candidate_gap_words"].update(P1="700"),
         lambda p: p["transitions"]["H"].update(state_owner="wrong"),
         lambda p: p["thresholds"]["cadence"].update(internal_sentence_break_signals=[]),
         lambda p: p["aggregate"].update(blocker=""),
         lambda p: p["sub_checks"]["A"].update(scope=""),
         lambda p: p["sub_checks"]["A"].update(binds_at=[]),
-        lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160),
         lambda p: p["thresholds"]["cadence"].update(canonical_sha256="0"*64),
         lambda p: p["adjacent_advisory_checks"]["VE"].update(gate_contribution="aggregate"),
     ]
     for mutate in mutations: rejected_by_both(mutate)
+
+    tunable = copy.deepcopy(policy.load_profile())
+    tunable["thresholds"]["cadence"]["hard_ceiling_words"] = 350
+    tunable["thresholds"]["cadence"]["bands"][-1]["max_words"] = 350
+    schema = json.loads((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
+    assert not list(jsonschema.Draft202012Validator(schema).iter_errors(tunable)), "schema fixes cadence authority at 300"
+    policy.validate_profile(tunable)
+    with tempfile.TemporaryDirectory(dir=ROOT) as td:
+        copied_profile = Path(td) / "reader_accessibility.350.json"
+        copied_profile.write_text(json.dumps(tunable), encoding="utf-8")
+        resolved_tunable = policy.resolve_policy(None, profile_path=copied_profile)
+        assert resolved_tunable["resolved_profile"]["thresholds"]["cadence"]["hard_ceiling_words"] == 350
+    assert policy.evaluate_cadence(325, 2, 0, tunable)["current_severity"] == "CLEAN"
+    assert policy.evaluate_cadence(351, 2, 0, tunable)["current_severity"] == "MAJOR"
+
+    semantic_cadence_failures = [
+        (lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "ordered and contiguous"),
+        (lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=150), "ordered and contiguous"),
+        (lambda p: p["thresholds"]["cadence"]["bands"][1].update(required_functional_turn_points=0), "turn-point requirements"),
+        (lambda p: p["thresholds"]["cadence"]["bands"][2].update(required_functional_turn_points=1), "turn-point requirements"),
+        (lambda p: p["thresholds"]["cadence"].update(hard_ceiling_words=350), "end at hard ceiling"),
+    ]
+    for mutate, message in semantic_cadence_failures:
+        accepted_by_schema_rejected_by_runtime(mutate, message)
     milestone_schema=json.loads((ROOT/"references/schemas/milestone_framework.schema.json").read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory() as td:
         ledger=fixture._materialize_native_project(Path(td))

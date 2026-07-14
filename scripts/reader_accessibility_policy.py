@@ -494,24 +494,30 @@ def validate_profile(profile: dict[str, Any]) -> None:
         raise PolicyError("VE must remain outside the Check 8 aggregate")
     thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "first_use", "section_signpost", "jargon", "worked_example", "consolidation", "register", "verdict_edge"})
     cadence = _object(thresholds["cadence"], "thresholds.cadence", {"unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
-    if cadence.get("hard_ceiling_words") != 300 or not cadence.get("functional_confirmation_required"):
+    _number(cadence["hard_ceiling_words"], "thresholds.cadence.hard_ceiling_words", integer=True, minimum=1)
+    if not cadence.get("functional_confirmation_required"):
         raise PolicyError("provisional cadence decision is malformed")
     if cadence["candidate_semantics"] != "nomination_only":
         raise PolicyError("thresholds.cadence.candidate_semantics must be nomination_only")
     for key in ("turn_point_candidates", "functional_classes", "internal_sentence_break_signals"): _strings(cadence[key], f"thresholds.cadence.{key}")
     bands = cadence["bands"]
-    if not isinstance(bands, list) or len(bands) != 3:
-        raise PolicyError("thresholds.cadence.bands must contain three bands")
+    if not isinstance(bands, list) or not bands:
+        raise PolicyError("thresholds.cadence.bands must contain at least one band")
     expected_min = 0
+    previous_required = -1
     for index, band_value in enumerate(bands):
         band = _object(band_value, f"thresholds.cadence.bands[{index}]", {"min_words", "max_words", "required_functional_turn_points", "deficit_severity"})
         for key in ("min_words", "max_words", "required_functional_turn_points"):
-            _number(band[key], f"thresholds.cadence.bands[{index}].{key}", integer=True)
+            _number(band[key], f"thresholds.cadence.bands[{index}].{key}", integer=True, minimum=0)
         if band["min_words"] != expected_min or band["max_words"] < band["min_words"]:
             raise PolicyError("thresholds.cadence.bands must be ordered and contiguous")
+        required = band["required_functional_turn_points"]
+        if (index == 0 and required != 0) or (index > 0 and required <= previous_required):
+            raise PolicyError("thresholds.cadence band turn-point requirements must start at zero and strictly increase")
         if band["deficit_severity"] not in {"CLEAN", "MINOR", "MAJOR"}:
             raise PolicyError("thresholds.cadence band deficit severity is invalid")
         expected_min = band["max_words"] + 1
+        previous_required = required
     if bands[-1]["max_words"] != cadence["hard_ceiling_words"]:
         raise PolicyError("thresholds.cadence.bands must end at hard ceiling")
     above = _object(cadence["above_ceiling"], "thresholds.cadence.above_ceiling", {"current_severity_floor", "mandatory_split", "blocker_when"})

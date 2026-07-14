@@ -42,7 +42,7 @@ def run_runner(project: Path, text: str, *extra: str) -> subprocess.CompletedPro
 
 def main() -> int:
     # Deep runtime invariants, not merely top-level shape checks.
-    rejects(lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "expected constant")
+    rejects(lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "ordered and contiguous")
     rejects(lambda p: p["thresholds"]["cadence"]["above_ceiling"].update(mandatory_split=False), "above_ceiling")
     rejects(lambda p: p["adjacent_advisory_checks"]["VE"].update(aggregate_member=True), "VE")
     rejects(lambda p: p["thresholds"].update(canonical_sha256="0" * 64), "canonical_sha256")
@@ -52,8 +52,9 @@ def main() -> int:
     import jsonschema
     schema = json.loads((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator.check_schema(schema)
+    cadence_gap = policy.load_profile(); cadence_gap["thresholds"]["cadence"]["bands"][1]["min_words"] = 160
+    assert not list(jsonschema.Draft202012Validator(schema).iter_errors(cadence_gap)), "schema duplicated cross-band cadence semantics"
     for mutate in (
-        lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160),
         lambda p: p["adjacent_advisory_checks"]["VE"].update(aggregate_member=True),
         lambda p: p["thresholds"]["register"].update(extra=1),
     ):
