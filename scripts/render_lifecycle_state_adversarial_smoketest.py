@@ -139,6 +139,7 @@ def main() -> int:
             "forged_f9_project_identity",
             "forged_f9_from_milestone",
             "forged_f9_to_milestone",
+            "legacy_handoffs_without_project_identity",
         ):
             forged = parent / case
             forged.mkdir()

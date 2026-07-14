@@ -1035,10 +1035,19 @@ def validate_document(project_root: Path, document: Any, target: str | None = No
             "phase-state manuscript_id and resolved reader-accessibility project_identity disagree",
         ))
     project_identity = phase_identity or policy_identity
-    if ledger.get("mode") == "native" and project_identity is None:
+    identity_required = any(
+        isinstance(record, dict)
+        and isinstance(record.get("handoff"), dict)
+        and (
+            record["handoff"].get("packet_path") is not None
+            or record["handoff"].get("status") in {"ready", "consumed"}
+        )
+        for record in milestones.values()
+    )
+    if identity_required and project_identity is None:
         findings.append(_finding(
             "MF-HANDOFF", "manuscript_id",
-            "native milestone state requires an authoritative project identity for F9 binding",
+            "ledger-bound F9 handoffs require an authoritative project identity",
         ))
     predecessor: dict[str, str] | None = None
     deliverables: dict[str, dict[str, Any] | None] = {}

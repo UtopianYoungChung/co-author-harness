@@ -85,6 +85,7 @@ REAL_CASES = {
     "forged_f9_to_milestone": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "native_missing_project_identity": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "project_identity_disagreement": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
+    "legacy_handoffs_without_project_identity": ("MISCONFIGURED", 4, None, "MF-HANDOFF"),
     "rejected_generator_override": ("MISCONFIGURED", 4, "M4", "MF-OVERRIDE"),
     "allowed_advisor_override": ("NOT_APPLICABLE", 0, "M4", None),
     "reordered_artifacts_feedback_lineage": ("READY", 0, None, None),
@@ -696,7 +697,7 @@ def _write_real_case(case: str, project: Path) -> None:
             {"sequence": next_sequence + 1, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 restarted in Ph2.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
         ])
         _drop_milestone_events(ledger, "M5")
-    elif case == "valid_approved_legacy_migration":
+    elif case in {"valid_approved_legacy_migration", "legacy_handoffs_without_project_identity"}:
         evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "migration approved\n")
         report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", "migration report\n")
         ledger["mode"] = "legacy"
@@ -709,6 +710,18 @@ def _write_real_case(case: str, project: Path) -> None:
             "report_path": "reviews/migration_report.md",
             "report_sha256": report_hash,
         }
+        if case == "legacy_handoffs_without_project_identity":
+            predecessor = None
+            for milestone in ("M1", "M2", "M3", "M4", "M5"):
+                _rewrite_packet(
+                    project, ledger, milestone,
+                    lambda packet, predecessor=predecessor: packet.update({
+                        "project": "forged-legacy-project",
+                        "predecessor_packet": predecessor,
+                    }),
+                )
+                handoff = milestones[milestone]["handoff"]
+                predecessor = {"path": handoff["packet_path"], "sha256": handoff["packet_sha256"]}
     elif case in {
         "authorized_not_applicable", "allowed_advisor_override", "rejected_generator_override",
         "valid_project_local_override", "missing_project_local_override", "outside_project_local_override",
@@ -1110,6 +1123,9 @@ def _write_real_case(case: str, project: Path) -> None:
         document.pop("manuscript_id", None)
     elif case == "project_identity_disagreement":
         document["milestone_framework"]["policy_bindings"]["reader_accessibility"]["project_identity"] = "other-project"
+    elif case == "legacy_handoffs_without_project_identity":
+        document.pop("manuscript_id", None)
+        document["milestone_framework"]["policy_bindings"]["reader_accessibility"]["project_identity"] = None
     reviews = project / "reviews"
     reviews.mkdir(parents=True, exist_ok=True)
     (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
