@@ -168,11 +168,11 @@ New at v0.8.0 as **P-12** (`proposals/v0.7.5_phase3_refinement_loop_proposal.md`
 
 #### 3.3.2 Ph3 stability sub-mode (v0.7.4, P-2)
 
-The Ph3 **stability sub-mode** is a reduced-envelope iteration for byte-stable manuscripts. Its Check 8 behavior comes from profile `transitions.*.stability_mode_effect` and the bound transition snapshot; it owns no independent exclusion or retirement rule.
+The Ph3 **stability sub-mode** is a reduced-envelope iteration for byte-stable manuscripts. Its Check 8 behavior comes from `runtime_modes.stability` and the bound transition snapshot; the mode adds no aggregation or retirement rule of its own.
 
 **S-0 gate — the hash-match precondition.** A stability-mode pass is admissible only when the current iteration's manuscript is byte-stable against the prior iteration's recorded `manuscript_hash` (SHA-256 of the F1/F2/F3/F5 substrate per §3.3.4). The Planner computes the current hash at Phase 0.5 (session-state cache warm) and compares it against the journal's most-recent row for the same section. A hash match admits stability mode; a hash mismatch forces drop-through to full `run-phase-3`. Partial inheritance (some F-families unchanged, others changed) is NOT admitted — the gate is all-families-match or drop-through.
 
-**The reduced Evaluator envelope.** Under stability mode the Evaluator runs **only** (a) the grounding audit (Rule 1 full-file read; R-Refl-GR-* finding classes remain live), and (b) the `DETERMINISTIC_CHECKS §9b` Check 8 pre-filter counters (`cadence_flag_count`, `signpost_flag_count`, `jargon_density_flag_count`). The seven-step judgment pass is skipped; SAFEGUARD checks 1/4/5/7 are skipped; Coupling E.2 graph-grounding overlay (Step 0.2) is skipped. Step 0b external verifier probes are also skipped — stability-mode is an inheritance audit, not an independent review.
+**The reduced Evaluator envelope.** Under stability mode, read the workflow reuse and rerun contract from profile `runtime_modes.stability` and the bound current-hash evidence. The mode may avoid redundant execution, but it does not rewrite any stored severity, alter Check 8 membership, or establish an independent exclusion list in prose.
 
 **Admission, escalation, and close.** A stability-mode pass has three possible outcomes:
 
@@ -193,7 +193,7 @@ The Ph3 **stability sub-mode** is a reduced-envelope iteration for byte-stable m
 
 #### 3.3.3 Check 8 accessibility convergence gate (Reader-Experience defence)
 
-New at v0.7.2. The Ph.D. Research-root `CLAUDE.md §13` binds the Generator to reader-accessibility at every P-stage and phase. Until v0.7.2 the convergence metric (`diff_lines_vs_previous_round / total_section_lines`) was the sole determinant of `[CONVERGENCE-STABLE]`; a section could therefore settle into line-diff stability while carrying open §13.3 violations — the metric would fire its stability advisory for prose that was inaccessible at first read. The accessibility convergence gate closes that loophole by coupling the terminal signoff flip to the SAFEGUARD Check 8 result.
+The package-local reader-accessibility profile binds the Generator and Evaluator at every configured phase. The accessibility convergence gate couples terminal signoff to canonical Check 8 evidence rather than to portfolio-root prose or line-diff stability alone.
 
 The contract:
 

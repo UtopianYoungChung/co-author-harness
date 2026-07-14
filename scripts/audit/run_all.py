@@ -8,6 +8,7 @@ below; the schema and run-surface do not change.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -34,7 +35,7 @@ from audit_craft import audit_craft
 import check8_g_prefilter
 import check8_h_prefilter
 from d_style_profile_check import build_report as build_d_style_profile_report
-from reader_accessibility_policy import PolicyError, resolve_policy
+from reader_accessibility_policy import PolicyError, resolve_policy, validate_candidate_artifact
 from schema import Finding, FindingsReport
 
 Auditor = Callable[[str, Path], List[Finding]]
@@ -101,7 +102,9 @@ def run_accessibility_prefilters(
             a_candidates.append({"paragraph": index, "word_count": words, "candidate_cues": hits, "candidate_status": "overlay_functional_confirmation_required"})
     p_stage = check8_g_prefilter._parse_pstage(project_root)
     d_candidates = []
-    for heading in re.finditer(r"(?m)^#{1,6}\s+(.+)$", text):
+    is_tex = manuscript_path.suffix.lower() in {".tex", ".ltx"}
+    heading_pattern = r"(?m)^\\(?:chapter|section|subsection|subsubsection)\*?\{([^}]+)\}" if is_tex else r"(?m)^#{1,6}\s+(.+)$"
+    for heading in re.finditer(heading_pattern, text):
         tail = text[heading.end():].lstrip("\n")
         opening = tail.split("\n\n", 1)[0] if tail else ""
         orienting = bool(re.search(r"\b(having established|after|so far|in the preceding|the previous section|up to this point)\b", opening, re.I))
@@ -121,14 +124,21 @@ def run_accessibility_prefilters(
     for index, paragraph in enumerate(paragraphs, start=1):
         triadic = bool(re.search(r"\bFirst,[\s\S]{5,400}?\bSecond,[\s\S]{5,400}?\bThird,", paragraph, re.I))
         questions = paragraph.count("?")
-        if triadic or questions >= 3:
-            f_candidates.append({"paragraph": index, "markers": [name for name, present in (("triadic_enumerator", triadic), ("rhetorical_question_stack", questions >= 3)) if present], "candidate_status": "worked_example_judgment_required"})
+        question_floor = profile["thresholds"]["worked_example"]["rhetorical_question_stack_min"]
+        if triadic or questions >= question_floor:
+            f_candidates.append({"paragraph": index, "markers": [name for name, present in (("triadic_enumerator", triadic), ("rhetorical_question_stack", questions >= question_floor)) if present], "candidate_status": "worked_example_judgment_required"})
     g_stats, total_words, headings, long_proxy = check8_g_prefilter.analyze(text, manuscript_path, p_stage)
     h_bundles = check8_h_prefilter.analyse(text, manuscript_path, profile, phase=phase, register_class=resolved["register_class"])
+    try:
+        manuscript_binding = manuscript_path.resolve().relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        manuscript_binding = manuscript_path.resolve().as_posix()
     artifact: dict[str, object] = {
         "schema_version": "reader_accessibility_candidates.v1",
         "phase": phase,
         "cycle_id": cycle_id,
+        "manuscript_path": manuscript_binding,
+        "manuscript_sha256": hashlib.sha256(manuscript_path.read_bytes()).hexdigest(),
         "profile_path": resolved["profile_path"],
         "profile_sha256": resolved["profile_sha256"],
         "source_bindings": resolved["source_bindings"],
@@ -142,10 +152,11 @@ def run_accessibility_prefilters(
             "D": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": d_candidates},
             "E": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": e_candidates},
             "F": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": f_candidates},
-            "G": {"applicable": phase in {"Ph3", "Ph4"}, "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate", "total_words": total_words, "headings": headings, "long_manuscript_proxy": long_proxy, "candidates": [s.__dict__ for s in g_stats if s.g_candidate]},
-            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "bundles": [{"locator": b.locator, "passage_role": b.passage_role, "role_confidence": b.role_confidence, "role_reason": b.role_reason, "binding_status": b.binding_status, "word_count": b.word_count, "candidate_status": "overlay_required" if b.any_fired else "short_circuit_candidate", "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles]},
+            "G": {"applicable": phase in {"Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate", "total_words": total_words, "headings": headings, "long_manuscript_proxy": long_proxy, "candidates": [s.__dict__ for s in g_stats if s.g_candidate]},
+            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "positive_marker_audit_required": True, "bundles": [{"locator": b.locator, "passage_role": b.passage_role, "role_confidence": b.role_confidence, "role_reason": b.role_reason, "binding_status": b.binding_status, "word_count": b.word_count, "candidate_status": "overlay_positive_marker_audit_required", "negative_prefilter_fired": b.any_fired, "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles]},
         },
     }
+    validate_candidate_artifact(artifact)
     output_path = output.resolve() if output else project_root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(artifact, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")

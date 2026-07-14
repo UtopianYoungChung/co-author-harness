@@ -64,7 +64,7 @@ from __future__ import annotations
 import argparse
 import json
 import hashlib
-from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy
+from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy, validate_candidate_artifact, validate_check8_evidence
 import re
 import sys
 from pathlib import Path
@@ -1131,15 +1131,29 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy", f"resolved/candidate artifact invalid: {exc}")); return findings
         if resolved_payload != expected_resolved:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.profile_path", "resolved profile is not exact fresh resolver output"))
-        if not isinstance(candidate_payload, dict) or candidate_payload.get("schema_version") != "reader_accessibility_candidates.v1" or candidate_payload.get("profile_path") != expected_resolved["profile_path"] or candidate_payload.get("profile_sha256") != expected_resolved["profile_sha256"] or candidate_payload.get("source_bindings") != expected_resolved["source_bindings"] or candidate_payload.get("candidate_only") is not True or set(candidate_payload.get("sub_checks", {})) != set("ABCDEFGH"):
-            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
-        transitions = sidecar.get("transition_snapshot", {})
-        transition_objects = {key: {"state": transitions.get(key)} for key in ("G", "H", "VE")}
-        try: computed = recompute_check8(sidecar, transition_objects)
+        try:
+            validate_candidate_artifact(candidate_payload)
         except PolicyError as exc:
-            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_subcheck_counters", f"invalid structured Check 8 evidence: {exc}")); return findings
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", f"candidate artifact schema invalid: {exc}"))
+        expected_candidate = {
+            "phase": policy["phase"], "manuscript_path": grounding[0] if grounding else None,
+            "manuscript_sha256": policy["manuscript_sha256"], "profile_path": expected_resolved["profile_path"],
+            "profile_sha256": expected_resolved["profile_sha256"], "source_bindings": expected_resolved["source_bindings"],
+        }
+        if not isinstance(candidate_payload, dict) or any(candidate_payload.get(key) != value for key, value in expected_candidate.items()):
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
+        phase_state_path = project_root / "reviews" / "phase_state.json"
+        try:
+            validate_check8_evidence(sidecar)
+            phase_state = json.loads(phase_state_path.read_text(encoding="utf-8"))
+            bound_transitions = phase_state["milestone_framework"]["policy_bindings"]["reader_accessibility"]["transitions"]
+            transition_snapshot = {key: bound_transitions[key]["state"] for key in ("G", "H", "VE")}
+            transition_objects = {key: {"state": transition_snapshot[key]} for key in ("G", "H", "VE")}
+            computed = recompute_check8(sidecar, transition_objects)
+        except (PolicyError, OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.check8_evidence_path", f"strict Check 8/phase-state evidence invalid: {exc}")); return findings
         expected = {"profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
-        if any(sidecar.get(key) != value for key, value in expected.items()) or computed["aggregate_verdict"] != fm["check_8_aggregate"] or sidecar.get("subcheck_verdicts") != computed["subcheck_verdicts"]:
+        if any(sidecar.get(key) != value for key, value in expected.items()) or sidecar.get("manuscript_path") != (grounding[0] if grounding else None) or sidecar.get("transition_snapshot") != transition_snapshot or computed["aggregate_verdict"] != fm["check_8_aggregate"] or sidecar.get("subcheck_verdicts") != computed["subcheck_verdicts"]:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
         if len(sidecar.get("ve", {}).get("findings", [])) != fm["check_8_adjacent_advisories"]["ve_finding_count"]:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_adjacent_advisories", "VE evidence count mismatch"))
@@ -1155,10 +1169,10 @@ def collect_paths(args: argparse.Namespace) -> List[Path]:
             sys.exit(2)
         if args.recursive:
             md_paths = sorted(d.rglob("*.md"))
-            json_paths = sorted(d.rglob("*.json"))
+            json_paths = sorted(path for path in d.rglob("*.json") if path.name != "phase_state.json")
         else:
             md_paths = sorted(d.glob("*.md"))
-            json_paths = sorted(d.glob("*.json"))
+            json_paths = sorted(path for path in d.glob("*.json") if path.name != "phase_state.json")
         # Stable combined order: Markdown first, then JSON (deterministic)
         paths = md_paths + json_paths
     else:

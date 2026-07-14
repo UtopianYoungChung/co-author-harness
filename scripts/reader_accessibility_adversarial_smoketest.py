@@ -42,12 +42,12 @@ def run_runner(project: Path, text: str, *extra: str) -> subprocess.CompletedPro
 
 def main() -> int:
     # Deep runtime invariants, not merely top-level shape checks.
-    rejects(lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "contiguous")
+    rejects(lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "expected constant")
     rejects(lambda p: p["thresholds"]["cadence"]["above_ceiling"].update(mandatory_split=False), "above_ceiling")
     rejects(lambda p: p["adjacent_advisory_checks"]["VE"].update(aggregate_member=True), "VE")
     rejects(lambda p: p["thresholds"].update(canonical_sha256="0" * 64), "canonical_sha256")
     rejects(lambda p: p["sub_checks"]["A"].update(deterministic_disposition="magic"), "deterministic_disposition")
-    rejects(lambda p: p["thresholds"]["register"].update(extra=1), "unexpected")
+    rejects(lambda p: p["thresholds"]["register"].update(extra=1), "additional properties forbidden")
     # The JSON Schema independently rejects the same nested mutations.
     import jsonschema
     schema = json.loads((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
@@ -114,6 +114,12 @@ def main() -> int:
         assert any(item["heading"] == "Incomplete" for item in d) and all(item["heading"] != "Complete" for item in d)
         assert probe_artifact["sub_checks"]["E"]["candidates"], "E positive probe did not fire"
         assert any("triadic_enumerator" in item["markers"] for item in probe_artifact["sub_checks"]["F"]["candidates"])
+        tex_manuscript=project/"manuscript.tex"; tex_manuscript.write_text("\\section{Incomplete}\nA bare opening without either signpost.\n",encoding="utf-8")
+        tex_out=project/"reviews/reader_accessibility_candidates_tex.json"
+        tex_proc=subprocess.run([sys.executable,"-I","-S",str(ROOT/"scripts/audit/run_all.py"),str(tex_manuscript),"--project-root",str(project),"--skip-d-style-profile","--phase","Ph2","--cycle-id","tex","--accessibility-out",str(tex_out),"--out",str(project/"reviews/tex_findings.json")],capture_output=True,text=True,encoding="utf-8",errors="replace")
+        assert tex_proc.returncode == 0, tex_proc.stdout+tex_proc.stderr
+        tex_artifact=json.loads(tex_out.read_text(encoding="utf-8"))
+        assert any(item["heading"] == "Incomplete" for item in tex_artifact["sub_checks"]["D"]["candidates"]), "TeX D-signpost candidate was not emitted"
 
         (notes / "directives.md").write_text("register_class: nonsense\n", encoding="utf-8")
         bad_register = run_runner(project, "Text.")

@@ -1,15 +1,114 @@
 {
   "schema_version": "reader_accessibility_candidates.v1",
   "phase": "Ph3",
+  "cycle_id": "P21B-F1",
+  "manuscript_path": "manuscript/main.tex",
+  "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+  "profile_sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
   "source_bindings": [
-    {"scope":"package","path":"references/policies/reader_accessibility.v1.json","sha256":"e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977","role":"package_profile"},
-    {"scope":"package","path":"references/READER_ACCESSIBILITY.md","sha256":"e37ddf627b174ac9962a2e3bdbd27887ecebb6b0bcca43f4b848f74ba8df66d3","role":"package_contributor"},
-    {"scope":"package","path":"references/lay_term_lexicons.md","sha256":"c19969d1b74ebd1f799afee6289c4d46eb8273c3270ad3f61aa12d3a04b53396","role":"package_contributor"},
-    {"scope":"package","path":"references/examples/model_prose_corpus.md","sha256":"d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812","role":"package_contributor"}
+    {
+      "scope": "package",
+      "path": "references/policies/reader_accessibility.v1.json",
+      "sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
+      "role": "package_profile"
+    },
+    {
+      "scope": "package",
+      "path": "references/READER_ACCESSIBILITY.md",
+      "sha256": "3fffed7e846d30e4559c80501bffe459c40438c7deee92bee3b915aed8048827",
+      "role": "package_contributor"
+    },
+    {
+      "scope": "package",
+      "path": "references/examples/model_prose_corpus.md",
+      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
+      "role": "package_contributor"
+    }
   ],
+  "register_class": "technical",
   "candidate_only": true,
   "evaluator_judgment_required": true,
-  "sub_checks": {"A":{},"B":{},"C":{},"D":{},"E":{},"F":{},"G":{},"H":{}}
+  "sub_checks": {
+    "A": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "candidates": []
+    },
+    "B": {
+      "applicable": true,
+      "deterministic_disposition": "judgment_only",
+      "reason": "rhythm and C-8 functional guards require Evaluator judgment"
+    },
+    "C": {
+      "applicable": true,
+      "deterministic_disposition": "judgment_only",
+      "reason": "first-use conceptual work cannot be established by token order alone"
+    },
+    "D": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "candidates": []
+    },
+    "E": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "candidates": []
+    },
+    "F": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "candidates": []
+    },
+    "G": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate",
+      "total_words": 7,
+      "headings": 0,
+      "long_manuscript_proxy": false,
+      "candidates": []
+    },
+    "H": {
+      "applicable": true,
+      "deterministic_disposition": "candidate_probe",
+      "ph2_scope": null,
+      "positive_marker_audit_required": true,
+      "bundles": [
+        {
+          "locator": "line 1:chars 0-47",
+          "passage_role": "section_framing",
+          "role_confidence": "medium",
+          "role_reason": "uncued opening span after a heading",
+          "binding_status": "binding",
+          "word_count": 7,
+          "candidate_status": "overlay_positive_marker_audit_required",
+          "negative_prefilter_fired": false,
+          "probes": {
+            "nominalisation": {
+              "name": "nominalisation",
+              "raw_count": 0,
+              "normalised": 0.0,
+              "threshold": 0.08,
+              "fired": false
+            },
+            "prep_run": {
+              "name": "prep_run",
+              "raw_count": 1,
+              "normalised": 1.0,
+              "threshold": 3.0,
+              "fired": false
+            },
+            "hedging": {
+              "name": "hedging",
+              "raw_count": 0,
+              "normalised": 0.0,
+              "threshold": 2.0,
+              "fired": false
+            }
+          }
+        }
+      ]
+    }
+  }
 }

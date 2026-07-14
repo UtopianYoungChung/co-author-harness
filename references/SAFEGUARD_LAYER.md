@@ -248,7 +248,7 @@
 
 ## Check 7 — Inter-Sentential Logical Connective Audit
 
-**Trigger:** Run after Check 6 at `submission-bound` depth and at tier rungs T3 and T4. Consumes the `DETERMINISTIC_CHECKS.md §9a` pre-filter work queue produced during Step 0a.
+**Trigger:** Run after Check 6 at submission-bound depth and the corresponding active lifecycle phases. Consumes the `DETERMINISTIC_CHECKS.md §9a` candidate queue.
 
 **Rationale for a judgment layer.** The §9a pre-filter mechanizes detection of five connective classes: explicit application phrase, template invocation, attributional inversion (If-Then followed by application), following-X pivot, and descriptive-to-normative jump. Individually none of these is a violation; each is a candidate. Violations are found at the *co-presence* level — a paragraph carrying two or three of these markers simultaneously is smuggling a logical chain past the reader. The pre-filter's job is to surface candidates cheaply; this check judges whether the chain is warranted.
 
@@ -280,9 +280,9 @@
 
 ## Check 8 — Reader-Experience / Prose Architecture Audit
 
-**Trigger:** Run at every tier rung where the Evaluator is active — **T2**, **T3**, and **T4** — and at `standard` and `submission-bound` depths. Operationalizes the eight reader-accessibility criteria of the Ph.D. Research-root `CLAUDE.md §13.3` as a pass/fail audit with severity floors (six local-scale criteria A–F, one cumulative-scale criterion G added 2026-04-23, one register-scale criterion H added 2026-04-27 v0.10.1). Consumes the `DETERMINISTIC_CHECKS.md §9b` pre-filter work queue produced during Step 0a; H pre-filter is optional in v0.10.1 (deferred to a later revision).
+**Trigger:** Run at each active Evaluator phase and configured review depth. The package-local resolved reader-accessibility profile owns Check 8 scope, severity, transitions, and aggregation; deterministic probes nominate evidence only.
 
-**Scope.** At T2, the audit runs on the section under review (`heading_path`) — Sub-checks A–F plus H (passage-scoped subset: H runs on the five non-technical passage roles already named by D, F, G plus section framing and inter-section transitions, all of which are section-resolvable). Sub-check G is manuscript-scoped and cannot be evaluated on a section in isolation, so at T2 the overlay emits only an advisory `G_DEFERRED_TO_T3` note. At T3 and T4, the audit runs on the full manuscript and exercises all eight Sub-checks (A–H), with H additionally extending to the abstract / introduction / conclusion under `register_class: mixed` and to the entire manuscript under `register_class: non-technical`.
+**Scope.** Resolve each check's phase and passage/manuscript scope from `sub_checks` and `register_scope` in the active profile. Do not reconstruct legacy tier subsets here.
 
 **Rationale for an Evaluator-owned surface.** Package policy requires fluency and low extraneous load across stages and registers. Check 8 gives that policy an evidence-bearing Evaluator surface.
 
@@ -294,13 +294,13 @@
 
 1. Enumerate every paragraph in scope and apply `thresholds.cadence`. Candidate cues receive credit only after functional confirmation; this procedure does not restate the numeric bands.
 2. Flag each cadence-violating paragraph with its word count and its turn-point count.
-3. **Severity floor:** **MINOR** on first detection; **MAJOR** if the same paragraph was flagged in a prior round; **BLOCKER** on the third consecutive round at the same severity.
+3. **Severity:** derive from `thresholds.cadence` and the current paragraph evidence. Prior observations affect workflow persistence and recurrence reporting only.
 
 ### B. Sentence-length distribution (§13.3 criterion 2)
 
-1. For each paragraph > 100 words, compute mean and standard deviation of sentence length.
-2. Flag paragraphs where mean > 28 words **and** SD < 6 (monotone-dense).
-3. **Severity floor:** **MINOR** per paragraph; **MAJOR** if three or more consecutive paragraphs are monotone-dense (sustained cadence failure).
+1. Compute the sentence-distribution evidence required by `thresholds.rhythm`.
+2. Nominate monotone-dense candidates under the resolved profile.
+3. **Severity:** adjudicate the present text under the profile; recurrence creates workflow evidence only.
 
 ### C. First-use definition (§13.3 criterion 3)
 
@@ -310,40 +310,36 @@
 
 ### D. Section-transition signposting (§13.3 criterion 4)
 
-1. For every section and major subsection, check that the opening one-to-three sentences preamble tells the reader where they have arrived in the argument and what the section will contribute.
+1. For every section and major subsection, check that the opening span tells the reader where they have arrived in the argument and what the section will contribute.
 2. Flag sections that open with an unqualified thematic claim, a bare definition, or a block quote (no directional signal).
-3. **Severity floor:** **MINOR** on first detection; **MAJOR** if two or more sections fail in a single manuscript.
+3. **Severity:** derive from current textual evidence and `sub_checks.D`; repeated observations do not rewrite severity.
 
 ### E. Jargon discipline per paragraph (§13.3 criterion 5)
 
 1. For each paragraph, count new domain terms — terms not used in any prior paragraph of the manuscript.
-2. Flag paragraphs introducing more than two new domain terms.
-3. **Severity floor:** **MAJOR** (the §13.3 threshold is structural, not advisory: a paragraph carrying three or more new terms should be split).
+2. Apply `thresholds.jargon` to the current P-stage.
+3. **Severity:** derive from the active profile's jargon contract.
 
 ### F. Worked examples at density spikes (§13.3 criterion 6)
 
 1. Identify density-spike passages. Starting list: the §9b pre-filter's "Triadic enumerator (mechanized)" matches and the §9b "Rhetorical-question stacking" matches; extend by reading for tri-part decompositions, multi-criteria evaluations, and contested-claim clusters.
 2. For each density spike, verify the surrounding prose turns to a worked example, vignette, or concrete instantiation before continuing in the abstract. The INF3001H loan-officer vignette is the template move.
-3. **Severity floor:** **MINOR** at T2; **MAJOR** at T3 and T4.
+3. **Severity:** derive from `sub_checks.F` for the current evidence and phase.
 
 ### G. Cumulative cognitive load / consolidation anchors (§13.3 criterion 7)
 
-**Scope.** Full manuscript only. Sub-check G does not run at T2 as a binding audit; at T2 the Evaluator records an advisory note that the check will run at T3. At T3 and T4, Sub-check G runs against the manuscript in one read.
+**Scope.** Resolve G scope and workflow effect from `sub_checks.G`, `transitions.G`, and the current dispatch envelope.
 
 **Procedure.**
 
 0. **Consume the §9d pre-filter (added 2026-04-23).** If the current cycle's `reviews/deterministic_<cycle_id>.md` file carries a §9d "Cumulative cognitive load pre-filter" block, open it first. The pre-filter's G-candidate boundary list (boundaries where preceding-span word count exceeds the P-stage gap envelope AND consolidation-cue density is zero in both the pre-heading window and the opening paragraph of the next section) is the seed for step 1. The Evaluator may extend the seed with any additional boundaries it judges threshold-crossing that the pre-filter missed (the pre-filter is intentionally coarse and keys on cue absence, not construct-accumulation judgment). If the pre-filter has not run this cycle, proceed from step 1 directly.
-1. **Enumerate structural boundaries.** A structural boundary is any of: (a) the closing paragraph of a major section followed by a new major section; (b) a labelled pivot within a section (for example a subsection that relocates the argument from description to stance, or from tension-mapping to accountability); (c) the opening of any section whose argument depends on constructs introduced in two or more prior sections without which the argument does not land. The Evaluator reads the manuscript's table of contents and the first sentence of each section to build the boundary inventory, starting from the §9d seed when available.
+1. **Enumerate structural boundaries.** Use section endings, labelled argumentative pivots, and dependency-bearing openings under `thresholds.consolidation`. The Evaluator reads the manuscript geometry and dependency structure, starting from the §9d seed when available.
 2. **Measure construct accumulation between boundaries.** For each span between two consecutive boundaries (or between the manuscript opening and the first boundary), count the distinct load-bearing constructs, positions, or tensions introduced. A construct is load-bearing if it (i) is named in the abstract, (ii) appears in the §13.3 first-use definition set audited by Sub-check C, or (iii) is cited as prior material by a later section. A position is load-bearing if the manuscript takes it seriously enough to treat it as a candidate to accept, reject, or reframe. A tension is load-bearing if the manuscript's closing argument depends on its unresolved status.
-3. **Apply the construct-accumulation threshold.** A boundary crosses the threshold when the prior spans have introduced **three or more** load-bearing constructs (cumulative, not per-span), or when the next section's argument depends on **two or more** prior sections' material. A boundary that crosses the threshold must carry a consolidation anchor in the paragraph preceding it, in the paragraph opening the next section, or in a labelled transition between them. A consolidation anchor is a one-sentence restatement that (a) names the distinct constructs, positions, or tensions the reader has acquired up to that point and (b) signals how the next movement will build on them. Canonical form: "At this point in the paper, [the reader holds X, Y, Z]; the next movement [does W with them]." Any sentence performing both functions qualifies.
+3. **Apply the profile threshold.** A qualifying boundary must carry a consolidation anchor that names accumulated material and signals how the next movement will use it.
 4. **Flag boundary misses.** For each threshold-crossing boundary lacking an anchor, record the boundary locator, the construct count at that point, and the absence.
-5. **Word-count envelope check.** Manuscripts under roughly 3,000 words rarely cross the threshold and a CLEAN Sub-check G verdict is the expected default. Manuscripts beyond roughly 5,000 words with no consolidation anchors at any threshold-crossing boundary fall into the absence-of-anchors BLOCKER condition regardless of per-boundary construct counts, on the empirical finding that a sustained twenty-page argument without consolidation is the reliable indicator of cumulative-load failure the sub-check most directly targets.
+5. **Envelope check.** Apply the resolved profile's G envelope; this prose owns no numeric cutoff or severity rule.
 
-**Severity floor.**
-
-- **MINOR** — exactly one threshold-crossing boundary lacks an anchor and the manuscript word count is under 5,000.
-- **MAJOR** — two or more threshold-crossing boundaries lack anchors, or a single missed boundary is located at the transition into the manuscript's closing argumentative move (where cumulative load is highest).
-- **BLOCKER** — a manuscript beyond roughly 5,000 words contains no consolidation anchors at any threshold-crossing boundary, or a missed boundary directly precedes a section whose argument is specified in the abstract and depends on three or more prior-section constructs.
+**Severity.** Apply `sub_checks.G` and its referenced profile thresholds to the recorded boundary evidence.
 
 **Interaction with Sub-check D (Section-transition signposting).** Sub-checks D and G are orthogonal and additive, not alternatives. Sub-check D audits the *local* orientation at each section opening: does the opening tell the reader where they have arrived and what the section will contribute? Sub-check G audits the *cumulative* consolidation at threshold-crossing boundaries: does the manuscript name what the reader has acquired and how the next movement will use it? A strong section opening can satisfy D while still omitting the G anchor (the opening orients forward but does not consolidate backward); a strong consolidation can satisfy G while still failing D (the anchor names the accumulated material but does not preamble the section). When a Generator is applying a fix, D-targeting preambles and G-targeting anchors can co-locate in the same paragraph, but the two sentences should do distinct work.
 
@@ -353,17 +349,17 @@
 
 ### H. Register Appropriateness — Register-Flag (§13.3 criterion 8, added v0.10.1)
 
-**Scope.** Passage-scoped at all tier rungs (subset of section scope: the five non-technical passage roles — section signpost orienting/contribution clauses, section framing/introduction prose, inter-section transitions, worked-example vignette bodies, cumulative consolidation anchor sentences — all of which are resolvable from the section's `heading_path`). Conditioned on `register_class` field in `research_notes/directives.md` (default `technical`): under `mixed`, scope extends to abstract / introduction / conclusion in addition to the five passage roles; under `non-technical`, scope extends manuscript-wide with technical paragraphs (those failing the functional removability test) retaining their domain terms but held to positive-marker construction at the sentence level.
+**Scope.** Load passage roles and audience-conditioned scope from `register_scope` and `sub_checks.H`; do not reconstruct the role set from prose.
 
-**Signpost role split (v0.10.2).** Section signposts decompose into two clause types with different binding tiers: the **orienting clause** (where-am-I; reader-orientation work) is **binding at Ph2** with BLOCKER-CANDIDATE tagging on zero-positive-markers verdict, and binds at Ph3 at full severity; the **contribution clause** (what-this-section-does; technical-content work) is **advisory at Ph2** and binds at Ph3 at full severity with technical density permitted. The other four passage roles (framing, transitions, vignette bodies, anchors) are advisory at Ph2 and bind at Ph3. See `skills/accessibility-overlay/references/sub_checks.md §H` "Signpost role split" paragraph for the orienting-vs-contribution detection rule (backward-reference grammatical subject for orienting; forward-reference subject + verb-of-action for contribution).
+**Signpost role split.** Nominate orienting and contribution clauses separately and apply `sub_checks.H.ph2_role_overrides`; this prose does not duplicate the override table.
 
 **Procedure.**
 
 1. **Resolve `register_class` from `directives.md`.** Default `technical` if the field is absent (back-compat-safe path). Record the resolved value in the output artefact as `register_class_resolved`.
-2. **Identify non-technical passages in scope.** For each candidate passage (the five passage roles plus any `register_class`-extended passages), apply the **functional removability test**: remove every domain-term token (italicised terms; terms in `references/terminology_register.md`; project-glossary entries from `research_notes/glossary.md` if present — same scope as Sub-check C's "construct" definition) and substitute plain-language glosses. If the paragraph's propositional content is preserved, the passage is non-technical and subject to H. If propositional content is destroyed, the passage is technical, H does not apply (under `register_class: technical` and `mixed`), the paragraph is left to E's term-density discipline alone.
-3. **Audit positive markers (presence signals compliance; four markers at v0.10.2).** Within each non-technical passage, check four positive markers: (a) **concrete-referent anchoring** — at least one concrete referent per paragraph drawn from one of three classes ((i) physical/material entity; (ii) named individual or group; (iii) specific scenario or worked vignette); defined constructs are explicitly excluded from the count (per v0.10.2 operationalisation; see `sub_checks.md §H` marker 1 for the construct-exclusion rationale); (b) **agent-verb-object default** — majority of sentences take a human or identifiable agent as grammatical subject (nominalised constructions and passives that obscure agency are tracked; "identifiable agent" includes the three concrete-referent classes); (c) **discourse-connective transparency** — transition words drawn from common English connectives (`but`, `so`, `because`, `this means`, `in other words`) rather than Latinate academic connectives, with the **load-bearing-Latinate whitelist** at `references/lay_term_lexicons.md` exempting six precision-bearing connectives (`whereby`, `hence`, `notwithstanding`, `insofar as`, `qua`, `mutatis mutandis`); (d) **register-shift signposting (added v0.10.2)** — when register intentionally shifts within a passage, the shift is announced via a signposting cue (`consider concretely:`, `in plain terms:`, `to put this technically:` etc.); implicit register shifts and unsignposted tone changes between adjacent passages of the same role are flagged as register-discontinuity findings. Compliance frame: **at least two of the four markers** present; advisory-period default qualitative judgment; quantitative thresholds deferred to `docs/superpowers/plans/2026-04-27-h-quantitative-thresholds.md`.
-4. **Audit negative markers (presence flags violation).** Three counted patterns per paragraph: (a) **unnecessary nominalisation** — verbs converted to abstract nouns where the verb form would carry the same content; (b) **stacked prepositional phrases** — three or more consecutive prepositional phrases in a single clause; (c) **hedging pile-up** — more than two epistemic hedges per sentence.
-5. **Apply the presence-of-positive-markers compliance frame.** A passage with at least two positive markers present is CLEAN regardless of negative-marker count. A passage with one negative marker but two positive markers is CLEAN. A passage with zero positive markers and zero negative markers is MINOR (the passage is doing nothing distinctively reader-accessible). The presence-of-positive-markers grammar (rather than absence-of-negative-markers punishment) closes the dilution back-door and rewards register craft rather than punishing register lapses.
+2. **Identify passages in scope.** Apply the **functional removability test** and the resolved `register_scope`. If substituting plain-language glosses preserves propositional content, H evaluates the passage; otherwise routing follows the active register class and profile.
+3. **Audit positive markers.** Apply the marker definitions and compliance frame under `thresholds.register`; project lexicon overrides resolve through the profile.
+4. **Audit negative markers.** Apply the registered probes and lexicons from the resolved profile; prose does not restate their numeric thresholds.
+5. **Apply the presence-of-positive-markers compliance frame.** Use `thresholds.register` for marker counts and present-text severity. A negative-clear pre-filter never implies CLEAN; the positive-marker audit always runs.
 6. **Emit per-finding telemetry.** Each H finding may carry `false_positive_candidate` and `inherited_from_pre_h` as provenance. Neither field rewrites severity or transition state.
 
 7. **Calibration aggregation.** `scripts/aggregate_h_calibration.py` materialises evidence for an H transition adjudication. The report never owns the counter or retirement state; the Planner records an approved transition event only in `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H`.
@@ -374,7 +370,7 @@
 
 **Transition binding.** `transitions.H` defines meaning. Live state is the validated policy-binding Planner event projection; legacy reports own neither counters nor retirement.
 
-**Stability sub-mode interaction (v0.8.0+).** Under `run-phase-3-stability`, Sub-check H runs **advisory-only** mirroring Sub-check G's stability-sub-mode treatment. An H finding under stability mode is logged with `stability_advisory: true` and does not contribute to the §3.3.3 aggregate verdict.
+**Stability sub-mode interaction.** Apply `runtime_modes.stability`. Persistence may reuse current-hash evidence, but does not rewrite severity or aggregate membership.
 
 ### Check-8-Adjacent — Verdict-Edge Discipline (VE; added v0.13.0)
 
@@ -389,7 +385,7 @@
    - **Class (a) — emphatic determiners.** `the very X`, `the same X`, `precisely the X`, `exactly the X`, `the very same X`. Marker for emphatic foregrounding of a referent.
    - **Class (b) — deontic-implicit phrasings.** `supposed to X`, `meant to X`, `should X but doesn't`, `was designed to X`, `is intended to X`. Marker for an implied normative gap between a system's design intent and its observed behavior.
    - **Class (c) — verdict verbs.** `erodes`, `destroys`, `breaks down`, `is undermined by`, `collapses`, `fails`, `is corrupted by`, `is gutted by`. Marker for terminal/evaluative outcome assertion.
-3. **Apply the intensifier-stack advisory.** A single sentence-clause containing **three or more** intensifier tokens distributed across at least **two of the three classes** fires a VE finding. Stacks within a single class are noted but do not fire.
+3. **Apply the intensifier-stack advisory.** Use `thresholds.verdict_edge` for token and class minima. VE remains non-aggregate regardless of the result.
 4. **Emit advisory telemetry with softening suggestion.** Each VE finding carries (a) the offending sentence-clause as `evidence_text`, (b) the matched intensifier tokens with their classes, (c) a `suggested_softening` field constructed by the modal-distribution rule, and (d) `false_positive_candidate: true|false` (default `false`).
 
 **Modal-distribution softening rule.** The default softening converts the verdict claim into a modal/equivocal claim while preserving the diagnostic content. The rule has three steps: (i) replace the class-(c) verdict verb with a modal-equivocal predicate (`is eroded by` → `may not remain stable under`; `destroys` → `is challenged by`; `is undermined by` → `is contested under`); (ii) drop or weaken the class-(a) emphatic determiner (`the very X` → `the X`; `precisely the X` → `the X`); (iii) preserve the class-(b) deontic-implicit phrasing if needed for the diagnostic content, or rephrase to recover the implicit-norm content without the deontic register. Example transformation: `is eroded by the very delegation patterns it is supposed to anchor` → `may not remain stable under the delegation patterns to which it is supposed to anchor accountability`. The "to which" rephrasing recovers the deontic content (the delegation-anchoring relationship) without the modal-claim escalation.
@@ -443,7 +439,7 @@
 - Route: Reflector Phase 2g only (`adjacent_advisory_checks.VE`); no A-H aggregate or gate contribution.
 ```
 
-**Severity aggregation and convergence contribution.** Check 8 feeds the T3 convergence gate through canonical JSON evidence. The Planner recomputes the exact A–H aggregate and applies G/H workflow effects from their validated policy-binding transition states. A prose flag, classification date, or recurrence note cannot change membership. VE remains a separate Reflector stream with no gate contribution.
+**Severity aggregation and convergence contribution.** Check 8 feeds the Ph3 convergence gate through canonical JSON evidence. The Planner recomputes the exact A–H aggregate and applies workflow effects from validated policy-binding transition states. Prose metadata cannot change membership. VE remains separate with no gate contribution.
 
 **Why this matters.** Package-local `READER_ACCESSIBILITY.md` operationalizes extraneous-load reduction while preserving intrinsic difficulty and supporting germane model-building load. Check 8 makes that constraint an Evaluator-owned, current-hash-bound convergence surface. A–F cover local prose, G cumulative consolidation, and H register construction; all are implemented in the overlay. Portfolio-root §13 and the earlier roadmap are provenance, not live runtime dependencies.
 
@@ -464,7 +460,7 @@
 - The output of all eight checks is appended to the consolidated findings report as **§10 (Safeguard Layer Results)**.
 - Any new BLOCKERs or MAJORs found by the safeguard layer are added to the report's §2 (Blockers) or §3 (Majors) with the prefix `[SL-n]` (Safeguard Layer check number).
 - The G.4 sign-off table includes a row for Step 8.5 listing all eight sub-results.
-- Check 8 BLOCKERs feed the T3 convergence gate according to the exact A–H aggregate and validated G/H transition events (`PHASE_PROTOCOL.md §3.3.3`). VE never changes this gate.
+- Check 8 BLOCKERs feed the Ph3 convergence gate according to canonical recomputation and validated transition events (`PHASE_PROTOCOL.md §3.3.3`). VE never changes this gate.
 
 ### Which checks run at which depth
 
@@ -492,7 +488,7 @@ Checks 1, 4, and 5 run at all depths because they catch the highest-severity pro
 | 5 — Edit Traceability | — | **Yes** | **Yes** | **Yes** |
 | 6 — Humanness Voice Audit | — | No | **Yes** | **Yes** |
 | 7 — Inter-Sentential Logical Connective Audit | — | No | **Yes** | **Yes** |
-| 8 — Reader-Experience / Prose Architecture Audit | — | **Yes** (Sub-checks A–F + H passage-scope subset, section-scoped, baseline) | **Yes** (Sub-checks A–H, manuscript-scoped, convergence-gating; H passage-scope under `register_class: technical`/`mixed` or manuscript-scope under `non-technical`) | **Yes** (Sub-checks A–H, strict superset) |
+| 8 — Reader-Experience / Prose Architecture Audit | — | **Profile-routed** | **Profile-routed** | **Profile-routed** |
 
 **Phase scope.** Resolve Ph2/Ph3/Ph4 applicability from `sub_checks.*.advisory_at`, `binds_at`, passage-role overrides, and validated G/H transition states. Check 8 becomes convergence-gating only through those machine contracts; historical rollout prose is not executable authority.
 

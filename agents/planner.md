@@ -159,7 +159,7 @@ cache = {
 4. **Invalidation at round boundaries.** The cache is cleared on every user-checkpoint that closes a round (`► PRESENTS TO USER ◄` gates after Phase 5, Phase 5.5, Phase 6). The cache does not persist across session boundaries and is never serialised to `.cache/` or any other on-disk location.
 5. **Logging.** The cache emits no ledger rows on hit; a `CACHE-INVALIDATED-EXTERNAL-WRITE` advisory is the only cache-related signal that reaches Phase 2f. Reflector Phase 2f files `R-Refl-Cache-1` **MAJOR** for a stale-key round-close (the F5 artefact's `grounding_basis` cites a file whose end-of-round hash differs from round-entry hash without an intervening write-through or documented invalidation) and `R-Refl-Cache-2` **MINOR** for a re-read storm (distinct file reads per round exceeding a threshold implausible under a correctly-invalidated cache — default threshold: 3× the count of distinct cached files in the round).
 
-**Why.** Iter-7 of INF3006Y attributed ~18% of its ~80% cost overrun to a re-read storm on the three keyed files (n=1; see Ph.D.-root CLAUDE.md §12.10). The cache is the structural fix; the Reflector audit is the insurance that the fix is actually in place.
+**Why.** A historical INF3006Y audit identified a re-read storm on keyed files. That observation is provenance only; the package-local cache contract and Reflector audit are the operational authority.
 
 ### Output Profile Routing (v0.14.0 output economy)
 

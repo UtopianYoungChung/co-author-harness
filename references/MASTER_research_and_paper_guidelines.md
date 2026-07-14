@@ -84,7 +84,7 @@ Use **Find in Files** / editor search on the **package folder** for keywords (e.
 | 8 | `SAFEGUARD_LAYER.md` | Post-review integrity checks: regression, drift, consistency, contradictions, traceability, voice |
 | 9 | `GROUNDING_PROTOCOL.md` | **Binding** no-hallucination rules; cannot be overridden; enforced by Reflector grounding audit every round |
 
-**Policy reminder:** rows **1–7** are the **mandatory full-package pass** (see **Policy: mandatory full-package review** above) before any submission-final sign-off. Row **8** (`SAFEGUARD_LAYER.md`) runs at Step 8.5 in the orchestration; its eight checks (Checks 1–6 from v0.5.x; Check 7 Inter-Sentential Logical Connective Audit and Check 8 Reader-Experience / Prose Architecture Audit added at v0.7.2) are the integrity layer that catches problems the seven-step review does not prescribe. Check 8 is the T3 convergence gate authoritatively specified at `TIER_PROTOCOL.md §3.3.3`.
+**Policy reminder:** rows **1–7** are the mandatory full-package pass before submission-final sign-off. Row **8** runs the safeguard layer. Check 8 consumes the package-local resolved reader-accessibility profile and canonical evidence; lifecycle projection is specified in `references/PHASE_PROTOCOL.md`.
 
 When a detail is needed (e.g. Baird appendices A–D, Bacon glossary), open the listed component file or the **original publication** named in Part H.
 
@@ -123,7 +123,7 @@ Use this table to **follow** each block of the master back to the **section head
 - Aim for prose that is **enjoyable**, **changes what readers know**, and remains **easy to process** (not cognitively taxing).
 - Maintain one **red thread**: a single, continuous line of reasoning from start to finish.
 - Use an **hourglass** shape: **broad** opening (shared context) → **narrow** (your problem, method, contribution) → **broad** closing (implications, limits, future work).
-- **Reader-accessibility constraint (binding, all P-stages; new at v0.7.2).** Every revision the harness produces must be accessible to a careful human reader at first read, regardless of the conceptual difficulty of the material on the page. Accessibility here is **extraneous-load reduction**, not intrinsic-load collapse — a dense Vidal contradiction-mapping passage is fully compliant if its sentences are paced, its constructs are defined, and its rhythm carries the reader. The constraint is operationalised by six Sub-checks A–F in `SAFEGUARD_LAYER.md` Check 8 (paragraph cadence, sentence-length distribution, first-use definition, section-transition signposting, jargon discipline, worked examples at density spikes) and audited by the `skills/accessibility-overlay/SKILL.md` overlay. At T3 Iterate & Converge, a Check 8 BLOCKER gates the TerminalSignoffRow per `TIER_PROTOCOL.md §3.3.3`. Cross-reference: commitment C-5 in `STYLE_COMMITMENTS.md` and Hard Constraint #8 of the Ph.D.-root CLAUDE.md.
+- **Reader-accessibility constraint (binding, all P-stages).** Every revision must remain accessible at first read without diluting conceptual difficulty. The package-local profile owns Check 8 A–H policy; the overlay emits canonical evidence and `PHASE_PROTOCOL.md` projects it into workflow gates. Portfolio documents are provenance, not authority.
 
 ### A.2 Evidence, integrity, and verification
 
@@ -371,7 +371,7 @@ Draft **a couple of sentences per area** first (Baird worksheets in original JAI
 - **Clefts** (*It was X who…*, *What X did was…*) for **targeted** emphasis.
 - **Inversion** when fronting a **long subject** would blunt the verb.
 - **Fragments** rare in academic writing; more allowable in narrative **quotes** or stylized passages if venue permits.
-- **Variety:** mix length and structure; avoid monotonous **all-short** or **unbroken long** (risk of choppy vs dense). Rough benchmarks from craft guides: **~15–20** words average in some technical prose; **~25** in some academic/long-form; beware **60+** word sentences without relief.
+- **Variety:** mix length and structure; avoid monotonous **all-short** or **unbroken long** prose. When this becomes a reader-accessibility finding, load the resolved profile rather than treating a craft benchmark as a threshold.
 
 **Full sentence checklist:** see `bacon_2009_well_crafted_sentence_guidelines.md` §10 and `project_writing_style_checklist.md` Part 3.
 

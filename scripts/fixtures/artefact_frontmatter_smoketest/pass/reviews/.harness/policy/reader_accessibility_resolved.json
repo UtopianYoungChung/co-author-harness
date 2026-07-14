@@ -1,7 +1,7 @@
 {
   "contract_version": "1.0.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+  "profile_sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
   "register_class": "technical",
   "project_identity": null,
   "resolved_profile": {
@@ -12,7 +12,6 @@
     "normative_authority": "references/READER_ACCESSIBILITY.md",
     "package_contributors": [
       "references/READER_ACCESSIBILITY.md",
-      "references/lay_term_lexicons.md",
       "references/examples/model_prose_corpus.md"
     ],
     "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
@@ -78,7 +77,8 @@
         ],
         "advisory_at": [
           "Ph2"
-        ]
+        ],
+        "threshold_key": "thresholds.first_use"
       },
       "D": {
         "name": "section_signpost",
@@ -118,7 +118,8 @@
         ],
         "advisory_at": [
           "Ph2"
-        ]
+        ],
+        "threshold_key": "thresholds.worked_example"
       },
       "G": {
         "name": "consolidation_anchor",
@@ -176,7 +177,8 @@
         "aggregate_member": false,
         "route": "Reflector Phase 2g recurrence only",
         "transition_key": "transitions.VE",
-        "follow_up_home": "C-8/M-6 verdict calibration"
+        "follow_up_home": "C-8/M-6 verdict calibration",
+        "threshold_key": "thresholds.verdict_edge"
       }
     },
     "thresholds": {
@@ -250,12 +252,20 @@
         "short_sentence_words_at_most": 12,
         "long_sentence_words_at_least": 25
       },
+      "first_use": {
+        "definition_window_paragraphs": 1,
+        "manuscript_major_section_failures_min": 2
+      },
       "jargon": {
         "new_domain_terms_per_paragraph": {
           "P0": 3,
           "P1": 2,
           "P2": 1
         }
+      },
+      "worked_example": {
+        "rhetorical_question_stack_min": 3,
+        "example_window_paragraphs": 1
       },
       "consolidation": {
         "construct_accumulation": 3,
@@ -289,6 +299,10 @@
           "ph2_orienting_zero_positive": "blocker_candidate",
           "nontechnical_blocker_major_fraction_above": 0.5
         }
+      },
+      "verdict_edge": {
+        "intensifier_tokens_min": 3,
+        "intensifier_classes_min": 2
       }
     },
     "transitions": {
@@ -297,7 +311,7 @@
         "required_observed_count": 1,
         "retirement_event": "planner_transition_approved",
         "workflow_effect_while_active": "findings recorded but excluded from aggregate",
-        "stability_mode_effect": "use bound transition state; no independent exclusion",
+        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
         "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"
       },
       "H": {
@@ -305,7 +319,7 @@
         "required_observed_count": 2,
         "retirement_event": "planner_transition_approved",
         "workflow_effect_while_active": "findings recorded but excluded from aggregate",
-        "stability_mode_effect": "use bound transition state; no independent exclusion",
+        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
         "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"
       },
       "VE": {
@@ -316,6 +330,13 @@
         "workflow_effect_after_retirement": "recurrence telemetry only",
         "stability_mode_effect": "recurrence telemetry only",
         "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"
+      }
+    },
+    "runtime_modes": {
+      "stability": {
+        "aggregation_source": "resolved_profile_and_bound_transition_state",
+        "independent_member_exclusions": false,
+        "negative_prefilter_short_circuit": false
       }
     },
     "register_scope": {
@@ -466,26 +487,21 @@
     "recurrence": {
       "project_lesson_consecutive_rounds": 2,
       "package_lesson_distinct_projects": 2,
-      "state_owner": "Reflector evidence plus Planner approval"
+      "state_owner": "Reflector evidence plus Planner approval",
+      "semantic_severity_effect": "none"
     }
   },
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+      "sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "e37ddf627b174ac9962a2e3bdbd27887ecebb6b0bcca43f4b848f74ba8df66d3",
-      "role": "package_contributor"
-    },
-    {
-      "scope": "package",
-      "path": "references/lay_term_lexicons.md",
-      "sha256": "c19969d1b74ebd1f799afee6289c4d46eb8273c3270ad3f61aa12d3a04b53396",
+      "sha256": "3fffed7e846d30e4559c80501bffe459c40438c7deee92bee3b915aed8048827",
       "role": "package_contributor"
     },
     {

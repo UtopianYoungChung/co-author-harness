@@ -147,7 +147,7 @@ section_9a_counters:
   sentence_length_violations:
     mean_words_per_sentence:           # float
     stddev_words_per_sentence:         # float
-    monotone_flag:                     # boolean; mean > 28 AND stddev < 6
+    monotone_flag:                     # boolean; derived from thresholds.rhythm in the resolved profile
 
 # DETERMINISTIC_CHECKS §9b — accessibility pre-filter (v0.7.2+)
 section_9b_counters:
@@ -438,7 +438,7 @@ The validator runs against `reviews/*.md` artefacts on the Markdown lane and aga
 4. **Enum conformance.** Every string field with a declared enum must match; violation is `R-Refl-FM-2`.
 5. **Cross-field consistency.**
    - `severity_aggregates.total_count == blocker + major + minor + advisory`; mismatch is `R-Refl-FM-4`.
-   - `check_8_aggregate` derivation rule: `BLOCKER` if any sub-check is BLOCKER; `MAJOR` if ≥ 2 sub-checks are MAJOR; `BORDERLINE` if exactly 1 sub-check is MAJOR; else `CLEAN`. Violation is `R-Refl-FM-5`.
+   - `check_8_aggregate` must equal canonical recomputation from the structured Check 8 evidence under the resolved reader-accessibility profile. A mismatch is `R-Refl-FM-5`; this document does not duplicate the aggregate algorithm.
    - `model_used` must be consistent with the round's `reviews/dispatch_plan_<cycle_id>.md` when present; mismatch is `R-Refl-MA-4` (not an FM finding, routed to the model-allocation audit channel).
 6. **Schema-version tolerance.** Validator accepts any `schema_version` in the `1.x` family. `2.x` bumps require validator update.
 7. **F6 dispatch-plan consent.** `user_approval_required` MUST be `true` at v0.7.4; violation is `R-Refl-FM-2` (type/enum mismatch). A downstream artefact carrying `dispatch_plan_reference` whose target F6 lacks a populated `user_approval_signature` raises `R-Refl-DP-3` (routed to the dispatch-plan audit channel). An F6 whose `dispatched_agents[].agent` or `dispatched_agents[].phase` disagrees with the actors observed in `phase_state.json` for that cycle raises `R-Refl-DP-1` (plan-drift MAJOR). A round with downstream F1/F2/F3/F5 artefacts but no F6 present raises `R-Refl-DP-2` (missing-plan BLOCKER).

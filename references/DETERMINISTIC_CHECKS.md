@@ -345,7 +345,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces a list of can
 | Overclaiming verbs, expanded scope | `\b(reveal\|reveals\|revealing\|expose\|exposes\|exposing\|prove\|proves\|demonstrate\|demonstrates)\b` applied to the paper's own analysis (subject = the materials, the analysis, this essay, the evidence) | per-hit line + subject |
 | **Paragraph cadence candidate** (feeds Check 8 A) | Apply `thresholds.cadence`: emit word count and cue-lexicon hits for paragraphs entering a nonzero turn-point band. A cue is a candidate, never an automatic credit; the overlay functionally confirms it. | paragraph locator + word count + candidate cues + `overlay_confirmation_required` |
 | **Section-transition preamble absence** (new at v0.7.2; feeds Check 8 Sub-check D) | For every section or subsection heading, inspect the first paragraph. Flag if the paragraph lacks **both** an orienting clause (pattern: `\b(having\|after\|so far\|in the preceding\|this section\|the previous section\|up to this point)\b` or equivalent backward-reference) **and** a contribution clause (pattern: `\b(this section\|what follows\|I now\|I turn to\|the next move\|we will\|I will show\|the contribution here)\b` or equivalent forward-reference). A section that dives directly into dense theoretical prose with no signpost is the "cold-open" pattern | section heading locator + missing-clause types |
-| **Jargon density per paragraph** (new at v0.7.2; feeds Check 8 Sub-check E) | Count new domain terms introduced in each paragraph. A term is "new" if it is either italicized (`\emph{X}` / `*X*`) for the first time in the section, present in `references/terminology_register.md` and not cited earlier in the section, or tagged in `research_notes/glossary.md` as a first-use marker. Flag any paragraph whose count exceeds the P-stage cap: **P0 ≥ 4, P1 ≥ 3, P2 ≥ 2** (one above the Sub-check E strict cap, to surface candidates for judgment rather than to enforce) | paragraph locator + term count + listed new terms |
+| **Jargon density per paragraph** (feeds Check 8 Sub-check E) | Count new domain terms and compare against the resolved profile's P-stage candidate cap. | paragraph locator + term count + listed new terms + resolved cap |
 
 **Emission rule:** Every match adds one candidate location to the Check 8 work queue. A location may match multiple markers; list it once with all matches aggregated.
 
@@ -379,11 +379,11 @@ This block is a **pre-filter**, not a pass/fail check. It produces a list of can
 
 ## 9d. Cumulative cognitive load pre-filter (added 2026-04-23, feeds SAFEGUARD_LAYER Check 8 Sub-check G)
 
-This block is a **pre-filter**, not a pass/fail check. It produces deterministic signals that locate *candidate* structural boundaries where a Sub-check G judgment pass should verify consolidation-anchor placement. Unlike §9b, §9d operates at **manuscript scope**: its measurements span the whole file, not a single paragraph or section opening. The block runs at Ph3 and Ph4 (the tiers where Sub-check G is active at full-manuscript scope) and is skipped at Ph2 (where Check 8 runs section-scoped Sub-checks A–F only).
+This block is a **pre-filter**, not a pass/fail check. It locates candidate structural boundaries for G at manuscript scope. Its phase eligibility comes from the resolved profile; this prose does not preserve a legacy phase subset.
 
 | Marker class | Pattern | What to emit |
 |---|---|---|
-| **Boundary gap — word count since last major heading** | For every major heading (`^## ` or `^# ` in Markdown; `\section{` or `\chapter{` in LaTeX), compute the word count of body prose between that heading and the previous major heading (or the manuscript start, for the first major heading). Flag boundaries where the span's body word count exceeds the P-stage gap envelope: **P0 ≥ 800 words, P1 ≥ 700 words, P2 ≥ 600 words**. Paragraphs inside the span that open with a major subheading (`^### ` or `\subsection{`) are counted as body prose, not boundary breaks | boundary locator + preceding-span word count |
+| **Boundary gap — word count since last major heading** | Compute the body-word span for each major Markdown or LaTeX heading and compare it with `thresholds.consolidation.candidate_gap_words` for the resolved P-stage. | boundary locator + preceding-span word count + resolved threshold |
 | **Boundary gap — paragraphs since last major heading** | Count paragraphs in the span and apply `thresholds.consolidation.candidate_gap_paragraphs` together with the P-stage word envelope. | boundary locator + paragraph count |
 | **Consolidation-cue density in the two paragraphs before a major heading** | For the two paragraphs immediately preceding each major heading, scan for a consolidation-cue lexicon: `\b(at this point\|so far\|to this point\|up to now\|taking stock\|we have seen\|we have established\|the reader now\|at this stage\|with (this|these) in place\|having (mapped\|traced\|identified\|set out)\|with the (foregoing\|preceding)\|what the (preceding\|foregoing) (pages\|sections))\b`. Record the count of matches in those two paragraphs | boundary locator + cue count (0, 1, 2+) |
 | **Consolidation-cue density in the opening paragraph of a new major section** | For the opening paragraph of each major section, scan for the same consolidation-cue lexicon plus the backward-reference lexicon from §9b Sub-check D (`\b(having\|after\|so far\|in the preceding\|this section\|the previous section\|up to this point)\b`). A single match counts whether from either lexicon; the point is backward consolidation, not the form | boundary locator + cue count (0 or ≥ 1) |
@@ -404,7 +404,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces deterministic
   - <boundary locator>: preceding-span wc=<n>, para count=<n>, pre-heading cues=<n>, opening cues=<n>
   - ...
 - Manuscript word count total: <n>
-- Manuscript over 5,000-word envelope (per Sub-check G BLOCKER rule): <yes/no>
+- Manuscript envelope result under `thresholds.consolidation`: <resolved result>
 ```
 
 **Rationale.** The INF3006Y Co Author Ph4 test variant surfaced the pattern §9d catches: eight major sections, roughly 6,200 body words, zero consolidation cues in the critical pre-heading windows before Sections 4, 5, and 6 despite each of those sections introducing an argument dependent on prior material. §9b's local pre-filter saw nothing because each paragraph's cadence, density, and first-use compliance was individually clean. §9d elevates the probe from the paragraph to the section boundary, parallelling the scale shift from Sub-checks A–F to Sub-check G. The pre-filter is intentionally coarse — the judgment pass can re-classify any G-candidate boundary as not actually threshold-crossing (e.g., if the span is a short illustrative interlude rather than a construct-accumulation span).
@@ -417,21 +417,21 @@ This block is a **pre-filter**, not a pass/fail check. It produces deterministic
 
 ## 9e. Register pre-filter (added 2026-04-27, feeds SAFEGUARD_LAYER Check 8 Sub-check H)
 
-This block is a **pre-filter**, not a pass/fail check. It produces deterministic counter probes for the three negative markers Sub-check H audits at the passage level (unnecessary nominalisation, stacked prepositional phrases, hedging pile-up; see SAFEGUARD_LAYER §Check 8 Sub-check H §4). The block runs at Ph3 (the tier where Sub-check H is active under `register_class: technical` and `register_class: mixed`; manuscript-wide under `register_class: non-technical`) and is skipped at Ph2 (where Check 8 runs section-scoped Sub-checks A–F only). v0.10.1's RELEASE_NOTES enumerated this pre-filter under the slot label "§9b" — the actual slot is §9e because §9b was already taken by the v0.7.2 reader-cognitive-load pre-filter.
+This block is a **pre-filter**, not a pass/fail check. It nominates passage evidence for Sub-check H using the resolved reader-accessibility profile. Phase scope, thresholds, and severity are not owned here.
 
 §9e operates at the resolved passage scope in `register_scope` and `sub_checks.H`. Its workflow effect comes from the bound H transition state, never a prose advisory flag.
 
 | Marker class | Pattern | What to emit |
 |---|---|---|
-| **Nominalisation density** | Token-level count of suffix-pattern matches `\w+(tion\|ment\|ance\|ence\|ity\|ness)\b` (excluding `-ing` form: see exclusion-list rationale below) within the passage, normalised to passage word count. Fires when `nominalisation_count / passage_word_count > 0.08`. The 0.08 threshold sits above the 90th-percentile academic baseline of ~0.10 reported in register-corpus studies, surfacing passages whose nominalisation density exceeds the median academic register. Exclusion list (proper nouns, established domain terms, common copular nominals): `\b(introduction\|conclusion\|abstract\|methodology\|discussion\|reference\|definition\|condition\|relation\|application\|operation\|representation\|description\|interpretation\|specification\|implementation\|verification\|evaluation\|presentation\|generation\|orientation)\b` — these are content-bearing nominals whose removal would lose meaning, not register inflation. Italicised constructs and project-glossary entries are excluded by the same delegation as Sub-check C's "construct" definition. | passage locator + raw count + normalised value + threshold + fired flag |
+| **Nominalisation density** | Count profile-defined suffix candidates, apply domain-token exclusions, and compare the normalised result with `thresholds.register.nominalisation_density_candidate`. | passage locator + raw count + normalised value + resolved threshold + fired flag |
 | **Prepositional-phrase run length** | Longest consecutive run under the resolved `lexicons.prepositions`; firing threshold comes only from `thresholds.register.prepositional_run_candidate`. | passage locator + run length + run span + profile threshold + fired flag |
-| **Hedging density** | Count of hedging-marker matches against the hedge list, normalised to per-100-words. Default built-in hedge list: `\b(may\|might\|could\|perhaps\|possibly\|likely\|suggests\|indicates\|appears\|seems\|somewhat\|relatively\|generally\|typically)\b` (15 markers). Per-project override mechanism (the project's `research_notes/hedge_terms.md` overrides the built-in default if present) is **mentioned but not implemented in v0.10.2**; v0.10.3 implements when a project requires the override. Fires when `hedge_count / passage_word_count * 100 > 2` (more than two hedges per 100 words). Two-per-100 reflects the observation that genuine epistemic care typically ships ≤ 1 hedge per 100 words; pile-up at 3+ per 100 dilutes the modal claim and reads as register-soft. | passage locator + raw hedge count + words + per-100 ratio + threshold + fired flag |
+| **Hedging density** | Resolve the hedge lexicon, override polarity, and threshold from the active profile. | passage locator + raw hedge count + words + normalised ratio + resolved threshold + fired flag |
 
 **Exclusion-list rationale for nominalisation suffix `-ing`.** The `-ing` form is doubly ambiguous in academic prose: it serves as participial verb (an active form), gerund-noun (a content-bearing nominal), and progressive aspect (still verb-anchored). Including `-ing` in the suffix probe inflates false-positive rates by ~30% in pilot probing on the v0.10.0 INF3001H Round 7 corpus, mostly on participial constructions ("having traced the dependencies", "applying the framework"). The five remaining suffixes (-tion / -ment / -ance / -ence / -ity / -ness) are unambiguously nominal. Future v0.10.3 calibration may re-introduce `-ing` with a participial-form filter; the current probe ships without it.
 
-**Output contract per probe.** Each probe emits a tuple `(probe_name, raw_count, normalised_value, threshold, fired: bool)`. The pre-filter bundle (three tuples per passage) is appended to the passage's overlay-input record under field `prefilter_h_bundle`. The overlay's Sub-check H step 1, on receiving the bundle, can short-circuit to `NULL/CLEAN` for that passage if all three `fired` values are `false` — saving the full register classification pass. If any probe fires, the overlay runs the full Sub-check H procedure and the bundle's raw signals enter the per-finding rationale.
+**Output contract per probe.** Each probe emits a tuple `(probe_name, raw_count, normalised_value, threshold, fired: bool)`. The pre-filter bundle is appended to the passage's overlay-input record under field `prefilter_h_bundle`. A clear negative pre-filter may skip negative-marker elaboration, but it never implies `NULL/CLEAN`: the overlay always performs the positive-marker audit required by `runtime_modes.stability.negative_prefilter_short_circuit` and Sub-check H.
 
-**Emission rule.** Every passage in scope emits one bundle, regardless of whether any probe fires. The bundle's `fired` aggregate (logical OR across the three probes) is the short-circuit signal. Passages with `fired: false (all three)` add a row to the §3.3.3 telemetry log under category `H_PREFILTER_SHORT_CIRCUIT` for ongoing calibration of probe sensitivity.
+**Emission rule.** Every passage in scope emits one bundle, regardless of whether any negative-marker probe fires. The aggregate `fired` boolean is telemetry for negative-marker elaboration only; it cannot suppress positive-marker evaluation or rewrite a semantic verdict.
 
 **Output stub:**
 
@@ -440,13 +440,13 @@ This block is a **pre-filter**, not a pass/fail check. It produces deterministic
 - Passages in scope: <count>          # pre-filter scope under resolved register_class
 - register_class_resolved: <technical | mixed | non-technical>
 - Bundles emitted: <count>
-- Short-circuit (no probe fired): <count> / <passages>
+- Negative pre-filter clear (positive-marker audit still required): <count> / <passages>
 - Probe firings:
   - Nominalisation density: <count fired>
   - Prepositional-phrase run length: <count fired>
   - Hedging density: <count fired>
 - Per-passage detail (fired-only):
-  - <passage role + heading_path>: nom=<n>/<wc>=<r> [thr 0.08] fired=<bool>; prep_run=<n> [thr 3] fired=<bool>; hedge=<n>/<per100> [thr 2] fired=<bool>
+  - <passage role + heading_path>: <profile-keyed probe values, resolved thresholds, and fired booleans>
   - ...
 ```
 
@@ -456,7 +456,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces deterministic
 
 **Transition alignment.** §9e reads `transitions.H` and the matching policy-binding event stream. Probe thresholds are profile keys; retirement requires the profile count and Planner approval evidence.
 
-**Future calibration (deferred to v0.10.3+).** Three calibration paths are open after the first H advisory cycle yields aggregator data: (i) re-tune nominalisation threshold from 0.08 to a corpus-empirical value; (ii) re-introduce `-ing` suffix with participial-form filter; (iii) implement per-project hedge-list override mechanism. None is required for v0.10.2 substrate; all are flagged in `docs/superpowers/plans/2026-04-27-h-quantitative-thresholds.md` for forward-looking adjudication.
+**Calibration.** Proposed threshold or lexicon changes must update the profile and its tests. Operational prose cannot activate future values.
 
 ---
 

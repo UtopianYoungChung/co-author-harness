@@ -18,9 +18,9 @@ Severity floors and above-ceiling behavior come from `thresholds.cadence.bands` 
 
 ## Sub-check B — Sentence-length distribution (Rhythm-Flag)
 
-Compute per-paragraph sentence-length mean (μ) and standard deviation (σ). A paragraph is **flagged** if μ > 28 and σ < 6 — the monotone-dense pattern. Paragraphs of three sentences or fewer are exempt (insufficient sample for σ). The flag also surfaces a "no short sentences" warning when the paragraph's shortest sentence exceeds 20 words — rhythm depends on contrast, not merely on average length.
+Compute per-paragraph sentence-length mean (μ) and standard deviation (σ), then apply `thresholds.rhythm` from the resolved profile. The candidate remains a rhythm judgment: contrast and functional sentence shape matter more than a raw average.
 
-Severity floors: MINOR on any single flagged paragraph; MAJOR if two or more adjacent paragraphs trip the same flag (a monotone-dense stretch); never BLOCKER alone (rhythm is a diffuse property; BLOCKER is reserved for A, D, F).
+Severity comes from `sub_checks.B` and its referenced profile thresholds; this prose creates no floor.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check B`*
 
@@ -28,7 +28,7 @@ Severity floors: MINOR on any single flagged paragraph; MAJOR if two or more adj
 
 Enumerate theoretical and domain constructs introduced in the section (a construct is any italicized term, any term tagged in the project's `research_notes/glossary.md` if present, or any term appearing in `references/terminology_register.md`). For each construct, locate its first occurrence in the section and verify a definition or worked illustration appears within the same paragraph or the immediately preceding paragraph. This is binding even for terms the author considers field-standard: `affordance`, `operationalization`, `socio-technical`, `intentionality`, `delegation`, `situated action`, `contradiction-mapping`.
 
-Severity floors: MINOR per undefined construct (author can argue field-standardness); MAJOR if two or more undefined constructs appear in the same paragraph; BLOCKER if an undefined construct does conceptual work (is cited, contrasted, or built upon) in a subsequent paragraph without ever being defined.
+Severity comes from `sub_checks.C`; evidence records whether the construct performs later conceptual work.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check C`*
 
@@ -36,7 +36,7 @@ Severity floors: MINOR per undefined construct (author can argue field-standardn
 
 Every section in the manuscript opens with a one-to-three-sentence preamble that (a) tells the reader where they have arrived in the argument and (b) tells the reader what the section will contribute. This is not a chapter summary and not a prose abstract; it is a map fragment. The overlay checks the section's opening paragraph against a minimal signpost schema: an orienting clause (claim about position in the argument) AND a contribution clause (claim about what follows). A section lacking either clause is flagged.
 
-Severity floors: MINOR if one of the two clauses is present but weak; MAJOR if the opening paragraph is substantive prose with no orienting or contribution clauses at all; BLOCKER if the section dives directly into a dense theoretical move without any orienting sentence — this pattern is the "cold-open" the constraint most directly forbids.
+Severity comes from `sub_checks.D`; the evidence distinguishes weak, absent, and cold-open structures.
 
 > *Register quality within the orienting and contribution clauses is delegated to Sub-check H. D enforces structural presence; H enforces register construction.* (Added v0.10.1 with Sub-check H. The two checks remain orthogonal at the finding level — a signpost can be D-CLEAN with both clauses present and H-MAJOR if the clauses are register-inappropriate, and vice versa.)
 
@@ -46,15 +46,15 @@ Severity floors: MINOR if one of the two clauses is present but weak; MAJOR if t
 
 Count new domain terms introduced per paragraph. A paragraph may introduce at most two new domain terms (a term is "new" if it has not been introduced earlier in the section or in a preceding section marked as its entry point in `references/terminology_register.md`). P-stage adjustment: P0 permits three (exploratory register); P2 permits one only (resolution register tolerates no ambiguity).
 
-Severity floors: MINOR on any paragraph that exceeds the P-stage cap by one term; MAJOR on any paragraph that exceeds the cap by two or more terms; never BLOCKER alone.
+Severity comes from `sub_checks.E` and the profile's P-stage-adjusted cap.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check E`*
 
 ## Sub-check F — Worked examples at density spikes (Worked-Example-Flag)
 
-Detect density spikes: a tri-part decomposition, a multi-criteria evaluation, a contested-claim cluster (three or more cited positions with conflicting commitments), or an extended theoretical derivation. For each density spike, verify that the prose turns to a worked example, a vignette, or a concrete instantiation within the same or immediately following paragraph. The INF3001H loan-officer vignette is the canonical model; the INF3006Y three-positions map (Decomposition / Dissolution / Reframing) expects its own instantiation per position.
+Detect density spikes such as decompositions, multi-criteria evaluations, contested-claim clusters, or extended theoretical derivations. Apply `thresholds.worked_example` to candidate nomination and its local evidence window; the Evaluator judges whether an example, vignette, or concrete instantiation actually carries the conceptual load.
 
-Severity floors: MINOR if a density spike is followed by a gestural example (a phrase, not a vignette); MAJOR if a density spike is followed by further abstract prose; BLOCKER if a density spike exceeds one full page of abstract prose with no instantiation — this is the pattern the constraint names as "density without cadence."
+Severity comes from `sub_checks.F`; evidence distinguishes gestural, worked, and absent instantiation.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check F`*
 
@@ -64,18 +64,14 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
 **Procedure.**
 
-1. **Enumerate structural boundaries.** Read the manuscript outline (major sections, labelled subsections, and argumentative pivots) and build a boundary inventory. A boundary is any of: (i) the closing paragraph of a major section followed by a new major section; (ii) a labelled pivot within a section (e.g., a subsection that relocates the argument from description to stance); (iii) the opening of any section whose argument depends on constructs from two or more prior sections. If the project carries a `research_notes/directives.md` entry naming explicit structural boundaries (e.g., INF3006Y D-13 names the end of Sec. 3, the Sec. 5 pivot, and the Sec. 6 opening), use the project list and extend only if the Evaluator detects additional argument-dependency boundaries the project list does not cover.
+1. **Enumerate structural boundaries.** Read the manuscript outline, labelled pivots, and dependency structure, then apply the resolved `thresholds.consolidation` predicates. Project-local named boundaries may extend the inventory but cannot rewrite the package thresholds.
 2. **Measure construct accumulation between boundaries.** For each span between consecutive boundaries (or between the manuscript opening and the first boundary), count distinct load-bearing constructs, positions, or tensions introduced — where load-bearing is defined as in `SAFEGUARD_LAYER.md` Check 8 Sub-check G procedure step 2.
-3. **Apply the construct-accumulation threshold.** A boundary crosses the threshold when the prior spans have introduced three or more load-bearing constructs, or when the next section's argument depends on two or more prior sections' material.
+3. **Apply the construct-accumulation threshold.** Read the candidate and dependency predicates from `thresholds.consolidation`.
 4. **Check for consolidation anchors.** For each threshold-crossing boundary, read the paragraph preceding the boundary, the paragraph opening the next section, and any labelled transition between them. Verify a one-sentence consolidation anchor exists. The canonical anchor form is "At this point in the paper, [the reader holds X, Y, Z]; the next movement [does W with them]," but any sentence performing both the naming-of-accumulated-material and the signalling-of-next-move functions qualifies.
 5. **Flag missed boundaries.** For each threshold-crossing boundary lacking an anchor, emit a Sub-check G finding with a structural-boundary locator (e.g., `end_§3`, `pivot_§5.2`, `opening_§6`), the construct count at that point, and the absence description. The `suggested_fix` field names the canonical anchor form and points to any adjacent paragraphs where insertion would least disrupt the surrounding register (per project directives, e.g., D-06's Vidal-cartographer register for INF3006Y).
-6. **Word-count envelope.** On a manuscript under ~3,000 words, emit CLEAN by default unless an explicit construct-dependency boundary is still unserved. On a manuscript over ~5,000 words with no consolidation anchors at any threshold-crossing boundary, emit the absence-of-anchors BLOCKER regardless of per-boundary construct counts.
+6. **Word-count envelope.** Apply `thresholds.consolidation`; the profile owns its numeric envelope and verdict mapping.
 
-**Severity floors:**
-
-- **MINOR** — exactly one threshold-crossing boundary lacks an anchor and the manuscript word count is under 5,000.
-- **MAJOR** — two or more threshold-crossing boundaries lack anchors, or a single missed boundary is located at the transition into the manuscript's closing argumentative move (where cumulative load is highest).
-- **BLOCKER** — a manuscript beyond ~5,000 words contains no consolidation anchors at any threshold-crossing boundary, or a missed boundary directly precedes a section whose argument is specified in the abstract and depends on three or more prior-section constructs.
+**Severity.** Apply `sub_checks.G` and the referenced consolidation thresholds to structured boundary evidence.
 
 **Interaction with Sub-check D.** D and G are orthogonal and additive. D audits local section-opening preambles; G audits cumulative anchor placement at structural boundaries. A section opening can satisfy D while omitting the G anchor, and vice versa. When a Generator is applying a fix, D-targeting preambles and G-targeting anchors can co-locate in the same paragraph, but the two sentences should do distinct work.
 
@@ -125,17 +121,17 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 2. **Stacked prepositional phrases.** Three or more consecutive prepositional phrases in a single clause. A hallmark of academic register creep where the structure is not doing conceptual work.
 3. **Hedging pile-up.** More than two epistemic hedges per sentence (`it might perhaps be suggested that there could potentially be...`).
 
-**Pre-filter integration (§9e, added v0.10.2).** Each negative marker is operationalised as a deterministic counter probe in `references/DETERMINISTIC_CHECKS.md §9e`, the parallel pre-filter for Sub-check H (mirroring §9b's relationship to A/D/E/F and §9d's relationship to G). The three probes — nominalisation density (suffix-pattern match / passage word count, threshold 0.08), prepositional-phrase run length (longest consecutive PP chain, threshold ≥3), and hedging density (hedge-marker hits per 100 words, threshold >2) — emit a per-passage bundle `(probe_name, raw_count, normalised_value, threshold, fired: bool)` consumed at H's step 1.
+**Pre-filter integration (§9e).** Profile-routed negative-marker probes emit structured passage candidates. Threshold values are loaded from `thresholds.register`, not this prose.
 
-**H step 1 procedure (with §9e short-circuit).** When the overlay enters Sub-check H for an in-scope passage, it first reads the passage's §9e bundle from `reviews/deterministic_<cycle_id>.md`. If the bundle reports `fired: false` across all three probes, H emits a NULL/CLEAN finding for the passage without invoking the full register classification — the short-circuit captures the cost reduction the pre-filter is designed to deliver. If any probe fires, H runs the full procedure (positive-marker presence audit, negative-marker count, compliance frame application, severity floor lookup) and the bundle's raw signals enter the per-finding `evidence` field for reviewer adjudication. When the §9e bundle is absent (e.g., on a `/quick-deterministic` skip), H runs the full procedure on every in-scope passage from scratch — same findings, slower path. The short-circuit is **not** a precision cap on H's findings; the full classification can still emit MINOR on a no-probe-fired passage if the positive-marker presence audit detects zero positive markers (per the compliance frame inversion rule below).
+**H step 1 procedure.** Read the passage's §9e negative-marker bundle, then always run the positive-marker presence audit. A bundle with every negative probe clear may skip negative-marker elaboration, but it cannot emit `NULL/CLEAN` or suppress a positive-marker finding. When the bundle is absent, run the same semantic procedure from scratch; only runtime cost changes.
 
 **Twin-paragraph probe (added v0.13.0).** When H closes a finding on a non-technical passage that ships specific shibboleth phrases (a Latinate construction such as `stipulating away`, a noun-pile compound such as `register-boundary light`, a four-times-repeated technical noun, or any phrase that the H finding's evidence field cited as the violation locus), H emits a follow-on probe `twin_candidate_<finding_id>` that performs a deterministic grep over the manuscript for those shibboleth phrases. If the grep returns >0 hits outside the passage that triggered the finding, H emits a `twin_candidate_<location>` finding for the next round at that location's passage role. Probe is implemented in `DETERMINISTIC_CHECKS.md §9e` as suffix `_twin_paragraph`.
 
 **Rationale.** Manuscripts often return to the same conceptual debt at structurally parallel sites (a §1 / §2 register-boundary aside and a §5 / §6 closing summary; a §3 sibling-subsection diagnosis and its §4 mirror). Fixing one without scanning for the other leaves a conspicuous asymmetry in the published manuscript. The probe catches the structural twin before the next H-cycle finds it. Surface lift: low (one grep per finding-close); precision lift: high (catches the §2 / §5 lay-term twin pattern documented in `lay_term_lexicons.md §5`).
 
-**Probe behavior.** The shibboleth phrases are extracted from the H finding's evidence field automatically; no manual phrase-list maintenance is required. The probe inherits the §9e short-circuit semantics: if the bundle reports `_twin_paragraph: fired: false` across all extracted shibboleths, H emits NULL/CLEAN for the twin probe and proceeds. If `fired: true`, H emits a `twin_candidate_<location>` finding referenced to the original finding's `evidence_id` for adjudication continuity. **Provenance:** source memo `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.3.
+**Probe behavior.** The shibboleth phrases are extracted from the H finding's evidence field automatically; no manual phrase-list maintenance is required. A clear twin grep emits no twin candidate, but it does not classify the underlying passage. A fired grep emits `twin_candidate_<location>` referenced to the original finding's `evidence_id` for adjudication continuity. **Provenance:** source memo `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.3.
 
-**Compliance frame: presence of positive markers, not absence of negative markers (v0.10.2 expansion to four markers).** This is a deliberate inversion of the usual flag-on-violation grammar — it mitigates the false-positive frustration risk (R-H1 in the plan doc). A passage with **at least two of the four positive markers** present is CLEAN regardless of negative-marker count; a passage with one negative marker but two positive markers is CLEAN; a passage with zero positive markers and zero negative markers is MINOR (the passage is doing nothing distinctively reader-accessible). The framing rewards register craft rather than punishing register lapses. The v0.10.1 rule (at-least-two-of-three) carried forward to v0.10.2 as at-least-two-of-four when the fourth marker (register-shift signposting, marker 4) was added; the threshold rule was preserved on the rationale that (i) two markers continues to represent a substantive register craft commitment, (ii) raising to three-of-four would over-fire on terse signpost orienting clauses where two of the four markers are not fully exercisable in a single short sentence (e.g., a one-line orienting clause may not legitimately ship a tone-shift signpost), and (iii) the empirical data needed to re-tune to at-least-three-of-four is exactly what `aggregate_h_calibration.py` will materialise during the advisory period.
+**Compliance frame: presence of positive markers, not absence of negative markers.** This inversion rewards register craft rather than treating a quiet negative pre-filter as proof of accessibility. Load marker counts and severity semantics from `thresholds.register`; this prose does not restate them.
 
 **Manuscript-scoped variant (audience-conditioned, via `directives.md` `register_class` field).** A new field is added to `research_notes/directives.md`: `register_class: technical | mixed | non-technical`. Default `technical` for any manuscript whose P-stage classification places it in a peer-reviewed scholarly venue (the harness's primary use case). The user sets `mixed` for hybrid documents (a thesis chapter aimed partly at committee, partly at an applied audience) or `non-technical` for a public-interest write-up, policy memo, or trade-press article. The field is **orthogonal to P-stage**: P-stages govern depth/scope of engagement; `register_class` governs target-audience register requirements. A P0 manuscript for a specialised journal and a P0 manuscript for a policy audience have the same depth but different register requirements.
 
@@ -153,7 +149,7 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
 **Back-compatibility evidence.** `inherited_from_pre_h` may be retained as provenance, but it cannot rewrite severity or transition state. Only the profile meaning plus bound Planner events control workflow effect.
 
-**Stability sub-mode.** Under `run-phase-3-stability`, Sub-check H runs advisory-only mirroring Sub-check G's stability-sub-mode treatment. An H finding under stability mode is logged with `stability_advisory: true` and does not force escalation to a full Ph3 pass. Rationale matches G: H is judgment-heavy and its findings are not cheaply re-derivable from a byte-stable snapshot.
+**Stability sub-mode.** Apply `runtime_modes.stability` from the resolved profile. Stability controls workflow reuse only; it does not rewrite H severity or remove H from the canonical aggregate.
 
 **Interaction with Sub-checks D, F, G.** D enforces section-opening structural presence; H enforces register quality within the orienting and contribution clauses (cross-reference at D's entry above). F locates density spikes; H audits the worked-example vignette's register quality. G locates threshold-crossing structural boundaries; H audits the consolidation anchor sentence's register quality. The two-Sub-check pattern (structural-Sub-check + register-Sub-check) is deliberate — D/F/G can be CLEAN while H is MAJOR if the structurally-required passage is registered inappropriately, and vice versa. When a Generator is applying a fix, the structural Sub-check's suggested_fix and H's suggested_fix can co-locate in the same paragraph but the two sentences should do distinct work.
 

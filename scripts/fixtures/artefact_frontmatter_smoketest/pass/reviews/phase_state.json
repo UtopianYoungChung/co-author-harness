@@ -1,0 +1,14 @@
+{
+  "current_phase": "Ph3",
+  "milestone_framework": {
+    "policy_bindings": {
+      "reader_accessibility": {
+        "transitions": {
+          "G": {"state": "active"},
+          "H": {"state": "active"},
+          "VE": {"state": "active"}
+        }
+      }
+    }
+  }
+}

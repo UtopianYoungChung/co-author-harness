@@ -2,13 +2,13 @@
 
 **Purpose.** Canonical reference file for the lexicons consumed by SAFEGUARD Check 8 Sub-check H (Register Appropriateness) and `DETERMINISTIC_CHECKS.md §9e` (H pre-filter). The lexicons live here as a versioned, structured artefact rather than embedded in prose so future revisions can be tracked, per-entry rationale captured, and per-project override semantics implemented cleanly when v0.10.3 ships the override mechanism.
 
-**Status (2026-04-27).** v0.10.2 introduces this file as the canonical home for three lexicons: the hedge list, the discourse-connective list, and the load-bearing-Latinate whitelist. Per-project override is documented but **not implemented** at v0.10.2 per Q4 adjudication 2026-04-27 (defer to v0.10.3).
+**Status.** Package lexicon rationale and defaults are resolved through `reader_accessibility.v1.json`; project override loading is implemented by `reader_accessibility_policy.py`.
 
-**Status (2026-04-30, v0.13.0).** §5 added — verified lay-term paraphrase examples from the INF3006Y 2026-04-30 §2 / §5 twin-fix, anchored under a new drift-detection grep-cadence requirement (mandatory at every H-cycle, implemented as `_corpus_drift` probe in `DETERMINISTIC_CHECKS.md §9e`). The drift-detection mechanism is the operational fallback for live-manuscript projects where source-snapshot stability cannot be assumed; it converts the §4-retired-on-drift principle from post-hoc audit to active monitoring. See §5 below and source memo `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.5.
+**Status.** This file supplies lexicon material to the resolved profile. Historical examples below are calibration notes, not hashed policy contributors and not runtime drift claims.
 
 **Resolved override polarity.** `references/policies/reader_accessibility.v1.json` is authoritative: project hedge and plain-connective files **replace** their defaults; a project Latinate whitelist **supplements** the package whitelist; project terminology and glossary files **extend** domain-token exclusions. `scripts/reader_accessibility_policy.py` applies containment checks and records every contributing path/hash.
 
-**Override mechanism (forward-looking, deferred to v0.10.3+).** Each lexicon may be overridden per-project by a corresponding file under `research_notes/`: `research_notes/hedge_terms.md` for the hedge list; `research_notes/connective_terms.md` for the connective list; `research_notes/latinate_whitelist.md` for the Latinate whitelist. The override mechanism is: if the project file exists, it replaces the built-in default; if absent, the built-in default is used. This file's lists ARE the built-in defaults.
+**Override mechanism (implemented).** The resolver reads the exact project paths declared by profile `project_overrides`: `research_notes/hedges.txt`, `research_notes/plain_connectives.txt`, `research_notes/latinate_whitelist.txt`, plus terminology and glossary contributors. Polarity is profile-owned and every loaded source is containment-checked and hashed.
 
 ---
 
@@ -35,7 +35,7 @@ Consumed by: §9e probe 3 (hedging density); Sub-check H negative marker 3 (hedg
 
 **Source.** Compiled from Hyland (2005) *Stance and Engagement* and Biber et al. (1999) *Longman Grammar* hedge-marker enumerations, narrowed to the 15 most-commonly-stacking markers in academic-prose corpora. The `-tion`/`-ment` nominalisation patterns and modal-verb categories not in this list are addressed at the negative-marker level rather than the lexicon level.
 
-**Override semantics (deferred to v0.10.3).** A project that operates in a sub-discipline with discipline-specific hedge conventions (e.g., legal scholarship's `arguably`, `colourable claim`; medical research's `is consistent with`, `non-significant trend toward`) will be able to author `research_notes/hedge_terms.md` with the discipline-specific list. The v0.10.3 override mechanism replaces — not supplements — the built-in list, so per-project lists must include any built-in entries the project wishes to retain.
+**Override semantics.** A project may provide `research_notes/hedges.txt`. The resolver applies the profile-declared `replace` polarity, so the project file must include every marker it wishes to retain.
 
 ---
 
@@ -130,7 +130,7 @@ The list is the harness's working baseline and is extended per-project via the p
 The drift surfaced here is the predictable consequence of drawing calibration corpus entries from a manuscript that the project owner has not closed. Two policy refinements follow:
 
 1. **Source-snapshot stability requirement.** Calibration corpus entries should be drawn only from manuscript snapshots that satisfy at least one of: (a) Ph4-closed-and-acknowledged-as-final by the author; (b) accepted at a venue (DOI/preprint hash anchored); (c) committed to the harness `references/examples/` corpus (which does not change after addition). The 2026-04-27 INF3006Y snapshot satisfied (a) at the moment of corpus extraction but the author's working stance on the file shifted within 24 hours, retroactively invalidating (a). Future extractions must require explicit owner-confirmation that the snapshot will not be re-edited, OR draw from `references/examples/` corpus only.
-2. **Drift-detection cadence.** When a corpus entry is anchored to a project file outside `references/examples/`, a follow-up grep on the source phrases at the next H-cycle on that project is mandatory. The 2026-04-28 standalone H verification round caught this drift on first pass; baking the grep into the H-cycle preconditions is a v0.12.4+ candidate.
+2. **Historical source drift.** Project-linked examples can become stale. They must not be treated as current policy evidence unless re-grounded against a current snapshot.
 
 **Generalisation notes (provisional; refine as calibration log grows).**
 
@@ -146,9 +146,9 @@ These generalisations feed the `aggregate_h_calibration.py` training corpus. Mar
 
 ## 5. Verified lay-term paraphrase examples (INF3006Y, 2026-04-30 — DRIFT-MONITORED)
 
-**Status (2026-04-30).** v0.13.0 introduces this section as an active (not retired) corpus drawn from the INF3006Y manuscript's §2 closing aside fix and the §5 closing-summary twin-paragraph fix. Per the §4 retirement-lessons, the INF3006Y manuscript is treated as live by the project owner; entries here are anchored to source phrases and **subject to drift-detection grep-cadence** rather than to source-snapshot stability. Each entry transitions to RETIRED status (with a banner matching §4) if the next H-cycle grep on the source phrase returns zero hits in the live manuscript.
+**Status.** This is historical calibration material. It is not an active corpus, transition input, or policy source binding.
 
-**Drift-detection grep-cadence requirement (added v0.13.0).** At every H-cycle on a project that contributes corpus entries here, the source-phrase grep is mandatory before the H verdict closes. The grep is implemented as a deterministic probe in `DETERMINISTIC_CHECKS.md §9e` (suffix `_corpus_drift`). If the source phrase is absent: the entry's status flips to RETIRED with banner; the §4-style snapshot-historical paraphrase table preserves the entry for historical reference; new corpus extractions on that source resume only after explicit owner-confirmation.
+**No runtime contributor status.** These examples do not participate in profile resolution, hashing, transitions, or Check 8 verdicts.
 
 **Source passage context.** Two passages contributed to this corpus: §2's closing aside ("A note on the register the survey does not enter") and §5's pre-§6 closing summary (originally "One register sits just outside the survey..."). Both classified as `register_class: technical` consolidation anchors / register-boundary asides; both functionally non-technical by H's removability test.
 
@@ -168,8 +168,8 @@ These generalisations feed the `aggregate_h_calibration.py` training corpus. Mar
 
 **Lessons for corpus authoring (carried forward from §4).**
 
-1. **Source-snapshot stability requirement (still in force).** The drift-detection grep-cadence is a partial substitute for source-snapshot stability — it converts a static stability assumption into an active monitoring requirement. Where snapshot stability is feasible (project closure, venue acceptance, `references/examples/` commit), it is preferred; where the project is actively edited, drift-detection is the operational fallback.
-2. **Drift-detection cadence (now mandatory at every H-cycle).** Originally a v0.12.4+ candidate per §4. Now elevated to mandatory at v0.13.0 via §9e probe `_corpus_drift`.
+1. **Source-snapshot requirement.** Use examples only with explicit snapshot provenance. Live project prose remains illustrative until re-grounded.
+2. **Historical examples remain non-operational.** Re-ground them manually before using them in a new calibration decision.
 
 **Provenance.** Source memo: `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.5.
 

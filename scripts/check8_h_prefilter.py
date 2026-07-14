@@ -212,30 +212,59 @@ def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, An
 
 
 def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
-    """Nominate transparent structural-role candidates; overlay confirms function."""
+    """Nominate non-overlapping manuscript spans; headings are geometry, never passages."""
     is_tex = path.suffix.lower() in {".tex", ".ltx"}
     heading_re = re.compile(r"(?m)^(#{1,6})\s+(.+)$") if not is_tex else re.compile(r"(?m)^\\(chapter|section|subsection|subsubsection)\*?\{([^}]+)\}")
     matches = list(heading_re.finditer(text))
     entries: list[dict[str, str]] = []
-    for index, match in enumerate(matches):
-        title = match.group(2).strip()
-        entries.append({"text": match.group(0), "locator": f"§{title}", "role": "section_framing", "confidence": "high", "reason": "explicit Markdown/TeX heading"})
-        start = match.end(); end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        body = text[start:end].strip()
-        if not body: continue
-        lower_title = title.casefold(); lower = body.casefold()
-        candidates: list[tuple[str,str,str]] = []
-        if lower_title in {"abstract", "introduction", "conclusion"}: candidates.append((lower_title, "high", f"explicit {title} heading"))
-        if re.search(r"\b(having established|previous section|so far|up to this point)\b", lower): candidates.append(("orienting_clause", "high", "backward-orienting cue"))
-        if re.search(r"\b(this section (?:shows|argues|develops|examines)|we (?:show|argue)|i (?:show|argue))\b", lower): candidates.append(("contribution_clause", "high", "forward contribution cue"))
-        if re.search(r"\b(for example|to illustrate|consider)\b", lower): candidates.append(("worked_example_vignette", "medium", "example cue"))
-        if re.search(r"\b(in summary|to consolidate|taken together|these constructs)\b", lower): candidates.append(("consolidation_anchor", "medium", "consolidation cue"))
-        if re.search(r"\b(however|by contrast|turning now|the next section)\b", lower): candidates.append(("inter_section_transition", "medium", "transition cue"))
-        if not candidates: candidates.append(("technical_body", "low", "no deterministic structural-role cue; overlay must classify"))
-        for role, confidence, reason in candidates:
-            entries.append({"text": body, "locator": f"§{title}", "role": role, "confidence": confidence, "reason": reason})
-    if not matches and text.strip():
-        entries.append({"text": text.strip(), "locator": "line 1", "role": "technical_body", "confidence": "low", "reason": "no heading geometry; overlay must classify"})
+    sections: list[tuple[str, int, int, bool]] = []
+    if matches:
+        if text[:matches[0].start()].strip():
+            sections.append(("", 0, matches[0].start(), True))
+        for index, match in enumerate(matches):
+            sections.append((match.group(2).strip(), match.end(), matches[index + 1].start() if index + 1 < len(matches) else len(text), index + 1 < len(matches)))
+    else:
+        sections.append(("", 0, len(text), False))
+
+    orienting = re.compile(r"\b(having established|after the preceding|previous section|so far|up to this point)\b", re.I)
+    contribution = re.compile(r"\b(this section (?:shows|argues|develops|examines)|we (?:show|argue)|i (?:show|argue)|the contribution here)\b", re.I)
+    example = re.compile(r"\b(for example|to illustrate|consider)\b", re.I)
+    anchor = re.compile(r"\b(in summary|to consolidate|taken together|these constructs)\b", re.I)
+    transition = re.compile(r"\b(however|by contrast|turning now|the next section)\b", re.I)
+
+    for title, start, end, has_next_heading in sections:
+        section_atoms: list[tuple[int, int, str, int]] = []
+        body = text[start:end]
+        for paragraph_index, paragraph_match in enumerate(re.finditer(r"\S[\s\S]*?(?=\n\s*\n|\Z)", body)):
+            paragraph = paragraph_match.group(0)
+            paragraph_start = start + paragraph_match.start()
+            for sentence in re.finditer(r"\S[\s\S]*?(?:[.!?](?=\s|\Z)|\Z)", paragraph):
+                sentence_text = sentence.group(0)
+                sentence_start = paragraph_start + sentence.start()
+                for clause in re.finditer(r"[^,;:]+(?:[,;:]|$)", sentence_text):
+                    raw = clause.group(0)
+                    left = len(raw) - len(raw.lstrip())
+                    right = len(raw.rstrip())
+                    if right <= left:
+                        continue
+                    atom_start = sentence_start + clause.start() + left
+                    atom_end = sentence_start + clause.start() + right
+                    section_atoms.append((atom_start, atom_end, text[atom_start:atom_end], paragraph_index))
+        section_role = title.casefold() if title.casefold() in {"abstract", "introduction", "conclusion"} else None
+        for atom_index, (atom_start, atom_end, atom, paragraph_index) in enumerate(section_atoms):
+            if orienting.search(atom): role, confidence, reason = "orienting_clause", "high", "cue-local backward orientation"
+            elif contribution.search(atom): role, confidence, reason = "contribution_clause", "high", "cue-local contribution statement"
+            elif example.search(atom): role, confidence, reason = "worked_example_vignette", "medium", "cue-local example span"
+            elif anchor.search(atom): role, confidence, reason = "consolidation_anchor", "medium", "cue-local consolidation span"
+            elif transition.search(atom): role, confidence, reason = "inter_section_transition", "medium", "cue-local transition span"
+            elif has_next_heading and atom_index == len(section_atoms) - 1: role, confidence, reason = "inter_section_transition", "medium", "final prose span before the next heading"
+            elif section_role: role, confidence, reason = section_role, "high", f"body span under explicit {title} heading"
+            elif paragraph_index == 0: role, confidence, reason = "section_framing", "medium", "uncued opening span after a heading"
+            else: role, confidence, reason = "technical_body", "low", "uncued technical-body remainder; overlay must classify"
+            line = text.count("\n", 0, atom_start) + 1
+            entries.append({"text": atom, "locator": f"line {line}:chars {atom_start}-{atom_end}", "role": role, "confidence": confidence, "reason": reason})
+    if len({entry["locator"] for entry in entries}) != len(entries):
+        raise ValueError("passage role nomination produced duplicate locators")
     return entries
 
 
@@ -259,8 +288,6 @@ def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, pha
         loc = _find_paragraph_locator(text, idx)
         allowed_roles = active["register_scope"][register_class]
         in_scope = "all_passages" in allowed_roles or role in allowed_roles
-        if not in_scope and role != "technical_body":
-            cursor = idx + len(para); continue
         binding = "binding" if phase in active["sub_checks"]["H"]["binds_at"] else "advisory"
         if not in_scope: binding = "scope_candidate"
         if phase == "Ph2" and role in active["sub_checks"]["H"].get("ph2_role_overrides", {}):
@@ -278,7 +305,7 @@ def emit_stub(
 ) -> None:
     """Emit the §9e output stub described in DETERMINISTIC_CHECKS.md."""
     in_scope = len(bundles)
-    short_circuit = sum(1 for b in bundles if not b.any_fired)
+    negative_clear = sum(1 for b in bundles if not b.any_fired)
     nom_fired = sum(1 for b in bundles if b.nominalisation.fired)
     prep_fired = sum(1 for b in bundles if b.prep_run.fired)
     hedge_fired = sum(1 for b in bundles if b.hedging.fired)
@@ -288,7 +315,7 @@ def emit_stub(
     print(f"- register_class_resolved: {register_class}", file=out_stream)
     print(f"- Bundles emitted: {in_scope}", file=out_stream)
     print(
-        f"- Short-circuit (no probe fired): {short_circuit} / {in_scope}",
+        f"- Negative pre-filter clear (positive-marker audit still required): {negative_clear} / {in_scope}",
         file=out_stream,
     )
     print("- Probe firings:", file=out_stream)

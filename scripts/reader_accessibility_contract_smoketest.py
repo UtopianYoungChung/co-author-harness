@@ -144,10 +144,11 @@ def main() -> int:
         "references/READER_ACCESSIBILITY.md", "references/ADVISORY_UNTIL_SCOPING.md",
         "references/templates/F1_evaluator_findings.md", "skills/accessibility-overlay/SKILL.md",
         "skills/accessibility-overlay/references/sub_checks.md", "skills/run-phase-3/SKILL.md", "skills/run-phase-3-stability/SKILL.md",
-        "agents/evaluator.md",
+        "agents/evaluator.md", "agents/planner.md", "references/research_paper_writing_guidelines.md",
+        "references/MASTER_research_and_paper_guidelines.md", "references/lay_term_lexicons.md",
         "scripts/aggregate_h_calibration.py",
     ]
-    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "h_advisory_cycles", "Sub-check J", "G/H/J", "Ph.D.-root", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150", "FPR < 0.30", "cycles_observed >= 2")
+    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "h_advisory_cycles", "Sub-check J", "G/H/J", "Ph.D.-root", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150", "FPR < 0.30", "cycles_observed >= 2", "mean > 28", "SD < 6", "more than two new domain terms", "at least two positive markers", "zero positive markers and zero negative markers", "three or more intensifier", "two of the three classes", "one-to-three sentences", "short-circuit to NULL/CLEAN", "grace cycle", "corpus_drift", "no independent exclusion")
     for rel in parity_surfaces:
         prose = (ROOT / rel).read_text(encoding="utf-8")
         for phrase in forbidden_semantics:

@@ -31,10 +31,10 @@ severity_aggregates:
 # -------------------------------------------------------------------------
 # SAFEGUARD Check 8 (Reader-Experience / Prose Architecture) — required
 # -------------------------------------------------------------------------
-check_8_aggregate: CLEAN             # one of {CLEAN, BORDERLINE, MAJOR, BLOCKER}; derived per SAFEGUARD_LAYER.md Check 8
+check_8_aggregate: CLEAN             # canonical recomputation from structured evidence + resolved package profile
 check_8_subcheck_counters:
   sub_a_cadence_flag_count: 0        # candidates under thresholds.cadence
-  sub_b_rhythm_flag_count: 0         # monotone-dense passages (mean > 28 words, stddev < 6)
+  sub_b_rhythm_flag_count: 0         # monotone-dense candidates under resolved thresholds.rhythm
   sub_c_first_use_flag_count: 0      # constructs deployed before first-use definition
   sub_d_signpost_flag_count: 0       # sections opening without the preamble
   sub_e_jargon_density_flag_count: 0 # paragraphs introducing > 2 new domain terms

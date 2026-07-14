@@ -4,17 +4,17 @@
   "decision_status": "provisional",
   "decision_record": "ADR-ACCESS-01",
   "normative_authority": "references/READER_ACCESSIBILITY.md",
-  "package_contributors": ["references/READER_ACCESSIBILITY.md", "references/lay_term_lexicons.md", "references/examples/model_prose_corpus.md"],
+  "package_contributors": ["references/READER_ACCESSIBILITY.md", "references/examples/model_prose_corpus.md"],
   "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
   "phase_values": ["Ph1", "Ph2", "Ph3", "Ph4"],
   "passage_roles": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor", "abstract", "introduction", "conclusion", "technical_body"],
   "sub_checks": {
     "A": {"name": "paragraph_cadence", "scope": "paragraph", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.cadence"},
     "B": {"name": "sentence_rhythm", "scope": "passage", "deterministic_disposition": "judgment_only", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.rhythm", "do_not_flag_guards": ["C-8/M-4 demonstrative anaphora", "C-8/M-5 cadential verdict"]},
-    "C": {"name": "first_use_definition", "scope": "section", "deterministic_disposition": "judgment_only", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"]},
+    "C": {"name": "first_use_definition", "scope": "section", "deterministic_disposition": "judgment_only", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.first_use"},
     "D": {"name": "section_signpost", "scope": "section_opening", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"]},
     "E": {"name": "jargon_discipline", "scope": "paragraph", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.jargon"},
-    "F": {"name": "worked_example", "scope": "density_spike", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"]},
+    "F": {"name": "worked_example", "scope": "density_spike", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.worked_example"},
     "G": {"name": "consolidation_anchor", "scope": "full_manuscript", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.consolidation"},
     "H": {"name": "register_appropriateness", "scope": "resolved_passages", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "ph2_role_overrides": {"orienting_clause": "blocker_candidate"}, "threshold_key": "thresholds.register"}
   },
@@ -34,6 +34,7 @@
       "route": "Reflector Phase 2g recurrence only",
       "transition_key": "transitions.VE",
       "follow_up_home": "C-8/M-6 verdict calibration"
+      ,"threshold_key": "thresholds.verdict_edge"
     }
   },
   "thresholds": {
@@ -54,14 +55,24 @@
       "persistence": {"identity_key": "paragraph_content_sha256", "reset_on_content_hash_change": true, "changes_current_severity": false, "planner_workflow_trigger_after_unchanged_rounds": 2}
     },
     "rhythm": {"minimum_sentence_count": 4, "mean_words_above": 28, "standard_deviation_below": 6, "short_sentence_words_at_most": 12, "long_sentence_words_at_least": 25},
+    "first_use": {"definition_window_paragraphs": 1, "manuscript_major_section_failures_min": 2},
     "jargon": {"new_domain_terms_per_paragraph": {"P0": 3, "P1": 2, "P2": 1}},
+    "worked_example": {"rhetorical_question_stack_min": 3, "example_window_paragraphs": 1},
     "consolidation": {"construct_accumulation": 3, "prior_sections_dependency": 2, "candidate_gap_words": {"P0": 800, "P1": 700, "P2": 600}, "candidate_gap_paragraphs": 6, "short_manuscript_guidance_words": 3000, "long_manuscript_candidate_words": 5000, "deterministic_gap_is_proxy_only": true},
-    "register": {"minimum_positive_markers": 2, "positive_marker_count": 4, "nominalisation_density_candidate": 0.08, "prepositional_run_candidate": 3, "hedges_per_100_words_candidate": 2.0, "functional_removability_required": true, "severity_model": {"minor_negative_markers_min": 1, "minor_negative_markers_max": 2, "major_consecutive_passages": 3, "weighted_roles": ["orienting_clause", "consolidation_anchor", "inter_section_transition"], "ph2_orienting_zero_positive": "blocker_candidate", "nontechnical_blocker_major_fraction_above": 0.5}}
+    "register": {"minimum_positive_markers": 2, "positive_marker_count": 4, "nominalisation_density_candidate": 0.08, "prepositional_run_candidate": 3, "hedges_per_100_words_candidate": 2.0, "functional_removability_required": true, "severity_model": {"minor_negative_markers_min": 1, "minor_negative_markers_max": 2, "major_consecutive_passages": 3, "weighted_roles": ["orienting_clause", "consolidation_anchor", "inter_section_transition"], "ph2_orienting_zero_positive": "blocker_candidate", "nontechnical_blocker_major_fraction_above": 0.5}},
+    "verdict_edge": {"intensifier_tokens_min": 3, "intensifier_classes_min": 2}
   },
   "transitions": {
-    "G": {"meaning": "new manuscript reaches Ph3", "required_observed_count": 1, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "use bound transition state; no independent exclusion", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"},
-    "H": {"meaning": "two complete revision cycles with H in scope", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "use bound transition state; no independent exclusion", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"},
+    "G": {"meaning": "new manuscript reaches Ph3", "required_observed_count": 1, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"},
+    "H": {"meaning": "two complete revision cycles with H in scope", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"},
     "VE": {"meaning": "two complete observed advisory cycles", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "recurrence telemetry only", "workflow_effect_after_retirement": "recurrence telemetry only", "stability_mode_effect": "recurrence telemetry only", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"}
+  },
+  "runtime_modes": {
+    "stability": {
+      "aggregation_source": "resolved_profile_and_bound_transition_state",
+      "independent_member_exclusions": false,
+      "negative_prefilter_short_circuit": false
+    }
   },
   "register_scope": {
     "technical": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor"],
@@ -85,5 +96,5 @@
     "glossary": {"path": "research_notes/glossary.txt", "polarity": "extend_domain_token_exclusions"}
   },
   "remediation_order": ["preserve propositional content", "add concrete or agentive construction", "add a plain connective", "signal a genuine register shift", "prefer semicolon or colon when the resolved style profile limits em dashes", "re-run deterministic candidates", "Evaluator confirms functional compliance"]
-  ,"recurrence": {"project_lesson_consecutive_rounds": 2, "package_lesson_distinct_projects": 2, "state_owner": "Reflector evidence plus Planner approval"}
+  ,"recurrence": {"project_lesson_consecutive_rounds": 2, "package_lesson_distinct_projects": 2, "state_owner": "Reflector evidence plus Planner approval", "semantic_severity_effect": "none"}
 }

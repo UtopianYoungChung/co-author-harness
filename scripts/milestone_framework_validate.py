@@ -22,7 +22,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy
+from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy, validate_check8_evidence
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
@@ -868,13 +868,12 @@ def _validate_reader_accessibility_policy(
         findings.append(_finding("MF-POLICY", f"{base}.profile_path", "profile path must bind the canonical package profile"))
     elif binding.get("profile_sha256") != hashlib.sha256(canonical.read_bytes()).hexdigest():
         findings.append(_finding("MF-POLICY", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
-    _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
-    resolved_artifact = (project_root / str(binding.get("resolved_path"))).resolve()
+    resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
     try:
-        resolved_payload = json.loads(resolved_artifact.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
-        resolved_payload = {}
+        resolved_payload = None
     if resolved_payload != expected_resolved or binding.get("profile_path") != expected_resolved.get("profile_path") or binding.get("profile_sha256") != expected_resolved.get("profile_sha256") or binding.get("source_bindings") != expected_resolved.get("source_bindings") or binding.get("project_identity") != expected_resolved.get("project_identity"):
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy and phase-state binding must exactly equal fresh resolver output"))
     for index, source in enumerate(binding.get("source_bindings", [])):
@@ -911,9 +910,16 @@ def _validate_reader_accessibility_policy(
         observed_events = [event for event in events if isinstance(event, dict) and event.get("event") == "policy_transition_observed" and event.get("approved") is True]
         expected_counts = list(range(1, len(observed_events) + 1))
         observed_counts = [event.get("observed_count") for event in observed_events]
-        identities = [(event.get("cycle_id"), event.get("manuscript_sha256"), event.get("content_sha256"), event.get("evidence_sha256")) for event in observed_events]
-        if observed_counts != expected_counts or len(identities) != len(set(identities)):
-            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.events", "each observation must advance exactly one count with distinct cycle/manuscript/content/evidence identity"))
+        cycle_ids = [event.get("cycle_id") for event in observed_events]
+        manuscript_ids = [event.get("manuscript_sha256") for event in observed_events]
+        content_ids = [(event.get("manuscript_sha256"), event.get("content_sha256")) for event in observed_events]
+        distinct_observations = len(cycle_ids) == len(set(cycle_ids))
+        if key == "G":
+            distinct_observations = distinct_observations and len(manuscript_ids) == len(set(manuscript_ids))
+        else:
+            distinct_observations = distinct_observations and len(content_ids) == len(set(content_ids))
+        if observed_counts != expected_counts or not distinct_observations:
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.events", "observations must advance one count per distinct cycle and use distinct bound manuscript/content evidence"))
         observed_count = len(observed_events)
         if state.get("observed_count") != observed_count:
             findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.observed_count", "transition counter must derive from approved Planner observation events"))
@@ -956,14 +962,16 @@ def _validate_reader_accessibility_policy(
         if not isinstance(deliverable, dict) or policy.get("manuscript_sha256") != deliverable.get("sha256"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} Check 8 evidence is not bound to the current manuscript hash"))
         if accepted:
-            _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")
-            check_path = (project_root / str(policy.get("check8_path"))).resolve()
+            check_bytes = _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")
             try:
-                sidecar = json.loads(check_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as exc:
+                sidecar = json.loads(check_bytes) if check_bytes is not None else None
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"Check 8 sidecar must be canonical JSON: {exc}"))
                 continue
+            if sidecar is None:
+                continue
             try:
+                validate_check8_evidence(sidecar)
                 recomputed = recompute_check8(sidecar, binding.get("transitions", {}))
             except PolicyError as exc:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"invalid structured Check 8 evidence: {exc}")); continue

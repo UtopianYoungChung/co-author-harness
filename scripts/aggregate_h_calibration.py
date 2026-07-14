@@ -37,12 +37,9 @@ column index, so reordering is tolerated). Boolean values accept any of
 
 For each cycle, the aggregator computes:
 - `total_findings` — count of all rows.
-- `inherited_findings` — rows with `inherited_from_pre_h: true`. These are
-  excluded from the FPR denominator per the v0.10.1 back-compat grace
-  rule (the grace cycle's MINOR-only verdict is not subject to FPR
-  arithmetic).
-- `eligible_findings` — `total_findings - inherited_findings`.
-- `false_positive_count` — eligible rows with `false_positive_candidate: true`.
+- `inherited_findings` — provenance count for rows inherited from earlier logs.
+- `eligible_findings` — all findings; provenance never changes telemetry eligibility.
+- `false_positive_count` — all rows with `false_positive_candidate: true`.
 - `cycle_fpr` — `false_positive_count / eligible_findings` (zero-eligible
   cycles report `n/a`).
 
@@ -124,14 +121,14 @@ class CycleReport:
 
     @property
     def eligible_findings(self) -> int:
-        return self.total_findings - self.inherited_findings
+        return self.total_findings
 
     @property
     def false_positive_count(self) -> int:
         return sum(
             1
             for f in self.findings
-            if (not f.inherited_from_pre_h) and f.false_positive_candidate
+            if f.false_positive_candidate
         )
 
     @property

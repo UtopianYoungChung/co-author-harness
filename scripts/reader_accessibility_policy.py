@@ -20,12 +20,104 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
+PROFILE_SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_profile.schema.json"
+CHECK8_SCHEMA = ROOT / "references" / "schemas" / "check8_evidence.schema.json"
+CANDIDATE_SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_candidates.schema.json"
 PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class PolicyError(ValueError):
     pass
+
+
+def _schema_type(value: Any, expected: str) -> bool:
+    checks = {
+        "object": lambda item: isinstance(item, dict),
+        "array": lambda item: isinstance(item, list),
+        "string": lambda item: isinstance(item, str),
+        "integer": lambda item: isinstance(item, int) and not isinstance(item, bool),
+        "number": lambda item: isinstance(item, (int, float)) and not isinstance(item, bool),
+        "boolean": lambda item: isinstance(item, bool),
+        "null": lambda item: item is None,
+    }
+    return expected in checks and checks[expected](value)
+
+
+def _schema_ref(root: dict[str, Any], reference: str) -> dict[str, Any]:
+    if not reference.startswith("#/"):
+        raise PolicyError(f"only local schema references are supported: {reference}")
+    value: Any = root
+    for token in reference[2:].split("/"):
+        value = value[token.replace("~1", "/").replace("~0", "~")]
+    if not isinstance(value, dict):
+        raise PolicyError(f"schema reference is not an object: {reference}")
+    return value
+
+
+def _strict_schema_validate(instance: Any, schema: dict[str, Any], root: dict[str, Any], path: str = "$") -> None:
+    """Bounded Draft 2020-12 evaluator for the shipped accessibility schemas."""
+    if "$ref" in schema:
+        _strict_schema_validate(instance, _schema_ref(root, schema["$ref"]), root, path)
+    for subschema in schema.get("allOf", []):
+        _strict_schema_validate(instance, subschema, root, path)
+    expected = schema.get("type")
+    if expected is not None:
+        allowed = [expected] if isinstance(expected, str) else expected
+        if not any(_schema_type(instance, kind) for kind in allowed):
+            raise PolicyError(f"{path}: expected {allowed}, got {type(instance).__name__}")
+    if "const" in schema and instance != schema["const"]:
+        raise PolicyError(f"{path}: expected constant {schema['const']!r}")
+    if "enum" in schema and instance not in schema["enum"]:
+        raise PolicyError(f"{path}: value is outside enum")
+    if isinstance(instance, dict):
+        missing = [key for key in schema.get("required", []) if key not in instance]
+        if missing:
+            raise PolicyError(f"{path}: missing required properties {missing}")
+        properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            extra = sorted(set(instance) - set(properties))
+            if extra:
+                raise PolicyError(f"{path}: additional properties forbidden: {extra}")
+        for key, subschema in properties.items():
+            if key in instance:
+                _strict_schema_validate(instance[key], subschema, root, f"{path}.{key}")
+        additional = schema.get("additionalProperties")
+        if isinstance(additional, dict):
+            for key in set(instance) - set(properties):
+                _strict_schema_validate(instance[key], additional, root, f"{path}.{key}")
+    if isinstance(instance, list):
+        if len(instance) < schema.get("minItems", 0):
+            raise PolicyError(f"{path}: too few items")
+        if "maxItems" in schema and len(instance) > schema["maxItems"]:
+            raise PolicyError(f"{path}: too many items")
+        if schema.get("uniqueItems") and len({json.dumps(value, sort_keys=True) for value in instance}) != len(instance):
+            raise PolicyError(f"{path}: items must be unique")
+        if "items" in schema:
+            for index, value in enumerate(instance):
+                _strict_schema_validate(value, schema["items"], root, f"{path}[{index}]")
+    if isinstance(instance, str):
+        if len(instance) < schema.get("minLength", 0):
+            raise PolicyError(f"{path}: string is too short")
+        if "pattern" in schema and re.fullmatch(schema["pattern"], instance) is None:
+            raise PolicyError(f"{path}: string does not match schema pattern")
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        if "minimum" in schema and instance < schema["minimum"]:
+            raise PolicyError(f"{path}: value is below minimum")
+        if "exclusiveMinimum" in schema and instance <= schema["exclusiveMinimum"]:
+            raise PolicyError(f"{path}: value is not above exclusive minimum")
+        if "maximum" in schema and instance > schema["maximum"]:
+            raise PolicyError(f"{path}: value is above maximum")
+        if "exclusiveMaximum" in schema and instance >= schema["exclusiveMaximum"]:
+            raise PolicyError(f"{path}: value is not below exclusive maximum")
+
+
+def validate_schema_file(instance: Any, schema_path: Path) -> None:
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PolicyError(f"schema unreadable: {schema_path}: {exc}") from exc
+    _strict_schema_validate(instance, schema, schema)
 
 
 def _hash(path: Path) -> str:
@@ -78,7 +170,8 @@ def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0)
 
 
 def validate_profile(profile: dict[str, Any]) -> None:
-    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
+    validate_schema_file(profile, PROFILE_SCHEMA)
+    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
     _object(profile, "profile", required)
     def reject_self_hash(value: Any, path: str = "profile") -> None:
         if isinstance(value, dict):
@@ -119,10 +212,10 @@ def validate_profile(profile: dict[str, Any]) -> None:
     if set(profile["sub_checks"]) != set("ABCDEFGH") or aggregate["members"] != list("ABCDEFGH"):
         raise PolicyError("Check 8 aggregate membership must be exactly A-H")
     adjacent = _object(profile["adjacent_advisory_checks"], "adjacent_advisory_checks", {"VE"})
-    ve = _object(adjacent["VE"], "adjacent_advisory_checks.VE", {"name", "scope", "gate_contribution", "aggregate_member", "route", "transition_key", "follow_up_home"})
+    ve = _object(adjacent["VE"], "adjacent_advisory_checks.VE", {"name", "scope", "gate_contribution", "aggregate_member", "route", "transition_key", "follow_up_home", "threshold_key"})
     if ve.get("gate_contribution") != "none" or ve.get("aggregate_member") is not False:
         raise PolicyError("VE must remain outside the Check 8 aggregate")
-    thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "jargon", "consolidation", "register"})
+    thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "first_use", "jargon", "worked_example", "consolidation", "register", "verdict_edge"})
     cadence = _object(thresholds["cadence"], "thresholds.cadence", {"unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
     if cadence.get("hard_ceiling_words") != 300 or not cadence.get("functional_confirmation_required"):
         raise PolicyError("provisional cadence decision is malformed")
@@ -153,9 +246,13 @@ def validate_profile(profile: dict[str, Any]) -> None:
     _number(persistence["planner_workflow_trigger_after_unchanged_rounds"], "thresholds.cadence.persistence.planner_workflow_trigger_after_unchanged_rounds", integer=True, minimum=1)
     rhythm = _object(thresholds["rhythm"], "thresholds.rhythm", {"minimum_sentence_count", "mean_words_above", "standard_deviation_below", "short_sentence_words_at_most", "long_sentence_words_at_least"})
     for key, value in rhythm.items(): _number(value, f"thresholds.rhythm.{key}")
+    first_use = _object(thresholds["first_use"], "thresholds.first_use", {"definition_window_paragraphs", "manuscript_major_section_failures_min"})
+    for key, value in first_use.items(): _number(value, f"thresholds.first_use.{key}", integer=True)
     jargon = _object(thresholds["jargon"], "thresholds.jargon", {"new_domain_terms_per_paragraph"})
     stages = _object(jargon["new_domain_terms_per_paragraph"], "thresholds.jargon.new_domain_terms_per_paragraph", {"P0", "P1", "P2"})
     for key, value in stages.items(): _number(value, f"thresholds.jargon.new_domain_terms_per_paragraph.{key}", integer=True)
+    worked = _object(thresholds["worked_example"], "thresholds.worked_example", {"rhetorical_question_stack_min", "example_window_paragraphs"})
+    for key, value in worked.items(): _number(value, f"thresholds.worked_example.{key}", integer=True)
     consolidation = _object(thresholds["consolidation"], "thresholds.consolidation", {"construct_accumulation", "prior_sections_dependency", "candidate_gap_words", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words", "deterministic_gap_is_proxy_only"})
     gaps = _object(consolidation["candidate_gap_words"], "thresholds.consolidation.candidate_gap_words", {"P0", "P1", "P2"})
     for key, value in gaps.items(): _number(value, f"thresholds.consolidation.candidate_gap_words.{key}", integer=True)
@@ -169,6 +266,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
     for key in ("minor_negative_markers_min", "minor_negative_markers_max", "major_consecutive_passages"): _number(severity_model[key], f"thresholds.register.severity_model.{key}", integer=True, minimum=1)
     _strings(severity_model["weighted_roles"], "thresholds.register.severity_model.weighted_roles")
     if severity_model["ph2_orienting_zero_positive"] != "blocker_candidate" or not 0 < severity_model["nontechnical_blocker_major_fraction_above"] < 1: raise PolicyError("thresholds.register.severity_model is invalid")
+    verdict_edge = _object(thresholds["verdict_edge"], "thresholds.verdict_edge", {"intensifier_tokens_min", "intensifier_classes_min"})
+    for key, value in verdict_edge.items(): _number(value, f"thresholds.verdict_edge.{key}", integer=True, minimum=1)
     transitions = _object(profile["transitions"], "transitions", {"G", "H", "VE"})
     for key, value in transitions.items():
         required_transition = {"meaning", "required_observed_count", "retirement_event", "workflow_effect_while_active", "stability_mode_effect", "state_owner"}
@@ -178,6 +277,10 @@ def validate_profile(profile: dict[str, Any]) -> None:
         if transition["retirement_event"] != "planner_transition_approved": raise PolicyError(f"transitions.{key}.retirement_event invalid")
         expected_owner = f"phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.{key}"
         if transition["state_owner"] != expected_owner: raise PolicyError(f"transitions.{key}.state_owner invalid")
+    modes = _object(profile["runtime_modes"], "runtime_modes", {"stability"})
+    stability = _object(modes["stability"], "runtime_modes.stability", {"aggregation_source", "independent_member_exclusions", "negative_prefilter_short_circuit"})
+    if stability != {"aggregation_source": "resolved_profile_and_bound_transition_state", "independent_member_exclusions": False, "negative_prefilter_short_circuit": False}:
+        raise PolicyError("runtime_modes.stability semantics are invalid")
     scope = _object(profile["register_scope"], "register_scope", {"technical", "mixed", "non-technical"})
     for key, value in scope.items(): _strings(value, f"register_scope.{key}")
     lexicons = _object(profile["lexicons"], "lexicons", {"plain_connectives", "latinate_whitelist", "hedges", "nominalisation_suffixes", "prepositions"})
@@ -192,9 +295,10 @@ def validate_profile(profile: dict[str, Any]) -> None:
         _object(contract[key], f"override_contract.{key}", {"path", "polarity"})
         if contract[key]["path"] != expected_paths[key]: raise PolicyError(f"override_contract.{key} path is invalid")
     _strings(profile["remediation_order"], "remediation_order")
-    recurrence = _object(profile["recurrence"], "recurrence", {"project_lesson_consecutive_rounds", "package_lesson_distinct_projects", "state_owner"})
+    recurrence = _object(profile["recurrence"], "recurrence", {"project_lesson_consecutive_rounds", "package_lesson_distinct_projects", "state_owner", "semantic_severity_effect"})
     for key in ("project_lesson_consecutive_rounds", "package_lesson_distinct_projects"): _number(recurrence[key], f"recurrence.{key}", integer=True, minimum=1)
     if not isinstance(recurrence["state_owner"], str) or not recurrence["state_owner"].strip(): raise PolicyError("recurrence.state_owner must be non-empty")
+    if recurrence["semantic_severity_effect"] != "none": raise PolicyError("recurrence cannot change semantic severity")
     if profile.get("decision_status") != "provisional":
         raise PolicyError("ADR-ACCESS-01 has no proven acceptance; status must remain provisional")
     serialized = json.dumps(profile).lower()
@@ -271,6 +375,14 @@ def recompute_check8(evidence: dict[str, Any], transitions: dict[str, Any]) -> d
     majors = {f["independence_group"] for f in included_findings if f["severity"] == "MAJOR"}
     aggregate = "BLOCKER" if blockers else ("MAJOR" if len(majors) >= 2 else ("BORDERLINE" if len(majors) == 1 else "CLEAN"))
     return {"subcheck_verdicts": verdicts, "aggregate_verdict": aggregate, "included_members": [letter for letter in "ABCDEFGH" if letter not in {"G", "H"} or transitions.get(letter, {}).get("state") == "retired"]}
+
+
+def validate_candidate_artifact(candidate: dict[str, Any]) -> None:
+    validate_schema_file(candidate, CANDIDATE_SCHEMA)
+
+
+def validate_check8_evidence(evidence: dict[str, Any]) -> None:
+    validate_schema_file(evidence, CHECK8_SCHEMA)
 
 
 def update_persistence(previous_content_sha256: str | None, current_content_sha256: str, prior_unchanged_rounds: int, current_severity: str, approved_revision_evidence: list[dict[str, Any]] | None = None, previous_approval_sequence: int | None = None) -> dict[str, Any]:
