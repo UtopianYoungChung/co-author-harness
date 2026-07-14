@@ -952,7 +952,7 @@ def _validate_reader_accessibility_policy(
         deliverable = deliverables.get(milestone)
         path = f"milestone_framework.milestones.{milestone}.policy_evidence"
         accepted = record.get("status") in {"accepted", "superseded"} or record.get("handoff", {}).get("status") in {"ready", "consumed"}
-        started_required = ("profile_path", "profile_sha256", "manuscript_sha256", "phase")
+        started_required = ("profile_path", "profile_sha256", "manuscript_sha256", "phase", "cycle_id")
         required = started_required + (("check8_path", "check8_sha256", "aggregate_verdict") if accepted else ())
         if not isinstance(policy, dict) or any(policy.get(key) is None for key in required):
             findings.append(_finding("MF-POLICY", path, f"{milestone} must carry complete current-manuscript Check 8 policy evidence"))
@@ -975,7 +975,7 @@ def _validate_reader_accessibility_policy(
                 recomputed = recompute_check8(sidecar, binding.get("transitions", {}))
             except PolicyError as exc:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"invalid structured Check 8 evidence: {exc}")); continue
-            expected_sidecar = {"profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
+            expected_sidecar = {"cycle_id": policy.get("cycle_id"), "profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
             transition_snapshot = {key: binding.get("transitions", {}).get(key, {}).get("state") for key in ("G", "H", "VE")}
             if any(sidecar.get(key) != value for key, value in expected_sidecar.items()) or sidecar.get("aggregate_verdict") != recomputed["aggregate_verdict"] or sidecar.get("subcheck_verdicts") != recomputed["subcheck_verdicts"] or sidecar.get("transition_snapshot") != transition_snapshot:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 content does not match evidence fields or recomputed A-H aggregate"))

@@ -179,6 +179,13 @@ def main() -> int:
         payload=json.loads(path.read_text(encoding="utf-8")); change(payload)
         path.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
         fm["reader_accessibility_policy"]["candidate_artifact_sha256"]=hashlib.sha256(path.read_bytes()).hexdigest()
+    def mutate_check8(project,fm,change):
+        path=project/fm["reader_accessibility_policy"]["check8_evidence_path"]
+        payload=json.loads(path.read_text(encoding="utf-8")); change(payload)
+        path.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
+        fm["reader_accessibility_policy"]["check8_evidence_sha256"]=hashlib.sha256(path.read_bytes()).hexdigest()
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(cycle_id="FORGED-OTHER-ROUND")),"does not match resolved policy")
+    forged_f1(lambda project,fm: mutate_check8(project,fm,lambda payload: payload.update(cycle_id="FORGED-OTHER-ROUND")),"do not match recomputed")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(phase="Ph2")),"does not match resolved policy")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: (payload.pop("manuscript_path"),payload.pop("manuscript_sha256"))),"schema invalid")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(sub_checks={key:{} for key in "ABCDEFGH"})),"schema invalid")
@@ -186,6 +193,13 @@ def main() -> int:
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(register_class="mixed")),"canonical deterministic recomputation")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["A"]["candidates"].append({"paragraph":99,"word_count":999,"candidate_cues":["however"],"candidate_status":"overlay_functional_confirmation_required"})),"canonical deterministic recomputation")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["H"]["bundles"][0]["probes"]["nominalisation"].update(threshold=999)),"canonical deterministic recomputation")
+    candidate=json.loads((pass_fixture/"reviews/.harness/policy/reader_accessibility_candidates.json").read_text(encoding="utf-8"))
+    candidate["source_bindings"].append({"scope":"project","path":"research_notes/hedges.txt","sha256":"0"*64,"role":"project_hedges"})
+    candidate_schema=json.loads((ROOT/"references/schemas/reader_accessibility_candidates.schema.json").read_text(encoding="utf-8"))
+    assert list(jsonschema.Draft202012Validator(candidate_schema).iter_errors(candidate)), "candidate schema accepted project override source without polarity"
+    try: policy.validate_candidate_artifact(candidate)
+    except policy.PolicyError: pass
+    else: raise AssertionError("standalone candidate accepted project override source without polarity")
     def forge_active_g(project,fm):
         state_path=project/"reviews/phase_state.json"; state=json.loads(state_path.read_text(encoding="utf-8")); state["milestone_framework"]["policy_bindings"]["reader_accessibility"]["transitions"]["G"]["state"]="retired"; state_path.write_text(json.dumps(state),encoding="utf-8")
         policy_fm=fm["reader_accessibility_policy"]; path=project/policy_fm["check8_evidence_path"]

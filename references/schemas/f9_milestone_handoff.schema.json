@@ -362,6 +362,7 @@
         "profile_path": {"type": "string", "minLength": 1},
         "profile_sha256": {"$ref": "#/$defs/sha256"},
         "manuscript_sha256": {"$ref": "#/$defs/sha256"},
+        "cycle_id": {"type": "string", "minLength": 1},
         "check8_path": {"type": "string", "minLength": 1},
         "check8_sha256": {"$ref": "#/$defs/sha256"},
         "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"]},

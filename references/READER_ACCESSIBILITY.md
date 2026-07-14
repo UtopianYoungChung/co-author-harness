@@ -1,122 +1,92 @@
-# Reader-Accessibility Constraint — Policy and Operational Criteria
+# Reader Accessibility
 
-*Historically extracted from `Ph.D. Research/CLAUDE.md` §13 on 2026-04-22. This package-local file is now the normative semantic authority; portfolio-root instructions are provenance, not a runtime dependency. The machine-readable projection is `references/policies/reader_accessibility.v1.json`, validated by `references/schemas/reader_accessibility_profile.schema.json`. Numeric explanations below are rendered views of named profile keys and must pass the parity smoke test.*
+## Purpose and authority
 
-**Authority rule.** Tools load `references/policies/reader_accessibility.v1.json` through `scripts/reader_accessibility_policy.py`. Prose does not independently own thresholds, override polarity, aggregate membership, or transition meanings. ADR-ACCESS-01 remains **Proposed/provisional**; the profile implements the calibration default without recording unproven acceptance.
+Reader accessibility reduces extraneous prose load while preserving intrinsic difficulty and supporting the reader's model-building work. The package-local machine authority is `references/policies/reader_accessibility.v1.json`, resolved through `scripts/reader_accessibility_policy.py`. Its exact human-readable numeric projection is `references/generated/reader_accessibility_policy_view.md`.
 
----
+This document owns the semantic purpose of the policy. It does not own threshold values, severity arithmetic, transition counts, recurrence counts, or runtime exceptions. Operational prose cites profile keys; only the generated view may display their numeric projection.
 
-## 13.1 The constraint, as a thematic claim
+The precedence ladder remains user → venue → project → package → root. A project may alter reader-accessibility behavior only through the profile's declared `override_contract`. Unregistered prose directives cannot rewrite package policy.
 
-**Every revision the harness produces must be accessible to a careful human reader at first read, regardless of the conceptual difficulty of the material on the page.** Accessibility is a property of the prose surface, not of the underlying argument; an intellectually dense piece can be — and at this portfolio's quality bar, must be — fluent, low-friction, and metabolizable in one sitting. The cognitive-load tax a draft imposes on a reader is the Generator's responsibility to keep low; the Evaluator audits the surface; the Reflector logs recurrence.
+## Accessibility model
 
-This constraint applies uniformly across P0 (open exploration), P1 (positioning / contestation), and P2 (resolution / synthesis). A P2 paper is not licensed to be denser at the sentence level because its conclusions are sharper; a P0 paper is not excused from clarity because its argument is provisional. The intellectual difficulty of the work resides in the ideas; the prose carries them, it does not perform them.
+Accessibility operates at local and cumulative temporal scales. The local scale covers prose processed within a reading turn. The cumulative scale covers constructs, positions, and tensions carried across the manuscript. A manuscript can pass local cadence, rhythm, definition, signposting, jargon, and example checks while still imposing a cumulative tax when later argument depends on material that was never consolidated.
 
-Accessibility operates on **two temporal scales** the harness must audit separately. The *local* scale is the paragraph, the sentence pair, the section opening — the text the reader processes within a single reading turn. The *cumulative* scale is the manuscript as a whole — the constructs, positions, and tensions the reader has been asked to carry in working memory since the beginning of the piece. A manuscript can pass every local check (paragraph cadence, sentence rhythm, first-use definition, section signposting, jargon discipline, worked examples at density spikes) and still impose a prohibitive cumulative tax when a reader who has acquired six framings and three positions across twenty pages reaches a seventh-section argument that depends on them all without any intervening accumulation summary. The two scales require distinct operational criteria; the v0.7.4 revision expands §13.3 from six local criteria to seven (adding consolidation anchors as the cumulative-scale criterion) and §13.5 maps the seven to SAFEGUARD Check 8 Sub-checks A–G correspondingly.
+Sweller's cognitive-load distinction supplies the telos. Intrinsic load is the irreducible difficulty of the material. Extraneous load is friction added by the prose. Germane load is the effort spent building the mental model. Accessibility reduces extraneous load without flattening intrinsic difficulty and helps germane effort remain productive.
 
-The v0.10.1 revision adds an **eighth criterion** orthogonal to the local/cumulative axis: *register appropriateness*. The first seven criteria audit the prose's structural surface (cadence, rhythm, definitions, signposting, jargon density, worked-example placement, consolidation-anchor presence); the eighth audits the prose's *register construction* within the structurally-required passages — whether non-technical passages that are structurally present (signposts, framing, transitions, vignette bodies, anchor sentences) read as cold abstraction-stacked academic prose where the user's reader-accessibility intent calls for daily, agent-verb-object construction. The eighth criterion is **functional, not metric** — it cannot collapse into a Flesch-Kincaid back-door — and preserves the protocol's load-bearing anti-dilution stance via a presence-of-positive-markers compliance frame rather than absence-of-negative-markers punishment.
+Register appropriateness is orthogonal to the local/cumulative distinction. The structural checks audit cadence, rhythm, definitions, signposting, jargon, worked examples, and consolidation. H audits register construction within structurally required passages. H is functional rather than a readability score and preserves the anti-dilution stance through positive construction, not mere absence of negative probes.
 
----
+## Semantic contract for A–H
 
-## 13.2 The distinction the constraint depends on
+- **A — cadence.** Apply `thresholds.cadence`. Deterministic cue hits nominate possible turn points; the overlay confirms whether they perform a transition, counter-move, worked example, or thematic refocus.
+- **B — rhythm.** Apply `thresholds.rhythm` to sentence-shape evidence, then judge rhetorical function. Rhythm is not reducible to an average.
+- **C — first use.** Apply `thresholds.first_use`. A construct must be defined or worked through before later conceptual use.
+- **D — signposting.** Apply `thresholds.section_signpost` to the bounded opening and require orienting and contribution functions. D checks structural presence; H judges register construction.
+- **E — jargon.** Apply the resolved P-stage entry under `thresholds.jargon`. Track terms in introduction order and treat deterministic counts as candidates.
+- **F — worked examples.** Apply `thresholds.worked_example` to nominate density spikes, then judge whether an example carries the conceptual load.
+- **G — consolidation.** Apply `thresholds.consolidation`. Word-and-cue gaps remain proxy candidates; the Evaluator decides whether construct accumulation crosses the policy predicate and whether an anchor performs the needed consolidation.
+- **H — register.** Apply `thresholds.register`, `register_scope`, `sub_checks.H`, and the resolved lexicons. A clear negative prefilter never substitutes for the positive-marker audit.
 
-Sweller's cognitive-load taxonomy separates **intrinsic load** (the irreducible difficulty of the material), **extraneous load** (friction the prose adds without contributing to understanding), and **germane load** (the effort the reader spends building the mental model). Accessibility minimizes extraneous load while preserving — and at the right moments amplifying — germane load. It does not collapse intrinsic load. A passage that defines `intentionality` precisely on first use, repeats the construct under a consistent name, signposts where the reader is in the argument, and uses sentence rhythm to mark turn-points has lowered extraneous load without trivializing the construct. A passage that mints a synonym every paragraph, embeds nested parenthetical glosses, and chains four subordinate clauses through a dependent verb has spent the reader's working memory on prose-bookkeeping rather than on the idea.
+Check 8 membership is exactly A–H. VE is an adjacent advisory under `adjacent_advisory_checks.VE`; it never joins the aggregate. Canonical Check 8 evidence stores structured findings and independence groups, derives subcheck verdicts, applies transition state from the authoritative policy binding, and routes recurrence separately from semantic severity.
 
-The taxonomy itself implies the two-scale audit named in §13.1. Extraneous load is typically a local phenomenon: a nested parenthetical or an undefined neologism adds friction inside the paragraph that contains it. Germane load, by contrast, is inherently cumulative — the mental model the reader is building is the model that must still be in place when the argument's closing move arrives. Once a manuscript has accumulated enough distinct constructs, positions, or tensions, the germane-load task of holding them all in working memory shades into an extraneous-load problem if the prose does not intermittently consolidate them. The Generator's surface task is local; the manuscript's cumulative-load profile is the Evaluator's audit target. Consolidation anchors — one-sentence restatements at structural boundaries that name the accumulated constructs and signal how the next movement will build on them — are the minimum-cost corrective, additive to rather than substituting for the local checks.
+## Functional judgment guards
 
----
+### Cadence candidates are not verdicts
 
-## 13.3 Operational criteria the Evaluator audits at Ph2 and above
+A cue token earns no credit by mere presence. The overlay must identify the function it performs in the paragraph. Likewise, punctuation may show internal structure without proving a thematic turn. Above-ceiling behavior, mandatory splitting, and severity floors come from `thresholds.cadence`.
 
-The Evaluator runs the profile-scoped surface checks. Severity is derived from the resolved profile and current evidence; prior observations affect workflow persistence and recurrence reporting only, never finding severity.
+### Signposts are bounded by geometry
 
-The criteria are:
+The D procedure reads the section opening only until the next heading. Shared Markdown/TeX geometry preserves offsets, strips TeX comments before semantic nomination, and prevents a later section's prose from satisfying an earlier heading. The opening window comes from `thresholds.section_signpost`.
 
-- **Paragraph cadence.** Apply `thresholds.cadence` directly. Deterministic cue hits nominate candidates; the overlay confirms functional transitions, examples, counter-moves, or refocus. This prose owns no duplicated band, ceiling, or severity value.
-- **Sentence-length distribution.** Apply the profile's rhythm probes and severity model. Variation between short and long is the carrier of comprehension.
-- **First-use definition.** Every theoretical or domain construct introduced into the manuscript carries a first-use definition or worked illustration before it is allowed to do conceptual work in subsequent paragraphs. This is binding even on terms the author considers field-standard (`affordance`, `operationalization`, `socio-technical`, `intentionality`, `delegation`).
-- **Signposting at section transitions.** Every section opens with a one-to-three-sentence preamble that tells the reader where they have arrived in the argument and what the section will contribute. This is not a chapter summary; it is a map fragment. *Register quality within the orienting and contribution clauses is delegated to Sub-check H (added v0.10.1); this signposting criterion enforces structural presence, H enforces register construction. The two are orthogonal at the finding level.*
-- **Jargon discipline within paragraphs.** Apply the profile's P-stage-adjusted term caps; split or stage definitions when the resolved limit is exceeded.
-- **Worked examples at density spikes.** Where the conceptual density rises (a tri-part decomposition, a multi-criteria evaluation, a contested-claim cluster), the prose should turn to a worked example, a vignette, or a concrete instantiation before continuing in the abstract. The Generator's `loan-officer vignette` in INF3001H is the model; no project is exempt from the move.
-- **Consolidation anchors at structural boundaries (cumulative scale).** Apply the profile's G candidate probes and judgment contract. A qualifying anchor names what the reader has acquired and signals how the next movement will use it. Consolidation remains additive to forward signposting; all numeric envelopes and severity behavior live in the profile.
-- **Register appropriateness within nominated passage roles.** H nominates orienting and contribution clauses, section framing, inter-section transitions, vignettes, consolidation anchors, abstract/introduction/conclusion passages, and uncertain technical bodies with a transparent confidence and reason. The overlay judges function. Marker thresholds, role scope, severity, phase overrides, lexicons, and transition behavior come only from profile keys `thresholds.register`, `register_scope`, `sub_checks.H`, `lexicons`, and `transitions.H`. Project `directives.md` selects the validated register class. This prose owns no duplicate number or live transition state.
+### Consolidation is cumulative judgment
 
-These criteria sit alongside — they do not replace — the existing in-package style commitments (`bacon_2009_well_crafted_sentence_guidelines.md` for sentence craft, `Sexton_Fiction_to_Academic_Writing_Guide.md` for narrative arc, `baird_2021_writing_guidelines.md` for IS-discipline conventions, `suchman_writing_style.md` for the asymmetric-design register). The accessibility constraint is the meta-rule those style guides operationalize; it is binding at every P-stage and across every register the portfolio uses.
+G asks what the reader must still carry at a structural boundary. A valid anchor names the accumulated material and signals how the next movement will use it. D and G may co-locate, but they perform different work: D orients locally; G consolidates backward before the argument moves on.
 
----
+### Register construction is not register choice
 
-## 13.4 What accessibility is not
+H audits register construction within passages selected by `register_scope` and the project's `register_class`. Technical prose retains necessary domain terms. The functional-removability test asks whether plain glosses preserve the proposition; if they do not, E governs technical density while H respects the conceptual requirement.
 
-Accessibility is not informality, not the avoidance of theoretical vocabulary, not the suppression of complexity, not the mandate to write to the most generous interpretation. The portfolio is a PhD-level research portfolio; the reader is a careful disciplinary reader, not a lay audience. The constraint binds the Generator to fluency and low extraneous load, not to dilution. A paragraph that sustains a difficult Vidal contradiction-mapping move is fully compliant if its sentences are paced, its constructs are defined, and its rhythm carries the reader; the same paragraph would be non-compliant if it embedded the move inside a 240-word block with three nested parentheticals and an undefined neologism, regardless of how rigorous the underlying argument was.
+For eligible passages, inspect concrete anchoring, identifiable agents and actions, transparent connectives, and explicit cues when register shifts. Negative probes nominate unnecessary nominalisation, stacked prepositional phrases, and hedge accumulation. Load marker thresholds and verdict semantics only from `thresholds.register`.
 
-**Sub-check H is not a register-classifier-as-style-judge** (added v0.10.1). H audits register *construction* within passages whose structural function the protocol has already named (signposts, framing, transitions, vignettes, anchors), not register *choice* across the manuscript. A technical paragraph that fails the functional removability test is exempt from H under `register_class: technical` and `mixed`; under `register_class: non-technical` the technical paragraph retains its domain terms and is held only to positive-marker construction at the sentence level — H cannot demand that a propositional-content-bearing technical paragraph become "lay register". The compliance frame's presence-of-positive-markers grammar (rather than absence-of-negative-markers punishment) is the load-bearing design choice that closes the dilution back-door: a passage with one negative marker but two positive markers is CLEAN; the rule rewards register craft rather than punishing register lapses. The advisor's framing — functional test rather than scalar metric — is what keeps H from collapsing into a Flesch-Kincaid-equivalent.
+## Qualitative examples
 
-### Worked examples (added v0.10.2)
+### Passing orienting clause
 
-**Sub-check A–G examples.** The worked examples below cover Sub-check H (Register Appropriateness) only. Worked examples for Sub-checks A–G — paragraph cadence, sentence-length variation, first-use definition, section-opening signpost, jargon discipline, worked example at density spike, and consolidation anchor — are collected in `references/examples/model_prose_corpus.md`, organized by Sub-check with two passages per check (Vidal 2022; Suchman 2007). Read that file when you need a positive model for any A–G check. The corpus also supplies two additional H examples (Vidal Preface; Suchman Ch.1) drawn from outside the i*/GORE domain, expanding the H calibration set beyond the four INF3006Y-only examples below.
+> Having traced how Maria reconciles the product-recall evidence, this section turns to the design implication: the framework must surface trade-offs rather than collapse them.
 
-The following examples anchor the Evaluator's H adjudication at the operational level. They are illustrative, not normative — the principle is the §13.3 criterion 8 specification and the sub-check H spec at `skills/accessibility-overlay/references/sub_checks.md`. The examples demonstrate the principle on representative passage shapes.
+The clause uses a named participant and concrete situation, keeps the participant's action visible, uses a transparent connective, and announces the shift into a design claim. The overlay records those functions and applies the resolved register policy; this example does not compute a verdict.
 
-**Example 1 — PASSES H (signpost orienting clause; four positive markers present).**
+### Cold methods label
 
-> *"Having traced how the loan-officer Maria reconciles the Q4 product-recall decision against the operations lead's risk thresholds, this section turns to the design implication: the framework must surface trade-offs, not collapse them."*
+> The empirical grounding of the subsequent argumentation is methodologically anchored.
 
-The orienting clause carries (i) a named individual (`Maria`) and a specific scenario (`Q4 product-recall decision`) — concrete-referent anchoring class (ii) and (iii); (ii) `Maria reconciles` and `the operations lead's risk thresholds` — agent-verb-object subjects on both clauses; (iii) `having ... this section turns to` — plain-English discourse connectives; (iv) the colon in `the design implication: the framework must surface trade-offs` signposts a tone shift from narrative-recap to design-claim — register-shift signposting marker. Four-of-four positive markers; the passage is CLEAN regardless of any negative-marker count.
+The sentence labels a method but does not orient the reader in the argument. A better clause should preserve the surrounding voice and state the relationship directly, such as: *This is not a speculative argument.* D judges the orienting function; H judges register construction.
 
-**Example 2 — FAILS H (methods-section label dropped into narrative prose; user-flagged 2026-04-27).**
+### Precise but unanchored construct prose
 
-Original (problematic):
+> The Strategic Dependency and Strategic Rationale models jointly operationalise the intentional and rationale-bearing dimensions of actor relations.
 
-> *"The empirical grounding of all subsequent argumentation is methodologically anchored. These dynamics are already active at the automation baseline. They are not waiting at some future agentic frontier."*
+The sentence is technically precise, but defined constructs do not themselves supply a concrete anchor. The overlay distinguishes disciplinary precision from reader anchoring and asks whether the passage needs a scenario or an explicit register cue. Threshold aggregation remains profile-owned.
 
-The first sentence reads as a methods-section label dropped into narrative prose — abstraction-stacked (`empirical grounding`, `subsequent argumentation`, `methodologically anchored`), zero concrete referents (defined constructs are explicitly excluded from the count under marker 1), passive subject (`The grounding ... is anchored`), no plain-English connectives, and an unannounced register shift between methods-label and narrative claim. Three alternatives that carry the same propositional content in the surrounding narrative voice:
+### Revised positioning prose
 
-1. *"This is not a speculative argument."* — flips the claim into a negation that matches the contrastive move that follows (*"not waiting at some future agentic frontier"*); the negation itself is the register-shift signpost (marker 4) and `not` is a plain-English connective into the next sentence (marker 3).
-2. *"The ground for all of this is empirical."* — keeps the declarative form but ties it back to the case just described, so it doesn't feel dropped in from outside; `the ground for all of this` carries the backward-reference work an orienting clause requires.
-3. *"None of what follows is projected forward."* — leans into the *"already active / not waiting"* logic the next two sentences develop; the negation carries register-shift signposting and the agent-verb structure (`none ... is projected`) holds.
+> I keep a deliberate distance from those labels. This is not a political stance; it is a question of method. The survey needs to examine the frameworks as objects of inquiry, not as positions it already accepts.
 
-**Preferred fix: option 1.** It flows into *"These dynamics are already active at the automation baseline. They are not waiting at some future agentic frontier"* without a gear-shift, because the original is already in contrast mode. The rationale generalises: when the surrounding prose is in a particular voice (contrast, narrative, or causal), the orienting clause should hold that voice rather than introduce a new one. Register consistency is the principle; tone-shift signposting is the exception that proves the rule.
+The revision uses active first person, transparent connectives, and an explicit bridge into the methodological claim. Those are functional observations. `thresholds.register` owns their aggregation and verdict.
 
-**Example 3 — EDGE CASE (referentially precise but abstract; defined constructs do not satisfy concrete-referent class).**
+Historical and positive-model calibration passages live in `references/examples/model_prose_corpus.md`. Calibration examples may support judgment but cannot become an independent threshold authority.
 
-> *"The Strategic Dependency model and the Strategic Rationale model jointly operationalise the i\* framework's distinction between intentional and rationale-bearing actor relations."*
+## Runtime and provenance
 
-The sentence is referentially precise — every term has a defined locus in the i\* literature — and the agent-verb-object structure is technically present (`The ... models jointly operationalise`). Under a literalist read of v0.10.1, the passage might pass the concrete-referent marker on construct count alone. Under v0.10.2's three-class concrete-referent definition, defined constructs (`Strategic Dependency model`, `Strategic Rationale model`, `i\* framework`, `intentional`, `rationale-bearing`, `actor relations`) are explicitly excluded from the count. The passage carries zero concrete referents in the marker-1 sense; it fails marker 1 absolutely, fails marker 4 (no register-shift signposting against the surrounding narrative), passes marker 3 (no Latinate connectives at all) and possibly passes marker 2 if the agent-verb-object structure is judged sufficient. Two-of-four positive markers borderline. The fix is to anchor the constructs in a scenario: "*In the loan-officer case, the SD model captures the dependency Maria has on the operations lead's risk-threshold judgment; the SR model captures the rationale by which Maria adjusts her recommendation when the threshold shifts.*" — now classes (ii) and (iii) of concrete-referent are present, marker 4 has the colon-anchored tone shift, and the passage carries four-of-four markers.
+Resolve the profile at the project boundary and record its package and project source bindings. Candidate artifacts bind the manuscript hash, phase, cycle, resolved profile, source bindings, and register class. F1 recomputes candidates from trusted frontmatter cycle provenance and requires exact equality.
 
-The edge case demonstrates why the construct-exclusion rule matters: a paragraph dense in disciplinary precision can technically clear the v0.10.1 frame and still leave the reader with no anchor for the propositional content. Treating defined constructs as concrete referents would convert H into a referential-precision audit, not a register audit. v0.10.2's three-class concrete-referent definition keeps H aimed at register craft.
+Check 8 evidence binds the same cycle, manuscript, phase, and resolved profile. Its G/H transition snapshot must match the authoritative phase-state binding. Rehashing a candidate or Check 8 sidecar from another round does not make it current.
 
-**Example 4 — PASSES H after paraphrase (INF3006Y survey-framing passage; confirmed 2026-04-27).**
+Stability loads `runtime_modes.stability` plus bound transition state. It may govern workflow reuse but creates no independent member exclusion, severity rewrite, retirement authority, or escalation exception.
 
-Original (H-MAJOR before revision):
+Persistence keys on content hash and approved revision evidence. It may produce workflow escalation evidence while leaving recorded semantic severity unchanged. Recurrence routes through `recurrence`; it does not silently rewrite a finding's verdict.
 
-> *"This survey takes a position that is methodological, not polemical. It maintains analytical distance from hype labels to avoid premature theoretical commitment to an actively contested framing whose built-in assumptions a theoretical survey ought to interrogate rather than defer to. The terms surveyed here are treated as data points about how the field is currently carving its problem, not as maps I adopt."*
+## Calibration status
 
-The passage fails H in its original form: `methodological`, `polemical`, `analytical distance`, `premature theoretical commitment`, and `actively contested framing … whose built-in assumptions … interrogate rather than defer to` are all Latinate/nominalised constructions with zero concrete referents, no agent-verb-object default (subjects are abstract: "this survey", "it"), and no register-shift signposting. Zero positive markers; H-MAJOR.
-
-Accepted revision (H-CLEAN; actual Reconciled.md text — zero em-dashes):
-
-> *"This is not a political stance; it is a question of method. I keep deliberate distance from buzzwords and from committing too early to any single theoretical lens. 'Agentic AI' is a recent, still-debated label, and the assumptions it carries are part of what this survey needs to examine, not take for granted. […] I treat both as evidence of how the field is currently framing the problem, not as frameworks I follow."*
-
-Marker audit on the revised passage: (i) M2 present — active first-person throughout: "I keep deliberate distance", "this survey needs to examine", "not as frameworks I follow"; (ii) M3 present — plain-English connectives (`not`, `and`, `not as`) replace Latinate nominalised constructions; (iii) M4 present — the **semicolon** in sentence 1 ("not a political stance; it is a question of method") performs the register-shift signal, bridging the negation-of-label to the positive methodological claim. Three-of-four positive markers; the passage is H-CLEAN.
-
-**Generator tendency warning — em-dash vs. semicolon.** The paraphrase table in `references/lay_term_lexicons.md §4` records the transformation as "not a political stance — it is a question of method" (em-dash). That is the Generator's *draft form*: em-dash is the path of least resistance for M4 and the Generator reaches for it first. The actual Reconciled.md substitutes the semicolon, which carries the same pivot signal without touching the DETERMINISTIC_CHECKS §3 em-dash count. The INF3006Y Reconciled manuscript ships zero em-dashes (confirmed `reviews/reconciled/ph1_deterministic_2026-04-27_bootstrap.md`). **The preferred M4 vehicle is the semicolon (contrast bridge) or the colon (specification pivot).** Em-dash achieves M4 compliance but is a §3-counted character; in any manuscript under low-em-dash or zero-em-dash discipline, the Generator must substitute before committing. This substitution is the revision step that closes the H-motivated em-dash insertion false-fix pattern named at `references/DETERMINISTIC_CHECKS.md §3`.
-
-The final sentence of the passage — "The underlying question… will very likely outlast it" — was adjudicated H-CLEAN without revision: concrete subject (the research question), transparent probabilistic hedge (`very likely`), no nominalised stack.
-
-The key principle this example demonstrates: *propositional content survives register shift intact*. The revised passage makes identical claims; the paraphrase changed nothing about what is asserted. This is the distinction between dilution (weakening the claim) and register craft (widening access to the same claim). Sub-check H targets the latter exclusively. The full paraphrase-transformation table is catalogued at `references/lay_term_lexicons.md §4` for Evaluator calibration.
-
-The Reflector logs recurrence at session close. Project-lesson and package-proposal eligibility comes only from the resolved `recurrence` keys; recurrence never changes semantic severity. Eligible proposals route through the Planner's evidence-adequacy, non-duplication, and scope filters before reaching the user.
-
----
-
-## 13.5 How §13 is enforced under v0.7.4
-
-Current enforcement maps exactly to profile `sub_checks.A` through `sub_checks.H`. Deterministic probes nominate candidates; the overlay judges function. Canonical Check 8 evidence stores structured findings and independence groups, derives each subcheck verdict, excludes G/H while their validated transitions are active, includes them after retirement, and always excludes VE. `aggregate` owns the verdict semantics; `recurrence` owns lesson-candidate thresholds. Project directives may apply only the override contract declared by the profile.
-
-**Sub-check G transition.** The package defines the meaning at profile key `transitions.G`; live state, event provenance, and resolved profile hash exist only at `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G`. Dates and `classification.md` may be retained as migration evidence but never decide live gate contribution.
-
-**Sub-check H transition.** Profile `transitions.H` owns meaning; the policy-binding Planner event projection owns counters and retirement. Legacy reports are generated evidence only.
-
-**Manuscript-audience conditioning via `register_class`.** Sub-check H's manuscript-scope variant is conditioned on a new field in `research_notes/directives.md`: `register_class: technical | mixed | non-technical`. Default `technical`; the field is **orthogonal to P-stage** (P-stage governs depth/scope of engagement; `register_class` governs target-audience register requirements). Composition with H's passage scope: `register_class: technical` → H applies only to the five enumerated non-technical passage roles; `register_class: mixed` → H additionally applies to the abstract, introduction, and conclusion (the four-section list); `register_class: non-technical` → H applies manuscript-wide, with technical paragraphs (those failing the functional removability test) retaining their domain terms but held to positive-marker construction at the sentence level. The default-`technical` behaviour is the back-compatibility-safe path: existing `directives.md` files that do not declare the field inherit `register_class: technical` by silent absence, and H still fires on the five non-technical passage roles common to all academic manuscripts. New projects' `PROJECT_BOOTSTRAP.md` template adds the field at v0.10.1.
-
-**Persistence and compatibility evidence.** `inherited_from_pre_h` may record provenance. It cannot rewrite severity, aggregate membership, or transition state. Current-hash evidence may be reused only as permitted by profile `runtime_modes`.
+ADR-ACCESS-01 remains provisional until real-manuscript calibration justifies acceptance. The generated policy view records the current provisional values exactly. Examples and historical reports remain calibration evidence, not approval provenance.

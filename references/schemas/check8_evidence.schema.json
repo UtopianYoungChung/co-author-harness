@@ -2,9 +2,10 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"check8_evidence.schema.json",
   "type":"object","additionalProperties":false,
-  "required":["schema_version","profile_path","profile_sha256","manuscript_path","manuscript_sha256","phase","transition_snapshot","subchecks","subcheck_verdicts","ve","aggregate_verdict"],
+  "required":["schema_version","cycle_id","profile_path","profile_sha256","manuscript_path","manuscript_sha256","phase","transition_snapshot","subchecks","subcheck_verdicts","ve","aggregate_verdict"],
   "properties":{
     "schema_version":{"const":"check8_evidence.v1"},
+    "cycle_id":{"type":"string","minLength":1},
     "profile_path":{"type":"string","minLength":1},"profile_sha256":{"$ref":"#/$defs/sha"},
     "manuscript_path":{"type":"string","minLength":1},"manuscript_sha256":{"$ref":"#/$defs/sha"},
     "phase":{"enum":["Ph2","Ph3","Ph4"]},

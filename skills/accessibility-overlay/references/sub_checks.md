@@ -6,7 +6,7 @@ Every finding carries identity, A–H member, constrained severity, independence
 
 ## Sub-check A — Paragraph cadence (Cadence-Flag)
 
-Apply `thresholds.cadence`. Cue matches nominate possible turn points; functional confirmation credits one only when it actually performs a transition, counter-move, worked example, or thematic refocus. Sub-check B, not A, protects C-8/M-4 demonstrative anaphora and C-8/M-5 cadential verdicts from false rhythm findings.
+Apply `thresholds.cadence`. Cue matches nominate possible turn points; functional confirmation credits a candidate only when it actually performs a transition, counter-move, worked example, or thematic refocus. Sub-check B, not A, protects C-8/M-4 demonstrative anaphora and C-8/M-5 cadential verdicts from false rhythm findings.
 
 > *Model examples → `references/examples/model_prose_corpus.md §Sub-check A`*
 

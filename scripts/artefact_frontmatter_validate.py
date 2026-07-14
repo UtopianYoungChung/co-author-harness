@@ -1126,6 +1126,9 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
     """Bind F1's human view to exact Check 8/profile/manuscript/candidate bytes."""
     findings: List[Finding] = []
     policy = fm["reader_accessibility_policy"]
+    trusted_cycle_id = fm.get("cycle_id")
+    if not isinstance(trusted_cycle_id, str) or not trusted_cycle_id:
+        return [Finding(path, "R-Refl-FM-RA", "MAJOR", "cycle_id", "F1 cycle_id is required for reader-accessibility provenance")]
     project_root = path.parent.parent if path.parent.name == "reviews" else path.parent
     def bound(relative: str, expected: str, field: str) -> Path | None:
         candidate = (project_root / relative).resolve()
@@ -1159,7 +1162,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
         except PolicyError as exc:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", f"candidate artifact schema invalid: {exc}"))
         expected_candidate = {
-            "phase": policy["phase"], "manuscript_path": grounding[0] if grounding else None,
+            "cycle_id": trusted_cycle_id, "phase": policy["phase"], "manuscript_path": grounding[0] if grounding else None,
             "manuscript_sha256": policy["manuscript_sha256"], "profile_path": expected_resolved["profile_path"],
             "profile_sha256": expected_resolved["profile_sha256"], "source_bindings": expected_resolved["source_bindings"],
         }
@@ -1167,7 +1170,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
         if isinstance(candidate_payload, dict) and manuscript_path is not None:
             try:
-                recomputed_candidate = build_candidate_artifact(project_root, manuscript_path, policy["phase"], candidate_payload.get("cycle_id"), expected_resolved)
+                recomputed_candidate = build_candidate_artifact(project_root, manuscript_path, policy["phase"], trusted_cycle_id, expected_resolved)
             except (PolicyError, OSError, ValueError, TypeError) as exc:
                 findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", f"candidate recomputation failed: {exc}"))
             else:
@@ -1183,7 +1186,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             computed = recompute_check8(sidecar, transition_objects)
         except (PolicyError, OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.check8_evidence_path", f"strict Check 8/phase-state evidence invalid: {exc}")); return findings
-        expected = {"profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
+        expected = {"cycle_id": trusted_cycle_id, "profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
         if any(sidecar.get(key) != value for key, value in expected.items()) or sidecar.get("manuscript_path") != (grounding[0] if grounding else None) or sidecar.get("transition_snapshot") != transition_snapshot or computed["aggregate_verdict"] != fm["check_8_aggregate"] or sidecar.get("subcheck_verdicts") != computed["subcheck_verdicts"]:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
         if len(sidecar.get("ve", {}).get("findings", [])) != fm["check_8_adjacent_advisories"]["ve_finding_count"]:

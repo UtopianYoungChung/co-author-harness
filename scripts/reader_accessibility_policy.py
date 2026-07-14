@@ -59,6 +59,17 @@ def _strict_schema_validate(instance: Any, schema: dict[str, Any], root: dict[st
     """Bounded Draft 2020-12 evaluator for the shipped accessibility schemas."""
     if "$ref" in schema:
         _strict_schema_validate(instance, _schema_ref(root, schema["$ref"]), root, path)
+    if "oneOf" in schema:
+        matches = 0
+        for subschema in schema["oneOf"]:
+            try:
+                _strict_schema_validate(instance, subschema, root, path)
+            except PolicyError:
+                continue
+            matches += 1
+        if matches != 1:
+            raise PolicyError(f"{path}: expected exactly one matching schema branch")
+        return
     for subschema in schema.get("allOf", []):
         _strict_schema_validate(instance, subschema, root, path)
     expected = schema.get("type")

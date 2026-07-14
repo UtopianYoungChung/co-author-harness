@@ -48,7 +48,29 @@ def check(condition: bool, case: str, message: str) -> None:
         raise AssertionError(f"{case}: {message}")
 
 
+_POLICY_NUMBER = re.compile(r"(?i)(?:\b\d+(?:\.\d+)?\b|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)(?:-(?:to|of)-(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve))?\b)")
+_POLICY_CONCEPT = re.compile(r"(?i)(?:\bcadence\b|functional\s+turn[ -]?points?|hard\s+ceiling|accumulated?\s+constructs?|construct\s+accumulation|\bsignpost(?:ing)?\b|\bpreamble\b|jargon\s+(?:terms?|density)|register\s+(?:markers?|fraction|verdict)|positive\s+markers?|negative\s+markers?|sentence\s+(?:count|words?|window|range|length)|paragraph\s+(?:count|words?|window|range|length)|\b\w+-word\b|nested\s+parentheticals?|passage\s+roles?|section\s+list|\bseverity\b|\bverdict\b|(?:blocker|major|minor|clean)\s+(?:fraction|verdict|severity|floor))")
+
+
+def has_numeric_policy_semantics(line: str) -> bool:
+    """Detect threshold/verdict math outside the generated policy projection."""
+    normalized = re.sub(r"(?i)\bv\d+(?:\.\d+)+\b|\b\d{4}-\d{2}-\d{2}\b|§[A-Za-z0-9.\-–]+", "", line)
+    normalized = re.sub(r"(?i)\bCheck[ -]?8\b|\bSub-check\s+[A-H]\b|\bC-8\b|\bM-\d+\b", "", normalized)
+    normalized = re.sub(r"(?i)\btrigger\s+\d+\b|\bPhase\s+\d+[a-z]?\b|\bPh\d\b", "", normalized)
+    normalized = re.sub(r"(?i)\b(?:positive\s+|negative\s+)?marker\s+\d+\b|\bprobe\s+\d+\b|\bfirst[ -]use\b|\bfirst person\b", "", normalized)
+    normalized = re.sub(r"^\s*\d+[.)]\s+", "", normalized)
+    return bool(_POLICY_NUMBER.search(normalized) and _POLICY_CONCEPT.search(normalized))
+
+
 def main() -> int:
+    detector_mutations = (
+        "Require 4 functional turn-points.", "Set the hard ceiling to 350.",
+        "Flag after 5 accumulated constructs.", "Use blocker fraction 0.75.",
+        "Require a one-to-three sentence preamble.", "Two-of-four register markers is borderline.",
+        "Three-of-four register markers is clean.", "Four-of-four register markers is clean.",
+    )
+    for mutation in detector_mutations:
+        check(has_numeric_policy_semantics(mutation), "threshold_repeated_outside_profile", f"numeric policy detector missed {mutation!r}")
     check(PROFILE.is_file(), ACCESSIBILITY_CASES[0], f"missing {PROFILE}")
     check(SCHEMA.is_file(), ACCESSIBILITY_CASES[0], f"missing {SCHEMA}")
     check(LOADER.is_file(), ACCESSIBILITY_CASES[0], f"missing {LOADER}")
@@ -154,21 +176,21 @@ def main() -> int:
         "references/MASTER_research_and_paper_guidelines.md", "references/lay_term_lexicons.md",
         "scripts/aggregate_h_calibration.py",
     ]
-    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "h_advisory_cycles", "Sub-check J", "G/H/J", "Ph.D.-root", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150", "FPR < 0.30", "cycles_observed >= 2", "mean > 28", "SD < 6", "more than two new domain terms", "at least two positive markers", "zero positive markers and zero negative markers", "three or more intensifier", "two of the three classes", "one-to-three sentences", "short-circuit to NULL/CLEAN", "grace cycle", "corpus_drift", "no independent exclusion")
+    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "h_advisory_cycles", "Sub-check J", "G/H/J", "Ph.D.-root", "short-circuit to NULL/CLEAN", "grace cycle", "corpus_drift", "no independent exclusion")
     for rel in parity_surfaces:
         prose = (ROOT / rel).read_text(encoding="utf-8")
         for phrase in forbidden_semantics:
             check(phrase not in prose, "threshold_repeated_outside_profile", f"{rel} repeats retired/numeric authority {phrase!r}")
     generated_view = ROOT / "references/generated/reader_accessibility_policy_view.md"
     check(generated_view.read_text(encoding="utf-8") == policy.render_policy_view(profile), "threshold_repeated_outside_profile", "generated numeric policy view is stale")
-    numeric_measure = re.compile(r"(?i)(?:(?:[<>]=?|≥|≤|at least|at most|more than|fewer than|minimum|maximum)\s*\d+(?:\.\d+)?(?:\s*%|\s*(?:words?|sentences?|paragraphs?|cycles?|rounds?|passages?|terms?|referents?|hedges?|positive markers?|negative markers?))|\b\d+(?:\.\d+)?(?:\s*[–-]\s*\d+)?\s*(?:words?|sentences?|paragraphs?|cycles?|rounds?|passages?|terms?|referents?|hedges?|positive markers?|negative markers?)\b)")
-    accessibility_topic = re.compile(r"(?i)(Check\s*8|Sub-check|cadence|register|jargon|rhythm|positive marker|negative marker|turn.point|consolidation|first.use|signpost)")
     for rel in parity_surfaces:
         for line_number, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1):
-            policy_line = re.sub(r"§[A-Za-z0-9.\-–]+", "", line)
-            if not (numeric_measure.search(policy_line) and accessibility_topic.search(policy_line)):
+            accessibility_scoped = rel in {"references/READER_ACCESSIBILITY.md", "skills/accessibility-overlay/references/sub_checks.md"} or any(marker in line for marker in ("Sub-check", "reader_accessibility", "thresholds.", "runtime_modes.stability"))
+            if not accessibility_scoped:
                 continue
-            structural_schema = rel == "references/ARTEFACT_FRONTMATTER_SCHEMA.md" and "# integer, ≥ 0" in line
+            if not has_numeric_policy_semantics(line):
+                continue
+            structural_schema = (rel == "references/ARTEFACT_FRONTMATTER_SCHEMA.md" and "# integer, ≥ 0" in line) or (rel == "references/templates/F1_evaluator_findings.md" and "_flag_count: 0" in line)
             historical_or_calibration = rel == "references/lay_term_lexicons.md" and any(marker in line for marker in ("RETIRED", "historical", "snapshot", "calibration"))
             check(structural_schema or historical_or_calibration, "threshold_repeated_outside_profile", f"{rel}:{line_number} contains independent numeric accessibility policy")
     sentence = (ROOT / "skills" / "sentence-level-pass" / "SKILL.md").read_text(encoding="utf-8")

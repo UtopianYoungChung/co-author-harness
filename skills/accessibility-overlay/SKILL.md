@@ -50,7 +50,7 @@ Before invoking this skill, verify all of the following. Abort with a clear `acc
 4. **DETERMINISTIC_CHECKS §9b, §9d, and §9e pre-filter output is readable.** The overlay reads `reviews/deterministic_<cycle_id>.md` for candidate evidence feeding A–H. Missing pre-filter evidence takes the slower from-scratch path without changing findings. For H, negative-marker bundles are telemetry and elaboration aids only: regardless of their `fired` values, the overlay performs the positive-marker audit. A negative-clear bundle never implies `NULL/CLEAN`.
 5. **Phase and transition projection.** Resolve scope and workflow effects from `sub_checks`, `transitions`, and `runtime_modes` in the active profile. Live state is accepted only from validated Planner event evidence; prose flags, dates, and classification fields cannot change severity or aggregate membership.
 6. **Stability sub-mode.** Apply only the workflow effect declared by `runtime_modes.stability` in the resolved profile. Persistence reuses current-hash evidence to avoid redundant work; it never rewrites recorded severity, excludes an aggregate member, or creates a compatibility severity exception.
-7. **`register_class` resolution for Sub-check H.** Read `register_class` from `research_notes/directives.md`. Default `technical` if the field is absent (back-compat-safe path); record the resolved value in the output artefact. The field conditions H's scope: `technical` → H runs on the five non-technical passage roles only; `mixed` → H additionally runs on abstract / introduction / conclusion; `non-technical` → H runs manuscript-wide. The field is orthogonal to P-stage.
+7. **`register_class` resolution for Sub-check H.** Read `register_class` from `research_notes/directives.md`. Default `technical` if the field is absent and record the resolved value. Apply `register_scope` and the profile-owned `passage_roles` set; do not restate its membership count here. The field is orthogonal to P-stage.
 
 ### No-op reason codes (machine-readable)
 
@@ -69,7 +69,7 @@ When the overlay no-ops, write:
 
 to `reviews/accessibility_overlay_noop_<YYYY-MM-DD>.json`. Reason codes: `UNCLASSIFIED`, `EMPTY_BODY`, `NO_PROSE`, `HEADING_NOT_RESOLVED`, `G_REQUIRES_FULL_MANUSCRIPT` (Sub-check G invoked with section scope). The no-op file is authoritative; downstream pipelines consume it instead of the absent findings report.
 
-## The eight Sub-checks — finding classes and severity floors
+## The A–H Sub-checks — finding classes and severity floors
 
 Each Sub-check emits the exact finding structure required by the Check 8 evidence schema. Severity and aggregate behavior are recomputed from the resolved profile; telemetry fields cannot rewrite either.
 

@@ -133,6 +133,7 @@ REAL_CASES = {
     "policy_retired_without_events": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_valid_retired_transition": ("READY", 0, None, None),
     "policy_forged_check8_content": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_forged_other_round": ("MISCONFIGURED", 4, None, "MF-POLICY"),
 }
 
 
@@ -628,7 +629,7 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
         transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}
         computed = policy.recompute_check8({"subchecks": subchecks, "ve": {"aggregate_member": False, "gate_contribution": "none", "findings": []}}, binding["transitions"])
         sidecar = {
-            "schema_version": "check8_evidence.v1", "profile_path": binding["resolved_path"],
+            "schema_version": "check8_evidence.v1", "cycle_id": f"{milestone}-policy-round", "profile_path": binding["resolved_path"],
             "profile_sha256": binding["resolved_sha256"], "manuscript_path": manuscript["path"],
             "manuscript_sha256": manuscript["sha256"], "phase": phase,
             "transition_snapshot": transition_snapshot, "subchecks": subchecks,
@@ -638,7 +639,7 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
         }
         check_path = f"reviews/.harness/policy/{milestone.lower()}_check8.json"
         check_hash, _ = _write_bound_file(project, check_path, json.dumps(sidecar, indent=2) + "\n")
-        evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"], "manuscript_sha256": manuscript["sha256"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
+        evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"], "manuscript_sha256": manuscript["sha256"], "cycle_id": sidecar["cycle_id"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
         milestones[milestone]["policy_evidence"] = evidence
     predecessor = None
     for milestone in ("M1", "M2", "M3", "M4", "M5"):
@@ -1009,6 +1010,14 @@ def _write_real_case(case: str, project: Path) -> None:
             sidecar_path = project / evidence["check8_path"]
             sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
             sidecar["subchecks"]["A"]["findings"] = [{"finding_id":"forged-a","severity":"BLOCKER","independence_group":"forged"}]
+            forged_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
+            evidence["check8_sha256"] = forged_hash
+            _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
+        elif case == "policy_forged_other_round":
+            evidence = milestones["M4"]["policy_evidence"]
+            sidecar_path = project / evidence["check8_path"]
+            sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            sidecar["cycle_id"] = "FORGED-OTHER-ROUND"
             forged_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
             evidence["check8_sha256"] = forged_hash
             _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
