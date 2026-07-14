@@ -6,6 +6,28 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.28.0 — 2026-07-13
+
+### Milestone feedback and handoff framework
+
+**What changed.** The harness now treats milestones as an evidence-bearing workflow rather than a project-local list of filenames. A machine-readable M1–M5 state records each milestone's deliverable, feedback, adjudication, current-content binding, and handoff; `reviews/lifecycle_state.md` is a deterministic derived view of that authority, never a second ledger. Phase admission consumes the same state, so unresolved feedback, stale hashes, reopened upstream work, and incomplete handoffs block downstream claims instead of being papered over by a green phase check.
+
+Native bootstrap, schema validation, migration preview/apply, and exemplar governance ship together. Clean lifecycle exemplars and legacy migration exemplars are separate classes with external, credentialed evidence. Migration preserves provenance distinctions—direct feedback, retrospective audit, reconstructed state, and missing evidence—and project `directives.md` remains above package defaults on the documented precedence ladder. Preflight outcomes are strictly tri-state: READY and explicitly authorized NOT_APPLICABLE may proceed; MISCONFIGURED blocks.
+
+The reader-accessibility contract now carries deterministic cadence semantics and a domain-native register model. The model distinguishes domain fluency from passage-scope accessibility, keeps advisory verdict-edge analysis outside the A–H aggregate, and binds exemplar and graph evidence by semantic content hashes. Paragraph length remains a candidate signal with profile-governed structure requirements, not a universal proxy for prose quality.
+
+The release gate adds a blocking Phase 0.59 for the aggregate milestone, accessibility, lifecycle-rendering, and migration suites; standalone adversarial/bootstrap/retirement suites; and syntax compilation of the three runtime tools. Missing runners or compile targets are blockers.
+
+**Why.** The RE essay exposed the live failure that motivated the contract: an M4 deliverable and M5 checklist could exist while the handoff between manuscript content, feedback, adjudication, and approval was not mechanically continuous. INF3130 exposed a different risk: reconstructed milestone history can look direct and coherent after the fact even when archive/live lineages diverge. A reusable harness feature therefore had to encode provenance and handoff predicates, not merely document either project.
+
+**How to apply.** Bootstrap new projects into the clean lifecycle contract. Run legacy projects through dry-run migration, resolve HOLDs, and apply only with project-authorized directives. Render lifecycle prose from the machine state. Use the tri-state preflight result as returned; do not convert MISCONFIGURED to NOT_APPLICABLE or infer approval from file age.
+
+**Pilot boundary.** The RE-essay and INF3130 checks were read-only pilots. They informed temporary, synthetic regression fixtures for current-hash continuity, stale approvals, reopened milestones, divergent lineage, retrospective feedback, array-shaped sections, and unlocked Ph3 siblings. This release does **not** claim either live research project was migrated, normalized, or edited.
+
+**Severity / attribution.** Minor feature release spanning milestone governance, deterministic tooling, reader-accessibility policy, migration, exemplars, and release gating. Architecture incorporates the 2026-07-13 Joseph/Cowork/Codex adjudication; implementation and tests are harness-local.
+
+---
+
 ## v0.27.0 — 2026-07-13
 
 ### Audit-remediation cycle — green checks are not coherence

@@ -32,6 +32,7 @@ LIFECYCLE_RENDERER = ROOT / "scripts" / "render_lifecycle_state.py"
 EXEMPLAR_REGISTRY = ROOT / "references" / "milestone_exemplars.json"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 SK20_GATE = ROOT / "scripts" / "sk20_preflight_gate.py"
+PLUGIN_VERSION = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
 
 CASES = {
     "valid_native_chain": 0,
@@ -1295,7 +1296,7 @@ def _write_exemplar_registry(
     approval.write_text("status: APPROVED\nauthority: user\n", encoding="utf-8")
     milestone_result = evidence_dir / "milestone_validation.json"
     milestone_result.write_text(
-        json.dumps({"validator_version": "0.27.0", "outcome": "READY" if exemplar_class == "clean_lifecycle_exemplar" else "LEGACY_READY"}) + "\n",
+        json.dumps({"validator_version": PLUGIN_VERSION, "outcome": "READY" if exemplar_class == "clean_lifecycle_exemplar" else "LEGACY_READY"}) + "\n",
         encoding="utf-8",
     )
     phase_result = evidence_dir / "phase_validation.json"
@@ -1347,7 +1348,7 @@ def _write_exemplar_registry(
         "approval_authority": "user",
         "approval_evidence_path": "reviews/exemplar/approval.md",
         "approval_evidence_sha256": _hash_file(approval),
-        "validator_version": "0.27.0",
+        "validator_version": PLUGIN_VERSION,
         "validator_outcome": "READY" if exemplar_class == "clean_lifecycle_exemplar" else "LEGACY_READY",
         "validator_evidence": evidence,
         "registered_at": "2026-07-14T00:01:00Z",

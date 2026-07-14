@@ -26,9 +26,9 @@
 #      v0.7.0 in favour of full-file reads at every rung. `scripts/
 #      build_rule_digest.py` and `scripts/verify_rule_digest.py` are archived
 #      under `legacy/` and no longer run at release time.
-#  10. Runs syntax checks (py_compile) on Coupling E.2, graph-contract, Phase D
-#      tier-notification loader, gate-threshold tuner, and v0.7.0 tier-state
-#      and migration scripts. Includes `paragraph_hash_map.py` (v0.8.0 P2.1c).
+#  10. Runs syntax checks (py_compile) on Coupling E.2, graph-contract, Phase D,
+#      milestone-feedback, lifecycle-renderer, and migration scripts. Includes
+#      `paragraph_hash_map.py` (v0.8.0 P2.1c).
 #  10a. [v0.8.0] Efficiency-config + chain-depth regression gate. Asserts
 #       `.plugin-efficiency.json` is present at plugin root (landed at v0.8.0
 #       Phase 1.1 per proposals/v0.8.0_upgrade_architecture.md §3.2). WARNs if
@@ -57,16 +57,10 @@
 #   2 — usage or environment error
 #
 # Known gaps (deferred to a future release, listed in CHANGELOG):
-#   - retirement-sweep check: CHANGELOG v0.5.2 proposes scripts/retirement-sweep-check.py
-#     to make retired-skill-name references a release-gate BLOCKER outside declared
-#     historical contexts. Not yet wired here; the v0.5.1 run-full-review sweep was
-#     done manually and the v0.5.2 entry files a lesson against the shortfall.
 #   - tier-table sweep audit: would catch review_depth-vocabulary residue the same way
-#     a retirement-sweep check would catch run-full-review residue. Also deferred.
-#   - description-length gate sourcing: currently reads the 350-char target from a
-#     hard-coded constant in this script; the deferred variant sources it from
-#     README.md §Packaging constraints so "what the docs say" and "what the gate
-#     enforces" cannot drift. Deferred to the next Phase D+ release.
+#     the wired retirement-sweep check catches run-full-review residue. Also deferred.
+# Description length is measured empirically against installed peers; there is no
+# hard-coded character target in this script.
 #
 # This script runs under bash 4+. It requires python3, PyYAML (python `yaml` module),
 # zip, and unzip. No jq, no yq, no node.
@@ -124,9 +118,9 @@ echo ""
 
 # --- Phase 0.1: manifest self-probe ---------------------------------------
 
-CURRENT_NAME=$( python3 -c "import json; print(json.load(open('$MANIFEST'))['name'])" )
-CURRENT_VERSION=$( python3 -c "import json; print(json.load(open('$MANIFEST'))['version'])" )
-CURRENT_DESC_LEN=$( python3 -c "import json; print(len(json.load(open('$MANIFEST')).get('description','')))" )
+CURRENT_NAME=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['name'])" "$MANIFEST" )
+CURRENT_VERSION=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['version'])" "$MANIFEST" )
+CURRENT_DESC_LEN=$( python3 -c "import json,sys; print(len(json.load(open(sys.argv[1], encoding='utf-8')).get('description','')))" "$MANIFEST" )
 
 echo "Current plugin:           $CURRENT_NAME @ $CURRENT_VERSION"
 echo "Current description len:  $CURRENT_DESC_LEN chars"
@@ -148,10 +142,10 @@ if [[ -n "$PEER_ROOT" && -d "$PEER_ROOT" ]]; then
             [[ -f "$p" ]] || continue
             python3 -c "
 import json, sys
-d = json.load(open('$p'))
+d = json.load(open(sys.argv[1], encoding='utf-8'))
 if d.get('name') != '$CURRENT_NAME':
     print(len(d.get('description','')))
-" 2>/dev/null
+" "$p" 2>/dev/null
         done
     )
 
@@ -196,14 +190,14 @@ if python3 -c "import yaml" >/dev/null 2>&1; then
         skill_name=$( basename "$( dirname "$skill_md" )" )
         desc_len=$( python3 -c "
 import re, sys, yaml
-t = open('$skill_md').read()
+t = open(sys.argv[1], encoding='utf-8').read()
 m = re.search(r'^---\n(.*?)\n---', t, re.S)
 try:
     fm = yaml.safe_load(m.group(1)) if m else {}
     print(len(fm.get('description','')))
 except Exception:
     print(0)
-" 2>/dev/null || echo 0 )
+" "$skill_md" 2>/dev/null || echo 0 )
         if (( desc_len > 500 )); then
             printf "  [WARN] %-30s %5d chars (exceeds 500-char safety margin)\n" "$skill_name" "$desc_len"
             WARNINGS=$((WARNINGS + 1))
@@ -374,6 +368,70 @@ else
     echo "Notification catalog smoketest: script missing"
     echo "  [BLOCKER] cannot run phase_notifications_smoketest.py"
     BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.59: milestone-feedback and handoff framework ------------------
+
+MILESTONE_FRAMEWORK_TESTS=(
+    milestone_framework_smoketest.py
+    reader_accessibility_contract_smoketest.py
+    render_lifecycle_state_smoketest.py
+    migrate_legacy_milestones_smoketest.py
+    native_project_bootstrap_smoketest.py
+    native_project_bootstrap_adversarial_smoketest.py
+    reader_accessibility_semantics_smoketest.py
+    reader_accessibility_adversarial_smoketest.py
+    render_lifecycle_state_adversarial_smoketest.py
+    migrate_legacy_milestones_adversarial_smoketest.py
+    retirement_sweep_smoketest.py
+)
+
+for TEST_RUNNER in "${MILESTONE_FRAMEWORK_TESTS[@]}"; do
+    if [[ ! -f "$PLUGIN_ROOT/scripts/$TEST_RUNNER" ]]; then
+        echo "Milestone-feedback framework: runner missing (scripts/$TEST_RUNNER)"
+        echo "  [BLOCKER] cannot run scripts/$TEST_RUNNER"
+        BLOCKERS=$((BLOCKERS + 1))
+        echo ""
+        continue
+    fi
+
+    echo "Milestone-feedback framework (scripts/$TEST_RUNNER)"
+    if ! python3 "$PLUGIN_ROOT/scripts/$TEST_RUNNER"; then
+        echo "  [BLOCKER] scripts/$TEST_RUNNER reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/$TEST_RUNNER passed"
+    fi
+    echo ""
+done
+
+MILESTONE_COMPILE_TARGETS=(
+    milestone_framework_validate.py
+    render_lifecycle_state.py
+    migrate_legacy_milestones.py
+)
+MILESTONE_COMPILE_READY=1
+for COMPILE_TARGET in "${MILESTONE_COMPILE_TARGETS[@]}"; do
+    if [[ ! -f "$PLUGIN_ROOT/scripts/$COMPILE_TARGET" ]]; then
+        echo "Milestone-feedback framework: compile target missing (scripts/$COMPILE_TARGET)"
+        echo "  [BLOCKER] cannot compile scripts/$COMPILE_TARGET"
+        BLOCKERS=$((BLOCKERS + 1))
+        MILESTONE_COMPILE_READY=0
+    fi
+done
+
+if (( MILESTONE_COMPILE_READY == 1 )); then
+    echo "Milestone-feedback framework syntax check"
+    if ! python3 -m py_compile \
+        "$PLUGIN_ROOT/scripts/milestone_framework_validate.py" \
+        "$PLUGIN_ROOT/scripts/render_lifecycle_state.py" \
+        "$PLUGIN_ROOT/scripts/migrate_legacy_milestones.py"; then
+        echo "  [BLOCKER] milestone-feedback framework syntax check failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      milestone-feedback framework syntax check passed"
+    fi
     echo ""
 fi
 
@@ -978,10 +1036,10 @@ else
     echo "  [OK]      .plugin-efficiency.json present"
 
     TOKS_PER_SEC=$( python3 -c "
-import json
-d = json.load(open('$EFFICIENCY_CONFIG'))
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
 print(d.get('input_tokens_per_second', 'missing'))
-" 2>/dev/null )
+" "$EFFICIENCY_CONFIG" 2>/dev/null )
 
     if [[ "$TOKS_PER_SEC" == "2000" ]]; then
         if (( SHIP_INTENT == 1 )); then
@@ -999,10 +1057,10 @@ print(d.get('input_tokens_per_second', 'missing'))
     fi
 
     MAX_CHAIN=$( python3 -c "
-import json
-d = json.load(open('$EFFICIENCY_CONFIG'))
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
 print(d.get('thresholds', {}).get('max_chain_depth', 15))
-" 2>/dev/null )
+" "$EFFICIENCY_CONFIG" 2>/dev/null )
 
     CALIBRATOR_BIN=""
     if [[ -n "${PLUGIN_CALIBRATOR_BIN:-}" && -x "${PLUGIN_CALIBRATOR_BIN}" ]]; then

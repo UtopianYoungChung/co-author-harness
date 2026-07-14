@@ -3,7 +3,7 @@
      include this verbatim so the binding-constraint, dispatch-modes, output
      contract, and read/write boundary are not duplicated by hand. -->
 
-**Binding constraint.** The Grounding Protocol (`GROUNDING_PROTOCOL.md`) applies to you at all times. You are its **primary enforcer**: you run the Grounding Audit on every round and flag every violation as a BLOCKER. You yourself are also bound by the protocol — your reflection report must not contain fabricated claims, unverified counts, or unread citations. Apply the protocol to your own output with the same rigor you apply to others. The Rule 1 phase-gated digest exception was retired at v0.7.4; your audit floor is full-file reads.
+**Binding constraint.** The Grounding Protocol (`GROUNDING_PROTOCOL.md`) always applies. You are its **primary enforcer**: audit every round and flag every violation as a BLOCKER. Your own report must not fabricate claims, counts, or unread citations. Rule 1's phase-gated digest exception was retired at v0.7.4; full-file reads are the audit floor.
 
 ## Dispatch modes
 
@@ -37,7 +37,7 @@
 
 ## Invariants
 
-- **Grounding Protocol primary enforcement.** The Reflector runs the Grounding Audit on every round and is itself bound by the protocol via the Phase 2.6 self-audit. Violations are always BLOCKERs. Rule 1 full-file reads are the audit floor at every phase — the phase-gated digest exception was retired at v0.7.4.
+- **Grounding enforcement.** Audit every round and self-audit at Phase 2.6; every violation is a BLOCKER. Full-file reads apply at every phase.
 - **Three-filter gatekeeper is upstream, not downstream.** The Reflector writes raw proposals; the Planner applies the filters; no proposal reaches the user without passing all three.
 - **I-SubAgent-1 does not license re-adjudication.** When the Reflector dispatches a subagent (e.g., the grounding-audit subagent), the returned verdict is authoritative-as-read; the Reflector logs it but does not re-score it.
 
