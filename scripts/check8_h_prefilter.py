@@ -357,7 +357,7 @@ def main(argv: List[str] | None = None) -> int:
         return 2
 
     text = args.manuscript.read_text(encoding="utf-8")
-    bundles = analyse(text, args.manuscript)
+    bundles = [bundle for bundle in analyse(text, args.manuscript, register_class=args.register_class) if bundle.binding_status != "scope_candidate"]
     import sys
     emit_stub(bundles, args.register_class, sys.stdout)
     return 0

@@ -1,7 +1,7 @@
 {
   "contract_version": "1.1.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
+  "profile_sha256": "0c6ec05097b3974241526bf5876b9bfb0b485610d310e9d4e0271add601ba0b5",
   "register_class": "domain-native",
   "passage_scope_class": "technical",
   "project_identity": null,
@@ -162,7 +162,8 @@
         {
           "source_key": "goncalves-2019-istar-extension",
           "role": "istar-extension-halo",
-          "grounding": "section-read"
+          "grounding": "section-read",
+          "note": "promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"
         }
       ],
       "exemplar_pending_grounding": [],
@@ -376,7 +377,8 @@
         "ph2_role_overrides": {
           "orienting_clause": "blocker_candidate"
         },
-        "threshold_key": "thresholds.register"
+        "threshold_key": "thresholds.register",
+        "register_model_key": "domain_native_register"
       }
     },
     "aggregate": {
@@ -727,7 +729,7 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
+      "sha256": "0c6ec05097b3974241526bf5876b9bfb0b485610d310e9d4e0271add601ba0b5",
       "role": "package_profile"
     },
     {
@@ -994,12 +996,12 @@
       {
         "role": "register_profile",
         "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
-        "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a"
+        "sha256": "0c6ec05097b3974241526bf5876b9bfb0b485610d310e9d4e0271add601ba0b5"
       },
       {
         "role": "package_profile",
         "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
-        "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a"
+        "sha256": "0c6ec05097b3974241526bf5876b9bfb0b485610d310e9d4e0271add601ba0b5"
       },
       {
         "role": "package_contributor",

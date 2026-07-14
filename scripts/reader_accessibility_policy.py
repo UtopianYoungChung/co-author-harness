@@ -12,11 +12,14 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import re
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from os import stat_result
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,6 +141,65 @@ def _hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _stamp(stat: stat_result) -> tuple[int, int, int, int]:
+    return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns)
+
+
+@dataclass(frozen=True)
+class _Snapshot:
+    path: Path
+    role: str
+    data: bytes
+    sha256: str
+    stamp: tuple[int, int, int, int]
+
+    def text(self) -> str:
+        try:
+            return self.data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise PolicyError(f"domain-native input is not UTF-8: {self.role}: {self.path}: {exc}") from exc
+
+
+class _SnapshotSet:
+    def __init__(self, hook: Callable[[str, str, Path | None], None] | None = None):
+        self._hook = hook
+        self._items: dict[Path, _Snapshot] = {}
+
+    def capture(self, path: Path, role: str) -> _Snapshot:
+        resolved = path.resolve()
+        if resolved in self._items:
+            return self._items[resolved]
+        try:
+            with resolved.open("rb") as stream:
+                before = _stamp(os.fstat(stream.fileno()))
+                data = stream.read()
+                after = _stamp(os.fstat(stream.fileno()))
+            if before != after or len(data) != before[2]:
+                raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}")
+            item = _Snapshot(resolved, role, data, hashlib.sha256(data).hexdigest(), before)
+            self._items[resolved] = item
+            if self._hook:
+                self._hook("after_capture", role, resolved)
+            if _stamp(resolved.stat()) != before:
+                raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}")
+            return item
+        except PolicyError:
+            raise
+        except OSError as exc:
+            raise PolicyError(f"domain-native input unreadable: {role}: {resolved}: {exc}") from exc
+
+    def verify_all(self) -> None:
+        if self._hook:
+            self._hook("before_final_verify", "*", None)
+        for item in self._items.values():
+            try:
+                current = _stamp(item.path.stat())
+            except OSError as exc:
+                raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}: {exc}") from exc
+            if current != item.stamp:
+                raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}")
+
+
 def normalize_tier(value: str) -> str:
     """Return the stable grounding class, ignoring free-text annotations."""
     token = re.split(r"\s+(?:—|–|-)\s+", value.strip().lower(), maxsplit=1)[0].strip()
@@ -148,10 +210,7 @@ def grounding_admitted(value: str) -> bool:
     return normalize_tier(value) not in {"stub", "unresolved"}
 
 
-def _source_metadata(path: Path, fallback: str) -> tuple[str, str | None]:
-    if not path.is_file():
-        raise PolicyError(f"domain-native exemplar source page missing: {path}")
-    text = path.read_text(encoding="utf-8")
+def _source_metadata(text: str, fallback: str) -> tuple[str, str | None]:
     match = re.search(r"(?mi)^\s*grounding_status\s*:\s*['\"]?([^\r\n'\"]+)", text)
     source = re.search(r"(?mi)^\s*source_loc\s*:\s*['\"]?([^\r\n'\"]+)", text)
     return (match.group(1).strip() if match else fallback, source.group(1).strip() if source else None)
@@ -164,6 +223,7 @@ def _utf8_key(value: str) -> bytes:
 def resolve_domain_native_register(
     profile: dict[str, Any], *, wiki_root: Path = DEFAULT_WIKI_ROOT,
     workspace_root: Path = DEFAULT_WORKSPACE_ROOT, harness_root: Path = ROOT,
+    _snapshot_hook: Callable[[str, str, Path | None], None] | None = None,
 ) -> dict[str, Any]:
     """Resolve the two semantic register views with explicit injected roots."""
     model = profile.get("domain_native_register")
@@ -171,16 +231,23 @@ def resolve_domain_native_register(
         raise PolicyError("profile.domain_native_register is missing")
     graph_rel = model["corpus_binding"]["graph"]["path"]
     graph_path = _contained(workspace_root, graph_rel)
+    snapshots = _SnapshotSet(_snapshot_hook)
     try:
-        graph = json.loads(graph_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        graph_snapshot = snapshots.capture(graph_path, "graph_provenance_only")
+        graph = json.loads(graph_snapshot.text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise PolicyError(f"domain-native graph unreadable: {graph_path}: {exc}") from exc
+    if not isinstance(graph, dict):
+        raise PolicyError("domain-native graph root must be an object")
     nodes = graph.get("nodes"); links = graph.get("links")
     if not isinstance(nodes, list) or not isinstance(links, list):
         raise PolicyError("domain-native graph requires nodes and links arrays")
     by_id: dict[str, dict[str, Any]] = {}
     for node in nodes:
-        if not isinstance(node, dict) or not isinstance(node.get("id"), str) or not isinstance(node.get("community"), int) or isinstance(node.get("community"), bool):
+        if (not isinstance(node, dict) or not isinstance(node.get("id"), str) or not node.get("id")
+                or not isinstance(node.get("community"), int) or isinstance(node.get("community"), bool)
+                or ("source_file" in node and node["source_file"] is not None and not isinstance(node["source_file"], str))
+                or ("file_type" in node and node["file_type"] is not None and not isinstance(node["file_type"], str))):
             raise PolicyError("domain-native graph nodes require unique string id and integer community")
         if node["id"] in by_id: raise PolicyError(f"duplicate graph node id: {node['id']}")
         by_id[node["id"]] = node
@@ -220,33 +287,39 @@ def resolve_domain_native_register(
     exemplar_lines: list[str] = []; provenance: list[dict[str, str]] = []
     for member in model["exemplar_members"]:
         key = member["source_key"]; source_rel = f"wiki/sources/{key}.md"; source_path = _contained(wiki_root, source_rel)
-        grounding, source_pdf = _source_metadata(source_path, member["grounding"])
-        provenance.append({"role":"exemplar_source_page","path":str(source_path),"sha256":_hash(source_path)})
+        source_snapshot = snapshots.capture(source_path, "exemplar_source_page")
+        grounding, source_pdf = _source_metadata(source_snapshot.text(), member["grounding"])
+        provenance.append({"role":"exemplar_source_page","path":str(source_path),"sha256":source_snapshot.sha256})
         if not grounding_admitted(grounding): continue
         pdf_hash = "-"
         pdf_rel = source_pdf or member.get("pdf")
         if pdf_rel:
             pdf_path = _contained(wiki_root, pdf_rel)
             if pdf_path.is_file():
-                pdf_hash = _hash(pdf_path); provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
+                pdf_snapshot = snapshots.capture(pdf_path, "surface_warrant_pdf")
+                pdf_hash = pdf_snapshot.sha256; provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
                 if wiki_root.resolve() == DEFAULT_WIKI_ROOT.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
                     raise PolicyError(f"expected exemplar PDF hash mismatch: {key}")
         exemplar_lines.append(f"{key}\t{normalize_tier(grounding)}\t{pdf_hash}")
     exemplar_pin = hashlib.sha256("\n".join(sorted(exemplar_lines, key=_utf8_key)).encode("utf-8")).hexdigest()
-    graph_hash = _hash(graph_path)
+    graph_hash = graph_snapshot.sha256
     harness_profile = _contained(harness_root, "references/policies/reader_accessibility.v1.json")
+    profile_snapshot = snapshots.capture(harness_profile, "register_profile")
     provenance.extend([
         {"role":"graph_provenance_only","path":str(graph_path),"sha256":graph_hash},
-        {"role":"register_profile","path":str(harness_profile),"sha256":_hash(harness_profile)},
+        {"role":"register_profile","path":str(harness_profile),"sha256":profile_snapshot.sha256},
     ])
     warnings=[]
     guard = model["corpus_binding"]["related_to_RE_predicate"]["degeneracy_guard"]
     if len(resolution) <= guard["resolved_seed_count_lte"] or len(primary) < guard["primary_communities_lt"]:
         warnings.append({"code":"RA-DNR-DEGENERATE","severity":"WARNING","message":"semantic attestation view is based on a thin resolved seed set"})
-    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_path.stat().st_mtime, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"provenance":provenance}
+    snapshots.verify_all()
+    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"provenance":provenance}
 
 
 def _contained(root: Path, relative: str) -> Path:
+    if not isinstance(relative, str) or not relative.strip() or "\x00" in relative or Path(relative).is_absolute():
+        raise PolicyError(f"invalid contained relative path: {relative!r}")
     candidate = (root / relative).resolve()
     try:
         candidate.relative_to(root.resolve())
@@ -316,7 +389,7 @@ def validate_profile(profile: dict[str, Any]) -> None:
     checks = _object(profile["sub_checks"], "sub_checks", set("ABCDEFGH"))
     common = {"name", "scope", "deterministic_disposition", "gate_contribution", "binds_at", "advisory_at"}
     for letter, value in checks.items():
-        check = _object(value, f"sub_checks.{letter}", common, {"threshold_key", "do_not_flag_guards", "ph2_role_overrides"})
+        check = _object(value, f"sub_checks.{letter}", common, {"threshold_key", "register_model_key", "do_not_flag_guards", "ph2_role_overrides"})
         for key in ("name", "scope"):
             if not isinstance(check[key], str) or not check[key].strip(): raise PolicyError(f"sub_checks.{letter}.{key} must be non-empty")
         if check["deterministic_disposition"] not in {"candidate_probe", "judgment_only"}:
@@ -328,6 +401,9 @@ def validate_profile(profile: dict[str, Any]) -> None:
             values = _strings(check[key], f"sub_checks.{letter}.{key}")
             if any(v not in PHASES for v in values):
                 raise PolicyError(f"sub_checks.{letter}.{key} contains invalid phase")
+    expected_h = {"name":"register_appropriateness","scope":"resolved_passages","deterministic_disposition":"candidate_probe","gate_contribution":"aggregate_after_transition","binds_at":["Ph3","Ph4"],"advisory_at":["Ph2"],"ph2_role_overrides":{"orienting_clause":"blocker_candidate"},"threshold_key":"thresholds.register","register_model_key":"domain_native_register"}
+    if checks["H"] != expected_h:
+        raise PolicyError("sub_checks.H must use the closed domain-native register routing contract")
     aggregate = _object(profile["aggregate"], "aggregate", {"members", "clean", "borderline", "major", "blocker"})
     for key in ("clean", "borderline", "major", "blocker"):
         if not isinstance(aggregate[key], str) or not aggregate[key].strip(): raise PolicyError(f"aggregate.{key} must be non-empty")

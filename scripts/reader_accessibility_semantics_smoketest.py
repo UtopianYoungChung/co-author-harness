@@ -66,6 +66,11 @@ def main() -> int:
         lambda p: p["adjacent_advisory_checks"]["VE"].update(gate_contribution="aggregate"),
     ]
     for mutate in mutations: rejected_by_both(mutate)
+    milestone_schema=json.loads((ROOT/"references/schemas/milestone_framework.schema.json").read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory() as td:
+        ledger=fixture._materialize_native_project(Path(td))
+        ledger["policy_bindings"]["reader_accessibility"]["register_provenance"]["warnings"]=[{}]
+        assert list(jsonschema.Draft202012Validator(milestone_schema).iter_errors(ledger)), "external schema accepted arbitrary register warning"
     profile_schema=json.loads((ROOT/"references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
     for path,value in schema_const_paths(profile_schema,profile_schema):
         forged=copy.deepcopy(policy.load_profile()); assign(forged,path,changed(value))

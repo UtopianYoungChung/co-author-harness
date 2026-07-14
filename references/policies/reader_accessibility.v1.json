@@ -34,7 +34,7 @@
       {"source_key":"yu-lapouchnian-2025-social-agentics-bdi-star","role":"recent-yu","grounding":"read"},
       {"source_key":"zave-1997-four-dark-corners-re","role":"re-canon","grounding":"full-read"},
       {"source_key":"nuseibeh-2000-re-a-roadmap","role":"re-canon","grounding":"full-read"},
-      {"source_key":"goncalves-2019-istar-extension","role":"istar-extension-halo","grounding":"section-read"}
+      {"source_key":"goncalves-2019-istar-extension","role":"istar-extension-halo","grounding":"section-read","note":"promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"}
     ],
     "exemplar_pending_grounding": [],
     "warrant_layers": {
@@ -60,7 +60,7 @@
     "E": {"name": "jargon_discipline", "scope": "paragraph", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.jargon"},
     "F": {"name": "worked_example", "scope": "density_spike", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.worked_example"},
     "G": {"name": "consolidation_anchor", "scope": "full_manuscript", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.consolidation"},
-    "H": {"name": "register_appropriateness", "scope": "resolved_passages", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "ph2_role_overrides": {"orienting_clause": "blocker_candidate"}, "threshold_key": "thresholds.register"}
+    "H": {"name": "register_appropriateness", "scope": "resolved_passages", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "ph2_role_overrides": {"orienting_clause": "blocker_candidate"}, "threshold_key": "thresholds.register", "register_model_key": "domain_native_register"}
   },
   "aggregate": {
     "members": ["A", "B", "C", "D", "E", "F", "G", "H"],
