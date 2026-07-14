@@ -21,6 +21,10 @@ CASES = (
     "missing_feedback_is_not_captured_not_invented",
     "array_sections_migrate_to_object",
     "mixed_tier_phase_state_requires_adjudication",
+    "inf_m1_m3_archive_live_divergence_creates_holds",
+    "inf_array_sections_are_controlled",
+    "inf_simultaneous_tier_phase_blocks_apply",
+    "inf_feedback_taxonomy_preserves_direct_vs_retrospective",
     "approved_migration_is_idempotent",
     "rollback_manifest_restores_original_hash",
 )
@@ -43,6 +47,21 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 def write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def assert_synthetic_fixture(project: Path, sandbox: Path) -> None:
+    """Fail closed before the migrator can be pointed at a non-temporary tree."""
+    project_root = project.resolve()
+    sandbox_root = sandbox.resolve()
+    if project_root == sandbox_root or not project_root.is_relative_to(sandbox_root):
+        raise AssertionError(f"fixture escaped its temporary sandbox: {project_root}")
+
+
+def tree_snapshot(project: Path) -> dict[str, str]:
+    return {
+        path.relative_to(project).as_posix(): sha(path.read_bytes())
+        for path in project.rglob("*") if path.is_file()
+    }
 
 
 def phase_document(*, sections_as_array: bool = True) -> dict:
@@ -228,6 +247,66 @@ def main() -> int:
         refused = run("--project-root", str(mixed), "--apply")
         assert refused.returncode == 2 and "adjudication" in refused.stderr.lower()
         completed.append("mixed_tier_phase_state_requires_adjudication")
+
+        inf_divergent = make_project(base / "inf-divergent", ambiguous=True)
+        assert_synthetic_fixture(inf_divergent, base)
+        (inf_divergent / "archive" / "milestone3_archived_outline.md").write_text(
+            "# Synthetic archived M3 lineage\n", encoding="utf-8"
+        )
+        divergent = run("--project-root", str(inf_divergent))
+        assert divergent.returncode == 0 and "Traceback" not in divergent.stderr
+        divergent_matrix = json.loads(divergent.stdout)
+        archive_live_holds = {
+            hold["hold_id"]: hold for hold in divergent_matrix["holds"]
+            if hold["code"] == "ARCHIVE_LIVE_AMBIGUITY"
+        }
+        assert set(archive_live_holds) == {"archive-live:M1", "archive-live:M3"}
+        assert all(
+            {item["location_class"] for item in divergent_matrix["artifact_candidates"] if item["path"] in hold["paths"]}
+            == {"archive", "live"}
+            for hold in archive_live_holds.values()
+        )
+        completed.append("inf_m1_m3_archive_live_divergence_creates_holds")
+
+        inf_array = make_project(base / "inf-array")
+        assert_synthetic_fixture(inf_array, base)
+        array_result = run("--project-root", str(inf_array))
+        assert array_result.returncode == 0 and "Traceback" not in (array_result.stdout + array_result.stderr)
+        array_matrix = json.loads(array_result.stdout)
+        assert {item["code"] for item in array_matrix["ledger_shape_findings"]} == {"ARRAY_SECTIONS"}
+        completed.append("inf_array_sections_are_controlled")
+
+        inf_mixed = make_project(base / "inf-mixed", mixed=True)
+        assert_synthetic_fixture(inf_mixed, base)
+        mixed_before = tree_snapshot(inf_mixed)
+        mixed_apply = run("--project-root", str(inf_mixed), "--apply")
+        assert mixed_apply.returncode == 2
+        assert "adjudication" in mixed_apply.stderr.lower()
+        assert "Traceback" not in (mixed_apply.stdout + mixed_apply.stderr)
+        assert tree_snapshot(inf_mixed) == mixed_before
+        completed.append("inf_simultaneous_tier_phase_blocks_apply")
+
+        inf_feedback = make_project(base / "inf-feedback")
+        assert_synthetic_fixture(inf_feedback, base)
+        guides = inf_feedback / "resources_and_guides"
+        guides.mkdir()
+        (guides / "Feedback Milestone 3.md").write_text(
+            "Synthetic direct M3 feedback marker.\n", encoding="utf-8"
+        )
+        (guides / "milestone1_principles_retrospective.md").write_text(
+            "Synthetic later audit applied to M1.\n", encoding="utf-8"
+        )
+        feedback_result = run("--project-root", str(inf_feedback))
+        assert feedback_result.returncode == 0 and "Traceback" not in feedback_result.stderr
+        feedback_classes = json.loads(feedback_result.stdout)["feedback_classes"]
+        assert feedback_classes["direct_milestone_feedback"] == [
+            "resources_and_guides/Feedback Milestone 3.md"
+        ]
+        assert feedback_classes["retrospective_application"] == [
+            "resources_and_guides/milestone1_principles_retrospective.md"
+        ]
+        assert all("milestone1" not in path.lower() for path in feedback_classes["direct_milestone_feedback"])
+        completed.append("inf_feedback_taxonomy_preserves_direct_vs_retrospective")
 
         commit_path = migration_dir / "commit.json"
         commit_path.unlink()

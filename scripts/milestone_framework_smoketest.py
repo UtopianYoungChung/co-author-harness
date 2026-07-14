@@ -61,6 +61,9 @@ CASES = {
 
 REAL_CASES = {
     "valid_native_chain": ("READY", 0, None, None),
+    "re_manuscript_bound_chain": ("READY", 0, None, None),
+    "re_m5_manuscript_changed": ("MISCONFIGURED", 4, None, "MF-BINDING"),
+    "re_m2_reopened_blocks_m5": ("MISCONFIGURED", 4, None, "MF-REOPEN"),
     "valid_ph2_target": ("READY", 0, "Ph2", None),
     "valid_ph4_target": ("READY", 0, "Ph4", None),
     "valid_ph4_before_closure": ("READY", 0, "Ph4", None),
@@ -103,6 +106,7 @@ REAL_CASES = {
     "accepted_primary_supersedes_preserved": ("READY", 0, None, None),
     "accepted_unsuperseded_nonprimary": ("MISCONFIGURED", 4, None, "MF-LINEAGE"),
     "ph4_without_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
+    "inf_unlocked_ph3_sibling_blocks_ph4": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_retracted_mcr_admission": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_empty_sections": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
     "ph4_nonobject_section": ("MISCONFIGURED", 4, "Ph4", "MF-PHASE"),
@@ -471,6 +475,112 @@ def _write_bound_file(project: Path, relative: str, content: str) -> tuple[str, 
     return hashlib.sha256(payload).hexdigest(), len(payload)
 
 
+def _assert_synthetic_fixture(project: Path, sandbox: Path) -> None:
+    """Fail closed before a smoke test can aim a mutating helper at a live project."""
+    project_root = project.resolve()
+    sandbox_root = sandbox.resolve()
+    if project_root == sandbox_root or not project_root.is_relative_to(sandbox_root):
+        raise AssertionError(f"fixture escaped its temporary sandbox: {project_root}")
+
+
+def _bind_re_manuscript_chain(project: Path, ledger: dict[str, Any]) -> None:
+    """Model the observed RE correction without copying project prose or live files."""
+    milestones = ledger["milestones"]
+    manuscript_path = "manuscript/First-Principles_RE_Essay.md"
+    manuscript_hash, manuscript_bytes = _write_bound_file(
+        project, manuscript_path, "Synthetic manuscript used by both M4 and M5.\n"
+    )
+    manuscript = {
+        "role": "deliverable", "artifact_kind": "manuscript", "path": manuscript_path,
+        "sha256": manuscript_hash, "bytes": manuscript_bytes,
+        "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "main",
+    }
+    for milestone, support_path, support_kind in (
+        ("M4", "milestones/M4_Revision_Plan.md", "plan"),
+        ("M5", "milestones/M5_Convergence_Checklist.md", "checklist"),
+    ):
+        support_hash, support_bytes = _write_bound_file(
+            project, support_path, f"Synthetic {support_kind}; transition control only.\n"
+        )
+        exports = [item for item in milestones[milestone]["artifacts"] if item.get("role") == "export"]
+        milestones[milestone]["artifacts"] = [
+            copy.deepcopy(manuscript),
+            {
+                "role": "transition_control", "artifact_kind": support_kind,
+                "path": support_path, "sha256": support_hash, "bytes": support_bytes,
+                "verified_at": "2026-07-13T18:00:00Z", "lineage_id": "main",
+            },
+            *exports,
+        ]
+        accepted = next(
+            event for event in ledger["events"]
+            if event["milestone"] == milestone and event["event_type"] == "milestone_accepted"
+        )
+        accepted["bindings"] = [{
+            "binding_type": "artifact", "path": manuscript_path, "sha256": manuscript_hash,
+        }]
+        evidence = milestones[milestone]["policy_evidence"]
+        sidecar_path = project / evidence["check8_path"]
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        sidecar["manuscript_path"] = manuscript_path
+        sidecar["manuscript_sha256"] = manuscript_hash
+        evidence["manuscript_sha256"] = manuscript_hash
+        evidence["check8_sha256"], _ = _write_bound_file(
+            project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n"
+        )
+
+    export = next(item for item in milestones["M5"]["artifacts"] if item.get("role") == "export")
+    export["source_path"] = manuscript_path
+    export["source_sha256"] = manuscript_hash
+    predecessor = {
+        "path": milestones["M3"]["handoff"]["packet_path"],
+        "sha256": milestones["M3"]["handoff"]["packet_sha256"],
+    }
+    for milestone in ("M4", "M5"):
+        evidence = milestones[milestone]["policy_evidence"]
+        released_export = None
+        if milestone == "M5":
+            released_export = {
+                key: export[key]
+                for key in ("role", "path", "sha256", "bytes", "source_path", "source_sha256")
+            }
+        _rewrite_packet(
+            project, ledger, milestone,
+            lambda packet, predecessor=predecessor, evidence=evidence,
+            released_export=released_export: packet.update({
+                "predecessor_packet": predecessor,
+                "deliverable": {
+                    key: manuscript[key] for key in ("role", "path", "sha256", "bytes")
+                },
+                "released_export": released_export,
+                "policy_evidence": evidence,
+            }),
+        )
+        predecessor = {
+            "path": milestones[milestone]["handoff"]["packet_path"],
+            "sha256": milestones[milestone]["handoff"]["packet_sha256"],
+        }
+
+
+def _assert_re_chain_contract(project: Path) -> None:
+    document = json.loads((project / "reviews/phase_state.json").read_text(encoding="utf-8"))
+    milestones = document["milestone_framework"]["milestones"]
+    assert milestones["M4"]["artifacts"][0]["path"] == "manuscript/First-Principles_RE_Essay.md"
+    assert milestones["M5"]["artifacts"][0]["path"] == "manuscript/First-Principles_RE_Essay.md"
+    assert any(item["role"] == "transition_control" and item["artifact_kind"] == "plan" for item in milestones["M4"]["artifacts"])
+    assert any(item["role"] == "transition_control" and item["artifact_kind"] == "checklist" for item in milestones["M5"]["artifacts"])
+    predecessor = None
+    for milestone in ("M1", "M2", "M3", "M4", "M5"):
+        handoff = milestones[milestone]["handoff"]
+        assert handoff["status"] == ("ready" if milestone == "M5" else "consumed")
+        packet_path = project / handoff["packet_path"]
+        payload = packet_path.read_bytes()
+        assert hashlib.sha256(payload).hexdigest() == handoff["packet_sha256"]
+        packet = json.loads(payload)
+        assert packet["predecessor_packet"] == predecessor
+        predecessor = {"path": handoff["packet_path"], "sha256": handoff["packet_sha256"]}
+
+
 def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[str, Any]:
     if current_phase == "Ph4":
         previous_phase = "Ph3_converged"
@@ -690,6 +800,9 @@ def _write_real_case(case: str, project: Path) -> None:
     ledger = _materialize_native_project(project)
     milestones = ledger["milestones"]
 
+    if case.startswith("re_"):
+        _bind_re_manuscript_chain(project, ledger)
+
     document_phase = "Ph4"
     if case == "valid_ph2_target":
         document_phase = "Ph2"
@@ -814,11 +927,12 @@ def _write_real_case(case: str, project: Path) -> None:
         target["status"] = "not_applicable"
         target["applicability"] = "not_applicable"
         target["authorized_override"] = None
-    elif case == "stale_deliverable_hash":
-        (project / milestones["M3"]["artifacts"][0]["path"]).write_text("drifted bytes\n", encoding="utf-8")
+    elif case in {"stale_deliverable_hash", "re_m5_manuscript_changed"}:
+        target_milestone = "M5" if case.startswith("re_") else "M3"
+        (project / milestones[target_milestone]["artifacts"][0]["path"]).write_text("drifted bytes\n", encoding="utf-8")
     elif case == "stale_f9_packet_hash":
         (project / milestones["M3"]["handoff"]["packet_path"]).write_text("{}\n", encoding="utf-8")
-    elif case == "reopened_upstream_current_downstream":
+    elif case in {"reopened_upstream_current_downstream", "re_m2_reopened_blocks_m5"}:
         milestones["M2"]["status"] = "reopened"
         milestones["M2"]["approval"]["status"] = "reopened"
     elif case == "malformed_derived_claim":
@@ -933,6 +1047,8 @@ def _write_real_case(case: str, project: Path) -> None:
         if case == "accepted_primary_supersedes_preserved":
             primary["supersedes_lineage_id"] = "alternate"
     elif case == "ph4_without_mcr_admission":
+        pass
+    elif case == "inf_unlocked_ph3_sibling_blocks_ph4":
         pass
     elif case == "ph4_retracted_mcr_admission":
         pass
@@ -1087,6 +1203,19 @@ def _write_real_case(case: str, project: Path) -> None:
         document["sections"] = []
     elif case == "ph4_without_mcr_admission":
         document["sections"]["1. Test"]["phase_entry_log"][0]["trigger"] = "user_approval"
+    elif case == "inf_unlocked_ph3_sibling_blocks_ph4":
+        document["sections"]["milestone5_v2_coauthor_layperson"] = {
+            "current_phase": "Ph3",
+            "last_approved_phase": "Ph2",
+            "ceiling_locked": False,
+            "applicable_ceiling": "Ph4",
+            "pre_mcr_deep_pass_completed": True,
+            "phase_entry_log": [{
+                "prev_phase": "Ph2", "new_phase": "Ph3", "trigger": "user_approval",
+                "actor": "user", "notes": "Synthetic unlocked sibling fixture.",
+                "timestamp": "2026-07-13T18:01:00Z", "model_used": None,
+            }],
+        }
     elif case == "valid_ph4_before_closure":
         document["terminal_phase_reached"] = False
     elif case == "valid_ph4_ceiling_locked":
@@ -1825,8 +1954,28 @@ def main() -> int:
 
         for name, (expected_outcome, expected_exit, target, expected_code) in REAL_CASES.items():
             project = directory / f"real-{name}"
+            _assert_synthetic_fixture(project, directory)
             project.mkdir()
             _write_real_case(name, project)
+            if name.startswith("re_"):
+                _assert_re_chain_contract(project)
+            fixture_document = json.loads((project / "reviews/phase_state.json").read_text(encoding="utf-8"))
+            if name == "re_m5_manuscript_changed":
+                m5 = fixture_document["milestone_framework"]["milestones"]["M5"]
+                current_hash = hashlib.sha256((project / m5["artifacts"][0]["path"]).read_bytes()).hexdigest()
+                assert m5["approval"]["status"] == "approved"
+                assert m5["artifacts"][0]["sha256"] != current_hash
+            elif name == "re_m2_reopened_blocks_m5":
+                fixture_ledger = fixture_document["milestone_framework"]
+                assert fixture_ledger["milestones"]["M2"]["status"] == "reopened"
+                assert fixture_ledger["milestones"]["M5"]["dependency_state"] == "current"
+                assert not any(event["event_type"] == "downstream_revalidated" for event in fixture_ledger["events"])
+            elif name == "inf_unlocked_ph3_sibling_blocks_ph4":
+                sibling = fixture_document["sections"]["milestone5_v2_coauthor_layperson"]
+                assert sibling["current_phase"] == "Ph3"
+                assert sibling["last_approved_phase"] == "Ph2"
+                assert sibling["ceiling_locked"] is False
+                assert sibling["applicable_ceiling"] == "Ph4"
             actual_exit, payload, stderr = _run_real_validator(project, target)
             codes = {finding.get("code") for finding in payload.get("findings", [])}
             actual_outcome = payload.get("outcome")
