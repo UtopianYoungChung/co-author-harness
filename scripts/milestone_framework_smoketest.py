@@ -11,7 +11,9 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1190,23 +1192,28 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         "sk20_not_applicable_scope": "Coupling E.2 / SK-20",
         "sk20_not_applicable_substitute_evidence": "research_notes/directives.md",
     }
-    cases: list[tuple[str, dict[str, str], dict[str, str] | None, bool, str, int]] = [
-        ("enabled_ready", base, None, True, "READY", 0),
-        ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0),
-        ("directive_authorized_disabled", base, na, False, "NOT_APPLICABLE", 0),
-        ("silent_absence", {"wiki_path": "wiki"}, None, True, "MISCONFIGURED", 4),
-        ("false_like_string", {**base, "coupling_e_on_review": "off"}, None, True, "MISCONFIGURED", 4),
-        ("disabled_missing_reason", {**base, **{key: value for key, value in na.items() if key != "sk20_not_applicable_reason"}}, None, False, "MISCONFIGURED", 4),
-        ("disabled_invalid_authority", {**base, **na, "sk20_not_applicable_authority": "generator"}, None, False, "MISCONFIGURED", 4),
-        ("disabled_outside_evidence", {**base, **na, "sk20_not_applicable_substitute_evidence": "../outside.md"}, None, False, "MISCONFIGURED", 4),
-        ("enabled_missing_wiki_resources", base, None, False, "MISCONFIGURED", 4),
-        ("disabled_missing_wiki_resources", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0),
+    cases: list[tuple[str, dict[str, str], dict[str, str] | None, bool, str, int, list[str]]] = [
+        ("enabled_ready", base, None, True, "READY", 0, []),
+        ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0, []),
+        ("directive_authorized_disabled", base, na, False, "NOT_APPLICABLE", 0, []),
+        ("directive_partial_cannot_inherit_claude_authorization", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, {"coupling_e_on_review": "false"}, False, "MISCONFIGURED", 4, []),
+        ("cli_complete_authorized_disabled", base, None, False, "NOT_APPLICABLE", 0, ["--coupling-e-on-review", "false", "--sk20-not-applicable-authority", "user", "--sk20-not-applicable-reason", "CLI user decision.", "--sk20-not-applicable-scope", "SK-20", "--sk20-not-applicable-substitute-evidence", "CLAUDE.md"]),
+        ("cli_partial_cannot_inherit_file_authorization", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "MISCONFIGURED", 4, ["--coupling-e-on-review", "false"]),
+        ("silent_absence", {"wiki_path": "wiki"}, None, True, "MISCONFIGURED", 4, []),
+        ("false_like_string", {**base, "coupling_e_on_review": "off"}, None, True, "MISCONFIGURED", 4, []),
+        ("contradictory_flags", {**base, "wiki_linked": "false", "coupling_e_on_review": "true", **{key: value for key, value in na.items() if key != "coupling_e_on_review"}}, None, False, "MISCONFIGURED", 4, []),
+        ("disabled_missing_reason", {**base, **{key: value for key, value in na.items() if key != "sk20_not_applicable_reason"}}, None, False, "MISCONFIGURED", 4, []),
+        ("disabled_invalid_authority", {**base, **na, "sk20_not_applicable_authority": "generator"}, None, False, "MISCONFIGURED", 4, []),
+        ("disabled_unrelated_scope", {**base, **na, "sk20_not_applicable_scope": "citation formatting"}, None, False, "MISCONFIGURED", 4, []),
+        ("disabled_outside_evidence", {**base, **na, "sk20_not_applicable_substitute_evidence": "../outside.md"}, None, False, "MISCONFIGURED", 4, []),
+        ("enabled_missing_wiki_resources", base, None, False, "MISCONFIGURED", 4, []),
+        ("disabled_missing_wiki_resources", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0, []),
     ]
-    for name, claude_fields, directive_fields, graph, expected_outcome, expected_exit in cases:
+    for name, claude_fields, directive_fields, graph, expected_outcome, expected_exit, extra_args in cases:
         project = directory / f"sk20-{name}"
         _write_sk20_project(project, claude_fields, directive_fields, graph=graph)
         result = subprocess.run(
-            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit"],
+            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit", *extra_args],
             capture_output=True, text=True, check=False,
         )
         try:
@@ -1229,6 +1236,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
             readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
             if readiness.get("outcome") != expected_outcome:
                 failures.append(f"sk20/{name} readiness evidence outcome is not truthful")
+            if expected_outcome == "NOT_APPLICABLE":
+                expected_source = "CLI" if name.startswith("cli_") else (
+                    "research_notes/directives.md" if name.startswith("directive_") else "project CLAUDE.md"
+                )
+                if readiness.get("metadata", {}).get("authorization_source") != expected_source:
+                    failures.append(f"sk20/{name} did not record exact authorization source {expected_source}")
         noop_path = project / "reviews" / "sk20_noop_2026-07-13.json"
         if expected_outcome == "READY" and noop_path.exists():
             failures.append(f"sk20/{name} retained a no-op artifact for READY")
@@ -1239,6 +1252,121 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
                 noop = json.loads(noop_path.read_text(encoding="utf-8"))
                 if noop.get("outcome") != expected_outcome or noop.get("status") != "noop":
                     failures.append(f"sk20/{name} no-op evidence does not preserve outcome")
+
+    for label, invalid_value in (("invalid_calendar_date", "2026-02-30"), ("invalid_date_shape", "2026-7-13")):
+        invalid_date_project = directory / f"sk20-{label}"
+        _write_sk20_project(invalid_date_project, base)
+        invalid_date = subprocess.run(
+            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(invalid_date_project), "--date", invalid_value, "--strict-exit"],
+            capture_output=True, text=True, check=False,
+        )
+        print(f"sk20/{label}: expected=1 actual={invalid_date.returncode}")
+        if invalid_date.returncode != 1 or list((invalid_date_project / "reviews").glob(f"*{invalid_value}*")):
+            failures.append(f"sk20/{label} must exit 1 and write nothing")
+        if "Traceback" in invalid_date.stderr:
+            failures.append(f"sk20/{label} emitted a traceback")
+
+    file_root = directory / "sk20-file-root"
+    file_root.write_text("not a directory", encoding="utf-8")
+    file_root_result = subprocess.run(
+        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(file_root), "--date", "2026-07-13", "--strict-exit"],
+        capture_output=True, text=True, check=False,
+    )
+    print(f"sk20/file_root: expected=2 actual={file_root_result.returncode}")
+    if file_root_result.returncode != 2 or "Traceback" in file_root_result.stderr:
+        failures.append("sk20/file_root must be a controlled I/O failure")
+
+    missing_root_result = subprocess.run(
+        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(directory / "missing-root"), "--date", "2026-07-13", "--strict-exit"],
+        capture_output=True, text=True, check=False,
+    )
+    print(f"sk20/missing_root: expected=2 actual={missing_root_result.returncode}")
+    if missing_root_result.returncode != 2 or "Traceback" in missing_root_result.stderr:
+        failures.append("sk20/missing_root must be a controlled I/O failure")
+
+    malformed_project = directory / "sk20-malformed-config"
+    _write_sk20_project(malformed_project, base)
+    (malformed_project / "CLAUDE.md").write_bytes(b"\xff\xfe\x00")
+    malformed = subprocess.run(
+        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(malformed_project), "--date", "2026-07-13", "--strict-exit"],
+        capture_output=True, text=True, check=False,
+    )
+    print(f"sk20/malformed_config: expected=2 actual={malformed.returncode}")
+    if malformed.returncode != 2 or "Traceback" in malformed.stderr:
+        failures.append("sk20/malformed_config must be a controlled parse failure")
+
+    atomic_project = directory / "sk20-atomic-preservation"
+    _write_sk20_project(atomic_project, base, graph=False)
+    readiness = atomic_project / "reviews" / "coupling_readiness_2026-07-13.json"
+    readiness.write_text("SENTINEL", encoding="utf-8")
+    (atomic_project / "reviews" / "sk20_noop_2026-07-13.json").mkdir()
+    atomic = subprocess.run(
+        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(atomic_project), "--date", "2026-07-13", "--strict-exit"],
+        capture_output=True, text=True, check=False,
+    )
+    print(f"sk20/atomic_preservation: expected=2 actual={atomic.returncode}")
+    if atomic.returncode != 2 or readiness.read_text(encoding="utf-8") != "SENTINEL" or "Traceback" in atomic.stderr:
+        failures.append("sk20/atomic_preservation must preserve prior evidence on output failure")
+
+    if os.name == "nt":
+        junction_project = directory / "sk20-reviews-junction"
+        _write_sk20_project(junction_project, base)
+        outside_reviews = directory / "outside-reviews"
+        outside_reviews.mkdir()
+        shutil.rmtree(junction_project / "reviews")
+        link = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(junction_project / "reviews"), str(outside_reviews)],
+            capture_output=True, text=True, check=False,
+        )
+        if link.returncode == 0:
+            junction = subprocess.run(
+                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(junction_project), "--date", "2026-07-13", "--strict-exit"],
+                capture_output=True, text=True, check=False,
+            )
+            print(f"sk20/reviews_junction: expected=2 actual={junction.returncode}")
+            if junction.returncode != 2 or any(outside_reviews.iterdir()) or "Traceback" in junction.stderr:
+                failures.append("sk20/reviews_junction must refuse without outside writes")
+
+        evidence_project = directory / "sk20-evidence-junction"
+        evidence_fields = {**base, **na, "sk20_not_applicable_substitute_evidence": "evidence/decision.md"}
+        _write_sk20_project(evidence_project, evidence_fields, graph=False)
+        outside_evidence = directory / "outside-evidence"
+        outside_evidence.mkdir()
+        (outside_evidence / "decision.md").write_text("# Decision\n", encoding="utf-8")
+        evidence_link = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(evidence_project / "evidence"), str(outside_evidence)],
+            capture_output=True, text=True, check=False,
+        )
+        if evidence_link.returncode == 0:
+            evidence_result = subprocess.run(
+                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(evidence_project), "--date", "2026-07-13", "--strict-exit"],
+                capture_output=True, text=True, check=False,
+            )
+            try:
+                evidence_payload = json.loads(evidence_result.stdout)
+            except json.JSONDecodeError:
+                evidence_payload = {}
+            print(f"sk20/evidence_junction: expected=MISCONFIGURED/4 actual={evidence_payload.get('outcome')}/{evidence_result.returncode}")
+            if evidence_result.returncode != 4 or evidence_payload.get("outcome") != "MISCONFIGURED" or "Traceback" in evidence_result.stderr:
+                failures.append("sk20/evidence_junction must be a controlled semantic refusal")
+
+        output_project = directory / "sk20-output-symlink"
+        output_fields = {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}
+        _write_sk20_project(output_project, output_fields, graph=False)
+        outside_output = directory / "outside-noop.json"
+        outside_output.write_text("OUTSIDE-SENTINEL", encoding="utf-8")
+        output_link = subprocess.run(
+            ["cmd", "/c", "mklink", str(output_project / "reviews" / "sk20_noop_2026-07-13.json"), str(outside_output)],
+            capture_output=True, text=True, check=False,
+        )
+        if output_link.returncode == 0:
+            output_result = subprocess.run(
+                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(output_project), "--date", "2026-07-13", "--strict-exit"],
+                capture_output=True, text=True, check=False,
+            )
+            print(f"sk20/output_symlink: expected=2 actual={output_result.returncode}")
+            if output_result.returncode != 2 or outside_output.read_text(encoding="utf-8") != "OUTSIDE-SENTINEL" or "Traceback" in output_result.stderr:
+                failures.append("sk20/output_symlink must refuse without outside mutation")
 
 
 def main() -> int:
