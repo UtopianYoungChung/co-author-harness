@@ -1,71 +1,412 @@
 {
   "schema_version": "1.0.0",
-  "profile_version": "1.0.0",
+  "profile_version": "1.0.1",
   "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
-  "decision_approval": {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"},
+  "decision_approval": {
+    "authority": "user",
+    "approved_at": "2026-07-13",
+    "provenance": "user_approval_in_session"
+  },
   "normative_authority": "references/READER_ACCESSIBILITY.md",
-  "package_contributors": ["references/READER_ACCESSIBILITY.md", "references/examples/model_prose_corpus.md"],
+  "package_contributors": [
+    "references/READER_ACCESSIBILITY.md",
+    "references/examples/model_prose_corpus.md"
+  ],
   "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
   "domain_native_register": {
     "reader_model": {
-      "audience_classes": ["IS scholar", "software engineer", "systems engineer", "requirements engineer"],
-      "imported_theory_registers": ["sociology", "psychology", "philosophy"],
+      "audience_classes": [
+        "IS scholar",
+        "software engineer",
+        "systems engineer",
+        "requirements engineer"
+      ],
+      "imported_theory_registers": [
+        "sociology",
+        "psychology",
+        "philosophy"
+      ],
       "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
       "register_class": "domain-native",
       "source": "M1 milestone reader declaration"
     },
     "corpus_binding": {
-      "path_roots": {"wiki_root":"B:/Agents/knowledge/LLM wiki","workspace_root":"B:/Agents","harness_root":"B:/Agents/platform/co-author-harness"},
-      "graph": {"path":"knowledge/LLM wiki/graphify-out/graph.json","role":"index and provenance metadata only; never a gate target","observed_sha256_at_review":"edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"},
-      "pin": {"level":"semantic","algorithm":"SHA-256 over UTF-8 bytes, lowercase hex","pinned_objects":["attestation_view_pin","exemplar_view_pin"],"mf_policy_binding_keys":{"profile_sha256":"profile_sha256","attestation_view_pin":"attestation_view_pin","exemplar_view_pin":"exemplar_view_pin","graph_sha256_provenance":"graph_sha256_provenance"},"recorded_provenance":["graph_sha256_provenance","graph_mtime_utc_provenance","unresolved_seed_ids"],"repin_policy":"recompute at milestone transitions and grounded-source-admitting rounds; auto-accept no delta; real delta requires deliberate versioned repin; never intra-cycle"},
-      "related_to_RE_predicate": {"seed_resolution":["exact_id","source_file_join","prefer_document_or_source","prefer_id_suffix_source","utf8_lexicographic_first"],"primary_communities":"unique integer communities of resolved seeds","import_neighbors":"one hop outside primary communities from a primary-community member","membership":"union_primary_communities_and_one_hop_import_neighbors","degeneracy_guard":{"resolved_seed_count_lte":3,"primary_communities_lt":2,"effect":"warning_only"},"link_contract":"source and target canonical; mandatory _src and _tgt must agree"},
-      "hash_recipe": {"attestation_view_pin":"newline join UTF-8-byte-sorted membership ids without trailing newline","exemplar_view_pin":"newline join UTF-8-byte-sorted source_key TAB normalized tier TAB source-page source_loc PDF sha256-or-dash tuples without trailing newline","normalize_tier":"strip whitespace-delimited em dash, en dash, or ASCII hyphen annotation; map full-text-pass to full-read and section-read-verified to section-read","pdf_staging_rule":"resolve source_loc from each contained wiki source page; missing PDF is dash; staging or byte change is a semantic delta"},
-      "views":{"attestation":{"role":"negative check: is this construction foreign?","members":"related_to_RE_predicate membership","absence_effect":"advisory_candidate_only"},"exemplar":{"role":"positive domain-native target","members":"exemplar_members admitted by deny list","admission":"deny normalized stub and unresolved; admit every other tier"}}
+      "path_roots": {
+        "wiki_root": "B:/Agents/knowledge/LLM wiki",
+        "workspace_root": "B:/Agents",
+        "harness_root": "B:/Agents/platform/co-author-harness"
+      },
+      "graph": {
+        "path": "knowledge/LLM wiki/graphify-out/graph.json",
+        "role": "index and provenance metadata only; never a gate target",
+        "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+      },
+      "pin": {
+        "level": "semantic",
+        "algorithm": "SHA-256 over UTF-8 bytes, lowercase hex",
+        "pinned_objects": [
+          "attestation_view_pin",
+          "exemplar_view_pin"
+        ],
+        "mf_policy_binding_keys": {
+          "profile_sha256": "profile_sha256",
+          "attestation_view_pin": "attestation_view_pin",
+          "exemplar_view_pin": "exemplar_view_pin",
+          "graph_sha256_provenance": "graph_sha256_provenance"
+        },
+        "recorded_provenance": [
+          "graph_sha256_provenance",
+          "graph_mtime_utc_provenance",
+          "unresolved_seed_ids"
+        ],
+        "repin_policy": "recompute at milestone transitions and grounded-source-admitting rounds; auto-accept no delta; real delta requires deliberate versioned repin; never intra-cycle"
+      },
+      "related_to_RE_predicate": {
+        "seed_resolution": [
+          "exact_id",
+          "source_file_join",
+          "prefer_document_or_source",
+          "prefer_id_suffix_source",
+          "utf8_lexicographic_first"
+        ],
+        "primary_communities": "unique integer communities of resolved seeds",
+        "import_neighbors": "one hop outside primary communities from a primary-community member",
+        "membership": "union_primary_communities_and_one_hop_import_neighbors",
+        "degeneracy_guard": {
+          "resolved_seed_count_lte": 3,
+          "primary_communities_lt": 2,
+          "effect": "warning_only"
+        },
+        "link_contract": "source and target canonical; mandatory _src and _tgt must agree"
+      },
+      "hash_recipe": {
+        "attestation_view_pin": "newline join UTF-8-byte-sorted membership ids without trailing newline",
+        "exemplar_view_pin": "newline join UTF-8-byte-sorted source_key TAB normalized tier TAB source-page source_loc PDF sha256-or-dash tuples without trailing newline",
+        "normalize_tier": "strip whitespace-delimited em dash, en dash, or ASCII hyphen annotation; map full-text-pass to full-read and section-read-verified to section-read",
+        "pdf_staging_rule": "resolve source_loc from each contained wiki source page; missing PDF is dash; staging or byte change is a semantic delta"
+      },
+      "views": {
+        "attestation": {
+          "role": "negative check: is this construction foreign?",
+          "members": "related_to_RE_predicate membership",
+          "absence_effect": "advisory_candidate_only"
+        },
+        "exemplar": {
+          "role": "positive domain-native target",
+          "members": "exemplar_members admitted by deny list",
+          "admission": "deny normalized stub and unresolved; admit every other tier"
+        }
+      }
     },
     "exemplar_members": [
-      {"source_key":"yu-1995-istar","role":"centroid","grounding":"full-read","pdf":"raw/corpus/yu-1995-istar.pdf","pdf_sha256":"c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"},
-      {"source_key":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p","role":"classic-halo","grounding":"full-read"},
-      {"source_key":"yu-mylopoulos-1994-understanding-why-software-process-modelling","role":"classic-halo","grounding":"full-read"},
-      {"source_key":"yu-1997-early-phase-re","role":"classic-halo","grounding":"full-read"},
-      {"source_key":"yu-e-agent-orientation-as-a-modeling-paradigm-2001","role":"classic-halo","grounding":"full-read"},
-      {"source_key":"yu-et-al-2011-social-modeling","role":"classic-halo","grounding":"section-read"},
-      {"source_key":"yu-2024-nine-pivots","role":"recent-yu","grounding":"read"},
-      {"source_key":"yu-2025-social-agentics-crosstalk","role":"recent-yu","grounding":"read"},
-      {"source_key":"yu-lapouchnian-2025-social-agentics-bdi-star","role":"recent-yu","grounding":"read"},
-      {"source_key":"zave-1997-four-dark-corners-re","role":"re-canon","grounding":"full-read"},
-      {"source_key":"nuseibeh-2000-re-a-roadmap","role":"re-canon","grounding":"full-read"},
-      {"source_key":"goncalves-2019-istar-extension","role":"istar-extension-halo","grounding":"section-read","note":"promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"}
+      {
+        "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
+        "pdf": "raw/corpus/yu-1995-istar.pdf",
+        "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "role": "classic-halo",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "read"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "read"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "read"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read"
+      },
+      {
+        "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
+        "note": "promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"
+      },
+      {
+        "source_key": "dennett-1987-intentional-stance",
+        "role": "intentional-root",
+        "grounding": "section-read",
+        "warrant_scope": "argument-only"
+      }
     ],
     "exemplar_pending_grounding": [],
     "warrant_layers": {
-      "surface": {"question":"is this term, phrase, connective, or sentence shape attested?","sources":["exemplar PDFs", "verbatim extracts", "attestation graph vocabulary"],"hosts":["Sub-check H", "humanizer/lexicon layer"]},
-      "argument": {"question":"is this derivation or logic-connection an insider move?","sources":["exemplar wiki source pages", "graph topology"],"hosts":["C-8 analytic moves", "C-3 narrative arc", "IS-theory pass"]},
-      "role_scoping": {"default_warrant_scope":"both","surface_selector":"both","argument_selector":["both","argument-only"],"intentional_root_default":"argument-only"}
+      "surface": {
+        "question": "is this term, phrase, connective, or sentence shape attested?",
+        "sources": [
+          "exemplar PDFs",
+          "verbatim extracts",
+          "attestation graph vocabulary"
+        ],
+        "hosts": [
+          "Sub-check H",
+          "humanizer/lexicon layer"
+        ]
+      },
+      "argument": {
+        "question": "is this derivation or logic-connection an insider move?",
+        "sources": [
+          "exemplar wiki source pages",
+          "graph topology"
+        ],
+        "hosts": [
+          "C-8 analytic moves",
+          "C-3 narrative arc",
+          "IS-theory pass"
+        ]
+      },
+      "role_scoping": {
+        "default_warrant_scope": "both",
+        "surface_selector": "both",
+        "argument_selector": [
+          "both",
+          "argument-only"
+        ],
+        "intentional_root_default": "argument-only"
+      }
     },
-    "c7_fence": {"anchor_scope":["domain_conventions","argument_derivation"],"protected_identity_layer":["sentence_length_signature","cadence","repetition_tolerance","point_of_view","humor","evaluative_stance","characteristic_metaphor"],"conflict_resolution":"surface_for_adjudication"},
+    "c7_fence": {
+      "anchor_scope": [
+        "domain_conventions",
+        "argument_derivation"
+      ],
+      "protected_identity_layer": [
+        "sentence_length_signature",
+        "cadence",
+        "repetition_tolerance",
+        "point_of_view",
+        "humor",
+        "evaluative_stance",
+        "characteristic_metaphor"
+      ],
+      "conflict_resolution": "surface_for_adjudication"
+    },
     "derivations": {
-      "write":{"profile_keys":["domain_native_register.exemplar_members","domain_native_register.warrant_layers"],"discipline":"condition drafting on retrieved near-neighbor passages; retrieval does not determine generation"},
-      "review":{"profile_keys":["domain_native_register.corpus_binding","domain_native_register.warrant_layers"],"discipline":"absence of attestation or exemplar warrant is advisory only"},
-      "revise":{"profile_keys":["domain_native_register.warrant_layers.surface","domain_native_register.c7_fence"],"discipline":"substitute an attested construction while preserving propositional content and identity-layer boundaries"}
+      "write": {
+        "profile_keys": [
+          "domain_native_register.exemplar_members",
+          "domain_native_register.warrant_layers"
+        ],
+        "discipline": "condition drafting on retrieved near-neighbor passages; retrieval does not determine generation"
+      },
+      "review": {
+        "profile_keys": [
+          "domain_native_register.corpus_binding",
+          "domain_native_register.warrant_layers"
+        ],
+        "discipline": "absence of attestation or exemplar warrant is advisory only"
+      },
+      "revise": {
+        "profile_keys": [
+          "domain_native_register.warrant_layers.surface",
+          "domain_native_register.c7_fence"
+        ],
+        "discipline": "substitute an attested construction while preserving propositional content and identity-layer boundaries"
+      }
     },
-    "honesty_constraints": ["corpus retrieval conditions generation but does not determine it", "warrant absence is advisory only", "Evaluator retains residual domain-native judgment"],
-    "expected_verification": {"attestation_view_pin":"91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe","exemplar_view_pin":"2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e","pin_epoch":1,"pinned_at":"2026-07-13T00:00:00Z"}
+    "honesty_constraints": [
+      "corpus retrieval conditions generation but does not determine it",
+      "warrant absence is advisory only",
+      "Evaluator retains residual domain-native judgment"
+    ],
+    "expected_verification": {
+      "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+      "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
+      "pin_epoch": 3,
+      "pinned_at": "2026-07-14T23:41:06Z"
+    }
   },
-  "phase_values": ["Ph1", "Ph2", "Ph3", "Ph4"],
-  "passage_roles": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor", "abstract", "introduction", "conclusion", "technical_body"],
+  "phase_values": [
+    "Ph1",
+    "Ph2",
+    "Ph3",
+    "Ph4"
+  ],
+  "passage_roles": [
+    "orienting_clause",
+    "contribution_clause",
+    "section_framing",
+    "inter_section_transition",
+    "worked_example_vignette",
+    "consolidation_anchor",
+    "abstract",
+    "introduction",
+    "conclusion",
+    "technical_body"
+  ],
   "sub_checks": {
-    "A": {"name": "paragraph_cadence", "scope": "paragraph", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.cadence"},
-    "B": {"name": "sentence_rhythm", "scope": "passage", "deterministic_disposition": "judgment_only", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.rhythm", "do_not_flag_guards": ["C-8/M-4 demonstrative anaphora", "C-8/M-5 cadential verdict"]},
-    "C": {"name": "first_use_definition", "scope": "section", "deterministic_disposition": "judgment_only", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.first_use"},
-    "D": {"name": "section_signpost", "scope": "section_opening", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"]},
-    "E": {"name": "jargon_discipline", "scope": "paragraph", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.jargon"},
-    "F": {"name": "worked_example", "scope": "density_spike", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.worked_example"},
-    "G": {"name": "consolidation_anchor", "scope": "full_manuscript", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "threshold_key": "thresholds.consolidation"},
-    "H": {"name": "register_appropriateness", "scope": "resolved_passages", "deterministic_disposition": "candidate_probe", "gate_contribution": "aggregate_after_transition", "binds_at": ["Ph3", "Ph4"], "advisory_at": ["Ph2"], "ph2_role_overrides": {"orienting_clause": "blocker_candidate"}, "threshold_key": "thresholds.register", "register_model_key": "domain_native_register"}
+    "A": {
+      "name": "paragraph_cadence",
+      "scope": "paragraph",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.cadence"
+    },
+    "B": {
+      "name": "sentence_rhythm",
+      "scope": "passage",
+      "deterministic_disposition": "judgment_only",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.rhythm",
+      "do_not_flag_guards": [
+        "C-8/M-4 demonstrative anaphora",
+        "C-8/M-5 cadential verdict"
+      ]
+    },
+    "C": {
+      "name": "first_use_definition",
+      "scope": "section",
+      "deterministic_disposition": "judgment_only",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.first_use"
+    },
+    "D": {
+      "name": "section_signpost",
+      "scope": "section_opening",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ]
+    },
+    "E": {
+      "name": "jargon_discipline",
+      "scope": "paragraph",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.jargon"
+    },
+    "F": {
+      "name": "worked_example",
+      "scope": "density_spike",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.worked_example"
+    },
+    "G": {
+      "name": "consolidation_anchor",
+      "scope": "full_manuscript",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate_after_transition",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "threshold_key": "thresholds.consolidation"
+    },
+    "H": {
+      "name": "register_appropriateness",
+      "scope": "resolved_passages",
+      "deterministic_disposition": "candidate_probe",
+      "gate_contribution": "aggregate_after_transition",
+      "binds_at": [
+        "Ph3",
+        "Ph4"
+      ],
+      "advisory_at": [
+        "Ph2"
+      ],
+      "ph2_role_overrides": {
+        "orienting_clause": "blocker_candidate"
+      },
+      "threshold_key": "thresholds.register",
+      "register_model_key": "domain_native_register"
+    }
   },
   "aggregate": {
-    "members": ["A", "B", "C", "D", "E", "F", "G", "H"],
+    "members": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
     "clean": "no MAJOR or BLOCKER among contributing members",
     "borderline": "exactly one independent MAJOR and no BLOCKER",
     "major": "two or more independent MAJOR findings and no BLOCKER",
@@ -79,8 +420,8 @@
       "aggregate_member": false,
       "route": "Reflector Phase 2g recurrence only",
       "transition_key": "transitions.VE",
-      "follow_up_home": "C-8/M-6 verdict calibration"
-      ,"threshold_key": "thresholds.verdict_edge"
+      "follow_up_home": "C-8/M-6 verdict calibration",
+      "threshold_key": "thresholds.verdict_edge"
     }
   },
   "thresholds": {
@@ -89,31 +430,156 @@
       "unit": "paragraph_words",
       "hard_ceiling_words": 300,
       "bands": [
-        {"min_words": 0, "max_words": 150, "required_functional_turn_points": 0, "deficit_severity": "CLEAN"},
-        {"min_words": 151, "max_words": 200, "required_functional_turn_points": 1, "deficit_severity": "MINOR"},
-        {"min_words": 201, "max_words": 300, "required_functional_turn_points": 2, "deficit_severity": "MAJOR"}
+        {
+          "min_words": 0,
+          "max_words": 150,
+          "required_functional_turn_points": 0,
+          "deficit_severity": "CLEAN"
+        },
+        {
+          "min_words": 151,
+          "max_words": 200,
+          "required_functional_turn_points": 1,
+          "deficit_severity": "MINOR"
+        },
+        {
+          "min_words": 201,
+          "max_words": 300,
+          "required_functional_turn_points": 2,
+          "deficit_severity": "MAJOR"
+        }
       ],
-      "turn_point_candidates": ["however", "but", "by contrast", "on the other hand", "for example", "to illustrate", "consider", "yet", "instead", "rather", "at this point", "the key shift", "the counterpoint"],
+      "turn_point_candidates": [
+        "however",
+        "but",
+        "by contrast",
+        "on the other hand",
+        "for example",
+        "to illustrate",
+        "consider",
+        "yet",
+        "instead",
+        "rather",
+        "at this point",
+        "the key shift",
+        "the counterpoint"
+      ],
       "candidate_semantics": "nomination_only",
       "functional_confirmation_required": true,
-      "functional_classes": ["transition", "counter_move", "worked_example", "thematic_refocus"],
-      "internal_sentence_break_signals": ["em_dash", "colon", "semicolon"],
-      "above_ceiling": {"current_severity_floor": "MAJOR", "mandatory_split": true, "blocker_when": "zero functional turn-points AND zero internal sentence-break signals"},
-      "persistence": {"identity_key": "paragraph_content_sha256", "reset_on_content_hash_change": true, "changes_current_severity": false, "planner_workflow_trigger_after_unchanged_rounds": 2}
+      "functional_classes": [
+        "transition",
+        "counter_move",
+        "worked_example",
+        "thematic_refocus"
+      ],
+      "internal_sentence_break_signals": [
+        "em_dash",
+        "colon",
+        "semicolon"
+      ],
+      "above_ceiling": {
+        "current_severity_floor": "MAJOR",
+        "mandatory_split": true,
+        "blocker_when": "zero functional turn-points AND zero internal sentence-break signals"
+      },
+      "persistence": {
+        "identity_key": "paragraph_content_sha256",
+        "reset_on_content_hash_change": true,
+        "changes_current_severity": false,
+        "planner_workflow_trigger_after_unchanged_rounds": 2
+      }
     },
-    "rhythm": {"minimum_sentence_count": 4, "mean_words_above": 28, "standard_deviation_below": 6, "short_sentence_words_at_most": 12, "long_sentence_words_at_least": 25},
-    "first_use": {"definition_window_paragraphs": 1, "manuscript_major_section_failures_min": 2},
-    "section_signpost": {"opening_sentences_min": 1, "opening_sentences_max": 3},
-    "jargon": {"new_domain_terms_per_paragraph": {"P0": 3, "P1": 2, "P2": 1}},
-    "worked_example": {"rhetorical_question_stack_min": 3, "example_window_paragraphs": 1},
-    "consolidation": {"construct_accumulation": 3, "prior_sections_dependency": 2, "candidate_gap_words": {"P0": 800, "P1": 700, "P2": 600}, "candidate_gap_paragraphs": 6, "pre_heading_scan_paragraphs": 2, "short_manuscript_guidance_words": 3000, "long_manuscript_candidate_words": 5000, "deterministic_gap_is_proxy_only": true},
-    "register": {"minimum_positive_markers": 2, "positive_marker_count": 4, "nominalisation_density_candidate": 0.08, "prepositional_run_candidate": 3, "hedges_per_100_words_candidate": 2.0, "functional_removability_required": true, "severity_model": {"minor_negative_markers_min": 1, "minor_negative_markers_max": 2, "major_consecutive_passages": 3, "weighted_roles": ["orienting_clause", "consolidation_anchor", "inter_section_transition"], "ph2_orienting_zero_positive": "blocker_candidate", "nontechnical_blocker_major_fraction_above": 0.5}},
-    "verdict_edge": {"intensifier_tokens_min": 3, "intensifier_classes_min": 2}
+    "rhythm": {
+      "minimum_sentence_count": 4,
+      "mean_words_above": 28,
+      "standard_deviation_below": 6,
+      "short_sentence_words_at_most": 12,
+      "long_sentence_words_at_least": 25
+    },
+    "first_use": {
+      "definition_window_paragraphs": 1,
+      "manuscript_major_section_failures_min": 2
+    },
+    "section_signpost": {
+      "opening_sentences_min": 1,
+      "opening_sentences_max": 3
+    },
+    "jargon": {
+      "new_domain_terms_per_paragraph": {
+        "P0": 3,
+        "P1": 2,
+        "P2": 1
+      }
+    },
+    "worked_example": {
+      "rhetorical_question_stack_min": 3,
+      "example_window_paragraphs": 1
+    },
+    "consolidation": {
+      "construct_accumulation": 3,
+      "prior_sections_dependency": 2,
+      "candidate_gap_words": {
+        "P0": 800,
+        "P1": 700,
+        "P2": 600
+      },
+      "candidate_gap_paragraphs": 6,
+      "pre_heading_scan_paragraphs": 2,
+      "short_manuscript_guidance_words": 3000,
+      "long_manuscript_candidate_words": 5000,
+      "deterministic_gap_is_proxy_only": true
+    },
+    "register": {
+      "minimum_positive_markers": 2,
+      "positive_marker_count": 4,
+      "nominalisation_density_candidate": 0.08,
+      "prepositional_run_candidate": 3,
+      "hedges_per_100_words_candidate": 2.0,
+      "functional_removability_required": true,
+      "severity_model": {
+        "minor_negative_markers_min": 1,
+        "minor_negative_markers_max": 2,
+        "major_consecutive_passages": 3,
+        "weighted_roles": [
+          "orienting_clause",
+          "consolidation_anchor",
+          "inter_section_transition"
+        ],
+        "ph2_orienting_zero_positive": "blocker_candidate",
+        "nontechnical_blocker_major_fraction_above": 0.5
+      }
+    },
+    "verdict_edge": {
+      "intensifier_tokens_min": 3,
+      "intensifier_classes_min": 2
+    }
   },
   "transitions": {
-    "G": {"meaning": "new manuscript reaches Ph3", "required_observed_count": 1, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"},
-    "H": {"meaning": "two complete revision cycles with H in scope", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "findings recorded but excluded from aggregate", "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"},
-    "VE": {"meaning": "two complete observed advisory cycles", "required_observed_count": 2, "retirement_event": "planner_transition_approved", "workflow_effect_while_active": "recurrence telemetry only", "workflow_effect_after_retirement": "recurrence telemetry only", "stability_mode_effect": "recurrence telemetry only", "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"}
+    "G": {
+      "meaning": "new manuscript reaches Ph3",
+      "required_observed_count": 1,
+      "retirement_event": "planner_transition_approved",
+      "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+      "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
+      "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"
+    },
+    "H": {
+      "meaning": "two complete revision cycles with H in scope",
+      "required_observed_count": 2,
+      "retirement_event": "planner_transition_approved",
+      "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+      "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
+      "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"
+    },
+    "VE": {
+      "meaning": "two complete observed advisory cycles",
+      "required_observed_count": 2,
+      "retirement_event": "planner_transition_approved",
+      "workflow_effect_while_active": "recurrence telemetry only",
+      "workflow_effect_after_retirement": "recurrence telemetry only",
+      "stability_mode_effect": "recurrence telemetry only",
+      "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"
+    }
   },
   "runtime_modes": {
     "stability": {
@@ -123,26 +589,155 @@
     }
   },
   "register_scope": {
-    "technical": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor"],
-    "mixed": ["orienting_clause", "contribution_clause", "section_framing", "inter_section_transition", "worked_example_vignette", "consolidation_anchor", "abstract", "introduction", "conclusion"],
-    "non-technical": ["all_passages"]
+    "technical": [
+      "orienting_clause",
+      "contribution_clause",
+      "section_framing",
+      "inter_section_transition",
+      "worked_example_vignette",
+      "consolidation_anchor"
+    ],
+    "mixed": [
+      "orienting_clause",
+      "contribution_clause",
+      "section_framing",
+      "inter_section_transition",
+      "worked_example_vignette",
+      "consolidation_anchor",
+      "abstract",
+      "introduction",
+      "conclusion"
+    ],
+    "non-technical": [
+      "all_passages"
+    ]
   },
   "lexicons": {
-    "plain_connectives": ["and", "but", "because", "so", "yet", "however", "for example", "in other words", "at this point", "next", "finally"],
-    "latinate_whitelist": ["whereby", "hence", "notwithstanding", "insofar as", "qua", "mutatis mutandis"],
-    "hedges": ["may", "might", "could", "perhaps", "possibly", "likely", "suggests", "indicates", "appears", "seems", "somewhat", "relatively", "generally", "typically"],
-    "nominalisation_suffixes": ["tion", "ment", "ance", "ence", "ity", "ness"],
-    "prepositions": ["of", "in", "for", "with", "to", "by", "on", "at", "from", "under", "over", "through", "via"]
+    "plain_connectives": [
+      "and",
+      "but",
+      "because",
+      "so",
+      "yet",
+      "however",
+      "for example",
+      "in other words",
+      "at this point",
+      "next",
+      "finally"
+    ],
+    "latinate_whitelist": [
+      "whereby",
+      "hence",
+      "notwithstanding",
+      "insofar as",
+      "qua",
+      "mutatis mutandis"
+    ],
+    "hedges": [
+      "may",
+      "might",
+      "could",
+      "perhaps",
+      "possibly",
+      "likely",
+      "suggests",
+      "indicates",
+      "appears",
+      "seems",
+      "somewhat",
+      "relatively",
+      "generally",
+      "typically"
+    ],
+    "nominalisation_suffixes": [
+      "tion",
+      "ment",
+      "ance",
+      "ence",
+      "ity",
+      "ness"
+    ],
+    "prepositions": [
+      "of",
+      "in",
+      "for",
+      "with",
+      "to",
+      "by",
+      "on",
+      "at",
+      "from",
+      "under",
+      "over",
+      "through",
+      "via"
+    ]
   },
-  "domain_token_exclusions": ["introduction", "conclusion", "abstract", "methodology", "discussion", "reference", "definition", "condition", "relation", "application", "operation", "representation", "description", "interpretation", "specification", "implementation", "verification", "evaluation", "presentation", "generation", "orientation"],
+  "domain_token_exclusions": [
+    "introduction",
+    "conclusion",
+    "abstract",
+    "methodology",
+    "discussion",
+    "reference",
+    "definition",
+    "condition",
+    "relation",
+    "application",
+    "operation",
+    "representation",
+    "description",
+    "interpretation",
+    "specification",
+    "implementation",
+    "verification",
+    "evaluation",
+    "presentation",
+    "generation",
+    "orientation"
+  ],
   "override_contract": {
-    "directives": {"path": "research_notes/directives.md", "passage_scope_class_key": "passage_scope_class", "legacy_register_class_alias": true, "project_identity_key": "project_id"},
-    "plain_connectives": {"path": "research_notes/plain_connectives.txt", "polarity": "replace"},
-    "hedges": {"path": "research_notes/hedges.txt", "polarity": "replace"},
-    "latinate_whitelist": {"path": "research_notes/latinate_whitelist.txt", "polarity": "supplement"},
-    "terminology": {"path": "research_notes/terminology.txt", "polarity": "extend_domain_token_exclusions"},
-    "glossary": {"path": "research_notes/glossary.txt", "polarity": "extend_domain_token_exclusions"}
+    "directives": {
+      "path": "research_notes/directives.md",
+      "passage_scope_class_key": "passage_scope_class",
+      "legacy_register_class_alias": true,
+      "project_identity_key": "project_id"
+    },
+    "plain_connectives": {
+      "path": "research_notes/plain_connectives.txt",
+      "polarity": "replace"
+    },
+    "hedges": {
+      "path": "research_notes/hedges.txt",
+      "polarity": "replace"
+    },
+    "latinate_whitelist": {
+      "path": "research_notes/latinate_whitelist.txt",
+      "polarity": "supplement"
+    },
+    "terminology": {
+      "path": "research_notes/terminology.txt",
+      "polarity": "extend_domain_token_exclusions"
+    },
+    "glossary": {
+      "path": "research_notes/glossary.txt",
+      "polarity": "extend_domain_token_exclusions"
+    }
   },
-  "remediation_order": ["preserve propositional content", "add concrete or agentive construction", "add a plain connective", "signal a genuine register shift", "prefer semicolon or colon when the resolved style profile limits em dashes", "re-run deterministic candidates", "Evaluator confirms functional compliance"]
-  ,"recurrence": {"project_lesson_consecutive_rounds": 2, "package_lesson_distinct_projects": 2, "state_owner": "Reflector evidence plus Planner approval", "semantic_severity_effect": "none"}
+  "remediation_order": [
+    "preserve propositional content",
+    "add concrete or agentive construction",
+    "add a plain connective",
+    "signal a genuine register shift",
+    "prefer semicolon or colon when the resolved style profile limits em dashes",
+    "re-run deterministic candidates",
+    "Evaluator confirms functional compliance"
+  ],
+  "recurrence": {
+    "project_lesson_consecutive_rounds": 2,
+    "package_lesson_distinct_projects": 2,
+    "state_owner": "Reflector evidence plus Planner approval",
+    "semantic_severity_effect": "none"
+  }
 }
