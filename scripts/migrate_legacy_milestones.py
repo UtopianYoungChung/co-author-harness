@@ -145,6 +145,11 @@ def _feedback_candidate(path: str) -> bool:
 
 
 def _artifact_discovery_reasons(path: Path) -> list[str]:
+    if (
+        path.suffix.lower() in {".aux", ".log", ".out", ".bbl", ".blg", ".toc", ".synctex", ".bib", ".sty", ".cls"}
+        or path.name.lower().endswith(".synctex.gz")
+    ):
+        return []
     lower_name = path.name.lower()
     normalized = re.sub(r"[^a-z0-9]+", "_", lower_name).strip("_")
     reasons: list[str] = []

@@ -222,6 +222,9 @@ def main() -> int:
         (project / "manuscript" / "INF3130 Term Paper Chung.aux").write_text(
             "Synthetic build byproduct.\n", encoding="utf-8"
         )
+        (project / "manuscript" / "milestone5_manuscript.aux").write_text(
+            "Synthetic milestone-named build byproduct.\n", encoding="utf-8"
+        )
         before = {p.relative_to(project).as_posix(): sha(p.read_bytes()) for p in project.rglob("*") if p.is_file()}
         dry = run("--project-root", str(project))
         assert dry.returncode == 0, dry.stdout + dry.stderr
@@ -239,6 +242,7 @@ def main() -> int:
         assert by_path["manuscript/INF3130 Term Paper Chung.tex"]["milestone_hint"] is None
         assert by_path["manuscript/INF3130 Term Paper Chung.pdf"]["milestone_hint"] is None
         assert "manuscript/INF3130 Term Paper Chung.aux" not in by_path
+        assert "manuscript/milestone5_manuscript.aux" not in by_path
         assert all("milestone" not in item for item in matrix["artifact_candidates"])
         assert any(
             hold["code"] == "UNADJUDICATED_ARTIFACT"
