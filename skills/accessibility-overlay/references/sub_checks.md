@@ -54,6 +54,11 @@ Read G's transition meaning from `transitions.G` and live state only from `phase
 
 ## Sub-check H — Register appropriateness (Register-Flag)
 
+Load the resolver's `surface_exemplar_members` projection. It contains only
+members whose effective `warrant_scope` is `both`; never use an
+`argument-only` ancestor as a surface-register emulation target. Argument-layer
+C-8/C-3/IS-theory review may still use the all-admitted projection.
+
 Resolve the reader target from `domain_native_register.reader_model` and passage geometry from `register_scope` plus the project's `passage_scope_class` (legacy passage-scope `register_class` is an alias). D, F, and G nominate structural passages; H judges surface register against `domain_native_register.warrant_layers.surface`. Corpus absence is an advisory candidate, not a finding. Argument-architecture warrant remains routed to the checks named by `domain_native_register.warrant_layers.argument`. Revision follows `domain_native_register.derivations.revise` and the `domain_native_register.c7_fence`; it never auto-remediates identity-layer keys.
 
 For each eligible passage, perform the functional-removability test in `thresholds.register`: substitute plain glosses for domain tokens and ask whether the proposition survives. If it does, the passage is eligible for the accessibility register audit. If it does not, technical density remains governed by E.

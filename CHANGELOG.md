@@ -6,6 +6,23 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.29.0 — 2026-07-14
+
+### Exemplar ingestion and warrant-scope routing
+
+**What changed.** `/repin-register` now validates one exact-key exemplar add or
+drop and carries it through the existing single-snapshot, confirmed, atomic
+re-pin transaction. The profile schema admits controlled members and the
+`intentional-root` role; singleton locks protect the Yu centroid and Dennett
+root. Missing PDFs and graph-coherence distance remain visible advisories.
+Resolver output now separates `surface_exemplar_members` (`both` only) from
+`argument_exemplar_members` (all admitted), and Check 8 H consumes the former.
+
+**Verification and boundary.** Criterion 9 covers refusal, advisory, add/drop,
+dry-run, ledger, epoch, and consumer-routing behavior in fixtures. The pending
+Dennett documentation block remains pending: this release neither creates a
+wiki page nor performs a live re-pin. Version intent: v0.29.0 minor.
+
 ## v0.28.1 — 2026-07-14
 
 ### Deliberate domain-register re-pin workflow

@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Tuple
 
-from reader_accessibility_policy import load_profile
+from reader_accessibility_policy import load_profile, surface_exemplar_members
 from manuscript_geometry import heading_sections
 
 
@@ -44,6 +44,11 @@ from manuscript_geometry import heading_sections
 # for common abbreviation patterns. Not perfect; the prepositional-run
 # probe is intentionally tolerant of off-by-one boundary cases.
 _RE_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+
+
+def surface_register_exemplars(profile: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Resolve Check 8 H's positive surface-warrant set (scope == both)."""
+    return surface_exemplar_members(profile or load_profile())
 
 
 def _word_count(s: str) -> int:
@@ -108,6 +113,7 @@ class PassageBundle:
     role_reason: str
     binding_status: str
     word_count: int
+    surface_warrant_source_keys: tuple[str, ...]
     nominalisation: ProbeResult
     prep_run: ProbeResult
     hedging: ProbeResult
@@ -195,7 +201,7 @@ def _probe_hedging(text: str, wc: int, profile: dict[str, Any]) -> ProbeResult:
     )
 
 
-def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, Any], passage_role: str, binding_status: str, role_confidence: str = "high", role_reason: str = "explicit caller role") -> PassageBundle:
+def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, Any], passage_role: str, binding_status: str, role_confidence: str = "high", role_reason: str = "explicit caller role", surface_warrant_source_keys: tuple[str, ...] | None = None) -> PassageBundle:
     """Run all three probes on a single passage (paragraph-or-equivalent)."""
     probe_text = _tex_simplify(text) if is_tex else text
     wc = _word_count(probe_text)
@@ -206,6 +212,10 @@ def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, An
         role_reason=role_reason,
         binding_status=binding_status,
         word_count=wc,
+        surface_warrant_source_keys=(
+            surface_warrant_source_keys if surface_warrant_source_keys is not None
+            else tuple(item["source_key"] for item in surface_register_exemplars(profile))
+        ),
         nominalisation=_probe_nominalisation(probe_text, wc, profile),
         prep_run=_probe_prep_run(probe_text, profile),
         hedging=_probe_hedging(probe_text, wc, profile),
@@ -266,9 +276,15 @@ def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
     return entries
 
 
-def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, phase: str = "Ph3", register_class: str = "technical", passage_roles: list[str] | None = None) -> List[PassageBundle]:
+def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, phase: str = "Ph3", register_class: str = "technical", passage_roles: list[str] | None = None, surface_warrant_members: list[dict[str, Any]] | None = None) -> List[PassageBundle]:
     """Probe every paragraph in the manuscript and return bundles."""
     active = profile or load_profile()
+    surface_keys = tuple(
+        item["source_key"] for item in (
+            surface_warrant_members if surface_warrant_members is not None
+            else surface_register_exemplars(active)
+        )
+    )
     is_tex = path.suffix.lower() in {".tex", ".ltx"}
     bundles: List[PassageBundle] = []
     # Walk paragraphs at offsets so we can build per-paragraph locators.
@@ -290,7 +306,7 @@ def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, pha
         if not in_scope: binding = "scope_candidate"
         if phase == "Ph2" and role in active["sub_checks"]["H"].get("ph2_role_overrides", {}):
             binding = active["sub_checks"]["H"]["ph2_role_overrides"][role]
-        bundle = analyse_passage(para, candidate.get("locator") or loc, is_tex, active, role, binding, candidate["confidence"], candidate["reason"])
+        bundle = analyse_passage(para, candidate.get("locator") or loc, is_tex, active, role, binding, candidate["confidence"], candidate["reason"], surface_keys)
         bundles.append(bundle)
         cursor = idx + len(para)
     return bundles

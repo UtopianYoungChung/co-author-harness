@@ -486,9 +486,9 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Sibling:** `citation-format-pass` (the form/format split within the Turabian authority); `grammar-mechanics-pass`; `accessibility-overlay`.
 
 ### SK-46. `repin-register`
-- **File:** `skills/repin-register/SKILL.md` (new at 2026-07-14, v0.28.1)
+- **File:** `skills/repin-register/SKILL.md` (new at 2026-07-14, exemplar ingestion extended at v0.29.0)
 - **Pattern:** Orchestrates the single authoritative semantic-pin compute path in `scripts/reader_accessibility_policy.py --repin`: lock and scoped-dirt preflight, one-snapshot graph/wiki resolution, first-class delta report, no-delta audit event or explicitly confirmed atomic profile patch, package ledger/derived view, and optional project rebind request. It never hashes independently, never writes `phase_state.json`, and never moves the yardstick inside an open cycle.
-- **Created:** 2026-07-14 from the accepted `/repin-register` architecture and the v0.28.0 domain-native register pin contract.
+- **Created:** 2026-07-14 from the accepted `/repin-register` architecture and the v0.28.0 domain-native register pin contract. v0.29.0 adds exact-key exemplar admission/drop, singleton-role locks, scope-aware surface/argument routing, and criterion-9 fixtures without touching live corpora.
 - **Tier:** Package
 - **Status:** Active
 - **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/schemas/reader_accessibility_profile.schema.json`, `scripts/reader_accessibility_policy.py`, and Planner sole-writer enforcement.

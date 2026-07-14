@@ -14,7 +14,7 @@ either semantic hash in prose.
 
 ## Invocation
 
-`/repin-register [--dry-run] [--project-root PATH] [--trigger milestone|snowball|mf-policy-discovery|manual] [--allow-unrelated-dirty] [--force-lock]`
+`/repin-register [--dry-run] [--project-root PATH] [--trigger milestone|snowball|mf-policy-discovery|manual] [--allow-unrelated-dirty] [--force-lock] [--add-exemplar KEY --role ROLE [--warrant-scope both|argument-only] | --drop-exemplar KEY [--confirm-drop-locked-role]]`
 
 Package phase is the default and requires no project. `--project-root` adds the
 project phase, whose only direct project write is
@@ -32,6 +32,21 @@ project phase, whose only direct project write is
 4. Explain that old-cycle evidence remains valid; only a new cycle is held for
    a pending rebind. A re-pin is not permission to reopen an active round.
 
+## Exemplar ingestion
+
+`--add-exemplar` and `--drop-exemplar` stage one register-definition change
+inside the same compute/confirmation/epoch transaction; they never perform a
+metadata-only edit. Addition uses the exact `wiki/sources/KEY.md` page (no
+alias resolution), requires a live grounding tier outside `stub`/`unresolved`,
+and requires `--role`. `centroid` is locked to `yu-1995-istar`;
+`intentional-root` is locked to `dennett-1987-intentional-stance` and defaults
+to `argument-only`. Explicitly assigning that role `both` is a refusal.
+
+Missing PDFs and membership/one-hop coherence are advisories for human
+judgment, not admission gates. Dropping a locked-role member additionally
+requires the typed `--confirm-drop-locked-role` flag. Never create or ground a
+wiki page, and never promote a pending exemplar, on the user's behalf.
+
 ## Procedure
 
 1. Invoke the single compute path:
@@ -44,6 +59,9 @@ project phase, whose only direct project write is
    resolved seed count, primary communities, degeneracy transition, unresolved
    seed additions/removals, membership counts and samples, and changed exemplar
    tuples including staged PDF hashes.
+   For ingestion, also present `exemplar_members_added` or
+   `exemplar_members_dropped`, its effective `warrant_scope`, and every
+   PDF/coherence advisory.
 4. Ask the user explicitly whether to apply. Only an affirmative answer may be
    passed to the loader's confirmation prompt. A refusal leaves the dry-run
    snapshot/ledger evidence and does not rewrite the profile.

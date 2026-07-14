@@ -1,7 +1,7 @@
 {
   "contract_version": "1.1.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
+  "profile_sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
   "register_class": "domain-native",
   "passage_scope_class": "technical",
   "project_identity": null,
@@ -196,6 +196,15 @@
             "C-3 narrative arc",
             "IS-theory pass"
           ]
+        },
+        "role_scoping": {
+          "default_warrant_scope": "both",
+          "surface_selector": "both",
+          "argument_selector": [
+            "both",
+            "argument-only"
+          ],
+          "intentional_root_default": "argument-only"
         }
       },
       "c7_fence": {
@@ -737,7 +746,7 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
+      "sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
       "role": "package_profile"
     },
     {
@@ -868,6 +877,228 @@
       "yu-mylopoulos-1994-understanding-why-software-process-modelling\tfull-read\t6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809",
       "zave-1997-four-dark-corners-re\tfull-read\t382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
     ],
+    "exemplar_members": [
+      {
+        "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      }
+    ],
+    "surface_exemplar_members": [
+      {
+        "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      }
+    ],
+    "argument_exemplar_members": [
+      {
+        "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      }
+    ],
     "warnings": [
       {
         "code": "RA-DNR-DEGENERATE",
@@ -875,6 +1106,20 @@
         "message": "semantic attestation view is based on a thin resolved seed set"
       }
     ],
+    "path_roots": {
+      "profile_path_roots": {
+        "wiki_root": "B:/Agents/knowledge/LLM wiki",
+        "workspace_root": "B:/Agents",
+        "harness_root": "B:/Agents/platform/co-author-harness"
+      },
+      "effective": {
+        "wiki_root": "B:/Agents/knowledge/LLM wiki",
+        "workspace_root": "B:/Agents",
+        "harness_root": "B:/Agents/platform/co-author-harness/.worktrees/milestone-feedback-framework"
+      },
+      "path_roots_mode": "profile",
+      "harness_root_note": "running package root differs from profile path_roots.harness_root (worktree or alternate install); relative package paths resolve from the running root"
+    },
     "provenance": [
       {
         "role": "exemplar_source_page",
@@ -1004,12 +1249,12 @@
       {
         "role": "register_profile",
         "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
-      "sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61"
+        "sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca"
       },
       {
         "role": "package_profile",
         "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
-        "sha256": "f84c011fa52c711ae08a0ff2d2b60276b9e897170efa94699c8dae4b7e16d8cc"
+        "sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca"
       },
       {
         "role": "package_contributor",

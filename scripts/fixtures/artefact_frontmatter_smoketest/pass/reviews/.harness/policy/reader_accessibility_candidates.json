@@ -5,12 +5,12 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
+  "profile_sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
+      "sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
       "role": "package_profile"
     },
     {
@@ -77,6 +77,20 @@
       "deterministic_disposition": "candidate_probe",
       "ph2_scope": null,
       "positive_marker_audit_required": true,
+      "surface_warrant_source_keys": [
+        "yu-1995-istar",
+        "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "yu-1997-early-phase-re",
+        "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "yu-et-al-2011-social-modeling",
+        "yu-2024-nine-pivots",
+        "yu-2025-social-agentics-crosstalk",
+        "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "zave-1997-four-dark-corners-re",
+        "nuseibeh-2000-re-a-roadmap",
+        "goncalves-2019-istar-extension"
+      ],
       "bundles": [
         {
           "locator": "line 1:chars 0-47",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Contract smoke tests for the deliberate domain-register re-pin workflow.
 
-This is the authoritative home for the eight acceptance criteria in
+This is the authoritative home for the nine acceptance criteria in
 ``docs/analysis/2026-07-14_repin-skill-proposal.md`` section 9.
 """
 from __future__ import annotations
@@ -21,6 +21,8 @@ import domain_native_register_smoketest as dnr_fixture
 import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
 import reader_accessibility_policy as policy
+import check8_h_prefilter
+import reader_accessibility_candidates
 
 
 def write_json(path: Path, value: object) -> None:
@@ -181,6 +183,45 @@ def case_epoch_softening() -> None:
         )
         assert "MF-POLICY-PIN-EPOCH-STALE" not in {finding.code for finding in rebound_opening.findings}
 
+    # v0.28 bindings lack the v0.29 member projections. They remain valid for
+    # a continuing cycle when both semantic pins are unchanged, but not for a
+    # newly opened cycle under the changed package profile.
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td) / "legacy-binding"
+        ledger = milestone_fixture._materialize_native_project(project)
+        binding = ledger["policy_bindings"]["reader_accessibility"]
+        for key in ("exemplar_members", "surface_exemplar_members", "argument_exemplar_members"):
+            binding["register_provenance"].pop(key, None)
+        stale_hash = "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61"
+        binding["profile_sha256"] = stale_hash
+        for source in binding["source_bindings"]:
+            if source.get("role") == "package_profile":
+                source["sha256"] = stale_hash
+        resolved_path = project / binding["resolved_path"]
+        resolved = json.loads(resolved_path.read_text(encoding="utf-8"))
+        resolved["profile_sha256"] = stale_hash
+        for source in resolved["source_bindings"]:
+            if source.get("role") == "package_profile":
+                source["sha256"] = stale_hash
+        for key in ("exemplar_members", "surface_exemplar_members", "argument_exemplar_members"):
+            resolved["register_provenance"].pop(key, None)
+        resolved["resolved_profile"]["domain_native_register"]["warrant_layers"].pop("role_scoping", None)
+        write_json(resolved_path, resolved)
+        binding["resolved_sha256"] = policy._hash(resolved_path)
+        for record in ledger["milestones"].values():
+            milestone_fixture._reset_milestone(record)
+        ledger["events"] = []
+        document = milestone_fixture._phase_document(ledger, "Ph1")
+        continuing = milestone_validator.validate_document(project, copy.deepcopy(document), opening_new_cycle=False)
+        assert continuing.outcome.value == "READY" and not continuing.findings, [
+            (finding.code, finding.path, finding.message) for finding in continuing.findings
+        ]
+        opening = milestone_validator.validate_document(project, copy.deepcopy(document), opening_new_cycle=True)
+        assert "MF-POLICY-PROFILE-STALE" in {finding.code for finding in opening.findings}
+        binding["profile_sha256"] = "b" * 64
+        forged = milestone_validator.validate_document(project, copy.deepcopy(document), opening_new_cycle=False)
+        assert "MF-POLICY-PROFILE-STALE" in {finding.code for finding in forged.findings}
+
 
 def case_reason_code_matrix() -> None:
     good = "a" * 64
@@ -280,6 +321,217 @@ def case_package_only() -> None:
         assert not ledger.exists(), "refused staged-rename case recreated the canonical ledger"
 
 
+def case_exemplar_ingestion() -> None:
+    """Criterion 9: admission/drop gates, scope routing, and re-pin coupling."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        sources = wiki / "wiki/sources"
+
+        missing = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "missing-work", "--role", "classic-halo",
+        )
+        assert missing.returncode != 0
+        assert "page missing" in missing.stdout.lower() and "create" in missing.stdout.lower()
+
+        (sources / "dennett-1988-intentional-stance.md").write_text(
+            "---\ngrounding_status: read\n---\n", encoding="utf-8"
+        )
+        anti_alias = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "dennett-1987-intentional-stance", "--role", "intentional-root",
+        )
+        assert anti_alias.returncode != 0 and "page missing" in anti_alias.stdout.lower()
+
+        (sources / "stub-work.md").write_text(
+            "---\ngrounding_status: stub - awaiting read\n---\n", encoding="utf-8"
+        )
+        stub = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "stub-work", "--role", "classic-halo",
+        )
+        assert stub.returncode != 0 and "grounding" in stub.stdout.lower()
+
+        conflicting = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "stub-work", "--role", "classic-halo",
+            "--drop-exemplar", "yu-2024-nine-pivots",
+        )
+        assert conflicting.returncode != 0 and "mutually exclusive" in (conflicting.stdout + conflicting.stderr).lower()
+
+        (sources / "other-centroid.md").write_text(
+            "---\ngrounding_status: full-read\n---\n", encoding="utf-8"
+        )
+        second_centroid = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "other-centroid", "--role", "centroid",
+        )
+        assert second_centroid.returncode != 0 and "locked" in second_centroid.stdout.lower()
+
+        (sources / "other-root.md").write_text(
+            "---\ngrounding_status: full-read\n---\n", encoding="utf-8"
+        )
+        second_root = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "other-root", "--role", "intentional-root",
+        )
+        assert second_root.returncode != 0 and "locked" in second_root.stdout.lower()
+
+        (sources / "dennett-1987-intentional-stance.md").write_text(
+            "---\ngrounding_status: full-read\n---\n", encoding="utf-8"
+        )
+        explicit_both = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "dennett-1987-intentional-stance", "--role", "intentional-root",
+            "--warrant-scope", "both",
+        )
+        assert explicit_both.returncode != 0 and "argument-only" in explicit_both.stdout.lower()
+
+        locked_drop = invoke(
+            harness, profile_path, wiki, workspace,
+            "--drop-exemplar", "yu-1995-istar",
+        )
+        assert locked_drop.returncode != 0 and "--confirm-drop-locked-role" in locked_drop.stdout
+
+        # A grounded, graph-distant source with no staged PDF is admitted with
+        # both advisories; omitted intentional-root scope becomes argument-only.
+        (sources / "dennett-1987-intentional-stance.md").write_text(
+            "---\ngrounding_status: full-read\nsource_loc: raw/corpus/missing-dennett.pdf\n---\n",
+            encoding="utf-8",
+        )
+        graph_path = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+        graph["nodes"].append({
+            "id": "dennett-1987-intentional-stance", "community": 99,
+            "file_type": "document",
+            "source_file": "wiki/sources/dennett-1987-intentional-stance.md",
+        })
+        write_json(graph_path, graph)
+        added = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "dennett-1987-intentional-stance", "--role", "intentional-root",
+            answer="yes\n",
+        )
+        assert added.returncode == 0, added.stdout + added.stderr
+        report = json.loads(added.stdout)
+        assert report["delta_class"] in {"exemplar", "both"}
+        assert report["epoch"] == 2 and report["applied"] is True
+        warning_codes = {row["code"] for row in report["warnings"]}
+        assert {"RA-DNR-PDF-MISSING", "RA-DNR-COHERENCE"} <= warning_codes
+        updated = json.loads(profile_path.read_text(encoding="utf-8"))
+        member = next(
+            item for item in updated["domain_native_register"]["exemplar_members"]
+            if item["source_key"] == "dennett-1987-intentional-stance"
+        )
+        assert member["warrant_scope"] == "argument-only"
+        row = rows(harness)[-1]
+        assert row["delta_summary"]["exemplar_members_added"] == [{
+            "source_key": "dennett-1987-intentional-stance",
+            "warrant_scope": "argument-only",
+        }]
+        snapshot = json.loads((harness / row["snapshot_ref"]).read_text(encoding="utf-8"))
+        assert "dennett-1987-intentional-stance\tfull-read\t-" in snapshot["exemplar_hash_lines"]
+        resolved_member = next(
+            item for item in snapshot["exemplar_members"]
+            if item["source_key"] == "dennett-1987-intentional-stance"
+        )
+        assert resolved_member["warrant_scope"] == "argument-only"
+        assert "dennett-1987-intentional-stance" not in {
+            item["source_key"] for item in policy.surface_exemplar_members(updated)
+        }
+        assert "dennett-1987-intentional-stance" not in {
+            item["source_key"] for item in check8_h_prefilter.surface_register_exemplars(updated)
+        }
+        h_bundle = check8_h_prefilter.analyse_passage(
+            "This section shows the argument.", "fixture", False, updated,
+            "contribution_clause", "binding",
+        )
+        assert "dennett-1987-intentional-stance" not in h_bundle.surface_warrant_source_keys
+        project = root / "candidate-project"
+        project.mkdir()
+        manuscript = project / "paper.md"
+        manuscript.write_text("# Introduction\n\nThis section shows the argument.\n", encoding="utf-8")
+        register = policy.resolve_domain_native_register(
+            updated, wiki_root=wiki, workspace_root=workspace, harness_root=harness,
+        )
+        resolved = {
+            "resolved_profile": updated,
+            "profile_path": "references/policies/reader_accessibility.v1.json",
+            "profile_sha256": policy._hash(profile_path),
+            "source_bindings": [{
+                "scope": "package", "path": "references/policies/reader_accessibility.v1.json",
+                "sha256": policy._hash(profile_path), "role": "package_profile",
+            }],
+            "register_class": "domain-native", "passage_scope_class": "technical",
+            "attestation_view_pin": register["attestation_view_pin"],
+            "exemplar_view_pin": register["exemplar_view_pin"],
+            "register_provenance": register,
+        }
+        candidate = reader_accessibility_candidates.build_candidate_artifact(
+            project, manuscript, "Ph3", "fixture-cycle", resolved,
+        )
+        assert "dennett-1987-intentional-stance" not in candidate["sub_checks"]["H"]["surface_warrant_source_keys"]
+        assert "dennett-1987-intentional-stance" in {
+            item["source_key"] for item in policy.argument_exemplar_members(updated)
+        }
+
+        (sources / "dry-run-work.md").write_text(
+            "---\ngrounding_status: section-read\n---\n", encoding="utf-8"
+        )
+        before_dry_run = profile_path.read_bytes()
+        preview = invoke(
+            harness, profile_path, wiki, workspace,
+            "--add-exemplar", "dry-run-work", "--role", "classic-halo", "--dry-run",
+        )
+        assert preview.returncode == 0, preview.stdout + preview.stderr
+        preview_report = json.loads(preview.stdout)
+        assert preview_report["delta_class"] in {"exemplar", "both"}
+        assert preview_report["applied"] is False
+        assert "RA-DNR-COHERENCE" in {item["code"] for item in preview_report["warnings"]}
+        assert profile_path.read_bytes() == before_dry_run
+
+        dropped = invoke(
+            harness, profile_path, wiki, workspace,
+            "--drop-exemplar", "dennett-1987-intentional-stance",
+            "--confirm-drop-locked-role", answer="yes\n",
+        )
+        assert dropped.returncode == 0, dropped.stdout + dropped.stderr
+        dropped_row = rows(harness)[-1]
+        assert dropped_row["delta_summary"]["exemplar_members_dropped"] == [{
+            "source_key": "dennett-1987-intentional-stance",
+            "warrant_scope": "argument-only",
+        }]
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        page = wiki / "wiki/sources/race-work.md"
+        page.write_text("---\ngrounding_status: full-read\n---\n", encoding="utf-8")
+        before = profile_path.read_bytes()
+        def change_grounding_during_confirmation(_: str) -> bool:
+            page.write_text("---\ngrounding_status: stub\n---\n", encoding="utf-8")
+            return True
+        try:
+            policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=None,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar="race-work", drop_exemplar=None,
+                role="classic-halo", warrant_scope=None,
+                confirm_drop_locked_role=False,
+                confirm=change_grounding_during_confirmation,
+            )
+        except policy.PolicyError as exc:
+            assert "grounding" in str(exc).lower() or "changed" in str(exc).lower()
+        else:
+            raise AssertionError("grounding change during confirmation was applied")
+        assert profile_path.read_bytes() == before
+        assert not (harness / "references/policies/repin_log.jsonl").exists()
+        snapshots = harness / "reviews/.harness/repin"
+        assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+
 def main() -> int:
     cases = [
         case_no_delta,
@@ -290,6 +542,7 @@ def main() -> int:
         case_lock_and_prior_diff,
         case_schema_first,
         case_package_only,
+        case_exemplar_ingestion,
     ]
     for case in cases:
         case()

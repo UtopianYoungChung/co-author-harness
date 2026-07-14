@@ -40,7 +40,8 @@
     "exemplar_pending_grounding": [],
     "warrant_layers": {
       "surface": {"question":"is this term, phrase, connective, or sentence shape attested?","sources":["exemplar PDFs", "verbatim extracts", "attestation graph vocabulary"],"hosts":["Sub-check H", "humanizer/lexicon layer"]},
-      "argument": {"question":"is this derivation or logic-connection an insider move?","sources":["exemplar wiki source pages", "graph topology"],"hosts":["C-8 analytic moves", "C-3 narrative arc", "IS-theory pass"]}
+      "argument": {"question":"is this derivation or logic-connection an insider move?","sources":["exemplar wiki source pages", "graph topology"],"hosts":["C-8 analytic moves", "C-3 narrative arc", "IS-theory pass"]},
+      "role_scoping": {"default_warrant_scope":"both","surface_selector":"both","argument_selector":["both","argument-only"],"intentional_root_default":"argument-only"}
     },
     "c7_fence": {"anchor_scope":["domain_conventions","argument_derivation"],"protected_identity_layer":["sentence_length_signature","cadence","repetition_tolerance","point_of_view","humor","evaluative_stance","characteristic_metaphor"],"conflict_resolution":"surface_for_adjudication"},
     "derivations": {

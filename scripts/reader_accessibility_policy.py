@@ -377,10 +377,39 @@ def grounding_admitted(value: str) -> bool:
     return normalize_tier(value) not in {"stub", "unresolved"}
 
 
+def _effective_warrant_scope(member: dict[str, Any]) -> str:
+    return member.get("warrant_scope", "both")
+
+
+def surface_exemplar_members(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return admitted register-definition members usable as surface exemplars."""
+    members = profile["domain_native_register"]["exemplar_members"]
+    return [copy.deepcopy(item) for item in members if _effective_warrant_scope(item) == "both"]
+
+
+def argument_exemplar_members(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return all admitted register-definition members for argument warrant."""
+    return [copy.deepcopy(item) for item in profile["domain_native_register"]["exemplar_members"]]
+
+
 def _source_metadata(text: str, fallback: str) -> tuple[str, str | None]:
     match = re.search(r"(?mi)^\s*grounding_status\s*:\s*['\"]?([^\r\n'\"]+)", text)
     source = re.search(r"(?mi)^\s*source_loc\s*:\s*['\"]?([^\r\n'\"]+)", text)
     return (match.group(1).strip() if match else fallback, source.group(1).strip() if source else None)
+
+
+def _live_grounding_status(path: Path) -> str:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise PolicyError(f"exemplar source page unreadable: {path}: {exc}") from exc
+    match = re.search(r"(?mi)^\s*grounding_status\s*:\s*['\"]?([^\r\n'\"]+)", text)
+    if match is None:
+        raise PolicyError(f"exemplar source page lacks live grounding_status: {path}")
+    grounding = match.group(1).strip()
+    if not grounding_admitted(grounding):
+        raise PolicyError(f"exemplar grounding tier is denied for {path.stem}: {normalize_tier(grounding)}")
+    return normalize_tier(grounding)
 
 
 def _utf8_key(value: str) -> bytes:
@@ -391,6 +420,7 @@ def resolve_domain_native_register(
     profile: dict[str, Any], *, wiki_root: Path | None = None,
     workspace_root: Path | None = None, harness_root: Path | None = None,
     _snapshot_hook: Callable[[str, str, Path | None], None] | None = None,
+    _ingested_key: str | None = None,
 ) -> dict[str, Any]:
     """Resolve the two semantic register views.
 
@@ -460,12 +490,17 @@ def resolve_domain_native_register(
     member_bytes = "\n".join(sorted(membership, key=_utf8_key)).encode("utf-8")
     attestation_pin = hashlib.sha256(member_bytes).hexdigest()
     exemplar_lines: list[str] = []; provenance: list[dict[str, str]] = []
+    admitted_members: list[dict[str, Any]] = []
+    missing_pdf_keys: list[str] = []
     for member in model["exemplar_members"]:
         key = member["source_key"]; source_rel = f"wiki/sources/{key}.md"; source_path = _contained(wiki_root, source_rel)
         source_snapshot = snapshots.capture(source_path, "exemplar_source_page")
         grounding, source_pdf = _source_metadata(source_snapshot.text(), member["grounding"])
         provenance.append({"role":"exemplar_source_page","path":str(source_path),"sha256":source_snapshot.sha256})
-        if not grounding_admitted(grounding): continue
+        if not grounding_admitted(grounding):
+            if key == _ingested_key:
+                raise PolicyError(f"exemplar grounding tier is denied for {key}: {normalize_tier(grounding)}")
+            continue
         pdf_hash = "-"
         pdf_rel = source_pdf or member.get("pdf")
         if pdf_rel:
@@ -475,7 +510,17 @@ def resolve_domain_native_register(
                 pdf_hash = pdf_snapshot.sha256; provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
                 if wiki_root.resolve() == profile_wiki.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
                     raise PolicyError(f"expected exemplar PDF hash mismatch: {key}")
+            elif key == _ingested_key:
+                missing_pdf_keys.append(key)
+        elif key == _ingested_key:
+            missing_pdf_keys.append(key)
         exemplar_lines.append(f"{key}\t{normalize_tier(grounding)}\t{pdf_hash}")
+        admitted_members.append({
+            "source_key": key,
+            "role": member["role"],
+            "grounding": normalize_tier(grounding),
+            "warrant_scope": _effective_warrant_scope(member),
+        })
     exemplar_pin = hashlib.sha256("\n".join(sorted(exemplar_lines, key=_utf8_key)).encode("utf-8")).hexdigest()
     graph_hash = graph_snapshot.sha256
     harness_profile = _contained(harness_root, "references/policies/reader_accessibility.v1.json")
@@ -488,8 +533,24 @@ def resolve_domain_native_register(
     guard = model["corpus_binding"]["related_to_RE_predicate"]["degeneracy_guard"]
     if len(resolution) <= guard["resolved_seed_count_lte"] or len(primary) < guard["primary_communities_lt"]:
         warnings.append({"code":"RA-DNR-DEGENERATE","severity":"WARNING","message":"semantic attestation view is based on a thin resolved seed set"})
+    for key in missing_pdf_keys:
+        warnings.append({"code":"RA-DNR-PDF-MISSING","severity":"WARNING","source_key":key,"message":"exemplar has no staged PDF; surface warrant is weak and the pin tuple uses '-'"})
+    if _ingested_key:
+        baseline_resolution = {key: value for key, value in resolution.items() if key != _ingested_key}
+        baseline_primary = {by_id[node_id]["community"] for node_id in baseline_resolution.values()}
+        baseline_primary_members = {node["id"] for node in nodes if node["community"] in baseline_primary}
+        baseline_membership = set(baseline_primary_members)
+        for link in links:
+            source, target = link["source"], link["target"]
+            if source in baseline_primary_members and by_id[target]["community"] not in baseline_primary:
+                baseline_membership.add(target)
+            if target in baseline_primary_members and by_id[source]["community"] not in baseline_primary:
+                baseline_membership.add(source)
+        if _ingested_key not in resolution or resolution[_ingested_key] not in baseline_membership:
+            warnings.append({"code":"RA-DNR-COHERENCE","severity":"WARNING","source_key":_ingested_key,"message":"exemplar lies outside the current attestation membership and its one-hop halo; review centroid dilution"})
     snapshots.verify_all()
-    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"path_roots":path_roots_meta,"provenance":provenance}
+    surface_keys = {item["source_key"] for item in surface_exemplar_members(profile)}
+    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"exemplar_members":admitted_members,"surface_exemplar_members":[item for item in admitted_members if item["source_key"] in surface_keys],"argument_exemplar_members":admitted_members,"warnings":warnings,"path_roots":path_roots_meta,"provenance":provenance}
 
 
 def _contained(root: Path, relative: str) -> Path:
@@ -560,6 +621,19 @@ def validate_profile(profile: dict[str, Any], schema_path: Path = PROFILE_SCHEMA
     if profile["decision_status"] != "accepted" or profile["decision_approval"] != {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"}:
         raise PolicyError("ADR-ACCESS-01 acceptance requires the recorded user approval provenance")
     _strings(profile["package_contributors"], "package_contributors")
+    register_members = profile["domain_native_register"]["exemplar_members"]
+    source_keys = [item["source_key"] for item in register_members]
+    if len(source_keys) != len(set(source_keys)):
+        raise PolicyError("domain_native_register.exemplar_members source_key values must be unique")
+    for locked_role, locked_key in _LOCKED_EXEMPLAR_ROLES.items():
+        occupants = [item["source_key"] for item in register_members if item.get("role") == locked_role]
+        if len(occupants) > 1 or (occupants and occupants != [locked_key]):
+            raise PolicyError(f"singleton role {locked_role} is locked to {locked_key}")
+    for item in register_members:
+        if not grounding_admitted(item["grounding"]):
+            raise PolicyError(f"exemplar member has denied grounding tier: {item['source_key']}")
+        if item.get("role") == "intentional-root" and _effective_warrant_scope(item) != "argument-only":
+            raise PolicyError("intentional-root requires warrant_scope argument-only")
     if tuple(profile["phase_values"]) != PHASES:
         raise PolicyError("phase_values must be exactly Ph1-Ph4")
     _strings(profile["passage_roles"], "passage_roles")
@@ -1198,9 +1272,64 @@ def _delta_report(old_snapshot: dict[str, Any] | None, current: dict[str, Any]) 
     }
 
 
+_LOCKED_EXEMPLAR_ROLES = {
+    "centroid": "yu-1995-istar",
+    "intentional-root": "dennett-1987-intentional-stance",
+}
+
+
+def _stage_exemplar_change(
+    profile: dict[str, Any], *, wiki_root: Path, add_key: str | None,
+    drop_key: str | None, role: str | None, warrant_scope: str | None,
+    confirm_drop_locked_role: bool,
+) -> tuple[dict[str, Any], list[dict[str, str]], list[dict[str, str]], str | None]:
+    """Validate and stage one register-definition mutation in memory."""
+    staged = copy.deepcopy(profile)
+    members = staged["domain_native_register"]["exemplar_members"]
+    if add_key and drop_key:
+        raise PolicyError("--add-exemplar and --drop-exemplar are mutually exclusive")
+    if not add_key and not drop_key:
+        if role is not None or warrant_scope is not None or confirm_drop_locked_role:
+            raise PolicyError("exemplar modifier flags require --add-exemplar or --drop-exemplar")
+        return staged, [], [], None
+    if add_key:
+        page = _contained(wiki_root, f"wiki/sources/{add_key}.md")
+        if not page.is_file():
+            raise PolicyError(f"exemplar source page missing: {page}; create wiki/sources/{add_key}.md and ground it before retrying")
+        live_grounding = _live_grounding_status(page)
+        if role is None:
+            raise PolicyError("--add-exemplar requires --role")
+        locked_key = _LOCKED_EXEMPLAR_ROLES.get(role)
+        if locked_key is not None and add_key != locked_key:
+            raise PolicyError(f"role {role} is locked to {locked_key}")
+        if locked_key is not None and any(item.get("role") == role for item in members):
+            raise PolicyError(f"singleton role {role} is already occupied and locked")
+        if role == "intentional-root" and warrant_scope == "both":
+            raise PolicyError("intentional-root requires warrant_scope argument-only; explicit both is contradictory")
+        effective_scope = warrant_scope or ("argument-only" if role == "intentional-root" else "both")
+        if any(item["source_key"] == add_key for item in members):
+            raise PolicyError(f"duplicate exemplar source_key: {add_key}")
+        member = {"source_key": add_key, "role": role, "grounding": live_grounding, "warrant_scope": effective_scope}
+        members.append(member)
+        return staged, [{"source_key": add_key, "warrant_scope": effective_scope}], [], add_key
+    if role is not None or warrant_scope is not None:
+        raise PolicyError("--role and --warrant-scope apply only to --add-exemplar")
+    matched = next((item for item in members if item["source_key"] == drop_key), None)
+    if matched is None:
+        raise PolicyError(f"cannot drop absent exemplar source_key: {drop_key}")
+    if matched.get("role") in _LOCKED_EXEMPLAR_ROLES and not confirm_drop_locked_role:
+        raise PolicyError("dropping a locked-role member requires --confirm-drop-locked-role")
+    effective_scope = _effective_warrant_scope(matched)
+    members.remove(matched)
+    return staged, [], [{"source_key": str(drop_key), "warrant_scope": effective_scope}], None
+
+
 def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None, workspace_root: Path | None,
               project_root: Path | None, trigger: str, dry_run: bool, allow_unrelated_dirty: bool,
-              force_lock: bool, confirm: Callable[[str], bool] = _confirmation) -> dict[str, Any]:
+              force_lock: bool, add_exemplar: str | None = None, drop_exemplar: str | None = None,
+              role: str | None = None, warrant_scope: str | None = None,
+              confirm_drop_locked_role: bool = False,
+              confirm: Callable[[str], bool] = _confirmation) -> dict[str, Any]:
     """Execute the accepted two-phase re-pin contract without writing phase_state.json."""
     harness_root = harness_root.resolve()
     profile_path = profile_path.resolve()
@@ -1232,13 +1361,25 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             raise PolicyError(f"profile unreadable: {exc}") from exc
         profile = _load_profile_bytes(old_profile_bytes, schema_path)
         old_profile_hash = hashlib.sha256(old_profile_bytes).hexdigest()
-        _, effective_workspace, _, _ = _resolve_register_roots(
+        effective_wiki, effective_workspace, _, _ = _resolve_register_roots(
             profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root
         )
+        prospective, members_added, members_dropped, ingested_key = _stage_exemplar_change(
+            profile, wiki_root=effective_wiki, add_key=add_exemplar, drop_key=drop_exemplar,
+            role=role, warrant_scope=warrant_scope,
+            confirm_drop_locked_role=confirm_drop_locked_role,
+        )
+        validate_profile(prospective, schema_path)
         graph_path = _contained(effective_workspace, profile["domain_native_register"]["corpus_binding"]["graph"]["path"])
         if _tracked_path_dirty(graph_path):
             raise PolicyError(f"pin-affecting tracked graph is dirty: {graph_path}")
-        current = resolve_domain_native_register(profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root)
+        current = resolve_domain_native_register(
+            prospective, wiki_root=wiki_root, workspace_root=workspace_root,
+            harness_root=harness_root, _ingested_key=ingested_key,
+        )
+        if ingested_key:
+            resolved_ingest = next(item for item in current["exemplar_members"] if item["source_key"] == ingested_key)
+            next(item for item in prospective["domain_native_register"]["exemplar_members"] if item["source_key"] == ingested_key)["grounding"] = resolved_ingest["grounding"]
         expected = profile["domain_native_register"]["expected_verification"]
         delta_class = _delta_class(expected["attestation_view_pin"], current["attestation_view_pin"], expected["exemplar_view_pin"], current["exemplar_view_pin"])
         ledger_path = harness_root / "references/policies/repin_log.jsonl"
@@ -1259,9 +1400,14 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             "unresolved_seed_ids": current["unresolved_seed_ids"], "primary_communities": current["primary_communities"],
             "warnings": current["warnings"], "attestation_member_ids": current["attestation_member_ids"],
             "member_count": len(current["attestation_member_ids"]), "exemplar_hash_lines": current["exemplar_hash_lines"],
+            "exemplar_members": current["exemplar_members"],
+            "surface_exemplar_members": current["surface_exemplar_members"],
+            "argument_exemplar_members": current["argument_exemplar_members"],
         }
         _atomic_bytes(harness_root / snapshot_ref, _json_bytes(snapshot))
         report = _delta_report(previous_snapshot, current)
+        report["exemplar_members_added"] = members_added
+        report["exemplar_members_dropped"] = members_dropped
         pinned_at = _utc_now()
         new_profile_hash = old_profile_hash
         intended_profile_bytes = old_profile_bytes
@@ -1272,7 +1418,18 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             if not confirm("Apply the reported semantic register re-pin?"):
                 (harness_root / snapshot_ref).unlink(missing_ok=True)
                 raise PolicyError("real re-pin delta requires explicit user confirmation")
-            updated = copy.deepcopy(profile)
+            try:
+                verified = resolve_domain_native_register(
+                    prospective, wiki_root=wiki_root, workspace_root=workspace_root,
+                    harness_root=harness_root, _ingested_key=ingested_key,
+                )
+            except Exception:
+                (harness_root / snapshot_ref).unlink(missing_ok=True)
+                raise
+            if verified != current:
+                (harness_root / snapshot_ref).unlink(missing_ok=True)
+                raise PolicyError("domain-native inputs changed during confirmation; refusing stale re-pin apply")
+            updated = copy.deepcopy(prospective)
             updated["profile_version"] = _patch_bump(updated["profile_version"])
             updated_expected = updated["domain_native_register"]["expected_verification"]
             updated_expected.update(attestation_view_pin=current["attestation_view_pin"], exemplar_view_pin=current["exemplar_view_pin"], pin_epoch=event_epoch, pinned_at=pinned_at)
@@ -1347,7 +1504,7 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
         return {"status": "READY", "delta_class": delta_class, "delta_report": report, "epoch": event_epoch,
                 "applied": applied, "dry_run": dry_run, "snapshot_ref": snapshot_ref,
                 "rebind_request": str(request_path) if request_path else None, "request_reused": request_reused,
-                "read_back_verified": applied,
+                "read_back_verified": applied, "warnings": current["warnings"],
                 "commit_proposal": "chore(accessibility): re-pin domain-native register views" if applied else None}
     finally:
         _release_repin_lock(lock_path, lock_token)
@@ -1382,6 +1539,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--trigger", choices=("milestone", "snowball", "mf-policy-discovery", "manual"), default="manual")
     parser.add_argument("--allow-unrelated-dirty", action="store_true")
     parser.add_argument("--force-lock", action="store_true")
+    parser.add_argument("--add-exemplar", metavar="SOURCE_KEY")
+    parser.add_argument("--drop-exemplar", metavar="SOURCE_KEY")
+    parser.add_argument("--role", help="register role for --add-exemplar")
+    parser.add_argument("--warrant-scope", choices=("both", "argument-only"))
+    parser.add_argument("--confirm-drop-locked-role", action="store_true")
     parser.add_argument("--backfill-repin-commit", metavar="OBJECT_ID", help="backfill the commit field for an existing re-pin event; never recomputes pins")
     parser.add_argument("--repin-epoch", type=int, help="ledger event epoch used with --backfill-repin-commit")
     args = parser.parse_args(argv)
@@ -1397,6 +1559,9 @@ def main(argv: list[str] | None = None) -> int:
                 wiki_root=args.wiki_root, workspace_root=args.workspace_root,
                 project_root=args.project_root, trigger=args.trigger, dry_run=args.dry_run,
                 allow_unrelated_dirty=args.allow_unrelated_dirty, force_lock=args.force_lock,
+                add_exemplar=args.add_exemplar, drop_exemplar=args.drop_exemplar,
+                role=args.role, warrant_scope=args.warrant_scope,
+                confirm_drop_locked_role=args.confirm_drop_locked_role,
             )
         else:
             result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)

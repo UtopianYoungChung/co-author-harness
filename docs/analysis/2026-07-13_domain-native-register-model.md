@@ -92,7 +92,12 @@ Centroid = Eric Yu / i\* conceptual-modeling lineage; halo = close-derived linea
   {"source_key": "nuseibeh-2000-re-a-roadmap",                   "role": "re-canon",      "grounding": "full-read"},
   {"source_key": "goncalves-2019-istar-extension",               "role": "istar-extension-halo", "grounding": "section-read", "note": "promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"}
 ],
-"exemplar_pending_grounding": []
+"exemplar_pending_grounding": [
+  {"source_key": "dennett-1987-intentional-stance", "role": "intentional-root", "warrant_scope": "argument-only",
+   "pdf": "raw/corpus/dennett-1987-intentional-stance.pdf", "pdf_sha256": "02BDCF90725BE1B44293FB3F43B3322D08712B1B009400E66AA7E70CED6B2D71",
+   "status": "PDF staged and hashed (verified 2026-07-14); NO source page yet — wiki/sources/dennett-1987-intentional-stance.md must be created and grounded past the deny-list before admission. The existing dennett-1988-intentional-stance page (grounding: read) is the BBS précis — a DIFFERENT work with a different PDF; it may seed the 1987 page but is not a substitute exemplar.",
+   "rationale": "designated 2026-07-14 as the intentional root — the theoretical centroid of the centroid: Yu-1995's agent/goal ontology descends from Dennett's intentional stance. Enters the ARGUMENT-architecture layer and the attestation view as a sanctioned philosophy import; NEVER the surface-register target (philosophy prose is an imported register, not the domain-native one — the J-in-H lesson applied at the root)."}
+]
 ```
 
 ## 5. Two warrant layers (do not conflate — this is the J-in-H lesson again)
@@ -100,7 +105,8 @@ Centroid = Eric Yu / i\* conceptual-modeling lineage; halo = close-derived linea
 ```json
 "warrant_layers": {
   "surface":  {"question": "is this term / phrase / connective / sentence shape attested?", "source": "exemplar PDFs + verbatim extracts; attestation graph for vocabulary", "hosts_on_check": ["Sub-check H", "humanizer/lexicon layer"]},
-  "argument": {"question": "is this derivation / logic-connection an insider move?",         "source": "exemplar wiki source pages + graph topology",                     "hosts_on_check": ["C-8 analytic moves", "C-3 narrative arc", "IS-theory pass (Baird C-4)"]}
+  "argument": {"question": "is this derivation / logic-connection an insider move?",         "source": "exemplar wiki source pages + graph topology",                     "hosts_on_check": ["C-8 analytic moves", "C-3 narrative arc", "IS-theory pass (Baird C-4)"]},
+  "role_scoping": "exemplar_members[].warrant_scope gates layer contribution: 'both' (default when absent) feeds surface + argument; 'argument-only' (e.g. role intentional-root) feeds argument-architecture warrant and attestation membership but is EXCLUDED from surface-register emulation targets — an imported-register ancestor must not drag the domain-native surface toward its home register"
 }
 ```
 
@@ -132,6 +138,7 @@ Re-pin cadence is organic but explicit: recompute at milestone transitions and a
 
 - **Resolved:** `goncalves-2019-istar-extension` was promoted stub → **section-read** on 2026-07-13 (pypdf read-through, abstract + introduction; grounding_note on the source page). It is now admitted to the exemplar core (§4) under the deny-list rule. Residual: mid/end guideline set not exhaustively mapped — its surface warrant carries lower confidence; deepen to full-read if its register is leaned on heavily.
 - **Resolved (post second-opinion):** pin byte recipe, RE-predicate membership rule, PDF-staging delta rule, and distinct MF-POLICY binding keys vs D-4 `profile_sha256` are now specified in §3 (`hash_recipe`, `related_to_RE_predicate`, `mf_policy_binding_keys`) and restated in §8. Policy remains closed; Codex implements the recipe as written.
-- **Note for Codex:** `references/policies/reader_accessibility.v1.json` does **not exist yet** — it is the Task 4A deliverable this object plugs into (see `docs/analysis/2026-07-13_task4a-cadence-and-j-dropins.md` and the milestone-framework plan). Treat it as create-target, not read-target.
+- **Added 2026-07-14 — intentional root designated:** `dennett-1987-intentional-stance` is the theoretical centroid of the centroid (§4 pending block): role `intentional-root`, `warrant_scope: argument-only`, singleton (locked like the surface centroid). PDF staged + hashed; admission blocked on creating and grounding the 1987 source page (the 1988 précis page is a different work). Ingestion flows through `/repin-register --add-exemplar` (see `2026-07-14_repin-skill-proposal.md` §2.1) as its first real invocation once the page clears the deny-list.
+- **Note for Codex (SUPERSEDED 2026-07-14):** the profile was a create-target when this was written; v0.28.0 (`feature/milestone-feedback-framework` @ `194df37`) shipped it with both pins verified independently. It is now a read/extend-target.
 - **Verified at review:** all 5 exemplar PDFs staged in `raw/corpus/`; `yu-1995-istar.pdf` SHA-256 matches the §4 pin exactly; all 12 source pages exist with the grounding tiers stated in §4; graph.json present (hash at review recorded in §3).
 - **Seed-resolution reality (measured 2026-07-13, graph @ 559 nodes / 811 links):** only 3/12 exemplar seeds resolve — 1 by id, 2 by the source-file join after document/`_source` disambiguation (§3 `seed_resolution`); 9/12 are `unresolved_seed_ids` today. The attestation view is currently built from communities {5, 10} only. This is why §3 carries a `degeneracy_guard` with an **inclusive** seed floor (`resolved_seed_count <= 3`): today's measured base must emit WARNING, not certify silently green. Backfilling the missing sources into the graph (graphify re-run over the newer wiki pages) is the organic fix and is a real membership delta → deliberate re-pin when it lands. Out of Codex scope.

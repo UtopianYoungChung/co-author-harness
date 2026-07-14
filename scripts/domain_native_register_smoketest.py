@@ -49,7 +49,9 @@ def main() -> int:
     model = profile["domain_native_register"]
     assert {"path_roots","graph","pin","related_to_RE_predicate","hash_recipe","views"} <= set(model["corpus_binding"])
     assert model["reader_model"]["register_class"] == "domain-native"
-    assert set(model["warrant_layers"]) == {"surface", "argument"}
+    assert set(model["warrant_layers"]) == {"surface", "argument", "role_scoping"}
+    assert model["warrant_layers"]["role_scoping"]["surface_selector"] == "both"
+    assert model["warrant_layers"]["role_scoping"]["argument_selector"] == ["both", "argument-only"]
     assert "advisory only" in model["derivations"]["review"]["discipline"]
     protected = model["c7_fence"]["protected_identity_layer"]
     remediation = json.dumps({"remediation_order":profile["remediation_order"],"derivations":model["derivations"]}).lower()
@@ -78,6 +80,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); wiki,workspace=write_fixture(root)
         resolved=policy.resolve_domain_native_register(profile, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT)
+        assert resolved["surface_exemplar_members"] == resolved["argument_exemplar_members"]
+        assert all(item["warrant_scope"] == "both" for item in resolved["exemplar_members"])
         assert resolved["path_roots"]["path_roots_mode"] == "override"
         assert len(resolved["seed_resolution_map"]) == 3 and len(resolved["unresolved_seed_ids"]) == 9
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"].endswith("_source")

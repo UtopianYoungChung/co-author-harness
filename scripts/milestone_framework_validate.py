@@ -42,6 +42,11 @@ GATE_BOUNDARIES = ("ph1_to_ph2", "ph4_admission", "ph4_terminal_close")
 OVERRIDE_AUTHORITIES = frozenset({
     "user", "venue", "advisor", "instructor", "committee", "project_local_contract"
 })
+LEGACY_READER_PROFILE_HASHES = frozenset({
+    # v0.28.1 package profile at ddf5618; accepted only for the bounded
+    # continuing-cycle projection migration introduced by v0.29.0.
+    "48400ad0881c54920ea43eebd53754ce3aff5763ef8d0a6f35cf1d4d73583e61",
+})
 
 
 class Outcome(str, Enum):
@@ -929,9 +934,21 @@ def _validate_reader_accessibility_policy(
     profile_expected = expected_resolved.get("resolved_profile", {}).get("domain_native_register", {}).get("expected_verification", {})
     current_policy = {"profile_sha256": canonical_hash, "attestation_view_pin": expected_resolved.get("attestation_view_pin"), "exemplar_view_pin": expected_resolved.get("exemplar_view_pin"), "pin_epoch": profile_expected.get("pin_epoch")}
     epoch_gap = isinstance(binding.get("pin_epoch"), int) and isinstance(profile_expected.get("pin_epoch"), int) and binding["pin_epoch"] < profile_expected["pin_epoch"]
+    recorded_register = binding.get("register_provenance")
+    legacy_projection = isinstance(recorded_register, dict) and any(
+        key not in recorded_register
+        for key in ("exemplar_members", "surface_exemplar_members", "argument_exemplar_members")
+    )
+    continuing_semantic_compatibility = (
+        not opening_new_cycle
+        and legacy_projection
+        and binding.get("profile_sha256") in LEGACY_READER_PROFILE_HASHES
+        and binding.get("attestation_view_pin") == current_policy["attestation_view_pin"]
+        and binding.get("exemplar_view_pin") == current_policy["exemplar_view_pin"]
+    )
     if binding.get("profile_path") != expected_path or not canonical.is_file():
         findings.append(_finding("MF-POLICY-PROFILE-STALE", f"{base}.profile_path", "profile path must bind the canonical package profile"))
-    elif not epoch_gap:
+    elif not (epoch_gap or continuing_semantic_compatibility):
         messages = {
             "MF-POLICY-PROFILE-STALE": ("profile_sha256", "stored policy hash differs from the current package profile"),
             "MF-POLICY-ATTESTATION-PIN-STALE": ("attestation_view_pin", "attestation semantic view changed; deliberate versioned repin required"),
@@ -957,15 +974,15 @@ def _validate_reader_accessibility_policy(
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
         resolved_payload = None
     stable_keys = ("profile_path", "profile_sha256", "source_bindings", "project_identity", "register_class", "passage_scope_class", "resolved_profile", "attestation_view_pin", "exemplar_view_pin")
-    if not isinstance(resolved_payload, dict) or (not epoch_gap and any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys)):
+    if not isinstance(resolved_payload, dict) or (not (epoch_gap or continuing_semantic_compatibility) and any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys)):
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy gate projection differs from fresh resolver output"))
     recorded_provenance = binding.get("register_provenance")
     fresh_provenance = expected_resolved.get("register_provenance")
-    invariant_keys = ("register_class", "attestation_view_pin", "exemplar_view_pin", "seed_resolution_map", "seed_resolution_ties", "unresolved_seed_ids", "primary_communities", "attestation_member_ids", "exemplar_hash_lines", "warnings")
+    invariant_keys = ("register_class", "attestation_view_pin", "exemplar_view_pin", "seed_resolution_map", "seed_resolution_ties", "unresolved_seed_ids", "primary_communities", "attestation_member_ids", "exemplar_hash_lines", "exemplar_members", "surface_exemplar_members", "argument_exemplar_members", "warnings")
     def provenance_paths(value: Any) -> list[tuple[Any, Any, Any]]:
         if not isinstance(value, dict) or not isinstance(value.get("provenance"), list): return []
         return sorted((entry.get("role"), entry.get("path"), entry.get("sha256")) for entry in value["provenance"] if isinstance(entry, dict) and entry.get("role") != "graph_provenance_only")
-    if not isinstance(recorded_provenance, dict) or (not epoch_gap and (not isinstance(fresh_provenance, dict) or any(recorded_provenance.get(key) != fresh_provenance.get(key) for key in invariant_keys) or provenance_paths(recorded_provenance) != provenance_paths(fresh_provenance))):
+    if not isinstance(recorded_provenance, dict) or (not (epoch_gap or continuing_semantic_compatibility) and (not isinstance(fresh_provenance, dict) or any(recorded_provenance.get(key) != fresh_provenance.get(key) for key in invariant_keys) or provenance_paths(recorded_provenance) != provenance_paths(fresh_provenance))):
         findings.append(_finding("MF-POLICY-PROVENANCE", f"{base}.register_provenance", "semantic register provenance projection is incomplete or inconsistent with the fresh resolver"))
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict):
@@ -978,7 +995,7 @@ def _validate_reader_accessibility_policy(
             except ValueError:
                 findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor escapes package root"))
                 continue
-            if not package_source.is_file() or (not epoch_gap and hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256")):
+            if not package_source.is_file() or (not (epoch_gap or continuing_semantic_compatibility) and hashlib.sha256(package_source.read_bytes()).hexdigest() != source.get("sha256")):
                 findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "package policy contributor is missing or stale"))
         elif scope == "project":
             _file_binding(project_root, relative, source.get("sha256"), None, f"{base}.source_bindings[{index}]", findings, evidence, "MF-POLICY")

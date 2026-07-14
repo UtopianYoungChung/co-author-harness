@@ -18,12 +18,41 @@ A re-pin event recomputes the two semantic view pins against the current graph/w
 ```
 /repin-register [--dry-run] [--project-root PATH] [--trigger milestone|snowball|mf-policy-discovery|manual]
                 [--allow-unrelated-dirty] [--force-lock]
+                [--add-exemplar KEY --role ROLE [--warrant-scope both|argument-only]] [--drop-exemplar KEY]
 ```
 
 Two surfaces, one skill, two-phase flow:
 
 - **Package phase (default; no project context required):** preflight → single-snapshot compute → diff → no-delta: ledger row only, done → real delta: render delta report → explicit user confirmation → atomic profile write → ledger row → smoketests → propose commit. A package-only re-pin must succeed with no project root (library maintenance).
 - **Project phase (requires `--project-root`):** emit `reviews/repin_rebind_request.json` for that project. Never touches `phase_state.json`.
+
+### 2.1 Exemplar ingestion (package-phase extension)
+
+```
+/repin-register --add-exemplar SOURCE_KEY --role ROLE [--warrant-scope both|argument-only] [--dry-run]
+/repin-register --drop-exemplar SOURCE_KEY [--dry-run]
+```
+
+Membership in `exemplar_members` is a register-definition change; today it is a hand edit. This subcommand makes it a validated, versioned event that falls through to the normal re-pin flow — one confirmation, one epoch, one ledger row (`delta_class: exemplar`), one commit proposal. The skill automates the *checks*, never the *judgment* of whether a source belongs in the register.
+
+**Flag semantics:** `--add-exemplar` and `--drop-exemplar` are **mutually exclusive** (refuse if both); either combines with `--dry-run` / `--trigger`.
+
+**Validations (hard, in order):**
+1. `wiki/sources/{source_key}.md` exists — **exact key only, no alias resolution**: with only `dennett-1988-intentional-stance.md` present, `--add-exemplar dennett-1987-intentional-stance` refuses "page missing" with a create-page instruction; it must never treat the 1988 précis page as a hit. (The loader would `_MissingInput` at pin time anyway; fail early.)
+2. Live `grounding_status` clears the deny-list (`{stub, unresolved}` excluded, prefix-tolerant parse).
+3. `--role` required. **Singleton locks:** `centroid` is locked to `yu-1995-istar`; `intentional-root` is locked to `dennett-1987-intentional-stance` (designated 2026-07-14, register-model spec §4). Adding a second member under a locked role refuses.
+4. `warrant_scope`: when omitted, defaults `both` — except role `intentional-root`, which forces `argument-only`. **An explicit contradiction refuses:** `--role intentional-root --warrant-scope both` is a hard refuse, never a silent coercion (forcing applies only to the omitted case).
+5. Duplicate `source_key` refuses; `--drop-exemplar` of a locked-role member requires the **typed confirmation token `--confirm-drop-locked-role`** — not a conversational yes.
+
+**Advisory (warn, never block):** PDF staged and hashable via the page's `source_loc` (missing → admitted with `pdf: '-'` and a weak-surface-warrant warning, Gonçalves-style); register-coherence check with a **defined predicate**: the source's node (per §seed_resolution, both steps) is a member of the current attestation view **or** 1-hop adjacent to one — outside that, warn that the addition dilutes the Yu centroid; surfaced for the user's judgment, never decided.
+
+**Hash/schema impact:** exemplar pin lines are unchanged (`key\ttier\tpdf`); `role` and `warrant_scope` are register-definition metadata carried in the profile (schema: extend the role enum with `intentional-root`; add optional `warrant_scope`).
+
+**Consumer wiring (implemented, not merely documented):** the loader's resolve output exposes `warrant_scope` per admitted member; surface-layer consumers filter to `both`-scoped members — concretely `scripts/check8_h_prefilter.py`, the H sub-check contract in `skills/accessibility-overlay/references/sub_checks.md`, and the humanizer/lexicon routing keys in the profile; argument-layer consumers (C-8 / C-3 / IS-theory surfaces, `agents/evaluator.md` references) see all admitted members.
+
+**Add → re-pin coupling (no bypass):** a successful `--add-exemplar` / `--drop-exemplar` **always** continues into the normal re-pin apply path — one confirmation, one epoch, `delta_class: exemplar` (or `both` if attestation membership also moved). There is **no metadata-only profile edit** that skips pin recompute. Ledger `delta_summary` on ingest events always carries `exemplar_members_added` / `exemplar_members_dropped` (with the member's resulting `warrant_scope`), not only pin-line churn.
+
+**Pending vs live:** the register-model spec's `exemplar_pending_grounding` block (Dennett-1987) is **documentation only** until a live `--add-exemplar` succeeds. Implementation must not auto-promote it into `exemplar_members` at build time.
 
 ## 3. New structures
 
@@ -52,7 +81,7 @@ Machine-append JSONL; one derived human view `repin_log.md` regenerated from it 
  "operator": "…", "commit": null}
 ```
 
-`delta_class: none` rows carry `null` old/new pins-unchanged fields but always land in the ledger — auto-accept is an event too.
+`commit` is back-filled after the commit lands (§8). `delta: none` rows carry `null` old/new pins-unchanged fields but always land in the ledger — auto-accept is an event too.
 
 ### 3.3 Snapshot artifact — `reviews/.harness/repin/epoch-<N>.snapshot.json`
 
@@ -92,7 +121,7 @@ Preflight refuses when, in order:
 ## 5. Atomic write and versioning rules
 
 - Write recipe: temp file in the same directory → `fsync` → `os.replace` → **read-back** of pins, epoch, and recomputed `profile_sha256`, asserted against intent. Never Edit-tool the policy JSON.
-- **No `profile_version` bump and no profile rewrite on `delta_class: none`.** Auto-accept is a ledger row only. Otherwise every no-op re-pin flips `profile_sha256` and storms `MF-POLICY-PROFILE-STALE` across the portfolio.
+- **No `profile_version` bump and no profile rewrite on `delta: none`.** Auto-accept is a ledger row only. Otherwise every no-op re-pin flips `profile_sha256` and storms `MF-POLICY-PROFILE-STALE` across the portfolio.
 - Real delta: patch-bump `profile_version`, update pins + `pin_epoch` + `pinned_at` + `graph_sha256_provenance`, one atomic replace.
 - Known coupling, accepted: a real re-pin necessarily flips `profile_sha256` (pins live in the profile). Reason codes keep the failure modes distinguishable; a re-pin *is* a versioned policy change.
 
@@ -120,6 +149,7 @@ The skill **proposes** a single-purpose commit (message drafted, scope = pin-aff
 6. **Lock:** fresh lock → refuse; stale lock (> `stale_after`) → refuse with recovery text; `--force-lock` without confirmation → refuse; uncommitted prior re-pin diff → refuse second re-pin.
 7. **Schema-first:** applying `--repin` against a schema lacking `pin_epoch`/`pinned_at` fails closed with a message naming the schema migration (guards ordering of the rollout).
 8. **Package-only:** `--repin` with no `--project-root` succeeds end-to-end without reading any `phase_state.json`.
+9. **Exemplar ingestion (§2.1):** fixtures prove — missing source page refuses with create-page instruction; **anti-alias:** with only the `dennett-1988-intentional-stance` page present, `--add-exemplar dennett-1987-intentional-stance` refuses "page missing" (never resolves to the précis); stub-tier page refuses; `--add-exemplar` + `--drop-exemplar` together refuses; second `centroid` or second `intentional-root` refuses (singleton locks); omitted scope on `intentional-root` → `argument-only`, while explicit `--warrant-scope both` on `intentional-root` **refuses** (no silent coercion); locked-role drop without `--confirm-drop-locked-role` refuses; missing PDF admits with warning and `-` in the pin line; coherence advisory fires (warn-only) for a fixture source outside membership ∪ 1-hop; successful add falls through to the full re-pin flow producing `delta_class: exemplar` (or `both`), epoch increment, and a ledger row carrying `exemplar_members_added` with resulting `warrant_scope`; surface consumers (`check8_h_prefilter.py`, Sub-check H contract) see only `both`-scoped members while argument-layer consumers see all admitted members. Live target for first real invocation: `dennett-1987-intentional-stance` (PDF sha256 `02BDCF90725BE1B44293FB3F43B3322D08712B1B009400E66AA7E70CED6B2D71` already staged), gated on its source page being created and grounded — do not create or ground wiki pages yourself, and do not auto-promote the pending block.
 
 ## 10. Out of scope
 
