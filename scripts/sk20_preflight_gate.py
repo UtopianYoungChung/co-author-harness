@@ -132,6 +132,12 @@ def _contained_file(project_root: Path, raw: str) -> Optional[Path]:
     candidate_path = Path(raw)
     if candidate_path.is_absolute() or ".." in candidate_path.parts:
         return None
+    raw_current = project_root
+    for part in candidate_path.parts:
+        raw_current = raw_current / part
+        if raw_current.exists() or raw_current.is_symlink():
+            if _is_reparse(raw_current):
+                return None
     try:
         candidate = (project_root / candidate_path).resolve(strict=True)
         candidate.relative_to(project_root.resolve(strict=True))
@@ -145,22 +151,24 @@ def _contained_file(project_root: Path, raw: str) -> Optional[Path]:
     return candidate if candidate.is_file() else None
 
 
-def _project_input_path(project_root: Path, raw: Optional[str], default: str) -> Path:
-    candidate_raw = Path(raw or default)
-    candidate = candidate_raw if candidate_raw.is_absolute() else project_root / candidate_raw
+def _read_only_input_path(project_root: Path, raw: Optional[str], default: str) -> Path:
+    if raw is None:
+        candidate = project_root / default
+        if candidate.exists() or candidate.is_symlink():
+            if _is_reparse(candidate):
+                raise GateIOError(f"default read input must not itself be a reparse point: {candidate}")
+            if not candidate.is_file():
+                raise GateIOError(f"default read input must be a regular file: {candidate}")
+        return candidate
+
+    candidate = Path(raw)
     try:
-        normalized = candidate.resolve(strict=False)
-        relative = normalized.relative_to(project_root)
-    except (OSError, ValueError) as exc:
-        raise GateIOError(f"project input must remain contained: {candidate_raw}") from exc
-    current = project_root
-    for part in relative.parts:
-        current = current / part
-        if current.exists() or current.is_symlink():
-            if _is_reparse(current):
-                raise GateIOError(f"project input must not traverse a reparse point: {candidate_raw}")
-    if candidate.exists() and not candidate.is_file():
-        raise GateIOError(f"project input must be a regular file: {candidate_raw}")
+        if not candidate.exists() or not candidate.is_file() or _is_reparse(candidate):
+            raise GateIOError(f"explicit read input must be an existing regular non-reparse file: {candidate}")
+        with candidate.open("rb") as handle:
+            handle.read(0)
+    except OSError as exc:
+        raise GateIOError(f"explicit read input is not readable: {candidate}: {exc}") from exc
     return candidate
 
 
@@ -211,8 +219,26 @@ def _stage_json(reviews: Path, payload: Dict[str, object]) -> Path:
         raise
 
 
-def _commit_outputs(project_root: Path, writes: Dict[Path, Dict[str, object]], deletes: List[Path]) -> None:
+def _commit_outputs(
+    project_root: Path,
+    writes: Dict[Path, Dict[str, object]],
+    deletes: List[Path],
+    *,
+    remove_backup=None,
+) -> List[str]:
     reviews = _ensure_safe_reviews_dir(project_root)
+    prior_backups: List[Path] = []
+    prior_warnings: List[str] = []
+    for candidate in reviews.glob(".*.bak"):
+        if not (
+            candidate.name.startswith(".coupling_readiness_")
+            or candidate.name.startswith(".sk20_noop_")
+        ):
+            continue
+        if not candidate.is_file() or _is_reparse(candidate):
+            prior_warnings.append(f"unsafe stale backup residue requires manual inspection: {candidate.name}")
+        else:
+            prior_backups.append(candidate)
     targets = list(writes) + deletes
     for target in targets:
         _validate_output_target(project_root, reviews, target)
@@ -230,8 +256,6 @@ def _commit_outputs(project_root: Path, writes: Dict[Path, Dict[str, object]], d
         for target, temporary in staged.items():
             os.replace(temporary, target)
             placed.append(target)
-        for backup in backups.values():
-            backup.unlink()
     except OSError as exc:
         for target in reversed(placed):
             try:
@@ -251,6 +275,20 @@ def _commit_outputs(project_root: Path, writes: Dict[Path, Dict[str, object]], d
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
+
+    cleanup = remove_backup or (lambda path: path.unlink())
+    warnings: List[str] = list(prior_warnings)
+    for backup in backups.values():
+        try:
+            cleanup(backup)
+        except OSError as exc:
+            warnings.append(f"committed evidence; backup cleanup deferred for {backup.name}: {exc}")
+    for backup in prior_backups:
+        try:
+            backup.unlink()
+        except OSError as exc:
+            warnings.append(f"stale backup cleanup remains deferred for {backup.name}: {exc}")
+    return warnings
 
 
 def _resolve_configuration(project_root: Path, args: argparse.Namespace) -> Tuple[str, Dict[str, object], str, str]:
@@ -411,9 +449,9 @@ def main() -> int:
             "classification_path": args.classification_path,
             "allow_legacy_graph_confidence": args.allow_legacy_graph_confidence,
         }
-        overrides["manuscript_path"] = str(_project_input_path(project_root, args.manuscript_path, "manuscript/main.md"))
-        overrides["references_path"] = str(_project_input_path(project_root, args.references_path, "references/REFERENCES.md"))
-        overrides["classification_path"] = str(_project_input_path(project_root, args.classification_path, "reviews/classification.md"))
+        overrides["manuscript_path"] = str(_read_only_input_path(project_root, args.manuscript_path, "manuscript/main.md"))
+        overrides["references_path"] = str(_read_only_input_path(project_root, args.references_path, "references/REFERENCES.md"))
+        overrides["classification_path"] = str(_read_only_input_path(project_root, args.classification_path, "reviews/classification.md"))
         applicability, config_metadata, reason_code, reason_detail = _resolve_configuration(project_root, args)
         if applicability == OUTCOME_READY:
             effective = config_metadata["effective_config"]
@@ -450,7 +488,7 @@ def main() -> int:
             deletes.append(noop_path)
         else:
             writes[noop_path] = noop_payload
-        _commit_outputs(project_root, writes, deletes)
+        output_warnings = _commit_outputs(project_root, writes, deletes)
     except (GateIOError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         print(json.dumps({"outcome": OUTCOME_MISCONFIGURED, "error_code": "SK20_IO", "message": str(exc)}, indent=2))
         return 2
@@ -461,6 +499,7 @@ def main() -> int:
         "readiness_report": str(readiness_path),
         "noop_report": str(noop_path) if noop_path.exists() else None,
         "reason_code": summary["recommended_noop_reason_code"],
+        "warnings": output_warnings,
     }
     print(json.dumps(envelope, indent=2))
 

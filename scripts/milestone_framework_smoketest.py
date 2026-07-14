@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -1367,6 +1368,113 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
             print(f"sk20/output_symlink: expected=2 actual={output_result.returncode}")
             if output_result.returncode != 2 or outside_output.read_text(encoding="utf-8") != "OUTSIDE-SENTINEL" or "Traceback" in output_result.stderr:
                 failures.append("sk20/output_symlink must refuse without outside mutation")
+
+        internal_evidence_project = directory / "sk20-internal-evidence-junction"
+        internal_evidence_fields = {**base, **na, "sk20_not_applicable_substitute_evidence": "evidence-alias/decision.md"}
+        _write_sk20_project(internal_evidence_project, internal_evidence_fields, graph=False)
+        internal_evidence = internal_evidence_project / "internal-evidence"
+        internal_evidence.mkdir()
+        (internal_evidence / "decision.md").write_text("# Internal decision\n", encoding="utf-8")
+        internal_link = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(internal_evidence_project / "evidence-alias"), str(internal_evidence)],
+            capture_output=True, text=True, check=False,
+        )
+        if internal_link.returncode == 0:
+            internal_result = subprocess.run(
+                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(internal_evidence_project), "--date", "2026-07-13", "--strict-exit"],
+                capture_output=True, text=True, check=False,
+            )
+            try:
+                internal_payload = json.loads(internal_result.stdout)
+            except json.JSONDecodeError:
+                internal_payload = {}
+            print(f"sk20/internal_evidence_junction: expected=MISCONFIGURED/4 actual={internal_payload.get('outcome')}/{internal_result.returncode}")
+            if internal_result.returncode != 4 or internal_payload.get("outcome") != "MISCONFIGURED":
+                failures.append("sk20/internal_evidence_junction must reject a raw-path reparse alias")
+
+    external_project = directory / "sk20-absolute-external-inputs"
+    _write_sk20_project(external_project, base)
+    external_inputs = directory / "external-read-inputs"
+    external_inputs.mkdir()
+    external_manuscript = external_inputs / "manuscript.md"
+    external_references = external_inputs / "REFERENCES.md"
+    external_classification = external_inputs / "classification.md"
+    external_manuscript.write_text("Last updated: 2026-07-13\n\nExternal grounded claim (Smith 2026).\n", encoding="utf-8")
+    external_references.write_text("Last updated: 2026-07-13\n", encoding="utf-8")
+    external_classification.write_text("# External classification\n", encoding="utf-8")
+    external_before = {path: path.read_bytes() for path in external_inputs.iterdir()}
+    external_result = subprocess.run(
+        [
+            sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(external_project),
+            "--date", "2026-07-13", "--strict-exit",
+            "--manuscript-path", str(external_manuscript),
+            "--references-path", str(external_references),
+            "--classification-path", str(external_classification),
+        ],
+        capture_output=True, text=True, check=False,
+    )
+    try:
+        external_payload = json.loads(external_result.stdout)
+    except json.JSONDecodeError:
+        external_payload = {}
+    print(f"sk20/absolute_external_inputs: expected=READY/0 actual={external_payload.get('outcome')}/{external_result.returncode}")
+    external_after = {path: path.read_bytes() for path in external_inputs.iterdir()}
+    if external_result.returncode != 0 or external_payload.get("outcome") != "READY" or external_after != external_before:
+        failures.append("sk20/absolute_external_inputs must remain compatible and read-only")
+
+    spec = importlib.util.spec_from_file_location("sk20_preflight_gate_transaction_test", SK20_GATE)
+    if spec is None or spec.loader is None:
+        failures.append("sk20/backup_cleanup_injection could not load gate module")
+    else:
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        transaction_project = directory / "sk20-backup-cleanup-injection"
+        transaction_project.mkdir()
+        transaction_reviews = transaction_project / "reviews"
+        transaction_reviews.mkdir()
+        readiness_target = transaction_reviews / "coupling_readiness_2026-07-13.json"
+        noop_target = transaction_reviews / "sk20_noop_2026-07-13.json"
+        readiness_target.write_text('{"old":"readiness"}\n', encoding="utf-8")
+        noop_target.write_text('{"old":"noop"}\n', encoding="utf-8")
+        cleanup_count = 0
+
+        def injected_cleanup(path: Path) -> None:
+            nonlocal cleanup_count
+            cleanup_count += 1
+            if cleanup_count == 2:
+                raise PermissionError("injected second-backup cleanup refusal")
+            path.unlink()
+
+        try:
+            warnings = module._commit_outputs(
+                transaction_project,
+                {readiness_target: {"new": "readiness"}, noop_target: {"new": "noop"}},
+                [],
+                remove_backup=injected_cleanup,
+            )
+            transaction_ok = (
+                json.loads(readiness_target.read_text(encoding="utf-8"))["new"] == "readiness"
+                and json.loads(noop_target.read_text(encoding="utf-8"))["new"] == "noop"
+                and bool(warnings)
+            )
+            module._commit_outputs(
+                transaction_project,
+                {readiness_target: {"next": "readiness"}, noop_target: {"next": "noop"}},
+                [],
+            )
+            transaction_ok = transaction_ok and not list(transaction_reviews.glob(".*.bak"))
+        except Exception as exc:
+            transaction_ok = (
+                cleanup_count >= 2
+                and
+                readiness_target.read_text(encoding="utf-8") == '{"old":"readiness"}\n'
+                and noop_target.read_text(encoding="utf-8") == '{"old":"noop"}\n'
+            )
+            if not transaction_ok:
+                failures.append(f"sk20/backup_cleanup_injection returned error plus partial loss: {exc}")
+        print(f"sk20/backup_cleanup_injection: coherent={transaction_ok}")
+        if not transaction_ok:
+            failures.append("sk20/backup_cleanup_injection must produce complete new or exact old state")
 
 
 def main() -> int:
