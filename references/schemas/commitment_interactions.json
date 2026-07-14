@@ -9,7 +9,7 @@
     {"pair": ["C-1", "C-4"], "class": "no-known-tension"},
     {"pair": ["C-1", "C-5"], "class": "meta-rule", "note": "C-5 operationalises C-1.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "meta-rule that operationalises"}},
     {"pair": ["C-1", "C-6"], "class": "no-known-tension"},
-    {"pair": ["C-1", "C-7"], "class": "declared-tension", "note": "A strongly Suchman (C-1) rewrite can flatten an author whose natural voice is not first-person; resolved by surfacing to the user, not silent default.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "can flatten an author"}},
+    {"pair": ["C-1", "C-7"], "class": "declared-tension", "note": "A strongly Suchman (C-1) rewrite can flatten an author whose natural voice is not first-person; resolved by surfacing to the user, not silent default.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "a C-1 rewrite toward first-person navigation can read as a C-7 idiolect-flattening"}},
     {"pair": ["C-1", "C-8"], "class": "declared-tension", "note": "M-6 (calibrated confidence) vs C-1 register force — open front in STYLE_COMMITMENTS §6.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "M-6 and C-1"}},
     {"pair": ["C-2", "C-3"], "class": "no-known-tension"},
     {"pair": ["C-2", "C-4"], "class": "no-known-tension"},
@@ -31,6 +31,6 @@
     {"pair": ["C-5", "C-8"], "class": "no-known-tension"},
     {"pair": ["C-6", "C-7"], "class": "no-known-tension"},
     {"pair": ["C-6", "C-8"], "class": "declared-tension", "note": "Upfront glossary (C-6 one-word-one-meaning) vs deferred derivation (C-8/M-1); reconciliation: keys-only glossaries pass; payoff-pre-stating entries flagged [MINOR — C-6↔C-8/M-1].", "finding_code": "[MINOR — C-6↔C-8/M-1 interaction]", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "C-6↔C-8/M-1"}},
-    {"pair": ["C-7", "C-8"], "class": "protective-overlap", "note": "Twin protective carve-outs: C-8's M-4/M-5 protection mirrors C-7's idiolect carve-out; both restrain the convergent craft checks.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "mirroring C-7"}}
+    {"pair": ["C-7", "C-8"], "class": "protective-overlap", "note": "Twin protective carve-outs: C-8's M-4/M-5 protection mirrors C-7's idiolect carve-out; both restrain the convergent craft checks.", "locus": {"file": "references/STYLE_COMMITMENTS.md", "anchor": "C-8 shields them the way C-7 shields idiolect"}}
   ]
 }
