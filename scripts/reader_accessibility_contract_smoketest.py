@@ -22,7 +22,7 @@ ACCESSIBILITY_CASES = (
     "documented_override_is_not_loaded",
     "h_prefilter_not_dispatched_by_canonical_runner",
     "g_proxy_mislabeled_as_construct_threshold",
-    "claimed_corpus_drift_probe_missing",
+    "corpus_drift_claim_matches_implementation",
     "transition_state_owned_by_normative_prose",
     "planner_trigger_28_names_only_a_to_f",
     "subcheck_set_disagrees_a_to_h_vs_j",
@@ -102,7 +102,7 @@ def main() -> int:
         candidates = json.loads((project / "reviews/reader_accessibility_candidates_contract.json").read_text(encoding="utf-8"))
         check(candidates["sub_checks"]["H"]["applicable"] and "orienting_clause" in candidates["sub_checks"]["H"]["ph2_scope"], "h_prefilter_not_dispatched_by_canonical_runner", "H Ph2 orienting role not dispatched")
         check(candidates["sub_checks"]["B"]["deterministic_disposition"] == "judgment_only" and candidates["sub_checks"]["D"]["deterministic_disposition"] == "candidate_probe", "h_prefilter_not_dispatched_by_canonical_runner", "deterministic disposition missing")
-        check(any(binding["path"].endswith("model_prose_corpus.md") for binding in candidates["source_bindings"]), "claimed_corpus_drift_probe_missing", "mandatory model corpus hash absent")
+        check(any(binding["path"].endswith("model_prose_corpus.md") for binding in candidates["source_bindings"]), "corpus_drift_claim_matches_implementation", "mandatory calibration corpus hash absent")
 
         (notes / "hedges.txt").write_text("# empty replacement\n", encoding="utf-8")
         malformed_override = subprocess.run([sys.executable, str(LOADER), "--project-root", str(project)], capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -141,11 +141,13 @@ def main() -> int:
     parity_surfaces = [
         "references/PHASE_PROTOCOL.md", "references/SAFEGUARD_LAYER.md",
         "references/DETERMINISTIC_CHECKS.md", "references/ARTEFACT_FRONTMATTER_SCHEMA.md",
+        "references/READER_ACCESSIBILITY.md", "references/ADVISORY_UNTIL_SCOPING.md",
         "references/templates/F1_evaluator_findings.md", "skills/accessibility-overlay/SKILL.md",
-        "skills/accessibility-overlay/references/sub_checks.md", "skills/run-phase-3-stability/SKILL.md",
+        "skills/accessibility-overlay/references/sub_checks.md", "skills/run-phase-3/SKILL.md", "skills/run-phase-3-stability/SKILL.md",
         "agents/evaluator.md",
+        "scripts/aggregate_h_calibration.py",
     ]
-    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "Sub-check J", "G/H/J", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150")
+    forbidden_semantics = ("advisory_until", "H_two_revision", "next_manuscript_at_ph3", "h_advisory_cycles", "Sub-check J", "G/H/J", "Ph.D.-root", "> 150", ">150", "> 200", ">200", "151–200", "201–300", "~150", "FPR < 0.30", "cycles_observed >= 2")
     for rel in parity_surfaces:
         prose = (ROOT / rel).read_text(encoding="utf-8")
         for phrase in forbidden_semantics:
@@ -153,7 +155,7 @@ def main() -> int:
     sentence = (ROOT / "skills" / "sentence-level-pass" / "SKILL.md").read_text(encoding="utf-8")
     check("M-4" in sentence and "M-5" in sentence and "rhythm" in sentence, "c8_m4_m5_guard_is_rhythm_not_cadence", "C-8 guard not relocated")
     hsrc = (ROOT / "scripts" / "check8_h_prefilter.py").read_text(encoding="utf-8")
-    check("_corpus_drift" in hsrc, "claimed_corpus_drift_probe_missing", "corpus drift probe absent")
+    check("_corpus_drift" not in hsrc and "corpus_drift" not in profile, "corpus_drift_claim_matches_implementation", "unverified corpus drift implementation claim remains")
     print(f"OK reader_accessibility_contract_smoketest ({len(ACCESSIBILITY_CASES)} cases)")
     return 0
 

@@ -215,7 +215,7 @@ Do not mark the section terminal here; the Planner composes the `TerminalSignoff
 
 ### Step 8.5 — Safeguard Layer
 
-Run all eight checks in `SAFEGUARD_LAYER.md` at Ph3 and Ph4. Run checks **1, 4, 5, and 8** at Ph2 — Check 8 (Reader-Experience / Prose Architecture) enters the Ph2 subset at v0.7.2 so accessibility is audited from the first Evaluator engagement rather than being deferred to Ph3 close-out (Ph.D.-root CLAUDE.md §13.3 / Hard Constraint #8). At Ph1 the Evaluator is dormant and this step does not run. Emit the output for each check in the format prescribed by `SAFEGUARD_LAYER.md`. Save as `reviews/safeguard_layer_results.md` and append as §10 of the consolidated report.
+Run all eight checks in `SAFEGUARD_LAYER.md` at Ph3 and Ph4 and checks **1, 4, 5, and 8** at Ph2. Reader-accessibility scope and enforcement come from the package profile plus `READER_ACCESSIBILITY.md`; no portfolio-root citation is operational. At Ph1 the Evaluator is dormant. Emit the prescribed package-local evidence.
 
 **Pay special attention to Check 4 (Contradiction Audit).** This is the highest-leverage check: list every pair of co-invoked theoretical sources and test whether their foundational commitments conflict. If a conflict is unacknowledged in the manuscript, flag as BLOCKER.
 

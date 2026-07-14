@@ -64,6 +64,7 @@ from __future__ import annotations
 import argparse
 import json
 import hashlib
+from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy
 import re
 import sys
 from pathlib import Path
@@ -1122,17 +1123,26 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
         try: sidecar = json.loads(check8_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.check8_evidence_path", f"invalid Check 8 JSON: {exc}")); return findings
-        subchecks = sidecar.get("subchecks", {})
-        if not isinstance(subchecks, dict) or set(subchecks) != set("ABCDEFGH"):
-            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_subcheck_counters", "Check 8 evidence must contain exactly A-H"))
-        else:
-            verdicts = list(subchecks.values())
-            aggregate = "BLOCKER" if "BLOCKER" in verdicts else ("MAJOR" if verdicts.count("MAJOR") >= 2 else ("BORDERLINE" if verdicts.count("MAJOR") == 1 else "CLEAN"))
-            expected = {"profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
-            if any(sidecar.get(key) != value for key, value in expected.items()) or aggregate != fm["check_8_aggregate"]:
-                findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
-            if sidecar.get("ve", {}).get("gate_contribution") != "none" or sidecar.get("ve", {}).get("finding_count") != fm["check_8_adjacent_advisories"]["ve_finding_count"]:
-                findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_adjacent_advisories", "VE evidence is missing, mismatched, or contributes to gate"))
+        try:
+            expected_resolved = resolve_policy(project_root)
+            resolved_payload = json.loads(profile_path.read_text(encoding="utf-8")) if profile_path else None
+            candidate_payload = json.loads(candidate_path.read_text(encoding="utf-8")) if candidate_path else None
+        except (PolicyError, OSError, json.JSONDecodeError) as exc:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy", f"resolved/candidate artifact invalid: {exc}")); return findings
+        if resolved_payload != expected_resolved:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.profile_path", "resolved profile is not exact fresh resolver output"))
+        if not isinstance(candidate_payload, dict) or candidate_payload.get("schema_version") != "reader_accessibility_candidates.v1" or candidate_payload.get("profile_path") != expected_resolved["profile_path"] or candidate_payload.get("profile_sha256") != expected_resolved["profile_sha256"] or candidate_payload.get("source_bindings") != expected_resolved["source_bindings"] or candidate_payload.get("candidate_only") is not True or set(candidate_payload.get("sub_checks", {})) != set("ABCDEFGH"):
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
+        transitions = sidecar.get("transition_snapshot", {})
+        transition_objects = {key: {"state": transitions.get(key)} for key in ("G", "H", "VE")}
+        try: computed = recompute_check8(sidecar, transition_objects)
+        except PolicyError as exc:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_subcheck_counters", f"invalid structured Check 8 evidence: {exc}")); return findings
+        expected = {"profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
+        if any(sidecar.get(key) != value for key, value in expected.items()) or computed["aggregate_verdict"] != fm["check_8_aggregate"] or sidecar.get("subcheck_verdicts") != computed["subcheck_verdicts"]:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
+        if len(sidecar.get("ve", {}).get("findings", [])) != fm["check_8_adjacent_advisories"]["ve_finding_count"]:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_adjacent_advisories", "VE evidence count mismatch"))
     return findings
 
 

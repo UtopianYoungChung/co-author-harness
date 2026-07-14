@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
@@ -846,6 +849,19 @@ def _validate_reader_accessibility_policy(
     if not isinstance(binding, dict):
         findings.append(_finding("MF-POLICY", base, "reader-accessibility policy binding must be an object"))
         return
+    try:
+        expected_resolved = resolve_policy(project_root)
+    except PolicyError as exc:
+        findings.append(_finding("MF-POLICY", base, f"cannot re-derive resolved policy: {exc}"))
+        return
+    for index, source in enumerate(binding.get("source_bindings", [])):
+        if not isinstance(source, dict) or source.get("scope") not in {"package", "project"} or not isinstance(source.get("path"), str):
+            findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "malformed scoped source binding")); return
+        owner = ROOT if source["scope"] == "package" else project_root
+        candidate = (owner / source["path"]).resolve()
+        try: candidate.relative_to(owner.resolve())
+        except ValueError:
+            findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "source binding escapes declared root")); return
     canonical = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
     expected_path = "references/policies/reader_accessibility.v1.json"
     if binding.get("profile_path") != expected_path or not canonical.is_file():
@@ -859,8 +875,8 @@ def _validate_reader_accessibility_policy(
     except (OSError, json.JSONDecodeError) as exc:
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
         resolved_payload = {}
-    if isinstance(resolved_payload, dict) and (resolved_payload.get("profile_path") != binding.get("profile_path") or resolved_payload.get("profile_sha256") != binding.get("profile_sha256") or resolved_payload.get("source_bindings") != binding.get("source_bindings")):
-        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "phase-state binding must exactly match resolver-emitted profile and source bindings"))
+    if resolved_payload != expected_resolved or binding.get("profile_path") != expected_resolved.get("profile_path") or binding.get("profile_sha256") != expected_resolved.get("profile_sha256") or binding.get("source_bindings") != expected_resolved.get("source_bindings") or binding.get("project_identity") != expected_resolved.get("project_identity"):
+        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy and phase-state binding must exactly equal fresh resolver output"))
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict):
             continue
@@ -893,13 +909,24 @@ def _validate_reader_accessibility_policy(
         if sequences != sorted(set(sequences)):
             findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.events", "transition events must be append-only with unique increasing sequence"))
         observed_events = [event for event in events if isinstance(event, dict) and event.get("event") == "policy_transition_observed" and event.get("approved") is True]
-        observed_count = max((event.get("observed_count", -1) for event in observed_events), default=0)
+        expected_counts = list(range(1, len(observed_events) + 1))
+        observed_counts = [event.get("observed_count") for event in observed_events]
+        identities = [(event.get("cycle_id"), event.get("manuscript_sha256"), event.get("content_sha256"), event.get("evidence_sha256")) for event in observed_events]
+        if observed_counts != expected_counts or len(identities) != len(set(identities)):
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.events", "each observation must advance exactly one count with distinct cycle/manuscript/content/evidence identity"))
+        observed_count = len(observed_events)
         if state.get("observed_count") != observed_count:
             findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.observed_count", "transition counter must derive from approved Planner observation events"))
+        expected_last = sequences[-1] if sequences else None
+        if state.get("last_event_sequence") != expected_last:
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}.last_event_sequence", "last event sequence must exactly project the append-only event stream"))
         if state.get("state") == "retired":
-            retirement = [event for event in events if isinstance(event, dict) and event.get("event") == "planner_transition_approved" and event.get("approved") is True and event.get("observed_count", 0) >= (required_count or 1)]
-            if state.get("observed_count", 0) < (required_count or 1) or not retirement:
+            retirement = [event for event in events if isinstance(event, dict) and event.get("event") == "planner_transition_approved" and event.get("approved") is True and event.get("observed_count") == required_count]
+            after_observations = bool(retirement and observed_events and retirement[-1].get("sequence", 0) > observed_events[-1].get("sequence", 0) and retirement[-1] is events[-1])
+            if state.get("observed_count") != required_count or len(retirement) != 1 or not after_observations:
                 findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}", "retirement requires the profile count and matching Planner-owned approval evidence"))
+        elif any(isinstance(event, dict) and event.get("event") == "planner_transition_approved" for event in events):
+            findings.append(_finding("MF-POLICY", f"{base}.transitions.{key}", "active transition cannot contain a retirement approval event"))
     def started(name: str) -> bool:
         record = milestones.get(name)
         return isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable", "legacy_unverified"}
@@ -936,14 +963,13 @@ def _validate_reader_accessibility_policy(
             except (OSError, json.JSONDecodeError) as exc:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"Check 8 sidecar must be canonical JSON: {exc}"))
                 continue
-            subchecks = sidecar.get("subchecks") if isinstance(sidecar, dict) else None
-            if not isinstance(subchecks, dict) or set(subchecks) != set("ABCDEFGH"):
-                findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 sidecar must carry exactly A-H verdicts"))
-                continue
-            severities = list(subchecks.values())
-            recomputed = "BLOCKER" if "BLOCKER" in severities else ("MAJOR" if severities.count("MAJOR") >= 2 else ("BORDERLINE" if severities.count("MAJOR") == 1 else "CLEAN"))
+            try:
+                recomputed = recompute_check8(sidecar, binding.get("transitions", {}))
+            except PolicyError as exc:
+                findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"invalid structured Check 8 evidence: {exc}")); continue
             expected_sidecar = {"profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
-            if any(sidecar.get(key) != value for key, value in expected_sidecar.items()) or sidecar.get("aggregate_verdict") != recomputed or sidecar.get("ve", {}).get("gate_contribution") != "none":
+            transition_snapshot = {key: binding.get("transitions", {}).get(key, {}).get("state") for key in ("G", "H", "VE")}
+            if any(sidecar.get(key) != value for key, value in expected_sidecar.items()) or sidecar.get("aggregate_verdict") != recomputed["aggregate_verdict"] or sidecar.get("subcheck_verdicts") != recomputed["subcheck_verdicts"] or sidecar.get("transition_snapshot") != transition_snapshot:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 content does not match evidence fields or recomputed A-H aggregate"))
 
 

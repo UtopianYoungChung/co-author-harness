@@ -91,7 +91,6 @@ def main() -> int:
         assert bundles[0].hedging.fired, "resolved hedges.txt was ignored"
         assert bundles[0].nominalisation.raw_count == 0, "terminology exclusion was ignored"
         assert bundles[0].binding_status == "blocker_candidate"
-        assert h._corpus_drift("stipulated, operationalizable", resolved["resolved_profile"], resolved["project_identity"]) == []
 
         clean = run_runner(project, "# Opening\n\nThis section turns to an example. Foobar foobar.")
         assert clean.returncode == 0 and "Traceback" not in clean.stdout + clean.stderr, clean.stdout + clean.stderr
@@ -115,11 +114,6 @@ def main() -> int:
         assert any(item["heading"] == "Incomplete" for item in d) and all(item["heading"] != "Complete" for item in d)
         assert probe_artifact["sub_checks"]["E"]["candidates"], "E positive probe did not fire"
         assert any("triadic_enumerator" in item["markers"] for item in probe_artifact["sub_checks"]["F"]["candidates"])
-
-        (notes / "directives.md").write_text("register_class: mixed\nproject_id: reader-accessibility-calibration\n", encoding="utf-8")
-        contributor = policy.resolve_policy(project)
-        drift = h._corpus_drift("stipulated, operationalizable", contributor["resolved_profile"], contributor["project_identity"])
-        assert drift and drift[0]["project_id"] == "reader-accessibility-calibration" and drift[0]["source_paths"]
 
         (notes / "directives.md").write_text("register_class: nonsense\n", encoding="utf-8")
         bad_register = run_runner(project, "Text.")

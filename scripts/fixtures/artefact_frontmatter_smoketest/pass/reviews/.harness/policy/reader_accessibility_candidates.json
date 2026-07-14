@@ -1,1 +1,15 @@
-{"schema_version":"reader_accessibility_candidates.v1","candidate_only":true}
+{
+  "schema_version": "reader_accessibility_candidates.v1",
+  "phase": "Ph3",
+  "profile_path": "references/policies/reader_accessibility.v1.json",
+  "profile_sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+  "source_bindings": [
+    {"scope":"package","path":"references/policies/reader_accessibility.v1.json","sha256":"e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977","role":"package_profile"},
+    {"scope":"package","path":"references/READER_ACCESSIBILITY.md","sha256":"e37ddf627b174ac9962a2e3bdbd27887ecebb6b0bcca43f4b848f74ba8df66d3","role":"package_contributor"},
+    {"scope":"package","path":"references/lay_term_lexicons.md","sha256":"c19969d1b74ebd1f799afee6289c4d46eb8273c3270ad3f61aa12d3a04b53396","role":"package_contributor"},
+    {"scope":"package","path":"references/examples/model_prose_corpus.md","sha256":"d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812","role":"package_contributor"}
+  ],
+  "candidate_only": true,
+  "evaluator_judgment_required": true,
+  "sub_checks": {"A":{},"B":{},"C":{},"D":{},"E":{},"F":{},"G":{},"H":{}}
+}

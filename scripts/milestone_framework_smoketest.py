@@ -624,13 +624,17 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
     milestones["M3"]["policy_evidence"] = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"]}
     for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
         manuscript = milestones[milestone]["artifacts"][0]
-        subchecks = {key: "CLEAN" for key in "ABCDEFGH"}
+        subchecks = {key: {"findings": []} for key in "ABCDEFGH"}
+        transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}
+        computed = policy.recompute_check8({"subchecks": subchecks, "ve": {"aggregate_member": False, "gate_contribution": "none", "findings": []}}, binding["transitions"])
         sidecar = {
             "schema_version": "check8_evidence.v1", "profile_path": binding["resolved_path"],
             "profile_sha256": binding["resolved_sha256"], "manuscript_path": manuscript["path"],
             "manuscript_sha256": manuscript["sha256"], "phase": phase,
-            "subchecks": subchecks, "ve": {"gate_contribution": "none", "finding_count": 0},
-            "aggregate_verdict": "CLEAN",
+            "transition_snapshot": transition_snapshot, "subchecks": subchecks,
+            "subcheck_verdicts": computed["subcheck_verdicts"],
+            "ve": {"aggregate_member": False, "gate_contribution": "none", "findings": []},
+            "aggregate_verdict": computed["aggregate_verdict"],
         }
         check_path = f"reviews/.harness/policy/{milestone.lower()}_check8.json"
         check_hash, _ = _write_bound_file(project, check_path, json.dumps(sidecar, indent=2) + "\n")
@@ -978,20 +982,33 @@ def _write_real_case(case: str, project: Path) -> None:
             ledger["events"] = [event for event in ledger["events"] if event["milestone"] in {"M1", "M2"} or (event["milestone"] == "M3" and event["event_type"] == "milestone_started")]
             _resequence_events(ledger)
         elif case == "policy_retired_without_events":
-            binding["transitions"]["H"] = {"state": "retired", "observed_count": 0, "events": []}
+            binding["transitions"]["H"] = {"state": "retired", "observed_count": 0, "last_event_sequence": None, "events": []}
         elif case == "policy_valid_retired_transition":
             event_hash, _ = _write_bound_file(project, "reviews/.harness/policy/h_transition.md", "Planner-approved H observations.\n")
             common = {"actor": "planner", "authority": "user", "approved": True, "evidence_path": "reviews/.harness/policy/h_transition.md", "evidence_sha256": event_hash}
-            binding["transitions"]["H"] = {"state": "retired", "observed_count": 2, "events": [
-                {**common, "sequence": 1, "event": "policy_transition_observed", "observed_count": 1},
-                {**common, "sequence": 2, "event": "policy_transition_observed", "observed_count": 2},
-                {**common, "sequence": 3, "event": "planner_transition_approved", "observed_count": 2},
+            binding["transitions"]["H"] = {"state": "retired", "observed_count": 2, "last_event_sequence": 3, "events": [
+                {**common, "sequence": 1, "event": "policy_transition_observed", "observed_count": 1, "cycle_id":"h-1", "manuscript_sha256":"1"*64, "content_sha256":"2"*64},
+                {**common, "sequence": 2, "event": "policy_transition_observed", "observed_count": 2, "cycle_id":"h-2", "manuscript_sha256":"1"*64, "content_sha256":"3"*64},
+                {**common, "sequence": 3, "event": "planner_transition_approved", "observed_count": 2, "cycle_id":"h-retire", "manuscript_sha256":"1"*64, "content_sha256":"4"*64},
             ]}
+            import reader_accessibility_policy as ra_policy
+            for name in ("M4", "M5"):
+                evidence = milestones[name]["policy_evidence"]; sidecar_path = project / evidence["check8_path"]
+                sidecar = json.loads(sidecar_path.read_text(encoding="utf-8")); sidecar["transition_snapshot"]["H"] = "retired"
+                computed = ra_policy.recompute_check8(sidecar, binding["transitions"])
+                sidecar["subcheck_verdicts"] = computed["subcheck_verdicts"]; sidecar["aggregate_verdict"] = computed["aggregate_verdict"]
+                new_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
+                evidence["check8_sha256"] = new_hash; evidence["aggregate_verdict"] = computed["aggregate_verdict"]
+            predecessor = {"path": milestones["M3"]["handoff"]["packet_path"], "sha256": milestones["M3"]["handoff"]["packet_sha256"]}
+            for name in ("M4", "M5"):
+                evidence = milestones[name]["policy_evidence"]
+                _rewrite_packet(project, ledger, name, lambda packet, evidence=evidence, predecessor=predecessor: packet.update({"policy_evidence": evidence, "predecessor_packet": predecessor}))
+                predecessor = {"path": milestones[name]["handoff"]["packet_path"], "sha256": milestones[name]["handoff"]["packet_sha256"]}
         elif case == "policy_forged_check8_content":
             evidence = milestones["M4"]["policy_evidence"]
             sidecar_path = project / evidence["check8_path"]
             sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
-            sidecar["subchecks"]["A"] = "BLOCKER"
+            sidecar["subchecks"]["A"]["findings"] = [{"finding_id":"forged-a","severity":"BLOCKER","independence_group":"forged"}]
             forged_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
             evidence["check8_sha256"] = forged_hash
             _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))

@@ -6,7 +6,7 @@
 
 **Pattern (minimal)**
 
-1. **Scope** — which sub-checks or rows are advisory (name the checker id, e.g. Check 8 Sub-check G, `advisory_until: next_manuscript_at_ph3`).
+1. **Scope** — name the checker and its profile transition key; never encode live state in prose.
 2. **Condition** — the exact disjunction that retires the flag (e.g. “next Ph1 classification file dated after 2026-04-23” or “user-published `G_binding: full` in `directives.md`”).
 3. **Artefact** — one file carries the author-facing sentence; the other file carries the machine mirror (`advisory_scope_key` in frontmatter, if your project uses it).
 

@@ -78,7 +78,7 @@ def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0)
 
 
 def validate_profile(profile: dict[str, Any]) -> None:
-    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "corpus_drift"}
+    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
     _object(profile, "profile", required)
     def reject_self_hash(value: Any, path: str = "profile") -> None:
         if isinstance(value, dict):
@@ -102,6 +102,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
     common = {"name", "scope", "deterministic_disposition", "gate_contribution", "binds_at", "advisory_at"}
     for letter, value in checks.items():
         check = _object(value, f"sub_checks.{letter}", common, {"threshold_key", "do_not_flag_guards", "ph2_role_overrides"})
+        for key in ("name", "scope"):
+            if not isinstance(check[key], str) or not check[key].strip(): raise PolicyError(f"sub_checks.{letter}.{key} must be non-empty")
         if check["deterministic_disposition"] not in {"candidate_probe", "judgment_only"}:
             raise PolicyError(f"sub_checks.{letter}.deterministic_disposition is invalid")
         expected_gate = "aggregate_after_transition" if letter in {"G", "H"} else "aggregate"
@@ -112,6 +114,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
             if any(v not in PHASES for v in values):
                 raise PolicyError(f"sub_checks.{letter}.{key} contains invalid phase")
     aggregate = _object(profile["aggregate"], "aggregate", {"members", "clean", "borderline", "major", "blocker"})
+    for key in ("clean", "borderline", "major", "blocker"):
+        if not isinstance(aggregate[key], str) or not aggregate[key].strip(): raise PolicyError(f"aggregate.{key} must be non-empty")
     if set(profile["sub_checks"]) != set("ABCDEFGH") or aggregate["members"] != list("ABCDEFGH"):
         raise PolicyError("Check 8 aggregate membership must be exactly A-H")
     adjacent = _object(profile["adjacent_advisory_checks"], "adjacent_advisory_checks", {"VE"})
@@ -124,6 +128,7 @@ def validate_profile(profile: dict[str, Any]) -> None:
         raise PolicyError("provisional cadence decision is malformed")
     if cadence["candidate_semantics"] != "nomination_only":
         raise PolicyError("thresholds.cadence.candidate_semantics must be nomination_only")
+    for key in ("turn_point_candidates", "functional_classes", "internal_sentence_break_signals"): _strings(cadence[key], f"thresholds.cadence.{key}")
     bands = cadence["bands"]
     if not isinstance(bands, list) or len(bands) != 3:
         raise PolicyError("thresholds.cadence.bands must contain three bands")
@@ -152,7 +157,9 @@ def validate_profile(profile: dict[str, Any]) -> None:
     stages = _object(jargon["new_domain_terms_per_paragraph"], "thresholds.jargon.new_domain_terms_per_paragraph", {"P0", "P1", "P2"})
     for key, value in stages.items(): _number(value, f"thresholds.jargon.new_domain_terms_per_paragraph.{key}", integer=True)
     consolidation = _object(thresholds["consolidation"], "thresholds.consolidation", {"construct_accumulation", "prior_sections_dependency", "candidate_gap_words", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words", "deterministic_gap_is_proxy_only"})
-    _object(consolidation["candidate_gap_words"], "thresholds.consolidation.candidate_gap_words", {"P0", "P1", "P2"})
+    gaps = _object(consolidation["candidate_gap_words"], "thresholds.consolidation.candidate_gap_words", {"P0", "P1", "P2"})
+    for key, value in gaps.items(): _number(value, f"thresholds.consolidation.candidate_gap_words.{key}", integer=True)
+    for key in ("construct_accumulation", "prior_sections_dependency", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words"): _number(consolidation[key], f"thresholds.consolidation.{key}")
     if consolidation["deterministic_gap_is_proxy_only"] is not True: raise PolicyError("consolidation proxy flag must be true")
     register = _object(thresholds["register"], "thresholds.register", {"minimum_positive_markers", "positive_marker_count", "nominalisation_density_candidate", "prepositional_run_candidate", "hedges_per_100_words_candidate", "functional_removability_required", "severity_model"})
     for key, value in register.items():
@@ -164,11 +171,13 @@ def validate_profile(profile: dict[str, Any]) -> None:
     if severity_model["ph2_orienting_zero_positive"] != "blocker_candidate" or not 0 < severity_model["nontechnical_blocker_major_fraction_above"] < 1: raise PolicyError("thresholds.register.severity_model is invalid")
     transitions = _object(profile["transitions"], "transitions", {"G", "H", "VE"})
     for key, value in transitions.items():
-        required_transition = {"meaning", "required_observed_count", "retirement_event", "workflow_effect_while_active", "state_owner"}
+        required_transition = {"meaning", "required_observed_count", "retirement_event", "workflow_effect_while_active", "stability_mode_effect", "state_owner"}
         optional_transition = {"workflow_effect_after_retirement"}
         transition = _object(value, f"transitions.{key}", required_transition, optional_transition)
         _number(transition["required_observed_count"], f"transitions.{key}.required_observed_count", integer=True, minimum=1)
         if transition["retirement_event"] != "planner_transition_approved": raise PolicyError(f"transitions.{key}.retirement_event invalid")
+        expected_owner = f"phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.{key}"
+        if transition["state_owner"] != expected_owner: raise PolicyError(f"transitions.{key}.state_owner invalid")
     scope = _object(profile["register_scope"], "register_scope", {"technical", "mixed", "non-technical"})
     for key, value in scope.items(): _strings(value, f"register_scope.{key}")
     lexicons = _object(profile["lexicons"], "lexicons", {"plain_connectives", "latinate_whitelist", "hedges", "nominalisation_suffixes", "prepositions"})
@@ -183,14 +192,9 @@ def validate_profile(profile: dict[str, Any]) -> None:
         _object(contract[key], f"override_contract.{key}", {"path", "polarity"})
         if contract[key]["path"] != expected_paths[key]: raise PolicyError(f"override_contract.{key} path is invalid")
     _strings(profile["remediation_order"], "remediation_order")
-    corpus = _object(profile["corpus_drift"], "corpus_drift", {"implemented", "dispatch", "source_paths", "declared_contributors"})
-    if corpus["implemented"] is not True or corpus["dispatch"] != "scripts/check8_h_prefilter.py": raise PolicyError("corpus_drift dispatch is invalid")
-    _strings(corpus["source_paths"], "corpus_drift.source_paths")
-    if not isinstance(corpus["declared_contributors"], list) or not corpus["declared_contributors"]: raise PolicyError("corpus_drift.declared_contributors must be non-empty")
-    for index, contributor in enumerate(corpus["declared_contributors"]):
-        item = _object(contributor, f"corpus_drift.declared_contributors[{index}]", {"project_id", "source_paths", "source_phrases"})
-        _strings(item["source_paths"], f"corpus_drift.declared_contributors[{index}].source_paths")
-        _strings(item["source_phrases"], f"corpus_drift.declared_contributors[{index}].source_phrases")
+    recurrence = _object(profile["recurrence"], "recurrence", {"project_lesson_consecutive_rounds", "package_lesson_distinct_projects", "state_owner"})
+    for key in ("project_lesson_consecutive_rounds", "package_lesson_distinct_projects"): _number(recurrence[key], f"recurrence.{key}", integer=True, minimum=1)
+    if not isinstance(recurrence["state_owner"], str) or not recurrence["state_owner"].strip(): raise PolicyError("recurrence.state_owner must be non-empty")
     if profile.get("decision_status") != "provisional":
         raise PolicyError("ADR-ACCESS-01 has no proven acceptance; status must remain provisional")
     serialized = json.dumps(profile).lower()
@@ -235,6 +239,38 @@ def evaluate_cadence(word_count: int, functional_turn_points: int, internal_brea
     else:
         severity = "CLEAN"
     return {"word_count": word_count, "required_functional_turn_points": required, "functional_turn_points": functional_turn_points, "internal_break_signals": internal_break_signals, "current_severity": severity, "mandatory_split": mandatory_split}
+
+
+def recompute_check8(evidence: dict[str, Any], transitions: dict[str, Any]) -> dict[str, Any]:
+    """Validate structured Check 8 findings and recompute transition-aware A-H aggregate."""
+    if not isinstance(evidence, dict) or not isinstance(evidence.get("subchecks"), dict) or set(evidence["subchecks"]) != set("ABCDEFGH"):
+        raise PolicyError("Check 8 evidence must contain exactly A-H subcheck objects")
+    ve = evidence.get("ve")
+    if not isinstance(ve, dict) or ve.get("aggregate_member") is not False or ve.get("gate_contribution") != "none" or not isinstance(ve.get("findings"), list):
+        raise PolicyError("VE must be a nonaggregate advisory with a findings array")
+    allowed = {"CLEAN": 0, "MINOR": 1, "MAJOR": 2, "BLOCKER": 3}
+    included_findings: list[dict[str, Any]] = []
+    verdicts: dict[str, str] = {}
+    for letter in "ABCDEFGH":
+        row = evidence["subchecks"][letter]
+        if not isinstance(row, dict) or set(row) != {"findings"} or not isinstance(row["findings"], list):
+            raise PolicyError(f"subchecks.{letter} must contain only a findings array")
+        severities = []
+        seen_ids = set()
+        for finding in row["findings"]:
+            if not isinstance(finding, dict) or set(finding) != {"finding_id", "severity", "independence_group"}:
+                raise PolicyError(f"subchecks.{letter} finding shape is invalid")
+            if finding["severity"] not in allowed or not all(isinstance(finding[key], str) and finding[key].strip() for key in ("finding_id", "independence_group")):
+                raise PolicyError(f"subchecks.{letter} finding severity or identity is invalid")
+            if finding["finding_id"] in seen_ids: raise PolicyError(f"subchecks.{letter} duplicate finding_id")
+            seen_ids.add(finding["finding_id"]); severities.append(finding["severity"])
+        verdicts[letter] = max(severities, key=lambda item: allowed[item]) if severities else "CLEAN"
+        include = letter not in {"G", "H"} or transitions.get(letter, {}).get("state") == "retired"
+        if include: included_findings.extend(row["findings"])
+    blockers = {f["independence_group"] for f in included_findings if f["severity"] == "BLOCKER"}
+    majors = {f["independence_group"] for f in included_findings if f["severity"] == "MAJOR"}
+    aggregate = "BLOCKER" if blockers else ("MAJOR" if len(majors) >= 2 else ("BORDERLINE" if len(majors) == 1 else "CLEAN"))
+    return {"subcheck_verdicts": verdicts, "aggregate_verdict": aggregate, "included_members": [letter for letter in "ABCDEFGH" if letter not in {"G", "H"} or transitions.get(letter, {}).get("state") == "retired"]}
 
 
 def update_persistence(previous_content_sha256: str | None, current_content_sha256: str, prior_unchanged_rounds: int, current_severity: str, approved_revision_evidence: list[dict[str, Any]] | None = None, previous_approval_sequence: int | None = None) -> dict[str, Any]:
@@ -305,7 +341,7 @@ def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_r
     try: relative = path.relative_to(project_root.resolve()).as_posix()
     except ValueError as exc: raise PolicyError("resolved artifact escapes project root") from exc
     if not path.is_file(): raise PolicyError("resolved artifact is missing")
-    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "transitions": {key: {"state": "active", "observed_count": 0, "events": []} for key in ("G", "H", "VE")}}
+    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
 
 
 def main(argv: list[str] | None = None) -> int:

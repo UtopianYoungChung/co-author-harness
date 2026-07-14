@@ -1,0 +1,23 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"check8_evidence.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","profile_path","profile_sha256","manuscript_path","manuscript_sha256","phase","transition_snapshot","subchecks","subcheck_verdicts","ve","aggregate_verdict"],
+  "properties":{
+    "schema_version":{"const":"check8_evidence.v1"},
+    "profile_path":{"type":"string","minLength":1},"profile_sha256":{"$ref":"#/$defs/sha"},
+    "manuscript_path":{"type":"string","minLength":1},"manuscript_sha256":{"$ref":"#/$defs/sha"},
+    "phase":{"enum":["Ph2","Ph3","Ph4"]},
+    "transition_snapshot":{"type":"object","additionalProperties":false,"required":["G","H","VE"],"properties":{"G":{"$ref":"#/$defs/state"},"H":{"$ref":"#/$defs/state"},"VE":{"$ref":"#/$defs/state"}}},
+    "subchecks":{"type":"object","additionalProperties":false,"required":["A","B","C","D","E","F","G","H"],"properties":{"A":{"$ref":"#/$defs/subcheck"},"B":{"$ref":"#/$defs/subcheck"},"C":{"$ref":"#/$defs/subcheck"},"D":{"$ref":"#/$defs/subcheck"},"E":{"$ref":"#/$defs/subcheck"},"F":{"$ref":"#/$defs/subcheck"},"G":{"$ref":"#/$defs/subcheck"},"H":{"$ref":"#/$defs/subcheck"}}},
+    "subcheck_verdicts":{"type":"object","additionalProperties":false,"required":["A","B","C","D","E","F","G","H"],"properties":{"A":{"$ref":"#/$defs/severity"},"B":{"$ref":"#/$defs/severity"},"C":{"$ref":"#/$defs/severity"},"D":{"$ref":"#/$defs/severity"},"E":{"$ref":"#/$defs/severity"},"F":{"$ref":"#/$defs/severity"},"G":{"$ref":"#/$defs/severity"},"H":{"$ref":"#/$defs/severity"}}},
+    "ve":{"type":"object","additionalProperties":false,"required":["aggregate_member","gate_contribution","findings"],"properties":{"aggregate_member":{"const":false},"gate_contribution":{"const":"none"},"findings":{"type":"array","items":{"$ref":"#/$defs/finding"}}}},
+    "aggregate_verdict":{"enum":["CLEAN","BORDERLINE","MAJOR","BLOCKER"]}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^[0-9a-f]{64}$"},"state":{"enum":["active","retired"]},
+    "severity":{"enum":["CLEAN","MINOR","MAJOR","BLOCKER"]},
+    "finding":{"type":"object","additionalProperties":false,"required":["finding_id","severity","independence_group"],"properties":{"finding_id":{"type":"string","minLength":1},"severity":{"enum":["MINOR","MAJOR","BLOCKER"]},"independence_group":{"type":"string","minLength":1}}},
+    "subcheck":{"type":"object","additionalProperties":false,"required":["findings"],"properties":{"findings":{"type":"array","items":{"$ref":"#/$defs/finding"}}}}
+  }
+}

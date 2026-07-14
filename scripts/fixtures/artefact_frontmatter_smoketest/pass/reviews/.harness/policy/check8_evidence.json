@@ -1,10 +1,13 @@
 {
-  "schema_version": "check8_evidence.v1",
-  "profile_path": "reviews/.harness/policy/reader_accessibility_resolved.json",
-  "profile_sha256": "b3752dae773622cd65ac018d1e7011c38b5ded03a3ed57b131edc30c248daefb",
-  "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
-  "phase": "Ph3",
-  "subchecks": {"A": "CLEAN", "B": "CLEAN", "C": "CLEAN", "D": "CLEAN", "E": "CLEAN", "F": "CLEAN", "G": "CLEAN", "H": "CLEAN"},
-  "ve": {"gate_contribution": "none", "finding_count": 0},
-  "aggregate_verdict": "CLEAN"
+  "schema_version":"check8_evidence.v1",
+  "profile_path":"reviews/.harness/policy/reader_accessibility_resolved.json",
+  "profile_sha256":"375cadc7594f36f8a3f3517d3343f1e0ff691a951733faa1f379c7ccc60cd974",
+  "manuscript_path":"manuscript/main.tex",
+  "manuscript_sha256":"675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
+  "phase":"Ph3",
+  "transition_snapshot":{"G":"active","H":"active","VE":"active"},
+  "subchecks":{"A":{"findings":[]},"B":{"findings":[]},"C":{"findings":[]},"D":{"findings":[]},"E":{"findings":[]},"F":{"findings":[]},"G":{"findings":[]},"H":{"findings":[]}},
+  "subcheck_verdicts":{"A":"CLEAN","B":"CLEAN","C":"CLEAN","D":"CLEAN","E":"CLEAN","F":"CLEAN","G":"CLEAN","H":"CLEAN"},
+  "ve":{"aggregate_member":false,"gate_contribution":"none","findings":[]},
+  "aggregate_verdict":"CLEAN"
 }

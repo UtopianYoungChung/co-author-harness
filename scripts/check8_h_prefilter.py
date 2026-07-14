@@ -38,13 +38,6 @@ from typing import Any, List, Tuple
 from reader_accessibility_policy import load_profile
 
 
-def _corpus_drift(manuscript_text: str, profile: dict[str, Any], project_identity: str | None) -> list[dict[str, Any]]:
-    """Return deterministic source-phrase presence candidates for H adjudication."""
-    contributor = next((item for item in profile["corpus_drift"]["declared_contributors"] if item["project_id"] == project_identity), None)
-    if contributor is None:
-        return []
-    return [{"project_id": project_identity, "source_paths": contributor["source_paths"], "source_phrase": phrase, "present": phrase.casefold() in manuscript_text.casefold(), "candidate_status": "present" if phrase.casefold() in manuscript_text.casefold() else "drift_candidate"} for phrase in contributor["source_phrases"]]
-
 # Sentence splitter — naive but sufficient for prepositional-run probe.
 # Splits on `.`/`!`/`?` followed by whitespace + capital, with allowance
 # for common abbreviation patterns. Not perfect; the prepositional-run
@@ -110,6 +103,8 @@ class ProbeResult:
 class PassageBundle:
     locator: str
     passage_role: str
+    role_confidence: str
+    role_reason: str
     binding_status: str
     word_count: int
     nominalisation: ProbeResult
@@ -199,19 +194,49 @@ def _probe_hedging(text: str, wc: int, profile: dict[str, Any]) -> ProbeResult:
     )
 
 
-def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, Any], passage_role: str, binding_status: str) -> PassageBundle:
+def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, Any], passage_role: str, binding_status: str, role_confidence: str = "high", role_reason: str = "explicit caller role") -> PassageBundle:
     """Run all three probes on a single passage (paragraph-or-equivalent)."""
     probe_text = _tex_simplify(text) if is_tex else text
     wc = _word_count(probe_text)
     return PassageBundle(
         locator=locator,
         passage_role=passage_role,
+        role_confidence=role_confidence,
+        role_reason=role_reason,
         binding_status=binding_status,
         word_count=wc,
         nominalisation=_probe_nominalisation(probe_text, wc, profile),
         prep_run=_probe_prep_run(probe_text, profile),
         hedging=_probe_hedging(probe_text, wc, profile),
     )
+
+
+def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
+    """Nominate transparent structural-role candidates; overlay confirms function."""
+    is_tex = path.suffix.lower() in {".tex", ".ltx"}
+    heading_re = re.compile(r"(?m)^(#{1,6})\s+(.+)$") if not is_tex else re.compile(r"(?m)^\\(chapter|section|subsection|subsubsection)\*?\{([^}]+)\}")
+    matches = list(heading_re.finditer(text))
+    entries: list[dict[str, str]] = []
+    for index, match in enumerate(matches):
+        title = match.group(2).strip()
+        entries.append({"text": match.group(0), "locator": f"§{title}", "role": "section_framing", "confidence": "high", "reason": "explicit Markdown/TeX heading"})
+        start = match.end(); end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[start:end].strip()
+        if not body: continue
+        lower_title = title.casefold(); lower = body.casefold()
+        candidates: list[tuple[str,str,str]] = []
+        if lower_title in {"abstract", "introduction", "conclusion"}: candidates.append((lower_title, "high", f"explicit {title} heading"))
+        if re.search(r"\b(having established|previous section|so far|up to this point)\b", lower): candidates.append(("orienting_clause", "high", "backward-orienting cue"))
+        if re.search(r"\b(this section (?:shows|argues|develops|examines)|we (?:show|argue)|i (?:show|argue))\b", lower): candidates.append(("contribution_clause", "high", "forward contribution cue"))
+        if re.search(r"\b(for example|to illustrate|consider)\b", lower): candidates.append(("worked_example_vignette", "medium", "example cue"))
+        if re.search(r"\b(in summary|to consolidate|taken together|these constructs)\b", lower): candidates.append(("consolidation_anchor", "medium", "consolidation cue"))
+        if re.search(r"\b(however|by contrast|turning now|the next section)\b", lower): candidates.append(("inter_section_transition", "medium", "transition cue"))
+        if not candidates: candidates.append(("technical_body", "low", "no deterministic structural-role cue; overlay must classify"))
+        for role, confidence, reason in candidates:
+            entries.append({"text": body, "locator": f"§{title}", "role": role, "confidence": confidence, "reason": reason})
+    if not matches and text.strip():
+        entries.append({"text": text.strip(), "locator": "line 1", "role": "technical_body", "confidence": "low", "reason": "no heading geometry; overlay must classify"})
+    return entries
 
 
 def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, phase: str = "Ph3", register_class: str = "technical", passage_roles: list[str] | None = None) -> List[PassageBundle]:
@@ -221,22 +246,26 @@ def analyse(text: str, path: Path, profile: dict[str, Any] | None = None, *, pha
     bundles: List[PassageBundle] = []
     # Walk paragraphs at offsets so we can build per-paragraph locators.
     cursor = 0
-    paragraphs = _split_paragraphs(text)
-    roles = passage_roles or ["orienting_clause" if index == 0 else "technical_body" for index in range(len(paragraphs))]
-    for para, role in zip(paragraphs, roles):
+    if passage_roles is not None:
+        paragraphs = _split_paragraphs(text)
+        candidates = [{"text": para, "locator": "", "role": role, "confidence": "high", "reason": "explicit caller role"} for para, role in zip(paragraphs, passage_roles)]
+    else:
+        candidates = nominate_passage_roles(text, path)
+    for candidate in candidates:
+        para, role = candidate["text"], candidate["role"]
         idx = text.find(para, cursor)
         if idx < 0:
             idx = cursor
         loc = _find_paragraph_locator(text, idx)
         allowed_roles = active["register_scope"][register_class]
         in_scope = "all_passages" in allowed_roles or role in allowed_roles
-        if not in_scope:
-            cursor = idx + len(para)
-            continue
+        if not in_scope and role != "technical_body":
+            cursor = idx + len(para); continue
         binding = "binding" if phase in active["sub_checks"]["H"]["binds_at"] else "advisory"
+        if not in_scope: binding = "scope_candidate"
         if phase == "Ph2" and role in active["sub_checks"]["H"].get("ph2_role_overrides", {}):
             binding = active["sub_checks"]["H"]["ph2_role_overrides"][role]
-        bundle = analyse_passage(para, loc, is_tex, active, role, binding)
+        bundle = analyse_passage(para, candidate.get("locator") or loc, is_tex, active, role, binding, candidate["confidence"], candidate["reason"])
         bundles.append(bundle)
         cursor = idx + len(para)
     return bundles

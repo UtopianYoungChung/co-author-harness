@@ -1,1 +1,498 @@
-{"contract_version":"1.0.0","fixture":true}
+{
+  "contract_version": "1.0.0",
+  "profile_path": "references/policies/reader_accessibility.v1.json",
+  "profile_sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+  "register_class": "technical",
+  "project_identity": null,
+  "resolved_profile": {
+    "schema_version": "1.0.0",
+    "profile_version": "1.0.0",
+    "decision_status": "provisional",
+    "decision_record": "ADR-ACCESS-01",
+    "normative_authority": "references/READER_ACCESSIBILITY.md",
+    "package_contributors": [
+      "references/READER_ACCESSIBILITY.md",
+      "references/lay_term_lexicons.md",
+      "references/examples/model_prose_corpus.md"
+    ],
+    "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
+    "phase_values": [
+      "Ph1",
+      "Ph2",
+      "Ph3",
+      "Ph4"
+    ],
+    "passage_roles": [
+      "orienting_clause",
+      "contribution_clause",
+      "section_framing",
+      "inter_section_transition",
+      "worked_example_vignette",
+      "consolidation_anchor",
+      "abstract",
+      "introduction",
+      "conclusion",
+      "technical_body"
+    ],
+    "sub_checks": {
+      "A": {
+        "name": "paragraph_cadence",
+        "scope": "paragraph",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.cadence"
+      },
+      "B": {
+        "name": "sentence_rhythm",
+        "scope": "passage",
+        "deterministic_disposition": "judgment_only",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.rhythm",
+        "do_not_flag_guards": [
+          "C-8/M-4 demonstrative anaphora",
+          "C-8/M-5 cadential verdict"
+        ]
+      },
+      "C": {
+        "name": "first_use_definition",
+        "scope": "section",
+        "deterministic_disposition": "judgment_only",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ]
+      },
+      "D": {
+        "name": "section_signpost",
+        "scope": "section_opening",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ]
+      },
+      "E": {
+        "name": "jargon_discipline",
+        "scope": "paragraph",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.jargon"
+      },
+      "F": {
+        "name": "worked_example",
+        "scope": "density_spike",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ]
+      },
+      "G": {
+        "name": "consolidation_anchor",
+        "scope": "full_manuscript",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate_after_transition",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.consolidation"
+      },
+      "H": {
+        "name": "register_appropriateness",
+        "scope": "resolved_passages",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate_after_transition",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "ph2_role_overrides": {
+          "orienting_clause": "blocker_candidate"
+        },
+        "threshold_key": "thresholds.register"
+      }
+    },
+    "aggregate": {
+      "members": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H"
+      ],
+      "clean": "no MAJOR or BLOCKER among contributing members",
+      "borderline": "exactly one independent MAJOR and no BLOCKER",
+      "major": "two or more independent MAJOR findings and no BLOCKER",
+      "blocker": "one or more contributing BLOCKER findings"
+    },
+    "adjacent_advisory_checks": {
+      "VE": {
+        "name": "verdict_edge_discipline",
+        "scope": "sentence_clause",
+        "gate_contribution": "none",
+        "aggregate_member": false,
+        "route": "Reflector Phase 2g recurrence only",
+        "transition_key": "transitions.VE",
+        "follow_up_home": "C-8/M-6 verdict calibration"
+      }
+    },
+    "thresholds": {
+      "cadence": {
+        "unit": "paragraph_words",
+        "hard_ceiling_words": 300,
+        "bands": [
+          {
+            "min_words": 0,
+            "max_words": 150,
+            "required_functional_turn_points": 0,
+            "deficit_severity": "CLEAN"
+          },
+          {
+            "min_words": 151,
+            "max_words": 200,
+            "required_functional_turn_points": 1,
+            "deficit_severity": "MINOR"
+          },
+          {
+            "min_words": 201,
+            "max_words": 300,
+            "required_functional_turn_points": 2,
+            "deficit_severity": "MAJOR"
+          }
+        ],
+        "turn_point_candidates": [
+          "however",
+          "but",
+          "by contrast",
+          "on the other hand",
+          "for example",
+          "to illustrate",
+          "consider",
+          "yet",
+          "instead",
+          "rather",
+          "at this point",
+          "the key shift",
+          "the counterpoint"
+        ],
+        "candidate_semantics": "nomination_only",
+        "functional_confirmation_required": true,
+        "functional_classes": [
+          "transition",
+          "counter_move",
+          "worked_example",
+          "thematic_refocus"
+        ],
+        "internal_sentence_break_signals": [
+          "em_dash",
+          "colon",
+          "semicolon"
+        ],
+        "above_ceiling": {
+          "current_severity_floor": "MAJOR",
+          "mandatory_split": true,
+          "blocker_when": "zero functional turn-points AND zero internal sentence-break signals"
+        },
+        "persistence": {
+          "identity_key": "paragraph_content_sha256",
+          "reset_on_content_hash_change": true,
+          "changes_current_severity": false,
+          "planner_workflow_trigger_after_unchanged_rounds": 2
+        }
+      },
+      "rhythm": {
+        "minimum_sentence_count": 4,
+        "mean_words_above": 28,
+        "standard_deviation_below": 6,
+        "short_sentence_words_at_most": 12,
+        "long_sentence_words_at_least": 25
+      },
+      "jargon": {
+        "new_domain_terms_per_paragraph": {
+          "P0": 3,
+          "P1": 2,
+          "P2": 1
+        }
+      },
+      "consolidation": {
+        "construct_accumulation": 3,
+        "prior_sections_dependency": 2,
+        "candidate_gap_words": {
+          "P0": 800,
+          "P1": 700,
+          "P2": 600
+        },
+        "candidate_gap_paragraphs": 6,
+        "short_manuscript_guidance_words": 3000,
+        "long_manuscript_candidate_words": 5000,
+        "deterministic_gap_is_proxy_only": true
+      },
+      "register": {
+        "minimum_positive_markers": 2,
+        "positive_marker_count": 4,
+        "nominalisation_density_candidate": 0.08,
+        "prepositional_run_candidate": 3,
+        "hedges_per_100_words_candidate": 2.0,
+        "functional_removability_required": true,
+        "severity_model": {
+          "minor_negative_markers_min": 1,
+          "minor_negative_markers_max": 2,
+          "major_consecutive_passages": 3,
+          "weighted_roles": [
+            "orienting_clause",
+            "consolidation_anchor",
+            "inter_section_transition"
+          ],
+          "ph2_orienting_zero_positive": "blocker_candidate",
+          "nontechnical_blocker_major_fraction_above": 0.5
+        }
+      }
+    },
+    "transitions": {
+      "G": {
+        "meaning": "new manuscript reaches Ph3",
+        "required_observed_count": 1,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+        "stability_mode_effect": "use bound transition state; no independent exclusion",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"
+      },
+      "H": {
+        "meaning": "two complete revision cycles with H in scope",
+        "required_observed_count": 2,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+        "stability_mode_effect": "use bound transition state; no independent exclusion",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"
+      },
+      "VE": {
+        "meaning": "two complete observed advisory cycles",
+        "required_observed_count": 2,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "recurrence telemetry only",
+        "workflow_effect_after_retirement": "recurrence telemetry only",
+        "stability_mode_effect": "recurrence telemetry only",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"
+      }
+    },
+    "register_scope": {
+      "technical": [
+        "orienting_clause",
+        "contribution_clause",
+        "section_framing",
+        "inter_section_transition",
+        "worked_example_vignette",
+        "consolidation_anchor"
+      ],
+      "mixed": [
+        "orienting_clause",
+        "contribution_clause",
+        "section_framing",
+        "inter_section_transition",
+        "worked_example_vignette",
+        "consolidation_anchor",
+        "abstract",
+        "introduction",
+        "conclusion"
+      ],
+      "non-technical": [
+        "all_passages"
+      ]
+    },
+    "lexicons": {
+      "plain_connectives": [
+        "and",
+        "but",
+        "because",
+        "so",
+        "yet",
+        "however",
+        "for example",
+        "in other words",
+        "at this point",
+        "next",
+        "finally"
+      ],
+      "latinate_whitelist": [
+        "whereby",
+        "hence",
+        "notwithstanding",
+        "insofar as",
+        "qua",
+        "mutatis mutandis"
+      ],
+      "hedges": [
+        "may",
+        "might",
+        "could",
+        "perhaps",
+        "possibly",
+        "likely",
+        "suggests",
+        "indicates",
+        "appears",
+        "seems",
+        "somewhat",
+        "relatively",
+        "generally",
+        "typically"
+      ],
+      "nominalisation_suffixes": [
+        "tion",
+        "ment",
+        "ance",
+        "ence",
+        "ity",
+        "ness"
+      ],
+      "prepositions": [
+        "of",
+        "in",
+        "for",
+        "with",
+        "to",
+        "by",
+        "on",
+        "at",
+        "from",
+        "under",
+        "over",
+        "through",
+        "via"
+      ]
+    },
+    "domain_token_exclusions": [
+      "introduction",
+      "conclusion",
+      "abstract",
+      "methodology",
+      "discussion",
+      "reference",
+      "definition",
+      "condition",
+      "relation",
+      "application",
+      "operation",
+      "representation",
+      "description",
+      "interpretation",
+      "specification",
+      "implementation",
+      "verification",
+      "evaluation",
+      "presentation",
+      "generation",
+      "orientation"
+    ],
+    "override_contract": {
+      "directives": {
+        "path": "research_notes/directives.md",
+        "register_class_key": "register_class",
+        "project_identity_key": "project_id"
+      },
+      "plain_connectives": {
+        "path": "research_notes/plain_connectives.txt",
+        "polarity": "replace"
+      },
+      "hedges": {
+        "path": "research_notes/hedges.txt",
+        "polarity": "replace"
+      },
+      "latinate_whitelist": {
+        "path": "research_notes/latinate_whitelist.txt",
+        "polarity": "supplement"
+      },
+      "terminology": {
+        "path": "research_notes/terminology.txt",
+        "polarity": "extend_domain_token_exclusions"
+      },
+      "glossary": {
+        "path": "research_notes/glossary.txt",
+        "polarity": "extend_domain_token_exclusions"
+      }
+    },
+    "remediation_order": [
+      "preserve propositional content",
+      "add concrete or agentive construction",
+      "add a plain connective",
+      "signal a genuine register shift",
+      "prefer semicolon or colon when the resolved style profile limits em dashes",
+      "re-run deterministic candidates",
+      "Evaluator confirms functional compliance"
+    ],
+    "recurrence": {
+      "project_lesson_consecutive_rounds": 2,
+      "package_lesson_distinct_projects": 2,
+      "state_owner": "Reflector evidence plus Planner approval"
+    }
+  },
+  "source_bindings": [
+    {
+      "scope": "package",
+      "path": "references/policies/reader_accessibility.v1.json",
+      "sha256": "e41e5eb1bb4eb0cf4e235f81899e0077c583e33a3ca0f7b7c5775e143ec0c977",
+      "role": "package_profile"
+    },
+    {
+      "scope": "package",
+      "path": "references/READER_ACCESSIBILITY.md",
+      "sha256": "e37ddf627b174ac9962a2e3bdbd27887ecebb6b0bcca43f4b848f74ba8df66d3",
+      "role": "package_contributor"
+    },
+    {
+      "scope": "package",
+      "path": "references/lay_term_lexicons.md",
+      "sha256": "c19969d1b74ebd1f799afee6289c4d46eb8273c3270ad3f61aa12d3a04b53396",
+      "role": "package_contributor"
+    },
+    {
+      "scope": "package",
+      "path": "references/examples/model_prose_corpus.md",
+      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
+      "role": "package_contributor"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ description: 'Overlay SAFEGUARD Check 8 reader-accessibility Sub-checks A–H on
 trigger: when the Evaluator runs Step 8.5 (SAFEGUARD Check 8), when the user asks to run an accessibility overlay on a section or a full manuscript, when the T2 SAFEGUARD subset dispatches Check 8 (A–F plus H passage-subset at that rung), when the T3 iterate-until-stable loop needs a re-read against the reader-accessibility criteria (A–H at that rung), or when the Reflector Phase 2g recurrence audit replays Check 8 findings across rounds.
 created_by: Reflector (Reader-Experience defence, v0.7.2 pilot; Sub-check G extension v0.8.1; Sub-check H extension v0.10.1)
 created_from: >-
-  Architectural gap 2026-04-20 — Ph.D.-root CLAUDE.md §13.3 specifies reader-
+  Architectural gap 2026-04-20 — package READER_ACCESSIBILITY.md specifies reader-
   accessibility criteria binding across all P-stages (P0/P1/P2), but no plugin
   surface operationalized them as a reusable overlay. The SAFEGUARD_LAYER.md
   Check 8 authored at v0.7.2 carried six Sub-checks A–F in prose; this
@@ -22,7 +22,7 @@ pattern_source: >-
   §9e (pre-filter feeder for H — added 2026-04-27, emits per-passage register
   bundles from nominalisation-density / prepositional-run / hedging-density probes
   for short-circuit on no-fired passages);
-  Ph.D.-root CLAUDE.md §13.3 (operational criteria 1–8) and §13.4 (distinction
+  package READER_ACCESSIBILITY.md (operational criteria A–H and distinction
   from dumbing-down); Sweller's cognitive-load taxonomy (intrinsic /
   extraneous / germane — G audits the germane-load-across-the-manuscript scale);
   Williams' Style: Toward Clarity and Grace §6 (prepositional-stack threshold);
@@ -39,7 +39,7 @@ You are executing the **Reader-Experience defence** overlay — the eight Sub-ch
 
 Sub-checks A–F audit **local accessibility** — paragraph cadence, sentence rhythm, first-use definition, section-opening signposting, jargon density per paragraph, worked examples at density spikes. Sub-check G audits **cumulative accessibility** — whether the manuscript carries one-sentence consolidation anchors at structural boundaries where construct accumulation has crossed a working-memory-tax threshold. Sub-check H audits **register accessibility** (added v0.10.1) — whether structurally-required non-technical passages (signpost orienting/contribution clauses, section framing, inter-section transitions, worked-example vignette bodies, consolidation anchor sentences) carry positive register markers (concrete-referent anchoring, agent-verb-object construction, plain-English connectives) rather than abstraction-stacked academic register. The three scales have distinct dispatch geometries: A–F run at section scope on every invocation; G runs at full-manuscript scope only, which restricts its binding engagement to T3 and T4 (at T2 the overlay records an advisory note that G will run at T3); H runs at passage scope under `register_class: technical`/`mixed` (subset of section scope, so resolvable at T2) or at manuscript scope under `register_class: non-technical` (T3+ only). Under the v0.8.0+ `run-phase-3-stability` sub-mode, both Sub-check G and Sub-check H run advisory-only and do not force escalation to a full Ph3 pass.
 
-Accessibility here means **extraneous-load reduction** (Sub-checks A–F), **germane-load consolidation across the manuscript** (Sub-check G), and **register-tone construction within structurally-required passages** (Sub-check H): the prose surface should carry the argument without spending the reader's working memory on prose-bookkeeping within a paragraph, the manuscript should consolidate accumulated material at structural boundaries so the reader's cumulative mental model stays navigable, and the non-technical passages that carry the cumulative-load mitigation work should read in daily English rather than cold academic register. The overlay does not judge the intellectual difficulty of the material (intrinsic load) and does not ask the Generator to dilute the argument; it judges the eight surface properties specified in Ph.D.-root CLAUDE.md §13.3 and returns findings the Generator can act on. Sub-check H's compliance frame is presence-of-positive-markers rather than absence-of-negative-markers — a deliberate inversion that closes the dilution back-door (the alternative grammar would punish register craft rather than rewarding it).
+Accessibility here means **extraneous-load reduction** (A–F), **germane-load consolidation** (G), and **register construction** (H). The package-local profile and `READER_ACCESSIBILITY.md` own these operational criteria; portfolio-root material is provenance only. The overlay nominates evidence without diluting intellectual difficulty.
 
 ## Preconditions
 
@@ -171,7 +171,7 @@ The three surfaces are **idempotent**: re-running the overlay against the same m
 
 ## Retention and recurrence accounting
 
-Every overlay run writes its findings file to `reviews/`. The files are **not** pruned across rounds — they accumulate so that the Reflector Phase 2g recurrence audit can compare the current round's emission set against prior rounds. A Sub-check that fires in two or more consecutive rounds within a single project becomes a Phase 4 project-scoped lesson candidate; a Sub-check that fires in two or more projects becomes a Phase 4 package-tier skill-revision candidate (routed through the Planner's three-filter gatekeeper per Ph.D.-root CLAUDE.md §13.4).
+Every overlay run writes its findings file to `reviews/`. Reflector recurrence uses profile keys `recurrence.project_lesson_consecutive_rounds` and `recurrence.package_lesson_distinct_projects`; Planner approval owns promotion. This skill owns no independent recurrence number.
 
 ## What this overlay is not
 

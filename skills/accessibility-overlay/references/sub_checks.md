@@ -6,7 +6,7 @@
 
 ---
 
-Each Sub-check maps to one finding class. The Evaluator's native finding shape is preserved: every finding carries `id`, `sub_check` (A–H), `severity` (MINOR / MAJOR / BLOCKER), `location` (heading_path + line range for A–F and H passage-scoped; structural-boundary locator such as `end_of_§3` or `pivot_§5.2` for G; manuscript-scope locator for H manuscript-scoped variant), `rule_citation` (`SAFEGUARD_LAYER.md §Check 8 Sub-check X` plus `Ph.D.-root CLAUDE.md §13.3 (criterion)`), `evidence` (the offending span, the measured value, or — for G — the named structural boundary with its accumulated-construct count, or — for H — the passage role with the positive-marker / negative-marker tally), `suggested_fix` (a one-to-two-sentence action the Generator can act on), and `source_tag: accessibility-overlay@v1.3` so Reflector Phase 2g can trace recurrence.
+Each Sub-check maps to one finding class. Every finding carries identity, A–H member, constrained severity, independence group, locator, package-local rule citation (`SAFEGUARD_LAYER.md` plus the resolved profile key), evidence, and suggested fix. Portfolio-root rules are historical provenance only and never operational authority.
 
 ## Sub-check A — Paragraph cadence (Cadence-Flag)
 
@@ -147,7 +147,7 @@ Severity floors: MINOR if a density spike is followed by a gestural example (a p
 
 **Severity floors.** Apply `thresholds.register.severity_model` and `sub_checks.H.ph2_role_overrides` directly. Do not restate their numbers here.
 
-**Transition binding.** Read H's transition meaning from `transitions.H` and its live state only from `phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H`. Calibration and classification files are evidence, not counters. When active, H findings remain in recurrence evidence but outside the gate aggregate.
+**Transition binding.** Read H's meaning from `transitions.H` and live state only from the policy-binding Planner event projection. Legacy reports are evidence, not counters.
 
 **Per-finding telemetry.** H may emit `false_positive_candidate` for calibration, but calibration files do not own retirement criteria or state. Transition requirements come from `transitions.H`; only matching append-only Planner observation and approval events under the policy binding can retire H.
 

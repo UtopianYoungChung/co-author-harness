@@ -124,18 +124,7 @@ def run_accessibility_prefilters(
         if triadic or questions >= 3:
             f_candidates.append({"paragraph": index, "markers": [name for name, present in (("triadic_enumerator", triadic), ("rhetorical_question_stack", questions >= 3)) if present], "candidate_status": "worked_example_judgment_required"})
     g_stats, total_words, headings, long_proxy = check8_g_prefilter.analyze(text, manuscript_path, p_stage)
-    paragraph_roles = []
-    after_heading = False
-    for paragraph in paragraphs:
-        if re.match(r"^#{1,6}\s+", paragraph):
-            paragraph_roles.append("section_framing")
-            after_heading = True
-        elif after_heading:
-            paragraph_roles.append("orienting_clause")
-            after_heading = False
-        else:
-            paragraph_roles.append("technical_body")
-    h_bundles = check8_h_prefilter.analyse(text, manuscript_path, profile, phase=phase, register_class=resolved["register_class"], passage_roles=paragraph_roles)
+    h_bundles = check8_h_prefilter.analyse(text, manuscript_path, profile, phase=phase, register_class=resolved["register_class"])
     artifact: dict[str, object] = {
         "schema_version": "reader_accessibility_candidates.v1",
         "phase": phase,
@@ -154,7 +143,7 @@ def run_accessibility_prefilters(
             "E": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": e_candidates},
             "F": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "candidates": f_candidates},
             "G": {"applicable": phase in {"Ph3", "Ph4"}, "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate", "total_words": total_words, "headings": headings, "long_manuscript_proxy": long_proxy, "candidates": [s.__dict__ for s in g_stats if s.g_candidate]},
-            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "bundles": [{"locator": b.locator, "passage_role": b.passage_role, "binding_status": b.binding_status, "word_count": b.word_count, "candidate_status": "overlay_required" if b.any_fired else "short_circuit_candidate", "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles], "_corpus_drift": check8_h_prefilter._corpus_drift(text, profile, resolved.get("project_identity"))},
+            "H": {"applicable": phase in {"Ph2", "Ph3", "Ph4"}, "deterministic_disposition": "candidate_probe", "ph2_scope": "orienting_clause blocker-candidate plus advisory passage roles" if phase == "Ph2" else None, "bundles": [{"locator": b.locator, "passage_role": b.passage_role, "role_confidence": b.role_confidence, "role_reason": b.role_reason, "binding_status": b.binding_status, "word_count": b.word_count, "candidate_status": "overlay_required" if b.any_fired else "short_circuit_candidate", "probes": {"nominalisation": b.nominalisation.__dict__, "prep_run": b.prep_run.__dict__, "hedging": b.hedging.__dict__}} for b in h_bundles]},
         },
     }
     output_path = output.resolve() if output else project_root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json"

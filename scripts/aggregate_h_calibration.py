@@ -3,15 +3,10 @@
 SAFEGUARD_LAYER.md Check 8 Sub-check H — calibration-log aggregator.
 
 Reads `reviews/h_calibration_<cycle_id>.md` files in the target project root
-and emits `reviews/h_calibration_aggregate.md` with per-cycle and across-cycle
-false-positive-rate (FPR) figures and the retirement-criterion comparison
-defined by `docs/superpowers/plans/2026-04-27-h-flag-retirement-decision.md`
-(provisional default: FPR < 0.30 across two complete revision cycles).
-
-The script is the canonical empirical-input consumer for the v0.10.1
-`advisory_until: H_two_revision_cycles` flag retirement decision. Run it
-between revision cycles to materialise the aggregator output for user
-adjudication.
+and emits `reviews/h_calibration_aggregate.md` with descriptive per-cycle and
+across-cycle false-positive-rate (FPR) telemetry. It never decides, recommends,
+or records transition retirement. Profile `transitions.H` owns meaning;
+policy-binding Planner events own live state.
 
 ## Calibration-log format (canonical at v0.10.2)
 
@@ -24,7 +19,6 @@ machine-parseable findings table:
     Cycle: <cycle_id>
     Date: YYYY-MM-DD
     register_class_resolved: <technical | mixed | non-technical>
-    h_advisory_cycles_observed_before_this: <integer>
 
     ## Findings
 
@@ -56,12 +50,6 @@ Across-cycle aggregate:
 - `cumulative_eligible` — sum of `eligible_findings` across all cycles.
 - `cumulative_fp` — sum of `false_positive_count` across all cycles.
 - `aggregate_fpr` — `cumulative_fp / cumulative_eligible`.
-
-Retirement-criterion comparison (provisional default; per plan doc):
-- Criterion 1: `cycles_observed >= 2`.
-- Criterion 2: `aggregate_fpr < 0.30`.
-- Combined verdict: ELIGIBLE if both criteria met; else NOT_ELIGIBLE with
-  per-criterion reason.
 
 Per Q2 adjudication 2026-04-27, the aggregator emits a single
 `reviews/h_calibration_aggregate.md` per project. Cross-project roll-up is
@@ -95,10 +83,6 @@ _RE_REGISTER = re.compile(
     r"^register_class_resolved:\s*(technical|mixed|non-technical)\s*$",
     re.MULTILINE,
 )
-_RE_PRIOR_CYCLES = re.compile(
-    r"^h_advisory_cycles_observed_before_this:\s*(\d+)\s*$",
-    re.MULTILINE,
-)
 _RE_TABLE_LINE = re.compile(r"^\s*\|.*\|\s*$")
 
 
@@ -127,7 +111,6 @@ class CycleReport:
     cycle_id: str
     date: str
     register_class_resolved: str
-    prior_cycles: int
     findings: List[Finding] = field(default_factory=list)
     parse_warnings: List[str] = field(default_factory=list)
 
@@ -228,12 +211,10 @@ def parse_calibration_log(path: Path) -> CycleReport:
     cyc = _RE_CYCLE_ID.search(text)
     dat = _RE_DATE.search(text)
     reg = _RE_REGISTER.search(text)
-    prior = _RE_PRIOR_CYCLES.search(text)
 
     cycle_id = cyc.group(1) if cyc else path.stem.replace("h_calibration_", "")
     date_str = dat.group(1) if dat else "0000-00-00"
     register = reg.group(1) if reg else "technical"
-    prior_n = int(prior.group(1)) if prior else 0
 
     findings, warnings = _parse_findings_table(text)
 
@@ -241,7 +222,6 @@ def parse_calibration_log(path: Path) -> CycleReport:
         cycle_id=cycle_id,
         date=date_str,
         register_class_resolved=register,
-        prior_cycles=prior_n,
         findings=findings,
         parse_warnings=warnings,
     )
@@ -271,27 +251,9 @@ class AggregateReport:
             return None
         return self.cumulative_fp / self.cumulative_eligible
 
-    @property
-    def retirement_eligible(self) -> Tuple[bool, List[str]]:
-        reasons: List[str] = []
-        if self.cycles_observed < 2:
-            reasons.append(
-                f"cycles_observed={self.cycles_observed} (criterion: >=2)"
-            )
-        fpr = self.aggregate_fpr
-        if fpr is None:
-            reasons.append("aggregate_fpr unavailable (no eligible findings)")
-        elif fpr >= 0.30:
-            reasons.append(
-                f"aggregate_fpr={fpr:.4f} (criterion: <0.30)"
-            )
-        return (len(reasons) == 0, reasons)
-
-
 def emit_aggregate(report: AggregateReport, out_path: Path) -> None:
     """Write the aggregate report to `reviews/h_calibration_aggregate.md`."""
     today = dt.datetime.now().strftime("%Y-%m-%d")
-    eligible_verdict, reasons = report.retirement_eligible
 
     lines: List[str] = []
     lines.append("# Sub-check H Calibration Aggregate")
@@ -330,25 +292,9 @@ def emit_aggregate(report: AggregateReport, out_path: Path) -> None:
     agg_str = f"{agg:.4f}" if agg is not None else "n/a"
     lines.append(f"- **Aggregate FPR:** {agg_str}")
     lines.append("")
-    lines.append("## Retirement-criterion comparison")
+    lines.append("## Transition authority")
     lines.append("")
-    lines.append(
-        "Provisional retirement criteria per "
-        "`docs/superpowers/plans/2026-04-27-h-flag-retirement-decision.md`:"
-    )
-    lines.append("")
-    lines.append("- Criterion 1: cycles_observed >= 2")
-    lines.append("- Criterion 2: aggregate_fpr < 0.30")
-    lines.append("")
-    lines.append(
-        f"**Verdict:** {'ELIGIBLE for retirement' if eligible_verdict else 'NOT_ELIGIBLE'}"
-    )
-    if not eligible_verdict:
-        lines.append("")
-        lines.append("**Reasons not eligible:**")
-        lines.append("")
-        for r in reasons:
-            lines.append(f"- {r}")
+    lines.append("This report is descriptive telemetry only. It cannot advance a counter or retire H; only validated Planner events under the reader-accessibility policy binding can do so.")
     lines.append("")
     lines.append("## Parse diagnostics")
     lines.append("")
@@ -411,13 +357,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_path = reviews_dir / "h_calibration_aggregate.md"
     emit_aggregate(report, out_path)
 
-    eligible_verdict, _ = report.retirement_eligible
     print(f"Wrote {out_path}")
     print(
         f"Cycles: {report.cycles_observed}; "
         f"Aggregate FPR: "
-        f"{report.aggregate_fpr if report.aggregate_fpr is not None else 'n/a'}; "
-        f"Retirement: {'ELIGIBLE' if eligible_verdict else 'NOT_ELIGIBLE'}"
+        f"{report.aggregate_fpr if report.aggregate_fpr is not None else 'n/a'}; transition state: not evaluated"
     )
     return 0
 
