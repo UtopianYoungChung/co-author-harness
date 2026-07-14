@@ -13,6 +13,7 @@ import datetime
 import hashlib
 import json
 import re
+import stat
 import sys
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -25,6 +26,11 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy, validate_check8_evidence
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
+EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
+PLUGIN_MANIFEST_PATH = ROOT / ".claude-plugin" / "plugin.json"
+EXEMPLAR_CLASSES = frozenset({"clean_lifecycle_exemplar", "legacy_migration_exemplar"})
+EXEMPLAR_AUTHORITIES = frozenset({"user", "advisor", "instructor", "committee", "harness_maintainer", "portfolio_owner"})
+REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
 TARGETS = (*MILESTONES, "Ph2", "Ph4")
 GATE_BOUNDARIES = ("ph1_to_ph2", "ph4_admission", "ph4_terminal_close")
@@ -1012,13 +1018,310 @@ def _validate_reader_accessibility_policy(
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 content does not match evidence fields or recomputed A-H aggregate"))
 
 
-def validate_document(project_root: Path, document: Any, target: str | None = None) -> ValidationResult:
+def _is_reparse(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError:
+        return False
+    return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & REPARSE_POINT)
+
+
+def _has_reparse_component(path: Path) -> bool:
+    current = path.absolute()
+    parts = [current]
+    while current.parent != current:
+        current = current.parent
+        parts.append(current)
+    return any(part.exists() and _is_reparse(part) for part in reversed(parts))
+
+
+def _strict_utc(value: Any) -> bool:
+    if not isinstance(value, str) or re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", value) is None:
+        return False
+    try:
+        datetime.datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError:
+        return False
+    return True
+
+
+def _project_evidence(
+    project_root: Path, relative: Any, expected_sha: Any, field: str,
+    findings: list[Finding], evidence: list[dict[str, Any]],
+) -> bytes | None:
+    if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+        findings.append(_finding("MF-EXEMPLAR", field, "evidence path must be a relative path contained by the registered project"))
+        return None
+    lexical = project_root / relative
+    candidate = _canonical_path(project_root, relative)
+    if candidate is None or _has_reparse_component(lexical) or not candidate.is_file():
+        findings.append(_finding("MF-EXEMPLAR", field, "evidence path must resolve to a regular non-reparse file inside the registered project"))
+        return None
+    try:
+        payload = candidate.read_bytes()
+    except OSError as exc:
+        findings.append(_finding("MF-EXEMPLAR", field, f"could not read exemplar evidence: {exc}"))
+        return None
+    actual = hashlib.sha256(payload).hexdigest()
+    if not isinstance(expected_sha, str) or re.fullmatch(r"[0-9a-f]{64}", expected_sha) is None or actual != expected_sha:
+        findings.append(_finding("MF-EXEMPLAR", field, "exemplar evidence hash does not match current bytes"))
+        return payload
+    evidence.append({"path": relative, "sha256": actual, "bytes": len(payload)})
+    return payload
+
+
+def _ledger_exemplar_claims(value: Any, path: str = "milestone_framework") -> list[str]:
+    claims: list[str] = []
+    credential = re.compile(r"^(?:clean[_ -]lifecycle[_ -]exemplar|legacy[_ -]migration[_ -]exemplar|portfolio exemplar|reference implementation)$", re.IGNORECASE)
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{path}.{key}"
+            if re.fullmatch(r"(?:exemplar(?:_status|_class)?|portfolio_exemplar|reference_implementation)", str(key), re.IGNORECASE):
+                claims.append(child_path)
+            claims.extend(_ledger_exemplar_claims(child, child_path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            claims.extend(_ledger_exemplar_claims(child, f"{path}[{index}]"))
+    elif isinstance(value, str) and credential.fullmatch(value.strip()):
+        claims.append(path)
+    return claims
+
+
+def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) -> None:
+    # These are the declared project authority/status surfaces only.  Broad
+    # manuscript/review scanning would confuse ordinary uses of "exemplar"
+    # with a lifecycle credential.
+    surfaces = ("AGENTS.md", "CLAUDE.md", "reviews/lifecycle_state.md")
+    credential = r"(?:clean[_ -]lifecycle[_ -]exemplar|legacy[_ -]migration[_ -]exemplar|portfolio exemplar|reference implementation)"
+    patterns = (
+        re.compile(rf"(?im)^\s*#{{1,6}}\s*{credential}\s*$"),
+        re.compile(rf"(?im)^\s*(?:exemplar(?:[_ ]status|[_ ]class)?|portfolio[_ ]status|status)\s*:\s*{credential}\s*$"),
+        re.compile(rf"(?i)\b(?:this\s+project|the\s+project|project)\s+(?:is|is designated|is registered)\s+(?:as\s+)?(?:an?\s+|the\s+)?{credential}\b"),
+    )
+    for relative in surfaces:
+        candidate = _canonical_path(project_root, relative)
+        if candidate is None or not candidate.is_file():
+            continue
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            findings.append(_finding("MF-EXEMPLAR", relative, f"could not inspect declared project status surface: {exc}"))
+            continue
+        if any(pattern.search(text) for pattern in patterns):
+            findings.append(_finding("MF-EXEMPLAR", relative, "project-local prose cannot grant or self-declare milestone exemplar status"))
+
+
+def _validate_exemplar_registry(
+    project_root: Path, document: dict[str, Any], registry_path: Path,
+    findings: list[Finding], evidence: list[dict[str, Any]],
+) -> None:
+    ledger = document.get("milestone_framework")
+    if isinstance(ledger, dict):
+        for claim_path in _ledger_exemplar_claims(ledger):
+            findings.append(_finding("MF-EXEMPLAR", claim_path, "project ledger cannot grant or self-declare milestone exemplar status"))
+    _project_prose_exemplar_claims(project_root, findings)
+
+    if not registry_path.is_absolute():
+        registry_path = (ROOT / registry_path).absolute()
+    if _has_reparse_component(registry_path) or not registry_path.is_file():
+        findings.append(_finding("MF-EXEMPLAR", str(registry_path), "exemplar registry must be a readable regular non-reparse file"))
+        return
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        findings.append(_finding("MF-EXEMPLAR", str(registry_path), f"exemplar registry is not valid UTF-8 JSON: {exc}"))
+        return
+    if not isinstance(registry, dict) or set(registry) != {"schema_version", "entries"} or registry.get("schema_version") != "1.0.0" or not isinstance(registry.get("entries"), list):
+        findings.append(_finding("MF-EXEMPLAR", str(registry_path), "registry must have exactly schema_version 1.0.0 and an entries array"))
+        return
+
+    required = {
+        "project_path", "exemplar_class", "approval_authority", "approval_evidence_path",
+        "approval_evidence_sha256", "validator_version", "validator_outcome",
+        "validator_evidence", "registered_at", "phase_state_sha256",
+    }
+    canonical_project = project_root.resolve().as_posix()
+    matching: list[tuple[int, dict[str, Any]]] = []
+    identities: dict[str, list[tuple[int, str]]] = {}
+    structurally_valid: set[int] = set()
+    for index, entry in enumerate(registry["entries"]):
+        base = f"{registry_path}:entries[{index}]"
+        if not isinstance(entry, dict) or set(entry) != required:
+            findings.append(_finding("MF-EXEMPLAR", base, "registry entry has missing or unknown fields"))
+            continue
+        exemplar_class = entry.get("exemplar_class")
+        project_path = entry.get("project_path")
+        if not isinstance(project_path, str) or not Path(project_path).is_absolute() or Path(project_path).resolve().as_posix() != project_path.replace("\\", "/"):
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.project_path", "project_path must be an absolute canonical path identity"))
+            continue
+        if exemplar_class not in EXEMPLAR_CLASSES:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.exemplar_class", "unknown milestone exemplar class"))
+            continue
+        if entry.get("approval_authority") not in EXEMPLAR_AUTHORITIES:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.approval_authority", "approval authority is not permitted to grant exemplar status"))
+            continue
+        expected_outcome = "READY" if exemplar_class == "clean_lifecycle_exemplar" else "LEGACY_READY"
+        if entry.get("validator_outcome") != expected_outcome or not _strict_utc(entry.get("registered_at")):
+            findings.append(_finding("MF-EXEMPLAR", base, "validator outcome or registration timestamp is invalid for the exemplar class"))
+            continue
+        if not isinstance(entry.get("validator_version"), str) or not entry["validator_version"]:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_version", "validator_version must be explicit"))
+            continue
+        validator_evidence = entry.get("validator_evidence")
+        if not isinstance(validator_evidence, list) or not validator_evidence:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "validator_evidence must be a non-empty array"))
+            continue
+        valid_items = True
+        roles: list[str] = []
+        for item_index, item in enumerate(validator_evidence):
+            if not isinstance(item, dict) or set(item) != {"role", "path", "sha256"} or not isinstance(item.get("role"), str) or not item["role"]:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence[{item_index}]", "evidence item must contain exactly role, path, and sha256"))
+                valid_items = False
+            else:
+                roles.append(item["role"])
+        if not valid_items or len(roles) != len(set(roles)):
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "evidence roles must be unique"))
+            continue
+        structurally_valid.add(index)
+        identities.setdefault(project_path.casefold(), []).append((index, exemplar_class))
+        if project_path.casefold() == canonical_project.casefold():
+            matching.append((index, entry))
+
+    for identity, registrations in identities.items():
+        if len(registrations) > 1:
+            classes = {item[1] for item in registrations}
+            kind = "conflicting" if len(classes) > 1 else "duplicate"
+            findings.append(_finding("MF-EXEMPLAR", identity, f"{kind} exemplar registrations exist for one canonical project identity"))
+    if not matching:
+        return
+    if len(matching) != 1:
+        return
+
+    index, entry = matching[0]
+    if index not in structurally_valid or not isinstance(ledger, dict):
+        return
+    base = f"{registry_path}:entries[{index}]"
+    try:
+        current_version = json.loads(PLUGIN_MANIFEST_PATH.read_text(encoding="utf-8"))["version"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError):
+        current_version = None
+    if entry["validator_version"] != current_version:
+        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_version", "registration validator version is stale relative to the package manifest"))
+    phase_state = _project_evidence(project_root, "reviews/phase_state.json", entry.get("phase_state_sha256"), f"{base}.phase_state_sha256", findings, evidence)
+    approval_payload = _project_evidence(project_root, entry.get("approval_evidence_path"), entry.get("approval_evidence_sha256"), f"{base}.approval_evidence_path", findings, evidence)
+    if approval_payload is not None:
+        try:
+            approval_text = approval_payload.decode("utf-8")
+        except UnicodeError:
+            approval_text = ""
+        expected_authority = re.escape(entry["approval_authority"])
+        if re.search(r"(?im)^\s*status\s*:\s*approved\s*$", approval_text) is None or re.search(rf"(?im)^\s*authority\s*:\s*{expected_authority}\s*$", approval_text) is None:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.approval_evidence_path", "approval evidence must explicitly attest APPROVED and the registered authority"))
+    evidence_by_role: dict[str, tuple[dict[str, Any], bytes | None]] = {}
+    for item_index, item in enumerate(entry["validator_evidence"]):
+        payload = _project_evidence(project_root, item["path"], item["sha256"], f"{base}.validator_evidence[{item_index}]", findings, evidence)
+        if (
+            item["role"] == "lifecycle_view"
+            and payload is not None
+            and hashlib.sha256(payload).hexdigest() != item["sha256"]
+        ):
+            findings.append(_finding(
+                "MF-DERIVED", item["path"],
+                "generated lifecycle view bytes differ from the externally registered derived view",
+                Severity.MAJOR,
+            ))
+        evidence_by_role[item["role"]] = (item, payload)
+    required_roles = {"milestone_validator", "phase_state_validator"}
+    if entry["exemplar_class"] == "clean_lifecycle_exemplar":
+        required_roles |= {"lifecycle_view", "release_gate", "independent_replay"}
+    else:
+        required_roles |= {"migration_report", "migration_commit", "migration_manifest", "rollback_verification", "migration_approval"}
+    if not required_roles.issubset(evidence_by_role):
+        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"class requires evidence roles {sorted(required_roles)}"))
+    milestone_payload = evidence_by_role.get("milestone_validator", ({}, None))[1]
+    try:
+        validator_record = json.loads(milestone_payload) if milestone_payload is not None else {}
+    except (UnicodeError, json.JSONDecodeError):
+        validator_record = {}
+    if validator_record.get("outcome") != entry["validator_outcome"] or validator_record.get("validator_version") != entry["validator_version"]:
+        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "milestone validator evidence does not attest the registered version and outcome"))
+    phase_payload = evidence_by_role.get("phase_state_validator", ({}, None))[1]
+    try:
+        phase_record = json.loads(phase_payload) if phase_payload is not None else {}
+    except (UnicodeError, json.JSONDecodeError):
+        phase_record = {}
+    if phase_record.get("outcome") != "PASS":
+        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "phase-state validator evidence must attest PASS"))
+
+    milestones = ledger.get("milestones")
+    if entry["exemplar_class"] == "clean_lifecycle_exemplar":
+        if ledger.get("mode") != "native" or not isinstance(milestones, dict) or any(
+            not isinstance(milestones.get(name), dict)
+            or milestones[name].get("status") != "accepted"
+            or milestones[name].get("dependency_state") != "current"
+            or not isinstance(milestones[name].get("approval"), dict)
+            or milestones[name]["approval"].get("status") != "approved"
+            or not isinstance(milestones[name].get("handoff"), dict)
+            or milestones[name]["handoff"].get("status") not in ({"ready", "consumed"} if name == "M5" else {"consumed"})
+            for name in MILESTONES
+        ):
+            findings.append(_finding("MF-EXEMPLAR", base, "clean lifecycle exemplar requires a native accepted M1-M5 chain, consumed predecessor handoffs, and a ready terminal M5 packet"))
+        lifecycle_payload = evidence_by_role.get("lifecycle_view", ({}, None))[1]
+        phase_digest = hashlib.sha256(phase_state).hexdigest() if phase_state is not None else None
+        if lifecycle_payload is None or phase_digest is None or re.search(rb"(?m)^generated: true$", lifecycle_payload) is None or re.search(rb"(?m)^DO NOT EDIT: generated lifecycle view$", lifecycle_payload) is None or re.search(rb"(?m)^source_sha256: " + phase_digest.encode("ascii") + rb"$", lifecycle_payload) is None:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "clean exemplar lifecycle view is not a current derived projection of phase_state.json"))
+        for role in ("release_gate", "independent_replay"):
+            payload = evidence_by_role.get(role, ({}, None))[1]
+            if payload is None or re.search(rb"(?im)^\s*status\s*:\s*PASS\s*$", payload) is None:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"{role} evidence must explicitly attest PASS"))
+    else:
+        boundary = ledger.get("migration_boundary")
+        if ledger.get("mode") != "legacy" or not isinstance(boundary, dict):
+            findings.append(_finding("MF-EXEMPLAR", base, "legacy migration exemplar requires an approved legacy migration boundary"))
+        else:
+            for role, path_key, sha_key in (("migration_report", "report_path", "report_sha256"), ("migration_approval", "evidence_path", "evidence_sha256")):
+                item = evidence_by_role.get(role, ({}, None))[0]
+                if item.get("path") != boundary.get(path_key) or item.get("sha256") != boundary.get(sha_key):
+                    findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"{role} does not bind the approved migration boundary"))
+            commit_payload = evidence_by_role.get("migration_commit", ({}, None))[1]
+            manifest_payload = evidence_by_role.get("migration_manifest", ({}, None))[1]
+            try:
+                commit = json.loads(commit_payload) if commit_payload is not None else {}
+                manifest = json.loads(manifest_payload) if manifest_payload is not None else {}
+            except (UnicodeError, json.JSONDecodeError):
+                commit, manifest = {}, {}
+            phase_digest = hashlib.sha256(phase_state).hexdigest() if phase_state is not None else None
+            manifest_digest = hashlib.sha256(manifest_payload).hexdigest() if manifest_payload is not None else None
+            if (
+                commit.get("transaction_state") != "committed"
+                or commit.get("replacement_sha256") != phase_digest
+                or commit.get("report_sha256") != boundary.get("report_sha256")
+                or commit.get("manifest_sha256") != manifest_digest
+                or manifest.get("manifest_version") != "1.0.0"
+                or manifest.get("replacement_path") != "reviews/phase_state.json"
+                or manifest.get("replacement_sha256") != phase_digest
+                or manifest.get("report_sha256") != boundary.get("report_sha256")
+            ):
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration commit and manifest do not bind the current ledger and approved report"))
+            rollback_payload = evidence_by_role.get("rollback_verification", ({}, None))[1]
+            if rollback_payload is None or re.search(rb"(?im)^\s*status\s*:\s*PASS\s*$", rollback_payload) is None:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "rollback verification evidence must explicitly attest PASS"))
+
+
+def validate_document(
+    project_root: Path, document: Any, target: str | None = None,
+    exemplar_registry_path: Path | None = None,
+) -> ValidationResult:
     """Validate the additive namespace in an already-parsed phase document."""
     findings: list[Finding] = []
     evidence: list[dict[str, Any]] = []
     if not isinstance(document, dict):
         findings.append(_finding("MF-STRUCTURE", "$", "phase state must be a JSON object"))
         return _result(target, None, findings, evidence)
+    _validate_exemplar_registry(
+        project_root, document, exemplar_registry_path or EXEMPLAR_REGISTRY_PATH,
+        findings, evidence,
+    )
     if "milestone_assignment" in document:
         findings.append(_finding("MF-STRUCTURE", "milestone_assignment", "retired M4a/M4b milestone_assignment is archival input only and forbidden in current ledgers"))
     if "sections" in document and not isinstance(document["sections"], dict):
@@ -1322,6 +1625,10 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--target", choices=TARGETS)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--exemplar-registry", type=Path, default=EXEMPLAR_REGISTRY_PATH,
+        help="external milestone exemplar registry (test/maintenance injection; defaults to package registry)",
+    )
     args = parser.parse_args(argv)
     project_root = args.project_root
     if not project_root.is_dir():
@@ -1332,7 +1639,7 @@ def main(argv: list[str]) -> int:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         sys.stderr.write(f"error: could not read {phase_path}: {exc}\n")
         return 2
-    result = validate_document(project_root, document, args.target)
+    result = validate_document(project_root, document, args.target, args.exemplar_registry)
     if args.json:
         sys.stdout.write(json.dumps(result.json_value(), indent=2) + "\n")
     else:
