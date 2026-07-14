@@ -81,6 +81,16 @@ def main() -> int:
             for item in source_bindings
         ):
             raise AssertionError("bootstrap policy is not bound to the seeded project directives")
+        reader_binding = framework["policy_bindings"]["reader_accessibility"]
+        if reader_binding.get("project_identity") != "test-project":
+            raise AssertionError("policy binding identity is not the full validated project identifier")
+        resolved_policy = json.loads(
+            (project / "reviews" / ".harness" / "policies" / "reader_accessibility.resolved.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if resolved_policy.get("project_identity") != "test-project" or resolved_policy.get("register_class") != "technical":
+            raise AssertionError("project identifier changed policy identity or register class")
 
         for key, record in framework["milestones"].items():
             if record["artifacts"] or record["feedback_records"]:

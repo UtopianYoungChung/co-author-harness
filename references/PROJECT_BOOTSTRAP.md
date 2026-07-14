@@ -473,8 +473,8 @@ Ask the user for:
 
 | Input | Required | Default if not provided |
 |---|---|---|
-| Project name (folder name) | Yes | — |
-| Working title | No | Same as project name |
+| Project name (folder/project ID) | Yes | ASCII slug matching `[A-Za-z0-9][A-Za-z0-9._-]*` |
+| Working title | No | Same as project name; must be non-empty, single-line printable text |
 | Venue | No | "TBD" |
 | Paper type | No | "TBD" |
 | P-stage | No | P0 |
@@ -495,7 +495,9 @@ python <package-root>/scripts/native_project_bootstrap.py `
   --intended-reader "<reader description>"
 ```
 
-The command accepts only a real UTC `--created-at` timestamp (when supplied), builds the four milestone working surfaces, project directives, empty F9 directory, resolved reader-accessibility policy, and `reviews/phase_state.json` in a fresh sibling staging directory, validates the staged result, and atomically publishes it. The policy binding therefore includes the exact seeded `research_notes/directives.md` hash. It rejects any existing target—including a target containing an F9 packet, resolved policy, symlink, or junction—and never emits `BOOTSTRAPPED` before both canonical validators pass. After successful publication, seed the remaining non-milestone support files from §2 without modifying these authoritative surfaces. Existing or legacy projects must not use this command; route them through migration.
+The command accepts only a project identifier matching `[A-Za-z0-9][A-Za-z0-9._-]*`, a non-empty single-line printable title, and a real UTC `--created-at` timestamp (when supplied). The identifier grammar is deliberately narrower than Markdown, YAML, and filesystem grammars: whitespace, CR/LF, colon, `#`, controls, and leading punctuation are rejected before staging, so interpolated project metadata cannot add directive keys or alter `register_class`. The full validated identifier is recorded as `project_id` and must equal the resolved policy binding's `project_identity`.
+
+The command builds the four milestone working surfaces, project directives, empty F9 directory, resolved reader-accessibility policy, and `reviews/phase_state.json` in a fresh sibling staging directory, validates the staged result, and atomically publishes it. The policy binding therefore includes the exact seeded `research_notes/directives.md` hash. It rejects any existing target—including a target containing an F9 packet, resolved policy, symlink, or junction—and never emits `BOOTSTRAPPED` before both canonical validators pass. After successful publication, seed the remaining non-milestone support files from §2 without modifying these authoritative surfaces. Existing or legacy projects must not use this command; route them through migration.
 
 Re-run the validators before classification as a host-side confirmation:
 

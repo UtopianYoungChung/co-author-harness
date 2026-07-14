@@ -11,6 +11,10 @@ import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 import native_project_bootstrap as bootstrap_module
 
 
@@ -19,7 +23,13 @@ BOOTSTRAP = ROOT / "scripts" / "native_project_bootstrap.py"
 VALID_TIMESTAMP = "2026-07-13T20:00:00Z"
 
 
-def _run(project: Path, *, timestamp: str = VALID_TIMESTAMP) -> subprocess.CompletedProcess[str]:
+def _run(
+    project: Path,
+    *,
+    timestamp: str = VALID_TIMESTAMP,
+    project_name: str = "test-project",
+    title: str = "Test Project",
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,
@@ -29,9 +39,9 @@ def _run(project: Path, *, timestamp: str = VALID_TIMESTAMP) -> subprocess.Compl
             "--project-root",
             str(project),
             "--project-name",
-            "test-project",
+            project_name,
             "--title",
-            "Test Project",
+            title,
             "--intended-reader",
             "requirements engineering researchers",
             "--created-at",
@@ -110,6 +120,63 @@ def main() -> int:
         if invalid_date_target.exists():
             raise AssertionError("invalid timestamp published a target")
 
+        invalid_names = (
+            "innocent\nregister_class: non-technical",
+            "innocent\rproject_id: forged",
+            "two words",
+            "name:override",
+            "name#comment",
+            "name\x00control",
+            "_leading-punctuation",
+        )
+        for index, project_name in enumerate(invalid_names):
+            target = root / f"invalid-name-{index}"
+            if "\x00" in project_name:
+                try:
+                    bootstrap_module.bootstrap(
+                        target,
+                        project_name,
+                        "Test Project",
+                        ["requirements engineering researchers"],
+                        VALID_TIMESTAMP,
+                    )
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("embedded-NUL project identifier was accepted")
+            else:
+                result = _run(target, project_name=project_name)
+                _assert_rejected(result, target)
+            if target.exists():
+                raise AssertionError(f"invalid project identifier published a target: {project_name!r}")
+
+        invalid_titles = (
+            "Innocent\nregister_class: non-technical",
+            "Innocent\rproject_id: forged",
+            "Title\x00control",
+            "\t",
+        )
+        for index, title in enumerate(invalid_titles):
+            target = root / f"invalid-title-{index}"
+            if "\x00" in title:
+                try:
+                    bootstrap_module.bootstrap(
+                        target,
+                        "test-project",
+                        title,
+                        ["requirements engineering researchers"],
+                        VALID_TIMESTAMP,
+                    )
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("embedded-NUL title was accepted")
+            else:
+                result = _run(target, title=title)
+                _assert_rejected(result, target)
+            if target.exists():
+                raise AssertionError(f"invalid title published a target: {title!r}")
+
         rollback_target = root / "validator-failure"
         captured = io.StringIO()
         try:
@@ -156,6 +223,9 @@ def main() -> int:
             raise AssertionError("successful bootstrap fabricated an F9 packet")
         if list(root.glob(f".{success.name}.bootstrap-*")):
             raise AssertionError("successful bootstrap left a staging directory")
+        directives = (success / "research_notes" / "directives.md").read_text(encoding="utf-8")
+        if directives.count("project_id: test-project") != 1 or directives.count("register_class: technical") != 1:
+            raise AssertionError("validated inputs did not produce exactly one canonical directive key each")
 
     print("native_project_bootstrap_adversarial_smoketest: PASS")
     return 0

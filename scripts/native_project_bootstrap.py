@@ -26,6 +26,7 @@ from reader_accessibility_policy import phase_state_binding, resolve_policy
 UTC_SHAPE = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$"
 )
+PROJECT_ID_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 ValidatorRunner = Callable[..., subprocess.CompletedProcess[str]]
 
 
@@ -267,8 +268,12 @@ def bootstrap(
     if not parent.is_dir():
         raise ValueError("project-root parent must already exist and be a directory")
     project_root = parent / requested_root.name
-    if not project_name.strip() or not title.strip():
-        raise ValueError("project name and title must be non-empty")
+    if PROJECT_ID_SHAPE.fullmatch(project_name) is None:
+        raise ValueError(
+            "project name must be an ASCII slug matching [A-Za-z0-9][A-Za-z0-9._-]*"
+        )
+    if not title.strip() or not title.isprintable():
+        raise ValueError("title must be non-empty, single-line, printable text")
     if not intended_readers or any(not value.strip() for value in intended_readers):
         raise ValueError("at least one non-empty intended reader is required")
     if not _valid_utc_timestamp(created_at):
