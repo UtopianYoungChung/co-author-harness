@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -103,6 +104,10 @@ def main() -> int:
         check(candidates["sub_checks"]["H"]["applicable"] and "orienting_clause" in candidates["sub_checks"]["H"]["ph2_scope"], "h_prefilter_not_dispatched_by_canonical_runner", "H Ph2 orienting role not dispatched")
         check(candidates["sub_checks"]["B"]["deterministic_disposition"] == "judgment_only" and candidates["sub_checks"]["D"]["deterministic_disposition"] == "candidate_probe", "h_prefilter_not_dispatched_by_canonical_runner", "deterministic disposition missing")
         check(any(binding["path"].endswith("model_prose_corpus.md") for binding in candidates["source_bindings"]), "corpus_drift_claim_matches_implementation", "mandatory calibration corpus hash absent")
+        resolved_sidecar = project / "reviews" / "reader_accessibility_resolved_contract.json"
+        resolved_sidecar.write_text(json.dumps(resolved, indent=2) + "\n", encoding="utf-8")
+        recursive = subprocess.run([sys.executable, str(ROOT / "scripts/artefact_frontmatter_validate.py"), "--dir", str(project / "reviews"), "--recursive", "--quiet"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check(recursive.returncode == 0 and "F7" not in recursive.stdout + recursive.stderr, "malformed_input_is_controlled", "policy/audit sidecar was misclassified as F7")
 
         (notes / "hedges.txt").write_text("# empty replacement\n", encoding="utf-8")
         malformed_override = subprocess.run([sys.executable, str(LOADER), "--project-root", str(project)], capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -132,7 +137,8 @@ def main() -> int:
         "references/SAFEGUARD_LAYER.md": ("Check-8-Adjacent", "A-H aggregate", "adjacent_advisory_checks.VE"),
         "skills/accessibility-overlay/references/sub_checks.md": ("thresholds.cadence", "functional confirmation"),
         "agents/planner.md": ("profile-active", "trigger 28"),
-        "scripts/audit/run_all.py": ("check8_g_prefilter", "check8_h_prefilter"),
+        "scripts/audit/run_all.py": ("build_candidate_artifact",),
+        "scripts/reader_accessibility_candidates.py": ("check8_g_prefilter", "check8_h_prefilter"),
     }
     for rel, needles in required_text.items():
         text = (ROOT / rel).read_text(encoding="utf-8")
@@ -153,6 +159,18 @@ def main() -> int:
         prose = (ROOT / rel).read_text(encoding="utf-8")
         for phrase in forbidden_semantics:
             check(phrase not in prose, "threshold_repeated_outside_profile", f"{rel} repeats retired/numeric authority {phrase!r}")
+    generated_view = ROOT / "references/generated/reader_accessibility_policy_view.md"
+    check(generated_view.read_text(encoding="utf-8") == policy.render_policy_view(profile), "threshold_repeated_outside_profile", "generated numeric policy view is stale")
+    numeric_measure = re.compile(r"(?i)(?:(?:[<>]=?|≥|≤|at least|at most|more than|fewer than|minimum|maximum)\s*\d+(?:\.\d+)?(?:\s*%|\s*(?:words?|sentences?|paragraphs?|cycles?|rounds?|passages?|terms?|referents?|hedges?|positive markers?|negative markers?))|\b\d+(?:\.\d+)?(?:\s*[–-]\s*\d+)?\s*(?:words?|sentences?|paragraphs?|cycles?|rounds?|passages?|terms?|referents?|hedges?|positive markers?|negative markers?)\b)")
+    accessibility_topic = re.compile(r"(?i)(Check\s*8|Sub-check|cadence|register|jargon|rhythm|positive marker|negative marker|turn.point|consolidation|first.use|signpost)")
+    for rel in parity_surfaces:
+        for line_number, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1):
+            policy_line = re.sub(r"§[A-Za-z0-9.\-–]+", "", line)
+            if not (numeric_measure.search(policy_line) and accessibility_topic.search(policy_line)):
+                continue
+            structural_schema = rel == "references/ARTEFACT_FRONTMATTER_SCHEMA.md" and "# integer, ≥ 0" in line
+            historical_or_calibration = rel == "references/lay_term_lexicons.md" and any(marker in line for marker in ("RETIRED", "historical", "snapshot", "calibration"))
+            check(structural_schema or historical_or_calibration, "threshold_repeated_outside_profile", f"{rel}:{line_number} contains independent numeric accessibility policy")
     sentence = (ROOT / "skills" / "sentence-level-pass" / "SKILL.md").read_text(encoding="utf-8")
     check("M-4" in sentence and "M-5" in sentence and "rhythm" in sentence, "c8_m4_m5_guard_is_rhythm_not_cadence", "C-8 guard not relocated")
     hsrc = (ROOT / "scripts" / "check8_h_prefilter.py").read_text(encoding="utf-8")

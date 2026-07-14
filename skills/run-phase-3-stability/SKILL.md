@@ -28,6 +28,11 @@ Read `skills/run-iterate/SKILL.md` and follow the `profile: stability` branch.
 The compatibility name preserves the old S-0 byte-stability trigger, but the
 public routing vocabulary is `/run-iterate --profile stability`.
 
+Before evaluating Check 8, load `runtime_modes.stability` from the resolved
+reader-accessibility profile and the validated G/H/VE transition projection
+from `phase_state.json`. This compatibility router owns no accessibility mode
+behavior beyond those machine-bound values.
+
 The S-0 gate, grounding audit, deterministic Check 8 counter comparison,
 trigger-30 escalation to a full iterate pass, and the rule that stability cannot
 satisfy the pre-MCR deep-pass requirement remain unchanged. The canonical body
@@ -49,13 +54,11 @@ unchanged:
 ### 3.2a Profile-bound G/H and adjacent VE treatment
 
 This subsection preserves the historical `§3.2a` anchor cited by
-`references/SAFEGUARD_LAYER.md`. Under `/run-iterate --profile stability`,
-Sub-checks G and H follow their bound transition states when inherited from a byte-stable
-prior pass. Findings carry `stability_advisory: true`, do not contribute to the
-§3.3.3 aggregate verdict, and do not force escalation by themselves. They are
-handed to Reflector recurrence accounting. Grounding findings or deterministic
-Check 8 counter drift still escalate through trigger 30 regardless of any
-advisory-only Sub-check state.
+`references/SAFEGUARD_LAYER.md`. Under `/run-iterate --profile stability`, all
+accessibility aggregation and workflow effects are computed from
+`runtime_modes.stability` plus the validated bound transition state. Do not add
+a stability-only flag, member exclusion, severity rewrite, or escalation
+exception in this router.
 
 ## Output Profile
 

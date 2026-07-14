@@ -153,7 +153,7 @@ section_9a_counters:
 section_9b_counters:
   cadence_flag_count:                  # integer, ≥ 0; candidates under thresholds.cadence
   signpost_flag_count:                 # integer, ≥ 0; sections opening without the preamble
-  jargon_density_flag_count:           # integer, ≥ 0; paragraphs introducing > 2 new domain terms
+jargon_density_flag_count:           # integer, ≥ 0; candidates under thresholds.jargon
 
 verdict:                 # string, one of {PASS, MINOR, MAJOR, BLOCKER}
 ```
@@ -430,7 +430,7 @@ F8 uses **strict** unknown-field rejection in frontmatter only. Body prose is un
 
 ## 8. Validation rules (enforced by `scripts/artefact_frontmatter_validate.py`)
 
-The validator runs against `reviews/*.md` artefacts on the Markdown lane and against `*.json` files passed explicitly or via `--dir` on the JSON lane. Legacy F1–F6 dispatch is by `document_type` in YAML frontmatter. F7 is validated only on `.json` inputs. F8 is validated when `document_type: final_round_report` appears in YAML frontmatter. Rules:
+The validator runs against `reviews/*.md` artefacts on the Markdown lane and against `*.json` files passed explicitly or via `--dir` on the JSON lane. Legacy F1–F6 dispatch is by `document_type` in YAML frontmatter. JSON dispatch is by explicit artefact-family or schema discriminator: `artifact_family: F7` selects F7, while registered reader-accessibility candidate and Check 8 sidecars select their own schemas. Resolver and audit sidecars are skipped on this family validator and are checked through their owning binding or audit contract. A JSON file is never inferred to be F7 merely because it appears under `reviews/`; the canonical `.harness/evidence/` location remains an F7 routing signal. F8 is validated when `document_type: final_round_report` appears in YAML frontmatter. Rules:
 
 1. **Required-field presence.** Every required field per family must be present; absence is `R-Refl-FM-1`.
 2. **Type conformance.** Every field must match its declared type; mismatch is `R-Refl-FM-2`.

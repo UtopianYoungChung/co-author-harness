@@ -65,6 +65,7 @@ import argparse
 import json
 import hashlib
 from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy, validate_candidate_artifact, validate_check8_evidence
+from reader_accessibility_candidates import build_candidate_artifact
 import re
 import sys
 from pathlib import Path
@@ -1074,7 +1075,29 @@ def validate_f8_frontmatter(fm: Dict[str, Any], path: Path) -> List[Finding]:
 
 def validate_path(path: Path) -> List[Finding]:
     if path.suffix.lower() == ".json":
-        return validate_f7_json(path)
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            return [Finding(path, "R-Refl-FM-7", "BLOCKER", "<file>", f"invalid JSON: {exc}")]
+        if not isinstance(payload, dict):
+            return []
+        # JSON under reviews is not synonymous with F7. Dispatch by an explicit
+        # family/schema discriminator so policy sidecars and audit reports are
+        # never interpreted as output-economy evidence packets.
+        if payload.get("artifact_family") == "F7" or ".harness/evidence" in path.as_posix():
+            return validate_f7_json(path)
+        try:
+            if payload.get("schema_version") == "reader_accessibility_candidates.v1":
+                validate_candidate_artifact(payload)
+            elif payload.get("schema_version") == "check8_evidence.v1":
+                validate_check8_evidence(payload)
+            elif payload.get("contract_version") and isinstance(payload.get("resolved_profile"), dict):
+                # Resolver sidecar: its exact freshness is checked through the
+                # F1 binding, not by treating this file as an independent F7.
+                return []
+        except (PolicyError, ValueError) as exc:
+            return [Finding(path, "R-Refl-FM-RA", "MAJOR", "<file>", f"invalid reader-accessibility sidecar: {exc}")]
+        return []
 
     fm, err = extract_frontmatter(path)
     if err is not None:
@@ -1142,6 +1165,14 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
         }
         if not isinstance(candidate_payload, dict) or any(candidate_payload.get(key) != value for key, value in expected_candidate.items()):
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
+        if isinstance(candidate_payload, dict) and manuscript_path is not None:
+            try:
+                recomputed_candidate = build_candidate_artifact(project_root, manuscript_path, policy["phase"], candidate_payload.get("cycle_id"), expected_resolved)
+            except (PolicyError, OSError, ValueError, TypeError) as exc:
+                findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", f"candidate recomputation failed: {exc}"))
+            else:
+                if candidate_payload != recomputed_candidate:
+                    findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact differs from canonical deterministic recomputation"))
         phase_state_path = project_root / "reviews" / "phase_state.json"
         try:
             validate_check8_evidence(sidecar)

@@ -41,12 +41,6 @@ _BACKWARD = re.compile(
 _RE_MD_HEAD = re.compile(r"(?m)^(?:(#{1,2})\s+.+)$")
 _RE_TEX_HEAD = re.compile(r"\\(?:chapter|section)\*?\s*\{[^}]*\}")
 
-_PROFILE = load_profile()
-_ENVELOPES = _PROFILE["thresholds"]["consolidation"]["candidate_gap_words"]
-_PARAGRAPH_GAP = _PROFILE["thresholds"]["consolidation"]["candidate_gap_paragraphs"]
-_LONG_MANUSCRIPT = _PROFILE["thresholds"]["consolidation"]["long_manuscript_candidate_words"]
-
-
 def _word_count(s: str) -> int:
     return len(re.findall(r"[\w']+", s))
 
@@ -121,16 +115,20 @@ def analyze(
     text: str,
     path: Path,
     p_stage: str,
+    profile: dict | None = None,
 ) -> Tuple[List[BoundaryStats], int, int, bool]:
     """Returns (per-boundary stats for each major heading, total_wc, n_headings, over_5000)."""
-    pkey = p_stage if p_stage in _ENVELOPES else "P1"
-    env = _ENVELOPES[pkey]
+    active = profile or load_profile()
+    consolidation = active["thresholds"]["consolidation"]
+    envelopes = consolidation["candidate_gap_words"]
+    pkey = p_stage if p_stage in envelopes else "P1"
+    env = envelopes[pkey]
     if path.suffix.lower() in {".tex", ".ltx"}:
         wc_text = _tex_simplify_for_wc(text)
     else:
         wc_text = text
     total_wc = _word_count(wc_text)
-    over_5000 = total_wc > _LONG_MANUSCRIPT
+    over_5000 = total_wc > consolidation["long_manuscript_candidate_words"]
 
     headings = _find_headings(path, text)
     n = len(headings)
@@ -171,7 +169,7 @@ def analyze(
         o_cue = opening_total  # for reporting: total matches in opening para
 
         gap_w = pw > env
-        gap_p = pc > _PARAGRAPH_GAP and gap_w
+        gap_p = pc > consolidation["candidate_gap_paragraphs"] and gap_w
         g_cand = gap_w and (pre_cue == 0) and (opening_total == 0)
 
         out.append(
@@ -215,8 +213,11 @@ def render_block(
     total_wc: int,
     n_headings: int,
     over_5000: bool,
+    profile: dict | None = None,
 ) -> str:
-    env = _ENVELOPES.get(p_stage, _ENVELOPES["P1"])
+    active = profile or load_profile()
+    envelopes = active["thresholds"]["consolidation"]["candidate_gap_words"]
+    env = envelopes.get(p_stage, envelopes["P1"])
     n_gap_w = sum(1 for s in stats if s.gap_exceeds_words)
     n_gap_p = sum(1 for s in stats if s.gap_exceeds_six_paras)
     n_zero_pre = sum(1 for s in stats if s.zero_pre_heading_cues)
@@ -328,9 +329,10 @@ def main() -> int:
 
     p_stage = args.p_stage or _parse_pstage(project_root)
     text = ms_path.read_text(encoding="utf-8", errors="replace")
-    stats, total_wc, n_head, over_5000 = analyze(text, ms_path, p_stage)
+    profile = load_profile()
+    stats, total_wc, n_head, over_5000 = analyze(text, ms_path, p_stage, profile)
     block = render_block(
-        p_stage, args.cycle_id, stats, total_wc, n_head, over_5000
+        p_stage, args.cycle_id, stats, total_wc, n_head, over_5000, profile
     )
     wrapped, mstart = _merge_markers(args.cycle_id, block)
 

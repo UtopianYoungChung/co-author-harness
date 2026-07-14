@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import jsonschema
 import reader_accessibility_policy as policy
 import check8_h_prefilter as h
+import check8_g_prefilter as g
 import milestone_framework_smoketest as fixture
 import milestone_framework_validate as mf
 import artefact_frontmatter_validate as frontmatter
@@ -78,8 +79,8 @@ def main() -> int:
     assert "corpus_drift" not in profile, "synthetic corpus implementation claim remains"
     assert not hasattr(h, "_corpus_drift"), "synthetic corpus dispatch remains"
 
-    md = "# Introduction\n\nHaving established the baseline, this section shows the result.\n\nFor example, consider the loan officer.\n\nIn summary, these constructs establish the boundary.\n\nA final bridge.\n\n# Methods\n\nTechnical remainder."
-    tex = "\\section{Introduction}\nHaving established the baseline, this section shows the result.\n\nFor example, consider the loan officer.\n\\subsection{Methods}\nTechnical remainder."
+    md = "# Introduction\n\nHaving established the baseline, this section shows the result.\n\nFor example, consider the loan officer.\n\nIn summary, these constructs establish the boundary.\n\nTurning now, a final bridge.\n\n# Methods\n\nTechnical remainder."
+    tex = "\\section{Introduction}\nHaving established the baseline, this section shows the result.\n% For example, this comment must disappear.\nFor example, consider the loan officer.\n\\subsection{Methods}\nTechnical remainder."
     md_roles = h.nominate_passage_roles(md, Path("paper.md"))
     tex_roles = h.nominate_passage_roles(tex, Path("paper.tex"))
     for roles in (md_roles, tex_roles):
@@ -89,10 +90,17 @@ def main() -> int:
         assert any(item["text"] == "Having established the baseline," and item["role"] == "orienting_clause" for item in roles)
         assert any(item["text"] == "this section shows the result." and item["role"] == "contribution_clause" for item in roles)
         assert any(item["text"] == "For example," and item["role"] == "worked_example_vignette" for item in roles)
-    assert any(item["text"] == "A final bridge." and item["role"] == "inter_section_transition" for item in md_roles)
+    assert any(item["text"] == "Turning now," and item["role"] == "inter_section_transition" for item in md_roles)
+    assert all("comment must disappear" not in item["text"] for item in tex_roles)
     assert all(item["text"] != md.split("# Methods",1)[0].strip() for item in md_roles), "whole section duplicated as cue span"
     clear = h.analyse_passage("The model maps actors.", "line 1", False, profile, "orienting_clause", "binding")
     assert not clear.any_fired, "anti-dilution fixture unexpectedly fired a negative probe"
+    g_text="# First\n\n"+("ordinary words "*30)+"\n\n# Second\n\nNext."
+    low=copy.deepcopy(profile); high=copy.deepcopy(profile)
+    low["thresholds"]["consolidation"]["candidate_gap_words"]["P1"]=1
+    high["thresholds"]["consolidation"]["candidate_gap_words"]["P1"]=10000
+    low_stats,*_=g.analyze(g_text,Path("paper.md"),"P1",low); high_stats,*_=g.analyze(g_text,Path("paper.md"),"P1",high)
+    assert any(item.g_candidate for item in low_stats) and not any(item.g_candidate for item in high_stats), "G ignored explicit resolved-profile thresholds"
 
     clean = {letter: {"findings": []} for letter in "ABCDEFGH"}
     clean["A"]["findings"] = [
@@ -174,6 +182,10 @@ def main() -> int:
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(phase="Ph2")),"does not match resolved policy")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: (payload.pop("manuscript_path"),payload.pop("manuscript_sha256"))),"schema invalid")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(sub_checks={key:{} for key in "ABCDEFGH"})),"schema invalid")
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["A"].update(applicable=False)),"canonical deterministic recomputation")
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(register_class="mixed")),"canonical deterministic recomputation")
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["A"]["candidates"].append({"paragraph":99,"word_count":999,"candidate_cues":["however"],"candidate_status":"overlay_functional_confirmation_required"})),"canonical deterministic recomputation")
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["H"]["bundles"][0]["probes"]["nominalisation"].update(threshold=999)),"canonical deterministic recomputation")
     def forge_active_g(project,fm):
         state_path=project/"reviews/phase_state.json"; state=json.loads(state_path.read_text(encoding="utf-8")); state["milestone_framework"]["policy_bindings"]["reader_accessibility"]["transitions"]["G"]["state"]="retired"; state_path.write_text(json.dumps(state),encoding="utf-8")
         policy_fm=fm["reader_accessibility_policy"]; path=project/policy_fm["check8_evidence_path"]

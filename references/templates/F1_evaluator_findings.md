@@ -37,7 +37,7 @@ check_8_subcheck_counters:
   sub_b_rhythm_flag_count: 0         # monotone-dense candidates under resolved thresholds.rhythm
   sub_c_first_use_flag_count: 0      # constructs deployed before first-use definition
   sub_d_signpost_flag_count: 0       # sections opening without the preamble
-  sub_e_jargon_density_flag_count: 0 # paragraphs introducing > 2 new domain terms
+sub_e_jargon_density_flag_count: 0 # candidates under thresholds.jargon
   sub_f_worked_example_flag_count: 0 # density spikes without worked-example turn
   sub_g_consolidation_flag_count: 0  # missing anchors after Evaluator judgment
   sub_h_register_flag_count: 0       # register findings after Evaluator judgment

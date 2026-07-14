@@ -21,7 +21,7 @@ Consumed by: §9e probe 3 (hedging density); Sub-check H negative marker 3 (hedg
 | `may` | epistemic possibility | Standard hedge; appropriate when the claim is genuinely conditional. |
 | `might` | epistemic possibility | Tighter than `may`; appropriate for hypothetical reasoning. |
 | `could` | epistemic possibility | Often substitutable for `may`; flagged when stacked with other hedges. |
-| `perhaps` | epistemic uncertainty | Adverbial hedge; flagged at high density (>2/100w) as register-soft. |
+| `perhaps` | epistemic uncertainty | Adverbial hedge; candidate density is owned by `thresholds.register.hedges_per_100_words_candidate`. |
 | `possibly` | epistemic uncertainty | Stronger than `perhaps`; flagged on stacking. |
 | `likely` | probabilistic estimate | Less hedge-like in technical contexts (probabilistic claim) but counts toward density. |
 | `suggests` | epistemic indirection | Verbal hedge; flagged when the data could support a stronger verb (`shows`, `demonstrates`). |

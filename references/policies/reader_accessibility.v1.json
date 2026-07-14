@@ -56,6 +56,7 @@
     },
     "rhythm": {"minimum_sentence_count": 4, "mean_words_above": 28, "standard_deviation_below": 6, "short_sentence_words_at_most": 12, "long_sentence_words_at_least": 25},
     "first_use": {"definition_window_paragraphs": 1, "manuscript_major_section_failures_min": 2},
+    "section_signpost": {"opening_sentences_min": 1, "opening_sentences_max": 3},
     "jargon": {"new_domain_terms_per_paragraph": {"P0": 3, "P1": 2, "P2": 1}},
     "worked_example": {"rhetorical_question_stack_min": 3, "example_window_paragraphs": 1},
     "consolidation": {"construct_accumulation": 3, "prior_sections_dependency": 2, "candidate_gap_words": {"P0": 800, "P1": 700, "P2": 600}, "candidate_gap_paragraphs": 6, "short_manuscript_guidance_words": 3000, "long_manuscript_candidate_words": 5000, "deterministic_gap_is_proxy_only": true},

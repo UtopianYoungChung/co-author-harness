@@ -1,7 +1,7 @@
 {
   "contract_version": "1.0.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
+  "profile_sha256": "28c5c4154de2ca6b66e832f4b34238fa49c72d9120fe12e0cae58546e37cc52c",
   "register_class": "technical",
   "project_identity": null,
   "resolved_profile": {
@@ -256,6 +256,10 @@
         "definition_window_paragraphs": 1,
         "manuscript_major_section_failures_min": 2
       },
+      "section_signpost": {
+        "opening_sentences_min": 1,
+        "opening_sentences_max": 3
+      },
       "jargon": {
         "new_domain_terms_per_paragraph": {
           "P0": 3,
@@ -495,7 +499,7 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "73ab58b6fd841d2fa9c5f25067423ffcad02b4980a42574b2172843b6cd3e778",
+      "sha256": "28c5c4154de2ca6b66e832f4b34238fa49c72d9120fe12e0cae58546e37cc52c",
       "role": "package_profile"
     },
     {

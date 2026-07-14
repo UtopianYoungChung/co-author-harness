@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any, List, Tuple
 
 from reader_accessibility_policy import load_profile
+from manuscript_geometry import heading_sections
 
 
 # Sentence splitter — naive but sufficient for prepositional-run probe.
@@ -213,18 +214,16 @@ def analyse_passage(text: str, locator: str, is_tex: bool, profile: dict[str, An
 
 def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
     """Nominate non-overlapping manuscript spans; headings are geometry, never passages."""
-    is_tex = path.suffix.lower() in {".tex", ".ltx"}
-    heading_re = re.compile(r"(?m)^(#{1,6})\s+(.+)$") if not is_tex else re.compile(r"(?m)^\\(chapter|section|subsection|subsubsection)\*?\{([^}]+)\}")
-    matches = list(heading_re.finditer(text))
+    clean, geometry = heading_sections(text, path)
     entries: list[dict[str, str]] = []
     sections: list[tuple[str, int, int, bool]] = []
-    if matches:
-        if text[:matches[0].start()].strip():
-            sections.append(("", 0, matches[0].start(), True))
-        for index, match in enumerate(matches):
-            sections.append((match.group(2).strip(), match.end(), matches[index + 1].start() if index + 1 < len(matches) else len(text), index + 1 < len(matches)))
+    if geometry:
+        if clean[:geometry[0]["heading_start"]].strip():
+            sections.append(("", 0, geometry[0]["heading_start"], True))
+        for index, section in enumerate(geometry):
+            sections.append((section["title"], section["body_start"], section["body_end"], index + 1 < len(geometry)))
     else:
-        sections.append(("", 0, len(text), False))
+        sections.append(("", 0, len(clean), False))
 
     orienting = re.compile(r"\b(having established|after the preceding|previous section|so far|up to this point)\b", re.I)
     contribution = re.compile(r"\b(this section (?:shows|argues|develops|examines)|we (?:show|argue)|i (?:show|argue)|the contribution here)\b", re.I)
@@ -234,7 +233,7 @@ def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
 
     for title, start, end, has_next_heading in sections:
         section_atoms: list[tuple[int, int, str, int]] = []
-        body = text[start:end]
+        body = clean[start:end]
         for paragraph_index, paragraph_match in enumerate(re.finditer(r"\S[\s\S]*?(?=\n\s*\n|\Z)", body)):
             paragraph = paragraph_match.group(0)
             paragraph_start = start + paragraph_match.start()
@@ -249,7 +248,7 @@ def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
                         continue
                     atom_start = sentence_start + clause.start() + left
                     atom_end = sentence_start + clause.start() + right
-                    section_atoms.append((atom_start, atom_end, text[atom_start:atom_end], paragraph_index))
+                    section_atoms.append((atom_start, atom_end, clean[atom_start:atom_end], paragraph_index))
         section_role = title.casefold() if title.casefold() in {"abstract", "introduction", "conclusion"} else None
         for atom_index, (atom_start, atom_end, atom, paragraph_index) in enumerate(section_atoms):
             if orienting.search(atom): role, confidence, reason = "orienting_clause", "high", "cue-local backward orientation"
@@ -257,11 +256,10 @@ def nominate_passage_roles(text: str, path: Path) -> list[dict[str, str]]:
             elif example.search(atom): role, confidence, reason = "worked_example_vignette", "medium", "cue-local example span"
             elif anchor.search(atom): role, confidence, reason = "consolidation_anchor", "medium", "cue-local consolidation span"
             elif transition.search(atom): role, confidence, reason = "inter_section_transition", "medium", "cue-local transition span"
-            elif has_next_heading and atom_index == len(section_atoms) - 1: role, confidence, reason = "inter_section_transition", "medium", "final prose span before the next heading"
             elif section_role: role, confidence, reason = section_role, "high", f"body span under explicit {title} heading"
             elif paragraph_index == 0: role, confidence, reason = "section_framing", "medium", "uncued opening span after a heading"
             else: role, confidence, reason = "technical_body", "low", "uncued technical-body remainder; overlay must classify"
-            line = text.count("\n", 0, atom_start) + 1
+            line = clean.count("\n", 0, atom_start) + 1
             entries.append({"text": atom, "locator": f"line {line}:chars {atom_start}-{atom_end}", "role": role, "confidence": confidence, "reason": reason})
     if len({entry["locator"] for entry in entries}) != len(entries):
         raise ValueError("passage role nomination produced duplicate locators")

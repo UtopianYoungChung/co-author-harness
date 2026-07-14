@@ -1,7 +1,7 @@
 {
   "schema_version":"check8_evidence.v1",
   "profile_path":"reviews/.harness/policy/reader_accessibility_resolved.json",
-  "profile_sha256":"8077196d5711d5675fa414d8b69dd52c7a0280eae8a7d56cbf0451fd5eb44f0b",
+  "profile_sha256":"c18e42735b873dde715ecdcbc8a8f4fb6877f907724e43549db82b0ccd2527dd",
   "manuscript_path":"manuscript/main.tex",
   "manuscript_sha256":"675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "phase":"Ph3",

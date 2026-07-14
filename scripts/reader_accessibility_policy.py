@@ -215,7 +215,7 @@ def validate_profile(profile: dict[str, Any]) -> None:
     ve = _object(adjacent["VE"], "adjacent_advisory_checks.VE", {"name", "scope", "gate_contribution", "aggregate_member", "route", "transition_key", "follow_up_home", "threshold_key"})
     if ve.get("gate_contribution") != "none" or ve.get("aggregate_member") is not False:
         raise PolicyError("VE must remain outside the Check 8 aggregate")
-    thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "first_use", "jargon", "worked_example", "consolidation", "register", "verdict_edge"})
+    thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "first_use", "section_signpost", "jargon", "worked_example", "consolidation", "register", "verdict_edge"})
     cadence = _object(thresholds["cadence"], "thresholds.cadence", {"unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
     if cadence.get("hard_ceiling_words") != 300 or not cadence.get("functional_confirmation_required"):
         raise PolicyError("provisional cadence decision is malformed")
@@ -248,6 +248,9 @@ def validate_profile(profile: dict[str, Any]) -> None:
     for key, value in rhythm.items(): _number(value, f"thresholds.rhythm.{key}")
     first_use = _object(thresholds["first_use"], "thresholds.first_use", {"definition_window_paragraphs", "manuscript_major_section_failures_min"})
     for key, value in first_use.items(): _number(value, f"thresholds.first_use.{key}", integer=True)
+    signpost = _object(thresholds["section_signpost"], "thresholds.section_signpost", {"opening_sentences_min", "opening_sentences_max"})
+    for key, value in signpost.items(): _number(value, f"thresholds.section_signpost.{key}", integer=True, minimum=1)
+    if signpost["opening_sentences_min"] > signpost["opening_sentences_max"]: raise PolicyError("thresholds.section_signpost sentence range is inverted")
     jargon = _object(thresholds["jargon"], "thresholds.jargon", {"new_domain_terms_per_paragraph"})
     stages = _object(jargon["new_domain_terms_per_paragraph"], "thresholds.jargon.new_domain_terms_per_paragraph", {"P0", "P1", "P2"})
     for key, value in stages.items(): _number(value, f"thresholds.jargon.new_domain_terms_per_paragraph.{key}", integer=True)
@@ -385,6 +388,19 @@ def validate_check8_evidence(evidence: dict[str, Any]) -> None:
     validate_schema_file(evidence, CHECK8_SCHEMA)
 
 
+def render_policy_view(profile: dict[str, Any]) -> str:
+    """Render the sole generated human-readable numeric policy view."""
+    validate_profile(profile)
+    payload = {
+        "decision_status": profile["decision_status"],
+        "runtime_modes": profile["runtime_modes"],
+        "thresholds": profile["thresholds"],
+        "transitions": {key: {field: profile["transitions"][key].get(field) for field in ("meaning", "required_observed_count", "workflow_effect_while_active", "workflow_effect_after_retirement", "stability_mode_effect")} for key in ("G", "H", "VE")},
+        "recurrence": profile["recurrence"],
+    }
+    return "# Reader Accessibility Policy View (Generated)\n\nDo not edit. Generated from `references/policies/reader_accessibility.v1.json`; operational prose cites profile keys.\n\n```json\n" + json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n```\n"
+
+
 def update_persistence(previous_content_sha256: str | None, current_content_sha256: str, prior_unchanged_rounds: int, current_severity: str, approved_revision_evidence: list[dict[str, Any]] | None = None, previous_approval_sequence: int | None = None) -> dict[str, Any]:
     eligible = [event for event in (approved_revision_evidence or []) if isinstance(event, dict) and event.get("event") == "revision_approved" and event.get("approved") is True and event.get("content_sha256") == current_content_sha256 and isinstance(event.get("sequence"), int)]
     newest_sequence = max((event["sequence"] for event in eligible), default=None)
@@ -461,13 +477,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--project-root", type=Path)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--render-view", action="store_true", help="render the generated human-readable numeric policy view")
     args = parser.parse_args(argv)
     try:
         result = resolve_policy(args.project_root, profile_path=args.profile)
     except PolicyError as exc:
         print(json.dumps({"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}))
         return 4
-    payload = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+    payload = render_policy_view(result["resolved_profile"]) if args.render_view else json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(payload, encoding="utf-8", newline="\n")
