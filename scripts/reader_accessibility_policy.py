@@ -37,6 +37,10 @@ class PolicyError(ValueError):
     pass
 
 
+class _MissingInput(PolicyError):
+    pass
+
+
 def _schema_type(value: Any, expected: str) -> bool:
     checks = {
         "object": lambda item: isinstance(item, dict),
@@ -160,13 +164,25 @@ class _Snapshot:
             raise PolicyError(f"domain-native input is not UTF-8: {self.role}: {self.path}: {exc}") from exc
 
 
+@dataclass(frozen=True)
+class _AbsentSnapshot:
+    path: Path
+    role: str
+    anchor: Path
+    anchor_stamp: tuple[int, int, int, int]
+
+
 class _SnapshotSet:
     def __init__(self, hook: Callable[[str, str, Path | None], None] | None = None):
         self._hook = hook
         self._items: dict[Path, _Snapshot] = {}
+        self._absent: dict[Path, _AbsentSnapshot] = {}
 
     def capture(self, path: Path, role: str) -> _Snapshot:
-        resolved = path.resolve()
+        try:
+            resolved = path.resolve()
+        except OSError as exc:
+            raise PolicyError(f"domain-native input unreadable: {role}: {path}: {exc}") from exc
         if resolved in self._items:
             return self._items[resolved]
         try:
@@ -185,8 +201,69 @@ class _SnapshotSet:
             return item
         except PolicyError:
             raise
+        except FileNotFoundError as exc:
+            raise _MissingInput(f"domain-native input absent: {role}: {resolved}") from exc
         except OSError as exc:
             raise PolicyError(f"domain-native input unreadable: {role}: {resolved}: {exc}") from exc
+
+    def capture_optional(self, path: Path, role: str) -> _Snapshot | None:
+        try:
+            return self.capture(path, role)
+        except _MissingInput:
+            self.track_absent(path, role)
+            return None
+
+    def track_absent(self, path: Path, role: str) -> None:
+        try:
+            resolved = path.resolve()
+        except OSError as exc:
+            raise PolicyError(f"domain-native absence token unreadable: {role}: {path}: {exc}") from exc
+        anchor = resolved.parent
+        while True:
+            try:
+                anchor_stamp = _stamp(anchor.stat())
+                break
+            except FileNotFoundError:
+                if anchor == anchor.parent:
+                    raise PolicyError(f"domain-native absence anchor missing: {role}: {resolved}")
+                anchor = anchor.parent
+            except OSError as exc:
+                raise PolicyError(f"domain-native absence token unreadable: {role}: {resolved}: {exc}") from exc
+        if self._hook:
+            self._hook("before_absence_anchor", role, resolved)
+        try:
+            if _stamp(anchor.stat()) != anchor_stamp:
+                raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}")
+        except PolicyError:
+            raise
+        except OSError as exc:
+            raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}: {exc}") from exc
+        try:
+            resolved.stat()
+        except FileNotFoundError:
+            item = _AbsentSnapshot(resolved, role, anchor, anchor_stamp)
+            self._absent[resolved] = item
+            if self._hook:
+                self._hook("after_absence", role, resolved)
+            self._verify_absent(item)
+            return
+        except OSError as exc:
+            raise PolicyError(f"domain-native absence token unreadable: {role}: {resolved}: {exc}") from exc
+        raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}")
+
+    @staticmethod
+    def _verify_absent(item: _AbsentSnapshot) -> None:
+        try:
+            item.path.stat()
+        except FileNotFoundError:
+            try:
+                if _stamp(item.anchor.stat()) == item.anchor_stamp:
+                    return
+            except OSError as exc:
+                raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}: {exc}") from exc
+        except OSError as exc:
+            raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}: {exc}") from exc
+        raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}")
 
     def verify_all(self) -> None:
         if self._hook:
@@ -198,6 +275,8 @@ class _SnapshotSet:
                 raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}: {exc}") from exc
             if current != item.stamp:
                 raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}")
+        for item in self._absent.values():
+            self._verify_absent(item)
 
 
 def normalize_tier(value: str) -> str:
@@ -295,8 +374,8 @@ def resolve_domain_native_register(
         pdf_rel = source_pdf or member.get("pdf")
         if pdf_rel:
             pdf_path = _contained(wiki_root, pdf_rel)
-            if pdf_path.is_file():
-                pdf_snapshot = snapshots.capture(pdf_path, "surface_warrant_pdf")
+            pdf_snapshot = snapshots.capture_optional(pdf_path, "surface_warrant_pdf")
+            if pdf_snapshot is not None:
                 pdf_hash = pdf_snapshot.sha256; provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
                 if wiki_root.resolve() == DEFAULT_WIKI_ROOT.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
                     raise PolicyError(f"expected exemplar PDF hash mismatch: {key}")

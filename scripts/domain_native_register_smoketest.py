@@ -96,6 +96,44 @@ def main() -> int:
         proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT)],capture_output=True,text=True,encoding="utf-8",errors="replace")
         assert proc.returncode==4 and json.loads(proc.stdout)["code"]=="RA-POLICY" and "Traceback" not in proc.stdout+proc.stderr
         source_page.write_bytes(valid_source_bytes)
+        absent_key=profile["domain_native_register"]["exemplar_members"][1]["source_key"]
+        absent_page=wiki/f"wiki/sources/{absent_key}.md"
+        absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        (wiki/"raw/future").mkdir(parents=True,exist_ok=True)
+        stable_absence=policy.resolve_domain_native_register(profile,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
+        assert f"{absent_key}\tfull-read\t-" in stable_absence["exemplar_hash_lines"]
+        staged=False
+        def stage_after_absence(stage: str, role: str, path: Path | None):
+            nonlocal staged
+            if not staged and stage == "after_absence" and role == "surface_warrant_pdf" and path is not None:
+                path.write_bytes(b"late staged bytes"); staged=True
+        try: policy.resolve_domain_native_register(profile,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT,_snapshot_hook=stage_after_absence)
+        except policy.PolicyError as exc: assert "changed during resolution" in str(exc)
+        else: raise AssertionError("PDF staged after the absence decision was accepted as '-' tuple")
+        (wiki/"raw/future/not-yet-staged.pdf").unlink()
+        wiki,workspace=write_fixture(root)
+        absent_page=wiki/f"wiki/sources/{absent_key}.md"
+        absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        replaced_parent=False
+        def replace_absent_parent(stage: str, role: str, path: Path | None):
+            nonlocal replaced_parent
+            if not replaced_parent and stage == "after_absence" and path is not None and path.name == "not-yet-staged.pdf":
+                parent=path.parent; old=parent.with_name("future-replaced"); os.replace(parent,old); parent.mkdir(); replaced_parent=True
+        try: policy.resolve_domain_native_register(profile,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT,_snapshot_hook=replace_absent_parent)
+        except policy.PolicyError as exc: assert "changed during resolution" in str(exc)
+        else: raise AssertionError("absent-PDF parent replacement was not rejected")
+        wiki,workspace=write_fixture(root)
+        absent_page=wiki/f"wiki/sources/{absent_key}.md"
+        absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        removed_anchor=False
+        def remove_anchor_during_acquisition(stage: str, role: str, path: Path | None):
+            nonlocal removed_anchor
+            if not removed_anchor and stage == "before_absence_anchor" and path is not None and path.name == "not-yet-staged.pdf":
+                path.parent.rmdir(); removed_anchor=True
+        try: policy.resolve_domain_native_register(profile,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT,_snapshot_hook=remove_anchor_during_acquisition)
+        except policy.PolicyError: pass
+        else: raise AssertionError("absence-anchor deletion during acquisition escaped controlled rejection")
+        wiki,workspace=write_fixture(root)
         def churn(role: str):
             fired=False
             def hook(stage: str, captured_role: str, path: Path | None):
