@@ -26,6 +26,7 @@ F9_TEMPLATE = ROOT / "references" / "templates" / "f9_milestone_handoff.json"
 EVENT_TEMPLATE = ROOT / "references" / "templates" / "milestone_event.json"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
+SK20_GATE = ROOT / "scripts" / "sk20_preflight_gate.py"
 
 CASES = {
     "valid_native_chain": 0,
@@ -1143,6 +1144,103 @@ def _run_real_validator(project: Path, target: str | None) -> tuple[int, dict[st
     return result.returncode, payload, result.stderr
 
 
+def _write_sk20_project(project: Path, claude_fields: dict[str, str], directive_fields: dict[str, str] | None = None, *, graph: bool = True) -> None:
+    project.mkdir()
+    (project / "reviews").mkdir()
+    (project / "manuscript").mkdir()
+    (project / "references").mkdir()
+    (project / "research_notes").mkdir()
+    wiki = project / "wiki"
+    (wiki / "graphify-out").mkdir(parents=True)
+
+    def table(fields: dict[str, str]) -> str:
+        rows = ["| Field | Value |", "|---|---|"]
+        rows.extend(f"| `{key}` | `{value}` |" for key, value in fields.items())
+        return "\n".join(rows) + "\n"
+
+    (project / "CLAUDE.md").write_text("# Project\n\n" + table(claude_fields), encoding="utf-8")
+    directives = "# Directives\n\n"
+    if directive_fields is not None:
+        directives += "## SK-20 applicability override\n\n" + table(directive_fields)
+    (project / "research_notes" / "directives.md").write_text(directives, encoding="utf-8")
+    (project / "reviews" / "classification.md").write_text("# Classification\n", encoding="utf-8")
+    (project / "manuscript" / "main.md").write_text(
+        "Last updated: 2026-07-13\n\nA grounded claim (Smith 2026).\n", encoding="utf-8"
+    )
+    (project / "references" / "REFERENCES.md").write_text("Last updated: 2026-07-13\n", encoding="utf-8")
+    if graph:
+        payload = {
+            "nodes": [{"id": "n1", "captured_at": "2026-07-13T12:00:00Z"}],
+            "links": [],
+        }
+        (wiki / "graphify-out" / "graph.json").write_text(json.dumps(payload), encoding="utf-8")
+        (wiki / "graphify-out" / "GRAPH_REPORT.md").write_text("# Graph report\n", encoding="utf-8")
+
+
+def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
+    base = {
+        "wiki_linked": "true",
+        "wiki_path": "wiki",
+        "coupling_e_on_review": "true",
+    }
+    na = {
+        "coupling_e_on_review": "false",
+        "sk20_not_applicable_authority": "user",
+        "sk20_not_applicable_reason": "The user excluded graph overlay for this project.",
+        "sk20_not_applicable_scope": "Coupling E.2 / SK-20",
+        "sk20_not_applicable_substitute_evidence": "research_notes/directives.md",
+    }
+    cases: list[tuple[str, dict[str, str], dict[str, str] | None, bool, str, int]] = [
+        ("enabled_ready", base, None, True, "READY", 0),
+        ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0),
+        ("directive_authorized_disabled", base, na, False, "NOT_APPLICABLE", 0),
+        ("silent_absence", {"wiki_path": "wiki"}, None, True, "MISCONFIGURED", 4),
+        ("false_like_string", {**base, "coupling_e_on_review": "off"}, None, True, "MISCONFIGURED", 4),
+        ("disabled_missing_reason", {**base, **{key: value for key, value in na.items() if key != "sk20_not_applicable_reason"}}, None, False, "MISCONFIGURED", 4),
+        ("disabled_invalid_authority", {**base, **na, "sk20_not_applicable_authority": "generator"}, None, False, "MISCONFIGURED", 4),
+        ("disabled_outside_evidence", {**base, **na, "sk20_not_applicable_substitute_evidence": "../outside.md"}, None, False, "MISCONFIGURED", 4),
+        ("enabled_missing_wiki_resources", base, None, False, "MISCONFIGURED", 4),
+        ("disabled_missing_wiki_resources", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0),
+    ]
+    for name, claude_fields, directive_fields, graph, expected_outcome, expected_exit in cases:
+        project = directory / f"sk20-{name}"
+        _write_sk20_project(project, claude_fields, directive_fields, graph=graph)
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit"],
+            capture_output=True, text=True, check=False,
+        )
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            payload = {}
+        actual_outcome = payload.get("outcome")
+        print(f"sk20/{name}: expected={expected_outcome}/{expected_exit} actual={actual_outcome}/{result.returncode}")
+        if result.returncode != expected_exit or actual_outcome != expected_outcome:
+            failures.append(
+                f"sk20/{name} expected {expected_outcome}/{expected_exit}, got "
+                f"{actual_outcome}/{result.returncode}; stderr={result.stderr.strip()!r}"
+            )
+        if "Traceback" in result.stderr:
+            failures.append(f"sk20/{name} emitted a traceback")
+        readiness_path = project / "reviews" / "coupling_readiness_2026-07-13.json"
+        if not readiness_path.is_file():
+            failures.append(f"sk20/{name} did not write readiness evidence")
+        else:
+            readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
+            if readiness.get("outcome") != expected_outcome:
+                failures.append(f"sk20/{name} readiness evidence outcome is not truthful")
+        noop_path = project / "reviews" / "sk20_noop_2026-07-13.json"
+        if expected_outcome == "READY" and noop_path.exists():
+            failures.append(f"sk20/{name} retained a no-op artifact for READY")
+        if expected_outcome != "READY":
+            if not noop_path.is_file():
+                failures.append(f"sk20/{name} did not write no-op evidence")
+            else:
+                noop = json.loads(noop_path.read_text(encoding="utf-8"))
+                if noop.get("outcome") != expected_outcome or noop.get("status") != "noop":
+                    failures.append(f"sk20/{name} no-op evidence does not preserve outcome")
+
+
 def main() -> int:
     required_files = (MILESTONE_SCHEMA, F9_SCHEMA, F9_TEMPLATE, EVENT_TEMPLATE)
     missing = [str(path.relative_to(ROOT)) for path in required_files if not path.is_file()]
@@ -1267,6 +1365,8 @@ def main() -> int:
                     f"stdlib isolation failed for {isolated_script.name}: "
                     f"exit={isolated.returncode}, stderr={isolated.stderr.strip()!r}"
                 )
+
+        _run_sk20_gate_cases(directory, failures)
 
     if failures:
         print("FAIL: " + "; ".join(failures))
