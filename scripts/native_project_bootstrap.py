@@ -6,23 +6,27 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from reader_accessibility_policy import phase_state_binding, resolve_policy
 
 
-UTC_PATTERN = re.compile(
+UTC_SHAPE = re.compile(
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$"
 )
-MILESTONES = ("M1", "M2", "M3", "M4", "M5")
+ValidatorRunner = Callable[..., subprocess.CompletedProcess[str]]
 
 
 def _pending_record(
@@ -171,9 +175,80 @@ def _phase_state(
     }
 
 
-def _write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _valid_utc_timestamp(value: str) -> bool:
+    if UTC_SHAPE.fullmatch(value) is None:
+        return False
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None and parsed.utcoffset() == timezone.utc.utcoffset(parsed)
+
+
+def _destination(staging_root: Path, relative: str) -> Path:
+    candidate = staging_root / relative
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(staging_root.resolve())
+    except ValueError as exc:
+        raise ValueError(f"seed destination escapes staging root: {relative}") from exc
+    return resolved
+
+
+def _mkdir(staging_root: Path, relative: str) -> Path:
+    path = _destination(staging_root, relative)
+    path.mkdir(parents=True, exist_ok=False)
+    contained = path.resolve()
+    try:
+        contained.relative_to(staging_root.resolve())
+    except ValueError as exc:
+        raise ValueError(f"created directory escapes staging root: {relative}") from exc
+    return path
+
+
+def _write(staging_root: Path, relative: str, content: str) -> Path:
+    path = _destination(staging_root, relative)
+    parent = path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    try:
+        parent.resolve().relative_to(staging_root.resolve())
+    except ValueError as exc:
+        raise ValueError(f"seed parent escapes staging root: {relative}") from exc
     path.write_text(content, encoding="utf-8", newline="\n")
+    return path
+
+
+def _run_validator(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+
+
+def _validate_staging(staging_root: Path, validator_runner: ValidatorRunner) -> None:
+    commands = (
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            str(SCRIPT_DIR / "milestone_framework_validate.py"),
+            "--project-root",
+            str(staging_root),
+        ],
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            str(SCRIPT_DIR / "phase_state_validate.py"),
+            "--project-root",
+            str(staging_root),
+        ],
+    )
+    for command in commands:
+        result = validator_runner(command, cwd=PACKAGE_ROOT)
+        if result.returncode != 0:
+            detail = (result.stdout + result.stderr).strip()
+            raise ValueError(
+                f"canonical bootstrap validation failed ({Path(command[3]).name}, exit {result.returncode})"
+                + (f": {detail}" if detail else "")
+            )
 
 
 def bootstrap(
@@ -182,58 +257,86 @@ def bootstrap(
     title: str,
     intended_readers: list[str],
     created_at: str,
+    *,
+    validator_runner: ValidatorRunner = _run_validator,
 ) -> None:
-    project_root = project_root.resolve()
+    requested_root = project_root.expanduser().absolute()
+    if requested_root.exists() or requested_root.is_symlink():
+        raise ValueError("project root must not exist; native bootstrap never merges or overwrites")
+    parent = requested_root.parent.resolve()
+    if not parent.is_dir():
+        raise ValueError("project-root parent must already exist and be a directory")
+    project_root = parent / requested_root.name
     if not project_name.strip() or not title.strip():
         raise ValueError("project name and title must be non-empty")
     if not intended_readers or any(not value.strip() for value in intended_readers):
         raise ValueError("at least one non-empty intended reader is required")
-    if not UTC_PATTERN.fullmatch(created_at):
-        raise ValueError("created-at must be strict ISO-8601 UTC ending in Z")
+    if not _valid_utc_timestamp(created_at):
+        raise ValueError("created-at must be a real strict ISO-8601 UTC timestamp ending in Z")
 
-    seeded = [
-        project_root / "reviews" / "phase_state.json",
-        project_root / "research_notes" / "project_memo.md",
-        project_root / "research_notes" / "annotated_references.md",
-        project_root / "manuscript" / "outline.md",
-        project_root / "manuscript" / "main.md",
-    ]
-    existing = [str(path) for path in seeded if path.exists()]
-    if existing:
-        raise ValueError(f"refusing to overwrite bootstrap surfaces: {', '.join(existing)}")
+    staging = Path(tempfile.mkdtemp(prefix=f".{project_root.name}.bootstrap-", dir=parent))
+    try:
+        _mkdir(staging, "reviews/.harness/milestones")
+        _write(
+            staging,
+            "research_notes/directives.md",
+            f"# Directives — {project_name}\n\n"
+            "This file records user, venue, advisor, and project-local overrides. "
+            "Higher-authority instructions retain package precedence.\n\n"
+            f"project_id: {project_name}\n"
+            "register_class: technical\n\n"
+            "No project-local override has been authorized at bootstrap.\n",
+        )
+        policy_path = _destination(
+            staging, "reviews/.harness/policies/reader_accessibility.resolved.json"
+        )
+        resolved = resolve_policy(staging)
+        _write(
+            staging,
+            "reviews/.harness/policies/reader_accessibility.resolved.json",
+            json.dumps(resolved, indent=2, ensure_ascii=False) + "\n",
+        )
+        binding = phase_state_binding(resolved, policy_path, staging)
+        framework = _framework(project_name, intended_readers, created_at, binding)
 
-    (project_root / "reviews" / ".harness" / "milestones").mkdir(parents=True, exist_ok=True)
-    policy_path = project_root / "reviews" / ".harness" / "policies" / "reader_accessibility.resolved.json"
-    resolved = resolve_policy(project_root)
-    _write(policy_path, json.dumps(resolved, indent=2, ensure_ascii=False) + "\n")
-    binding = phase_state_binding(resolved, policy_path, project_root)
-    framework = _framework(project_name, intended_readers, created_at, binding)
-
-    _write(
-        project_root / "research_notes" / "project_memo.md",
-        f"# Project Memo — {project_name}\n\n**Milestone:** M1 (Project Memo)\n**Status:** In progress\n\n"
-        "## Focus and framing\n\n## Core tension\n\n## Intended readers\n\n"
-        "## Question candidates\n\n## Evidence and snowball plan\n",
-    )
-    _write(
-        project_root / "research_notes" / "annotated_references.md",
-        f"# Annotated References — {project_name}\n\n**Milestone:** M2 (Annotated References)\n"
-        "**Status:** Not started\n\nNo reference has been reviewed or accepted at bootstrap.\n",
-    )
-    _write(
-        project_root / "manuscript" / "outline.md",
-        f"# Structured Outline — {project_name}\n\n**Milestone:** M3 (Structured Outline)\n"
-        "**Status:** Not started\n\nNo outline has been reviewed or accepted at bootstrap.\n",
-    )
-    _write(
-        project_root / "manuscript" / "main.md",
-        f"# {title}\n\n**Milestone:** M4 (Paper Draft)\n**Status:** Not started\n\n"
-        "No manuscript has been reviewed or accepted at bootstrap.\n",
-    )
-    _write(
-        project_root / "reviews" / "phase_state.json",
-        json.dumps(_phase_state(project_name, created_at, framework), indent=2, ensure_ascii=False) + "\n",
-    )
+        _write(
+            staging,
+            "research_notes/project_memo.md",
+            f"# Project Memo — {project_name}\n\n**Milestone:** M1 (Project Memo)\n**Status:** In progress\n\n"
+            "## Focus and framing\n\n## Core tension\n\n## Intended readers\n\n"
+            "## Question candidates\n\n## Evidence and snowball plan\n",
+        )
+        _write(
+            staging,
+            "research_notes/annotated_references.md",
+            f"# Annotated References — {project_name}\n\n**Milestone:** M2 (Annotated References)\n"
+            "**Status:** Not started\n\nNo reference has been reviewed or accepted at bootstrap.\n",
+        )
+        _write(
+            staging,
+            "manuscript/outline.md",
+            f"# Structured Outline — {project_name}\n\n**Milestone:** M3 (Structured Outline)\n"
+            "**Status:** Not started\n\nNo outline has been reviewed or accepted at bootstrap.\n",
+        )
+        _write(
+            staging,
+            "manuscript/main.md",
+            f"# {title}\n\n**Milestone:** M4 (Paper Draft)\n**Status:** Not started\n\n"
+            "No manuscript has been reviewed or accepted at bootstrap.\n",
+        )
+        _write(
+            staging,
+            "reviews/phase_state.json",
+            json.dumps(_phase_state(project_name, created_at, framework), indent=2, ensure_ascii=False)
+            + "\n",
+        )
+        _validate_staging(staging, validator_runner)
+        if project_root.exists() or project_root.is_symlink():
+            raise ValueError("project root appeared during bootstrap; refusing publication")
+        staging.rename(project_root)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
 
 
 def main(argv: list[str] | None = None) -> int:

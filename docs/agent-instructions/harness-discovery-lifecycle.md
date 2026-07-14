@@ -50,7 +50,7 @@ The Planner determines the current milestone and rung from the single machine-re
 
 ## Bootstrapping a new project
 
-When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. The bootstrapping protocol creates the standard directory structure, uses `scripts/native_project_bootstrap.py` to seed and validate the authoritative native milestone ledger, seeds the project CLAUDE.md, and dispatches the Planner for initial classification. Native state begins with M1 `in_progress` and M2–M5 `not_started`; no approval, feedback, or accepted artifact is fabricated at bootstrap.
+When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. For a native project, the requested project root must not exist: `scripts/native_project_bootstrap.py` stages the milestone seed beside the requested root, validates it, and atomically publishes it before the remaining non-milestone support templates are added. It never merges with an existing tree; legacy or partially initialized projects use migration. Native state begins with M1 `in_progress` and M2–M5 `not_started`; no approval, feedback, F9 packet, or accepted artifact is fabricated at bootstrap.
 
 **Quick reference — the standard project structure:**
 

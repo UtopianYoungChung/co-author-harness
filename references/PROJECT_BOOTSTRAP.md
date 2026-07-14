@@ -243,6 +243,8 @@ Reflector may add entries. No agent may remove entries.
 
 `reviews/phase_state.json` is the **only writable authority** for both the phase ledger and the `milestone_framework` namespace. Generate its native seed with `scripts/native_project_bootstrap.py`; do not copy status claims out of the Markdown files. The seed records M1 as `in_progress`, M2–M5 as `not_started`, empty artifact and feedback arrays, pending approvals, and not-ready handoffs. It also records only the evidence-free `milestone_started` event for M1.
 
+The native seed has a fresh-target contract: the requested project root must not exist, and its parent must already exist. The generator builds the entire milestone seed in a newly created sibling staging directory, resolves every output path against that staging root, and runs both canonical validators there. Only a fully valid seed is atomically renamed to the requested root. Failure removes staging and never merges with, overwrites, or repairs an existing project. Existing projects use the migration workflow instead.
+
 `reviews/.harness/milestones/` starts empty. An F9 packet is created only after its source milestone has an accepted deliverable and real approval evidence. The mere presence of `project_memo.md`, `annotated_references.md`, `outline.md`, or `main.md` never changes milestone state.
 
 ### 2.6 research_notes/project_memo.md
@@ -483,7 +485,7 @@ Ask the user for:
 
 ### Step 2: Create the directory skeleton
 
-Create the standard project directory per §1. Seed the non-milestone support files from §2, filling in `<PROJECT_NAME>`, `<PROJECT_TITLE>`, etc. Then run the deterministic native milestone seed once:
+Do **not** pre-create the project root. Confirm that its parent exists, then run the deterministic native milestone seed once:
 
 ```powershell
 python <package-root>/scripts/native_project_bootstrap.py `
@@ -493,7 +495,9 @@ python <package-root>/scripts/native_project_bootstrap.py `
   --intended-reader "<reader description>"
 ```
 
-The command creates the four milestone working surfaces, the empty F9 directory, the resolved reader-accessibility policy, and `reviews/phase_state.json`. It refuses to overwrite existing milestone surfaces. Validate the result before classification:
+The command accepts only a real UTC `--created-at` timestamp (when supplied), builds the four milestone working surfaces, project directives, empty F9 directory, resolved reader-accessibility policy, and `reviews/phase_state.json` in a fresh sibling staging directory, validates the staged result, and atomically publishes it. The policy binding therefore includes the exact seeded `research_notes/directives.md` hash. It rejects any existing target—including a target containing an F9 packet, resolved policy, symlink, or junction—and never emits `BOOTSTRAPPED` before both canonical validators pass. After successful publication, seed the remaining non-milestone support files from §2 without modifying these authoritative surfaces. Existing or legacy projects must not use this command; route them through migration.
+
+Re-run the validators before classification as a host-side confirmation:
 
 ```powershell
 python <package-root>/scripts/milestone_framework_validate.py --project-root <project-path>

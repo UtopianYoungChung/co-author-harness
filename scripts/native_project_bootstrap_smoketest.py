@@ -47,6 +47,7 @@ def main() -> int:
             "reviews/.harness/policies/reader_accessibility.resolved.json",
             "research_notes/project_memo.md",
             "research_notes/annotated_references.md",
+            "research_notes/directives.md",
             "manuscript/outline.md",
             "manuscript/main.md",
         }
@@ -72,6 +73,14 @@ def main() -> int:
         }
         if actual_statuses != expected_statuses:
             raise AssertionError(f"wrong native milestone seed: {actual_statuses}")
+        source_bindings = framework["policy_bindings"]["reader_accessibility"]["source_bindings"]
+        if not any(
+            item.get("scope") == "project"
+            and item.get("role") == "directives"
+            and item.get("path") == "research_notes/directives.md"
+            for item in source_bindings
+        ):
+            raise AssertionError("bootstrap policy is not bound to the seeded project directives")
 
         for key, record in framework["milestones"].items():
             if record["artifacts"] or record["feedback_records"]:
