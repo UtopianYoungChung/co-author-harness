@@ -1,42 +1,42 @@
 {
-  "schema_version": "reader_accessibility_candidates.v1",
-  "phase": "Ph3",
+  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+  "candidate_only": true,
   "cycle_id": "P21B-F1",
+  "evaluator_judgment_required": true,
+  "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
+  "passage_scope_class": "technical",
+  "phase": "Ph3",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
+  "profile_sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277",
+  "register_class": "domain-native",
+  "schema_version": "reader_accessibility_candidates.v1",
   "source_bindings": [
     {
-      "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "5f282a06be69a74a76280709db93f26f1e3f6f9a4aaafe77df663066b7fadbca",
-      "role": "package_profile"
+      "role": "package_profile",
+      "scope": "package",
+      "sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277"
     },
     {
-      "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5",
-      "role": "package_contributor"
+      "role": "package_contributor",
+      "scope": "package",
+      "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5"
     },
     {
-      "scope": "package",
       "path": "references/examples/model_prose_corpus.md",
-      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
-      "role": "package_contributor"
+      "role": "package_contributor",
+      "scope": "package",
+      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812"
     }
   ],
-  "register_class": "domain-native",
-  "passage_scope_class": "technical",
-  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
-  "exemplar_view_pin": "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e",
-  "candidate_only": true,
-  "evaluator_judgment_required": true,
   "sub_checks": {
     "A": {
       "applicable": true,
-      "deterministic_disposition": "candidate_probe",
-      "candidates": []
+      "candidates": [],
+      "deterministic_disposition": "candidate_probe"
     },
     "B": {
       "applicable": true,
@@ -50,30 +50,65 @@
     },
     "D": {
       "applicable": true,
-      "deterministic_disposition": "candidate_probe",
-      "candidates": []
+      "candidates": [],
+      "deterministic_disposition": "candidate_probe"
     },
     "E": {
       "applicable": true,
-      "deterministic_disposition": "candidate_probe",
-      "candidates": []
+      "candidates": [],
+      "deterministic_disposition": "candidate_probe"
     },
     "F": {
       "applicable": true,
-      "deterministic_disposition": "candidate_probe",
-      "candidates": []
+      "candidates": [],
+      "deterministic_disposition": "candidate_probe"
     },
     "G": {
       "applicable": true,
+      "candidates": [],
       "deterministic_disposition": "candidate_probe",
-      "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate",
-      "total_words": 7,
       "headings": 0,
       "long_manuscript_proxy": false,
-      "candidates": []
+      "proxy_label": "word-and-cue gap proxy candidate; not the construct-accumulation predicate",
+      "total_words": 7
     },
     "H": {
       "applicable": true,
+      "bundles": [
+        {
+          "binding_status": "binding",
+          "candidate_status": "overlay_positive_marker_audit_required",
+          "locator": "line 1:chars 0-47",
+          "negative_prefilter_fired": false,
+          "passage_role": "section_framing",
+          "probes": {
+            "hedging": {
+              "fired": false,
+              "name": "hedging",
+              "normalised": 0.0,
+              "raw_count": 0,
+              "threshold": 2.0
+            },
+            "nominalisation": {
+              "fired": false,
+              "name": "nominalisation",
+              "normalised": 0.0,
+              "raw_count": 0,
+              "threshold": 0.08
+            },
+            "prep_run": {
+              "fired": false,
+              "name": "prep_run",
+              "normalised": 1.0,
+              "raw_count": 1,
+              "threshold": 3.0
+            }
+          },
+          "role_confidence": "medium",
+          "role_reason": "uncued opening span after a heading",
+          "word_count": 7
+        }
+      ],
       "deterministic_disposition": "candidate_probe",
       "ph2_scope": null,
       "positive_marker_audit_required": true,
@@ -90,41 +125,6 @@
         "zave-1997-four-dark-corners-re",
         "nuseibeh-2000-re-a-roadmap",
         "goncalves-2019-istar-extension"
-      ],
-      "bundles": [
-        {
-          "locator": "line 1:chars 0-47",
-          "passage_role": "section_framing",
-          "role_confidence": "medium",
-          "role_reason": "uncued opening span after a heading",
-          "binding_status": "binding",
-          "word_count": 7,
-          "candidate_status": "overlay_positive_marker_audit_required",
-          "negative_prefilter_fired": false,
-          "probes": {
-            "nominalisation": {
-              "name": "nominalisation",
-              "raw_count": 0,
-              "normalised": 0.0,
-              "threshold": 0.08,
-              "fired": false
-            },
-            "prep_run": {
-              "name": "prep_run",
-              "raw_count": 1,
-              "normalised": 1.0,
-              "threshold": 3.0,
-              "fired": false
-            },
-            "hedging": {
-              "name": "hedging",
-              "raw_count": 0,
-              "normalised": 0.0,
-              "threshold": 2.0,
-              "fired": false
-            }
-          }
-        }
       ]
     }
   }

@@ -38,6 +38,11 @@ def fixture(root: Path) -> tuple[Path, Path, Path, Path]:
     schema_path.parent.mkdir(parents=True, exist_ok=True)
     schema_path.write_bytes((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_bytes())
     profile = policy.load_profile()
+    # Hermetic baseline: strip post-release ingestions (argument-only members) and
+    # reset version so fixture cases are independent of live re-pin history.
+    dnr = profile["domain_native_register"]
+    dnr["exemplar_members"] = [m for m in dnr["exemplar_members"] if m.get("warrant_scope", "both") == "both"]
+    profile["profile_version"] = "1.0.0"
     write_json(profile_path, profile)
     wiki, workspace = dnr_fixture.write_fixture(root / "corpus")
     current = policy.resolve_domain_native_register(
