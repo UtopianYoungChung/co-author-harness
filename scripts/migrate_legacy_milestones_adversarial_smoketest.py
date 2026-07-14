@@ -51,6 +51,20 @@ def main() -> int:
                 }],
             }},
         })
+        write_json(project / "reviews" / "tier_state.json", {
+            "schema_version": "0.7.3",
+            "manuscript_id": "adversarial",
+            "default_final_phase": "Ph4",
+            "terminal_phase_reached": False,
+            "sections": {"manuscript/main.md": {
+                "current_phase": "Ph1",
+                "phase_entry_log": [{
+                    "prev_phase": None, "new_phase": "Ph1", "trigger": "initial_dispatch",
+                    "actor": "planner", "notes": "Tier fixture selected only by adjudication.",
+                    "timestamp": "2026-07-13T20:00:00Z", "model_used": None,
+                }],
+            }},
+        })
         outside = Path(directory) / "outside.json"
         outside.write_text("{}\n", encoding="utf-8")
         escaped = run("--project-root", str(project), "--apply", "--adjudication", str(outside))
@@ -73,7 +87,14 @@ def main() -> int:
             "completed_through": "M1",
             "phase_source": "reviews/phase_state.json",
             "resolved_holds": [],
-            "artifact_roles": {},
+            "artifact_roles": {
+                "archive/milestone1_memo.md": {
+                    "milestone": "M1", "role": "evidence", "lineage_id": "archive",
+                },
+                "manuscript/milestone1_memo.md": {
+                    "milestone": "M1", "role": "deliverable", "lineage_id": "live",
+                },
+            },
         }
         write_json(adjudication, base)
         original_hash = sha(project / "reviews" / "phase_state.json")
@@ -87,6 +108,44 @@ def main() -> int:
         assert malformed_holds.returncode == 2 and "holds" in malformed_holds.stderr.lower()
 
         base["resolved_holds"] = [item["hold_id"] for item in matrix["holds"]]
+        valid_roles = json.loads(json.dumps(base["artifact_roles"]))
+
+        base["artifact_roles"] = {}
+        write_json(adjudication, base)
+        empty_roles = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert empty_roles.returncode == 2 and "deliverable" in empty_roles.stderr.lower()
+
+        base["artifact_roles"] = json.loads(json.dumps(valid_roles))
+        base["primary_lineage"] = "arbitrary"
+        write_json(adjudication, base)
+        arbitrary_lineage = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert arbitrary_lineage.returncode == 2 and "primary_lineage" in arbitrary_lineage.stderr.lower()
+
+        base["primary_lineage"] = "live"
+        base["phase_source"] = "reviews/missing.json"
+        write_json(adjudication, base)
+        bad_phase_source = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert bad_phase_source.returncode == 2 and "phase_source" in bad_phase_source.stderr.lower()
+
+        base["phase_source"] = "reviews/phase_state.json"
+        base["artifact_roles"]["manuscript/milestone1_memo.md"]["milestone"] = "M2"
+        write_json(adjudication, base)
+        wrong_milestone = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert wrong_milestone.returncode == 2 and "discovered milestone" in wrong_milestone.stderr.lower()
+
+        base["artifact_roles"] = json.loads(json.dumps(valid_roles))
+        del base["artifact_roles"]["archive/milestone1_memo.md"]
+        write_json(adjudication, base)
+        incomplete_hold = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert incomplete_hold.returncode == 2 and "hold paths" in incomplete_hold.stderr.lower()
+
+        base["artifact_roles"] = json.loads(json.dumps(valid_roles))
+        base["completed_through"] = "M2"
+        write_json(adjudication, base)
+        incomplete_boundary = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert incomplete_boundary.returncode == 2 and "completed_through" in incomplete_boundary.stderr.lower()
+
+        base["completed_through"] = "M1"
         base["approved_at"] = "2026-02-30T21:00:00Z"
         write_json(adjudication, base)
         bad_date = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
@@ -119,14 +178,77 @@ def main() -> int:
         applied = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
         assert applied.returncode == 0, applied.stdout + applied.stderr
         manifest = next((project / "reviews" / ".harness" / "migrations").glob("*/rollback_manifest.json"))
+        migration_dir = manifest.parent
         replacement = project / "reviews" / "phase_state.json"
+
+        manifest_doc = json.loads(manifest.read_text(encoding="utf-8"))
+        tier_entry = next(item for item in manifest_doc["originals"] if item["original_path"] == "reviews/tier_state.json")
+        commit_path = migration_dir / "commit.json"
+        commit_bytes = commit_path.read_bytes()
+        commit_path.unlink()
+        (project / "reviews" / "tier_state.json").write_bytes((project / tier_entry["archive_path"]).read_bytes())
+        crash_recovered = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert crash_recovered.returncode == 0, crash_recovered.stdout + crash_recovered.stderr
+        assert json.loads(crash_recovered.stdout)["outcome"] == "recovered_committed"
+        assert not (project / "reviews" / "tier_state.json").exists()
+        assert commit_path.read_bytes() == commit_bytes
+
+        (project / "reviews" / "tier_state.json").write_bytes((project / tier_entry["archive_path"]).read_bytes())
+        stale_fast_path = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert stale_fast_path.returncode == 2 and "coexist" in stale_fast_path.stderr.lower()
+        assert (project / "reviews" / "tier_state.json").is_file()
+        (project / "reviews" / "tier_state.json").unlink()
+
+        missing_adjudication = run("--project-root", str(project), "--apply", "--adjudication", str(project / "missing.json"))
+        assert missing_adjudication.returncode == 2 and "adjudication" in missing_adjudication.stderr.lower()
+
+        different_adjudication = project / "different-adjudication.json"
+        different_adjudication.write_bytes(adjudication.read_bytes() + b" ")
+        different = run("--project-root", str(project), "--apply", "--adjudication", str(different_adjudication))
+        assert different.returncode == 2 and "adjudication" in different.stderr.lower()
+
+        commit_path.unlink()
+        report_path = migration_dir / "migration_report.json"
+        report_bytes = report_path.read_bytes()
+        report_path.write_text("{}\n", encoding="utf-8")
+        bad_report = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert bad_report.returncode == 2 and "report" in bad_report.stderr.lower()
+        assert not commit_path.exists()
+        report_path.write_bytes(report_bytes)
+
+        manifest_bytes = manifest.read_bytes()
+        manifest_doc = json.loads(manifest_bytes)
+        archive_path = project / manifest_doc["originals"][0]["archive_path"]
+        archive_bytes = archive_path.read_bytes()
+        archive_path.write_bytes(archive_bytes + b"tamper")
+        bad_archive = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert bad_archive.returncode == 2 and "archive" in bad_archive.stderr.lower()
+        assert not commit_path.exists()
+        archive_path.write_bytes(archive_bytes)
+
+        manifest.write_text("{}\n", encoding="utf-8")
+        bad_manifest = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert bad_manifest.returncode == 2 and "manifest" in bad_manifest.stderr.lower()
+        assert not commit_path.exists()
+        manifest.write_bytes(manifest_bytes)
+
+        recovered = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert recovered.returncode == 0, recovered.stdout + recovered.stderr
+        assert json.loads(recovered.stdout)["outcome"] == "recovered_committed"
+        assert commit_path.read_bytes() == commit_bytes
+
+        commit_path.write_text("{}\n", encoding="utf-8")
+        bad_commit = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+        assert bad_commit.returncode == 2 and "commit" in bad_commit.stderr.lower()
+        commit_path.write_bytes(commit_bytes)
+
         replacement.write_bytes(replacement.read_bytes() + b" ")
         changed_hash = sha(replacement)
         refused_rollback = run("--project-root", str(project), "--rollback", str(manifest))
         assert refused_rollback.returncode == 2 and "replacement hash changed" in refused_rollback.stderr.lower()
         assert sha(replacement) == changed_hash
 
-    print("PASS migrate_legacy_milestones_adversarial_smoketest (8 refusals)")
+    print("PASS migrate_legacy_milestones_adversarial_smoketest (20 refusals)")
     return 0
 
 

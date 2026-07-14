@@ -13,6 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATOR = ROOT / "scripts" / "migrate_legacy_milestones.py"
+sys.path.insert(0, str(ROOT / "scripts"))
+import migrate_legacy_milestones as migration
 CASES = (
     "dry_run_writes_nothing",
     "archive_live_ambiguity_creates_hold",
@@ -66,34 +68,65 @@ def phase_document(*, sections_as_array: bool = True) -> dict:
     }
 
 
-def make_project(root: Path, *, ambiguous: bool = False, mixed: bool = False) -> Path:
+def make_project(root: Path, *, ambiguous: bool = False, mixed: bool = False, tier_only: bool = False) -> Path:
     project = root / "legacy-test"
     (project / "reviews").mkdir(parents=True)
     (project / "manuscript").mkdir()
     (project / "archive").mkdir()
+    (project / "research_notes").mkdir()
     (project / "manuscript" / "main.md").write_text("# Live draft\n", encoding="utf-8")
-    (project / "archive" / "milestone1_project_memo.md").write_text("# Archived memo\n", encoding="utf-8")
+    (project / "research_notes" / "milestone1_project_memo.md").write_text("# Live memo\n", encoding="utf-8")
+    (project / "research_notes" / "milestone2_annotated_references.md").write_text("# Live references\n", encoding="utf-8")
+    (project / "manuscript" / "milestone3_outline.md").write_text("# Live outline\n", encoding="utf-8")
     if ambiguous:
-        (project / "manuscript" / "milestone1_revised_memo.md").write_text("# Live memo\n", encoding="utf-8")
-    write_json(project / "reviews" / "phase_state.json", phase_document())
+        (project / "archive" / "milestone1_archived_memo.md").write_text("# Archived memo\n", encoding="utf-8")
+    if not tier_only:
+        write_json(project / "reviews" / "phase_state.json", phase_document())
     if mixed:
         write_json(project / "reviews" / "tier_state.json", {"schema_version": "0.7.3", "sections": {}})
+    elif tier_only:
+        tier = phase_document()
+        tier["schema_version"] = "0.7.3"
+        tier["sections"][0]["current_tier"] = "T1"
+        del tier["sections"][0]["current_phase"]
+        tier["sections"][0]["phase_entry_log"][0]["prev_tier"] = None
+        tier["sections"][0]["phase_entry_log"][0]["new_tier"] = "T1"
+        del tier["sections"][0]["phase_entry_log"][0]["prev_phase"]
+        del tier["sections"][0]["phase_entry_log"][0]["new_phase"]
+        write_json(project / "reviews" / "tier_state.json", tier)
     return project
 
 
 def approved_adjudication(project: Path, matrix: dict) -> Path:
     approval = project / "reviews" / "migration_approval.md"
     approval.write_text("User authorizes the bounded legacy migration.\n", encoding="utf-8")
+    boundary = "M3"
+    artifact_roles = {}
+    for candidate in matrix["artifact_candidates"]:
+        if candidate["milestone"] not in {"M1", "M2", "M3"}:
+            continue
+        if candidate["location_class"] == "live":
+            artifact_roles[candidate["path"]] = {
+                "milestone": candidate["milestone"],
+                "role": "deliverable",
+                "lineage_id": "live",
+            }
+        else:
+            artifact_roles[candidate["path"]] = {
+                "milestone": candidate["milestone"],
+                "role": "evidence",
+                "lineage_id": "archive",
+            }
     adjudication = {
         "authority": "user",
         "approved_at": "2026-07-13T21:00:00Z",
         "evidence_path": "reviews/migration_approval.md",
         "evidence_sha256": sha(approval.read_bytes()),
         "primary_lineage": "live",
-        "completed_through": "M3",
-        "phase_source": "reviews/phase_state.json",
+        "completed_through": boundary,
+        "phase_source": matrix["ledger_sources"][0],
         "resolved_holds": [hold["hold_id"] for hold in matrix["holds"]],
-        "artifact_roles": {},
+        "artifact_roles": artifact_roles,
     }
     path = project / "adjudication.json"
     write_json(path, adjudication)
@@ -170,14 +203,62 @@ def main() -> int:
         assert json.loads(second.stdout)["outcome"] == "already_migrated"
         completed.append("approved_migration_is_idempotent")
 
-        manifest_paths = list((apply_project / "reviews" / ".harness" / "migrations").glob("*/rollback_manifest.json"))
+        tier_project = make_project(base / "tier-only", tier_only=True)
+        original_ledgers = {
+            path.relative_to(tier_project).as_posix(): path.read_bytes()
+            for path in (tier_project / "reviews").glob("*_state.json")
+        }
+        tier_matrix = json.loads(run("--project-root", str(tier_project)).stdout)
+        tier_adjudication = approved_adjudication(tier_project, tier_matrix)
+
+        interrupted_project = make_project(base / "tier-interrupted", tier_only=True)
+        interrupted_matrix = json.loads(run("--project-root", str(interrupted_project)).stdout)
+        interrupted_adjudication = approved_adjudication(interrupted_project, interrupted_matrix)
+        interrupted_tier = interrupted_project / "reviews" / "tier_state.json"
+        interrupted_original = interrupted_tier.read_bytes()
+
+        def fail_commit(path: Path, payload: bytes) -> None:
+            if path.name == "commit.json":
+                raise OSError("simulated commit-marker interruption")
+            migration._atomic_write(path, payload)
+
+        try:
+            migration.apply_migration(
+                interrupted_project, interrupted_adjudication, atomic_writer=fail_commit
+            )
+        except OSError as exc:
+            assert "commit-marker" in str(exc)
+        else:
+            raise AssertionError("commit-marker interruption was not propagated")
+        assert interrupted_tier.read_bytes() == interrupted_original
+        assert not (interrupted_project / "reviews" / "phase_state.json").exists()
+        interrupted_migrations = interrupted_project / "reviews" / ".harness" / "migrations"
+        assert not interrupted_migrations.exists() or not any(interrupted_migrations.iterdir())
+
+        tier_applied = run("--project-root", str(tier_project), "--apply", "--adjudication", str(tier_adjudication))
+        assert tier_applied.returncode == 0, tier_applied.stdout + tier_applied.stderr
+        manifest_paths = list((tier_project / "reviews" / ".harness" / "migrations").glob("*/rollback_manifest.json"))
         assert len(manifest_paths) == 1
         manifest = json.loads(manifest_paths[0].read_text(encoding="utf-8"))
-        current = apply_project / manifest["replacement_path"]
+        assert manifest["replacement_existed_before"] is False
+        current = tier_project / manifest["replacement_path"]
         assert sha(current.read_bytes()) == manifest["replacement_sha256"]
-        rolled = run("--project-root", str(apply_project), "--rollback", str(manifest_paths[0]))
+        tier_adjudication_bytes = tier_adjudication.read_bytes()
+        tier_adjudication.unlink()
+        rolled = run("--project-root", str(tier_project), "--rollback", str(manifest_paths[0]))
         assert rolled.returncode == 0, rolled.stdout + rolled.stderr
-        assert sha(current.read_bytes()) == manifest["original_sha256"]
+        assert not current.exists()
+        for relative, payload in original_ledgers.items():
+            assert (tier_project / relative).read_bytes() == payload
+        migration_dir = manifest_paths[0].parent
+        assert not (migration_dir / "commit.json").exists()
+        rollback_record = json.loads((migration_dir / "rollback.json").read_text(encoding="utf-8"))
+        assert rollback_record["transaction_state"] == "rolled_back"
+        tier_adjudication.write_bytes(tier_adjudication_bytes)
+        reapplied = run("--project-root", str(tier_project), "--apply", "--adjudication", str(tier_adjudication))
+        assert reapplied.returncode == 0, reapplied.stdout + reapplied.stderr
+        assert json.loads(reapplied.stdout)["outcome"] == "migrated"
+        assert current.is_file() and not (tier_project / "reviews" / "tier_state.json").exists()
         completed.append("rollback_manifest_restores_original_hash")
 
     assert tuple(completed) == CASES, completed
