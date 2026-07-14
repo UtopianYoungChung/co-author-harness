@@ -1978,6 +1978,31 @@ def main() -> int:
                 assert sibling["applicable_ceiling"] == "Ph4"
             actual_exit, payload, stderr = _run_real_validator(project, target)
             codes = {finding.get("code") for finding in payload.get("findings", [])}
+            named_findings = [
+                finding for finding in payload.get("findings", []) if isinstance(finding, dict)
+            ]
+            if name == "re_m5_manuscript_changed":
+                assert any(
+                    finding.get("code") == "MF-BINDING"
+                    and finding.get("path") == "milestone_framework.milestones.M5.artifacts[0].path"
+                    and "current" in finding.get("message", "")
+                    for finding in named_findings
+                )
+            elif name == "re_m2_reopened_blocks_m5":
+                assert fixture_document["milestone_framework"]["milestones"]["M5"]["handoff"]["status"] == "ready"
+                assert any(
+                    finding.get("code") == "MF-REOPEN"
+                    and finding.get("path") == "milestone_framework.milestones.M5.dependency_state"
+                    and "upstream M2 reopened" in finding.get("message", "")
+                    for finding in named_findings
+                )
+            elif name == "inf_unlocked_ph3_sibling_blocks_ph4":
+                assert any(
+                    finding.get("code") == "MF-PHASE"
+                    and finding.get("path") == "sections['milestone5_v2_coauthor_layperson'].current_phase"
+                    and "non-ceiling-locked" in finding.get("message", "")
+                    for finding in named_findings
+                )
             actual_outcome = payload.get("outcome")
             print(
                 f"real/{name}: expected={expected_outcome}/{expected_exit} "

@@ -278,6 +278,14 @@ def main() -> int:
 
         inf_mixed = make_project(base / "inf-mixed", mixed=True)
         assert_synthetic_fixture(inf_mixed, base)
+        mixed_dry = run("--project-root", str(inf_mixed))
+        assert mixed_dry.returncode == 0 and "Traceback" not in (mixed_dry.stdout + mixed_dry.stderr)
+        mixed_matrix = json.loads(mixed_dry.stdout)
+        assert any(
+            hold["code"] == "MIXED_TIER_PHASE_STATE"
+            and hold["paths"] == ["reviews/phase_state.json", "reviews/tier_state.json"]
+            for hold in mixed_matrix["holds"]
+        )
         mixed_before = tree_snapshot(inf_mixed)
         mixed_apply = run("--project-root", str(inf_mixed), "--apply")
         assert mixed_apply.returncode == 2
