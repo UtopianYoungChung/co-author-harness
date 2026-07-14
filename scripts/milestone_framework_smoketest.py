@@ -29,6 +29,7 @@ F9_TEMPLATE = ROOT / "references" / "templates" / "f9_milestone_handoff.json"
 EVENT_TEMPLATE = ROOT / "references" / "templates" / "milestone_event.json"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 LIFECYCLE_RENDERER = ROOT / "scripts" / "render_lifecycle_state.py"
+EXEMPLAR_REGISTRY = ROOT / "references" / "milestone_exemplars.json"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 SK20_GATE = ROOT / "scripts" / "sk20_preflight_gate.py"
 
@@ -703,8 +704,8 @@ def _write_real_case(case: str, project: Path) -> None:
         ])
         _drop_milestone_events(ledger, "M5")
     elif case in {"valid_approved_legacy_migration", "legacy_handoffs_without_project_identity"}:
-        evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "migration approved\n")
-        report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", "migration report\n")
+        evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "status: APPROVED\nauthority: user\n")
+        report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", '{"adjudication_outcome":"approved","authority":"user"}\n')
         ledger["mode"] = "legacy"
         ledger["migration_boundary"] = {
             "authority": "user",
@@ -1227,6 +1228,29 @@ def _write_exemplar_registry(
     registry.write_text(json.dumps({"schema_version": "1.0.0", "entries": entries}, indent=2) + "\n", encoding="utf-8")
 
 
+def _rebind_legacy_registry(project: Path, registry: Path) -> None:
+    """Rehash a complete legacy chain so semantic rejection cannot hide behind stale hashes."""
+    phase_path = project / "reviews" / "phase_state.json"
+    document = json.loads(phase_path.read_text(encoding="utf-8"))
+    boundary = document["milestone_framework"]["migration_boundary"]
+    boundary["report_sha256"] = _hash_file(project / boundary["report_path"])
+    boundary["evidence_sha256"] = _hash_file(project / boundary["evidence_path"])
+    phase_path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    phase_sha = _hash_file(phase_path)
+    manifest = project / "reviews" / "exemplar" / "rollback_manifest.json"
+    manifest.write_text(json.dumps({"manifest_version": "1.0.0", "replacement_path": "reviews/phase_state.json", "replacement_sha256": phase_sha, "report_sha256": boundary["report_sha256"]}) + "\n", encoding="utf-8")
+    commit = project / "reviews" / "exemplar" / "migration_commit.json"
+    commit.write_text(json.dumps({"transaction_state": "committed", "replacement_sha256": phase_sha, "report_sha256": boundary["report_sha256"], "manifest_sha256": _hash_file(manifest)}) + "\n", encoding="utf-8")
+    payload = json.loads(registry.read_text(encoding="utf-8"))
+    entry = payload["entries"][0]
+    entry["phase_state_sha256"] = phase_sha
+    role_paths = {item["role"]: item for item in entry["validator_evidence"]}
+    for role in ("migration_report", "migration_approval", "migration_manifest", "migration_commit"):
+        item = role_paths[role]
+        item["sha256"] = _hash_file(project / item["path"])
+    registry.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
 def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     def run(name: str, project: Path, registry: Path, expected_exit: int, expected_code: str | None = None) -> dict[str, Any]:
         actual_exit, payload, stderr = _run_real_validator(project, None, registry)
@@ -1246,13 +1270,45 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     empty.write_text('{"schema_version":"1.0.0","entries":[]}\n', encoding="utf-8")
     run("absent_claim_without_registration", ordinary, empty, 0)
 
+    phase_path = ordinary / "reviews" / "phase_state.json"
+    phase_document = json.loads(phase_path.read_text(encoding="utf-8"))
+    original_purpose = phase_document["milestone_framework"]["milestones"]["M1"]["purpose"]
+    phase_document["milestone_framework"]["milestones"]["M1"]["purpose"] = "reference implementation"
+    phase_path.write_text(json.dumps(phase_document, indent=2) + "\n", encoding="utf-8")
+    run("ledger_analytical_scalar", ordinary, empty, 0)
+    phase_document["milestone_framework"]["milestones"]["M1"]["purpose"] = original_purpose
+    phase_path.write_text(json.dumps(phase_document, indent=2) + "\n", encoding="utf-8")
+
+    declaration_surface = ordinary / "CLAUDE.md"
+    positive_claims = (
+        "INF3130 is a reference implementation.",
+        "This project has been designated as a clean lifecycle exemplar.",
+        "This project serves as the reference implementation.",
+        "**Status:** portfolio exemplar",
+        "| **Status:** | portfolio exemplar |",
+        "The project remains the legacy migration exemplar.",
+    )
+    for index, claim in enumerate(positive_claims):
+        declaration_surface.write_text(f"# Project\n\n{claim}\n", encoding="utf-8")
+        run(f"claim_evasion_{index}", ordinary, empty, 4, "MF-EXEMPLAR")
+    negative_mentions = (
+        "This project is not a portfolio exemplar.",
+        "Is INF3130 a reference implementation?",
+        "The review asks whether this project serves as the reference implementation.",
+        "The phrase `portfolio exemplar` is an analytical category here.",
+        "We do not claim that this project is a portfolio exemplar.",
+    )
+    for index, mention in enumerate(negative_mentions):
+        declaration_surface.write_text(f"# Project\n\n{mention}\n", encoding="utf-8")
+        run(f"claim_false_positive_{index}", ordinary, empty, 0)
+    declaration_surface.unlink()
+
     (ordinary / "AGENTS.md").write_text("# Reference implementation\n", encoding="utf-8")
     run("agents_self_declaration", ordinary, empty, 4, "MF-EXEMPLAR")
     (ordinary / "AGENTS.md").unlink()
     (ordinary / "reviews" / "lifecycle_state.md").write_text("status: clean_lifecycle_exemplar\n", encoding="utf-8")
     run("lifecycle_self_declaration", ordinary, empty, 4, "MF-EXEMPLAR")
     (ordinary / "reviews" / "lifecycle_state.md").unlink()
-    phase_path = ordinary / "reviews" / "phase_state.json"
     phase_document = json.loads(phase_path.read_text(encoding="utf-8"))
     phase_document["milestone_framework"]["exemplar_status"] = "portfolio exemplar"
     phase_path.write_text(json.dumps(phase_document, indent=2) + "\n", encoding="utf-8")
@@ -1270,6 +1326,13 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     clean_registry = directory / "clean-registry.json"
     _write_exemplar_registry(clean, clean_registry, "clean_lifecycle_exemplar")
     run("clean_registered", clean, clean_registry, 0)
+    extra = clean / "reviews" / "exemplar" / "unknown.txt"
+    extra.write_text("status: PASS\n", encoding="utf-8")
+    extra_registry = directory / "extra-role-registry.json"
+    extra_payload = json.loads(clean_registry.read_text(encoding="utf-8"))
+    extra_payload["entries"][0]["validator_evidence"].append({"role": "unknown_but_hash_valid", "path": "reviews/exemplar/unknown.txt", "sha256": _hash_file(extra)})
+    extra_registry.write_text(json.dumps(extra_payload, indent=2) + "\n", encoding="utf-8")
+    run("unknown_evidence_role", clean, extra_registry, 4, "MF-EXEMPLAR")
     lifecycle = clean / "reviews" / "lifecycle_state.md"
     lifecycle_original = lifecycle.read_bytes()
     lifecycle.write_bytes(lifecycle_original + b"\nThis project is the portfolio exemplar.\n")
@@ -1290,6 +1353,18 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     legacy_registry = directory / "legacy-registry.json"
     _write_exemplar_registry(legacy, legacy_registry, "legacy_migration_exemplar")
     run("legacy_registered", legacy, legacy_registry, 0)
+    rejected_report = legacy / "reviews" / "migration_report.md"
+    rejected_report.write_text('{"adjudication_outcome":"rejected","authority":"nobody"}\n', encoding="utf-8")
+    _rebind_legacy_registry(legacy, legacy_registry)
+    run("legacy_rejected_report_rehashed", legacy, legacy_registry, 4, "MF-EXEMPLAR")
+
+    legacy_approval = directory / "exemplar-legacy-approval"
+    legacy_approval.mkdir(); _write_real_case("valid_approved_legacy_migration", legacy_approval)
+    legacy_approval_registry = directory / "legacy-approval-registry.json"
+    _write_exemplar_registry(legacy_approval, legacy_approval_registry, "legacy_migration_exemplar")
+    (legacy_approval / "reviews" / "migration_approval.md").write_text("status: REJECTED\nauthority: nobody\n", encoding="utf-8")
+    _rebind_legacy_registry(legacy_approval, legacy_approval_registry)
+    run("legacy_rejected_approval_rehashed", legacy_approval, legacy_approval_registry, 4, "MF-EXEMPLAR")
 
     duplicate = directory / "exemplar-duplicate"
     duplicate.mkdir(); _write_real_case("valid_native_chain", duplicate)
@@ -1305,6 +1380,50 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     malformed = directory / "malformed-registry.json"
     malformed.write_text('{"schema_version":"1.0.0","entries":"wrong"}\n', encoding="utf-8")
     run("malformed_registry", ordinary, malformed, 4, "MF-EXEMPLAR")
+
+    spec = importlib.util.spec_from_file_location("milestone_framework_validate_exemplar_race_test", VALIDATOR)
+    assert spec is not None and spec.loader is not None
+    validator_module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = validator_module
+    spec.loader.exec_module(validator_module)
+
+    race_project = directory / "exemplar-race"
+    race_project.mkdir(); _write_real_case("valid_native_chain", race_project)
+    race_registry = directory / "race-registry.json"
+    _write_exemplar_registry(race_project, race_registry, "clean_lifecycle_exemplar")
+    race_document = json.loads((race_project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+    fired = False
+    def registry_swap(stage: str, role: str, path: Path) -> None:
+        nonlocal fired
+        if not fired and stage == "after_path_check" and role == "registry":
+            replacement = path.with_suffix(".replacement")
+            replacement.write_text('{"schema_version":"1.0.0","entries":[]}\n', encoding="utf-8")
+            os.replace(replacement, path); fired = True
+    try:
+        raced = validator_module.validate_document(race_project, race_document, exemplar_registry_path=race_registry, _exemplar_snapshot_hook=registry_swap)
+        if "MF-EXEMPLAR" not in {row.code for row in raced.findings}:
+            failures.append("exemplar/registry_after_check_swap was not rejected")
+    except Exception as exc:
+        failures.append(f"exemplar/registry_after_check_swap escaped controlled validation: {exc!r}")
+
+    read_project = directory / "exemplar-during-read-race"
+    read_project.mkdir(); _write_real_case("valid_native_chain", read_project)
+    read_registry = directory / "during-read-registry.json"
+    _write_exemplar_registry(read_project, read_registry, "clean_lifecycle_exemplar")
+    read_document = json.loads((read_project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+    fired = False
+    def evidence_swap(stage: str, role: str, path: Path) -> None:
+        nonlocal fired
+        if not fired and stage == "during_read" and role == "release_gate":
+            replacement = path.with_suffix(".replacement")
+            replacement.write_text("status: FAIL\n", encoding="utf-8")
+            os.replace(replacement, path); fired = True
+    try:
+        raced = validator_module.validate_document(read_project, read_document, exemplar_registry_path=read_registry, _exemplar_snapshot_hook=evidence_swap)
+        if "MF-EXEMPLAR" not in {row.code for row in raced.findings}:
+            failures.append("exemplar/evidence_during_read_swap was not rejected")
+    except Exception as exc:
+        failures.append(f"exemplar/evidence_during_read_swap escaped controlled validation: {exc!r}")
 
 
 def _write_sk20_project(project: Path, claude_fields: dict[str, str], directive_fields: dict[str, str] | None = None, *, graph: bool = True) -> None:
@@ -1642,6 +1761,9 @@ def main() -> int:
     missing = [str(path.relative_to(ROOT)) for path in required_files if not path.is_file()]
     if missing:
         print("MISCONFIGURED: missing Task 2 schema/template files: " + ", ".join(missing))
+        return 4
+    if EXEMPLAR_REGISTRY.read_bytes() != b'{"schema_version":"1.0.0","entries":[]}\n':
+        print("MISCONFIGURED: milestone exemplar registry seed bytes are not exact")
         return 4
 
     milestone_schema = json.loads(MILESTONE_SCHEMA.read_text(encoding="utf-8"))

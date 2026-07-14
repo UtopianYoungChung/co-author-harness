@@ -12,13 +12,14 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 import re
 import stat
 import sys
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -30,6 +31,10 @@ EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
 PLUGIN_MANIFEST_PATH = ROOT / ".claude-plugin" / "plugin.json"
 EXEMPLAR_CLASSES = frozenset({"clean_lifecycle_exemplar", "legacy_migration_exemplar"})
 EXEMPLAR_AUTHORITIES = frozenset({"user", "advisor", "instructor", "committee", "harness_maintainer", "portfolio_owner"})
+EXEMPLAR_EVIDENCE_ROLES = {
+    "clean_lifecycle_exemplar": frozenset({"milestone_validator", "phase_state_validator", "lifecycle_view", "release_gate", "independent_replay"}),
+    "legacy_migration_exemplar": frozenset({"milestone_validator", "phase_state_validator", "migration_report", "migration_commit", "migration_manifest", "rollback_verification", "migration_approval"}),
+}
 REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
 TARGETS = (*MILESTONES, "Ph2", "Ph4")
@@ -1026,6 +1031,110 @@ def _is_reparse(path: Path) -> bool:
     return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & REPARSE_POINT)
 
 
+def _stamp(info: os.stat_result) -> tuple[int, int, int, int]:
+    # Opening a file can advance st_ctime_ns on Windows; descriptor identity,
+    # size, and modification time remain stable and catch path replacement.
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+
+
+def _descriptor_stamp(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (*_stamp(info), info.st_ctime_ns)
+
+
+class _SnapshotError(RuntimeError):
+    """Controlled refusal for an unstable or unsafe exemplar input."""
+
+
+@dataclass(frozen=True)
+class _StableSnapshot:
+    path: Path
+    role: str
+    data: bytes
+    stamp: tuple[int, int, int, int]
+
+
+class _StableSnapshotReader:
+    """Capture each input once while binding raw path and open descriptor identity."""
+
+    def __init__(self, hook: Callable[[str, str, Path], None] | None = None):
+        self._hook = hook
+        self._items: dict[Path, _StableSnapshot] = {}
+
+    @staticmethod
+    def _raw_components(path: Path) -> list[Path]:
+        current = path.absolute()
+        components = [current]
+        while current.parent != current:
+            current = current.parent
+            components.append(current)
+        return list(reversed(components))
+
+    @classmethod
+    def _check_raw_path(cls, path: Path) -> None:
+        for component in cls._raw_components(path):
+            try:
+                if _is_reparse(component):
+                    raise _SnapshotError(f"reparse component is forbidden in exemplar input: {component}")
+            except OSError as exc:
+                raise _SnapshotError(f"unsafe exemplar path component: {component}: {exc}") from exc
+
+    def _notify(self, stage: str, role: str, path: Path) -> None:
+        if self._hook is None:
+            return
+        try:
+            self._hook(stage, role, path)
+        except Exception as exc:
+            raise _SnapshotError(f"exemplar snapshot hook failed at {stage}: {role}: {path}: {exc}") from exc
+
+    def capture(self, path: Path, role: str) -> _StableSnapshot:
+        lexical = path.absolute()
+        cached = self._items.get(lexical)
+        if cached is not None:
+            self._verify(cached)
+            return cached
+        try:
+            self._check_raw_path(lexical)
+            pre_path = lexical.stat()
+            if not stat.S_ISREG(pre_path.st_mode):
+                raise _SnapshotError(f"exemplar input is not a regular file: {lexical}")
+            pre_stamp = _stamp(pre_path)
+            resolved = lexical.resolve(strict=True)
+            self._notify("after_path_check", role, lexical)
+            with lexical.open("rb") as stream:
+                before = os.fstat(stream.fileno())
+                if not stat.S_ISREG(before.st_mode) or _stamp(before) != pre_stamp:
+                    raise _SnapshotError(f"exemplar input changed after path check: {role}: {lexical}")
+                self._notify("during_read", role, lexical)
+                data = stream.read()
+                after = os.fstat(stream.fileno())
+            if _descriptor_stamp(before) != _descriptor_stamp(after) or len(data) != before.st_size:
+                raise _SnapshotError(f"exemplar input changed during read: {role}: {lexical}")
+            self._check_raw_path(lexical)
+            if lexical.resolve(strict=True) != resolved or _stamp(lexical.stat()) != pre_stamp:
+                raise _SnapshotError(f"exemplar path identity changed during validation: {role}: {lexical}")
+            snapshot = _StableSnapshot(lexical, role, data, pre_stamp)
+            self._items[lexical] = snapshot
+            return snapshot
+        except _SnapshotError:
+            raise
+        except (OSError, RuntimeError) as exc:
+            raise _SnapshotError(f"exemplar input is unreadable or unstable: {role}: {lexical}: {exc}") from exc
+
+    def _verify(self, snapshot: _StableSnapshot) -> None:
+        try:
+            self._check_raw_path(snapshot.path)
+            if _stamp(snapshot.path.stat()) != snapshot.stamp:
+                raise _SnapshotError(f"exemplar input changed after capture: {snapshot.role}: {snapshot.path}")
+        except _SnapshotError:
+            raise
+        except OSError as exc:
+            raise _SnapshotError(f"exemplar input changed after capture: {snapshot.role}: {snapshot.path}: {exc}") from exc
+
+    def verify_all(self) -> None:
+        for snapshot in self._items.values():
+            self._verify(snapshot)
+
+
 def _has_reparse_component(path: Path) -> bool:
     current = path.absolute()
     parts = [current]
@@ -1047,7 +1156,7 @@ def _strict_utc(value: Any) -> bool:
 
 def _project_evidence(
     project_root: Path, relative: Any, expected_sha: Any, field: str,
-    findings: list[Finding], evidence: list[dict[str, Any]],
+    findings: list[Finding], evidence: list[dict[str, Any]], snapshots: _StableSnapshotReader,
 ) -> bytes | None:
     if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
         findings.append(_finding("MF-EXEMPLAR", field, "evidence path must be a relative path contained by the registered project"))
@@ -1058,9 +1167,9 @@ def _project_evidence(
         findings.append(_finding("MF-EXEMPLAR", field, "evidence path must resolve to a regular non-reparse file inside the registered project"))
         return None
     try:
-        payload = candidate.read_bytes()
-    except OSError as exc:
-        findings.append(_finding("MF-EXEMPLAR", field, f"could not read exemplar evidence: {exc}"))
+        payload = snapshots.capture(lexical, Path(relative).stem).data
+    except _SnapshotError as exc:
+        findings.append(_finding("MF-EXEMPLAR", field, str(exc)))
         return None
     actual = hashlib.sha256(payload).hexdigest()
     if not isinstance(expected_sha, str) or re.fullmatch(r"[0-9a-f]{64}", expected_sha) is None or actual != expected_sha:
@@ -1072,19 +1181,44 @@ def _project_evidence(
 
 def _ledger_exemplar_claims(value: Any, path: str = "milestone_framework") -> list[str]:
     claims: list[str] = []
-    credential = re.compile(r"^(?:clean[_ -]lifecycle[_ -]exemplar|legacy[_ -]migration[_ -]exemplar|portfolio exemplar|reference implementation)$", re.IGNORECASE)
     if isinstance(value, dict):
         for key, child in value.items():
             child_path = f"{path}.{key}"
-            if re.fullmatch(r"(?:exemplar(?:_status|_class)?|portfolio_exemplar|reference_implementation)", str(key), re.IGNORECASE):
+            if re.fullmatch(r"(?:exemplar_(?:status|class)|portfolio_exemplar|reference_implementation)", str(key), re.IGNORECASE):
                 claims.append(child_path)
             claims.extend(_ledger_exemplar_claims(child, child_path))
     elif isinstance(value, list):
         for index, child in enumerate(value):
             claims.extend(_ledger_exemplar_claims(child, f"{path}[{index}]"))
-    elif isinstance(value, str) and credential.fullmatch(value.strip()):
+    elif isinstance(value, str) and _contains_normative_exemplar_claim(value):
         claims.append(path)
     return claims
+
+
+def _contains_normative_exemplar_claim(text: str) -> bool:
+    credential = r"(?:clean[ _-]lifecycle[ _-]exemplar|legacy[ _-]migration[ _-]exemplar|portfolio\s+exemplar|reference\s+implementation)"
+    subject = r"(?:this\s+project|the\s+project|[A-Za-z][A-Za-z0-9_-]{1,63})"
+    verb = r"(?:is|remains|serves\s+as|has\s+been\s+designated\s+as|is\s+designated\s+as|is\s+registered\s+as)"
+    declaration = re.compile(rf"(?i)\b{subject}\s+{verb}\s+(?:an?\s+|the\s+)?{credential}\b")
+    heading = re.compile(rf"(?i)^\s*#{{1,6}}\s*{credential}\s*$")
+    status = re.compile(rf"(?i)^\s*(?:status|exemplar(?:[ _]status|[ _]class)?|portfolio[ _]status)\s*:\s*{credential}\s*$")
+    table = re.compile(rf"(?i)^\s*\|\s*status\s*:?\s*\|\s*{credential}\s*\|?\s*$")
+    for raw_line in text.splitlines() or [text]:
+        line = re.sub(r"(?:\*\*|__|`)", "", raw_line).strip()
+        if not line:
+            continue
+        if heading.fullmatch(line) or status.fullmatch(line) or table.fullmatch(line):
+            return True
+        if line.endswith("?"):
+            continue
+        match = declaration.search(line)
+        if match is None:
+            continue
+        prefix = line[:match.start()].lower()
+        if re.search(r"\b(?:not|never|false|whether|asks?|question(?:s|ed)?|discuss(?:es|ed)?|consider(?:s|ed)?)\b", prefix):
+            continue
+        return True
+    return False
 
 
 def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) -> None:
@@ -1092,12 +1226,6 @@ def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) 
     # manuscript/review scanning would confuse ordinary uses of "exemplar"
     # with a lifecycle credential.
     surfaces = ("AGENTS.md", "CLAUDE.md", "reviews/lifecycle_state.md")
-    credential = r"(?:clean[_ -]lifecycle[_ -]exemplar|legacy[_ -]migration[_ -]exemplar|portfolio exemplar|reference implementation)"
-    patterns = (
-        re.compile(rf"(?im)^\s*#{{1,6}}\s*{credential}\s*$"),
-        re.compile(rf"(?im)^\s*(?:exemplar(?:[_ ]status|[_ ]class)?|portfolio[_ ]status|status)\s*:\s*{credential}\s*$"),
-        re.compile(rf"(?i)\b(?:this\s+project|the\s+project|project)\s+(?:is|is designated|is registered)\s+(?:as\s+)?(?:an?\s+|the\s+)?{credential}\b"),
-    )
     for relative in surfaces:
         candidate = _canonical_path(project_root, relative)
         if candidate is None or not candidate.is_file():
@@ -1107,14 +1235,16 @@ def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) 
         except (OSError, UnicodeError) as exc:
             findings.append(_finding("MF-EXEMPLAR", relative, f"could not inspect declared project status surface: {exc}"))
             continue
-        if any(pattern.search(text) for pattern in patterns):
+        if _contains_normative_exemplar_claim(text):
             findings.append(_finding("MF-EXEMPLAR", relative, "project-local prose cannot grant or self-declare milestone exemplar status"))
 
 
 def _validate_exemplar_registry(
     project_root: Path, document: dict[str, Any], registry_path: Path,
     findings: list[Finding], evidence: list[dict[str, Any]],
+    snapshot_hook: Callable[[str, str, Path], None] | None = None,
 ) -> None:
+    snapshots = _StableSnapshotReader(snapshot_hook)
     ledger = document.get("milestone_framework")
     if isinstance(ledger, dict):
         for claim_path in _ledger_exemplar_claims(ledger):
@@ -1123,12 +1253,10 @@ def _validate_exemplar_registry(
 
     if not registry_path.is_absolute():
         registry_path = (ROOT / registry_path).absolute()
-    if _has_reparse_component(registry_path) or not registry_path.is_file():
-        findings.append(_finding("MF-EXEMPLAR", str(registry_path), "exemplar registry must be a readable regular non-reparse file"))
-        return
     try:
-        registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        registry_snapshot = snapshots.capture(registry_path, "registry")
+        registry = json.loads(registry_snapshot.data.decode("utf-8"))
+    except (_SnapshotError, UnicodeError, json.JSONDecodeError) as exc:
         findings.append(_finding("MF-EXEMPLAR", str(registry_path), f"exemplar registry is not valid UTF-8 JSON: {exc}"))
         return
     if not isinstance(registry, dict) or set(registry) != {"schema_version", "entries"} or registry.get("schema_version") != "1.0.0" or not isinstance(registry.get("entries"), list):
@@ -1179,8 +1307,9 @@ def _validate_exemplar_registry(
                 valid_items = False
             else:
                 roles.append(item["role"])
-        if not valid_items or len(roles) != len(set(roles)):
-            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "evidence roles must be unique"))
+        expected_roles = EXEMPLAR_EVIDENCE_ROLES[exemplar_class]
+        if not valid_items or len(roles) != len(set(roles)) or set(roles) != expected_roles:
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"evidence roles must be unique and exactly {sorted(expected_roles)}"))
             continue
         structurally_valid.add(index)
         identities.setdefault(project_path.casefold(), []).append((index, exemplar_class))
@@ -1207,8 +1336,14 @@ def _validate_exemplar_registry(
         current_version = None
     if entry["validator_version"] != current_version:
         findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_version", "registration validator version is stale relative to the package manifest"))
-    phase_state = _project_evidence(project_root, "reviews/phase_state.json", entry.get("phase_state_sha256"), f"{base}.phase_state_sha256", findings, evidence)
-    approval_payload = _project_evidence(project_root, entry.get("approval_evidence_path"), entry.get("approval_evidence_sha256"), f"{base}.approval_evidence_path", findings, evidence)
+    phase_state = _project_evidence(project_root, "reviews/phase_state.json", entry.get("phase_state_sha256"), f"{base}.phase_state_sha256", findings, evidence, snapshots)
+    if phase_state is not None:
+        try:
+            if json.loads(phase_state.decode("utf-8")) != document:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.phase_state_sha256", "registered ledger snapshot differs from the document under validation"))
+        except (UnicodeError, json.JSONDecodeError):
+            findings.append(_finding("MF-EXEMPLAR", f"{base}.phase_state_sha256", "registered ledger snapshot is not valid UTF-8 JSON"))
+    approval_payload = _project_evidence(project_root, entry.get("approval_evidence_path"), entry.get("approval_evidence_sha256"), f"{base}.approval_evidence_path", findings, evidence, snapshots)
     if approval_payload is not None:
         try:
             approval_text = approval_payload.decode("utf-8")
@@ -1219,7 +1354,7 @@ def _validate_exemplar_registry(
             findings.append(_finding("MF-EXEMPLAR", f"{base}.approval_evidence_path", "approval evidence must explicitly attest APPROVED and the registered authority"))
     evidence_by_role: dict[str, tuple[dict[str, Any], bytes | None]] = {}
     for item_index, item in enumerate(entry["validator_evidence"]):
-        payload = _project_evidence(project_root, item["path"], item["sha256"], f"{base}.validator_evidence[{item_index}]", findings, evidence)
+        payload = _project_evidence(project_root, item["path"], item["sha256"], f"{base}.validator_evidence[{item_index}]", findings, evidence, snapshots)
         if (
             item["role"] == "lifecycle_view"
             and payload is not None
@@ -1231,13 +1366,9 @@ def _validate_exemplar_registry(
                 Severity.MAJOR,
             ))
         evidence_by_role[item["role"]] = (item, payload)
-    required_roles = {"milestone_validator", "phase_state_validator"}
-    if entry["exemplar_class"] == "clean_lifecycle_exemplar":
-        required_roles |= {"lifecycle_view", "release_gate", "independent_replay"}
-    else:
-        required_roles |= {"migration_report", "migration_commit", "migration_manifest", "rollback_verification", "migration_approval"}
-    if not required_roles.issubset(evidence_by_role):
-        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"class requires evidence roles {sorted(required_roles)}"))
+    required_roles = EXEMPLAR_EVIDENCE_ROLES[entry["exemplar_class"]]
+    if set(evidence_by_role) != required_roles:
+        findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"class requires exactly evidence roles {sorted(required_roles)}"))
     milestone_payload = evidence_by_role.get("milestone_validator", ({}, None))[1]
     try:
         validator_record = json.loads(milestone_payload) if milestone_payload is not None else {}
@@ -1283,6 +1414,22 @@ def _validate_exemplar_registry(
                 item = evidence_by_role.get(role, ({}, None))[0]
                 if item.get("path") != boundary.get(path_key) or item.get("sha256") != boundary.get(sha_key):
                     findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", f"{role} does not bind the approved migration boundary"))
+            report_payload = evidence_by_role.get("migration_report", ({}, None))[1]
+            migration_approval_payload = evidence_by_role.get("migration_approval", ({}, None))[1]
+            try:
+                report_record = json.loads(report_payload) if report_payload is not None else {}
+            except (UnicodeError, json.JSONDecodeError):
+                report_record = {}
+            boundary_authority = boundary.get("authority")
+            if report_record.get("adjudication_outcome") != "approved" or report_record.get("authority") != boundary_authority:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration report must attest an approved adjudication by the boundary authority"))
+            try:
+                migration_approval_text = migration_approval_payload.decode("utf-8") if migration_approval_payload is not None else ""
+            except UnicodeError:
+                migration_approval_text = ""
+            authority_pattern = re.escape(boundary_authority) if isinstance(boundary_authority, str) else r"(?!)"
+            if re.search(r"(?im)^\s*status\s*:\s*approved\s*$", migration_approval_text) is None or re.search(rf"(?im)^\s*authority\s*:\s*{authority_pattern}\s*$", migration_approval_text) is None:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration approval evidence must explicitly attest APPROVED and the boundary authority"))
             commit_payload = evidence_by_role.get("migration_commit", ({}, None))[1]
             manifest_payload = evidence_by_role.get("migration_manifest", ({}, None))[1]
             try:
@@ -1306,11 +1453,16 @@ def _validate_exemplar_registry(
             rollback_payload = evidence_by_role.get("rollback_verification", ({}, None))[1]
             if rollback_payload is None or re.search(rb"(?im)^\s*status\s*:\s*PASS\s*$", rollback_payload) is None:
                 findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "rollback verification evidence must explicitly attest PASS"))
+    try:
+        snapshots.verify_all()
+    except _SnapshotError as exc:
+        findings.append(_finding("MF-EXEMPLAR", str(registry_path), str(exc)))
 
 
 def validate_document(
     project_root: Path, document: Any, target: str | None = None,
     exemplar_registry_path: Path | None = None,
+    _exemplar_snapshot_hook: Callable[[str, str, Path], None] | None = None,
 ) -> ValidationResult:
     """Validate the additive namespace in an already-parsed phase document."""
     findings: list[Finding] = []
@@ -1320,7 +1472,7 @@ def validate_document(
         return _result(target, None, findings, evidence)
     _validate_exemplar_registry(
         project_root, document, exemplar_registry_path or EXEMPLAR_REGISTRY_PATH,
-        findings, evidence,
+        findings, evidence, _exemplar_snapshot_hook,
     )
     if "milestone_assignment" in document:
         findings.append(_finding("MF-STRUCTURE", "milestone_assignment", "retired M4a/M4b milestone_assignment is archival input only and forbidden in current ledgers"))
