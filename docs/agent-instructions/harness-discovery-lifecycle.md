@@ -44,13 +44,13 @@ Governed by `references/AGENT_ORCHESTRATION.md §10` (Lifecycle Dispatch) and `r
 | M4 — Paper Draft | `manuscript/main.md` (or `main.tex`) | Ph2 → Ph3 (iterate-until-stable) |
 | M5 — Final Paper | `manuscript/main.md` (submission-bound) | Ph4 with G.4 sign-off + Reflector-full close-out |
 
-The Planner determines the current milestone and rung by reading the project state (`reviews/classification.md` and `reviews/phase_state.json`). The user can override via explicit instruction.
+The Planner determines the current milestone and rung from the single machine-readable authority at `reviews/phase_state.json`; `reviews/classification.md` supplies classification inputs but does not own milestone status. Markdown file presence never implies completion or acceptance. Explicit user, venue/advisor, or project-local overrides follow the package precedence ladder and must be recorded as authorized override evidence in the ledger rather than silently rewriting it.
 
 ---
 
 ## Bootstrapping a new project
 
-When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. The bootstrapping protocol creates the standard directory structure, seeds the project CLAUDE.md, and dispatches the Planner for initial classification (which includes the `default_final_phase` declaration in `reviews/classification.md`).
+When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. The bootstrapping protocol creates the standard directory structure, uses `scripts/native_project_bootstrap.py` to seed and validate the authoritative native milestone ledger, seeds the project CLAUDE.md, and dispatches the Planner for initial classification. Native state begins with M1 `in_progress` and M2–M5 `not_started`; no approval, feedback, or accepted artifact is fabricated at bootstrap.
 
 **Quick reference — the standard project structure:**
 
@@ -63,7 +63,10 @@ When the user asks to start a new research project, the agent reads `references/
 │   └── revision_log.md           # Append-only change log
 ├── reviews/
 │   ├── classification.md         # Paper type, P-stage, venue, default_final_phase
-│   ├── phase_state.json          # 18-field per-section ledger (Planner-owned)
+│   ├── phase_state.json          # Single phase + milestone authority (Planner-owned)
+│   ├── .harness/
+│   │   ├── milestones/           # F9 JSON packets; empty at bootstrap
+│   │   └── policies/             # Resolved policy binding
 │   ├── revision_plan.md          # Current action list
 │   ├── ph1_draft_completion.md   # Ph1 exit artefact
 │   ├── ph2_review_completion.md  # Ph2 exit artefact

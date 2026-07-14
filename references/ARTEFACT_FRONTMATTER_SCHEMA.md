@@ -14,7 +14,7 @@ This file is NORMATIVE. The validator at `scripts/artefact_frontmatter_validate.
 
 Every **Markdown** artefact that lives under `reviews/` and is read by any agent under v0.7.4+ belongs to exactly one of **six legacy** frontmatter families (F1–F6). The family is declared by the `document_type` frontmatter field, which is required on every such artefact.
 
-At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `reviews/.harness/evidence/`) and **F8** (Markdown final round reports under `reviews/`). F7 does not use YAML frontmatter; F8 does. Both are validated by `scripts/artefact_frontmatter_validate.py` on its JSON and Markdown lanes respectively (`references/OUTPUT_ECONOMY_PROTOCOL.md` is normative for semantics).
+At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `reviews/.harness/evidence/`) and **F8** (Markdown final round reports under `reviews/`). F7 does not use YAML frontmatter; F8 does. The milestone-feedback contract adds **F9**, a JSON handoff packet under `reviews/.harness/milestones/`. F9 is never Markdown frontmatter and is validated through the milestone-framework validator against its dedicated JSON Schema.
 
 | Family | `document_type` value | Produced by | Read by | Hash-inherited under P-2? |
 |---|---|---|---|---|
@@ -26,12 +26,13 @@ At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `rev
 | F6 Planner dispatch plan | `planner_dispatch_plan` | Planner (Phase 0.6, P-1) | User (approval), Reflector (Phase 2f) | No (written once at round entry, not inherited) |
 | F7 Output-economy evidence | `evidence_packet` | Evaluator (routine checks); other writers on exception paths | Planner (final assembly), Reflector audits | Yes (when re-run produces a new packet) |
 | F8 Final round report | `final_round_report` | Planner (Ph4 / round close) | User | No |
+| F9 Milestone handoff | JSON `artifact_family: F9` | Planner after evidenced milestone approval | Successor milestone, Validator | No |
 
-New **legacy** `document_type` values on Markdown under `reviews/*.md` introduced after v0.7.4 must either (a) extend one of the six F1–F6 families by adding optional fields in a subsequent SCHEMA minor, or (b) file a new family via a plugin-update proposal. Ad-hoc `document_type` values are rejected by the validator on the Markdown lane. F7/F8 are registered families with dedicated validation (JSON lane vs F8 frontmatter lane).
+New **legacy** `document_type` values on Markdown under `reviews/*.md` introduced after v0.7.4 must either (a) extend one of the six F1–F6 families by adding optional fields in a subsequent SCHEMA minor, or (b) file a new family via a plugin-update proposal. Ad-hoc `document_type` values are rejected by the validator on the Markdown lane. F7/F8 are registered output-economy families. F9 is registered separately as milestone JSON evidence.
 
 ## 2. Fields common to all families
 
-Every family carries these fields with identical semantics.
+Every YAML-frontmatter family carries these fields with identical semantics. JSON families use their dedicated schemas instead.
 
 ```yaml
 document_type:          # required, string, enum per §1
@@ -428,9 +429,23 @@ created_at: ISO-8601
 
 F8 uses **strict** unknown-field rejection in frontmatter only. Body prose is unconstrained by this schema. Section order for the body is normative in `references/templates/final_round_report.md`.
 
-## 8. Validation rules (enforced by `scripts/artefact_frontmatter_validate.py`)
+## 7d. Family F9 — milestone handoff evidence (JSON)
 
-The validator runs against `reviews/*.md` artefacts on the Markdown lane and against `*.json` files passed explicitly or via `--dir` on the JSON lane. Legacy F1–F6 dispatch is by `document_type` in YAML frontmatter. JSON dispatch is by explicit artefact-family or schema discriminator: `artifact_family: F7` selects F7, while registered reader-accessibility candidate and Check 8 sidecars select their own schemas. Resolver and audit sidecars are skipped on this family validator and are checked through their owning binding or audit contract. A JSON file is never inferred to be F7 merely because it appears under `reviews/`; the canonical `.harness/evidence/` location remains an F7 routing signal. F8 is validated when `document_type: final_round_report` appears in YAML frontmatter. Rules:
+Artefact path: `reviews/.harness/milestones/<milestone>_packet.json` (JSON file; **not** YAML-frontmatter Markdown).
+
+Machine-readable authority: `references/schemas/f9_milestone_handoff.schema.json`. Authoring shape: `references/templates/f9_milestone_handoff.json`. F9 records the accepted deliverable binding, predecessor packet, feedback dispositions, frozen decisions, open debts, successor instructions, and real approval provenance. Because those facts do not exist at native bootstrap, `reviews/.harness/milestones/` begins empty.
+
+F9 validation is routed through:
+
+```powershell
+python scripts/milestone_framework_validate.py --project-root <project-root>
+```
+
+The validator reads each packet only through the authoritative `reviews/phase_state.json` handoff binding, validates it against the F9 JSON Schema, verifies its path and hash, and checks its milestone, lineage, deliverable, predecessor, feedback, and approval continuity. An unbound JSON file in the F9 directory is not evidence and cannot change milestone state.
+
+## 8. Validation rules (enforced by the family validators)
+
+`scripts/artefact_frontmatter_validate.py` runs against `reviews/*.md` artefacts on the Markdown lane and against its registered JSON families on the JSON lane. Legacy F1–F6 dispatch is by `document_type` in YAML frontmatter. `artifact_family: F7` selects F7, while registered reader-accessibility candidate and Check 8 sidecars select their schemas. Resolver and audit sidecars are checked through their owning binding or audit contract. F8 is validated when `document_type: final_round_report` appears in YAML frontmatter. F9 is deliberately routed through `scripts/milestone_framework_validate.py`, because its validity depends on the authoritative ledger and predecessor/handoff chain rather than on standalone shape alone. Rules:
 
 1. **Required-field presence.** Every required field per family must be present; absence is `R-Refl-FM-1`.
 2. **Type conformance.** Every field must match its declared type; mismatch is `R-Refl-FM-2`.

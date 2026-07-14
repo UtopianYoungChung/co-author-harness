@@ -25,6 +25,11 @@ Every research project gets this structure. Files marked `[seed]` are created at
 │   └── revision_log.md                    [seed]   Empty log with structured experiment format
 │
 ├── reviews/
+│   ├── phase_state.json                  [seed]   Single phase + milestone state authority
+│   ├── .harness/
+│   │   ├── milestones/                   [seed]   Empty; F9 packets appear only after approval
+│   │   └── policies/
+│   │       └── reader_accessibility.resolved.json [seed] Resolved policy binding
 │   ├── classification.md                  [runtime] Planner creates at first classification
 │   ├── revision_plan.md                   [runtime] Planner creates when planning
 │   ├── round_checklist.md                 [seed]   Operator checklist for gate-first evaluator rounds
@@ -103,8 +108,11 @@ None yet.
 ```markdown
 # <PROJECT_TITLE>
 
-<!-- This is the manuscript scaffold. Replace this comment with the abstract
-     once the project reaches M4 (Paper Draft). -->
+**Milestone:** M4 (Paper Draft)
+**Status:** Not started
+
+<!-- File presence is not milestone completion or acceptance. Replace this
+     scaffold only after the accepted M3 handoff is consumed. -->
 
 ## 1. Introduction
 
@@ -126,6 +134,8 @@ None yet.
 
 **Milestone:** M3 (Structured Outline)
 **Status:** Not started
+
+File presence is not milestone completion or acceptance.
 
 ---
 
@@ -229,13 +239,21 @@ Reflector may add entries. No agent may remove entries.
 5. Confirm `reviews/coupling_health.md` has been refreshed at round close.
 ```
 
+### 2.5b reviews/phase_state.json and F9 directory
+
+`reviews/phase_state.json` is the **only writable authority** for both the phase ledger and the `milestone_framework` namespace. Generate its native seed with `scripts/native_project_bootstrap.py`; do not copy status claims out of the Markdown files. The seed records M1 as `in_progress`, M2–M5 as `not_started`, empty artifact and feedback arrays, pending approvals, and not-ready handoffs. It also records only the evidence-free `milestone_started` event for M1.
+
+`reviews/.harness/milestones/` starts empty. An F9 packet is created only after its source milestone has an accepted deliverable and real approval evidence. The mere presence of `project_memo.md`, `annotated_references.md`, `outline.md`, or `main.md` never changes milestone state.
+
 ### 2.6 research_notes/project_memo.md
 
 ```markdown
 # Project Memo — <PROJECT_NAME>
 
 **Milestone:** M1 (Project Memo)
-**Status:** Not started
+**Status:** In progress
+
+File presence starts work; it does not record review, approval, acceptance, or handoff readiness.
 
 ---
 
@@ -264,6 +282,8 @@ Reflector may add entries. No agent may remove entries.
 
 **Milestone:** M2 (Annotated References)
 **Status:** Not started
+
+File presence is not milestone completion or acceptance.
 
 ---
 
@@ -456,13 +476,31 @@ Ask the user for:
 | Venue | No | "TBD" |
 | Paper type | No | "TBD" |
 | P-stage | No | P0 |
+| Intended reader(s) | Yes | — |
 | Brief description / motivating tension | No | Empty (Planner will elicit during M1) |
 | Advisor / collaborators | No | Empty |
 | Wiki linkage (Coupling D) | No | Auto-detected — see Step 5 |
 
 ### Step 2: Create the directory skeleton
 
-Create the standard project directory per §1. Seed each subdirectory with the template files from §2, filling in `<PROJECT_NAME>`, `<PROJECT_TITLE>`, etc.
+Create the standard project directory per §1. Seed the non-milestone support files from §2, filling in `<PROJECT_NAME>`, `<PROJECT_TITLE>`, etc. Then run the deterministic native milestone seed once:
+
+```powershell
+python <package-root>/scripts/native_project_bootstrap.py `
+  --project-root <project-path> `
+  --project-name <project-name> `
+  --title <working-title> `
+  --intended-reader "<reader description>"
+```
+
+The command creates the four milestone working surfaces, the empty F9 directory, the resolved reader-accessibility policy, and `reviews/phase_state.json`. It refuses to overwrite existing milestone surfaces. Validate the result before classification:
+
+```powershell
+python <package-root>/scripts/milestone_framework_validate.py --project-root <project-path>
+python <package-root>/scripts/phase_state_validate.py --project-root <project-path>
+```
+
+Both commands must exit 0. A newly created Markdown file must not be added to `artifacts`, `feedback_records`, or `approval` until the corresponding evidence exists.
 
 ### Step 3: Write the project CLAUDE.md
 
