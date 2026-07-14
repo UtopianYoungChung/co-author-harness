@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -160,6 +161,36 @@ def main() -> int:
         base["evidence_sha256"] = sha(approval)
         write_json(adjudication, base)
 
+        unexpected_project = Path(directory) / "unexpected-concurrent"
+        shutil.copytree(project, unexpected_project)
+        unexpected_adjudication = unexpected_project / "adjudication.json"
+        unexpected_canonical = unexpected_project / "reviews" / "phase_state.json"
+        concurrent_payload = b'{"concurrent":"changed"}\n'
+
+        def unexpected_writer(path: Path, payload: bytes) -> None:
+            if path == unexpected_canonical:
+                migration._atomic_write(path, concurrent_payload)
+                raise OSError("simulated unexpected concurrent bytes")
+            migration._atomic_write(path, payload)
+
+        try:
+            migration.apply_migration(
+                unexpected_project, unexpected_adjudication, atomic_writer=unexpected_writer
+            )
+        except migration.MigrationError as exc:
+            assert "concurrent" in str(exc).lower() and "recovery evidence" in str(exc).lower()
+        else:
+            raise AssertionError("unexpected concurrent bytes were not a controlled refusal")
+        assert unexpected_canonical.read_bytes() == concurrent_payload
+        unexpected_migrations = list(
+            (unexpected_project / "reviews" / ".harness" / "migrations").glob("*")
+        )
+        assert len(unexpected_migrations) == 1
+        assert (unexpected_migrations[0] / "migration_report.json").is_file()
+        assert (unexpected_migrations[0] / "rollback_manifest.json").is_file()
+        assert not (unexpected_migrations[0] / "commit.json").exists()
+        assert (unexpected_project / "reviews" / "tier_state.json").is_file()
+
         def fail_at_authority(path: Path, payload: bytes) -> None:
             if path == project / "reviews" / "phase_state.json":
                 raise OSError("simulated publication interruption")
@@ -248,7 +279,7 @@ def main() -> int:
         assert refused_rollback.returncode == 2 and "replacement hash changed" in refused_rollback.stderr.lower()
         assert sha(replacement) == changed_hash
 
-    print("PASS migrate_legacy_milestones_adversarial_smoketest (20 refusals)")
+    print("PASS migrate_legacy_milestones_adversarial_smoketest (21 refusals)")
     return 0
 
 

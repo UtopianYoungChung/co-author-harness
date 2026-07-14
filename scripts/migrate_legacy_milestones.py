@@ -823,7 +823,8 @@ def apply_migration(
     )
     stage = Path(tempfile.mkdtemp(prefix=f".{project.name}.legacy-migration-", dir=stage_parent))
     removed_backups: dict[Path, bytes] = {}
-    state_replaced = False
+    published_this_attempt = False
+    publication_attempted = False
     try:
         shutil.rmtree(stage)
         shutil.copytree(project, stage, symlinks=True)
@@ -851,23 +852,71 @@ def apply_migration(
         if published_dir.exists():
             shutil.rmtree(published_dir)
         published_dir.parent.mkdir(parents=True, exist_ok=True)
+        published_this_attempt = True
         shutil.copytree(stage_migration, published_dir)
         for name in ledgers:
             path = project / name
             removed_backups[path] = path.read_bytes()
+        publication_attempted = True
         atomic_writer(canonical, candidate_payload)
-        state_replaced = True
         for path in removed_backups:
             if path != canonical:
                 path.unlink()
         atomic_writer(published_dir / "commit.json", commit_payload)
-    except Exception:
-        if state_replaced or removed_backups:
-            if state_replaced and not manifest["replacement_existed_before"] and canonical.exists():
-                canonical.unlink()
+    except Exception as exc:
+        canonical_state = "not_attempted"
+        unexpected: list[str] = []
+        if publication_attempted:
+            if canonical.exists():
+                try:
+                    current_canonical = canonical.read_bytes()
+                except OSError as read_exc:
+                    unexpected.append(f"cannot inspect canonical replacement: {read_exc}")
+                else:
+                    if _sha(current_canonical) == manifest["replacement_sha256"]:
+                        canonical_state = "candidate"
+                    elif (
+                        manifest["replacement_existed_before"]
+                        and canonical in removed_backups
+                        and current_canonical == removed_backups[canonical]
+                    ):
+                        canonical_state = "original"
+                    else:
+                        unexpected.append("canonical path contains unexpected concurrent bytes")
+            elif manifest["replacement_existed_before"]:
+                unexpected.append("original canonical path disappeared during publication")
+            else:
+                canonical_state = "absent"
+
             for path, payload in removed_backups.items():
+                if path == canonical or not path.exists():
+                    continue
+                try:
+                    if path.read_bytes() != payload:
+                        unexpected.append(f"original ledger changed concurrently: {_relative(project, path)}")
+                except OSError as read_exc:
+                    unexpected.append(f"cannot inspect original ledger {_relative(project, path)}: {read_exc}")
+
+        if unexpected:
+            for path, payload in removed_backups.items():
+                if path != canonical and not path.exists():
+                    _atomic_write(path, payload)
+            raise MigrationError(
+                "migration publication encountered concurrent state; recovery evidence preserved: "
+                + "; ".join(unexpected)
+            ) from exc
+
+        if publication_attempted and canonical_state == "candidate":
+            if manifest["replacement_existed_before"]:
+                _atomic_write(canonical, removed_backups[canonical])
+            elif canonical.exists():
+                canonical.unlink()
+        for path, payload in removed_backups.items():
+            if path == canonical:
+                continue
+            if not path.exists():
                 _atomic_write(path, payload)
-        if published_dir.exists():
+        if published_this_attempt and published_dir.exists():
             shutil.rmtree(published_dir)
         raise
     finally:

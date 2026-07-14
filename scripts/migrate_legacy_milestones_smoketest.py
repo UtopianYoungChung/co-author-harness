@@ -133,6 +133,49 @@ def approved_adjudication(project: Path, matrix: dict) -> Path:
     return path
 
 
+def ledger_snapshot(project: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(project).as_posix(): path.read_bytes()
+        for path in (project / "reviews").glob("*_state.json")
+    }
+
+
+def assert_publication_failure_restores(
+    project: Path,
+    adjudication: Path,
+    *,
+    after_durable_write: bool,
+) -> None:
+    before = ledger_snapshot(project)
+    canonical = project / "reviews" / "phase_state.json"
+
+    def interrupted_writer(path: Path, payload: bytes) -> None:
+        if path == canonical:
+            if after_durable_write:
+                migration._atomic_write(path, payload)
+            raise OSError(
+                "simulated after-durable-write interruption"
+                if after_durable_write
+                else "simulated before-write interruption"
+            )
+        migration._atomic_write(path, payload)
+
+    try:
+        migration.apply_migration(project, adjudication, atomic_writer=interrupted_writer)
+    except OSError as exc:
+        assert "interruption" in str(exc)
+    else:
+        raise AssertionError("publication interruption was not propagated")
+    assert ledger_snapshot(project) == before
+    migrations = project / "reviews" / ".harness" / "migrations"
+    assert not migrations.exists() or not any(migrations.iterdir())
+    assert not any(project.parent.glob(f".{project.name}.legacy-migration-*"))
+
+    reapplied = run("--project-root", str(project), "--apply", "--adjudication", str(adjudication))
+    assert reapplied.returncode == 0, reapplied.stdout + reapplied.stderr
+    assert json.loads(reapplied.stdout)["outcome"] == "migrated"
+
+
 def main() -> int:
     completed: list[str] = []
     with tempfile.TemporaryDirectory(prefix="legacy-migration-smoke-") as directory:
@@ -210,6 +253,20 @@ def main() -> int:
         }
         tier_matrix = json.loads(run("--project-root", str(tier_project)).stdout)
         tier_adjudication = approved_adjudication(tier_project, tier_matrix)
+
+        for tier_only in (False, True):
+            for after_durable in (False, True):
+                crash_project = make_project(
+                    base / f"publication-crash-{tier_only}-{after_durable}",
+                    tier_only=tier_only,
+                )
+                crash_matrix = json.loads(run("--project-root", str(crash_project)).stdout)
+                crash_adjudication = approved_adjudication(crash_project, crash_matrix)
+                assert_publication_failure_restores(
+                    crash_project,
+                    crash_adjudication,
+                    after_durable_write=after_durable,
+                )
 
         interrupted_project = make_project(base / "tier-interrupted", tier_only=True)
         interrupted_matrix = json.loads(run("--project-root", str(interrupted_project)).stdout)
