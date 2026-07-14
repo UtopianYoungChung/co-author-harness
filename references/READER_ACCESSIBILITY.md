@@ -16,7 +16,9 @@ Sweller's cognitive-load distinction supplies the telos. Intrinsic load is the i
 
 Register appropriateness is orthogonal to the local/cumulative distinction. The structural checks audit cadence, rhythm, definitions, signposting, jargon, worked examples, and consolidation. H audits register construction within structurally required passages. H is functional rather than a readability score and preserves the anti-dilution stance through positive construction, not mere absence of negative probes.
 
-## Semantic contract for A–H
+## 13.3 Operational criteria
+
+This stable semantic anchor maps criterion labels A–H to profile-owned predicates. It intentionally contains no numeric threshold or verdict arithmetic.
 
 - **A — cadence.** Apply `thresholds.cadence`. Deterministic cue hits nominate possible turn points; the overlay confirms whether they perform a transition, counter-move, worked example, or thematic refocus.
 - **B — rhythm.** Apply `thresholds.rhythm` to sentence-shape evidence, then judge rhetorical function. Rhythm is not reducible to an average.

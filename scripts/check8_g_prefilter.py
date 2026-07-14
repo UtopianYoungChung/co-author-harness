@@ -94,7 +94,7 @@ class BoundaryStats:
     preceding_wc: int
     para_count: int
     gap_exceeds_words: bool
-    gap_exceeds_six_paras: bool
+    gap_exceeds_paragraphs: bool
     pre_heading_cue_count: int
     opening_cue_count: int
     zero_pre_heading_cues: bool
@@ -145,11 +145,12 @@ def analyze(
         paras = _split_paragraphs(span_text)
         pc = len(paras)
 
-        last_two = paras[-2:] if len(paras) >= 2 else paras
-        pre_block = " ".join(last_two)
+        scan_count = consolidation["pre_heading_scan_paragraphs"]
+        pre_heading_paragraphs = paras[-scan_count:]
+        pre_block = " ".join(pre_heading_paragraphs)
         pre_cue = len(_CONSOL.findall(pre_block))
         if pre_cue == 0:
-            # zero pre-heading window (consolidation lexicon in two paras before)
+            # zero profile-sized pre-heading consolidation-cue window
             zh_pre = True
         else:
             zh_pre = False
@@ -178,7 +179,7 @@ def analyze(
                 preceding_wc=pw,
                 para_count=pc,
                 gap_exceeds_words=gap_w,
-                gap_exceeds_six_paras=gap_p,
+                gap_exceeds_paragraphs=gap_p,
                 pre_heading_cue_count=pre_cue,
                 opening_cue_count=o_cue,
                 zero_pre_heading_cues=zh_pre,
@@ -219,7 +220,7 @@ def render_block(
     envelopes = active["thresholds"]["consolidation"]["candidate_gap_words"]
     env = envelopes.get(p_stage, envelopes["P1"])
     n_gap_w = sum(1 for s in stats if s.gap_exceeds_words)
-    n_gap_p = sum(1 for s in stats if s.gap_exceeds_six_paras)
+    n_gap_p = sum(1 for s in stats if s.gap_exceeds_paragraphs)
     n_zero_pre = sum(1 for s in stats if s.zero_pre_heading_cues)
     n_zero_op = sum(1 for s in stats if s.zero_opening_cues)
     n_gc = sum(1 for s in stats if s.g_candidate)
@@ -229,7 +230,7 @@ def render_block(
         f"- **Tool:** `scripts/check8_g_prefilter.py`  **cycle_id:** `{cycle_id}`  **generated:** {datetime.now().isoformat(timespec='seconds')}",
         f"- Major headings scanned: {n_headings}",
         f"- Boundary gaps exceeding P-stage envelope (words): {n_gap_w}",
-        f"- Boundary gaps exceeding six-paragraph ceiling: {n_gap_p}",
+        f"- Boundary gaps exceeding profile paragraph-gap predicate: {n_gap_p}",
         f"- Zero-cue pre-heading windows: {n_zero_pre}",
         f"- Zero-cue section-opening paragraphs: {n_zero_op}",
         f"- G-candidate boundaries (both gap-exceeded AND zero-cue): {n_gc}",

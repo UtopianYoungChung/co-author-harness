@@ -267,10 +267,11 @@ def validate_profile(profile: dict[str, Any]) -> None:
     for key, value in stages.items(): _number(value, f"thresholds.jargon.new_domain_terms_per_paragraph.{key}", integer=True)
     worked = _object(thresholds["worked_example"], "thresholds.worked_example", {"rhetorical_question_stack_min", "example_window_paragraphs"})
     for key, value in worked.items(): _number(value, f"thresholds.worked_example.{key}", integer=True)
-    consolidation = _object(thresholds["consolidation"], "thresholds.consolidation", {"construct_accumulation", "prior_sections_dependency", "candidate_gap_words", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words", "deterministic_gap_is_proxy_only"})
+    consolidation = _object(thresholds["consolidation"], "thresholds.consolidation", {"construct_accumulation", "prior_sections_dependency", "candidate_gap_words", "candidate_gap_paragraphs", "pre_heading_scan_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words", "deterministic_gap_is_proxy_only"})
     gaps = _object(consolidation["candidate_gap_words"], "thresholds.consolidation.candidate_gap_words", {"P0", "P1", "P2"})
     for key, value in gaps.items(): _number(value, f"thresholds.consolidation.candidate_gap_words.{key}", integer=True)
     for key in ("construct_accumulation", "prior_sections_dependency", "candidate_gap_paragraphs", "short_manuscript_guidance_words", "long_manuscript_candidate_words"): _number(consolidation[key], f"thresholds.consolidation.{key}")
+    _number(consolidation["pre_heading_scan_paragraphs"], "thresholds.consolidation.pre_heading_scan_paragraphs", integer=True, minimum=1)
     if consolidation["deterministic_gap_is_proxy_only"] is not True: raise PolicyError("consolidation proxy flag must be true")
     register = _object(thresholds["register"], "thresholds.register", {"minimum_positive_markers", "positive_marker_count", "nominalisation_density_candidate", "prepositional_run_candidate", "hedges_per_100_words_candidate", "functional_removability_required", "severity_model"})
     for key, value in register.items():

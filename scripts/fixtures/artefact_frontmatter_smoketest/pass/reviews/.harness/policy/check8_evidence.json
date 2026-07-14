@@ -2,7 +2,7 @@
   "schema_version":"check8_evidence.v1",
   "cycle_id":"P21B-F1",
   "profile_path":"reviews/.harness/policy/reader_accessibility_resolved.json",
-  "profile_sha256":"bf7e9f9a139b9b80fdeeff0e83164418eac34b156bfbd49871e51adac0defc6f",
+  "profile_sha256":"33fdf174c2d57909f758a1a93cf194d20a85eca5e09deaca44688ce8620fe402",
   "manuscript_path":"manuscript/main.tex",
   "manuscript_sha256":"675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "phase":"Ph3",

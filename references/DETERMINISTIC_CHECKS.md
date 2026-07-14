@@ -332,7 +332,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces a list of can
 
 ## 9b. Reader cognitive load pre-filter (added 2026-04-13)
 
-This block is a **pre-filter**, not a pass/fail check. It produces a list of candidate locations for judgment review under `SAFEGUARD_LAYER §Check 8` (Reader-Experience / Prose Architecture Audit). The block is motivated by the Round 7 external readability review (see `INF3001H_Research/draft/reviews/analysis_external_reviewer_gap_2026-04-13.md`), which identified four axes the prior pipeline did not own: sentence architecture (subject-verb distance), definition topology, prose cadence, and list-in-disguise patterns.
+This block is a **pre-filter**, not a pass/fail check. It produces candidate locations for judgment review under the reader-experience audit. Archived external-review evidence identified unowned sentence architecture, definition topology, prose cadence, and list-in-disguise patterns; the profile now owns their numeric predicates.
 
 | Marker class | Pattern | What to emit |
 |---|---|---|
@@ -362,7 +362,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces a list of can
 - Overclaiming verbs (expanded): <count>
 - Paragraph cadence candidates under `thresholds.cadence`: <count>
 - Section-transition preamble absent: <count>                # new v0.7.2
-- Jargon density exceeded (P-stage cap +1): <count>          # new v0.7.2
+- Jargon density exceeded under resolved P-stage predicate: <count>
 - Candidate locations for Check 8 Sub-check A (cadence): <count>
 - Candidate locations for Check 8 Sub-check D (signposting): <count>
 - Candidate locations for Check 8 Sub-check E (jargon density): <count>
@@ -371,7 +371,7 @@ This block is a **pre-filter**, not a pass/fail check. It produces a list of can
   - ...
 ```
 
-**Rationale:** On INF3001H, the six internal review rounds produced a READY verdict while seven reader-ergonomics defects remained. An external reader caught them on a single readability pass. The defects shared one property: none was a rule violation the pipeline tracked. They were unowned axes. This pre-filter mechanizes the axes so future projects surface them automatically.
+**Rationale:** Archived INF3001H review evidence reached a readiness verdict while reader-ergonomics defects remained. The defects were unowned axes rather than tracked rule violations. This pre-filter nominates them for judgment without preserving the historical counts as policy.
 
 **Relationship to §9a.** §9a targets *paragraph-internal logical connective integrity* (invisible to mechanical checks, caught by adversarial reading). §9b targets *reader working-memory load within a paragraph or a section opening* (invisible to analytical checks, caught by first-pass reading). The two pre-filters are orthogonal; both feed the safeguard layer. See §9d for the manuscript-scale counterpart that feeds Sub-check G.
 
@@ -385,11 +385,11 @@ This block is a **pre-filter**, not a pass/fail check. It locates candidate stru
 |---|---|---|
 | **Boundary gap — word count since last major heading** | Compute the body-word span for each major Markdown or LaTeX heading and compare it with `thresholds.consolidation.candidate_gap_words` for the resolved P-stage. | boundary locator + preceding-span word count + resolved threshold |
 | **Boundary gap — paragraphs since last major heading** | Count paragraphs in the span and apply `thresholds.consolidation.candidate_gap_paragraphs` together with the P-stage word envelope. | boundary locator + paragraph count |
-| **Consolidation-cue density in the two paragraphs before a major heading** | For the two paragraphs immediately preceding each major heading, scan for a consolidation-cue lexicon: `\b(at this point\|so far\|to this point\|up to now\|taking stock\|we have seen\|we have established\|the reader now\|at this stage\|with (this|these) in place\|having (mapped\|traced\|identified\|set out)\|with the (foregoing\|preceding)\|what the (preceding\|foregoing) (pages\|sections))\b`. Record the count of matches in those two paragraphs | boundary locator + cue count (0, 1, 2+) |
+| **Consolidation-cue density before a major heading** | Scan the pre-heading paragraph window owned by `thresholds.consolidation.pre_heading_scan_paragraphs` for the consolidation-cue lexicon. Record the match count without restating the window size here. | boundary locator + cue count |
 | **Consolidation-cue density in the opening paragraph of a new major section** | For the opening paragraph of each major section, scan for the same consolidation-cue lexicon plus the backward-reference lexicon from §9b Sub-check D (`\b(having\|after\|so far\|in the preceding\|this section\|the previous section\|up to this point)\b`). A single match counts whether from either lexicon; the point is backward consolidation, not the form | boundary locator + cue count (0 or ≥ 1) |
-| **G-candidate boundary** (synthesis marker) | A boundary qualifies as a Sub-check G candidate when BOTH (i) the preceding-span word count exceeds the P-stage gap envelope AND (ii) the consolidation-cue density is zero in both the two-paragraph pre-heading window and the opening paragraph of the next section. These are the boundaries the judgment pass should audit first | boundary locator + preceding-span word count + zero-cue confirmation |
+| **G-candidate boundary** (synthesis marker) | A boundary qualifies as a Sub-check G candidate when the preceding-span word count exceeds the resolved P-stage envelope and consolidation cues are absent from both the profile-sized pre-heading window and the next section's opening paragraph. | boundary locator + preceding-span word count + cue-absence confirmation |
 
-**Emission rule.** Every G-candidate boundary adds one row to the Check 8 Sub-check G work queue. The deterministic layer emits a candidate; the judgment layer (the Evaluator running Sub-check G via the `accessibility-overlay` skill) confirms whether the boundary actually crosses the construct-accumulation threshold of §13.3 criterion 7 and whether any cue match (if present) is doing the consolidation work the criterion requires. Cue matches alone do not clear the boundary — a sentence saying "at this point" that fails to name what the reader holds and where the argument is going still fails G.
+**Emission rule.** Every G-candidate boundary adds a row to the Check 8 Sub-check G work queue. The deterministic layer emits a candidate; the judgment layer applies the semantic criterion at `READER_ACCESSIBILITY.md §13.3 G` and the numeric predicates from `thresholds.consolidation`. Cue matches alone do not clear the boundary.
 
 **Output stub:**
 
@@ -397,8 +397,8 @@ This block is a **pre-filter**, not a pass/fail check. It locates candidate stru
 ### Cumulative cognitive load pre-filter (Sub-check G)
 - Major headings scanned: <count>
 - Boundary gaps exceeding P-stage envelope (words): <count>
-- Boundary gaps exceeding six-paragraph ceiling: <count>
-- Zero-cue pre-heading windows: <count>
+- Boundary gaps exceeding profile paragraph-gap predicate: <count>
+- Pre-heading windows without cues: <count>
 - Zero-cue section-opening paragraphs: <count>
 - G-candidate boundaries (both gap-exceeded AND zero-cue): <count>
   - <boundary locator>: preceding-span wc=<n>, para count=<n>, pre-heading cues=<n>, opening cues=<n>
@@ -409,7 +409,7 @@ This block is a **pre-filter**, not a pass/fail check. It locates candidate stru
 
 **Rationale.** The archived INF3006Y calibration surfaced repeated major-section boundaries with no consolidation cues even though the new arguments depended on prior material. The local pre-filter saw nothing because each paragraph was individually clean. This probe elevates nomination from the paragraph to the section boundary, paralleling the scale shift from the local Sub-checks to G. The pre-filter remains intentionally coarse; the judgment pass may reclassify a candidate boundary when the span does not actually cross the profile-owned construct-accumulation predicate.
 
-**Relationship to §9a and §9b.** §9a = paragraph-internal logical connective integrity. §9b = within-paragraph / section-opening reader working-memory load. §9d = manuscript-scale consolidation at structural boundaries. The three pre-filters are orthogonal scales (sentence-pair, paragraph, manuscript); all feed the safeguard layer. §9c is reserved for the pre-existing INF3001H artifact-organization block and is unrelated.
+**Relationship to adjacent pre-filters.** The logical-connective, within-paragraph, and manuscript-scale consolidation probes operate at orthogonal scales and feed the safeguard layer.
 
 **P-stage adjustment.** Read the current P-stage envelope from `thresholds.consolidation.candidate_gap_words`. This prose records rationale but owns no numeric threshold.
 
@@ -431,7 +431,7 @@ This block is a **pre-filter**, not a pass/fail check. It nominates passage evid
 
 **Output contract per probe.** Each probe emits a tuple `(probe_name, raw_count, normalised_value, threshold, fired: bool)`. The pre-filter bundle is appended to the passage's overlay-input record under field `prefilter_h_bundle`. A clear negative pre-filter may skip negative-marker elaboration, but it never implies `NULL/CLEAN`: the overlay always performs the positive-marker audit required by `runtime_modes.stability.negative_prefilter_short_circuit` and Sub-check H.
 
-**Emission rule.** Every passage in scope emits one bundle, regardless of whether any negative-marker probe fires. The aggregate `fired` boolean is telemetry for negative-marker elaboration only; it cannot suppress positive-marker evaluation or rewrite a semantic verdict.
+**Emission rule.** Each passage in scope emits a bundle regardless of whether a negative-marker probe fires. The aggregate `fired` boolean is telemetry for elaboration only; it cannot suppress positive-marker evaluation or rewrite a semantic verdict.
 
 **Output stub:**
 

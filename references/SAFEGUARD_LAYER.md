@@ -288,51 +288,51 @@
 
 **Three-scale architecture.** A–F audit local accessibility, G cumulative consolidation, and H register construction. The resolved profile defines their current scopes and dispositions; historical rollout counts are provenance only.
 
-**Procedure — eight sub-checks, each with an explicit severity floor.**
+**Procedure — A–H sub-checks, each with a profile-routed severity floor.**
 
-### A. Paragraph cadence (§13.3 criterion 1)
+### A. Paragraph cadence (`READER_ACCESSIBILITY.md §13.3 A`)
 
 1. Enumerate every paragraph in scope and apply `thresholds.cadence`. Candidate cues receive credit only after functional confirmation; this procedure does not restate the numeric bands.
 2. Flag each cadence-violating paragraph with its word count and its turn-point count.
 3. **Severity:** derive from `thresholds.cadence` and the current paragraph evidence. Prior observations affect workflow persistence and recurrence reporting only.
 
-### B. Sentence-length distribution (§13.3 criterion 2)
+### B. Sentence-length distribution (`READER_ACCESSIBILITY.md §13.3 B`)
 
 1. Compute the sentence-distribution evidence required by `thresholds.rhythm`.
 2. Nominate monotone-dense candidates under the resolved profile.
 3. **Severity:** adjudicate the present text under the profile; recurrence creates workflow evidence only.
 
-### C. First-use definition (§13.3 criterion 3)
+### C. First-use definition (`READER_ACCESSIBILITY.md §13.3 C`)
 
 1. Enumerate load-bearing theoretical and domain constructs in scope. Starting list: the §9b pre-filter's "Definition-after-first-use" matches and the §9b "Stranded definition blocks" matches. Extend manually with constructs the Evaluator judges load-bearing but which the pre-filter missed (constructs introduced without `\emph{X}` or `By X, I mean` markers fall outside §9b's regex coverage).
 2. For each load-bearing term, verify a first-use definition or worked illustration exists before the term does conceptual work in a subsequent paragraph.
-3. **Severity floor:** **MAJOR** by default (the §13.3 rule binds even on field-standard terms: `affordance`, `operationalization`, `socio-technical`, `intentionality`, `delegation`). **BLOCKER** if the undefined term is load-bearing for the manuscript's central argument.
+3. **Severity floor:** Apply the resolved profile to the semantic rule at `READER_ACCESSIBILITY.md §13.3 C`; field familiarity does not exempt a load-bearing undefined term.
 
-### D. Section-transition signposting (§13.3 criterion 4)
+### D. Section-transition signposting (`READER_ACCESSIBILITY.md §13.3 D`)
 
 1. For every section and major subsection, check that the opening span tells the reader where they have arrived in the argument and what the section will contribute.
 2. Flag sections that open with an unqualified thematic claim, a bare definition, or a block quote (no directional signal).
 3. **Severity:** derive from current textual evidence and `sub_checks.D`; repeated observations do not rewrite severity.
 
-### E. Jargon discipline per paragraph (§13.3 criterion 5)
+### E. Jargon discipline per paragraph (`READER_ACCESSIBILITY.md §13.3 E`)
 
 1. For each paragraph, count new domain terms — terms not used in any prior paragraph of the manuscript.
 2. Apply `thresholds.jargon` to the current P-stage.
 3. **Severity:** derive from the active profile's jargon contract.
 
-### F. Worked examples at density spikes (§13.3 criterion 6)
+### F. Worked examples at density spikes (`READER_ACCESSIBILITY.md §13.3 F`)
 
 1. Identify density-spike passages. Starting list: the §9b pre-filter's "Triadic enumerator (mechanized)" matches and the §9b "Rhetorical-question stacking" matches; extend by reading for tri-part decompositions, multi-criteria evaluations, and contested-claim clusters.
 2. For each density spike, verify the surrounding prose turns to a worked example, vignette, or concrete instantiation before continuing in the abstract. The INF3001H loan-officer vignette is the template move.
 3. **Severity:** derive from `sub_checks.F` for the current evidence and phase.
 
-### G. Cumulative cognitive load / consolidation anchors (§13.3 criterion 7)
+### G. Cumulative cognitive load / consolidation anchors (`READER_ACCESSIBILITY.md §13.3 G`)
 
 **Scope.** Resolve G scope and workflow effect from `sub_checks.G`, `transitions.G`, and the current dispatch envelope.
 
 **Procedure.**
 
-0. **Consume the §9d pre-filter (added 2026-04-23).** If the current cycle's `reviews/deterministic_<cycle_id>.md` file carries a §9d "Cumulative cognitive load pre-filter" block, open it first. The pre-filter's G-candidate boundary list (boundaries where preceding-span word count exceeds the P-stage gap envelope AND consolidation-cue density is zero in both the pre-heading window and the opening paragraph of the next section) is the seed for step 1. The Evaluator may extend the seed with any additional boundaries it judges threshold-crossing that the pre-filter missed (the pre-filter is intentionally coarse and keys on cue absence, not construct-accumulation judgment). If the pre-filter has not run this cycle, proceed from step 1 directly.
+0. **Consume the cumulative-load pre-filter.** When the current cycle carries the deterministic G block, use its profile-routed candidate boundaries as the seed. The Evaluator may extend the seed when construct-accumulation judgment identifies a missed boundary. When the pre-filter is absent, perform the semantic procedure directly.
 1. **Enumerate structural boundaries.** Use section endings, labelled argumentative pivots, and dependency-bearing openings under `thresholds.consolidation`. The Evaluator reads the manuscript geometry and dependency structure, starting from the §9d seed when available.
 2. **Measure construct accumulation between boundaries.** For each consecutive boundary span, count the distinct load-bearing constructs, positions, or tensions introduced. A construct is load-bearing when it is named in the abstract, belongs to the profile-routed first-use set audited by Sub-check C, or is cited as prior material by a later section. A position is load-bearing if the manuscript treats it as a candidate to accept, reject, or reframe. A tension is load-bearing if the closing argument depends on its unresolved status.
 3. **Apply the profile threshold.** A qualifying boundary must carry a consolidation anchor that names accumulated material and signals how the next movement will use it.
@@ -347,7 +347,7 @@
 
 **Stability sub-mode interaction.** The stability pass reads `transitions.G` and its bound Planner event state. Byte stability is evidence, not a second transition or advisory authority.
 
-### H. Register Appropriateness — Register-Flag (§13.3 criterion 8, added v0.10.1)
+### H. Register Appropriateness — Register-Flag (`READER_ACCESSIBILITY.md §13.3 H`)
 
 **Scope.** Load passage roles and audience-conditioned scope from `register_scope` and `sub_checks.H`; do not reconstruct the role set from prose.
 
@@ -376,7 +376,7 @@
 
 **Scope and membership.** Sentence-scoped at all phase rungs, including technical passages. VE is an adjacent advisory, not a lettered Sub-check: Check 8 is exactly A–H. VE never contributes to the A–H aggregate, accessibility severity floor, TerminalSignoffRow gate, or trigger 28, before or after its observation transition. Its findings route only to Reflector Phase 2g recurrence. Machine contract: `adjacent_advisory_checks.VE` in `references/policies/reader_accessibility.v1.json`.
 
-**Provenance.** Authored 2026-04-30 (v0.13.0) per `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.2. Surfaced from the INF3006Y voice round 2 where the Fügener-finding diagnosis line shipped as "the endorsement dimension, far from being a stable attribute, is eroded by the very delegation patterns it is supposed to anchor" — three intensifiers stacked across a single clause that tipped the sentence from diagnostic into verdict register. Closes the gap diagnosed in §2 of the source memo: A–H measure prose-surface and structural quality, but none audit the modal-claim register at the sentence level.
+**Provenance.** The archived voice-and-H lesson identified stacked intensification that tipped diagnostic prose into verdict register. VE preserves that modal-claim concern as an adjacent advisory; `thresholds.verdict_edge` owns its candidate predicate.
 
 **Procedure.**
 
@@ -388,7 +388,7 @@
 3. **Apply the intensifier-stack advisory.** Use `thresholds.verdict_edge` for token and class minima. VE remains non-aggregate regardless of the result.
 4. **Emit advisory telemetry with softening suggestion.** Each VE finding carries (a) the offending sentence-clause as `evidence_text`, (b) the matched intensifier tokens with their classes, (c) a `suggested_softening` field constructed by the modal-distribution rule, and (d) `false_positive_candidate: true|false` (default `false`).
 
-**Modal-distribution softening rule.** The default softening converts the verdict claim into a modal/equivocal claim while preserving the diagnostic content. The rule has three steps: (i) replace the class-(c) verdict verb with a modal-equivocal predicate (`is eroded by` → `may not remain stable under`; `destroys` → `is challenged by`; `is undermined by` → `is contested under`); (ii) drop or weaken the class-(a) emphatic determiner (`the very X` → `the X`; `precisely the X` → `the X`); (iii) preserve the class-(b) deontic-implicit phrasing if needed for the diagnostic content, or rephrase to recover the implicit-norm content without the deontic register. Example transformation: `is eroded by the very delegation patterns it is supposed to anchor` → `may not remain stable under the delegation patterns to which it is supposed to anchor accountability`. The "to which" rephrasing recovers the deontic content (the delegation-anchoring relationship) without the modal-claim escalation.
+**Modal-distribution softening rule.** Convert the verdict claim into a modal or equivocal claim while preserving diagnostic content: replace the verdict verb with a modal predicate, weaken unnecessary emphatic determiners, and retain deontic content only where it carries the diagnosis. The procedure owns the repair function; `thresholds.verdict_edge` owns candidate arithmetic.
 
 **Advisory priority.** VE records `notice`, `priority`, and `recurrence_state`, not Check 8 severity. Repeated or co-located findings may raise remediation priority, but cannot become an accessibility MAJOR/BLOCKER or alter the A–H aggregate.
 

@@ -29,13 +29,13 @@ check_8_subcheck_counters:
   sub_h_register_flag_count: 0
 reader_accessibility_policy:
   profile_path: reviews/.harness/policy/reader_accessibility_resolved.json
-  profile_sha256: "bf7e9f9a139b9b80fdeeff0e83164418eac34b156bfbd49871e51adac0defc6f"
+  profile_sha256: "33fdf174c2d57909f758a1a93cf194d20a85eca5e09deaca44688ce8620fe402"
   manuscript_sha256: "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04"
   check8_evidence_path: reviews/.harness/policy/check8_evidence.json
-  check8_evidence_sha256: "f5eb505ac66c33e4806685bd23507336b5d1d8bd1b9a17942e0686592ec0153e"
+  check8_evidence_sha256: "26d89edb956726d0d0df21df330f5d797372eda72fb0c2ff7eca9639620ed47c"
   phase: Ph3
   candidate_artifact_path: reviews/.harness/policy/reader_accessibility_candidates.json
-  candidate_artifact_sha256: "efefd217d1b5d2672972173410a55a7f08429ed05b2ae42a50c97f2f5c00c9e4"
+  candidate_artifact_sha256: "80c81d1a3bbe56f959527cef5c947afd22c84674a64d20d2f00492d2d619ca1a"
 check_8_adjacent_advisories:
   ve_finding_count: 0
 dnd_byte_verification:

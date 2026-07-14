@@ -101,6 +101,12 @@ def main() -> int:
     high["thresholds"]["consolidation"]["candidate_gap_words"]["P1"]=10000
     low_stats,*_=g.analyze(g_text,Path("paper.md"),"P1",low); high_stats,*_=g.analyze(g_text,Path("paper.md"),"P1",high)
     assert any(item.g_candidate for item in low_stats) and not any(item.g_candidate for item in high_stats), "G ignored explicit resolved-profile thresholds"
+    window_text="# First\n\n"+("ordinary words "*30)+"\n\nAt this point, the reader holds the baseline.\n\nFinal uncued paragraph.\n\n# Second\n\nNext."
+    narrow=copy.deepcopy(low); wide=copy.deepcopy(low)
+    narrow["thresholds"]["consolidation"]["pre_heading_scan_paragraphs"]=1
+    wide["thresholds"]["consolidation"]["pre_heading_scan_paragraphs"]=2
+    narrow_stats,*_=g.analyze(window_text,Path("paper.md"),"P1",narrow); wide_stats,*_=g.analyze(window_text,Path("paper.md"),"P1",wide)
+    assert narrow_stats[-1].g_candidate and not wide_stats[-1].g_candidate, "G ignored profile-owned pre-heading scan window"
 
     clean = {letter: {"findings": []} for letter in "ABCDEFGH"}
     clean["A"]["findings"] = [

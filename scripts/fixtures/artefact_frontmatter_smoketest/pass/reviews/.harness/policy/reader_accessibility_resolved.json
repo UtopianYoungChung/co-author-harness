@@ -1,7 +1,7 @@
 {
   "contract_version": "1.0.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "28c5c4154de2ca6b66e832f4b34238fa49c72d9120fe12e0cae58546e37cc52c",
+  "profile_sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
   "register_class": "technical",
   "project_identity": null,
   "resolved_profile": {
@@ -280,6 +280,7 @@
           "P2": 600
         },
         "candidate_gap_paragraphs": 6,
+        "pre_heading_scan_paragraphs": 2,
         "short_manuscript_guidance_words": 3000,
         "long_manuscript_candidate_words": 5000,
         "deterministic_gap_is_proxy_only": true
@@ -499,13 +500,13 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "28c5c4154de2ca6b66e832f4b34238fa49c72d9120fe12e0cae58546e37cc52c",
+      "sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "57d5900997935eb665dd792b7d15513633a626d30d58d4461580ebae947527fb",
+      "sha256": "a5749bc387a10aaf55f1a9f1cdde9dfe8272dc0d41cbe850f94f2109d81242bd",
       "role": "package_contributor"
     },
     {

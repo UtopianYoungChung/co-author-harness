@@ -49,15 +49,15 @@ def check(condition: bool, case: str, message: str) -> None:
 
 
 _POLICY_NUMBER = re.compile(r"(?i)(?:\b\d+(?:\.\d+)?\b|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)(?:-(?:to|of)-(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve))?\b)")
-_POLICY_CONCEPT = re.compile(r"(?i)(?:\bcadence\b|functional\s+turn[ -]?points?|hard\s+ceiling|accumulated?\s+constructs?|construct\s+accumulation|\bsignpost(?:ing)?\b|\bpreamble\b|jargon\s+(?:terms?|density)|register\s+(?:markers?|fraction|verdict)|positive\s+markers?|negative\s+markers?|sentence\s+(?:count|words?|window|range|length)|paragraph\s+(?:count|words?|window|range|length)|\b\w+-word\b|nested\s+parentheticals?|passage\s+roles?|section\s+list|\bseverity\b|\bverdict\b|(?:blocker|major|minor|clean)\s+(?:fraction|verdict|severity|floor))")
+_POLICY_CONCEPT = re.compile(r"(?i)(?:\bcadence\b|functional\s+turn[ -]?points?|hard\s+ceiling|accumulated?\s+constructs?|construct\s+accumulation|\bsignpost(?:ing)?\b|\bpreamble\b|jargon\s+(?:terms?|density)|register\s+(?:markers?|fraction|verdict)|positive\s+markers?|negative\s+markers?|sentence\s+(?:count|words?|window|range|length)|paragraphs?\s+(?:count|words?|window|range|length|before)|\b\w+-word\b|\b\w+-paragraph\b|pre-heading\s+window|nested\s+parentheticals?|passage\s+roles?|section\s+list|\bseverity\b|\bverdict\b|(?:blocker|major|minor|clean)\s+(?:fraction|verdict|severity|floor))")
 
 
 def has_numeric_policy_semantics(line: str) -> bool:
     """Detect threshold/verdict math outside the generated policy projection."""
     normalized = re.sub(r"(?i)\bv\d+(?:\.\d+)+\b|\b\d{4}-\d{2}-\d{2}\b|§[A-Za-z0-9.\-–]+", "", line)
     normalized = re.sub(r"(?i)\bCheck[ -]?8\b|\bSub-check\s+[A-H]\b|\bC-8\b|\bM-\d+\b", "", normalized)
-    normalized = re.sub(r"(?i)\btrigger\s+\d+\b|\bPhase\s+\d+[a-z]?\b|\bPh\d\b", "", normalized)
-    normalized = re.sub(r"(?i)\b(?:positive\s+|negative\s+)?marker\s+\d+\b|\bprobe\s+\d+\b|\bfirst[ -]use\b|\bfirst person\b", "", normalized)
+    normalized = re.sub(r"(?i)\btrigger\s+\d+\b|\bPhase\s+\d+[a-z]?\b|\bPh\d\b|\bstep\s+\d+\b|\bline\s+\d+(?:-\d+)?\b", "", normalized)
+    normalized = re.sub(r"(?i)\b(?:positive\s+|negative\s+)?marker\s+\d+\b|\bprobe\s+\d+\b|\bfirst[ -]use\b|\bfirst person\b|\bfirst occurrence\b", "", normalized)
     normalized = re.sub(r"^\s*\d+[.)]\s+", "", normalized)
     return bool(_POLICY_NUMBER.search(normalized) and _POLICY_CONCEPT.search(normalized))
 
@@ -68,6 +68,8 @@ def main() -> int:
         "Flag after 5 accumulated constructs.", "Use blocker fraction 0.75.",
         "Require a one-to-three sentence preamble.", "Two-of-four register markers is borderline.",
         "Three-of-four register markers is clean.", "Four-of-four register markers is clean.",
+        "Scan the two paragraphs before each heading.", "Apply the six-paragraph ceiling.",
+        "Use a two-paragraph pre-heading window.",
     )
     for mutation in detector_mutations:
         check(has_numeric_policy_semantics(mutation), "threshold_repeated_outside_profile", f"numeric policy detector missed {mutation!r}")
@@ -184,8 +186,14 @@ def main() -> int:
     generated_view = ROOT / "references/generated/reader_accessibility_policy_view.md"
     check(generated_view.read_text(encoding="utf-8") == policy.render_policy_view(profile), "threshold_repeated_outside_profile", "generated numeric policy view is stale")
     for rel in parity_surfaces:
+        policy_section = False
         for line_number, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1):
-            accessibility_scoped = rel in {"references/READER_ACCESSIBILITY.md", "skills/accessibility-overlay/references/sub_checks.md"} or any(marker in line for marker in ("Sub-check", "reader_accessibility", "thresholds.", "runtime_modes.stability"))
+            if line.startswith("## "):
+                if rel == "references/DETERMINISTIC_CHECKS.md":
+                    policy_section = bool(re.match(r"## 9[bde]\.", line))
+                elif rel == "references/SAFEGUARD_LAYER.md":
+                    policy_section = line.startswith("## Check 8 ")
+            accessibility_scoped = rel in {"references/READER_ACCESSIBILITY.md", "skills/accessibility-overlay/references/sub_checks.md"} or policy_section or any(marker in line for marker in ("Sub-check", "reader_accessibility", "thresholds.", "runtime_modes.stability"))
             if not accessibility_scoped:
                 continue
             if not has_numeric_policy_semantics(line):

@@ -92,6 +92,7 @@ Do not edit. Generated from `references/policies/reader_accessibility.v1.json`; 
       "construct_accumulation": 3,
       "deterministic_gap_is_proxy_only": true,
       "long_manuscript_candidate_words": 5000,
+      "pre_heading_scan_paragraphs": 2,
       "prior_sections_dependency": 2,
       "short_manuscript_guidance_words": 3000
     },
