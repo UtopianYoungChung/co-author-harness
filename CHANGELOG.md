@@ -6,15 +6,15 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
-## v0.28.0 — 2026-07-13
+## v0.28.0 — 2026-07-14
 
 ### Milestone feedback and handoff framework
 
 **What changed.** The harness now treats milestones as an evidence-bearing workflow rather than a project-local list of filenames. A machine-readable M1–M5 state records each milestone's deliverable, feedback, adjudication, current-content binding, and handoff; `reviews/lifecycle_state.md` is a deterministic derived view of that authority, never a second ledger. Phase admission consumes the same state, so unresolved feedback, stale hashes, reopened upstream work, and incomplete handoffs block downstream claims instead of being papered over by a green phase check.
 
-Native bootstrap, schema validation, migration preview/apply, and exemplar governance ship together. Clean lifecycle exemplars and legacy migration exemplars are separate classes with external, credentialed evidence. Migration preserves provenance distinctions—direct feedback, retrospective audit, reconstructed state, and missing evidence—and project `directives.md` remains above package defaults on the documented precedence ladder. Preflight outcomes are strictly tri-state: READY and explicitly authorized NOT_APPLICABLE may proceed; MISCONFIGURED blocks.
+Native bootstrap, schema validation, migration preview/apply, and exemplar governance ship together. Clean lifecycle exemplars and legacy migration exemplars are separate classes with external, credentialed evidence. Migration treats filename-derived milestone and feedback labels only as non-authoritative candidate hints. Explicit adjudication must admit, exclude as unrelated, or mark prior-contract evidence unavailable; admitted feedback retains its class, named source actor and authority, source/target milestones, receipt time, and hash-bound contemporaneity evidence. Reports keep admitted, excluded, unavailable, and missing evidence distinct. Project `directives.md` remains above package defaults on the documented precedence ladder. Preflight outcomes are strictly tri-state: READY and explicitly authorized NOT_APPLICABLE may proceed; MISCONFIGURED blocks.
 
-The reader-accessibility contract now carries deterministic cadence semantics and a domain-native register model. The model distinguishes domain fluency from passage-scope accessibility, keeps advisory verdict-edge analysis outside the A–H aggregate, and binds exemplar and graph evidence by semantic content hashes. Paragraph length remains a candidate signal with profile-governed structure requirements, not a universal proxy for prose quality.
+The reader-accessibility contract now carries deterministic cadence semantics and a domain-native register model. The model distinguishes domain fluency from passage-scope accessibility, keeps advisory verdict-edge analysis outside the A–H aggregate, and binds exemplar and graph evidence by semantic content hashes. The banded cadence architecture records the user's acceptance separately from calibration status: paragraph length remains a candidate signal with profile-governed structure requirements, not a universal proxy for prose quality, while the provisional 300-word ceiling remains profile-tunable without code or schema edits.
 
 The release gate adds a blocking Phase 0.59 for the aggregate milestone, accessibility, lifecycle-rendering, and migration suites; standalone adversarial/bootstrap/retirement suites; and syntax compilation of the three runtime tools. Missing runners or compile targets are blockers.
 
