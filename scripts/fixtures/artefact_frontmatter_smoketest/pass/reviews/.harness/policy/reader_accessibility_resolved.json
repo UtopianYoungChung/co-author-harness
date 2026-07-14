@@ -1,8 +1,9 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
-  "register_class": "technical",
+  "profile_sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
+  "register_class": "domain-native",
+  "passage_scope_class": "technical",
   "project_identity": null,
   "resolved_profile": {
     "schema_version": "1.0.0",
@@ -15,6 +16,231 @@
       "references/examples/model_prose_corpus.md"
     ],
     "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
+    "domain_native_register": {
+      "reader_model": {
+        "audience_classes": [
+          "IS scholar",
+          "software engineer",
+          "systems engineer",
+          "requirements engineer"
+        ],
+        "imported_theory_registers": [
+          "sociology",
+          "psychology",
+          "philosophy"
+        ],
+        "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
+        "register_class": "domain-native",
+        "source": "M1 milestone reader declaration"
+      },
+      "corpus_binding": {
+        "path_roots": {
+          "wiki_root": "B:/Agents/knowledge/LLM wiki",
+          "workspace_root": "B:/Agents",
+          "harness_root": "B:/Agents/platform/co-author-harness"
+        },
+        "graph": {
+          "path": "knowledge/LLM wiki/graphify-out/graph.json",
+          "role": "index and provenance metadata only; never a gate target",
+          "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+        },
+        "pin": {
+          "level": "semantic",
+          "algorithm": "SHA-256 over UTF-8 bytes, lowercase hex",
+          "pinned_objects": [
+            "attestation_view_pin",
+            "exemplar_view_pin"
+          ],
+          "mf_policy_binding_keys": {
+            "profile_sha256": "profile_sha256",
+            "attestation_view_pin": "attestation_view_pin",
+            "exemplar_view_pin": "exemplar_view_pin",
+            "graph_sha256_provenance": "graph_sha256_provenance"
+          },
+          "recorded_provenance": [
+            "graph_sha256_provenance",
+            "graph_mtime_utc_provenance",
+            "unresolved_seed_ids"
+          ],
+          "repin_policy": "recompute at milestone transitions and grounded-source-admitting rounds; auto-accept no delta; real delta requires deliberate versioned repin; never intra-cycle"
+        },
+        "related_to_RE_predicate": {
+          "seed_resolution": [
+            "exact_id",
+            "source_file_join",
+            "prefer_document_or_source",
+            "prefer_id_suffix_source",
+            "utf8_lexicographic_first"
+          ],
+          "primary_communities": "unique integer communities of resolved seeds",
+          "import_neighbors": "one hop outside primary communities from a primary-community member",
+          "membership": "union_primary_communities_and_one_hop_import_neighbors",
+          "degeneracy_guard": {
+            "resolved_seed_count_lte": 3,
+            "primary_communities_lt": 2,
+            "effect": "warning_only"
+          },
+          "link_contract": "source and target canonical; mandatory _src and _tgt must agree"
+        },
+        "hash_recipe": {
+          "attestation_view_pin": "newline join UTF-8-byte-sorted membership ids without trailing newline",
+          "exemplar_view_pin": "newline join UTF-8-byte-sorted source_key TAB normalized tier TAB source-page source_loc PDF sha256-or-dash tuples without trailing newline",
+          "normalize_tier": "strip whitespace-delimited em dash, en dash, or ASCII hyphen annotation; map full-text-pass to full-read and section-read-verified to section-read",
+          "pdf_staging_rule": "resolve source_loc from each contained wiki source page; missing PDF is dash; staging or byte change is a semantic delta"
+        },
+        "views": {
+          "attestation": {
+            "role": "negative check: is this construction foreign?",
+            "members": "related_to_RE_predicate membership",
+            "absence_effect": "advisory_candidate_only"
+          },
+          "exemplar": {
+            "role": "positive domain-native target",
+            "members": "exemplar_members admitted by deny list",
+            "admission": "deny normalized stub and unresolved; admit every other tier"
+          }
+        }
+      },
+      "exemplar_members": [
+        {
+          "source_key": "yu-1995-istar",
+          "role": "centroid",
+          "grounding": "full-read",
+          "pdf": "raw/corpus/yu-1995-istar.pdf",
+          "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+        },
+        {
+          "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-1997-early-phase-re",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-et-al-2011-social-modeling",
+          "role": "classic-halo",
+          "grounding": "section-read"
+        },
+        {
+          "source_key": "yu-2024-nine-pivots",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "yu-2025-social-agentics-crosstalk",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "zave-1997-four-dark-corners-re",
+          "role": "re-canon",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "nuseibeh-2000-re-a-roadmap",
+          "role": "re-canon",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "goncalves-2019-istar-extension",
+          "role": "istar-extension-halo",
+          "grounding": "section-read"
+        }
+      ],
+      "exemplar_pending_grounding": [],
+      "warrant_layers": {
+        "surface": {
+          "question": "is this term, phrase, connective, or sentence shape attested?",
+          "sources": [
+            "exemplar PDFs",
+            "verbatim extracts",
+            "attestation graph vocabulary"
+          ],
+          "hosts": [
+            "Sub-check H",
+            "humanizer/lexicon layer"
+          ]
+        },
+        "argument": {
+          "question": "is this derivation or logic-connection an insider move?",
+          "sources": [
+            "exemplar wiki source pages",
+            "graph topology"
+          ],
+          "hosts": [
+            "C-8 analytic moves",
+            "C-3 narrative arc",
+            "IS-theory pass"
+          ]
+        }
+      },
+      "c7_fence": {
+        "anchor_scope": [
+          "domain_conventions",
+          "argument_derivation"
+        ],
+        "protected_identity_layer": [
+          "sentence_length_signature",
+          "cadence",
+          "repetition_tolerance",
+          "point_of_view",
+          "humor",
+          "evaluative_stance",
+          "characteristic_metaphor"
+        ],
+        "conflict_resolution": "surface_for_adjudication"
+      },
+      "derivations": {
+        "write": {
+          "profile_keys": [
+            "domain_native_register.exemplar_members",
+            "domain_native_register.warrant_layers"
+          ],
+          "discipline": "condition drafting on retrieved near-neighbor passages; retrieval does not determine generation"
+        },
+        "review": {
+          "profile_keys": [
+            "domain_native_register.corpus_binding",
+            "domain_native_register.warrant_layers"
+          ],
+          "discipline": "absence of attestation or exemplar warrant is advisory only"
+        },
+        "revise": {
+          "profile_keys": [
+            "domain_native_register.warrant_layers.surface",
+            "domain_native_register.c7_fence"
+          ],
+          "discipline": "substitute an attested construction while preserving propositional content and identity-layer boundaries"
+        }
+      },
+      "honesty_constraints": [
+        "corpus retrieval conditions generation but does not determine it",
+        "warrant absence is advisory only",
+        "Evaluator retains residual domain-native judgment"
+      ],
+      "expected_verification": {
+        "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+        "exemplar_view_pin": "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e"
+      }
+    },
     "phase_values": [
       "Ph1",
       "Ph2",
@@ -456,7 +682,8 @@
     "override_contract": {
       "directives": {
         "path": "research_notes/directives.md",
-        "register_class_key": "register_class",
+        "passage_scope_class_key": "passage_scope_class",
+        "legacy_register_class_alias": true,
         "project_identity_key": "project_id"
       },
       "plain_connectives": {
@@ -500,13 +727,13 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
+      "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "a5749bc387a10aaf55f1a9f1cdde9dfe8272dc0d41cbe850f94f2109d81242bd",
+      "sha256": "451cded8e01eb55b8602ff27e0797a43889f08e26e651b3dfb64e3b5cfafb732",
       "role": "package_contributor"
     },
     {
@@ -515,5 +742,275 @@
       "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
       "role": "package_contributor"
     }
-  ]
+  ],
+  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+  "exemplar_view_pin": "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e",
+  "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+  "register_provenance": {
+    "register_class": "domain-native",
+    "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+    "exemplar_view_pin": "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e",
+    "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+    "graph_mtime_utc_provenance": "2026-07-14T01:40:09.055604Z",
+    "seed_resolution_map": {
+      "yu-1995-istar": "yu-1995-istar",
+      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": "yu-mylopoulos-1994-wits_source",
+      "yu-mylopoulos-1994-understanding-why-software-process-modelling": "yu-mylopoulos-1994-icse_source"
+    },
+    "seed_resolution_ties": {
+      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": [
+        "yu_wits_dependency_types",
+        "yu_wits_distributed_intentionality",
+        "yu_wits_strategic_dependency",
+        "yu_wits_strategic_rationale",
+        "yu_wits_what_vs_why"
+      ],
+      "yu-mylopoulos-1994-understanding-why-software-process-modelling": [
+        "yu_icse_actor_dependency",
+        "yu_icse_dependency_strength",
+        "yu_icse_granularity_dilemma",
+        "yu_icse_role_position_agent",
+        "yu_icse_vulnerability_mechanisms"
+      ]
+    },
+    "unresolved_seed_ids": [
+      "yu-1997-early-phase-re",
+      "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "yu-et-al-2011-social-modeling",
+      "yu-2024-nine-pivots",
+      "yu-2025-social-agentics-crosstalk",
+      "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "zave-1997-four-dark-corners-re",
+      "nuseibeh-2000-re-a-roadmap",
+      "goncalves-2019-istar-extension"
+    ],
+    "primary_communities": [
+      5,
+      10
+    ],
+    "attestation_member_ids": [
+      "agential-realism",
+      "analyst_ai_work_corpus_cluster",
+      "baird-2021-delegation",
+      "barad-2003-posthumanist",
+      "baumer-2024-algorithmic-subjectivities",
+      "brynjolfsson-2025-genai-at-work_corpus",
+      "calhau-2023-system-ontology",
+      "calhau-2024-competence-modeling",
+      "cecez-2014-sociomateriality",
+      "cesm-model",
+      "chung-hassan-2026-aiware",
+      "climent-2024-ai-enabled-bm_source",
+      "climent_ai_as_bm_actor",
+      "climent_bm_architecture_positioning",
+      "climent_bm_themes",
+      "climent_data_network_effects",
+      "climent_grounding_bounding",
+      "concept-agency",
+      "concept-agentic-ai",
+      "concept-delegation",
+      "concept-governance",
+      "concept-humanness",
+      "concept-identity-sensitive-requirements",
+      "concept-istar-framework",
+      "concept-professional-identity",
+      "concept-socio-technical-configuration",
+      "dual-process-type1-type2",
+      "evans-stanovich-2013-dual-process",
+      "han-dunning-2024-metaknowledge",
+      "homo-agenticus",
+      "leonardi-2025-agency-loops",
+      "lessons-agency-delegation-2026-04-13",
+      "lukyanenko-2024-metascience-system",
+      "lukyanenko-2025-manifesto",
+      "owens-2010-three-faces-identity",
+      "paper-package-evaluation-2026-04-13",
+      "samavi-2009-strategic-reasoning_stub",
+      "strich-2021-professional-identity-ai",
+      "svahnberg-variability-taxonomy",
+      "synergy-program-m0-completion",
+      "wingate-2025-sustainable-competitive-advantage",
+      "yu-1995-istar",
+      "yu-mylopoulos-1994-icse_source",
+      "yu-mylopoulos-1994-wits_source",
+      "yu_icse_actor_dependency",
+      "yu_icse_dependency_strength",
+      "yu_icse_granularity_dilemma",
+      "yu_icse_role_position_agent",
+      "yu_icse_vulnerability_mechanisms",
+      "yu_wits_dependency_types",
+      "yu_wits_distributed_intentionality",
+      "yu_wits_strategic_dependency",
+      "yu_wits_strategic_rationale",
+      "yu_wits_what_vs_why"
+    ],
+    "exemplar_hash_lines": [
+      "goncalves-2019-istar-extension\tsection-read\t961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820",
+      "nuseibeh-2000-re-a-roadmap\tfull-read\tb67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba",
+      "yu-1995-istar\tfull-read\tc5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
+      "yu-1997-early-phase-re\tfull-read\t84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc",
+      "yu-2024-nine-pivots\tread\tad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320",
+      "yu-2025-social-agentics-crosstalk\tread\t4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1",
+      "yu-e-agent-orientation-as-a-modeling-paradigm-2001\tfull-read\t455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242",
+      "yu-et-al-2011-social-modeling\tsection-read\t7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
+      "yu-lapouchnian-2025-social-agentics-bdi-star\tread\tc71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f",
+      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p\tfull-read\t446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece",
+      "yu-mylopoulos-1994-understanding-why-software-process-modelling\tfull-read\t6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809",
+      "zave-1997-four-dark-corners-re\tfull-read\t382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
+    ],
+    "warnings": [
+      {
+        "code": "RA-DNR-DEGENERATE",
+        "severity": "WARNING",
+        "message": "semantic attestation view is based on a thin resolved seed set"
+      }
+    ],
+    "provenance": [
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1995-istar.md",
+        "sha256": "9084c77ef7824b8d5865331e7744ac935e4ed09d46179205c9a422f356fa08a3"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1995-istar.pdf",
+        "sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md",
+        "sha256": "488d242aed5c9a5c2a3244a7d446b3801256ec586e14ce7114478df126bc4f33"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.pdf",
+        "sha256": "446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-understanding-why-software-process-modelling.md",
+        "sha256": "f54ac23adfd81497e70d201ce76aa29d9ce088301829ecc1feecb85e2af572f1"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-understanding-why-software-process-modelling.pdf",
+        "sha256": "6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1997-early-phase-re.md",
+        "sha256": "1639c625b96759711469d20cd8a271de84c54620dafe9a52083f83a668a1c1ee"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1997-early-phase-re.pdf",
+        "sha256": "84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.md",
+        "sha256": "00a7c8710fd2272586722ca793201acbb5651846f1efbfdced213168b9ec9a0b"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.pdf",
+        "sha256": "455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-et-al-2011-social-modeling.md",
+        "sha256": "3ab5298e68e88d9dfeccdec0768c1c3018ffca238314548160c1b90d297f1c82"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-giorgini-maiden-2011-social-modeling-requirements-engineering.pdf",
+        "sha256": "7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2024-nine-pivots.md",
+        "sha256": "68aff9bb2c1acb88c735cba07f875c2007cad7c2621287c451bf72e63dd70de9"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\franch-x-istar-social-modeling-in-ai-era-2024.pdf",
+        "sha256": "ad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2025-social-agentics-crosstalk.md",
+        "sha256": "26231277d5017ef40065e3b16df7d664f140803b65fd76a7d1ec64daaf8b1c47"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-2025-beyond-human-computer-binary.pdf",
+        "sha256": "4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-lapouchnian-2025-social-agentics-bdi-star.md",
+        "sha256": "265990f82ab939804068de52c1ac0e1c6292874b037d06dddd9d794f6eb5a5dc"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-lapouchnian-2025-social-insights-actionable.pdf",
+        "sha256": "c71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\zave-1997-four-dark-corners-re.md",
+        "sha256": "6f77b3c2896b6ceb72a8418bfe54ba802c0596bc695985f45bbee707c3c23012"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\zave-1997-four-dark-corners-re.pdf",
+        "sha256": "382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\nuseibeh-2000-re-a-roadmap.md",
+        "sha256": "ae8ee71a8507e1a3013663844ac9822b8f977e0ae20f6a0fd85d7deec4e0799d"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\nuseibeh-2000-re-a-roadmap.pdf",
+        "sha256": "b67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\goncalves-2019-istar-extension.md",
+        "sha256": "818eaa79ecb094f299831d1f7f6257503a9a77d1fd208cbb5f3da5778e2aeb60"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\goncalves-2019-istar-extension.pdf",
+        "sha256": "961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820"
+      },
+      {
+        "role": "graph_provenance_only",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\graphify-out\\graph.json",
+        "sha256": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+      },
+      {
+        "role": "register_profile",
+        "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
+        "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a"
+      },
+      {
+        "role": "package_profile",
+        "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\policies\\reader_accessibility.v1.json",
+        "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a"
+      },
+      {
+        "role": "package_contributor",
+        "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\READER_ACCESSIBILITY.md",
+        "sha256": "451cded8e01eb55b8602ff27e0797a43889f08e26e651b3dfb64e3b5cfafb732"
+      },
+      {
+        "role": "package_contributor",
+        "path": "B:\\Agents\\platform\\co-author-harness\\.worktrees\\milestone-feedback-framework\\references\\examples\\model_prose_corpus.md",
+        "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812"
+      }
+    ]
+  }
 }

@@ -71,6 +71,7 @@ def _framework(
     created_at: str,
     policy_binding: dict[str, Any],
 ) -> dict[str, Any]:
+    reader_model = resolve_policy(None)["resolved_profile"]["domain_native_register"]["reader_model"]
     milestones = {
         "M1": _pending_record(
             "Establish the project's focus, motivating tension, intended readers, and question candidates.",
@@ -81,7 +82,7 @@ def _framework(
                 "An F9 handoff binds the accepted memo and instructions for M2.",
             ],
             status="in_progress",
-            policy_evidence={"intended_readers": intended_readers},
+            policy_evidence={"reader_model": reader_model},
         ),
         "M2": _pending_record(
             "Build and annotate the evidence base needed to test and refine the M1 framing.",
@@ -289,7 +290,7 @@ def bootstrap(
             "This file records user, venue, advisor, and project-local overrides. "
             "Higher-authority instructions retain package precedence.\n\n"
             f"project_id: {project_name}\n"
-            "register_class: technical\n\n"
+            "passage_scope_class: technical\n\n"
             "No project-local override has been authorized at bootstrap.\n",
         )
         policy_path = _destination(
@@ -308,7 +309,9 @@ def bootstrap(
             staging,
             "research_notes/project_memo.md",
             f"# Project Memo — {project_name}\n\n**Milestone:** M1 (Project Memo)\n**Status:** In progress\n\n"
-            "## Focus and framing\n\n## Core tension\n\n## Intended readers\n\n"
+            "## Focus and framing\n\n## Core tension\n\n## Reader elicitation notes\n\n"
+            + "\n".join(f"- {reader}" for reader in intended_readers) + "\n\n"
+            "The authoritative M1 reader model is stored in phase_state.json and remains domain-native.\n\n"
             "## Question candidates\n\n## Evidence and snowball plan\n",
         )
         _write(

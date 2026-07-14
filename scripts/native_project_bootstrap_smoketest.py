@@ -89,7 +89,7 @@ def main() -> int:
                 encoding="utf-8"
             )
         )
-        if resolved_policy.get("project_identity") != "test-project" or resolved_policy.get("register_class") != "technical":
+        if resolved_policy.get("project_identity") != "test-project" or resolved_policy.get("register_class") != "domain-native" or resolved_policy.get("passage_scope_class") != "technical":
             raise AssertionError("project identifier changed policy identity or register class")
 
         for key, record in framework["milestones"].items():

@@ -5,18 +5,18 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
+  "profile_sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "fe2bbd9c48539990331ef6802c62ee73aa758b45a7a9f8f4fb1ca0c00a1115a4",
+      "sha256": "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "a5749bc387a10aaf55f1a9f1cdde9dfe8272dc0d41cbe850f94f2109d81242bd",
+      "sha256": "451cded8e01eb55b8602ff27e0797a43889f08e26e651b3dfb64e3b5cfafb732",
       "role": "package_contributor"
     },
     {
@@ -26,7 +26,10 @@
       "role": "package_contributor"
     }
   ],
-  "register_class": "technical",
+  "register_class": "domain-native",
+  "passage_scope_class": "technical",
+  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+  "exemplar_view_pin": "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e",
   "candidate_only": true,
   "evaluator_judgment_required": true,
   "sub_checks": {

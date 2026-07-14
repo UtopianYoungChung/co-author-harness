@@ -216,6 +216,9 @@ FAMILY_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "reader_accessibility_policy": {
                 "profile_path": str,
                 "profile_sha256": str,
+                "resolved_sha256": str,
+                "attestation_view_pin": str,
+                "exemplar_view_pin": str,
                 "manuscript_sha256": str,
                 "check8_evidence_path": str,
                 "check8_evidence_sha256": str,
@@ -1138,7 +1141,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
         if not candidate.is_file() or hashlib.sha256(candidate.read_bytes()).hexdigest() != expected:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", field, "binding is missing or stale")); return None
         return candidate
-    profile_path = bound(policy["profile_path"], policy["profile_sha256"], "reader_accessibility_policy.profile_path")
+    profile_path = bound(policy["profile_path"], policy["resolved_sha256"], "reader_accessibility_policy.profile_path")
     candidate_path = bound(policy["candidate_artifact_path"], policy["candidate_artifact_sha256"], "reader_accessibility_policy.candidate_artifact_path")
     check8_path = bound(policy["check8_evidence_path"], policy["check8_evidence_sha256"], "reader_accessibility_policy.check8_evidence_path")
     manuscript_path = None
@@ -1155,8 +1158,11 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             candidate_payload = json.loads(candidate_path.read_text(encoding="utf-8")) if candidate_path else None
         except (PolicyError, OSError, json.JSONDecodeError) as exc:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy", f"resolved/candidate artifact invalid: {exc}")); return findings
-        if resolved_payload != expected_resolved:
-            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.profile_path", "resolved profile is not exact fresh resolver output"))
+        stable_keys = ("profile_path", "profile_sha256", "source_bindings", "project_identity", "register_class", "passage_scope_class", "resolved_profile", "attestation_view_pin", "exemplar_view_pin")
+        if not isinstance(resolved_payload, dict) or any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys):
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.profile_path", "resolved policy gate projection is not fresh"))
+        if policy["profile_sha256"] != expected_resolved["profile_sha256"] or policy["attestation_view_pin"] != expected_resolved["attestation_view_pin"] or policy["exemplar_view_pin"] != expected_resolved["exemplar_view_pin"]:
+            findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy", "profile or semantic register pin is stale"))
         try:
             validate_candidate_artifact(candidate_payload)
         except PolicyError as exc:
@@ -1165,6 +1171,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             "cycle_id": trusted_cycle_id, "phase": policy["phase"], "manuscript_path": grounding[0] if grounding else None,
             "manuscript_sha256": policy["manuscript_sha256"], "profile_path": expected_resolved["profile_path"],
             "profile_sha256": expected_resolved["profile_sha256"], "source_bindings": expected_resolved["source_bindings"],
+            "attestation_view_pin": expected_resolved["attestation_view_pin"], "exemplar_view_pin": expected_resolved["exemplar_view_pin"],
         }
         if not isinstance(candidate_payload, dict) or any(candidate_payload.get(key) != value for key, value in expected_candidate.items()):
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.candidate_artifact_path", "candidate artifact schema/content does not match resolved policy"))
@@ -1186,7 +1193,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
             computed = recompute_check8(sidecar, transition_objects)
         except (PolicyError, OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "reader_accessibility_policy.check8_evidence_path", f"strict Check 8/phase-state evidence invalid: {exc}")); return findings
-        expected = {"cycle_id": trusted_cycle_id, "profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
+        expected = {"cycle_id": trusted_cycle_id, "profile_path": policy["profile_path"], "profile_sha256": policy["profile_sha256"], "attestation_view_pin": policy["attestation_view_pin"], "exemplar_view_pin": policy["exemplar_view_pin"], "manuscript_sha256": policy["manuscript_sha256"], "phase": policy["phase"], "aggregate_verdict": fm["check_8_aggregate"]}
         if any(sidecar.get(key) != value for key, value in expected.items()) or sidecar.get("manuscript_path") != (grounding[0] if grounding else None) or sidecar.get("transition_snapshot") != transition_snapshot or computed["aggregate_verdict"] != fm["check_8_aggregate"] or sidecar.get("subcheck_verdicts") != computed["subcheck_verdicts"]:
             findings.append(Finding(path, "R-Refl-FM-RA", "MAJOR", "check_8_aggregate", "F1 fields do not match recomputed Check 8 evidence"))
         if len(sidecar.get("ve", {}).get("findings", [])) != fm["check_8_adjacent_advisories"]["ve_finding_count"]:

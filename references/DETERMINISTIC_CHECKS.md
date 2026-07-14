@@ -438,7 +438,8 @@ This block is a **pre-filter**, not a pass/fail check. It nominates passage evid
 ```
 ### Register pre-filter (Sub-check H)
 - Passages in scope: <count>          # pre-filter scope under resolved register_class
-- register_class_resolved: <technical | mixed | non-technical>
+- register_class_resolved: domain-native
+- passage_scope_class_resolved: <technical | mixed | non-technical>
 - Bundles emitted: <count>
 - Negative pre-filter clear (positive-marker audit still required): <count> / <passages>
 - Probe firings:

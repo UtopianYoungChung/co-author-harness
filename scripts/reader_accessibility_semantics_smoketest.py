@@ -197,6 +197,8 @@ def main() -> int:
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(sub_checks={key:{} for key in "ABCDEFGH"})),"schema invalid")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["A"].update(applicable=False)),"canonical deterministic recomputation")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(register_class="mixed")),"canonical deterministic recomputation")
+    forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload.update(attestation_view_pin="0"*64)),"schema/content does not match resolved policy")
+    forged_f1(lambda project,fm: mutate_check8(project,fm,lambda payload: payload.update(exemplar_view_pin="0"*64)),"do not match recomputed")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["A"]["candidates"].append({"paragraph":99,"word_count":999,"candidate_cues":["however"],"candidate_status":"overlay_functional_confirmation_required"})),"canonical deterministic recomputation")
     forged_f1(lambda project,fm: mutate_candidate(project,fm,lambda payload: payload["sub_checks"]["H"]["bundles"][0]["probes"]["nominalisation"].update(threshold=999)),"canonical deterministic recomputation")
     candidate=json.loads((pass_fixture/"reviews/.harness/policy/reader_accessibility_candidates.json").read_text(encoding="utf-8"))

@@ -632,8 +632,8 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
     binding = policy.phase_state_binding(resolved, resolved_path, project)
     ledger["policy_bindings"] = {"reader_accessibility": binding}
     milestones = ledger["milestones"]
-    milestones["M1"]["policy_evidence"] = {"intended_readers": ["careful disciplinary reader"]}
-    milestones["M3"]["policy_evidence"] = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"]}
+    milestones["M1"]["policy_evidence"] = {"reader_model": resolved["resolved_profile"]["domain_native_register"]["reader_model"]}
+    milestones["M3"]["policy_evidence"] = {"profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"], "resolved_sha256": binding["resolved_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"]}
     for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
         manuscript = milestones[milestone]["artifacts"][0]
         subchecks = {key: {"findings": []} for key in "ABCDEFGH"}
@@ -641,7 +641,7 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
         computed = policy.recompute_check8({"subchecks": subchecks, "ve": {"aggregate_member": False, "gate_contribution": "none", "findings": []}}, binding["transitions"])
         sidecar = {
             "schema_version": "check8_evidence.v1", "cycle_id": f"{milestone}-policy-round", "profile_path": binding["resolved_path"],
-            "profile_sha256": binding["resolved_sha256"], "manuscript_path": manuscript["path"],
+            "profile_sha256": binding["profile_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"], "manuscript_path": manuscript["path"],
             "manuscript_sha256": manuscript["sha256"], "phase": phase,
             "transition_snapshot": transition_snapshot, "subchecks": subchecks,
             "subcheck_verdicts": computed["subcheck_verdicts"],
@@ -650,7 +650,7 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
         }
         check_path = f"reviews/.harness/policy/{milestone.lower()}_check8.json"
         check_hash, _ = _write_bound_file(project, check_path, json.dumps(sidecar, indent=2) + "\n")
-        evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["resolved_sha256"], "manuscript_sha256": manuscript["sha256"], "cycle_id": sidecar["cycle_id"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
+        evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"], "resolved_sha256": binding["resolved_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"], "manuscript_sha256": manuscript["sha256"], "cycle_id": sidecar["cycle_id"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
         milestones[milestone]["policy_evidence"] = evidence
     predecessor = None
     for milestone in ("M1", "M2", "M3", "M4", "M5"):

@@ -224,7 +224,7 @@ def main() -> int:
         if list(root.glob(f".{success.name}.bootstrap-*")):
             raise AssertionError("successful bootstrap left a staging directory")
         directives = (success / "research_notes" / "directives.md").read_text(encoding="utf-8")
-        if directives.count("project_id: test-project") != 1 or directives.count("register_class: technical") != 1:
+        if directives.count("project_id: test-project") != 1 or directives.count("passage_scope_class: technical") != 1:
             raise AssertionError("validated inputs did not produce exactly one canonical directive key each")
 
     print("native_project_bootstrap_adversarial_smoketest: PASS")

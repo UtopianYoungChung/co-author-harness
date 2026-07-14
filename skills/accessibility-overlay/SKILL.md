@@ -50,7 +50,7 @@ Before invoking this skill, verify all of the following. Abort with a clear `acc
 4. **DETERMINISTIC_CHECKS §9b, §9d, and §9e pre-filter output is readable.** The overlay reads `reviews/deterministic_<cycle_id>.md` for candidate evidence feeding A–H. Missing pre-filter evidence takes the slower from-scratch path without changing findings. For H, negative-marker bundles are telemetry and elaboration aids only: regardless of their `fired` values, the overlay performs the positive-marker audit. A negative-clear bundle never implies `NULL/CLEAN`.
 5. **Phase and transition projection.** Resolve scope and workflow effects from `sub_checks`, `transitions`, and `runtime_modes` in the active profile. Live state is accepted only from validated Planner event evidence; prose flags, dates, and classification fields cannot change severity or aggregate membership.
 6. **Stability sub-mode.** Apply only the workflow effect declared by `runtime_modes.stability` in the resolved profile. Persistence reuses current-hash evidence to avoid redundant work; it never rewrites recorded severity, excludes an aggregate member, or creates a compatibility severity exception.
-7. **`register_class` resolution for Sub-check H.** Read `register_class` from `research_notes/directives.md`. Default `technical` if the field is absent and record the resolved value. Apply `register_scope` and the profile-owned `passage_roles` set; do not restate its membership count here. The field is orthogonal to P-stage.
+7. **Register-model and passage-scope resolution for Sub-check H.** The M1 reader target is profile-owned at `domain_native_register.reader_model` (`register_class: domain-native`). Resolve H geometry separately from project `passage_scope_class`; legacy `register_class` directives containing passage-scope values remain an alias. Apply `register_scope` and `passage_roles`. Surface-warrant absence follows `domain_native_register.derivations.review`: advisory candidate only, never an automatic finding. Argument warrant routes through `domain_native_register.warrant_layers.argument`, never the Check 8 aggregate.
 
 ### No-op reason codes (machine-readable)
 
@@ -99,7 +99,8 @@ Stability sub-mode: <active|inactive>
 Resolved policy SHA-256: <sha256>
 Sub-check G transition state: <active|retired>  (from milestone_framework.policy_bindings.reader_accessibility.transitions.G)
 Sub-check H transition state: <active|retired>  (from milestone_framework.policy_bindings.reader_accessibility.transitions.H)
-register_class_resolved: <technical|mixed|non-technical>
+register_class_resolved: domain-native
+passage_scope_class_resolved: <technical|mixed|non-technical>
 h_observed_count: <integer from policy binding>
 inherited_from_pre_h: <true|false>
 Overlay version: accessibility-overlay@v1.5
@@ -134,7 +135,7 @@ Aggregate members and workflow effects: <resolved profile keys and validated tra
 <per-finding blocks with passage_role + heading_path locators and schema-valid evidence>
 <h_transition_state: active|retired>
 <runtime_mode_effect: value resolved from runtime_modes>
-<register_class_resolved: technical|mixed|non-technical>
+<register_class_resolved: domain-native; passage_scope_class_resolved: technical|mixed|non-technical>
 
 ## Recurrence hint for Reflector Phase 2g
 <list of sub_check codes that fired this round; compare against the prior round's emission set>
@@ -165,7 +166,7 @@ Every overlay run writes its findings file to `reviews/`. Reflector recurrence u
 - **Not a readability score.** It does not emit Flesch-Kincaid, Dale-Chall, or any grade-level proxy. Those scores are optimized for lay prose and produce misleading verdicts on PhD-register academic argument.
 - **Not a dilution instrument.** The constraint is extraneous-load reduction, not intrinsic-load collapse. A paragraph sustaining a difficult Vidal contradiction-mapping move is fully compliant if its sentences are paced, its constructs defined, and its rhythm carries the reader.
 - **Not a substitute for the Evaluator's judgment.** When a finding's evidence is genuinely contested (e.g., the Sub-check C construct "intentionality" is used without an in-section definition because the author argues it is defined by reference to the project's i* SD model), the Evaluator's Independent-reasoning note overrides the overlay's raw emission. The overlay produces findings; the Evaluator adjudicates.
-- **Not a register-classifier-as-style-judge** (added v0.10.1). Sub-check H audits register *construction* within passages whose structural function the protocol has already named (signposts, framing, transitions, vignettes, anchors), not register *choice* across the manuscript. A technical paragraph that fails the functional removability test is exempt from H under `register_class: technical` and `mixed`; under `register_class: non-technical` the technical paragraph retains its domain terms and is held only to positive-marker construction at the sentence level. H cannot demand that a propositional-content-bearing technical paragraph become "lay register". The presence-of-positive-markers compliance grammar (rather than absence-of-negative-markers punishment) is the load-bearing design choice that closes the dilution back-door.
+- **Not a register-classifier-as-style-judge** (added v0.10.1). Sub-check H audits register *construction* within passages whose structural function the protocol has already named, not the canonical domain-native register choice. A technical paragraph that fails the functional removability test is exempt under `passage_scope_class: technical` and `mixed`; under `passage_scope_class: non-technical` it retains necessary domain terms and is held only to positive-marker construction. H cannot demand lay simplification.
 
 ---
 

@@ -355,7 +355,7 @@
 
 **Procedure.**
 
-1. **Resolve `register_class` from `directives.md`.** Default `technical` if the field is absent (back-compat-safe path). Record the resolved value in the output artefact as `register_class_resolved`.
+1. **Resolve the register axes from the profile and `directives.md`.** `domain_native_register.reader_model.register_class` is always `domain-native`. Resolve the separate `passage_scope_class` from directives, defaulting to `technical`; legacy passage-scope `register_class` is an alias. Record both values.
 2. **Identify passages in scope.** Apply the **functional removability test** and the resolved `register_scope`. If substituting plain-language glosses preserves propositional content, H evaluates the passage; otherwise routing follows the active register class and profile.
 3. **Audit positive markers.** Apply the marker definitions and compliance frame under `thresholds.register`; project lexicon overrides resolve through the profile.
 4. **Audit negative markers.** Apply the registered probes and lexicons from the resolved profile; prose does not restate their numeric thresholds.
@@ -425,8 +425,9 @@
   - Violations:
     - <boundary locator, e.g. "end §3 → §4 opening">: construct accumulation <k>; anchor <present/absent>; severity <MINOR/MAJOR/BLOCKER>
   - Transition binding: <phase_state milestone_framework.policy_bindings.reader_accessibility.transitions.G>
-- H. Register Appropriateness: <n compliant> / <n non-technical passages in scope>  [passage-scope under register_class:technical and mixed; manuscript-scope under register_class:non-technical]
-  - register_class_resolved: <technical | mixed | non-technical>
+- H. Register Appropriateness: <n compliant> / <n non-technical passages in scope>  [geometry from profile-owned `register_scope` + `passage_scope_class`]
+  - register_class_resolved: domain-native
+  - passage_scope_class_resolved: <technical | mixed | non-technical>
   - Violations:
     - <passage role + heading_path, e.g. "signpost_§3 line 12-15">: positive markers <count>; negative markers <count>; severity <MINOR/MAJOR/BLOCKER>; false_positive_candidate <true/false>; inherited_from_pre_h <true/false>
   - Transition binding: <phase_state milestone_framework.policy_bindings.reader_accessibility.transitions.H>

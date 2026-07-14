@@ -77,7 +77,7 @@ _FALSE_TOKENS = frozenset({"false", "no", "0", "f", "n"})
 _RE_CYCLE_ID = re.compile(r"^Cycle:\s*(\S+)\s*$", re.MULTILINE)
 _RE_DATE = re.compile(r"^Date:\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE)
 _RE_REGISTER = re.compile(
-    r"^register_class_resolved:\s*(technical|mixed|non-technical)\s*$",
+    r"^(?:passage_scope_class_resolved|register_class_resolved):\s*(technical|mixed|non-technical)\s*$",
     re.MULTILINE,
 )
 _RE_TABLE_LINE = re.compile(r"^\s*\|.*\|\s*$")

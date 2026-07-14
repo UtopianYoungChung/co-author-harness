@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,8 @@ CHECK8_SCHEMA = ROOT / "references" / "schemas" / "check8_evidence.schema.json"
 CANDIDATE_SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_candidates.schema.json"
 PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+DEFAULT_WIKI_ROOT = Path("B:/Agents/knowledge/LLM wiki")
+DEFAULT_WORKSPACE_ROOT = Path("B:/Agents")
 
 
 class PolicyError(ValueError):
@@ -135,6 +138,114 @@ def _hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def normalize_tier(value: str) -> str:
+    """Return the stable grounding class, ignoring free-text annotations."""
+    token = re.split(r"\s+(?:—|–|-)\s+", value.strip().lower(), maxsplit=1)[0].strip()
+    return {"full-text-pass": "full-read", "section-read-verified": "section-read"}.get(token, token)
+
+
+def grounding_admitted(value: str) -> bool:
+    return normalize_tier(value) not in {"stub", "unresolved"}
+
+
+def _source_metadata(path: Path, fallback: str) -> tuple[str, str | None]:
+    if not path.is_file():
+        raise PolicyError(f"domain-native exemplar source page missing: {path}")
+    text = path.read_text(encoding="utf-8")
+    match = re.search(r"(?mi)^\s*grounding_status\s*:\s*['\"]?([^\r\n'\"]+)", text)
+    source = re.search(r"(?mi)^\s*source_loc\s*:\s*['\"]?([^\r\n'\"]+)", text)
+    return (match.group(1).strip() if match else fallback, source.group(1).strip() if source else None)
+
+
+def _utf8_key(value: str) -> bytes:
+    return value.encode("utf-8")
+
+
+def resolve_domain_native_register(
+    profile: dict[str, Any], *, wiki_root: Path = DEFAULT_WIKI_ROOT,
+    workspace_root: Path = DEFAULT_WORKSPACE_ROOT, harness_root: Path = ROOT,
+) -> dict[str, Any]:
+    """Resolve the two semantic register views with explicit injected roots."""
+    model = profile.get("domain_native_register")
+    if not isinstance(model, dict):
+        raise PolicyError("profile.domain_native_register is missing")
+    graph_rel = model["corpus_binding"]["graph"]["path"]
+    graph_path = _contained(workspace_root, graph_rel)
+    try:
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PolicyError(f"domain-native graph unreadable: {graph_path}: {exc}") from exc
+    nodes = graph.get("nodes"); links = graph.get("links")
+    if not isinstance(nodes, list) or not isinstance(links, list):
+        raise PolicyError("domain-native graph requires nodes and links arrays")
+    by_id: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        if not isinstance(node, dict) or not isinstance(node.get("id"), str) or not isinstance(node.get("community"), int) or isinstance(node.get("community"), bool):
+            raise PolicyError("domain-native graph nodes require unique string id and integer community")
+        if node["id"] in by_id: raise PolicyError(f"duplicate graph node id: {node['id']}")
+        by_id[node["id"]] = node
+    resolution: dict[str, str] = {}; ties: dict[str, list[str]] = {}; unresolved: list[str] = []
+    for member in model["exemplar_members"]:
+        key = member["source_key"]
+        chosen = by_id.get(key)
+        if chosen is None:
+            source_file = f"wiki/sources/{key}.md"
+            candidates = [node for node in nodes if node.get("source_file") == source_file]
+            all_candidate_ids = [node["id"] for node in candidates]
+            preferred = [node for node in candidates if node.get("file_type") in {"document", "source"}]
+            candidates = preferred or candidates
+            preferred = [node for node in candidates if node["id"].endswith("_source")]
+            candidates = preferred or candidates
+            candidates = sorted(candidates, key=lambda node: _utf8_key(node["id"]))
+            if candidates:
+                chosen = candidates[0]
+                discarded = sorted((node_id for node_id in all_candidate_ids if node_id != chosen["id"]), key=_utf8_key)
+                if discarded: ties[key] = discarded
+        if chosen is None: unresolved.append(key)
+        else: resolution[key] = chosen["id"]
+    primary = sorted({by_id[node_id]["community"] for node_id in resolution.values()})
+    primary_members = {node["id"] for node in nodes if node["community"] in primary}
+    membership = set(primary_members)
+    for index, link in enumerate(links):
+        if not isinstance(link, dict) or not isinstance(link.get("source"), str) or not isinstance(link.get("target"), str):
+            raise PolicyError(f"domain-native graph link {index} lacks canonical endpoints")
+        if "_src" not in link or "_tgt" not in link or link["source"] != link["_src"] or link["target"] != link["_tgt"]:
+            raise PolicyError(f"link endpoint divergence at links[{index}]")
+        source, target = link["source"], link["target"]
+        if source not in by_id or target not in by_id: raise PolicyError(f"domain-native graph link {index} references missing node")
+        if source in primary_members and by_id[target]["community"] not in primary: membership.add(target)
+        if target in primary_members and by_id[source]["community"] not in primary: membership.add(source)
+    member_bytes = "\n".join(sorted(membership, key=_utf8_key)).encode("utf-8")
+    attestation_pin = hashlib.sha256(member_bytes).hexdigest()
+    exemplar_lines: list[str] = []; provenance: list[dict[str, str]] = []
+    for member in model["exemplar_members"]:
+        key = member["source_key"]; source_rel = f"wiki/sources/{key}.md"; source_path = _contained(wiki_root, source_rel)
+        grounding, source_pdf = _source_metadata(source_path, member["grounding"])
+        provenance.append({"role":"exemplar_source_page","path":str(source_path),"sha256":_hash(source_path)})
+        if not grounding_admitted(grounding): continue
+        pdf_hash = "-"
+        pdf_rel = source_pdf or member.get("pdf")
+        if pdf_rel:
+            pdf_path = _contained(wiki_root, pdf_rel)
+            if pdf_path.is_file():
+                pdf_hash = _hash(pdf_path); provenance.append({"role":"surface_warrant_pdf","path":str(pdf_path),"sha256":pdf_hash})
+                if wiki_root.resolve() == DEFAULT_WIKI_ROOT.resolve() and member.get("pdf_sha256") and pdf_hash != member["pdf_sha256"]:
+                    raise PolicyError(f"expected exemplar PDF hash mismatch: {key}")
+        exemplar_lines.append(f"{key}\t{normalize_tier(grounding)}\t{pdf_hash}")
+    exemplar_pin = hashlib.sha256("\n".join(sorted(exemplar_lines, key=_utf8_key)).encode("utf-8")).hexdigest()
+    graph_hash = _hash(graph_path)
+    harness_profile = _contained(harness_root, "references/policies/reader_accessibility.v1.json")
+    provenance.extend([
+        {"role":"graph_provenance_only","path":str(graph_path),"sha256":graph_hash},
+        {"role":"register_profile","path":str(harness_profile),"sha256":_hash(harness_profile)},
+    ])
+    warnings=[]
+    guard = model["corpus_binding"]["related_to_RE_predicate"]["degeneracy_guard"]
+    if len(resolution) <= guard["resolved_seed_count_lte"] or len(primary) < guard["primary_communities_lt"]:
+        warnings.append({"code":"RA-DNR-DEGENERATE","severity":"WARNING","message":"semantic attestation view is based on a thin resolved seed set"})
+    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_path.stat().st_mtime, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"warnings":warnings,"provenance":provenance}
+
+
 def _contained(root: Path, relative: str) -> Path:
     candidate = (root / relative).resolve()
     try:
@@ -182,7 +293,7 @@ def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0)
 
 def validate_profile(profile: dict[str, Any]) -> None:
     validate_schema_file(profile, PROFILE_SCHEMA)
-    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
+    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
     _object(profile, "profile", required)
     def reject_self_hash(value: Any, path: str = "profile") -> None:
         if isinstance(value, dict):
@@ -302,8 +413,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
     for key, value in lexicons.items(): _strings(value, f"lexicons.{key}")
     _strings(profile["domain_token_exclusions"], "domain_token_exclusions")
     contract = _object(profile["override_contract"], "override_contract", {"directives", "plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"})
-    _object(contract["directives"], "override_contract.directives", {"path", "register_class_key", "project_identity_key"})
-    if contract["directives"] != {"path": "research_notes/directives.md", "register_class_key": "register_class", "project_identity_key": "project_id"}:
+    _object(contract["directives"], "override_contract.directives", {"path", "passage_scope_class_key", "legacy_register_class_alias", "project_identity_key"})
+    if contract["directives"] != {"path": "research_notes/directives.md", "passage_scope_class_key": "passage_scope_class", "legacy_register_class_alias": True, "project_identity_key": "project_id"}:
         raise PolicyError("override_contract.directives path or keys are invalid")
     expected_paths = {"plain_connectives": "research_notes/plain_connectives.txt", "hedges": "research_notes/hedges.txt", "latinate_whitelist": "research_notes/latinate_whitelist.txt", "terminology": "research_notes/terminology.txt", "glossary": "research_notes/glossary.txt"}
     for key in ("plain_connectives", "hedges", "latinate_whitelist", "terminology", "glossary"):
@@ -317,8 +428,12 @@ def validate_profile(profile: dict[str, Any]) -> None:
     if profile.get("decision_status") != "provisional":
         raise PolicyError("ADR-ACCESS-01 has no proven acceptance; status must remain provisional")
     serialized = json.dumps(profile).lower()
-    if any(token in serialized for token in ("todo", "tbd", "placeholder", "fill me", "stub")):
+    if any(token in serialized for token in ("todo", "tbd", "placeholder", "fill me")):
         raise PolicyError("profile contains unfinished data")
+    identity = set(profile["domain_native_register"]["c7_fence"]["protected_identity_layer"])
+    auto_remediation = json.dumps({"remediation_order": profile["remediation_order"], "derivations": profile["domain_native_register"]["derivations"]}).lower()
+    if any(token.lower() in auto_remediation for token in identity):
+        raise PolicyError("C-7 identity-layer key appears in auto-remediation path")
     for key, expected in (("plain_connectives", "replace"), ("hedges", "replace"), ("latinate_whitelist", "supplement"), ("terminology", "extend_domain_token_exclusions"), ("glossary", "extend_domain_token_exclusions")):
         if profile["override_contract"][key].get("polarity") != expected:
             raise PolicyError(f"override polarity mismatch: {key}")
@@ -421,7 +536,9 @@ def update_persistence(previous_content_sha256: str | None, current_content_sha2
     return {"paragraph_content_sha256": current_content_sha256, "unchanged_rounds": unchanged, "current_severity": current_severity, "planner_workflow_escalation_candidate": unchanged >= 2 and approved, "approved_revision_evidence_observed": approved, "last_approval_sequence": newest_sequence if approved else previous_approval_sequence}
 
 
-def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE) -> dict[str, Any]:
+def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
+                   wiki_root: Path = DEFAULT_WIKI_ROOT, workspace_root: Path = DEFAULT_WORKSPACE_ROOT,
+                   harness_root: Path = ROOT) -> dict[str, Any]:
     profile_path = profile_path.resolve()
     profile = load_profile(profile_path)
     resolved = copy.deepcopy(profile)
@@ -439,7 +556,7 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
         if not contributor.is_file():
             raise PolicyError(f"package contributor is missing: {relative}")
         bindings.append({"scope": "package", "path": Path(relative).as_posix(), "sha256": _hash(contributor), "role": "package_contributor"})
-    register_class = "technical"
+    passage_scope_class = "technical"
     project_identity = None
     if project_root is not None:
         project_root = project_root.resolve()
@@ -449,11 +566,12 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
         directives = _contained(project_root, contract["directives"]["path"])
         if directives.is_file():
             text = directives.read_text(encoding="utf-8")
-            raw_register = re.search(r"(?mi)^\s*register_class\s*:\s*([^#\r\n]+?)\s*$", text)
+            raw_scope = re.search(r"(?mi)^\s*passage_scope_class\s*:\s*([^#\r\n]+?)\s*$", text)
+            raw_register = raw_scope or re.search(r"(?mi)^\s*register_class\s*:\s*([^#\r\n]+?)\s*$", text)
             if raw_register:
-                register_class = raw_register.group(1).strip().lower()
-                if register_class not in {"technical", "mixed", "non-technical"}:
-                    raise PolicyError(f"invalid register_class: {register_class}")
+                passage_scope_class = raw_register.group(1).strip().lower()
+                if passage_scope_class not in {"technical", "mixed", "non-technical"}:
+                    raise PolicyError(f"invalid passage_scope_class: {passage_scope_class}")
             identity = re.search(r"(?mi)^\s*project_id\s*:\s*([^#\r\n]+?)\s*$", text)
             if identity: project_identity = identity.group(1).strip()
             bindings.append({"scope": "project", "path": directives.relative_to(project_root).as_posix(), "sha256": _hash(directives), "role": "directives"})
@@ -472,7 +590,13 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
             else:
                 resolved["domain_token_exclusions"] = list(dict.fromkeys(resolved["domain_token_exclusions"] + values))
             bindings.append({"scope": "project", "path": path.relative_to(project_root).as_posix(), "sha256": _hash(path), "role": f"project_{key}", "polarity": rule["polarity"]})
-    return {"contract_version": "1.0.0", "profile_path": profile_relative, "profile_sha256": _hash(profile_path), "register_class": register_class, "project_identity": project_identity, "resolved_profile": resolved, "source_bindings": bindings}
+    register = resolve_domain_native_register(profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root)
+    for source in bindings:
+        owner = ROOT if source["scope"] == "package" else project_root
+        if owner is not None:
+            recorded_path = str((owner / source["path"]).resolve()) if source["scope"] == "package" else f"project://{source['path']}"
+            register["provenance"].append({"role": source["role"], "path": recorded_path, "sha256": source["sha256"]})
+    return {"contract_version": "1.1.0", "profile_path": profile_relative, "profile_sha256": _hash(profile_path), "register_class": "domain-native", "passage_scope_class": passage_scope_class, "project_identity": project_identity, "resolved_profile": resolved, "source_bindings": bindings, "attestation_view_pin": register["attestation_view_pin"], "exemplar_view_pin": register["exemplar_view_pin"], "graph_sha256_provenance": register["graph_sha256_provenance"], "register_provenance": register}
 
 
 def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_root: Path) -> dict[str, Any]:
@@ -481,18 +605,25 @@ def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_r
     try: relative = path.relative_to(project_root.resolve()).as_posix()
     except ValueError as exc: raise PolicyError("resolved artifact escapes project root") from exc
     if not path.is_file(): raise PolicyError("resolved artifact is missing")
-    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
+    expected = resolved.get("resolved_profile", {}).get("domain_native_register", {}).get("expected_verification", {})
+    for key in ("attestation_view_pin", "exemplar_view_pin"):
+        if expected.get(key) != resolved.get(key):
+            raise PolicyError(f"initial semantic pin mismatch for {key}; deliberate profile repin required")
+    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "attestation_view_pin": resolved["attestation_view_pin"], "exemplar_view_pin": resolved["exemplar_view_pin"], "graph_sha256_provenance": resolved["graph_sha256_provenance"], "register_provenance": copy.deepcopy(resolved["register_provenance"]), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--project-root", type=Path)
+    parser.add_argument("--wiki-root", type=Path, default=DEFAULT_WIKI_ROOT)
+    parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE_ROOT)
+    parser.add_argument("--harness-root", type=Path, default=ROOT)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--render-view", action="store_true", help="render the generated human-readable numeric policy view")
     args = parser.parse_args(argv)
     try:
-        result = resolve_policy(args.project_root, profile_path=args.profile)
+        result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
     except PolicyError as exc:
         print(json.dumps({"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}))
         return 4

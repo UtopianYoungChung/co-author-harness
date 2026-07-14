@@ -359,8 +359,12 @@
       "additionalProperties": false,
       "properties": {
         "intended_readers": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "reader_model": {"$ref":"#/$defs/reader_model"},
         "profile_path": {"type": "string", "minLength": 1},
         "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "attestation_view_pin": {"$ref": "#/$defs/sha256"},
+        "exemplar_view_pin": {"$ref": "#/$defs/sha256"},
         "manuscript_sha256": {"$ref": "#/$defs/sha256"},
         "cycle_id": {"type": "string", "minLength": 1},
         "check8_path": {"type": "string", "minLength": 1},
@@ -369,5 +373,6 @@
         "phase": {"enum": ["Ph2", "Ph3", "Ph4"]}
       }
     }
+    ,"reader_model":{"type":"object","additionalProperties":false,"required":["audience_classes","imported_theory_registers","reading_task","register_class","source"],"properties":{"audience_classes":{"const":["IS scholar","software engineer","systems engineer","requirements engineer"]},"imported_theory_registers":{"const":["sociology","psychology","philosophy"]},"reading_task":{"const":"recover the argument's claims and their derivation on a single read, without leaving the page to look up a term"},"register_class":{"const":"domain-native"},"source":{"const":"M1 milestone reader declaration"}}}
   }
 }

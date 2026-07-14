@@ -310,7 +310,8 @@ def emit_stub(
 
     print("### Register pre-filter (Sub-check H)", file=out_stream)
     print(f"- Passages in scope: {in_scope}", file=out_stream)
-    print(f"- register_class_resolved: {register_class}", file=out_stream)
+    print("- register_class_resolved: domain-native", file=out_stream)
+    print(f"- passage_scope_class_resolved: {register_class}", file=out_stream)
     print(f"- Bundles emitted: {in_scope}", file=out_stream)
     print(
         f"- Negative pre-filter clear (positive-marker audit still required): {negative_clear} / {in_scope}",
@@ -343,10 +344,11 @@ def main(argv: List[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("manuscript", type=Path, help="Path to manuscript file (.md or .tex)")
     ap.add_argument(
-        "--register-class",
+        "--passage-scope-class", "--register-class",
+        dest="register_class",
         default="technical",
         choices=["technical", "mixed", "non-technical"],
-        help="register_class resolved from directives.md (default: technical)",
+        help="passage_scope_class resolved from directives.md; --register-class is a legacy alias",
     )
     args = ap.parse_args(argv)
 

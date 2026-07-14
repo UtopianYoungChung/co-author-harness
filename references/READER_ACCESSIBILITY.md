@@ -27,7 +27,7 @@ This stable semantic anchor maps criterion labels A–H to profile-owned predica
 - **E — jargon.** Apply the resolved P-stage entry under `thresholds.jargon`. Track terms in introduction order and treat deterministic counts as candidates.
 - **F — worked examples.** Apply `thresholds.worked_example` to nominate density spikes, then judge whether an example carries the conceptual load.
 - **G — consolidation.** Apply `thresholds.consolidation`. Word-and-cue gaps remain proxy candidates; the Evaluator decides whether construct accumulation crosses the policy predicate and whether an anchor performs the needed consolidation.
-- **H — register.** Apply `thresholds.register`, `register_scope`, `sub_checks.H`, and the resolved lexicons. A clear negative prefilter never substitutes for the positive-marker audit.
+- **H — register.** Apply `thresholds.register`, `register_scope`, `sub_checks.H`, and `domain_native_register.warrant_layers.surface`. The M1 reader target comes from `domain_native_register.reader_model`; the separate `passage_scope_class` selects H geometry. A clear negative prefilter never substitutes for the positive-marker audit, and absence of attestation is advisory only.
 
 Check 8 membership is exactly A–H. VE is an adjacent advisory under `adjacent_advisory_checks.VE`; it never joins the aggregate. Canonical Check 8 evidence stores structured findings and independence groups, derives subcheck verdicts, applies transition state from the authoritative policy binding, and routes recurrence separately from semantic severity.
 
@@ -47,7 +47,9 @@ G asks what the reader must still carry at a structural boundary. A valid anchor
 
 ### Register construction is not register choice
 
-H audits register construction within passages selected by `register_scope` and the project's `register_class`. Technical prose retains necessary domain terms. The functional-removability test asks whether plain glosses preserve the proposition; if they do not, E governs technical density while H respects the conceptual requirement.
+H audits register construction within passages selected by `register_scope` and the project's `passage_scope_class` (legacy passage-scope `register_class` is an alias). The canonical M1 target remains `domain_native_register.reader_model.register_class: domain-native`, not lay simplification. Technical prose retains necessary domain terms. The functional-removability test asks whether plain glosses preserve the proposition; if they do not, E governs technical density while H respects the conceptual requirement.
+
+Surface warrant and argument-architecture warrant stay separate under `domain_native_register.warrant_layers`. H hosts surface warrant; the argument layer routes to the checks listed in the profile and never contributes to Check 8 merely because the same exemplar was consulted. Writing, review, and revision follow `domain_native_register.derivations`. Retrieval conditions drafting without determining it, warrant absence stays advisory, and revision preserves propositional content under `domain_native_register.c7_fence` rather than auto-rewriting the identity layer.
 
 For eligible passages, inspect concrete anchoring, identifiable agents and actions, transparent connectives, and explicit cues when register shifts. Negative probes nominate unnecessary nominalisation, stacked prepositional phrases, and hedge accumulation. Load marker thresholds and verdict semantics only from `thresholds.register`.
 

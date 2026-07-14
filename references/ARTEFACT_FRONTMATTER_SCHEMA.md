@@ -76,7 +76,10 @@ check_8_subcheck_counters:
 
 reader_accessibility_policy:
   profile_path:             # string; resolved profile evidence path
-  profile_sha256:           # 64-char lowercase SHA-256
+  profile_sha256:           # package reader_accessibility.v1.json SHA-256
+  resolved_sha256:          # resolved project-policy artifact SHA-256
+  attestation_view_pin:     # semantic attestation membership pin
+  exemplar_view_pin:        # semantic exemplar tuple pin
   manuscript_sha256:        # current manuscript SHA-256 audited by Check 8
   check8_evidence_path:     # current Check 8 evidence path
   check8_evidence_sha256:   # current Check 8 evidence SHA-256

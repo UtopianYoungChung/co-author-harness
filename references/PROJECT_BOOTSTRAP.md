@@ -329,9 +329,10 @@ Directives here override the package's cross-venue rules within this project
 # article; H runs manuscript-wide with technical paragraphs held to
 # positive-marker construction at the sentence level).
 # Field is orthogonal to P-stage: P-stage governs depth/scope of engagement;
-# register_class governs target-audience register requirements.
+# passage_scope_class governs Sub-check H passage geometry; the M1 reader
+# model's canonical register_class is domain-native.
 # Silent absence inherits the default `technical` for back-compat safety.
-register_class: technical
+passage_scope_class: technical
 
 # D-STYLE profile (workspace research-writing architecture)
 # This routing declaration narrows the global D-STYLE defaults for the project.

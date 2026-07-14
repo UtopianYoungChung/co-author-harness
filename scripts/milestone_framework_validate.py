@@ -882,17 +882,30 @@ def _validate_reader_accessibility_policy(
     canonical = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
     expected_path = "references/policies/reader_accessibility.v1.json"
     if binding.get("profile_path") != expected_path or not canonical.is_file():
-        findings.append(_finding("MF-POLICY", f"{base}.profile_path", "profile path must bind the canonical package profile"))
+        findings.append(_finding("MF-POLICY-PROFILE-STALE", f"{base}.profile_path", "profile path must bind the canonical package profile"))
     elif binding.get("profile_sha256") != hashlib.sha256(canonical.read_bytes()).hexdigest():
-        findings.append(_finding("MF-POLICY", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
+        findings.append(_finding("MF-POLICY-PROFILE-STALE", f"{base}.profile_sha256", "stored policy hash differs from the current package profile"))
     resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
     try:
         resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
         resolved_payload = None
-    if resolved_payload != expected_resolved or binding.get("profile_path") != expected_resolved.get("profile_path") or binding.get("profile_sha256") != expected_resolved.get("profile_sha256") or binding.get("source_bindings") != expected_resolved.get("source_bindings") or binding.get("project_identity") != expected_resolved.get("project_identity"):
-        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy and phase-state binding must exactly equal fresh resolver output"))
+    stable_keys = ("profile_path", "profile_sha256", "source_bindings", "project_identity", "register_class", "passage_scope_class", "resolved_profile", "attestation_view_pin", "exemplar_view_pin")
+    if not isinstance(resolved_payload, dict) or any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys):
+        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy gate projection differs from fresh resolver output"))
+    if binding.get("attestation_view_pin") != expected_resolved.get("attestation_view_pin"):
+        findings.append(_finding("MF-POLICY-ATTESTATION-PIN-STALE", f"{base}.attestation_view_pin", "attestation semantic view changed; deliberate versioned repin required"))
+    if binding.get("exemplar_view_pin") != expected_resolved.get("exemplar_view_pin"):
+        findings.append(_finding("MF-POLICY-EXEMPLAR-PIN-STALE", f"{base}.exemplar_view_pin", "exemplar semantic view changed; deliberate versioned repin required"))
+    recorded_provenance = binding.get("register_provenance")
+    fresh_provenance = expected_resolved.get("register_provenance")
+    invariant_keys = ("register_class", "attestation_view_pin", "exemplar_view_pin", "seed_resolution_map", "seed_resolution_ties", "unresolved_seed_ids", "primary_communities", "attestation_member_ids", "exemplar_hash_lines", "warnings")
+    def provenance_paths(value: Any) -> list[tuple[Any, Any, Any]]:
+        if not isinstance(value, dict) or not isinstance(value.get("provenance"), list): return []
+        return sorted((entry.get("role"), entry.get("path"), entry.get("sha256")) for entry in value["provenance"] if isinstance(entry, dict) and entry.get("role") != "graph_provenance_only")
+    if not isinstance(recorded_provenance, dict) or not isinstance(fresh_provenance, dict) or any(recorded_provenance.get(key) != fresh_provenance.get(key) for key in invariant_keys) or provenance_paths(recorded_provenance) != provenance_paths(fresh_provenance):
+        findings.append(_finding("MF-POLICY-PROVENANCE", f"{base}.register_provenance", "semantic register provenance projection is incomplete or inconsistent with the fresh resolver"))
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict):
             continue
@@ -954,11 +967,12 @@ def _validate_reader_accessibility_policy(
         record = milestones.get(name)
         return isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable", "legacy_unverified"}
     m1 = milestones.get("M1", {}).get("policy_evidence") if isinstance(milestones.get("M1"), dict) else None
-    if started("M1") and (not isinstance(m1, dict) or not m1.get("intended_readers")):
-        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M1.policy_evidence", "M1 must record intended readers"))
+    expected_reader = expected_resolved["resolved_profile"]["domain_native_register"]["reader_model"]
+    if started("M1") and (not isinstance(m1, dict) or (ledger.get("mode") == "native" and m1.get("reader_model") != expected_reader) or (ledger.get("mode") != "native" and not (m1.get("reader_model") or m1.get("intended_readers")))):
+        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M1.policy_evidence", "native M1 must record the canonical domain-native reader_model"))
     m3 = milestones.get("M3", {}).get("policy_evidence") if isinstance(milestones.get("M3"), dict) else None
-    if started("M3") and (not isinstance(m3, dict) or m3.get("profile_path") != binding.get("resolved_path") or m3.get("profile_sha256") != binding.get("resolved_sha256")):
-        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M3.policy_evidence", "M3 must bind the resolved profile path and hash"))
+    if started("M3") and (not isinstance(m3, dict) or m3.get("profile_path") != binding.get("resolved_path") or m3.get("profile_sha256") != binding.get("profile_sha256") or m3.get("resolved_sha256") != binding.get("resolved_sha256") or m3.get("attestation_view_pin") != binding.get("attestation_view_pin") or m3.get("exemplar_view_pin") != binding.get("exemplar_view_pin")):
+        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M3.policy_evidence", "M3 must bind profile, resolved configuration, and both semantic register pins"))
     for milestone in ("M4", "M5"):
         record = milestones.get(milestone)
         if not started(milestone):
@@ -969,12 +983,12 @@ def _validate_reader_accessibility_policy(
         deliverable = deliverables.get(milestone)
         path = f"milestone_framework.milestones.{milestone}.policy_evidence"
         accepted = record.get("status") in {"accepted", "superseded"} or record.get("handoff", {}).get("status") in {"ready", "consumed"}
-        started_required = ("profile_path", "profile_sha256", "manuscript_sha256", "phase", "cycle_id")
+        started_required = ("profile_path", "profile_sha256", "resolved_sha256", "attestation_view_pin", "exemplar_view_pin", "manuscript_sha256", "phase", "cycle_id")
         required = started_required + (("check8_path", "check8_sha256", "aggregate_verdict") if accepted else ())
         if not isinstance(policy, dict) or any(policy.get(key) is None for key in required):
             findings.append(_finding("MF-POLICY", path, f"{milestone} must carry complete current-manuscript Check 8 policy evidence"))
             continue
-        if policy.get("profile_path") != binding.get("resolved_path") or policy.get("profile_sha256") != binding.get("resolved_sha256"):
+        if policy.get("profile_path") != binding.get("resolved_path") or policy.get("profile_sha256") != binding.get("profile_sha256") or policy.get("resolved_sha256") != binding.get("resolved_sha256") or policy.get("attestation_view_pin") != binding.get("attestation_view_pin") or policy.get("exemplar_view_pin") != binding.get("exemplar_view_pin"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} resolved policy binding is stale or differently configured"))
         if not isinstance(deliverable, dict) or policy.get("manuscript_sha256") != deliverable.get("sha256"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} Check 8 evidence is not bound to the current manuscript hash"))
@@ -992,7 +1006,7 @@ def _validate_reader_accessibility_policy(
                 recomputed = recompute_check8(sidecar, binding.get("transitions", {}))
             except PolicyError as exc:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", f"invalid structured Check 8 evidence: {exc}")); continue
-            expected_sidecar = {"cycle_id": policy.get("cycle_id"), "profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
+            expected_sidecar = {"cycle_id": policy.get("cycle_id"), "profile_path": policy.get("profile_path"), "profile_sha256": policy.get("profile_sha256"), "attestation_view_pin": policy.get("attestation_view_pin"), "exemplar_view_pin": policy.get("exemplar_view_pin"), "manuscript_sha256": policy.get("manuscript_sha256"), "phase": policy.get("phase"), "aggregate_verdict": policy.get("aggregate_verdict")}
             transition_snapshot = {key: binding.get("transitions", {}).get(key, {}).get("state") for key in ("G", "H", "VE")}
             if any(sidecar.get(key) != value for key, value in expected_sidecar.items()) or sidecar.get("aggregate_verdict") != recomputed["aggregate_verdict"] or sidecar.get("subcheck_verdicts") != recomputed["subcheck_verdicts"] or sidecar.get("transition_snapshot") != transition_snapshot:
                 findings.append(_finding("MF-POLICY", f"{path}.check8_path", "Check 8 content does not match evidence fields or recomputed A-H aggregate"))

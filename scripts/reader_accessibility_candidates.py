@@ -34,10 +34,10 @@ def build_candidate_artifact(project_root: Path, manuscript_path: Path, phase: s
         tri=bool(re.search(r"\bFirst,[\s\S]{5,400}?\bSecond,[\s\S]{5,400}?\bThird,",paragraph,re.I)); questions=paragraph.count("?")
         if tri or questions>=qfloor: f.append({"paragraph":index,"markers":[name for name,present in (("triadic_enumerator",tri),("rhetorical_question_stack",questions>=qfloor)) if present],"candidate_status":"worked_example_judgment_required"})
     g,total,headings,long_proxy=check8_g_prefilter.analyze(text,manuscript_path,p_stage,profile)
-    h=check8_h_prefilter.analyse(text,manuscript_path,profile,phase=phase,register_class=resolved["register_class"])
+    h=check8_h_prefilter.analyse(text,manuscript_path,profile,phase=phase,register_class=resolved["passage_scope_class"])
     try: manuscript_binding=manuscript_path.resolve().relative_to(project_root.resolve()).as_posix()
     except ValueError: manuscript_binding=manuscript_path.resolve().as_posix()
-    artifact={"schema_version":"reader_accessibility_candidates.v1","phase":phase,"cycle_id":cycle_id,"manuscript_path":manuscript_binding,"manuscript_sha256":hashlib.sha256(manuscript_path.read_bytes()).hexdigest(),"profile_path":resolved["profile_path"],"profile_sha256":resolved["profile_sha256"],"source_bindings":resolved["source_bindings"],"register_class":resolved["register_class"],"candidate_only":True,"evaluator_judgment_required":True,"sub_checks":{
+    artifact={"schema_version":"reader_accessibility_candidates.v1","phase":phase,"cycle_id":cycle_id,"manuscript_path":manuscript_binding,"manuscript_sha256":hashlib.sha256(manuscript_path.read_bytes()).hexdigest(),"profile_path":resolved["profile_path"],"profile_sha256":resolved["profile_sha256"],"source_bindings":resolved["source_bindings"],"register_class":resolved["register_class"],"passage_scope_class":resolved["passage_scope_class"],"attestation_view_pin":resolved["attestation_view_pin"],"exemplar_view_pin":resolved["exemplar_view_pin"],"candidate_only":True,"evaluator_judgment_required":True,"sub_checks":{
       "A":{"applicable":phase in {"Ph2","Ph3","Ph4"},"deterministic_disposition":"candidate_probe","candidates":a},
       "B":{"applicable":phase in {"Ph2","Ph3","Ph4"},"deterministic_disposition":"judgment_only","reason":"rhythm and C-8 functional guards require Evaluator judgment"},
       "C":{"applicable":phase in {"Ph2","Ph3","Ph4"},"deterministic_disposition":"judgment_only","reason":"first-use conceptual work cannot be established by token order alone"},

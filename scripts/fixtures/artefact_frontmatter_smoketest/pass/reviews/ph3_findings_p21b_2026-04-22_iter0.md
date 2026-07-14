@@ -29,13 +29,16 @@ check_8_subcheck_counters:
   sub_h_register_flag_count: 0
 reader_accessibility_policy:
   profile_path: reviews/.harness/policy/reader_accessibility_resolved.json
-  profile_sha256: "33fdf174c2d57909f758a1a93cf194d20a85eca5e09deaca44688ce8620fe402"
+  profile_sha256: "95819976d3ee78fdc320d6033a12eaaf9367ada4684f128ade73caaae738f49a"
+  exemplar_view_pin: "2d55423dca697cf15e99594852469926b8aab556f9ca28c9313809dbbc434b8e"
+  attestation_view_pin: "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe"
+  resolved_sha256: "17abb4ffb904562a0125d0e802bf801b138f426000cb91a547bac2e05730bf9e"
   manuscript_sha256: "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04"
   check8_evidence_path: reviews/.harness/policy/check8_evidence.json
-  check8_evidence_sha256: "26d89edb956726d0d0df21df330f5d797372eda72fb0c2ff7eca9639620ed47c"
+  check8_evidence_sha256: "48b1aef4c2a3f0c8998fa723de1ba9d909e2fbfec1419a0d968367cd4504855f"
   phase: Ph3
   candidate_artifact_path: reviews/.harness/policy/reader_accessibility_candidates.json
-  candidate_artifact_sha256: "80c81d1a3bbe56f959527cef5c947afd22c84674a64d20d2f00492d2d619ca1a"
+  candidate_artifact_sha256: "05458c65d39feed66cf887105b76e7a205a2ebc51a7139e4e9b6fa155ca2968b"
 check_8_adjacent_advisories:
   ve_finding_count: 0
 dnd_byte_verification:

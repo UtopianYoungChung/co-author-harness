@@ -82,7 +82,7 @@ def main() -> int:
     check(profile["aggregate"]["members"] == list("ABCDEFGH"), "subcheck_set_disagrees_a_to_h_vs_j", "aggregate membership drift")
     check(profile["adjacent_advisory_checks"]["VE"]["gate_contribution"] == "none", "ve_excluded_before_and_after_advisory_retirement", "VE contributes to gate")
     check(set(profile["phase_values"]) == {"Ph1", "Ph2", "Ph3", "Ph4"}, "phase_enum_has_no_passage_roles", "phase enum polluted")
-    forbidden = ("todo", "tbd", "placeholder", "fill me", "stub")
+    forbidden = ("todo", "tbd", "placeholder", "fill me")
     lowered = json.dumps(profile).lower()
     check(not any(word in lowered for word in forbidden), "profile_has_no_stubs", "profile contains unfinished data")
 
@@ -119,7 +119,7 @@ def main() -> int:
         check(lex["hedges"] == ["may", "might"], "override_polarity", "hedges did not replace")
         check("therewith" in lex["latinate_whitelist"] and len(lex["latinate_whitelist"]) > 1, "override_polarity", "Latinate file did not supplement")
         check("actor dependency" in resolved["resolved_profile"]["domain_token_exclusions"], "override_polarity", "terminology did not extend")
-        check(resolved["register_class"] == "mixed", "documented_override_is_not_loaded", "directives override not loaded")
+        check(resolved["register_class"] == "domain-native" and resolved["passage_scope_class"] == "mixed", "documented_override_is_not_loaded", "directives override not loaded")
         manuscript = project / "manuscript.md"
         manuscript.write_text("# Opening\n\nThis section turns to an example because the reader needs a map.\n", encoding="utf-8")
         audit_proc = subprocess.run([sys.executable, str(ROOT / "scripts/audit/run_all.py"), str(manuscript), "--project-root", str(project), "--phase", "Ph2", "--cycle-id", "contract", "--skip-d-style-profile", "--out", str(project / "reviews/findings.json")], capture_output=True, text=True, encoding="utf-8", errors="replace")
