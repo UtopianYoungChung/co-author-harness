@@ -146,7 +146,9 @@ def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValid
     findings = list(base.findings)
     outcomes: dict[str, str] = {}
     for milestone in target_map[boundary]:
-        outcomes[milestone] = validate_document(project_root, document, milestone).outcome.value
+        target_result = validate_document(project_root, document, milestone)
+        outcomes[milestone] = target_result.outcome.value
+        findings.extend(target_result.findings)
     if not isinstance(document, dict):
         return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
     framework = document.get("milestone_framework")
@@ -1642,6 +1644,36 @@ def validate_document(
                         "released export source binding must match the accepted manuscript path and SHA-256",
                     ))
 
+    if target in MILESTONES:
+        target_record = milestones.get(target)
+        target_is_not_applicable = (
+            isinstance(target_record, dict)
+            and target_record.get("applicability") == "not_applicable"
+        )
+        completed_through = None
+        if ledger.get("mode") == "legacy" and isinstance(ledger.get("migration_boundary"), dict):
+            completed_through = ledger["migration_boundary"].get("completed_through")
+        legacy_boundary_covers_target = (
+            completed_through in MILESTONES
+            and MILESTONES.index(target) <= MILESTONES.index(completed_through)
+        )
+        if not target_is_not_applicable and not legacy_boundary_covers_target:
+            approval = target_record.get("approval") if isinstance(target_record, dict) else None
+            handoff = target_record.get("handoff") if isinstance(target_record, dict) else None
+            if (
+                not isinstance(target_record, dict)
+                or target_record.get("status") != "accepted"
+                or target_record.get("dependency_state") != "current"
+                or not isinstance(approval, dict)
+                or approval.get("status") != "approved"
+                or not isinstance(handoff, dict)
+                or handoff.get("status") not in {"ready", "consumed"}
+            ):
+                findings.append(_finding(
+                    "MF-HANDOFF", f"milestone_framework.milestones.{target}",
+                    f"{target} readiness requires accepted status, current dependency, approved evidence, and a ready or consumed F9 handoff; legacy coverage ends at {completed_through or 'none'}",
+                ))
+
     if target in {"Ph2", "Ph4"}:
         sections = document.get("sections")
         expected_milestone = "M4" if target == "Ph2" else "M5"
@@ -1766,7 +1798,12 @@ def _result(
     ):
         outcome = Outcome.NOT_APPLICABLE
     elif ledger and ledger.get("mode") == "legacy":
-        outcome = Outcome.LEGACY_READY
+        boundary = ledger.get("migration_boundary")
+        completed_through = boundary.get("completed_through") if isinstance(boundary, dict) else None
+        if target in MILESTONES and completed_through in MILESTONES and MILESTONES.index(target) > MILESTONES.index(completed_through):
+            outcome = Outcome.READY
+        else:
+            outcome = Outcome.LEGACY_READY
     else:
         outcome = Outcome.READY
     return ValidationResult(

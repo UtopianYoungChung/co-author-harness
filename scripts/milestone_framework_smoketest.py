@@ -70,6 +70,9 @@ REAL_CASES = {
     "valid_ph4_before_closure": ("READY", 0, "Ph4", None),
     "valid_ph4_ceiling_locked": ("READY", 0, "Ph4", None),
     "valid_approved_legacy_migration": ("LEGACY_READY", 0, None, None),
+    "native_m5_not_started_target": ("MISCONFIGURED", 4, "M5", "MF-HANDOFF"),
+    "legacy_m3_boundary_target": ("LEGACY_READY", 0, "M3", None),
+    "legacy_m3_boundary_m5_target": ("MISCONFIGURED", 4, "M5", "MF-HANDOFF"),
     "authorized_not_applicable": ("NOT_APPLICABLE", 0, "M4", None),
     "absent_namespace": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "missing_purpose_real": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
@@ -817,7 +820,10 @@ def _write_real_case(case: str, project: Path) -> None:
             {"sequence": next_sequence + 1, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 restarted in Ph2.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
         ])
         _drop_milestone_events(ledger, "M5")
-    elif case in {"valid_approved_legacy_migration", "legacy_handoffs_without_project_identity"}:
+    elif case in {
+        "valid_approved_legacy_migration", "legacy_handoffs_without_project_identity",
+        "legacy_m3_boundary_target", "legacy_m3_boundary_m5_target",
+    }:
         evidence_hash, _ = _write_bound_file(project, "reviews/migration_approval.md", "status: APPROVED\nauthority: user\n")
         report_hash, _ = _write_bound_file(project, "reviews/migration_report.md", '{"adjudication_outcome":"approved","authority":"user"}\n')
         ledger["mode"] = "legacy"
@@ -826,7 +832,7 @@ def _write_real_case(case: str, project: Path) -> None:
             "evidence_path": "reviews/migration_approval.md",
             "evidence_sha256": evidence_hash,
             "approved_at": "2026-07-13T18:00:00Z",
-            "completed_through": "M5",
+            "completed_through": "M3" if case.startswith("legacy_m3_boundary") else "M5",
             "report_path": "reviews/migration_report.md",
             "report_sha256": report_hash,
         }
@@ -842,6 +848,13 @@ def _write_real_case(case: str, project: Path) -> None:
                 )
                 handoff = milestones[milestone]["handoff"]
                 predecessor = {"path": handoff["packet_path"], "sha256": handoff["packet_sha256"]}
+        if case.startswith("legacy_m3_boundary"):
+            _reset_milestone(milestones["M4"])
+            _reset_milestone(milestones["M5"])
+            _drop_milestone_events(ledger, "M4", "M5")
+    elif case == "native_m5_not_started_target":
+        _reset_milestone(milestones["M5"])
+        _drop_milestone_events(ledger, "M5")
     elif case in {
         "authorized_not_applicable", "allowed_advisor_override", "rejected_generator_override",
         "valid_project_local_override", "missing_project_local_override", "outside_project_local_override",
