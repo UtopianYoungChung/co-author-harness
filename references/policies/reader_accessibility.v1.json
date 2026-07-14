@@ -1,8 +1,9 @@
 {
   "schema_version": "1.0.0",
   "profile_version": "1.0.0",
-  "decision_status": "provisional",
+  "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
+  "decision_approval": {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"},
   "normative_authority": "references/READER_ACCESSIBILITY.md",
   "package_contributors": ["references/READER_ACCESSIBILITY.md", "references/examples/model_prose_corpus.md"],
   "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
@@ -83,6 +84,7 @@
   },
   "thresholds": {
     "cadence": {
+      "calibration_status": "provisional",
       "unit": "paragraph_words",
       "hard_ceiling_words": 300,
       "bands": [

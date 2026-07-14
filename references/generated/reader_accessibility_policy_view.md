@@ -4,7 +4,12 @@ Do not edit. Generated from `references/policies/reader_accessibility.v1.json`; 
 
 ```json
 {
-  "decision_status": "provisional",
+  "decision_approval": {
+    "approved_at": "2026-07-13",
+    "authority": "user",
+    "provenance": "user_approval_in_session"
+  },
+  "decision_status": "accepted",
   "recurrence": {
     "package_lesson_distinct_projects": 2,
     "project_lesson_consecutive_rounds": 2,
@@ -45,6 +50,7 @@ Do not edit. Generated from `references/policies/reader_accessibility.v1.json`; 
           "required_functional_turn_points": 2
         }
       ],
+      "calibration_status": "provisional",
       "candidate_semantics": "nomination_only",
       "functional_classes": [
         "transition",

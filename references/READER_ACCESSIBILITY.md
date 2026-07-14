@@ -93,4 +93,4 @@ Persistence keys on content hash and approved revision evidence. It may produce 
 
 ## Calibration status
 
-ADR-ACCESS-01 remains provisional until real-manuscript calibration justifies acceptance. The generated policy view records the current provisional values exactly. Examples and historical reports remain calibration evidence, not approval provenance.
+The cadence architecture decision is accepted by the user with the approval date recorded under `decision_approval`. Acceptance governs the banded cadence rule and its profile-owned semantics; the numeric calibration remains provisional. In particular, `thresholds.cadence.calibration_status` marks the current `thresholds.cadence.hard_ceiling_words` default as tunable pending real-manuscript calibration. The generated policy view records both statuses exactly. Examples and historical reports remain calibration evidence, not approval provenance.

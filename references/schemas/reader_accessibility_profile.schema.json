@@ -3,12 +3,13 @@
   "$id": "reader_accessibility_profile.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"],
+  "required": ["schema_version", "profile_version", "decision_status", "decision_record", "decision_approval", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "profile_version": {"const": "1.0.0"},
-    "decision_status": {"const": "provisional"},
+    "decision_status": {"const": "accepted"},
     "decision_record": {"const": "ADR-ACCESS-01"},
+    "decision_approval": {"const": {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"}},
     "normative_authority": {"const": "references/READER_ACCESSIBILITY.md"},
     "package_contributors": {"const": ["references/READER_ACCESSIBILITY.md", "references/examples/model_prose_corpus.md"]},
     "policy_telos": {"type": "string", "minLength": 20},
@@ -51,7 +52,8 @@
     "thresholds": {
       "type": "object", "additionalProperties": false, "required": ["cadence", "rhythm", "first_use", "section_signpost", "jargon", "worked_example", "consolidation", "register", "verdict_edge"],
       "properties": {
-        "cadence": {"type": "object", "additionalProperties": false, "required": ["unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"], "properties": {
+        "cadence": {"type": "object", "additionalProperties": false, "required": ["calibration_status", "unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"], "properties": {
+          "calibration_status": {"const": "provisional"},
           "unit": {"const": "paragraph_words"}, "hard_ceiling_words": {"type": "integer", "minimum": 1},
           "bands": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["min_words", "max_words", "required_functional_turn_points", "deficit_severity"], "properties": {"min_words": {"type": "integer", "minimum": 0}, "max_words": {"type": "integer", "minimum": 0}, "required_functional_turn_points": {"type": "integer", "minimum": 0}, "deficit_severity": {"enum": ["CLEAN", "MINOR", "MAJOR"]}}}},
           "turn_point_candidates": {"$ref": "#/$defs/nonemptyUniqueStrings"}, "candidate_semantics": {"const": "nomination_only"}, "functional_confirmation_required": {"const": true}, "functional_classes": {"$ref": "#/$defs/nonemptyUniqueStrings"}, "internal_sentence_break_signals": {"const": ["em_dash", "colon", "semicolon"]},

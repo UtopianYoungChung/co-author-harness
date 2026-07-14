@@ -445,7 +445,7 @@ def _number(value: Any, path: str, *, integer: bool = False, minimum: float = 0)
 
 def validate_profile(profile: dict[str, Any]) -> None:
     validate_schema_file(profile, PROFILE_SCHEMA)
-    required = {"schema_version", "profile_version", "decision_status", "decision_record", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
+    required = {"schema_version", "profile_version", "decision_status", "decision_record", "decision_approval", "normative_authority", "package_contributors", "policy_telos", "domain_native_register", "phase_values", "passage_roles", "sub_checks", "aggregate", "adjacent_advisory_checks", "thresholds", "transitions", "runtime_modes", "register_scope", "lexicons", "domain_token_exclusions", "override_contract", "remediation_order", "recurrence"}
     _object(profile, "profile", required)
     def reject_self_hash(value: Any, path: str = "profile") -> None:
         if isinstance(value, dict):
@@ -461,6 +461,8 @@ def validate_profile(profile: dict[str, Any]) -> None:
         raise PolicyError("unsupported profile version")
     if profile["decision_record"] != "ADR-ACCESS-01" or profile["normative_authority"] != "references/READER_ACCESSIBILITY.md":
         raise PolicyError("decision record or normative authority is invalid")
+    if profile["decision_status"] != "accepted" or profile["decision_approval"] != {"authority": "user", "approved_at": "2026-07-13", "provenance": "user_approval_in_session"}:
+        raise PolicyError("ADR-ACCESS-01 acceptance requires the recorded user approval provenance")
     _strings(profile["package_contributors"], "package_contributors")
     if tuple(profile["phase_values"]) != PHASES:
         raise PolicyError("phase_values must be exactly Ph1-Ph4")
@@ -493,7 +495,9 @@ def validate_profile(profile: dict[str, Any]) -> None:
     if ve.get("gate_contribution") != "none" or ve.get("aggregate_member") is not False:
         raise PolicyError("VE must remain outside the Check 8 aggregate")
     thresholds = _object(profile["thresholds"], "thresholds", {"cadence", "rhythm", "first_use", "section_signpost", "jargon", "worked_example", "consolidation", "register", "verdict_edge"})
-    cadence = _object(thresholds["cadence"], "thresholds.cadence", {"unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
+    cadence = _object(thresholds["cadence"], "thresholds.cadence", {"calibration_status", "unit", "hard_ceiling_words", "bands", "turn_point_candidates", "candidate_semantics", "functional_confirmation_required", "functional_classes", "internal_sentence_break_signals", "above_ceiling", "persistence"})
+    if cadence["calibration_status"] != "provisional":
+        raise PolicyError("cadence numeric calibration must remain provisional")
     _number(cadence["hard_ceiling_words"], "thresholds.cadence.hard_ceiling_words", integer=True, minimum=1)
     if not cadence.get("functional_confirmation_required"):
         raise PolicyError("provisional cadence decision is malformed")
@@ -586,8 +590,6 @@ def validate_profile(profile: dict[str, Any]) -> None:
     for key in ("project_lesson_consecutive_rounds", "package_lesson_distinct_projects"): _number(recurrence[key], f"recurrence.{key}", integer=True, minimum=1)
     if not isinstance(recurrence["state_owner"], str) or not recurrence["state_owner"].strip(): raise PolicyError("recurrence.state_owner must be non-empty")
     if recurrence["semantic_severity_effect"] != "none": raise PolicyError("recurrence cannot change semantic severity")
-    if profile.get("decision_status") != "provisional":
-        raise PolicyError("ADR-ACCESS-01 has no proven acceptance; status must remain provisional")
     serialized = json.dumps(profile).lower()
     if any(token in serialized for token in ("todo", "tbd", "placeholder", "fill me")):
         raise PolicyError("profile contains unfinished data")
@@ -680,6 +682,7 @@ def render_policy_view(profile: dict[str, Any]) -> str:
     """Render the sole generated human-readable numeric policy view."""
     validate_profile(profile)
     payload = {
+        "decision_approval": profile["decision_approval"],
         "decision_status": profile["decision_status"],
         "runtime_modes": profile["runtime_modes"],
         "thresholds": profile["thresholds"],
