@@ -1279,7 +1279,9 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     phase_document["milestone_framework"]["milestones"]["M1"]["purpose"] = original_purpose
     phase_path.write_text(json.dumps(phase_document, indent=2) + "\n", encoding="utf-8")
 
-    declaration_surface = ordinary / "CLAUDE.md"
+    identity_project = directory / "INF3130"
+    identity_project.mkdir(); _write_real_case("valid_native_chain", identity_project)
+    declaration_surface = identity_project / "CLAUDE.md"
     positive_claims = (
         "INF3130 is a reference implementation.",
         "This project has been designated as a clean lifecycle exemplar.",
@@ -1290,17 +1292,25 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     )
     for index, claim in enumerate(positive_claims):
         declaration_surface.write_text(f"# Project\n\n{claim}\n", encoding="utf-8")
-        run(f"claim_evasion_{index}", ordinary, empty, 4, "MF-EXEMPLAR")
+        run(f"claim_evasion_{index}", identity_project, empty, 4, "MF-EXEMPLAR")
+    for index, claim in enumerate((
+        "inf3130 is a clean lifecycle exemplar.",
+        "SMOKE-PROJECT remains the reference implementation.",
+    )):
+        declaration_surface.write_text(f"# Project\n\n{claim}\n", encoding="utf-8")
+        run(f"claim_identity_alias_{index}", identity_project, empty, 4, "MF-EXEMPLAR")
     negative_mentions = (
         "This project is not a portfolio exemplar.",
         "Is INF3130 a reference implementation?",
         "The review asks whether this project serves as the reference implementation.",
         "The phrase `portfolio exemplar` is an analytical category here.",
         "We do not claim that this project is a portfolio exemplar.",
+        "The validator is a reference implementation.",
+        "This method is the portfolio exemplar.",
     )
     for index, mention in enumerate(negative_mentions):
         declaration_surface.write_text(f"# Project\n\n{mention}\n", encoding="utf-8")
-        run(f"claim_false_positive_{index}", ordinary, empty, 0)
+        run(f"claim_false_positive_{index}", identity_project, empty, 0)
     declaration_surface.unlink()
 
     (ordinary / "AGENTS.md").write_text("# Reference implementation\n", encoding="utf-8")
@@ -1353,6 +1363,16 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     legacy_registry = directory / "legacy-registry.json"
     _write_exemplar_registry(legacy, legacy_registry, "legacy_migration_exemplar")
     run("legacy_registered", legacy, legacy_registry, 0)
+    separate_registry = directory / "legacy-separate-authorities-registry.json"
+    separate_payload = json.loads(legacy_registry.read_text(encoding="utf-8"))
+    separate_approval = legacy / "reviews" / "exemplar" / "approval-advisor.md"
+    separate_approval.write_text("status: APPROVED\nauthority: advisor\n", encoding="utf-8")
+    separate_entry = separate_payload["entries"][0]
+    separate_entry["approval_authority"] = "advisor"
+    separate_entry["approval_evidence_path"] = "reviews/exemplar/approval-advisor.md"
+    separate_entry["approval_evidence_sha256"] = _hash_file(separate_approval)
+    separate_registry.write_text(json.dumps(separate_payload, indent=2) + "\n", encoding="utf-8")
+    run("legacy_separate_allowed_authorities", legacy, separate_registry, 0)
     rejected_report = legacy / "reviews" / "migration_report.md"
     rejected_report.write_text('{"adjudication_outcome":"rejected","authority":"nobody"}\n', encoding="utf-8")
     _rebind_legacy_registry(legacy, legacy_registry)
@@ -1365,6 +1385,19 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     (legacy_approval / "reviews" / "migration_approval.md").write_text("status: REJECTED\nauthority: nobody\n", encoding="utf-8")
     _rebind_legacy_registry(legacy_approval, legacy_approval_registry)
     run("legacy_rejected_approval_rehashed", legacy_approval, legacy_approval_registry, 4, "MF-EXEMPLAR")
+
+    legacy_nobody = directory / "exemplar-legacy-nobody-authority"
+    legacy_nobody.mkdir(); _write_real_case("valid_approved_legacy_migration", legacy_nobody)
+    legacy_nobody_registry = directory / "legacy-nobody-registry.json"
+    _write_exemplar_registry(legacy_nobody, legacy_nobody_registry, "legacy_migration_exemplar")
+    nobody_phase_path = legacy_nobody / "reviews" / "phase_state.json"
+    nobody_document = json.loads(nobody_phase_path.read_text(encoding="utf-8"))
+    nobody_document["milestone_framework"]["migration_boundary"]["authority"] = "nobody"
+    nobody_phase_path.write_text(json.dumps(nobody_document, indent=2) + "\n", encoding="utf-8")
+    (legacy_nobody / "reviews" / "migration_report.md").write_text('{"adjudication_outcome":"approved","authority":"nobody"}\n', encoding="utf-8")
+    (legacy_nobody / "reviews" / "migration_approval.md").write_text("status: APPROVED\nauthority: nobody\n", encoding="utf-8")
+    _rebind_legacy_registry(legacy_nobody, legacy_nobody_registry)
+    run("legacy_nobody_authority_rehashed", legacy_nobody, legacy_nobody_registry, 4, "MF-EXEMPLAR")
 
     duplicate = directory / "exemplar-duplicate"
     duplicate.mkdir(); _write_real_case("valid_native_chain", duplicate)

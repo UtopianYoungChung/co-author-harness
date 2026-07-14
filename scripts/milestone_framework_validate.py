@@ -1179,25 +1179,29 @@ def _project_evidence(
     return payload
 
 
-def _ledger_exemplar_claims(value: Any, path: str = "milestone_framework") -> list[str]:
+def _ledger_exemplar_claims(
+    value: Any, path: str = "milestone_framework", identities: tuple[str, ...] = (),
+) -> list[str]:
     claims: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
             child_path = f"{path}.{key}"
             if re.fullmatch(r"(?:exemplar_(?:status|class)|portfolio_exemplar|reference_implementation)", str(key), re.IGNORECASE):
                 claims.append(child_path)
-            claims.extend(_ledger_exemplar_claims(child, child_path))
+            claims.extend(_ledger_exemplar_claims(child, child_path, identities))
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            claims.extend(_ledger_exemplar_claims(child, f"{path}[{index}]"))
-    elif isinstance(value, str) and _contains_normative_exemplar_claim(value):
+            claims.extend(_ledger_exemplar_claims(child, f"{path}[{index}]", identities))
+    elif isinstance(value, str) and _contains_normative_exemplar_claim(value, identities):
         claims.append(path)
     return claims
 
 
-def _contains_normative_exemplar_claim(text: str) -> bool:
+def _contains_normative_exemplar_claim(text: str, identities: tuple[str, ...] = ()) -> bool:
     credential = r"(?:clean[ _-]lifecycle[ _-]exemplar|legacy[ _-]migration[ _-]exemplar|portfolio\s+exemplar|reference\s+implementation)"
-    subject = r"(?:this\s+project|the\s+project|[A-Za-z][A-Za-z0-9_-]{1,63})"
+    aliases = [re.escape(item) for item in identities if isinstance(item, str) and item.strip()]
+    subject_parts = [r"this\s+project", r"the\s+project", *aliases]
+    subject = r"(?:" + "|".join(subject_parts) + r")"
     verb = r"(?:is|remains|serves\s+as|has\s+been\s+designated\s+as|is\s+designated\s+as|is\s+registered\s+as)"
     declaration = re.compile(rf"(?i)\b{subject}\s+{verb}\s+(?:an?\s+|the\s+)?{credential}\b")
     heading = re.compile(rf"(?i)^\s*#{{1,6}}\s*{credential}\s*$")
@@ -1221,7 +1225,9 @@ def _contains_normative_exemplar_claim(text: str) -> bool:
     return False
 
 
-def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) -> None:
+def _project_prose_exemplar_claims(
+    project_root: Path, findings: list[Finding], identities: tuple[str, ...],
+) -> None:
     # These are the declared project authority/status surfaces only.  Broad
     # manuscript/review scanning would confuse ordinary uses of "exemplar"
     # with a lifecycle credential.
@@ -1235,7 +1241,7 @@ def _project_prose_exemplar_claims(project_root: Path, findings: list[Finding]) 
         except (OSError, UnicodeError) as exc:
             findings.append(_finding("MF-EXEMPLAR", relative, f"could not inspect declared project status surface: {exc}"))
             continue
-        if _contains_normative_exemplar_claim(text):
+        if _contains_normative_exemplar_claim(text, identities):
             findings.append(_finding("MF-EXEMPLAR", relative, "project-local prose cannot grant or self-declare milestone exemplar status"))
 
 
@@ -1246,10 +1252,15 @@ def _validate_exemplar_registry(
 ) -> None:
     snapshots = _StableSnapshotReader(snapshot_hook)
     ledger = document.get("milestone_framework")
+    aliases: list[str] = [project_root.resolve().name]
+    manuscript_id = document.get("manuscript_id")
+    if isinstance(manuscript_id, str) and manuscript_id.strip():
+        aliases.append(manuscript_id.strip())
+    identities = tuple(dict.fromkeys(alias for alias in aliases if alias))
     if isinstance(ledger, dict):
-        for claim_path in _ledger_exemplar_claims(ledger):
+        for claim_path in _ledger_exemplar_claims(ledger, identities=identities):
             findings.append(_finding("MF-EXEMPLAR", claim_path, "project ledger cannot grant or self-declare milestone exemplar status"))
-    _project_prose_exemplar_claims(project_root, findings)
+    _project_prose_exemplar_claims(project_root, findings, identities)
 
     if not registry_path.is_absolute():
         registry_path = (ROOT / registry_path).absolute()
@@ -1421,6 +1432,8 @@ def _validate_exemplar_registry(
             except (UnicodeError, json.JSONDecodeError):
                 report_record = {}
             boundary_authority = boundary.get("authority")
+            if boundary_authority not in EXEMPLAR_AUTHORITIES:
+                findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration boundary authority is not permitted to approve an exemplar migration"))
             if report_record.get("adjudication_outcome") != "approved" or report_record.get("authority") != boundary_authority:
                 findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration report must attest an approved adjudication by the boundary authority"))
             try:
