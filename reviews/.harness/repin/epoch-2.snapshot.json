@@ -1,0 +1,364 @@
+{
+  "epoch": 2,
+  "captured_at": "2026-07-14T23:37:21Z",
+  "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+  "graph_mtime_utc_provenance": "2026-07-14T01:40:09.055604Z",
+  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+  "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
+  "seed_resolution_map": {
+    "yu-1995-istar": "yu-1995-istar",
+    "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": "yu-mylopoulos-1994-wits_source",
+    "yu-mylopoulos-1994-understanding-why-software-process-modelling": "yu-mylopoulos-1994-icse_source"
+  },
+  "seed_resolution_ties": {
+    "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": [
+      "yu_wits_dependency_types",
+      "yu_wits_distributed_intentionality",
+      "yu_wits_strategic_dependency",
+      "yu_wits_strategic_rationale",
+      "yu_wits_what_vs_why"
+    ],
+    "yu-mylopoulos-1994-understanding-why-software-process-modelling": [
+      "yu_icse_actor_dependency",
+      "yu_icse_dependency_strength",
+      "yu_icse_granularity_dilemma",
+      "yu_icse_role_position_agent",
+      "yu_icse_vulnerability_mechanisms"
+    ]
+  },
+  "unresolved_seed_ids": [
+    "yu-1997-early-phase-re",
+    "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+    "yu-et-al-2011-social-modeling",
+    "yu-2024-nine-pivots",
+    "yu-2025-social-agentics-crosstalk",
+    "yu-lapouchnian-2025-social-agentics-bdi-star",
+    "zave-1997-four-dark-corners-re",
+    "nuseibeh-2000-re-a-roadmap",
+    "goncalves-2019-istar-extension",
+    "dennett-1987-intentional-stance"
+  ],
+  "primary_communities": [
+    5,
+    10
+  ],
+  "warnings": [
+    {
+      "code": "RA-DNR-DEGENERATE",
+      "severity": "WARNING",
+      "message": "semantic attestation view is based on a thin resolved seed set"
+    },
+    {
+      "code": "RA-DNR-COHERENCE",
+      "severity": "WARNING",
+      "source_key": "dennett-1987-intentional-stance",
+      "message": "exemplar lies outside the current attestation membership and its one-hop halo; review centroid dilution"
+    }
+  ],
+  "attestation_member_ids": [
+    "agential-realism",
+    "analyst_ai_work_corpus_cluster",
+    "baird-2021-delegation",
+    "barad-2003-posthumanist",
+    "baumer-2024-algorithmic-subjectivities",
+    "brynjolfsson-2025-genai-at-work_corpus",
+    "calhau-2023-system-ontology",
+    "calhau-2024-competence-modeling",
+    "cecez-2014-sociomateriality",
+    "cesm-model",
+    "chung-hassan-2026-aiware",
+    "climent-2024-ai-enabled-bm_source",
+    "climent_ai_as_bm_actor",
+    "climent_bm_architecture_positioning",
+    "climent_bm_themes",
+    "climent_data_network_effects",
+    "climent_grounding_bounding",
+    "concept-agency",
+    "concept-agentic-ai",
+    "concept-delegation",
+    "concept-governance",
+    "concept-humanness",
+    "concept-identity-sensitive-requirements",
+    "concept-istar-framework",
+    "concept-professional-identity",
+    "concept-socio-technical-configuration",
+    "dual-process-type1-type2",
+    "evans-stanovich-2013-dual-process",
+    "han-dunning-2024-metaknowledge",
+    "homo-agenticus",
+    "leonardi-2025-agency-loops",
+    "lessons-agency-delegation-2026-04-13",
+    "lukyanenko-2024-metascience-system",
+    "lukyanenko-2025-manifesto",
+    "owens-2010-three-faces-identity",
+    "paper-package-evaluation-2026-04-13",
+    "samavi-2009-strategic-reasoning_stub",
+    "strich-2021-professional-identity-ai",
+    "svahnberg-variability-taxonomy",
+    "synergy-program-m0-completion",
+    "wingate-2025-sustainable-competitive-advantage",
+    "yu-1995-istar",
+    "yu-mylopoulos-1994-icse_source",
+    "yu-mylopoulos-1994-wits_source",
+    "yu_icse_actor_dependency",
+    "yu_icse_dependency_strength",
+    "yu_icse_granularity_dilemma",
+    "yu_icse_role_position_agent",
+    "yu_icse_vulnerability_mechanisms",
+    "yu_wits_dependency_types",
+    "yu_wits_distributed_intentionality",
+    "yu_wits_strategic_dependency",
+    "yu_wits_strategic_rationale",
+    "yu_wits_what_vs_why"
+  ],
+  "member_count": 54,
+  "exemplar_hash_lines": [
+    "dennett-1987-intentional-stance\tsection-read\t02bdcf90725be1b44293fb3f43b3322d08712b1b009400e66aa7e70ced6b2d71",
+    "goncalves-2019-istar-extension\tsection-read\t961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820",
+    "nuseibeh-2000-re-a-roadmap\tfull-read\tb67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba",
+    "yu-1995-istar\tfull-read\tc5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
+    "yu-1997-early-phase-re\tfull-read\t84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc",
+    "yu-2024-nine-pivots\tread\tad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320",
+    "yu-2025-social-agentics-crosstalk\tread\t4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1",
+    "yu-e-agent-orientation-as-a-modeling-paradigm-2001\tfull-read\t455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242",
+    "yu-et-al-2011-social-modeling\tsection-read\t7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
+    "yu-lapouchnian-2025-social-agentics-bdi-star\tread\tc71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f",
+    "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p\tfull-read\t446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece",
+    "yu-mylopoulos-1994-understanding-why-software-process-modelling\tfull-read\t6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809",
+    "zave-1997-four-dark-corners-re\tfull-read\t382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
+  ],
+  "exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "dennett-1987-intentional-stance",
+      "role": "intentional-root",
+      "grounding": "section-read",
+      "warrant_scope": "argument-only"
+    }
+  ],
+  "surface_exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    }
+  ],
+  "argument_exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "dennett-1987-intentional-stance",
+      "role": "intentional-root",
+      "grounding": "section-read",
+      "warrant_scope": "argument-only"
+    }
+  ]
+}
