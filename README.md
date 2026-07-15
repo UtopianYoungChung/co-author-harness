@@ -97,7 +97,7 @@ Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](
 | [`scripts/`](scripts/) | Validators, migration utilities, `release-gate.sh`, `build-plugin.py`, `build-release-zip.sh` |
 | [`docs/agent-instructions/`](docs/agent-instructions/) | Architecture, governance, discovery, reference index |
 | [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
-| [`releases/`](releases/) | Plugin archives — `.plugin` and legacy `.zip` builds from `scripts/build-plugin.py` and `scripts/build-release-zip.sh` |
+| [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Published plugin `name` / `version` / `description` |
 
 ---
