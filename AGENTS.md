@@ -78,3 +78,5 @@ Full ladder and cross-project rules: [docs/agent-instructions/harness-governance
 
 
 **Package invocation rules** inside the bundle: `references/CLAUDE.md`.
+
+## Imported Claude Cowork project instructions
