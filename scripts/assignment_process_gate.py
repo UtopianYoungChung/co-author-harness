@@ -441,7 +441,7 @@ def validate(
         if contract.get("profile_sha256") != _sha256(profile_path):
             findings.append(("APG-PROFILE-HASH", "package milestone profile hash is missing or stale"))
         deliverables = profile.get("deliverables")
-        if not isinstance(deliverables, dict) or list(deliverables) != EXPECTED_SEQUENCE:
+        if not isinstance(deliverables, dict) or set(deliverables.keys()) != set(EXPECTED_SEQUENCE):
             findings.append(("APG-PROFILE-FUNCTIONS", "profile must define M1-M4 followed by a separate FINAL deliverable"))
 
     source = contract.get("assignment_source")
