@@ -447,6 +447,9 @@ def validate(
         findings.append(("APG-PROFESSOR-COPY-AUTHORITY", "professor-copy production remains author-controlled unless explicitly requested"))
 
     target = "FINAL" if stage == "final" else target_milestone
+    if stage != "final" and target == "FINAL":
+        findings.append(("APG-SEQUENCE-TARGET", "FINAL drafting requires --stage final (omit --target-milestone)"))
+        return findings
     if target is None:
         findings.append(("APG-SEQUENCE-TARGET", "draft stage requires an explicit --target-milestone"))
         return findings
