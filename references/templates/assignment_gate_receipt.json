@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "receipt_id": "00000000-0000-0000-0000-000000000000",
+  "status": "ready",
+  "stage": "draft",
+  "target_milestone": "M1",
+  "project_root_name": "replace-with-project-root-name",
+  "produced_at": "1970-01-01T00:00:00Z",
+  "consumed_at": null,
+  "authority": "planner",
+  "gate_command": [
+    "python",
+    "scripts/assignment_process_gate.py",
+    "--project-root",
+    "replace-with-project-root",
+    "--stage",
+    "draft",
+    "--target-milestone",
+    "M1",
+    "--emit-receipt",
+    "reviews/.harness/assignment/gate_receipt_M1_YYYYMMDDTHHMMSSZ.json"
+  ],
+  "gate_exit_code": 0,
+  "gate_stdout_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "assignment_contract_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "phase_state_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "exemplar_conditioning": false,
+  "active_lineage_id": "live"
+}

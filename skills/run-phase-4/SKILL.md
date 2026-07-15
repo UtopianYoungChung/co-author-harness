@@ -19,7 +19,7 @@ Ph4 is the primary **final round report** assembly locus: the Planner synthesize
 
 ## 1. What this stage does
 
-Ph4 is the **Finalize & Close** stage of the Lifecycle-Phase Ladder — the terminal stage and the submission gate. It absorbs the activities formerly scoped under milestone M5 (final close-out). Ph4 is a **strict superset of Ph3** with four additions:
+Ph4 is the **Finalize & Close** stage of the Lifecycle-Phase Ladder — the terminal stage and the submission gate. It governs the final paper represented by the backward-compatible M5 framework slot; it does not assert that the controlling assignment names a fifth milestone. Ph4 is a **strict superset of Ph3** with four additions:
 
 1. **External verifiers move from optional to REQUIRED.** Zotero MCP citation probe, Scholar Gateway render-contract audit, Coupling E.2 overlay, and register-specific passes are gating at Ph4 (advisory at Ph3).
 2. **G.4 sign-off artefact is mandatory.** Row 8.5 (SAFEGUARD layer outcome) must be CLEAN; a partial G.4 blocks ship.
@@ -94,6 +94,8 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §9` for the shared four-agent 
 | **Reflector-full** | Runs at close-out. Phase 2b aggregated confirmation-failed history audit (NEW-H-4, scans full `phase_state.json` history including retired-but-migrated `confirmation_failed` rows); Phase 2.5.1 full grounding audit at Ph4 severity floors; Phase 3 lessons synthesis; Phase 4 skill proposals; Phase 5 memory updates. | `reviews/reflection_report.md`, `research_notes/lessons_learned.md`, `reviews/DO_NOT_DISTURB.md` |
 
 ## 4. Dispatch sequence
+
+0. **Assignment-process FINAL receipt gate.** Read `references/ASSIGNMENT_MILESTONE_PROCESS.md` and run `python scripts/assignment_process_gate.py --project-root <project-root> --stage final --emit-receipt reviews/.harness/assignment/gate_receipt_FINAL_<utc>.json`; add `--exemplar-conditioning` when the approved final dispatch uses domain-native exemplars. Put `assignment_gate_receipt: <path>` and `assignment_gate_target: FINAL` in the dispatch brief, then run `python scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <path> --expected-target FINAL` immediately before every Generator dispatch. Generator independently reruns the same preflight before any final-paper write. Any non-zero result blocks final-paper drafting and Ph4 Generator dispatch. The gate requires accepted M1-M4 and current/non-stale wiki grounding (or an authorized opt-out). Exemplar conditioning remains allowed, with Yu as surface centroid and Dennett as argument-only, never a surface-emulation target. After the Generator round succeeds or aborts, the Planner consumes the receipt; cancellation before Generator begins invalidates it. This preserves assignment-defined M1-M4 functions and treats the final paper as separate from the four assigned milestones.
 
 1. **Planner Phase 0 (preflight, MCR gate).** Read `reviews/phase_state.json` top-level fields and every section. Compute `[Ph3-STALE]` for every Ph3 section. Assert all of:
    - every section's `current_phase == "Ph3_converged"` OR `ceiling_locked == true` at its `applicable_ceiling`;

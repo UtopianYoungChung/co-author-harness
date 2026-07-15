@@ -24,11 +24,11 @@ Everything else is on-demand per the routing table below.
 | If your task is… | Read these before acting |
 |---|---|
 | **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md`; `READER_ACCESSIBILITY.md`; resolve `policies/reader_accessibility.v1.json` through `scripts/reader_accessibility_policy.py`; invoke canonical `scripts/audit/run_all.py --project-root ... --phase PhN`, which emits D-STYLE plus the separate profile-bound Check 8 candidate artifact |
-| **Per-section phase advancement (Ph1 → Ph4)** | `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1); `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` (pre-transition milestone gates) |
-| **Project lifecycle, milestones, feedback, approval, or handoffs (M1 → M5)** | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10 (axis coordination and phase-conditioned dispatch) |
+| **Per-section phase advancement (Ph1 → Ph4)** | `ASSIGNMENT_MILESTONE_PROCESS.md` (pre-draft source/function gate); `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1); `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` (pre-transition milestone gates) |
+| **Project lifecycle, milestones, feedback, approval, or handoffs** | `ASSIGNMENT_MILESTONE_PROCESS.md`; bound profile under `policies/`; `schemas/assignment_gate_receipt.schema.json`; `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10 (axis coordination and phase-conditioned dispatch); run `scripts/assignment_process_gate.py --emit-receipt` then `scripts/assignment_dispatch_preflight.py` before academic Generator dispatch |
 | **Dispatching subagents** | `AGENT_ORCHESTRATION.md` (loop); `MODEL_ALLOCATION.md` (Opus-floor invariants); `AGENT_CONTRACTS.md` (per-agent obligations); `agents/<role>.md` (the role's full prompt) |
 | **Authoring Evaluator / Reflector artefacts** | `ARTEFACT_FRONTMATTER_SCHEMA.md` (F1–F8 families); `OUTPUT_ECONOMY_PROTOCOL.md` (default outputs, evidence packets, escalations) |
-| **Bootstrapping a new project** | `PROJECT_BOOTSTRAP.md`; `RESEARCH_ROOT_CLAUDE.md` (root-level governance) |
+| **Bootstrapping a new project** | `PROJECT_BOOTSTRAP.md`; `RESEARCH_ROOT_CLAUDE.md` (root-level governance); for assignment-bound projects, resolve the project-local assignment contract before first `/run-draft` |
 | **Concurrent work across projects / phases** | `PARALLEL_CONDUCTOR.md` (L0–L3 concurrency, conductor.md ledger, handoff) |
 | **Long manuscript (> 8,000 words)** | `TOKEN_BUDGET_PROTOCOL.md` (segmentation + state preservation) |
 | **Assessing improvement / readiness** | `SUCCESS_METRICS.md` (D1–D6 quality framework) |
@@ -72,6 +72,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | File | Role | When authoritative |
 |---|---|---|
 | `PHASE_PROTOCOL.md` (renamed from `TIER_PROTOCOL.md` at v0.7.4) | Lifecycle-Phase Ladder Ph1–Ph4; `§3.3.2` stability sub-mode; `§3.3.3` Check 8 accessibility gate; `§6.*` `phase_state.json` schema | Every phase-advance decision; v0.15.0-pre PR-3b.1 added optional `stage`/`profile` shadow fields |
+| `ASSIGNMENT_MILESTONE_PROCESS.md` + `policies/course_essay_milestones.v1.json` + `schemas/assignment_gate_receipt.schema.json` + `templates/assignment_gate_receipt.json` | Source-bound assignment intake; native M1→M4 checkpoint walk; strict single-use READY receipt; predecessor, wiki-grounding, and M4-onward exemplar gates; separate final-paper semantics; professor-copy authority | Before every drafting dispatch and before final-paper drafting/finalization; `scripts/assignment_process_gate.py` is the sole predicate engine and `scripts/assignment_dispatch_preflight.py` is the required dispatch/write entrypoint |
 | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` | Canonical M1-M5 deliverable, feedback, adjudication, lineage, approval, reopening, handoff, migration, and gate-outcome contract | Every project milestone decision and every M1-M5 handoff |
 | `templates/milestone_event.json` | Authoring shape for one append-only milestone event inside `phase_state.json` | Planner milestone transaction writes and event-contract tests |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |

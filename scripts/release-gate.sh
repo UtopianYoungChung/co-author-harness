@@ -374,6 +374,8 @@ fi
 # --- Phase 0.59: milestone-feedback and handoff framework ------------------
 
 MILESTONE_FRAMEWORK_TESTS=(
+    assignment_process_gate_smoketest.py
+    assignment_dispatch_preflight_smoketest.py
     milestone_framework_smoketest.py
     reader_accessibility_contract_smoketest.py
     repin_register_smoketest.py

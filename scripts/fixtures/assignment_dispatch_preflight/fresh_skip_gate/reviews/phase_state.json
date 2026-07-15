@@ -1,0 +1,15 @@
+{
+  "fixture_only": true,
+  "current_phase": "Ph1",
+  "milestone_framework": {
+    "mode": "native",
+    "primary_lineage_id": "fresh-skip-fixture",
+    "milestones": {
+      "M1": { "status": "reopened" },
+      "M2": { "status": "reopened" },
+      "M3": { "status": "reopened" },
+      "M4": { "status": "revision_required" },
+      "M5": { "status": "not_started" }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "fixture_only": true,
+  "contract_version": "1.0.0",
+  "status": "unresolved",
+  "notes": "Deliberately non-authoritative fixture. No source, hash, profile pin, or acceptance is asserted."
+}
