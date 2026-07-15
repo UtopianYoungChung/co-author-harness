@@ -370,7 +370,9 @@
         "check8_path": {"type": "string", "minLength": 1},
         "check8_sha256": {"$ref": "#/$defs/sha256"},
         "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"]},
-        "phase": {"enum": ["Ph2", "Ph3", "Ph4"]}
+        "phase": {"enum": ["Ph2", "Ph3", "Ph4"]},
+        "wiki_grounding": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+        "wiki_grounding_opt_out": {"type": "object", "additionalProperties": false, "required": ["authority", "reason", "evidence_path", "evidence_sha256"], "properties": {"authority": {"enum": ["user", "advisor", "instructor"]}, "reason": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
       }
     }
     ,"reader_model":{"type":"object","additionalProperties":false,"required":["audience_classes","imported_theory_registers","reading_task","register_class","source"],"properties":{"audience_classes":{"const":["IS scholar","software engineer","systems engineer","requirements engineer"]},"imported_theory_registers":{"const":["sociology","psychology","philosophy"]},"reading_task":{"const":"recover the argument's claims and their derivation on a single read, without leaving the page to look up a term"},"register_class":{"const":"domain-native"},"source":{"const":"M1 milestone reader declaration"}}}

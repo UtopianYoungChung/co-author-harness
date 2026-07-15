@@ -17,7 +17,15 @@ MAX_SNIPPET_LINES = 60
 
 
 def iter_markdown_files(root: Path) -> Iterable[Path]:
-    excluded = {".git", ".claude", "releases", "unpacked", "archives"}
+    excluded = {
+        ".git",
+        ".claude",
+        ".worktrees",
+        "worktrees",
+        "releases",
+        "unpacked",
+        "archives",
+    }
     for path in root.rglob("*.md"):
         if any(part in excluded for part in path.parts):
             continue

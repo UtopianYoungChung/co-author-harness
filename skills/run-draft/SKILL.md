@@ -13,6 +13,8 @@ version: 0.15.0-pre
 
 Read `skills/run-phase-1/SKILL.md` and follow it as the binding instruction set for this invocation. Treat that file as the authority for trigger conditions, gates, finding format, and exit conditions. **Do not duplicate or re-interpret** the canonical spec from this alias file.
 
+For native course essays, this alias invokes the canonical M1→M2→M3→M4 auto-walk: resolve the assignment contract, derive one active target, pass it explicitly to `assignment_process_gate.py --emit-receipt`, put the receipt path and target in the dispatch brief, and require `assignment_dispatch_preflight.py` exit 0 before dispatch or academic writing. It dispatches one deliverable and stops at that milestone's user approval checkpoint. “Draft the whole paper” never skips open M1-M3 work, and the alias never writes or infers acceptance. `/run-draft` fails closed when `reviews/assignment_contract.json` is absent or unresolved.
+
 ## Vocabulary mapping
 
 | Old name (canonical) | New alias (v0.15.0-pre) | Stage | Profile |

@@ -672,6 +672,20 @@ This section specifies their normal coordination and phase-conditioned agent dis
 
 The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where the Planner records user/advisor feedback and checklist evidence without engaging the Evaluator. M4 remains the manuscript deliverable while Ph2-Ph3 govern its review and convergence. M5 certifies the exact final manuscript bytes at Ph4.
 
+#### Native course-essay auto-walk
+
+For the native `course-essay-four-milestones-v1` profile, `/run-draft` derives the first non-`accepted` milestone from `reviews/phase_state.json`. The Planner dispatches one deliverable at a time through a single-use receipt:
+
+1. M1-M3: run the target gate without exemplar conditioning and with `--emit-receipt reviews/.harness/assignment/gate_receipt_<target>_<utc>.json`. M4 and FINAL use the same mechanism after their additional predicates pass.
+2. Put the exact lines `assignment_gate_receipt: <path>` and `assignment_gate_target: <T>` in the dispatch brief. Run `python scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <path> --expected-target <T>` immediately before Planner dispatch; Generator reruns it before any academic deliverable write. A non-zero result emits `APG-DISPATCH-REFUSED`: no dispatch and zero deliverable bytes.
+3. Dispatch the Generator only for the receipt-bound deliverable; record and adjudicate feedback through `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; then stop at a user approval checkpoint. After the Generator round succeeds or aborts, the Planner atomically changes `status: ready` to `status: consumed` and records `consumed_at`. Cancellation before Generator begins changes it to `invalidated`. A READY receipt never crosses a round or session boundary.
+4. After explicit approval only: finalize the existing F9 packet, atomically write the milestone event/status through the Planner's sole-writer transaction, validate with `milestone_framework_validate.py`, and end the invocation. The next invocation derives the successor and emits a new receipt.
+5. At M3→M4: before F9 finalization, write `reviews/.harness/assignment/wiki_grounding_<round>.json` after the wiki-first pass and bind its exact path/hash in M3 `policy_evidence`, or bind an explicit user/advisor/instructor opt-out.
+6. M4: require accepted M1-M3 plus current wiki evidence; exemplar conditioning may now use Yu for surface register and admitted Dennett for argument architecture only.
+7. FINAL: run the final gate, requiring accepted M1-M4 and still-current wiki evidence; emit and preflight a FINAL receipt. The M4-onward exemplar envelope remains available.
+
+The loop is checkpoint-driven orchestration, not unattended acceptance. A request for a complete paper cannot jump to M4 while M1-M3 are open. Producing a complete essay or `reviews/ph1_draft_completion.md` while any of M1-M3 is non-`accepted` is an explicit refuse condition and protocol violation. Legacy mode emits `APG-SEQUENCE-LEGACY` and names required migration/acceptance work; it never infers acceptance from files. Ph1-Ph4 continue to govern revision maturity independently of this assignment sequence.
+
 ### 10.2 Dispatch per milestone
 
 #### M1 deliverable — Project Memo (at Ph1 sub-phase 1)

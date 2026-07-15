@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/assignment_gate_receipt.schema.json",
+  "title": "Assignment Gate Receipt",
+  "description": "Single-use Planner receipt proving that the assignment-process gate returned READY for one target.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "status",
+    "stage",
+    "target_milestone",
+    "project_root_name",
+    "produced_at",
+    "consumed_at",
+    "authority",
+    "gate_command",
+    "gate_exit_code",
+    "gate_stdout_sha256",
+    "assignment_contract_sha256",
+    "phase_state_sha256",
+    "profile_sha256",
+    "exemplar_conditioning",
+    "active_lineage_id"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "receipt_id": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["ready", "consumed", "invalidated"] },
+    "stage": { "enum": ["draft", "final"] },
+    "target_milestone": { "enum": ["M1", "M2", "M3", "M4", "FINAL"] },
+    "project_root_name": { "type": "string", "minLength": 1 },
+    "produced_at": { "$ref": "#/$defs/timestamp" },
+    "consumed_at": {
+      "anyOf": [
+        { "$ref": "#/$defs/timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "authority": { "const": "planner" },
+    "gate_command": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "gate_exit_code": { "const": 0 },
+    "gate_stdout_sha256": { "$ref": "#/$defs/sha256" },
+    "assignment_contract_sha256": { "$ref": "#/$defs/sha256" },
+    "phase_state_sha256": { "$ref": "#/$defs/sha256" },
+    "profile_sha256": { "$ref": "#/$defs/sha256" },
+    "exemplar_conditioning": { "type": "boolean" },
+    "active_lineage_id": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["status"],
+        "properties": { "status": { "const": "ready" } }
+      },
+      "then": { "properties": { "consumed_at": { "type": "null" } } },
+      "else": { "properties": { "consumed_at": { "$ref": "#/$defs/timestamp" } } }
+    },
+    {
+      "if": {
+        "required": ["stage"],
+        "properties": { "stage": { "const": "final" } }
+      },
+      "then": { "properties": { "target_milestone": { "const": "FINAL" } } }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    }
+  }
+}

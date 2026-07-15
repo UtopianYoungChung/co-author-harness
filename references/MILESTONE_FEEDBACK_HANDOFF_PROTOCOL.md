@@ -2,7 +2,7 @@
 
 ## 1. Status and scope
 
-**Status.** This protocol is the canonical package contract for M1-M5 deliverables, feedback, adjudication, approval, lineage, reopening, and handoff evidence. It applies to native projects and to legacy projects only after an explicit migration boundary has been approved.
+**Status.** This protocol is the canonical package contract for framework slots M1-M5, feedback, adjudication, approval, lineage, reopening, and handoff evidence. Assigned milestone meanings come from the controlling brief through `ASSIGNMENT_MILESTONE_PROCESS.md`; the terminal M5 slot may represent a final paper that the assignment does not itself call a fifth milestone.
 
 **Scope.** The protocol governs project-level lifecycle records stored under `reviews/phase_state.json.milestone_framework`. It does not replace the section-level Lifecycle-Phase Ladder in `PHASE_PROTOCOL.md`. `reviews/phase_state.json` remains the only lifecycle state authority; no milestone ledger, generated Markdown file, F9 packet, plan, report, or checklist may become a second state authority.
 
@@ -10,7 +10,7 @@ Grounding, provenance integrity, and root filesystem-integrity rules are non-ove
 
 ## 2. Orthogonal milestone and phase axes
 
-Milestones and phases are orthogonal. Milestones name project deliverables and accepted handoffs. Phases name the revision/readiness state of the active artifact or sections. M1-M3 normally execute within Ph1; M4 spans Ph2-Ph3; M5 closes at Ph4. Neither vocabulary supersedes the other.
+Milestones and phases are orthogonal. Assignment-derived milestones name project deliverables and accepted handoffs. Phases name the revision/readiness state of the active artifact or sections. For the four-milestone course-essay profile, M1-M3 normally execute within Ph1, M4 spans Ph2-Ph3, and the separate final paper occupies the terminal M5 framework slot at Ph4. Neither vocabulary supersedes the other.
 
 The normal coordination is:
 
@@ -20,7 +20,7 @@ The normal coordination is:
 | M2 | Annotated References | Ph1 |
 | M3 | Structured Outline | Ph1 |
 | M4 | Paper Draft | Ph2-Ph3 |
-| M5 | Final Paper | Ph4 |
+| M5 framework slot | Final Paper (separate from the four assigned milestones) | Ph4 |
 
 Phase advancement never proves milestone acceptance by itself. Milestone acceptance never proves that a section satisfies a phase gate. Cross-axis gates must test both authorities without collapsing either axis.
 
@@ -55,11 +55,11 @@ The normal contracts are:
 
 | Milestone | Purpose | Required handoff output |
 |---|---|---|
-| M1 Project Memo | Freeze the problem, intended readers, thesis, scope, questions, and success criteria. | M1-to-M2 packet identifying fixed scope and source needs. |
-| M2 Annotated References | Establish source roles, evidentiary licences, limits, gaps, and reserve material. | M2-to-M3 packet mapping claims and questions to licensed evidence. |
-| M3 Structured Outline | Convert thesis and evidence into executable argument architecture. | M3-to-M4 packet fixing section purposes, moves, sources, guardrails, and open debts. |
-| M4 Paper Draft | Execute the complete argument at review-ready depth. | M4-to-M5 packet binding the full draft and adjudicated review findings. |
-| M5 Final Paper | Resolve final findings and certify current manuscript and released export bytes. | Terminal packet binding approval, manuscript identity, export provenance, and residual risks. |
+| M1 Project Memo | Explore the preliminary focus, emerging tension, questions or goals, and what draws the author to the topic; do not prematurely freeze a thesis. | M1-to-M2 packet identifying the live inquiry and source needs. |
+| M2 Annotated References | Assemble relevant course readings and additional sources, explaining the contribution of each. | M2-to-M3 packet mapping the developing inquiry to source contributions and gaps. |
+| M3 Structured Outline | Design the intellectual and historical context, central tension, and reciprocal analysis/application. | M3-to-M4 packet fixing section purposes, argumentative moves, sources, and open debts. |
+| M4 Paper Draft | Present the complete argument for feedback at review-ready depth, while allowing provisional claims and wording. | M4-to-M5 packet binding the full draft and honestly adjudicated feedback state. |
+| M5 framework slot / Final Paper | Elaborate and revise the full argument after M1-M4 and the feedback stage; certify current manuscript identity. | Terminal packet binding approval, manuscript identity, authorized export provenance when requested, and residual risks. |
 
 Plans, revision plans, gates, checklists, reviews, reports, and derived views may control or evidence progress but cannot satisfy a milestone deliverable slot. M4 and M5 may use the same canonical manuscript path at different maturity depths; each accepted state binds the exact current manuscript path, SHA-256, byte count, and verification time. Changed bytes make the prior approval historical and the current binding stale.
 

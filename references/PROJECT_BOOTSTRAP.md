@@ -26,8 +26,10 @@ Every research project gets this structure. Files marked `[seed]` are created at
 │
 ├── reviews/
 │   ├── phase_state.json                  [seed]   Single phase + milestone state authority
+│   ├── assignment_contract.json          [conditional] Required and resolved before course-essay /run-draft
 │   ├── .harness/
 │   │   ├── milestones/                   [seed]   Empty; F9 packets appear only after approval
+│   │   ├── assignment/                   [runtime] Single-use READY receipts; never acceptance state
 │   │   └── policies/
 │   │       └── reader_accessibility.resolved.json [seed] Resolved policy binding
 │   ├── classification.md                  [runtime] Planner creates at first classification
@@ -246,6 +248,50 @@ Reflector may add entries. No agent may remove entries.
 The native seed has a fresh-target contract: the requested project root must not exist, and its parent must already exist. The generator builds the entire milestone seed in a newly created sibling staging directory, resolves every output path against that staging root, and runs both canonical validators there. Only a fully valid seed is atomically renamed to the requested root. Failure removes staging and never merges with, overwrites, or repairs an existing project. Existing projects use the migration workflow instead.
 
 `reviews/.harness/milestones/` starts empty. An F9 packet is created only after its source milestone has an accepted deliverable and real approval evidence. The mere presence of `project_memo.md`, `annotated_references.md`, `outline.md`, or `main.md` never changes milestone state.
+
+### 2.5c Course-essay assignment contract and first-write gate
+
+`scripts/native_project_bootstrap.py` does not invent an assignment source, copy an assignment PDF, infer its authority, or create `reviews/assignment_contract.json`. For a course-essay or other assignment-bound academic deliverable, the first `/run-draft` therefore fails closed with `APG-CONTRACT-MISSING` until the operator resolves the contract from a real controlling source. An unresolved or placeholder contract also blocks. Projects outside the assignment workflow must not use `/run-draft` as a bypass; absence of an assignment does not authorize academic deliverable writing through this route.
+
+Resolve the contract manually from current bytes. Record `assignment_source.path` as the actual readable source path, `assignment_source.sha256` as the lowercase SHA-256 of those bytes, and `assignment_source.authority` as the real controlling authority (`user`, `advisor`, `instructor`, `committee`, or `venue`). Pin `profile_path` to `references/policies/course_essay_milestones.v1.json`, compute `profile_sha256` from that package file, and use its `profile_id`. Do not save a `status: resolved` contract until every value below is real:
+
+```json
+{
+  "contract_version": "1.0.0",
+  "status": "resolved",
+  "profile_id": "course-essay-four-milestones-v1",
+  "profile_path": "references/policies/course_essay_milestones.v1.json",
+  "profile_sha256": "<lowercase SHA-256 of the package profile>",
+  "assignment_source": {
+    "path": "<actual assignment source path>",
+    "sha256": "<lowercase SHA-256 of the source bytes>",
+    "authority": "<actual authority>"
+  },
+  "assigned_sequence": ["M1", "M2", "M3", "M4", "FINAL"],
+  "framework_mapping": {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"},
+  "professor_copy_policy": "author_controlled_unless_explicitly_requested"
+}
+```
+
+PowerShell can compute the two hashes without changing either source:
+
+```powershell
+(Get-FileHash -LiteralPath <assignment-source> -Algorithm SHA256).Hash.ToLowerInvariant()
+(Get-FileHash -LiteralPath <package-root>/references/policies/course_essay_milestones.v1.json -Algorithm SHA256).Hash.ToLowerInvariant()
+```
+
+After saving the resolved contract, derive the first non-`accepted` M1-M4 target from `reviews/phase_state.json`. For a fresh native seed this is M1. Emit and verify one receipt before dispatch:
+
+```powershell
+python <package-root>/scripts/assignment_process_gate.py --project-root <project-root> --stage draft --target-milestone M1 --emit-receipt <project-root>/reviews/.harness/assignment/gate_receipt_M1_<utc>.json
+python <package-root>/scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <project-root>/reviews/.harness/assignment/gate_receipt_M1_<utc>.json --expected-target M1
+```
+
+Only both exit-0 results authorize the M1 deliverable. The safe first-run chain is: empty assignment configuration under `reviews/` → resolved contract bound to real bytes → fresh M1 READY receipt → preflight exit 0 → **memo only** at `research_notes/project_memo.md`. It does not authorize `manuscript/main.md`, M2, M3, or a complete essay. The Planner consumes or invalidates the receipt after the attempted dispatch and requires explicit M1 acceptance plus the normal F9 transaction before a later invocation can target M2.
+
+#### Operator recovery for `2026-07-14_first-principles-RE-essay-fresh` (documentation only)
+
+Do not repair, rewrite, or silently normalize that live project as part of harness installation. On an explicit operator rerun: locate and read the real controlling assignment; compute its current hash and the current package-profile hash; create the resolved contract above; leave M1-M3 `reopened` and M4 `revision_required` until real feedback and approval change them; derive M1; emit a new M1 receipt; pass preflight; and dispatch the Generator for `research_notes/project_memo.md` only. Do not reuse the existing complete essay as evidence that M1-M3 were accepted, and do not write another full-essay `ph1_draft_completion.md`. Present the memo and adjudicated feedback to the user, then perform the existing F9/acceptance transaction only after explicit approval.
 
 ### 2.6 research_notes/project_memo.md
 
@@ -512,6 +558,10 @@ python <package-root>/scripts/phase_state_validate.py --project-root <project-pa
 ```
 
 Both commands must exit 0. A newly created Markdown file must not be added to `artifacts`, `feedback_records`, or `approval` until the corresponding evidence exists.
+
+### Step 2a: Resolve the assignment contract before course-essay drafting
+
+If the project is assignment-bound, follow §2.5c before the first `/run-draft`: bind the actual assignment source path/hash and package profile pin in `reviews/assignment_contract.json`, derive M1 from the ledger, emit a fresh READY receipt, and pass `assignment_dispatch_preflight.py`. Halt on `APG-CONTRACT-MISSING` or any other blocker. This step creates no acceptance and authorizes only the receipt-bound deliverable. No thin helper is required: the two hashes and the explicit JSON contract keep authority and source selection visible to the operator.
 
 ### Step 3: Write the project CLAUDE.md
 

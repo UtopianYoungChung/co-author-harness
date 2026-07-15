@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "course-essay-four-milestones-v1",
+  "title": "Four-milestone course essay process",
+  "authority_note": "Use only after binding and reading the controlling assignment. The assignment and current user instruction remain higher authority.",
+  "assigned_sequence": ["M1", "M2", "M3", "M4", "FINAL"],
+  "wiki_grounding_before": "M4",
+  "exemplar_conditioning_from": "M4",
+  "exemplar_roles": ["yu-centroid-surface", "dennett-intentional-root-argument-only"],
+  "deliverables": {
+    "M1": {
+      "name": "Short project memo",
+      "function": "Explore and communicate the preliminary focus before the argument is fixed.",
+      "required_elements": ["preliminary focus", "emerging critical tension", "questions, goals, or intellectual itch", "what draws the author to the topic"],
+      "must_not_be_treated_as": ["a frozen thesis", "a complete paper", "an internal checklist"]
+    },
+    "M2": {
+      "name": "Annotated references",
+      "function": "Build the source base and explain what each source contributes to the developing inquiry.",
+      "required_elements": ["relevant course readings", "additional sources", "a brief contribution annotation for each source", "truthful Zotero or bibliography status"],
+      "must_not_be_treated_as": ["an unannotated bibliography", "a source dump", "a fabricated shared-Zotero update"]
+    },
+    "M3": {
+      "name": "Structured outline",
+      "function": "Design the final paper's argument before full drafting.",
+      "required_elements": ["intellectual and historical context", "central critical tension", "planned analysis or application", "how the tension illuminates the domain", "how the application sharpens the originating idea"],
+      "must_not_be_treated_as": ["a prose draft", "a generic table of contents", "a revision checklist"]
+    },
+    "M4": {
+      "name": "Complete paper draft for feedback",
+      "function": "Present the full argument at feedback-ready depth while allowing claims and wording to remain provisional.",
+      "required_elements": ["complete argument", "clear critical tension", "engagement with extended course materials", "reciprocal application", "explicit feedback status"],
+      "must_not_be_treated_as": ["a cover note", "a revision plan", "a convergence checklist", "a professor-formatted export"]
+    },
+    "FINAL": {
+      "name": "Final paper",
+      "function": "Elaborate and revise the full argument after the milestone sequence and feedback stage.",
+      "required_elements": ["situated course idea, concept, or moment", "clear critical tension", "domain application", "reciprocal sharpening of idea and application", "adjudicated M4 feedback", "current source and manuscript bindings"],
+      "prerequisites": ["M1", "M2", "M3", "M4"],
+      "must_not_be_treated_as": ["a fifth assigned milestone", "an automatically generated professor copy"]
+    }
+  },
+  "professor_copy_policy": "author_controlled_unless_explicitly_requested"
+}

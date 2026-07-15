@@ -1,0 +1,5 @@
+{
+  "fixture_only": true,
+  "target_milestone": "M4",
+  "notes": "Deliberately invalid receipt claim used only to prove expected-target mismatch refusal."
+}
