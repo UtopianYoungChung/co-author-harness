@@ -318,9 +318,13 @@ def main() -> int:
         (reviews / "phase_state.json").write_text(
             json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
         )
+        draft_final = run_gate(root, "draft", "FINAL")
+        assert (
+            draft_final.returncode == 4 and "APG-SEQUENCE-TARGET" in draft_final.stdout
+        ), draft_final.stdout + draft_final.stderr
+
         final = run_gate(root, "final")
         assert final.returncode == 0 and "READY" in final.stdout, final.stdout + final.stderr
-
         policy_evidence = phase_state["milestone_framework"]["milestones"]["M3"]["policy_evidence"]
         policy_evidence.pop("wiki_grounding")
         opt_out_evidence = reviews / "wiki_opt_out_approval.txt"
