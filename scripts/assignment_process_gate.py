@@ -181,17 +181,35 @@ def _wiki_grounding_findings(
     wiki_path = _source_path(project, evidence["wiki_path"])
     if wiki_path is None or not wiki_path.is_dir():
         return [("APG-WIKI-GROUNDING-STALE", "declared wiki_path is missing")]
-    for path_key, hash_key in (
-        ("references_path", "references_sha256"),
-        ("graph_path", "graph_sha256_provenance"),
+
+    references_path = _project_path(project, evidence["references_path"])
+    if (
+        references_path is None
+        or not references_path.is_file()
+        or _sha256(references_path) != evidence["references_sha256"]
     ):
-        path = _source_path(project, evidence[path_key])
-        if path is None or not path.is_file() or _sha256(path) != evidence[hash_key]:
-            return [("APG-WIKI-GROUNDING-STALE", f"declared {path_key} is missing or hash-stale")]
+        return [("APG-WIKI-GROUNDING-STALE", "declared references_path is missing, escapes the project, or hash-stale")]
+
+    graph_path = _source_path(project, evidence["graph_path"])
+    try:
+        if graph_path is None:
+            raise ValueError
+        graph_path.relative_to(wiki_path.resolve())
+    except (OSError, ValueError):
+        return [("APG-WIKI-GROUNDING-STALE", "declared graph_path is missing or escapes wiki_path")]
+    if not graph_path.is_file() or _sha256(graph_path) != evidence["graph_sha256_provenance"]:
+        return [("APG-WIKI-GROUNDING-STALE", "declared graph_path is missing or hash-stale")]
+
     for index, source in enumerate(sources):
         path = _source_path(project, source.get("path") if isinstance(source, dict) else None)
         digest = source.get("sha256") if isinstance(source, dict) else None
-        if path is None or not path.is_file() or not isinstance(digest, str) or _sha256(path) != digest:
+        try:
+            if path is None:
+                raise ValueError
+            path.relative_to(wiki_path.resolve())
+        except (OSError, ValueError):
+            return [("APG-WIKI-GROUNDING-STALE", f"sources_consulted[{index}] is missing or escapes wiki_path")]
+        if not path.is_file() or not isinstance(digest, str) or _sha256(path) != digest:
             return [("APG-WIKI-GROUNDING-STALE", f"sources_consulted[{index}] is missing or hash-stale")]
     return []
 
