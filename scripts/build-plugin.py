@@ -79,7 +79,32 @@ REQUIRED_FILES = (
     "README.md",
     "CHANGELOG.md",
     "CLAUDE.md",
+    # This module's own import target. Added 2026-07-15 after the extraction
+    # shipped a BROKEN bundle: build-plugin.py (tracked) began importing
+    # package_enumeration.py (untracked), so HEAD-based enumeration excluded the
+    # target while including the importer. Verified against the archive:
+    #   MEMBERS 450 / HAS_AUTHORITY_MODULE False /
+    #   ARCHIVED_BUILDER_IMPORTS_AUTHORITY True / HEAD_TRACKS_AUTHORITY False
+    # Running the archived builder would raise ModuleNotFoundError. It "passed"
+    # only because it was run from the worktree, where the import resolves --
+    # the artifact was never exercised.
+    #
+    # Listing it here makes the builder REFUSE to build until the dependency is
+    # tracked at HEAD. A build tool must not be able to emit a bundle that
+    # cannot run itself.
+    "scripts/package_enumeration.py",
 )
+
+
+# The enumeration lives in the neutral, importable module so that packaging and
+# the census consume the SAME function -- not two copies that drift.
+# scripts/analysis/code_census.py imports it from there as well.
+#
+# NOTE (open): scripts/release-gate.sh (~:1127) still enumerates its own
+# population for the full-release path, and root governance names release-gate
+# as the release path. Until it consumes package_enumeration too, this repo has
+# TWO package populations. Do not describe this as "the" repo-wide authority.
+from package_enumeration import ARCHIVE_SUFFIXES, enumerate_package_files  # noqa: E402,F401
 
 
 def main() -> int:
@@ -102,35 +127,21 @@ def main() -> int:
     print(f"Plugin ver:    {plugin_version} (manifest may be RC-deferred behind tag state)")
     print(f"Output:        {output}")
 
-    # Get the tracked-file list at HEAD
+    # Enumerate via the SHARED authority (also consumed by the census's
+    # tested-input binding). Do not inline a second copy here: a duplicated
+    # enumeration is how packaging and the fixture runner drifted apart.
     try:
-        result = subprocess.run(
-            [GIT, "-C", str(HARNESS), "ls-tree", "-r", "HEAD", "--name-only"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=True,
-        )
+        files, excluded_archive_files = enumerate_package_files()
     except subprocess.CalledProcessError as exc:
         print(f"[ERROR] git ls-tree failed: {exc.stderr or exc}", file=sys.stderr)
         return 2
 
-    files = [line for line in result.stdout.splitlines() if line.strip()]
     print(f"Tracked files: {len(files)}")
-
-    # Defense-in-depth: filter archive files even if git ls-tree returned them.
-    # Nested archives violate the Cowork loader contract and can make upload
-    # installs fail. The .gitignore should already exclude generated archives,
-    # so this filter is belt-and-braces against future drift.
-    archive_suffixes = (".plugin", ".zip")
-    filtered = [f for f in files if not f.endswith(archive_suffixes)]
-    excluded_archive_files = sorted(set(files) - set(filtered))
     if excluded_archive_files:
         print(f"[WARN] excluding {len(excluded_archive_files)} archive file(s) "
               f"from bundle (defense-in-depth):", file=sys.stderr)
         for f in excluded_archive_files:
             print(f"    {f}", file=sys.stderr)
-    files = filtered
 
     # Verify required files are in the tracked set
     missing = [r for r in REQUIRED_FILES if r not in files]
@@ -184,7 +195,7 @@ def main() -> int:
                 print(f"  [ERROR] missing from bundle: {required}", file=sys.stderr)
                 return 1
         # Safety net: assert no nested archive survived.
-        nested = [n for n in names if n.endswith(archive_suffixes)]
+        nested = [n for n in names if n.endswith(ARCHIVE_SUFFIXES)]
         if nested:
             print(f"[ERROR] nested archive file(s) in bundle: {nested}",
                   file=sys.stderr)
