@@ -134,10 +134,10 @@ REQUIRED_FILES = (
 # the census consume the SAME function -- not two copies that drift.
 # scripts/analysis/code_census.py imports it from there as well.
 #
-# NOTE (open): scripts/release-gate.sh (~:1127) still enumerates its own
-# population for the full-release path, and root governance names release-gate
-# as the release path. Until it consumes package_enumeration too, this repo has
-# TWO package populations. Do not describe this as "the" repo-wide authority.
+# NOTE (closed 2026-07-16): scripts/release-gate.sh Phase 1 now builds the
+# release zip by invoking THIS builder, so the former second population
+# (worktree `zip -r` with exclusion globs) is retired and package_enumeration
+# is the repo-wide population authority for both bundle paths.
 from package_enumeration import (  # noqa: E402,F401
     ARCHIVE_SUFFIXES,
     enumerate_package_files,

@@ -38,7 +38,12 @@
 #       plugin-calibrator CLI is available, runs `audit-package-speed` and
 #       BLOCKs if `max_subagent_chain_depth` exceeds the config's
 #       `thresholds.max_chain_depth` (default 15).
-#  11. Builds a .zip bundle of the plugin source (excluding setup/, .mcpb-cache/, .git/, unpacked/, archives/, releases/, local .claude state, and nested archives).
+#  11. Builds the release .zip via the committed builder (scripts/build-plugin.py):
+#      commit-bound bytes from a clean worktree re-exec, rendered includes,
+#      embedded PROVENANCE.json, single population authority
+#      (scripts/package_enumeration.py). The former worktree `zip -r` with
+#      exclusion globs is retired -- it was a second, independent package
+#      population and shipped unresolved include sentinels.
 #  12. Inspects the in-archive plugin.json and reports its version and description length.
 #  13. If an --outputs-dir is supplied, scans for stale deliverables under filenames
 #      other than the current bundle name.
@@ -1122,35 +1127,76 @@ if (( BUILD == 1 )); then
     BUNDLE_NAME="${CURRENT_NAME}-v${CURRENT_VERSION}.zip"
     BUNDLE_PATH="/tmp/$BUNDLE_NAME"
 
-    echo "Building bundle: $BUNDLE_PATH"
+    # ONE POPULATION AUTHORITY. This phase used to run its own `zip -r` over
+    # the WORKTREE with exclusion globs -- a second, independent package
+    # population (worktree bytes, raw include sentinels) beside
+    # scripts/package_enumeration.py (HEAD bytes, rendered includes). Two
+    # rules over one repo meant "drift impossible by construction" was FALSE,
+    # and the release zip shipped UNRESOLVED include sentinels that Phase
+    # 0.60's snippet guard had only verified resolvABLE, never resolved.
+    #
+    # The committed builder is now the only bundle producer: commit-bound
+    # bytes via clean-worktree re-exec, rendered includes, embedded
+    # PROVENANCE.json with its own readback. Consequence, intended: a DIRTY
+    # manifest now blocks below (the bundle carries HEAD's manifest, the
+    # source comparison reads the worktree) -- a release must be a commit.
+    echo "Building bundle via the committed builder: $BUNDLE_PATH"
     rm -f "$BUNDLE_PATH"
-    ( cd "$PLUGIN_ROOT" && zip -r "$BUNDLE_PATH" . \
-        -x "setup/*" ".mcpb-cache/*" "**/.mcpb-cache/*" ".git/*" \
-           "unpacked/*" "*/unpacked/*" "archives/*" "*/archives/*" \
-           "releases/*" "*/releases/*" ".claude/*" "*/.claude/*" \
-           "*.plugin" "*.zip" > /dev/null )
-    echo "  Built: $( ls -la "$BUNDLE_PATH" | awk '{print $5" bytes"}' )"
-
-    # Verify in-archive manifest matches source
-    IN_ARCHIVE_VERSION=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
-        | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" )
-    IN_ARCHIVE_DESC_LEN=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
-        | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('description','')))" )
-
-    if [[ "$IN_ARCHIVE_VERSION" == "$CURRENT_VERSION" && "$IN_ARCHIVE_DESC_LEN" == "$CURRENT_DESC_LEN" ]]; then
-        echo "  [OK]      in-archive manifest matches source (version=$IN_ARCHIVE_VERSION, desc_len=$IN_ARCHIVE_DESC_LEN)"
-    else
-        echo "  [BLOCKER] in-archive manifest drift: source=$CURRENT_VERSION/$CURRENT_DESC_LEN  archive=$IN_ARCHIVE_VERSION/$IN_ARCHIVE_DESC_LEN"
+    set +e
+    ( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py )
+    BUILD_RC=$?
+    set -e
+    PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${CURRENT_NAME}.plugin"
+    if (( BUILD_RC != 0 )); then
+        echo "  [BLOCKER] build-plugin.py exited $BUILD_RC (contract: 5 provenance"
+        echo "            readback failed, 6 child produced no bundle, 7 worktree"
+        echo "            cleanup VOID -- see scripts/build-plugin.py docstring)"
         BLOCKERS=$((BLOCKERS + 1))
-    fi
-
-    NESTED_ARCHIVES=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '\.(plugin|zip)$' || true )
-    LOCAL_CLAUDE_STATE=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '(^|/)\.claude/' || true )
-    if [[ "$NESTED_ARCHIVES" -eq 0 && "$LOCAL_CLAUDE_STATE" -eq 0 ]]; then
-        echo "  [OK]      bundle excludes nested archives and local .claude state"
-    else
-        echo "  [BLOCKER] bundle contains nested archives=$NESTED_ARCHIVES local_claude_state=$LOCAL_CLAUDE_STATE"
+        BUNDLE_PATH=""
+    elif [[ ! -f "$PLUGIN_ARTIFACT" ]]; then
+        echo "  [BLOCKER] builder exited 0 but no artifact at $PLUGIN_ARTIFACT"
         BLOCKERS=$((BLOCKERS + 1))
+        BUNDLE_PATH=""
+    else
+        cp "$PLUGIN_ARTIFACT" "$BUNDLE_PATH"
+        echo "  Built: $( ls -la "$BUNDLE_PATH" | awk '{print $5" bytes"}' )"
+
+        # Verify in-archive manifest matches source (worktree vs HEAD: dirty
+        # manifest -> BLOCKER, by design -- see the population note above).
+        IN_ARCHIVE_VERSION=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" )
+        IN_ARCHIVE_DESC_LEN=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
+            | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('description','')))" )
+
+        if [[ "$IN_ARCHIVE_VERSION" == "$CURRENT_VERSION" && "$IN_ARCHIVE_DESC_LEN" == "$CURRENT_DESC_LEN" ]]; then
+            echo "  [OK]      in-archive manifest matches source (version=$IN_ARCHIVE_VERSION, desc_len=$IN_ARCHIVE_DESC_LEN)"
+        else
+            echo "  [BLOCKER] in-archive manifest drift: source=$CURRENT_VERSION/$CURRENT_DESC_LEN  archive=$IN_ARCHIVE_VERSION/$IN_ARCHIVE_DESC_LEN"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+
+        NESTED_ARCHIVES=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '\.(plugin|zip)$' || true )
+        LOCAL_CLAUDE_STATE=$( unzip -Z1 "$BUNDLE_PATH" | grep -Ec '(^|/)\.claude/' || true )
+        if [[ "$NESTED_ARCHIVES" -eq 0 && "$LOCAL_CLAUDE_STATE" -eq 0 ]]; then
+            echo "  [OK]      bundle excludes nested archives and local .claude state"
+        else
+            echo "  [BLOCKER] bundle contains nested archives=$NESTED_ARCHIVES local_claude_state=$LOCAL_CLAUDE_STATE"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+
+        # Independent artifact check: the embedded provenance must name the
+        # repo's CURRENT HEAD. The builder's own readback ran inside the
+        # build; this one interrogates the finished RELEASE COPY -- verify
+        # the artifact, not the process that claims to have made it.
+        PROV_COMMIT=$( unzip -p "$BUNDLE_PATH" PROVENANCE.json \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('commit',''))" 2>/dev/null || true )
+        HEAD_SHA=$( git -C "$PLUGIN_ROOT" rev-parse HEAD 2>/dev/null || true )
+        if [[ -n "$PROV_COMMIT" && -n "$HEAD_SHA" && "$PROV_COMMIT" == "$HEAD_SHA" ]]; then
+            echo "  [OK]      PROVENANCE.json commit matches HEAD (${HEAD_SHA:0:12})"
+        else
+            echo "  [BLOCKER] PROVENANCE.json commit '${PROV_COMMIT:0:12}' != HEAD '${HEAD_SHA:0:12}'"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
     fi
     echo ""
 fi

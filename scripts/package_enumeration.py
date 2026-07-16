@@ -20,15 +20,15 @@ So the enumeration lives here, in a module with an importable name, and
 `build-plugin.py` and `scripts/analysis/code_census.py` both `import` it --
 no path loading, no fallback, no branch that can quietly win.
 
-SCOPE - READ BEFORE CALLING THIS "THE" AUTHORITY
-------------------------------------------------
-This is authoritative for the **Cowork `.plugin` upload bundle** only.
-`scripts/release-gate.sh` (~:1127) still enumerates its own population for the
-full-release path -- current working-tree files minus its own exclusions -- and
-root governance names release-gate as the release path. Until release-gate
-imports this function too, the repository has TWO package populations and
-"drift is impossible by construction" is FALSE. That convergence is an open
-blocker, deliberately not claimed closed here.
+SCOPE
+-----
+This is the package-population authority for BOTH bundle paths. The Cowork
+`.plugin` upload bundle consumes it directly via `build-plugin.py`; the
+full-release path converged 2026-07-16 -- `scripts/release-gate.sh` Phase 1
+now invokes the committed builder instead of its former independent
+`zip -r`-with-exclusions population, so the release zip IS the builder's
+artifact (commit-bound bytes, rendered includes, embedded PROVENANCE.json).
+One producer, one population rule.
 
 CONTRACT
 --------
