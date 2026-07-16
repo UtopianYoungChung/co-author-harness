@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -278,7 +279,24 @@ def case_clean_build_equals_head() -> None:
         # sandbox teardown died with PermissionError [WinError 32] -- a leaked
         # handle masquerading as a test failure.
         with zipfile.ZipFile(out) as z:
-            for n in z.namelist():
+            # PROVENANCE.json is the builder's DECLARED metadata member
+            # ("metadata about the bundle, not a shipped package file" --
+            # build-plugin.py), so it is exempt from HEAD-equality. Not a
+            # silent skip: it must exist and must name this sandbox's commit.
+            # This case predates the member and was red at HEAD (found
+            # 2026-07-16: 'PROVENANCE.json:not-in-HEAD') -- the emission
+            # commit never re-ran the clean case.
+            names = z.namelist()
+            check("clean: PROVENANCE.json member present", "PROVENANCE.json" in names)
+            if "PROVENANCE.json" in names:
+                rec = json.loads(z.read("PROVENANCE.json"))
+                head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+                check("clean: provenance names the sandbox's commit",
+                      rec.get("commit") == head,
+                      f"rec {str(rec.get('commit'))[:12]} vs HEAD {head[:12]}")
+            for n in names:
+                if n == "PROVENANCE.json":
+                    continue
                 a = z.read(n)
                 h = _head_blob(repo, n)
                 if h is None:
@@ -464,6 +482,225 @@ def case_no_temp_leak() -> None:
     check("no tempdir leak", not (after - before), f"leaked: {sorted(after - before)[:3]}")
 
 
+def _sub_once(text: str, old: str, new: str) -> str:
+    """Substitute EXACTLY once, or raise. A mutation that silently no-ops
+    because the source drifted is a test asserting nothing -- the blind-text-
+    surgery failure from this workstream, re-armed. Raising surfaces the drift
+    as a loud case failure instead."""
+    n = text.count(old)
+    if n != 1:
+        raise AssertionError(f"expected exactly 1 occurrence of {old!r}, found {n}")
+    return text.replace(old, new)
+
+
+def case_child_is_committed_builder() -> None:
+    """The EXECUTING child is the commit's builder, not the dirty worktree's.
+
+    Poison the worktree builder's _runtime_plane (uncommitted) and assert the
+    artifact's provenance carries the real interpreter. If the parent ever
+    built in-process, or the re-exec ever picked up worktree bytes, the poison
+    would ship -- this is the loaded-code-drift claim, tested at the artifact.
+    """
+    with sandbox() as repo:
+        rel = repo / "scripts" / "build-plugin.py"
+        poisoned = _sub_once(rel.read_text(encoding="utf-8"),
+                             '"python": sys.version.split()[0],',
+                             '"python": "0.0.0-DIRTY-BUILDER",')
+        rel.write_text(poisoned, encoding="utf-8")
+        rc, out, _ = build(repo)
+        check("committed child: builder exits 0", rc == 0)
+        if rc != 0:
+            return
+        with zipfile.ZipFile(out) as z:
+            rec = json.loads(z.read("PROVENANCE.json"))
+        check("committed child: provenance runtime is the real interpreter",
+              rec["runtime"]["python"] == sys.version.split()[0],
+              f"got {rec['runtime']['python']!r}")
+        check("committed child: dirty poison absent from the artifact",
+              "0.0.0-DIRTY-BUILDER" not in json.dumps(rec))
+
+
+def case_exact_output_handoff() -> None:
+    """The child's bundle lands at the PARENT's declared output, and nothing
+    of the build worktree survives -- neither the directory nor git's admin
+    registration. Pins the exit-6 detection's positive complement."""
+    with sandbox() as repo:
+        expected = repo / ".claude-plugin" / "co-author-harness-claude.plugin"
+        if expected.exists():
+            expected.unlink()
+        rc, out, _ = build(repo)
+        check("handoff: builder exits 0", rc == 0)
+        if rc != 0:
+            return
+        check("handoff: bundle at the declared output path", expected.is_file())
+        check("handoff: build() path and declared path agree", out == expected)
+        wt_base = repo / ".worktrees"
+        leftovers = sorted(p.name for p in wt_base.glob("build-*")) if wt_base.is_dir() else []
+        check("handoff: no build worktree directory remains", not leftovers,
+              f"{leftovers[:2]}")
+        wt_list = _git(repo, "worktree", "list", "--porcelain").stdout
+        check("handoff: no stale worktree registration", "build-" not in wt_list)
+
+
+def case_prune_failure_voids() -> None:
+    """`worktree prune` exiting 1 with EMPTY stderr must still fail cleanup.
+
+    The shipped defect tested `if err:` -- truthiness on a MESSAGE -- so a
+    quiet failure passed. This case injects exactly that shape (rc=1,
+    stderr="") and requires CleanupFailed. In-process against commit_worktree
+    because prune-only failure cannot be injected from outside without a race
+    against a successful remove; the end-to-end exit-7 mapping is pinned by
+    case_cleanup_failure_exit7.
+    """
+    import importlib.util
+    with sandbox() as repo:
+        spec = importlib.util.spec_from_file_location(
+            "bp_under_test", repo / "scripts" / "build-plugin.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+        real_run = subprocess.run
+
+        def fake_run(args, **kw):
+            if isinstance(args, (list, tuple)) and "worktree" in args and "prune" in args:
+                return subprocess.CompletedProcess(args, 1, stdout="", stderr="")
+            return real_run(args, **kw)
+
+        raised = None
+        subprocess.run = fake_run
+        try:
+            with mod.commit_worktree(head):
+                pass
+        except mod.CleanupFailed as exc:
+            raised = exc
+        finally:
+            subprocess.run = real_run
+        check("prune: silent rc=1 (empty stderr) raises CleanupFailed",
+              raised is not None)
+        if raised is not None:
+            check("prune: reason names prune, not message truthiness",
+                  "prune" in str(raised), str(raised)[:80])
+        _git(repo, "worktree", "prune", check_rc=False)
+
+
+def case_committed_mutant_contracts() -> None:
+    """Exit 5 and exit 6 pinned by EXECUTING committed mutants.
+
+    The child is whatever the commit says it is, so these contracts can only
+    be exercised by committing a mutated builder in a throwaway clone and
+    letting the worktree re-exec run it. Post-hoc archive tampering would test
+    a different subject (nothing re-validates a finished archive); a mutated
+    OVERLAY would test nothing (the child never executes worktree bytes --
+    that is case_child_is_committed_builder's point).
+
+    Mutants, each committed from pristine HEAD text:
+      missing-key   drop `enumerator` from the record        -> exit 5
+      runtime-tamper poison rec.runtime.python only          -> exit 5
+      compress-claim claim ZIP_STORED, write ZIP_DEFLATED    -> exit 5
+      stub-child     builder predating --build-here          -> exit 6
+    """
+    with sandbox(destructive=True) as repo:
+        rel = "scripts/build-plugin.py"
+        pristine = _head_blob(repo, rel).decode("utf-8")
+
+        def run_mutant(name: str, mutated: str, expect_rc: int, expect_msg: str) -> None:
+            (repo / rel).write_text(mutated, encoding="utf-8")
+            _git(repo, "add", rel)
+            _git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
+                 "commit", "--quiet", "-m", f"mutant: {name}")
+            _overlay(repo)  # the PARENT under test stays the current builder
+            rc, _out, log = build(repo)
+            check(f"{name}: exit {expect_rc}", rc == expect_rc, f"rc={rc}")
+            check(f"{name}: error names the cause", expect_msg in log,
+                  log.strip().splitlines()[-1][:80] if log.strip() else "silent")
+
+        run_mutant(
+            "missing-key",
+            _sub_once(pristine,
+                      '            "enumerator": "scripts/package_enumeration.py'
+                      '::enumerate_package_files",\n', ""),
+            5, "enumerator")
+        run_mutant(
+            "runtime-tamper",
+            _sub_once(pristine,
+                      '"runtime": _runtime_plane(),',
+                      '"runtime": {**_runtime_plane(), "python": "9.9.9-TAMPERED"},'),
+            5, "runtime.python")
+        run_mutant(
+            "compress-claim",
+            _sub_once(pristine,
+                      '"compression": "ZIP_DEFLATED",',
+                      '"compression": "ZIP_STORED",'),
+            5, "compress_type")
+        run_mutant(
+            "stub-child",
+            "import sys\nsys.exit(0)\n",
+            6, "produced no bundle")
+
+
+def case_cleanup_failure_exit7() -> None:
+    """An undeletable build worktree VOIDS the build: exit 7, never 0 or 1.
+
+    Real injection: hold an open handle (no FILE_SHARE_DELETE) on a file
+    inside the live build worktree, so `git worktree remove --force` and the
+    rmtree fallback both genuinely fail. Windows-only by nature; on POSIX an
+    open handle does not block unlink, and this case SKIPS with disclosure --
+    the CleanupFailed path itself is still pinned by case_prune_failure_voids.
+    """
+    if os.name != "nt":
+        print("  SKIP  handle-based injection is Windows-only; CleanupFailed "
+              "path still pinned by case_prune_failure_voids")
+        return
+    with sandbox(destructive=True) as repo:
+        wt_base = repo / ".worktrees"
+        proc = subprocess.Popen(
+            [sys.executable, str(repo / "scripts" / "build-plugin.py")],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8")
+        handle = None
+        out = err = ""
+        deadline = time.time() + 120
+        try:
+            while handle is None and proc.poll() is None and time.time() < deadline:
+                if wt_base.is_dir():
+                    for wt in wt_base.glob("build-*"):
+                        probe = wt / "README.md"
+                        if probe.is_file():
+                            try:
+                                handle = open(probe, "r", encoding="utf-8")
+                            except OSError:
+                                pass
+                            break
+                time.sleep(0.005)
+            out, err = proc.communicate(timeout=300)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate()
+        if handle is None:
+            # Could not inject in time: no verdict, not a pass -- R-8.
+            ERRORS.append("cleanup-injection: never acquired a handle inside "
+                          "the build worktree")
+            print("  ERROR  environment: handle injection missed the build "
+                  "window -- no verdict for this case")
+            return
+        try:
+            check("cleanup failure: exit 7", proc.returncode == 7,
+                  f"rc={proc.returncode}")
+            check("cleanup failure: error says the build is VOID",
+                  "VOID" in (out + err),
+                  (out + err).strip().splitlines()[-1][:80] if (out + err).strip() else "silent")
+        finally:
+            handle.close()
+        # Reconcile the SANDBOX we deliberately wounded (never the checkout).
+        if wt_base.is_dir():
+            for wt in wt_base.glob("build-*"):
+                _git(repo, "worktree", "remove", "--force", str(wt), check_rc=False)
+                if wt.exists():
+                    _rmtree_force(wt)
+        _git(repo, "worktree", "prune", check_rc=False)
+
+
 def main() -> int:
     print("build_plugin_provenance_smoketest (hermetic)")
     print(f"  source HEAD: {_git(HARNESS, 'rev-parse', '--short', 'HEAD').stdout.strip()}")
@@ -479,6 +716,11 @@ def main() -> int:
         case_staged_rename_ignored,
         case_manifest_from_snapshot,
         case_byte_reproducible,
+        case_child_is_committed_builder,
+        case_exact_output_handoff,
+        case_prune_failure_voids,
+        case_committed_mutant_contracts,
+        case_cleanup_failure_exit7,
         case_git_failure_fails_closed,
         case_no_temp_leak,
     ):
