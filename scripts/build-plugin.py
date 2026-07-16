@@ -36,14 +36,32 @@ plugin tree carries §, →, em dashes, etc.:
 **Exit codes.**
 
     0  bundle written successfully
-    1  required files missing from the tracked set
-    2  git ls-tree failed (not a git repo? HEAD missing?)
-    3  plugin.json missing or unparseable
-    4  toolchain drift: the executing builder differs from the commit, so the
-       archive would not be a function of that commit (fail closed)
+    1  required files missing from the tracked set, or a nested archive survived
+    2  git failed (not a repo? HEAD missing?), or ls-tree and the worktree
+       disagree on the population
+    3  plugin.json missing or unparseable at the commit
+    5  PROVENANCE.json does not describe the finished archive (readback failed)
+    6  the child builder produced no bundle -- that commit's toolchain likely
+       predates --build-here
+    7  the build worktree could not be cleaned up: the environment is VOID
+
+    (4 is retired: it belonged to the toolchain-drift check, which is gone --
+     the builder now re-execs from a clean worktree, so drift is
+     unrepresentable rather than detected.)
+
+This contract had drifted: it still advertised 4 for a deleted path, omitted 5
+and 6 entirely, and let cleanup failure escape as an uncaught RuntimeError ->
+exit 1, i.e. an environmental VOID reported as "required files missing". Given
+that component-specific exit semantics are the subject of this workstream, that
+is contract drift, not documentation debt.
+
+**Toolchain binding.** main() re-execs itself from a clean detached worktree at
+HEAD (--build-here), so the executing builder IS the commit's builder. Nothing
+is checked because nothing can differ.
 
 **Provenance.** The bundle carries a deterministic PROVENANCE.json member
-recording the commit, the toolchain hashes, and the runtime plane. Terminal
+recording the commit, toolchain hashes, and the runtime plane, and the builder
+reconciles that record against the finished archive before returning. Terminal
 output is not provenance -- it scrolls away and the artifact is then
 indistinguishable.
 """
@@ -127,6 +145,16 @@ from package_enumeration import (  # noqa: E402,F401
 )
 
 
+class CleanupFailed(RuntimeError):
+    """The build's environment could not be restored -> exit 7, not exit 1.
+
+    An uncaught RuntimeError exits 1, which this script's own contract defines
+    as "required files missing from the tracked set". An environmental VOID
+    would have been read as a package defect -- exactly the ACQ/PRJ conflation
+    audited elsewhere in this workstream, arriving through an exit code.
+    """
+
+
 @contextlib.contextmanager
 def commit_worktree(commit: str):
     """Yield a CLEAN detached worktree at `commit`.
@@ -164,11 +192,24 @@ def commit_worktree(commit: str):
         # in the smoketest one commit earlier and still live here. It can also
         # strand git ADMIN state even when the directory is gone, which
         # `worktree prune` exists for.
+        # FAILURE IS A BOOLEAN, NOT A MESSAGE.
+        # This tracked failure in `err` and tested `if err:` -- so a git that
+        # exits 1 with EMPTY stderr yielded err="" (falsy) and cleanup returned
+        # success. Third time this workstream has shipped a fail-open: the
+        # porcelain probe without check=True, ignore_errors=True on rmtree, and
+        # now truthiness-on-a-message. The verdict must never depend on whether
+        # a failure was chatty.
+        failed = False
+        reasons: list[str] = []
+
         rc = subprocess.run(
             [GIT, "-C", str(HARNESS), "worktree", "remove", "--force", str(path)],
             capture_output=True, text=True, encoding="utf-8",
         )
-        err = None if rc.returncode == 0 else (rc.stderr or "").strip()
+        if rc.returncode != 0:
+            failed = True
+            reasons.append(f"worktree remove exited {rc.returncode}: "
+                           f"{(rc.stderr or '').strip() or '(no stderr)'}")
         if path.exists():
             def _on_error(func, p, _exc):
                 os.chmod(p, 0o700)
@@ -179,14 +220,21 @@ def commit_worktree(commit: str):
                 except TypeError:
                     shutil.rmtree(path, onerror=lambda f, p, e: _on_error(f, p, e))
             except OSError as exc:
-                err = f"{err or ''} rmtree: {exc}".strip()
-        # Reconcile git's admin state whether or not the directory vanished.
-        subprocess.run([GIT, "-C", str(HARNESS), "worktree", "prune"],
-                       capture_output=True)
-        if err:
-            raise RuntimeError(
-                f"build worktree cleanup failed for {path}: {err}. The build is "
-                "VOID: its environment could not be restored."
+                failed = True
+                reasons.append(f"rmtree: {exc}")
+        # Reconcile git's ADMIN state whether or not the directory vanished --
+        # and check it, since a prune that fails leaves a registered worktree
+        # pointing at nothing.
+        pr = subprocess.run([GIT, "-C", str(HARNESS), "worktree", "prune"],
+                            capture_output=True, text=True, encoding="utf-8")
+        if pr.returncode != 0:
+            failed = True
+            reasons.append(f"worktree prune exited {pr.returncode}: "
+                           f"{(pr.stderr or '').strip() or '(no stderr)'}")
+        if failed:
+            raise CleanupFailed(
+                f"build worktree cleanup failed for {path}: {'; '.join(reasons)}. "
+                "The build is VOID: its environment could not be restored."
             )
 
 
@@ -509,18 +557,50 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
                        f"not the stored stamp {sorted(stamps)}")
         if rec["commit"] != head_sha:
             bad.append("commit mismatch")
-        # Reconcile the rest of the record too: schema, toolchain hashes against
-        # the tree actually built from, and the runtime fields.
+        # EVERY DEFINED FIELD IS CHECKED, AND KEY SETS ARE EXACT.
+        #
+        # The previous validator iterated `rec["toolchain"].items()` -- so it
+        # only checked entries that HAPPENED TO BE PRESENT, and deleting the
+        # resolve_includes.py entry passed. It also read only runtime.python and
+        # runtime.zlib, leaving python_full and compression unchecked, and never
+        # looked at `enumerator` or `toolchain_is_commit` at all. Verified: five
+        # simultaneous tamperings (enumerator -> TOTALLY_FAKE,
+        # toolchain_is_commit -> false, a toolchain entry removed, python_full
+        # rewritten, compression -> ZIP_STORED) produced bad=[]. Iterating what
+        # is there cannot detect what is missing -- the same shape as every
+        # under-narrow population in this workstream.
         if rec.get("schema") != "coauthor-build-provenance/v1":
             bad.append(f"unknown schema {rec.get('schema')!r}")
-        for rel, digest in rec.get("toolchain", {}).items():
+        if rec.get("enumerator") != \
+                "scripts/package_enumeration.py::enumerate_package_files":
+            bad.append(f"enumerator {rec.get('enumerator')!r} is not this builder's")
+        if rec.get("toolchain_is_commit") is not True:
+            bad.append("toolchain_is_commit is not True")
+
+        expected_tc = {rel for rel in TOOLCHAIN if (source_root / rel).is_file()}
+        got_tc = set(rec.get("toolchain", {}))
+        if got_tc != expected_tc:
+            bad.append(f"toolchain key set {sorted(got_tc)} != {sorted(expected_tc)}")
+        for rel in expected_tc:
             actual = hashlib.sha256((source_root / rel).read_bytes()).hexdigest()
-            if actual != digest:
+            if rec.get("toolchain", {}).get(rel) != actual:
                 bad.append(f"toolchain hash {rel} does not match the built tree")
+
         live = _runtime_plane()
-        if rec.get("runtime", {}).get("python") != live["python"] or \
-                rec.get("runtime", {}).get("zlib") != live["zlib"]:
-            bad.append("runtime fields do not match this process")
+        if set(rec.get("runtime", {})) != set(live):
+            bad.append(f"runtime key set {sorted(rec.get('runtime', {}))} != {sorted(live)}")
+        for k, v in live.items():
+            if rec.get("runtime", {}).get(k) != v:
+                bad.append(f"runtime.{k} does not match this process")
+
+        # compression is a CLAIM about the archive; verify it against the members.
+        actual_ct = {i.compress_type for i in z.infolist()}
+        want_ct = {zipfile.ZIP_DEFLATED} if live["compression"] == "ZIP_DEFLATED" \
+            else {zipfile.ZIP_STORED}
+        if actual_ct != want_ct:
+            bad.append(f"runtime.compression {live['compression']!r} but members "
+                       f"use compress_type {sorted(actual_ct)}")
+
         if tuple(rec["zip_date_time_commit"])[:5] != tuple(rec["zip_date_time_stored"])[:5] or \
                 (tuple(rec["zip_date_time_commit"])[5] & ~1) != tuple(rec["zip_date_time_stored"])[5]:
             bad.append("zip_date_time_stored is not the DOS-quantized commit stamp")
@@ -561,4 +641,9 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except CleanupFailed as exc:
+        # Distinct exit: a VOID environment is not "required files missing".
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        sys.exit(7)
