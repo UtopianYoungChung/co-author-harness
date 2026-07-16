@@ -395,17 +395,22 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
     # They agree today, but `export-ignore` in .gitattributes would silently
     # make archive a subset -- membership from one rule, bytes from another.
     # Assert they match rather than assume it.
+    # Not package content, each for a stated reason -- never a blanket filter:
+    #   .git            worktree pointer FILE (not a dir, so rglob sees it)
+    #   __pycache__/    bytecode this very process created by importing itself
+    #   *.plugin/*.zip  dropped by the enumerator by design
+    def _is_package_path(rel: str) -> bool:
+        return not (rel == ".git"
+                    or "__pycache__/" in f"{rel}/"
+                    or rel.endswith(ARCHIVE_SUFFIXES))
+
     materialized = {
         p.relative_to(source_root).as_posix()
         for p in source_root.rglob("*") if p.is_file()
     }
     enumerated = set(files)
     only_enum = sorted(enumerated - materialized)
-    # Archive-suffixed paths are dropped by the enumerator by design, so their
-    # presence in the snapshot is expected, not drift.
-    only_mat = sorted(
-        f for f in (materialized - enumerated) if not f.endswith(ARCHIVE_SUFFIXES)
-    )
+    only_mat = sorted(f for f in (materialized - enumerated) if _is_package_path(f))
     if only_enum or only_mat:
         print("[ERROR] ls-tree and git archive disagree at "
               f"{head_sha[:12]} (export-ignore drift?):", file=sys.stderr)
