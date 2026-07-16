@@ -1124,7 +1124,18 @@ echo ""
 
 BUNDLE_PATH=""
 if (( BUILD == 1 )); then
-    BUNDLE_NAME="${CURRENT_NAME}-v${CURRENT_VERSION}.zip"
+    # NAME AND VERSION COME FROM COMMITTED HEAD, not the worktree. The bundle
+    # packages HEAD bytes, so a worktree-derived filename could disagree with
+    # the embedded manifest (verified: dirty v0.30.0 bump -> v0.30.0-named
+    # zip carrying a v0.29.0 manifest). One source for both.
+    HEAD_MANIFEST_JSON=$( git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json 2>/dev/null ) || {
+        echo "  [BLOCKER] cannot read HEAD:.claude-plugin/plugin.json"
+        BLOCKERS=$((BLOCKERS + 1))
+        HEAD_MANIFEST_JSON=""
+    }
+    HEAD_NAME=$( printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || true )
+    HEAD_VERSION=$( printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || true )
+    BUNDLE_NAME="${HEAD_NAME:-$CURRENT_NAME}-v${HEAD_VERSION:-$CURRENT_VERSION}.zip"
     BUNDLE_PATH="/tmp/$BUNDLE_NAME"
 
     # ONE POPULATION AUTHORITY. This phase used to run its own `zip -r` over
@@ -1146,7 +1157,7 @@ if (( BUILD == 1 )); then
     ( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py )
     BUILD_RC=$?
     set -e
-    PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${CURRENT_NAME}.plugin"
+    PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${HEAD_NAME:-$CURRENT_NAME}.plugin"
     if (( BUILD_RC != 0 )); then
         echo "  [BLOCKER] build-plugin.py exited $BUILD_RC (contract: 5 provenance"
         echo "            readback failed, 6 child produced no bundle, 7 worktree"
@@ -1161,17 +1172,28 @@ if (( BUILD == 1 )); then
         cp "$PLUGIN_ARTIFACT" "$BUNDLE_PATH"
         echo "  Built: $( ls -la "$BUNDLE_PATH" | awk '{print $5" bytes"}' )"
 
-        # Verify in-archive manifest matches source (worktree vs HEAD: dirty
-        # manifest -> BLOCKER, by design -- see the population note above).
-        IN_ARCHIVE_VERSION=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])" )
-        IN_ARCHIVE_DESC_LEN=$( unzip -p "$BUNDLE_PATH" .claude-plugin/plugin.json \
-            | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('description','')))" )
-
-        if [[ "$IN_ARCHIVE_VERSION" == "$CURRENT_VERSION" && "$IN_ARCHIVE_DESC_LEN" == "$CURRENT_DESC_LEN" ]]; then
-            echo "  [OK]      in-archive manifest matches source (version=$IN_ARCHIVE_VERSION, desc_len=$IN_ARCHIVE_DESC_LEN)"
+        # EXACT-DIGEST manifest reconciliation, two independent claims:
+        #
+        # (1) archive manifest == HEAD manifest -- via the shared verifier
+        #     (scripts/release_manifest_check.py). The old check compared
+        #     version + description LENGTH against the WORKTREE, so a
+        #     same-length description mutation or a keyword-only change
+        #     passed, and a dirty version bump named the zip wrongly.
+        # (2) worktree manifest == HEAD manifest -- a dirty manifest blocks:
+        #     a release must be a commit.
+        if python3 "$PLUGIN_ROOT/scripts/release_manifest_check.py" "$BUNDLE_PATH" --repo "$PLUGIN_ROOT"; then
+            echo "  [OK]      archive manifest == committed HEAD manifest (digest-exact)"
         else
-            echo "  [BLOCKER] in-archive manifest drift: source=$CURRENT_VERSION/$CURRENT_DESC_LEN  archive=$IN_ARCHIVE_VERSION/$IN_ARCHIVE_DESC_LEN"
+            echo "  [BLOCKER] archive manifest does not match committed HEAD manifest"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+        # Git is the authority on "modified" (raw byte hashes false-block
+        # under CRLF normalization); porcelain output empty == committed.
+        MANIFEST_DIRTY=$( git -C "$PLUGIN_ROOT" status --porcelain -- .claude-plugin/plugin.json 2>/dev/null || echo "STATUS-FAILED" )
+        if [[ -z "$MANIFEST_DIRTY" ]]; then
+            echo "  [OK]      worktree manifest is committed (no dirty manifest)"
+        else
+            echo "  [BLOCKER] worktree manifest differs from HEAD: a release must be a commit ($MANIFEST_DIRTY)"
             BLOCKERS=$((BLOCKERS + 1))
         fi
 

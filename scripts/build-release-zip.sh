@@ -65,35 +65,47 @@ if [[ ! -f "$MANIFEST" ]]; then
   exit 2
 fi
 
-# ---------- manifest integrity checks ----------
+# ---------- manifest integrity checks (against COMMITTED HEAD) ----------
 
-# Check the manifest version field matches the <version> arg.
-# We use python because jq may not be available on every dev box.
-MANIFEST_VERSION="$(python3 -c '
+# The artifact packages HEAD bytes, so every naming and validation decision
+# reads HEAD's manifest -- never the worktree's. The previous version read
+# the worktree manifest here: a dirty version bump produced a zip NAMED for
+# the dirty version while its embedded manifest carried HEAD's. Filename and
+# content must come from one source.
+HEAD_MANIFEST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json)" || {
+  printf 'error: cannot read HEAD:.claude-plugin/plugin.json\n' >&2
+  exit 2
+}
+
+HEAD_NAME="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
 import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(d.get("version", ""))
-' "$MANIFEST")"
+print(json.load(sys.stdin).get("name", ""))
+')"
+HEAD_VERSION="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
+import json, sys
+print(json.load(sys.stdin).get("version", ""))
+')"
 
-if [[ "$MANIFEST_VERSION" != "$VERSION" ]]; then
-  printf 'error: manifest version (%s) does not match <version> arg (%s)\n' \
-    "$MANIFEST_VERSION" "$VERSION" >&2
-  printf '  expected: %s\n' "$VERSION" >&2
-  printf '  actual:   %s (in %s)\n' "$MANIFEST_VERSION" "$MANIFEST" >&2
+if [[ -z "$HEAD_NAME" || -z "$HEAD_VERSION" ]]; then
+  printf 'error: HEAD manifest has no name/version\n' >&2
+  exit 2
+fi
+
+if [[ "$HEAD_VERSION" != "$VERSION" ]]; then
+  printf 'error: COMMITTED manifest version (%s) does not match <version> arg (%s)\n' \
+    "$HEAD_VERSION" "$VERSION" >&2
+  printf '  a release is a commit: commit the version bump first\n' >&2
   exit 3
 fi
 
-# Check the description field does not exceed 400 characters.
-DESCRIPTION_LEN="$(python3 -c '
+# Description ceiling, measured on HEAD's manifest (the one that ships).
+DESCRIPTION_LEN="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
 import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(len(d.get("description", "")))
-' "$MANIFEST")"
+print(len(json.load(sys.stdin).get("description", "")))
+')"
 
 if [[ "$DESCRIPTION_LEN" -gt 400 ]]; then
-  printf 'error: plugin.json description length %d exceeds 400-char ceiling\n' \
+  printf 'error: HEAD plugin.json description length %d exceeds 400-char ceiling\n' \
     "$DESCRIPTION_LEN" >&2
   exit 4
 fi
@@ -106,7 +118,8 @@ if [[ ! -d "$RELEASES_DIR" ]]; then
   mkdir -p "$RELEASES_DIR"
 fi
 
-ZIP_NAME="co-author-harness-claude-v${VERSION}.zip"
+# Name derived from COMMITTED content only.
+ZIP_NAME="${HEAD_NAME}-v${HEAD_VERSION}.zip"
 ZIP_PATH="$RELEASES_DIR/$ZIP_NAME"
 
 if [[ -f "$ZIP_PATH" ]]; then
@@ -126,7 +139,7 @@ if [[ "$BUILD_RC" -ne 0 ]]; then
   exit 5
 fi
 
-PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/co-author-harness-claude.plugin"
+PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${HEAD_NAME}.plugin"
 if [[ ! -f "$PLUGIN_ARTIFACT" ]]; then
   printf 'error: builder exited 0 but no artifact at %s\n' "$PLUGIN_ARTIFACT" >&2
   exit 5
@@ -183,6 +196,14 @@ fi
 HAS_SKILLS="$(unzip -Z1 "$ZIP_PATH" | grep -c '^skills/.*/SKILL\.md$' || true)"
 if [[ "$HAS_SKILLS" -lt 1 ]]; then
   printf 'error: zip contains no skills/*/SKILL.md\n' >&2
+  exit 6
+fi
+
+# Exact-digest reconciliation: the archive's embedded manifest IS HEAD's.
+# Shared verifier -- also exercised against tampered archives by
+# scripts/analysis/release_manifest_negative_check.py.
+if ! python3 "$PLUGIN_ROOT/scripts/release_manifest_check.py" "$ZIP_PATH" --repo "$PLUGIN_ROOT"; then
+  printf 'error: archive manifest does not match committed HEAD manifest\n' >&2
   exit 6
 fi
 

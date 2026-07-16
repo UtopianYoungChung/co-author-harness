@@ -1,0 +1,11 @@
+{
+ "frozen_at": "adjudication-start 2026-07-16",
+ "emitters": {
+  "scripts/assignment_dispatch_preflight.py": "58159da5cfaffcc81837f86b5d4145f7aaa95f5f524d49f2e9705794568a6e4e",
+  "scripts/assignment_process_gate.py": "a9cab0033902bf75abea4d0f759b2ad514e3a2fe7e26ebc0110ec8284e230761",
+  "scripts/milestone_framework_validate.py": "e65541a44f76d098424389f77a7461d7441b41019a1fa1a6232a1c62f35861af",
+  "scripts/phase_notifications_loader.py": "d81a235c257081aeb14777bb30bda430e087d351debe94f34fc728dde51f5a9c",
+  "scripts/pre_phase_advance_check.py": "3975987cba168da83703166e10160dc5a83d9a19cc5f05e993ea5b9d6b0f062a",
+  "scripts/render_lifecycle_state.py": "a210411e6065606a85e57baa8e4609cc2243742d35553b8bf0dc2570bbf70aa7"
+ }
+}
