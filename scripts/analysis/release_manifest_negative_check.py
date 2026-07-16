@@ -7,6 +7,9 @@ HEAD-derived naming in build-release-zip.sh and release-gate.sh Phase 1), each
 in a disposable local clone so the user's checkout is never written:
 
   clean-committed        wrapper end-to-end succeeds (guard)
+  duplicate-manifest     archive with a malicious manifest member FIRST and a
+                         HEAD-identical one SECOND -> verifier must FAIL on
+                         duplicate membership before reading content
   dirty-version-bump     worktree bumps version; requesting the bumped
                          version must FAIL (committed version differs)
   committed-vs-requested requesting a version HEAD does not carry must FAIL
@@ -28,6 +31,7 @@ Exit: 0 all pass; 1 a check failed; 2 environment error.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -38,6 +42,8 @@ import time
 import zipfile
 from pathlib import Path
 
+MANIFEST_REL = ".claude-plugin/plugin.json"
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -45,6 +51,7 @@ if hasattr(sys.stdout, "reconfigure"):
 HARNESS = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(HARNESS / "scripts"))
 from package_enumeration import GIT  # noqa: E402
+from worktree_paths import sandbox_base  # noqa: E402
 
 BASH_CANDIDATES = [r"C:\Program Files\Git\bin\bash.exe", "bash"]
 BASH = next((b for b in BASH_CANDIDATES if Path(b).is_file() or b == "bash"), "bash")
@@ -88,7 +95,7 @@ def _make_clone(base: Path, name: str) -> Path:
     _git(repo, "checkout", "--quiet", "--detach", head)
     # Overlay the tooling under test (uncommitted in the primary worktree).
     for rel in ("scripts/build-release-zip.sh", "scripts/release-gate.sh",
-                "scripts/release_manifest_check.py"):
+                "scripts/release_manifest_check.py", "scripts/worktree_paths.py"):
         shutil.copy2(HARNESS / rel, repo / rel)
     return repo
 
@@ -139,7 +146,10 @@ def main() -> int:
     args = ap.parse_args()
 
     print("release_manifest_negative_check (disposable clones)")
-    base = Path(tempfile.mkdtemp(prefix="rmnc-", dir=str(HARNESS.parent)))
+    # Repo-global base (F1): `HARNESS.parent` is outside the repo only for the
+    # primary checkout; under `.worktrees/` it nested clones in the real repo.
+    base = Path(tempfile.mkdtemp(prefix="rmnc-",
+                                 dir=str(sandbox_base(HARNESS, ".coauthor-rmnc-sbx"))))
     try:
         repo = _make_clone(base, "repo")
         head_version = _head_version(repo)
@@ -200,6 +210,43 @@ def main() -> int:
             check(f"tamper [{label}] blocks", r.returncode == 1,
                   f"rc={r.returncode}")
 
+        # DUPLICATE MEMBERSHIP (review F4). A ZIP may legally carry two
+        # members with the same name: `name in namelist()` passes and
+        # `z.read(name)` returns whichever one Python kept. With the MALICIOUS
+        # manifest first and a HEAD-IDENTICAL manifest second, the old
+        # verifier read the matching one and returned 0 while the archive
+        # still carried the malicious member -- membership is not identity.
+        dup = base / "tampered-duplicate.zip"
+        head_manifest = subprocess.run(
+            [GIT, "-C", str(repo), "show", "HEAD:.claude-plugin/plugin.json"],
+            capture_output=True, check=True).stdout
+        malicious = json.loads(head_manifest)
+        malicious["version"] = "6.6.6"
+        malicious["description"] = "MALICIOUS: shipped under a duplicate member"
+        with zipfile.ZipFile(zip_path) as zin, zipfile.ZipFile(dup, "w") as zout:
+            for info in zin.infolist():
+                data = zin.read(info.filename)
+                if info.filename == MANIFEST_REL:
+                    # malicious FIRST, HEAD-identical SECOND
+                    zout.writestr(info, json.dumps(malicious, indent=2).encode("utf-8"))
+                    zout.writestr(info, head_manifest)
+                else:
+                    zout.writestr(info, data)
+        with zipfile.ZipFile(dup) as z:
+            names = z.namelist()
+        check("duplicate fixture really carries 2 manifest members (guard)",
+              names.count(MANIFEST_REL) == 2, f"count={names.count(MANIFEST_REL)}")
+        check("duplicate fixture's read-selected member matches HEAD (guard: "
+              "this is what fooled the old verifier)",
+              hashlib.sha256(zipfile.ZipFile(dup).read(MANIFEST_REL)).hexdigest()
+              == hashlib.sha256(head_manifest).hexdigest())
+        r = _verifier(repo, dup)
+        check("tamper [duplicate manifest members] blocks", r.returncode == 1,
+              f"rc={r.returncode}")
+        check("duplicate diagnostic names duplicate membership",
+              "duplicate membership" in (r.stdout + r.stderr).lower(),
+              (r.stdout + r.stderr).strip().splitlines()[-1][:80] if (r.stdout + r.stderr).strip() else "silent")
+
         if args.skip_gate:
             print("gate-dirty-manifest: SKIPPED (--skip-gate)")
         else:
@@ -220,6 +267,11 @@ def main() -> int:
             manifest.write_text(original, encoding="utf-8")
     finally:
         _rmtree_force(base)
+        # sandbox_base() creates the parent; remove it when empty so this
+        # suite leaves nothing behind.
+        import contextlib
+        with contextlib.suppress(OSError):
+            base.parent.rmdir()
         print()
         print("  ok     clones removed" if not base.exists()
               else "  ERROR  clone base left behind")

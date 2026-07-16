@@ -130,30 +130,42 @@ FIXTURE_MARKERS = ("_smoketest", "_test", "test_")
 sys.path.insert(0, str(SCRIPTS_DIR))
 from package_enumeration import enumerate_package_files  # noqa: E402
 
-# The checker cannot vouch for its own observer, so it is bound separately via
-# script_sha256 (see parity()). Two subtractions from the packaging authority,
-# each a stated exception rather than a filter:
+# TWO KINDS OF EXCLUSION, MATCHED TWO DIFFERENT WAYS (2026-07-16, review F3).
 #
-#   scripts/analysis/                 the observer zone (bound via script_sha256
-#                                     and runner_sha256 instead)
-#   docs/.../fixture_manifest.json    THE EVIDENCE ITSELF, exact path. Once the
-#                                     manifest is tracked, hashing it makes the
-#                                     evidence self-binding: the runner would
-#                                     hash the old manifest into pre/post and
-#                                     then overwrite it, so every manifest is
-#                                     stale the moment it is written and the
-#                                     gate only passes while evidence stays
-#                                     untracked (2026-07-16). Exact file, not a
-#                                     generated-docs prefix -- predicate_rows.md
-#                                     IS subject matter and must stay hashed.
+# One tuple matched with startswith() conflated them, and "exact file" was a
+# lie told by a prefix test: `docs/analysis/generated/fixture_manifest.json`
+# also excluded `fixture_manifest.json.backup`, `.json.tmp`, `.json.orig` --
+# any tracked near-name file silently left the subject population, so editing
+# it could never stale the evidence. The repair round called this exclusion
+# "exact" in prose while the code did prefix matching; the prose was the claim
+# and the code was the truth.
 #
-# Both entries are machine-recorded in every manifest's tested_inputs.exclude
-# and reconciled by the consistency check below; widening this tuple silently
-# is therefore not possible without invalidating existing evidence.
-TESTED_INPUT_EXCLUDE: tuple[str, ...] = (
+# Directory prefixes (matched as prefixes, and only these):
+#   scripts/analysis/   the observer zone -- a subject cannot vouch for its own
+#                       observer; bound instead via script_sha256 (parity) and
+#                       runner_sha256 (manifest writer binding).
+TESTED_INPUT_EXCLUDE_DIRS: tuple[str, ...] = (
     "scripts/analysis/",
+)
+
+# Exact files (matched by EQUALITY, never prefix):
+#   docs/.../fixture_manifest.json   THE EVIDENCE ITSELF. Once tracked, hashing
+#                                    it makes evidence self-binding: the runner
+#                                    would hash the old manifest into pre/post
+#                                    and then overwrite it, so every manifest is
+#                                    stale the moment it is written. Exactly
+#                                    this file -- predicate_rows.md and anything
+#                                    else under generated/ IS subject matter and
+#                                    must stay hashed.
+TESTED_INPUT_EXCLUDE_FILES: tuple[str, ...] = (
     "docs/analysis/generated/fixture_manifest.json",
 )
+
+
+def _is_excluded(rel: str) -> bool:
+    """Prefix rule for directories, equality for files. Never one rule for both."""
+    return (any(rel.startswith(d) for d in TESTED_INPUT_EXCLUDE_DIRS)
+            or rel in TESTED_INPUT_EXCLUDE_FILES)
 
 
 def compute_tested_inputs() -> dict:
@@ -180,7 +192,7 @@ def compute_tested_inputs() -> dict:
     entries: list[str] = []
     missing: list[str] = []
     for rel in files:
-        if any(rel.startswith(x) for x in TESTED_INPUT_EXCLUDE):
+        if _is_excluded(rel):
             continue
         p = PLUGIN_ROOT / rel
         if not p.is_file():
@@ -203,7 +215,12 @@ def compute_tested_inputs() -> dict:
         # "build-plugin.py" after the enumeration moved to the neutral module --
         # a provenance field pointing at the wrong file is worse than none.
         "enumerator": "scripts/package_enumeration.py::enumerate_package_files",
-        "exclude": list(TESTED_INPUT_EXCLUDE),
+        # Recorded UNAMBIGUOUSLY, by match rule. A single flat `exclude` list
+        # could not say whether an entry was a prefix or an exact path, so a
+        # reader (and the consistency check) could not tell a widened rule from
+        # an unchanged one.
+        "exclude_dirs": list(TESTED_INPUT_EXCLUDE_DIRS),
+        "exclude_files": list(TESTED_INPUT_EXCLUDE_FILES),
     }
 
 
@@ -536,11 +553,31 @@ def _check_suite_bound_manifest_consistency(
                 f"tested_inputs.mode {ti.get('mode')!r} != {current['mode']!r}; "
                 "a different snapshot mode is a different claim"
             )
-        if (ti.get("enumerator") != current["enumerator"]
-                or ti.get("exclude") != current["exclude"]):
+        if ti.get("enumerator") != current["enumerator"]:
             problems.append(
-                "tested_inputs enumerator/exclude differ from this checker's; the "
+                "tested_inputs enumerator differs from this checker's; the "
                 "recorded run measured a different input set"
+            )
+        # Both exclusion categories reconciled SEPARATELY and exactly. A flat
+        # list could not distinguish a prefix rule from an exact path, so a
+        # silently widened rule read as unchanged.
+        if ti.get("exclude_dirs") != current["exclude_dirs"]:
+            problems.append(
+                f"tested_inputs.exclude_dirs {ti.get('exclude_dirs')} != "
+                f"{current['exclude_dirs']}; the recorded run excluded a "
+                "different directory set"
+            )
+        if ti.get("exclude_files") != current["exclude_files"]:
+            problems.append(
+                f"tested_inputs.exclude_files {ti.get('exclude_files')} != "
+                f"{current['exclude_files']}; the recorded run excluded a "
+                "different file set"
+            )
+        if "exclude" in ti:
+            problems.append(
+                "tested_inputs carries the retired flat `exclude` field; that "
+                "shape could not distinguish prefix from exact rules -- "
+                "regenerate with the current runner"
             )
         # file_count was RECORDED AND NEVER CHECKED -- asserted evidence that
         # nothing verified, exactly like the unenforced script_sha256 stamp.

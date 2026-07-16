@@ -60,8 +60,30 @@ def main() -> int:
     try:
         with zipfile.ZipFile(args.archive) as z:
             names = z.namelist()
-            if MANIFEST_REL not in names:
+            # UNIQUENESS BEFORE CONTENT (2026-07-16, review F4).
+            #
+            # A ZIP may legally carry two members with the same name.
+            # `MANIFEST_REL in names` then passes and `z.read(MANIFEST_REL)`
+            # returns whichever ONE Python's dict lookup kept -- so an archive
+            # with a malicious manifest first and a HEAD-identical manifest
+            # second verified clean while a consumer reading the other member
+            # (or extracting sequentially, last-write-wins) got the malicious
+            # one. Membership is not identity; the digest below can only speak
+            # for the member it read.
+            #
+            # This is the same defect class the builder's own readback names:
+            # "cardinality is not correspondence". Reject 0 or >1 before
+            # reading any content.
+            count = names.count(MANIFEST_REL)
+            if count == 0:
                 print(f"[FAIL] archive carries no {MANIFEST_REL}", file=sys.stderr)
+                return 1
+            if count > 1:
+                print(f"[FAIL] duplicate membership: archive carries {count} "
+                      f"members named {MANIFEST_REL}; exactly one is required. "
+                      "A digest check can only describe the member it reads, "
+                      "so a duplicate manifest is unverifiable by construction.",
+                      file=sys.stderr)
                 return 1
             arc_sha = hashlib.sha256(z.read(MANIFEST_REL)).hexdigest()
     except (OSError, zipfile.BadZipFile) as exc:

@@ -62,14 +62,17 @@ regardless of where in the run it failed.
 
 Concurrency
 -----------
-Exactly one runner may execute at a time. A cross-process exclusive lock
-(`docs/analysis/generated/.fixture_runner.lock`, OS-level region lock that
-dies with the process) is acquired BEFORE evidence is touched or any suite
-starts. A second concurrent runner fails cleanly with exit 2, executes no
-suites, and -- critically -- voids nothing: only the lock HOLDER may touch
-evidence. Suites share sandbox locations (the provenance smoketest sweeps
-`.coauthor-provenance-sbx` at start), so concurrent corpus runs would
-corrupt each other's verdicts.
+Exactly one runner may execute at a time PER REPOSITORY -- not per worktree.
+The lock lives in the shared git admin directory (`--git-common-dir`, i.e.
+`<primary>/.git/coauthor-fixture-runner.lock`), an OS-level region lock that
+dies with the process, acquired BEFORE evidence is touched or any suite
+starts. A second concurrent runner -- from the same worktree OR any other
+worktree of this repository -- fails cleanly with exit 2, executes no suites,
+and, critically, voids nothing: only the lock HOLDER may touch evidence.
+Suites share sandbox locations (the provenance smoketest sweeps
+`.coauthor-provenance-sbx` at start, which is itself derived repo-globally),
+so concurrent corpus runs would corrupt each other's verdicts. A per-worktree
+lock gave each checkout its own lock and permitted exactly that.
 
 Commit-stability
 ----------------
@@ -111,8 +114,25 @@ else:  # pragma: no cover
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent.parent
 MANIFEST_PATH = PLUGIN_ROOT / "docs" / "analysis" / "generated" / "fixture_manifest.json"
-LOCK_PATH = MANIFEST_PATH.parent / ".fixture_runner.lock"
 SUITE_TIMEOUT_S = 900
+
+# THE LOCK IS REPOSITORY-GLOBAL, NOT PER-WORKTREE (2026-07-16, review F2).
+#
+# It was `PLUGIN_ROOT/docs/analysis/generated/.fixture_runner.lock` -- one lock
+# per worktree, so two worktrees of the SAME repository each took their own
+# lock and ran the shared corpus concurrently. That is precisely the collision
+# the lock exists to prevent: the suites share sandbox bases (the provenance
+# smoketest SWEEPS its base at start, deleting a concurrent run's live
+# sandbox), so the mutual exclusion has to span every checkout of the repo.
+#
+# The shared git admin directory is the one location every worktree agrees on
+# (`--git-common-dir` is identical from primary, internal, and external
+# worktrees -- `--git-dir` is not). It is also outside every working tree, so
+# no worktree gains an untracked .fixture_runner.lock to clean up or
+# accidentally commit.
+def _lock_path() -> Path:
+    from worktree_paths import git_common_dir  # local: keeps import order clear
+    return git_common_dir(PLUGIN_ROOT) / "coauthor-fixture-runner.lock"
 
 # One authority for universe + tested-inputs, imported by EXACT PATH. The
 # previous `sys.path.insert(0, scripts/analysis); sys.path.insert(0, scripts)`
@@ -200,16 +220,18 @@ def _void_stale_manifest(reason: str) -> None:
 
 
 def _acquire_lock():
-    """Cross-process exclusive runner lock, or None if another runner holds it.
+    """Cross-process, cross-WORKTREE exclusive runner lock, or None if held.
 
     OS-level region lock on an open handle (msvcrt on Windows, flock on
     POSIX): released by the OS when the process dies, so a crashed runner
     cannot wedge the lock the way an existence-check lockfile would. The
-    lock file itself persists between runs and carries the holder's pid as
-    a diagnostic; the pid is informational, never the lock.
+    lock file lives in the shared git admin dir (see _lock_path), so every
+    worktree contends for ONE lock. It carries the holder's pid and worktree
+    as diagnostics; those are informational, never the lock.
     """
-    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fh = open(LOCK_PATH, "a+", encoding="utf-8")
+    lock_path = _lock_path()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fh = open(lock_path, "a+", encoding="utf-8")
     try:
         if os.name == "nt":
             import msvcrt
@@ -223,7 +245,7 @@ def _acquire_lock():
         return None
     fh.seek(0)
     fh.truncate()
-    fh.write(f"pid={os.getpid()}\n")
+    fh.write(f"pid={os.getpid()} worktree={PLUGIN_ROOT}\n")
     fh.flush()
     return fh
 
@@ -256,9 +278,15 @@ def run(registry: dict[str, list[dict]],
 
     lock = _acquire_lock()
     if lock is None:
-        print("ERROR: another fixture runner holds the lock "
-              f"({LOCK_PATH}); refusing to run concurrently. No suites were "
-              "executed; existing evidence untouched.", file=sys.stderr)
+        holder = ""
+        try:
+            holder = _lock_path().read_text(encoding="utf-8").strip()
+        except OSError:
+            pass
+        print(f"ERROR: another fixture runner holds the repository-global lock "
+              f"({_lock_path()}); refusing to run concurrently. Holder: "
+              f"{holder or 'unknown'}. No suites were executed; existing "
+              "evidence untouched.", file=sys.stderr)
         return 2
     try:
         return _run_locked(registry, universe)
@@ -365,7 +393,10 @@ def _run_locked(registry: dict[str, list[dict]],
         "tested_inputs": {
             "mode": pre["mode"],
             "enumerator": pre["enumerator"],
-            "exclude": pre["exclude"],
+            # Two categories, recorded by match rule (review F3): prefixes and
+            # exact paths are not interchangeable and must not share a field.
+            "exclude_dirs": pre["exclude_dirs"],
+            "exclude_files": pre["exclude_files"],
             "file_count": pre["file_count"],
             "pre_sha256": pre["sha256"],
             "post_sha256": post["sha256"],

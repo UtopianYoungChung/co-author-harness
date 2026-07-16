@@ -45,6 +45,16 @@ sys.path.insert(0, str(HARNESS / "scripts"))
 
 from package_enumeration import GIT  # noqa: E402
 from resolve_includes import resolve_includes_in_text  # noqa: E402
+from worktree_paths import sandbox_base  # noqa: E402
+
+# ONE sandbox base for every worktree layout, derived from git's COMMON dir
+# (see worktree_paths). Previously `HARNESS.parent / ".coauthor-provenance-sbx"`
+# -- outside the repo only for the primary checkout. From a worktree under
+# `co-author-harness/.worktrees/<name>` the base landed INSIDE the primary
+# repository, so case_git_failure_fails_closed's .git deletion let git discovery
+# walk up to the real repo and the builder SUCCEEDED: all three git-failure
+# assertions failed. Computed once, at import, so no case can diverge.
+SBX_BASE = sandbox_base(HARNESS, ".coauthor-provenance-sbx")
 
 FAILURES: list[str] = []   # predicate failures -> the SUBJECT is wrong (exit 1)
 ERRORS: list[str] = []     # environment failures -> the RUN IS VOID  (exit 2)
@@ -126,21 +136,11 @@ def sandbox(destructive: bool = False):
     `destructive=True` gets its OWN throwaway clone -- the git-failure case
     deletes .git, which no reset can undo.
     """
-    # Sandbox lives on the SAME DRIVE as the repo but OUTSIDE its tree.
-    #
-    # Same drive: `git clone --local` hardlinks the object store, and hardlinks
-    # cannot cross volumes -- cloning B:\ into C:\Users\...\Temp dies with
-    # `fatal: failed to create link ... Improper link` (exit 128).
-    # --no-hardlinks works cross-drive but deep-copies a 6 MB object store per
-    # case, which made the suite unusably slow.
-    #
-    # Outside the tree: a sandbox under HARNESS/.worktrees/ is NOT isolated,
-    # because git discovery WALKS UP. Deleting the sandbox's .git (the
-    # failure-injection case) made git find the PARENT repo instead of failing,
-    # so the builder half-succeeded and died on a tar ReadError rather than
-    # aborting cleanly. Nesting a fixture repo inside a real one is not a
-    # sandbox.
-    base = HARNESS.parent / ".coauthor-provenance-sbx"
+    # Same drive, outside EVERY worktree -- derived from git's common dir and
+    # asserted against git's own worktree registry. See worktree_paths and
+    # SBX_BASE above; the requirement was documented here long before the
+    # computation actually satisfied it under `.worktrees/`.
+    base = SBX_BASE
     base.mkdir(exist_ok=True)
 
     if not destructive and "repo" in _SHARED:
@@ -189,7 +189,7 @@ def _sweep_stale_bases() -> int:
     _final_teardown). Rather than leave debris forever, each run sweeps first --
     by then any transient holder is long gone.
     """
-    base = HARNESS.parent / ".coauthor-provenance-sbx"
+    base = SBX_BASE
     if not base.is_dir():
         return 0
     swept = 0
@@ -221,7 +221,7 @@ def _final_teardown() -> None:
     SUBJECT. Collapsing them lets infrastructure noise masquerade as a contract
     breach -- and lets a real breach hide in noise.
     """
-    base = HARNESS.parent / ".coauthor-provenance-sbx"
+    base = SBX_BASE
     try:
         teardown_shared()
     except OSError as exc:

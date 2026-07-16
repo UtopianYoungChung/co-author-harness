@@ -25,6 +25,7 @@ Exit: 0 all pass; 1 a check failed; 2 environment error.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -54,17 +55,53 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         FAILURES.append(name)
 
 
-def _load(path: Path, name: str):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def _load(path: Path, name: str, repo: Path | None = None):
+    """Load a module from `path` with its dependencies resolved inside `repo`.
+
+    WRONG SUBJECT, IN THE SUITE THAT EXISTS TO CATCH WRONG SUBJECTS.
+    Loading `<clone>/scripts/analysis/code_census.py` executes
+    `from package_enumeration import enumerate_package_files` -- and
+    `package_enumeration` was ALREADY in sys.modules from this file's own
+    top-level import of the PRIMARY's copy. Python returned the cached
+    primary module, so the clone's census enumerated the PRIMARY repository
+    while every assertion said "clone". Caught 2026-07-16 by the new
+    near-name regression: a file committed in the clone was invisible to the
+    clone's own census (it is not in the primary's HEAD), so editing it could
+    not stale the evidence -- the test reported the population as 461 files,
+    the PRIMARY's count. The README staleness case passed only by accident
+    (both repos have README.md, and the digest hashes clone paths).
+
+    So dependencies are resolved against `repo`: its scripts dir goes first on
+    sys.path and the shared module names are evicted for the duration, so the
+    exec binds the CLONE's modules. Names are restored afterwards; the loaded
+    module keeps its own references.
+    """
+    saved_path = list(sys.path)
+    shared = ("package_enumeration", "worktree_paths", "code_census",
+              "resolve_includes")
+    saved_mods = {k: sys.modules.pop(k, None) for k in shared}
+    try:
+        if repo is not None:
+            sys.path.insert(0, str(repo / "scripts" / "analysis"))
+            sys.path.insert(0, str(repo / "scripts"))
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.path[:] = saved_path
+        for k, v in saved_mods.items():
+            if v is not None:
+                sys.modules[k] = v
+            else:
+                sys.modules.pop(k, None)
 
 
-# Resolve git the same way the packaging authority does -- import it, do not
-# re-author it.
+# Resolve git and sandbox placement the same way the authorities do -- import
+# them, do not re-author them.
 sys.path.insert(0, str(HARNESS / "scripts"))
 from package_enumeration import GIT  # noqa: E402
+from worktree_paths import sandbox_base  # noqa: E402
 
 
 def _run_git(repo: Path, *args: str, check_rc: bool = True) -> subprocess.CompletedProcess:
@@ -100,7 +137,8 @@ def _make_clone(base: Path) -> Path:
     # construction, so this cannot dirty any digest).
     (repo / "scripts" / "analysis").mkdir(exist_ok=True)
     for rel in ("scripts/analysis/code_census.py",
-                "scripts/analysis/fixture_runner.py"):
+                "scripts/analysis/fixture_runner.py",
+                "scripts/worktree_paths.py"):
         shutil.copy2(HARNESS / rel, repo / rel)
     return repo
 
@@ -114,7 +152,8 @@ def _mini_registry(runner_mod) -> tuple[dict, list[str]]:
 # --------------------------------------------------------------------------
 
 def case_census_writer_binding() -> None:
-    census = _load(HARNESS / "scripts" / "analysis" / "code_census.py", "cc_real")
+    census = _load(HARNESS / "scripts" / "analysis" / "code_census.py", "cc_real",
+                   repo=HARNESS)
     universe = census.discover_suite_universe()
     report = {"suite_universe": universe}
     ti = census.compute_tested_inputs()
@@ -142,7 +181,9 @@ def case_census_writer_binding() -> None:
             } for s in universe],
             "tested_inputs": {
                 "mode": ti["mode"], "enumerator": ti["enumerator"],
-                "exclude": ti["exclude"], "file_count": ti["file_count"],
+                "exclude_dirs": ti["exclude_dirs"],
+                "exclude_files": ti["exclude_files"],
+                "file_count": ti["file_count"],
                 "pre_sha256": ti["sha256"], "post_sha256": ti["sha256"],
             },
         }
@@ -181,14 +222,52 @@ def case_census_writer_binding() -> None:
         ok, detail = verdict(m)
         check("wrong schema rejected", not ok and "schema" in detail, detail[:90])
 
-    # R1 exclusion shape: exact file, machine-recorded, no broad prefix.
-    check("manifest excluded from tested inputs (exact path)",
-          "docs/analysis/generated/fixture_manifest.json" in census.TESTED_INPUT_EXCLUDE)
-    check("exclusion recorded in tested_inputs.exclude",
-          "docs/analysis/generated/fixture_manifest.json" in ti["exclude"])
-    check("no broad generated-docs exclusion",
-          not any(x in ("docs/", "docs/analysis/", "docs/analysis/generated/")
-                  for x in census.TESTED_INPUT_EXCLUDE))
+        m = baseline()
+        m["tested_inputs"]["exclude_files"] = m["tested_inputs"]["exclude_files"] + [
+            "docs/analysis/generated/predicate_rows.md"]
+        ok, detail = verdict(m)
+        check("widened exclude_files rejected", not ok and "exclude_files" in detail,
+              detail[:90])
+
+        m = baseline()
+        m["tested_inputs"]["exclude_dirs"] = ["docs/analysis/generated/"]
+        ok, detail = verdict(m)
+        check("widened exclude_dirs rejected", not ok and "exclude_dirs" in detail,
+              detail[:90])
+
+        m = baseline()
+        ti_flat = dict(m["tested_inputs"])
+        ti_flat["exclude"] = ti_flat["exclude_dirs"] + ti_flat["exclude_files"]
+        m["tested_inputs"] = ti_flat
+        ok, detail = verdict(m)
+        check("retired flat `exclude` shape rejected",
+              not ok and "flat `exclude`" in detail, detail[:90])
+
+    # R1/F3 exclusion shape: exact files matched by EQUALITY, dir prefixes by
+    # prefix, both machine-recorded under distinct keys, no broad generated/.
+    MAN = "docs/analysis/generated/fixture_manifest.json"
+    check("manifest is an EXACT-file exclusion", MAN in census.TESTED_INPUT_EXCLUDE_FILES)
+    check("manifest is NOT a directory-prefix exclusion",
+          MAN not in census.TESTED_INPUT_EXCLUDE_DIRS)
+    check("exclusion recorded under tested_inputs.exclude_files",
+          MAN in ti["exclude_files"])
+    check("observer zone recorded under tested_inputs.exclude_dirs",
+          "scripts/analysis/" in ti["exclude_dirs"])
+    check("retired flat `exclude` field not emitted", "exclude" not in ti)
+    check("no broad generated-docs directory exclusion",
+          not any(d in ("docs/", "docs/analysis/", "docs/analysis/generated/")
+                  for d in census.TESTED_INPUT_EXCLUDE_DIRS))
+    # The F3 defect itself: startswith() on the manifest path also swallowed
+    # every near-name sibling.
+    check("_is_excluded excludes the manifest exactly", census._is_excluded(MAN))
+    for near in (MAN + ".backup", MAN + ".tmp", MAN + ".orig",
+                 "docs/analysis/generated/fixture_manifest.json2"):
+        check(f"near-name INCLUDED: {near.rsplit('/', 1)[-1]}",
+              not census._is_excluded(near))
+    check("observer-zone prefix still excludes its members",
+          census._is_excluded("scripts/analysis/code_census.py"))
+    check("predicate_rows.md remains SUBJECT (not excluded)",
+          not census._is_excluded("docs/analysis/generated/predicate_rows.md"))
 
 
 # --------------------------------------------------------------------------
@@ -196,7 +275,8 @@ def case_census_writer_binding() -> None:
 # --------------------------------------------------------------------------
 
 def case_runner_concurrency_and_void(repo: Path) -> None:
-    runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_clone")
+    runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_clone",
+                   repo=repo)
     registry, universe = _mini_registry(runner)
 
     # Hold the clone's lock, then start a REAL second runner process against
@@ -247,8 +327,10 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
 # --------------------------------------------------------------------------
 
 def case_commit_stability(repo: Path) -> None:
-    runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_clone2")
-    census = _load(repo / "scripts" / "analysis" / "code_census.py", "cc_clone")
+    runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_clone2",
+                   repo=repo)
+    census = _load(repo / "scripts" / "analysis" / "code_census.py", "cc_clone",
+                   repo=repo)
     registry, universe = _mini_registry(runner)
     report = {"suite_universe": universe}
 
@@ -281,25 +363,207 @@ def case_commit_stability(repo: Path) -> None:
     ok, detail = census._check_suite_bound_manifest_consistency(report)
     check("restore returns evidence to CURRENT", ok, detail[:110])
 
+    # F3 END-TO-END: a TRACKED near-name sibling of the manifest is SUBJECT.
+    # Under the old startswith() rule this file was silently excluded, so
+    # editing it could never stale the evidence -- a tracked file outside the
+    # subject population with no one saying so.
+    near = repo / "docs/analysis/generated/fixture_manifest.json.backup"
+    near.write_text('{"near-name": "must be subject"}\n', encoding="utf-8",
+                    newline="\n")
+    _run_git(repo, "add", "docs/analysis/generated/fixture_manifest.json.backup")
+    _run_git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
+             "commit", "--quiet", "-m", "test: track a near-name manifest sibling")
+    rc = runner.run(registry, universe)
+    check("regeneration succeeds with a tracked near-name sibling", rc == 0, f"rc={rc}")
+    baseline_ok, baseline_detail = census._check_suite_bound_manifest_consistency(report)
+    check("evidence CURRENT with near-name sibling tracked", baseline_ok,
+          baseline_detail[:110])
+    near.write_text('{"near-name": "MUTATED"}\n', encoding="utf-8", newline="\n")
+    ok, detail = census._check_suite_bound_manifest_consistency(report)
+    check("editing the tracked near-name sibling makes evidence STALE",
+          not ok and "STALE" in detail, detail[:110])
+
+
+def case_repo_global_paths() -> None:
+    """F1/F2: sandbox base and runner lock are REPOSITORY-global.
+
+    Both were derived from this file's location (`HARNESS.parent`,
+    `PLUGIN_ROOT/...`), which says where the CODE is, not where the
+    REPOSITORY is. From a worktree under `co-author-harness/.worktrees/<n>`
+    that put the sandbox INSIDE the primary repo (git discovery walks up, so
+    the git-failure case's .git deletion found the real repo and the builder
+    succeeded) and gave every worktree its own lock (so two worktrees ran the
+    shared corpus concurrently).
+
+    Asserted against git's own registry, from THIS worktree, plus a simulated
+    internal-worktree root to prove the rule is layout-independent rather
+    than accidentally correct in the primary.
+    """
+    import worktree_paths as wp
+
+    common = wp.git_common_dir(HARNESS)
+    roots = wp.registered_worktree_roots(HARNESS)
+    primary = wp.primary_worktree_root(HARNESS)
+    check("git-common-dir resolves", common.is_dir(), str(common))
+    check("primary root derived from common dir", primary.is_dir(), str(primary))
+    check("worktree registry non-empty", bool(roots), f"{len(roots)} root(s)")
+
+    base = wp.sandbox_base(HARNESS, ".coauthor-provenance-sbx")
+    check("sandbox base is same-drive as primary (clone --local hardlinks)",
+          base.drive.lower() == primary.drive.lower(), f"{base.drive} vs {primary.drive}")
+    check("sandbox base outside EVERY registered worktree",
+          all(base != r and r not in base.parents for r in roots), str(base))
+
+    # The identity that makes the rule layout-independent: a linked worktree
+    # anywhere (including under the primary) must yield the SAME base and the
+    # SAME lock, because both hang off the common dir, not off __file__.
+    internal = HARNESS / ".worktrees" / "milestone-feedback-framework"
+    if internal.is_dir():
+        check("internal worktree yields the SAME common dir",
+              wp.git_common_dir(internal) == common,
+              f"{wp.git_common_dir(internal)}")
+        check("internal worktree yields the SAME sandbox base",
+              wp.sandbox_base(internal, ".coauthor-provenance-sbx") == base)
+    else:
+        print("  SKIP  no internal worktree present to cross-check")
+
+    # The guard is mechanical: point it at a path inside a worktree and it
+    # must refuse, rather than document a rule it does not enforce.
+    refused = False
+    try:
+        wp.assert_outside_all_worktrees(primary / ".worktrees" / "sbx-probe", HARNESS)
+    except RuntimeError:
+        refused = True
+    check("assert_outside_all_worktrees refuses a path under a worktree", refused)
+
+    # The lock is in the shared admin dir -> one lock for all worktrees, and
+    # no untracked lock file inside any working tree.
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location(
+        "fr_lockprobe", HARNESS / "scripts" / "analysis" / "fixture_runner.py")
+    fr = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(fr)
+    lock_path = fr._lock_path()
+    check("runner lock lives in the shared git admin dir",
+          lock_path.parent.resolve() == common, str(lock_path))
+    # NOT "outside every worktree root by path": the common dir IS
+    # `<primary>/.git`, which is under the primary's root, so a path-ancestry
+    # test fails on a correct lock (my first assertion did exactly that). The
+    # property that matters is that no worktree's WORKING TREE contains it --
+    # git never reports files under .git, so the lock can never appear as an
+    # untracked path. Assert that mechanically via git itself rather than by
+    # reasoning about paths.
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.touch()
+    status = subprocess.run(
+        [GIT, "-C", str(HARNESS), "status", "--porcelain", "--ignored"],
+        capture_output=True, text=True, encoding="utf-8").stdout
+    check("runner lock is invisible to git status in the primary worktree",
+          "coauthor-fixture-runner.lock" not in status)
+    for r in roots:
+        st = subprocess.run([GIT, "-C", str(r), "status", "--porcelain", "--ignored"],
+                            capture_output=True, text=True, encoding="utf-8").stdout
+        check(f"lock invisible to git status in {r.name}",
+              "coauthor-fixture-runner.lock" not in st)
+    check("no stale in-tree lock file from the per-worktree design",
+          not (HARNESS / "docs/analysis/generated/.fixture_runner.lock").exists())
+
+
+def case_cross_worktree_lock(repo: Path, base: Path) -> None:
+    """F2: two WORKTREES of one repository contend for ONE lock.
+
+    Not two processes in one worktree (already covered): a second linked
+    worktree, which is exactly what a per-worktree lock failed to coordinate.
+    Uses the disposable clone as 'the repository' and adds an internal linked
+    worktree to it -- the layout that previously produced two independent
+    locks.
+    """
+    wt = repo / ".worktrees" / "lockprobe"
+    head = _run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    _run_git(repo, "worktree", "add", "--quiet", "--detach", str(wt), head)
+    try:
+        # Overlay the observer zone into the linked worktree too (its HEAD
+        # predates these repairs; only the tooling under test is current).
+        (wt / "scripts" / "analysis").mkdir(parents=True, exist_ok=True)
+        for rel in ("scripts/analysis/code_census.py",
+                    "scripts/analysis/fixture_runner.py",
+                    "scripts/worktree_paths.py"):
+            shutil.copy2(HARNESS / rel, wt / rel)
+
+        runner_a = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_a",
+                         repo=repo)
+        runner_b = _load(wt / "scripts" / "analysis" / "fixture_runner.py", "fr_b",
+                         repo=wt)
+        check("both worktrees resolve the SAME lock path",
+              runner_a._lock_path() == runner_b._lock_path(),
+              str(runner_a._lock_path()))
+
+        # A's evidence must survive B's refusal untouched.
+        evidence = runner_a.MANIFEST_PATH
+        evidence.parent.mkdir(parents=True, exist_ok=True)
+        evidence.write_text('{"sentinel": "A-evidence"}', encoding="utf-8")
+        lock = runner_a._acquire_lock()
+        check("worktree A acquired the lock", lock is not None)
+        t0 = time.time()
+        proc = subprocess.run(
+            [sys.executable, str(wt / "scripts" / "analysis" / "fixture_runner.py")],
+            capture_output=True, text=True, encoding="utf-8", timeout=180)
+        took = time.time() - t0
+        out = proc.stdout + proc.stderr
+        check("worktree B exits 2 under cross-worktree contention",
+              proc.returncode == 2, f"rc={proc.returncode}")
+        check("worktree B names the repository-global lock",
+              "repository-global lock" in out)
+        check("worktree B executed no suite", "PASS  exit" not in out and
+              "FAIL  exit" not in out)
+        check("worktree B refused fast", took < 60, f"{took:.1f}s")
+        check("worktree A's evidence untouched by B",
+              evidence.is_file() and "A-evidence" in evidence.read_text(encoding="utf-8"))
+        runner_a._release_lock(lock)
+
+        # Release permits a subsequent run: B can now take the lock.
+        lock_b = runner_b._acquire_lock()
+        check("after release, worktree B acquires the lock", lock_b is not None)
+        if lock_b is not None:
+            runner_b._release_lock(lock_b)
+    finally:
+        _run_git(repo, "worktree", "remove", "--force", str(wt), check_rc=False)
+        _run_git(repo, "worktree", "prune", check_rc=False)
+
 
 def main() -> int:
     print("fixture_infrastructure_check (focused; never runs the corpus)")
     print(f"  harness: {HARNESS}")
     print()
+    print("case_repo_global_paths:")
+    case_repo_global_paths()
+    print()
     print("case_census_writer_binding:")
     case_census_writer_binding()
     print()
-    base = Path(tempfile.mkdtemp(prefix="fic-", dir=str(HARNESS.parent)))
+    # Clone base derived repo-globally, like every other sandbox (F1): under
+    # `.worktrees/` the old `HARNESS.parent` base put clones inside the repo.
+    base = Path(tempfile.mkdtemp(prefix="fic-",
+                                 dir=str(sandbox_base(HARNESS, ".coauthor-fic-sbx"))))
     try:
         repo = _make_clone(base)
         print("case_runner_concurrency_and_void:")
         case_runner_concurrency_and_void(repo)
+        print()
+        print("case_cross_worktree_lock:")
+        case_cross_worktree_lock(repo, base)
         print()
         print("case_commit_stability:")
         case_commit_stability(repo)
     finally:
         _rmtree_force(base)
         leftover = base.exists()
+        # Remove the sandbox BASE too when empty: sandbox_base() creates it, so
+        # leaving it behind is debris this suite introduced (the old
+        # HARNESS.parent design created nothing). suppress: a concurrent run
+        # legitimately owns it.
+        with contextlib.suppress(OSError):
+            base.parent.rmdir()
         print()
         print("  ok     clone removed" if not leftover
               else "  ERROR  clone left behind")
