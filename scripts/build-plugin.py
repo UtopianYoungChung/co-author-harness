@@ -129,6 +129,51 @@ from package_enumeration import (  # noqa: E402,F401
 
 
 @contextlib.contextmanager
+def commit_worktree(commit: str):
+    """Yield a CLEAN detached worktree at `commit`.
+
+    This is what makes toolchain binding structural rather than checked.
+
+    The drift CHECK it replaces was unsound: Python imports build-plugin.py,
+    package_enumeration.py and resolve_includes.py BEFORE _toolchain_drift()
+    re-reads those paths, so a dirty implementation already loaded in memory
+    passes if its disk file is restored before the check -- and the record then
+    hashes the committed files and asserts toolchain_matches_commit: true about
+    code that never executed. It measured the disk, not the interpreter.
+
+    Re-exec from a `git archive` snapshot failed earlier because the snapshot
+    has no git context. A WORKTREE keeps it (.git is a file pointing at the
+    main repo), so the child can resolve and enumerate normally. The worktree
+    is also already the commit's content -- no tar, no second materialization.
+    """
+    base = HARNESS / ".worktrees"
+    base.mkdir(exist_ok=True)
+    path = Path(tempfile.mkdtemp(prefix="build-", dir=str(base)))
+    path.rmdir()  # git insists on creating it
+    subprocess.run(
+        [GIT, "-C", str(HARNESS), "worktree", "add", "--quiet", "--detach",
+         str(path), commit],
+        capture_output=True, check=True,
+    )
+    try:
+        yield path
+    finally:
+        subprocess.run(
+            [GIT, "-C", str(HARNESS), "worktree", "remove", "--force", str(path)],
+            capture_output=True,
+        )
+        if path.exists():
+            def _on_error(func, p, _exc):
+                os.chmod(p, 0o700)
+                func(p)
+            with contextlib.suppress(OSError):
+                try:
+                    shutil.rmtree(path, onexc=_on_error)
+                except TypeError:
+                    shutil.rmtree(path, onerror=lambda f, p, e: _on_error(f, p, e))
+
+
+@contextlib.contextmanager
 def materialize_commit(commit: str):
     """Yield a Path holding the tree of `commit`, extracted from the object store.
 
@@ -229,38 +274,38 @@ def main() -> int:
     # resolution then runs against that snapshot, so includes are HEAD-sourced
     # too (resolve_includes_in_text reads its targets from disk at :73 -- reading
     # HEAD for the outer file alone would have pulled worktree includes into it).
-    with materialize_commit(head_sha) as source_root:
-        # BIND THE EXECUTING BUILDER TO THE COMMIT.
-        #
-        # The package BYTES came from the commit, but the CODE producing them
-        # was loaded from the worktree -- so the archive was a function of
-        # (commit + loaded builder implementation), not of the commit. An
-        # uncommitted edit to build-plugin.py / package_enumeration.py /
-        # resolve_includes.py yields different archive bytes for the same HEAD.
-        # The smoketest's overlay proved it: same commit, different builder,
-        # different artifact.
-        #
-        # Re-exec FROM the snapshot was tried and abandoned: the child runs the
-        # snapshot's package_enumeration.py -- i.e. the COMMITTED one -- which
-        # cannot know about a source-repo pointer that is itself uncommitted.
-        # It failed with "ambiguous argument 'HEAD'", which is the re-exec
-        # working: it really did bind to the commit's toolchain, and that
-        # toolchain lacks the feature. A bootstrap that requires itself to
-        # already be committed is not a fix.
-        #
-        # So VERIFY instead of assume, and REPORT the binding rather than imply
-        # purity. This is a check, but not check-then-act on the packaged bytes
-        # (those are already immune): it states which planes the artifact is a
-        # function of.
-        drift = _toolchain_drift(source_root)
-        if drift:
-            print(f"[ERROR] toolchain differs from {head_sha[:12]}: "
-                  f"{', '.join(drift)}", file=sys.stderr)
-            print("[ERROR] the archive would be a function of (commit + LOCAL "
-                  f"builder + runtime), not of {head_sha[:12]}. Commit the "
-                  "toolchain or build from a clean checkout.", file=sys.stderr)
-            return 4
-        return _build(head_sha, source_root, files)
+    # CHILD MODE: this process IS the commit's builder, running from a clean
+    # detached worktree. Its own tree is the commit's content, so it reads
+    # directly -- no snapshot, no drift check, nothing to verify. Mismatch is
+    # unrepresentable rather than detected.
+    if "--build-here" in sys.argv:
+        out_dir = Path(sys.argv[sys.argv.index("--out") + 1])
+        return _build(head_sha, HARNESS, files, out_dir)
+
+    with commit_worktree(head_sha) as wt:
+        print(f"Toolchain:     re-exec from a clean worktree at {head_sha[:12]}")
+        out_dir = HARNESS / ".claude-plugin"
+        before = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
+        proc = subprocess.run([
+            sys.executable, str(wt / "scripts" / "build-plugin.py"),
+            "--build-here", "--out", str(out_dir),
+        ])
+        if proc.returncode != 0:
+            return proc.returncode
+        # The child MUST have written here. A commit whose builder predates
+        # --build-here ignores the flag, builds into its own worktree, and exits
+        # 0 -- the worktree is then deleted and the real bundle is silently
+        # untouched. Observed exactly that during the transition. An exit code
+        # is not evidence that the work happened.
+        after = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
+        if after == before:
+            print(f"[ERROR] child at {head_sha[:12]} produced no bundle in {out_dir}; "
+                  "that commit's builder likely predates --build-here. Build from a "
+                  "commit whose toolchain supports worktree re-exec.", file=sys.stderr)
+            return 6
+        return 0
+
+
 
 
 TOOLCHAIN = (
@@ -318,8 +363,9 @@ def _runtime_plane() -> dict:
     }
 
 
-def _build(head_sha: str, source_root: Path, files: list[str]) -> int:
-    print(f"Built from:    {head_sha[:12]} (materialized; worktree state is irrelevant)")
+def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) -> int:
+    print(f"Built from:    {head_sha[:12]} (clean worktree; this process IS the "
+          "commit's builder)")
 
     # THE MANIFEST COMES FROM THE SNAPSHOT, NOT THE WORKTREE.
     # It was parsed from HARNESS before materialization, so a dirty
@@ -338,7 +384,7 @@ def _build(head_sha: str, source_root: Path, files: list[str]) -> int:
         return 3
     plugin_name = manifest.get("name", "plugin")
     plugin_version = manifest.get("version", "0.0.0")
-    output = HARNESS / ".claude-plugin" / f"{plugin_name}.plugin"
+    output = out_dir / f"{plugin_name}.plugin"
 
     print(f"Harness root:  {HARNESS}")
     print(f"Plugin name:   {plugin_name}  (from {head_sha[:12]}, not the worktree)")
@@ -451,19 +497,58 @@ def _build(head_sha: str, source_root: Path, files: list[str]) -> int:
         # the reproducibility it documents. Emitted LAST and excluded from the
         # enumeration checks -- it is metadata about the bundle, not a shipped
         # package file.
+        # Two fields in the first version were FALSE ON ARRIVAL, because
+        # nothing reconciled the record against the archive:
+        #   member_count: 452  <- actual ZIP members 453 (forgot itself)
+        #   zip_date_time: (..,19) <- stored (..,18): I VERIFIED DOS 2-second
+        #                             quantization, wrote a test asserting it,
+        #                             then recorded the unquantized value here.
+        # A record whose purpose is to be trusted must be checked like anything
+        # else. Hence distinct names for distinct populations, the QUANTIZED
+        # stamp as actually stored, and a readback below.
+        stored_dt = zip_date_time[:5] + (zip_date_time[5] & ~1,)
         provenance = {
             "schema": "coauthor-build-provenance/v1",
             "commit": head_sha,
             "enumerator": "scripts/package_enumeration.py::enumerate_package_files",
-            "member_count": len(files),
+            # Distinct populations, distinct names: the package files enumerated
+            # from the commit vs every member of the finished ZIP (which also
+            # carries this record).
+            "package_member_count": len(files) - skipped,
+            "archive_member_count": len(files) - skipped + 1,
             "toolchain": {rel: hashlib.sha256((source_root / rel).read_bytes()).hexdigest()
                           for rel in TOOLCHAIN if (source_root / rel).is_file()},
-            "toolchain_matches_commit": True,   # build fails closed otherwise
+            "toolchain_is_commit": True,   # structural: built from a clean
+                                           # worktree at `commit`, not checked
             "runtime": _runtime_plane(),
-            "zip_date_time": list(zip_date_time),
+            "zip_date_time_stored": list(stored_dt),
+            "zip_date_time_commit": list(zip_date_time),
         }
         z.writestr(_member("PROVENANCE.json"),
                    json.dumps(provenance, indent=2, sort_keys=True).encode("utf-8"))
+
+    # READBACK: reconcile the record against the FINISHED archive.
+    # Without this, PROVENANCE.json shipped two false fields -- machine-readable
+    # but never machine-verified is just a nicer-looking caveat.
+    with zipfile.ZipFile(output) as z:
+        rec = json.loads(z.read("PROVENANCE.json"))
+        names = z.namelist()
+        stamps = {i.date_time for i in z.infolist()}
+        bad = []
+        if rec["archive_member_count"] != len(names):
+            bad.append(f"archive_member_count {rec['archive_member_count']} != {len(names)}")
+        if rec["package_member_count"] != len(names) - 1:
+            bad.append(f"package_member_count {rec['package_member_count']} != {len(names)-1}")
+        if stamps != {tuple(rec["zip_date_time_stored"])}:
+            bad.append(f"zip_date_time_stored {tuple(rec['zip_date_time_stored'])} "
+                       f"not the stored stamp {sorted(stamps)}")
+        if rec["commit"] != head_sha:
+            bad.append("commit mismatch")
+        if bad:
+            print(f"[ERROR] PROVENANCE.json does not describe the archive: {bad}",
+                  file=sys.stderr)
+            return 5
+    print("Provenance:    PROVENANCE.json readback reconciles with the archive")
 
     bundle_size = output.stat().st_size
     print(f"\nBundle written: {output}")
