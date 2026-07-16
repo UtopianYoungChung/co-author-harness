@@ -39,6 +39,13 @@ plugin tree carries §, →, em dashes, etc.:
     1  required files missing from the tracked set
     2  git ls-tree failed (not a git repo? HEAD missing?)
     3  plugin.json missing or unparseable
+    4  toolchain drift: the executing builder differs from the commit, so the
+       archive would not be a function of that commit (fail closed)
+
+**Provenance.** The bundle carries a deterministic PROVENANCE.json member
+recording the commit, the toolchain hashes, and the runtime plane. Terminal
+output is not provenance -- it scrolls away and the artifact is then
+indistinguishable.
 """
 
 from __future__ import annotations
@@ -46,6 +53,7 @@ from __future__ import annotations
 import json
 import contextlib
 import datetime
+import hashlib
 import os
 import shutil
 import subprocess
@@ -58,12 +66,10 @@ from pathlib import Path
 from resolve_includes import resolve_includes_in_text
 
 # Resolve harness root from this script's location: scripts/build-plugin.py.
-# Under the toolchain re-exec (see main()) this script runs FROM a materialized
-# snapshot, which has no .git and is not where the bundle belongs -- the parent
-# passes the real repo through COAUTHOR_BUILD_SOURCE_REPO so git queries and the
-# output path still target it.
-_SRC = os.environ.get("COAUTHOR_BUILD_SOURCE_REPO")
-HARNESS = Path(_SRC).resolve() if _SRC else Path(__file__).resolve().parent.parent
+# No env override: COAUTHOR_BUILD_SOURCE_REPO was scaffolding for an abandoned
+# re-exec and survived as an ambient authority that could silently point the
+# builder at another repo, unreported and outside the declared planes.
+HARNESS = Path(__file__).resolve().parent.parent
 
 # Resolve git executable. On Windows hosts the launcher path is required
 # because PATH may not include git in some shell environments.
@@ -246,7 +252,14 @@ def main() -> int:
         # purity. This is a check, but not check-then-act on the packaged bytes
         # (those are already immune): it states which planes the artifact is a
         # function of.
-        _report_toolchain_binding(head_sha, source_root)
+        drift = _toolchain_drift(source_root)
+        if drift:
+            print(f"[ERROR] toolchain differs from {head_sha[:12]}: "
+                  f"{', '.join(drift)}", file=sys.stderr)
+            print("[ERROR] the archive would be a function of (commit + LOCAL "
+                  f"builder + runtime), not of {head_sha[:12]}. Commit the "
+                  "toolchain or build from a clean checkout.", file=sys.stderr)
+            return 4
         return _build(head_sha, source_root, files)
 
 
@@ -257,39 +270,52 @@ TOOLCHAIN = (
 )
 
 
-def _report_toolchain_binding(head_sha: str, source_root: Path) -> None:
-    """State whether the EXECUTING builder is the commit's builder.
+def _toolchain_drift(source_root: Path) -> list[str]:
+    """TOOLCHAIN files whose executing bytes differ from the commit's.
 
     The package bytes come from the commit, but the CODE producing them is
-    loaded from the worktree -- so the archive is a function of
-    (commit + builder implementation + compression runtime), not of the commit
-    alone. An uncommitted edit to any TOOLCHAIN file yields different archive
-    bytes for the same HEAD; the smoketest's overlay demonstrated exactly that.
+    loaded from the worktree -- so a drifted toolchain makes the archive a
+    function of (commit + local builder + runtime), not of the commit. The
+    smoketest's overlay demonstrated exactly that: same commit, different
+    builder, different artifact.
 
-    Never silently claim more than is true: print the planes.
+    FAIL CLOSED on drift (main() returns 4). An earlier revision only WARNED and
+    emitted the ordinary archive anyway -- which is the defect this workstream
+    already recorded twice: provenance printed to stderr is gone the moment the
+    terminal scrolls, and the drifted archive is then indistinguishable from a
+    clean one. Printing a caveat is not binding a claim.
     """
-    import zlib
-    drift = []
+    live_root = Path(__file__).resolve().parent.parent
+    drift: list[str] = []
     for rel in TOOLCHAIN:
-        committed = (source_root / rel)
-        live = (Path(__file__).resolve().parent.parent / rel)
         try:
-            if committed.read_bytes() != live.read_bytes():
+            if (source_root / rel).read_bytes() != (live_root / rel).read_bytes():
                 drift.append(rel)
         except OSError:
             drift.append(f"{rel} (unreadable)")
+    return drift
 
-    zl = getattr(zlib, "ZLIB_RUNTIME_VERSION", getattr(zlib, "ZLIB_VERSION", "?"))
-    plane = f"python={sys.version.split()[0]} zlib={zl}"
-    if drift:
-        print(f"[WARN] Toolchain differs from {head_sha[:12]}: "
-              f"{', '.join(drift)}", file=sys.stderr)
-        print(f"[WARN] Archive is a function of (commit + LOCAL builder + runtime), "
-              f"NOT of {head_sha[:12]} alone.", file=sys.stderr)
-    else:
-        print(f"Toolchain:     matches {head_sha[:12]}")
-    print(f"Runtime plane: {plane}  "
-          "(ZIP_DEFLATED bytes depend on the zlib implementation)")
+
+def _runtime_plane() -> dict:
+    """The non-commit planes the archive's bytes actually depend on.
+
+    ZIP_DEFLATED output depends on the zlib implementation, so the archive is a
+    function of (commit + compression runtime). This goes INTO the artifact
+    (see PROVENANCE member), not just the console: I transcribed the runtime by
+    hand as "python=3.14.0rc2" when the interpreter was 3.14.2 -- console-
+    transcribed provenance is unreliable evidence, demonstrated on itself.
+    """
+    import zlib
+    return {
+        "python": sys.version.split()[0],
+        "python_full": sys.version.replace("\n", " "),
+        "zlib": getattr(zlib, "ZLIB_RUNTIME_VERSION",
+                        getattr(zlib, "ZLIB_VERSION", "unknown")),
+        "compression": "ZIP_DEFLATED",
+        "note": ("archive bytes are reproducible under THIS runtime; deflate "
+                 "output is implementation-dependent, so cross-runtime purity "
+                 "is not claimed"),
+    }
 
 
 def _build(head_sha: str, source_root: Path, files: list[str]) -> int:
@@ -411,6 +437,33 @@ def _build(head_sha: str, source_root: Path, files: list[str]) -> int:
             # host mtimes for the 444 non-rendered files.
             z.writestr(_member(arcname), payload)
             total_size += len(payload)
+
+        # BIND PROVENANCE TO THE ARTIFACT.
+        #
+        # Terminal output is not provenance: once stdout scrolls away, a
+        # drifted archive is indistinguishable from a clean one. This
+        # workstream recorded that defect twice (--allow-dirty's stderr stamp;
+        # the toolchain WARN) and shipped it both times. The record therefore
+        # goes INSIDE the zip.
+        #
+        # Deterministic by construction: sorted keys, the commit's timestamp,
+        # no wall-clock. A provenance member that varied per build would break
+        # the reproducibility it documents. Emitted LAST and excluded from the
+        # enumeration checks -- it is metadata about the bundle, not a shipped
+        # package file.
+        provenance = {
+            "schema": "coauthor-build-provenance/v1",
+            "commit": head_sha,
+            "enumerator": "scripts/package_enumeration.py::enumerate_package_files",
+            "member_count": len(files),
+            "toolchain": {rel: hashlib.sha256((source_root / rel).read_bytes()).hexdigest()
+                          for rel in TOOLCHAIN if (source_root / rel).is_file()},
+            "toolchain_matches_commit": True,   # build fails closed otherwise
+            "runtime": _runtime_plane(),
+            "zip_date_time": list(zip_date_time),
+        }
+        z.writestr(_member("PROVENANCE.json"),
+                   json.dumps(provenance, indent=2, sort_keys=True).encode("utf-8"))
 
     bundle_size = output.stat().st_size
     print(f"\nBundle written: {output}")

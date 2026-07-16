@@ -52,17 +52,20 @@ with the caller.
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
-# HARNESS is normally this file's repo. When build-plugin.py re-execs itself
-# from a materialized snapshot (so the executing toolchain IS the commit's own
-# code), the snapshot has no .git -- every git call would fail. The parent
-# passes the real repo through COAUTHOR_BUILD_SOURCE_REPO so the child still
-# queries the object store it is building from.
-_SRC = os.environ.get("COAUTHOR_BUILD_SOURCE_REPO")
-HARNESS = Path(_SRC).resolve() if _SRC else Path(__file__).resolve().parent.parent
+# HARNESS is this file's repo. Full stop.
+#
+# A COAUTHOR_BUILD_SOURCE_REPO env override lived here to support a re-exec
+# design that was ABANDONED (it could not bootstrap: the snapshot runs the
+# committed toolchain, which cannot know about a pointer that is itself
+# uncommitted). The override outlived the design and became a live ambient
+# authority: any environment could silently redirect BOTH this module and the
+# builder at another repository, unreported and absent from the declared
+# dependency planes. Dead scaffolding that can still steer the authority is
+# worse than the feature it was built for.
+HARNESS = Path(__file__).resolve().parent.parent
 
 GIT_CANDIDATES = [
     r"C:\Program Files\Git\bin\git.exe",

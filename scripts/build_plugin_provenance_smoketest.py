@@ -45,7 +45,8 @@ sys.path.insert(0, str(HARNESS / "scripts"))
 from package_enumeration import GIT  # noqa: E402
 from resolve_includes import resolve_includes_in_text  # noqa: E402
 
-FAILURES: list[str] = []
+FAILURES: list[str] = []   # predicate failures -> the SUBJECT is wrong (exit 1)
+ERRORS: list[str] = []     # environment failures -> the RUN IS VOID  (exit 2)
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -223,14 +224,14 @@ def _final_teardown() -> None:
     try:
         teardown_shared()
     except OSError as exc:
-        print(f"  NOTE  teardown lost a race with an external handle: "
-              f"{type(exc).__name__} -- swept on next run, not a contract failure")
+        ERRORS.append(f"teardown: {type(exc).__name__}: {exc}")
     leftover = sorted(p.name for p in base.glob("sbx-*")) if base.is_dir() else []
     if leftover:
-        print(f"  NOTE  {len(leftover)} sandbox(es) left: {leftover[:2]} "
-              f"(environment, not provenance; next run sweeps them)")
+        ERRORS.append(f"{len(leftover)} sandbox(es) stranded: {leftover[:2]}")
+        print(f"  ERROR  environment: {len(leftover)} sandbox(es) stranded: "
+              f"{leftover[:2]} -- run VOID, swept next run")
     else:
-        print("  ok    no sandbox left behind")
+        print("  ok     no sandbox left behind")
     with contextlib.suppress(OSError):
         base.rmdir()
 
@@ -490,17 +491,42 @@ def main() -> int:
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {FAILURES}")
         return 1
-    print("PASS: bundle is commit-faithful and same-runtime reproducible "
-          "under every probed condition")
     return 0
+
+
+def _verdict(rc: int) -> int:
+    """Three outcomes, not two. THE RUN IS VOID is not a PASS.
+
+    I drew the ACQ-*/PRJ-* line correctly -- an environment failure is not a
+    predicate failure -- and then drew the WRONG conclusion from it: teardown
+    errors printed a NOTE and left FAILURES empty, so a suite that could not
+    restore its own environment still exited 0. My own acquisition contract
+    says the opposite (R-8): a reader failure VOIDS the verdict; it does not
+    soften it. "Not the subject's fault" and "therefore fine" are different
+    claims.
+
+      exit 0  PASS   predicates held, environment intact
+      exit 1  FAIL   a predicate failed -> the SUBJECT is wrong
+      exit 2  ERROR  the environment broke -> NO VERDICT was established
+    """
+    if ERRORS:
+        print(f"ERROR: run VOID -- {len(ERRORS)} environment failure(s): {ERRORS}")
+        print("  No verdict established. This is NOT a pass and NOT a "
+              "provenance failure; re-run.")
+        return 2
+    if rc == 0 and not FAILURES:
+        print("PASS: bundle is commit-faithful and same-runtime reproducible "
+              "under every probed condition")
+    return 1 if FAILURES else rc
 
 
 if __name__ == "__main__":
     # Teardown in an OUTER finally: a case that raises must not strand a
     # sandbox. An earlier revision called it inline after the loop, so any
     # escape skipped it.
+    _rc = 1
     try:
         _rc = main()
     finally:
         _final_teardown()
-    sys.exit(1 if FAILURES else _rc)
+    sys.exit(_verdict(_rc))
