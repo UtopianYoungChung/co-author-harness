@@ -57,8 +57,13 @@ from pathlib import Path
 
 from resolve_includes import resolve_includes_in_text
 
-# Resolve harness root from this script's location: scripts/build-plugin.py
-HARNESS = Path(__file__).resolve().parent.parent
+# Resolve harness root from this script's location: scripts/build-plugin.py.
+# Under the toolchain re-exec (see main()) this script runs FROM a materialized
+# snapshot, which has no .git and is not where the bundle belongs -- the parent
+# passes the real repo through COAUTHOR_BUILD_SOURCE_REPO so git queries and the
+# output path still target it.
+_SRC = os.environ.get("COAUTHOR_BUILD_SOURCE_REPO")
+HARNESS = Path(_SRC).resolve() if _SRC else Path(__file__).resolve().parent.parent
 
 # Resolve git executable. On Windows hosts the launcher path is required
 # because PATH may not include git in some shell environments.
@@ -219,7 +224,72 @@ def main() -> int:
     # too (resolve_includes_in_text reads its targets from disk at :73 -- reading
     # HEAD for the outer file alone would have pulled worktree includes into it).
     with materialize_commit(head_sha) as source_root:
+        # BIND THE EXECUTING BUILDER TO THE COMMIT.
+        #
+        # The package BYTES came from the commit, but the CODE producing them
+        # was loaded from the worktree -- so the archive was a function of
+        # (commit + loaded builder implementation), not of the commit. An
+        # uncommitted edit to build-plugin.py / package_enumeration.py /
+        # resolve_includes.py yields different archive bytes for the same HEAD.
+        # The smoketest's overlay proved it: same commit, different builder,
+        # different artifact.
+        #
+        # Re-exec FROM the snapshot was tried and abandoned: the child runs the
+        # snapshot's package_enumeration.py -- i.e. the COMMITTED one -- which
+        # cannot know about a source-repo pointer that is itself uncommitted.
+        # It failed with "ambiguous argument 'HEAD'", which is the re-exec
+        # working: it really did bind to the commit's toolchain, and that
+        # toolchain lacks the feature. A bootstrap that requires itself to
+        # already be committed is not a fix.
+        #
+        # So VERIFY instead of assume, and REPORT the binding rather than imply
+        # purity. This is a check, but not check-then-act on the packaged bytes
+        # (those are already immune): it states which planes the artifact is a
+        # function of.
+        _report_toolchain_binding(head_sha, source_root)
         return _build(head_sha, source_root, files)
+
+
+TOOLCHAIN = (
+    "scripts/build-plugin.py",
+    "scripts/package_enumeration.py",
+    "scripts/resolve_includes.py",
+)
+
+
+def _report_toolchain_binding(head_sha: str, source_root: Path) -> None:
+    """State whether the EXECUTING builder is the commit's builder.
+
+    The package bytes come from the commit, but the CODE producing them is
+    loaded from the worktree -- so the archive is a function of
+    (commit + builder implementation + compression runtime), not of the commit
+    alone. An uncommitted edit to any TOOLCHAIN file yields different archive
+    bytes for the same HEAD; the smoketest's overlay demonstrated exactly that.
+
+    Never silently claim more than is true: print the planes.
+    """
+    import zlib
+    drift = []
+    for rel in TOOLCHAIN:
+        committed = (source_root / rel)
+        live = (Path(__file__).resolve().parent.parent / rel)
+        try:
+            if committed.read_bytes() != live.read_bytes():
+                drift.append(rel)
+        except OSError:
+            drift.append(f"{rel} (unreadable)")
+
+    zl = getattr(zlib, "ZLIB_RUNTIME_VERSION", getattr(zlib, "ZLIB_VERSION", "?"))
+    plane = f"python={sys.version.split()[0]} zlib={zl}"
+    if drift:
+        print(f"[WARN] Toolchain differs from {head_sha[:12]}: "
+              f"{', '.join(drift)}", file=sys.stderr)
+        print(f"[WARN] Archive is a function of (commit + LOCAL builder + runtime), "
+              f"NOT of {head_sha[:12]} alone.", file=sys.stderr)
+    else:
+        print(f"Toolchain:     matches {head_sha[:12]}")
+    print(f"Runtime plane: {plane}  "
+          "(ZIP_DEFLATED bytes depend on the zlib implementation)")
 
 
 def _build(head_sha: str, source_root: Path, files: list[str]) -> int:

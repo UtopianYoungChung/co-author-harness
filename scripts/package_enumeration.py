@@ -52,10 +52,17 @@ with the caller.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
-HARNESS = Path(__file__).resolve().parent.parent
+# HARNESS is normally this file's repo. When build-plugin.py re-execs itself
+# from a materialized snapshot (so the executing toolchain IS the commit's own
+# code), the snapshot has no .git -- every git call would fail. The parent
+# passes the real repo through COAUTHOR_BUILD_SOURCE_REPO so the child still
+# queries the object store it is building from.
+_SRC = os.environ.get("COAUTHOR_BUILD_SOURCE_REPO")
+HARNESS = Path(_SRC).resolve() if _SRC else Path(__file__).resolve().parent.parent
 
 GIT_CANDIDATES = [
     r"C:\Program Files\Git\bin\git.exe",

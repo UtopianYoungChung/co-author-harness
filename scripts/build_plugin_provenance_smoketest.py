@@ -34,6 +34,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -67,13 +68,23 @@ def _head_blob(repo: Path, rel: str) -> bytes | None:
     return r.stdout if r.returncode == 0 else None
 
 
-def _rmtree_force(path: Path) -> None:
-    """rmtree that survives git's read-only object files.
+def _rmtree_force(path: Path, attempts: int = 6) -> None:
+    """rmtree that survives read-only git objects AND transient Windows handles.
 
-    `shutil.rmtree(..., ignore_errors=True)` silently gave up on .git/objects
-    (read-only on Windows) and left 4 sandboxes behind -- a cleanup that
-    ignores errors is a leak with a comment on it. Clear the read-only bit and
-    retry, and do NOT ignore the outcome.
+    Two distinct failure modes, fixed in two rounds:
+
+    * `ignore_errors=True` silently gave up on read-only .git/objects and left
+      4 sandboxes behind -- a cleanup that ignores errors is a leak with a
+      comment on it. Fixed by chmod-and-retry in the error hook.
+    * That still flaked: an independent run hit PermissionError [WinError 32]
+      ("used by another process") and left 1 sandbox, while my single run
+      reported zero. The directory vanished after the process exited, so the
+      handle was transient -- git/AV/indexer holding a file for a few
+      milliseconds. A one-shot delete cannot see that; ONE PASSING RUN IS NOT
+      EVIDENCE OF A STABLE TEST.
+
+    Hence bounded retry with backoff, and the outcome is still not ignored: if
+    every attempt fails the exception propagates.
     """
     def _on_error(func, p, _exc):
         os.chmod(p, 0o700)
@@ -81,10 +92,19 @@ def _rmtree_force(path: Path) -> None:
 
     if not path.exists():
         return
-    try:
-        shutil.rmtree(path, onexc=_on_error)  # py3.12+
-    except TypeError:
-        shutil.rmtree(path, onerror=lambda f, p, e: _on_error(f, p, e))
+    delay = 0.05
+    for attempt in range(1, attempts + 1):
+        try:
+            try:
+                shutil.rmtree(path, onexc=_on_error)      # py3.12+
+            except TypeError:
+                shutil.rmtree(path, onerror=lambda f, p, e: _on_error(f, p, e))
+            return
+        except (PermissionError, OSError):
+            if attempt == attempts:
+                raise
+            time.sleep(delay)
+            delay *= 2
 
 
 _SHARED: dict[str, Path] = {}
@@ -158,6 +178,25 @@ def teardown_shared() -> None:
     _SHARED.pop("repo", None)
     if tmp:
         _rmtree_force(tmp)
+
+
+def _final_teardown() -> None:
+    """Release the shared clone and assert nothing survived.
+
+    Lives in main()'s outer `finally` (see __main__): a case that raises must
+    not skip teardown and strand a sandbox. The leak assertion runs AFTER
+    teardown, so it measures the end state rather than a hopeful one.
+    """
+    base = HARNESS.parent / ".coauthor-provenance-sbx"
+    try:
+        teardown_shared()
+    except Exception as exc:  # noqa: BLE001
+        check("shared teardown succeeds", False, f"{type(exc).__name__}: {exc}")
+    leftover = sorted(p.name for p in base.glob("sbx-*")) if base.is_dir() else []
+    check("suite leaves no sandbox behind", not leftover,
+          f"{len(leftover)} left: {leftover[:2]}")
+    with contextlib.suppress(OSError):
+        base.rmdir()
 
 
 def _overlay(repo: Path) -> None:
@@ -341,6 +380,15 @@ def case_byte_reproducible() -> None:
         check("repro: whole-archive bytes identical across builds",
               _sha(first) == _sha(second),
               f"{_sha(first)[:12]} vs {_sha(second)[:12]}")
+        # SCOPE: this proves SAME-RUNTIME reproducibility, not environment-
+        # independent purity. ZIP_DEFLATED bytes depend on the zlib
+        # implementation, so the archive is a function of
+        # (commit + compression runtime). Recorded, not asserted -- claiming
+        # cross-environment purity would be the kind of unearned adjective this
+        # workstream keeps producing ("conservative", "durable", "the
+        # authority").
+        print(f"      [runtime plane] python={sys.version.split()[0]} "
+              f"zlib={_zlib_plane()}")
         with zipfile.ZipFile(out) as z:
             stamps = {i.date_time for i in z.infolist()}
             modes = {i.external_attr for i in z.infolist()}
@@ -356,6 +404,12 @@ def case_byte_reproducible() -> None:
               stamps == {expected_q},
               f"members={sorted(stamps)[:1]} expected={expected_q} (commit {expected})")
         check("repro: uniform member permissions", len(modes) == 1, f"{len(modes)} distinct")
+
+
+def _zlib_plane() -> str:
+    """The compression implementation the archive's bytes depend on."""
+    import zlib
+    return getattr(zlib, "ZLIB_RUNTIME_VERSION", getattr(zlib, "ZLIB_VERSION", "?"))
 
 
 def _commit_date_time(repo: Path) -> tuple:
@@ -393,18 +447,20 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             check(fn.__name__, False, f"raised {type(exc).__name__}: {exc}")
         print()
-    teardown_shared()
-    leftover = list((HARNESS.parent / ".coauthor-provenance-sbx").glob("sbx-*")) \
-        if (HARNESS.parent / ".coauthor-provenance-sbx").is_dir() else []
-    check("suite leaves no sandbox behind", not leftover, f"{len(leftover)} left")
-    with contextlib.suppress(OSError):
-        (HARNESS.parent / ".coauthor-provenance-sbx").rmdir()
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {FAILURES}")
         return 1
-    print("PASS: bundle is an artifact of one commit under every probed condition")
+    print("PASS: bundle is commit-faithful and same-runtime reproducible "
+          "under every probed condition")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Teardown in an OUTER finally: a case that raises must not strand a
+    # sandbox. An earlier revision called it inline after the loop, so any
+    # escape skipped it.
+    try:
+        _rc = main()
+    finally:
+        _final_teardown()
+    sys.exit(1 if FAILURES else _rc)
