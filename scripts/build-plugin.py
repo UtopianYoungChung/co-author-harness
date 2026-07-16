@@ -58,7 +58,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
@@ -158,154 +157,37 @@ def commit_worktree(commit: str):
     try:
         yield path
     finally:
-        subprocess.run(
+        # Cleanup does NOT fail open. `git worktree remove` had no check=True
+        # and the fallback rmtree was wrapped in suppress(OSError): an injected
+        # removal failure let the build exit 0 -- the R-8 error (a reader/
+        # environment failure VOIDS the verdict, it does not soften it), fixed
+        # in the smoketest one commit earlier and still live here. It can also
+        # strand git ADMIN state even when the directory is gone, which
+        # `worktree prune` exists for.
+        rc = subprocess.run(
             [GIT, "-C", str(HARNESS), "worktree", "remove", "--force", str(path)],
-            capture_output=True,
+            capture_output=True, text=True, encoding="utf-8",
         )
+        err = None if rc.returncode == 0 else (rc.stderr or "").strip()
         if path.exists():
             def _on_error(func, p, _exc):
                 os.chmod(p, 0o700)
                 func(p)
-            with contextlib.suppress(OSError):
+            try:
                 try:
                     shutil.rmtree(path, onexc=_on_error)
                 except TypeError:
                     shutil.rmtree(path, onerror=lambda f, p, e: _on_error(f, p, e))
-
-
-@contextlib.contextmanager
-def materialize_commit(commit: str):
-    """Yield a Path holding the tree of `commit`, extracted from the object store.
-
-    Takes an explicit SHA -- never re-resolves HEAD. An earlier revision had
-    enumeration run `ls-tree HEAD` and materialization separately resolve
-    `HEAD`: if HEAD moved between them, membership came from commit A and bytes
-    from commit B. One SHA, resolved once, passed to both.
-
-    `git archive` streams from the object store, so the result cannot contain
-    worktree bytes -- no probe, no race, no fail-open branch. check=True on the
-    call: a git failure must raise, never yield an empty result that reads as
-    success (the deleted dirty guard's probe had no check=True and concluded
-    "clean" on returncode 128).
-
-    Context-managed. An earlier revision deliberately leaked the tempdir ("the
-    build is short-lived") and left six behind within one session -- a leak
-    rationalised is still a leak.
-
-    Cleanup does NOT ignore errors: `ignore_errors=True` was the exact
-    behaviour rejected in the smoketest (it silently gave up on read-only
-    .git objects and left four sandboxes behind), and it shipped here anyway.
-    A cleanup that swallows failure is a leak with a comment on it.
-    """
-    tmp = Path(tempfile.mkdtemp(prefix="coauthor-build-"))
-    try:
-        tar_path = tmp / "tree.tar"
-        with tar_path.open("wb") as fh:
-            subprocess.run(
-                [GIT, "-C", str(HARNESS), "archive", "--format=tar", commit],
-                stdout=fh, check=True,
+            except OSError as exc:
+                err = f"{err or ''} rmtree: {exc}".strip()
+        # Reconcile git's admin state whether or not the directory vanished.
+        subprocess.run([GIT, "-C", str(HARNESS), "worktree", "prune"],
+                       capture_output=True)
+        if err:
+            raise RuntimeError(
+                f"build worktree cleanup failed for {path}: {err}. The build is "
+                "VOID: its environment could not be restored."
             )
-        root = tmp / "tree"
-        root.mkdir()
-        with tarfile.open(tar_path) as tf:
-            tf.extractall(root)
-        tar_path.unlink()
-        yield root
-    finally:
-        def _on_error(func, p, _exc):
-            os.chmod(p, 0o700)   # read-only tar members defeat plain rmtree
-            func(p)
-        try:
-            shutil.rmtree(tmp, onexc=_on_error)          # py3.12+
-        except TypeError:
-            shutil.rmtree(tmp, onerror=lambda f, p, e: _on_error(f, p, e))
-
-
-def main() -> int:
-    # ONE SHA governs every decision below: enumeration, materialization, the
-    # manifest, and the reported provenance. Resolving HEAD more than once
-    # reintroduces a check/act race at the COMMIT level -- membership from
-    # commit A, bytes from commit B.
-    try:
-        head_sha = resolve_head()
-    except subprocess.CalledProcessError as exc:
-        print(f"[ERROR] cannot resolve HEAD: {exc.stderr or exc}", file=sys.stderr)
-        return 2
-
-    # Enumerate via the SHARED authority, bound to that SHA (also consumed by
-    # the census's tested-input binding). Do not inline a second copy here: a
-    # duplicated enumeration is how packaging and the fixture runner drifted.
-    try:
-        files, excluded_archive_files = enumerate_package_files(head_sha)
-    except subprocess.CalledProcessError as exc:
-        print(f"[ERROR] git ls-tree failed: {exc.stderr or exc}", file=sys.stderr)
-        return 2
-
-    print(f"Tracked files: {len(files)}")
-    if excluded_archive_files:
-        print(f"[WARN] excluding {len(excluded_archive_files)} archive file(s) "
-              f"from bundle (defense-in-depth):", file=sys.stderr)
-        for f in excluded_archive_files:
-            print(f"    {f}", file=sys.stderr)
-
-    # NO DIRTY GUARD. The guard is deleted, not fixed.
-    #
-    # The first attempt was a check-then-act preflight: read `git status`, refuse
-    # if tracked files were dirty. Three defects, all structural rather than
-    # incidental:
-    #   * fails open -- the probe had no check=True; a git failure yields empty
-    #     stdout, so `dirty == []` and the builder concludes CLEAN (verified:
-    #     returncode 128, stdout empty);
-    #   * mis-parses porcelain -- a staged rename `R  old.md -> new.md` became
-    #     the path "old.md -> new.md", intersecting nothing, so the rename was
-    #     invisible;
-    #   * races -- it checked once and read each file later; a file edited
-    #     between the check and z.write() ships uncommitted bytes under a clean
-    #     verdict. No amount of parsing fixes that.
-    #
-    # The real error was the component boundary, not the parser:
-    #   census  = HEAD enumeration + WORKTREE bytes -- detecting dirty subject
-    #             changes IS its job.
-    #   builder = HEAD enumeration + HEAD bytes -- producing a COMMIT ARTIFACT
-    #             is its job.
-    # Reading HEAD bytes makes a dirty bundle unrepresentable, so there is
-    # nothing to guard, nothing to race, and nothing to fail open. `git archive`
-    # materializes the commit tree atomically from the object store; include
-    # resolution then runs against that snapshot, so includes are HEAD-sourced
-    # too (resolve_includes_in_text reads its targets from disk at :73 -- reading
-    # HEAD for the outer file alone would have pulled worktree includes into it).
-    # CHILD MODE: this process IS the commit's builder, running from a clean
-    # detached worktree. Its own tree is the commit's content, so it reads
-    # directly -- no snapshot, no drift check, nothing to verify. Mismatch is
-    # unrepresentable rather than detected.
-    if "--build-here" in sys.argv:
-        out_dir = Path(sys.argv[sys.argv.index("--out") + 1])
-        return _build(head_sha, HARNESS, files, out_dir)
-
-    with commit_worktree(head_sha) as wt:
-        print(f"Toolchain:     re-exec from a clean worktree at {head_sha[:12]}")
-        out_dir = HARNESS / ".claude-plugin"
-        before = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
-        proc = subprocess.run([
-            sys.executable, str(wt / "scripts" / "build-plugin.py"),
-            "--build-here", "--out", str(out_dir),
-        ])
-        if proc.returncode != 0:
-            return proc.returncode
-        # The child MUST have written here. A commit whose builder predates
-        # --build-here ignores the flag, builds into its own worktree, and exits
-        # 0 -- the worktree is then deleted and the real bundle is silently
-        # untouched. Observed exactly that during the transition. An exit code
-        # is not evidence that the work happened.
-        after = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
-        if after == before:
-            print(f"[ERROR] child at {head_sha[:12]} produced no bundle in {out_dir}; "
-                  "that commit's builder likely predates --build-here. Build from a "
-                  "commit whose toolchain supports worktree re-exec.", file=sys.stderr)
-            return 6
-        return 0
-
-
 
 
 TOOLCHAIN = (
@@ -313,32 +195,6 @@ TOOLCHAIN = (
     "scripts/package_enumeration.py",
     "scripts/resolve_includes.py",
 )
-
-
-def _toolchain_drift(source_root: Path) -> list[str]:
-    """TOOLCHAIN files whose executing bytes differ from the commit's.
-
-    The package bytes come from the commit, but the CODE producing them is
-    loaded from the worktree -- so a drifted toolchain makes the archive a
-    function of (commit + local builder + runtime), not of the commit. The
-    smoketest's overlay demonstrated exactly that: same commit, different
-    builder, different artifact.
-
-    FAIL CLOSED on drift (main() returns 4). An earlier revision only WARNED and
-    emitted the ordinary archive anyway -- which is the defect this workstream
-    already recorded twice: provenance printed to stderr is gone the moment the
-    terminal scrolls, and the drifted archive is then indistinguishable from a
-    clean one. Printing a caveat is not binding a claim.
-    """
-    live_root = Path(__file__).resolve().parent.parent
-    drift: list[str] = []
-    for rel in TOOLCHAIN:
-        try:
-            if (source_root / rel).read_bytes() != (live_root / rel).read_bytes():
-                drift.append(rel)
-        except OSError:
-            drift.append(f"{rel} (unreadable)")
-    return drift
 
 
 def _runtime_plane() -> dict:
@@ -540,6 +396,23 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
         names = z.namelist()
         stamps = {i.date_time for i in z.infolist()}
         bad = []
+
+        # CARDINALITY IS NOT CORRESPONDENCE. Counting members proves nothing
+        # about WHICH members. Demonstrated: an archive with SECURITY.md deleted
+        # and CONTRIBUTING.md duplicated passed every check here -- counts,
+        # timestamps, required-files, nested-archive -- because the count was
+        # right and the set was not. Assert the exact set, and uniqueness (a zip
+        # may legally carry duplicate names; namelist() shows both, and a
+        # count-only check cannot tell that from a distinct member).
+        expected = sorted(files) + ["PROVENANCE.json"]
+        if sorted(names) != sorted(expected):
+            missing = sorted(set(expected) - set(names))
+            extra = sorted(set(names) - set(expected))
+            bad.append(f"member set != enumeration (missing {missing[:3]}, extra {extra[:3]})")
+        if len(names) != len(set(names)):
+            dupes = sorted({n for n in names if names.count(n) > 1})
+            bad.append(f"duplicate member names: {dupes[:3]}")
+
         if rec["archive_member_count"] != len(names):
             bad.append(f"archive_member_count {rec['archive_member_count']} != {len(names)}")
         if rec["package_member_count"] != len(names) - 1:
@@ -549,6 +422,21 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
                        f"not the stored stamp {sorted(stamps)}")
         if rec["commit"] != head_sha:
             bad.append("commit mismatch")
+        # Reconcile the rest of the record too: schema, toolchain hashes against
+        # the tree actually built from, and the runtime fields.
+        if rec.get("schema") != "coauthor-build-provenance/v1":
+            bad.append(f"unknown schema {rec.get('schema')!r}")
+        for rel, digest in rec.get("toolchain", {}).items():
+            actual = hashlib.sha256((source_root / rel).read_bytes()).hexdigest()
+            if actual != digest:
+                bad.append(f"toolchain hash {rel} does not match the built tree")
+        live = _runtime_plane()
+        if rec.get("runtime", {}).get("python") != live["python"] or \
+                rec.get("runtime", {}).get("zlib") != live["zlib"]:
+            bad.append("runtime fields do not match this process")
+        if tuple(rec["zip_date_time_commit"])[:5] != tuple(rec["zip_date_time_stored"])[:5] or \
+                (tuple(rec["zip_date_time_commit"])[5] & ~1) != tuple(rec["zip_date_time_stored"])[5]:
+            bad.append("zip_date_time_stored is not the DOS-quantized commit stamp")
         if bad:
             print(f"[ERROR] PROVENANCE.json does not describe the archive: {bad}",
                   file=sys.stderr)
