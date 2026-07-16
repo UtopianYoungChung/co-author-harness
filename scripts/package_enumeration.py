@@ -33,8 +33,21 @@ blocker, deliberately not claimed closed here.
 CONTRACT
 --------
 Enumeration answers "which files ship". It does NOT answer "what do they say
-now": callers needing content must hash the WORKING TREE, never HEAD blobs. A
-dirty worktree carries uncommitted subject changes under a clean commit id.
+now". Which content a caller reads is the CALLER's decision, and the two live
+callers correctly disagree:
+
+  * scripts/analysis/code_census.py  -> WORKTREE bytes. Detecting uncommitted
+    subject changes is the point; a run's evidence must go stale when the code
+    it exercised changes. HEAD blobs would hide exactly what it exists to find.
+  * scripts/build-plugin.py          -> HEAD bytes (via `git archive`).
+    Producing a commit artifact is the point; worktree bytes would ship
+    uncommitted content under a commit's file list.
+
+An earlier version of this docstring told ALL callers to use worktree bytes and
+"never HEAD blobs". That was the census's rule stated as a universal one, and it
+was false for the builder the moment it existed -- the same mistake as reading
+MFHP's component-scoped outcome table as global law. State the caller's rule
+with the caller.
 """
 
 from __future__ import annotations
@@ -65,11 +78,31 @@ GIT = find_git()
 ARCHIVE_SUFFIXES = (".plugin", ".zip")
 
 
-def enumerate_package_files() -> tuple[list[str], list[str]]:
+def resolve_head() -> str:
+    """Resolve HEAD to a full SHA, once.
+
+    Every decision in a build must bind to ONE commit. Enumeration used to run
+    `ls-tree HEAD` and materialization independently re-resolved `HEAD`, so a
+    HEAD that moved between the two calls (a concurrent commit, a checkout)
+    yielded membership from commit A and bytes from commit B -- the same
+    check/act race the dirty guard had, one level up. Callers resolve first and
+    pass the SHA to both.
+    """
+    return subprocess.run(
+        [GIT, "-C", str(HARNESS), "rev-parse", "HEAD"],
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout.strip()
+
+
+def enumerate_package_files(commit: str | None = None) -> tuple[list[str], list[str]]:
     """Return (files, excluded_archives) as repo-relative POSIX paths.
 
-    Tracked files at HEAD, minus archives. Single source of truth for the
-    .plugin bundle -- see module docstring for the release-gate caveat.
+    Tracked files at `commit` (default: HEAD), minus archives. Single source of
+    truth for the .plugin bundle -- see module docstring for the release-gate
+    caveat.
+
+    Pass an explicit SHA when the result must agree with other commit-bound
+    operations; defaulting to HEAD is only safe for read-only inspection.
 
     Extracted from build-plugin.py 2026-07-15 because packaging and the
     fixture-runner's tested-input binding had diverged: the census hashed a
@@ -80,7 +113,7 @@ def enumerate_package_files() -> tuple[list[str], list[str]]:
     rebuilding an archive invalidated it. Wrong in both directions.
     """
     result = subprocess.run(
-        [GIT, "-C", str(HARNESS), "ls-tree", "-r", "HEAD", "--name-only"],
+        [GIT, "-C", str(HARNESS), "ls-tree", "-r", commit or "HEAD", "--name-only"],
         capture_output=True,
         text=True,
         encoding="utf-8",
