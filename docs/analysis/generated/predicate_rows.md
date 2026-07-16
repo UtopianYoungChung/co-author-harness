@@ -3,7 +3,7 @@
      script_sha256=ac3cdffd2f2f
      production_sites=248
      suite_universe=31  (code-literal-independent; authority for fixture coverage)
-     fixture_cases=0 (manifest absent or invalid; run scripts/analysis/fixture_runner.py)
+     fixture_cases=31 (from fixture_manifest.json, suite-granularity)
      fixture_literal_sites=16 in 11 suites - NOT cases, diagnostic only
 
      Row IDs are code@module:function#asthash~ordinal.
@@ -270,68 +270,45 @@
 | `E-ROW-SHAPE-VIOLATION@pre_phase_advance_check:_check_signoff_row#465528877ab6~0` | `E-ROW-SHAPE-VIOLATION` | `scripts/pre_phase_advance_check.py:1173` | `_check_signoff_row()` | call:Finding | TBD | TBD | TBD | TBD | [ ] |
 | `E-ROW-SHAPE-VIOLATION@pre_phase_advance_check:_check_signoff_row#09d80714e8d1~0` | `E-ROW-SHAPE-VIOLATION` | `scripts/pre_phase_advance_check.py:1186` | `_check_signoff_row()` | call:Finding | TBD | TBD | TBD | TBD | [ ] |
 
-## Fixture cases (regression corpus) - NOT IMPLEMENTED
+## Fixture cases (regression corpus) - from fixture_manifest.json
 
-**No fixture rows are generated.** AST code-literal discovery cannot
-produce a regression corpus: clean-outcome cases carry no expected
-code and are invisible to a literal scan, one static site in a loop
-runs many cases, and a literal cannot carry an expected outcome.
-Generating rows from it would assert coverage that does not exist.
+Written by scripts/analysis/fixture_runner.py as a SIDE EFFECT of
+execution: each row records a suite invocation that actually ran,
+with its exit matched against the registry's declared expectation
+and the tested-input tree hash-bound pre and post. Granularity is
+per registered INVOCATION -- a row does not claim to exhaust the
+suite's internal cases (see the runner's docstring).
 
-**Blocked on the manifest contract.** Each suite emits, as a side
-effect of EXECUTION, a completion record + its cases:
-
-```jsonc
-  "suites": [ { "fixture_file": "scripts/<suite>.py",
-                "suite_sha256": "<current bytes>",
-                "case_count": N, "run_id": "<uuid>" } ],
-  "cases":  [ { "fixture_file": "scripts/<suite>.py",
-                "case_id": "<id>",
-                "expected_exit": 0,          // UNIVERSAL, exact
-                "expected_code": null,       // UNIVERSAL, exact-or-null
-                "outcome_contract": "MFHP-9|PRE-PHASE|EXIT-ONLY",
-                "expected_outcome": "READY"  // OPTIONAL, per-contract
-              } ]
-```
-
-There is NO global outcome enum. `MFHP-9` (READY|LEGACY_READY|
-NOT_APPLICABLE|MISCONFIGURED) governs milestone_framework_validate and
-compatible preflight gates ONLY -- MFHP:124 scopes itself. Exit 1 in
-pre_phase_advance_check.py:1367 is a genuine predicate failure, not a
-usage error; a global map would corrupt those historical blocks.
-Universal facts (suite, case_id, exact exit, exact code) are what all
-30 heterogeneous suites share.
-
-Fixture files awaiting a manifest (31):
-
-- [ ] `scripts/alias_parity_smoketest.py`
-- [ ] `scripts/assignment_dispatch_preflight_smoketest.py`
-- [ ] `scripts/assignment_process_gate_smoketest.py`
-- [ ] `scripts/audit/test_audit.py`
-- [ ] `scripts/audit/test_citations.py`
-- [ ] `scripts/build_plugin_provenance_smoketest.py`
-- [ ] `scripts/concept_introduction_contract_smoketest.py`
-- [ ] `scripts/d_style_profile_smoketest.py`
-- [ ] `scripts/domain_native_register_smoketest.py`
-- [ ] `scripts/end_to_end_smoketest.py`
-- [ ] `scripts/mcr_convergence_evidence_smoketest.py`
-- [ ] `scripts/migrate_legacy_milestones_adversarial_smoketest.py`
-- [ ] `scripts/migrate_legacy_milestones_smoketest.py`
-- [ ] `scripts/migrate_v0150pre_stage_profile_smoketest.py`
-- [ ] `scripts/milestone_framework_smoketest.py`
-- [ ] `scripts/native_project_bootstrap_adversarial_smoketest.py`
-- [ ] `scripts/native_project_bootstrap_smoketest.py`
-- [ ] `scripts/output_economy_smoketest.py`
-- [ ] `scripts/phase_notifications_smoketest.py`
-- [ ] `scripts/pre_phase_advance_phase_state_smoketest.py`
-- [ ] `scripts/reader_accessibility_adversarial_smoketest.py`
-- [ ] `scripts/reader_accessibility_contract_smoketest.py`
-- [ ] `scripts/reader_accessibility_semantics_smoketest.py`
-- [ ] `scripts/reflector_split_parity_smoketest.py`
-- [ ] `scripts/render_lifecycle_state_adversarial_smoketest.py`
-- [ ] `scripts/render_lifecycle_state_smoketest.py`
-- [ ] `scripts/repin_register_smoketest.py`
-- [ ] `scripts/retirement_sweep_smoketest.py`
-- [ ] `scripts/semantic_predication_contract_smoketest.py`
-- [ ] `scripts/tests/test_resolve_includes.py`
-- [ ] `scripts/token_budget_smoketest.py`
+| Suite | Case | Expected exit | Expected code | Contract |
+|---|---|---|---|---|
+| scripts/alias_parity_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/assignment_dispatch_preflight_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/assignment_process_gate_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/audit/test_audit.py | default | 0 | null | EXIT-ONLY |
+| scripts/audit/test_citations.py | default | 0 | null | EXIT-ONLY |
+| scripts/build_plugin_provenance_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/concept_introduction_contract_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/d_style_profile_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/domain_native_register_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/end_to_end_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/mcr_convergence_evidence_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/migrate_legacy_milestones_adversarial_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/migrate_legacy_milestones_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/migrate_v0150pre_stage_profile_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/milestone_framework_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/native_project_bootstrap_adversarial_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/native_project_bootstrap_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/output_economy_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/phase_notifications_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/pre_phase_advance_phase_state_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/reader_accessibility_adversarial_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/reader_accessibility_contract_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/reader_accessibility_semantics_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/reflector_split_parity_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/render_lifecycle_state_adversarial_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/render_lifecycle_state_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/repin_register_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/retirement_sweep_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/semantic_predication_contract_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/tests/test_resolve_includes.py | default | 0 | null | EXIT-ONLY |
+| scripts/token_budget_smoketest.py | default | 0 | null | EXIT-ONLY |
