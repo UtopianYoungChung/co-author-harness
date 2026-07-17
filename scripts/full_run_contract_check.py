@@ -599,6 +599,42 @@ def check_authorship(project_root: Path) -> list[dict]:
             f"round entry: missing {', '.join(missing)}. An incomplete entry is a "
             "claim that a round happened, not a record of one.",
             files=files, missing_fields=missing))
+        return findings
+
+    # §3 requires BOTH halves: a Generator round entry AND a preflight receipt
+    # for the round. A complete-looking entry is still only the round's own
+    # account of itself -- it is written by the same actor whose authority is in
+    # question, so on its own it proves the claim by restating it. The receipt is
+    # the independent half, and it is the assignment gate's verdict, not ours.
+    #
+    # Only meaningful while a target is outstanding. Once every applicable
+    # milestone is accepted there is no round in flight to hold a receipt, and
+    # the manuscript bytes are bound by the ledger itself (M4's artifact sha256,
+    # enforced by milestone_framework_validate._file_binding at `terminal`), so
+    # requiring a live receipt here would make a finished project unprovable.
+    if not (project_root / "reviews" / "phase_state.json").is_file():
+        return findings
+    target, derr = derive_active_target(project_root)
+    if derr or target is None:
+        return findings
+    receipt = _find_receipt(project_root, target)
+    if receipt is None:
+        findings.append(_f(
+            "FRC-AUTHORSHIP",
+            f"manuscript prose exists and {target} is still outstanding, but no "
+            f"assignment gate receipt authorizes a write against {target}. The "
+            "round's own log entry is not evidence that the round was permitted "
+            "to run: those bytes were written without authorization.",
+            files=files, active_target=target))
+        return findings
+    gate_findings = apg.verify_receipt(project_root.resolve(), receipt.resolve())
+    if gate_findings:
+        findings.extend(_f(
+            "FRC-AUTHORSHIP",
+            f"the receipt covering the round that wrote this prose is not valid "
+            f"for {target}: {code}: {msg}",
+            files=files, active_target=target, receipt=str(receipt))
+            for code, msg in gate_findings)
     return findings
 
 

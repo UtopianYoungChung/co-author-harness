@@ -304,6 +304,33 @@ def case_empty_revision_log_is_not_authorship() -> None:
         check("empty revision_log.md does not establish authorship", rc == 4, f"rc={rc}")
 
 
+def case_complete_round_entry_still_needs_a_receipt() -> None:
+    """§3 has two halves. The log entry alone is the round marking its own work.
+
+    CodeRabbit (bd194d0): "The contract requires a Generator round entry and its
+    preflight receipt, but neither is parsed or bound." The parsing half was
+    closed at e948569 -- the two cases either side of this one prove it -- but
+    the receipt half was not, and it is the half that is not self-attested: a
+    round entry is written by the same actor whose authority is in question.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = Path(td) / "p"
+        _w(proj / "manuscript/main.md", "# Essay\n\nProse.\n")
+        _w(proj / "manuscript/revision_log.md",
+           "## Round 1 — 2026-07-17\n\n"
+           "**Hypothesis:** h\n**Scope:** §1\n"
+           "**Changes:**\n- [§1] → drafted → A1\n"
+           "**Self-check result:** CLEAN\n**Verdict:** RETAIN\n")
+        _w(proj / "reviews/assignment_contract.json", json.dumps({"status": "resolved"}))
+        _w(proj / "reviews/phase_state.json", json.dumps({
+            "milestone_framework": {"mode": "native", "milestones": {
+                "M1": {"status": "in_progress", "applicability": "applicable",
+                       "approval": {"status": "pending"}}}}}))
+        rc, p = run("authorship", "--project-root", str(proj))
+        check("a complete round entry without a gate receipt is refused",
+              rc == 4, f"rc={rc}")
+
+
 def case_fabricated_revision_log_is_not_authorship() -> None:
     """Arbitrary prose in the log must not attribute the manuscript."""
     with tempfile.TemporaryDirectory() as td:
@@ -379,6 +406,7 @@ def main() -> int:
                case_final_packet_unbound,
                case_empty_revision_log_is_not_authorship,
                case_fabricated_revision_log_is_not_authorship,
+               case_complete_round_entry_still_needs_a_receipt,
                case_authorize_requires_exact_resolved_status,
                case_authorize_requires_receipt_and_preflight,
                case_scope_escalation_refused,
