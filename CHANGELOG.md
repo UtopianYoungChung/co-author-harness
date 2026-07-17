@@ -6,6 +6,41 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.29.1 — 2026-07-17
+
+### Full-run lifecycle contract
+
+**What.** A "Harness full run" request produced a complete essay with no project
+root, no assignment contract, no phase state, no milestone acceptance, no
+F7/F8/F9 and no G.4, and reported "Ladder complete ... PASS" (audit
+2026-07-17, session local_7fe69519, lines 1 / 112 / 342). Every agent file
+already forbade this; nothing enforced it.
+
+**Why it was possible.** The fail-closed assignment gates are all
+`--project-root` parameterised, so with *no project at all* none can fire.
+`run_scope` did not exist, so a parent's whole-lifecycle intent could not bind
+a child — the coordinator dispatched the Evaluator with "no project scaffold
+... Do NOT attempt to write reviews/ artifacts ... Return findings in your
+response only." `references/AGENT_ORCHESTRATION.md` states outright that role
+permissions are "not structurally enforced by the filesystem," and no
+deterministic check stood between an agent and the words "ladder complete."
+
+**How to apply.** `references/FULL_RUN_CONTRACT.md` is the single normative
+surface (run scope; no-project-no-prose; child-dispatch prohibition; the
+fifteen terminal requirements; error codes `FRC-*`). Other surfaces route to it
+and do not restate it — duplicated policy prose is the drift this repair
+exists to close. `scripts/full_run_contract_check.py` is its mechanical
+authority (`authorize` / `scope` / `authorship` / `terminal` / `intent`);
+where the prose and the script disagree, the script is the contract.
+`scripts/full_run_contract_smoketest.py` pins the behaviour against the real
+audit strings, and includes a valid native M1→M4→FINAL fixture that must PASS
+so the gate cannot be satisfied by refusing everything.
+
+**Lesson (recurrent).** A rule that exists only as prose is a rule the system
+does not have. This is the same species as the CRLF fixture hashes and the
+`B:/` corpus roots: a claim whose enforcement was assumed rather than
+mechanised.
+
 ## v0.29.0 — 2026-07-14
 
 ### Exemplar ingestion and warrant-scope routing
