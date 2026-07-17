@@ -121,13 +121,14 @@ import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
 
 
-# Which milestone each gate boundary is ABOUT (milestone_framework_validate's
-# own target_map). Kept for diagnostics; it no longer gates anything.
-BOUNDARY_TARGETS = {
-    "ph1_to_ph2": ("M1", "M2", "M3"),
-    "ph4_admission": ("M4",),
-    "ph4_terminal_close": ("M5",),
-}
+# There is no boundary->milestone map here.
+#
+# One was kept "for diagnostics" after the applicability skip was removed. A
+# second copy of `milestone_framework_validate`'s own target_map, retained with
+# no caller, is a fact waiting to drift: the authority adds a boundary, this
+# table does not, and the next person to reach for it is told something false by
+# a structure that looks maintained. `mfv.GATE_BOUNDARIES` is the sole authority
+# for which boundaries exist, and the loop below iterates it directly.
 
 # ---------------------------------------------------------------------------
 # `not_applicable` DOES NOT REACH TERMINAL, in a full_lifecycle run.
@@ -231,6 +232,53 @@ TERMINAL_MARKERS = (
 def _emit(code_findings: list[dict], status: str) -> None:
     print(json.dumps({"status": status, "findings": code_findings},
                      ensure_ascii=False, indent=1))
+
+
+# ---------------------------------------------------------------------------
+# STRUCTURED UNMET RECORDS
+#
+# `unmet` was a list of prose strings, so every consumer -- including this
+# package's own tests -- had to substring-match to learn WHY a terminal claim
+# was refused. That is the defect this workstream keeps finding, turned on our
+# own output: a caller matching "MF-GATE-M5" in a sentence is matching a
+# FORMAT, and the sentence is free to change. Tests then pass on a message they
+# never meant to assert, or fail on a reworded one they did.
+#
+# `unmet_findings` is additive and structured: source, exact delegate code,
+# exact path, message. `unmet` is preserved verbatim for existing consumers --
+# removing it would break them to fix ourselves.
+#
+# Local codes exist where no delegate owns the fact, so that even our own checks
+# are matchable by code rather than by prose.
+FRC_LOCAL = {
+    "findings_json": "FRC-DETERMINISTIC-EVIDENCE-ABSENT",
+    "check8_unbound": "FRC-CHECK8-UNBOUND",
+    "check8_path": "FRC-CHECK8-PATH-UNRESOLVED",
+    "check8_json": "FRC-CHECK8-NOT-CANONICAL-JSON",
+    "check8_invalid": "FRC-CHECK8-INVALID",
+    "check8_mismatch": "FRC-CHECK8-AGGREGATE-MISMATCH",
+    "check8_blocker": "FRC-CHECK8-BLOCKER",
+    "check8_type": "FRC-CHECK8-MALFORMED-STATE",
+    "convergence_log": "FRC-CONVERGENCE-LOG-ABSENT",
+    "reflector": "FRC-REFLECTOR-CLOSEOUT-ABSENT",
+    "f8": "FRC-F8-REPORT-ABSENT",
+    "terminal_state": "FRC-TERMINAL-STATE-NOT-REACHED",
+    "ledger_malformed": "FRC-LEDGER-MALFORMED",
+    "sections_empty": "FRC-SECTIONS-EMPTY",
+    "authorship": "FRC-AUTHORSHIP",
+    "raised": "FRC-VALIDATOR-RAISED",
+}
+
+
+def _u(source: str, code: str, path: str, message: str) -> dict:
+    """One unmet requirement, attributed to the authority that decided it."""
+    return {"source": source, "code": code, "path": path, "message": message}
+
+
+def _u_line(rec: dict) -> str:
+    """The legacy `unmet` prose line, derived from the structured record."""
+    where = f" {rec['path']}" if rec["path"] else ""
+    return f"[{rec['source']}] {rec['code']}{where}: {rec['message']}"
 
 
 def _f(code: str, message: str, **extra) -> dict:
@@ -720,7 +768,7 @@ def cmd_authorship(args) -> int:
 # --------------------------------------------------------------------------
 # terminal  (§4 -- the fifteen)
 # --------------------------------------------------------------------------
-def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
+def _phase_guardrail_findings(project_root: Path, state: dict) -> list[dict]:
     """Requirements 9, 10 and 11 -- each from the authority that is TERMINAL-AWARE.
 
     Which authority answers "has the MCR passed?" depends on WHEN you ask, and
@@ -755,32 +803,37 @@ def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
     translated through `ppa.translate_phase_ledger`, the same translation
     `load_ledger` uses.
     """
-    out: list[str] = []
+    out: list[dict] = []
 
     # --- MCR admission proof + per-section deep pass + signoff continuity ----
     try:
         result = mfv.validate_document(project_root, state, "Ph4")
         for f in result.findings:
-            out.append(f"[Ph4] {f.code} {f.path}: {f.message}")
+            out.append(_u("Ph4", f.code, f.path, f.message))
     except Exception as exc:  # noqa: BLE001
-        out.append(f"[Ph4] milestone validation raised {type(exc).__name__}: {exc}")
+        out.append(_u("Ph4", FRC_LOCAL["raised"], "",
+                      f"milestone validation raised {type(exc).__name__}: {exc}"))
 
     # --- full TerminalSignoffRow validation ---------------------------------
     try:
         ledger = ppa.translate_phase_ledger(state)
     except ppa.LedgerTranslationError as exc:
-        # The translator now REFUSES malformed sections rather than dropping
-        # them. That refusal is a terminal finding, not an error: a ledger whose
-        # sections cannot be read is a ledger whose sections cannot be validated.
-        return out + [f"[phase_state] malformed ledger: {exc}"]
+        # The translator now REFUSES malformed sections, entries and entry logs
+        # rather than dropping them. That refusal is a terminal finding, not an
+        # error: a ledger whose sections cannot be read is a ledger whose
+        # sections cannot be validated.
+        return out + [_u("phase_state", FRC_LOCAL["ledger_malformed"],
+                         "reviews/phase_state.json", f"malformed ledger: {exc}")]
     except Exception as exc:  # noqa: BLE001
-        return out + [f"[clause g] ledger translation raised "
-                      f"{type(exc).__name__}: {exc}"]
+        return out + [_u("clause g", FRC_LOCAL["raised"], "",
+                         f"ledger translation raised {type(exc).__name__}: {exc}")]
 
     sections = ledger.get("sections") or []
     if not sections:
-        return out + ["phase_state.sections is empty: the convergence signoff "
-                      "cannot be attributed to any section"]
+        return out + [_u("phase_state", FRC_LOCAL["sections_empty"],
+                         "phase_state.sections",
+                         "sections is empty: the convergence signoff cannot be "
+                         "attributed to any section")]
 
     seen: set[tuple[str, str]] = set()
     for section in sections:
@@ -796,14 +849,15 @@ def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
         try:
             ppa.check_clause_g(ctx)
         except Exception as exc:  # noqa: BLE001
-            out.append(f"[clause g] raised {type(exc).__name__}: {exc}")
+            out.append(_u("clause g", FRC_LOCAL["raised"], "",
+                          f"raised {type(exc).__name__}: {exc}"))
             break
         for f in ctx.findings:
             key = (f.code, f.message)
             if key in seen:
                 continue  # the signoff file is shared; each section re-reads it
             seen.add(key)
-            out.append(f"[clause {f.clause}] {f.code}: {f.message}")
+            out.append(_u(f"clause {f.clause}", f.code, f.section, f.message))
     return out
 
 
@@ -813,7 +867,7 @@ def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
 CHECK8_TERMINAL_REFUSED = {"BLOCKER"}
 
 
-def _check8_findings(project_root: Path, state: dict) -> list[str]:
+def _check8_findings(project_root: Path, state: dict) -> list[dict]:
     """Requirement 8 (Check 8 half), from the CANONICALLY BOUND evidence.
 
     `milestone_framework_validate` already binds this evidence by hash, parses
@@ -836,11 +890,13 @@ def _check8_findings(project_root: Path, state: dict) -> list[str]:
     # refusal out, not a stack trace.
     mf = state.get("milestone_framework")
     if not isinstance(mf, dict):
-        return [f"milestone_framework must be an object, got {type(mf).__name__}"]
+        return [_u("check8", FRC_LOCAL["check8_type"], "milestone_framework",
+                   f"must be an object, got {type(mf).__name__}")]
     milestones = mf.get("milestones")
     if not isinstance(milestones, dict):
-        return [f"milestone_framework.milestones must be an object, got "
-                f"{type(milestones).__name__}"]
+        return [_u("check8", FRC_LOCAL["check8_type"],
+                   "milestone_framework.milestones",
+                   f"must be an object, got {type(milestones).__name__}")]
     bindings = mf.get("policy_bindings")
     binding = bindings.get("reader_accessibility") if isinstance(bindings, dict) else None
     transitions = binding.get("transitions") if isinstance(binding, dict) else None
@@ -850,51 +906,63 @@ def _check8_findings(project_root: Path, state: dict) -> list[str]:
     bound = []
     for key, rec in milestones.items():
         if not isinstance(rec, dict):
-            return [f"milestone_framework.milestones.{key} must be an object, got "
-                    f"{type(rec).__name__}"]
+            return [_u("check8", FRC_LOCAL["check8_type"],
+                       f"milestone_framework.milestones.{key}",
+                       f"must be an object, got {type(rec).__name__}")]
         ev = rec.get("policy_evidence")
         if ev is None:
             continue
         if not isinstance(ev, dict):
-            return [f"{key}.policy_evidence must be an object, got "
-                    f"{type(ev).__name__}"]
+            return [_u("check8", FRC_LOCAL["check8_type"],
+                       f"milestone_framework.milestones.{key}.policy_evidence",
+                       f"must be an object, got {type(ev).__name__}")]
         rel = ev.get("check8_path")
         if rel is None:
             continue
         if not isinstance(rel, str) or not rel.strip():
-            return [f"{key}.policy_evidence.check8_path must be a non-empty string, "
-                    f"got {type(rel).__name__}"]
+            return [_u("check8", FRC_LOCAL["check8_type"],
+                       f"milestone_framework.milestones.{key}.policy_evidence"
+                       ".check8_path",
+                       f"must be a non-empty string, got {type(rel).__name__}")]
         bound.append((key, ev))
     if not bound:
-        return ["no Check 8 evidence is bound in milestone_framework "
-                "(milestones.*.policy_evidence.check8_path); a file merely named "
-                "*check8* under reviews/ is not the project's Check 8 evidence"]
+        return [_u("check8", FRC_LOCAL["check8_unbound"],
+                   "milestone_framework.milestones.*.policy_evidence.check8_path",
+                   "no Check 8 evidence is bound in milestone_framework; a file "
+                   "merely named *check8* under reviews/ is not the project's "
+                   "Check 8 evidence")]
 
-    out: list[str] = []
+    out: list[dict] = []
     for key, ev in bound:
         rel = ev.get("check8_path")
         path = project_root / rel
+        where = f"milestone_framework.milestones.{key}.policy_evidence.check8_path"
         if not path.is_file():
-            out.append(f"{key}.policy_evidence.check8_path does not resolve: {rel}")
+            out.append(_u("check8", FRC_LOCAL["check8_path"], where,
+                          f"does not resolve: {rel}"))
             continue
         try:
             sidecar = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError) as exc:
-            out.append(f"{key} Check 8 evidence is not canonical JSON: {rel}: {exc}")
+            out.append(_u("check8", FRC_LOCAL["check8_json"], where,
+                          f"Check 8 evidence is not canonical JSON: {rel}: {exc}"))
             continue
         try:
             rap.validate_check8_evidence(sidecar)
             recomputed = rap.recompute_check8(sidecar, transitions)
         except Exception as exc:  # PolicyError and schema errors  # noqa: BLE001
-            out.append(f"{key} Check 8 evidence is invalid: {rel}: {exc}")
+            out.append(_u("check8", FRC_LOCAL["check8_invalid"], where,
+                          f"Check 8 evidence is invalid: {rel}: {exc}"))
             continue
         verdict = recomputed.get("aggregate_verdict")
         if verdict != sidecar.get("aggregate_verdict"):
-            out.append(f"{key} Check 8 recorded aggregate "
-                       f"{sidecar.get('aggregate_verdict')!r} != recomputed {verdict!r}")
+            out.append(_u("check8", FRC_LOCAL["check8_mismatch"], where,
+                          f"recorded aggregate {sidecar.get('aggregate_verdict')!r} "
+                          f"!= recomputed {verdict!r}"))
         if verdict in CHECK8_TERMINAL_REFUSED:
-            out.append(f"{key} Check 8 recomputed aggregate is {verdict}: a terminal "
-                       "claim is refused while a Check 8 BLOCKER stands")
+            out.append(_u("check8", FRC_LOCAL["check8_blocker"], where,
+                          f"recomputed aggregate is {verdict}: a terminal claim is "
+                          "refused while a Check 8 BLOCKER stands"))
     return out
 
 
@@ -926,20 +994,21 @@ def check_terminal(project_root: Path) -> list[dict]:
     state, _ = _load_json(project_root / "reviews" / "phase_state.json")
     state = state or {}
 
-    missing: list[str] = []
+    unmet: list[dict] = []
 
     # 2-6, 12 -- the milestone authority, EVERY boundary, unconditionally.
-    # A full_lifecycle terminal claim may not skip M4 or M5 on an applicability
-    # declaration; see the note above BOUNDARY_TARGETS.
+    # `mfv.GATE_BOUNDARIES` is iterated directly: it is the sole authority for
+    # which boundaries exist. A full_lifecycle terminal claim may not skip M4 or
+    # M5 on an applicability declaration; see the note at the top of this file.
     for boundary in mfv.GATE_BOUNDARIES:
         try:
             result = mfv.validate_gate(project_root, state, boundary)
         except Exception as exc:  # noqa: BLE001
-            missing.append(f"[{boundary}] milestone validation raised "
-                           f"{type(exc).__name__}: {exc}")
+            unmet.append(_u(boundary, FRC_LOCAL["raised"], "",
+                            f"milestone validation raised {type(exc).__name__}: {exc}"))
             continue
         for finding in result.findings:
-            missing.append(f"[{boundary}] {finding.code} {finding.path}: {finding.message}")
+            unmet.append(_u(boundary, finding.code, finding.path, finding.message))
 
     # phase state shape -- the phase authority, ALL of it.
     #
@@ -953,45 +1022,64 @@ def check_terminal(project_root: Path) -> list[dict]:
     try:
         psv._validate_doc(state, psv_findings)
     except Exception as exc:  # noqa: BLE001
-        missing.append(f"[phase_state] validation raised {type(exc).__name__}: {exc}")
+        unmet.append(_u("phase_state", FRC_LOCAL["raised"], "",
+                        f"validation raised {type(exc).__name__}: {exc}"))
     for finding in psv_findings:
         code = getattr(finding, "code", "") or "<uncoded>"
-        missing.append(f"[phase_state] {code}: {getattr(finding, 'message', finding)}")
+        unmet.append(_u("phase_state", code, getattr(finding, "path", "") or "",
+                        str(getattr(finding, "message", finding))))
 
     # 7 -- revision log, as a Generator round (not as a filename).
-    missing.extend(f["message"] for f in check_authorship(project_root))
+    for f in check_authorship(project_root):
+        unmet.append(_u("authorship", f["code"], "manuscript/revision_log.md",
+                        f["message"]))
 
     # 8 -- deterministic + Check 8 accessibility evidence
     if not (project_root / "reviews" / "findings.json").is_file():
-        missing.append("reviews/findings.json absent (deterministic check evidence)")
-    missing.extend(_check8_findings(project_root, state))
+        unmet.append(_u("deterministic", FRC_LOCAL["findings_json"],
+                        "reviews/findings.json",
+                        "absent (deterministic check evidence)"))
+    unmet.extend(_check8_findings(project_root, state))
 
     # 9, 10, 11 -- convergence signoff rows, the deep pass, and MCR clearance,
     # all from the phase guardrail's clauses f and g.
-    missing.extend(_phase_guardrail_findings(project_root, state))
+    unmet.extend(_phase_guardrail_findings(project_root, state))
     if not (project_root / "reviews" / "convergence_log.md").is_file():
-        missing.append("reviews/convergence_log.md absent (no convergence journal)")
+        unmet.append(_u("convergence", FRC_LOCAL["convergence_log"],
+                        "reviews/convergence_log.md",
+                        "absent (no convergence journal)"))
 
     # 13 -- Reflector-full close-out
     if not list((project_root / "reviews").glob("**/reflector_full*")):
-        missing.append("no Reflector-full close-out artefact under reviews/")
+        unmet.append(_u("reflector", FRC_LOCAL["reflector"], "reviews/",
+                        "no Reflector-full close-out artefact under reviews/"))
 
     # 14 -- F8 final-round report
     if not list((project_root / "reviews").glob("**/f8_*")):
-        missing.append("no F8 final-round report under reviews/")
+        unmet.append(_u("f8", FRC_LOCAL["f8"], "reviews/",
+                        "no F8 final-round report under reviews/"))
 
     # 15 -- terminal state. The FINAL/M5 packet binding is validate_gate's
     # (ph4_terminal_close), so it is not re-decided here.
     if state.get("terminal_phase_reached") is not True:
-        missing.append("phase_state.terminal_phase_reached is not true")
+        unmet.append(_u("phase_state", FRC_LOCAL["terminal_state"],
+                        "phase_state.terminal_phase_reached", "is not true"))
 
-    if missing:
+    if unmet:
         findings.append(_f(
             "FRC-TERMINAL-UNPROVEN",
-            f"{len(missing)} of the FULL_RUN_CONTRACT §4 requirements are unmet; a "
+            f"{len(unmet)} of the FULL_RUN_CONTRACT §4 requirements are unmet; a "
             "terminal claim (\"Ph4\", \"G.4\", \"terminal PASS\", \"ladder complete\", "
             "\"converged\", \"shipped\") is refused.",
-            unmet=missing))
+            # `unmet` stays exactly as it was -- prose lines, same shape, same
+            # order -- because existing consumers read it and breaking them to
+            # improve ourselves is not an improvement. `unmet_findings` is
+            # ADDITIVE: the same facts, structured, so a caller can match an
+            # exact code and path instead of grepping a sentence that is free to
+            # be reworded. The prose is derived FROM the records, so the two
+            # cannot drift apart.
+            unmet=[_u_line(rec) for rec in unmet],
+            unmet_findings=unmet))
     return findings
 
 

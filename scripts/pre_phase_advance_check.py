@@ -377,8 +377,24 @@ def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
                 section_copy[target] = raw[source]
         for key in ("current_tier", "last_approved_tier"):
             section_copy[key] = phase_to_tier.get(section_copy.get(key), section_copy.get(key))
+        # Same fail-closed rule one level down. `phase_entry_log` is not
+        # incidental: clause g validates every row in it, and the Ph4 MCR proof
+        # surface is a row in it. A malformed container coerced to `[]` handed
+        # clause g nothing to reject and erased the admission record in the same
+        # gesture -- the ledger would then look like a section that had simply
+        # never transitioned, which is a story about the project, told by a
+        # parsing shortcut.
+        raw_log = raw.get("phase_entry_log", [])
+        if not isinstance(raw_log, list):
+            raise LedgerTranslationError(
+                f"sections[{index}].phase_entry_log must be a list, got "
+                f"{type(raw_log).__name__}")
         translated_log = []
-        for raw_row in raw.get("phase_entry_log", []):
+        for row_index, raw_row in enumerate(raw_log):
+            if not isinstance(raw_row, dict):
+                raise LedgerTranslationError(
+                    f"sections[{index}].phase_entry_log[{row_index}] must be an "
+                    f"object, got {type(raw_row).__name__}")
             row = dict(raw_row)
             row["prev_tier"] = phase_to_tier.get(row.pop("prev_phase", None), row.get("prev_tier"))
             row["new_tier"] = phase_to_tier.get(row.pop("new_phase", None), row.get("new_tier"))

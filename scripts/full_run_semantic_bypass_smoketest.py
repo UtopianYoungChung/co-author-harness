@@ -127,26 +127,52 @@ def codes(p: dict | None) -> set[str]:
 
 
 def _unmet(p: dict | None) -> list[str]:
-    """Every `unmet` entry the terminal finding aggregated."""
+    """Every legacy `unmet` prose line the terminal finding aggregated."""
     out: list[str] = []
     for f in (p or {}).get("findings", []):
         out.extend(f.get("unmet", []) or [])
     return out
 
 
-def refused_for(p: dict | None, *needles: str) -> bool:
-    """Did the gate refuse for THE reason this case is about?
+def _unmet_findings(p: dict | None) -> list[dict]:
+    """Every STRUCTURED unmet record the terminal finding aggregated."""
+    out: list[dict] = []
+    for f in (p or {}).get("findings", []):
+        out.extend(f.get("unmet_findings", []) or [])
+    return out
 
-    `rc == 4` alone is a weak assertion: every one of these fixtures is one
-    edit away from a dozen unrelated terminal failures, so a case could keep
-    reporting CLOSED long after the bypass it names had reopened -- passing on
-    a hash drift, a fixture typo, or a neighbouring rule. The bypass is the
-    thing under test, so the finding that names it is what gets asserted.
+
+def refused_for(p: dict | None, code: str, path: str | None = None,
+                *, message_contains: str | None = None) -> bool:
+    """Did the gate refuse with THIS EXACT delegate code (and path)?
+
+    Matches structured records, not prose. The previous version substring-matched
+    a concatenation of every message -- which is the same "match a format, not a
+    claim" trap this workstream just removed from `version-check.py`, turned on
+    our own tests: `refused_for(p, "M5")` matched the letter M5 anywhere in any
+    sentence, so a case could pass on an unrelated finding that merely mentioned
+    M5, and fail the moment a delegate reworded a message it never meant to pin.
+
+    `code` and `path` are compared EXACTLY. `message_contains` exists only for
+    the few delegates that emit one code for several distinct facts (e.g.
+    MF-PHASE covers both the deep pass and signoff continuity), and is a
+    narrowing filter on top of an exact code -- never a substitute for one.
     """
-    hay = " ".join(_unmet(p)) + " " + " ".join(
-        f.get("message", "") for f in (p or {}).get("findings", []))
-    low = hay.lower()
-    return all(n.lower() in low for n in needles)
+    for rec in _unmet_findings(p):
+        if rec.get("code") != code:
+            continue
+        if path is not None and rec.get("path") != path:
+            continue
+        if message_contains is not None and \
+                message_contains.lower() not in str(rec.get("message", "")).lower():
+            continue
+        return True
+    return False
+
+
+def refused_with_code(p: dict | None, code: str) -> bool:
+    """The gate's own top-level finding code (not a delegate's)."""
+    return code in codes(p)
 
 
 def _w(p: Path, text: str) -> Path:
@@ -248,7 +274,8 @@ def case_g4_not_pass_substring() -> None:
         _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: NOT PASS\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("G.4 'status: NOT PASS' is refused (substring is not a verdict)",
-              rc == 4 and refused_for(p, "MF-GATE-M5", "G4_signoff.md"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-GATE-M5", "reviews/G4_signoff.md"),
+              f"rc={rc}")
 
 
 def case_g4_failed_wording() -> None:
@@ -258,7 +285,8 @@ def case_g4_failed_wording() -> None:
            "# G.4\n\nstatus: FAIL\nnote: did not PASS review\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("G.4 'status: FAIL' (word PASS elsewhere) is refused",
-              rc == 4 and refused_for(p, "MF-GATE-M5", "G4_signoff.md"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-GATE-M5", "reviews/G4_signoff.md"),
+              f"rc={rc}")
 
 
 def case_artifact_hash_absent() -> None:
@@ -269,7 +297,9 @@ def case_artifact_hash_absent() -> None:
                      ["artifacts"][0].pop("sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
         check("M4 artifact without sha256 is refused",
-              rc == 4 and refused_for(p, "MF-BINDING", "M4.artifacts[0]"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-BINDING",
+                                      "milestone_framework.milestones.M4.artifacts[0].path"),
+              f"rc={rc}")
 
 
 def case_f9_packet_hash_absent() -> None:
@@ -279,7 +309,9 @@ def case_f9_packet_hash_absent() -> None:
                      ["handoff"].pop("packet_sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
         check("M1 F9 packet without packet_sha256 is refused",
-              rc == 4 and refused_for(p, "M1", "packet"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-BINDING",
+                                      "milestone_framework.milestones.M1.handoff.packet_path"),
+              f"rc={rc}")
 
 
 def case_handoff_ready_not_consumed() -> None:
@@ -290,7 +322,9 @@ def case_handoff_ready_not_consumed() -> None:
                      ["handoff"].update({"status": "ready"}))
         rc, p = run("terminal", "--project-root", str(proj))
         check("predecessor handoff 'ready' (not consumed) is refused",
-              rc == 4 and refused_for(p, "MF-GATE-CHAIN", "M1.handoff"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-GATE-CHAIN",
+                                      "milestone_framework.milestones.M1.handoff"),
+              f"rc={rc}")
 
 
 def _authorize_na_m4(proj: Path) -> None:
@@ -370,10 +404,12 @@ def case_authorized_na_m4_cannot_reach_terminal() -> None:
         proj = valid_project(Path(td))
         _authorize_na_m4(proj)
         rc, p = run("terminal", "--project-root", str(proj))
-        check("authorized not_applicable M4 CANNOT reach terminal", rc == 4,
+        check("authorized not_applicable M4 CANNOT reach terminal",
+              rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN"),
               f"rc={rc}")
-        check("-> and the refusal is FRC-TERMINAL-UNPROVEN",
-              "FRC-TERMINAL-UNPROVEN" in codes(p), str(codes(p)))
+        check("-> ph4_admission names M4 itself (MF-GATE-M4), not a symptom",
+              refused_for(p, "MF-GATE-M4", "milestone_framework.milestones.M4"),
+              str([r["code"] for r in _unmet_findings(p)][:4]))
 
 
 def case_na_m4_does_not_waive_applicable_predecessors() -> None:
@@ -389,9 +425,10 @@ def case_na_m4_does_not_waive_applicable_predecessors() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].update({"status": "not_ready"}))
         rc, p = run("terminal", "--project-root", str(proj))
-        unmet = " ".join(_unmet(p))
         check("N/A M4 does not waive an applicable M1 predecessor",
-              rc == 4 and "M1" in unmet, f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-GATE-CHAIN",
+                                      "milestone_framework.milestones.M1.handoff"),
+              f"rc={rc}")
 
 
 def case_na_m4_does_not_waive_applicable_predecessors() -> None:
@@ -402,7 +439,9 @@ def case_na_m4_does_not_waive_applicable_predecessors() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].update({"status": "not_ready"}))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("N/A M4 does not waive an applicable M1 predecessor", rc == 4, f"rc={rc}")
+        check("N/A M4 does not waive an applicable M1 predecessor",
+              rc == 4 and refused_for(p, "MF-GATE-CHAIN", "milestone_framework.milestones.M1.handoff"),
+              f"rc={rc}")
 
 
 def case_non_object_contract_is_refused_not_a_crash() -> None:
@@ -455,7 +494,11 @@ def case_malformed_nested_milestone_data_is_refused_not_a_crash() -> None:
             mutate_state(proj, mut)
             rc, p = run("terminal", "--project-root", str(proj))
             check(f"malformed nested data ({label}) -> structured refusal",
-                  rc == 4 and p is not None, f"rc={rc} json={p is not None}")
+                  rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN")
+                  and any(r["code"].startswith("FRC-CHECK8-")
+                          or r["source"] in {"phase_state", "ph1_to_ph2"}
+                          for r in _unmet_findings(p)),
+                  f"rc={rc} codes={sorted(codes(p))}")
 
 
 def case_fully_accepted_project_does_not_authorize_prose() -> None:
@@ -477,7 +520,8 @@ def case_terminal_row_missing_required_fields_is_refused() -> None:
            "  user_signed_at: 2026-07-17T00:00:00Z\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("terminal row missing iteration_number/metric/verdict is refused",
-              rc == 4 and refused_for(p, "E-ROW-SHAPE-VIOLATION", "iteration_number"),
+              rc == 4 and refused_for(p, "E-ROW-SHAPE-VIOLATION",
+                                      message_contains="iteration_number"),
               f"rc={rc}")
 
 
@@ -492,7 +536,8 @@ def case_terminal_row_null_convergence_metric_is_refused() -> None:
            "  final_owner_state: closed\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("terminal row with null convergence_metric_value is refused",
-              rc == 4 and refused_for(p, "E-T3-CONVERGENCE-NULL-AT-SIGNOFF"), f"rc={rc}")
+              rc == 4 and refused_for(p, "E-T3-CONVERGENCE-NULL-AT-SIGNOFF"),
+              f"rc={rc}")
 
 
 def case_deep_pass_required_for_every_section() -> None:
@@ -510,8 +555,10 @@ def case_deep_pass_required_for_every_section() -> None:
         mutate_state(proj, add_undeep_section)
         rc, p = run("terminal", "--project-root", str(proj))
         check("one section without the deep pass refuses the whole terminal claim",
-              rc == 4 and refused_for(p, "MF-PHASE", "pre_mcr_deep_pass_completed",
-                                      "2. Second"), f"rc={rc}")
+              rc == 4 and refused_for(
+                  p, "MF-PHASE",
+                  "sections['2. Second'].pre_mcr_deep_pass_completed"),
+              f"rc={{rc}}")
 
 
 def case_check8_blocker_refuses_terminal() -> None:
@@ -533,7 +580,7 @@ def case_check8_blocker_refuses_terminal() -> None:
         _w(proj / "reviews/phase_state.json", json.dumps(st, indent=1))
         rc, p = run("terminal", "--project-root", str(proj))
         check("a consistent Check 8 BLOCKER still refuses terminal",
-              rc == 4 and refused_for(p, "Check 8", "BLOCKER"), f"rc={rc}")
+              rc == 4 and refused_for(p, "FRC-CHECK8-BLOCKER"), f"rc={rc}")
 
 
 def case_fabricated_check8_file_is_not_evidence() -> None:
@@ -548,7 +595,7 @@ def case_fabricated_check8_file_is_not_evidence() -> None:
         _w(proj / "reviews/accessibility_notes.md", "# looks accessible to me\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("a file named *check8* with no bound evidence is refused",
-              rc == 4 and refused_for(p, "no Check 8 evidence is bound"), f"rc={rc}")
+              rc == 4 and refused_for(p, "FRC-CHECK8-UNBOUND"), f"rc={rc}")
 
 
 def case_malformed_section_container_is_refused_not_dropped() -> None:
@@ -571,7 +618,12 @@ def case_malformed_section_container_is_refused_not_dropped() -> None:
             mutate_state(proj, lambda st, s=sections: st.update({"sections": s}))
             rc, p = run("terminal", "--project-root", str(proj))
             check(f"malformed phase_state ({label}) is REFUSED, not dropped",
-                  rc == 4, f"rc={rc}")
+                  rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN")
+                  and (refused_for(p, "FRC-LEDGER-MALFORMED",
+                                   "reviews/phase_state.json")
+                       or any(r["source"] == "phase_state"
+                              for r in _unmet_findings(p))),
+                  f"rc={rc} codes={[r['code'] for r in _unmet_findings(p)][:3]}")
 
 
 def case_malformed_ledger_gives_structured_exit_2_not_a_traceback() -> None:
@@ -604,6 +656,56 @@ def case_malformed_ledger_gives_structured_exit_2_not_a_traceback() -> None:
               f"rc={r.returncode} {last}")
 
 
+def case_malformed_entry_log_gives_structured_exit_2() -> None:
+    """phase_entry_log is not incidental -- coercing it to [] erases evidence.
+
+    Clause g validates every row in it, and the Ph4 MCR admission proof surface
+    IS a row in it. A malformed container coerced to `[]` handed clause g
+    nothing to reject and deleted the admission record in the same gesture: the
+    ledger would then read as a section that had simply never transitioned,
+    which is a story about the project told by a parsing shortcut.
+
+    Both the container and each entry are checked, through the CLI, because the
+    contract being pinned is `load_ledger`'s exit code -- exit 2 for a
+    structural failure, and never a traceback.
+    """
+    for label, mutate in (
+        ("phase_entry_log is a string",
+         lambda st: st["sections"]["1. Test"].update({"phase_entry_log": "nope"})),
+        ("phase_entry_log is an object",
+         lambda st: st["sections"]["1. Test"].update({"phase_entry_log": {"a": 1}})),
+        ("a phase_entry_log row is a string",
+         lambda st: st["sections"]["1. Test"].update({"phase_entry_log": ["nope"]})),
+        ("a phase_entry_log row is a list",
+         lambda st: st["sections"]["1. Test"].update({"phase_entry_log": [[]]})),
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            mutate_state(proj, mutate)
+            r = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "pre_phase_advance_check.py"),
+                 "--project-root", str(proj), "--section", '["1. Test"]',
+                 "--target-tier", "Ph4"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            out = (r.stdout or "") + (r.stderr or "")
+            check(f"{label} -> exit 2, no traceback",
+                  r.returncode == 2 and "Traceback" not in out,
+                  f"rc={r.returncode}")
+
+
+def case_malformed_entry_log_refuses_terminal() -> None:
+    """...and the full-run gate turns that same refusal into a terminal finding."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        mutate_state(proj, lambda st: st["sections"]["1. Test"]
+                     .update({"phase_entry_log": "nope"}))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("malformed phase_entry_log refuses terminal (FRC-LEDGER-MALFORMED)",
+              rc == 4 and refused_for(p, "FRC-LEDGER-MALFORMED",
+                                      "reviews/phase_state.json"),
+              f"rc={rc} {[r['code'] for r in _unmet_findings(p)][:3]}")
+
+
 def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
     """phase_state_validate's codes do not all start with E."""
     with tempfile.TemporaryDirectory() as td:
@@ -611,7 +713,8 @@ def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
         mutate_state(proj, lambda st: st.update({"sections": "not-an-object"}))
         rc, p = run("terminal", "--project-root", str(proj))
         check("malformed phase_state (non-E finding codes) is refused",
-              rc == 4 and refused_for(p, "phase_state"), f"rc={rc}")
+              rc == 4 and any(r["source"] == "phase_state"
+                              for r in _unmet_findings(p)), f"rc={rc}")
 
 
 def _unclear_mcr(st: dict) -> None:
@@ -647,7 +750,9 @@ def case_mcr_filename_glob() -> None:
         _w(proj / "reviews/mcr_notes_scratch.md", "# random mcr musings, not a verdict\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("arbitrary *mcr* filename does not satisfy MCR",
-              rc == 4 and refused_for(p, "MCR admission"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-PHASE", "sections",
+                                      message_contains="MCR admission"),
+              f"rc={{rc}}")
 
 
 def case_mcr_failed_verdict() -> None:
@@ -658,7 +763,9 @@ def case_mcr_failed_verdict() -> None:
         _w(proj / "reviews/mcr_report.md", "# MCR\n\nverdict: CLEARED\nstatus: PASS\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("an MCR file claiming CLEARED does not clear un-converged state",
-              rc == 4 and refused_for(p, "MCR admission"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-PHASE", "sections",
+                                      message_contains="MCR admission"),
+              f"rc={rc}")
 
 
 def case_final_milestone_absent() -> None:
@@ -668,7 +775,9 @@ def case_final_milestone_absent() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"].pop("M5"))
         rc, p = run("terminal", "--project-root", str(proj))
         check("absent FINAL/M5 record is refused (not skipped)",
-              rc == 4 and refused_for(p, "MF-STRUCTURE", "'M5'"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-STRUCTURE", "milestone_framework.milestones",
+                                      message_contains="'M5'"),
+              f"rc={rc}")
 
 
 def case_final_packet_unbound() -> None:
@@ -678,7 +787,9 @@ def case_final_packet_unbound() -> None:
                      ["handoff"].pop("packet_sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
         check("terminal F9 packet without hash binding is refused",
-              rc == 4 and refused_for(p, "M5"), f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-BINDING",
+                                      "milestone_framework.milestones.M5.handoff.packet_path"),
+              f"rc={rc}")
 
 
 # ==========================================================================
@@ -691,7 +802,8 @@ def case_empty_revision_log_is_not_authorship() -> None:
         _w(proj / "manuscript/main.md", "# Essay\n\nProse nobody wrote.\n")
         _w(proj / "manuscript/revision_log.md", "")
         rc, p = run("authorship", "--project-root", str(proj))
-        check("empty revision_log.md does not establish authorship", rc == 4, f"rc={rc}")
+        check("empty revision_log.md does not establish authorship",
+              rc == 4 and refused_with_code(p, "FRC-AUTHORSHIP"), f"rc={rc}")
 
 
 def case_complete_round_entry_still_needs_a_receipt() -> None:
@@ -718,7 +830,7 @@ def case_complete_round_entry_still_needs_a_receipt() -> None:
                        "approval": {"status": "pending"}}}}}))
         rc, p = run("authorship", "--project-root", str(proj))
         check("a complete round entry without a gate receipt is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_with_code(p, "FRC-AUTHORSHIP"), f"rc={rc}")
 
 
 # ==========================================================================
@@ -826,7 +938,7 @@ def case_fabricated_revision_log_is_not_authorship() -> None:
         _w(proj / "manuscript/revision_log.md", "today I had a sandwich\n")
         rc, p = run("authorship", "--project-root", str(proj))
         check("fabricated revision_log content does not establish authorship",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_with_code(p, "FRC-AUTHORSHIP"), f"rc={rc}")
 
 
 # ==========================================================================
@@ -839,7 +951,8 @@ def case_authorize_requires_exact_resolved_status() -> None:
             {"milestone_framework": {"mode": "native", "milestones": {}}}))
         _w(proj / "reviews/assignment_contract.json", json.dumps({}))
         rc, p = run("authorize", "--project-root", str(proj))
-        check("contract with NO status field is refused", rc == 4, f"rc={rc}")
+        check("contract with NO status field is refused",
+              rc == 4 and refused_with_code(p, "FRC-CONTRACT-MISSING"), f"rc={rc}")
 
 
 def case_authorize_requires_receipt_and_preflight() -> None:
@@ -853,7 +966,7 @@ def case_authorize_requires_receipt_and_preflight() -> None:
         _w(proj / "reviews/assignment_contract.json", json.dumps({"status": "resolved"}))
         rc, p = run("authorize", "--project-root", str(proj))
         check("resolved contract WITHOUT a READY receipt/preflight is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_with_code(p, "FRC-CONTRACT-MISSING"), f"rc={rc}")
 
 
 # ==========================================================================
@@ -869,7 +982,7 @@ def case_scope_escalation_refused() -> None:
     rc, p = run("scope", "--parent-scope", "adhoc_review", "--child-brief", "-",
                 stdin="run_scope: full_lifecycle\nDraft the manuscript.")
     check("adhoc parent cannot authorize a full_lifecycle child (escalation)",
-          rc == 4, f"rc={rc}")
+          rc == 4 and refused_with_code(p, "FRC-SCOPE-ESCALATION"), f"rc={rc}")
 
 
 def case_undeclared_child_not_allowed() -> None:
@@ -878,7 +991,7 @@ def case_undeclared_child_not_allowed() -> None:
                 "--allow-undeclared-child",
                 stdin="Please look at section 3 and report back.")
     check("--allow-undeclared-child cannot bypass the declaration requirement",
-          rc == 4, f"rc={rc}")
+          rc == 4 and refused_with_code(p, "FRC-SCOPE-UNDECLARED"), f"rc={rc}")
 
 
 def main() -> int:
@@ -907,6 +1020,8 @@ def main() -> int:
                case_malformed_nested_milestone_data_is_refused_not_a_crash,
                case_malformed_section_container_is_refused_not_dropped,
                case_malformed_ledger_gives_structured_exit_2_not_a_traceback,
+               case_malformed_entry_log_gives_structured_exit_2,
+               case_malformed_entry_log_refuses_terminal,
                case_fully_accepted_project_does_not_authorize_prose,
                case_terminal_row_missing_required_fields_is_refused,
                case_terminal_row_null_convergence_metric_is_refused,
