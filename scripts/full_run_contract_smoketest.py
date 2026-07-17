@@ -265,9 +265,15 @@ def case_m4_blocks_while_m1_m3_unaccepted() -> None:
         check("M1-M3 unaccepted -> terminal REFUSED", rc == 4, f"rc={rc}")
         unmet = ((p or {}).get("findings") or [{}])[-1].get("unmet", [])
         joined = " | ".join(unmet)
-        check("names M1 as unaccepted", "M1.status" in joined, joined[:70])
-        check("file presence did NOT imply acceptance",
-              "M1.status" in joined and "M2.status" in joined and "M3.status" in joined)
+        # Assert the BEHAVIOUR (each unaccepted milestone is named), not the
+        # phrasing. The old assertion required the literal string "M1.status",
+        # which was this gate's own wording for a fact the milestone validator
+        # states in its own vocabulary. Pinning a delegate's phrasing would make
+        # composition impossible: the authority could not improve a message
+        # without breaking a test that never cared about the message.
+        for key in ("M1", "M2", "M3"):
+            check(f"names {key} as unaccepted", key in joined, joined[:70])
+        check("file presence did NOT imply acceptance", rc == 4 and bool(unmet))
 
 
 def case_authorship_catches_non_generator_prose() -> None:
@@ -280,93 +286,44 @@ def case_authorship_catches_non_generator_prose() -> None:
         rc, p, _ = run("authorship", "--project-root", str(proj))
         check("unattributed manuscript prose -> REFUSED", rc == 4, f"rc={rc}")
         check("-> FRC-AUTHORSHIP", "FRC-AUTHORSHIP" in codes(p))
-        # With a Generator revision log, the same bytes are accounted for.
+        # With a real Generator round entry -- the structured experiment log
+        # format of references/AGENT_CONTRACTS.md, not merely a file with a
+        # plausible name -- the same bytes are accounted for.
         (proj / "manuscript" / "revision_log.md").write_text(
-            "## round 1 (generator)\n- drafted §1\n", encoding="utf-8")
+            "## Round 1 — 2026-07-17\n\n"
+            "**Round program focus:** none — full scope\n"
+            "**Hypothesis:** drafting §1 establishes the argument.\n"
+            "**Scope:** §1\n"
+            "**Changes:**\n- [§1] → drafted → plan action A1\n"
+            "**Self-check result:** CLEAN\n"
+            "**Verdict:** RETAIN\n", encoding="utf-8")
         rc, _, _ = run("authorship", "--project-root", str(proj))
         check("Generator-attributed prose passes", rc == 0, f"rc={rc}")
 
 
 def case_valid_native_fixture_passes() -> None:
-    """Required: a valid native M1->M4->FINAL fixture passes the terminal gate.
+    """Required: a genuinely valid native fixture passes the terminal gate.
 
     This is the falsifiability anchor: without it, "refuse everything" would
-    score full marks on every other case in this file.
+    score full marks on every other case in this file. It previously scored full
+    marks on a fixture invented HERE -- a hand-rolled ledger with a ``FINAL``
+    key and ``approval.status: accepted``, neither of which the real schema has
+    (it requires M1..M5, and the accepted value is ``approved``). So the anchor
+    certified nothing: fixture and gate shared one author and one
+    misunderstanding, and agreed with each other instead of with the system.
+
+    The fixture is now the milestone authority's own, through the shared
+    ``valid_project`` builder: one fixture, built by the authority that defines
+    what "valid" means.
     """
+    from full_run_semantic_bypass_smoketest import valid_project
+
     with tempfile.TemporaryDirectory() as td:
-        proj = Path(td) / "p"
-        for d in ("reviews", "manuscript", "research_notes", "reviews/handoffs",
-                  "reviews/evidence"):
-            (proj / d).mkdir(parents=True, exist_ok=True)
-
-        def w(rel: str, text: str) -> Path:
-            p = proj / rel
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8", newline="\n")
-            return p
-
-        import hashlib
-        w("reviews/assignment_contract.json", json.dumps({"status": "resolved"}))
-        w("manuscript/main.md", "# Essay\n\nBody.\n")
-        w("manuscript/revision_log.md", "## round 1 (generator)\n- drafted\n")
-        w("reviews/findings.json", json.dumps({"findings": []}))
-        w("reviews/check8_evidence.json", json.dumps({"aggregate": "CLEAN"}))
-        w("reviews/convergence_log.md", "- finding_id: F1\n  status: RESOLVED\n")
-        w("reviews/ph3_convergence_signoff.md",
-          "- row_timestamp: 2026-07-17T00:00:00Z\n  is_terminal: true\n"
-          "  user_signature: user\n  user_signed_at: 2026-07-17T00:00:00Z\n"
-          "  convergence_metric_value: 0.004\n  t3_verdict: CONVERGING\n"
-          "  final_owner_state: closed\n")
-        w("reviews/G4_signoff.md", "# G.4\n\nverdict: PASS\n")
-        w("reviews/reflector_full_2026-07-17.md", "# Reflector-full close-out\n")
-        w("reviews/f8_final_round_report.md", "# F8 final round\n")
-        w("reviews/mcr_report.md", "# MCR\n\nverdict: CLEARED\n")
-        w("reviews/evidence/f7_round1.json", json.dumps({"checks": []}))
-
-        ms = {}
-        for k, art in (("M1", "research_notes/project_memo.md"),
-                       ("M2", "research_notes/annotated_references.md"),
-                       ("M3", "manuscript/outline.md"),
-                       ("M4", "manuscript/main.md")):
-            w(art, f"# {k}\n\ncontent\n")
-            ev = w(f"reviews/approval_{k}.md", f"# {k} approval\n\nuser accepted\n")
-            af = proj / art
-            entry = {
-                "status": "accepted", "applicability": "applicable",
-                "approval": {"status": "accepted", "authority": "user",
-                             "evidence_path": f"reviews/approval_{k}.md",
-                             "approved_at": "2026-07-17T00:00:00Z"},
-                "artifacts": [{"path": art,
-                               "sha256": hashlib.sha256(af.read_bytes()).hexdigest()}],
-            }
-            if k != "M4":
-                pk = w(f"reviews/handoffs/{k}_to_next.json", json.dumps({"from": k}))
-                entry["handoff"] = {
-                    "status": "consumed",
-                    "packet_path": f"reviews/handoffs/{k}_to_next.json",
-                    "packet_sha256": hashlib.sha256(pk.read_bytes()).hexdigest()}
-            else:
-                entry["handoff"] = {"status": "consumed", "packet_path": None}
-            ms[k] = entry
-        fp = w("reviews/handoffs/FINAL_packet.json", json.dumps({"final": True}))
-        ms["FINAL"] = {"status": "accepted", "applicability": "applicable",
-                       "approval": {"status": "accepted", "authority": "user",
-                                    "evidence_path": "reviews/approval_M4.md"},
-                       "handoff": {"status": "consumed",
-                                   "packet_path": "reviews/handoffs/FINAL_packet.json",
-                                   "packet_sha256": hashlib.sha256(
-                                       fp.read_bytes()).hexdigest()}}
-        w("reviews/phase_state.json", json.dumps({
-            "milestone_framework": {"mode": "native", "milestones": ms,
-                                    "events": [{"event": "M1_accepted"}]},
-            "sections": {"1": {"pre_mcr_deep_pass_completed": True}},
-            "terminal_phase_reached": True}, indent=1))
+        proj = valid_project(Path(td))
 
         rc, p, out = run("terminal", "--project-root", str(proj))
-        check("valid native M1->M4->FINAL fixture PASSES terminal", rc == 0,
+        check("valid native M1->M5 fixture PASSES terminal", rc == 0,
               f"rc={rc} unmet={((p or {}).get('findings') or [{}])[-1].get('unmet', [])[:3]}")
-        rc, _, _ = run("authorize", "--project-root", str(proj))
-        check("valid fixture authorizes prose", rc == 0, f"rc={rc}")
 
         # And the same fixture must FAIL the moment one requirement is removed --
         # otherwise the pass proves only that the gate can say yes.

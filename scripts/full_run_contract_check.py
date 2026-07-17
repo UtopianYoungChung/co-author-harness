@@ -24,6 +24,52 @@ answers do not depend on any agent's self-report:
   authorship is manuscript movement Generator-attributable? (FRC-AUTHORSHIP)
   terminal   is a terminal claim earned?                    (FRC-TERMINAL-UNPROVEN)
 
+THIS IS NOT A LIFECYCLE AUTHORITY. IT COMPOSES ONE.
+------------------------------------------------------
+The first cut of this file answered those questions by reading the project the
+way a person skims it: glob for a file named ``*mcr*``, look for ``PASS`` in the
+G.4 signoff, treat ``manuscript/revision_log.md`` existing as proof a Generator
+wrote the manuscript. Every one of those is a filename, a file's presence, or a
+substring standing in for a fact. CodeRabbit's semantic review of PR #14 walked
+straight through them: ``verdict: NOT PASS`` contains ``PASS``; an artifact with
+no recorded ``sha256`` skipped the exact-byte comparison because the check read
+``if recorded_hash and recorded_hash != actual``; ``mcr_notes_scratch.md``
+satisfied the MCR requirement by being named suggestively.
+
+Those were not eight coincidental bugs. They were one design error: a second,
+weaker lifecycle authority, written from memory, next to the real one. The
+package already has validators that decide these facts, and they are stricter
+than what was written here -- ``milestone_framework_validate._file_binding``
+compares ``expected_sha != actual_sha`` unconditionally, so an ABSENT hash is
+already a finding, which is precisely the bypass this file had opened.
+
+So the rule for this file, and for anything extending it:
+
+    compose authoritative structured evidence;
+    never infer lifecycle truth from filenames, file presence, or substrings.
+
+Concretely, every predicate below DELEGATES:
+
+  project / contract / receipt   assignment_process_gate.verify_receipt
+                                 (binds receipt to live phase_state + contract
+                                 bytes, so staleness is its verdict, not ours)
+                                 + assignment_dispatch_preflight.py
+  milestones, approvals,         milestone_framework_validate.validate_gate over
+  artifact + F9 packet bytes,    ALL THREE boundaries (ph1_to_ph2, ph4_admission,
+  events, G.4 / ship signoff     ph4_terminal_close). `_signed_status` requires
+                                 exactly one explicit `status: PASS|APPROVED|
+                                 SIGNED` line -- which is why "NOT PASS" fails.
+  phase state shape              phase_state_validate
+  TerminalSignoffRow             pre_phase_advance_check._parse_t3_signoff_rows
+  MCR clearance                  pre_phase_advance_check._is_mcr_cleared
+                                 (MCR clearance is a STATE predicate, not a file
+                                 -- which is the real reason no filename can
+                                 satisfy it)
+
+When one of those authorities changes, this file inherits the change. That is
+the point: there is one place where each lifecycle fact is decided, and it is
+not here.
+
 CONTRACT
 --------
 Exit 0  = permitted / proven.
@@ -47,10 +93,10 @@ Usage
 from __future__ import annotations
 
 import argparse
-import hashlib
 import io
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,8 +107,30 @@ else:  # pragma: no cover
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+# The composed authorities. Import failure is an ERROR (exit 2), never a pass:
+# if the real validator cannot be loaded we have no verdict, and "I could not
+# check" must never read as "it is fine".
+import assignment_process_gate as apg              # noqa: E402
+import milestone_framework_validate as mfv         # noqa: E402
+import phase_state_validate as psv                 # noqa: E402
+import pre_phase_advance_check as ppa              # noqa: E402
+
+PREFLIGHT = SCRIPTS / "assignment_dispatch_preflight.py"
 
 OK, REFUSED, ERROR = 0, 4, 2
+
+# The assignment gate's target vocabulary is M1..M4 + FINAL; the milestone
+# ledger's schema is M1..M5 with additionalProperties:false (verified against
+# references/schemas/milestone_framework.schema.json, which never mentions
+# "FINAL"). FINAL is the assignment-side NAME for the ledger's M5. The old code
+# wrote `milestones.get("FINAL") or milestones.get("M5")`, which could only ever
+# find M5 -- a guess that happened to work, not a mapping.
+ASSIGNMENT_TARGETS = apg.EXPECTED_SEQUENCE          # ("M1","M2","M3","M4","FINAL")
+LEDGER_KEY = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 
 # --------------------------------------------------------------------------
 # Run scope vocabulary (FULL_RUN_CONTRACT.md §1)
@@ -171,7 +239,13 @@ def cmd_intent(args) -> int:
 # --------------------------------------------------------------------------
 # authorize  (§2 -- no project, no prose)
 # --------------------------------------------------------------------------
-def authorize(project_root: Path | None) -> list[dict]:
+def project_floor(project_root: Path | None) -> list[dict]:
+    """§2 items 1-2 ONLY: is this an authoritative native project at all?
+
+    Split out from `authorize` because `terminal` needs the floor without the
+    receipt: a finished run has no outstanding target to hold a READY receipt
+    for. `authorize` = this floor + items 3-5.
+    """
     findings: list[dict] = []
     if project_root is None or not project_root.is_dir():
         findings.append(_f(
@@ -205,12 +279,119 @@ def authorize(project_root: Path | None) -> list[dict]:
                            "the controlling source; a filename or prior default is not "
                            "a substitute."))
     else:
-        status = str(contract.get("status", "")).lower()
-        if status and status not in {"resolved", "accepted"}:
-            findings.append(_f("FRC-CONTRACT-MISSING",
-                               f"assignment contract status is {status!r}, not resolved"))
+        # EXACT match, positively asserted. The old test was
+        #   `if status and status not in {"resolved", "accepted"}`
+        # which passed a contract with NO status at all -- absence read as
+        # consent, in the one check whose entire job is to require consent.
+        status = str(contract.get("status", "")).strip().lower()
+        if status != "resolved":
+            findings.append(_f(
+                "FRC-CONTRACT-MISSING",
+                f"assignment contract status is {status or '<absent>'!r}; exactly "
+                "'resolved' is required. An absent, empty, or differently-worded "
+                "status is not a resolved contract."))
         if contract.get("unresolved") is True:
             findings.append(_f("FRC-CONTRACT-MISSING", "assignment contract is unresolved"))
+    return findings
+
+
+def derive_active_target(project_root: Path) -> tuple[str | None, list[dict]]:
+    """The active target is DERIVED from state: first non-accepted of M1..FINAL.
+
+    Never chosen by the agent, and never read from a request (§2 item 3). An
+    applicable milestone that is not `accepted` is the target; `not_applicable`
+    records are skipped only when the ledger itself declares them so.
+    """
+    state, _ = _load_json(project_root / "reviews" / "phase_state.json")
+    milestones = ((state or {}).get("milestone_framework") or {}).get("milestones")
+    if not isinstance(milestones, dict):
+        return None, [_f("FRC-NO-PROJECT",
+                         "milestone_framework.milestones is absent or not an object; "
+                         "no active target can be derived from state")]
+    for target in ASSIGNMENT_TARGETS:
+        record = milestones.get(LEDGER_KEY[target])
+        if not isinstance(record, dict):
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                f"milestone {LEDGER_KEY[target]} is absent from the ledger; the "
+                "active target cannot be derived. An absent milestone is not a "
+                "skipped one.")]
+        if record.get("applicability") == "not_applicable":
+            continue
+        if record.get("status") != "accepted":
+            return target, []
+    return None, []  # every applicable milestone accepted: nothing to author
+
+
+def _find_receipt(project_root: Path, target: str) -> Path | None:
+    """The receipt path is DERIVED from the assignment gate's own contract.
+
+    reviews/.harness/assignment/gate_receipt_{target}_<utc>.json -- the shape
+    `assignment_process_gate._receipt_path_finding` enforces. We do not invent a
+    location, and we do not accept one from an argument: newest candidate wins
+    and `verify_receipt` decides whether it is actually valid and fresh.
+    """
+    d = project_root / "reviews" / ".harness" / "assignment"
+    if not d.is_dir():
+        return None
+    cands = sorted(d.glob(f"gate_receipt_{target}_*.json"))
+    return cands[-1] if cands else None
+
+
+def authorize(project_root: Path | None) -> list[dict]:
+    """§2 in full: floor (1-2) + derived target (3) + READY receipt (4) + preflight (5).
+
+    A resolved contract used to be the whole test, which meant items 3-5 of the
+    contract this script claims to enforce were simply not enforced. The receipt
+    is what makes authorization CURRENT rather than historical:
+    `verify_receipt` binds it to live phase_state and contract bytes, so a stale
+    receipt is refused by the gate that issued it, not by a rule re-guessed here.
+    """
+    findings = project_floor(project_root)
+    if findings:
+        return findings
+    assert project_root is not None
+
+    target, derr = derive_active_target(project_root)
+    findings.extend(derr)
+    if derr:
+        return findings
+    if target is None:
+        # Every applicable milestone is accepted. There is no target to author
+        # against; prose authorization is not the question being asked.
+        return findings
+
+    receipt = _find_receipt(project_root, target)
+    if receipt is None:
+        return [_f(
+            "FRC-CONTRACT-MISSING",
+            f"no assignment gate receipt for the derived active target {target}. "
+            f"Run scripts/assignment_process_gate.py --project-root <p> --stage "
+            f"{'final' if target == 'FINAL' else 'draft'} "
+            f"{'' if target == 'FINAL' else f'--target-milestone {target} '}"
+            "--emit-receipt reviews/.harness/assignment/"
+            f"gate_receipt_{target}_<utc>.json. A resolved contract alone does not "
+            "authorize a write: it says what the work IS, not that this round may "
+            "do it now.",
+            active_target=target)]
+
+    gate_findings = apg.verify_receipt(project_root.resolve(), receipt.resolve())
+    if gate_findings:
+        return [_f("FRC-CONTRACT-MISSING",
+                   f"assignment gate refused the receipt for {target}: {code}: {msg}",
+                   active_target=target, receipt=str(receipt))
+                for code, msg in gate_findings]
+
+    pf = subprocess.run(
+        [sys.executable, str(PREFLIGHT), "--project-root", str(project_root),
+         "--receipt", str(receipt), "--expected-target", target],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    if pf.returncode != 0:
+        return [_f("FRC-CONTRACT-MISSING",
+                   f"assignment_dispatch_preflight.py refused the dispatch for "
+                   f"{target} (exit {pf.returncode})",
+                   active_target=target, receipt=str(receipt),
+                   preflight_stdout=pf.stdout.strip()[:600])]
     return findings
 
 
@@ -250,14 +431,20 @@ def cmd_authorize(args) -> int:
 # --------------------------------------------------------------------------
 # scope  (§1.2 -- a child may not narrow a full-lifecycle parent)
 # --------------------------------------------------------------------------
-def check_scope(parent_scope: str, brief: str, *, require_declaration: bool = True
-                ) -> list[dict]:
+def check_scope(parent_scope: str, brief: str) -> list[dict]:
     """Is this child dispatch legal under its parent?
 
     STRUCTURE FIRST, TEXT SECOND. The primary rule is a comparison of DECLARED
-    scopes: the parent states one, the child must carry the same one. That is
-    general -- it holds for wordings nobody anticipated, which is the whole
+    scopes: the parent states one, the child must carry EXACTLY that one. That
+    is general -- it holds for wordings nobody anticipated, which is the whole
     point, since the next failure will not be phrased like the last one.
+
+    EXACT inheritance, both directions. The first cut only refused DOWNGRADE
+    (full parent, narrower child) and so left ESCALATION entirely unguarded: an
+    `adhoc_review` parent could dispatch a `full_lifecycle` child, and the child
+    would then be authorized to write prose and advance the ladder under a
+    parent that could do neither. A child may not grant itself authority its
+    parent does not have; scope is inherited, not negotiated.
 
     The marker scan is a SECONDARY net for the self-contradicting brief: one
     that declares `run_scope: full_lifecycle` and then says "return findings in
@@ -278,19 +465,26 @@ def check_scope(parent_scope: str, brief: str, *, require_declaration: bool = Tr
         findings.append(_f("FRC-SCOPE-UNDECLARED",
                            f"child declares run_scope: {child_scope!r}, not one of {SCOPES}"))
         return findings
-    if child_scope is None and require_declaration:
+    if child_scope is None:
         findings.append(_f(
             "FRC-SCOPE-UNDECLARED",
             "child dispatch carries no `run_scope:` declaration. A dispatch whose "
             "scope must be guessed is refused: inheritance is explicit, not "
             "assumed. Add `run_scope: " + parent_scope + "` if that is what is "
             "intended."))
-    if child_scope is not None and parent_scope == FULL and child_scope != FULL:
+    elif child_scope != parent_scope:
+        code = ("FRC-SCOPE-DOWNGRADE" if parent_scope == FULL
+                else "FRC-SCOPE-ESCALATION")
+        detail = ("A child may not narrow the run: under a full lifecycle it must "
+                  "write its artefacts and state."
+                  if parent_scope == FULL else
+                  "A child may not widen the run: an ad hoc parent cannot confer "
+                  "authority to write prose, advance the ladder, or claim terminal, "
+                  "because it does not hold that authority itself.")
         findings.append(_f(
-            "FRC-SCOPE-DOWNGRADE",
-            f"child declares run_scope: {child_scope} under a {FULL} parent. A child "
-            "may not narrow the run: under a full lifecycle it must write its "
-            "artefacts and state.",
+            code,
+            f"child declares run_scope: {child_scope} under a {parent_scope} parent; "
+            f"scope must be inherited exactly. {detail}",
             parent_scope=parent_scope, child_scope=child_scope))
 
     # --- secondary: a brief that contradicts its own declaration -----------
@@ -325,8 +519,7 @@ def cmd_scope(args) -> int:
             print(f"[ERROR] child brief not found: {p}", file=sys.stderr)
             return ERROR
         brief = p.read_text(encoding="utf-8", errors="replace")
-    findings = check_scope(args.parent_scope, brief,
-                           require_declaration=not args.allow_undeclared_child)
+    findings = check_scope(args.parent_scope, brief)
     if findings:
         _emit(findings, "REFUSED")
         return REFUSED
@@ -337,6 +530,17 @@ def cmd_scope(args) -> int:
 # --------------------------------------------------------------------------
 # authorship  (§3 -- manuscript movement must be Generator-attributable)
 # --------------------------------------------------------------------------
+# The structured experiment log format is specified at
+# references/AGENT_CONTRACTS.md:163-177 (Generator "Outputs (write)"): a round
+# header plus Hypothesis / Scope / Changes / Verdict. We check THAT, because it
+# is what a Generator round actually produces. The previous check was
+# `log.is_file()` -- so an empty file, or one reading "today I had a sandwich",
+# attributed a manuscript to a round that never ran. A filename is not evidence.
+ROUND_HEADER_RE = re.compile(r"(?mi)^##\s+Round\s+\S+")
+VERDICT_RE = re.compile(r"(?mi)^\*\*Verdict:\*\*\s*(RETAIN|REVERT|PARTIAL)\b")
+REQUIRED_ROUND_FIELDS = ("Hypothesis", "Scope", "Changes")
+
+
 def check_authorship(project_root: Path) -> list[dict]:
     findings: list[dict] = []
     man_dir = project_root / "manuscript"
@@ -352,6 +556,8 @@ def check_authorship(project_root: Path) -> list[dict]:
                                                        errors="replace").strip()) > 0]
     if not substantive:
         return findings
+
+    files = [p.relative_to(project_root).as_posix() for p in substantive]
     log = project_root / "manuscript" / "revision_log.md"
     if not log.is_file():
         findings.append(_f(
@@ -360,7 +566,39 @@ def check_authorship(project_root: Path) -> list[dict]:
             "Generator round accounts for these bytes. Only the Generator writes "
             "manuscript prose (agents/generator.md); a Planner/Evaluator write, or "
             "a draft produced outside any round, is out of contract.",
-            files=[p.relative_to(project_root).as_posix() for p in substantive]))
+            files=files))
+        return findings
+
+    text = log.read_text(encoding="utf-8", errors="replace")
+    if not text.strip():
+        findings.append(_f(
+            "FRC-AUTHORSHIP",
+            "manuscript/revision_log.md is empty: an empty log attributes nothing. "
+            "Manuscript prose exists that no Generator round accounts for.",
+            files=files))
+        return findings
+
+    if not ROUND_HEADER_RE.search(text):
+        findings.append(_f(
+            "FRC-AUTHORSHIP",
+            "manuscript/revision_log.md contains no `## Round <N>` entry. The "
+            "Generator's round entry uses the structured experiment log format "
+            "(references/AGENT_CONTRACTS.md 'Outputs (write)'); prose in the log "
+            "that is not a round entry attributes nothing.",
+            files=files))
+        return findings
+
+    missing = [k for k in REQUIRED_ROUND_FIELDS
+               if not re.search(rf"(?mi)^\*\*{k}:\*\*", text)]
+    if not VERDICT_RE.search(text):
+        missing.append("Verdict (RETAIN|REVERT|PARTIAL)")
+    if missing:
+        findings.append(_f(
+            "FRC-AUTHORSHIP",
+            "manuscript/revision_log.md has a round header but is not a complete "
+            f"round entry: missing {', '.join(missing)}. An incomplete entry is a "
+            "claim that a round happened, not a record of one.",
+            files=files, missing_fields=missing))
     return findings
 
 
@@ -379,16 +617,81 @@ def cmd_authorship(args) -> int:
 # --------------------------------------------------------------------------
 # terminal  (§4 -- the fifteen)
 # --------------------------------------------------------------------------
-def _sha(p: Path) -> str:
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+def _terminal_signoff_findings(project_root: Path) -> list[str]:
+    """Requirement 9, via pre_phase_advance_check's own row parser.
+
+    The old check was `"is_terminal: true" in text` and `"user_signature" in
+    text` -- two substrings anywhere in the file, in any order, in any row, or
+    in a sentence explaining that the row is absent. `_parse_t3_signoff_rows`
+    parses ROWS, so a terminal row's signature must be on the terminal row.
+    """
+    signoff = project_root / "reviews" / "ph3_convergence_signoff.md"
+    if not signoff.is_file():
+        return ["reviews/ph3_convergence_signoff.md absent (no TerminalSignoffRow)"]
+    rows = ppa._parse_t3_signoff_rows(
+        signoff.read_text(encoding="utf-8", errors="replace"))
+    terminal = [r for r in rows if str(r.get("is_terminal", "")).strip().lower() == "true"]
+    if not terminal:
+        return ["ph3_convergence_signoff.md has no row with `is_terminal: true` "
+                f"({len(rows)} row(s) parsed)"]
+    out: list[str] = []
+    for i, row in enumerate(terminal):
+        if str(row.get("is_reengagement", "")).strip().lower() == "true":
+            out.append(f"TerminalSignoffRow[{i}] is both terminal and re-engagement "
+                       "(mutually exclusive)")
+        for field in ("row_timestamp", "user_signature", "user_signed_at"):
+            if not str(row.get(field, "")).strip():
+                out.append(f"TerminalSignoffRow[{i}] has no {field}")
+    return out
+
+
+def _mcr_findings(project_root: Path, state: dict) -> list[str]:
+    """Requirement 11, via pre_phase_advance_check._is_mcr_cleared.
+
+    MCR clearance is a STATE predicate over sections (TIER_PROTOCOL.md §9.4),
+    not a file. That is the real reason `reviews/mcr_notes_scratch.md` cannot
+    satisfy it: there is nothing a filename could say. The old glob
+    (`reviews/**/*mcr*`) asked the filesystem a question only the ledger can
+    answer.
+    """
+    sections = state.get("sections")
+    if isinstance(sections, dict):
+        items = list(sections.items())
+    elif isinstance(sections, list):
+        items = list(enumerate(sections))
+    else:
+        items = []
+    if not items:
+        return ["phase_state.sections is empty: MCR clearance cannot be evaluated"]
+    default_final = str(state.get("default_final_tier") or "T3")
+    uncleared = [str(k) for k, s in items
+                 if isinstance(s, dict) and not ppa._is_mcr_cleared(s, default_final)]
+    if uncleared:
+        return [f"MCR not cleared for section(s) {', '.join(uncleared)} "
+                "(pre_phase_advance_check._is_mcr_cleared: requires "
+                "current_tier == T3_converged, or ceiling_locked with "
+                "last_approved_tier == applicable ceiling)"]
+    return []
 
 
 def check_terminal(project_root: Path) -> list[dict]:
-    """The fifteen requirements. Absence of the project is itself requirement 0."""
+    """The fifteen requirements. Absence of the project is itself requirement 0.
+
+    Composed, not reimplemented. Requirements 2-6 and 12 are decided by
+    `milestone_framework_validate.validate_gate` across ALL THREE boundaries --
+    a terminal claim asserts the whole ladder held, so every gate on it must
+    pass, not only the last. That single delegation closes, at once: G.4
+    wording (`_signed_status` demands exactly one explicit `status:` line),
+    absent artifact/packet hashes (`_file_binding` compares unconditionally),
+    predecessor handoffs still `ready` rather than `consumed` (the ph1_to_ph2
+    chain rule), and an absent M5 (the schema requires it).
+    """
     findings: list[dict] = []
 
-    # 0/1 -- project + contract
-    base = authorize(project_root)
+    # 0/1 -- project + contract. NOT the full `authorize`: a completed run has
+    # no outstanding target, so requiring a live READY receipt here would make
+    # the terminal check unsatisfiable exactly when it is meant to pass.
+    base = project_floor(project_root)
     findings.extend(base)
     if any(f["code"] == "FRC-NO-PROJECT" for f in base):
         findings.append(_f("FRC-TERMINAL-UNPROVEN",
@@ -398,76 +701,35 @@ def check_terminal(project_root: Path) -> list[dict]:
 
     state, _ = _load_json(project_root / "reviews" / "phase_state.json")
     state = state or {}
-    mf = state.get("milestone_framework") or {}
-    milestones = mf.get("milestones") or {}
 
     missing: list[str] = []
 
-    # 2 -- M1..M4 accepted (respecting declared applicability)
-    for key in ("M1", "M2", "M3", "M4"):
-        m = milestones.get(key)
-        if not isinstance(m, dict):
-            missing.append(f"milestone {key} absent from milestone_framework")
+    # 2-6, 12 -- the milestone authority, every boundary.
+    for boundary in mfv.GATE_BOUNDARIES:
+        try:
+            result = mfv.validate_gate(project_root, state, boundary)
+        except Exception as exc:  # noqa: BLE001
+            missing.append(f"[{boundary}] milestone validation raised "
+                           f"{type(exc).__name__}: {exc}")
             continue
-        if m.get("applicability") == "not_applicable":
-            continue
-        if m.get("status") != "accepted":
-            missing.append(f"{key}.status is {m.get('status')!r}, not 'accepted'")
-        appr = m.get("approval") or {}
-        if appr.get("status") != "accepted":
-            missing.append(f"{key}.approval.status is {appr.get('status')!r}")
-        else:
-            if not appr.get("authority"):
-                missing.append(f"{key}.approval.authority is empty")
-            ev = appr.get("evidence_path")
-            if not ev:
-                missing.append(f"{key}.approval.evidence_path is empty")
-            elif not (project_root / ev).is_file():
-                missing.append(f"{key}.approval.evidence_path does not resolve: {ev}")
+        for finding in result.findings:
+            missing.append(f"[{boundary}] {finding.code} {finding.path}: {finding.message}")
 
-        # 3 -- exact-byte deliverable bindings
-        for art in m.get("artifacts") or []:
-            if not isinstance(art, dict):
-                continue
-            ap, ah = art.get("path"), art.get("sha256")
-            if not ap:
-                continue
-            f = project_root / ap
-            if not f.is_file():
-                missing.append(f"{key} artifact missing on disk: {ap}")
-            elif ah and _sha(f) != ah:
-                missing.append(f"{key} artifact bytes differ from recorded sha256: {ap}")
+    # phase state shape -- the phase authority.
+    psv_findings: list = []
+    try:
+        psv._validate_doc(state, psv_findings)
+    except Exception as exc:  # noqa: BLE001
+        missing.append(f"[phase_state] validation raised {type(exc).__name__}: {exc}")
+    for finding in psv_findings:
+        code = getattr(finding, "code", "")
+        if str(code).startswith("E"):
+            missing.append(f"[phase_state] {code}: {getattr(finding, 'message', finding)}")
 
-        # 4/5 -- F9 handoffs consumed + packet bytes bound
-        ho = m.get("handoff") or {}
-        if key != "M4":
-            if ho.get("status") not in {"consumed", "ready"}:
-                missing.append(f"{key}.handoff.status is {ho.get('status')!r}")
-            pp, ps = ho.get("packet_path"), ho.get("packet_sha256")
-            if not pp:
-                missing.append(f"{key}.handoff.packet_path is empty (no F9 packet)")
-            else:
-                pf = project_root / pp
-                if not pf.is_file():
-                    missing.append(f"{key} F9 packet missing on disk: {pp}")
-                elif ps and _sha(pf) != ps:
-                    missing.append(f"{key} F9 packet bytes differ from packet_sha256: {pp}")
+    # 7 -- revision log, as a Generator round (not as a filename).
+    missing.extend(f["message"] for f in check_authorship(project_root))
 
-    # 6 -- events
-    if not (mf.get("events") or []):
-        missing.append("milestone_framework.events is empty (no recorded lifecycle events)")
-
-    # 6 -- F7 evidence
-    f7 = list((project_root / "reviews").glob("**/f7_*.json")) + \
-         list((project_root / "reviews").glob("**/evidence*.json"))
-    if not f7:
-        missing.append("no F7 evidence packets under reviews/")
-
-    # 7 -- revision log
-    if not (project_root / "manuscript" / "revision_log.md").is_file():
-        missing.append("manuscript/revision_log.md absent")
-
-    # 8 -- deterministic + Check 8 evidence
+    # 8 -- deterministic + Check 8 accessibility evidence
     if not (project_root / "reviews" / "findings.json").is_file():
         missing.append("reviews/findings.json absent (deterministic check evidence)")
     check8 = list((project_root / "reviews").glob("**/*check8*")) + \
@@ -475,20 +737,12 @@ def check_terminal(project_root: Path) -> list[dict]:
     if not check8:
         missing.append("no Check 8 accessibility evidence under reviews/")
 
-    # 9 -- convergence journal + TerminalSignoffRow
-    signoff = project_root / "reviews" / "ph3_convergence_signoff.md"
-    if not signoff.is_file():
-        missing.append("reviews/ph3_convergence_signoff.md absent (no TerminalSignoffRow)")
-    else:
-        text = signoff.read_text(encoding="utf-8", errors="replace")
-        if "is_terminal: true" not in text:
-            missing.append("ph3_convergence_signoff.md carries no `is_terminal: true` row")
-        if "user_signature" not in text:
-            missing.append("TerminalSignoffRow has no user_signature")
+    # 9 -- TerminalSignoffRow + convergence journal
+    missing.extend(_terminal_signoff_findings(project_root))
     if not (project_root / "reviews" / "convergence_log.md").is_file():
         missing.append("reviews/convergence_log.md absent (no convergence journal)")
 
-    # 10 -- deep pass, 11 -- MCR
+    # 10 -- deep pass
     sections = state.get("sections")
     sect_iter = sections.values() if isinstance(sections, dict) else (
         sections if isinstance(sections, list) else [])
@@ -496,15 +750,9 @@ def check_terminal(project_root: Path) -> list[dict]:
             and s.get("pre_mcr_deep_pass_completed") is True]
     if not deep:
         missing.append("no section records pre_mcr_deep_pass_completed: true (deep pass)")
-    if not list((project_root / "reviews").glob("**/*mcr*")):
-        missing.append("no MCR artefact under reviews/")
 
-    # 12 -- G.4
-    g4 = project_root / "reviews" / "G4_signoff.md"
-    if not g4.is_file():
-        missing.append("reviews/G4_signoff.md absent")
-    elif "PASS" not in g4.read_text(encoding="utf-8", errors="replace"):
-        missing.append("reviews/G4_signoff.md records no PASS")
+    # 11 -- MCR clearance, as state.
+    missing.extend(_mcr_findings(project_root, state))
 
     # 13 -- Reflector-full close-out
     if not list((project_root / "reviews").glob("**/reflector_full*")):
@@ -514,14 +762,10 @@ def check_terminal(project_root: Path) -> list[dict]:
     if not list((project_root / "reviews").glob("**/f8_*")):
         missing.append("no F8 final-round report under reviews/")
 
-    # 15 -- terminal state + final packet
+    # 15 -- terminal state. The FINAL/M5 packet binding is validate_gate's
+    # (ph4_terminal_close), so it is not re-decided here.
     if state.get("terminal_phase_reached") is not True:
         missing.append("phase_state.terminal_phase_reached is not true")
-    fin = (milestones.get("FINAL") or milestones.get("M5") or {})
-    if isinstance(fin, dict) and fin:
-        fho = fin.get("handoff") or {}
-        if not fho.get("packet_path"):
-            missing.append("FINAL milestone has no terminal F9 packet")
 
     if missing:
         findings.append(_f(
@@ -557,9 +801,15 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("scope", help="is this child dispatch legal under its parent?")
     s.add_argument("--parent-scope", required=True)
     s.add_argument("--child-brief", required=True, help="file path, or - for stdin")
+    # --allow-undeclared-child is RETIRED, not renamed. It was an opt-out from
+    # the primary structural rule, available to the same caller the rule
+    # constrains -- a gate whose subject can waive it is not a gate. It is
+    # accepted-and-ignored (with a refusal note) so legacy invocations fail
+    # loudly on the declaration requirement rather than silently on an
+    # unrecognised flag, which would look like a tooling error rather than a
+    # verdict.
     s.add_argument("--allow-undeclared-child", action="store_true",
-                   help="legacy briefs only: skip the child's run_scope declaration "
-                        "requirement. The marker net still applies.")
+                   help=argparse.SUPPRESS)
     s.set_defaults(fn=cmd_scope)
 
     au = sub.add_parser("authorship", help="is manuscript movement Generator-attributable?")
