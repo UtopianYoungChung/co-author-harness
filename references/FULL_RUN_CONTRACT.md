@@ -139,7 +139,7 @@ is an actionable bootstrap instruction (§2.1). Specifically:
 
 State plainly that a full run needs a project, and give the actual command:
 
-```
+```bash
 python scripts/native_project_bootstrap.py --project-root <path> \
     --project-name <name> --title "<title>" --intended-reader "<readers>"
 ```

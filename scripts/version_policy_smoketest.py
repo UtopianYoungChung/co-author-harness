@@ -1,0 +1,329 @@
+#!/usr/bin/env python3
+"""version_policy_smoketest - the manifest is the sole current-version authority.
+
+WRITTEN BEFORE THE IMPLEMENTATION, AND PROVEN TO FAIL AGAINST c945245.
+
+THE CONTRACT (AGENTS.md, clarified 2026-07-17)
+----------------------------------------------
+`.claude-plugin/plugin.json` is the SOLE authority for the CURRENT version.
+
+  * Descriptive prose must not manually mirror it. A README badge and a
+    standalone "## Version `X.Y.Z`" literal are duplicated authority: they
+    drift, and the drift is invisible until someone reads the rendered page.
+    version-check.py used to REQUIRE both, which is why AGENTS.md:7 ("No prose
+    document in this tree asserts a version number") and the checker
+    contradicted each other. The checker's own exemption list already encoded
+    the right distinction -- it just carved out the README by mistake.
+  * Changelog and release-history identifiers ARE permitted: `## v0.29.0 —
+    2026-07-14` is a HISTORICAL RECORD of what shipped, not a claim about what
+    the current version is. Deleting release headings would destroy history to
+    satisfy a rule about authority. They are already exempt from the
+    trailer-strip invariant (version-check.py `_VERSION_TRAILER_EXEMPT_PATHS`).
+  * manifest <-> marketplace.json parity stays a HARD gate: both files ship
+    inside the .plugin ZIP and the loader rejects the install when they
+    disagree (v0.10.0 RC shipped exactly that skew).
+
+So: the changelog is validated for STRUCTURE and RELEASE CONSISTENCY, but is
+never treated as the authority for the current version.
+
+Run:  python scripts/version_policy_smoketest.py
+Exit: 0 all pass; 1 a case failed.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+ROOT = Path(__file__).resolve().parents[1]
+CHECK = ROOT / "scripts" / "version-check.py"
+FAILURES: list[str] = []
+
+BADGE = ("[![Version](https://img.shields.io/badge/Version-{v}-0366D6?logo=semver"
+         "&logoColor=white)](.claude-plugin/plugin.json)")
+
+
+def check(name: str, ok: bool, detail=None) -> None:
+    d = "" if detail in (None, "", []) else f" - {detail}"
+    print(f"  {'PASS' if ok else 'FAIL'}  {name}{d}")
+    if not ok:
+        FAILURES.append(name)
+
+
+def blockers(out: str) -> list[str]:
+    return [l.strip() for l in out.splitlines() if "[BLOCKER]" in l]
+
+
+def blocked_for(out: str, *needles: str) -> bool:
+    """True iff SOME blocker mentions every needle.
+
+    Asserting rc==1 alone is not a test: the current checker exits 1 on these
+    fixtures for unrelated reasons (a missing README literal it should not
+    require in the first place). A gate that refuses for the wrong reason is
+    not a gate, so every negative case names the reason it must refuse for.
+    """
+    return any(all(n.lower() in b.lower() for n in needles) for b in blockers(out))
+
+
+def _w(p: Path, t: str) -> Path:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(t, encoding="utf-8", newline="\n")
+    return p
+
+
+def fixture(base: Path, *, manifest="0.29.1", marketplace=None, readme=None,
+            changelog=None) -> Path:
+    """A minimal plugin root. Defaults are the COMPLIANT shape."""
+    root = base / "plug"
+    _w(root / ".claude-plugin/plugin.json",
+       json.dumps({"name": "co-author-harness-claude", "version": manifest,
+                   "description": "d", "keywords": []}, indent=2) + "\n")
+    _w(root / ".claude-plugin/marketplace.json",
+       json.dumps({"name": "m", "plugins": [
+           {"name": "co-author-harness-claude", "source": "./",
+            "version": marketplace if marketplace is not None else manifest}]},
+           indent=2) + "\n")
+    _w(root / "README.md", readme if readme is not None else
+       "# co-author-harness\n\nSee `.claude-plugin/plugin.json` for the current "
+       "version.\n\n## Version\n\nThe authoritative version is recorded in "
+       "`.claude-plugin/plugin.json`.\n")
+    _w(root / "CHANGELOG.md", changelog if changelog is not None else
+       "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nnotes\n\n"
+       "## v0.29.0 — 2026-07-14\n\nnotes\n")
+    return root
+
+
+def run(root: Path) -> tuple[int, str]:
+    r = subprocess.run([sys.executable, str(CHECK), "--plugin-root", str(root)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=300)
+    return r.returncode, r.stdout + r.stderr
+
+
+# ==========================================================================
+def case_compliant_readme_passes() -> None:
+    """A README with NO version literal must PASS.
+
+    This is the case that inverts today's behaviour: the checker currently
+    BLOCKS a README that omits the badge/literal, which is precisely what
+    AGENTS.md:7 requires it to omit.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        rc, out = run(fixture(Path(td)))
+        check("README with no version literal PASSES", rc == 0,
+              str(blockers(out)[:1]))
+
+
+def case_readme_badge_is_refused() -> None:
+    """A hard-coded badge is duplicated authority -> BLOCKER."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), readme="# h\n\n" + BADGE.format(v="0.29.1") + "\n")
+        rc, out = run(root)
+        check("README version badge is REFUSED for asserting a version",
+              rc == 1 and blocked_for(out, "README", "badge", "assert"),
+              str(blockers(out)[:2]))
+
+
+def case_readme_badge_refused_even_when_matching() -> None:
+    """Matching today is not the point: it is duplicated authority tomorrow."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest="0.29.1",
+                       readme="# h\n\n" + BADGE.format(v="0.29.1") + "\n")
+        rc, out = run(root)
+        check("badge refused even when it MATCHES the manifest",
+              rc == 1 and blocked_for(out, "README", "badge", "assert"),
+              str(blockers(out)[:2]))
+
+
+def case_readme_version_literal_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), readme="# h\n\n## Version\n\n`0.29.1`\n")
+        rc, out = run(root)
+        check("README standalone '## Version `X.Y.Z`' literal is REFUSED",
+              rc == 1 and blocked_for(out, "README", "assert"),
+              str(blockers(out)[:2]))
+
+
+def case_marketplace_parity_is_a_hard_gate() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest="0.29.1", marketplace="0.29.0")
+        rc, out = run(root)
+        check("manifest<->marketplace skew is a HARD BLOCKER",
+              rc == 1 and blocked_for(out, "marketplace", "0.29.0"),
+              str(blockers(out)[:2]))
+
+
+def case_changelog_headings_are_permitted() -> None:
+    """Historical release headings must NOT be treated as a violation."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), changelog=(
+            "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nn\n\n"
+            "## v0.29.0 — 2026-07-14\n\nn\n\n## v0.28.0 — 2026-07-01\n\nn\n"))
+        rc, out = run(root)
+        check("historical changelog headings are PERMITTED", rc == 0,
+              str(blockers(out)[:1]))
+
+
+def case_changelog_is_not_current_version_authority() -> None:
+    """A changelog lagging the manifest must not BLOCK.
+
+    The manifest is the authority; the changelog is history. Today this is a
+    BLOCKER, which makes the changelog a competing authority.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest="0.29.1", changelog=(
+            "# Changelog\n\n## v0.29.0 — 2026-07-14\n\nnotes\n"))
+        rc, out = run(root)
+        check("changelog lagging the manifest is NOT a blocker", rc == 0,
+              str(blockers(out)[:1]))
+
+
+def case_changelog_structure_is_still_validated() -> None:
+    """Not authoritative != unvalidated: duplicates are a real defect."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), changelog=(
+            "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nn\n\n"
+            "## v0.29.1 — 2026-07-16\n\nduplicate release id\n"))
+        rc, out = run(root)
+        check("duplicate changelog release heading is REFUSED",
+              rc == 1 and blocked_for(out, "duplicate"), str(blockers(out)[:2]))
+
+
+def case_changelog_ordering_is_validated() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), changelog=(
+            "# Changelog\n\n## v0.28.0 — 2026-07-01\n\nn\n\n"
+            "## v0.29.1 — 2026-07-17\n\nout of order\n"))
+        rc, out = run(root)
+        check("out-of-order changelog releases are REFUSED",
+              rc == 1 and blocked_for(out, "order"), str(blockers(out)[:2]))
+
+
+def case_four_component_hotfix_is_not_a_duplicate() -> None:
+    """`v0.7.4.1` and `v0.7.4` are DIFFERENT releases.
+
+    Regression for a bug in this very checker, found by running it against the
+    real CHANGELOG: a `v(\\d+\\.\\d+\\.\\d+)` pattern captures "0.7.4" out of
+    "v0.7.4.1" and reports a duplicate that does not exist. Acting on that
+    would have meant deleting a real hotfix release record to satisfy a
+    parsing bug -- history destroyed to please a check.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest="0.29.1", changelog=(
+            "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nn\n\n"
+            "## v0.7.4.1 — 2026-04-21\n\nhotfix\n\n"
+            "## v0.7.4 — 2026-04-21\n\nrelease\n"))
+        rc, out = run(root)
+        check("v0.7.4.1 and v0.7.4 are not a duplicate", rc == 0,
+              str(blockers(out)[:2]))
+
+
+def case_four_component_ordering() -> None:
+    """A hotfix sorts ABOVE its base release."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest="0.29.1", changelog=(
+            "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nn\n\n"
+            "## v0.7.4 — 2026-04-21\n\nrelease\n\n"
+            "## v0.7.4.1 — 2026-04-21\n\nhotfix listed after its base\n"))
+        rc, out = run(root)
+        check("hotfix listed below its base release is REFUSED (ordering)",
+              rc == 1 and blocked_for(out, "order"), str(blockers(out)[:2]))
+
+
+def case_real_changelog_is_accepted() -> None:
+    """The repository's own CHANGELOG must satisfy the checker.
+
+    A structure rule that the real corpus fails is a rule that is wrong about
+    the corpus, not a corpus that is wrong about the rule -- unless the defect
+    is real. This anchors the fixtures to reality.
+    """
+    rc, out = run(ROOT)
+    check("the repository's real CHANGELOG passes structure validation",
+          not any("CHANGELOG" in b for b in blockers(out)),
+          str([b for b in blockers(out) if "CHANGELOG" in b][:2]))
+
+
+def case_missing_changelog_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), changelog="# Changelog\n\nno releases here\n")
+        rc, out = run(root)
+        check("changelog with no release heading is REFUSED",
+              rc == 1 and blocked_for(out, "release heading"),
+              str(blockers(out)[:2]))
+
+
+def case_ssot_registry_agrees_with_the_ruling() -> None:
+    """Every version authority must agree, or the contradiction just moves.
+
+    version-check.py was not the only enforcer of the README literal:
+    `.claude-plugin/ssot.yaml` registered README as a `regex` consumer of
+    manifest_version, and `ssot-check.py` (reached via end_to_end_smoketest,
+    NOT via the ten root checks) BLOCKED on it. Fixing one checker and not the
+    other would have left the repository in exactly the state this round is
+    meant to end: two validators, one fact, opposite verdicts.
+
+    This asserts the registry itself, so the next reader cannot reintroduce the
+    consumer without a red test.
+    """
+    reg = ROOT / ".claude-plugin" / "ssot.yaml"
+    text = reg.read_text(encoding="utf-8")
+    block = text[text.index("manifest_version:"):text.index("manifest_description:")]
+    consumers = [ln.strip() for ln in block.splitlines()
+                 if ln.strip().startswith("- path:") or ln.strip().startswith("method:")]
+    joined = "\n".join(consumers)
+    check("ssot.yaml registers README as method:none for manifest_version",
+          "- path: README.md" in joined and any("method: none" in ln for ln in consumers),
+          "README is still a version-asserting consumer in the SSOT registry")
+    check("ssot.yaml does not register CHANGELOG as a manifest_version consumer",
+          "- path: CHANGELOG.md" not in block,
+          "CHANGELOG is registered as a consumer; it would BLOCK on a lag that "
+          "version-check.py deliberately WARNs on")
+
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "ssot-check.py")],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", cwd=str(ROOT))
+    check("ssot-check.py passes on the real repository", r.returncode == 0,
+          f"ssot-check.py exit {r.returncode}: {(r.stdout or '')[-200:]}")
+
+
+def main() -> int:
+    print("version_policy_smoketest")
+    print("  contract: the manifest is the sole CURRENT-version authority;")
+    print("            changelog/release identifiers are historical records.")
+    print()
+    for fn in (case_compliant_readme_passes,
+               case_readme_badge_is_refused,
+               case_readme_badge_refused_even_when_matching,
+               case_readme_version_literal_is_refused,
+               case_marketplace_parity_is_a_hard_gate,
+               case_changelog_headings_are_permitted,
+               case_changelog_is_not_current_version_authority,
+               case_changelog_structure_is_still_validated,
+               case_changelog_ordering_is_validated,
+               case_four_component_hotfix_is_not_a_duplicate,
+               case_four_component_ordering,
+               case_real_changelog_is_accepted,
+               case_missing_changelog_is_refused,
+               case_ssot_registry_agrees_with_the_ruling):
+        print(f"{fn.__name__}:")
+        try:
+            fn()
+        except Exception as exc:  # noqa: BLE001
+            check(fn.__name__, False, f"raised {type(exc).__name__}: {exc}")
+        print()
+    if FAILURES:
+        print(f"FAIL: {len(FAILURES)}: {FAILURES}")
+        return 1
+    print("PASS: the manifest is the sole current-version authority")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -2,15 +2,41 @@
 """
 co-author-harness — version-check.py
 
-Checks that the current release version is synchronized across:
-- .claude-plugin/plugin.json
-- README.md (latest entry in "## Version")
-- CHANGELOG.md (top release heading)
-- .claude-plugin/marketplace.json (self-referencing plugins[] entries with
-  source == "."; closes the v0.10.0 RC slip in which marketplace.json carried
-  a stale "0.9.0" entry while plugin.json had been bumped to "0.10.0",
-  producing a loader-rejected disagreement when the plugin was packaged via
-  the .plugin ZIP route.)
+THE MANIFEST IS THE SOLE AUTHORITY FOR THE CURRENT VERSION.
+
+`.claude-plugin/plugin.json` owns it. Everything else either mirrors it
+mechanically (and is gated) or must not state it at all.
+
+  HARD GATE   .claude-plugin/marketplace.json — self-referencing plugins[]
+              entries must equal the manifest. Both files ship inside the
+              .plugin ZIP and the loader rejects the install when they
+              disagree: v0.10.0 RC shipped marketplace.json "0.9.0" against a
+              manifest bumped to "0.10.0". This is mechanical parity between
+              two manifests, not prose mirroring it.
+
+  REFUSED     README.md asserting a version — a shields.io badge or a
+              standalone "## Version `X.Y.Z`" literal. This file used to
+              REQUIRE both, which put it in direct contradiction with
+              AGENTS.md ("`.claude-plugin/plugin.json` is the single source of
+              truth ... No prose document in this tree asserts a version
+              number; consult the manifest"). The contradiction was invisible
+              because the checker enforced the losing side. Duplicated
+              authority drifts, and the drift is only visible to whoever reads
+              the rendered page. The README points at the manifest instead.
+
+  PERMITTED   CHANGELOG.md / docs/release-notes/ release identifiers. A
+              heading like "## v0.29.0 — 2026-07-14" is a HISTORICAL RECORD of
+              what shipped, not a claim about the current version. Deleting
+              release history to satisfy a rule about current-version
+              authority would be a category error. These paths were already
+              exempt from the trailer-strip invariant below; that exemption
+              encoded the right distinction and is now stated outright.
+
+  VALIDATED   CHANGELOG structure and release consistency — well-formed
+              headings, unique release identifiers, descending order. Not
+              authoritative for the current version: a changelog that lags the
+              manifest is a documentation gap (WARN), not a release blocker,
+              because treating it as a blocker makes it a competing authority.
 """
 
 from __future__ import annotations
@@ -36,50 +62,101 @@ def extract_manifest_version(plugin_root: Path) -> str:
     return version
 
 
-def extract_readme_latest_version(plugin_root: Path) -> Optional[str]:
-    text = read_text(plugin_root / "README.md")
-    # Capture first backticked semantic version under the Version section.
-    match = re.search(r"## Version\s+`(\d+\.\d+\.\d+)`", text, re.S)
-    if match:
-        return match.group(1)
-    return None
+def find_readme_version_assertions(plugin_root: Path) -> List[str]:
+    """Return BLOCKERs for README surfaces that ASSERT a current version.
 
+    Inverted at 0.29.1. This function used to be two extractors that REQUIRED
+    a shields.io badge and a "## Version `X.Y.Z`" literal and blocked when
+    they were absent or stale -- i.e. it mandated exactly the duplicated
+    authority AGENTS.md forbids, and the v0.15.0 badge-drift incident it was
+    written for is the proof: the badge and the literal drifted apart because
+    two hand-maintained copies of one fact always eventually disagree. The
+    remedy is not a third copy to check the other two; it is one copy.
 
-def extract_readme_badge_version(plugin_root: Path) -> Optional[str]:
-    """Capture the shields.io Version badge embedded near the top of README.md.
-
-    Added at v0.15.0 — the v0.14.0 → v0.15.0 release prep caught a silent
-    drift where the `## Version` line was bumped but the badge was not, and
-    the GitHub README continued to render the stale badge. The badge is the
-    most user-visible version surface and must match the manifest.
+    A README may freely LINK to `.claude-plugin/plugin.json`, and may mention
+    versions in historical narrative ("in v0.15.0 we ..."). What it may not do
+    is state THE CURRENT VERSION as a bare fact.
     """
+    findings: List[str] = []
     text = read_text(plugin_root / "README.md")
-    match = re.search(
-        r"!\[Version\]\(https://img\.shields\.io/badge/Version-(\d+\.\d+\.\d+)-",
-        text,
-    )
-    if match:
-        return match.group(1)
-    return None
+
+    badge = re.search(
+        r"!\[Version\]\(https://img\.shields\.io/badge/Version-(\d+\.\d+\.\d+)-", text)
+    if badge:
+        findings.append(
+            f"README shields.io badge asserts version {badge.group(1)}: the manifest "
+            "is the sole current-version authority; link to "
+            ".claude-plugin/plugin.json instead of mirroring it")
+
+    literal = re.search(r"##\s+Version\s+`(\d+\.\d+\.\d+)`", text, re.S)
+    if literal:
+        findings.append(
+            f"README '## Version' section asserts version {literal.group(1)}: the "
+            "manifest is the sole current-version authority; point readers at "
+            ".claude-plugin/plugin.json instead of mirroring it")
+    return findings
 
 
-def extract_changelog_latest_version(plugin_root: Path) -> Optional[str]:
-    """Return the version of the most recent *released* CHANGELOG entry.
+def extract_changelog_releases(plugin_root: Path) -> List[Tuple[str, str]]:
+    """Return [(version, rest_of_heading), ...] in document order.
 
-    Skips headings tagged as `(unreleased)` so that the in-flight stage-by-stage
-    accumulation pattern declared by the snowball-implementation-strategy
-    §8.2 does not collide with the strategy §8.4 invariant that the manifest
-    version is bumped only at the RC gate. Without this filter, every stage
-    close from S1 onward would surface a spurious BLOCKER as soon as the
-    `## v0.10.0 (unreleased)` heading is appended.
+    `(unreleased)` headings are skipped for RELEASE purposes: the
+    stage-by-stage accumulation pattern appends `## v0.10.0 (unreleased)`
+    long before the RC gate bumps the manifest.
     """
     text = read_text(plugin_root / "CHANGELOG.md")
-    for match in re.finditer(r"^##\s+v(\d+\.\d+\.\d+)([^\n]*)$", text, re.M):
-        version, rest = match.group(1), match.group(2)
-        if "(unreleased)" in rest.lower():
+    out: List[Tuple[str, str]] = []
+    # `{2,3}` captures HOTFIX identifiers whole. A `\d+\.\d+\.\d+` pattern
+    # captures "0.7.4" out of "v0.7.4.1" and then reports a duplicate against
+    # the real "v0.7.4" -- a collision that exists only in the regex. Found by
+    # running this checker against the repository's own CHANGELOG, which
+    # legitimately records both v0.7.4 and its v0.7.4.1 hotfix. Acting on that
+    # false positive would have meant deleting a real release record.
+    for match in re.finditer(r"^##\s+v(\d+(?:\.\d+){1,3})([^\n]*)$", text, re.M):
+        if "(unreleased)" in match.group(2).lower():
             continue
-        return version
-    return None
+        out.append((match.group(1), match.group(2)))
+    return out
+
+
+def _semver(v: str) -> Tuple[int, ...]:
+    """Sort key tolerant of 2-4 component identifiers.
+
+    Zero-padded to 4 so that v0.7.4 -> (0,7,4,0) sorts BELOW its v0.7.4.1
+    hotfix -> (0,7,4,1), which is the order a newest-first changelog uses.
+    """
+    parts = tuple(int(p) for p in v.split("."))
+    return parts + (0,) * (4 - len(parts))
+
+
+def check_changelog_structure(releases: List[Tuple[str, str]]) -> List[str]:
+    """Structure and release consistency -- NOT current-version authority.
+
+    Validated: at least one release heading exists; identifiers are unique; and
+    they descend. Not validated: whether the top entry equals the manifest --
+    that would make the changelog a second authority, which is the defect being
+    removed. A lagging changelog is a documentation gap (WARN in main()).
+    """
+    findings: List[str] = []
+    if not releases:
+        findings.append("CHANGELOG has no release heading (expected '## vX.Y.Z ...')")
+        return findings
+
+    seen: dict[str, int] = {}
+    for version, _rest in releases:
+        seen[version] = seen.get(version, 0) + 1
+    for version, count in seen.items():
+        if count > 1:
+            findings.append(
+                f"CHANGELOG duplicate release heading for v{version} ({count} "
+                "occurrences): a release identifier names one release")
+
+    ordered = [v for v, _ in releases]
+    if ordered != sorted(ordered, key=_semver, reverse=True):
+        findings.append(
+            "CHANGELOG release headings are out of order: expected newest first, "
+            f"got {ordered[:4]}")
+    return findings
 
 
 def extract_marketplace_self_referencing_versions(
@@ -240,31 +317,22 @@ def main() -> int:
         print(f"[BLOCKER] manifest version check failed: {exc}")
         return 1
 
-    readme_version = extract_readme_latest_version(plugin_root)
-    readme_badge_version = extract_readme_badge_version(plugin_root)
-    changelog_version = extract_changelog_latest_version(plugin_root)
+    # README must not assert a current version (AGENTS.md authority rule).
+    blockers.extend(find_readme_version_assertions(plugin_root))
+
+    # CHANGELOG: structure + release consistency; never the current-version authority.
+    releases = extract_changelog_releases(plugin_root)
+    changelog_version = releases[0][0] if releases else None
+    blockers.extend(check_changelog_structure(releases))
+    if changelog_version is not None and changelog_version != manifest_version:
+        warnings.append(
+            f"CHANGELOG newest release (v{changelog_version}) is not the manifest "
+            f"version ({manifest_version}): expected when a bump has not yet been "
+            "written up. The manifest is authoritative; this is a documentation "
+            "gap, not a release blocker."
+        )
+
     marketplace_versions = extract_marketplace_self_referencing_versions(plugin_root)
-
-    if readme_version is None:
-        blockers.append("README latest version entry not found under '## Version'")
-    elif readme_version != manifest_version:
-        blockers.append(
-            f"README latest version ({readme_version}) != manifest version ({manifest_version})"
-        )
-
-    if readme_badge_version is None:
-        blockers.append("README shields.io Version badge not found near top of README.md")
-    elif readme_badge_version != manifest_version:
-        blockers.append(
-            f"README badge version ({readme_badge_version}) != manifest version ({manifest_version})"
-        )
-
-    if changelog_version is None:
-        blockers.append("CHANGELOG top release heading not found")
-    elif changelog_version != manifest_version:
-        blockers.append(
-            f"CHANGELOG top version ({changelog_version}) != manifest version ({manifest_version})"
-        )
 
     if marketplace_versions is None:
         # marketplace.json is absent — silent skip per docstring contract.
@@ -289,10 +357,12 @@ def main() -> int:
 
     print("VERSION CONSISTENCY CHECK")
     print(f"- Plugin root: {plugin_root}")
-    print(f"- Manifest version: {manifest_version}")
-    print(f"- README latest version: {readme_version or '<missing>'}")
-    print(f"- README badge version:  {readme_badge_version or '<missing>'}")
-    print(f"- CHANGELOG top version: {changelog_version or '<missing>'}")
+    print(f"- Manifest version (SOLE current-version authority): {manifest_version}")
+    print(f"- README version assertions: {len(find_readme_version_assertions(plugin_root))} "
+          f"(must be 0)")
+    print(f"- CHANGELOG newest release (history, not authority): "
+          f"{('v' + changelog_version) if changelog_version else '<none>'}")
+    print(f"- CHANGELOG releases recorded: {len(releases)}")
     print(f"- Marketplace self-referencing entries: {marketplace_summary}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")
