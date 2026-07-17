@@ -83,10 +83,22 @@ def run_accessibility_prefilters(
     cycle_id: str,
     output: Path | None = None,
     profile_path: Path | None = None,
+    wiki_root: Path | None = None,
+    workspace_root: Path | None = None,
 ) -> tuple[dict[str, object], Path]:
     """Emit a separate schema-defined candidate artifact; do not overload Finding."""
 
-    resolved = resolve_policy(project_root, profile_path=profile_path) if profile_path is not None else resolve_policy(project_root)
+    # Root overrides are threaded through, not re-implemented: resolve_policy
+    # already owns the seam (and records path_roots_mode=override in the
+    # artifact). Passing None keeps the declared-profile behaviour exactly.
+    root_kwargs: dict[str, Path] = {}
+    if wiki_root is not None:
+        root_kwargs["wiki_root"] = wiki_root
+    if workspace_root is not None:
+        root_kwargs["workspace_root"] = workspace_root
+    resolved = (resolve_policy(project_root, profile_path=profile_path, **root_kwargs)
+                if profile_path is not None
+                else resolve_policy(project_root, **root_kwargs))
     artifact = build_candidate_artifact(project_root, manuscript_path, phase, cycle_id, resolved)
     output_path = output.resolve() if output else project_root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -112,6 +124,20 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--cycle-id", default="iter0", help="Accessibility candidate cycle id")
     parser.add_argument("--accessibility-out", type=Path, help="Separate reader-accessibility candidate JSON path")
     parser.add_argument("--accessibility-profile", type=Path, help="Explicit package-contained accessibility profile (testing/migration only)")
+    parser.add_argument(
+        "--wiki-root",
+        type=Path,
+        help="Override the domain-native corpus wiki root (testing/migration only). "
+             "corpus_binding.path_roots records the roots the pinned corpus was "
+             "declared under and is not portable across hosts; supply roots this "
+             "host can use. Recorded as path_roots_mode=override.",
+    )
+    parser.add_argument(
+        "--workspace-root",
+        type=Path,
+        help="Override the domain-native corpus workspace root (testing/migration "
+             "only); see --wiki-root. Recorded as path_roots_mode=override.",
+    )
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
     parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. Lets run_all act as a blocking pre-send gate. C-7 caution: 'any' also gates on advisory craft/voice/length findings, which are C-7 candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for an automated gate, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
@@ -141,6 +167,7 @@ def main(argv: List[str] | None = None) -> int:
                 args.project_root.resolve(), args.target.resolve(), phase=args.phase,
                 cycle_id=args.cycle_id, output=args.accessibility_out,
                 profile_path=args.accessibility_profile,
+                wiki_root=args.wiki_root, workspace_root=args.workspace_root,
             )
         except (PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
             payload = {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}

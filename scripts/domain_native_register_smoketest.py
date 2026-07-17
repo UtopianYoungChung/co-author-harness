@@ -24,10 +24,24 @@ import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
 
 
-def write_fixture(root: Path) -> tuple[Path, Path]:
+def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]:
+    """Write a hermetic wiki+workspace corpus.
+
+    Default (``all_members=False``) keeps this suite's frozen baseline: only
+    ``warrant_scope == "both"`` members, so counts/scopes match the recorded
+    fixture expectations.
+
+    ``all_members=True`` covers every member of the UNFILTERED profile, which
+    is what a caller resolving the real profile needs (``resolve_policy`` does
+    not filter). Added 2026-07-17 for ``scripts/audit/test_audit.py``: without
+    it that caller raises ``domain-native input absent: exemplar_source_page:
+    .../dennett-1987-intentional-stance.md`` (an argument-only, post-release
+    ingestion). Parameterised rather than copied -- a second corpus builder is
+    a second population, and this one already has an owner.
+    """
     wiki = root / "wiki"; workspace = root / "workspace"; (wiki / "wiki/sources").mkdir(parents=True, exist_ok=True); (wiki / "raw/corpus").mkdir(parents=True, exist_ok=True); (workspace / "knowledge/LLM wiki/graphify-out").mkdir(parents=True, exist_ok=True)
     members = [m for m in policy.load_profile()["domain_native_register"]["exemplar_members"]
-               if m.get("warrant_scope", "both") == "both"]  # hermetic baseline: exclude post-release ingestions
+               if all_members or m.get("warrant_scope", "both") == "both"]  # hermetic baseline: exclude post-release ingestions
     for index, member in enumerate(members):
         tier = "full-read — annotation" if index == 0 else member["grounding"]
         (wiki / f"wiki/sources/{member['source_key']}.md").write_text(f"---\ngrounding_status: {tier}\n---\n", encoding="utf-8")

@@ -41,6 +41,35 @@ class PolicyError(ValueError):
     pass
 
 
+class CorpusRootError(PolicyError):
+    """The declared corpus roots cannot locate a corpus in THIS environment.
+
+    Distinct from a merely absent input: it says the *locator itself* is
+    unusable here, before any filesystem lookup is meaningful.
+
+    `corpus_binding.path_roots` records the roots the pinned corpus was
+    declared under -- `B:/Agents/...` on the maintainer's Windows host. Those
+    strings are provenance, NOT a portable filesystem locator: `B:/Agents` is
+    absolute on Windows and an ordinary RELATIVE path everywhere else. So on
+    Linux `Path("B:/Agents") / "knowledge/LLM wiki/graphify-out/graph.json"`
+    silently resolved against the CWD, and the register reported
+
+        domain-native input absent: graph_provenance_only:
+        <cwd>/B:/Agents/knowledge/LLM wiki/graphify-out/graph.json
+
+    -- an "absent input" at a path that could never have existed. The
+    diagnosis pointed at the corpus; the defect was the locator. That is what
+    kept `structural-checks` red on every Linux run since 2026-07-13 (the
+    failure predates PR #11 and was never introduced by it).
+
+    Raising here converts a silently wrong path into a named, actionable
+    condition. It does NOT weaken the check: the register still resolves, and
+    still fails closed, whenever roots are supplied that this host can use --
+    via the explicit override seam that `resolve_policy` and
+    `resolve_domain_native_register` already expose.
+    """
+
+
 def _profile_path_roots(profile: dict[str, Any]) -> dict[str, Path]:
     """Read corpus_binding.path_roots from the profile (authority for live wiki/workspace)."""
     try:
@@ -100,6 +129,38 @@ def _resolve_register_roots(
             )
 
     harness = Path(harness_root) if harness_root is not None else ROOT
+
+    # PORTABILITY GATE. Every root that anchors a contained lookup must be
+    # absolute ON THIS HOST before it is used. `Path.is_absolute()` is
+    # platform-aware, which is exactly the property needed: "B:/Agents" is
+    # absolute on Windows and relative on POSIX, and a relative anchor makes
+    # `_contained()` join against the CWD -- producing a real path that names
+    # a corpus nobody declared. Checked here, once, because this is the single
+    # function where declared/override roots become EFFECTIVE roots.
+    #
+    # ALL THREE ROOTS, INCLUDING harness_root. The first cut gated wiki and
+    # workspace only -- an under-narrow population, the same shape as every
+    # other allowlist in this workstream. harness_root anchors contained
+    # PACKAGE lookups (register_profile, package contributors), so a relative
+    # one rebased beneath the CWD and surfaced as `_MissingInput` at, e.g.,
+    # `C:\Windows\System32\relative\harness\references\policies\
+    # reader_accessibility.v1.json` -- precisely the misleading resolution this
+    # gate exists to eliminate, reproduced 2026-07-17. `harness` defaults to
+    # ROOT (always absolute), so only an explicit override can trip this; the
+    # guard is a property of ROOTS, not of who supplied them.
+    for label, root in (("wiki_root", wiki), ("workspace_root", workspace),
+                        ("harness_root", harness)):
+        if not root.is_absolute():
+            raise CorpusRootError(
+                f"{label} {str(root)!r} is not an absolute path on this host "
+                f"({sys.platform}). corpus_binding.path_roots records the roots "
+                "the pinned corpus was declared under (a Windows drive path); it "
+                "is provenance, not a portable locator. Supply roots this host "
+                "can use via the explicit override seam -- resolve_policy("
+                "wiki_root=..., workspace_root=..., harness_root=...) or "
+                "run_all.py --wiki-root / --workspace-root -- or run where the "
+                "declared corpus exists."
+            )
 
     meta: dict[str, Any] = {
         "profile_path_roots": {

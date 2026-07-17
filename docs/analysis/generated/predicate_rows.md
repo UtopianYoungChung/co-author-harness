@@ -2,8 +2,8 @@
      re-run to regenerate. Adjudicate the TBD columns via the tracked overlay.
      script_sha256=3ce155ca2198
      production_sites=248
-     suite_universe=31  (code-literal-independent; authority for fixture coverage)
-     fixture_cases=31 (from fixture_manifest.json, suite-granularity)
+     suite_universe=32  (code-literal-independent; authority for fixture coverage)
+     fixture_cases=32 (from fixture_manifest.json, suite-granularity)
      fixture_literal_sites=16 in 11 suites - NOT cases, diagnostic only
 
      Row IDs are code@module:function#asthash~ordinal.
@@ -288,6 +288,7 @@ suite's internal cases (see the runner's docstring).
 | scripts/audit/test_citations.py | default | 0 | null | EXIT-ONLY |
 | scripts/build_plugin_provenance_smoketest.py | default | 0 | null | EXIT-ONLY |
 | scripts/concept_introduction_contract_smoketest.py | default | 0 | null | EXIT-ONLY |
+| scripts/corpus_root_portability_smoketest.py | default | 0 | null | EXIT-ONLY |
 | scripts/d_style_profile_smoketest.py | default | 0 | null | EXIT-ONLY |
 | scripts/domain_native_register_smoketest.py | default | 0 | null | EXIT-ONLY |
 | scripts/end_to_end_smoketest.py | default | 0 | null | EXIT-ONLY |
