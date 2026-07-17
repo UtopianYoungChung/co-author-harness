@@ -723,6 +723,31 @@ def _string_literals(node: ast.AST) -> list[str]:
     return out
 
 
+def _stable_ast_dump(node: ast.AST) -> str:
+    """Return one expression representation across supported Python versions.
+
+    Python 3.13 added ``ast.dump(show_empty=...)`` and changed the default
+    rendering to omit empty list fields.  Older interpreters always emit those
+    fields (for example ``keywords=[]``), so hashing the raw dump made 213 of
+    248 signed site IDs depend on the interpreter that ran the census.
+
+    The current overlay was generated with the newer, empty-field-eliding
+    representation.  Remove empty AST list fields explicitly before dumping so
+    Python 3.11/3.12 reproduce that representation without re-keying the
+    adjudicated rows.  The node passed here is the disposable parse clone made
+    solely for hashing; mutating it cannot affect discovery.
+    """
+    for current in ast.walk(node):
+        for field in getattr(current, "_fields", ()):
+            try:
+                value = getattr(current, field)
+            except AttributeError:
+                continue
+            if isinstance(value, list) and not value:
+                delattr(current, field)
+    return ast.dump(node, annotate_fields=True, include_attributes=False)
+
+
 def collect_sites(rel: str, text: str) -> list[dict]:
     """One row per emission SITE. This is the unit of adjudication.
 
@@ -755,7 +780,7 @@ def collect_sites(rel: str, text: str) -> list[dict]:
             clone = ast.parse(ast.unparse(node), mode="eval").body
         except (SyntaxError, ValueError, AttributeError):
             clone = node
-        dump = ast.dump(clone, annotate_fields=True, include_attributes=False)
+        dump = _stable_ast_dump(clone)
         return hashlib.sha256(dump.encode("utf-8")).hexdigest()[:12]
 
     def add(line: int, code: str, shape: str, node: ast.AST | None = None,

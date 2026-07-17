@@ -72,3 +72,7 @@ jobs:
           python scripts/audit/test_audit.py
           python scripts/audit/test_citations.py
           python scripts/tests/test_resolve_includes.py
+      - name: Predicate census parity
+        run: |
+          python scripts/analysis/code_census.py \
+            --parity docs/analysis/generated/predicate_rows.md
