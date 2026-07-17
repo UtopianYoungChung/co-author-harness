@@ -14,9 +14,16 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from run_all import audit_target  # noqa: E402
+# The hermetic corpus builder lives with the register's own suite; import it
+# rather than author a second one (domain_native_register_smoketest itself
+# imports milestone_framework_smoketest the same way -- fixture modules are an
+# established provider here).
+from domain_native_register_smoketest import write_fixture  # noqa: E402
 
 REQUIRED_CHECK_IDS = {
     "ABS-001",  # absolutes
@@ -94,6 +101,24 @@ def main() -> int:
             encoding="utf-8",
         )
         findings_out = project_root / "reviews" / "findings.json"
+        # HERMETIC CORPUS, NOT THE MAINTAINER'S LIVE WIKI.
+        #
+        # run_all --project-root resolves the domain-native register, and
+        # resolve_policy defaults to corpus_binding.path_roots -- Windows drive
+        # paths naming the maintainer's local wiki. So this test used to pass
+        # ONLY on that one machine: on every other host `B:/Agents` is a
+        # relative path, joins against the CWD, and the register reports an
+        # "absent input" at a path that never existed. That is why CI has been
+        # red on Linux since 2026-07-13, and it is the same class of defect as
+        # the CRLF fixture hashes -- a test green because of local machine
+        # state rather than because the subject is correct.
+        #
+        # Binding a synthetic corpus through the documented override seam keeps
+        # the domain-native register EXERCISED (nothing is skipped: it resolves,
+        # pins, and fails closed) while making the result a function of the
+        # repository alone, identically on every platform.
+        wiki_root, workspace_root = write_fixture(project_root / "corpus",
+                                                  all_members=True)
         result = subprocess.run(
             [
                 sys.executable,
@@ -105,13 +130,26 @@ def main() -> int:
                 str(project_root),
                 "--date",
                 "2026-06-29",
+                "--wiki-root",
+                str(wiki_root),
+                "--workspace-root",
+                str(workspace_root),
             ],
             capture_output=True,
             encoding="utf-8",
             text=True,
         )
         if result.returncode != 0:
-            print(f"[BLOCKER] canonical pre-flight failed: {result.stderr}", file=sys.stderr)
+            # BOTH streams. run_all reports RA-POLICY misconfiguration as a JSON
+            # payload on STDOUT and exits 4, so printing stderr alone produced
+            # the uninformative "canonical pre-flight failed:" with nothing
+            # after it -- the diagnosis had to be reconstructed by rerunning the
+            # child by hand. A failure report that omits where the failure is
+            # written is not a report.
+            print(f"[BLOCKER] canonical pre-flight failed (exit {result.returncode})",
+                  file=sys.stderr)
+            print(f"  stdout: {result.stdout.strip() or '(empty)'}", file=sys.stderr)
+            print(f"  stderr: {result.stderr.strip() or '(empty)'}", file=sys.stderr)
             return 1
         profile_out = project_root / "reviews" / "d_style_profile_2026-06-29.json"
         if not findings_out.is_file() or not profile_out.is_file():
