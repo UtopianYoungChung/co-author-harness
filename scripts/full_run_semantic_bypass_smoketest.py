@@ -28,7 +28,12 @@ rather than paraphrasing them from memory: a paraphrase is not a weaker
 authority, it is a DIFFERENT one, and it disagrees with the real system exactly
 where it matters.
 
-Under the current build the anchor passes and all 16 bypasses are closed.
+Under the current build the anchor passes and every case below is closed --
+including the rejected dispatch-preflight coverage, which an earlier cut
+reported as "every bypass is closed" while its own docstring recorded that
+regression as NOT COVERED. A suite that prints a stronger claim than it holds is
+the same defect as a gate that does: the summary line is an assertion, and it
+has to be earned like any other.
 
 These cases encode the CodeRabbit semantic review of PR #14. Every one of them
 is a way to satisfy the gate's LETTER while defeating its PURPOSE -- the gate
@@ -98,6 +103,7 @@ FAILURES: list[str] = []
 from milestone_framework_smoketest import (  # noqa: E402
     _materialize_native_project, _phase_document,
 )
+import assignment_fixture_support as afs  # noqa: E402
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -118,6 +124,29 @@ def run(*args: str, stdin: str | None = None) -> tuple[int, dict | None]:
 
 def codes(p: dict | None) -> set[str]:
     return {f.get("code") for f in (p or {}).get("findings", [])}
+
+
+def _unmet(p: dict | None) -> list[str]:
+    """Every `unmet` entry the terminal finding aggregated."""
+    out: list[str] = []
+    for f in (p or {}).get("findings", []):
+        out.extend(f.get("unmet", []) or [])
+    return out
+
+
+def refused_for(p: dict | None, *needles: str) -> bool:
+    """Did the gate refuse for THE reason this case is about?
+
+    `rc == 4` alone is a weak assertion: every one of these fixtures is one
+    edit away from a dozen unrelated terminal failures, so a case could keep
+    reporting CLOSED long after the bypass it names had reopened -- passing on
+    a hash drift, a fixture typo, or a neighbouring rule. The bypass is the
+    thing under test, so the finding that names it is what gets asserted.
+    """
+    hay = " ".join(_unmet(p)) + " " + " ".join(
+        f.get("message", "") for f in (p or {}).get("findings", []))
+    low = hay.lower()
+    return all(n.lower() in low for n in needles)
 
 
 def _w(p: Path, text: str) -> Path:
@@ -219,7 +248,7 @@ def case_g4_not_pass_substring() -> None:
         _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: NOT PASS\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("G.4 'status: NOT PASS' is refused (substring is not a verdict)",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-GATE-M5", "G4_signoff.md"), f"rc={rc}")
 
 
 def case_g4_failed_wording() -> None:
@@ -228,7 +257,8 @@ def case_g4_failed_wording() -> None:
         _w(proj / "reviews/G4_signoff.md",
            "# G.4\n\nstatus: FAIL\nnote: did not PASS review\n")
         rc, p = run("terminal", "--project-root", str(proj))
-        check("G.4 'status: FAIL' (word PASS elsewhere) is refused", rc == 4, f"rc={rc}")
+        check("G.4 'status: FAIL' (word PASS elsewhere) is refused",
+              rc == 4 and refused_for(p, "MF-GATE-M5", "G4_signoff.md"), f"rc={rc}")
 
 
 def case_artifact_hash_absent() -> None:
@@ -238,7 +268,8 @@ def case_artifact_hash_absent() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M4"]
                      ["artifacts"][0].pop("sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("M4 artifact without sha256 is refused", rc == 4, f"rc={rc}")
+        check("M4 artifact without sha256 is refused",
+              rc == 4 and refused_for(p, "MF-BINDING", "M4.artifacts[0]"), f"rc={rc}")
 
 
 def case_f9_packet_hash_absent() -> None:
@@ -247,7 +278,8 @@ def case_f9_packet_hash_absent() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].pop("packet_sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("M1 F9 packet without packet_sha256 is refused", rc == 4, f"rc={rc}")
+        check("M1 F9 packet without packet_sha256 is refused",
+              rc == 4 and refused_for(p, "M1", "packet"), f"rc={rc}")
 
 
 def case_handoff_ready_not_consumed() -> None:
@@ -257,7 +289,8 @@ def case_handoff_ready_not_consumed() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].update({"status": "ready"}))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("predecessor handoff 'ready' (not consumed) is refused", rc == 4, f"rc={rc}")
+        check("predecessor handoff 'ready' (not consumed) is refused",
+              rc == 4 and refused_for(p, "MF-GATE-CHAIN", "M1.handoff"), f"rc={rc}")
 
 
 def _authorize_na_m4(proj: Path) -> None:
@@ -318,49 +351,47 @@ def _authorize_na_m4(proj: Path) -> None:
     _w(proj / "reviews/phase_state.json", json.dumps(st, indent=1))
 
 
-def case_boundary_composition_is_applicability_aware() -> None:
-    """A waived milestone is not a skipped requirement -- it is no requirement.
+def case_authorized_na_m4_cannot_reach_terminal() -> None:
+    """A waiver may not manufacture "ladder complete".
 
-    SCOPE, and why it is this and not an end-to-end pass.
+    An earlier cut skipped ph4_admission when M4 declared
+    `applicability: not_applicable`. That is right for a MILESTONE-LOCAL
+    question and wrong for a TERMINAL one: a full_lifecycle run is the user
+    asking for the whole ladder, so every milestone is required BECAUSE THEY
+    ASKED. Worse, the skip was reachable by the party the gate constrains -- a
+    waiver that flips "ladder complete" from false to true is the original
+    audit failure wearing the vocabulary of a legitimate feature.
 
-    The intent (CodeRabbit: "calling all three boundary validators
-    unconditionally rejects valid projects where M4 or M5 is legitimately
-    not_applicable") is right, and `_boundary_applies` implements it. What I
-    could NOT do is demonstrate a whole N/A-M4 project passing `terminal`, and
-    the reason matters more than the gap: the milestone authority's own
-    expectation table validates its `authorized_not_applicable` fixture at
-    TARGET M4 -- `("NOT_APPLICABLE", 0, "M4", None)` -- and never at M5. Push
-    that fixture through a terminal (M5) claim and it refuses with MF-HANDOFF:
-    M5 may not descend from a waived predecessor without the chain being
-    legitimately re-parented, which its `native_m5_not_started_target` case
-    (`MISCONFIGURED`, MF-HANDOFF) shows is deliberate.
-
-    I could have kept editing the fixture until it went green. That is exactly
-    how the fabricated `current_tier` and the invented `authorized_override`
-    got in -- each was a fixture bent to make a claim pass. So this asserts the
-    predicate directly, which is a real claim I can ground, and the end-to-end
-    N/A-M4 terminal pass stays explicitly unproven rather than faked green.
+    So this asserts the boundary itself: an N/A M4 is authorized (the ledger
+    accepts it, and `milestone_framework_validate` validates it at target M4 as
+    NOT_APPLICABLE) and STILL cannot produce a terminal claim.
     """
-    import full_run_contract_check as frc
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _authorize_na_m4(proj)
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("authorized not_applicable M4 CANNOT reach terminal", rc == 4,
+              f"rc={rc}")
+        check("-> and the refusal is FRC-TERMINAL-UNPROVEN",
+              "FRC-TERMINAL-UNPROVEN" in codes(p), str(codes(p)))
 
-    def state(applicability: str) -> dict:
-        return {"milestone_framework": {"milestones": {
-            k: {"applicability": applicability if k == "M4" else "applicable"}
-            for k in ("M1", "M2", "M3", "M4", "M5")}}}
 
-    applicable = state("applicable")
-    waived = state("not_applicable")
-    check("ph4_admission runs when M4 is applicable",
-          frc._boundary_applies(applicable, "ph4_admission") is True)
-    check("ph4_admission is skipped when M4 is authorizedly not_applicable",
-          frc._boundary_applies(waived, "ph4_admission") is False)
-    check("waiving M4 does not skip ph1_to_ph2 (M1-M3 still validated)",
-          frc._boundary_applies(waived, "ph1_to_ph2") is True)
-    check("waiving M4 does not skip ph4_terminal_close (M5 still validated)",
-          frc._boundary_applies(waived, "ph4_terminal_close") is True)
-    check("an ABSENT milestone record does not skip its boundary",
-          frc._boundary_applies({"milestone_framework": {"milestones": {}}},
-                                "ph4_admission") is True)
+def case_na_m4_does_not_waive_applicable_predecessors() -> None:
+    """Waiving M4 must not waive M1-M3 either -- refusal for the RIGHT reason.
+
+    Kept alongside the boundary case above so that "N/A M4 is refused" cannot
+    be satisfied by a gate that refuses N/A projects for one blanket reason: the
+    predecessor breakage must still be NAMED.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _authorize_na_m4(proj)
+        mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
+                     ["handoff"].update({"status": "not_ready"}))
+        rc, p = run("terminal", "--project-root", str(proj))
+        unmet = " ".join(_unmet(p))
+        check("N/A M4 does not waive an applicable M1 predecessor",
+              rc == 4 and "M1" in unmet, f"rc={rc}")
 
 
 def case_na_m4_does_not_waive_applicable_predecessors() -> None:
@@ -392,6 +423,41 @@ def case_non_object_contract_is_refused_not_a_crash() -> None:
                   rc == 4 and "FRC-CONTRACT-MISSING" in codes(p), f"rc={rc}")
 
 
+def case_malformed_nested_milestone_data_is_refused_not_a_crash() -> None:
+    """Truthy-but-wrong-typed nested data must produce a verdict, not a stack trace.
+
+    `milestones`, `policy_bindings.reader_accessibility` and `check8_path` were
+    read without type checks: a list is truthy, so `.get()` on it raises
+    AttributeError, and a Path built from an int raises TypeError. Each escaped
+    as exit 2 -- the ABSENCE of a verdict -- from the one function whose job is
+    to produce one. The gate must fail CLOSED on garbage, not fall over.
+    """
+    mutations = (
+        ("milestones is a list",
+         lambda st: st["milestone_framework"].update({"milestones": [{"M1": {}}]})),
+        ("milestones is a string",
+         lambda st: st["milestone_framework"].update({"milestones": "M1"})),
+        ("reader_accessibility binding is a list",
+         lambda st: st["milestone_framework"].update(
+             {"policy_bindings": {"reader_accessibility": ["nope"]}})),
+        ("policy_bindings is a string",
+         lambda st: st["milestone_framework"].update({"policy_bindings": "nope"})),
+        ("check8_path is an int",
+         lambda st: st["milestone_framework"]["milestones"]["M5"]
+         ["policy_evidence"].update({"check8_path": 42})),
+        ("policy_evidence is a list",
+         lambda st: st["milestone_framework"]["milestones"]["M5"]
+         .update({"policy_evidence": ["nope"]})),
+    )
+    for label, mut in mutations:
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            mutate_state(proj, mut)
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"malformed nested data ({label}) -> structured refusal",
+                  rc == 4 and p is not None, f"rc={rc} json={p is not None}")
+
+
 def case_fully_accepted_project_does_not_authorize_prose() -> None:
     """No active target is not 'no objection'."""
     with tempfile.TemporaryDirectory() as td:
@@ -411,7 +477,8 @@ def case_terminal_row_missing_required_fields_is_refused() -> None:
            "  user_signed_at: 2026-07-17T00:00:00Z\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("terminal row missing iteration_number/metric/verdict is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "E-ROW-SHAPE-VIOLATION", "iteration_number"),
+              f"rc={rc}")
 
 
 def case_terminal_row_null_convergence_metric_is_refused() -> None:
@@ -425,7 +492,7 @@ def case_terminal_row_null_convergence_metric_is_refused() -> None:
            "  final_owner_state: closed\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("terminal row with null convergence_metric_value is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "E-T3-CONVERGENCE-NULL-AT-SIGNOFF"), f"rc={rc}")
 
 
 def case_deep_pass_required_for_every_section() -> None:
@@ -443,7 +510,8 @@ def case_deep_pass_required_for_every_section() -> None:
         mutate_state(proj, add_undeep_section)
         rc, p = run("terminal", "--project-root", str(proj))
         check("one section without the deep pass refuses the whole terminal claim",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "MF-PHASE", "pre_mcr_deep_pass_completed",
+                                      "2. Second"), f"rc={rc}")
 
 
 def case_check8_blocker_refuses_terminal() -> None:
@@ -464,7 +532,8 @@ def case_check8_blocker_refuses_terminal() -> None:
         ev["aggregate_verdict"] = "BLOCKER"
         _w(proj / "reviews/phase_state.json", json.dumps(st, indent=1))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("a consistent Check 8 BLOCKER still refuses terminal", rc == 4, f"rc={rc}")
+        check("a consistent Check 8 BLOCKER still refuses terminal",
+              rc == 4 and refused_for(p, "Check 8", "BLOCKER"), f"rc={rc}")
 
 
 def case_fabricated_check8_file_is_not_evidence() -> None:
@@ -479,7 +548,60 @@ def case_fabricated_check8_file_is_not_evidence() -> None:
         _w(proj / "reviews/accessibility_notes.md", "# looks accessible to me\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("a file named *check8* with no bound evidence is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "no Check 8 evidence is bound"), f"rc={rc}")
+
+
+def case_malformed_section_container_is_refused_not_dropped() -> None:
+    """Silently dropping malformed sections REDUCES state, and reduced state passes.
+
+    `translate_phase_ledger` skipped any section entry that was not a dict, and
+    accepted a non-dict `sections` container by yielding none. Zero sections
+    then means clause g never runs for the dropped ones -- so malformed ledger
+    data did not fail validation, it REMOVED itself from validation. That is
+    strictly worse than a crash: a crash is visible.
+    """
+    for label, sections in (
+        ("sections is a list", [{"heading_path": ["1"]}]),
+        ("sections is a string", "not-an-object"),
+        ("a section entry is a string", {"1. A": "not-an-object"}),
+        ("a section entry is a list", {"1. A": []}),
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            mutate_state(proj, lambda st, s=sections: st.update({"sections": s}))
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"malformed phase_state ({label}) is REFUSED, not dropped",
+                  rc == 4, f"rc={rc}")
+
+
+def case_malformed_ledger_gives_structured_exit_2_not_a_traceback() -> None:
+    """pre_phase_advance_check's contract: exit 2 on structural failure.
+
+    The mutation is a malformed section ENTRY, not a malformed container, and
+    the distinction is the test. A non-dict `sections` container never reaches
+    the translator: `main()` runs `check_milestone_gate` first and
+    `validate_document` legitimately refuses it as MF-STRUCTURE with exit 1 --
+    a structured finding, correctly reported. A non-dict section *entry* passes
+    that gate (nothing there inspects entries) and lands in the translator,
+    which is precisely the path that must not escape as a traceback.
+
+    Exit 1 means "a clause failed". A caller told that by a crash has been told
+    something false about the ledger, in the vocabulary of a verdict it never
+    reached.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        mutate_state(proj, lambda st: st["sections"].update({"1. Test": "oops"}))
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "pre_phase_advance_check.py"),
+             "--project-root", str(proj), "--section", '["1. Test"]',
+             "--target-tier", "Ph4"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = (r.stdout or "") + (r.stderr or "")
+        last = out.strip().splitlines()[-1][:80] if out.strip() else ""
+        check("malformed section entry -> exit 2, no traceback",
+              r.returncode == 2 and "Traceback" not in out,
+              f"rc={r.returncode} {last}")
 
 
 def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
@@ -489,7 +611,7 @@ def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
         mutate_state(proj, lambda st: st.update({"sections": "not-an-object"}))
         rc, p = run("terminal", "--project-root", str(proj))
         check("malformed phase_state (non-E finding codes) is refused",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "phase_state"), f"rc={rc}")
 
 
 def _unclear_mcr(st: dict) -> None:
@@ -524,7 +646,8 @@ def case_mcr_filename_glob() -> None:
         mutate_state(proj, _unclear_mcr)
         _w(proj / "reviews/mcr_notes_scratch.md", "# random mcr musings, not a verdict\n")
         rc, p = run("terminal", "--project-root", str(proj))
-        check("arbitrary *mcr* filename does not satisfy MCR", rc == 4, f"rc={rc}")
+        check("arbitrary *mcr* filename does not satisfy MCR",
+              rc == 4 and refused_for(p, "MCR admission"), f"rc={rc}")
 
 
 def case_mcr_failed_verdict() -> None:
@@ -535,7 +658,7 @@ def case_mcr_failed_verdict() -> None:
         _w(proj / "reviews/mcr_report.md", "# MCR\n\nverdict: CLEARED\nstatus: PASS\n")
         rc, p = run("terminal", "--project-root", str(proj))
         check("an MCR file claiming CLEARED does not clear un-converged state",
-              rc == 4, f"rc={rc}")
+              rc == 4 and refused_for(p, "MCR admission"), f"rc={rc}")
 
 
 def case_final_milestone_absent() -> None:
@@ -544,7 +667,8 @@ def case_final_milestone_absent() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"].pop("M5"))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("absent FINAL/M5 record is refused (not skipped)", rc == 4, f"rc={rc}")
+        check("absent FINAL/M5 record is refused (not skipped)",
+              rc == 4 and refused_for(p, "MF-STRUCTURE", "'M5'"), f"rc={rc}")
 
 
 def case_final_packet_unbound() -> None:
@@ -553,7 +677,8 @@ def case_final_packet_unbound() -> None:
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M5"]
                      ["handoff"].pop("packet_sha256"))
         rc, p = run("terminal", "--project-root", str(proj))
-        check("terminal F9 packet without hash binding is refused", rc == 4, f"rc={rc}")
+        check("terminal F9 packet without hash binding is refused",
+              rc == 4 and refused_for(p, "M5"), f"rc={rc}")
 
 
 # ==========================================================================
@@ -597,35 +722,100 @@ def case_complete_round_entry_still_needs_a_receipt() -> None:
 
 
 # ==========================================================================
-# NOT CLOSED, and named rather than quietly dropped:
-#   "add a case that genuinely reaches rejected dispatch preflight"
+# RECEIPT / PREFLIGHT reachability -- the branches nothing used to reach.
 #
-# Every authorize case here stops BEFORE the receipt-verification and preflight
-# branches -- on a missing contract, a missing receipt, or no active target. So
-# those two branches are reachable in principle and unexercised in fact, and a
-# branch no test reaches is a branch whose failure mode is a guess.
+# Every other authorize case stops BEFORE receipt verification and preflight:
+# on a missing contract, a missing receipt, or no active target. A branch no
+# test reaches is a branch whose failure mode is a guess, and these three are
+# the branches that decide whether a write is authorized RIGHT NOW.
 #
-# The attempt failed for an instructive reason, recorded so the next attempt
-# starts from it rather than rediscovering it. Reaching preflight needs a REAL
-# READY receipt, and `assignment_process_gate.py` refuses to emit one against
-# this fixture's `{"status": "resolved"}` stub contract, with nine blockers:
-#
-#   APG-CONTRACT-UNRESOLVED (needs version 1.0.0), APG-PROFILE-ID,
-#   APG-PROFILE-PATH, APG-PROFILE-HASH, APG-SOURCE-AUTHORITY, APG-SEQUENCE,
-#   APG-MAPPING, APG-PROFESSOR-COPY-AUTHORITY, APG-WIKI-GROUNDING-MISSING
-#
-# That refusal is the assignment gate working: a receipt is not obtainable
-# without a genuinely resolved contract, which is exactly the property the
-# receipt is supposed to certify.
-#
-# To close it: `scripts/assignment_process_gate_smoketest.py` builds a valid
-# contract inline in `main()` (~L123-141) together with `write_wiki_evidence`.
-# Extract that into a shared fixture builder -- do NOT hand-copy it here, which
-# would recreate the paraphrase problem one layer down -- then emit a real
-# receipt, mutate `phase_state.json` underneath it, and assert
-# APG-RECEIPT-STALE: authorization is a statement about a specific state, and
-# it must expire the moment that state moves.
+# They need a real READY receipt, which needs a genuinely resolved contract --
+# the gate refuses a stub with nine blockers, which is the gate working. The
+# contract now comes from scripts/assignment_fixture_support.py, shared with
+# assignment_process_gate_smoketest, so neither suite carries its own idea of
+# "valid".
 # ==========================================================================
+def _emit_real_receipt(proj: Path, target: str = "M1") -> tuple[Path, str]:
+    """Build a gate-acceptable project and emit a genuine READY receipt."""
+    afs.minimal_gate_project(proj, target=target)
+    rel = f"reviews/.harness/assignment/gate_receipt_{target}_20260717T000000Z.json"
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "assignment_process_gate.py"),
+         "--project-root", str(proj), "--stage", "draft",
+         "--target-milestone", target, "--emit-receipt", rel],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return proj / rel, (r.stdout or "") + (r.stderr or "")
+
+
+def case_real_receipt_reaches_and_passes_preflight() -> None:
+    """POSITIVE: a real READY receipt authorizes -- the branch is reachable.
+
+    Without this the two negatives below could both pass on a gate that refuses
+    everything, which is the vacuity trap the anchor exists to catch elsewhere.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = Path(td) / "p"
+        receipt, log = _emit_real_receipt(proj)
+        if not receipt.is_file():
+            check("a real READY receipt authorizes prose", False,
+                  f"gate did not emit a receipt: {log[-160:]}")
+            return
+        rc, p = run("authorize", "--project-root", str(proj))
+        check("a real READY receipt + passing preflight AUTHORIZES (rc=0)",
+              rc == 0, f"rc={rc} {str((p or {}).get('findings'))[:110]}")
+
+
+def case_receipt_goes_stale_when_state_moves() -> None:
+    """The receipt is bound to phase_state BYTES: move them and it expires.
+
+    Authorization is a statement about a specific state, not a token that keeps
+    its meaning after the state changes underneath it.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = Path(td) / "p"
+        receipt, log = _emit_real_receipt(proj)
+        if not receipt.is_file():
+            check("a moved phase_state staleness the receipt", False,
+                  f"gate did not emit a receipt: {log[-160:]}")
+            return
+        st = json.loads((proj / "reviews/phase_state.json").read_text(encoding="utf-8"))
+        st["manuscript_id"] = "moved-underneath"
+        _w(proj / "reviews/phase_state.json", json.dumps(st, indent=2) + "\n")
+        rc, p = run("authorize", "--project-root", str(proj))
+        msgs = " ".join(f.get("message", "") for f in (p or {}).get("findings", []))
+        check("moving phase_state under a READY receipt makes it APG-RECEIPT-STALE",
+              rc == 4 and "APG-RECEIPT-STALE" in msgs,
+              f"rc={rc} {msgs[:110]}")
+
+
+def case_preflight_only_rejection_is_target_mismatch() -> None:
+    """A rejection that ONLY the dispatch preflight can produce.
+
+    `authorize` cannot reach this one, and that is a property worth pinning
+    rather than a gap: `verify_receipt` subsumes preflight's other checks, and
+    the derived target is passed as `--expected-target`, so a mismatch is
+    unreachable from there BY CONSTRUCTION. The preflight's distinct job is to
+    refuse a receipt that authorizes a DIFFERENT milestone than the one about
+    to be dispatched -- so it is exercised directly, with the precise code.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = Path(td) / "p"
+        receipt, log = _emit_real_receipt(proj, target="M1")
+        if not receipt.is_file():
+            check("preflight refuses a receipt for a different target", False,
+                  f"gate did not emit a receipt: {log[-160:]}")
+            return
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "assignment_dispatch_preflight.py"),
+             "--project-root", str(proj), "--receipt", str(receipt),
+             "--expected-target", "M2"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = (r.stdout or "") + (r.stderr or "")
+        check("preflight refuses an M1 receipt for an M2 dispatch "
+              "(APG-RECEIPT-TARGET-MISMATCH)",
+              r.returncode == 4 and "APG-RECEIPT-TARGET-MISMATCH" in out
+              and "APG-DISPATCH-REFUSED" in out,
+              f"rc={r.returncode} {out[:110]}")
 
 
 def case_fabricated_revision_log_is_not_authorship() -> None:
@@ -711,9 +901,12 @@ def main() -> int:
         print("  !! this run is NOT evidence about this repository")
     print()
     for fn in (case_baseline_valid_project_passes,
-               case_boundary_composition_is_applicability_aware,
+               case_authorized_na_m4_cannot_reach_terminal,
                case_na_m4_does_not_waive_applicable_predecessors,
                case_non_object_contract_is_refused_not_a_crash,
+               case_malformed_nested_milestone_data_is_refused_not_a_crash,
+               case_malformed_section_container_is_refused_not_dropped,
+               case_malformed_ledger_gives_structured_exit_2_not_a_traceback,
                case_fully_accepted_project_does_not_authorize_prose,
                case_terminal_row_missing_required_fields_is_refused,
                case_terminal_row_null_convergence_metric_is_refused,
@@ -729,6 +922,9 @@ def main() -> int:
                case_empty_revision_log_is_not_authorship,
                case_fabricated_revision_log_is_not_authorship,
                case_complete_round_entry_still_needs_a_receipt,
+               case_real_receipt_reaches_and_passes_preflight,
+               case_receipt_goes_stale_when_state_moves,
+               case_preflight_only_rejection_is_target_mismatch,
                case_authorize_requires_exact_resolved_status,
                case_authorize_requires_receipt_and_preflight,
                case_scope_escalation_refused,

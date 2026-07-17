@@ -299,6 +299,16 @@ def _read_text_or_none(path: Path) -> str | None:
 # ----------------------------------------------------------------- ledger bootstrap
 
 
+class LedgerTranslationError(ValueError):
+    """The on-disk ledger cannot be translated: malformed structure.
+
+    Raised rather than coerced. `load_ledger` maps this to the documented
+    structural exit code 2; in-process callers catch it and emit their own
+    structured refusal. Either way the answer is a refusal, never a quietly
+    smaller ledger.
+    """
+
+
 def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
     """Translate a Ph-coded on-disk ledger into the clauses' T-coded internal API.
 
@@ -337,17 +347,30 @@ def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
         "mcr_blocked_ph3_stale": "mcr_blocked_t3_stale",
         "eg1_ph4_downgrade_to_ph3": "eg1_t4_downgrade_to_t3",
     }
+    if not isinstance(phase_ledger, dict):
+        raise LedgerTranslationError(
+            f"phase state must be a JSON object, got {type(phase_ledger).__name__}")
     ledger = dict(phase_ledger)
     ledger["default_final_tier"] = phase_to_tier.get(
         phase_ledger.get("default_final_phase"), "T3"
     )
     translated_sections: list[dict[str, Any]] = []
     raw_sections = phase_ledger.get("sections", {})
-    raw_iter = raw_sections.values() if isinstance(raw_sections, dict) else (
-        raw_sections if isinstance(raw_sections, list) else [])
-    for raw in raw_iter:
+    # FAIL CLOSED on a malformed container. The first cut coerced anything
+    # unrecognised to "no sections", which is not tolerance -- it is state
+    # REDUCTION: the full-run caller then skips clause g for the sections that
+    # vanished, so malformed ledger data did not fail validation, it removed
+    # itself from validation. Silently having less to check reads exactly like
+    # having nothing wrong.
+    if not isinstance(raw_sections, (dict, list)):
+        raise LedgerTranslationError(
+            f"sections must be an object or a list, got "
+            f"{type(raw_sections).__name__}")
+    raw_iter = raw_sections.values() if isinstance(raw_sections, dict) else raw_sections
+    for index, raw in enumerate(raw_iter):
         if not isinstance(raw, dict):
-            continue
+            raise LedgerTranslationError(
+                f"sections[{index}] must be an object, got {type(raw).__name__}")
         section_copy = dict(raw)
         for source, target in field_map.items():
             if source in raw:
@@ -397,7 +420,19 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
     # The clause implementations retain their stable T-coded internal API.
     # Translate the authoritative Ph-coded ledger in memory; never create or
     # read the retired tier_state.json surface. One translator, shared.
-    ledger = translate_phase_ledger(phase_ledger)
+    #
+    # A translation failure is a STRUCTURAL failure encountered before the
+    # clauses can be reached -- which is exactly what this function's contract
+    # says exit 2 is for. Letting it escape would surface a traceback and exit
+    # 1, and exit 1 means "a clause failed": a caller would be told something
+    # false about the ledger, in the vocabulary of a verdict it never got.
+    try:
+        ledger = translate_phase_ledger(phase_ledger)
+    except LedgerTranslationError as exc:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} is malformed: "
+            f"{exc}\n")
+        sys.exit(2)
 
     try:
         heading_path = json.loads(ctx_args.section)

@@ -122,36 +122,43 @@ import reader_accessibility_policy as rap          # noqa: E402
 
 
 # Which milestone each gate boundary is ABOUT (milestone_framework_validate's
-# own target_map). A boundary whose target is authorizedly `not_applicable` is
-# not a skipped requirement -- it is a requirement the project's declared
-# applicability says does not exist.
+# own target_map). Kept for diagnostics; it no longer gates anything.
 BOUNDARY_TARGETS = {
     "ph1_to_ph2": ("M1", "M2", "M3"),
     "ph4_admission": ("M4",),
     "ph4_terminal_close": ("M5",),
 }
 
-
-def _boundary_applies(state: dict, boundary: str) -> bool:
-    """Is this boundary's target milestone applicable to this project?
-
-    Only `ph4_admission` (M4) and `ph4_terminal_close` (M5) can be waived, and
-    only when the ledger itself declares `applicability: not_applicable` --
-    which milestone_framework_validate independently requires an
-    `authorized_override` for, so this cannot be self-granted by editing one
-    field. `ph1_to_ph2` covers M1-M3 and is never skipped wholesale: if any of
-    the three is applicable the boundary still runs, and validate_gate already
-    skips the individual `not_applicable` records inside it.
-    """
-    milestones = ((state.get("milestone_framework") or {}).get("milestones") or {})
-    targets = BOUNDARY_TARGETS.get(boundary, ())
-    applicable = []
-    for key in targets:
-        record = milestones.get(key)
-        if not isinstance(record, dict):
-            return True   # absent record: let the authority say so, do not skip
-        applicable.append(record.get("applicability") != "not_applicable")
-    return any(applicable) if applicable else True
+# ---------------------------------------------------------------------------
+# `not_applicable` DOES NOT REACH TERMINAL, in a full_lifecycle run.
+#
+# An earlier cut skipped the ph4_admission / ph4_terminal_close boundaries when
+# M4 / M5 declared `applicability: not_applicable`, reasoning that a waived
+# milestone is "no requirement" rather than a skipped one. That reasoning is
+# sound for a MILESTONE-LOCAL question and wrong for a TERMINAL one, and the
+# difference is the whole contract:
+#
+#   * A full_lifecycle run is the user asking for the whole ladder. Every
+#     milestone is required BECAUSE THEY ASKED FOR IT -- applicability is a
+#     statement about one milestone's own validation, not a licence to redefine
+#     what the user requested.
+#   * §4 terminal evidence is not satisfiable without M5 anyway: requirement 2
+#     needs M1-M4 accepted, and requirement 15 needs the FINAL/M5 packet and
+#     terminal state. A "terminal claim" over a waived M5 is a claim that the
+#     deliverable shipped without the deliverable.
+#   * The skip was reachable by the very party the gate constrains. A waiver
+#     that converts "ladder complete" from false to true is not applicability;
+#     it is the audit failure this whole file exists to prevent, wearing the
+#     vocabulary of a legitimate feature.
+#
+# Authorized N/A remains meaningful where it belongs: milestone-local and ad hoc
+# validation (`milestone_framework_validate` validates its own
+# `authorized_not_applicable` fixture at TARGET M4 and yields NOT_APPLICABLE).
+# It simply cannot produce "ladder complete", "terminal PASS", or shipment.
+# Every boundary runs at terminal, unconditionally; validate_gate still skips
+# individual `not_applicable` records INSIDE a boundary where its own rules say
+# so, which is its call to make, not ours.
+# ---------------------------------------------------------------------------
 
 PREFLIGHT = SCRIPTS / "assignment_dispatch_preflight.py"
 
@@ -349,7 +356,8 @@ def derive_active_target(project_root: Path) -> tuple[str | None, list[dict]]:
     records are skipped only when the ledger itself declares them so.
     """
     state, _ = _load_json(project_root / "reviews" / "phase_state.json")
-    milestones = ((state or {}).get("milestone_framework") or {}).get("milestones")
+    mf = (state or {}).get("milestone_framework")
+    milestones = mf.get("milestones") if isinstance(mf, dict) else None
     if not isinstance(milestones, dict):
         return None, [_f("FRC-NO-PROJECT",
                          "milestone_framework.milestones is absent or not an object; "
@@ -760,6 +768,11 @@ def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
     # --- full TerminalSignoffRow validation ---------------------------------
     try:
         ledger = ppa.translate_phase_ledger(state)
+    except ppa.LedgerTranslationError as exc:
+        # The translator now REFUSES malformed sections rather than dropping
+        # them. That refusal is a terminal finding, not an error: a ledger whose
+        # sections cannot be read is a ledger whose sections cannot be validated.
+        return out + [f"[phase_state] malformed ledger: {exc}"]
     except Exception as exc:  # noqa: BLE001
         return out + [f"[clause g] ledger translation raised "
                       f"{type(exc).__name__}: {exc}"]
@@ -816,17 +829,42 @@ def _check8_findings(project_root: Path, state: dict) -> list[str]:
     ledger knows -- and it accepted `{"aggregate": "CLEAN"}`, a document with no
     subchecks, no profile binding, and no relation to the manuscript.
     """
-    mf = state.get("milestone_framework") or {}
-    milestones = mf.get("milestones") or {}
-    bindings = mf.get("policy_bindings") or {}
+    # Type-check every nested container before use. `or {}` guards ABSENCE but
+    # not WRONG TYPE: a list is truthy, so it sails past `or {}` and then
+    # `.get()` raises AttributeError -- turning the refusal this function exists
+    # to produce into exit 2, the absence of a verdict. Garbage in must mean
+    # refusal out, not a stack trace.
+    mf = state.get("milestone_framework")
+    if not isinstance(mf, dict):
+        return [f"milestone_framework must be an object, got {type(mf).__name__}"]
+    milestones = mf.get("milestones")
+    if not isinstance(milestones, dict):
+        return [f"milestone_framework.milestones must be an object, got "
+                f"{type(milestones).__name__}"]
+    bindings = mf.get("policy_bindings")
     binding = bindings.get("reader_accessibility") if isinstance(bindings, dict) else None
-    transitions = (binding or {}).get("transitions") or {}
+    transitions = binding.get("transitions") if isinstance(binding, dict) else None
+    if not isinstance(transitions, dict):
+        transitions = {}
 
-    bound = [(key, (rec or {}).get("policy_evidence"))
-             for key, rec in milestones.items()
-             if isinstance(rec, dict)
-             and isinstance(rec.get("policy_evidence"), dict)
-             and rec["policy_evidence"].get("check8_path")]
+    bound = []
+    for key, rec in milestones.items():
+        if not isinstance(rec, dict):
+            return [f"milestone_framework.milestones.{key} must be an object, got "
+                    f"{type(rec).__name__}"]
+        ev = rec.get("policy_evidence")
+        if ev is None:
+            continue
+        if not isinstance(ev, dict):
+            return [f"{key}.policy_evidence must be an object, got "
+                    f"{type(ev).__name__}"]
+        rel = ev.get("check8_path")
+        if rel is None:
+            continue
+        if not isinstance(rel, str) or not rel.strip():
+            return [f"{key}.policy_evidence.check8_path must be a non-empty string, "
+                    f"got {type(rel).__name__}"]
+        bound.append((key, ev))
     if not bound:
         return ["no Check 8 evidence is bound in milestone_framework "
                 "(milestones.*.policy_evidence.check8_path); a file merely named "
@@ -890,19 +928,10 @@ def check_terminal(project_root: Path) -> list[dict]:
 
     missing: list[str] = []
 
-    # 2-6, 12 -- the milestone authority, every APPLICABLE boundary.
-    #
-    # Applicability-aware, because a boundary whose target milestone is
-    # authorizedly `not_applicable` is not a requirement that was skipped -- it
-    # is a requirement the project's own declared applicability says does not
-    # exist. Running ph4_admission against an N/A M4 refuses a legitimate
-    # project for failing to satisfy a milestone it was authorized not to have.
-    # Predecessor boundaries stay unconditional: `not_applicable` on M4 says
-    # nothing about M1-M3, and ph1_to_ph2 still validates every applicable
-    # predecessor.
+    # 2-6, 12 -- the milestone authority, EVERY boundary, unconditionally.
+    # A full_lifecycle terminal claim may not skip M4 or M5 on an applicability
+    # declaration; see the note above BOUNDARY_TARGETS.
     for boundary in mfv.GATE_BOUNDARIES:
-        if not _boundary_applies(state, boundary):
-            continue
         try:
             result = mfv.validate_gate(project_root, state, boundary)
         except Exception as exc:  # noqa: BLE001
