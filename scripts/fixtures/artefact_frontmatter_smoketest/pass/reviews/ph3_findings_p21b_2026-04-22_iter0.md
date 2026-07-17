@@ -32,13 +32,13 @@ reader_accessibility_policy:
   profile_sha256: "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277"
   exemplar_view_pin: "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f"
   attestation_view_pin: "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe"
-  resolved_sha256: "5fe2f39ba02399d003e8fae2afadd007624a897f8cc0355c9df5dc40b7b30e20"
+  resolved_sha256: "0433da19330d4f7ff8f8b561248f7d8569d22cad3032abea2538a754165535f6"
   manuscript_sha256: "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04"
   check8_evidence_path: reviews/.harness/policy/check8_evidence.json
-  check8_evidence_sha256: "4167bdaa19bf03dde9bd98a16c508375e0a3d908326664a96ed0c91a223bdd75"
+  check8_evidence_sha256: "53b6f677e6b95fa07f6394a6c2475bd3903d3e7400dac9f1a583b7223f8046ee"
   phase: Ph3
   candidate_artifact_path: reviews/.harness/policy/reader_accessibility_candidates.json
-  candidate_artifact_sha256: "790f39a333610712204abd535d2647ca94ed1393a329e73ad72b50f152d74e92"
+  candidate_artifact_sha256: "d9740deefc96c83b5d7474ff17da5f24bd8038159b9f6c6b95f3abf0d2b50d0d"
 check_8_adjacent_advisories:
   ve_finding_count: 0
 dnd_byte_verification:

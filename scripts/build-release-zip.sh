@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# NOTE (2026-07-07): scripts/release-gate.sh Phase 1 is the CANONICAL packaging
-# path (it builds the zip inline after the full check battery). This script is a
-# convenience wrapper for ad-hoc builds only; if the two ever disagree, the gate wins.
-# build-release-zip.sh — canonical packaging recipe for co-author-harness-claude
+# build-release-zip.sh — convenience wrapper over the committed builder.
 #
-# Codifies the exclusion list that was tribal knowledge through v0.7.3:
-#   * __pycache__ directories and .pyc files — most Claude-plugin loaders reject them
-#   * .DS_Store — macOS Finder metadata, never load-bearing
-#   * setup/ scratch dirs — reserved for author-side scaffolding, never shipped
+# CONVERGED (2026-07-16): this script no longer owns a package population.
+# It used to run its own `zip -r` over the WORKTREE with a hand-maintained
+# exclusion list — a THIRD population beside release-gate.sh Phase 1 and
+# scripts/package_enumeration.py, each with different opinions (this one
+# also stripped historical release notes and .plugin-calibrator.json, which
+# the canonical population ships). Every bundle producer now delegates to
+# scripts/build-plugin.py: commit-bound bytes from a clean worktree re-exec,
+# rendered includes, embedded PROVENANCE.json, one population authority
+# (scripts/package_enumeration.py). If you need a different population,
+# change the authority, not a wrapper.
 #
-# See handoff-§7.4 (v0.7.4 session handoff) for the history: the v0.7.3 first cut
-# included scripts/__pycache__/ with 39 .pyc files, which blocked validation until
-# trimmed. This script ensures that failure mode cannot recur from a clean invocation.
+# What this wrapper still owns:
+#   * the releases/ staging convention and <name>-v<version>.zip naming
+#   * fail-fast manifest checks (version arg match; 400-char description
+#     ceiling learned empirically at the v0.7.3 cut — the loader rejects
+#     overruns with a generic "Plugin validation failed")
+#   * independent post-build validation of the ARTIFACT (never trust the
+#     producer's exit code alone)
 #
 # Usage:
 #   ./scripts/build-release-zip.sh <plugin-root> <version>
@@ -24,13 +31,14 @@
 #   <plugin-root>/releases/co-author-harness-claude-v<version>.zip
 #
 # Exit codes:
-#   0  success; zip built and staged
+#   0  success; zip built, validated, and staged
 #   1  usage error
 #   2  plugin-root missing or not a plugin source tree
 #   3  plugin.json version field does not match <version> argument
 #   4  plugin.json description exceeds 400-character ceiling
-#      (see .auto-memory/feedback_plugin_manifest_description_limit.md)
-#   5  zip command failed
+#   5  the committed builder failed (its own exit code is reported;
+#      see scripts/build-plugin.py's contract: 5 provenance readback,
+#      6 no child bundle, 7 worktree cleanup VOID, ...)
 #   6  validation check on built zip failed
 
 set -euo pipefail
@@ -57,40 +65,48 @@ if [[ ! -f "$MANIFEST" ]]; then
   exit 2
 fi
 
-# ---------- manifest integrity checks ----------
+# ---------- manifest integrity checks (against COMMITTED HEAD) ----------
 
-# Check the manifest version field matches the <version> arg.
-# We use python because jq may not be available on every dev box.
-MANIFEST_VERSION="$(python3 -c '
+# The artifact packages HEAD bytes, so every naming and validation decision
+# reads HEAD's manifest -- never the worktree's. The previous version read
+# the worktree manifest here: a dirty version bump produced a zip NAMED for
+# the dirty version while its embedded manifest carried HEAD's. Filename and
+# content must come from one source.
+HEAD_MANIFEST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json)" || {
+  printf 'error: cannot read HEAD:.claude-plugin/plugin.json\n' >&2
+  exit 2
+}
+
+HEAD_NAME="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
 import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(d.get("version", ""))
-' "$MANIFEST")"
+print(json.load(sys.stdin).get("name", ""))
+')"
+HEAD_VERSION="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
+import json, sys
+print(json.load(sys.stdin).get("version", ""))
+')"
 
-if [[ "$MANIFEST_VERSION" != "$VERSION" ]]; then
-  printf 'error: manifest version (%s) does not match <version> arg (%s)\n' \
-    "$MANIFEST_VERSION" "$VERSION" >&2
-  printf '  expected: %s\n' "$VERSION" >&2
-  printf '  actual:   %s (in %s)\n' "$MANIFEST_VERSION" "$MANIFEST" >&2
+if [[ -z "$HEAD_NAME" || -z "$HEAD_VERSION" ]]; then
+  printf 'error: HEAD manifest has no name/version\n' >&2
+  exit 2
+fi
+
+if [[ "$HEAD_VERSION" != "$VERSION" ]]; then
+  printf 'error: COMMITTED manifest version (%s) does not match <version> arg (%s)\n' \
+    "$HEAD_VERSION" "$VERSION" >&2
+  printf '  a release is a commit: commit the version bump first\n' >&2
   exit 3
 fi
 
-# Check the description field does not exceed 400 characters.
-# Anthropic's plugin loader silently rejects overruns with a generic
-# "Plugin validation failed" message; the 400-char ceiling was learned
-# empirically at the v0.7.3 release cut.
-DESCRIPTION_LEN="$(python3 -c '
+# Description ceiling, measured on HEAD's manifest (the one that ships).
+DESCRIPTION_LEN="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
 import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(len(d.get("description", "")))
-' "$MANIFEST")"
+print(len(json.load(sys.stdin).get("description", "")))
+')"
 
 if [[ "$DESCRIPTION_LEN" -gt 400 ]]; then
-  printf 'error: plugin.json description length %d exceeds 400-char ceiling\n' \
+  printf 'error: HEAD plugin.json description length %d exceeds 400-char ceiling\n' \
     "$DESCRIPTION_LEN" >&2
-  printf '  see .auto-memory/feedback_plugin_manifest_description_limit.md\n' >&2
   exit 4
 fi
 
@@ -102,7 +118,8 @@ if [[ ! -d "$RELEASES_DIR" ]]; then
   mkdir -p "$RELEASES_DIR"
 fi
 
-ZIP_NAME="co-author-harness-claude-v${VERSION}.zip"
+# Name derived from COMMITTED content only.
+ZIP_NAME="${HEAD_NAME}-v${HEAD_VERSION}.zip"
 ZIP_PATH="$RELEASES_DIR/$ZIP_NAME"
 
 if [[ -f "$ZIP_PATH" ]]; then
@@ -110,98 +127,33 @@ if [[ -f "$ZIP_PATH" ]]; then
   rm -f "$ZIP_PATH"
 fi
 
-# ---------- the zip invocation ----------
+# ---------- build via the committed builder ----------
 
-# The exclusion list is LOAD-BEARING. Do not remove entries without updating
-# handoff-§7.4 and the release-cut runbook.
-#
-# -r     recurse into subdirectories
-# -q     quiet (show only errors; success is signaled by exit code)
-# -9     maximum compression
-# -x PAT exclude paths matching PAT (repeated per pattern)
-#
-# The PATTERNS (each listed in BOTH top-level and nested form, because the
-# zip default glob `*/legacy/*` matches only nested paths and lets the
-# top-level dir slip through — a v0.7.4-discovered packaging bug):
-#   __pycache__/* + */__pycache__/*  bytecode cache contents
-#   __pycache__   + */__pycache__    the cache dir entry itself
-#   *.pyc                            bytecode artefacts at any depth
-#   */.DS_Store                      macOS Finder metadata
-#   setup/*       + */setup/*        author-side scaffolding
-#   unpacked/*    + */unpacked/*     unpacked-snapshot mirrors
-#   archive/*     + */archive/*      workspace-retired ancestry
-#   archives/*    + */archives/*     bulk / legacy drops (gitignored; not plugin payload)
-#   legacy/*      + */legacy/*       plugin-internal retired surfaces
-#   proposals/*   + */proposals/*    harness-root artefacts, not plugin payload
-#   releases/*    + */releases/*     releases dir never zipped into a release
-#   .plugin-calibrator.json          config for a peer plugin, not this plugin
-#   docs/release-notes/RELEASE_NOTES_v0.*[!4].md  historical release notes (keep current only)
-#   .git/*, *.swp, *~                VCS / editor crud
-#
-# v0.7.4-discovery: the original `*/path/*` patterns failed to exclude
-# TOP-LEVEL `legacy/` and `releases/`. The fix adds the bare `legacy/*`
-# and `releases/*` patterns alongside the nested forms, and also strips
-# historical `docs/release-notes/RELEASE_NOTES_*.md` and the `.plugin-calibrator.json` config file
-# that belongs to a peer plugin, not this plugin. Reference: the v0.5.4
-# known-good reference zip ships only the current release's RELEASE_NOTES
-# and no legacy/ at top-level.
+printf 'building via scripts/build-plugin.py ...\n'
+set +e
+( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py )
+BUILD_RC=$?
+set -e
+if [[ "$BUILD_RC" -ne 0 ]]; then
+  printf 'error: build-plugin.py exited %d (see its exit-code contract)\n' "$BUILD_RC" >&2
+  exit 5
+fi
 
-cd "$PLUGIN_ROOT"
+PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${HEAD_NAME}.plugin"
+if [[ ! -f "$PLUGIN_ARTIFACT" ]]; then
+  printf 'error: builder exited 0 but no artifact at %s\n' "$PLUGIN_ARTIFACT" >&2
+  exit 5
+fi
 
-printf 'building %s ...\n' "$ZIP_PATH"
-
-zip -r -q -9 "$ZIP_PATH" . \
-  -x "__pycache__/*" \
-  -x "*/__pycache__/*" \
-  -x "__pycache__" \
-  -x "*/__pycache__" \
-  -x "*.pyc" \
-  -x "*/.DS_Store" \
-  -x "setup/*" \
-  -x "*/setup/*" \
-  -x "unpacked/*" \
-  -x "*/unpacked/*" \
-  -x "archive/*" \
-  -x "*/archive/*" \
-  -x "archives/*" \
-  -x "*/archives/*" \
-  -x "legacy/*" \
-  -x "*/legacy/*" \
-  -x "proposals/*" \
-  -x "*/proposals/*" \
-  -x "releases/*" \
-  -x "*/releases/*" \
-  -x ".claude/*" \
-  -x "*/.claude/*" \
-  -x "*.plugin" \
-  -x "*.zip" \
-  -x ".plugin-calibrator.json" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.5*.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.6*.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.0.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.1.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.2.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.3.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.4.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.7.4.1.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.8.0.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.8.1.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.8.2.md" \
-  -x "docs/release-notes/RELEASE_NOTES_v0.8.3.md" \
-  -x ".git/*" \
-  -x ".git" \
-  -x "*.swp" \
-  -x "*~" \
-  || { printf 'error: zip command failed\n' >&2; exit 5; }
+cp "$PLUGIN_ARTIFACT" "$ZIP_PATH"
 
 # ---------- post-build validation ----------
 
-# Sanity checks on the produced zip:
-#   (a) no __pycache__ entries
-#   (b) no .pyc entries
-#   (c) plugin.json is present at .claude-plugin/plugin.json
-#   (d) at least one agent file is present
-#   (e) at least one skill file is present
+# Independent checks on the produced zip — verify the ARTIFACT, not the
+# producer's exit code:
+#   (a) no __pycache__ / .pyc entries        (c) manifest present
+#   (b) no nested archives, no .claude state (d) agents + skills present
+#   (e) PROVENANCE.json names the repo's current HEAD
 
 printf 'validating %s ...\n' "$ZIP_NAME"
 
@@ -229,9 +181,38 @@ if [[ "$BAD_CLAUDE_STATE" -gt 0 ]]; then
   exit 6
 fi
 
-HAS_MANIFEST="$(unzip -l "$ZIP_PATH" | grep -c '.claude-plugin/plugin.json' || true)"
+HAS_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^\.claude-plugin/plugin\.json$' || true)"
 if [[ "$HAS_MANIFEST" -lt 1 ]]; then
   printf 'error: zip does not contain .claude-plugin/plugin.json\n' >&2
+  exit 6
+fi
+
+HAS_AGENTS="$(unzip -Z1 "$ZIP_PATH" | grep -c '^agents/.*\.md$' || true)"
+if [[ "$HAS_AGENTS" -lt 1 ]]; then
+  printf 'error: zip contains no agents/*.md\n' >&2
+  exit 6
+fi
+
+HAS_SKILLS="$(unzip -Z1 "$ZIP_PATH" | grep -c '^skills/.*/SKILL\.md$' || true)"
+if [[ "$HAS_SKILLS" -lt 1 ]]; then
+  printf 'error: zip contains no skills/*/SKILL.md\n' >&2
+  exit 6
+fi
+
+# Exact-digest reconciliation: the archive's embedded manifest IS HEAD's.
+# Shared verifier -- also exercised against tampered archives by
+# scripts/analysis/release_manifest_negative_check.py.
+if ! python3 "$PLUGIN_ROOT/scripts/release_manifest_check.py" "$ZIP_PATH" --repo "$PLUGIN_ROOT"; then
+  printf 'error: archive manifest does not match committed HEAD manifest\n' >&2
+  exit 6
+fi
+
+PROV_COMMIT="$(unzip -p "$ZIP_PATH" PROVENANCE.json 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null || true)"
+HEAD_SHA="$(git -C "$PLUGIN_ROOT" rev-parse HEAD 2>/dev/null || true)"
+if [[ -z "$PROV_COMMIT" || -z "$HEAD_SHA" || "$PROV_COMMIT" != "$HEAD_SHA" ]]; then
+  printf 'error: PROVENANCE.json commit (%s) does not name HEAD (%s)\n' \
+    "${PROV_COMMIT:0:12}" "${HEAD_SHA:0:12}" >&2
   exit 6
 fi
 
@@ -241,5 +222,6 @@ SIZE_KB="$(( SIZE_BYTES / 1024 ))"
 
 printf 'done.\n'
 printf '  zip:    %s\n' "$ZIP_PATH"
+printf '  commit: %s\n' "$PROV_COMMIT"
 printf '  size:   %d KB (%d bytes)\n' "$SIZE_KB" "$SIZE_BYTES"
-printf '  entries: %d\n' "$(unzip -l "$ZIP_PATH" | tail -1 | awk '{print $2}')"
+printf '  entries: %d\n' "$(unzip -Z1 "$ZIP_PATH" | wc -l)"
