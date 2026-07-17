@@ -259,6 +259,57 @@ def case_missing_changelog_is_refused() -> None:
               str(blockers(out)[:2]))
 
 
+def case_alternate_version_assertions_are_refused() -> None:
+    """A policy that only knows two spellings is a policy about two spellings.
+
+    The refusal caught an exact, case-sensitive `![Version](...Version-X.Y.Z-)`
+    badge and a backticked ``## Version `X.Y.Z` ``. Everything else sailed
+    through: a lowercase `![version]` badge, a `Build`/`Release`-labelled
+    shields badge, `## Current version` followed by a bare literal, a bolded
+    `**Version:** 0.29.1`. Each asserts the current version in prose just as
+    hard as the two spellings that were caught -- the gate was refusing a
+    FORMAT, not a claim, and the next drift will be written in whatever format
+    nobody enumerated.
+    """
+    for label, body in (
+        ("lowercase shields badge",
+         "# X\n\n![version](https://img.shields.io/badge/version-0.29.1-blue)\n"),
+        ("Release-labelled shields badge",
+         "# X\n\n![Release](https://img.shields.io/badge/Release-0.29.1-green)\n"),
+        ("## Current version + bare literal",
+         "# X\n\n## Current version\n\n0.29.1\n"),
+        ("bolded **Version:** literal",
+         "# X\n\n**Version:** 0.29.1\n"),
+        ("plain `Version: X.Y.Z` line",
+         "# X\n\nVersion: 0.29.1\n"),
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            rc, out = run(fixture(Path(td), readme=body))
+            check(f"README {label} is REFUSED", blocked_for(out, "README"),
+                  str(blockers(out) or "<no blocker>")[:70])
+
+
+def case_malformed_release_heading_is_refused() -> None:
+    """A heading the extractor cannot parse is not a heading that is not there.
+
+    `extract_changelog_releases` silently skips any `## v...` line outside the
+    accepted 2-4 component shape. So `## v1.2.3.4.5 — 2026-01-01` vanished, the
+    remaining releases validated fine, and the check reported a well-formed
+    changelog while a malformed release record sat in it. Silence on
+    unparseable input is the failure mode this whole round is about: the
+    checker did not disagree with the file, it failed to see it.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        rc, out = run(fixture(Path(td), changelog=(
+            "# Changelog\n\n"
+            "## v0.29.1 — 2026-07-17\n\n- ok\n\n"
+            "## v1.2.3.4.5 — 2026-01-02\n\n- malformed identifier\n\n"
+            "## v0.29.0 — 2026-07-14\n\n- ok\n")))
+        check("malformed release-like heading is REFUSED",
+              blocked_for(out, "CHANGELOG", "malformed"),
+              str(blockers(out) or "<no blocker>")[:70])
+
+
 def case_ssot_registry_agrees_with_the_ruling() -> None:
     """Every version authority must agree, or the contradiction just moves.
 
@@ -286,9 +337,12 @@ def case_ssot_registry_agrees_with_the_ruling() -> None:
           "CHANGELOG is registered as a consumer; it would BLOCK on a lag that "
           "version-check.py deliberately WARNs on")
 
+    # timeout matches `run()`. Without it a hang in ssot-check.py hangs this
+    # suite, and a suite that hangs takes CI with it -- an unbounded wait is not
+    # a slow pass, it is a run with no verdict at all.
     r = subprocess.run([sys.executable, str(ROOT / "scripts" / "ssot-check.py")],
                        capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", cwd=str(ROOT))
+                       errors="replace", cwd=str(ROOT), timeout=300)
     check("ssot-check.py passes on the real repository", r.returncode == 0,
           f"ssot-check.py exit {r.returncode}: {(r.stdout or '')[-200:]}")
 
@@ -311,6 +365,8 @@ def main() -> int:
                case_four_component_ordering,
                case_real_changelog_is_accepted,
                case_missing_changelog_is_refused,
+               case_alternate_version_assertions_are_refused,
+               case_malformed_release_heading_is_refused,
                case_ssot_registry_agrees_with_the_ruling):
         print(f"{fn.__name__}:")
         try:

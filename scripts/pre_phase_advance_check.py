@@ -299,36 +299,20 @@ def _read_text_or_none(path: Path) -> str | None:
 # ----------------------------------------------------------------- ledger bootstrap
 
 
-def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load phase_state.json and expose its phase-native ledger to the guardrail.
+def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
+    """Translate a Ph-coded on-disk ledger into the clauses' T-coded internal API.
 
-    Returns (ledger, section). Exits code 2 on any structural failure encountered
-    before the clause checks can even be reached.
+    Extracted from `load_ledger` verbatim so that in-process callers (the
+    full-run contract gate) reach the clause predicates through the SAME
+    translation the CLI uses, rather than passing phase-native sections to a
+    tier-native predicate. `_is_mcr_cleared` reads `current_tier`,
+    `last_approved_tier`, and T-coded ceilings; handing it raw `current_phase`
+    silently yields "not cleared" for a perfectly good project, and tempts the
+    caller to fabricate a legacy `current_tier` to make it pass -- which is a
+    fixture lying to satisfy a bug, not a translation.
+
+    Pure: no I/O, no exits. `load_ledger` keeps the file reading and the exits.
     """
-    phase_state_path: Path = ctx_args.project_root / "reviews" / "phase_state.json"
-    if not phase_state_path.exists():
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: {phase_state_path} not found.\n"
-        )
-        sys.exit(2)
-    try:
-        phase_ledger = json.loads(phase_state_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: failed to read or parse "
-            f"{phase_state_path}: {exc}\n"
-        )
-        sys.exit(2)
-    if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: ledger schema_version "
-            f"{phase_ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}.\n"
-        )
-        sys.exit(2)
-
-    # The clause implementations retain their stable T-coded internal API.
-    # Translate the authoritative Ph-coded ledger in memory; never create or
-    # read the retired tier_state.json surface.
     phase_to_tier = {
         "Ph1": "T1", "Ph2": "T2", "Ph3": "T3",
         "Ph3_converged": "T3_converged", "Ph4": "T4",
@@ -358,7 +342,12 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
         phase_ledger.get("default_final_phase"), "T3"
     )
     translated_sections: list[dict[str, Any]] = []
-    for raw in phase_ledger.get("sections", {}).values():
+    raw_sections = phase_ledger.get("sections", {})
+    raw_iter = raw_sections.values() if isinstance(raw_sections, dict) else (
+        raw_sections if isinstance(raw_sections, list) else [])
+    for raw in raw_iter:
+        if not isinstance(raw, dict):
+            continue
         section_copy = dict(raw)
         for source, target in field_map.items():
             if source in raw:
@@ -375,6 +364,40 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
         section_copy["tier_entry_log"] = translated_log
         translated_sections.append(section_copy)
     ledger["sections"] = translated_sections
+    return ledger
+
+
+def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load phase_state.json and expose its phase-native ledger to the guardrail.
+
+    Returns (ledger, section). Exits code 2 on any structural failure encountered
+    before the clause checks can even be reached.
+    """
+    phase_state_path: Path = ctx_args.project_root / "reviews" / "phase_state.json"
+    if not phase_state_path.exists():
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} not found.\n"
+        )
+        sys.exit(2)
+    try:
+        phase_ledger = json.loads(phase_state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: failed to read or parse "
+            f"{phase_state_path}: {exc}\n"
+        )
+        sys.exit(2)
+    if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: ledger schema_version "
+            f"{phase_ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}.\n"
+        )
+        sys.exit(2)
+
+    # The clause implementations retain their stable T-coded internal API.
+    # Translate the authoritative Ph-coded ledger in memory; never create or
+    # read the retired tier_state.json surface. One translator, shared.
+    ledger = translate_phase_ledger(phase_ledger)
 
     try:
         heading_path = json.loads(ctx_args.section)

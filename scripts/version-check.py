@@ -76,25 +76,87 @@ def find_readme_version_assertions(plugin_root: Path) -> List[str]:
     A README may freely LINK to `.claude-plugin/plugin.json`, and may mention
     versions in historical narrative ("in v0.15.0 we ..."). What it may not do
     is state THE CURRENT VERSION as a bare fact.
+
+    Matched by the SHAPE of the claim, not by a list of spellings. The first cut
+    enumerated exactly two -- a case-sensitive `![Version](...Version-X.Y.Z-)`
+    badge and a backticked ``## Version `X.Y.Z` `` -- so a lowercase
+    `![version]` badge, a `Release`-labelled badge, `## Current version` over a
+    bare literal, and `**Version:** 0.29.1` all asserted the current version and
+    all passed. That gate refused a FORMAT; this one refuses a CLAIM. The
+    failure mode is the same one this round keeps finding: a rule that only
+    catches the wordings someone already thought of.
     """
     findings: List[str] = []
     text = read_text(plugin_root / "README.md")
-
-    badge = re.search(
-        r"!\[Version\]\(https://img\.shields\.io/badge/Version-(\d+\.\d+\.\d+)-", text)
-    if badge:
-        findings.append(
-            f"README shields.io badge asserts version {badge.group(1)}: the manifest "
-            "is the sole current-version authority; link to "
-            ".claude-plugin/plugin.json instead of mirroring it")
-
-    literal = re.search(r"##\s+Version\s+`(\d+\.\d+\.\d+)`", text, re.S)
-    if literal:
-        findings.append(
-            f"README '## Version' section asserts version {literal.group(1)}: the "
-            "manifest is the sole current-version authority; point readers at "
-            ".claude-plugin/plugin.json instead of mirroring it")
+    # Release HISTORY is not a current-version claim -- `## v0.29.0 — 2026-07-14`
+    # records what shipped. A version-with-a-date is history, which this policy
+    # exists to preserve, so it is removed before scanning for claims.
+    scanned = _HISTORY_LINE.sub("", text)
+    for pattern, template in _README_ASSERTION_PATTERNS:
+        for m in pattern.finditer(scanned):
+            findings.append("README " + template.format(v=m.group("v")))
     return findings
+
+
+_SEMVER = r"\d+\.\d+\.\d+(?:\.\d+)?"
+
+_README_ASSERTION_PATTERNS = (
+    # any shields.io badge whose value is a version literal, whatever its label
+    (re.compile(r"!\[[^\]]*\]\(\s*https://img\.shields\.io/badge/"
+                r"[A-Za-z0-9._%+-]*?-(?P<v>" + _SEMVER + r")-", re.I),
+     "shields.io badge asserts version {v}: the manifest is the sole "
+     "current-version authority; link to .claude-plugin/plugin.json "
+     "(e.g. Version-manifest) instead of mirroring it"),
+    # a version-ish heading followed by a bare / backticked / bolded literal
+    (re.compile(r"^#{1,6}[ \t]+(?:current[ \t]+)?version\b[^\n]*\n+[ \t]*"
+                r"[`*_]{0,2}v?(?P<v>" + _SEMVER + r")[`*_]{0,2}[ \t]*$", re.I | re.M),
+     "version heading asserts version {v}: point readers at "
+     ".claude-plugin/plugin.json instead of mirroring it; the section may keep "
+     "its release-history table"),
+    # an inline `Version: X.Y.Z` / `**Version:** X.Y.Z` claim. The colon may sit
+    # INSIDE the emphasis markers (`**Version:**`) or outside them
+    # (`**Version**:`) -- both are the same claim, and matching only one spelling
+    # is the very mistake this pattern table exists to stop making.
+    (re.compile(r"^[ \t]*[`*_]{0,2}(?:current[ \t]+)?version[ \t]*:?[`*_]{0,2}[ \t]*:?[ \t]*"
+                r"[`*_]{0,2}v?(?P<v>" + _SEMVER + r")[`*_]{0,2}[ \t]*$", re.I | re.M),
+     "asserts a current version inline ({v}): point readers at "
+     ".claude-plugin/plugin.json instead of mirroring it"),
+)
+
+# `## v0.29.0 — 2026-07-14` is release HISTORY, not a current-version claim.
+_HISTORY_LINE = re.compile(
+    r"^#{1,6}[ \t]+v?" + _SEMVER + r"[ \t]*[—–-][ \t]*\d{4}-\d{2}-\d{2}[^\n]*$",
+    re.M)
+
+# A heading that LOOKS like a release but is not one. `extract_changelog_releases`
+# silently skips anything outside the accepted shape, so `## v1.2.3.4.5` simply
+# vanished: the remaining releases validated, and the checker reported a
+# well-formed changelog while a malformed record sat in it. Silence on
+# unparseable input is not tolerance, it is blindness -- the checker did not
+# disagree with the file, it failed to see it.
+_RELEASE_LIKE = re.compile(r"^##\s+v(?P<id>[0-9][0-9A-Za-z.\-+]*)(?P<rest>[^\n]*)$", re.M)
+_RELEASE_WELL_FORMED = re.compile(r"^\d+(?:\.\d+){1,3}$")
+
+
+def find_malformed_release_headings(plugin_root: Path) -> List[str]:
+    text = read_text(plugin_root / "CHANGELOG.md")
+    out: List[str] = []
+    for m in _RELEASE_LIKE.finditer(text):
+        if "(unreleased)" in m.group("rest").lower():
+            continue
+        if not _RELEASE_WELL_FORMED.match(m.group("id")):
+            # Report the IDENTIFIER only, never the rest of the heading. Echoing
+            # raw file content into a console message crashed this check with
+            # UnicodeEncodeError the moment a malformed heading carried the em
+            # dash every real heading here uses -- so the blocker for a
+            # malformed changelog was itself unprintable. The identifier is
+            # matched as ASCII, so it is always safe to echo.
+            out.append(
+                f"CHANGELOG malformed release heading '## v{m.group('id')}': a "
+                "release identifier is 2-4 dot-separated integers (e.g. v0.29.1, "
+                "v0.7.4.1). Silently skipping it would let a malformed release "
+                "record pass as a well-formed changelog")
+    return out
 
 
 def extract_changelog_releases(plugin_root: Path) -> List[Tuple[str, str]]:
@@ -321,6 +383,7 @@ def main() -> int:
     blockers.extend(find_readme_version_assertions(plugin_root))
 
     # CHANGELOG: structure + release consistency; never the current-version authority.
+    blockers.extend(find_malformed_release_headings(plugin_root))
     releases = extract_changelog_releases(plugin_root)
     changelog_version = releases[0][0] if releases else None
     blockers.extend(check_changelog_structure(releases))

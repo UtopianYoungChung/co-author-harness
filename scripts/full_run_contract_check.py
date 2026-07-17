@@ -118,6 +118,40 @@ import assignment_process_gate as apg              # noqa: E402
 import milestone_framework_validate as mfv         # noqa: E402
 import phase_state_validate as psv                 # noqa: E402
 import pre_phase_advance_check as ppa              # noqa: E402
+import reader_accessibility_policy as rap          # noqa: E402
+
+
+# Which milestone each gate boundary is ABOUT (milestone_framework_validate's
+# own target_map). A boundary whose target is authorizedly `not_applicable` is
+# not a skipped requirement -- it is a requirement the project's declared
+# applicability says does not exist.
+BOUNDARY_TARGETS = {
+    "ph1_to_ph2": ("M1", "M2", "M3"),
+    "ph4_admission": ("M4",),
+    "ph4_terminal_close": ("M5",),
+}
+
+
+def _boundary_applies(state: dict, boundary: str) -> bool:
+    """Is this boundary's target milestone applicable to this project?
+
+    Only `ph4_admission` (M4) and `ph4_terminal_close` (M5) can be waived, and
+    only when the ledger itself declares `applicability: not_applicable` --
+    which milestone_framework_validate independently requires an
+    `authorized_override` for, so this cannot be self-granted by editing one
+    field. `ph1_to_ph2` covers M1-M3 and is never skipped wholesale: if any of
+    the three is applicable the boundary still runs, and validate_gate already
+    skips the individual `not_applicable` records inside it.
+    """
+    milestones = ((state.get("milestone_framework") or {}).get("milestones") or {})
+    targets = BOUNDARY_TARGETS.get(boundary, ())
+    applicable = []
+    for key in targets:
+        record = milestones.get(key)
+        if not isinstance(record, dict):
+            return True   # absent record: let the authority say so, do not skip
+        applicable.append(record.get("applicability") != "not_applicable")
+    return any(applicable) if applicable else True
 
 PREFLIGHT = SCRIPTS / "assignment_dispatch_preflight.py"
 
@@ -278,6 +312,18 @@ def project_floor(project_root: Path | None) -> list[dict]:
                            f"reviews/assignment_contract.json {cerr}. Resolve it from "
                            "the controlling source; a filename or prior default is not "
                            "a substitute."))
+    elif not isinstance(contract, dict):
+        # `_load_json` returns whatever the file parses to -- a list, a string, a
+        # number. Calling .get() on that raised AttributeError, so a malformed
+        # contract crashed the gate instead of being refused by it. A gate that
+        # dies on bad input has no verdict, and exit 2 is not exit 4: "I could
+        # not check" must never be read as "it is fine".
+        findings.append(_f(
+            "FRC-CONTRACT-MISSING",
+            f"reviews/assignment_contract.json parses to {type(contract).__name__}, "
+            "not an object. A resolved assignment contract is a JSON object; a "
+            "list or scalar is not a contract in a form this gate can honour.",
+            parsed_type=type(contract).__name__))
     else:
         # EXACT match, positively asserted. The old test was
         #   `if status and status not in {"resolved", "accepted"}`
@@ -357,8 +403,21 @@ def authorize(project_root: Path | None) -> list[dict]:
     if derr:
         return findings
     if target is None:
-        # Every applicable milestone is accepted. There is no target to author
-        # against; prose authorization is not the question being asked.
+        # Every applicable milestone is accepted, so there is no lifecycle target
+        # to author against. The first cut returned no findings here, which
+        # `cmd_authorize` renders as OK -- authorizing prose into a project with
+        # nothing left to write, the one state where a write is certainly out of
+        # contract. "No target" is not "no objection"; it is the absence of the
+        # thing that would make a write legible. Refused, without demanding a
+        # receipt that cannot exist in this state.
+        findings.append(_f(
+            "FRC-NO-ACTIVE-MILESTONE",
+            "every applicable milestone M1-FINAL is already accepted: there is no "
+            "active target to authorize prose against. If the run is finished, "
+            "validate it with `full_run_contract_check.py terminal`; if more work "
+            "is intended, reopen a milestone or derive a new target through the "
+            "milestone framework first. Do not write prose against a closed ladder.",
+            active_target=None))
         return findings
 
     receipt = _find_receipt(project_root, target)
@@ -653,61 +712,152 @@ def cmd_authorship(args) -> int:
 # --------------------------------------------------------------------------
 # terminal  (§4 -- the fifteen)
 # --------------------------------------------------------------------------
-def _terminal_signoff_findings(project_root: Path) -> list[str]:
-    """Requirement 9, via pre_phase_advance_check's own row parser.
+def _phase_guardrail_findings(project_root: Path, state: dict) -> list[str]:
+    """Requirements 9, 10 and 11 -- each from the authority that is TERMINAL-AWARE.
 
-    The old check was `"is_terminal: true" in text` and `"user_signature" in
-    text` -- two substrings anywhere in the file, in any order, in any row, or
-    in a sentence explaining that the row is absent. `_parse_t3_signoff_rows`
-    parses ROWS, so a terminal row's signature must be on the terminal row.
+    Which authority answers "has the MCR passed?" depends on WHEN you ask, and
+    getting that wrong is how a gate refuses good work.
+
+    `pre_phase_advance_check.check_clause_f` is a PRE-ADVANCE guardrail: its
+    `_is_mcr_cleared` asks "may this section ENTER T4?", and that question is
+    answered while the section still sits at Ph3_converged. Composing it here
+    refused the baseline outright -- a finished project's sections are at Ph4,
+    so `current_tier` is T4, so "not at T3_converged", so E-MCR-NOT-CLEARED on a
+    perfectly valid terminal claim. The admission gate is not a completion gate;
+    it already ran, at the moment it applied.
+
+    `milestone_framework_validate.validate_document(..., target="Ph4")` is the
+    terminal-aware one, and it decides all three of these per section:
+
+      MF-PHASE  "Ph4 target has no valid unretracted MCR admission or
+                ceiling-lock proof surface"       -- the MCR, asked correctly:
+                not "may it be admitted?" but "is the admission on the record?"
+      MF-PHASE  "Ph4 MCR continuity requires the pre-MCR deep pass to be
+                complete"                          -- per SECTION (requirement
+                10). The hand-rolled `if not deep` passed when ONE of several
+                sections carried the flag.
+      MF-PHASE  "Ph4 MCR continuity requires current terminal Ph3 convergence
+                signoff evidence"
+
+    `check_clause_g` remains the row-shape authority (requirement 9): a terminal
+    row needs iteration_number, a non-null convergence_metric_value, a legal
+    t3_verdict, final_owner_state, and the terminal/re-engagement exclusion --
+    where the hand-rolled version checked three fields and accepted rows the
+    authority rejects. Its clauses keep a T-coded internal API, so the ledger is
+    translated through `ppa.translate_phase_ledger`, the same translation
+    `load_ledger` uses.
     """
-    signoff = project_root / "reviews" / "ph3_convergence_signoff.md"
-    if not signoff.is_file():
-        return ["reviews/ph3_convergence_signoff.md absent (no TerminalSignoffRow)"]
-    rows = ppa._parse_t3_signoff_rows(
-        signoff.read_text(encoding="utf-8", errors="replace"))
-    terminal = [r for r in rows if str(r.get("is_terminal", "")).strip().lower() == "true"]
-    if not terminal:
-        return ["ph3_convergence_signoff.md has no row with `is_terminal: true` "
-                f"({len(rows)} row(s) parsed)"]
     out: list[str] = []
-    for i, row in enumerate(terminal):
-        if str(row.get("is_reengagement", "")).strip().lower() == "true":
-            out.append(f"TerminalSignoffRow[{i}] is both terminal and re-engagement "
-                       "(mutually exclusive)")
-        for field in ("row_timestamp", "user_signature", "user_signed_at"):
-            if not str(row.get(field, "")).strip():
-                out.append(f"TerminalSignoffRow[{i}] has no {field}")
+
+    # --- MCR admission proof + per-section deep pass + signoff continuity ----
+    try:
+        result = mfv.validate_document(project_root, state, "Ph4")
+        for f in result.findings:
+            out.append(f"[Ph4] {f.code} {f.path}: {f.message}")
+    except Exception as exc:  # noqa: BLE001
+        out.append(f"[Ph4] milestone validation raised {type(exc).__name__}: {exc}")
+
+    # --- full TerminalSignoffRow validation ---------------------------------
+    try:
+        ledger = ppa.translate_phase_ledger(state)
+    except Exception as exc:  # noqa: BLE001
+        return out + [f"[clause g] ledger translation raised "
+                      f"{type(exc).__name__}: {exc}"]
+
+    sections = ledger.get("sections") or []
+    if not sections:
+        return out + ["phase_state.sections is empty: the convergence signoff "
+                      "cannot be attributed to any section"]
+
+    seen: set[tuple[str, str]] = set()
+    for section in sections:
+        ctx = ppa.CheckContext(
+            project_root=project_root,
+            target_tier="T4",
+            target_section_key=ppa._heading_key(section.get("heading_path", [])),
+            target_section=section,
+            ledger=ledger,
+            t3_staleness_budget_days=14,
+            strict_clause_f=False,
+        )
+        try:
+            ppa.check_clause_g(ctx)
+        except Exception as exc:  # noqa: BLE001
+            out.append(f"[clause g] raised {type(exc).__name__}: {exc}")
+            break
+        for f in ctx.findings:
+            key = (f.code, f.message)
+            if key in seen:
+                continue  # the signoff file is shared; each section re-reads it
+            seen.add(key)
+            out.append(f"[clause {f.clause}] {f.code}: {f.message}")
     return out
 
 
-def _mcr_findings(project_root: Path, state: dict) -> list[str]:
-    """Requirement 11, via pre_phase_advance_check._is_mcr_cleared.
+# Terminal-acceptable Check 8 aggregate. `recompute_check8` yields CLEAN /
+# BORDERLINE / MAJOR / BLOCKER; the ladder's floor is "no Check 8 BLOCKER"
+# (run-phase-3 SKILL.md, FULL_RUN_CONTRACT.md §4 row 8).
+CHECK8_TERMINAL_REFUSED = {"BLOCKER"}
 
-    MCR clearance is a STATE predicate over sections (TIER_PROTOCOL.md §9.4),
-    not a file. That is the real reason `reviews/mcr_notes_scratch.md` cannot
-    satisfy it: there is nothing a filename could say. The old glob
-    (`reviews/**/*mcr*`) asked the filesystem a question only the ledger can
-    answer.
+
+def _check8_findings(project_root: Path, state: dict) -> list[str]:
+    """Requirement 8 (Check 8 half), from the CANONICALLY BOUND evidence.
+
+    `milestone_framework_validate` already binds this evidence by hash, parses
+    it, runs `validate_check8_evidence`, and requires the recorded
+    `aggregate_verdict` to equal the recomputed one -- so validate_gate covers
+    schema and consistency. What it does not do is require the verdict to be
+    terminally acceptable: a project may record, consistently and truthfully,
+    an aggregate of BLOCKER. Consistency is not clearance.
+
+    The evidence is located through the ledger's `policy_evidence` binding, not
+    a `reviews/**/*check8*` glob. The glob was the same category error as the
+    MCR one: it asked the filesystem which file is the evidence, when only the
+    ledger knows -- and it accepted `{"aggregate": "CLEAN"}`, a document with no
+    subchecks, no profile binding, and no relation to the manuscript.
     """
-    sections = state.get("sections")
-    if isinstance(sections, dict):
-        items = list(sections.items())
-    elif isinstance(sections, list):
-        items = list(enumerate(sections))
-    else:
-        items = []
-    if not items:
-        return ["phase_state.sections is empty: MCR clearance cannot be evaluated"]
-    default_final = str(state.get("default_final_tier") or "T3")
-    uncleared = [str(k) for k, s in items
-                 if isinstance(s, dict) and not ppa._is_mcr_cleared(s, default_final)]
-    if uncleared:
-        return [f"MCR not cleared for section(s) {', '.join(uncleared)} "
-                "(pre_phase_advance_check._is_mcr_cleared: requires "
-                "current_tier == T3_converged, or ceiling_locked with "
-                "last_approved_tier == applicable ceiling)"]
-    return []
+    mf = state.get("milestone_framework") or {}
+    milestones = mf.get("milestones") or {}
+    bindings = mf.get("policy_bindings") or {}
+    binding = bindings.get("reader_accessibility") if isinstance(bindings, dict) else None
+    transitions = (binding or {}).get("transitions") or {}
+
+    bound = [(key, (rec or {}).get("policy_evidence"))
+             for key, rec in milestones.items()
+             if isinstance(rec, dict)
+             and isinstance(rec.get("policy_evidence"), dict)
+             and rec["policy_evidence"].get("check8_path")]
+    if not bound:
+        return ["no Check 8 evidence is bound in milestone_framework "
+                "(milestones.*.policy_evidence.check8_path); a file merely named "
+                "*check8* under reviews/ is not the project's Check 8 evidence"]
+
+    out: list[str] = []
+    for key, ev in bound:
+        rel = ev.get("check8_path")
+        path = project_root / rel
+        if not path.is_file():
+            out.append(f"{key}.policy_evidence.check8_path does not resolve: {rel}")
+            continue
+        try:
+            sidecar = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            out.append(f"{key} Check 8 evidence is not canonical JSON: {rel}: {exc}")
+            continue
+        try:
+            rap.validate_check8_evidence(sidecar)
+            recomputed = rap.recompute_check8(sidecar, transitions)
+        except Exception as exc:  # PolicyError and schema errors  # noqa: BLE001
+            out.append(f"{key} Check 8 evidence is invalid: {rel}: {exc}")
+            continue
+        verdict = recomputed.get("aggregate_verdict")
+        if verdict != sidecar.get("aggregate_verdict"):
+            out.append(f"{key} Check 8 recorded aggregate "
+                       f"{sidecar.get('aggregate_verdict')!r} != recomputed {verdict!r}")
+        if verdict in CHECK8_TERMINAL_REFUSED:
+            out.append(f"{key} Check 8 recomputed aggregate is {verdict}: a terminal "
+                       "claim is refused while a Check 8 BLOCKER stands")
+    return out
 
 
 def check_terminal(project_root: Path) -> list[dict]:
@@ -740,8 +890,19 @@ def check_terminal(project_root: Path) -> list[dict]:
 
     missing: list[str] = []
 
-    # 2-6, 12 -- the milestone authority, every boundary.
+    # 2-6, 12 -- the milestone authority, every APPLICABLE boundary.
+    #
+    # Applicability-aware, because a boundary whose target milestone is
+    # authorizedly `not_applicable` is not a requirement that was skipped -- it
+    # is a requirement the project's own declared applicability says does not
+    # exist. Running ph4_admission against an N/A M4 refuses a legitimate
+    # project for failing to satisfy a milestone it was authorized not to have.
+    # Predecessor boundaries stay unconditional: `not_applicable` on M4 says
+    # nothing about M1-M3, and ph1_to_ph2 still validates every applicable
+    # predecessor.
     for boundary in mfv.GATE_BOUNDARIES:
+        if not _boundary_applies(state, boundary):
+            continue
         try:
             result = mfv.validate_gate(project_root, state, boundary)
         except Exception as exc:  # noqa: BLE001
@@ -751,16 +912,22 @@ def check_terminal(project_root: Path) -> list[dict]:
         for finding in result.findings:
             missing.append(f"[{boundary}] {finding.code} {finding.path}: {finding.message}")
 
-    # phase state shape -- the phase authority.
+    # phase state shape -- the phase authority, ALL of it.
+    #
+    # The previous filter kept only codes starting with "E", on the assumption
+    # that phase_state_validate speaks in E-codes. It does not: DOC_NOT_OBJECT,
+    # DOC_NO_SECTIONS, and the SECTION_* family carry no E prefix, so malformed
+    # state walked through the terminal gate because its complaint was worded
+    # unexpectedly. Filtering a delegate's findings by a guess at its naming
+    # convention is paraphrase by another route -- take the findings it gives.
     psv_findings: list = []
     try:
         psv._validate_doc(state, psv_findings)
     except Exception as exc:  # noqa: BLE001
         missing.append(f"[phase_state] validation raised {type(exc).__name__}: {exc}")
     for finding in psv_findings:
-        code = getattr(finding, "code", "")
-        if str(code).startswith("E"):
-            missing.append(f"[phase_state] {code}: {getattr(finding, 'message', finding)}")
+        code = getattr(finding, "code", "") or "<uncoded>"
+        missing.append(f"[phase_state] {code}: {getattr(finding, 'message', finding)}")
 
     # 7 -- revision log, as a Generator round (not as a filename).
     missing.extend(f["message"] for f in check_authorship(project_root))
@@ -768,27 +935,13 @@ def check_terminal(project_root: Path) -> list[dict]:
     # 8 -- deterministic + Check 8 accessibility evidence
     if not (project_root / "reviews" / "findings.json").is_file():
         missing.append("reviews/findings.json absent (deterministic check evidence)")
-    check8 = list((project_root / "reviews").glob("**/*check8*")) + \
-             list((project_root / "reviews").glob("**/*accessibility*"))
-    if not check8:
-        missing.append("no Check 8 accessibility evidence under reviews/")
+    missing.extend(_check8_findings(project_root, state))
 
-    # 9 -- TerminalSignoffRow + convergence journal
-    missing.extend(_terminal_signoff_findings(project_root))
+    # 9, 10, 11 -- convergence signoff rows, the deep pass, and MCR clearance,
+    # all from the phase guardrail's clauses f and g.
+    missing.extend(_phase_guardrail_findings(project_root, state))
     if not (project_root / "reviews" / "convergence_log.md").is_file():
         missing.append("reviews/convergence_log.md absent (no convergence journal)")
-
-    # 10 -- deep pass
-    sections = state.get("sections")
-    sect_iter = sections.values() if isinstance(sections, dict) else (
-        sections if isinstance(sections, list) else [])
-    deep = [s for s in sect_iter if isinstance(s, dict)
-            and s.get("pre_mcr_deep_pass_completed") is True]
-    if not deep:
-        missing.append("no section records pre_mcr_deep_pass_completed: true (deep pass)")
-
-    # 11 -- MCR clearance, as state.
-    missing.extend(_mcr_findings(project_root, state))
 
     # 13 -- Reflector-full close-out
     if not list((project_root / "reviews").glob("**/reflector_full*")):

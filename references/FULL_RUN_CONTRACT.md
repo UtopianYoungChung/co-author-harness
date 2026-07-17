@@ -221,6 +221,8 @@ this contract exists to make unsayable.
 | `FRC-CONTRACT-MISSING` | no resolved `reviews/assignment_contract.json` |
 | `FRC-SCOPE-UNDECLARED` | dispatch carries no run scope |
 | `FRC-SCOPE-DOWNGRADE` | child dispatch narrows a `full_lifecycle` parent to lightweight/response-only/no-artifacts/no-state |
+| `FRC-SCOPE-ESCALATION` | child dispatch widens an `adhoc_review` parent to `full_lifecycle` — a child may not confer on itself authority its parent does not hold |
+| `FRC-NO-ACTIVE-MILESTONE` | `authorize` on a project whose applicable milestones are all `accepted`: no target exists to author against. Validate a finished run with `terminal`; to continue, reopen or derive a milestone first |
 | `FRC-MILESTONE-ORDER` | target milestone runs ahead of an unaccepted predecessor |
 | `FRC-PRESENCE-NOT-ACCEPTANCE` | acceptance inferred from a file's existence |
 | `FRC-AUTHORSHIP` | manuscript movement not attributable to a Generator round |

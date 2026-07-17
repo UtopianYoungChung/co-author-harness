@@ -321,7 +321,7 @@ def case_valid_native_fixture_passes() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
 
-        rc, p, out = run("terminal", "--project-root", str(proj))
+        rc, p, _ = run("terminal", "--project-root", str(proj))
         check("valid native M1->M5 fixture PASSES terminal", rc == 0,
               f"rc={rc} unmet={((p or {}).get('findings') or [{}])[-1].get('unmet', [])[:3]}")
 
