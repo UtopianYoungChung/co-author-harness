@@ -70,21 +70,28 @@ def codes(payload: dict | None) -> set[str]:
 
 # --------------------------------------------------------------------------
 def case_full_run_intent_recognised() -> None:
-    """The literal user request must classify as full_lifecycle (audit :1)."""
+    """The advisory recogniser suggests full_lifecycle for the observed request.
+
+    This is a HINT layer, not the mechanism (see case_intent_is_advisory_only
+    and case_scope_is_structural_not_phrasal, which pin the actual floor). It
+    is still worth a test: the suggestion is what a human or agent reads when
+    deciding what to declare, and it must not steer toward ad hoc.
+    """
     rc, p, _ = run("intent", "--text",
                    "Harness full run: referring to the LLM wiki, draft me a short "
                    "essay (soft 2000-word limit) on Actor vs. Agency or Actor and Agency.")
-    check("observed request classifies full_lifecycle",
-          rc == 0 and p and p.get("run_scope") == "full_lifecycle",
-          str(p))
+    check("observed request suggests full_lifecycle",
+          rc == 0 and p and p.get("suggested_run_scope") == "full_lifecycle", str(p)[:70])
     for phrase in ("full harness run", "draft the whole paper", "write me an essay",
                    "run the ladder", "ship this"):
         rc, p, _ = run("intent", "--text", phrase)
-        check(f"'{phrase}' -> full_lifecycle", p and p.get("run_scope") == "full_lifecycle")
-    # Ambiguity must fail TOWARD the lifecycle (§1.1).
+        check(f"'{phrase}' -> suggests full_lifecycle",
+              p and p.get("suggested_run_scope") == "full_lifecycle")
+    # Ambiguity must lean TOWARD the lifecycle (§1.1): guessing adhoc silently
+    # skips it; guessing full costs one declinable prompt.
     rc, p, _ = run("intent", "--text", "can you help me with this document")
-    check("ambiguous prose intent defaults to full_lifecycle",
-          p and p.get("run_scope") == "full_lifecycle")
+    check("ambiguous prose intent suggests full_lifecycle",
+          p and p.get("suggested_run_scope") == "full_lifecycle")
 
 
 def case_missing_scaffold_blocks_before_prose() -> None:
@@ -121,21 +128,77 @@ def case_lightweight_child_blocks() -> None:
                    stdin=OBSERVED_LIGHTWEIGHT_DISPATCH)
     check("observed :112 dispatch -> REFUSED", rc == 4, f"rc={rc}")
     check("-> FRC-SCOPE-DOWNGRADE", "FRC-SCOPE-DOWNGRADE" in codes(p))
-    fs = (p or {}).get("findings", [{}])
-    markers = fs[0].get("markers", []) if fs else []
-    check("names the offending instructions", len(markers) >= 3, f"{markers[:4]}")
+    joined = json.dumps(p)
+    check("names the offending instructions", "markers" in joined, joined[:60])
 
-    # A legitimate full-lifecycle dispatch must still pass.
+    # A legitimate full-lifecycle dispatch, WITH its declaration, must pass.
     rc, p, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
-                   stdin="Run a Ph3 Evaluator pass, check_profile=refine, on "
+                   stdin="run_scope: full_lifecycle\n"
+                         "Run a Ph3 Evaluator pass, check_profile=refine, on "
                          "manuscript/main.md. Write F7 evidence packets and update "
                          "reviews/ as usual. assignment_gate_receipt: reviews/r.json")
-    check("legitimate full-lifecycle dispatch passes", rc == 0, f"rc={rc}")
+    check("legitimate declared full-lifecycle dispatch passes", rc == 0, f"rc={rc}")
 
-    # An undeclared scope is itself a refusal.
-    rc, p, _ = run("scope", "--parent-scope", "unset", "--child-brief", "-", stdin="anything")
+    # An undeclared parent scope is itself a refusal.
+    rc, p, _ = run("scope", "--parent-scope", "unset", "--child-brief", "-",
+                   stdin="run_scope: full_lifecycle\nanything")
     check("undeclared parent scope -> FRC-SCOPE-UNDECLARED",
           rc == 4 and "FRC-SCOPE-UNDECLARED" in codes(p))
+
+
+def case_scope_is_structural_not_phrasal() -> None:
+    """The mechanism is the DECLARATION, not a phrase list.
+
+    This is the generalisation that matters: the next failure will not be
+    worded like the last one. A child that narrows the run is refused on its
+    declared scope alone -- with no lightweight/response-only wording anywhere
+    in the brief -- and a child that declares nothing is refused rather than
+    guessed at.
+    """
+    # Narrowing declared structurally, in prose nobody anticipated.
+    rc, p, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
+                   stdin="run_scope: adhoc_review\n"
+                         "Please cast an eye over the argument and tell me what you "
+                         "reckon; keep it brief and informal.")
+    check("declared narrowing refused with NO downgrade phrasing present",
+          rc == 4 and "FRC-SCOPE-DOWNGRADE" in codes(p), f"rc={rc}")
+    fs = [f for f in (p or {}).get("findings", [])
+          if f.get("code") == "FRC-SCOPE-DOWNGRADE"]
+    check("refusal cites the declared scopes, not a phrase",
+          bool(fs) and fs[0].get("child_scope") == "adhoc_review"
+          and fs[0].get("parent_scope") == "full_lifecycle", str(fs[:1])[:80])
+
+    # No declaration at all -> refused, not inferred.
+    rc, p, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
+                   stdin="Have a look at section 3 and report back.")
+    check("undeclared child scope -> FRC-SCOPE-UNDECLARED",
+          rc == 4 and "FRC-SCOPE-UNDECLARED" in codes(p), f"rc={rc}")
+
+    # Legacy escape hatch still applies the marker net.
+    rc, p, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
+                   "--allow-undeclared-child",
+                   stdin="Return findings in your response only.")
+    check("legacy undeclared brief still caught by the marker net",
+          rc == 4 and "FRC-SCOPE-DOWNGRADE" in codes(p), f"rc={rc}")
+
+
+def case_intent_is_advisory_only() -> None:
+    """`intent` must not be able to authorize anything."""
+    rc, p, _ = run("intent", "--text", "just review this quickly, no artifacts")
+    check("intent always exits 0 (cannot refuse)", rc == 0, f"rc={rc}")
+    check("intent marks itself advisory", p and p.get("advisory") is True)
+    check("intent yields a SUGGESTION, not a scope grant",
+          p and "suggested_run_scope" in p and "run_scope" not in p)
+    # The permission path must ignore phrasing entirely: an unanticipated ad hoc
+    # wording cannot authorize an ad hoc path without an explicit declaration.
+    rc, p, _ = run("authorize", "--project-root", "/definitely/not/here")
+    check("authorize defaults to full_lifecycle and REFUSES without a project",
+          rc == 4 and "FRC-NO-PROJECT" in codes(p), f"rc={rc}")
+    rc, p, out = run("authorize", "--project-root", "/definitely/not/here",
+                     "--run-scope", "adhoc_review")
+    check("only an EXPLICIT adhoc declaration permits the no-project path",
+          rc == 0, f"rc={rc}")
+    check("and it is declared non-evidence", "not F7/F8/F9 evidence" in out)
 
 
 def case_adhoc_cannot_claim_lifecycle() -> None:
@@ -147,13 +210,14 @@ def case_adhoc_cannot_claim_lifecycle() -> None:
 
     # Required: a valid ad hoc review still works.
     rc, p, _ = run("scope", "--parent-scope", "adhoc_review", "--child-brief", "-",
-                   stdin="Read this essay and tell me whether the argument is earned. "
+                   stdin="run_scope: adhoc_review\n"
+                         "Read this essay and tell me whether the argument is earned. "
                          "Return your findings in your response.")
     check("valid ad hoc review still works", rc == 0, f"rc={rc}")
     rc, p, out = run("authorize", "--project-root", "/definitely/not/here",
-                     "--intent", "just review this quickly, no artifacts")
+                     "--run-scope", "adhoc_review")
     check("explicit ad hoc without a project is permitted (no prose)", rc == 0, f"rc={rc}")
-    check("ad hoc response is declared non-evidence", "not evidence" in out)
+    check("ad hoc response is declared non-evidence", "not F7/F8/F9 evidence" in out)
 
 
 def case_terminal_blocks_observed_two_file_state() -> None:
@@ -316,6 +380,8 @@ def main() -> int:
     print(f"  gate: {GATE.relative_to(ROOT).as_posix()}")
     print()
     for fn in (case_full_run_intent_recognised,
+               case_intent_is_advisory_only,
+               case_scope_is_structural_not_phrasal,
                case_missing_scaffold_blocks_before_prose,
                case_bootstrapped_but_no_contract_blocks,
                case_lightweight_child_blocks,

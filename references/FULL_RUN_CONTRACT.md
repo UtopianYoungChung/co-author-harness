@@ -59,30 +59,49 @@ not inferred.
 | `full_lifecycle` | The canonical draft lifecycle: milestones, state, evidence, handoffs | Yes — via Generator, once authorized (§2) | Yes | Yes — only via §4 |
 | `adhoc_review` | A one-off read/critique the user explicitly asked for | **No** | **No** | **No** |
 
-### 1.1 Which requests are `full_lifecycle`
+### 1.1 Scope is DECLARED, never sniffed
 
-A request whose intent is to **produce or advance an academic deliverable** is
-`full_lifecycle`. This includes, and is not limited to:
+**The mechanism is the declaration, not the phrasing.** A request whose intent
+is to produce or advance an academic deliverable is `full_lifecycle`, and
+`full_lifecycle` is the **default** for any prose-producing request.
+`adhoc_review` must be **explicitly** declared. Ambiguity resolves to
+`full_lifecycle`: guessing `adhoc_review` silently skips the lifecycle, while
+guessing `full_lifecycle` costs one bootstrap prompt the user can decline.
 
-- "Harness full run", "full harness run", "full run"
-- "draft the whole paper", "draft me an essay", "write the paper/section"
-- "run the ladder", "take this to Ph4", "ship this"
+Phrases like "Harness full run", "draft the whole paper", or "run the ladder"
+are **recognition aids only**. They are not the contract, and no gate keys off
+them:
 
-`full_lifecycle` is the **default** for any prose-producing request. `adhoc_review`
-must be **explicitly** asked for ("just review this", "quick look, no artifacts",
-"don't bootstrap anything"). Ambiguity resolves to `full_lifecycle`, because the
-failure mode of guessing `adhoc_review` is silently skipping the lifecycle, while
-the failure mode of guessing `full_lifecycle` is a bootstrap prompt the user can
-decline.
+- `full_run_contract_check.py intent` is **advisory** — it always exits 0, it
+  returns a `suggested_run_scope`, and it authorizes nothing. If it could
+  authorize, a phrase list would be the contract, and a phrase list only
+  catches the wordings someone already thought of. The next failure will be
+  worded differently from the last one.
+- `authorize` takes an **explicit** `--run-scope`. It never reads the request
+  text. An unanticipated wording of "just have a look" cannot silently
+  authorize the ad hoc path.
+- `scope` compares **declared** parent and child scopes. A brief with no
+  `run_scope:` line is refused (`FRC-SCOPE-UNDECLARED`) rather than guessed at.
+
+This is why the repair generalises past the one sentence that triggered it: the
+enforcement surface is the declaration and the project state, both of which are
+structural facts, not turns of phrase.
 
 ### 1.2 Scope is inherited, and a child may only narrow what does not matter
 
-A parent dispatch **must** state its scope. A child dispatch inherits it.
+A parent dispatch **must** state its scope. A child dispatch **must carry its
+own `run_scope:` declaration**, and it must match the parent's. Two independent
+rules apply, in this order:
 
-**Rejected, unconditionally, when the parent scope is `full_lifecycle`:** any
-child instruction that is `lightweight`, `response-only`, `no-artifacts`, or
-`no-state`; any instruction to "not bootstrap"; any instruction to return
-findings "in your response only."
+1. **Structural (primary).** `run_scope: adhoc_review` under a `full_lifecycle`
+   parent is `FRC-SCOPE-DOWNGRADE` — regardless of how politely the rest of the
+   brief is worded. A brief with no declaration at all is
+   `FRC-SCOPE-UNDECLARED`: a dispatch whose scope must be guessed is refused.
+2. **Textual (secondary net).** A brief that declares `full_lifecycle` and then
+   contradicts itself — `lightweight`, `response-only`, `no-artifacts`,
+   `no-state`, "do not bootstrap", "return findings in your response only" — is
+   also refused. This net can only **add** a refusal; it can never grant one, so
+   the floor never depends on a phrase list.
 
 This is the exact instruction at audit `:112`. Under this contract that dispatch
 is not a judgement call — it is refused with `FRC-SCOPE-DOWNGRADE`.

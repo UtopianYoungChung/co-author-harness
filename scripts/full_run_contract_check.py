@@ -70,12 +70,20 @@ OK, REFUSED, ERROR = 0, 4, 2
 FULL, ADHOC = "full_lifecycle", "adhoc_review"
 SCOPES = (FULL, ADHOC)
 
-# Intent phrases that mean "produce or advance an academic deliverable".
-# Deliberately a RECOGNISER, not an allowlist: §1.1 makes full_lifecycle the
-# DEFAULT for prose-producing intent, so a phrase missing here does not become
-# adhoc -- it stays full unless adhoc is explicitly requested. Ambiguity must
-# fail toward the lifecycle: guessing adhoc silently skips it, guessing full
-# costs one bootstrap prompt the user can decline.
+# --------------------------------------------------------------------------
+# ADVISORY ONLY -- phrase lists are NOT the enforcement mechanism.
+#
+# The mechanism is: scope is DECLARED explicitly and gates are deterministic.
+# A phrase list cannot be the floor, for the reason this whole repair exists:
+# a list only catches the wordings someone thought of, and the next failure
+# will be worded differently. "Harness full run" is one phrasing of an
+# unbounded intent space; matching it would fix one sentence, not the contract.
+#
+# So these lists are a HINT for a human or agent deciding what to declare, and
+# `intent` is explicitly non-authorizing (it cannot permit anything). Every
+# permission below keys off an EXPLICIT declared scope; a dispatch that omits
+# the declaration is refused (FRC-SCOPE-UNDECLARED) rather than sniffed.
+# --------------------------------------------------------------------------
 FULL_RUN_PHRASES = (
     "harness full run", "full harness run", "full run", "full-run",
     "draft the whole paper", "draft the whole thing", "write the whole paper",
@@ -84,13 +92,15 @@ FULL_RUN_PHRASES = (
     "run the ladder", "start the ladder", "take this to ph4", "ship this",
     "full lifecycle", "whole lifecycle",
 )
-# Explicit, unambiguous opt-out. Only these make a run adhoc.
 ADHOC_PHRASES = (
     "just review", "only review", "quick look", "quick review",
     "no artifacts", "no artefacts", "don't bootstrap", "do not bootstrap",
     "dont bootstrap", "ad hoc review", "adhoc review", "response only",
     "response-only", "without bootstrapping", "no scaffold",
 )
+
+# A declared scope line in a dispatch brief: `run_scope: full_lifecycle`.
+RUN_SCOPE_RE = re.compile(r"(?mi)^\s*run_scope\s*:\s*([A-Za-z_]+)\s*$")
 
 # Child-dispatch instructions that narrow a full-lifecycle parent. These are the
 # literal shapes observed at audit :112 / :185 / :278.
@@ -143,8 +153,18 @@ def classify_intent(text: str) -> str:
 
 
 def cmd_intent(args) -> int:
+    """ADVISORY. Suggests a scope to DECLARE; authorizes nothing.
+
+    Deliberately cannot refuse and cannot permit: it always exits 0. If this
+    could authorize, the phrase list would be the contract, and a phrase list
+    only catches the wordings someone already thought of.
+    """
     scope = classify_intent(args.text)
-    print(json.dumps({"status": "OK", "run_scope": scope}, ensure_ascii=False))
+    print(json.dumps({"status": "OK", "advisory": True, "suggested_run_scope": scope,
+                      "note": "advisory only: this classification authorizes nothing. "
+                              "Declare the scope explicitly; gates key off the "
+                              "declaration and off project state, never off phrasing."},
+                     ensure_ascii=False))
     return OK
 
 
@@ -195,18 +215,31 @@ def authorize(project_root: Path | None) -> list[dict]:
 
 
 def cmd_authorize(args) -> int:
+    """May academic prose be written here?
+
+    The scope is an EXPLICIT argument, never sniffed from the request text. An
+    earlier cut of this command accepted `--intent` and classified it with a
+    phrase list -- which made a phrase list load-bearing for a PERMISSION: an
+    unanticipated wording of "just look at this" would have silently authorized
+    an ad hoc path. Permissions key off declarations; phrase lists only advise.
+    """
+    scope = (args.run_scope or FULL).strip().lower()
+    if scope not in SCOPES:
+        _emit([_f("FRC-SCOPE-UNDECLARED",
+                  f"--run-scope {scope!r} is not one of {SCOPES}")], "REFUSED")
+        return REFUSED
+
+    if scope == ADHOC:
+        # An explicitly declared ad hoc review is legal WITHOUT a project -- it
+        # simply may not write prose, advance the ladder, or claim terminal, and
+        # its response is not evidence (§1, §4).
+        print(json.dumps({"status": "OK", "run_scope": ADHOC,
+                          "note": "ad hoc review: no prose, no advancement, no "
+                                  "terminal claim, response is not F7/F8/F9 evidence"},
+                         ensure_ascii=False, indent=1))
+        return OK
+
     findings = authorize(args.project_root)
-    if args.intent:
-        scope = classify_intent(args.intent)
-        if scope == ADHOC and findings:
-            # An explicit ad hoc review is legal WITHOUT a project -- it just
-            # cannot write prose, advance, or claim terminal (§1, §4). Report
-            # the scope so the caller cannot silently treat it as a full run.
-            print(json.dumps({"status": "OK", "run_scope": ADHOC,
-                              "note": "ad hoc review: no prose, no advancement, "
-                                      "no terminal claim, response is not evidence"},
-                             ensure_ascii=False, indent=1))
-            return OK
     if findings:
         _emit(findings, "REFUSED")
         return REFUSED
@@ -217,22 +250,60 @@ def cmd_authorize(args) -> int:
 # --------------------------------------------------------------------------
 # scope  (§1.2 -- a child may not narrow a full-lifecycle parent)
 # --------------------------------------------------------------------------
-def check_scope(parent_scope: str, brief: str) -> list[dict]:
+def check_scope(parent_scope: str, brief: str, *, require_declaration: bool = True
+                ) -> list[dict]:
+    """Is this child dispatch legal under its parent?
+
+    STRUCTURE FIRST, TEXT SECOND. The primary rule is a comparison of DECLARED
+    scopes: the parent states one, the child must carry the same one. That is
+    general -- it holds for wordings nobody anticipated, which is the whole
+    point, since the next failure will not be phrased like the last one.
+
+    The marker scan is a SECONDARY net for the self-contradicting brief: one
+    that declares `run_scope: full_lifecycle` and then says "return findings in
+    your response only". Markers can only ADD a refusal; they can never grant
+    one, so the enforcement floor never depends on a phrase list.
+    """
     findings: list[dict] = []
     if parent_scope not in SCOPES:
         findings.append(_f("FRC-SCOPE-UNDECLARED",
-                           f"parent scope {parent_scope!r} is not one of {SCOPES}"))
+                           f"parent scope {parent_scope!r} is not one of {SCOPES}. "
+                           "Every dispatch declares its scope; it is never inferred."))
         return findings
+
+    # --- primary: the child's DECLARED scope -------------------------------
+    m = RUN_SCOPE_RE.search(brief)
+    child_scope = m.group(1).strip().lower() if m else None
+    if child_scope is not None and child_scope not in SCOPES:
+        findings.append(_f("FRC-SCOPE-UNDECLARED",
+                           f"child declares run_scope: {child_scope!r}, not one of {SCOPES}"))
+        return findings
+    if child_scope is None and require_declaration:
+        findings.append(_f(
+            "FRC-SCOPE-UNDECLARED",
+            "child dispatch carries no `run_scope:` declaration. A dispatch whose "
+            "scope must be guessed is refused: inheritance is explicit, not "
+            "assumed. Add `run_scope: " + parent_scope + "` if that is what is "
+            "intended."))
+    if child_scope is not None and parent_scope == FULL and child_scope != FULL:
+        findings.append(_f(
+            "FRC-SCOPE-DOWNGRADE",
+            f"child declares run_scope: {child_scope} under a {FULL} parent. A child "
+            "may not narrow the run: under a full lifecycle it must write its "
+            "artefacts and state.",
+            parent_scope=parent_scope, child_scope=child_scope))
+
+    # --- secondary: a brief that contradicts its own declaration -----------
     low = " ".join(brief.lower().split())
     if parent_scope == FULL:
         hits = sorted({m for m in DOWNGRADE_MARKERS if m in low})
         if hits:
             findings.append(_f(
                 "FRC-SCOPE-DOWNGRADE",
-                "child dispatch narrows a full_lifecycle parent to a "
-                "lightweight/response-only/no-artifacts/no-state run. Under a full "
-                "lifecycle the child must write its artefacts and state; a parent "
-                "may not instruct it otherwise.",
+                "child dispatch instructs a lightweight/response-only/no-artifacts/"
+                "no-state run under a full_lifecycle parent. Under a full lifecycle "
+                "the child must write its artefacts and state; a parent may not "
+                "instruct it otherwise.",
                 markers=hits))
     if parent_scope == ADHOC:
         hits = sorted({m for m in TERMINAL_MARKERS if m in low})
@@ -254,7 +325,8 @@ def cmd_scope(args) -> int:
             print(f"[ERROR] child brief not found: {p}", file=sys.stderr)
             return ERROR
         brief = p.read_text(encoding="utf-8", errors="replace")
-    findings = check_scope(args.parent_scope, brief)
+    findings = check_scope(args.parent_scope, brief,
+                           require_declaration=not args.allow_undeclared_child)
     if findings:
         _emit(findings, "REFUSED")
         return REFUSED
@@ -477,12 +549,17 @@ def main(argv: list[str] | None = None) -> int:
 
     a = sub.add_parser("authorize", help="may academic prose be written here?")
     a.add_argument("--project-root", type=Path)
-    a.add_argument("--intent", type=str, default=None)
+    a.add_argument("--run-scope", type=str, default=None,
+                   help=f"explicit declared scope, one of {SCOPES} (default: {FULL}). "
+                        "Never inferred from request text.")
     a.set_defaults(fn=cmd_authorize)
 
     s = sub.add_parser("scope", help="is this child dispatch legal under its parent?")
     s.add_argument("--parent-scope", required=True)
     s.add_argument("--child-brief", required=True, help="file path, or - for stdin")
+    s.add_argument("--allow-undeclared-child", action="store_true",
+                   help="legacy briefs only: skip the child's run_scope declaration "
+                        "requirement. The marker net still applies.")
     s.set_defaults(fn=cmd_scope)
 
     au = sub.add_parser("authorship", help="is manuscript movement Generator-attributable?")
