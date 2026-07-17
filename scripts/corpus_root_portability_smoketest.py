@@ -146,6 +146,74 @@ def case_relative_override_refused() -> None:
         check("relative override root refused on this host", False, "accepted")
 
 
+def case_relative_harness_root_refused() -> None:
+    """EVERY anchoring root is gated -- harness_root included.
+
+    The first cut of the gate covered wiki_root and workspace_root only. But
+    harness_root anchors contained PACKAGE lookups, so with perfectly good
+    wiki/workspace roots and ``harness_root=Path("relative/harness")`` the
+    resolver accepted it, rebased it under the CWD, and failed later with
+
+        _MissingInput: domain-native input absent: register_profile:
+        C:\\Windows\\System32\\relative\\harness\\references\\policies\\
+        reader_accessibility.v1.json
+
+    -- a real path naming a package nobody declared: the exact misleading
+    resolution class this suite exists to pin. Reproduced 2026-07-17.
+
+    The refusal must come from the GATE (before any filesystem lookup), which
+    is what distinguishes a portability diagnosis from a missing-input one --
+    so this asserts the exception TYPE, not merely that something raised.
+    """
+    profile = policy.load_profile()
+    with tempfile.TemporaryDirectory() as td:
+        wiki, workspace = write_fixture(Path(td), all_members=True)
+        try:
+            policy.resolve_domain_native_register(
+                profile, wiki_root=wiki, workspace_root=workspace,
+                harness_root=Path("relative/harness"))
+        except policy.CorpusRootError as exc:
+            msg = str(exc)
+            check("relative harness_root refused before lookup", True)
+            check("harness diagnostic names the offending root",
+                  "harness_root" in msg, msg[:70])
+            check("harness diagnostic names the host", sys.platform in msg)
+            check("harness diagnostic names the override seam",
+                  "harness_root=..." in msg or "resolve_policy(" in msg)
+            check("harness failure is NOT reported as an absent input",
+                  "input absent" not in msg and "register_profile" not in msg,
+                  msg[:70])
+        except policy.PolicyError as exc:
+            check("relative harness_root refused before lookup", False,
+                  f"got {type(exc).__name__} (lookup happened): {str(exc)[:60]}")
+        else:
+            check("relative harness_root refused before lookup", False,
+                  "resolution accepted a relative harness_root")
+
+
+def case_absolute_harness_root_accepted() -> None:
+    """The positive complement: gating roots did not break overriding them.
+
+    An explicit ABSOLUTE harness_root must still resolve -- worktrees and
+    alternate installs depend on it (the running package root is authority for
+    relative package paths even when it differs from path_roots.harness_root).
+    Without this, 'refuse relative' could be satisfied by refusing everything.
+    """
+    profile = policy.load_profile()
+    with tempfile.TemporaryDirectory() as td:
+        wiki, workspace = write_fixture(Path(td), all_members=True)
+        resolved = policy.resolve_domain_native_register(
+            profile, wiki_root=wiki, workspace_root=workspace,
+            harness_root=ROOT)  # absolute, and a real package root
+        meta = resolved["path_roots"]
+        check("explicit absolute harness_root still resolves", True)
+        check("effective harness_root is the supplied one",
+              meta["effective"]["harness_root"] == ROOT.as_posix(),
+              meta["effective"]["harness_root"])
+        check("pins still computed under an explicit harness root",
+              bool(resolved["attestation_view_pin"]))
+
+
 def case_containment_preserved() -> None:
     """Portability did not buy an escape hatch."""
     with tempfile.TemporaryDirectory() as td:
@@ -170,6 +238,7 @@ def main() -> int:
     print()
     for fn in (case_platform_predicate, case_declared_roots_on_foreign_host,
                case_override_resolves_everywhere, case_relative_override_refused,
+               case_relative_harness_root_refused, case_absolute_harness_root_accepted,
                case_containment_preserved):
         print(f"{fn.__name__}:")
         fn()

@@ -137,7 +137,19 @@ def _resolve_register_roots(
     # `_contained()` join against the CWD -- producing a real path that names
     # a corpus nobody declared. Checked here, once, because this is the single
     # function where declared/override roots become EFFECTIVE roots.
-    for label, root in (("wiki_root", wiki), ("workspace_root", workspace)):
+    #
+    # ALL THREE ROOTS, INCLUDING harness_root. The first cut gated wiki and
+    # workspace only -- an under-narrow population, the same shape as every
+    # other allowlist in this workstream. harness_root anchors contained
+    # PACKAGE lookups (register_profile, package contributors), so a relative
+    # one rebased beneath the CWD and surfaced as `_MissingInput` at, e.g.,
+    # `C:\Windows\System32\relative\harness\references\policies\
+    # reader_accessibility.v1.json` -- precisely the misleading resolution this
+    # gate exists to eliminate, reproduced 2026-07-17. `harness` defaults to
+    # ROOT (always absolute), so only an explicit override can trip this; the
+    # guard is a property of ROOTS, not of who supplied them.
+    for label, root in (("wiki_root", wiki), ("workspace_root", workspace),
+                        ("harness_root", harness)):
         if not root.is_absolute():
             raise CorpusRootError(
                 f"{label} {str(root)!r} is not an absolute path on this host "
@@ -145,8 +157,9 @@ def _resolve_register_roots(
                 "the pinned corpus was declared under (a Windows drive path); it "
                 "is provenance, not a portable locator. Supply roots this host "
                 "can use via the explicit override seam -- resolve_policy("
-                "wiki_root=..., workspace_root=...) or run_all.py --wiki-root / "
-                "--workspace-root -- or run where the declared corpus exists."
+                "wiki_root=..., workspace_root=..., harness_root=...) or "
+                "run_all.py --wiki-root / --workspace-root -- or run where the "
+                "declared corpus exists."
             )
 
     meta: dict[str, Any] = {
