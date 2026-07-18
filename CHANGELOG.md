@@ -6,6 +6,32 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.30.0 — 2026-07-18
+
+### Milestone auditability and portable register roots
+
+**What.** Milestone deliverables recorded before acceptance now require a
+matching append-only `deliverable_recorded` event, bound to the primary-lineage
+artifact's exact path and SHA-256. Reader-accessibility register roots accept
+`AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and `AGENT_HARNESS_ROOT` fallbacks
+when callers provide no explicit root, and override-mode resolved policy records
+the source of every effective root. Assignment-gate diagnostics now state that
+`mode:native` is a lifecycle-format selection, not implicit N/A authority.
+
+**Why.** Adding an artifact only to `milestones.Mx.artifacts[]` left its creation
+time inferable only from a state diff. The earlier portability proposal also
+introduced ambient inputs without recording whether a value came from the
+profile, an explicit argument, the environment, or the running package. The
+proposed native assignment-gate no-op was rejected because it contradicted the
+fail-closed assignment and full-run contracts and would not have passed the
+receipt preflight in any event.
+
+**How to apply.** Planner transactions that add or replace a current
+primary-lineage deliverable append `deliverable_recorded` with the matching
+artifact binding in the same atomic state write. Root precedence is explicit
+argument, then environment, then profile/runtime default; `path_roots_mode` and
+`resolution_sources` preserve the decision in resolved policy evidence.
+
 ## v0.29.1 — 2026-07-17
 
 ### Full-run lifecycle contract

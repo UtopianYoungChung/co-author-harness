@@ -335,6 +335,34 @@ def _validate_events(
                     matching = [event for event in milestone_events if event.get("event_type") == event_type]
                     if not any(expected_feedback in event.get("bindings", []) for event in matching):
                         findings.append(_finding("MF-EVENT", "milestone_framework.events", f"{milestone} {event_type} must bind current feedback path and hash"))
+        artifacts = record.get("artifacts")
+        primary_deliverables = [
+            artifact for artifact in artifacts
+            if isinstance(artifact, dict)
+            and artifact.get("role") == "deliverable"
+            and artifact.get("lineage_id") == ledger.get("primary_lineage")
+        ] if isinstance(artifacts, list) else []
+        if status in {"in_progress", "feedback_pending", "revision_required", "reopened"}:
+            recorded = [
+                event for event in milestone_events
+                if event.get("event_type") == "deliverable_recorded"
+            ]
+            for deliverable in primary_deliverables:
+                expected_deliverable = {
+                    "binding_type": "artifact",
+                    "path": deliverable.get("path"),
+                    "sha256": deliverable.get("sha256"),
+                }
+                if not any(
+                    expected_deliverable in event.get("bindings", [])
+                    for event in recorded
+                ):
+                    findings.append(_finding(
+                        "MF-EVENT",
+                        "milestone_framework.events",
+                        f"{milestone} current primary-lineage deliverable requires a "
+                        "deliverable_recorded event binding its path and hash",
+                    ))
         if status == "reopened" or (isinstance(approval, dict) and approval.get("status") == "reopened"):
             required.add("milestone_reopened")
         if status == "superseded":
@@ -377,7 +405,6 @@ def _validate_events(
             findings.append(_finding("MF-EVENT", "milestone_framework.events", f"latest lifecycle event for {milestone} is inconsistent with state {status}"))
         if status == "accepted":
             accepted = next((event for event in reversed(milestone_events) if event.get("event_type") == "milestone_accepted"), None)
-            artifacts = record.get("artifacts")
             deliverable = next((item for item in artifacts if isinstance(item, dict) and item.get("role") == "deliverable" and item.get("lineage_id") == ledger.get("primary_lineage")), None) if isinstance(artifacts, list) else None
             approval_state = record.get("approval")
             if isinstance(accepted, dict) and isinstance(deliverable, dict):

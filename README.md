@@ -70,6 +70,14 @@ Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.
 
+On hosts where the corpus is not mounted at the profile's recorded Windows
+paths, set `AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and (when the package is
+relocated) `AGENT_HARNESS_ROOT`. Explicit `--wiki-root`, `--workspace-root`, and
+`--harness-root` arguments take precedence. The resolved reader-accessibility
+binding records each effective path; override-mode bindings also record whether
+each root came from an explicit argument, the environment, or the running
+package root. Profile-mode output remains byte-compatible with existing binds.
+
 ## Quick start
 
 1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).
@@ -129,6 +137,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.30.0** | Requires exact event bindings when a primary-lineage deliverable is recorded before acceptance; adds provenance-recorded environment fallbacks for portable register roots; clarifies that native milestone mode does not authorize assignment-gate N/A. |
 | **0.29.0** | Extends `/repin-register` with exact-key exemplar add/drop inside the existing confirmed re-pin transaction; singleton centroid/intentional-root locks; defaulted `warrant_scope`; warn-only PDF/coherence advisories; scope-aware resolver projections for Check 8 surface warrant versus C-8/C-3/IS-theory argument warrant; and the ninth fixture-only acceptance case. No live corpus or project mutation. |
 | **0.28.1** | Adds `/repin-register`: one authoritative, single-snapshot compute path for deliberate domain-native register re-pins; append-only package ledger plus derived view; atomic, confirmed profile patching; binding-level epochs with old-round softening; Planner-owned project rebind requests; scoped-dirt and lock refusal gates; and an eight-case release-gated smoke suite. |
 | **0.28.0** | Milestone feedback and handoff framework. M1–M5 now share a machine-readable contract for deliverables, feedback, adjudication, bindings, and downstream handoffs; `lifecycle_state.md` is rendered from that single authority instead of becoming a second ledger. Native bootstrap and deterministic validators distinguish clean lifecycle exemplars from legacy migration exemplars, preserve project-level override precedence, and report preflight as READY, authorized NOT_APPLICABLE, or MISCONFIGURED. Reader-accessibility policy gains a domain-native register model and deterministic cadence/Check 8 semantics without treating paragraph length as a universal quality proxy. Read-only RE-essay and INF3130 pilots supplied regression shapes for current-hash continuity, stale approval, reopened milestones, divergent lineage, retrospective feedback, and Ph3-sibling blocking; neither live project was migrated or edited. |

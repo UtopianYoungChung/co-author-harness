@@ -77,6 +77,23 @@ def main() -> int:
     assert deliverables["FINAL"]["prerequisites"] == ["M1", "M2", "M3", "M4"]
     assert "a fifth assigned milestone" in deliverables["FINAL"]["must_not_be_treated_as"]
 
+    # F1 regression: milestone_framework.mode describes lifecycle format, not
+    # assignment-process applicability.  Treating mode:native + a missing
+    # contract as an implicit N/A would turn a deleted or never-resolved
+    # controlling brief into authorization to draft.
+    with tempfile.TemporaryDirectory() as temp:
+        native = Path(temp)
+        reviews = native / "reviews"
+        reviews.mkdir()
+        (reviews / "phase_state.json").write_text(
+            json.dumps({"milestone_framework": {"mode": "native"}}) + "\n",
+            encoding="utf-8",
+        )
+        unbound = run_gate(native, "draft", "M1")
+        assert unbound.returncode == 4, unbound.stdout + unbound.stderr
+        assert "APG-CONTRACT-MISSING" in unbound.stdout
+        assert "mode:native does not make the assignment process NOT_APPLICABLE" in unbound.stdout
+
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         reviews = root / "reviews"

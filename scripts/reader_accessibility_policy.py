@@ -35,6 +35,11 @@ PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEFAULT_WIKI_ROOT = Path("B:/Agents/knowledge/LLM wiki")
 DEFAULT_WORKSPACE_ROOT = Path("B:/Agents")
+ROOT_ENV_VARS = {
+    "wiki_root": "AGENT_WIKI_ROOT",
+    "workspace_root": "AGENT_WORKSPACE_ROOT",
+    "harness_root": "AGENT_HARNESS_ROOT",
+}
 
 
 class PolicyError(ValueError):
@@ -101,6 +106,26 @@ def _resolve_register_roots(
     paths so worktrees and alternate installs stay valid even when they differ
     from path_roots.harness_root.
     """
+    sources = {
+        "wiki_root": "explicit" if wiki_root is not None else "profile",
+        "workspace_root": "explicit" if workspace_root is not None else "profile",
+        "harness_root": "explicit" if harness_root is not None else "runtime",
+    }
+    roots = {
+        "wiki_root": wiki_root,
+        "workspace_root": workspace_root,
+        "harness_root": harness_root,
+    }
+    for label, variable in ROOT_ENV_VARS.items():
+        if roots[label] is None:
+            value = os.environ.get(variable)
+            if value:
+                roots[label] = Path(value)
+                sources[label] = "environment"
+    wiki_root = roots["wiki_root"]
+    workspace_root = roots["workspace_root"]
+    harness_root = roots["harness_root"]
+
     declared = _profile_path_roots(profile)
     profile_wiki = declared["wiki_root"]
     profile_workspace = declared["workspace_root"]
@@ -174,10 +199,19 @@ def _resolve_register_roots(
             "harness_root": harness.as_posix(),
         },
     }
-    if wiki.resolve() == profile_wiki.resolve() and workspace.resolve() == profile_workspace.resolve():
+    if (
+        sources["wiki_root"] == "profile"
+        and sources["workspace_root"] == "profile"
+        and sources["harness_root"] == "runtime"
+        and wiki.resolve() == profile_wiki.resolve()
+        and workspace.resolve() == profile_workspace.resolve()
+    ):
         meta["path_roots_mode"] = "profile"
     else:
         meta["path_roots_mode"] = "override"
+        # Keep the no-override resolved object byte-compatible with existing
+        # bindings.  Only an actual override introduces a new provenance field.
+        meta["resolution_sources"] = sources
     if harness.resolve() != profile_harness.resolve():
         meta["harness_root_note"] = (
             "running package root differs from profile path_roots.harness_root "

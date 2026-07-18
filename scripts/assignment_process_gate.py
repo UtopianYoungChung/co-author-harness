@@ -427,6 +427,29 @@ def validate(
     findings: list[tuple[str, str]] = []
     contract = _load_json(project / "reviews" / "assignment_contract.json", "APG-CONTRACT-MISSING", findings)
     if not isinstance(contract, dict):
+        # `mode` selects the milestone-framework state model; it is not an
+        # assignment-applicability flag.  Keep the gate fail-closed and make
+        # that distinction explicit so a generic native scaffold is not
+        # mistaken for authorization to bypass the controlling brief.
+        contract_path = project / "reviews" / "assignment_contract.json"
+        state_path = project / "reviews" / "phase_state.json"
+        if not contract_path.exists() and state_path.is_file():
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                state = None
+            framework = state.get("milestone_framework") if isinstance(state, dict) else None
+            if isinstance(framework, dict) and framework.get("mode") == "native":
+                code = findings[0][0]
+                findings[:] = [
+                    (
+                        code,
+                        f"missing required file: {contract_path}; mode:native does not "
+                        "make the assignment process NOT_APPLICABLE. Resolve the "
+                        "controlling assignment contract or use a workflow whose "
+                        "governing contract explicitly authorizes N/A.",
+                    )
+                ]
         return findings
     if contract.get("contract_version") != "1.0.0" or contract.get("status") != "resolved":
         findings.append(("APG-CONTRACT-UNRESOLVED", "assignment contract must be version 1.0.0 with status resolved"))
