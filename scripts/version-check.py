@@ -101,9 +101,12 @@ def find_readme_version_assertions(plugin_root: Path) -> List[str]:
 _SEMVER = r"\d+\.\d+\.\d+(?:\.\d+)?"
 
 _README_ASSERTION_PATTERNS = (
-    # any shields.io badge whose value is a version literal, whatever its label
+    # any shields.io badge whose value is a version literal, whatever its label,
+    # with or without a `v` prefix on the VALUE (`Version-v0.29.1-`). The label
+    # is `[A-Za-z0-9._%+-]*?` and `v?` sits on the value, so `Version-v0.29.1-`
+    # no longer parses as label "Version-v" with no version.
     (re.compile(r"!\[[^\]]*\]\(\s*https://img\.shields\.io/badge/"
-                r"[A-Za-z0-9._%+-]*?-(?P<v>" + _SEMVER + r")-", re.I),
+                r"[A-Za-z0-9._%+-]*?-v?(?P<v>" + _SEMVER + r")-", re.I),
      "shields.io badge asserts version {v}: the manifest is the sole "
      "current-version authority; link to .claude-plugin/plugin.json "
      "(e.g. Version-manifest) instead of mirroring it"),
@@ -121,6 +124,28 @@ _README_ASSERTION_PATTERNS = (
                 r"[`*_]{0,2}v?(?P<v>" + _SEMVER + r")[`*_]{0,2}[ \t]*$", re.I | re.M),
      "asserts a current version inline ({v}): point readers at "
      ".claude-plugin/plugin.json instead of mirroring it"),
+    # ORDINARY PROSE. The patterns above refuse headings, badges and
+    # `Key: value` lines -- the SHAPES someone thought of -- while "The current
+    # version is 0.29.1." walked straight through asserting exactly the same
+    # fact. A claim is a claim whatever grammar carries it, so this matches the
+    # CLAIM: a present-tense copula binding a version-ish noun to a literal.
+    #
+    # Deliberately narrow on the verb ("is"/"are"/"ships"/"ships with") and on
+    # the subject ("current version", "plugin version", "version"), and it does
+    # NOT fire on past-tense historical narrative ("in v0.15.0 the badge
+    # drifted"), on a release-history table row, or on a heading with a date --
+    # all of which this policy exists to preserve. A rule that cannot say yes is
+    # not enforcing a distinction, it is just refusing.
+    (re.compile(r"(?:^|[.;:!?]\s|\n)[^.\n]{0,60}?\b(?:current|plugin|package|latest)?"
+                r"[ \t]*version\b[^.\n]{0,24}?\b(?:is|are|remains|stands\s+at)\b"
+                r"[ \t]+[`*_]{0,2}v?(?P<v>" + _SEMVER + r")\b", re.I),
+     "asserts a current version in prose ({v}): the manifest is the sole "
+     "current-version authority; describe it as recorded in "
+     ".claude-plugin/plugin.json rather than restating the number"),
+    (re.compile(r"\b(?:ships|shipping|includes|bundles)\b[^.\n]{0,24}?\bversion\b"
+                r"[ \t]+[`*_]{0,2}v?(?P<v>" + _SEMVER + r")\b", re.I),
+     "asserts a current version in prose ({v}): the manifest is the sole "
+     "current-version authority; do not restate the number"),
 )
 
 # `## v0.29.0 — 2026-07-14` is release HISTORY, not a current-version claim.

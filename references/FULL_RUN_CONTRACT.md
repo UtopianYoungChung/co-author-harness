@@ -180,7 +180,28 @@ Manuscript bytes that no Generator round accounts for are `FRC-AUTHORSHIP`.
 It may be emitted only when `full_run_contract_check.py terminal` returns 0
 against the authoritative project.
 
-That gate requires, as applicable to the project's own declared applicability:
+That gate requires **all fifteen, unconditionally**:
+
+> **`not_applicable` cannot reach terminal.** A milestone may be authorizedly
+> waived (`applicability: not_applicable` with a valid `authorized_override`),
+> and that waiver is legal and meaningful for **milestone-local and `adhoc_review`
+> validation** — `milestone_framework_validate` validates such a record at its own
+> target and returns `NOT_APPLICABLE`.
+>
+> It can **never** satisfy a `full_lifecycle` terminal claim. A `full_lifecycle`
+> run is the user asking for the whole ladder, so every milestone is required
+> *because they asked for it*; applicability describes one milestone's own
+> validation, and does not get to redefine the request. §4 is unsatisfiable
+> without M5 in any case — requirement 15 needs the FINAL/M5 packet and terminal
+> state, so a terminal claim over a waived M5 asserts that the deliverable
+> shipped without the deliverable. Any `not_applicable` M1–M5 record is refused
+> directly with `FRC-NA-MILESTONE-IN-FULL-LIFECYCLE`.
+>
+> The earlier wording here was "as applicable to the project's own declared
+> applicability", which read as a licence for exactly the waiver this paragraph
+> forbids — and a waiver that turns "ladder complete" from false to true is not
+> applicability, it is the audit failure of 2026-07-17 wearing the vocabulary of
+> a legitimate feature.
 
 | # | Requirement |
 |---|---|
@@ -223,6 +244,8 @@ this contract exists to make unsayable.
 | `FRC-SCOPE-DOWNGRADE` | child dispatch narrows a `full_lifecycle` parent to lightweight/response-only/no-artifacts/no-state |
 | `FRC-SCOPE-ESCALATION` | child dispatch widens an `adhoc_review` parent to `full_lifecycle` — a child may not confer on itself authority its parent does not hold |
 | `FRC-NO-ACTIVE-MILESTONE` | `authorize` on a project whose applicable milestones are all `accepted`: no target exists to author against. Validate a finished run with `terminal`; to continue, reopen or derive a milestone first |
+| `FRC-PROSE-FORBIDDEN` | `authorize --run-scope adhoc_review`: prose is forbidden, so prose authorization is REFUSED. The ad hoc review itself is legal — validate its dispatch with `scope`, and never read an authorization exit code out of it |
+| `FRC-NA-MILESTONE-IN-FULL-LIFECYCLE` | a terminal claim over an authorizedly `not_applicable` M1–M5. The waiver is legal milestone-locally and for `adhoc_review`; it cannot produce "ladder complete", "terminal PASS", or shipment |
 | `FRC-MILESTONE-ORDER` | target milestone runs ahead of an unaccepted predecessor |
 | `FRC-PRESENCE-NOT-ACCEPTANCE` | acceptance inferred from a file's existence |
 | `FRC-AUTHORSHIP` | manuscript movement not attributable to a Generator round |

@@ -196,8 +196,13 @@ def case_intent_is_advisory_only() -> None:
           rc == 4 and "FRC-NO-PROJECT" in codes(p), f"rc={rc}")
     rc, p, out = run("authorize", "--project-root", "/definitely/not/here",
                      "--run-scope", "adhoc_review")
-    check("only an EXPLICIT adhoc declaration permits the no-project path",
-          rc == 0, f"rc={rc}")
+    # An explicit ad hoc declaration is REFUSED by `authorize`, and that is the
+    # point: this command answers "may academic prose be written here?", so an
+    # ad hoc review -- which may not write prose -- must not receive exit 0.
+    # The old assertion pinned rc == 0 with a note reading "no prose": a
+    # contradiction a return-code-only caller cannot see.
+    check("an EXPLICIT adhoc declaration is REFUSED by authorize (not exit 0)",
+          rc == 4 and "FRC-PROSE-FORBIDDEN" in codes(p), f"rc={rc}")
     check("and it is declared non-evidence", "not F7/F8/F9 evidence" in out)
 
 
@@ -216,7 +221,8 @@ def case_adhoc_cannot_claim_lifecycle() -> None:
     check("valid ad hoc review still works", rc == 0, f"rc={rc}")
     rc, p, out = run("authorize", "--project-root", "/definitely/not/here",
                      "--run-scope", "adhoc_review")
-    check("explicit ad hoc without a project is permitted (no prose)", rc == 0, f"rc={rc}")
+    check("ad hoc prose authorization is REFUSED (FRC-PROSE-FORBIDDEN)",
+          rc == 4 and "FRC-PROSE-FORBIDDEN" in codes(p), f"rc={rc}")
     check("ad hoc response is declared non-evidence", "not F7/F8/F9 evidence" in out)
 
 
@@ -276,29 +282,93 @@ def case_m4_blocks_while_m1_m3_unaccepted() -> None:
         check("file presence did NOT imply acceptance", rc == 4 and bool(unmet))
 
 
+_ROUND_ENTRY = (
+    "## Round 1 — 2026-07-17\n\n"
+    "**Round program focus:** none — full scope\n"
+    "**Hypothesis:** drafting §1 establishes the argument.\n"
+    "**Scope:** §1\n"
+    "**Changes:**\n- [§1] → drafted → plan action A1\n"
+    "**Self-check result:** CLEAN\n"
+    "**Verdict:** RETAIN\n")
+
+
+def _gate_project_with_receipt(proj: Path, target: str = "M1"):
+    """A real gate project holding a GENUINE READY receipt for `target`."""
+    import assignment_fixture_support as afs
+
+    afs.minimal_gate_project(proj, target=target)
+    rel = f"reviews/.harness/assignment/gate_receipt_{target}_20260717T000000Z.json"
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "assignment_process_gate.py"),
+         "--project-root", str(proj), "--stage", "draft",
+         "--target-milestone", target, "--emit-receipt", rel],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return proj / rel, (r.stdout or "") + (r.stderr or "")
+
+
 def case_authorship_catches_non_generator_prose() -> None:
-    """Required: direct non-Generator manuscript writing is caught."""
+    """Required: direct non-Generator manuscript writing is caught.
+
+    The POSITIVE anchor needs a genuine assignment-gate receipt, not just a
+    round entry. A revision-log entry is written by the same actor whose
+    authority is in question, so on its own it proves the claim by restating it:
+    "I was authorized to write this, signed, the thing that wrote it." An anchor
+    that accepts self-attestation preserves the very bypass the negative cases
+    close -- and `case_complete_round_entry_still_needs_a_receipt` in the
+    bypass suite would then contradict it.
+    """
     with tempfile.TemporaryDirectory() as td:
         proj = Path(td) / "p"
-        (proj / "manuscript").mkdir(parents=True)
+        receipt, log = _gate_project_with_receipt(proj)
+        if not receipt.is_file():
+            check("authorship anchor has a genuine receipt", False,
+                  f"gate did not emit one: {log[-120:]}")
+            return
+        (proj / "manuscript").mkdir(parents=True, exist_ok=True)
         (proj / "manuscript" / "main.md").write_text("# Essay\n\nProse nobody logged.\n",
                                                      encoding="utf-8")
+
+        # 1. prose, no log at all -> refused
         rc, p, _ = run("authorship", "--project-root", str(proj))
         check("unattributed manuscript prose -> REFUSED", rc == 4, f"rc={rc}")
         check("-> FRC-AUTHORSHIP", "FRC-AUTHORSHIP" in codes(p))
-        # With a real Generator round entry -- the structured experiment log
-        # format of references/AGENT_CONTRACTS.md, not merely a file with a
-        # plausible name -- the same bytes are accounted for.
+
+        # 2. empty log -> refused
+        (proj / "manuscript" / "revision_log.md").write_text("", encoding="utf-8")
+        rc, p, _ = run("authorship", "--project-root", str(proj))
+        check("empty revision_log -> REFUSED", rc == 4 and "FRC-AUTHORSHIP" in codes(p),
+              f"rc={rc}")
+
+        # 3. fabricated log -> refused
         (proj / "manuscript" / "revision_log.md").write_text(
-            "## Round 1 — 2026-07-17\n\n"
-            "**Round program focus:** none — full scope\n"
-            "**Hypothesis:** drafting §1 establishes the argument.\n"
-            "**Scope:** §1\n"
-            "**Changes:**\n- [§1] → drafted → plan action A1\n"
-            "**Self-check result:** CLEAN\n"
-            "**Verdict:** RETAIN\n", encoding="utf-8")
-        rc, _, _ = run("authorship", "--project-root", str(proj))
-        check("Generator-attributed prose passes", rc == 0, f"rc={rc}")
+            "today I had a sandwich\n", encoding="utf-8")
+        rc, p, _ = run("authorship", "--project-root", str(proj))
+        check("fabricated revision_log -> REFUSED",
+              rc == 4 and "FRC-AUTHORSHIP" in codes(p), f"rc={rc}")
+
+        # 4. genuine receipt + valid Generator round -> PASS
+        (proj / "manuscript" / "revision_log.md").write_text(_ROUND_ENTRY,
+                                                             encoding="utf-8")
+        rc, p, _ = run("authorship", "--project-root", str(proj))
+        check("genuine receipt + valid Generator round PASSES", rc == 0,
+              f"rc={rc} {str((p or {}).get('findings'))[:90]}")
+
+        # 5. same valid round, receipt now STALE -> refused
+        st = json.loads((proj / "reviews/phase_state.json").read_text(encoding="utf-8"))
+        st["manuscript_id"] = "moved-underneath"
+        (proj / "reviews/phase_state.json").write_text(
+            json.dumps(st, indent=2) + "\n", encoding="utf-8")
+        rc, p, _ = run("authorship", "--project-root", str(proj))
+        msgs = " ".join(f.get("message", "") for f in (p or {}).get("findings", []))
+        check("valid round + STALE receipt -> REFUSED (APG-RECEIPT-STALE)",
+              rc == 4 and "FRC-AUTHORSHIP" in codes(p)
+              and "APG-RECEIPT-STALE" in msgs, f"rc={rc} {msgs[:80]}")
+
+        # 6. same valid round, receipt removed -> refused
+        receipt.unlink()
+        rc, p, _ = run("authorship", "--project-root", str(proj))
+        check("valid-looking round WITHOUT a receipt -> REFUSED",
+              rc == 4 and "FRC-AUTHORSHIP" in codes(p), f"rc={rc}")
 
 
 def case_valid_native_fixture_passes() -> None:

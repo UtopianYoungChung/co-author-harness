@@ -444,6 +444,143 @@ def case_na_m4_does_not_waive_applicable_predecessors() -> None:
               f"rc={rc}")
 
 
+def case_adhoc_review_refuses_prose_authorization() -> None:
+    """`authorize` must not exit 0 while saying prose is forbidden.
+
+    It returned OK plus a note reading "no prose". The note is for humans; the
+    exit code is for machines; the machine was told to proceed. A gate whose
+    prose and exit code disagree is enforcing the prose -- that is, nothing.
+    The ad hoc review remains legal; `scope` is where its dispatch is validated.
+    """
+    rc, p = run("authorize", "--run-scope", "adhoc_review")
+    check("authorize --run-scope adhoc_review is REFUSED (exit 4)", rc == 4,
+          f"rc={rc}")
+    check("-> with FRC-PROSE-FORBIDDEN",
+          refused_with_code(p, "FRC-PROSE-FORBIDDEN"), str(codes(p)))
+    check("-> and status is REFUSED, not OK",
+          (p or {}).get("status") == "REFUSED", str((p or {}).get("status")))
+
+
+def case_adhoc_dispatch_remains_legal_via_scope() -> None:
+    """...and the ad hoc review itself is still legal, via the right command."""
+    rc, p = run("scope", "--parent-scope", "adhoc_review", "--child-brief", "-",
+                stdin="run_scope: adhoc_review\nRead §3 and report back.")
+    check("a legal adhoc child under an adhoc parent still PASSES scope",
+          rc == 0, f"rc={rc} {str((p or {}).get('findings'))[:80]}")
+
+
+def case_omitted_run_scope_defaults_to_full_lifecycle() -> None:
+    """§1.1: an omitted top-level scope resolves to full_lifecycle.
+
+    A SAFE DEFAULT is not phrase sniffing -- they are opposites. Sniffing reads
+    the request text to guess intent and guesses wrong permissively. This reads
+    nothing and resolves ambiguity toward the STRICTER path: guessing
+    full_lifecycle costs one bootstrap prompt the user can decline; guessing
+    adhoc_review silently skips the lifecycle, which is the audit this contract
+    exists to prevent.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = Path(td) / "p"
+        (proj / "reviews").mkdir(parents=True)
+        rc_omitted, p_omitted = run("authorize", "--project-root", str(proj))
+        rc_explicit, p_explicit = run("authorize", "--project-root", str(proj),
+                                      "--run-scope", "full_lifecycle")
+        check("omitted --run-scope behaves identically to explicit full_lifecycle",
+              rc_omitted == rc_explicit and codes(p_omitted) == codes(p_explicit),
+              f"omitted={rc_omitted}/{sorted(codes(p_omitted))} "
+              f"explicit={rc_explicit}/{sorted(codes(p_explicit))}")
+        check("-> and with no project it still FAILS CLOSED (FRC-NO-PROJECT)",
+              rc_omitted == 4 and refused_with_code(p_omitted, "FRC-NO-PROJECT"),
+              f"rc={rc_omitted}")
+    rc_adhoc, p_adhoc = run("authorize", "--run-scope", "adhoc_review")
+    check("-> adhoc_review must be EXPLICIT (it is never the default)",
+          rc_adhoc == 4 and refused_with_code(p_adhoc, "FRC-PROSE-FORBIDDEN"),
+          f"rc={rc_adhoc}")
+
+
+def case_active_target_uses_top_level_status_not_approval_status() -> None:
+    """Two fields, two facts: `status: accepted` vs `approval.status: approved`.
+
+    Deriving the target from `approval.status != "accepted"` would match every
+    correctly approved milestone -- a correct approval never says `accepted` --
+    and so would always select M1, re-authorising work that is already done.
+    This pins the distinction against that "fix".
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        # Every applicable milestone is accepted; approvals say `approved`.
+        st = json.loads((proj / "reviews/phase_state.json").read_text(encoding="utf-8"))
+        ms = st["milestone_framework"]["milestones"]
+        check("fixture precondition: M1 status=accepted, approval.status=approved",
+              ms["M1"]["status"] == "accepted"
+              and ms["M1"]["approval"]["status"] == "approved",
+              f"status={ms['M1']['status']!r} "
+              f"approval={ms['M1']['approval']['status']!r}")
+        rc, p = run("authorize", "--project-root", str(proj))
+        # Correct predicate -> no target -> FRC-NO-ACTIVE-MILESTONE.
+        # Inverted predicate -> target M1 -> a receipt/contract finding instead.
+        check("top-level status drives derivation (no target on a closed ladder)",
+              rc == 4 and refused_with_code(p, "FRC-NO-ACTIVE-MILESTONE"),
+              f"rc={rc} {sorted(codes(p))}")
+
+
+def case_na_m5_cannot_reach_terminal() -> None:
+    """M5 waived -> terminal refused with the exact structured code."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M5"]
+                     .update({"applicability": "not_applicable"}))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("authorized not_applicable M5 CANNOT reach terminal",
+              rc == 4 and refused_for(
+                  p, "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
+                  "milestone_framework.milestones.M5.applicability"),
+              f"rc={rc}")
+
+
+def case_non_object_phase_state_is_refused_not_a_crash() -> None:
+    """A JSON list/scalar/null phase_state must be a verdict, not AttributeError."""
+    for payload in ("[]", '"nope"', "42", "null"):
+        with tempfile.TemporaryDirectory() as td:
+            proj = Path(td) / "p"
+            _w(proj / "reviews/phase_state.json", payload)
+            _w(proj / "reviews/assignment_contract.json", json.dumps({"status": "resolved"}))
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"phase_state.json = {payload} -> structured refusal",
+                  rc == 4 and refused_with_code(p, "FRC-NO-PROJECT"),
+                  f"rc={rc} codes={sorted(codes(p))}")
+
+
+def case_default_final_phase_must_be_recognized() -> None:
+    """Default only when ABSENT; an unrecognised value is malformed, not T3.
+
+    Coercing "Ph9" / 7 / "" to T3 let malformed state become a plausible ceiling
+    and then influence the MCR disjunction as if someone had chosen it. A
+    default stands in for a value nobody supplied; it does not repair a value
+    someone got wrong.
+    """
+    import pre_phase_advance_check as _ppa
+
+    base = {"sections": {}, "milestone_framework": {}}
+    # absent -> T3
+    check("absent default_final_phase -> T3",
+          _ppa.translate_phase_ledger(dict(base))["default_final_tier"] == "T3")
+    # valid -> mapped
+    for phase, tier in (("Ph1", "T1"), ("Ph3", "T3"), ("Ph3_converged", "T3_converged"),
+                        ("Ph4", "T4")):
+        d = dict(base, default_final_phase=phase)
+        check(f"valid default_final_phase {phase} -> {tier}",
+              _ppa.translate_phase_ledger(d)["default_final_tier"] == tier)
+    # unknown / scalar / null -> refused
+    for bad in ("Ph9", "", 7, None, ["Ph3"]):
+        d = dict(base, default_final_phase=bad)
+        try:
+            _ppa.translate_phase_ledger(d)
+            check(f"default_final_phase {bad!r} is REFUSED", False, "no raise")
+        except _ppa.LedgerTranslationError:
+            check(f"default_final_phase {bad!r} is REFUSED", True)
+
+
 def case_non_object_contract_is_refused_not_a_crash() -> None:
     """A malformed contract must produce a VERDICT, not an AttributeError.
 
@@ -558,7 +695,7 @@ def case_deep_pass_required_for_every_section() -> None:
               rc == 4 and refused_for(
                   p, "MF-PHASE",
                   "sections['2. Second'].pre_mcr_deep_pass_completed"),
-              f"rc={{rc}}")
+              f"rc={rc}")
 
 
 def case_check8_blocker_refuses_terminal() -> None:
@@ -752,7 +889,7 @@ def case_mcr_filename_glob() -> None:
         check("arbitrary *mcr* filename does not satisfy MCR",
               rc == 4 and refused_for(p, "MF-PHASE", "sections",
                                       message_contains="MCR admission"),
-              f"rc={{rc}}")
+              f"rc={rc}")
 
 
 def case_mcr_failed_verdict() -> None:
@@ -1015,6 +1152,13 @@ def main() -> int:
     print()
     for fn in (case_baseline_valid_project_passes,
                case_authorized_na_m4_cannot_reach_terminal,
+               case_na_m5_cannot_reach_terminal,
+               case_adhoc_review_refuses_prose_authorization,
+               case_adhoc_dispatch_remains_legal_via_scope,
+               case_omitted_run_scope_defaults_to_full_lifecycle,
+               case_active_target_uses_top_level_status_not_approval_status,
+               case_non_object_phase_state_is_refused_not_a_crash,
+               case_default_final_phase_must_be_recognized,
                case_na_m4_does_not_waive_applicable_predecessors,
                case_non_object_contract_is_refused_not_a_crash,
                case_malformed_nested_milestone_data_is_refused_not_a_crash,

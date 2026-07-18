@@ -266,6 +266,7 @@ FRC_LOCAL = {
     "ledger_malformed": "FRC-LEDGER-MALFORMED",
     "sections_empty": "FRC-SECTIONS-EMPTY",
     "authorship": "FRC-AUTHORSHIP",
+    "na_milestone": "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
     "raised": "FRC-VALIDATOR-RAISED",
 }
 
@@ -353,6 +354,16 @@ def project_floor(project_root: Path | None) -> list[dict]:
     if state is None:
         findings.append(_f("FRC-NO-PROJECT",
                            f"reviews/phase_state.json {err}; not a native project"))
+        return findings
+    # Type BEFORE `.get`. A JSON list or scalar is not None, so it walked past
+    # the guard above and raised AttributeError -- exit 2, the absence of a
+    # verdict, from the function whose job is to produce one.
+    if not isinstance(state, dict):
+        findings.append(_f(
+            "FRC-NO-PROJECT",
+            f"reviews/phase_state.json parses to {type(state).__name__}, not an "
+            "object; not a native project",
+            parsed_type=type(state).__name__))
         return findings
     mf = state.get("milestone_framework")
     if not isinstance(mf, dict):
@@ -526,14 +537,29 @@ def cmd_authorize(args) -> int:
         return REFUSED
 
     if scope == ADHOC:
-        # An explicitly declared ad hoc review is legal WITHOUT a project -- it
-        # simply may not write prose, advance the ladder, or claim terminal, and
-        # its response is not evidence (§1, §4).
-        print(json.dumps({"status": "OK", "run_scope": ADHOC,
-                          "note": "ad hoc review: no prose, no advancement, no "
-                                  "terminal claim, response is not F7/F8/F9 evidence"},
-                         ensure_ascii=False, indent=1))
-        return OK
+        # REFUSED, not OK. This command answers exactly one question -- "may
+        # academic prose be written here?" -- and exit 0 is its way of saying
+        # yes. It used to answer an explicitly declared ad hoc review with exit
+        # 0 plus a note reading "no prose", which is a contradiction a
+        # return-code-only caller cannot see: the note is for humans, the exit
+        # code is for machines, and the machine was told to proceed. A gate whose
+        # prose and whose exit code disagree is enforcing the prose, i.e.
+        # nothing.
+        #
+        # An ad hoc review remains perfectly legal -- it is simply not a prose
+        # authorization. Its legality is validated by the `scope` command, which
+        # is the mechanism for checking a dispatch, and which still passes an
+        # ad hoc parent with an ad hoc child.
+        _emit([_f("FRC-PROSE-FORBIDDEN",
+                  "run_scope is adhoc_review: academic prose may not be written, "
+                  "the ladder may not advance, no terminal claim may be made, and "
+                  "the response is not F7/F8/F9 evidence. This is a refusal, not "
+                  "an error: the ad hoc review itself is legal. Validate its "
+                  "dispatch with `full_run_contract_check.py scope "
+                  "--parent-scope adhoc_review --child-brief <file>`; do not read "
+                  "an authorization exit code out of it.",
+                  run_scope=ADHOC)], "REFUSED")
+        return REFUSED
 
     findings = authorize(args.project_root)
     if findings:
@@ -1010,6 +1036,31 @@ def check_terminal(project_root: Path) -> list[dict]:
         for finding in result.findings:
             unmet.append(_u(boundary, finding.code, finding.path, finding.message))
 
+    # DIRECT refusal of any N/A milestone. Running every boundary is NOT enough:
+    # the delegated validator legitimately SKIPS `not_applicable` records -- that
+    # is correct for the milestone-local question it answers ("is this waiver
+    # itself in order?"), and it means a waived milestone produces no finding at
+    # all. Relying on the delegate's silence to refuse a terminal claim is
+    # relying on an authority to answer a question nobody asked it. So the
+    # terminal rule is stated here, where the terminal question is being asked.
+    milestones = ((state.get("milestone_framework") or {}).get("milestones")
+                  if isinstance(state.get("milestone_framework"), dict) else None)
+    if isinstance(milestones, dict):
+        for key in ("M1", "M2", "M3", "M4", "M5"):
+            record = milestones.get(key)
+            if isinstance(record, dict) and \
+                    record.get("applicability") == "not_applicable":
+                unmet.append(_u(
+                    "full_lifecycle", FRC_LOCAL["na_milestone"],
+                    f"milestone_framework.milestones.{key}.applicability",
+                    f"{key} is authorized not_applicable. That waiver is legal for "
+                    "milestone-local and ad hoc validation, and it cannot satisfy a "
+                    "full_lifecycle terminal claim: the user asked for the whole "
+                    "ladder, so every milestone is required because they asked. A "
+                    "waiver that turns 'ladder complete' from false to true is not "
+                    "applicability -- it is the failure this contract exists to "
+                    "prevent, in the vocabulary of a feature."))
+
     # phase state shape -- the phase authority, ALL of it.
     #
     # The previous filter kept only codes starting with "E", on the assumption
@@ -1099,8 +1150,19 @@ def main(argv: list[str] | None = None) -> int:
 
     a = sub.add_parser("authorize", help="may academic prose be written here?")
     a.add_argument("--project-root", type=Path)
+    # NOT required, deliberately. §1.1 resolves an omitted top-level scope to
+    # full_lifecycle, and only `adhoc_review` must be declared explicitly. That
+    # is a SAFE DEFAULT, not phrase sniffing: the two are opposites. Sniffing
+    # reads the request text to guess what the user meant, and guesses wrong in
+    # the permissive direction. This default reads nothing at all, and resolves
+    # ambiguity toward the STRICTER path -- guessing full_lifecycle costs one
+    # bootstrap prompt the user can decline, while guessing adhoc_review
+    # silently skips the entire lifecycle, which is the 2026-07-17 audit.
+    # Making the flag mandatory would make the strict path the one you have to
+    # remember to ask for.
     a.add_argument("--run-scope", type=str, default=None,
-                   help=f"explicit declared scope, one of {SCOPES} (default: {FULL}). "
+                   help=f"declared scope, one of {SCOPES}. Omitted resolves to "
+                        f"{FULL} (§1.1: only adhoc_review must be explicit). "
                         "Never inferred from request text.")
     a.set_defaults(fn=cmd_authorize)
 

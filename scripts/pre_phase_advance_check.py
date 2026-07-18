@@ -351,9 +351,27 @@ def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
         raise LedgerTranslationError(
             f"phase state must be a JSON object, got {type(phase_ledger).__name__}")
     ledger = dict(phase_ledger)
-    ledger["default_final_tier"] = phase_to_tier.get(
-        phase_ledger.get("default_final_phase"), "T3"
-    )
+    # `default_final_phase` defaults to T3 ONLY when ABSENT.
+    #
+    # `.get(...)` with a fallback coerced every unrecognised value to T3 --
+    # "Ph9", 7, an empty string, a list -- so malformed state did not fail, it
+    # became a plausible ceiling and then influenced the MCR disjunction as if
+    # it were data someone had chosen. A default is a stand-in for a value
+    # nobody supplied; it is not a repair for a value someone got wrong.
+    if "default_final_phase" in phase_ledger:
+        declared = phase_ledger["default_final_phase"]
+        # `not in phase_to_tier` raises TypeError on an unhashable value (a list,
+        # a dict), so the type test comes first: a malformed ledger must produce
+        # LedgerTranslationError -- the refusal this function documents -- and
+        # never a TypeError, which escapes as exit 1 and reads as "a clause
+        # failed".
+        if not isinstance(declared, str) or declared not in phase_to_tier:
+            raise LedgerTranslationError(
+                f"default_final_phase must be one of {sorted(phase_to_tier)}, got "
+                f"{declared!r}")
+        ledger["default_final_tier"] = phase_to_tier[declared]
+    else:
+        ledger["default_final_tier"] = "T3"
     translated_sections: list[dict[str, Any]] = []
     raw_sections = phase_ledger.get("sections", {})
     # FAIL CLOSED on a malformed container. The first cut coerced anything
@@ -425,6 +443,16 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
             f"[pre_phase_advance_check] error: failed to read or parse "
             f"{phase_state_path}: {exc}\n"
         )
+        sys.exit(2)
+    # Type BEFORE field access. A parsed list or scalar crashed on
+    # `.get("schema_version")`, so the structural failure this function
+    # documents (exit 2) never got issued -- the caller received a traceback
+    # and exit 1, which means "a clause failed": a statement about the ledger
+    # that was never actually made.
+    if not isinstance(phase_ledger, dict):
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} must contain a "
+            f"JSON object, got {type(phase_ledger).__name__}.\n")
         sys.exit(2)
     if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
         sys.stderr.write(

@@ -282,11 +282,59 @@ def case_alternate_version_assertions_are_refused() -> None:
          "# X\n\n**Version:** 0.29.1\n"),
         ("plain `Version: X.Y.Z` line",
          "# X\n\nVersion: 0.29.1\n"),
+        # v-prefixed badge VALUE -- `Version-v0.29.1-` rather than `Version-0.29.1-`.
+        ("v-prefixed shields badge value",
+         "# X\n\n![Version](https://img.shields.io/badge/Version-v0.29.1-blue)\n"),
+        ("v-prefixed lowercase badge value",
+         "# X\n\n![build](https://img.shields.io/badge/build-v0.29.1-blue)\n"),
+        # Ordinary prose. The gate refused headings, badges and `Key: value`
+        # lines -- i.e. the SHAPES someone thought of -- while a sentence
+        # asserting the same fact walked through. A claim is a claim whatever
+        # grammar carries it.
+        ("prose claim 'The current version is X'",
+         "# X\n\nThe current version is 0.29.1.\n"),
+        ("prose claim 'the plugin version is vX'",
+         "# X\n\nToday the plugin version is v0.29.1, which you can rely on.\n"),
+        ("prose claim 'ships version X'",
+         "# X\n\nThis package ships version 0.29.1 of the harness.\n"),
     ):
         with tempfile.TemporaryDirectory() as td:
             rc, out = run(fixture(Path(td), readme=body))
-            check(f"README {label} is REFUSED", blocked_for(out, "README"),
-                  str(blockers(out) or "<no blocker>")[:70])
+            check(f"README {label} is REFUSED",
+                  rc == 1 and blocked_for(out, "README"),
+                  f"rc={rc} {str(blockers(out) or '<no blocker>')[:56]}")
+
+
+def case_legitimate_readme_prose_is_not_overmatched() -> None:
+    """The other half of the claim: what must NOT be refused.
+
+    Without this, "refuse version assertions" is satisfiable by refusing every
+    README that mentions a number -- and the release-history table and the
+    manifest-link prose, which this policy exists to PRESERVE, would be the
+    first casualties. A rule that cannot say yes is not enforcing a distinction.
+    """
+    for label, body in (
+        ("manifest-link prose (no numeric mirror)",
+         "# X\n\n## Version\n\nThe current version is recorded in "
+         "[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), which is "
+         "its sole authority.\n"),
+        ("release-history table",
+         "# X\n\n## Version\n\n| Release | Date | Notes |\n|---|---|---|\n"
+         "| v0.29.0 | 2026-07-14 | census parity |\n"
+         "| v0.15.0 | 2026-06-01 | stage x profile |\n"),
+        ("release-history headings with dates",
+         "# X\n\n## v0.29.0 — 2026-07-14\n\n- shipped\n\n"
+         "## v0.15.0 — 2026-06-01\n\n- shipped\n"),
+        ("historical narrative",
+         "# X\n\nIn v0.15.0 the badge and the literal drifted apart, which is "
+         "why the manifest is now the sole authority.\n"),
+        ("a non-version badge",
+         "# X\n\n![CI](https://img.shields.io/badge/CI-passing-green)\n"),
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            rc, out = run(fixture(Path(td), readme=body))
+            check(f"README {label} PASSES", rc == 0,
+                  f"rc={rc} {str(blockers(out))[:64]}")
 
 
 def case_malformed_release_heading_is_refused() -> None:
@@ -306,8 +354,8 @@ def case_malformed_release_heading_is_refused() -> None:
             "## v1.2.3.4.5 — 2026-01-02\n\n- malformed identifier\n\n"
             "## v0.29.0 — 2026-07-14\n\n- ok\n")))
         check("malformed release-like heading is REFUSED",
-              blocked_for(out, "CHANGELOG", "malformed"),
-              str(blockers(out) or "<no blocker>")[:70])
+              rc == 1 and blocked_for(out, "CHANGELOG", "malformed"),
+              f"rc={rc} {str(blockers(out) or '<no blocker>')[:56]}")
 
 
 def case_ssot_registry_agrees_with_the_ruling() -> None:
@@ -366,6 +414,7 @@ def main() -> int:
                case_real_changelog_is_accepted,
                case_missing_changelog_is_refused,
                case_alternate_version_assertions_are_refused,
+               case_legitimate_readme_prose_is_not_overmatched,
                case_malformed_release_heading_is_refused,
                case_ssot_registry_agrees_with_the_ruling):
         print(f"{fn.__name__}:")
