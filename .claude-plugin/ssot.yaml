@@ -87,9 +87,18 @@ facts:
   # ---------------------------------------------------------------
   manifest_version:
     description: |
-      Authoritative plugin version. version-check.py enforces parity
-      across plugin.json, marketplace.json self-referencing entries,
-      README.md "## Version" section, and CHANGELOG.md top heading.
+      Authoritative plugin version: .claude-plugin/plugin.json, and nothing
+      else. Exactly the posture this registry already takes on skill_count —
+      "No prose surface should assert this number; counts in prose drift the
+      moment a skill is added or removed." A version drifts the moment one is
+      released. The argument was already made here; it just had not been
+      applied to the version.
+
+      Enforced by version-check.py: manifest<->marketplace parity is a hard
+      gate (both manifests ship in the .plugin ZIP and the loader rejects the
+      install when they disagree); README version assertions are REFUSED;
+      CHANGELOG is validated for structure and release consistency but is
+      never authoritative.
     authority:
       method: json_field
       path: .claude-plugin/plugin.json
@@ -99,11 +108,24 @@ facts:
         method: json_field
         field: plugins[*].version  # for self-referencing entries only
       - path: README.md
-        method: regex
-        pattern: '^##\s+Version\s+`(\d+\.\d+\.\d+)`'
-      - path: CHANGELOG.md
-        method: regex
-        pattern: '^##\s+v(\d+\.\d+\.\d+)\s'  # first non-(unreleased)
+        method: none
+        rationale: |
+          Same inversion as skill_count. README must NOT assert the current
+          version: it points at the manifest and keeps its release-history
+          table. The badge and the standalone "## Version `X.Y.Z`" literal
+          were two hand-maintained copies of one fact, and they drifted apart
+          at v0.15.0 — which is what two copies of one fact eventually do.
+          version-check.py BLOCKERs either one if reintroduced.
+      # CHANGELOG.md is deliberately NOT a consumer of this fact.
+      #
+      # Its headings are RELEASE HISTORY -- `## v0.29.0 — 2026-07-14` records
+      # what shipped; it is not a claim about what the version IS, so there is
+      # nothing here for it to agree or disagree with. Registering it as a
+      # consumer would BLOCK whenever the changelog lags the manifest, while
+      # version-check.py deliberately treats that lag as a documentation gap
+      # (WARN) -- two validators disagreeing about one fact is precisely the
+      # contradiction this round exists to remove. version-check.py owns
+      # changelog structure and release consistency; one fact, one judge.
 
   # ---------------------------------------------------------------
   # Fact: manifest_description

@@ -19,49 +19,16 @@ RECEIPT_SCHEMA = ROOT / "references" / "schemas" / "assignment_gate_receipt.sche
 RECEIPT_TEMPLATE = ROOT / "references" / "templates" / "assignment_gate_receipt.json"
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-
-def write_wiki_evidence(project: Path, phase_state: dict) -> Path:
-    references = project / "references" / "REFERENCES.md"
-    references.parent.mkdir(parents=True, exist_ok=True)
-    references.write_text("# Verified references\n", encoding="utf-8")
-    wiki = project / "synthetic-wiki"
-    source_page = wiki / "sources" / "yu.md"
-    source_page.parent.mkdir(parents=True, exist_ok=True)
-    source_page.write_text("# Yu source page\n", encoding="utf-8")
-    graph = wiki / "graphify-out" / "graph.json"
-    graph.parent.mkdir(parents=True, exist_ok=True)
-    graph.write_text('{"nodes": []}\n', encoding="utf-8")
-    evidence_path = project / "reviews" / ".harness" / "assignment" / "wiki_grounding_test.json"
-    evidence_path.parent.mkdir(parents=True, exist_ok=True)
-    evidence = {
-        "schema_version": "1.0.0",
-        "lineage_id": "live",
-        "produced_at": "2026-07-15T00:00:00Z",
-        "wiki_path": str(wiki),
-        "wiki_first_resources": True,
-        "skills_invoked": ["seed-snowball-discovery"],
-        "references_path": "references/REFERENCES.md",
-        "references_sha256": sha256(references),
-        "graph_path": str(graph),
-        "graph_sha256_provenance": sha256(graph),
-        "sources_consulted": [{"path": str(source_page), "sha256": sha256(source_page)}],
-        "authority": "planner",
-        "notes": "Synthetic wiki-first grounding evidence for the gate smoketest.",
-    }
-    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    phase_state["milestone_framework"]["milestones"]["M3"]["policy_evidence"] = {
-        "wiki_grounding": {
-            "evidence_path": evidence_path.relative_to(project).as_posix(),
-            "evidence_sha256": sha256(evidence_path),
-        }
-    }
-    (project / "reviews" / "phase_state.json").write_text(
-        json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
-    )
-    return evidence_path
+# `sha256` and `write_wiki_evidence` were defined here and needed by a second
+# suite. Extracted to shared support rather than copied: two copies of one
+# fixture drift, and the copy in the newer file quietly becomes a different --
+# and weaker -- idea of "valid". Imported back so this suite keeps using the
+# same fixture it always did, and so both suites fail together if it breaks.
+from assignment_fixture_support import (  # noqa: E402
+    sha256, write_wiki_evidence, write_valid_contract,
+)
 
 
 def run_gate(
@@ -110,37 +77,31 @@ def main() -> int:
     assert deliverables["FINAL"]["prerequisites"] == ["M1", "M2", "M3", "M4"]
     assert "a fifth assigned milestone" in deliverables["FINAL"]["must_not_be_treated_as"]
 
+    # F1 regression: milestone_framework.mode describes lifecycle format, not
+    # assignment-process applicability.  Treating mode:native + a missing
+    # contract as an implicit N/A would turn a deleted or never-resolved
+    # controlling brief into authorization to draft.
+    with tempfile.TemporaryDirectory() as temp:
+        native = Path(temp)
+        reviews = native / "reviews"
+        reviews.mkdir()
+        (reviews / "phase_state.json").write_text(
+            json.dumps({"milestone_framework": {"mode": "native"}}) + "\n",
+            encoding="utf-8",
+        )
+        unbound = run_gate(native, "draft", "M1")
+        assert unbound.returncode == 4, unbound.stdout + unbound.stderr
+        assert "APG-CONTRACT-MISSING" in unbound.stdout
+        assert "mode:native does not make the assignment process NOT_APPLICABLE" in unbound.stdout
+
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
-        source = root / "course-assignment.pdf"
-        source.write_bytes(b"synthetic assignment brief\n")
         reviews = root / "reviews"
         reviews.mkdir()
 
-        contract = {
-            "contract_version": "1.0.0",
-            "status": "resolved",
-            "profile_id": "course-essay-four-milestones-v1",
-            "profile_path": "references/policies/course_essay_milestones.v1.json",
-            "profile_sha256": sha256(PROFILE),
-            "assignment_source": {
-                "path": str(source),
-                "sha256": sha256(source),
-                "authority": "instructor",
-            },
-            "assigned_sequence": ["M1", "M2", "M3", "M4", "FINAL"],
-            "framework_mapping": {
-                "M1": "M1",
-                "M2": "M2",
-                "M3": "M3",
-                "M4": "M4",
-                "FINAL": "M5",
-            },
-            "professor_copy_policy": "author_controlled_unless_explicitly_requested",
-        }
-        (reviews / "assignment_contract.json").write_text(
-            json.dumps(contract, indent=2) + "\n", encoding="utf-8"
-        )
+        # The single shared fixture -- see scripts/assignment_fixture_support.py.
+        contract = write_valid_contract(root)
+        source = root / "course-assignment.pdf"
         phase_state = {
             "milestone_framework": {
                 "mode": "native",

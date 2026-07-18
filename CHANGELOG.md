@@ -8,30 +8,93 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## v0.31.0 — 2026-07-18
 
-### Reproducible release packaging and evidence integrity
+### Reproducible release packaging, evidence integrity, and Wiki-write deferral
 
-**What changed.** The release-packaging path is now a deterministic artifact of a
-single commit: package enumeration is extracted into a neutral module, the
-executing builder is bound via a clean-worktree re-exec, and every release path
-converges onto the one committed builder. Fixture and release-manifest evidence
-is commit-stable, writer-bound, and concurrency-safe — pass-fixture hashes bind
-to committed bytes, the fixture chain and digest-exact release manifests
-regenerate deterministically, and duplicate-manifest emission is rejected. The
-test harness gains a repo-global sandbox/lock with exact path exclusions and an
-honest exit contract (exit 5/6/7). Adds `scripts/graph_authority_gate.py`.
+**What changed.** Two consolidated lines land on top of v0.30.0. (1) The
+release-packaging path is a deterministic artifact of a single commit: package
+enumeration is extracted into a neutral module, the executing builder is bound
+via a clean-worktree re-exec, every release path converges onto the one
+committed builder, and fixture/release-manifest evidence is commit-stable,
+writer-bound, and concurrency-safe (pass-fixture hashes bind to committed bytes,
+digest-exact manifests regenerate deterministically, duplicate-manifest emission
+is rejected, and the test harness gains a repo-global sandbox/lock with exact
+exclusions and an honest 5/6/7 exit contract). (2) Research Truth Phase 0/1:
+canonical Coupling C/D Wiki mutation is unavailable — all entry points return a
+structured deferred result (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key:
+null`) without blocking Research completion, approval, or release, and
+`scripts/graph_authority_gate.py` adds an unconditional
+`GRAPH_GOVERNED_GENERATION_UNAVAILABLE` gate on the separate graph-authority
+plane.
 
 **Verification and boundary.** Packaging smoketests pin worktree re-exec, exit
 codes, provenance key sets, and output handoff; the build voids on
-worktree-cleanup failure and fails closed on toolchain drift. Teardown races are
-classified as environment rather than provenance failures. Additive to the
-packaging/evidence layer — no four-agent contract or phase-ledger schema change.
+worktree-cleanup failure and fails closed on toolchain drift. Additive to the
+packaging/evidence and reflection layers — no four-agent contract or
+phase-ledger schema change.
 
-**Sequencing.** This release consolidates the `codex/assignment-gate-hardening`
-packaging/evidence cycle on top of the v0.30.0 root-provenance release shipped on
-`main`. Merge `main` before packaging so the 0.30.0 changes are carried forward;
-the 0.30.0 entry lives on `main` and does not repeat here.
+**Severity / attribution.** Minor release consolidating the
+`codex/assignment-gate-hardening` cycle. Version intent: v0.31.0.
 
-**Severity / attribution.** Minor release. Version intent: v0.31.0.
+## v0.30.0 — 2026-07-18
+
+### Milestone auditability and portable register roots
+
+**What.** Milestone deliverables recorded before acceptance now require a
+matching append-only `deliverable_recorded` event, bound to the primary-lineage
+artifact's exact path and SHA-256. Reader-accessibility register roots accept
+`AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and `AGENT_HARNESS_ROOT` fallbacks
+when callers provide no explicit root, and override-mode resolved policy records
+the source of every effective root. Assignment-gate diagnostics now state that
+`mode:native` is a lifecycle-format selection, not implicit N/A authority.
+
+**Why.** Adding an artifact only to `milestones.Mx.artifacts[]` left its creation
+time inferable only from a state diff. The earlier portability proposal also
+introduced ambient inputs without recording whether a value came from the
+profile, an explicit argument, the environment, or the running package. The
+proposed native assignment-gate no-op was rejected because it contradicted the
+fail-closed assignment and full-run contracts and would not have passed the
+receipt preflight in any event.
+
+**How to apply.** Planner transactions that add or replace a current
+primary-lineage deliverable append `deliverable_recorded` with the matching
+artifact binding in the same atomic state write. Root precedence is explicit
+argument, then environment, then profile/runtime default; `path_roots_mode` and
+`resolution_sources` preserve the decision in resolved policy evidence.
+
+## v0.29.1 — 2026-07-17
+
+### Full-run lifecycle contract
+
+**What.** A "Harness full run" request produced a complete essay with no project
+root, no assignment contract, no phase state, no milestone acceptance, no
+F7/F8/F9 and no G.4, and reported "Ladder complete ... PASS" (audit
+2026-07-17, session local_7fe69519, lines 1 / 112 / 342). Every agent file
+already forbade this; nothing enforced it.
+
+**Why it was possible.** The fail-closed assignment gates are all
+`--project-root` parameterised, so with *no project at all* none can fire.
+`run_scope` did not exist, so a parent's whole-lifecycle intent could not bind
+a child — the coordinator dispatched the Evaluator with "no project scaffold
+... Do NOT attempt to write reviews/ artifacts ... Return findings in your
+response only." `references/AGENT_ORCHESTRATION.md` states outright that role
+permissions are "not structurally enforced by the filesystem," and no
+deterministic check stood between an agent and the words "ladder complete."
+
+**How to apply.** `references/FULL_RUN_CONTRACT.md` is the single normative
+surface (run scope; no-project-no-prose; child-dispatch prohibition; the
+fifteen terminal requirements; error codes `FRC-*`). Other surfaces route to it
+and do not restate it — duplicated policy prose is the drift this repair
+exists to close. `scripts/full_run_contract_check.py` is its mechanical
+authority (`authorize` / `scope` / `authorship` / `terminal` / `intent`);
+where the prose and the script disagree, the script is the contract.
+`scripts/full_run_contract_smoketest.py` pins the behaviour against the real
+audit strings, and includes a valid native M1→M4→FINAL fixture that must PASS
+so the gate cannot be satisfied by refusing everything.
+
+**Lesson (recurrent).** A rule that exists only as prose is a rule the system
+does not have. This is the same species as the CRLF fixture hashes and the
+`B:/` corpus roots: a claim whose enforcement was assumed rather than
+mechanised.
 
 ## v0.29.0 — 2026-07-14
 

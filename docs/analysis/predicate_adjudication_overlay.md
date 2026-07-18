@@ -27,6 +27,16 @@ batch; any drift voids row IDs adjudicated after the drifted file changed.
 (dispositions §2, standing rulings §3). Default is KEEP; an unsigned row at
 implementation time is a BLOCKER, never a silent retirement.
 
+**Post-freeze v0.30.0 addition:** the original 248/248 queue remains the
+historical signed baseline. The implementation adds one new predicate row,
+adjudicated below as KEEP; the live total is therefore 249/249. This addition
+does not rewrite the 2026-07-16 freeze record. Current
+`milestone_framework_validate.py` emitter hash: `9e0ce29a1be7`.
+
+| Row ID | Outcome | Predicate | Fixture | Disp | Appr |
+|---|---|---|---|---|---|
+| `MF-EVENT@milestone_framework_validate:_validate_events#073bff9fe25d~0` (:361) | BLOCKER finding | A current primary-lineage deliverable in an active pre-acceptance state (`in_progress`, `feedback_pending`, `revision_required`, or `reopened`) requires a `deliverable_recorded` event binding its exact path and hash | `milestone_framework_smoketest.py`: `missing_deliverable_recorded_event` and `deliverable_record_binding_mismatch` reject; `valid_deliverable_recorded_event` accepts | KEEP | none |
+
 Dispositions: KEEP (no approval) · MOVE (approval if it crosses a gate-frequency
 boundary) · SPLIT (approval) · CHANGE (approval; must name the differing input)
 · RETIRE (approval; must name replacement or declare abandonment).

@@ -35,10 +35,44 @@ PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DEFAULT_WIKI_ROOT = Path("B:/Agents/knowledge/LLM wiki")
 DEFAULT_WORKSPACE_ROOT = Path("B:/Agents")
+ROOT_ENV_VARS = {
+    "wiki_root": "AGENT_WIKI_ROOT",
+    "workspace_root": "AGENT_WORKSPACE_ROOT",
+    "harness_root": "AGENT_HARNESS_ROOT",
+}
 
 
 class PolicyError(ValueError):
     pass
+
+
+class CorpusRootError(PolicyError):
+    """The declared corpus roots cannot locate a corpus in THIS environment.
+
+    Distinct from a merely absent input: it says the *locator itself* is
+    unusable here, before any filesystem lookup is meaningful.
+
+    `corpus_binding.path_roots` records the roots the pinned corpus was
+    declared under -- `B:/Agents/...` on the maintainer's Windows host. Those
+    strings are provenance, NOT a portable filesystem locator: `B:/Agents` is
+    absolute on Windows and an ordinary RELATIVE path everywhere else. So on
+    Linux `Path("B:/Agents") / "knowledge/LLM wiki/graphify-out/graph.json"`
+    silently resolved against the CWD, and the register reported
+
+        domain-native input absent: graph_provenance_only:
+        <cwd>/B:/Agents/knowledge/LLM wiki/graphify-out/graph.json
+
+    -- an "absent input" at a path that could never have existed. The
+    diagnosis pointed at the corpus; the defect was the locator. That is what
+    kept `structural-checks` red on every Linux run since 2026-07-13 (the
+    failure predates PR #11 and was never introduced by it).
+
+    Raising here converts a silently wrong path into a named, actionable
+    condition. It does NOT weaken the check: the register still resolves, and
+    still fails closed, whenever roots are supplied that this host can use --
+    via the explicit override seam that `resolve_policy` and
+    `resolve_domain_native_register` already expose.
+    """
 
 
 def _profile_path_roots(profile: dict[str, Any]) -> dict[str, Path]:
@@ -72,6 +106,26 @@ def _resolve_register_roots(
     paths so worktrees and alternate installs stay valid even when they differ
     from path_roots.harness_root.
     """
+    sources = {
+        "wiki_root": "explicit" if wiki_root is not None else "profile",
+        "workspace_root": "explicit" if workspace_root is not None else "profile",
+        "harness_root": "explicit" if harness_root is not None else "runtime",
+    }
+    roots = {
+        "wiki_root": wiki_root,
+        "workspace_root": workspace_root,
+        "harness_root": harness_root,
+    }
+    for label, variable in ROOT_ENV_VARS.items():
+        if roots[label] is None:
+            value = os.environ.get(variable)
+            if value:
+                roots[label] = Path(value)
+                sources[label] = "environment"
+    wiki_root = roots["wiki_root"]
+    workspace_root = roots["workspace_root"]
+    harness_root = roots["harness_root"]
+
     declared = _profile_path_roots(profile)
     profile_wiki = declared["wiki_root"]
     profile_workspace = declared["workspace_root"]
@@ -101,6 +155,38 @@ def _resolve_register_roots(
 
     harness = Path(harness_root) if harness_root is not None else ROOT
 
+    # PORTABILITY GATE. Every root that anchors a contained lookup must be
+    # absolute ON THIS HOST before it is used. `Path.is_absolute()` is
+    # platform-aware, which is exactly the property needed: "B:/Agents" is
+    # absolute on Windows and relative on POSIX, and a relative anchor makes
+    # `_contained()` join against the CWD -- producing a real path that names
+    # a corpus nobody declared. Checked here, once, because this is the single
+    # function where declared/override roots become EFFECTIVE roots.
+    #
+    # ALL THREE ROOTS, INCLUDING harness_root. The first cut gated wiki and
+    # workspace only -- an under-narrow population, the same shape as every
+    # other allowlist in this workstream. harness_root anchors contained
+    # PACKAGE lookups (register_profile, package contributors), so a relative
+    # one rebased beneath the CWD and surfaced as `_MissingInput` at, e.g.,
+    # `C:\Windows\System32\relative\harness\references\policies\
+    # reader_accessibility.v1.json` -- precisely the misleading resolution this
+    # gate exists to eliminate, reproduced 2026-07-17. `harness` defaults to
+    # ROOT (always absolute), so only an explicit override can trip this; the
+    # guard is a property of ROOTS, not of who supplied them.
+    for label, root in (("wiki_root", wiki), ("workspace_root", workspace),
+                        ("harness_root", harness)):
+        if not root.is_absolute():
+            raise CorpusRootError(
+                f"{label} {str(root)!r} is not an absolute path on this host "
+                f"({sys.platform}). corpus_binding.path_roots records the roots "
+                "the pinned corpus was declared under (a Windows drive path); it "
+                "is provenance, not a portable locator. Supply roots this host "
+                "can use via the explicit override seam -- resolve_policy("
+                "wiki_root=..., workspace_root=..., harness_root=...) or "
+                "run_all.py --wiki-root / --workspace-root -- or run where the "
+                "declared corpus exists."
+            )
+
     meta: dict[str, Any] = {
         "profile_path_roots": {
             "wiki_root": profile_wiki.as_posix(),
@@ -113,10 +199,19 @@ def _resolve_register_roots(
             "harness_root": harness.as_posix(),
         },
     }
-    if wiki.resolve() == profile_wiki.resolve() and workspace.resolve() == profile_workspace.resolve():
+    if (
+        sources["wiki_root"] == "profile"
+        and sources["workspace_root"] == "profile"
+        and sources["harness_root"] == "runtime"
+        and wiki.resolve() == profile_wiki.resolve()
+        and workspace.resolve() == profile_workspace.resolve()
+    ):
         meta["path_roots_mode"] = "profile"
     else:
         meta["path_roots_mode"] = "override"
+        # Keep the no-override resolved object byte-compatible with existing
+        # bindings.  Only an actual override introduces a new provenance field.
+        meta["resolution_sources"] = sources
     if harness.resolve() != profile_harness.resolve():
         meta["harness_root_note"] = (
             "running package root differs from profile path_roots.harness_root "

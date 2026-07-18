@@ -4,7 +4,7 @@
 
 **A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-0.31.0-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-manifest-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
 
@@ -70,6 +70,14 @@ Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.
 
+On hosts where the corpus is not mounted at the profile's recorded Windows
+paths, set `AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and (when the package is
+relocated) `AGENT_HARNESS_ROOT`. Explicit `--wiki-root`, `--workspace-root`, and
+`--harness-root` arguments take precedence. The resolved reader-accessibility
+binding records each effective path; override-mode bindings also record whether
+each root came from an explicit argument, the environment, or the running
+package root. Profile-mode output remains byte-compatible with existing binds.
+
 ## Quick start
 
 1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).
@@ -125,11 +133,12 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-`0.31.0`
+The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), which is its sole authority. This section is release **history**; it does not restate the current version.
 
 | Release | Highlights |
 | --- | --- |
-| **0.31.0** | Reproducible release packaging bound to a single commit: package enumeration extracted into a neutral module, the executing builder bound via clean-worktree re-exec, and every release path converged onto the one committed builder. Fixture and release-manifest evidence is commit-stable, writer-bound, and concurrency-safe — pass-fixture hashes bind to committed bytes, digest-exact manifests regenerate deterministically, and duplicate-manifest emission is rejected. Test harness gains a repo-global sandbox/lock, exact path exclusions, and an honest 5/6/7 exit contract. Additive to the packaging/evidence layer — no four-agent-contract change. Sequenced on top of the 0.30.0 root-provenance release on `main`. |
+| **0.31.0** | Reproducible release packaging bound to a single commit (neutral enumeration module, clean-worktree builder re-exec, one committed builder, digest-exact writer-bound manifests, repo-global sandbox/lock, honest 5/6/7 exit contract); and Research Truth Phase 0/1 — canonical Coupling C/D Wiki mutation deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`, non-blocking) plus an unconditional `GRAPH_GOVERNED_GENERATION_UNAVAILABLE` graph-authority gate. Additive — no four-agent-contract change. |
+| **0.30.0** | Requires exact event bindings when a primary-lineage deliverable is recorded before acceptance; adds provenance-recorded environment fallbacks for portable register roots; clarifies that native milestone mode does not authorize assignment-gate N/A. |
 | **0.29.0** | Extends `/repin-register` with exact-key exemplar add/drop inside the existing confirmed re-pin transaction; singleton centroid/intentional-root locks; defaulted `warrant_scope`; warn-only PDF/coherence advisories; scope-aware resolver projections for Check 8 surface warrant versus C-8/C-3/IS-theory argument warrant; and the ninth fixture-only acceptance case. No live corpus or project mutation. |
 | **0.28.1** | Adds `/repin-register`: one authoritative, single-snapshot compute path for deliberate domain-native register re-pins; append-only package ledger plus derived view; atomic, confirmed profile patching; binding-level epochs with old-round softening; Planner-owned project rebind requests; scoped-dirt and lock refusal gates; and an eight-case release-gated smoke suite. |
 | **0.28.0** | Milestone feedback and handoff framework. M1–M5 now share a machine-readable contract for deliverables, feedback, adjudication, bindings, and downstream handoffs; `lifecycle_state.md` is rendered from that single authority instead of becoming a second ledger. Native bootstrap and deterministic validators distinguish clean lifecycle exemplars from legacy migration exemplars, preserve project-level override precedence, and report preflight as READY, authorized NOT_APPLICABLE, or MISCONFIGURED. Reader-accessibility policy gains a domain-native register model and deterministic cadence/Check 8 semantics without treating paragraph length as a universal quality proxy. Read-only RE-essay and INF3130 pilots supplied regression shapes for current-hash continuity, stale approval, reopened milestones, divergent lineage, retrospective feedback, and Ph3-sibling blocking; neither live project was migrated or edited. |

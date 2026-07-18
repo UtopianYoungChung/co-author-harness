@@ -80,6 +80,7 @@ if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
 from milestone_framework_validate import validate_document as validate_milestone_document
+from round_identifier import ROUND_ID_FORMAT, is_valid_round_id
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -445,6 +446,73 @@ def _validate_section(
             ))
 
 
+def _validate_terminal_round_id(doc: dict, findings: list[Finding]) -> None:
+    """`terminal_round_id` -- manuscript-level terminal state (v0.7.4, additive).
+
+    The round identifier is created by the Planner at round open and carried
+    through F6/F7/F8. At terminal close it is PERSISTED here, so that a terminal
+    claim names its own final round instead of leaving a reader to infer it from
+    filenames, mtimes, glob order, or notes. It lives beside
+    `terminal_phase_reached` because it is manuscript-level terminal state, not
+    per-section transition history -- which is also why it is NOT a
+    `phase_entry_log` field: that row is a strict seven, and
+    `LOG_ROW_UNKNOWN_FIELD` would refuse an eighth.
+
+    The two facts move together, so the invariant is a BICONDITIONAL:
+
+        terminal_phase_reached: true   <->  terminal_round_id: well-formed
+        terminal_phase_reached: false  <->  terminal_round_id: null / absent
+
+    A non-null id under a false flag is not a harmless leftover: it is a claim
+    about a terminal round that state says never happened, and something
+    downstream will believe one of the two.
+
+    Additive, so a LEGACY NONTERMINAL ledger may omit the field entirely. A
+    legacy TERMINAL ledger may not: it fails closed and requires explicit
+    Planner/user-authorised re-attestation. Inferring the id for it would be
+    exactly the heuristic this field exists to abolish -- and inferring it from
+    the very artefacts it is meant to select would be circular.
+    """
+    terminal = doc.get("terminal_phase_reached") is True
+    present = "terminal_round_id" in doc
+    value = doc.get("terminal_round_id")
+
+    if terminal:
+        if not present or value is None:
+            findings.append(Finding(
+                code="TERMINAL_ROUND_ID_INVALID",
+                severity=Severity.BLOCKER,
+                path="terminal_round_id",
+                message=(
+                    "terminal_phase_reached is true but terminal_round_id is "
+                    f"{'absent' if not present else 'null'}. A terminal claim must "
+                    "name its final round. If this is a legacy terminal ledger, it "
+                    "requires explicit Planner/user-authorised terminal "
+                    "re-attestation with the round id supplied; it is never "
+                    "inferred from filenames, mtimes, events, or reports."),
+            ))
+        elif not is_valid_round_id(value):
+            findings.append(Finding(
+                code="TERMINAL_ROUND_ID_INVALID",
+                severity=Severity.BLOCKER,
+                path="terminal_round_id",
+                message=(
+                    f"terminal_round_id must be a string matching "
+                    f"{ROUND_ID_FORMAT}, got {value!r}"),
+            ))
+    elif present and value is not None:
+        findings.append(Finding(
+            code="TERMINAL_ROUND_ID_INVALID",
+            severity=Severity.BLOCKER,
+            path="terminal_round_id",
+            message=(
+                f"terminal_round_id is {value!r} while terminal_phase_reached is "
+                "not true. The two are written and cleared together in one guarded "
+                "transaction; a bound round under a non-terminal flag is "
+                "inconsistent state, not a leftover."),
+        ))
+
+
 def _validate_doc(doc: dict, findings: list[Finding]) -> None:
     if not isinstance(doc, dict):
         findings.append(Finding(
@@ -454,6 +522,8 @@ def _validate_doc(doc: dict, findings: list[Finding]) -> None:
             message=f"top-level JSON is not an object: {type(doc).__name__}",
         ))
         return
+
+    _validate_terminal_round_id(doc, findings)
 
     sections = doc.get("sections")
     if sections is None:

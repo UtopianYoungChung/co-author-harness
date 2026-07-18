@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -24,10 +25,24 @@ import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
 
 
-def write_fixture(root: Path) -> tuple[Path, Path]:
+def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]:
+    """Write a hermetic wiki+workspace corpus.
+
+    Default (``all_members=False``) keeps this suite's frozen baseline: only
+    ``warrant_scope == "both"`` members, so counts/scopes match the recorded
+    fixture expectations.
+
+    ``all_members=True`` covers every member of the UNFILTERED profile, which
+    is what a caller resolving the real profile needs (``resolve_policy`` does
+    not filter). Added 2026-07-17 for ``scripts/audit/test_audit.py``: without
+    it that caller raises ``domain-native input absent: exemplar_source_page:
+    .../dennett-1987-intentional-stance.md`` (an argument-only, post-release
+    ingestion). Parameterised rather than copied -- a second corpus builder is
+    a second population, and this one already has an owner.
+    """
     wiki = root / "wiki"; workspace = root / "workspace"; (wiki / "wiki/sources").mkdir(parents=True, exist_ok=True); (wiki / "raw/corpus").mkdir(parents=True, exist_ok=True); (workspace / "knowledge/LLM wiki/graphify-out").mkdir(parents=True, exist_ok=True)
     members = [m for m in policy.load_profile()["domain_native_register"]["exemplar_members"]
-               if m.get("warrant_scope", "both") == "both"]  # hermetic baseline: exclude post-release ingestions
+               if all_members or m.get("warrant_scope", "both") == "both"]  # hermetic baseline: exclude post-release ingestions
     for index, member in enumerate(members):
         tier = "full-read — annotation" if index == 0 else member["grounding"]
         (wiki / f"wiki/sources/{member['source_key']}.md").write_text(f"---\ngrounding_status: {tier}\n---\n", encoding="utf-8")
@@ -92,11 +107,51 @@ def main() -> int:
         assert resolved["surface_exemplar_members"] == resolved["argument_exemplar_members"]
         assert all(item["warrant_scope"] == "both" for item in resolved["exemplar_members"])
         assert resolved["path_roots"]["path_roots_mode"] == "override"
+        assert resolved["path_roots"]["resolution_sources"] == {
+            "wiki_root": "explicit",
+            "workspace_root": "explicit",
+            "harness_root": "explicit",
+        }
         assert len(resolved["seed_resolution_map"]) == 3 and len(resolved["unresolved_seed_ids"]) == 9
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"].endswith("_source")
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-understanding-why-software-process-modelling"] == "icse-alpha"
         assert set(resolved["seed_resolution_ties"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"]) == {"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_concept","yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_document"}
         assert resolved["warnings"] and resolved["warnings"][0]["code"] == "RA-DNR-DEGENERATE"
+        env_wiki = root / "env-wiki"
+        env_workspace = root / "env-workspace"
+        explicit_workspace = root / "explicit-workspace"
+        with mock.patch.dict(
+            os.environ,
+            {
+                "AGENT_WIKI_ROOT": str(env_wiki),
+                "AGENT_WORKSPACE_ROOT": str(env_workspace),
+                "AGENT_HARNESS_ROOT": str(ROOT),
+            },
+            clear=True,
+        ):
+            roots = policy._resolve_register_roots(
+                baseline, wiki_root=None, workspace_root=None, harness_root=None,
+            )
+            assert roots[0] == env_wiki
+            assert roots[1] == env_workspace
+            assert roots[3]["path_roots_mode"] == "override"
+            assert roots[3]["resolution_sources"] == {
+                "wiki_root": "environment",
+                "workspace_root": "environment",
+                "harness_root": "environment",
+            }
+            explicit = policy._resolve_register_roots(
+                baseline,
+                wiki_root=wiki,
+                workspace_root=explicit_workspace,
+                harness_root=ROOT,
+            )
+            assert explicit[0] == wiki and explicit[1] == explicit_workspace
+            assert explicit[3]["resolution_sources"] == {
+                "wiki_root": "explicit",
+                "workspace_root": "explicit",
+                "harness_root": "explicit",
+            }
         malformed_graphs = [b"\xff", b"[]", b'{"nodes":{},"links":[]}', b'{"nodes":[],"links":{}}', b'{"nodes":[1],"links":[]}', b'{"nodes":[],"links":[1]}']
         graph_path=workspace/"knowledge/LLM wiki/graphify-out/graph.json"
         valid_graph_bytes=graph_path.read_bytes()

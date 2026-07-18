@@ -299,36 +299,30 @@ def _read_text_or_none(path: Path) -> str | None:
 # ----------------------------------------------------------------- ledger bootstrap
 
 
-def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load phase_state.json and expose its phase-native ledger to the guardrail.
+class LedgerTranslationError(ValueError):
+    """The on-disk ledger cannot be translated: malformed structure.
 
-    Returns (ledger, section). Exits code 2 on any structural failure encountered
-    before the clause checks can even be reached.
+    Raised rather than coerced. `load_ledger` maps this to the documented
+    structural exit code 2; in-process callers catch it and emit their own
+    structured refusal. Either way the answer is a refusal, never a quietly
+    smaller ledger.
     """
-    phase_state_path: Path = ctx_args.project_root / "reviews" / "phase_state.json"
-    if not phase_state_path.exists():
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: {phase_state_path} not found.\n"
-        )
-        sys.exit(2)
-    try:
-        phase_ledger = json.loads(phase_state_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: failed to read or parse "
-            f"{phase_state_path}: {exc}\n"
-        )
-        sys.exit(2)
-    if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
-        sys.stderr.write(
-            f"[pre_phase_advance_check] error: ledger schema_version "
-            f"{phase_ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}.\n"
-        )
-        sys.exit(2)
 
-    # The clause implementations retain their stable T-coded internal API.
-    # Translate the authoritative Ph-coded ledger in memory; never create or
-    # read the retired tier_state.json surface.
+
+def translate_phase_ledger(phase_ledger: dict[str, Any]) -> dict[str, Any]:
+    """Translate a Ph-coded on-disk ledger into the clauses' T-coded internal API.
+
+    Extracted from `load_ledger` verbatim so that in-process callers (the
+    full-run contract gate) reach the clause predicates through the SAME
+    translation the CLI uses, rather than passing phase-native sections to a
+    tier-native predicate. `_is_mcr_cleared` reads `current_tier`,
+    `last_approved_tier`, and T-coded ceilings; handing it raw `current_phase`
+    silently yields "not cleared" for a perfectly good project, and tempts the
+    caller to fabricate a legacy `current_tier` to make it pass -- which is a
+    fixture lying to satisfy a bug, not a translation.
+
+    Pure: no I/O, no exits. `load_ledger` keeps the file reading and the exits.
+    """
     phase_to_tier = {
         "Ph1": "T1", "Ph2": "T2", "Ph3": "T3",
         "Ph3_converged": "T3_converged", "Ph4": "T4",
@@ -353,20 +347,72 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
         "mcr_blocked_ph3_stale": "mcr_blocked_t3_stale",
         "eg1_ph4_downgrade_to_ph3": "eg1_t4_downgrade_to_t3",
     }
+    if not isinstance(phase_ledger, dict):
+        raise LedgerTranslationError(
+            f"phase state must be a JSON object, got {type(phase_ledger).__name__}")
     ledger = dict(phase_ledger)
-    ledger["default_final_tier"] = phase_to_tier.get(
-        phase_ledger.get("default_final_phase"), "T3"
-    )
+    # `default_final_phase` defaults to T3 ONLY when ABSENT.
+    #
+    # `.get(...)` with a fallback coerced every unrecognised value to T3 --
+    # "Ph9", 7, an empty string, a list -- so malformed state did not fail, it
+    # became a plausible ceiling and then influenced the MCR disjunction as if
+    # it were data someone had chosen. A default is a stand-in for a value
+    # nobody supplied; it is not a repair for a value someone got wrong.
+    if "default_final_phase" in phase_ledger:
+        declared = phase_ledger["default_final_phase"]
+        # `not in phase_to_tier` raises TypeError on an unhashable value (a list,
+        # a dict), so the type test comes first: a malformed ledger must produce
+        # LedgerTranslationError -- the refusal this function documents -- and
+        # never a TypeError, which escapes as exit 1 and reads as "a clause
+        # failed".
+        if not isinstance(declared, str) or declared not in phase_to_tier:
+            raise LedgerTranslationError(
+                f"default_final_phase must be one of {sorted(phase_to_tier)}, got "
+                f"{declared!r}")
+        ledger["default_final_tier"] = phase_to_tier[declared]
+    else:
+        ledger["default_final_tier"] = "T3"
     translated_sections: list[dict[str, Any]] = []
-    for raw in phase_ledger.get("sections", {}).values():
+    raw_sections = phase_ledger.get("sections", {})
+    # FAIL CLOSED on a malformed container. The first cut coerced anything
+    # unrecognised to "no sections", which is not tolerance -- it is state
+    # REDUCTION: the full-run caller then skips clause g for the sections that
+    # vanished, so malformed ledger data did not fail validation, it removed
+    # itself from validation. Silently having less to check reads exactly like
+    # having nothing wrong.
+    if not isinstance(raw_sections, (dict, list)):
+        raise LedgerTranslationError(
+            f"sections must be an object or a list, got "
+            f"{type(raw_sections).__name__}")
+    raw_iter = raw_sections.values() if isinstance(raw_sections, dict) else raw_sections
+    for index, raw in enumerate(raw_iter):
+        if not isinstance(raw, dict):
+            raise LedgerTranslationError(
+                f"sections[{index}] must be an object, got {type(raw).__name__}")
         section_copy = dict(raw)
         for source, target in field_map.items():
             if source in raw:
                 section_copy[target] = raw[source]
         for key in ("current_tier", "last_approved_tier"):
             section_copy[key] = phase_to_tier.get(section_copy.get(key), section_copy.get(key))
+        # Same fail-closed rule one level down. `phase_entry_log` is not
+        # incidental: clause g validates every row in it, and the Ph4 MCR proof
+        # surface is a row in it. A malformed container coerced to `[]` handed
+        # clause g nothing to reject and erased the admission record in the same
+        # gesture -- the ledger would then look like a section that had simply
+        # never transitioned, which is a story about the project, told by a
+        # parsing shortcut.
+        raw_log = raw.get("phase_entry_log", [])
+        if not isinstance(raw_log, list):
+            raise LedgerTranslationError(
+                f"sections[{index}].phase_entry_log must be a list, got "
+                f"{type(raw_log).__name__}")
         translated_log = []
-        for raw_row in raw.get("phase_entry_log", []):
+        for row_index, raw_row in enumerate(raw_log):
+            if not isinstance(raw_row, dict):
+                raise LedgerTranslationError(
+                    f"sections[{index}].phase_entry_log[{row_index}] must be an "
+                    f"object, got {type(raw_row).__name__}")
             row = dict(raw_row)
             row["prev_tier"] = phase_to_tier.get(row.pop("prev_phase", None), row.get("prev_tier"))
             row["new_tier"] = phase_to_tier.get(row.pop("new_phase", None), row.get("new_tier"))
@@ -375,6 +421,62 @@ def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
         section_copy["tier_entry_log"] = translated_log
         translated_sections.append(section_copy)
     ledger["sections"] = translated_sections
+    return ledger
+
+
+def load_ledger(ctx_args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load phase_state.json and expose its phase-native ledger to the guardrail.
+
+    Returns (ledger, section). Exits code 2 on any structural failure encountered
+    before the clause checks can even be reached.
+    """
+    phase_state_path: Path = ctx_args.project_root / "reviews" / "phase_state.json"
+    if not phase_state_path.exists():
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} not found.\n"
+        )
+        sys.exit(2)
+    try:
+        phase_ledger = json.loads(phase_state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: failed to read or parse "
+            f"{phase_state_path}: {exc}\n"
+        )
+        sys.exit(2)
+    # Type BEFORE field access. A parsed list or scalar crashed on
+    # `.get("schema_version")`, so the structural failure this function
+    # documents (exit 2) never got issued -- the caller received a traceback
+    # and exit 1, which means "a clause failed": a statement about the ledger
+    # that was never actually made.
+    if not isinstance(phase_ledger, dict):
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} must contain a "
+            f"JSON object, got {type(phase_ledger).__name__}.\n")
+        sys.exit(2)
+    if phase_ledger.get("schema_version") != SCHEMA_VERSION_EXPECTED:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: ledger schema_version "
+            f"{phase_ledger.get('schema_version')!r} is not {SCHEMA_VERSION_EXPECTED!r}.\n"
+        )
+        sys.exit(2)
+
+    # The clause implementations retain their stable T-coded internal API.
+    # Translate the authoritative Ph-coded ledger in memory; never create or
+    # read the retired tier_state.json surface. One translator, shared.
+    #
+    # A translation failure is a STRUCTURAL failure encountered before the
+    # clauses can be reached -- which is exactly what this function's contract
+    # says exit 2 is for. Letting it escape would surface a traceback and exit
+    # 1, and exit 1 means "a clause failed": a caller would be told something
+    # false about the ledger, in the vocabulary of a verdict it never got.
+    try:
+        ledger = translate_phase_ledger(phase_ledger)
+    except LedgerTranslationError as exc:
+        sys.stderr.write(
+            f"[pre_phase_advance_check] error: {phase_state_path} is malformed: "
+            f"{exc}\n")
+        sys.exit(2)
 
     try:
         heading_path = json.loads(ctx_args.section)
@@ -811,6 +913,78 @@ def _row_section_key(row: dict[str, str]) -> str | None:
         if value:
             return value.strip().strip("[]").replace("/", " > ")
     return None
+
+
+def validate_terminal_convergence_log(path: Path) -> list[tuple[str, str, str]]:
+    """PUBLIC: is this a real convergence record? Returns [(code, path, message)].
+
+    Wraps this module's own parsers rather than exporting them raw, so callers
+    get a terminal-shaped verdict instead of re-deriving one from row dicts --
+    which is how the second, weaker authority gets written every time.
+
+    `full_run_contract_check.py` previously satisfied requirement 9 with
+    `convergence_log.md.is_file()`, so an empty file -- or a file of arbitrary
+    prose that merely sat at the right path -- discharged the convergence
+    requirement of a terminal claim. Presence is not a record.
+
+    Two structures live in this file and both are validated:
+      * iteration rows  (`- iteration_index:`) -- the convergence trajectory
+        itself, per AGENT_CONTRACTS.md; each needs `convergence_metric`.
+      * finding blocks  (`- finding_id:`) -- escalation ownership, where a
+        `transferred_to` must carry a non-empty `transfer_rationale` (the
+        Linear-Accountability rule clause (c) enforces at every advance). It is
+        re-checked here because a terminal claim asserts the whole ladder held,
+        and an unresolved transfer is an open owner at the moment of shipping.
+    """
+    out: list[tuple[str, str, str]] = []
+    rel = "reviews/convergence_log.md"
+    if not path.is_file():
+        return [("CONV-LOG-ABSENT", rel, "no convergence journal at the canonical path")]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [("CONV-LOG-UNREADABLE", rel, f"cannot read: {exc}")]
+    if not text.strip():
+        return [("CONV-LOG-EMPTY", rel, "convergence journal is empty")]
+
+    rows = _parse_convergence_log_iteration_rows(text)
+    blocks = _parse_convergence_log_blocks(text)
+    if not rows and not blocks:
+        return [("CONV-LOG-NO-RECORDS", rel,
+                 "no `- iteration_index:` rows and no `- finding_id:` blocks: "
+                 "arbitrary prose at the canonical path is not a convergence "
+                 "record")]
+    if not rows:
+        out.append(("CONV-LOG-NO-ITERATIONS", rel,
+                    "no `- iteration_index:` rows: a terminal claim asserts a "
+                    "convergence trajectory, and there is none recorded"))
+
+    for i, row in enumerate(rows):
+        where = f"{rel}#iteration[{i}]"
+        metric = row.get("convergence_metric")
+        if metric is None:
+            out.append(("CONV-ROW-FIELD-MISSING", where,
+                        "iteration row has no `convergence_metric`"))
+        elif str(metric).strip().lower() in {"", "null", "none"}:
+            out.append(("CONV-ROW-METRIC-NULL", where,
+                        f"convergence_metric is {metric!r}"))
+        idx = row.get("iteration_index")
+        if idx is None or not str(idx).strip().isdigit():
+            out.append(("CONV-ROW-INDEX-INVALID", where,
+                        f"iteration_index must be an integer, got {idx!r}"))
+
+    for i, block in enumerate(blocks):
+        if "transferred_to" not in block:
+            continue
+        if not str(block.get("transfer_rationale", "")).strip():
+            fid = block.get("finding_id", "?")
+            out.append(("CONV-TRANSFER-UNRESOLVED",
+                        f"{rel}#finding[{i}]",
+                        f"finding {fid} carries `transferred_to` with an empty "
+                        "`transfer_rationale` (Linear-Accountability): an "
+                        "unresolved transfer is an open owner at the moment of "
+                        "shipping"))
+    return out
 
 
 def _compute_mcr_convergence_evidence(

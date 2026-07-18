@@ -127,6 +127,9 @@ REAL_CASES = {
     "list_shaped_sections": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "list_shaped_milestones": ("MISCONFIGURED", 4, None, "MF-STRUCTURE"),
     "missing_accepted_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "valid_deliverable_recorded_event": ("READY", 0, None, None),
+    "missing_deliverable_recorded_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
+    "deliverable_record_binding_mismatch": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "unordered_events": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "stale_without_event": ("MISCONFIGURED", 4, None, "MF-EVENT"),
     "stale_bad_cause": ("MISCONFIGURED", 4, None, "MF-EVENT"),
@@ -600,6 +603,9 @@ def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[
         "schema_version": "0.7.4",
         "manuscript_id": "smoke-project",
         "terminal_phase_reached": True,
+        # Written atomically with terminal_phase_reached by the Planner at
+        # terminal close; the two are a biconditional in phase_state_validate.
+        "terminal_round_id": "round_2026-07-17_001",
         "sections": {
             "1. Test": {
                 "current_phase": current_phase,
@@ -808,6 +814,35 @@ def _drop_milestone_events(ledger: dict[str, Any], *milestones: str) -> None:
     _resequence_events(ledger)
 
 
+def _append_deliverable_recorded(
+    ledger: dict[str, Any], milestone: str, *, digest: str | None = None,
+) -> None:
+    record = ledger["milestones"][milestone]
+    deliverable = next(
+        artifact for artifact in record["artifacts"]
+        if artifact["role"] == "deliverable"
+        and artifact["lineage_id"] == ledger["primary_lineage"]
+    )
+    ledger["events"].append({
+        "sequence": len(ledger["events"]) + 1,
+        "event_type": "deliverable_recorded",
+        "timestamp": "2026-07-13T19:32:00Z",
+        "milestone": milestone,
+        "lineage_id": ledger["primary_lineage"],
+        "actor": "planner",
+        "authority": None,
+        "reason": f"Recorded the current {milestone} deliverable.",
+        "evidence_path": None,
+        "evidence_sha256": None,
+        "caused_by_sequence": None,
+        "bindings": [{
+            "binding_type": "artifact",
+            "path": deliverable["path"],
+            "sha256": digest or deliverable["sha256"],
+        }],
+    })
+
+
 def _write_real_case(case: str, project: Path) -> None:
     ledger = _materialize_native_project(project)
     milestones = ledger["milestones"]
@@ -827,6 +862,7 @@ def _write_real_case(case: str, project: Path) -> None:
             {"sequence": next_sequence, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 reopened for Ph2 work.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
             {"sequence": next_sequence + 1, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M4", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M4 restarted in Ph2.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
         ])
+        _append_deliverable_recorded(ledger, "M4")
         _drop_milestone_events(ledger, "M5")
     elif case in {
         "valid_approved_legacy_migration", "legacy_handoffs_without_project_identity",
@@ -1041,6 +1077,8 @@ def _write_real_case(case: str, project: Path) -> None:
         record["artifacts"].append(alternate)
         record["status"] = "in_progress" if case in {"active_distinct_lineages", "active_duplicate_lineage"} else "superseded"
         ledger["events"] = [event for event in ledger["events"] if event["milestone"] != "M3" or event["event_type"] in {"milestone_started", "feedback_recorded", "feedback_adjudicated"}]
+        if case in {"active_distinct_lineages", "active_duplicate_lineage"}:
+            _append_deliverable_recorded(ledger, "M3")
         if case == "explicit_supersession":
             alternate["supersedes_lineage_id"] = "main"
             ledger["events"].append({
@@ -1089,6 +1127,39 @@ def _write_real_case(case: str, project: Path) -> None:
         ledger["milestones"] = []
     elif case == "missing_accepted_event":
         ledger["events"] = [event for event in ledger["events"] if not (event["milestone"] == "M3" and event["event_type"] == "milestone_accepted")]
+    elif case in {
+        "valid_deliverable_recorded_event",
+        "missing_deliverable_recorded_event",
+        "deliverable_record_binding_mismatch",
+    }:
+        record = milestones["M3"]
+        record["status"] = "in_progress"
+        record["feedback_records"] = []
+        record["approval"] = {
+            "status": "pending", "authority": None,
+            "evidence_path": None, "approved_at": None,
+        }
+        record["handoff"] = {
+            "status": "not_ready", "packet_path": None, "packet_sha256": None,
+        }
+        for downstream in ("M4", "M5"):
+            _reset_milestone(milestones[downstream])
+        ledger["events"] = [
+            event for event in ledger["events"]
+            if event["milestone"] in {"M1", "M2"}
+            or (
+                event["milestone"] == "M3"
+                and event["event_type"] == "milestone_started"
+            )
+        ]
+        if case != "missing_deliverable_recorded_event":
+            digest = (
+                "f" * 64
+                if case == "deliverable_record_binding_mismatch"
+                else None
+            )
+            _append_deliverable_recorded(ledger, "M3", digest=digest)
+        _resequence_events(ledger)
     elif case == "unordered_events":
         ledger["events"][1]["sequence"] = ledger["events"][0]["sequence"]
     elif case == "stale_without_event":
@@ -1135,6 +1206,7 @@ def _write_real_case(case: str, project: Path) -> None:
             {"sequence": len(ledger["events"]) + 1, "event_type": "milestone_reopened", "timestamp": "2026-07-13T19:30:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 reopened.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
             {"sequence": len(ledger["events"]) + 2, "event_type": "milestone_started", "timestamp": "2026-07-13T19:31:00Z", "milestone": "M3", "lineage_id": "main", "actor": "planner", "authority": "user", "reason": "M3 restarted.", "evidence_path": None, "evidence_sha256": None, "caused_by_sequence": None, "bindings": []},
         ])
+        _append_deliverable_recorded(ledger, "M3")
         _reset_milestone(ledger["milestones"]["M4"]); _reset_milestone(ledger["milestones"]["M5"])
         ledger["events"] = [event for event in ledger["events"] if event["milestone"] not in {"M4", "M5"}]
         _resequence_events(ledger)

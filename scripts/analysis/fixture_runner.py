@@ -178,9 +178,12 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/audit/test_citations.py": [_default_case()],
     "scripts/build_plugin_provenance_smoketest.py": [_default_case()],
     "scripts/concept_introduction_contract_smoketest.py": [_default_case()],
+    "scripts/corpus_root_portability_smoketest.py": [_default_case()],
     "scripts/d_style_profile_smoketest.py": [_default_case()],
     "scripts/domain_native_register_smoketest.py": [_default_case()],
     "scripts/end_to_end_smoketest.py": [_default_case()],
+    "scripts/full_run_contract_smoketest.py": [_default_case()],
+    "scripts/full_run_semantic_bypass_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],
@@ -202,6 +205,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/semantic_predication_contract_smoketest.py": [_default_case()],
     "scripts/tests/test_resolve_includes.py": [_default_case()],
     "scripts/token_budget_smoketest.py": [_default_case()],
+    "scripts/version_policy_smoketest.py": [_default_case()],
 }
 
 

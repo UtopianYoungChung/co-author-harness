@@ -134,7 +134,10 @@ VALID_F6_CHECK_PROFILES = {"refine", "structural", "deep"}
 VALID_F6_THRESHOLD_VERSIONS = {"v0.7.5-provisional", "v0.8.0-provisional"}
 
 # v0.14.0 — output economy F7/F8 (references/OUTPUT_ECONOMY_PROTOCOL.md)
-ROUND_ID_RE = re.compile(r"^round_\d{4}-\d{2}-\d{2}_\d{3}$")
+# One definition of a round identifier, owned by `round_identifier`. This is
+# an ALIAS, not a copy: the phase state now carries a round id too
+# (`terminal_round_id`), and two regexes for one fact drift silently.
+from round_identifier import ROUND_ID_RE  # noqa: E402,F401
 EVENT_ID_RE = re.compile(r"^round_\d{4}-\d{2}-\d{2}_\d{3}__[a-z0-9_]+__\d{3}$")
 VALID_F7_PHASES = {"Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4", "round_close"}
 VALID_F7_EVIDENCE_STATUS = {"complete", "partial", "incomplete"}
