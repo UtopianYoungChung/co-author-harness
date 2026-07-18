@@ -120,6 +120,7 @@ import phase_state_validate as psv                 # noqa: E402
 import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
 import artefact_frontmatter_validate as afv        # noqa: E402
+import round_identifier as rid                     # noqa: E402
 from audit import schema as audit_schema           # noqa: E402
 
 
@@ -273,6 +274,8 @@ FRC_LOCAL = {
     "artefact_ambiguous": "FRC-ARTEFACT-AMBIGUOUS",
     "artefact_unreadable": "FRC-ARTEFACT-UNREADABLE",
     "artefact_family": "FRC-ARTEFACT-WRONG-FAMILY",
+    "round_unbound": "FRC-TERMINAL-ROUND-UNBOUND",
+    "round_mismatch": "FRC-ARTEFACT-ROUND-MISMATCH",
     "raised": "FRC-VALIDATOR-RAISED",
 }
 
@@ -1122,22 +1125,83 @@ def _f4_findings(project_root: Path) -> list[dict]:
         refused_severities=frozenset({"BLOCKER", "MAJOR"}))
 
 
-def _f8_findings(project_root: Path) -> list[dict]:
-    """Requirement 14: the F8 final-round report.
+def _f8_findings(project_root: Path, state: dict) -> list[dict]:
+    """Requirement 14: the F8 final-round report for the BOUND terminal round.
 
-    Canonical shape `reviews/final_round_report_<round_id>.md`
-    (agents/generator.md). `validate_path` dispatches F8 by `document_type` and
-    `validate_f8_frontmatter` then requires artifact_family F8, a well-formed
-    round_id, and an acceptable evidence_status.
+    A multi-round project legitimately accumulates one F8 per round. The
+    previous cut refused any project with two, which rejected every real
+    multi-round run: it treated HISTORY as AMBIGUITY. Two reports are not two
+    answers -- one is the terminal round and the rest are the record of getting
+    there. The gate simply had no way to tell which, so it refused all of them.
+
+    It now reads `phase_state.terminal_round_id` -- state the Planner writes
+    atomically with `terminal_phase_reached`, validated by
+    `phase_state_validate`. Selection is by IDENTITY, never by lexicographic
+    order, mtime, glob order, event order, or notes parsing: every one of those
+    answers "which round was terminal?" with a guess, and a guess is what this
+    file exists to delete.
+
+    No binding -> fail closed BEFORE any selection is attempted. Not being able
+    to tell which round was terminal is a reason to refuse, not a licence to
+    pick.
     """
+    bound = state.get("terminal_round_id")
+    if not rid.is_valid_round_id(bound):
+        return [_u("f8", FRC_LOCAL["round_unbound"], "phase_state.terminal_round_id",
+                   f"terminal_round_id is {bound!r}: no authoritative terminal "
+                   "round, so no F8 can be selected. Selecting one anyway -- "
+                   "newest, last, only -- would be the heuristic this binding "
+                   "exists to abolish. The Planner writes this atomically with "
+                   "terminal_phase_reached at terminal close.")]
+
     reviews = project_root / "reviews"
-    candidates = sorted(reviews.glob("final_round_report_*.md")) if reviews.is_dir() else []
-    return _artefact_family_findings(
-        project_root, source="f8",
-        rel="reviews/final_round_report_<round_id>.md",
-        candidates=candidates,
+    canonical = reviews / f"final_round_report_{bound}.md"
+    rel = f"reviews/final_round_report_{bound}.md"
+
+    # Any OTHER file whose frontmatter claims the bound round is ambiguity: two
+    # documents asserting the same round is two answers to one question.
+    # Reports for other rounds are history and are ignored entirely.
+    rival: list[str] = []
+    if reviews.is_dir():
+        for cand in sorted(reviews.glob("final_round_report_*.md")):
+            if cand == canonical:
+                continue
+            fm, err = afv.extract_frontmatter(cand)
+            if err is not None or not isinstance(fm, dict):
+                continue
+            if fm.get("round_id") == bound:
+                rival.append(cand.name)
+    if rival:
+        return [_u("f8", FRC_LOCAL["artefact_ambiguous"], "reviews/",
+                   f"{len(rival) + 1} reports claim the terminal round {bound}: "
+                   f"{sorted([canonical.name] + rival)}. A terminal claim must "
+                   "name ONE report; two documents asserting the same round is "
+                   "two answers to one question.")]
+
+    if not canonical.is_file():
+        return [_u("f8", FRC_LOCAL["artefact_absent"], rel,
+                   f"no final-round report for the bound terminal round {bound}. "
+                   "Reports for other rounds are history and cannot substitute "
+                   "for the one this claim is about.")]
+
+    findings = _artefact_family_findings(
+        project_root, source="f8", rel=rel, candidates=[canonical],
         doc_type="final_round_report",
         refused_severities=frozenset({"BLOCKER", "MAJOR"}))
+    if findings:
+        return findings
+
+    # Filename identity is not enough: the document must claim the bound round
+    # itself. A correctly named file whose frontmatter names another round is
+    # either a copy or a mistake, and both are refusals.
+    fm, _ = afv.extract_frontmatter(canonical)
+    claimed = (fm or {}).get("round_id")
+    if claimed != bound:
+        return [_u("f8", FRC_LOCAL["round_mismatch"], f"{rel}::round_id",
+                   f"report claims round_id {claimed!r} but the terminal round is "
+                   f"{bound!r}: the filename agrees with the binding and the "
+                   "document does not.")]
+    return []
 
 
 def check_terminal(project_root: Path) -> list[dict]:
@@ -1246,7 +1310,7 @@ def check_terminal(project_root: Path) -> list[dict]:
     unmet.extend(_f4_findings(project_root))
 
     # 14 -- F8 final-round report
-    unmet.extend(_f8_findings(project_root))
+    unmet.extend(_f8_findings(project_root, state))
 
     # 15 -- terminal state. The FINAL/M5 packet binding is validate_gate's
     # (ph4_terminal_close), so it is not re-decided here.

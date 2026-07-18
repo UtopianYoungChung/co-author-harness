@@ -649,6 +649,167 @@ def case_default_final_phase_must_be_recognized() -> None:
 # TERMINAL ARTEFACTS -- four requirements that used to be satisfied by a
 # filename. Every case here is a file that LOOKS right at a path that IS right.
 # ==========================================================================
+# ==========================================================================
+# PHASE-STATE OWNER: terminal_round_id
+#
+# These exercise `phase_state_validate` directly, because the field is the
+# PHASE STATE's to own -- the terminal gate only reads it. Putting the rule in
+# the gate would have been a locally inferred rule about someone else's state,
+# which is the defect this whole workstream removes.
+# ==========================================================================
+def _state_doc(**over) -> dict:
+    doc = {
+        "schema_version": "0.7.4",
+        "terminal_phase_reached": False,
+        "terminal_round_id": None,
+        "sections": {"1. Test": {"current_phase": "Ph1", "phase_entry_log": []}},
+    }
+    doc.update(over)
+    return doc
+
+
+def _psv_codes(doc: dict) -> set[str]:
+    import phase_state_validate as _psv
+
+    findings: list = []
+    _psv._validate_doc(doc, findings)
+    return {getattr(f, "code", "") for f in findings}
+
+
+def case_terminal_round_id_state_contract() -> None:
+    """The eight state cases from the ruling, asserted by exact validator code."""
+    CODE = "TERMINAL_ROUND_ID_INVALID"
+
+    # 1. fresh nonterminal with an explicit null -> passes
+    check("fresh nonterminal state with terminal_round_id: null PASSES",
+          CODE not in _psv_codes(_state_doc()), str(_psv_codes(_state_doc())))
+
+    # 2. legacy nonterminal WITHOUT the field -> still readable (additive)
+    legacy = _state_doc()
+    del legacy["terminal_round_id"]
+    check("legacy nonterminal state without the field remains readable",
+          CODE not in _psv_codes(legacy), str(_psv_codes(legacy)))
+
+    # 3. terminal true, field missing -> fails closed
+    t_missing = _state_doc(terminal_phase_reached=True)
+    del t_missing["terminal_round_id"]
+    check("terminal true + missing terminal_round_id FAILS",
+          CODE in _psv_codes(t_missing), str(_psv_codes(t_missing)))
+
+    # 4. terminal true, null -> fails
+    check("terminal true + null terminal_round_id FAILS",
+          CODE in _psv_codes(_state_doc(terminal_phase_reached=True)))
+
+    # 5. terminal true, wrong type -> fails
+    check("terminal true + non-string terminal_round_id FAILS",
+          CODE in _psv_codes(_state_doc(terminal_phase_reached=True,
+                                        terminal_round_id=7)))
+
+    # 6. terminal true, malformed round syntax -> fails
+    check("terminal true + malformed round syntax FAILS",
+          CODE in _psv_codes(_state_doc(terminal_phase_reached=True,
+                                        terminal_round_id="round-1")))
+
+    # 7. terminal FALSE with a non-null id -> inconsistent, fails closed
+    check("terminal false + non-null terminal_round_id FAILS (inconsistent)",
+          CODE in _psv_codes(_state_doc(
+              terminal_round_id="round_2026-07-17_001")))
+
+    # 8. terminal true, well-formed -> passes
+    good = _state_doc(terminal_phase_reached=True,
+                      terminal_round_id="round_2026-07-17_001")
+    check("terminal true + well-formed terminal_round_id PASSES",
+          CODE not in _psv_codes(good), str(_psv_codes(good)))
+
+
+# ==========================================================================
+# F8 SELECTION, bound to terminal_round_id.
+# ==========================================================================
+BOUND = "round_2026-07-17_001"
+OTHER = "round_2026-07-16_001"
+
+
+def _f8_for(round_id: str) -> str:
+    return F8_REPORT.replace(BOUND, round_id)
+
+
+def case_f8_multi_round_project_is_permitted() -> None:
+    """A real multi-round project is VALID: history is not ambiguity.
+
+    The previous cut refused any project with two F8 reports, which rejected
+    every legitimate multi-round run. Two reports are not two answers -- the
+    binding says which one is the terminal round, and the other is history.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / f"reviews/final_round_report_{OTHER}.md", _f8_for(OTHER))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("two historical F8 reports PASS when one matches the binding",
+              rc == 0, f"rc={rc} {str((p or {}).get('findings'))[:100]}")
+
+
+def case_f8_requires_the_terminal_binding() -> None:
+    """No binding -> fail closed BEFORE any selection is attempted."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        mutate_state(proj, lambda st: st.pop("terminal_round_id", None))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("a terminal ledger with no terminal_round_id FAILS CLOSED",
+              rc == 4 and refused_for(p, "FRC-TERMINAL-ROUND-UNBOUND",
+                                      "phase_state.terminal_round_id"),
+              f"rc={rc}")
+
+
+def case_f8_missing_report_for_bound_round() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        (proj / f"reviews/final_round_report_{BOUND}.md").unlink()
+        _w(proj / f"reviews/final_round_report_{OTHER}.md", _f8_for(OTHER))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("no report for the bound round FAILS (history does not substitute)",
+              rc == 4 and refused_for(p, "FRC-ARTEFACT-ABSENT",
+                                      f"reviews/final_round_report_{BOUND}.md"),
+              f"rc={rc}")
+
+
+def case_f8_frontmatter_must_match_the_binding() -> None:
+    """Canonical filename, wrong frontmatter round_id -> refused."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / f"reviews/final_round_report_{BOUND}.md", _f8_for(OTHER))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("F8 frontmatter round_id != terminal_round_id FAILS",
+              rc == 4 and refused_for(
+                  p, "FRC-ARTEFACT-ROUND-MISMATCH",
+                  f"reviews/final_round_report_{BOUND}.md::round_id"),
+              f"rc={rc}")
+
+
+def case_f8_ambiguity_only_among_bound_round_claimants() -> None:
+    """A SECOND file claiming the bound round is ambiguity; history is not."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        # a differently named file whose frontmatter claims the bound round
+        _w(proj / "reviews/final_round_report_round_2026-07-99_001.md", F8_REPORT)
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("a second file claiming the bound round FAILS as ambiguous",
+              rc == 4 and refused_for(p, "FRC-ARTEFACT-AMBIGUOUS"), f"rc={rc}")
+
+
+def case_f8_selected_report_still_validates() -> None:
+    """Selection is not a substitute for validation."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / f"reviews/final_round_report_{BOUND}.md",
+           F8_REPORT.replace("evidence_status: complete", "evidence_status: bogus"))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("the SELECTED F8 still fails through artefact_frontmatter_validate",
+              rc == 4 and refused_for(
+                  p, "R-Refl-FM-2",
+                  f"reviews/final_round_report_{BOUND}.md::evidence_status"),
+              f"rc={rc}")
+
+
 def case_findings_json_must_be_a_real_report() -> None:
     """`{"findings": []}` and an empty file both used to discharge requirement 8."""
     target = "reviews/M5 canonical deliverable"  # replaced per-case below
@@ -792,7 +953,10 @@ def case_f4_validator_findings_are_refused() -> None:
 def case_f8_must_be_a_real_final_round_report() -> None:
     """`f8_final_round_report.md` matched a glob and said nothing."""
     cases = (
-        ("absent", None, None, "FRC-ARTEFACT-ABSENT", "reviews/"),
+        # The bound path, not a bare directory: the gate now knows exactly
+        # which report it is missing.
+        ("absent", None, None, "FRC-ARTEFACT-ABSENT",
+         "reviews/final_round_report_round_2026-07-17_001.md"),
         ("filename only, no frontmatter",
          "final_round_report_round_2026-07-17_001.md", "# F8 final round\n",
          "FRC-ARTEFACT-UNREADABLE",
@@ -836,16 +1000,18 @@ def case_f8_incomplete_evidence_is_refused() -> None:
                                       "::evidence_status"), f"rc={rc}")
 
 
-def case_ambiguous_f8_candidates_are_refused() -> None:
-    """Two plausible reports is not better evidence than one -- it is none."""
-    with tempfile.TemporaryDirectory() as td:
-        proj = valid_project(Path(td))
-        _w(proj / "reviews/final_round_report_round_2026-07-18_002.md",
-           F8_REPORT.replace("round_2026-07-17_001", "round_2026-07-18_002"))
-        rc, p = run("terminal", "--project-root", str(proj))
-        check("two candidate F8 reports are REFUSED as ambiguous",
-              rc == 4 and refused_for(p, "FRC-ARTEFACT-AMBIGUOUS", "reviews/"),
-              f"rc={rc}")
+# RETIRED: `case_ambiguous_f8_candidates_are_refused`.
+#
+# It asserted that ANY two F8 reports are ambiguous, which was the Major: it
+# refused every legitimate multi-round project, because it treated the record of
+# getting to the end as competing claims about the end. That was never a
+# property worth pinning -- it was the absence of a binding, expressed as a
+# refusal.
+#
+# Its intent survives, split according to what is actually true:
+#   case_f8_multi_round_project_is_permitted            history is permitted
+#   case_f8_ambiguity_only_among_bound_round_claimants  two claims on the BOUND
+#                                                       round are ambiguous
 
 
 def case_non_object_contract_is_refused_not_a_crash() -> None:
@@ -1427,6 +1593,13 @@ def main() -> int:
                case_non_object_phase_state_is_refused_not_a_crash,
                case_default_final_phase_must_be_recognized,
                case_na_m4_does_not_waive_applicable_predecessors,
+               case_terminal_round_id_state_contract,
+               case_f8_multi_round_project_is_permitted,
+               case_f8_requires_the_terminal_binding,
+               case_f8_missing_report_for_bound_round,
+               case_f8_frontmatter_must_match_the_binding,
+               case_f8_ambiguity_only_among_bound_round_claimants,
+               case_f8_selected_report_still_validates,
                case_findings_json_must_be_a_real_report,
                case_findings_json_row_and_count_integrity,
                case_convergence_log_must_be_a_real_record,
@@ -1435,7 +1608,6 @@ def main() -> int:
                case_f4_validator_findings_are_refused,
                case_f8_must_be_a_real_final_round_report,
                case_f8_incomplete_evidence_is_refused,
-               case_ambiguous_f8_candidates_are_refused,
                case_non_object_contract_is_refused_not_a_crash,
                case_malformed_nested_milestone_data_is_refused_not_a_crash,
                case_malformed_section_container_is_refused_not_dropped,

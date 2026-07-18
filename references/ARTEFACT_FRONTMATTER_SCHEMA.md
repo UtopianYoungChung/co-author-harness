@@ -328,7 +328,7 @@ Artefact names: `reviews/dispatch_plan_<cycle_id>.md`, one per round, written on
 ### 7a.1 Required fields (beyond §2 common)
 
 ```yaml
-round_id:                 # string; equal to cycle_id on the entry-iteration row of reviews/phase_state.json
+round_id:                 # string, round_YYYY-MM-DD_NNN; the Planner-created round identifier established at round open and carried unchanged through F6/F7/F8 for that round. At terminal close it is persisted as top-level `terminal_round_id` in reviews/phase_state.json (phase_state_schema.md §2). NOT derived from any phase_entry_log field: the seven-field row carries no round identity and `LOG_ROW_UNKNOWN_FIELD` refuses an eighth.
 sections_in_scope:        # list of strings; slash-joined section_heading_path values for every section the round will touch; [] iff the round is a Phase-only orchestration (e.g., MCR assembly)
 dispatched_agents:        # list of objects; one entry per agent expected to engage during the round
   - agent:                # string, one of {planner, evaluator, generator, reflector}

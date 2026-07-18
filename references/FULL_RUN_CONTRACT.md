@@ -245,6 +245,8 @@ this contract exists to make unsayable.
 | `FRC-SCOPE-ESCALATION` | child dispatch widens an `adhoc_review` parent to `full_lifecycle` — a child may not confer on itself authority its parent does not hold |
 | `FRC-NO-ACTIVE-MILESTONE` | `authorize` on a project whose applicable milestones are all `accepted`: no target exists to author against. Validate a finished run with `terminal`; to continue, reopen or derive a milestone first |
 | `FRC-PROSE-FORBIDDEN` | `authorize --run-scope adhoc_review`: prose is forbidden, so prose authorization is REFUSED. The ad hoc review itself is legal — validate its dispatch with `scope`, and never read an authorization exit code out of it |
+| `FRC-TERMINAL-ROUND-UNBOUND` | a terminal claim whose `phase_state.terminal_round_id` is absent, null or malformed. No authoritative terminal round means no F8 can be selected — and selecting one anyway (newest, last, only) is the heuristic the binding abolishes. Fails closed BEFORE any selection is attempted |
+| `FRC-ARTEFACT-ROUND-MISMATCH` | the F8 at the bound canonical path claims a different `round_id` than `terminal_round_id`: the filename agrees with the binding and the document does not |
 | `FRC-NA-MILESTONE-IN-FULL-LIFECYCLE` | a terminal claim over an authorizedly `not_applicable` M1–M5. The waiver is legal milestone-locally and for `adhoc_review`; it cannot produce "ladder complete", "terminal PASS", or shipment |
 | `FRC-MILESTONE-ORDER` | target milestone runs ahead of an unaccepted predecessor |
 | `FRC-PRESENCE-NOT-ACCEPTANCE` | acceptance inferred from a file's existence |
