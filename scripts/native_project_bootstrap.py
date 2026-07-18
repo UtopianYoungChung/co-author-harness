@@ -157,6 +157,10 @@ def _phase_state(
         "manuscript_id": project_name,
         "default_final_phase": "Ph4",
         "terminal_phase_reached": False,
+        # Additive terminal state. Seeded explicitly rather than omitted so a
+        # fresh ledger states "no terminal round yet" instead of leaving a
+        # reader to decide whether absence means not-yet or lost.
+        "terminal_round_id": None,
         "sections": {
             "manuscript/main.md": {
                 "current_phase": "Ph1",

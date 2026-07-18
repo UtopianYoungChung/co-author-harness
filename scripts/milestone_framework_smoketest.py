@@ -600,6 +600,9 @@ def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[
         "schema_version": "0.7.4",
         "manuscript_id": "smoke-project",
         "terminal_phase_reached": True,
+        # Written atomically with terminal_phase_reached by the Planner at
+        # terminal close; the two are a biconditional in phase_state_validate.
+        "terminal_round_id": "round_2026-07-17_001",
         "sections": {
             "1. Test": {
                 "current_phase": current_phase,

@@ -4,7 +4,7 @@
 
 **Scope.** This file governs all Codex (or any agent) activity under the `co-author-harness/` root folder. It is the root-level authority for every research project in this tree and the canonical home of the Research and Academic Paper Writing Package. It sets the rules for package invocation, project discovery, lifecycle management, and cross-project consistency.
 
-**Authoritative version.** `.claude-plugin/plugin.json` is the single source of truth for the plugin's version, name, description, and keywords. No prose document in this tree asserts a version number; consult the manifest.
+**Authoritative version.** `.claude-plugin/plugin.json` is the single source of truth for the plugin's **current** version, name, description, and keywords. Descriptive prose must not manually mirror the current version — point readers at the manifest instead. Two things are *not* violations of this rule, because neither claims to be the current version: **historical release identifiers** (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables — records of what shipped), and **mechanical manifest parity** (`.claude-plugin/marketplace.json`, gated by `scripts/version-check.py`, because both manifests ship inside the `.plugin` ZIP and the loader rejects the install when they disagree). Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
@@ -40,6 +40,7 @@ The agent **must** read the package component files and follow the orchestration
 
 | Trigger                                                                 | Example                                                                                                                                                      |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **User asks for a whole-lifecycle run or an academic deliverable** — read `references/FULL_RUN_CONTRACT.md` **first** | "Harness full run," "full harness run," "draft me a short essay," "draft the whole paper," "run the ladder," "ship this" |
 | User asks for a review, edit, critique, or refinement of academic prose | "Review my draft," "Check this abstract," "Polish §4"                                                                                                        |
 | User refers to the package by name or shorthand                         | "Run the master guidelines," "Use the style package," "Apply the writing rules"                                                                              |
 | User pastes academic text and asks for feedback                         | (any draft + "what do you think?")                                                                                                                           |
@@ -51,6 +52,8 @@ The agent **must** read the package component files and follow the orchestration
 
 
 **When not triggered:** If the user asks about non-writing tasks (data analysis, coding, general Q&A), do not invoke the package unless the task involves producing or reviewing academic prose.
+
+**No project, no prose (binding).** A prose-producing request with no project root or no resolved `reviews/assignment_contract.json` **fails closed**: do not write academic prose (not in the project, not outside it, not as a "quick draft"), do not substitute a task checklist for milestone state, and do not treat a missing scaffold as licence to proceed informally. Respond with the bootstrap instruction. A full-lifecycle run may never be downgraded to a lightweight/response-only subpass, and terminal language ("Ph4," "G.4," "terminal PASS," "ladder complete," "converged," "shipped") requires `python scripts/full_run_contract_check.py terminal --project-root <p>` to exit 0. Rules and error codes: `references/FULL_RUN_CONTRACT.md` — normative there, not restated here.
 
 **Formal ontology trigger:** For the BFO-aligned ontology trigger, read `references/BFO_ONTOLOGY_DESIGN.md`. Its trigger boundary is binding: do not apply formal BFO construction rules merely because prose uses philosophical ontology, conceptual analysis, modeling vocabulary, or metaphor.
 
