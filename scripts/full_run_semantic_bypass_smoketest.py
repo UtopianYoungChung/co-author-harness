@@ -185,6 +185,74 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+# --- canonical terminal artefacts -----------------------------------------
+# Built to the contracts the gate composes, not to what the gate happens to
+# read. If a contract changes, these fail loudly rather than agreeing with a
+# stale idea of the artefact.
+
+def _findings_report(target: str, *, findings=None, counts=None,
+                     schema_version="0.15.0") -> dict:
+    """A payload in audit.schema's canonical shape (FindingsReport.to_dict)."""
+    findings = findings if findings is not None else []
+    if counts is None:
+        counts = {"total": len(findings), "by_severity": {}, "by_category": {}}
+        for f in findings:
+            counts["by_severity"][f["severity"]] = \
+                counts["by_severity"].get(f["severity"], 0) + 1
+            counts["by_category"][f["category"]] = \
+                counts["by_category"].get(f["category"], 0) + 1
+    return {"schema_version": schema_version, "target": target,
+            "findings": findings, "counts": counts}
+
+
+CONVERGENCE_LOG = (
+    "- iteration_index: 1\n"
+    "  convergence_metric: 0.180\n"
+    "  cycle_id: round_2026-07-17_001\n"
+    "  profile: deep\n"
+    "- iteration_index: 2\n"
+    "  convergence_metric: 0.004\n"
+    "  cycle_id: round_2026-07-17_001\n"
+    "  profile: deep\n"
+    "- finding_id: F1\n"
+    "  status: RESOLVED\n"
+    "  owner: user\n"
+)
+
+_COMMON_FM = (
+    "schema_version: 0.7.4\n"
+    "produced_at: '2026-07-17T00:00:00Z'\n"
+    "produced_by: reflector\n"
+    "model_used: opus-4-7\n"
+    "cycle_id: round_2026-07-17_001\n"
+    "iteration: 2\n"
+    "section_heading_path:\n  - '1. Test'\n"
+    "current_phase: Ph4\n"
+    "grounding_basis:\n  - reviews/findings.json\n"
+)
+
+F4_REPORT = (
+    "---\n"
+    "document_type: reflector_full_report\n"
+    + _COMMON_FM +
+    "phase_aggregates:\n"
+    "  Ph4:\n"
+    "    rounds: 1\n"
+    "overall_verdict: CLEAN\n"
+    "---\n\n# Reflector-full close-out\n"
+)
+
+F8_REPORT = (
+    "---\n"
+    "artifact_family: F8\n"
+    "document_type: final_round_report\n"
+    "round_id: round_2026-07-17_001\n"
+    "evidence_status: complete\n"
+    "created_at: '2026-07-17T00:00:00Z'\n"
+    "---\n\n# Final round report\n"
+)
+
+
 def valid_project(base: Path) -> Path:
     """A project that SHOULD pass terminal. Every bypass below mutates one fact.
 
@@ -220,7 +288,16 @@ def valid_project(base: Path) -> Path:
        "**Self-check result:** CLEAN\n"
        "**Verdict:** RETAIN\n"
        "**Carried forward:** none\n")
-    _w(proj / "reviews/findings.json", json.dumps({"findings": []}))
+    # REAL terminal artefacts, not plausible filenames.
+    #
+    # These four used to be `{"findings": []}`, an empty convergence log, and
+    # two files whose NAMES matched a glob. Each discharged one of the fifteen.
+    # They are now built to the canonical contracts the gate composes:
+    # audit.schema's report shape, the convergence iteration rows, F4
+    # (reflector_full_report at reviews/reflection_report.md) and F8
+    # (final_round_report_<round_id>.md).
+    _w(proj / "reviews/findings.json", json.dumps(_findings_report(
+        ledger["milestones"]["M5"]["artifacts"][0]["path"]), indent=2))
     # The fabricated `reviews/check8_evidence.json` -- `{"aggregate": "CLEAN"}`,
     # a document with no subchecks, no profile binding and no relation to the
     # manuscript -- is gone. It existed only to satisfy a `*check8*` glob.
@@ -228,7 +305,7 @@ def valid_project(base: Path) -> Path:
     # writes the CANONICAL sidecars at reviews/.harness/policy/{m4,m5}_check8.json
     # and binds them by hash in milestones.*.policy_evidence, which is where the
     # gate now looks.
-    _w(proj / "reviews/convergence_log.md", "- finding_id: F1\n  status: RESOLVED\n")
+    _w(proj / "reviews/convergence_log.md", CONVERGENCE_LOG)
     _w(proj / "reviews/ph3_convergence_signoff.md",
        "- row_timestamp: 2026-07-17T00:00:00Z\n  iteration_number: 3\n"
        "  is_terminal: true\n  is_reengagement: false\n"
@@ -239,8 +316,8 @@ def valid_project(base: Path) -> Path:
     # _signed_status is the authority for what a signoff says.
     _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: PASS\n")
     _w(proj / "reviews/ph4_ship_signoff.md", "# Ph4 ship\n\nstatus: APPROVED\n")
-    _w(proj / "reviews/reflector_full_2026-07-17.md", "# Reflector-full close-out\n")
-    _w(proj / "reviews/f8_final_round_report.md", "# F8 final round\n")
+    _w(proj / "reviews/reflection_report.md", F4_REPORT)
+    _w(proj / "reviews/final_round_report_round_2026-07-17_001.md", F8_REPORT)
     _w(proj / "reviews/evidence/f7_round1.json", json.dumps({"checks": []}))
     _w(proj / "reviews/phase_state.json", json.dumps(doc, indent=1))
     return proj
@@ -579,6 +656,209 @@ def case_default_final_phase_must_be_recognized() -> None:
             check(f"default_final_phase {bad!r} is REFUSED", False, "no raise")
         except _ppa.LedgerTranslationError:
             check(f"default_final_phase {bad!r} is REFUSED", True)
+
+
+# ==========================================================================
+# TERMINAL ARTEFACTS -- four requirements that used to be satisfied by a
+# filename. Every case here is a file that LOOKS right at a path that IS right.
+# ==========================================================================
+def case_findings_json_must_be_a_real_report() -> None:
+    """`{"findings": []}` and an empty file both used to discharge requirement 8."""
+    target = "reviews/M5 canonical deliverable"  # replaced per-case below
+    cases = (
+        ("empty object", {}, "AUDIT-REPORT-SCHEMA-VERSION", "reviews/findings.json::schema_version"),
+        ("a JSON list", [], "AUDIT-REPORT-NOT-OBJECT", "reviews/findings.json::$"),
+        ("the old {'findings': []} stub", {"findings": []},
+         "AUDIT-REPORT-SCHEMA-VERSION", "reviews/findings.json::schema_version"),
+        ("wrong schema_version",
+         {"schema_version": "0.1.0", "target": "t", "findings": [], "counts": {}},
+         "AUDIT-REPORT-SCHEMA-VERSION", "reviews/findings.json::schema_version"),
+        ("empty target",
+         {"schema_version": "0.15.0", "target": "", "findings": [],
+          "counts": {"total": 0, "by_severity": {}, "by_category": {}}},
+         "AUDIT-REPORT-TARGET-EMPTY", "reviews/findings.json::target"),
+        ("findings not a list",
+         {"schema_version": "0.15.0", "target": "t", "findings": {}, "counts": {}},
+         "AUDIT-REPORT-FINDINGS-NOT-LIST", "reviews/findings.json::findings"),
+    )
+    for label, payload, code, where in cases:
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            _w(proj / "reviews/findings.json", json.dumps(payload))
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"findings.json {label} is REFUSED",
+                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+
+
+def case_findings_json_row_and_count_integrity() -> None:
+    """A report whose counts disagree with its findings is lying about itself."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        deliverable = json.loads(
+            (proj / "reviews/phase_state.json").read_text(encoding="utf-8")
+        )["milestone_framework"]["milestones"]["M5"]["artifacts"][0]["path"]
+        row = {"check_id": "c1", "category": "style", "severity": "default",
+               "locator": "manuscript/main.md:1", "evidence": "e", "rule_ref": "r",
+               "tentative": False}
+
+        # counts lie about the findings
+        bad = _findings_report(deliverable, findings=[row],
+                               counts={"total": 0, "by_severity": {}, "by_category": {}})
+        _w(proj / "reviews/findings.json", json.dumps(bad))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("findings.json with recomputed-count mismatch is REFUSED",
+              rc == 4 and refused_for(p, "AUDIT-REPORT-COUNTS-MISMATCH",
+                                      "reviews/findings.json::counts"), f"rc={rc}")
+
+        # an illegal enum
+        bad_row = dict(row, severity="catastrophic")
+        _w(proj / "reviews/findings.json",
+           json.dumps(_findings_report(deliverable, findings=[bad_row])))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("findings.json with an illegal severity is REFUSED",
+              rc == 4 and refused_for(p, "AUDIT-FINDING-SEVERITY",
+                                      "reviews/findings.json::findings[0].severity"),
+              f"rc={rc}")
+
+        # a report about ANOTHER manuscript
+        _w(proj / "reviews/findings.json",
+           json.dumps(_findings_report("some/other/paper.md")))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("a valid report about ANOTHER target is REFUSED",
+              rc == 4 and refused_for(p, "AUDIT-REPORT-TARGET-MISMATCH",
+                                      "reviews/findings.json::target"), f"rc={rc}")
+
+
+def case_convergence_log_must_be_a_real_record() -> None:
+    """An empty or arbitrary Markdown file used to discharge requirement 9."""
+    cases = (
+        ("empty file", "", "CONV-LOG-EMPTY"),
+        ("arbitrary prose", "# notes\n\nlooks convergent to me\n", "CONV-LOG-NO-RECORDS"),
+        ("no iteration rows (findings only)",
+         "- finding_id: F1\n  status: RESOLVED\n", "CONV-LOG-NO-ITERATIONS"),
+        ("iteration row missing convergence_metric",
+         "- iteration_index: 1\n  cycle_id: round_2026-07-17_001\n",
+         "CONV-ROW-FIELD-MISSING"),
+        ("iteration row with null metric",
+         "- iteration_index: 1\n  convergence_metric: null\n", "CONV-ROW-METRIC-NULL"),
+    )
+    for label, body, code in cases:
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            _w(proj / "reviews/convergence_log.md", body)
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"convergence_log {label} is REFUSED",
+                  rc == 4 and refused_for(p, code), f"rc={rc}")
+
+
+def case_convergence_unresolved_transfer_is_refused() -> None:
+    """Linear-Accountability: an open owner at the moment of shipping."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/convergence_log.md",
+           CONVERGENCE_LOG + "- finding_id: F2\n  transferred_to: evaluator\n"
+                             "  transfer_rationale:\n")
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("convergence_log with an unresolved transfer is REFUSED",
+              rc == 4 and refused_for(p, "CONV-TRANSFER-UNRESOLVED"), f"rc={rc}")
+
+
+def case_f4_must_be_a_real_reflector_full_report() -> None:
+    """`reflector_full_2026-07-17.md` was a NAME, not an artefact."""
+    cases = (
+        ("absent", None, "FRC-ARTEFACT-ABSENT", "reviews/"),
+        # A file with no extractable frontmatter block is UNREADABLE as the
+        # family, not merely the wrong family: there is nothing to read a
+        # document_type out of. `validate_path` returns [] for it -- "nothing I
+        # recognised" -- which is exactly why identity is asserted here.
+        ("empty file", "", "FRC-ARTEFACT-UNREADABLE", "reviews/reflection_report.md"),
+        ("no frontmatter", "# Reflector-full close-out\n",
+         "FRC-ARTEFACT-UNREADABLE", "reviews/reflection_report.md"),
+        ("wrong family", "---\ndocument_type: evaluator_findings\n---\n\nx\n",
+         "FRC-ARTEFACT-WRONG-FAMILY", "reviews/reflection_report.md::document_type"),
+    )
+    for label, body, code, where in cases:
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            target = proj / "reviews/reflection_report.md"
+            if body is None:
+                target.unlink()
+            else:
+                _w(target, body)
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"F4 {label} is REFUSED",
+                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+
+
+def case_f4_validator_findings_are_refused() -> None:
+    """A real F4 that the AUTHORITY rejects must not pass."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/reflection_report.md",
+           F4_REPORT.replace("overall_verdict: CLEAN", "overall_verdict: NONSENSE"))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("F4 with an illegal overall_verdict is REFUSED (validator finding)",
+              rc == 4 and any(r["source"] == "reflector"
+                              for r in _unmet_findings(p)), f"rc={rc}")
+
+
+def case_f8_must_be_a_real_final_round_report() -> None:
+    """`f8_final_round_report.md` matched a glob and said nothing."""
+    cases = (
+        ("absent", None, None, "FRC-ARTEFACT-ABSENT", "reviews/"),
+        ("filename only, no frontmatter",
+         "final_round_report_round_2026-07-17_001.md", "# F8 final round\n",
+         "FRC-ARTEFACT-UNREADABLE",
+         "reviews/final_round_report_round_2026-07-17_001.md"),
+        ("wrong family",
+         "final_round_report_round_2026-07-17_001.md",
+         "---\ndocument_type: reflector_full_report\n---\n\nx\n",
+         "FRC-ARTEFACT-WRONG-FAMILY",
+         "reviews/final_round_report_round_2026-07-17_001.md::document_type"),
+    )
+    for label, name, body, code, where in cases:
+        with tempfile.TemporaryDirectory() as td:
+            proj = valid_project(Path(td))
+            (proj / "reviews/final_round_report_round_2026-07-17_001.md").unlink()
+            if name is not None:
+                _w(proj / "reviews" / name, body)
+            rc, p = run("terminal", "--project-root", str(proj))
+            check(f"F8 {label} is REFUSED",
+                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+
+
+def case_f8_incomplete_evidence_is_refused() -> None:
+    """`evidence_status` is the F8 dispatcher's call, not a filename's."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/final_round_report_round_2026-07-17_001.md",
+           F8_REPORT.replace("artifact_family: F8", "artifact_family: F1"))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("F8 with the wrong artifact_family is REFUSED",
+              rc == 4 and refused_for(p, "R-Refl-FM-2",
+                                      "reviews/final_round_report_round_2026-07-17_001.md"
+                                      "::artifact_family"), f"rc={rc}")
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/final_round_report_round_2026-07-17_001.md",
+           F8_REPORT.replace("evidence_status: complete", "evidence_status: bogus"))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("F8 with an illegal evidence_status is REFUSED",
+              rc == 4 and refused_for(p, "R-Refl-FM-2",
+                                      "reviews/final_round_report_round_2026-07-17_001.md"
+                                      "::evidence_status"), f"rc={rc}")
+
+
+def case_ambiguous_f8_candidates_are_refused() -> None:
+    """Two plausible reports is not better evidence than one -- it is none."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/final_round_report_round_2026-07-18_002.md",
+           F8_REPORT.replace("round_2026-07-17_001", "round_2026-07-18_002"))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("two candidate F8 reports are REFUSED as ambiguous",
+              rc == 4 and refused_for(p, "FRC-ARTEFACT-AMBIGUOUS", "reviews/"),
+              f"rc={rc}")
 
 
 def case_non_object_contract_is_refused_not_a_crash() -> None:
@@ -1160,6 +1440,15 @@ def main() -> int:
                case_non_object_phase_state_is_refused_not_a_crash,
                case_default_final_phase_must_be_recognized,
                case_na_m4_does_not_waive_applicable_predecessors,
+               case_findings_json_must_be_a_real_report,
+               case_findings_json_row_and_count_integrity,
+               case_convergence_log_must_be_a_real_record,
+               case_convergence_unresolved_transfer_is_refused,
+               case_f4_must_be_a_real_reflector_full_report,
+               case_f4_validator_findings_are_refused,
+               case_f8_must_be_a_real_final_round_report,
+               case_f8_incomplete_evidence_is_refused,
+               case_ambiguous_f8_candidates_are_refused,
                case_non_object_contract_is_refused_not_a_crash,
                case_malformed_nested_milestone_data_is_refused_not_a_crash,
                case_malformed_section_container_is_refused_not_dropped,

@@ -119,6 +119,8 @@ import milestone_framework_validate as mfv         # noqa: E402
 import phase_state_validate as psv                 # noqa: E402
 import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
+import artefact_frontmatter_validate as afv        # noqa: E402
+from audit import schema as audit_schema           # noqa: E402
 
 
 # There is no boundary->milestone map here.
@@ -267,6 +269,10 @@ FRC_LOCAL = {
     "sections_empty": "FRC-SECTIONS-EMPTY",
     "authorship": "FRC-AUTHORSHIP",
     "na_milestone": "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
+    "artefact_absent": "FRC-ARTEFACT-ABSENT",
+    "artefact_ambiguous": "FRC-ARTEFACT-AMBIGUOUS",
+    "artefact_unreadable": "FRC-ARTEFACT-UNREADABLE",
+    "artefact_family": "FRC-ARTEFACT-WRONG-FAMILY",
     "raised": "FRC-VALIDATOR-RAISED",
 }
 
@@ -992,6 +998,148 @@ def _check8_findings(project_root: Path, state: dict) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# TERMINAL ARTEFACTS -- discovered by CONTRACT, validated by AUTHORITY.
+#
+# Four requirements used to be satisfied by `is_file()` / a `glob`, in the same
+# file whose own rule forbids exactly that. An empty `findings.json`, an empty
+# `convergence_log.md`, and any file matching `reflector_full*` or `f8_*`
+# discharged four of the fifteen.
+#
+# The split of labour, kept deliberately narrow:
+#   DISCOVERY + IDENTITY are this file's job. Which path is canonical, and
+#   whether the file found there is the artefact we mean, is a question about
+#   THIS project -- and `validate_path` cannot answer it: it returns [] for a
+#   file with no frontmatter at all, so "no findings" from it means "nothing I
+#   recognised", not "valid".
+#   VALIDATION is the authority's job, and is never re-derived here.
+# ---------------------------------------------------------------------------
+def _expected_deliverable(state: dict) -> str | None:
+    """The manuscript this project's own ledger says is the deliverable."""
+    mf = state.get("milestone_framework")
+    milestones = mf.get("milestones") if isinstance(mf, dict) else None
+    if not isinstance(milestones, dict):
+        return None
+    for key in ("M5", "M4"):
+        record = milestones.get(key)
+        if not isinstance(record, dict):
+            continue
+        for art in record.get("artifacts") or []:
+            if isinstance(art, dict) and art.get("role") in (None, "deliverable") \
+                    and isinstance(art.get("path"), str):
+                return art["path"]
+    return None
+
+
+def _findings_json_findings(project_root: Path, state: dict) -> list[dict]:
+    """Requirement 8 (deterministic half), via audit.schema.validate_report_payload.
+
+    The read-side validator lives in `scripts/audit/schema.py`, beside the
+    `FindingsReport` writer it mirrors. Audit-report semantics are that module's
+    business; a second module deciding what a valid report is would be the
+    duplicate-authority problem this gate exists to stop repeating.
+    """
+    rel = "reviews/findings.json"
+    path = project_root / rel
+    if not path.is_file():
+        return [_u("deterministic", FRC_LOCAL["findings_json"], rel,
+                   "absent: no deterministic-check evidence at the canonical path")]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [_u("deterministic", FRC_LOCAL["artefact_unreadable"], rel,
+                   f"not canonical JSON: {exc}")]
+    expected = _expected_deliverable(state)
+    return [_u("audit.schema", code, f"{rel}::{where}", message)
+            for code, where, message in
+            audit_schema.validate_report_payload(payload, expected_target=expected)]
+
+
+def _convergence_findings(project_root: Path) -> list[dict]:
+    """Requirement 9 (journal half), via ppa.validate_terminal_convergence_log."""
+    return [_u("convergence", code, where, message)
+            for code, where, message in ppa.validate_terminal_convergence_log(
+                project_root / "reviews" / "convergence_log.md")]
+
+
+def _artefact_family_findings(project_root: Path, *, source: str, rel: str | None,
+                              candidates: list[Path], doc_type: str,
+                              refused_severities: frozenset[str]) -> list[dict]:
+    """Discover exactly one canonical artefact, then hand it to `validate_path`."""
+    if not candidates:
+        return [_u(source, FRC_LOCAL["artefact_absent"], "reviews/",
+                   f"no {doc_type} artefact at its canonical path "
+                   f"({rel}): a terminal claim requires the artefact, not a "
+                   "plausible substitute elsewhere")]
+    if len(candidates) > 1:
+        names = sorted(p.name for p in candidates)
+        return [_u(source, FRC_LOCAL["artefact_ambiguous"], "reviews/",
+                   f"{len(candidates)} candidate {doc_type} artefacts {names}: a "
+                   "terminal claim must name ONE, not leave a reader to choose")]
+    path = candidates[0]
+    where = path.relative_to(project_root).as_posix()
+
+    fm, err = afv.extract_frontmatter(path)
+    if err is not None:
+        return [_u(source, FRC_LOCAL["artefact_unreadable"], where,
+                   f"unparseable frontmatter: {err}")]
+    if fm is None:
+        # `validate_path` returns [] here -- "nothing I recognised", which a
+        # caller must not read as "valid". Identity is ours to assert.
+        return [_u(source, FRC_LOCAL["artefact_family"], where,
+                   f"no frontmatter block: cannot be a {doc_type}. A file at the "
+                   "right path with the right name is not the artefact.")]
+    actual = fm.get("document_type")
+    if actual != doc_type:
+        return [_u(source, FRC_LOCAL["artefact_family"], f"{where}::document_type",
+                   f"expected {doc_type!r}, got {actual!r}")]
+
+    out: list[dict] = []
+    for f in afv.validate_path(path):
+        # `.cls` is this validator's rule identifier (R-Refl-FM-*); it has no
+        # `.code`. Read the authority's own attribute rather than the name our
+        # other delegates happen to use -- guessing a delegate's field names is
+        # how the E-prefix filter silently dropped every phase_state finding.
+        if f.severity in refused_severities:
+            out.append(_u(source, f.cls, f"{where}::{f.field}", f.message))
+    return out
+
+
+def _f4_findings(project_root: Path) -> list[dict]:
+    """Requirement 13: the Reflector-full close-out (F4).
+
+    The canonical path is `reviews/reflection_report.md`
+    (references/AGENT_CONTRACTS.md, Reflector "Outputs"). The previous glob was
+    `reviews/**/reflector_full*` -- a name this contract never specified, which
+    is how a suggestively named file came to satisfy a requirement.
+    """
+    path = project_root / "reviews" / "reflection_report.md"
+    return _artefact_family_findings(
+        project_root, source="reflector",
+        rel="reviews/reflection_report.md",
+        candidates=[path] if path.is_file() else [],
+        doc_type="reflector_full_report",
+        refused_severities=frozenset({"BLOCKER", "MAJOR"}))
+
+
+def _f8_findings(project_root: Path) -> list[dict]:
+    """Requirement 14: the F8 final-round report.
+
+    Canonical shape `reviews/final_round_report_<round_id>.md`
+    (agents/generator.md). `validate_path` dispatches F8 by `document_type` and
+    `validate_f8_frontmatter` then requires artifact_family F8, a well-formed
+    round_id, and an acceptable evidence_status.
+    """
+    reviews = project_root / "reviews"
+    candidates = sorted(reviews.glob("final_round_report_*.md")) if reviews.is_dir() else []
+    return _artefact_family_findings(
+        project_root, source="f8",
+        rel="reviews/final_round_report_<round_id>.md",
+        candidates=candidates,
+        doc_type="final_round_report",
+        refused_severities=frozenset({"BLOCKER", "MAJOR"}))
+
+
 def check_terminal(project_root: Path) -> list[dict]:
     """The fifteen requirements. Absence of the project is itself requirement 0.
 
@@ -1086,29 +1234,19 @@ def check_terminal(project_root: Path) -> list[dict]:
                         f["message"]))
 
     # 8 -- deterministic + Check 8 accessibility evidence
-    if not (project_root / "reviews" / "findings.json").is_file():
-        unmet.append(_u("deterministic", FRC_LOCAL["findings_json"],
-                        "reviews/findings.json",
-                        "absent (deterministic check evidence)"))
+    unmet.extend(_findings_json_findings(project_root, state))
     unmet.extend(_check8_findings(project_root, state))
 
     # 9, 10, 11 -- convergence signoff rows, the deep pass, and MCR clearance,
     # all from the phase guardrail's clauses f and g.
     unmet.extend(_phase_guardrail_findings(project_root, state))
-    if not (project_root / "reviews" / "convergence_log.md").is_file():
-        unmet.append(_u("convergence", FRC_LOCAL["convergence_log"],
-                        "reviews/convergence_log.md",
-                        "absent (no convergence journal)"))
+    unmet.extend(_convergence_findings(project_root))
 
-    # 13 -- Reflector-full close-out
-    if not list((project_root / "reviews").glob("**/reflector_full*")):
-        unmet.append(_u("reflector", FRC_LOCAL["reflector"], "reviews/",
-                        "no Reflector-full close-out artefact under reviews/"))
+    # 13 -- Reflector-full close-out (F4)
+    unmet.extend(_f4_findings(project_root))
 
     # 14 -- F8 final-round report
-    if not list((project_root / "reviews").glob("**/f8_*")):
-        unmet.append(_u("f8", FRC_LOCAL["f8"], "reviews/",
-                        "no F8 final-round report under reviews/"))
+    unmet.extend(_f8_findings(project_root))
 
     # 15 -- terminal state. The FINAL/M5 packet binding is validate_gate's
     # (ph4_terminal_close), so it is not re-decided here.

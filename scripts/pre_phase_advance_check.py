@@ -915,6 +915,78 @@ def _row_section_key(row: dict[str, str]) -> str | None:
     return None
 
 
+def validate_terminal_convergence_log(path: Path) -> list[tuple[str, str, str]]:
+    """PUBLIC: is this a real convergence record? Returns [(code, path, message)].
+
+    Wraps this module's own parsers rather than exporting them raw, so callers
+    get a terminal-shaped verdict instead of re-deriving one from row dicts --
+    which is how the second, weaker authority gets written every time.
+
+    `full_run_contract_check.py` previously satisfied requirement 9 with
+    `convergence_log.md.is_file()`, so an empty file -- or a file of arbitrary
+    prose that merely sat at the right path -- discharged the convergence
+    requirement of a terminal claim. Presence is not a record.
+
+    Two structures live in this file and both are validated:
+      * iteration rows  (`- iteration_index:`) -- the convergence trajectory
+        itself, per AGENT_CONTRACTS.md; each needs `convergence_metric`.
+      * finding blocks  (`- finding_id:`) -- escalation ownership, where a
+        `transferred_to` must carry a non-empty `transfer_rationale` (the
+        Linear-Accountability rule clause (c) enforces at every advance). It is
+        re-checked here because a terminal claim asserts the whole ladder held,
+        and an unresolved transfer is an open owner at the moment of shipping.
+    """
+    out: list[tuple[str, str, str]] = []
+    rel = "reviews/convergence_log.md"
+    if not path.is_file():
+        return [("CONV-LOG-ABSENT", rel, "no convergence journal at the canonical path")]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [("CONV-LOG-UNREADABLE", rel, f"cannot read: {exc}")]
+    if not text.strip():
+        return [("CONV-LOG-EMPTY", rel, "convergence journal is empty")]
+
+    rows = _parse_convergence_log_iteration_rows(text)
+    blocks = _parse_convergence_log_blocks(text)
+    if not rows and not blocks:
+        return [("CONV-LOG-NO-RECORDS", rel,
+                 "no `- iteration_index:` rows and no `- finding_id:` blocks: "
+                 "arbitrary prose at the canonical path is not a convergence "
+                 "record")]
+    if not rows:
+        out.append(("CONV-LOG-NO-ITERATIONS", rel,
+                    "no `- iteration_index:` rows: a terminal claim asserts a "
+                    "convergence trajectory, and there is none recorded"))
+
+    for i, row in enumerate(rows):
+        where = f"{rel}#iteration[{i}]"
+        metric = row.get("convergence_metric")
+        if metric is None:
+            out.append(("CONV-ROW-FIELD-MISSING", where,
+                        "iteration row has no `convergence_metric`"))
+        elif str(metric).strip().lower() in {"", "null", "none"}:
+            out.append(("CONV-ROW-METRIC-NULL", where,
+                        f"convergence_metric is {metric!r}"))
+        idx = row.get("iteration_index")
+        if idx is None or not str(idx).strip().isdigit():
+            out.append(("CONV-ROW-INDEX-INVALID", where,
+                        f"iteration_index must be an integer, got {idx!r}"))
+
+    for i, block in enumerate(blocks):
+        if "transferred_to" not in block:
+            continue
+        if not str(block.get("transfer_rationale", "")).strip():
+            fid = block.get("finding_id", "?")
+            out.append(("CONV-TRANSFER-UNRESOLVED",
+                        f"{rel}#finding[{i}]",
+                        f"finding {fid} carries `transferred_to` with an empty "
+                        "`transfer_rationale` (Linear-Accountability): an "
+                        "unresolved transfer is an open owner at the moment of "
+                        "shipping"))
+    return out
+
+
 def _compute_mcr_convergence_evidence(
     section: dict[str, Any], convergence_log_text: str | None
 ) -> bool:
