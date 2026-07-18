@@ -508,19 +508,6 @@ def case_na_m4_does_not_waive_applicable_predecessors() -> None:
               f"rc={rc}")
 
 
-def case_na_m4_does_not_waive_applicable_predecessors() -> None:
-    """...and waiving M4 must not waive M1-M3."""
-    with tempfile.TemporaryDirectory() as td:
-        proj = valid_project(Path(td))
-        _authorize_na_m4(proj)
-        mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
-                     ["handoff"].update({"status": "not_ready"}))
-        rc, p = run("terminal", "--project-root", str(proj))
-        check("N/A M4 does not waive an applicable M1 predecessor",
-              rc == 4 and refused_for(p, "MF-GATE-CHAIN", "milestone_framework.milestones.M1.handoff"),
-              f"rc={rc}")
-
-
 def case_adhoc_review_refuses_prose_authorization() -> None:
     """`authorize` must not exit 0 while saying prose is forbidden.
 
