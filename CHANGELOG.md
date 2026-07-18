@@ -6,6 +6,33 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.31.0 — 2026-07-18
+
+### Reproducible release packaging and evidence integrity
+
+**What changed.** The release-packaging path is now a deterministic artifact of a
+single commit: package enumeration is extracted into a neutral module, the
+executing builder is bound via a clean-worktree re-exec, and every release path
+converges onto the one committed builder. Fixture and release-manifest evidence
+is commit-stable, writer-bound, and concurrency-safe — pass-fixture hashes bind
+to committed bytes, the fixture chain and digest-exact release manifests
+regenerate deterministically, and duplicate-manifest emission is rejected. The
+test harness gains a repo-global sandbox/lock with exact path exclusions and an
+honest exit contract (exit 5/6/7). Adds `scripts/graph_authority_gate.py`.
+
+**Verification and boundary.** Packaging smoketests pin worktree re-exec, exit
+codes, provenance key sets, and output handoff; the build voids on
+worktree-cleanup failure and fails closed on toolchain drift. Teardown races are
+classified as environment rather than provenance failures. Additive to the
+packaging/evidence layer — no four-agent contract or phase-ledger schema change.
+
+**Sequencing.** This release consolidates the `codex/assignment-gate-hardening`
+packaging/evidence cycle on top of the v0.30.0 root-provenance release shipped on
+`main`. Merge `main` before packaging so the 0.30.0 changes are carried forward;
+the 0.30.0 entry lives on `main` and does not repeat here.
+
+**Severity / attribution.** Minor release. Version intent: v0.31.0.
+
 ## v0.29.0 — 2026-07-14
 
 ### Exemplar ingestion and warrant-scope routing
