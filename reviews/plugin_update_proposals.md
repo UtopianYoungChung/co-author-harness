@@ -6,6 +6,40 @@
 
 ---
 
+## Session: QE2026 first-principles-RE-essay-v3 (2026-07-15)
+
+One proposal filed from a **live defect** encountered while executing the §8 reopen protocol on an accepted M1. Filed at explicit user direction ("Yes — finding + plugin proposal"). Three-filter gatekeeper results below.
+
+### P-R-5 — Milestone validator cannot represent in-place revision of an accepted deliverable
+
+**Raw source:** governance finding `governance/overseer-governance/findings/ARTI-0005.md` (2026-07-15). Reproduction probe: `B:\Agents\_scratch\probe_reaccept.py`.
+
+**Gatekeeper filters:**
+
+| Filter | Result |
+|---|---|
+| (a) cites grounding evidence | **PASS** — verified by probe on a scratch copy, not inferred. Full §8 happy-path recovery staged; M1 did not return to READY; blockers rose **2 → 10**. Line-level citations re-verified 2026-07-15: `_file_binding` def @ **605**, mismatch raise @ **630**, strict-upstream rule @ **303**, `required.add("downstream_stale")` @ **349**. |
+| (b) names the skill/package affected | **PASS** — `scripts/milestone_framework_validate.py`; `references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` §8; `references/schemas/milestone_framework.schema.json`. |
+| (c) declares the R-/A-code invoked | **PASS** — proposed **A10** `A10-historical-binding-liveness-exemption`. |
+
+**Defect 1 — historical bindings are re-hashed against live files.** `_file_binding()` resolves every binding by reading the **live** file at the bound path, and is called from the loop over **all** `milestone_framework.events[]` — with no exemption for historical events, and none for the **`previous_content`** binding type, whose entire semantic is "these bytes are superseded." Since `events[]` is append-only and paths are mutable, a historical binding's truth requires the file to never change again. For a revised deliverable that is impossible. Result: the `milestone_accepted` artifact binding is **permanently** stale and **no append-only action repairs it** — contradicting §8, which specifies reopening and states it "appends history; it never edits an old approval into a new one."
+
+**Defect 2 — jointly unsatisfiable rules for the reopened milestone.** Line 349 requires a `downstream_stale` event whenever a milestone's **own** handoff is `needs_revalidation`; line 303 requires `downstream_stale` to reference a **strictly upstream** reopened milestone (`index(cause) < index(affected)`). For the reopened milestone itself the indices are equal, so both cannot be satisfied. The schema permits the unsatisfiable combination.
+
+**Proposed fix (A10):**
+
+1. Re-hash bindings against live files **only** for events justifying *current* state (the latest relevant event per subject) — consistent with the protocol's own "current-state consistency" wording. Validate historical events for shape and causality, not byte-liveness.
+2. Exempt **`previous_content`** unconditionally; or require it to bind an immutable archive and validate that path instead.
+3. Resolve Defect 2: forbid `needs_revalidation` on a reopened milestone's own handoff (document `not_ready` as the reset), or drop the stale-event requirement in that case. Add a schema constraint.
+4. Document the **archive-on-reopen** pattern in §8: archive the superseded deliverable to an immutable path; bind `previous_content` there.
+5. **Add a regression test**: reopen → revise → re-accept → revalidate must return READY. Its absence is why this shipped.
+
+**Interim workaround** (applied under §8's grant of the recovery decision to "Planner and the authorized user"): re-accept in place; do **not** mutate bound artifacts (issue a *new* F9 packet at a new path rather than refreshing the old one — refreshing in place is what multiplied blockers 2 → 10); archive the superseded deliverable byte-exact and bind `previous_content` to the archive. Residual: **2** structural blockers, both documented, both with recorded hashes that are *correct for the bytes they described*. `assignment_process_gate` returns READY throughout, so dispatch is unaffected.
+
+**Status:** OPEN — awaiting maintainer triage. Not shipped.
+
+---
+
 ## Session: v0.8.4 close-out (2026-04-24)
 
 **Closure.** Packaged work shipped as **v0.8.4** in response to the plugin-gap review. The v0.8.1-session items **A6–A9** (P-R-1..P-R-4) are treated as **IMPLEMENTED** with the paths below; user sign-off is this release’s merge.

@@ -7,6 +7,25 @@ version: 0.8.0
 
 # run-phase-4 — Ph4 Finalize & Close
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — judgment-pass structure, SAFEGUARD invocation + Ph4 severity floor escalation, convergence metric, [Ph3-STALE], Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.4 (Ph4 charter; pre-MCR deep gate), 7 (EG-1, EG-7), 8 (G.4 sign-off), 9 (MCR)`; `references/MASTER_research_and_paper_guidelines.md §G.4`; `references/EXTERNAL_VERIFIERS.md`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 6.1`; `skills/run-phase-3/SKILL.md §4.5`; `agents/reflector.md §§Phase 2b, 3, 4, 5`; `skills/ingest-m5-to-wiki/SKILL.md`; `phase_notifications.yaml §§1, 7`.
 
 ## Output Profile
@@ -24,7 +43,7 @@ Ph4 is the **Finalize & Close** stage of the Lifecycle-Phase Ladder — the term
 1. **External verifiers move from optional to REQUIRED.** Zotero MCP citation probe, Scholar Gateway render-contract audit, Coupling E.2 overlay, and register-specific passes are gating at Ph4 (advisory at Ph3).
 2. **G.4 sign-off artefact is mandatory.** Row 8.5 (SAFEGUARD layer outcome) must be CLEAN; a partial G.4 blocks ship.
 3. **Reflector-full runs at close-out.** The full Reflector pipeline runs — Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons synthesis, Phase 4 skill-development proposals (formalised by the Planner via the `plugin_update_proposed_by_planner` trigger), Phase 5 memory updates (`lessons_learned.md`, `DO_NOT_DISTURB.md`).
-4. **Coupling D M5 wiki ingest.** At Ph4 close, the `m5_wiki_ingest` trigger fires and SK-16 `ingest-m5-to-wiki` promotes the manuscript to a first-class source page in the LLM wiki.
+4. **Coupling D M5 wiki ingest (deferred).** At Ph4 close, SK-17 `ingest-m5-to-wiki` is attempted but currently returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null`. Do **not** write an `m5_wiki_ingest` success trigger. Phase 4 completion does not depend on Wiki write availability.
 
 The v0.7.0 structural change from v0.6.0 is the **MCR replaces the LCR** (the renamed admission gate), the **Ph4_ready → Ph3_converged enum rename**, and the **[Ph3-STALE] block** on MCR admission. At v0.8.0 (β-P-9a), MCR admission adds **`pre_mcr_deep_pass_completed: true` on every in-scope section** before the Planner may assemble a passing MCR (`PHASE_PROTOCOL.md §3.4`, `phase_state_schema.md` §2.1).
 
@@ -120,7 +139,7 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §9` for the shared four-agent 
    - updates memory files (Phase 5): `research_notes/lessons_learned.md` and `reviews/DO_NOT_DISTURB.md`.
 9. **Planner formalisation of plugin proposals.** Any skill-development proposals from Reflector-full Phase 4 are formalised by the Planner into `reviews/plugin_proposals/<cycle_id>.md`, emitting a `plugin_update_proposed_by_planner` row (trigger 26). User approves before package release.
 10. **User checkpoint on G.4 + Reflector report.** Planner presents the G.4 artefact and the Reflector-full report to the user for explicit sign-off. Approval here is the terminal approval — the manuscript ships.
-11. **Coupling D M5 wiki ingest.** On terminal approval, the Planner dispatches SK-16 `ingest-m5-to-wiki` and writes an `m5_wiki_ingest` row (trigger 25). The manuscript becomes a first-class source page in the LLM wiki.
+11. **Coupling D M5 wiki ingest (deferred).** On terminal approval, the Planner may dispatch SK-17 `ingest-m5-to-wiki`, which returns a deferred structured result (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`). Do **not** write an `m5_wiki_ingest` success row and do **not** fabricate a Wiki source page. Primary ship/approval proceeds.
 12. **Terminal state write.** Planner writes the final `user_approval` row (trigger 2) with `new_tier: "Ph4"`. `terminal_tier_reached: true` is set at manuscript scope.
 
 ## 5. External verifiers — required at Ph4
@@ -175,8 +194,8 @@ Additional Markdown artefacts at Ph4 severity floors (see `skills/run-phase-3/SK
 - `reviews/g4_signoff_<YYYY-MM-DD>.md` — G.4 sign-off artefact.
 - `reviews/plugin_proposals/<cycle_id>.md` — Planner-formalised plugin proposals from Reflector-full Phase 4.
 - Updated `research_notes/lessons_learned.md` and `reviews/DO_NOT_DISTURB.md` from Reflector-full Phase 5 memory updates.
-- Updated `reviews/phase_state.json` — terminal `user_approval` row (`new_tier: "Ph4"`), `terminal_tier_reached: true` at manuscript scope, `m5_wiki_ingest` row on Coupling D ingest.
-- LLM wiki source page for the manuscript (Coupling D) — authored by SK-16.
+- Updated `reviews/phase_state.json` — terminal `user_approval` row (`new_tier: "Ph4"`), `terminal_tier_reached: true` at manuscript scope. Do **not** write `m5_wiki_ingest` on deferral.
+- LLM wiki source page for the manuscript (Coupling D) — **not written** while `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; record deferred status instead.
 
 ## 10. Escalation paths
 
@@ -210,4 +229,4 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §8` for the full v0.6.0 → v0
 
 ---
 
-*This skill is the terminal stage of the ladder. Approval here ships the manuscript. After ship, the Reflector-full close-out report is archived and the manuscript is ingested for Coupling D (wiki promotion via SK-16 `ingest-m5-to-wiki`). `terminal_tier_reached: true` is set at manuscript scope in `reviews/phase_state.json`.*
+*This skill is the terminal stage of the ladder. Approval here ships the manuscript. After ship, the Reflector-full close-out report is archived. Coupling D Wiki ingest via SK-17 is deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) and does not block ship. `terminal_tier_reached: true` is set at manuscript scope in `reviews/phase_state.json`.*

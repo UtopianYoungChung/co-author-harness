@@ -1,5 +1,24 @@
 # AGENT ORCHESTRATION — Four-Agent Architecture
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Purpose.** This file describes the four-agent system that operates on manuscripts governed by the Research and Academic Paper Writing Package. It defines roles, permissions, the dispatch loop, and user checkpoints.
 
 **v0.8.0 framing — Lifecycle-Phase Ladder.** Agent engagement is phase-conditioned under the Lifecycle-Phase Ladder (`PHASE_PROTOCOL.md §1`): Ph1 Plan & Draft runs Planner + Generator + Reflector-lightweight (no Evaluator); Ph2 Review & Revise is the first rung that engages the Evaluator; Ph3 Iterate & Converge runs the full four-agent loop with Reflector-lightweight; Ph4 Finalize & Close runs the full four-agent loop with **Reflector-full** (Phase 2b aggregated confirmation-failed history audit, Phase 3 lessons, Phase 4 skill proposals, Phase 5 memory). The canonical agent-to-phase engagement matrix lives in `PHASE_PROTOCOL.md §2.3`; this file describes what each agent does when dispatched, not when it is dispatched.
@@ -16,7 +35,7 @@
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
 | **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `manuscript/main.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
-| **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Invokes SK-14 (Coupling C wiki synthesis) and SK-16 (Coupling D M5 wiki ingest). | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `references/SKILL_REGISTRY.md` (append) | **Never** |
+| **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Attempts Coupling C/D Wiki mutation via SK-14/SK-17; currently returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null` without blocking primary close-out. | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `references/SKILL_REGISTRY.md` (append) | **Never** |
 
 **The critical constraint:** The Generator never evaluates its own output, and the Evaluator never writes prose. This separation is what makes the system trustworthy. The Reflector-full audits both; the Reflector-lightweight runs an integrity probe only.
 
@@ -541,7 +560,7 @@ For bootstrapping from an existing draft or a course assignment, see `PROJECT_BO
 
 ## 8.5 Wiki Synthesis Promotion (Coupling C)
 
-After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-14 `promote-lessons-to-wiki`** to materialize newly updated `lessons_learned.md` entries as a synthesis page in the peer `LLM wiki/` store. This is the Research → Wiki feedback loop codified in the 2026-04-13 synergy audit. The full protocol lives in `agents/reflector-closeout.md` Phase 3 (Update Project Memory); the skill file is `skills/promote-lessons-to-wiki/SKILL.md`. Authoritative asymmetry is preserved: the project's `lessons_learned.md` is append-only source of truth, the wiki synthesis is a regenerable view. Firing is conditional (wiki must be reachable; lesson set must have changed; at least one lesson must be G/P-classifiable), and the outcome is recorded in reflection report §10.
+After every round's Phase 3 (Update Project Memory), the Reflector invokes **SK-14 `promote-lessons-to-wiki`**, which currently returns a deferred structured result (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) and must not create a Wiki synthesis page. This is the Research → Wiki feedback loop codified in the 2026-04-13 synergy audit. The full protocol lives in `agents/reflector-closeout.md` Phase 3 (Update Project Memory); the skill file is `skills/promote-lessons-to-wiki/SKILL.md`. Authoritative asymmetry is preserved: the project's `lessons_learned.md` is append-only source of truth, the wiki synthesis is a regenerable view. Firing is conditional (wiki must be reachable; lesson set must have changed; at least one lesson must be G/P-classifiable), and the outcome is recorded in reflection report §10.
 
 ## 8.6 Graphify Grounding Couplings (E.1 and E.2)
 
@@ -781,8 +800,8 @@ Planner (runs MCR admission check; rejects with [MCR-FIRST-RESPONSE] if any sect
   → Reflector-FULL (five-phase close-out: Phase 1 evidence, Phase 2a + Phase 2b NEW-H-4 aggregated
                    confirmation-failed history audit, Phase 3 lessons → lessons_learned.md,
                    Phase 4 skill proposals, Phase 5 memory → DO_NOT_DISTURB.md;
-                   invokes SK-14 Coupling C wiki synthesis and SK-16 Coupling D M5 wiki ingest →
-                   m5_wiki_ingest trigger row)
+                   attempts Coupling C/D Wiki mutation (deferred: `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; non-blocking for Phase 4 completion) →
+                   m5_wiki_ingest success trigger only after future governed ingestion; on deferral do not write the success trigger)
   → Planner (writes terminal user_approval row with new_phase: "Ph4", terminal_phase_reached: true)
 ```
 

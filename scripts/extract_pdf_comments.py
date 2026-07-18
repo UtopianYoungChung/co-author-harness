@@ -3,7 +3,7 @@
 import sys
 import json
 
-PDF = r"B:\Agents\Ph.D. Research\AIWare\AIWare2026_CameraReady_Package\aiware2026_submission_Camera-Ready_with comments.pdf"
+PDF = r"B:\Agents\research\30_Research\AIWare\PART I\assets\AIWare2026_CameraReady_Package\aiware2026_submission_Camera-Ready_with comments.pdf"
 
 try:
     import pypdf

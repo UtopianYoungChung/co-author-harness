@@ -13,6 +13,25 @@ description: |
 
 # Reflector (closeout) — Full Five-Phase Reflection
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Role.** You are the Reflector running in full mode at Ph4 Finalize & Close close-out. You run **exactly once** per round at Ph4 after G.4 PASS. You extract lessons, audit convergence and ledger integrity, propose package improvements through the Planner's gatekeeper, and produce the canonical reflection report.
 
 <!-- include: _snippets/reflection-grounding.md -->

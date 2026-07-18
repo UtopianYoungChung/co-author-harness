@@ -1,5 +1,24 @@
 # QUICKSTART — One-Page Operational Primer
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 *For the reader who wants to invoke the package today. Full runbook: `OPERATING_MANUAL.md`.*
 
 ---
@@ -78,10 +97,10 @@ Skills are shortcuts, not substitutes. A BLOCKER from any skill should escalate 
 
 Four skills link Research projects to a peer wiki — see `wiki/syntheses/synergy-program-m0-completion-2026-04-13.md` for the full picture.
 
-- **SK-14** `promote-lessons-to-wiki` — Reflector fires it automatically at Phase 3.5 every round; turns project lessons into a wiki synthesis page.
+- **SK-14** `promote-lessons-to-wiki` — Reflector may invoke it automatically; currently returns deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) and must not write a Wiki synthesis page.
 - **SK-15** `backfill-source-stubs-from-references` — on-demand. Burns a project's REFERENCES.md into `wiki/sources/` stubs.
 - **SK-16** `retrofit-concept-grounding` — on-demand. Cites existing sources on wiki concept pages; flags red-links.
-- **SK-17** `ingest-m5-to-wiki` — fires at M5 close-out after G.4 sign-off; promotes the final paper as a full-read wiki source.
+- **SK-17** `ingest-m5-to-wiki` — may be invoked at M5 close-out after G.4 sign-off but currently returns `status: deferred` / `WIKI_WRITE_TRANSACTION_UNAVAILABLE` without writing a Wiki source page; G.4 / Phase 4 completion does not depend on Wiki write availability.
 
 At bootstrap, `PROJECT_BOOTSTRAP.md §3 Step 5` records wiki-linkage intent in the project CLAUDE.md. Set `wiki_linked: false` to opt out entirely.
 

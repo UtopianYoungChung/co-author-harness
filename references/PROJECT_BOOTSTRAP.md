@@ -1,5 +1,24 @@
 # PROJECT BOOTSTRAP — New Project Setup Protocol
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Purpose.** This file defines the standard directory structure, seed files, and initialization procedure for every new research project under the Research root folder. It replaces the implicit "use the INF3006Y template" instruction in `AGENT_ORCHESTRATION.md §8a` with an explicit, executable specification.
 
 **When to use.** The agent reads this file whenever:
@@ -598,7 +617,7 @@ Once the skeleton exists, run the Planner in classification mode (see `AGENT_ORC
 | `concept_targets` | Optional list of wiki concept pages that the paper will plausibly ground at M5, e.g. `[agency, delegation, governance]`. Helps the M5 ingestion agent choose wikilink targets. |
 | `wiki_first_resources` | `true` (default when `wiki_linked: true`) / `false` | When `true`, Planner and Generator follow `EXTERNAL_VERIFIERS.md` §1.5: consult peer `LLM wiki/` (sources, concepts, syntheses, `GRAPH_REPORT.md`, optional `/llm-wiki-query`) **before** adding new Zotero PDFs or using external discovery tools (e.g. Consensus). Set `false` only to bypass for a project or round with a documented reason. |
 
-**When Coupling D fires.** At M5 (submission-bound final paper) — *not* at bootstrap. The M5 drafting/revision loop should, as its closing action after G.4 sign-off, invoke **SK-17 `ingest-m5-to-wiki`** (`.paper-package/skills/ingest-m5-to-wiki.md`, formalized 2026-04-13). SK-17 creates `LLM wiki/wiki/sources/<projected_wiki_key>.md` with `grounding_status: full` (since the paper has been read directly by every agent in the loop), harvests wikilinks to grounded concepts/entities, and queues the concept-page follow-on batch for a subsequent SK-16 retrofit sweep. It also appends a closing line to this project CLAUDE.md's Wiki linkage section so the coupling fire is auditable.
+**When Coupling D fires.** At M5 (submission-bound final paper) — *not* at bootstrap. The M5 drafting/revision loop should, as its closing action after G.4 sign-off, invoke **SK-17 `ingest-m5-to-wiki`** (`.paper-package/skills/ingest-m5-to-wiki.md`, formalized 2026-04-13). SK-17 must not create a Wiki source page while `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; record `status: deferred` and `wiki_page_key: null` (future governed ingestion may later write `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)-read`) (since the paper has been read directly by every agent in the loop), harvests wikilinks to grounded concepts/entities, and queues the concept-page follow-on batch for a subsequent SK-16 retrofit sweep. It also appends a closing line to this project CLAUDE.md's Wiki linkage section so the coupling fire is auditable.
 
 **Authoritative asymmetry (reminder).** The project manuscript is the source of truth; the wiki source page is a searchable, cross-linkable view. If the manuscript is later revised (e.g. a camera-ready revision after conditional acceptance), re-fire Coupling D against the new version and update the wiki source page in place — do not create a second source entry unless the revision constitutes a distinct publication.
 

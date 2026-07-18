@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coupling_readiness_check import CheckResult, derive_noop_reason, resolve_project_claude_path, run_checks
+from graph_authority_gate import evaluate_graph_authority
 
 
 OUTCOME_READY = "READY"
@@ -56,6 +57,9 @@ class GateUsageError(ValueError):
 def build_summary(results, metadata: Dict[str, object], outcome: str, reason_code: Optional[str], reason_detail: str) -> Dict[str, object]:
     ready = outcome == OUTCOME_READY
     failed_keys: List[str] = [item.key for item in results if not item.ok]
+    authority = evaluate_graph_authority(
+        structural_ok=metadata.get("legacy_structural_ok") if isinstance(metadata, dict) else None
+    )
     return {
         "outcome": outcome,
         "ready_for_sk20": ready,
@@ -64,6 +68,7 @@ def build_summary(results, metadata: Dict[str, object], outcome: str, reason_cod
         "recommended_noop_message": reason_detail,
         "checks": [asdict(item) for item in results],
         "metadata": metadata,
+        "graph_authority": authority,
     }
 
 

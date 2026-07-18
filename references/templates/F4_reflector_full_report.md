@@ -61,7 +61,7 @@ phase_aggregates:
     filed_at: "reviews/plugin_update_proposals.md"
   phase_5_wiki_ingest:               # Coupling D: M5 → wiki source-page ingest
     status: "N/A"                    # "INGESTED" | "SKIPPED-NOT-M5" | "N/A"
-    wiki_page_key: ""
+    wiki_page_key: null  # deferred: WIKI_WRITE_TRANSACTION_UNAVAILABLE
   phase_6_session_close:
     verdict: "CLEAN"
 
@@ -91,6 +91,25 @@ overall_verdict: CLEAN               # one of {CLEAN, ADVISORY, MAJOR, BLOCKER}
      ===================================================================== -->
 
 # Reflector full report — {{cycle_id}} Ph4 close-out
+
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
 
 ## Phase 1 — evidence gathering
 

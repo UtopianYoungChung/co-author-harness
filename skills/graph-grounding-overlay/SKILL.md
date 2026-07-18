@@ -21,6 +21,28 @@ version: 1.0
 
 # Graph Grounding Overlay
 
+## FAIL-CLOSED: Graph authority unavailable
+
+Governed graph authority is **unavailable** (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`).
+Run / consult `scripts/graph_authority_gate.py` (unconditional for this delta): `governed_available: false`.
+
+**Immediate no-op.** Do not produce overlay findings, do not treat `graph.json` as authoritative evidence, and do not continue into Phase 1–N of this skill while the gate reports unavailability. Prefer reason code:
+
+```json
+{
+  "skill": "SK-20",
+  "status": "noop",
+  "reason_code": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+  "message": "Governed graph generation/activation unavailable; structural validity does not grant graph authority.",
+  "failed_checks": ["graph_governed_available"],
+  "timestamp": "YYYY-MM-DD"
+}
+```
+
+Primary Research completion, approval, and release continue. Only governed graph-dependent overlay behavior is deferred.
+
+Also run deterministic gate `scripts/sk20_preflight_gate.py` so readiness + no-op artifacts are emitted consistently. If `should_run_sk20` is false for any reason (including this graph-authority plane), SK-20 must no-op.
+
 You are executing **Coupling E.2** — the graph-to-pipeline overlay that feeds graphify's topological and provenance signals into the Evaluator's pre-flight stage. The overlay is **additive**: it produces new findings in the Evaluator's native format; it does not replace any existing step, modify the manuscript, or mutate graphify's output. Every finding it produces carries a graph-specific source tag so that downstream grounding-audit Category 8 can trace it back to the graph artefact that generated it.
 
 ## Preconditions
@@ -60,6 +82,7 @@ Use one of these reason codes:
 - `NO_CITATIONS`
 - `GRAPH_JSON_UNREADABLE`
 - `GRAPH_SCHEMA_INVALID`
+- `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`
 
 When `reviews/coupling_readiness_YYYY-MM-DD.json` exists, prefer its `recommended_noop_reason_code` and `failed_checks` values to avoid reason drift between deterministic gate output and SK-20 logging.
 
@@ -70,13 +93,13 @@ When `reviews/coupling_readiness_YYYY-MM-DD.json` exists, prefer its `recommende
 1. Read `${wiki_path}/graphify-out/graph.json`. Record: total node count, total edge count, edge confidence distribution (EXTRACTED / INFERRED / AMBIGUOUS counts).
 2. Read `${wiki_path}/graphify-out/GRAPH_REPORT.md`. Extract: god-nodes list, community hubs, suggested questions, knowledge-gap isolated-node list, hyperedges.
 3. Build two in-memory indexes:
-   - `nodes_by_source_file` — maps `raw/papers/<file>.pdf` to the list of node IDs extracted from that source, with each node's `source_location` field preserved.
+   - `nodes_by_source_file` — maps `raw/corpus/<file>.pdf` to the list of node IDs extracted from that source, with each node's `source_location` field preserved.
    - `edges_by_source_pair` — maps (source_file_A, source_file_B) to the list of edges between their nodes, with each edge's `confidence`, `confidence_score`, and `relation` preserved.
 
 ### Phase 2 — Enumerate the manuscript's citation set
 
 1. Read `manuscript/main.md` (or `main.tex`). Enumerate every in-text citation using the same pattern set as SK-16 `retrofit-concept-grounding` Phase 1 (Author YYYY, Author et al. YYYY, parenthetical, in-table). Produce `cites = [(author, year, citation_key_if_resolvable, text_location), ...]`.
-2. Read `references/REFERENCES.md` and resolve each citation to a `raw/papers/<file>.pdf` path if one exists. Produce `resolved_cites = [(author, year, citation_key, pdf_path, text_location), ...]` and `unresolved_cites = [(author, year, text_location, reason), ...]`.
+2. Read `references/REFERENCES.md` and resolve each citation to a `raw/corpus/<file>.pdf` path if one exists. Produce `resolved_cites = [(author, year, citation_key, pdf_path, text_location), ...]` and `unresolved_cites = [(author, year, text_location, reason), ...]`.
 3. For each `resolved_cites` entry, look up the corresponding node set in `nodes_by_source_file`. Record `cited_sources_with_nodes` vs `cited_sources_without_nodes` (the latter are sources that graphify has not processed yet).
 
 ### Phase 3 — Generate the three finding types
@@ -177,7 +200,7 @@ A grounding-audit Category 8 violation (e.g., a `[source: graph-extracted]` find
 ## Dependencies and siblings
 
 - **Upstream:** graphify toolchain (runs externally; produces `graph.json` and `GRAPH_REPORT.md`). This skill does not invoke graphify; it reads graphify's outputs.
-- **Upstream:** SK-15 `backfill-source-stubs-from-references` populates `wiki/sources/` stubs, which provides the mapping between citation keys and `raw/papers/*.pdf` paths that Phase 2 relies on.
+- **Upstream:** SK-15 `backfill-source-stubs-from-references` populates `wiki/sources/` stubs, which provides the mapping between citation keys and `raw/corpus/*.pdf` paths that Phase 2 relies on.
 - **Downstream:** `grounding-audit` skill (Category 8 validates SK-20's output).
 - **Sibling:** SK-18 `advisor-escalation` is structurally analogous — both skills bridge an external source of claims (advisor MCP; graphify graph) into the pipeline with tag-preserved uncertainty inheritance. SK-18 extends grounding-audit with Category 7; SK-20 extends it with Category 8.
 - **Coupling E.1 — now implemented:** The `SK-19 graph-read-at-planner` placeholder is **retired**. Coupling E.1 is materialised at v0.10.0 via **SK-33 `seed-snowball-discovery`**'s graph-substrate iterate phase — see `references/AGENT_ORCHESTRATION.md §8.6 Coupling E.1`. The `graph-read-at-planner` token is preserved only as the coupling's historical identifier in the roadmap.

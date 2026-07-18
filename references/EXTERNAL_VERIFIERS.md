@@ -1,5 +1,24 @@
 # EXTERNAL VERIFIERS — Ground-Truth Validity Tools for the Harness
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Status.** This file is a **binding component** of the Grounding Protocol. It enumerates the external Model-Context-Protocol (MCP) servers that the four agents (Planner, Evaluator, Generator, Reflector) may invoke as **ground-truth validity layers** when verifying citations, attributions, factual claims, or retraction status. It also defines **§1.5** (peer `LLM wiki/` paths and optional `/llm-wiki-query` — not MCP) for **discovery** ordering. Every verification tier in §2 onward participates in the Chain of Verification (`GROUNDING_PROTOCOL.md` Rule 7) and in Rule 7a (the external-verifier rule introduced below).
 
 **Scope.** Applies to all projects governed by this package. A project's `CLAUDE.md` may declare which verifier tiers it permits (e.g. `external_verifiers: [class_1, class_1_5]`) but may not declare a verifier that is not registered here. Adding a new verifier requires editing this file and bumping the package version.

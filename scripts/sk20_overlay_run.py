@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from coupling_readiness_check import derive_noop_reason, run_checks, parse_cli_bool
+from graph_authority_gate import evaluate_graph_authority, REASON_CODE as GRAPH_AUTHORITY_REASON
 
 
 TEX_CITE_RE = re.compile(r"\\cite[a-zA-Z*]*\s*(?:\[[^\]]*\]\s*){0,2}\{([^}]+)\}")
@@ -445,11 +446,19 @@ def main() -> int:
     }
 
     checks, metadata = run_checks(project_root=project_root, overrides=overrides)
+    authority = evaluate_graph_authority(
+        structural_ok=metadata.get("legacy_structural_ok")
+        if "legacy_structural_ok" in metadata
+        else None
+    )
+    if authority.get("governed_available") is not False:
+        raise RuntimeError("graph_authority_gate must be unconditionally unavailable in this delta")
     ready = all(item.ok for item in checks)
     failed_keys = [item.key for item in checks if not item.ok]
     reason_code, reason_detail = derive_noop_reason(checks, metadata)
     summary = {
         "ready_for_sk20": ready,
+        "graph_authority": authority,
         "failed_checks": failed_keys,
         "recommended_noop_reason_code": reason_code,
         "recommended_noop_message": reason_detail,

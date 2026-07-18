@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from graphify_contract import parse_timestamp, resolve_wiki_root, validate_graph_payload
+from graph_authority_gate import evaluate_graph_authority
 
 
 DATE_RE = re.compile(r"Last updated:\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
@@ -103,6 +104,7 @@ NOOP_REASON_BY_CHECK = {
     "wiki_path_declared": "WIKI_PATH_MISSING",
     "graphify_outputs_exist": "GRAPH_OUTPUT_MISSING",
     "graph_schema_valid": "GRAPH_SCHEMA_INVALID",
+    "graph_governed_available": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
     "classification_exists": "CLASSIFICATION_MISSING",
     "manuscript_has_citation": "NO_CITATIONS",
     "graph_not_stale": "GRAPH_STALE",
@@ -213,6 +215,19 @@ def run_checks(
             "graph_schema_valid",
             len(graph_errors) == 0,
             graph_errors[0] if graph_errors else "graph.json schema valid",
+        )
+    )
+
+    authority = evaluate_graph_authority(structural_ok=(len(graph_errors) == 0))
+    metadata["legacy_structural_ok"] = bool(authority.get("legacy_structural_ok"))
+    metadata["governed_available"] = bool(authority.get("governed_available"))
+    metadata["graph_authority_reason"] = authority.get("reason_code")
+    metadata["graph_authority_detail"] = authority.get("detail")
+    results.append(
+        CheckResult(
+            "graph_governed_available",
+            bool(authority.get("governed_available")),
+            str(authority.get("detail") or authority.get("reason_code")),
         )
     )
 

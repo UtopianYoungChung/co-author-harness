@@ -1,5 +1,24 @@
 # `phase_state.json` — Per-Section Phase-State Ledger
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 > **File-rename note (v0.7.4.1).** This file is the authoritative schema for `reviews/phase_state.json`. It was shipped at v0.7.4 under the legacy name `tier_state_schema.md`; the physical rename to `phase_state_schema.md` landed at v0.7.4.1 to close a rename-migration miss surfaced by the plugin-calibrator. The body was carried forward in v0.7.0-shape prose through v0.7.4.1 as a known residual and is **rewritten to v0.7.4 shape at v0.8.0 (R-P0-SCHEMA-3 closure)**. The two provenance carve-outs that survive the rewrite are this file-rename note and the v0.6.0 predecessor reference on the next line.
 
 > **v0.6.0 predecessor.** The direct documentary ancestor of this file is the v0.6.0 `tier_state_schema.md`, which shipped a ten-field `SectionStateObject` and a six-field log row under the Progressive-Approval depth-of-review vocabulary. The v0.7.0 Lifecycle-Stage Ladder widened the section shape to fifteen fields; the v0.7.4 Tier → Phase rename + economic-efficiency bundle widened the log row to seven fields and extended the trigger enum 28 → 30. At v0.8.0 under β-P-9a (pre-MCR Ph3-deep safety-net pass), the section shape widens a further 15 → 16 fields with the addition of `pre_mcr_deep_pass_completed: bool`; the widening is additive and does not rename the `schema_version` string. **v0.10.0 RC is the vocabulary roll point:** `schema_version` stays `"0.7.4"` at the ledger surface across the entire v0.8.x line and the v0.9.x line (both v0.8.0 and v0.9.0 shipped without rolling the surface, despite the v0.8.0 β-P-9a P2.1a section-shape widening and the v0.9.0 maintenance bundle); the bump to `"0.10.0"` lands at the v0.10.0 RC gate via `scripts/migrate_v090_to_v100_snowball_fields.py`, in lockstep with the snowball-driven SectionStateObject extensions documented at §2 (`references_initialized` at S2; `last_coverage_score` at S4) and the trigger-enum extension at §3.1 (`seed_snowball_signed = 31`). The v0.7.4 migration path for projects carrying a v0.7.3 `tier_state.json` is `scripts/migrate_v073_to_v074_tier_to_phase.py [retired from tree]`; see §7.
@@ -207,7 +226,7 @@ The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) a
 | 22 | `eg7_mcr_readmission_after_class_change` | EG-7 fire at Ph4 forcing Ph3-iteration-then-MCR-replay. One of the three monotonicity-exempt triggers. | `Ph4 → Ph3` |
 | 23 | `eg1_ph4_downgrade_to_ph3` | Rule 1–7 grounding violation at Ph4 forcing section back to Ph3. One of the three monotonicity-exempt triggers. Renamed at v0.7.4 from `eg1_t4_downgrade_to_t3`. | `Ph4 → Ph3` |
 | 24 | `eg6_override_inconsistency_warning` | Planner warning on an inconsistent override target. Non-blocking. | No phase movement |
-| 25 | `m5_wiki_ingest` | Coupling D ingestion at Ph4 close. | No phase movement |
+| 25 | `m5_wiki_ingest` | Coupling D ingestion at Ph4 close — emit **only** after a governed Wiki ingestion transaction succeeds. On `WIKI_WRITE_TRANSACTION_UNAVAILABLE` do **not** write this success trigger; record deferred status in the reflection report instead. | No phase movement |
 | 26 | `plugin_update_proposed_by_planner` | Planner-formalised plugin proposal. | No phase movement |
 | 27 | `v0_7_state_rename` | Migration-only rename `Ph4_ready → Ph3_converged`. | Recorded in `notes` |
 | 28 | `ph3_accessibility_blocker_surfaced` | Planner refused a `TerminalSignoffRow` write because a Check 8 BLOCKER is open at signoff (`PHASE_PROTOCOL.md §3.3.3`). Introduced at v0.7.2. | No phase movement |

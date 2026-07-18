@@ -1,5 +1,24 @@
 # Skill Registry — Package-Level Skills
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 **Purpose.** Index of all skills created by the Reflector agent or manually added to the package. Each entry records the skill's name, what pattern it encodes, when it was created, and whether it has been deployed to a project or to the global skills directory.
 
 **How skills work in this package.** Skills are `.md` files with frontmatter (name, description, trigger) and a body (the prompt that executes when invoked). They are user-invocable shortcuts that encode a recurring workflow, check, or fix pattern discovered during review rounds. The Reflector proposes skills; the Planner filters (three-filter gate); the user approves; the skill file is written.
@@ -179,7 +198,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-17. `ingest-m5-to-wiki`
 - **File:** `skills/ingest-m5-to-wiki/SKILL.md`
-- **Pattern:** Materializes **Coupling D** — ingests a project's M5 (submission-bound final) manuscript into `LLM wiki/wiki/sources/<key>.md` as a complete, non-stub source page with `grounding_status: full`. Fires after G.4 sign-off. Produces: bibliographic table, structured claim summary, method/apparatus note, relationship-to-program paragraph, limitations list, harvested wikilinks to concepts/entities the paper grounds, and a concept-page follow-on batch queued for SK-16. Closes the coupling by appending a dated line to the project CLAUDE.md's Wiki linkage section. Preserves the manuscript as source of truth; the wiki source page is a searchable view.
+- **Pattern:** Materializes **Coupling D** — ingests a project's M5 (submission-bound final) manuscript into `LLM wiki/wiki/sources/<key>.md` as a complete, non-stub source page with `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)`. Fires after G.4 sign-off. Produces: bibliographic table, structured claim summary, method/apparatus note, relationship-to-program paragraph, limitations list, harvested wikilinks to concepts/entities the paper grounds, and a concept-page follow-on batch queued for SK-16. Closes the coupling by appending a dated line to the project CLAUDE.md's Wiki linkage section. Preserves the manuscript as source of truth; the wiki source page is a searchable view.
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F6 (M5 final paper is a natural wiki source, not just a review artefact). Coupling D was registered as a bootstrap-time intent in PROJECT_BOOTSTRAP.md §3 Step 5 on 2026-04-13; SK-17 formalizes the ingestion protocol itself so the coupling becomes executable rather than aspirational.
 - **Tier:** Package
@@ -358,7 +377,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Tier:** Package (executor — Sonnet)
 - **Status:** Active (v0.10.0+)
 - **Depends on:** `references/GROUNDING_PROTOCOL.md` (Rule 4, Rule 6, Rule 7a), `references/EXTERNAL_VERIFIERS.md §§1.5, 2, 3.1` (Scholar Gateway render contract), `reviews/classification.md` (claim register + the new v0.10.0 fields `claim_coverage_threshold`, `inherit_snowball`, `pre_seed_cap`), `reviews/revision_plan.md` (claim outline), Class 1 verifiers (Scholar Gateway primary; Consensus for contested cross-check; Zotero+Scite for Class 2 resolution + Class 3 retraction), graphify graph at `${wiki_path}/graphify-out/graph.json` (when `wiki_linked: true`)
-- **Sibling:** SK-15 `backfill-source-stubs-from-references` (downstream consumer; SK-33's in-loop write-back inherits SK-15's stub-template logic); SK-16 `retrofit-concept-grounding` (downstream consumer; consumes the populated `wiki/sources/` layer); SK-20 `graph-grounding-overlay` (upstream contract — SK-33 reads the same `graph.json` schema SK-20 reads); SK-34 `claim-coverage-audit` (Ph2 successor); SK-35 `extend-snowball-incremental` (Ph2 in-loop successor); SK-36 `inherit-snowball-from-wiki` (pre-seed dependency)
+- **Sibling:** SK-15 `backfill-source-stubs-from-references` (downstream consumer; SK-33's deferred Wiki write-back (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) inherits SK-15's stub-template logic); SK-16 `retrofit-concept-grounding` (downstream consumer; consumes the populated `wiki/sources/` layer); SK-20 `graph-grounding-overlay` (upstream contract — SK-33 reads the same `graph.json` schema SK-20 reads); SK-34 `claim-coverage-audit` (Ph2 successor); SK-35 `extend-snowball-incremental` (Ph2 in-loop successor); SK-36 `inherit-snowball-from-wiki` (pre-seed dependency)
 - **Not a replacement for:** SK-15 (which converts a curated REFERENCES.md to wiki stubs at terminal stage; SK-33 operates inline at Ph1); SK-16 (which retrofits concept pages with wikilinks; SK-33 only writes to `wiki/sources/`); manual literature review (SK-33 is recall-biased and prunes via per-claim verification — it surfaces candidates, not commitments)
 
 ### SK-34. `claim-coverage-audit`

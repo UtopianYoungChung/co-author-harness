@@ -7,6 +7,26 @@ version: 1.0
 
 # inherit-snowball-from-wiki — Cross-Project Pre-Seed Inheritance
 
+## FAIL-CLOSED: Graph authority unavailable
+
+Governed graph authority is **unavailable** (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`).
+`scripts/graph_authority_gate.py` returns `governed_available: false` unconditionally in this delta.
+
+**Immediate no-op.** Do not traverse `graph.json` communities, do not produce `pre_seed.json`, and do not extract community source membership for pre-seed while the gate reports unavailability. Write `reviews/sk36_noop_YYYY-MM-DD.json` with:
+
+```json
+{
+  "skill": "SK-36",
+  "status": "noop",
+  "reason_code": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+  "message": "Governed graph generation/activation unavailable; structural validity does not grant pre-seed authority.",
+  "failed_checks": ["graph_governed_available"],
+  "timestamp": "YYYY-MM-DD"
+}
+```
+
+SK-33 continues without wiki-community pre-seed. Primary Research completion is not blocked.
+
 **Grounding basis:** `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §§5.5.5 (skill spec), 6.8 (S6 deliverable), 7 R-13 (pre-seed cap rationale)`; `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §5.6`; `skills/graph-grounding-overlay/SKILL.md` (SK-20; Coupling E.2 graph schema and `captured_at` staleness precondition — SK-36 reuses the identical check); `skills/seed-snowball-discovery/SKILL.md` (SK-33; Phase 0 caller — SK-36 must emit `pre_seed.json` in the shape SK-33's `SEED_FROM_CLAIMS` input expects); `references/AGENT_ORCHESTRATION.md §8.6 Coupling E.1` (SK-36 is referenced as the pre-seed step invoked by SK-33 when `inherit_snowball: true`); `references/GROUNDING_PROTOCOL.md §§Rule 5 (mark uncertainty), Rule 6 (no gap-filling)`.
 
 ---
@@ -26,6 +46,8 @@ The skill does **not** run snowball iterations. It does not call external verifi
 ## 2. Preconditions
 
 Before invoking this skill, verify all of the following. On any failure, no-op with the matching reason code and return without producing artefacts. **This is graceful degradation, not error** — SK-33 continues in normal seed mode when SK-36 no-ops.
+
+0. **Graph authority is available.** If `graph_authority_gate` reports `GRAPH_GOVERNED_GENERATION_UNAVAILABLE` / `governed_available: false`: immediate no-op with that reason. Do not continue to community traversal.
 
 1. **Project is wiki-linked.** The project CLAUDE.md contains `wiki_linked: true`. If absent or false: `NOT_WIKI_LINKED`.
 
@@ -54,7 +76,7 @@ When SK-36 no-ops, write `reviews/sk36_noop_YYYY-MM-DD.json`:
 }
 ```
 
-Codes: `NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED` (opt-out via `inherit_snowball: false`), `PRE_SEED_CAP_ZERO` (cap explicitly set to 0 — increase `pre_seed_cap` to re-enable), `GRAPH_OUTPUT_MISSING`, `GRAPH_STALE`, `CLASSIFICATION_MISSING`, `GRAPH_SCHEMA_INVALID`, `NO_ADJACENT_COMMUNITIES` (all preconditions pass but adjacency check finds zero qualifying communities — this is a clean no-op, not a failure).
+Codes: `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`, `NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED` (opt-out via `inherit_snowball: false`), `PRE_SEED_CAP_ZERO` (cap explicitly set to 0 — increase `pre_seed_cap` to re-enable), `GRAPH_OUTPUT_MISSING`, `GRAPH_STALE`, `CLASSIFICATION_MISSING`, `GRAPH_SCHEMA_INVALID`, `NO_ADJACENT_COMMUNITIES` (all preconditions pass but adjacency check finds zero qualifying communities — this is a clean no-op, not a failure).
 
 ---
 
@@ -65,7 +87,7 @@ Codes: `NOT_WIKI_LINKED`, `INHERIT_SNOWBALL_DISABLED` (opt-out via `inherit_snow
 1. Read `${wiki_path}/graphify-out/graph.json`. Build the following in-memory structures:
    - `communities` — map from community ID → list of node IDs in that community (from each node's `community` field).
    - `god_nodes` — the highest-centrality nodes per community. Derive by counting in-degree + out-degree per node within its community; take the top-3 per community as god-node candidates. (Note: if `GRAPH_REPORT.md` explicitly lists god-nodes under a "Community hubs" or equivalent section, use those verbatim and skip the in-degree derivation.)
-   - `source_file_by_node` — map from node ID → `source_file` field (e.g., `raw/papers/<file>.pdf`).
+   - `source_file_by_node` — map from node ID → `source_file` field (e.g., `raw/corpus/<file>.pdf`).
 
 2. Read `${wiki_path}/graphify-out/GRAPH_REPORT.md`. Extract:
    - **Community labels** — the human-readable label or topic description per community ID.
@@ -85,11 +107,11 @@ A graphify community is **adjacent** to the current section if **either** of the
 4. Community is adjacent under Condition A if Jaccard ≥ `synthesis_alignment_threshold_jaccard` from `classification.md` (default 0.3, per architecture plan §5.5.3).
 
 **Condition B — God-node is a P-stage anchor.**
-1. Resolve the god-nodes of the community to their `source_file` fields (e.g., `raw/papers/wohlin_2014.pdf`).
+1. Resolve the god-nodes of the community to their `source_file` fields (e.g., `raw/corpus/wohlin_2014.pdf`).
 2. Read `reviews/classification.md` for any explicit P-stage anchors: citation keys in the `p_stage_anchors` list or `key_references` field, if present. These are BibTeX-style identifiers (e.g., `Wohlin2014`).
 3. For each god-node `source_file`, resolve to a citation key using the following lookup chain:
    - **REFERENCES.md lookup (preferred when file exists).** Search `references/REFERENCES.md` for a row whose `pdf_path` column matches `source_file`. Read that row's `wiki_key` or `project_key` column as the citation key.
-   - **Wiki stub lookup (fallback).** If no REFERENCES.md match, check whether `${wiki_path}/wiki/sources/<stem>.md` exists (where `<stem>` is the `source_file` base name without extension). If the stub exists, read its frontmatter `key:` field as the citation key.
+   - **Wiki stub lookup (fallback).** If no REFERENCES.md match, check whether `${wiki_path}/wiki/sources/<stem>.md` exists (where `<stem>` is the `source_file` base name without extension). If the stub exists, read its frontmatter `source_key` field as the citation key.
    - **Base-stem heuristic (last resort).** If neither lookup resolves, use the `source_file` base name without extension, lowercased with underscores and hyphens stripped, as a fuzzy token match against the `p_stage_anchors` values (case-insensitive token overlap). A match requires at least one author-name token and the year to overlap.
 4. If the resolved citation key matches any value in the `p_stage_anchors` or `key_references` list, the community is adjacent under Condition B. If `p_stage_anchors` and `key_references` are both absent from `classification.md`, Condition B evaluates to false for all communities (not an error).
 
@@ -97,14 +119,14 @@ A community qualifies for pre-seeding if it satisfies **A OR B**. Record each qu
 
 ### Phase 3 — Extract and cap the pre-seed list
 
-1. For each adjacent community (in descending Jaccard similarity order for Condition A; in alphabetical community ID order for Condition B only), collect all `source_file` values for the community's nodes where `source_file` resolves to a `raw/papers/*.pdf` path.
+1. For each adjacent community (in descending Jaccard similarity order for Condition A; in alphabetical community ID order for Condition B only), collect all `source_file` values for the community's nodes where `source_file` resolves to a `raw/corpus/*.pdf` path.
 
 2. Deduplicate across communities: if the same `source_file` appears in multiple adjacent communities, count it once.
 
 3. **Apply cap.** Take the top `pre_seed_cap` (default 10) entries from the deduplicated list. Order: Condition A communities first (highest similarity), Condition B communities second, ties broken by god-node centrality (higher degree first). If the deduplicated list has fewer entries than `pre_seed_cap`, the cap is not binding — record actual count.
 
 4. For each pre-seeded paper, build a `pre_seed_entry` with:
-   - `source_file` — the `raw/papers/*.pdf` path from the node.
+   - `source_file` — the `raw/corpus/*.pdf` path from the node.
    - `community_id` — the originating community.
    - `adjacency_condition` — `"A"` / `"B"` / `"both"`.
    - `jaccard_score` — the label-token Jaccard score (null for Condition-B-only entries).
@@ -126,12 +148,12 @@ A community qualifies for pre-seeding if it satisfies **A OR B**. Record each qu
       "community_label": "<label>",
       "adjacency_condition": "A|B|both",
       "jaccard_score": 0.0,
-      "qualifying_sources": ["raw/papers/<file>.pdf", ...]
+      "qualifying_sources": ["raw/corpus/<file>.pdf", ...]
     }
   ],
   "pre_seed_list": [
     {
-      "source_file": "raw/papers/<file>.pdf",
+      "source_file": "raw/corpus/<file>.pdf",
       "community_id": "<id>",
       "adjacency_condition": "A|B|both",
       "jaccard_score": 0.0,

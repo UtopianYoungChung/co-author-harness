@@ -1,5 +1,24 @@
 # ARTEFACT_FRONTMATTER_SCHEMA.md
 
+
+
+## Wiki write deferral (Research Truth Phase 0/1)
+
+Coupling C/D canonical Wiki mutation is **unavailable**
+(`reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+
+- Block only the Wiki mutation.
+- Do **not** block Research completion, approval, or release.
+- Project-local REFERENCES, lessons, reports, manuscripts, and reflection
+  outputs continue normally.
+- On deferral record: `status: deferred`,
+  `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
+- Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
+  fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
+- Automatic callers treat the deferred result as a visible non-blocking
+  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+  availability.
+
 *Canonical schema contract for `reviews/*.md` artefact frontmatter. Introduced at plugin v0.7.4 under proposal P-3 (Structured-data-first artefact authoring). Amended at v0.8.0 P2.1b per `proposals/v0.8.0_upgrade_architecture.md` — F1 register + routing, F4 `demoted_check_advisories`, F6 `check_profile` / stability-budget field trio + `threshold_version`. Read by `scripts/artefact_frontmatter_validate.py` and by the P-2 stability sub-mode as the hash-checkable inheritance substrate.*
 
 ## 0. Why this file exists
@@ -246,7 +265,7 @@ phase_aggregates:
   phase_2_6_protocol_self:      {verdict: string}
   phase_3_memory_update:        {lessons_added: integer, lessons_merged: integer}
   phase_4_skill_proposals:      {new_proposals: integer, filed_at: path}
-  phase_5_wiki_ingest:          {status: string, wiki_page_key: string}  # Coupling D
+  phase_5_wiki_ingest:          {status: string, wiki_page_key: string | null  # null when deferred}  # Coupling D
   phase_6_session_close:        {verdict: string}
 
 overall_verdict:        # string, one of {CLEAN, ADVISORY, MAJOR, BLOCKER}
@@ -256,7 +275,7 @@ overall_verdict:        # string, one of {CLEAN, ADVISORY, MAJOR, BLOCKER}
 
 ```yaml
 plugin_update_proposals_filed:  # list of proposal-file paths, if any were generated
-lessons_promoted_to_wiki:       # list of wiki page keys (Coupling C)
+lessons_promoted_to_wiki:       # null/empty on deferral; success keys only after governed ingestion (Coupling C)
 historical_audits:              # object; historical rounds retroactively audited this session
   confirmation_failed_migration: {rows_retouched: integer, verdict: string}
 
