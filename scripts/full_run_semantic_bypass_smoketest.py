@@ -1420,7 +1420,7 @@ def case_complete_round_entry_still_needs_a_receipt() -> None:
 def _emit_real_receipt(proj: Path, target: str = "M1") -> tuple[Path, str]:
     """Build a gate-acceptable project and emit a genuine READY receipt."""
     afs.minimal_gate_project(proj, target=target)
-    rel = f"reviews/.harness/assignment/gate_receipt_{target}_20260717T000000Z.json"
+    rel = f"reviews/.harness/assignment/ready/gate_receipt_{target}_20260717T000000Z.json"
     r = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "assignment_process_gate.py"),
          "--project-root", str(proj), "--stage", "draft",
@@ -1430,7 +1430,7 @@ def _emit_real_receipt(proj: Path, target: str = "M1") -> tuple[Path, str]:
 
 
 def case_real_receipt_reaches_and_passes_preflight() -> None:
-    """POSITIVE: a real READY receipt authorizes -- the branch is reachable.
+    """POSITIVE: a real READY receipt passes read-only authorization readiness.
 
     Without this the two negatives below could both pass on a gate that refuses
     everything, which is the vacuity trap the anchor exists to catch elsewhere.
@@ -1443,7 +1443,7 @@ def case_real_receipt_reaches_and_passes_preflight() -> None:
                   f"gate did not emit a receipt: {log[-160:]}")
             return
         rc, p = run("authorize", "--project-root", str(proj))
-        check("a real READY receipt + passing preflight AUTHORIZES (rc=0)",
+        check("a real READY receipt passes authorization readiness (rc=0)",
               rc == 0, f"rc={rc} {str((p or {}).get('findings'))[:110]}")
 
 
@@ -1490,7 +1490,8 @@ def case_preflight_only_rejection_is_target_mismatch() -> None:
         r = subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "assignment_dispatch_preflight.py"),
              "--project-root", str(proj), "--receipt", str(receipt),
-             "--expected-target", "M2"],
+             "--expected-target", "M2", "--consumer", "planner",
+             "--write-path", "research_notes/project_memo.md"],
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
         check("preflight refuses an M1 receipt for an M2 dispatch "

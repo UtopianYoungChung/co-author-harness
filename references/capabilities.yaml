@@ -47,15 +47,15 @@ capabilities:
   repin-register: {availability: active, execution_mode: script-backed, exposure: public, implementation: scripts/reader_accessibility_policy.py, evidence: [scripts/repin_register_smoketest.py]}
   response-letter-review: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   retrofit-concept-grounding: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  run-draft: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py]}
-  run-finalize: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/full_run_contract_smoketest.py]}
-  run-generator-session: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py]}
+  run-draft: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py]}
+  run-finalize: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/full_run_contract_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py]}
+  run-generator-session: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py]}
   run-iterate: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/pre_phase_advance_phase_state_smoketest.py]}
-  run-phase-1: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
+  run-phase-1: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py]}
   run-phase-2: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
   run-phase-3: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
   run-phase-3-stability: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
-  run-phase-4: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
+  run-phase-4: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py]}
   run-reflection: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/reflector_split_parity_smoketest.py]}
   seed-snowball-discovery: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: source-verifiers, evidence: [scripts/skill-check.py]}
   sentence-level-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_audit.py]}

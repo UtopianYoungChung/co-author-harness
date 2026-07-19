@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -125,6 +126,7 @@ def main() -> int:
             reviews
             / ".harness"
             / "assignment"
+            / "ready"
             / "gate_receipt_M1_20260715T000000Z.json"
         )
         receipt_argument = receipt.relative_to(root)
@@ -138,10 +140,19 @@ def main() -> int:
         assert m1.returncode == 0 and "target=M1" in m1.stdout, m1.stdout + m1.stderr
         assert receipt.is_file(), "READY gate must emit the requested receipt"
         receipt_record = json.loads(receipt.read_text(encoding="utf-8"))
-        assert receipt_record["schema_version"] == "1.0.0"
-        assert receipt_record["status"] == "ready"
+        assert receipt_record["schema_version"] == "2.1.0"
+        assert "status" not in receipt_record
+        assert "consumed_at" not in receipt_record
         assert receipt_record["stage"] == "draft"
         assert receipt_record["target_milestone"] == "M1"
+        assert receipt_record["authorized_role"] == "generator"
+        assert receipt_record["authorized_writes"] == [
+            {"path": "research_notes/project_memo.md", "mode": "replace"},
+            {"path": "manuscript/revision_log.md", "mode": "append"},
+        ]
+        assert receipt_record["project_root_resolved"] == str(root.resolve())
+        assert receipt_record["primary_deliverable_path"] == "research_notes/project_memo.md"
+        assert receipt_record["primary_deliverable_path"] in receipt_record["authorized_paths"]
         assert receipt_record["assignment_contract_sha256"] == sha256(
             reviews / "assignment_contract.json"
         )
@@ -167,14 +178,67 @@ def main() -> int:
         ), stale_receipt.stdout + stale_receipt.stderr
         (reviews / "phase_state.json").write_bytes(phase_before_drift)
 
-        receipt_record["status"] = "consumed"
-        receipt_record["consumed_at"] = "2026-07-15T00:01:00Z"
-        receipt.write_text(json.dumps(receipt_record, indent=2) + "\n", encoding="utf-8")
-        consumed_receipt = run_gate(root, verify_receipt=receipt_argument)
+        consumed_path = receipt.parent.parent / "consumed" / receipt.name
+        consumed_path.parent.mkdir(parents=True)
+        receipt.replace(consumed_path)
+        consumed_receipt = run_gate(root, verify_receipt=consumed_path.relative_to(root))
         assert (
             consumed_receipt.returncode == 4
             and "APG-RECEIPT-CONSUMED" in consumed_receipt.stdout
         ), consumed_receipt.stdout + consumed_receipt.stderr
+
+        # The emitter must inspect the lexical control path before resolving it;
+        # otherwise a junctioned/symlinked ready directory can receive a valid
+        # receipt outside the project tree before transaction preflight runs.
+        ready_dir = receipt.parent
+        external_ready = root / "external-ready"
+        external_ready.mkdir()
+        ready_dir.rmdir()
+        linked = False
+        try:
+            os.symlink(external_ready, ready_dir, target_is_directory=True)
+            linked = True
+        except OSError:
+            ready_dir.mkdir()
+        if linked:
+            escaped_name = "gate_receipt_M1_20260715T000001Z.json"
+            escaped_argument = receipt_argument.parent / escaped_name
+            escaped = run_gate(root, "draft", "M1", emit_receipt=escaped_argument)
+            assert (
+                escaped.returncode == 4
+                and "APG-RECEIPT-PATH-INVALID" in escaped.stdout
+            ), escaped.stdout + escaped.stderr
+            assert not (external_ready / escaped_name).exists()
+            ready_dir.unlink()
+            ready_dir.mkdir()
+
+        if os.name == "nt":
+            junction_target = root / "external-junction-ready"
+            junction_target.mkdir()
+            ready_dir.rmdir()
+            junction = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(ready_dir), str(junction_target)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if junction.returncode != 0:
+                ready_dir.mkdir()
+                raise AssertionError(
+                    "Windows junction regression could not create its fixture: "
+                    + junction.stdout
+                    + junction.stderr
+                )
+            junction_name = "gate_receipt_M1_20260715T000002Z.json"
+            junction_argument = receipt_argument.parent / junction_name
+            escaped = run_gate(root, "draft", "M1", emit_receipt=junction_argument)
+            assert (
+                escaped.returncode == 4
+                and "APG-RECEIPT-PATH-INVALID" in escaped.stdout
+            ), escaped.stdout + escaped.stderr
+            assert not (junction_target / junction_name).exists()
+            ready_dir.rmdir()
+            ready_dir.mkdir()
         assert (reviews / "phase_state.json").read_bytes() == before_gate, "gate must not write acceptance"
         premature_m2 = run_gate(root, "draft", "M2")
         assert (
@@ -264,7 +328,7 @@ def main() -> int:
         missing = root / "missing"
         (missing / "reviews").mkdir(parents=True)
         absent_receipt = Path(
-            "reviews/.harness/assignment/gate_receipt_M1_20260715T000000Z.json"
+            "reviews/.harness/assignment/ready/gate_receipt_M1_20260715T000000Z.json"
         )
         absent = run_gate(
             missing, "draft", "M1", emit_receipt=absent_receipt

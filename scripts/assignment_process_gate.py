@@ -7,7 +7,9 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
+import stat
 import sys
 from typing import Any
 import uuid
@@ -15,6 +17,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_REL = Path("references/policies/course_essay_milestones.v1.json")
+ROLE_OUTPUT_REL = Path("references/role_output_contract.v1.json")
 EXPECTED_SEQUENCE = ["M1", "M2", "M3", "M4", "FINAL"]
 EXPECTED_MAPPING = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 COPY_POLICY = "author_controlled_unless_explicitly_requested"
@@ -25,17 +28,20 @@ PREDECESSORS = {
     "M4": ("M1", "M2", "M3"),
     "FINAL": ("M1", "M2", "M3", "M4"),
 }
-RECEIPT_SCHEMA_VERSION = "1.0.0"
-RECEIPT_STATUSES = {"ready", "consumed", "invalidated"}
+RECEIPT_SCHEMA_VERSION = "2.1.0"
 RECEIPT_FIELDS = {
     "schema_version",
     "receipt_id",
-    "status",
+    "reservation_id",
     "stage",
     "target_milestone",
+    "authorized_role",
+    "authorized_paths",
+    "authorized_writes",
+    "primary_deliverable_path",
     "project_root_name",
+    "project_root_resolved",
     "produced_at",
-    "consumed_at",
     "authority",
     "gate_command",
     "gate_exit_code",
@@ -43,6 +49,7 @@ RECEIPT_FIELDS = {
     "assignment_contract_sha256",
     "phase_state_sha256",
     "profile_sha256",
+    "role_output_contract_sha256",
     "exemplar_conditioning",
     "active_lineage_id",
 }
@@ -61,12 +68,37 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _is_link_or_reparse(path: Path) -> bool:
+    """Detect symlinks and Windows junctions on Python 3.11 and newer."""
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+    except OSError:
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
+    return bool(attributes & reparse_flag)
+
+
 def _atomic_write_json(path: Path, record: dict[str, Any]) -> None:
+    if path.parent.exists() and _is_link_or_reparse(path.parent):
+        raise OSError(f"receipt parent is linked or reparse-backed: {path.parent}")
     path.parent.mkdir(parents=True, exist_ok=True)
+    if _is_link_or_reparse(path.parent):
+        raise OSError(f"receipt parent is linked or reparse-backed: {path.parent}")
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     try:
-        temporary.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(path)
+        data = (json.dumps(record, indent=2) + "\n").encode("utf-8")
+        with temporary.open("xb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Hard-link creation is atomic and refuses an existing destination on
+        # both NTFS and POSIX filesystems. Unlike replace(), it cannot silently
+        # overwrite a receipt emitted by a concurrent process.
+        if _is_link_or_reparse(path.parent):
+            raise OSError(f"receipt parent changed to a linked or reparse-backed path: {path.parent}")
+        os.link(temporary, path)
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -250,24 +282,62 @@ def _ready_lines(
 
 
 def _receipt_path_finding(project: Path, path: Path, target: str) -> tuple[str, str] | None:
-    expected_dir = (project / "reviews" / ".harness" / "assignment").resolve()
-    resolved = path.resolve()
+    assignment_dir = Path(os.path.abspath(project / "reviews" / ".harness" / "assignment"))
+    lexical = Path(os.path.abspath(path))
     expected_prefix = f"gate_receipt_{target}_"
     if (
-        resolved.parent != expected_dir
-        or not resolved.name.startswith(expected_prefix)
-        or resolved.suffix != ".json"
+        lexical.parent.parent != assignment_dir
+        or lexical.parent.name not in {"ready", "reserved", "consumed", "invalidated"}
+        or not lexical.name.startswith(expected_prefix)
+        or lexical.suffix != ".json"
     ):
         return (
             "APG-RECEIPT-INVALID",
             "receipt path must match reviews/.harness/assignment/"
-            f"gate_receipt_{target}_<utc>.json",
+            f"<ready|reserved|consumed|invalidated>/gate_receipt_{target}_<utc>.json",
         )
+    control_paths = [
+        project / "reviews",
+        project / "reviews" / ".harness",
+        assignment_dir,
+        lexical.parent,
+    ]
+    for control_path in control_paths:
+        if control_path.exists() and (
+            not control_path.is_dir()
+            or _is_link_or_reparse(control_path)
+        ):
+            return (
+                "APG-RECEIPT-PATH-INVALID",
+                f"receipt control path is not a plain directory: {control_path}",
+            )
     return None
 
 
 def _resolve_receipt_path(project: Path, path: Path) -> Path:
-    return path.resolve() if path.is_absolute() else (project / path).resolve()
+    candidate = path if path.is_absolute() else project / path
+    # Preserve the lexical control-tree path so validation can see a symlink or
+    # junction instead of resolving it away before the check.
+    return Path(os.path.abspath(candidate))
+
+
+def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], str]:
+    """Re-derive receipt writer authority from the live role contract."""
+    role_contract = json.loads((ROOT / ROLE_OUTPUT_REL).read_text(encoding="utf-8"))
+    milestone = "M4" if target == "FINAL" else target
+    milestone_row = role_contract["milestones"][milestone]
+    role = milestone_row["deliverable_writer"]
+    primary_path = milestone_row["deliverable_path"]
+    writes = [{"path": primary_path, "mode": "replace"}]
+    for row in role_contract.get("common_generator_outputs", []):
+        if not isinstance(row, dict):
+            continue
+        path = row.get("path")
+        mode = row.get("mode")
+        if isinstance(path, str) and mode in {"create", "replace", "append"}:
+            if all(item["path"] != path for item in writes):
+                writes.append({"path": path, "mode": mode})
+    return role, writes, primary_path
 
 
 def _receipt_record(
@@ -281,15 +351,21 @@ def _receipt_record(
     phase_state = json.loads(phase_state_path.read_text(encoding="utf-8"))
     framework = phase_state.get("milestone_framework", {})
     lineage = framework.get("primary_lineage_id", "live") if isinstance(framework, dict) else "live"
+    authorized_role, authorized_writes, primary_path = derive_receipt_authority(target)
+    authorized_paths = [row["path"] for row in authorized_writes]
     return {
         "schema_version": RECEIPT_SCHEMA_VERSION,
         "receipt_id": str(uuid.uuid4()),
-        "status": "ready",
+        "reservation_id": str(uuid.uuid4()),
         "stage": stage,
         "target_milestone": target,
+        "authorized_role": authorized_role,
+        "authorized_paths": authorized_paths,
+        "authorized_writes": authorized_writes,
+        "primary_deliverable_path": primary_path,
         "project_root_name": project.name,
+        "project_root_resolved": str(project.resolve()),
         "produced_at": _timestamp(),
-        "consumed_at": None,
         "authority": "planner",
         "gate_command": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
         "gate_exit_code": 0,
@@ -299,6 +375,7 @@ def _receipt_record(
         ),
         "phase_state_sha256": _sha256(phase_state_path),
         "profile_sha256": _sha256(ROOT / PROFILE_REL),
+        "role_output_contract_sha256": _sha256(ROOT / ROLE_OUTPUT_REL),
         "exemplar_conditioning": exemplar_conditioning,
         "active_lineage_id": lineage,
     }
@@ -316,9 +393,10 @@ def _valid_timestamp(value: Any) -> bool:
 
 def _receipt_shape_finding(receipt: Any) -> tuple[str, str] | None:
     if not isinstance(receipt, dict) or set(receipt) != RECEIPT_FIELDS:
-        return ("APG-RECEIPT-INVALID", "receipt fields do not match schema version 1.0.0")
+        return ("APG-RECEIPT-INVALID", f"receipt fields do not match schema version {RECEIPT_SCHEMA_VERSION}")
     try:
         uuid.UUID(receipt["receipt_id"])
+        uuid.UUID(receipt["reservation_id"])
     except (AttributeError, TypeError, ValueError):
         return ("APG-RECEIPT-INVALID", "receipt_id must be a UUID")
     hashes = (
@@ -326,15 +404,33 @@ def _receipt_shape_finding(receipt: Any) -> tuple[str, str] | None:
         "assignment_contract_sha256",
         "phase_state_sha256",
         "profile_sha256",
+        "role_output_contract_sha256",
     )
     valid = (
         receipt["schema_version"] == RECEIPT_SCHEMA_VERSION
-        and receipt["status"] in RECEIPT_STATUSES
         and receipt["stage"] in {"draft", "final"}
         and receipt["target_milestone"] in EXPECTED_SEQUENCE
         and (receipt["stage"] != "final" or receipt["target_milestone"] == "FINAL")
+        and receipt["authorized_role"] == "generator"
+        and isinstance(receipt["authorized_paths"], list)
+        and bool(receipt["authorized_paths"])
+        and all(isinstance(path, str) and path for path in receipt["authorized_paths"])
+        and isinstance(receipt["authorized_writes"], list)
+        and bool(receipt["authorized_writes"])
+        and all(
+            isinstance(row, dict)
+            and set(row) == {"path", "mode"}
+            and isinstance(row["path"], str)
+            and bool(row["path"])
+            and row["mode"] in {"create", "replace", "append"}
+            for row in receipt["authorized_writes"]
+        )
+        and receipt["authorized_paths"] == [row["path"] for row in receipt["authorized_writes"]]
+        and receipt["primary_deliverable_path"] in receipt["authorized_paths"]
         and isinstance(receipt["project_root_name"], str)
         and bool(receipt["project_root_name"])
+        and isinstance(receipt["project_root_resolved"], str)
+        and bool(receipt["project_root_resolved"])
         and _valid_timestamp(receipt["produced_at"])
         and receipt["authority"] == "planner"
         and isinstance(receipt["gate_command"], list)
@@ -352,15 +448,13 @@ def _receipt_shape_finding(receipt: Any) -> tuple[str, str] | None:
         and bool(receipt["active_lineage_id"])
     )
     if not valid:
-        return ("APG-RECEIPT-INVALID", "receipt values do not satisfy schema version 1.0.0")
-    if receipt["status"] == "ready" and receipt["consumed_at"] is not None:
-        return ("APG-RECEIPT-INVALID", "READY receipt must have consumed_at null")
-    if receipt["status"] != "ready" and not _valid_timestamp(receipt["consumed_at"]):
-        return ("APG-RECEIPT-INVALID", "non-READY receipt requires a lifecycle timestamp")
+        return ("APG-RECEIPT-INVALID", f"receipt values do not satisfy schema version {RECEIPT_SCHEMA_VERSION}")
     return None
 
 
-def verify_receipt(project: Path, path: Path) -> list[tuple[str, str]]:
+def verify_receipt(
+    project: Path, path: Path, *, allow_consumed: bool = False
+) -> list[tuple[str, str]]:
     if not path.is_file():
         return [("APG-RECEIPT-MISSING", f"missing assignment gate receipt: {path}")]
     try:
@@ -375,12 +469,27 @@ def verify_receipt(project: Path, path: Path) -> list[tuple[str, str]]:
     )
     if path_finding is not None:
         return [path_finding]
-    if receipt["status"] == "consumed":
+    if path.parent.name == "consumed" and not allow_consumed:
         return [("APG-RECEIPT-CONSUMED", "assignment gate receipt has already been consumed")]
-    if receipt["status"] == "invalidated":
+    if path.parent.name == "invalidated":
         return [("APG-RECEIPT-INVALID", "assignment gate receipt has been invalidated")]
     if receipt["project_root_name"] != project.name:
         return [("APG-RECEIPT-INVALID", "receipt is bound to a different project root")]
+    if receipt["project_root_resolved"] != str(project.resolve()):
+        return [("APG-RECEIPT-INVALID", "receipt is bound to a different project instance")]
+
+    try:
+        role, writes, primary = derive_receipt_authority(receipt["target_milestone"])
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        return [("APG-RECEIPT-STALE", f"cannot re-derive live writer authority: {exc}")]
+    expected_paths = [row["path"] for row in writes]
+    if (
+        receipt["authorized_role"] != role
+        or receipt["authorized_writes"] != writes
+        or receipt["authorized_paths"] != expected_paths
+        or receipt["primary_deliverable_path"] != primary
+    ):
+        return [("APG-RECEIPT-STALE", "receipt writer authority differs from the live role contract")]
 
     contract_path = project / "reviews" / "assignment_contract.json"
     if not contract_path.is_file():
@@ -389,6 +498,7 @@ def verify_receipt(project: Path, path: Path) -> list[tuple[str, str]]:
         "assignment_contract_sha256": contract_path,
         "phase_state_sha256": project / "reviews" / "phase_state.json",
         "profile_sha256": ROOT / PROFILE_REL,
+        "role_output_contract_sha256": ROOT / ROLE_OUTPUT_REL,
     }
     for field, live_path in live_paths.items():
         try:
@@ -592,9 +702,20 @@ def main() -> int:
         if path_finding is not None:
             _print_findings([path_finding])
             return 4
-        if receipt_path.exists():
+        if receipt_path.parent.name != "ready":
             _print_findings(
-                [("APG-RECEIPT-INVALID", f"refusing to overwrite existing receipt: {receipt_path}")]
+                [("APG-RECEIPT-INVALID", "new receipts must be emitted into the ready directory")]
+            )
+            return 4
+        assignment_root = receipt_path.parent.parent
+        collisions = [
+            assignment_root / state / receipt_path.name
+            for state in ("ready", "reserved", "consumed", "invalidated")
+            if (assignment_root / state / receipt_path.name).exists()
+        ]
+        if collisions:
+            _print_findings(
+                [("APG-RECEIPT-INVALID", f"refusing duplicate receipt basename: {collisions[0]}")]
             )
             return 4
         try:
@@ -608,7 +729,7 @@ def main() -> int:
                     ready_lines,
                 ),
             )
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             _print_findings(
                 [("APG-RECEIPT-INVALID", f"cannot emit assignment gate receipt: {exc}")]
             )

@@ -13,7 +13,7 @@ version: 0.15.0-pre
 
 Read `skills/run-phase-4/SKILL.md` and follow it as the binding instruction set for this invocation. Treat that file as the authority for MCR admission gates, G.4 sign-off, external-verifier requirements, and exit conditions. **Do not duplicate or re-interpret** the canonical spec from this alias file.
 
-For course essays, FINAL remains eligible for the M4-onward exemplar envelope: Yu may condition surface register; Dennett is argument-only when admitted. The canonical workflow must emit a fresh FINAL receipt and require `assignment_dispatch_preflight.py --expected-target FINAL` exit 0 immediately before Planner dispatch and again before Generator writes. The final gate still requires accepted M1-M4 and current wiki-grounding evidence or an authorized opt-out.
+For course essays, FINAL remains eligible for the M4-onward exemplar envelope: Yu may condition surface register; Dennett is argument-only when admitted. The canonical workflow emits a fresh FINAL receipt, reserves it once with `assignment_dispatch_preflight.py --expected-target FINAL --consumer planner --write-path manuscript/main.md`, then requires Generator staging and `assignment_writer_commit.py` publication. The final gate still requires accepted M1-M4 and current wiki-grounding evidence or an authorized opt-out.
 
 ## MCR convergence evidence
 

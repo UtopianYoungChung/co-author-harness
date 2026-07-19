@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
-import subprocess
-import sys
+
+from assignment_receipt_transaction import ReceiptTransactionError, reserve_receipt
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +29,8 @@ def main() -> int:
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--receipt", required=True, type=Path)
     parser.add_argument("--expected-target", required=True, choices=EXPECTED_TARGETS)
+    parser.add_argument("--consumer", required=True, choices=("planner",))
+    parser.add_argument("--write-path", required=True, action="append")
     args = parser.parse_args()
 
     project = args.project_root.resolve()
@@ -40,56 +41,17 @@ def main() -> int:
     )
     if not GATE.is_file():
         return _refuse("APG-RECEIPT-INVALID", f"predicate engine is missing: {GATE}")
-    if not receipt_path.is_file():
-        return _refuse(
-            "APG-RECEIPT-MISSING", f"missing assignment gate receipt: {receipt_path}"
-        )
     try:
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        return _refuse(
-            "APG-RECEIPT-INVALID",
-            f"cannot read valid receipt JSON from {receipt_path}: {exc}",
+        record, reserved = reserve_receipt(
+            project, receipt_path, args.expected_target, args.write_path
         )
-    if not isinstance(receipt, dict) or not isinstance(
-        receipt.get("target_milestone"), str
-    ):
-        return _refuse(
-            "APG-RECEIPT-INVALID", "receipt has no valid target_milestone"
-        )
-    actual_target = receipt["target_milestone"]
-    if actual_target != args.expected_target:
-        return _refuse(
-            "APG-RECEIPT-TARGET-MISMATCH",
-            f"expected {args.expected_target}; receipt authorizes {actual_target}",
-        )
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(GATE),
-            "--project-root",
-            str(project),
-            "--verify-receipt",
-            str(receipt_path),
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.stdout:
-        print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
-    if result.stderr:
-        print(result.stderr, file=sys.stderr, end="" if result.stderr.endswith("\n") else "\n")
-    if result.returncode != 0:
-        print(
-            "[BLOCKER] APG-DISPATCH-REFUSED: "
-            "assignment dispatch/write preflight did not pass"
-        )
-        return 4
-
+    except ReceiptTransactionError as exc:
+        return _refuse(exc.code, exc.message)
+    except OSError as exc:
+        return _refuse("APG-RECEIPT-INVALID", f"receipt reservation I/O failed: {exc}")
     print(
-        f"READY assignment-dispatch target={args.expected_target} receipt={receipt_path}"
+        f"READY assignment-dispatch target={args.expected_target} "
+        f"receipt={reserved} reservation_id={record['reservation_id']}"
     )
     return 0
 

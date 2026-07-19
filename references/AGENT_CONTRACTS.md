@@ -145,7 +145,7 @@ The Generator consumes the predecessor F9 packet and writes deliverable/revision
 **Role metaphor.** Academic-deliverable writer and sole author of M1–M4 deliverable bytes. Exact paths and timing are machine-bound by `role_output_contract.v1.json`. Operates against a Planner dispatch it did not approve and does not self-evaluate at the conceptual level.
 
 **Preconditions for invocation.**
-- The assignment receipt and predecessor F9 preflight pass for the active target.
+- Planner preflight has atomically reserved an immutable assignment receipt for the active target and exact intended paths; the predecessor F9 preflight also passes where applicable.
 - For M1–M3, the Planner dispatch names the exact target and no Evaluator artifact is required or permitted.
 - For M4 at Ph2+, `reviews/revision_plan.md` exists and the Evaluator's findings have been merged into the plan by the Planner.
 
@@ -157,12 +157,14 @@ The Generator consumes the predecessor F9 packet and writes deliverable/revision
 - `GROUNDING_PROTOCOL.md` (binding — applied on every write).
 - The active deliverable named by `role_output_contract.v1.json` and prior `manuscript/revision_log.md` entries.
 
-**Outputs (write).**
+**Outputs (author through the scoped writer transaction).**
 - M1: `research_notes/project_memo.md` in Ph1.
 - M2: `research_notes/annotated_references.md` in Ph1.
 - M3: `manuscript/outline.md` in Ph1, structured outline only.
 - M4: `manuscript/main.md` in Ph1–Ph3; initial assembly in Ph1 and finding-driven revision from Ph2.
 - `manuscript/revision_log.md` (append-only per-round entry using the **structured experiment log format** — see template below).
+
+The Generator stages these bytes only under `reviews/.harness/assignment/staged/<receipt_id>/` and authors a strict hash-bound write plan. `scripts/assignment_writer_commit.py` is the sole publisher to the live paths: it revalidates the reserved receipt, live role contract, target, `generator` role assertion, exact reserved path/mode set, reservation token, target preimages, and hashes; journals and publishes; writes the result sidecar; then consumes the receipt. Append-mode targets are staged as strict extensions. The Generator never bypasses this wrapper or edits receipt bytes. The staging directory and plan are the narrow transaction-control exception to I-Gen-1's general `reviews/*` prohibition.
 
 **Structured experiment log format** (inspired by autoresearch's hypothesis→change→result→verdict logging):
 
@@ -183,7 +185,7 @@ The Generator consumes the predecessor F9 packet and writes deliverable/revision
 The `Hypothesis` field is the critical addition: it forces the Generator to articulate *why* each change should help before making it, creating an auditable record that the Reflector uses to assess whether the harness's theory of improvement is sound.
 
 **Invariants.**
-- I-Gen-1: Never writes to `reviews/*`. Under a receipt-bound M1 or M2 dispatch, the only permitted `research_notes/*` write is the exact deliverable path authorized by `role_output_contract.v1.json`; otherwise `research_notes/*` remains read-only.
+- I-Gen-1: Never writes to `reviews/*` except receipt-scoped staged content and its write plan beneath `reviews/.harness/assignment/staged/<receipt_id>/`. Live deliverables are published only by `assignment_writer_commit.py`. Under a receipt-bound M1 or M2 dispatch, the only permitted `research_notes/*` target is the exact deliverable path authorized by the receipt; otherwise `research_notes/*` remains read-only.
 - I-Gen-2: Every edit traces to a specific action in `revision_plan.md` OR is logged as a "discretionary edit" with rationale.
 - I-Gen-3: Honors `GROUNDING_PROTOCOL.md` on every claim introduction: read-before-cite, compute-before-report, verify-before-reference, quote-before-attribute, mark-uncertainty, no-gap-filling.
 - I-Gen-4: Runs deterministic self-check patterns before signaling completion (the mechanical subset of `DETERMINISTIC_CHECKS.md` that does not require a full pass).

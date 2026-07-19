@@ -17,6 +17,7 @@ Exit: 0 all pass; 1 a case failed.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import subprocess
@@ -296,8 +297,12 @@ def _gate_project_with_receipt(proj: Path, target: str = "M1"):
     """A real gate project holding a GENUINE READY receipt for `target`."""
     import assignment_fixture_support as afs
 
-    afs.minimal_gate_project(proj, target=target)
-    rel = f"reviews/.harness/assignment/gate_receipt_{target}_20260717T000000Z.json"
+    phase_state = afs.minimal_gate_project(proj, target=target)
+    if target == "M4":
+        for key in ("M1", "M2", "M3"):
+            phase_state["milestone_framework"]["milestones"][key]["status"] = "accepted"
+        afs.write_wiki_evidence(proj, phase_state)
+    rel = f"reviews/.harness/assignment/ready/gate_receipt_{target}_20260717T000000Z.json"
     r = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "assignment_process_gate.py"),
          "--project-root", str(proj), "--stage", "draft",
@@ -319,7 +324,7 @@ def case_authorship_catches_non_generator_prose() -> None:
     """
     with tempfile.TemporaryDirectory() as td:
         proj = Path(td) / "p"
-        receipt, log = _gate_project_with_receipt(proj)
+        receipt, log = _gate_project_with_receipt(proj, target="M4")
         if not receipt.is_file():
             check("authorship anchor has a genuine receipt", False,
                   f"gate did not emit one: {log[-120:]}")
@@ -346,12 +351,51 @@ def case_authorship_catches_non_generator_prose() -> None:
         check("fabricated revision_log -> REFUSED",
               rc == 4 and "FRC-AUTHORSHIP" in codes(p), f"rc={rc}")
 
-        # 4. genuine receipt + valid Generator round -> PASS
-        (proj / "manuscript" / "revision_log.md").write_text(_ROUND_ENTRY,
-                                                             encoding="utf-8")
+        # 4. genuine scoped writer transaction + valid Generator round -> PASS
+        (proj / "manuscript" / "revision_log.md").write_text("", encoding="utf-8")
+        record = json.loads(receipt.read_text(encoding="utf-8"))
+        preflight = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "assignment_dispatch_preflight.py"),
+             "--project-root", str(proj), "--receipt", str(receipt),
+             "--expected-target", "M4", "--consumer", "planner",
+             "--write-path", "manuscript/main.md",
+             "--write-path", "manuscript/revision_log.md"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check("M4 receipt reserves for the exact writer paths", preflight.returncode == 0,
+              (preflight.stdout or "")[-120:])
+        reserved = receipt.parent.parent / "reserved" / receipt.name
+        staged = (proj / "reviews" / ".harness" / "assignment" / "staged"
+                  / record["receipt_id"])
+        staged.mkdir(parents=True, exist_ok=True)
+        staged_main = staged / "main.md"
+        staged_log = staged / "revision_log.md"
+        staged_main.write_bytes((proj / "manuscript" / "main.md").read_bytes())
+        staged_log.write_text(_ROUND_ENTRY, encoding="utf-8")
+        plan = {
+            "schema_version": "1.0.0", "receipt_id": record["receipt_id"],
+            "reservation_id": record["reservation_id"], "target_milestone": "M4",
+            "role": "generator", "writes": [
+                {"staged_path": staged_main.relative_to(proj).as_posix(),
+                 "target_path": "manuscript/main.md",
+                 "sha256": hashlib.sha256(staged_main.read_bytes()).hexdigest()},
+                {"staged_path": staged_log.relative_to(proj).as_posix(),
+                 "target_path": "manuscript/revision_log.md",
+                 "sha256": hashlib.sha256(staged_log.read_bytes()).hexdigest()},
+            ],
+        }
+        plan_path = staged / "write_plan.json"
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+        writer = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "assignment_writer_commit.py"),
+             "--project-root", str(proj), "--receipt", str(reserved),
+             "--plan", str(plan_path)], capture_output=True, text=True,
+            encoding="utf-8", errors="replace")
+        check("scoped writer commits M4 evidence", writer.returncode == 0,
+              (writer.stdout or "")[-120:])
+        receipt = receipt.parent.parent / "consumed" / receipt.name
         rc, p, _ = run("authorship", "--project-root", str(proj))
         check("genuine receipt + valid Generator round PASSES", rc == 0,
-              f"rc={rc} {str((p or {}).get('findings'))[:90]}")
+              f"rc={rc} {str((p or {}).get('findings'))[:500]}")
 
         # 5. same valid round, receipt now STALE -> refused
         st = json.loads((proj / "reviews/phase_state.json").read_text(encoding="utf-8"))

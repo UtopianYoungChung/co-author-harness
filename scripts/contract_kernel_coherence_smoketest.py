@@ -45,6 +45,22 @@ def main() -> int:
     case["components"][1]["id"] = case["components"][0]["id"]
     require_error(case, "duplicate component id")
 
+    for required_id in (
+        "assignment-process-gate",
+        "assignment-dispatch-preflight",
+        "assignment-receipt-transaction",
+        "assignment-writer-commit",
+        "assignment-receipt-invalidate",
+        "assignment-receipt-recover",
+        "assignment-receipt-schema",
+        "assignment-receipt-template",
+    ):
+        case = copy.deepcopy(data)
+        case["components"] = [
+            row for row in case["components"] if row["id"] != required_id
+        ]
+        require_error(case, f"required components missing: {required_id}")
+
     case = copy.deepcopy(data)
     case["components"][0]["path"] = "../phase_state_schema.md"
     require_error(case, "missing or unsafe")

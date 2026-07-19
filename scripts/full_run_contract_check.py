@@ -51,9 +51,8 @@ So the rule for this file, and for anything extending it:
 Concretely, every predicate below DELEGATES:
 
   project / contract / receipt   assignment_process_gate.verify_receipt
-                                 (binds receipt to live phase_state + contract
-                                 bytes, so staleness is its verdict, not ours)
-                                 + assignment_dispatch_preflight.py
+                                 (read-only readiness; actual Planner dispatch
+                                 performs the sole exact-path reservation)
   milestones, approvals,         milestone_framework_validate.validate_gate over
   artifact + F9 packet bytes,    ALL THREE boundaries (ph1_to_ph2, ph4_admission,
   events, G.4 / ship signoff     ph4_terminal_close). `_signed_status` requires
@@ -93,10 +92,10 @@ Usage
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -164,9 +163,11 @@ from audit import schema as audit_schema           # noqa: E402
 # so, which is its call to make, not ours.
 # ---------------------------------------------------------------------------
 
-PREFLIGHT = SCRIPTS / "assignment_dispatch_preflight.py"
-
 OK, REFUSED, ERROR = 0, 4, 2
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 # The assignment gate's target vocabulary is M1..M4 + FINAL; the milestone
 # ledger's schema is M1..M5 with additionalProperties:false (verified against
@@ -445,23 +446,30 @@ def derive_active_target(project_root: Path) -> tuple[str | None, list[dict]]:
     return None, []  # every applicable milestone accepted: nothing to author
 
 
-def _find_receipt(project_root: Path, target: str) -> Path | None:
+def _find_receipt(
+    project_root: Path, target: str, states: tuple[str, ...] = ("ready",)
+) -> Path | None:
     """The receipt path is DERIVED from the assignment gate's own contract.
 
-    reviews/.harness/assignment/gate_receipt_{target}_<utc>.json -- the shape
+    reviews/.harness/assignment/<state>/gate_receipt_{target}_<utc>.json -- the shape
     `assignment_process_gate._receipt_path_finding` enforces. We do not invent a
     location, and we do not accept one from an argument: newest candidate wins
     and `verify_receipt` decides whether it is actually valid and fresh.
     """
-    d = project_root / "reviews" / ".harness" / "assignment"
-    if not d.is_dir():
+    root = project_root / "reviews" / ".harness" / "assignment"
+    if not root.is_dir():
         return None
-    cands = sorted(d.glob(f"gate_receipt_{target}_*.json"))
+    cands = sorted(
+        path
+        for state in states
+        for path in (root / state).glob(f"gate_receipt_{target}_*.json")
+        if not path.name.endswith(".result.json")
+    )
     return cands[-1] if cands else None
 
 
 def authorize(project_root: Path | None) -> list[dict]:
-    """§2 in full: floor (1-2) + derived target (3) + READY receipt (4) + preflight (5).
+    """Read-only §2 readiness: floor, active target, and current READY receipt.
 
     A resolved contract used to be the whole test, which meant items 3-5 of the
     contract this script claims to enforce were simply not enforced. The receipt
@@ -504,7 +512,7 @@ def authorize(project_root: Path | None) -> list[dict]:
             f"Run scripts/assignment_process_gate.py --project-root <p> --stage "
             f"{'final' if target == 'FINAL' else 'draft'} "
             f"{'' if target == 'FINAL' else f'--target-milestone {target} '}"
-            "--emit-receipt reviews/.harness/assignment/"
+            "--emit-receipt reviews/.harness/assignment/ready/"
             f"gate_receipt_{target}_<utc>.json. A resolved contract alone does not "
             "authorize a write: it says what the work IS, not that this round may "
             "do it now.",
@@ -517,16 +525,9 @@ def authorize(project_root: Path | None) -> list[dict]:
                    active_target=target, receipt=str(receipt))
                 for code, msg in gate_findings]
 
-    pf = subprocess.run(
-        [sys.executable, str(PREFLIGHT), "--project-root", str(project_root),
-         "--receipt", str(receipt), "--expected-target", target],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
-    if pf.returncode != 0:
-        return [_f("FRC-CONTRACT-MISSING",
-                   f"assignment_dispatch_preflight.py refused the dispatch for "
-                   f"{target} (exit {pf.returncode})",
-                   active_target=target, receipt=str(receipt),
-                   preflight_stdout=pf.stdout.strip()[:600])]
+    # Deliberately read-only. Actual Planner dispatch performs the one and only
+    # READY->RESERVED transition with exact --write-path arguments. Calling the
+    # destructive preflight here would consume the dispatch opportunity early.
     return findings
 
 
@@ -767,7 +768,7 @@ def check_authorship(project_root: Path) -> list[dict]:
     target, derr = derive_active_target(project_root)
     if derr or target is None:
         return findings
-    receipt = _find_receipt(project_root, target)
+    receipt = _find_receipt(project_root, target, states=("consumed",))
     if receipt is None:
         findings.append(_f(
             "FRC-AUTHORSHIP",
@@ -777,7 +778,9 @@ def check_authorship(project_root: Path) -> list[dict]:
             "to run: those bytes were written without authorization.",
             files=files, active_target=target))
         return findings
-    gate_findings = apg.verify_receipt(project_root.resolve(), receipt.resolve())
+    gate_findings = apg.verify_receipt(
+        project_root.resolve(), receipt.resolve(), allow_consumed=True
+    )
     if gate_findings:
         findings.extend(_f(
             "FRC-AUTHORSHIP",
@@ -785,6 +788,31 @@ def check_authorship(project_root: Path) -> list[dict]:
             f"for {target}: {code}: {msg}",
             files=files, active_target=target, receipt=str(receipt))
             for code, msg in gate_findings)
+        return findings
+    result_path = receipt.with_suffix(".result.json")
+    try:
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        findings.append(_f(
+            "FRC-AUTHORSHIP",
+            f"consumed receipt has no valid publication result: {exc}",
+            files=files, active_target=target, receipt=str(receipt)))
+        return findings
+    published = result.get("published") if isinstance(result, dict) else None
+    if not isinstance(published, list):
+        findings.append(_f(
+            "FRC-AUTHORSHIP", "publication result has no published path/hash list",
+            files=files, active_target=target, receipt=str(receipt)))
+        return findings
+    for row in published:
+        if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+            findings.append(_f("FRC-AUTHORSHIP", "publication result row is invalid", files=files))
+            continue
+        path = project_root / row["path"]
+        if not path.is_file() or row.get("sha256") != _sha256(path):
+            findings.append(_f(
+                "FRC-AUTHORSHIP", f"published path/hash is missing or stale: {row.get('path')}",
+                files=files, active_target=target, receipt=str(receipt)))
     return findings
 
 

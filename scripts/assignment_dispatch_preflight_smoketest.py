@@ -86,6 +86,7 @@ def create_project(root: Path) -> tuple[Path, Path]:
         reviews
         / ".harness"
         / "assignment"
+        / "ready"
         / "gate_receipt_M1_20260715T000000Z.json"
     )
     return reviews, receipt
@@ -112,7 +113,10 @@ def emit_receipt(project: Path, receipt: Path) -> subprocess.CompletedProcess[st
 
 
 def run_preflight(
-    project: Path, receipt: Path, expected_target: str
+    project: Path,
+    receipt: Path,
+    expected_target: str,
+    write_path: str = "research_notes/project_memo.md",
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -124,6 +128,10 @@ def run_preflight(
             str(receipt),
             "--expected-target",
             expected_target,
+            "--consumer",
+            "planner",
+            "--write-path",
+            write_path,
         ],
         text=True,
         capture_output=True,
@@ -140,27 +148,26 @@ def main() -> int:
     assert "assignment_gate_target: <T>" in planner_contract
     assert "assignment_dispatch_preflight.py" in planner_contract
     assert "--emit-receipt" in planner_contract
-    assert "status: consumed" in planner_contract
+    assert "--consumer planner" in planner_contract
+    assert "--write-path" in planner_contract
+    assert "assignment_receipt_invalidate.py" in planner_contract
+    assert "status: consumed" not in planner_contract
     phase_1_contract = RUN_PHASE_1.read_text(encoding="utf-8")
     assert "assignment_dispatch_preflight.py" in phase_1_contract
     assert "ph1_draft_completion.md" in phase_1_contract
     assert "protocol violation" in phase_1_contract
-    assert "assignment_dispatch_preflight.py" in RUN_DRAFT.read_text(encoding="utf-8")
-    assert "assignment_dispatch_preflight.py" in RUN_PHASE_4.read_text(encoding="utf-8")
-    assert "assignment_dispatch_preflight.py" in RUN_FINALIZE.read_text(encoding="utf-8")
+    assert "assignment_writer_commit.py" in RUN_DRAFT.read_text(encoding="utf-8")
+    assert "assignment_writer_commit.py" in RUN_PHASE_4.read_text(encoding="utf-8")
+    assert "assignment_writer_commit.py" in RUN_FINALIZE.read_text(encoding="utf-8")
     orchestration_contract = ORCHESTRATION.read_text(encoding="utf-8")
-    assert "assignment_gate_receipt: <path>" in orchestration_contract
+    assert "assignment_gate_receipt: <reserved-path>" in orchestration_contract
     assert "assignment_gate_target: <T>" in orchestration_contract
     assert "assignment_dispatch_preflight.py" in orchestration_contract
     generator_contract = GENERATOR.read_text(encoding="utf-8")
-    assert "assignment_dispatch_preflight.py" in generator_contract
-    assert "zero bytes" in generator_contract
-    assert "return the blocker block verbatim" in generator_contract
-    assert "manuscript/**" in generator_contract
-    assert "milestones/**" in generator_contract
-    assert "research_notes/project_memo.md" in generator_contract
-    assert "research_notes/annotated_references.md" in generator_contract
-    assert "best-effort" in generator_contract
+    assert "assignment_writer_commit.py" in generator_contract
+    assert "reviews/.harness/assignment/staged/<receipt_id>/" in generator_contract
+    assert "reserved" in generator_contract
+    assert "direct final-path write" in generator_contract
     bootstrap_contract = BOOTSTRAP.read_text(encoding="utf-8")
     assert "APG-CONTRACT-MISSING" in bootstrap_contract
     assert "assignment_source.path" in bootstrap_contract
@@ -173,6 +180,9 @@ def main() -> int:
     assert "templates/assignment_gate_receipt.json" in manifest_contract
     assert "scripts/assignment_dispatch_preflight.py" in manifest_contract
     assert "scripts/assignment_process_gate.py" in manifest_contract
+    assert "scripts/assignment_writer_commit.py" in manifest_contract
+    assert "scripts/assignment_receipt_invalidate.py" in manifest_contract
+    assert "scripts/assignment_receipt_recover.py" in manifest_contract
 
     fresh_skip = FIXTURES / "fresh_skip_gate"
     if not fresh_skip.is_dir():
@@ -185,6 +195,7 @@ def main() -> int:
         / "reviews"
         / ".harness"
         / "assignment"
+        / "ready"
         / "gate_receipt_M1_missing.json"
     )
     assert not fresh_receipt.exists()
@@ -214,7 +225,7 @@ def main() -> int:
     assert wrong_target_blocked.returncode == 4, (
         wrong_target_blocked.stdout + wrong_target_blocked.stderr
     )
-    assert "APG-RECEIPT-TARGET-MISMATCH" in wrong_target_blocked.stdout
+    assert "APG-RECEIPT-PATH-INVALID" in wrong_target_blocked.stdout
     assert "APG-DISPATCH-REFUSED" in wrong_target_blocked.stdout
     assert snapshot(wrong_target_fixture) == wrong_target_before
 
@@ -231,45 +242,62 @@ def main() -> int:
 
         emitted = emit_receipt(project, receipt)
         assert emitted.returncode == 0, emitted.stdout + emitted.stderr
-        before_ready = snapshot(project)
+        contract_before = (reviews / "assignment_contract.json").read_bytes()
+        phase_before = (reviews / "phase_state.json").read_bytes()
         ready = run_preflight(project, receipt.relative_to(project), "M1")
         assert ready.returncode == 0, ready.stdout + ready.stderr
         assert "READY assignment-dispatch target=M1" in ready.stdout
-        assert snapshot(project) == before_ready, "successful preflight must be read-only"
+        reserved = receipt.parent.parent / "reserved" / receipt.name
+        assert not receipt.exists() and reserved.is_file(), "preflight must atomically reserve READY"
+        assert (reviews / "assignment_contract.json").read_bytes() == contract_before
+        assert (reviews / "phase_state.json").read_bytes() == phase_before
 
         copied_receipt = project / "gate_receipt_M1_copied.json"
-        copied_receipt.write_bytes(receipt.read_bytes())
+        copied_receipt.write_bytes(reserved.read_bytes())
         wrong_path = run_preflight(project, copied_receipt, "M1")
         assert wrong_path.returncode == 4, wrong_path.stdout + wrong_path.stderr
-        assert "APG-RECEIPT-INVALID" in wrong_path.stdout
+        assert "APG-RECEIPT-PATH-INVALID" in wrong_path.stdout
         assert "APG-DISPATCH-REFUSED" in wrong_path.stdout
+        replay = run_preflight(project, receipt, "M1")
+        assert replay.returncode == 4, replay.stdout + replay.stderr
+        assert "APG-RECEIPT-RESERVED" in replay.stdout
 
+    with tempfile.TemporaryDirectory() as temp:
+        project = Path(temp) / "wrong-target-project"
+        _, receipt = create_project(project)
+        emitted = emit_receipt(project, receipt)
+        assert emitted.returncode == 0, emitted.stdout + emitted.stderr
         wrong_target = run_preflight(project, receipt, "M2")
         assert wrong_target.returncode == 4, wrong_target.stdout + wrong_target.stderr
         assert "APG-RECEIPT-TARGET-MISMATCH" in wrong_target.stdout
-        assert "APG-DISPATCH-REFUSED" in wrong_target.stdout
 
+    with tempfile.TemporaryDirectory() as temp:
+        project = Path(temp) / "stale-project"
+        reviews, receipt = create_project(project)
+        emitted = emit_receipt(project, receipt)
+        assert emitted.returncode == 0, emitted.stdout + emitted.stderr
         phase_path = reviews / "phase_state.json"
-        phase_bytes = phase_path.read_bytes()
-        phase = json.loads(phase_bytes)
+        phase = json.loads(phase_path.read_text(encoding="utf-8"))
         phase["milestone_framework"]["milestones"]["M1"]["status"] = "in_progress"
         phase_path.write_text(json.dumps(phase, indent=2) + "\n", encoding="utf-8")
         stale = run_preflight(project, receipt, "M1")
         assert stale.returncode == 4, stale.stdout + stale.stderr
         assert "APG-RECEIPT-STALE" in stale.stdout
-        assert "APG-DISPATCH-REFUSED" in stale.stdout
-        phase_path.write_bytes(phase_bytes)
 
-        receipt_record = json.loads(receipt.read_text(encoding="utf-8"))
-        receipt_record["status"] = "consumed"
-        receipt_record["consumed_at"] = "2026-07-15T00:01:00Z"
-        receipt.write_text(json.dumps(receipt_record, indent=2) + "\n", encoding="utf-8")
+    with tempfile.TemporaryDirectory() as temp:
+        project = Path(temp) / "terminal-state-project"
+        _, receipt = create_project(project)
+        emitted = emit_receipt(project, receipt)
+        assert emitted.returncode == 0, emitted.stdout + emitted.stderr
+        consumed_path = receipt.parent.parent / "consumed" / receipt.name
+        consumed_path.parent.mkdir(parents=True)
+        receipt.replace(consumed_path)
         consumed = run_preflight(project, receipt, "M1")
         assert consumed.returncode == 4, consumed.stdout + consumed.stderr
         assert "APG-RECEIPT-CONSUMED" in consumed.stdout
-
-        receipt_record["status"] = "invalidated"
-        receipt.write_text(json.dumps(receipt_record, indent=2) + "\n", encoding="utf-8")
+        invalidated_path = consumed_path.parent.parent / "invalidated" / receipt.name
+        invalidated_path.parent.mkdir(parents=True, exist_ok=True)
+        consumed_path.replace(invalidated_path)
         invalidated = run_preflight(project, receipt, "M1")
         assert invalidated.returncode == 4, invalidated.stdout + invalidated.stderr
         assert "APG-RECEIPT-INVALID" in invalidated.stdout

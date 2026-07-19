@@ -381,6 +381,7 @@ fi
 MILESTONE_FRAMEWORK_TESTS=(
     assignment_process_gate_smoketest.py
     assignment_dispatch_preflight_smoketest.py
+    assignment_receipt_transaction_smoketest.py
     milestone_framework_smoketest.py
     reader_accessibility_contract_smoketest.py
     repin_register_smoketest.py
@@ -415,6 +416,12 @@ for TEST_RUNNER in "${MILESTONE_FRAMEWORK_TESTS[@]}"; do
 done
 
 MILESTONE_COMPILE_TARGETS=(
+    assignment_process_gate.py
+    assignment_dispatch_preflight.py
+    assignment_receipt_transaction.py
+    assignment_writer_commit.py
+    assignment_receipt_invalidate.py
+    assignment_receipt_recover.py
     milestone_framework_validate.py
     render_lifecycle_state.py
     migrate_legacy_milestones.py
@@ -432,6 +439,12 @@ done
 if (( MILESTONE_COMPILE_READY == 1 )); then
     echo "Milestone-feedback framework syntax check"
     if ! python3 -m py_compile \
+        "$PLUGIN_ROOT/scripts/assignment_process_gate.py" \
+        "$PLUGIN_ROOT/scripts/assignment_dispatch_preflight.py" \
+        "$PLUGIN_ROOT/scripts/assignment_receipt_transaction.py" \
+        "$PLUGIN_ROOT/scripts/assignment_writer_commit.py" \
+        "$PLUGIN_ROOT/scripts/assignment_receipt_invalidate.py" \
+        "$PLUGIN_ROOT/scripts/assignment_receipt_recover.py" \
         "$PLUGIN_ROOT/scripts/milestone_framework_validate.py" \
         "$PLUGIN_ROOT/scripts/render_lifecycle_state.py" \
         "$PLUGIN_ROOT/scripts/migrate_legacy_milestones.py"; then

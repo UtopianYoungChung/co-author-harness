@@ -122,8 +122,8 @@ is not a judgement call — it is refused with `FRC-SCOPE-DOWNGRADE`.
 2. `reviews/assignment_contract.json` is present and **resolved**;
 3. the active target milestone is derived from state — the first non-`accepted`
    of M1…M4 — never chosen by the agent;
-4. `scripts/assignment_process_gate.py` emits a READY receipt for that target;
-5. `scripts/assignment_dispatch_preflight.py` exits 0 against that receipt.
+4. `scripts/assignment_process_gate.py` emits an immutable READY receipt for that target and exact Generator output paths;
+5. Planner `scripts/assignment_dispatch_preflight.py` exits 0 and atomically reserves that receipt for those paths and modes; Generator stages only beneath its receipt-scoped staging root, and `scripts/assignment_writer_commit.py` journals and publishes the exact set, emits a publication-result sidecar binding paths, modes, and hashes, then consumes the receipt.
 
 If (1) or (2) is missing the run **fails closed** and the only permitted output
 is an actionable bootstrap instruction (§2.1). Specifically:

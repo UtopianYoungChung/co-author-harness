@@ -17,6 +17,8 @@ Two files are read unconditionally on every invocation:
 
 Everything else is on-demand per the routing table below.
 
+Assignment writer transaction entry points are `scripts/assignment_process_gate.py` (READY emission and read-only verification), `scripts/assignment_dispatch_preflight.py` (Planner reservation), `scripts/assignment_writer_commit.py` (journaled live-path publication), `scripts/assignment_receipt_invalidate.py` (explicit cancellation), and `scripts/assignment_receipt_recover.py` (inspected stale-claim recovery). State and target coordination is centralized in `scripts/assignment_receipt_transaction.py`.
+
 ---
 
 ## 2. Routing by task
@@ -25,7 +27,7 @@ Everything else is on-demand per the routing table below.
 |---|---|
 | **Any review, edit, critique, or refinement of academic prose** | `REVIEW_ORCHESTRATION.md`; `READER_ACCESSIBILITY.md`; resolve `policies/reader_accessibility.v1.json` through `scripts/reader_accessibility_policy.py`; invoke canonical `scripts/audit/run_all.py --project-root ... --phase PhN`, which emits D-STYLE plus the separate profile-bound Check 8 candidate artifact |
 | **Per-section phase advancement (Ph1 → Ph4)** | `ASSIGNMENT_MILESTONE_PROCESS.md` (pre-draft source/function gate); `PHASE_PROTOCOL.md`; `phase_state_schema.md` (incl. §2.2 stage/profile shadow fields at PR-3b.1); `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` (pre-transition milestone gates) |
-| **Project lifecycle, milestones, feedback, approval, or handoffs** | `ASSIGNMENT_MILESTONE_PROCESS.md`; bound profile under `policies/`; `schemas/assignment_gate_receipt.schema.json`; `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10 (axis coordination and phase-conditioned dispatch); run `scripts/assignment_process_gate.py --emit-receipt` then `scripts/assignment_dispatch_preflight.py` before academic Generator dispatch |
+| **Project lifecycle, milestones, feedback, approval, or handoffs** | `ASSIGNMENT_MILESTONE_PROCESS.md`; bound profile under `policies/`; `schemas/assignment_gate_receipt.schema.json`; `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; `AGENT_ORCHESTRATION.md` §10; emit READY with `assignment_process_gate.py`, reserve exact paths with `assignment_dispatch_preflight.py`, stage, publish with `assignment_writer_commit.py`, and use `assignment_receipt_invalidate.py` or explicit `assignment_receipt_recover.py` when required |
 | **Dispatching subagents** | `AGENT_ORCHESTRATION.md` (loop); `MODEL_ALLOCATION.md` (Opus-floor invariants); `AGENT_CONTRACTS.md` (per-agent obligations); `agents/<role>.md` (the role's full prompt) |
 | **Authoring Evaluator / Reflector artefacts** | `ARTEFACT_FRONTMATTER_SCHEMA.md` (F1–F8 families); `OUTPUT_ECONOMY_PROTOCOL.md` (default outputs, evidence packets, escalations) |
 | **Bootstrapping a new project** | `PROJECT_BOOTSTRAP.md`; `RESEARCH_ROOT_CLAUDE.md` (root-level governance); for assignment-bound projects, resolve the project-local assignment contract before first `/run-draft` |
@@ -72,7 +74,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | File | Role | When authoritative |
 |---|---|---|
 | `PHASE_PROTOCOL.md` (renamed from `TIER_PROTOCOL.md` at v0.7.4) | Lifecycle-Phase Ladder Ph1–Ph4; `§3.3.2` stability sub-mode; `§3.3.3` Check 8 accessibility gate; `§6.*` `phase_state.json` schema | Every phase-advance decision; v0.15.0-pre PR-3b.1 added optional `stage`/`profile` shadow fields |
-| `ASSIGNMENT_MILESTONE_PROCESS.md` + `policies/course_essay_milestones.v1.json` + `schemas/assignment_gate_receipt.schema.json` + `templates/assignment_gate_receipt.json` | Source-bound assignment intake; native M1→M4 checkpoint walk; strict single-use READY receipt; predecessor, wiki-grounding, and M4-onward exemplar gates; separate final-paper semantics; professor-copy authority | Before every drafting dispatch and before final-paper drafting/finalization; `scripts/assignment_process_gate.py` is the sole predicate engine and `scripts/assignment_dispatch_preflight.py` is the required dispatch/write entrypoint |
+| `ASSIGNMENT_MILESTONE_PROCESS.md` + `policies/course_essay_milestones.v1.json` + `schemas/assignment_gate_receipt.schema.json` + `templates/assignment_gate_receipt.json` | Source-bound assignment intake; native M1→M4 checkpoint walk; immutable directory-state receipt; exact path/mode reservations; target leases; recoverable publication journal; predecessor, wiki-grounding, and M4-onward exemplar gates; separate final-paper semantics | Before every drafting dispatch and finalization; `assignment_process_gate.py` decides readiness, `assignment_dispatch_preflight.py` reserves once, and `assignment_writer_commit.py` is the sole live-path publisher |
 | `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` | Canonical M1-M5 deliverable, feedback, adjudication, lineage, approval, reopening, handoff, migration, and gate-outcome contract | Every project milestone decision and every M1-M5 handoff |
 | `templates/milestone_event.json` | Authoring shape for one append-only milestone event inside `phase_state.json` | Planner milestone transaction writes and event-contract tests |
 | `phase_state_schema.md` | Normative `phase_state.json` schema; §2.2 documents PR-3b.1 stage/profile + PR-3b.2 MCR convergence-evidence advisory | Planner writes; every other agent reads |

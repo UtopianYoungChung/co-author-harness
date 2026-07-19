@@ -14,6 +14,16 @@ from typing import Any
 
 EXPECTED_PHASES = ["Ph1", "Ph2", "Ph3", "Ph4"]
 EXPECTED_MILESTONES = ["M1", "M2", "M3", "M4", "M5"]
+REQUIRED_COMPONENT_IDS = {
+    "lifecycle-transitions", "role-output-machine-contract", "phase-state",
+    "assignment-process", "milestone-handoff", "agent-contracts",
+    "full-run-contract", "grounding-protocol", "artefact-schema",
+    "course-essay-milestones", "reader-accessibility",
+    "assignment-receipt-schema", "assignment-receipt-template",
+    "assignment-process-gate", "assignment-dispatch-preflight",
+    "assignment-receipt-transaction", "assignment-writer-commit",
+    "assignment-receipt-invalidate", "assignment-receipt-recover",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -108,6 +118,9 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
             errors.append(f"{cid}: content hash drift")
         if not isinstance(component.get("migration_ids"), list):
             errors.append(f"{cid}: migration_ids must be a list")
+    missing_components = sorted(REQUIRED_COMPONENT_IDS - seen)
+    if missing_components:
+        errors.append(f"required components missing: {', '.join(missing_components)}")
 
     identity_path = _safe_file(root, data.get("plugin_identity_source"))
     if identity_path is None:
