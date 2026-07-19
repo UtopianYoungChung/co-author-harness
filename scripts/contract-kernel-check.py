@@ -48,6 +48,35 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
     if data.get("lifecycle", {}).get("milestones") != EXPECTED_MILESTONES:
         errors.append("lifecycle milestones must be M1 through M5")
 
+    lifecycle = data.get("lifecycle", {})
+    transition_path = _safe_file(root, lifecycle.get("transition_authority"))
+    role_path = _safe_file(root, lifecycle.get("role_output_authority"))
+    if transition_path is None:
+        errors.append("lifecycle.transition_authority is missing or unsafe")
+    else:
+        transition_contract = json.loads(transition_path.read_text(encoding="utf-8"))
+        state_rows = transition_contract.get("states", [])
+        state_ids = [row.get("id") for row in state_rows if isinstance(row, dict)]
+        expected_states = EXPECTED_PHASES[:3] + ["Ph3_converged", EXPECTED_PHASES[3]]
+        if state_ids != expected_states:
+            errors.append("transition authority lifecycle states are incoherent")
+    if role_path is None:
+        errors.append("lifecycle.role_output_authority is missing or unsafe")
+    else:
+        role_contract = json.loads(role_path.read_text(encoding="utf-8"))
+        role_milestones = role_contract.get("milestones", {})
+        expected_paths = {
+            "M1": "research_notes/project_memo.md",
+            "M2": "research_notes/annotated_references.md",
+            "M3": "manuscript/outline.md",
+            "M4": "manuscript/main.md",
+        }
+        if {
+            key: role_milestones.get(key, {}).get("deliverable_path")
+            for key in expected_paths
+        } != expected_paths:
+            errors.append("role output authority M1-M4 paths are incoherent")
+
     cap_path = data.get("capability_registry")
     if _safe_file(root, cap_path) is None:
         errors.append("capability_registry path is missing")

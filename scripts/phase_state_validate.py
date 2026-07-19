@@ -20,10 +20,10 @@
 #   4. Every log row matches the v0.7.4 seven-field shape (model_used
 #      may be null).
 #   5. Legal tier codes at v0.7.4 are {Ph1, Ph2, Ph3, Ph3_converged, Ph4}.
-#   6. Phase-ladder monotonicity is enforced along the log:
-#           Ph1 <= Ph2 <= Ph3 <= Ph3_converged <= Ph4
-#      Three exemptions are recognized; any other downward transition
-#      emits MONOTONICITY_VIOLATION.
+#   6. Every row is checked against the canonical lifecycle transition
+#      contract, including bootstrap, adjacency, trigger, and exact recovery
+#      targets.  Illegal downward movement emits MONOTONICITY_VIOLATION;
+#      every other illegal edge emits ILLEGAL_LIFECYCLE_TRANSITION.
 #   7. v0.8.0 P2.1a (beta-P-9a) soft type-check: if the additive sixteenth
 #      field `pre_mcr_deep_pass_completed` is present on a section, it
 #      must be a bool; otherwise emit SECTION_BAD_PRE_MCR_DEEP_PASS_TYPE
@@ -48,11 +48,8 @@
 #
 # Legal trigger enum
 # ------------------
-# The validator does NOT enforce trigger names — that is the Planner's
-# responsibility (the authoritative enum lives in TIER_PROTOCOL.md ->
-# PHASE_PROTOCOL.md at v0.7.4).  The validator only checks that `trigger`
-# is a non-empty string.  Two triggers receive special handling because
-# they license downward transitions (see monotonicity exemptions above).
+# Trigger names and exact source/target pairs are enforced from
+# references/lifecycle_transitions.v1.json via lifecycle_contract.py.
 #
 # Exit codes
 # ----------
@@ -80,6 +77,11 @@ if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
 from milestone_framework_validate import validate_document as validate_milestone_document
+from lifecycle_contract import (
+    monotonicity_exemptions,
+    states as lifecycle_states,
+    transition_allowed,
+)
 from round_identifier import ROUND_ID_FORMAT, is_valid_round_id
 
 # -----------------------------------------------------------------------------
@@ -88,8 +90,8 @@ from round_identifier import ROUND_ID_FORMAT, is_valid_round_id
 
 SUPPORTED_SCHEMA_VERSION = "0.7.4"
 
-# Phase-ladder ordering.  Indices encode the legal progression.
-PHASE_ORDER = ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"]
+# Phase-ladder ordering. The canonical machine-readable lifecycle owns it.
+PHASE_ORDER = lifecycle_states()
 PHASE_INDEX = {p: i for i, p in enumerate(PHASE_ORDER)}
 
 # v0.15.0-pre PR-3b.1 — additive stage/profile shadow fields. The validator
@@ -115,11 +117,7 @@ REQUIRED_LOG_FIELDS = {
 
 LEGAL_ACTORS = {"planner", "evaluator", "generator", "reflector", "user"}
 
-MONOTONICITY_EXEMPTIONS = {
-    "retraction",
-    "eg1_ph4_downgrade_to_ph3",
-    "eg7_mcr_readmission_after_class_change",
-}
+MONOTONICITY_EXEMPTIONS = monotonicity_exemptions()
 
 # Legacy v0.7.3 field names we translate in-memory when dual-reading.
 LEGACY_FIELD_RENAMES_SECTION = {
@@ -302,30 +300,47 @@ def _validate_log_row(
 def _validate_monotonicity(
     log: list[dict], log_path: str, findings: list[Finding]
 ) -> None:
+    expected_previous: object = None
     for i, row in enumerate(log):
         if not isinstance(row, dict):
             continue
         prev = row.get("prev_phase")
         new = row.get("new_phase")
         trigger = row.get("trigger", "")
-        if prev is None:
-            continue  # bootstrap row
         if prev not in PHASE_INDEX or new not in PHASE_INDEX:
-            continue  # already flagged as bad_phase
-        if PHASE_INDEX[new] >= PHASE_INDEX[prev]:
-            continue  # non-downward transition is fine
-        # Downward transition.  Must be exempt.
-        if trigger not in MONOTONICITY_EXEMPTIONS:
+            if not (i == 0 and prev is None and new in PHASE_INDEX):
+                continue  # already flagged as bad_phase
+
+        if prev != expected_previous:
             findings.append(Finding(
-                code="MONOTONICITY_VIOLATION",
+                code="LIFECYCLE_LOG_DISCONTINUITY",
                 severity=Severity.BLOCKER,
                 path=f"{log_path}[{i}]",
                 message=(
-                    f"downward transition {prev!r} -> {new!r} is not licensed "
-                    f"by trigger {trigger!r}.  Legal downgrade triggers: "
-                    f"{sorted(MONOTONICITY_EXEMPTIONS)}"
+                    f"prev_phase {prev!r} does not match the preceding row's "
+                    f"new_phase {expected_previous!r}"
                 ),
             ))
+
+        if not transition_allowed(trigger, prev, new):
+            downward = (
+                prev in PHASE_INDEX
+                and new in PHASE_INDEX
+                and PHASE_INDEX[new] < PHASE_INDEX[prev]
+            )
+            code = "MONOTONICITY_VIOLATION" if downward else "ILLEGAL_LIFECYCLE_TRANSITION"
+            findings.append(Finding(
+                code=code,
+                severity=Severity.BLOCKER,
+                path=f"{log_path}[{i}]",
+                message=(
+                    f"trigger {trigger!r} does not license lifecycle transition "
+                    f"{prev!r} -> {new!r}"
+                ),
+            ))
+
+        if new in PHASE_INDEX:
+            expected_previous = new
 
 
 def _validate_section(

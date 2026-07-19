@@ -40,7 +40,7 @@ See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the
 | Read this first | Why |
 | --- | --- |
 | [`CLAUDE.md`](CLAUDE.md) (repo root) | **When the package is invoked**, precedence in one place, and maintainer check commands. |
-| [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) | **Intent → phase** dispatch and exit gates—read before dispatching a round. |
+| [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) | **Intent → canonical milestone/state** routing; its seven labels are derived and never persisted. |
 | [`references/QUICKSTART.md`](references/QUICKSTART.md) | One-page operator primer (session open, failure modes, shortcuts). |
 | [`references/OPERATING_MANUAL.md`](references/OPERATING_MANUAL.md) | Full runbook when you inherit the package cold. |
 | [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
@@ -81,13 +81,13 @@ package root. Profile-mode output remains byte-compatible with existing binds.
 ## Quick start
 
 1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).
-2. **Start every substantive session** by reading [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) and naming the phase you are in—same spirit as the operational “one rule” in [`references/QUICKSTART.md`](references/QUICKSTART.md).
+2. **Start every substantive session** by resolving the project’s active milestone and canonical lifecycle state through [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md); do not persist a derived intent label as state.
 3. **Wire a research project** using the standard tree and `reviews/phase_state.json` as the ledger; bootstrap details are in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md).
 
 **Example (session open)** — what you can literally ask the agent:
 
 ```text
-Read references/ROUTING_SPINE.md, then tell me which phase this session should
+Read references/ROUTING_SPINE.md, then tell me which milestone and lifecycle state this session should
 run under and which artefact you will touch first.
 ```
 

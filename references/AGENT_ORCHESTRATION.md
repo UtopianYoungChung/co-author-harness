@@ -683,13 +683,13 @@ This section specifies their normal coordination and phase-conditioned agent dis
 
 | Milestone | Artifact | Normal phase binding | Dispatch notes |
 |---|---|---|---|
-| **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 1: Planner authors with Generator; no Evaluator engagement |
-| **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 2: Generator drafts; Planner curates; no Evaluator engagement |
-| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Ph1 sub-phase 3: Generator may seed prose stubs aligned to the outline. |
-| **M4 — Paper Draft** | `manuscript/main.md` | **Ph2 Review & Revise → Ph3 Iterate & Converge** | Ph2 is the review-ready dispatch stage and first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
+| **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
+| **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
+| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Generator writes a structured outline only; prose stubs belong to M4. |
+| **M4 — Paper Draft** | `manuscript/main.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator assembles the first complete draft in Ph1; Ph2 is the first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
 | **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
-The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where the Planner records user/advisor feedback and checklist evidence without engaging the Evaluator. M4 remains the manuscript deliverable while Ph2-Ph3 govern its review and convergence. M5 certifies the exact final manuscript bytes at Ph4.
+The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. M5 certifies the exact final manuscript bytes at Ph4. Machine-readable authority: `role_output_contract.v1.json`.
 
 #### Native course-essay auto-walk
 
@@ -751,7 +751,7 @@ Planner (Ph1; coordinates with M1 deliverable)
 
 ```
 Planner (Ph1 — orchestrates outline sub-phase)
-  → Generator (may seed prose stubs aligned to the outline)
+  → Generator (writes the structured outline; no prose stubs)
   → Reflector-lightweight (optional)
 ```
 
@@ -759,8 +759,20 @@ Planner (Ph1 — orchestrates outline sub-phase)
 
 | Check | What it verifies |
 |---|---|
-| Section coverage | Does the outline have one entry per top-level section that will be drafted at M4 across its Ph2-Ph3 dispatch stages? |
+| Section coverage | Does the outline have one entry per top-level section that will be drafted during M4 initial assembly in Ph1 and reviewed across Ph2-Ph3? |
 | Deliverable path | Is `phase_deliverable_path` populated with the outline file's path? |
+
+#### M4 dispatch stage — Initial manuscript assembly at Ph1
+
+```
+Planner (requires accepted M1-M3 and a preflighted M4 receipt)
+  → Generator (assembles the first complete manuscript at manuscript/main.md)
+  → Planner (runs deterministic and grounding gates; presents M4 draft checkpoint)
+```
+
+M4 initial assembly completes Ph1 drafting maturity; it does not engage the
+Evaluator. Only after the Ph1 exit gate and explicit phase approval may the
+project advance to Ph2.
 
 #### M4 dispatch stage — Review-ready draft at Ph2
 

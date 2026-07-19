@@ -128,7 +128,7 @@ Two **optional** shadow fields are accepted on every `SectionStateObject`:
 
 **`heading_path`** — `array<string>`. Ordered list of heading tokens rooted at the manuscript's top-level heading. Uniqueness key for the section.
 
-**`current_phase`** — `enum`. Legal values at v0.7.4: `"Ph1"`, `"Ph2"`, `"Ph3"`, `"Ph3_converged"`, `"Ph4"`. **`"Ph4_ready"` is retired** (v0.6.0 → v0.7.0 rename carried forward at v0.7.4). `"Ph3_converged"` is the staging state between a terminal Ph3 convergence-signoff row and a subsequent MCR admission to Ph4; semantically it is *not* a phase but a post-Ph3 readiness flag that admits the section to Ph4 via the Manuscript Convergence Report (`PHASE_PROTOCOL.md §9`). Movement is monotonic except under the three exempt triggers (see §3) and except for the `Ph3_converged → Ph3` re-entry path specified in `PHASE_PROTOCOL.md §8.5`. Renamed at v0.7.4 from `current_tier`.
+**`current_phase`** — `enum`. Legal values: `"Ph1"`, `"Ph2"`, `"Ph3"`, `"Ph3_converged"`, `"Ph4"`. `"Ph4_ready"` is retired. `"Ph3_converged"` is not a fifth phase; it is the readiness state between a terminal Ph3 convergence-signoff row and MCR admission to Ph4. Exact legal source/trigger/target triples, including recovery, are machine-authoritative in `lifecycle_transitions.v1.json` and enforced by `phase_state_validate.py`.
 
 **`last_approved_phase`** — `enum | null`. Highest phase at which the user has approved this section. Legal: `null` (before first approval), `"Ph1"`, `"Ph2"`, `"Ph3"`, `"Ph4"`. `"Ph3_converged"` is not a legal `last_approved_phase` value. Never decreases except under `retraction`. Renamed at v0.7.4 from `last_approved_tier`.
 
@@ -205,7 +205,7 @@ The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) a
 | # | `trigger` | When it fires | Typical `prev_phase` → `new_phase` |
 |---|---|---|---|
 | 1 | `initial_dispatch` | Section created fresh; first row. | `null → Ph1` |
-| 2 | `user_approval` | Binary approval clears; section advances, locks, or stages at `Ph3_converged`. | `Ph1 → Ph2`, `Ph2 → Ph3`, `Ph3 → Ph3_converged` (via terminal signoff), `Ph3_converged → Ph4` (via MCR admission) |
+| 2 | `user_approval` | Explicit milestone approval in Ph1 leaves phase unchanged; explicit phase-exit approval advances Ph1 or Ph2. | `Ph1 → Ph1` (milestone-only), `Ph1 → Ph2`, `Ph2 → Ph3`; never Ph3 → Ph4 |
 | 3 | `user_rejection` | User rejects; iteration_count increments. | `Ph_n → Ph_n` |
 | 4 | `user_defer` | Explicit pause; no ledger movement. | `Ph_n → Ph_n` |
 | 5 | `fingerprint_reset` | `cumulative_drift_lines` exceeded `tolerant_drift_threshold` (tolerant) or fingerprint mismatch (strict); at Ph3 emits warning instead. | `Ph_n → Ph_n` |
@@ -214,7 +214,7 @@ The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) a
 | 8 | `ceiling_locked` | Section reached applicable ceiling. | `Ph_n → Ph_n` |
 | 9 | `ceiling_raised` | `/raise-ceiling` invoked or classification updated. | No phase movement |
 | 10 | `override_applied` | `section_ceiling_override` written. | No phase movement |
-| 11 | `retraction` | User explicitly retracts an approval (one of the three monotonicity-exempt triggers). | `Ph_n → Ph_{n-1}` |
+| 11 | `retraction` | User explicitly retracts an approval (one of the three monotonicity-exempt triggers). Exact targets are enumerated; arbitrary deep rollback is illegal. | `Ph2 → Ph1`; `Ph3 → Ph2`; `Ph3_converged → Ph3`; `Ph4 → Ph3` |
 | 12 | `ph1_draft_completion_signed` | User signs `ph1_draft_completion.md`. Prerequisite for Ph1→Ph2 advance. | `Ph1 → Ph1` |
 | 13 | `imodel_structural_validation_signed` | RETIRED at v0.11.0 with the SD/SR machinery cut. Migrated rows are read-only via `scripts/migrate_v0100_to_v0110_drop_sd_sr.py`; v0.11.0 ledgers do not emit this trigger. | No phase movement |
 | 14 | `ph2_review_completion_signed` | User signs `ph2_review_completion.md`. Prerequisite for Ph2→Ph3 advance. | `Ph2 → Ph2` |

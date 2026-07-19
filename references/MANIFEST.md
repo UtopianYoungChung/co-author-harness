@@ -56,7 +56,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `DETERMINISTIC_CHECKS.md` | Mechanical rule rationale (the runtime is `scripts/audit/`, not this file, since PR-2) | When you need to understand a finding's basis |
 | `OPERATING_MANUAL.md` | Full runbook: pre-requisites, session contract, seven phases, recovery, sustainment | Cold inheritance or failure diagnosis |
 | `QUICKSTART.md` | One-page operational primer | New user or mid-session correction |
-| `ROUTING_SPINE.md` | Phase-based intent dispatch (Think→Plan→Build→Review→Test→Ship→Reflect) | Read first on every invocation when arbitrating user intent |
+| `ROUTING_SPINE.md` | Derived intent routing into canonical milestone and lifecycle contracts | Read when arbitrating user intent; never treat its seven labels as persisted state |
 
 ### Binding constraints (cannot be overridden by agent instructions)
 

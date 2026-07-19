@@ -593,12 +593,41 @@ def _assert_re_chain_contract(project: Path) -> None:
 
 
 def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[str, Any]:
+    phase_entry_log = [{
+        "prev_phase": None,
+        "new_phase": "Ph1",
+        "trigger": "initial_dispatch",
+        "actor": "planner",
+        "notes": "Fixture bootstrap.",
+        "timestamp": "2026-07-13T17:55:00Z",
+        "model_used": None,
+    }]
+    if current_phase in {"Ph2", "Ph3", "Ph3_converged", "Ph4"}:
+        phase_entry_log.append({
+            "prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval",
+            "actor": "user", "notes": "Fixture entered Ph2.",
+            "timestamp": "2026-07-13T17:56:00Z", "model_used": None,
+        })
+    if current_phase in {"Ph3", "Ph3_converged", "Ph4"}:
+        phase_entry_log.append({
+            "prev_phase": "Ph2", "new_phase": "Ph3", "trigger": "user_approval",
+            "actor": "user", "notes": "Fixture entered Ph3.",
+            "timestamp": "2026-07-13T17:57:00Z", "model_used": None,
+        })
+    if current_phase in {"Ph3_converged", "Ph4"}:
+        phase_entry_log.append({
+            "prev_phase": "Ph3", "new_phase": "Ph3_converged",
+            "trigger": "ph3_convergence_signoff_terminal", "actor": "planner",
+            "notes": "Fixture reached convergence readiness.",
+            "timestamp": "2026-07-13T17:58:00Z", "model_used": None,
+        })
     if current_phase == "Ph4":
-        previous_phase = "Ph3_converged"
-        trigger = "mcr_admission"
-    else:
-        previous_phase = "Ph1"
-        trigger = "user_approval"
+        phase_entry_log.append({
+            "prev_phase": "Ph3_converged", "new_phase": "Ph4",
+            "trigger": "mcr_admission", "actor": "planner",
+            "notes": "Fixture admitted by MCR.",
+            "timestamp": "2026-07-13T18:00:00Z", "model_used": None,
+        })
     return {
         "schema_version": "0.7.4",
         "manuscript_id": "smoke-project",
@@ -610,15 +639,7 @@ def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[
             "1. Test": {
                 "current_phase": current_phase,
                 "pre_mcr_deep_pass_completed": current_phase == "Ph4",
-                "phase_entry_log": [{
-                    "prev_phase": previous_phase,
-                    "new_phase": current_phase,
-                    "trigger": trigger,
-                    "actor": "user",
-                    "notes": "Fixture reached terminal state.",
-                    "timestamp": "2026-07-13T18:00:00Z",
-                    "model_used": None,
-                }],
+                "phase_entry_log": phase_entry_log,
             }
         },
         "milestone_framework": ledger,
@@ -1299,7 +1320,7 @@ def _write_real_case(case: str, project: Path) -> None:
     elif case == "list_shaped_sections":
         document["sections"] = []
     elif case == "ph4_without_mcr_admission":
-        document["sections"]["1. Test"]["phase_entry_log"][0]["trigger"] = "user_approval"
+        document["sections"]["1. Test"]["phase_entry_log"][-1]["trigger"] = "user_approval"
     elif case == "inf_unlocked_ph3_sibling_blocks_ph4":
         document["sections"]["milestone5_v2_coauthor_layperson"] = {
             "current_phase": "Ph3",
@@ -1308,6 +1329,14 @@ def _write_real_case(case: str, project: Path) -> None:
             "applicable_ceiling": "Ph4",
             "pre_mcr_deep_pass_completed": True,
             "phase_entry_log": [{
+                "prev_phase": None, "new_phase": "Ph1", "trigger": "initial_dispatch",
+                "actor": "planner", "notes": "Synthetic sibling bootstrap.",
+                "timestamp": "2026-07-13T18:00:00Z", "model_used": None,
+            }, {
+                "prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval",
+                "actor": "user", "notes": "Synthetic sibling entered Ph2.",
+                "timestamp": "2026-07-13T18:00:30Z", "model_used": None,
+            }, {
                 "prev_phase": "Ph2", "new_phase": "Ph3", "trigger": "user_approval",
                 "actor": "user", "notes": "Synthetic unlocked sibling fixture.",
                 "timestamp": "2026-07-13T18:01:00Z", "model_used": None,
@@ -1324,6 +1353,10 @@ def _write_real_case(case: str, project: Path) -> None:
             "section_ceiling_override": "Ph2",
             "pre_mcr_deep_pass_completed": False,
             "phase_entry_log": [{
+                "prev_phase": None, "new_phase": "Ph1", "trigger": "initial_dispatch",
+                "actor": "planner", "notes": "Ceiling fixture bootstrap.",
+                "timestamp": "2026-07-13T17:59:00Z", "model_used": None,
+            }, {
                 "prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval",
                 "actor": "user", "notes": "Approved at explicit ceiling.",
                 "timestamp": "2026-07-13T18:00:00Z", "model_used": None,

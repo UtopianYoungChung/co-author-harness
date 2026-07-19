@@ -1,0 +1,53 @@
+{
+  "contract_version": "1.0.0",
+  "authority": "references/lifecycle_transitions.v1.json",
+  "states": [
+    {"id": "Ph1", "kind": "phase", "rank": 10, "stage": "draft"},
+    {"id": "Ph2", "kind": "phase", "rank": 20, "stage": "iterate"},
+    {"id": "Ph3", "kind": "phase", "rank": 30, "stage": "iterate"},
+    {"id": "Ph3_converged", "kind": "readiness", "rank": 35, "stage": "iterate"},
+    {"id": "Ph4", "kind": "phase", "rank": 40, "stage": "finalize"}
+  ],
+  "derived_intent_labels": ["Think", "Plan", "Build", "Review", "Test", "Ship", "Reflect"],
+  "monotonicity_exemptions": [
+    "retraction",
+    "eg1_ph4_downgrade_to_ph3",
+    "eg7_mcr_readmission_after_class_change"
+  ],
+  "transitions": [
+    {"id": "bootstrap", "trigger": "initial_dispatch", "from": [null], "to": ["Ph1"], "kind": "bootstrap"},
+    {"id": "milestone_approval_ph1", "trigger": "user_approval", "from": ["Ph1"], "to": ["Ph1"], "kind": "milestone-only"},
+    {"id": "phase_approval_forward", "trigger": "user_approval", "from": ["Ph1", "Ph2"], "to_by_from": {"Ph1": "Ph2", "Ph2": "Ph3"}, "kind": "forward"},
+    {"id": "terminal_approval_no_movement", "trigger": "user_approval", "from": ["Ph3_converged", "Ph4"], "to": ["$same"], "kind": "approval"},
+    {"id": "user_rejection", "trigger": "user_rejection", "from": ["Ph1", "Ph2", "Ph3", "Ph4"], "to": ["$same"], "kind": "iteration"},
+    {"id": "user_defer", "trigger": "user_defer", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "pause"},
+    {"id": "fingerprint_reset", "trigger": "fingerprint_reset", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "evidence-invalidation"},
+    {"id": "mcr_admission", "trigger": "mcr_admission", "from": ["Ph3_converged"], "to": ["Ph4"], "kind": "forward"},
+    {"id": "mcr_cancelled", "trigger": "laggard_clearance_cancelled", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "pause"},
+    {"id": "ceiling_locked", "trigger": "ceiling_locked", "from": ["Ph1", "Ph2", "Ph3"], "to": ["$same"], "kind": "ceiling"},
+    {"id": "ceiling_raised", "trigger": "ceiling_raised", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "configuration"},
+    {"id": "override_applied", "trigger": "override_applied", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "configuration"},
+    {"id": "retraction", "trigger": "retraction", "from": ["Ph2", "Ph3", "Ph3_converged", "Ph4"], "to_by_from": {"Ph2": "Ph1", "Ph3": "Ph2", "Ph3_converged": "Ph3", "Ph4": "Ph3"}, "kind": "recovery"},
+    {"id": "ph1_completion", "trigger": "ph1_draft_completion_signed", "from": ["Ph1"], "to": ["Ph1"], "kind": "evidence"},
+    {"id": "legacy_imodel", "trigger": "imodel_structural_validation_signed", "from": ["Ph1"], "to": ["Ph1"], "kind": "historical-read-only"},
+    {"id": "ph2_completion", "trigger": "ph2_review_completion_signed", "from": ["Ph2"], "to": ["Ph2"], "kind": "evidence"},
+    {"id": "owner_transferred", "trigger": "escalation_owner_transferred", "from": ["Ph2", "Ph3"], "to": ["$same"], "kind": "evidence"},
+    {"id": "owner_assigned", "trigger": "escalation_named_owner_assigned", "from": ["Ph2", "Ph3"], "to": ["$same"], "kind": "evidence"},
+    {"id": "ph3_iteration", "trigger": "ph3_iteration_round", "from": ["Ph3"], "to": ["Ph3"], "kind": "iteration"},
+    {"id": "ph3_signoff_row", "trigger": "ph3_convergence_signoff_row", "from": ["Ph3"], "to": ["Ph3"], "kind": "evidence"},
+    {"id": "ph3_reengagement", "trigger": "ph3_stale_reengagement_signoff", "from": ["Ph3"], "to": ["Ph3"], "kind": "recovery"},
+    {"id": "ph3_terminal_signoff", "trigger": "ph3_convergence_signoff_terminal", "from": ["Ph3"], "to": ["Ph3_converged"], "kind": "forward"},
+    {"id": "mcr_stale_block", "trigger": "mcr_blocked_ph3_stale", "from": ["Ph3", "Ph3_converged"], "to": ["$same"], "kind": "blocked-attempt"},
+    {"id": "eg7_recovery", "trigger": "eg7_mcr_readmission_after_class_change", "from": ["Ph4"], "to": ["Ph3"], "kind": "forced-recovery"},
+    {"id": "eg1_recovery", "trigger": "eg1_ph4_downgrade_to_ph3", "from": ["Ph4"], "to": ["Ph3"], "kind": "forced-recovery"},
+    {"id": "eg6_warning", "trigger": "eg6_override_inconsistency_warning", "from": ["Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"], "to": ["$same"], "kind": "warning"},
+    {"id": "wiki_ingest", "trigger": "m5_wiki_ingest", "from": ["Ph4"], "to": ["Ph4"], "kind": "external-effect"},
+    {"id": "plugin_update", "trigger": "plugin_update_proposed_by_planner", "from": ["Ph4"], "to": ["Ph4"], "kind": "evidence"},
+    {"id": "accessibility_block", "trigger": "ph3_accessibility_blocker_surfaced", "from": ["Ph3"], "to": ["Ph3"], "kind": "blocked-attempt"},
+    {"id": "ph3_manuscript_iteration", "trigger": "ph3_iteration_round_manuscript", "from": ["Ph3"], "to": ["Ph3"], "kind": "iteration"},
+    {"id": "stability_escalation", "trigger": "stability_mode_escalated_to_full_ph3", "from": ["Ph3"], "to": ["Ph3"], "kind": "profile-change"},
+    {"id": "seed_snowball", "trigger": "seed_snowball_signed", "from": ["Ph1"], "to": ["Ph1"], "kind": "evidence"}
+  ],
+  "plain_user_approval_at_Ph3": "illegal; continue with ph3_iteration_round or converge with ph3_convergence_signoff_terminal",
+  "migration_only_triggers": ["v0_7_state_rename"]
+}
