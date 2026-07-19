@@ -6,6 +6,56 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.32.0 — 2026-07-19
+
+### On-demand single-centroid (Eric-Yu) register pass — `/centroid-pass`
+
+**What changed.** New Package skill SK-47 `centroid-pass` (+ command shim,
+`/plugin-commands` catalog row, SKILL_REGISTRY entry) exposes the single-centroid
+Eric-Yu domain-native register as an on-demand surface. It is a thin front door
+onto `domain_native_register.derivations` (`write` / `review` / `revise` / `all`)
+that runs the same three derivations outside the automatic activation path — the
+Ph1 Generator draft and the Ph2–Ph4 SAFEGUARD Check 8 Sub-check H — and outside
+the M4 milestone gate that the Generator otherwise enforces at M1–M3. Additive:
+no change to the register model, the exemplar set, the two view pins, the C-7
+fence, or the four-agent contract. The policy object at
+`references/policies/reader_accessibility.v1.json` remains the sole authority;
+the skill reads a resolved profile and never re-pins.
+
+**Three authorized posture decisions (2026-07-19).**
+*Milestone — override-with-warning:* the pass runs at any milestone but emits
+`APG-EXEMPLAR-M4-FENCE-BYPASSED` whenever it runs below M4 or on an unbound
+project, so the assignment-scope fence is bypassed visibly, never silently.
+*Output — advisory dry-run by default, `--apply` opt-in:* every mode is read-only
+and writes proposals to `reviews/`; `--apply` lets `write`/`revise` commit
+through the Generator with a logged revision diff, and `review` is read-only
+regardless. *Binding — package-default fallback:* resolves the project
+`reader_accessibility` binding when present, else the package-pinned profile, so
+the pass works on any manuscript; the output records `binding_provenance`.
+
+**Invariants preserved.** The C-7 identity fence (discipline layer only, never the
+author's voice/cadence/humor), the `argument-only` exemplar rule (Dennett feeds
+argument architecture and attestation membership but never the surface-register
+target), retrieval-conditions-not-determines generation, and the Grounding
+Protocol. No mode can BLOCK or gate a TerminalSignoffRow; the automatic Sub-check
+H remains the gating surface. Re-pinning stays `/repin-register`-only.
+
+**Why.** User directive to make the centroid on-demand rather than only
+phase/milestone-triggered, after a verification pass confirmed the register core
+is a single-centroid Yu model (Crozier was never part of the style instrument in
+any build) and that the centroid otherwise fires only automatically from M4.
+
+**How to apply.** `/centroid-pass <write|review|revise|all> [scope] [--apply]
+[--exemplar-warrant surface|argument|both]`. Start with
+`/centroid-pass review full_manuscript` (dry-run) to read the warrant map before
+committing to any substitution.
+
+**Verification.** `skill-check`, `catalog-check`, `version-check`,
+`path-hygiene-check`, `snippet-check`, and `ssot-check` all pass with 0 blockers
+(43 skills, 23 commands; all count consumers consistent).
+
+---
+
 ## v0.31.1 — 2026-07-19
 
 ### Full-run enforcement surfaces and deliberate register re-pin

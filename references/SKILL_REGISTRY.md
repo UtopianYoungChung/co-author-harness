@@ -514,6 +514,16 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Trigger:** Milestone transition, grounded-source-admitting snowball round, MF-POLICY semantic-pin discovery, or explicit manual package maintenance.
 - **Sibling:** SK-20 `graph-grounding-overlay` (may surface corpus changes); SK-25/26/27 phase skills (consume Planner-applied bindings, never the pending request directly).
 
+### SK-47. `centroid-pass`
+- **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
+- **Pattern:** On-demand front door onto `domain_native_register.derivations` — runs the single-centroid Eric-Yu register `write` / `review` / `revise` derivation against a manuscript scope outside the automatic Ph1-Generator / Ph2–Ph4 Sub-check-H path. Advisory dry-run by default; `--apply` commits `write`/`revise` through the Generator with a logged diff (`review` is always read-only). Overrides the M1–M3 assignment-scope fence but emits `APG-EXEMPLAR-M4-FENCE-BYPASSED` whenever it runs below M4 or on an unbound project. Falls back to the package-pinned profile when the project is unbound. Reads a resolved profile only — never re-pins, never writes `phase_state.json`, never gates a TerminalSignoffRow.
+- **Created:** 2026-07-19 from a user directive to make the centroid on-demand (design decisions: milestone override-with-warning; advisory-default + `--apply`; package-default binding fallback).
+- **Tier:** Package
+- **Status:** Active
+- **Depends on:** `references/policies/reader_accessibility.v1.json` (`domain_native_register`), `scripts/reader_accessibility_policy.py` (resolve path), `agents/generator.md` (apply path, C-7 fence, DO_NOT_DISTURB), `references/GROUNDING_PROTOCOL.md`.
+- **Trigger:** Explicit `/centroid-pass <mode>` only; never auto-dispatched.
+- **Sibling:** SK-46 `repin-register` (the pin-motion path; centroid-pass never re-pins); `accessibility-overlay` Sub-check H (the automatic, gating counterpart of `review` mode).
+
 ---
 
 ## Orchestration Commands (v0.7.0)
