@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/Version-manifest-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
 [![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
-[![License](https://img.shields.io/badge/License-UNLICENSED-888888)](#license)
+[![License](https://img.shields.io/badge/License-MIT-2ea44f)](#license)
 
 [Quick start](#quick-start) · [Documentation](#documentation) · [Repository layout](#repository-layout) · [Changelog](CHANGELOG.md)
 
@@ -179,7 +179,7 @@ Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
-**UNLICENSED** (see [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json)). Author: **Young Jo(seph) Chung** — `jo.chung@utoronto.ca`.
+Licensed under the **MIT License** (see [`LICENSE`](LICENSE)). Author: **Young Jo(seph) Chung** — `jo.chung@utoronto.ca`.
 
 ---
 
