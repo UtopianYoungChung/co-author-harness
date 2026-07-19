@@ -49,7 +49,9 @@ def main() -> int:
         "manuscript/main.md",
     ):
         assert path in contracts
-    assert "Never writes to `reviews/*`. Under a receipt-bound M1 or M2" in contracts
+    assert "Never writes to `reviews/*` except receipt-scoped staged content" in contracts
+    assert "Live deliverables are published only by `assignment_writer_commit.py`" in contracts
+    assert "the exact deliverable path authorized by the receipt" in contracts
 
     generator = read("agents/generator.md")
     assert "sole writer of academic deliverables" in generator
