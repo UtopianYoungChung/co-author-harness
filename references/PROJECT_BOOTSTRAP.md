@@ -28,6 +28,35 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 ---
 
+## 0. Output-routing preflight (installation-gated)
+
+Before selecting or creating a project root, import `resolve` from the installed
+`governance/output-routing/codex/resolver.py` and resolve the exact artifact
+tuple. For a research-strand manuscript:
+
+```python
+route = resolve(
+    "co_author_harness",
+    "draft",
+    "research_strand",
+    "manuscript",
+)
+born_template = route["destination_path"]
+```
+
+Use `course_essay` for an assignment-bound manuscript. Use the separately
+declared review-record and reference-set tuples for those artifact classes.
+Do not catch `RoutingError` and substitute a conventional path.
+
+The resolver intentionally returns `<work-id>` unexpanded. The installed
+binder validates an existing governed package; it neither creates a package nor
+authorizes a new work id. New-package creation must stop until a separately
+authorized transaction establishes the concrete id and WORK_PACKAGE.yaml. Never
+infer either from a title, folder name, current directory, or stale metadata.
+
+The directory structure below remains the harness authority for the shape
+inside the resolved project root. The routing contract owns only the born root.
+
 ## 1. The Standard Project Directory
 
 Every research project gets this structure. Files marked `[seed]` are created at bootstrap time with template content. Files marked `[runtime]` are created by agents during the lifecycle.

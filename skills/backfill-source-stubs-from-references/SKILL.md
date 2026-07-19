@@ -10,6 +10,20 @@ version: 1.1
 
 # Backfill Source Stubs from References
 
+## Output-routing preflight (future activation only)
+
+Before any canonical Wiki mutation is re-enabled, resolve this exact tuple:
+
+```python
+resolve("co_author_harness", "curate", "knowledge_graph", "wiki_page")
+```
+
+Use only the returned `destination_path`; do not substitute a literal Wiki
+path. The installed manifest resolves this tuple to WIKI_CURATED, but route
+declaration is destination-only and does not enable mutation. `RoutingError` is
+a hard stop. While the governed write transaction is unavailable, retain the
+structured deferred result below.
+
 ## FAIL-CLOSED: Wiki mutation unavailable
 
 Canonical Wiki create/overwrite/append/promote is **unavailable**.

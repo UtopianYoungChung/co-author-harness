@@ -13,6 +13,28 @@ version: 1.0
 ---
 
 # Retrofit Concept Grounding
+## Output-routing preflight (current hard stop)
+
+Before Phase 1, resolve this exact tuple:
+
+```python
+resolve("co_author_harness", "curate", "knowledge_graph", "wiki_page")
+```
+
+Use only the returned `destination_path`; do not substitute a literal Wiki
+path. The installed manifest resolves this tuple to WIKI_CURATED, but route
+declaration is destination-only and PROJECT_BOOTSTRAP still declares the write
+transaction unavailable. That independent barrier stops mutation. Return:
+
+```yaml
+status: deferred
+reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE
+wiki_page_key: null
+```
+
+Do not enter the phases below until the governed write transaction is available;
+route resolution alone is not write enablement.
+
 
 You are executing **Coupling B** — the concept-page grounding retrofit that closes the loop between the wiki's external-source layer (populated by SK-15) and the concept pages that cite those sources in prose without wikilinks. The retrofit is **surgical**: you convert in-prose citations into wikilinks, update frontmatter, and append a grounding footer. You do NOT rewrite the page's argument, reorder its sections, or alter its claims.
 

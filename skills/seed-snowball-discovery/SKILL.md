@@ -11,6 +11,19 @@ version: 1.0
 
 ## FAIL-CLOSED: Canonical Wiki mutation unavailable
 
+Before any canonical Wiki mutation is re-enabled, resolve this exact tuple:
+
+```python
+resolve("co_author_harness", "curate", "knowledge_graph", "wiki_page")
+```
+
+Use only the returned `destination_path`; do not substitute a literal Wiki
+path. The installed manifest resolves this tuple to WIKI_CURATED, but route
+declaration is destination-only and does not enable mutation. `RoutingError` is
+a hard stop. Read-only Wiki consultation may continue under the existing rules,
+but it does not authorize writes. While the governed transaction is unavailable,
+retain the structured deferred result below.
+
 Canonical Wiki create/overwrite/append/promote is **unavailable**.
 
 For any path that would mutate `knowledge/LLM wiki/wiki/**` (including retired
