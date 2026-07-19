@@ -53,8 +53,12 @@ def state(project: Path) -> dict:
     return json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
 
 
-def checkpoint_input(project: Path, milestone: str, at: str, *, valid_m4: bool = True) -> Path:
-    evidence = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_feedback.md"
+def checkpoint_input(
+    project: Path, milestone: str, at: str, *, valid_m4: bool = True,
+    label: str = "initial", phase: str = "Ph1", cycle_id: str | None = None,
+) -> Path:
+    suffix = "" if label == "initial" else f"_{label}"
+    evidence = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_feedback{suffix}.md"
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text(f"Synthetic adjudicated feedback for {milestone}.\n", encoding="utf-8")
     policy: dict = {}
@@ -77,11 +81,14 @@ def checkpoint_input(project: Path, milestone: str, at: str, *, valid_m4: bool =
         })
         policy = {"wiki_grounding": {"evidence_path": grounding.relative_to(project).as_posix(), "evidence_sha256": sha(grounding)}}
     elif milestone == "M4":
-        policy = {"phase": "Ph1", "cycle_id": "m4-initial-assembly-001"} if valid_m4 else {"phase": "Ph1"}
+        policy = {
+            "phase": phase,
+            "cycle_id": cycle_id or f"m4-{label}-assembly-001",
+        } if valid_m4 else {"phase": phase}
     payload = {
         "schema_version": "1.0.0", "milestone": milestone,
         "feedback_records": [{
-            "feedback_id": f"{milestone.lower()}-feedback-1",
+            "feedback_id": f"{milestone.lower()}-feedback-{label}",
             "evidence_class": "direct_milestone_feedback",
             "source_path": evidence.relative_to(project).as_posix(), "source_sha256": sha(evidence),
             "source_actor": "user", "source_authority": "user",
@@ -97,29 +104,51 @@ def checkpoint_input(project: Path, milestone: str, at: str, *, valid_m4: bool =
         "open_debts": [], "next_milestone_instructions": [f"Use accepted {milestone} evidence."],
         "policy_evidence": policy,
     }
-    path = evidence.with_name(f"{milestone.lower()}_checkpoint{'_invalid' if not valid_m4 else ''}.json")
+    path = evidence.with_name(f"{milestone.lower()}_checkpoint{suffix}{'_invalid' if not valid_m4 else ''}.json")
     write_json(path, payload)
     return path
 
 
 def approval_input(project: Path, milestone: str, at: str) -> Path:
-    deliverable = project / PATHS[milestone]
+    if milestone == "M4":
+        record = state(project)["milestone_framework"]["milestones"][milestone]
+        artifact = next(row for row in record["artifacts"] if row["role"] == "deliverable")
+        deliverable_path = artifact["path"]
+    else:
+        deliverable_path = PATHS[milestone]
+    deliverable = project / deliverable_path
     path = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_approval.json"
     write_json(path, {
         "schema_version": "1.0.0", "status": "approved", "milestone": milestone,
         "authority": "user", "approved_at": at,
-        "deliverable": {"path": PATHS[milestone], "sha256": sha(deliverable)},
+        "deliverable": {"path": deliverable_path, "sha256": sha(deliverable)},
     })
     return path
+
+
+def advance_m4_fixture_to_ph2(project: Path) -> None:
+    """Prepare a valid Ph2 state so public M4 re-record can bind a revision."""
+    document = state(project)
+    for section in document["sections"].values():
+        section["current_phase"] = "Ph2"
+        section["phase_entry_log"].append({
+            "prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval",
+            "actor": "user", "notes": "Synthetic Ph2 entry for M4 revision.",
+            "timestamp": "2026-07-19T00:00:23.1Z", "model_used": None,
+        })
+    write_json(project / "reviews" / "phase_state.json", document)
 
 
 def converge_m4_fixture(project: Path) -> None:
     """Prepare upstream phase-owned state for the separate M4-accept test."""
     document = state(project)
     for section in document["sections"].values():
+        if section["current_phase"] == "Ph1":
+            section["phase_entry_log"].append(
+                {"prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval", "actor": "user", "notes": "Synthetic Ph2 entry.", "timestamp": "2026-07-19T00:00:23.1Z", "model_used": None}
+            )
         section["current_phase"] = "Ph3_converged"
         section["phase_entry_log"].extend([
-            {"prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval", "actor": "user", "notes": "Synthetic Ph2 entry.", "timestamp": "2026-07-19T00:00:23.1Z", "model_used": None},
             {"prev_phase": "Ph2", "new_phase": "Ph3", "trigger": "user_approval", "actor": "user", "notes": "Synthetic Ph3 entry.", "timestamp": "2026-07-19T00:00:23.2Z", "model_used": None},
             {"prev_phase": "Ph3", "new_phase": "Ph3_converged", "trigger": "ph3_convergence_signoff_terminal", "actor": "planner", "notes": "Synthetic terminal convergence signoff.", "timestamp": "2026-07-19T00:00:23.3Z", "model_used": None},
         ])
@@ -154,13 +183,13 @@ def m4_acceptance_policy_input(project: Path) -> Path:
     return policy
 
 
-def publish(project: Path, milestone: str, content: bytes) -> Path:
-    ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_{milestone}_walk.json"
+def publish(project: Path, milestone: str, content: bytes, *, label: str = "initial") -> Path:
+    ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_{milestone}_walk_{label}.json"
     run(GATE, "--project-root", project, "--stage", "draft", "--target-milestone", milestone, "--emit-receipt", ready)
     record = json.loads(ready.read_text(encoding="utf-8"))
     run(PREFLIGHT, "--project-root", project, "--receipt", ready, "--consumer", "planner", "--expected-target", milestone, "--write-path", PATHS[milestone])
     reserved = ready.parent.parent / "reserved" / ready.name
-    staged = project / "reviews" / ".harness" / "assignment" / "staged" / record["receipt_id"] / f"{milestone.lower()}.md"
+    staged = project / "reviews" / ".harness" / "assignment" / "staged" / record["receipt_id"] / f"{milestone.lower()}_{label}.md"
     staged.parent.mkdir(parents=True, exist_ok=True); staged.write_bytes(content)
     plan = staged.with_name("write_plan.json")
     write_json(plan, {
@@ -183,7 +212,7 @@ def main() -> int:
 
         # No state or F9 handoff is edited by this test: every lifecycle change
         # below goes through the public command under test.
-        ticks = iter(range(1, 30))
+        ticks = iter(range(1, 50))
         for milestone in ("M1", "M2", "M3"):
             print(f"walk/{milestone}", flush=True)
             if milestone != "M1":
@@ -233,6 +262,8 @@ def main() -> int:
         else:
             raise AssertionError("record accepted a checkpoint mutated after validation")
         assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_mutation
+        failed_snapshot = project / "reviews" / ".harness" / "milestones" / "artifacts" / "M4" / f"{sha(project / PATHS['M4'])}.md"
+        assert not failed_snapshot.exists(), "failed record left an unbound M4 snapshot"
         valid_checkpoint.write_bytes(checkpoint_bytes)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", valid_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
         after = state(project)["milestone_framework"]["milestones"]["M4"]
@@ -241,6 +272,37 @@ def main() -> int:
         assert after["policy_evidence"]["phase"] == "Ph1"
         assert after["policy_evidence"]["cycle_id"] == "m4-initial-assembly-001"
         run(VALIDATOR, "--project-root", project)
+
+        # Initial assembly is not the end of M4. A later, receipt-scoped
+        # Generator revision must be re-recordable without rewriting the first
+        # deliverable event or its exact-byte evidence.
+        initial_digest = manuscript["sha256"]
+        initial_event_count = len(state(project)["milestone_framework"]["events"])
+        advance_m4_fixture_to_ph2(project)
+        run(PHASE_VALIDATOR, "--project-root", project)
+        derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
+        assert derived == {"status": "READY", "milestone": "M4", "action": "revise"}, derived
+        revised_consumed = publish(
+            project, "M4", b"# M4 substantively revised manuscript\n",
+            label="ph2-revision",
+        )
+        revised_checkpoint = checkpoint_input(
+            project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z",
+            label="ph2-revision", phase="Ph2", cycle_id="m4-ph2-revision-001",
+        )
+        run(
+            CHECKPOINT, "record", "--project-root", project, "--milestone", "M4",
+            "--receipt", revised_consumed, "--checkpoint", revised_checkpoint,
+            "--at", f"2026-07-19T00:00:{next(ticks):02d}Z",
+        )
+        revised = state(project)["milestone_framework"]
+        revised_m4 = revised["milestones"]["M4"]
+        assert revised_m4["artifacts"][0]["sha256"] != initial_digest
+        assert revised_m4["policy_evidence"]["phase"] == "Ph2"
+        assert revised_m4["policy_evidence"]["cycle_id"] == "m4-ph2-revision-001"
+        assert len(revised["events"]) == initial_event_count + 3
+        run(VALIDATOR, "--project-root", project)
+        valid_checkpoint = revised_checkpoint
 
         approval = approval_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
         phase_before_accept = (project / "reviews" / "phase_state.json").read_bytes()

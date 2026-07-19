@@ -315,6 +315,12 @@ def derive(project: Path) -> dict[str, Any]:
             action = "begin"
         elif not record.get("artifacts"):
             action = "draft"
+        elif milestone == "M4" and any(
+            section.get("current_phase") != "Ph3_converged"
+            for section in state.get("sections", {}).values()
+            if isinstance(section, dict)
+        ):
+            action = "revise"
         else:
             action = "accept"
         return {"status": "READY", "milestone": milestone, "action": action}
@@ -521,8 +527,9 @@ def record(
     with transaction_claim(project, f"record:{milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         expected = derive(project)
-        if expected.get("milestone") != milestone or expected.get("action") != "draft":
-            raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived draft action")
+        allowed_actions = {"draft", "revise"} if milestone == "M4" else {"draft"}
+        if expected.get("milestone") != milestone or expected.get("action") not in allowed_actions:
+            raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived record action")
         receipt_record, relative, deliverable_path, digest, source_expectations = _receipt_result(project, receipt.resolve(), milestone)
         lineage = framework.get("primary_lineage")
         checkpoint, checkpoint_file, checkpoint_relative, checkpoint_sha, checkpoint_size = _validate_checkpoint(project, checkpoint_path.resolve(), milestone, lineage)
@@ -535,10 +542,18 @@ def record(
         expected_dependencies[str(checkpoint_file.resolve())] = checkpoint_sha
         if any(dependencies.get(path, (None, 0))[0] != expected_sha for path, expected_sha in expected_dependencies.items()):
             raise MilestoneTransactionError("AMC-DEPENDENCY-CHANGED", "a bound dependency changed between validation and snapshot capture")
+        artifact_path = deliverable_path
+        artifact_relative = relative
+        snapshot_created = False
+        snapshot_bytes: bytes | None = None
+        if milestone == "M4":
+            artifact_relative = f"reviews/.harness/milestones/artifacts/M4/{digest}.md"
+            artifact_path = project / Path(*PurePosixPath(artifact_relative).parts)
+            snapshot_bytes = deliverable_path.read_bytes()
         proposed = copy.deepcopy(state); proposed_framework = _framework(proposed); target = proposed_framework["milestones"][milestone]
         artifact = {
             "role": "deliverable", "artifact_kind": ARTIFACT_KIND[milestone],
-            "path": relative, "sha256": digest, "bytes": deliverable_path.stat().st_size,
+            "path": artifact_relative, "sha256": digest, "bytes": deliverable_path.stat().st_size,
             "verified_at": at, "lineage_id": lineage,
         }
         checkpoint_artifact = {
@@ -566,18 +581,28 @@ def record(
                 "phase": checkpoint["policy_evidence"]["phase"],
                 "cycle_id": checkpoint["policy_evidence"]["cycle_id"],
             })
-        artifact_binding = {"binding_type": "artifact", "path": relative, "sha256": digest}
+        artifact_binding = {"binding_type": "artifact", "path": artifact_relative, "sha256": digest}
         _append_event(proposed_framework, "deliverable_recorded", milestone, at, f"Planner recorded the consumed scoped-writer {milestone} deliverable.", bindings=[artifact_binding])
         feedback_bindings = [{"binding_type": "feedback", "path": row["source_path"], "sha256": row["source_sha256"]} for row in checkpoint["feedback_records"]]
         _append_event(proposed_framework, "feedback_recorded", milestone, at, f"Planner recorded current {milestone} feedback provenance.", bindings=feedback_bindings)
         _append_event(proposed_framework, "feedback_adjudicated", milestone, at, f"Planner recorded non-pending {milestone} feedback dispositions.", bindings=feedback_bindings)
-        _validate_prospective(project, proposed)
-        if _sha256(state_path) != prehash:
-            raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state changed during record transaction")
-        if _before_state_publish is not None:
-            _before_state_publish()
-        _recheck_dependencies(project, dependencies)
-        _atomic_replace(state_path, proposed)
+        try:
+            if snapshot_bytes is not None:
+                snapshot_created = _exclusive_bytes(artifact_path, snapshot_bytes)
+            _validate_prospective(project, proposed)
+            if _sha256(state_path) != prehash:
+                raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state changed during record transaction")
+            if _before_state_publish is not None:
+                _before_state_publish()
+            _recheck_dependencies(project, dependencies)
+            _atomic_replace(state_path, proposed)
+        except Exception:
+            if snapshot_created:
+                try:
+                    artifact_path.unlink()
+                except OSError:
+                    pass
+            raise
 
 
 def _validate_approval(project: Path, approval_path: Path, milestone: str, artifact: dict[str, Any]) -> tuple[dict[str, Any], str, str]:
@@ -659,7 +684,9 @@ def accept(
         raise MilestoneTransactionError("AMC-TARGET", "accept target must be M1-M4")
     with transaction_claim(project, f"accept:{milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
-        if derive(project) != {"status": "READY", "milestone": milestone, "action": "accept"}:
+        derived = derive(project)
+        permitted_actions = {"accept", "revise"} if milestone == "M4" else {"accept"}
+        if derived.get("status") != "READY" or derived.get("milestone") != milestone or derived.get("action") not in permitted_actions:
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived accept action")
         record_state = framework["milestones"][milestone]
         lineage = framework["primary_lineage"]
