@@ -8,6 +8,21 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## v0.32.0 — 2026-07-19
 
+### Full-run enforcement review follow-up
+
+**What changed.** The scoped hook now intercepts `MultiEdit` alongside
+`Write`/`Edit`, and malformed hook JSON fails closed whenever
+`FRC_PARENT_SCOPE` is active. The completeness report discovers projects from
+either native scaffold marker. Release gating now classifies every non-zero
+full-run smoketest and every missing portability smoketest as a BLOCKER; error
+substrings can no longer downgrade a genuine regression. Synthetic regressions
+pin each boundary.
+
+**Why.** Claude's independent adjudication of CodeRabbit's shipment review
+confirmed six correctness gaps. Historical version labels in this changelog and
+the README release-history table remain valid under the root version-authority
+policy and were intentionally left unchanged.
+
 ### On-demand single-centroid (Eric-Yu) register pass — `/centroid-pass`
 
 **What changed.** New Package skill SK-47 `centroid-pass` (+ command shim,

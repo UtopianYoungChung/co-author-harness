@@ -11,8 +11,10 @@ pins only the wrappers around ``full_run_contract_check.py``:
   compatible ``Agent`` spelling, must be intercepted only when a parent run
   scope is explicitly active;
 * path spelling must not bypass a manuscript write refusal;
+* malformed hook payloads must fail closed while a parent scope is active;
 * the post-hoc report must preserve the authoritative gate's no-verdict state;
-* callers may name an expected loose run root while scanning a mixed tree.
+* discovery must recognize either native project scaffold marker, while callers
+  may still name an expected loose run root in a mixed tree.
 
 Run:  python scripts/full_run_enforcement_surfaces_smoketest.py
 Exit: 0 all checks pass; 1 one or more checks fail.
@@ -59,6 +61,10 @@ def case_release_gate_captures_nonzero_under_errexit() -> None:
           "set +e" in before, before.strip())
     check("errexit is restored before verdict classification",
           "set -e" in after, after.strip())
+    check("every nonzero full-run smoketest is a blocker",
+          'grep -q "CorpusRootError"' not in text)
+    check("a missing corpus-portability smoketest is a blocker",
+          "Corpus-root portability smoketest: script missing" in text)
 
 
 def case_current_agent_interface_and_scope_activation() -> None:
@@ -67,6 +73,7 @@ def case_current_agent_interface_and_scope_activation() -> None:
     tokens = set(matcher.split("|"))
     check("observed Claude Code Task tool is matched", "Task" in tokens, matcher)
     check("Agent compatibility tool is matched", "Agent" in tokens, matcher)
+    check("MultiEdit manuscript writes are matched", "MultiEdit" in tokens, matcher)
 
     hook = load_module(
         "full_run_pretooluse_gate",
@@ -110,11 +117,67 @@ def case_current_agent_interface_and_scope_activation() -> None:
               rc == 0
               and decision.get("hookSpecificOutput", {}).get("permissionDecision") == "deny",
               out.getvalue().strip())
+
+        with tempfile.TemporaryDirectory() as td:
+            payload = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "MultiEdit",
+                "cwd": td,
+                "tool_input": {
+                    "file_path": "manuscript/essay.md",
+                    "edits": [{"old_string": "a", "new_string": "b"}],
+                },
+            }
+            old_stdin = hook.sys.stdin
+            hook.sys.stdin = io.StringIO(json.dumps(payload))
+            try:
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    rc = hook.main()
+            finally:
+                hook.sys.stdin = old_stdin
+            decision = json.loads(out.getvalue()) if out.getvalue().strip() else {}
+            check("MultiEdit routes through manuscript authorization",
+                  rc == 0
+                  and decision.get("hookSpecificOutput", {}).get("permissionDecision") == "deny",
+                  out.getvalue().strip())
     finally:
         if old is None:
             os.environ.pop("FRC_PARENT_SCOPE", None)
         else:
             os.environ["FRC_PARENT_SCOPE"] = old
+
+
+def case_malformed_payload_fails_closed_only_when_scope_is_active() -> None:
+    hook = load_module(
+        "full_run_pretooluse_gate_malformed",
+        ROOT / "scripts" / "hooks" / "full_run_pretooluse_gate.py",
+    )
+    old_scope = os.environ.pop("FRC_PARENT_SCOPE", None)
+    old_stdin = hook.sys.stdin
+    try:
+        hook.sys.stdin = io.StringIO("{")
+        with contextlib.redirect_stdout(io.StringIO()) as out, \
+             contextlib.redirect_stderr(io.StringIO()):
+            rc = hook.main()
+        check("malformed ordinary-session payload remains inert",
+              rc == 0 and not out.getvalue().strip(), out.getvalue().strip())
+
+        os.environ["FRC_PARENT_SCOPE"] = "full_lifecycle"
+        hook.sys.stdin = io.StringIO("{")
+        with contextlib.redirect_stdout(io.StringIO()) as out, \
+             contextlib.redirect_stderr(io.StringIO()):
+            rc = hook.main()
+        decision = json.loads(out.getvalue()) if out.getvalue().strip() else {}
+        check("malformed active-scope payload is denied",
+              rc == 0
+              and decision.get("hookSpecificOutput", {}).get("permissionDecision") == "deny",
+              out.getvalue().strip())
+    finally:
+        hook.sys.stdin = old_stdin
+        if old_scope is None:
+            os.environ.pop("FRC_PARENT_SCOPE", None)
+        else:
+            os.environ["FRC_PARENT_SCOPE"] = old_scope
 
 
 def case_path_normalization_blocks_forward_slashes() -> None:
@@ -186,6 +249,11 @@ def case_report_preserves_no_verdict_and_expected_roots() -> None:
         project = root / "real-project"
         (project / "reviews").mkdir(parents=True)
         (project / "reviews" / "phase_state.json").write_text("{}", encoding="utf-8")
+        contract_only = root / "contract-only-project"
+        (contract_only / "reviews").mkdir(parents=True)
+        (contract_only / "reviews" / "assignment_contract.json").write_text(
+            "{}", encoding="utf-8"
+        )
         loose = root / "narrated-output"
         loose.mkdir()
 
@@ -200,13 +268,9 @@ def case_report_preserves_no_verdict_and_expected_roots() -> None:
               and record.get("exit_hint") == 3,
               repr(record))
 
-        discover = getattr(report, "discover", None)
-        try:
-            roots = discover(root, [loose]) if discover else []
-        except TypeError:
-            roots = []
+        roots = report.discover(root, [loose])
         check("mixed-tree scan retains an explicitly expected loose run root",
-              project in roots and loose in roots,
+              project in roots and contract_only in roots and loose in roots,
               repr(roots))
 
 
@@ -215,6 +279,7 @@ def main() -> int:
     for case in (
         case_release_gate_captures_nonzero_under_errexit,
         case_current_agent_interface_and_scope_activation,
+        case_malformed_payload_fails_closed_only_when_scope_is_active,
         case_path_normalization_blocks_forward_slashes,
         case_terminal_claim_is_guarded_only_when_scope_is_active,
         case_report_preserves_no_verdict_and_expected_roots,

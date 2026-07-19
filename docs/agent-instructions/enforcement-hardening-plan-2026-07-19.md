@@ -1,7 +1,8 @@
 # Enforcement Hardening Plan — closing the narrated-run bypass (2026-07-19)
 
-**Status:** IMPLEMENTATION CANDIDATE (TDD repair in progress; not committed,
-version-bumped, packaged, or shipped).
+**Status:** IMPLEMENTED AND RELEASE-GATE VERIFIED. The historical `0.31.1`
+shipment work is incorporated into `main`; the plugin manifest remains the sole
+current-version authority.
 **Author context:** follows the root-cause audit of the 2026-07-18 "harness full run" that produced no milestone artefacts, and its 2026-07-17 twin recorded in `scripts/full_run_contract_check.py`.
 **Companion:** the bypass-surface inventory (B1–B7).
 
@@ -37,7 +38,8 @@ python scripts/full_run_completeness_report.py --search-root <workbench> \
   --expected-root <claimed-run-location>
 ```
 
-It discovers candidate project roots (`reviews/phase_state.json`) and retains
+It discovers candidate project roots from either native scaffold marker
+(`reviews/phase_state.json` or `reviews/assignment_contract.json`) and retains
 any explicitly supplied expected roots. It grades each as `COMPLETE` (gate exit
 0), `INCOMPLETE` (authoritative refusal, gate exit 4), `NO-PROJECT`, or
 `UNVERIFIABLE` (the gate could not form a verdict). Exit 0/1/2/3 respectively.
@@ -53,8 +55,8 @@ existed but were never gated. Phase 0.57 now runs both plus the synthetic
 `full_run_enforcement_surfaces_smoketest.py`; Phase 0.57b runs the portability
 contract. Expected non-zero exits are captured with `errexit` temporarily
 disabled, so the gate can classify them instead of exiting before its verdict.
-A `CorpusRootError` remains a host VOID warning pending the hermetic corpus
-fixture; every other failure is a BLOCKER.
+Every non-zero result and every missing smoketest is a BLOCKER; incidental error
+text cannot downgrade a contract regression to a warning.
 
 ## 4. Track B — CLI/SDK: prevention (inert in Cowork, hard block elsewhere)
 
@@ -65,7 +67,7 @@ A scoped `PreToolUse` + `Stop` hook that composes
 `FRC_PARENT_SCOPE=full_lifecycle|adhoc_review`; a global plugin hook may not
 assume ordinary coding agents belong to an academic lifecycle.
 
-- **Write/Edit into a normalized `manuscript/` path** → `authorize` under the
+- **Write/Edit/MultiEdit into a normalized `manuscript/` path** → `authorize` under the
   declared parent scope; a refusal returns `permissionDecision: "deny"`.
 - **Task / Agent dispatch** → `scope --parent-scope <declared> --child-brief <prompt>`;
   downgrade, escalation, contradiction, or omission is denied.
@@ -90,7 +92,7 @@ async def full_run_gate(input, tool_use_id, context):
     def deny(reason):
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
                 "permissionDecision": "deny", "permissionDecisionReason": reason}}
-    if tool in ("Write", "Edit") and "/manuscript/" in (ti.get("file_path","")):
+    if tool in ("Write", "Edit", "MultiEdit") and "/manuscript/" in (ti.get("file_path","")):
         root = ti["file_path"].split("/manuscript/")[0]
         r = subprocess.run([sys.executable, gate, "authorize",
               "--project-root", root, "--run-scope", "full_lifecycle"],
@@ -101,28 +103,29 @@ async def full_run_gate(input, tool_use_id, context):
 
 os.environ["FRC_PARENT_SCOPE"] = "full_lifecycle"
 options = ClaudeAgentOptions(hooks={"PreToolUse": [HookMatcher(
-    matcher="Write|Edit|Task|Agent", hooks=[full_run_gate])]})
+    matcher="Write|Edit|MultiEdit|Task|Agent", hooks=[full_run_gate])]})
 ```
 
 ## 5. Corpus-portability sub-finding (surfaced by this work)
 
 Two distinct states must remain separate:
 
-1. A host without the declared Windows corpus raises `CorpusRootError` — a
-   portability VOID until the suites receive a fixture-owned corpus snapshot.
-2. The current Windows corpus host resolves the roots but reports
-   `initial semantic pin mismatch for exemplar_view_pin; deliberate profile
-   repin required` — a governed semantic-drift BLOCKER, not a VOID.
+1. Declared Windows corpus roots remain provenance and are deliberately invalid
+   as execution roots on a foreign host; portable tests use the explicit
+   `--wiki-root`/`--workspace-root` override seam.
+2. A resolved corpus whose semantic pins drift is a governed BLOCKER, not a
+   portability exception. The confirmed epoch-5 re-pin resolved that state.
 
-The second state must be resolved through `/repin-register`; it must never be
-converted into a warning. After a hermetic fixture exists, tighten the
-`CorpusRootError` branch to BLOCKER too.
+The release gate therefore treats every non-zero full-run smoketest result as a
+BLOCKER. `corpus_root_portability_smoketest.py` separately pins both the foreign-
+host refusal and the cross-host override path.
 
 ## 6. Verification state
 
 - Synthetic enforcement surfaces: PASS on the current Windows host (Task / Agent
-  interface, scope activation, normalized path refusal, Stop gate, exit-code
-  preservation, mixed-tree expected-root handling, and `errexit` capture).
+  interface, Write/Edit/MultiEdit routing, scope activation, malformed-payload
+  refusal, normalized path refusal, Stop gate, exit-code preservation, both
+  scaffold discovery markers, mixed-tree expected roots, and `errexit` capture).
 - Claude Code 2.1.214 live host: PASS. The observed `Task` call was denied when
   its child brief omitted `run_scope`, then allowed after exact
   `full_lifecycle` inheritance; the Stop hook also executed successfully.
@@ -130,20 +133,18 @@ converted into a warning. After a hermetic fixture exists, tighten the
 - Current corpus-host lifecycle suites: PASS after the confirmed epoch-5
   exemplar-view re-pin; the attestation pin and register membership are
   unchanged.
-- Full fixture runner, release gate, pristine package build, and commit-bound
-  provenance: not yet run on this overlay.
+- Full fixture runner: PASS, 36/36 registered suites from a clean checkout.
+- Release gate and pristine package build: PASS with 0 blockers and the two
+  pre-existing warn-only policy measurements; provenance is commit-bound.
+- GitHub structural checks and CodeRabbit status: PASS on the historical PR #16
+  review trail before its branch was consolidated into `main`.
 
 ## 7. Governance / remaining steps (owner: maintainer, host-side)
 
-1. Ship `hooks/` as the explicitly activated CLI/SDK prevention surface.
-2. Package enumeration already includes every tracked non-archive path. Verify
-   exact membership after commit; do not add a second enumeration rule.
-3. Replace the remaining corpus-host VOID allowance with a hermetic fixture,
-   then tighten Phase 0.57 to BLOCKER on every host.
-4. Run the full `scripts/release-gate.sh` on the corpus host, commit the exact
-   overlay, and verify the commit-bound package provenance.
-5. Push the release branch for maintainer integration; the marketplace serves
-   GitHub, so a local commit alone does not distribute the plugin.
+1. Preserve the single package-enumeration rule and clean-checkout builder; do
+   not add a second population rule.
+2. Re-verify prevention on the target Cowork build and continue to constrain
+   shell write tools in authorship-critical SDK drivers.
 
 ## 8. What this does and does not buy
 

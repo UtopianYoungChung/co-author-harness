@@ -1253,13 +1253,9 @@ echo "============================================================"
 #     "narrated ladder, no artefacts" failure and the CodeRabbit semantic-bypass
 #     cases. These smoketests existed but were never gated (audit B7).
 #
-#     VOID-aware: cases that must resolve the pinned domain corpus raise
-#     CorpusRootError on a host that does not carry it (e.g. a Linux CI runner;
-#     see corpus_root_portability_smoketest.py and PR #12). Per the repo's
-#     environment-VOID != test-FAIL idiom (cf. build_plugin_provenance), a corpus
-#     void is a WARNING here, not a BLOCKER; a genuine contract-logic failure is
-#     a BLOCKER. The proper fix -- teaching these smoketests the --wiki-root
-#     override seam so they run everywhere -- is tracked in the hardening plan.
+#     Every nonzero result is a BLOCKER. Corpus portability has its own explicit
+#     override seam and Phase 0.57b regression, so an incidental error substring
+#     may never downgrade a genuine contract-logic failure to a warning.
 for FRC_SMOKE in full_run_contract_smoketest.py full_run_semantic_bypass_smoketest.py full_run_enforcement_surfaces_smoketest.py; do
     if [[ -f "$PLUGIN_ROOT/scripts/$FRC_SMOKE" ]]; then
         echo "Full-run contract smoketest ($FRC_SMOKE)"
@@ -1268,11 +1264,6 @@ for FRC_SMOKE in full_run_contract_smoketest.py full_run_semantic_bypass_smokete
         set -e
         if [[ $FRC_RC -eq 0 ]]; then
             echo "  [OK]      scripts/$FRC_SMOKE passed"
-        elif grep -q "CorpusRootError" <<< "$FRC_OUT"; then
-            echo "  [WARNING] scripts/$FRC_SMOKE VOID on this host: domain corpus not"
-            echo "            resolvable (CorpusRootError). Run on the corpus host or"
-            echo "            supply --wiki-root; logic cases still exercised."
-            WARNINGS=$((WARNINGS + 1))
         else
             echo "  [BLOCKER] scripts/$FRC_SMOKE failed (contract-logic regression)"
             BLOCKERS=$((BLOCKERS + 1))
@@ -1296,6 +1287,11 @@ if [[ -f "$PLUGIN_ROOT/scripts/corpus_root_portability_smoketest.py" ]]; then
     else
         echo "  [OK]      corpus_root_portability_smoketest.py passed"
     fi
+    echo ""
+else
+    echo "Corpus-root portability smoketest: script missing"
+    echo "  [BLOCKER] cannot run corpus_root_portability_smoketest.py"
+    BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi
 

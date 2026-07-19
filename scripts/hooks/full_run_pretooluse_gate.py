@@ -202,12 +202,13 @@ def _handle_stop(payload: dict) -> int:
 def main() -> int:
     if os.environ.get("FRC_GATE_HOOK_DISABLE"):
         return _allow()
+    active_scope = _active_parent_scope()
     try:
         payload = json.load(sys.stdin)
-    except Exception as e:  # malformed payload -> fail open
-        print(f"full_run_pretooluse_gate: unreadable payload ({e})", file=sys.stderr)
-        return _allow()
-    active_scope = _active_parent_scope()
+    except Exception as e:
+        reason = f"[FRC-HOOK-ERROR] unreadable hook payload: {e}"
+        print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
+        return _allow() if active_scope is None else _deny(reason)
     if not GATE.is_file():
         reason = f"[FRC-GATE-UNAVAILABLE] authoritative gate missing at {GATE}"
         print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
@@ -221,7 +222,7 @@ def main() -> int:
             return _handle_stop(payload)
         tool = payload.get("tool_name", "")
         tool_input = payload.get("tool_input", {}) or {}
-        if tool in ("Write", "Edit"):
+        if tool in ("Write", "Edit", "MultiEdit"):
             return _handle_write(tool_input, cwd=payload.get("cwd"))
         if tool in ("Task", "Agent"):
             return _handle_agent(tool_input)

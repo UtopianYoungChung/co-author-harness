@@ -107,12 +107,16 @@ def evaluate(root: Path) -> dict:
 
 
 def discover(search_root: Path, expected_roots: list[Path] | None = None) -> list[Path]:
-    """Any directory containing reviews/phase_state.json is a candidate root.
+    """Either native scaffold marker makes its containing directory a candidate.
     Explicit expected roots are retained even inside a mixed tree.  Discovery
     cannot infer that an arbitrary loose document was the output of a claimed
     run; callers name that location with ``--expected-root``."""
-    roots = {p.parent.parent for p in search_root.rglob("phase_state.json")
-             if p.parent.name == "reviews"}
+    roots = {
+        p.parent.parent
+        for marker in (PHASE_STATE[-1], CONTRACT[-1])
+        for p in search_root.rglob(marker)
+        if p.parent.name == "reviews"
+    }
     roots.update(Path(p) for p in (expected_roots or []))
     roots = sorted(roots)
     return roots if roots else [search_root]
