@@ -1,93 +1,818 @@
 {
-  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
   "contract_version": "1.1.0",
-  "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
-  "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
-  "passage_scope_class": "technical",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277",
-  "project_identity": null,
+  "profile_sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138",
   "register_class": "domain-native",
-  "register_provenance": {
-    "argument_exemplar_members": [
-      {
-        "grounding": "full-read",
-        "role": "centroid",
-        "source_key": "yu-1995-istar",
-        "warrant_scope": "both"
+  "passage_scope_class": "technical",
+  "project_identity": null,
+  "resolved_profile": {
+    "schema_version": "1.0.0",
+    "profile_version": "1.0.2",
+    "decision_status": "accepted",
+    "decision_record": "ADR-ACCESS-01",
+    "decision_approval": {
+      "authority": "user",
+      "approved_at": "2026-07-13",
+      "provenance": "user_approval_in_session"
+    },
+    "normative_authority": "references/READER_ACCESSIBILITY.md",
+    "package_contributors": [
+      "references/READER_ACCESSIBILITY.md",
+      "references/examples/model_prose_corpus.md"
+    ],
+    "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
+    "domain_native_register": {
+      "reader_model": {
+        "audience_classes": [
+          "IS scholar",
+          "software engineer",
+          "systems engineer",
+          "requirements engineer"
+        ],
+        "imported_theory_registers": [
+          "sociology",
+          "psychology",
+          "philosophy"
+        ],
+        "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
+        "register_class": "domain-native",
+        "source": "M1 milestone reader declaration"
       },
-      {
-        "grounding": "full-read",
-        "role": "classic-halo",
-        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
-        "warrant_scope": "both"
+      "corpus_binding": {
+        "path_roots": {
+          "wiki_root": "B:/Agents/knowledge/LLM wiki",
+          "workspace_root": "B:/Agents",
+          "harness_root": "B:/Agents/platform/co-author-harness"
+        },
+        "graph": {
+          "path": "knowledge/LLM wiki/graphify-out/graph.json",
+          "role": "index and provenance metadata only; never a gate target",
+          "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+        },
+        "pin": {
+          "level": "semantic",
+          "algorithm": "SHA-256 over UTF-8 bytes, lowercase hex",
+          "pinned_objects": [
+            "attestation_view_pin",
+            "exemplar_view_pin"
+          ],
+          "mf_policy_binding_keys": {
+            "profile_sha256": "profile_sha256",
+            "attestation_view_pin": "attestation_view_pin",
+            "exemplar_view_pin": "exemplar_view_pin",
+            "graph_sha256_provenance": "graph_sha256_provenance"
+          },
+          "recorded_provenance": [
+            "graph_sha256_provenance",
+            "graph_mtime_utc_provenance",
+            "unresolved_seed_ids"
+          ],
+          "repin_policy": "recompute at milestone transitions and grounded-source-admitting rounds; auto-accept no delta; real delta requires deliberate versioned repin; never intra-cycle"
+        },
+        "related_to_RE_predicate": {
+          "seed_resolution": [
+            "exact_id",
+            "source_file_join",
+            "prefer_document_or_source",
+            "prefer_id_suffix_source",
+            "utf8_lexicographic_first"
+          ],
+          "primary_communities": "unique integer communities of resolved seeds",
+          "import_neighbors": "one hop outside primary communities from a primary-community member",
+          "membership": "union_primary_communities_and_one_hop_import_neighbors",
+          "degeneracy_guard": {
+            "resolved_seed_count_lte": 3,
+            "primary_communities_lt": 2,
+            "effect": "warning_only"
+          },
+          "link_contract": "source and target canonical; mandatory _src and _tgt must agree"
+        },
+        "hash_recipe": {
+          "attestation_view_pin": "newline join UTF-8-byte-sorted membership ids without trailing newline",
+          "exemplar_view_pin": "newline join UTF-8-byte-sorted source_key TAB normalized tier TAB source-page source_loc PDF sha256-or-dash tuples without trailing newline",
+          "normalize_tier": "strip whitespace-delimited em dash, en dash, or ASCII hyphen annotation; map full-text-pass to full-read and section-read-verified to section-read",
+          "pdf_staging_rule": "resolve source_loc from each contained wiki source page; missing PDF is dash; staging or byte change is a semantic delta"
+        },
+        "views": {
+          "attestation": {
+            "role": "negative check: is this construction foreign?",
+            "members": "related_to_RE_predicate membership",
+            "absence_effect": "advisory_candidate_only"
+          },
+          "exemplar": {
+            "role": "positive domain-native target",
+            "members": "exemplar_members admitted by deny list",
+            "admission": "deny normalized stub and unresolved; admit every other tier"
+          }
+        }
       },
-      {
-        "grounding": "full-read",
-        "role": "classic-halo",
-        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
-        "warrant_scope": "both"
+      "exemplar_members": [
+        {
+          "source_key": "yu-1995-istar",
+          "role": "centroid",
+          "grounding": "full-read",
+          "pdf": "raw/corpus/yu-1995-istar.pdf",
+          "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+        },
+        {
+          "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-1997-early-phase-re",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+          "role": "classic-halo",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "yu-et-al-2011-social-modeling",
+          "role": "classic-halo",
+          "grounding": "section-read"
+        },
+        {
+          "source_key": "yu-2024-nine-pivots",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "yu-2025-social-agentics-crosstalk",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+          "role": "recent-yu",
+          "grounding": "read"
+        },
+        {
+          "source_key": "zave-1997-four-dark-corners-re",
+          "role": "re-canon",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "nuseibeh-2000-re-a-roadmap",
+          "role": "re-canon",
+          "grounding": "full-read"
+        },
+        {
+          "source_key": "goncalves-2019-istar-extension",
+          "role": "istar-extension-halo",
+          "grounding": "section-read",
+          "note": "promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped — lower-confidence surface warrant; optional deepening to full-read)"
+        },
+        {
+          "source_key": "dennett-1987-intentional-stance",
+          "role": "intentional-root",
+          "grounding": "section-read",
+          "warrant_scope": "argument-only"
+        }
+      ],
+      "exemplar_pending_grounding": [],
+      "warrant_layers": {
+        "surface": {
+          "question": "is this term, phrase, connective, or sentence shape attested?",
+          "sources": [
+            "exemplar PDFs",
+            "verbatim extracts",
+            "attestation graph vocabulary"
+          ],
+          "hosts": [
+            "Sub-check H",
+            "humanizer/lexicon layer"
+          ]
+        },
+        "argument": {
+          "question": "is this derivation or logic-connection an insider move?",
+          "sources": [
+            "exemplar wiki source pages",
+            "graph topology"
+          ],
+          "hosts": [
+            "C-8 analytic moves",
+            "C-3 narrative arc",
+            "IS-theory pass"
+          ]
+        },
+        "role_scoping": {
+          "default_warrant_scope": "both",
+          "surface_selector": "both",
+          "argument_selector": [
+            "both",
+            "argument-only"
+          ],
+          "intentional_root_default": "argument-only"
+        }
       },
-      {
-        "grounding": "full-read",
-        "role": "classic-halo",
-        "source_key": "yu-1997-early-phase-re",
-        "warrant_scope": "both"
+      "c7_fence": {
+        "anchor_scope": [
+          "domain_conventions",
+          "argument_derivation"
+        ],
+        "protected_identity_layer": [
+          "sentence_length_signature",
+          "cadence",
+          "repetition_tolerance",
+          "point_of_view",
+          "humor",
+          "evaluative_stance",
+          "characteristic_metaphor"
+        ],
+        "conflict_resolution": "surface_for_adjudication"
       },
-      {
-        "grounding": "full-read",
-        "role": "classic-halo",
-        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
-        "warrant_scope": "both"
+      "derivations": {
+        "write": {
+          "profile_keys": [
+            "domain_native_register.exemplar_members",
+            "domain_native_register.warrant_layers"
+          ],
+          "discipline": "condition drafting on retrieved near-neighbor passages; retrieval does not determine generation"
+        },
+        "review": {
+          "profile_keys": [
+            "domain_native_register.corpus_binding",
+            "domain_native_register.warrant_layers"
+          ],
+          "discipline": "absence of attestation or exemplar warrant is advisory only"
+        },
+        "revise": {
+          "profile_keys": [
+            "domain_native_register.warrant_layers.surface",
+            "domain_native_register.c7_fence"
+          ],
+          "discipline": "substitute an attested construction while preserving propositional content and identity-layer boundaries"
+        }
       },
-      {
-        "grounding": "section-read",
-        "role": "classic-halo",
-        "source_key": "yu-et-al-2011-social-modeling",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-2024-nine-pivots",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-2025-social-agentics-crosstalk",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "full-read",
-        "role": "re-canon",
-        "source_key": "zave-1997-four-dark-corners-re",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "full-read",
-        "role": "re-canon",
-        "source_key": "nuseibeh-2000-re-a-roadmap",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "section-read",
-        "role": "istar-extension-halo",
-        "source_key": "goncalves-2019-istar-extension",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "section-read",
-        "role": "intentional-root",
-        "source_key": "dennett-1987-intentional-stance",
-        "warrant_scope": "argument-only"
+      "honesty_constraints": [
+        "corpus retrieval conditions generation but does not determine it",
+        "warrant absence is advisory only",
+        "Evaluator retains residual domain-native judgment"
+      ],
+      "expected_verification": {
+        "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+        "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+        "pin_epoch": 5,
+        "pinned_at": "2026-07-19T02:53:40Z"
       }
+    },
+    "phase_values": [
+      "Ph1",
+      "Ph2",
+      "Ph3",
+      "Ph4"
+    ],
+    "passage_roles": [
+      "orienting_clause",
+      "contribution_clause",
+      "section_framing",
+      "inter_section_transition",
+      "worked_example_vignette",
+      "consolidation_anchor",
+      "abstract",
+      "introduction",
+      "conclusion",
+      "technical_body"
+    ],
+    "sub_checks": {
+      "A": {
+        "name": "paragraph_cadence",
+        "scope": "paragraph",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.cadence"
+      },
+      "B": {
+        "name": "sentence_rhythm",
+        "scope": "passage",
+        "deterministic_disposition": "judgment_only",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.rhythm",
+        "do_not_flag_guards": [
+          "C-8/M-4 demonstrative anaphora",
+          "C-8/M-5 cadential verdict"
+        ]
+      },
+      "C": {
+        "name": "first_use_definition",
+        "scope": "section",
+        "deterministic_disposition": "judgment_only",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.first_use"
+      },
+      "D": {
+        "name": "section_signpost",
+        "scope": "section_opening",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ]
+      },
+      "E": {
+        "name": "jargon_discipline",
+        "scope": "paragraph",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.jargon"
+      },
+      "F": {
+        "name": "worked_example",
+        "scope": "density_spike",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.worked_example"
+      },
+      "G": {
+        "name": "consolidation_anchor",
+        "scope": "full_manuscript",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate_after_transition",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "threshold_key": "thresholds.consolidation"
+      },
+      "H": {
+        "name": "register_appropriateness",
+        "scope": "resolved_passages",
+        "deterministic_disposition": "candidate_probe",
+        "gate_contribution": "aggregate_after_transition",
+        "binds_at": [
+          "Ph3",
+          "Ph4"
+        ],
+        "advisory_at": [
+          "Ph2"
+        ],
+        "ph2_role_overrides": {
+          "orienting_clause": "blocker_candidate"
+        },
+        "threshold_key": "thresholds.register",
+        "register_model_key": "domain_native_register"
+      }
+    },
+    "aggregate": {
+      "members": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H"
+      ],
+      "clean": "no MAJOR or BLOCKER among contributing members",
+      "borderline": "exactly one independent MAJOR and no BLOCKER",
+      "major": "two or more independent MAJOR findings and no BLOCKER",
+      "blocker": "one or more contributing BLOCKER findings"
+    },
+    "adjacent_advisory_checks": {
+      "VE": {
+        "name": "verdict_edge_discipline",
+        "scope": "sentence_clause",
+        "gate_contribution": "none",
+        "aggregate_member": false,
+        "route": "Reflector Phase 2g recurrence only",
+        "transition_key": "transitions.VE",
+        "follow_up_home": "C-8/M-6 verdict calibration",
+        "threshold_key": "thresholds.verdict_edge"
+      }
+    },
+    "thresholds": {
+      "cadence": {
+        "calibration_status": "provisional",
+        "unit": "paragraph_words",
+        "hard_ceiling_words": 300,
+        "bands": [
+          {
+            "min_words": 0,
+            "max_words": 150,
+            "required_functional_turn_points": 0,
+            "deficit_severity": "CLEAN"
+          },
+          {
+            "min_words": 151,
+            "max_words": 200,
+            "required_functional_turn_points": 1,
+            "deficit_severity": "MINOR"
+          },
+          {
+            "min_words": 201,
+            "max_words": 300,
+            "required_functional_turn_points": 2,
+            "deficit_severity": "MAJOR"
+          }
+        ],
+        "turn_point_candidates": [
+          "however",
+          "but",
+          "by contrast",
+          "on the other hand",
+          "for example",
+          "to illustrate",
+          "consider",
+          "yet",
+          "instead",
+          "rather",
+          "at this point",
+          "the key shift",
+          "the counterpoint"
+        ],
+        "candidate_semantics": "nomination_only",
+        "functional_confirmation_required": true,
+        "functional_classes": [
+          "transition",
+          "counter_move",
+          "worked_example",
+          "thematic_refocus"
+        ],
+        "internal_sentence_break_signals": [
+          "em_dash",
+          "colon",
+          "semicolon"
+        ],
+        "above_ceiling": {
+          "current_severity_floor": "MAJOR",
+          "mandatory_split": true,
+          "blocker_when": "zero functional turn-points AND zero internal sentence-break signals"
+        },
+        "persistence": {
+          "identity_key": "paragraph_content_sha256",
+          "reset_on_content_hash_change": true,
+          "changes_current_severity": false,
+          "planner_workflow_trigger_after_unchanged_rounds": 2
+        }
+      },
+      "rhythm": {
+        "minimum_sentence_count": 4,
+        "mean_words_above": 28,
+        "standard_deviation_below": 6,
+        "short_sentence_words_at_most": 12,
+        "long_sentence_words_at_least": 25
+      },
+      "first_use": {
+        "definition_window_paragraphs": 1,
+        "manuscript_major_section_failures_min": 2
+      },
+      "section_signpost": {
+        "opening_sentences_min": 1,
+        "opening_sentences_max": 3
+      },
+      "jargon": {
+        "new_domain_terms_per_paragraph": {
+          "P0": 3,
+          "P1": 2,
+          "P2": 1
+        }
+      },
+      "worked_example": {
+        "rhetorical_question_stack_min": 3,
+        "example_window_paragraphs": 1
+      },
+      "consolidation": {
+        "construct_accumulation": 3,
+        "prior_sections_dependency": 2,
+        "candidate_gap_words": {
+          "P0": 800,
+          "P1": 700,
+          "P2": 600
+        },
+        "candidate_gap_paragraphs": 6,
+        "pre_heading_scan_paragraphs": 2,
+        "short_manuscript_guidance_words": 3000,
+        "long_manuscript_candidate_words": 5000,
+        "deterministic_gap_is_proxy_only": true
+      },
+      "register": {
+        "minimum_positive_markers": 2,
+        "positive_marker_count": 4,
+        "nominalisation_density_candidate": 0.08,
+        "prepositional_run_candidate": 3,
+        "hedges_per_100_words_candidate": 2.0,
+        "functional_removability_required": true,
+        "severity_model": {
+          "minor_negative_markers_min": 1,
+          "minor_negative_markers_max": 2,
+          "major_consecutive_passages": 3,
+          "weighted_roles": [
+            "orienting_clause",
+            "consolidation_anchor",
+            "inter_section_transition"
+          ],
+          "ph2_orienting_zero_positive": "blocker_candidate",
+          "nontechnical_blocker_major_fraction_above": 0.5
+        }
+      },
+      "verdict_edge": {
+        "intensifier_tokens_min": 3,
+        "intensifier_classes_min": 2
+      }
+    },
+    "transitions": {
+      "G": {
+        "meaning": "new manuscript reaches Ph3",
+        "required_observed_count": 1,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G"
+      },
+      "H": {
+        "meaning": "two complete revision cycles with H in scope",
+        "required_observed_count": 2,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "findings recorded but excluded from aggregate",
+        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H"
+      },
+      "VE": {
+        "meaning": "two complete observed advisory cycles",
+        "required_observed_count": 2,
+        "retirement_event": "planner_transition_approved",
+        "workflow_effect_while_active": "recurrence telemetry only",
+        "workflow_effect_after_retirement": "recurrence telemetry only",
+        "stability_mode_effect": "recurrence telemetry only",
+        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE"
+      }
+    },
+    "runtime_modes": {
+      "stability": {
+        "aggregation_source": "resolved_profile_and_bound_transition_state",
+        "independent_member_exclusions": false,
+        "negative_prefilter_short_circuit": false
+      }
+    },
+    "register_scope": {
+      "technical": [
+        "orienting_clause",
+        "contribution_clause",
+        "section_framing",
+        "inter_section_transition",
+        "worked_example_vignette",
+        "consolidation_anchor"
+      ],
+      "mixed": [
+        "orienting_clause",
+        "contribution_clause",
+        "section_framing",
+        "inter_section_transition",
+        "worked_example_vignette",
+        "consolidation_anchor",
+        "abstract",
+        "introduction",
+        "conclusion"
+      ],
+      "non-technical": [
+        "all_passages"
+      ]
+    },
+    "lexicons": {
+      "plain_connectives": [
+        "and",
+        "but",
+        "because",
+        "so",
+        "yet",
+        "however",
+        "for example",
+        "in other words",
+        "at this point",
+        "next",
+        "finally"
+      ],
+      "latinate_whitelist": [
+        "whereby",
+        "hence",
+        "notwithstanding",
+        "insofar as",
+        "qua",
+        "mutatis mutandis"
+      ],
+      "hedges": [
+        "may",
+        "might",
+        "could",
+        "perhaps",
+        "possibly",
+        "likely",
+        "suggests",
+        "indicates",
+        "appears",
+        "seems",
+        "somewhat",
+        "relatively",
+        "generally",
+        "typically"
+      ],
+      "nominalisation_suffixes": [
+        "tion",
+        "ment",
+        "ance",
+        "ence",
+        "ity",
+        "ness"
+      ],
+      "prepositions": [
+        "of",
+        "in",
+        "for",
+        "with",
+        "to",
+        "by",
+        "on",
+        "at",
+        "from",
+        "under",
+        "over",
+        "through",
+        "via"
+      ]
+    },
+    "domain_token_exclusions": [
+      "introduction",
+      "conclusion",
+      "abstract",
+      "methodology",
+      "discussion",
+      "reference",
+      "definition",
+      "condition",
+      "relation",
+      "application",
+      "operation",
+      "representation",
+      "description",
+      "interpretation",
+      "specification",
+      "implementation",
+      "verification",
+      "evaluation",
+      "presentation",
+      "generation",
+      "orientation"
+    ],
+    "override_contract": {
+      "directives": {
+        "path": "research_notes/directives.md",
+        "passage_scope_class_key": "passage_scope_class",
+        "legacy_register_class_alias": true,
+        "project_identity_key": "project_id"
+      },
+      "plain_connectives": {
+        "path": "research_notes/plain_connectives.txt",
+        "polarity": "replace"
+      },
+      "hedges": {
+        "path": "research_notes/hedges.txt",
+        "polarity": "replace"
+      },
+      "latinate_whitelist": {
+        "path": "research_notes/latinate_whitelist.txt",
+        "polarity": "supplement"
+      },
+      "terminology": {
+        "path": "research_notes/terminology.txt",
+        "polarity": "extend_domain_token_exclusions"
+      },
+      "glossary": {
+        "path": "research_notes/glossary.txt",
+        "polarity": "extend_domain_token_exclusions"
+      }
+    },
+    "remediation_order": [
+      "preserve propositional content",
+      "add concrete or agentive construction",
+      "add a plain connective",
+      "signal a genuine register shift",
+      "prefer semicolon or colon when the resolved style profile limits em dashes",
+      "re-run deterministic candidates",
+      "Evaluator confirms functional compliance"
+    ],
+    "recurrence": {
+      "project_lesson_consecutive_rounds": 2,
+      "package_lesson_distinct_projects": 2,
+      "state_owner": "Reflector evidence plus Planner approval",
+      "semantic_severity_effect": "none"
+    }
+  },
+  "source_bindings": [
+    {
+      "scope": "package",
+      "path": "references/policies/reader_accessibility.v1.json",
+      "sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138",
+      "role": "package_profile"
+    },
+    {
+      "scope": "package",
+      "path": "references/READER_ACCESSIBILITY.md",
+      "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5",
+      "role": "package_contributor"
+    },
+    {
+      "scope": "package",
+      "path": "references/examples/model_prose_corpus.md",
+      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
+      "role": "package_contributor"
+    }
+  ],
+  "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+  "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+  "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+  "register_provenance": {
+    "register_class": "domain-native",
+    "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+    "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+    "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+    "graph_mtime_utc_provenance": "2026-07-16T03:43:21.710369Z",
+    "seed_resolution_map": {
+      "yu-1995-istar": "yu-1995-istar",
+      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": "yu-mylopoulos-1994-wits_source",
+      "yu-mylopoulos-1994-understanding-why-software-process-modelling": "yu-mylopoulos-1994-icse_source"
+    },
+    "seed_resolution_ties": {
+      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": [
+        "yu_wits_dependency_types",
+        "yu_wits_distributed_intentionality",
+        "yu_wits_strategic_dependency",
+        "yu_wits_strategic_rationale",
+        "yu_wits_what_vs_why"
+      ],
+      "yu-mylopoulos-1994-understanding-why-software-process-modelling": [
+        "yu_icse_actor_dependency",
+        "yu_icse_dependency_strength",
+        "yu_icse_granularity_dilemma",
+        "yu_icse_role_position_agent",
+        "yu_icse_vulnerability_mechanisms"
+      ]
+    },
+    "unresolved_seed_ids": [
+      "yu-1997-early-phase-re",
+      "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "yu-et-al-2011-social-modeling",
+      "yu-2024-nine-pivots",
+      "yu-2025-social-agentics-crosstalk",
+      "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "zave-1997-four-dark-corners-re",
+      "nuseibeh-2000-re-a-roadmap",
+      "goncalves-2019-istar-extension",
+      "dennett-1987-intentional-stance"
+    ],
+    "primary_communities": [
+      5,
+      10
     ],
     "attestation_member_ids": [
       "agential-realism",
@@ -145,1156 +870,431 @@
       "yu_wits_strategic_rationale",
       "yu_wits_what_vs_why"
     ],
-    "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
     "exemplar_hash_lines": [
       "dennett-1987-intentional-stance\tsection-read\t02bdcf90725be1b44293fb3f43b3322d08712b1b009400e66aa7e70ced6b2d71",
       "goncalves-2019-istar-extension\tsection-read\t961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820",
       "nuseibeh-2000-re-a-roadmap\tfull-read\tb67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba",
       "yu-1995-istar\tfull-read\tc5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
       "yu-1997-early-phase-re\tfull-read\t84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc",
-      "yu-2024-nine-pivots\tread\tad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320",
-      "yu-2025-social-agentics-crosstalk\tread\t4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1",
+      "yu-2024-nine-pivots\tsection-read\tad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320",
+      "yu-2025-social-agentics-crosstalk\tfull-read\t4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1",
       "yu-e-agent-orientation-as-a-modeling-paradigm-2001\tfull-read\t455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242",
       "yu-et-al-2011-social-modeling\tsection-read\t7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
-      "yu-lapouchnian-2025-social-agentics-bdi-star\tread\tc71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f",
+      "yu-lapouchnian-2025-social-agentics-bdi-star\tfull-read\tc71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f",
       "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p\tfull-read\t446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece",
       "yu-mylopoulos-1994-understanding-why-software-process-modelling\tfull-read\t6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809",
       "zave-1997-four-dark-corners-re\tfull-read\t382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
     ],
     "exemplar_members": [
       {
-        "grounding": "full-read",
-        "role": "centroid",
         "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "section-read",
         "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
         "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "read",
-        "role": "recent-yu",
         "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "section-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "read",
-        "role": "recent-yu",
         "source_key": "yu-2025-social-agentics-crosstalk",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
         "role": "recent-yu",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
         "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "re-canon",
         "source_key": "zave-1997-four-dark-corners-re",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "full-read",
         "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
         "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "section-read",
-        "role": "istar-extension-halo",
         "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "section-read",
-        "role": "intentional-root",
         "source_key": "dennett-1987-intentional-stance",
+        "role": "intentional-root",
+        "grounding": "section-read",
         "warrant_scope": "argument-only"
       }
     ],
-    "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
-    "graph_mtime_utc_provenance": "2026-07-14T01:40:09.055604Z",
-    "graph_sha256_provenance": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
-    "path_roots": {
-      "effective": {
-        "harness_root": "B:/Agents/platform/co-author-harness",
-        "wiki_root": "B:/Agents/knowledge/LLM wiki",
-        "workspace_root": "B:/Agents"
-      },
-      "path_roots_mode": "profile",
-      "profile_path_roots": {
-        "harness_root": "B:/Agents/platform/co-author-harness",
-        "wiki_root": "B:/Agents/knowledge/LLM wiki",
-        "workspace_root": "B:/Agents"
-      }
-    },
-    "primary_communities": [
-      5,
-      10
-    ],
-    "provenance": [
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1995-istar.md",
-        "role": "exemplar_source_page",
-        "sha256": "9084c77ef7824b8d5865331e7744ac935e4ed09d46179205c9a422f356fa08a3"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1995-istar.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md",
-        "role": "exemplar_source_page",
-        "sha256": "488d242aed5c9a5c2a3244a7d446b3801256ec586e14ce7114478df126bc4f33"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-understanding-why-software-process-modelling.md",
-        "role": "exemplar_source_page",
-        "sha256": "f54ac23adfd81497e70d201ce76aa29d9ce088301829ecc1feecb85e2af572f1"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-understanding-why-software-process-modelling.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1997-early-phase-re.md",
-        "role": "exemplar_source_page",
-        "sha256": "1639c625b96759711469d20cd8a271de84c54620dafe9a52083f83a668a1c1ee"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1997-early-phase-re.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.md",
-        "role": "exemplar_source_page",
-        "sha256": "00a7c8710fd2272586722ca793201acbb5651846f1efbfdced213168b9ec9a0b"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-et-al-2011-social-modeling.md",
-        "role": "exemplar_source_page",
-        "sha256": "3ab5298e68e88d9dfeccdec0768c1c3018ffca238314548160c1b90d297f1c82"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-giorgini-maiden-2011-social-modeling-requirements-engineering.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2024-nine-pivots.md",
-        "role": "exemplar_source_page",
-        "sha256": "68aff9bb2c1acb88c735cba07f875c2007cad7c2621287c451bf72e63dd70de9"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\franch-x-istar-social-modeling-in-ai-era-2024.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "ad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2025-social-agentics-crosstalk.md",
-        "role": "exemplar_source_page",
-        "sha256": "26231277d5017ef40065e3b16df7d664f140803b65fd76a7d1ec64daaf8b1c47"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-2025-beyond-human-computer-binary.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-lapouchnian-2025-social-agentics-bdi-star.md",
-        "role": "exemplar_source_page",
-        "sha256": "265990f82ab939804068de52c1ac0e1c6292874b037d06dddd9d794f6eb5a5dc"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-lapouchnian-2025-social-insights-actionable.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "c71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\zave-1997-four-dark-corners-re.md",
-        "role": "exemplar_source_page",
-        "sha256": "6f77b3c2896b6ceb72a8418bfe54ba802c0596bc695985f45bbee707c3c23012"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\zave-1997-four-dark-corners-re.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\nuseibeh-2000-re-a-roadmap.md",
-        "role": "exemplar_source_page",
-        "sha256": "ae8ee71a8507e1a3013663844ac9822b8f977e0ae20f6a0fd85d7deec4e0799d"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\nuseibeh-2000-re-a-roadmap.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "b67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\goncalves-2019-istar-extension.md",
-        "role": "exemplar_source_page",
-        "sha256": "818eaa79ecb094f299831d1f7f6257503a9a77d1fd208cbb5f3da5778e2aeb60"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\goncalves-2019-istar-extension.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\dennett-1987-intentional-stance.md",
-        "role": "exemplar_source_page",
-        "sha256": "2176f7fe66a1b8120027469fb0db61cb707fbc4d12d01a044ea60668f5ef3867"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\dennett-1987-intentional-stance.pdf",
-        "role": "surface_warrant_pdf",
-        "sha256": "02bdcf90725be1b44293fb3f43b3322d08712b1b009400e66aa7e70ced6b2d71"
-      },
-      {
-        "path": "B:\\Agents\\knowledge\\LLM wiki\\graphify-out\\graph.json",
-        "role": "graph_provenance_only",
-        "sha256": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
-      },
-      {
-        "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\reader_accessibility.v1.json",
-        "role": "register_profile",
-        "sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277"
-      },
-      {
-        "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\reader_accessibility.v1.json",
-        "role": "package_profile",
-        "sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277"
-      },
-      {
-        "path": "B:\\Agents\\platform\\co-author-harness\\references\\READER_ACCESSIBILITY.md",
-        "role": "package_contributor",
-        "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5"
-      },
-      {
-        "path": "B:\\Agents\\platform\\co-author-harness\\references\\examples\\model_prose_corpus.md",
-        "role": "package_contributor",
-        "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812"
-      }
-    ],
-    "register_class": "domain-native",
-    "seed_resolution_map": {
-      "yu-1995-istar": "yu-1995-istar",
-      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": "yu-mylopoulos-1994-wits_source",
-      "yu-mylopoulos-1994-understanding-why-software-process-modelling": "yu-mylopoulos-1994-icse_source"
-    },
-    "seed_resolution_ties": {
-      "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": [
-        "yu_wits_dependency_types",
-        "yu_wits_distributed_intentionality",
-        "yu_wits_strategic_dependency",
-        "yu_wits_strategic_rationale",
-        "yu_wits_what_vs_why"
-      ],
-      "yu-mylopoulos-1994-understanding-why-software-process-modelling": [
-        "yu_icse_actor_dependency",
-        "yu_icse_dependency_strength",
-        "yu_icse_granularity_dilemma",
-        "yu_icse_role_position_agent",
-        "yu_icse_vulnerability_mechanisms"
-      ]
-    },
     "surface_exemplar_members": [
       {
-        "grounding": "full-read",
-        "role": "centroid",
         "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
         "warrant_scope": "both"
       },
       {
-        "grounding": "full-read",
-        "role": "classic-halo",
         "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "section-read",
         "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
         "source_key": "yu-et-al-2011-social-modeling",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-2024-nine-pivots",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-2025-social-agentics-crosstalk",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "read",
-        "role": "recent-yu",
-        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "full-read",
-        "role": "re-canon",
-        "source_key": "zave-1997-four-dark-corners-re",
-        "warrant_scope": "both"
-      },
-      {
-        "grounding": "full-read",
-        "role": "re-canon",
-        "source_key": "nuseibeh-2000-re-a-roadmap",
-        "warrant_scope": "both"
-      },
-      {
+        "role": "classic-halo",
         "grounding": "section-read",
-        "role": "istar-extension-halo",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
         "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
         "warrant_scope": "both"
       }
     ],
-    "unresolved_seed_ids": [
-      "yu-1997-early-phase-re",
-      "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
-      "yu-et-al-2011-social-modeling",
-      "yu-2024-nine-pivots",
-      "yu-2025-social-agentics-crosstalk",
-      "yu-lapouchnian-2025-social-agentics-bdi-star",
-      "zave-1997-four-dark-corners-re",
-      "nuseibeh-2000-re-a-roadmap",
-      "goncalves-2019-istar-extension",
-      "dennett-1987-intentional-stance"
+    "argument_exemplar_members": [
+      {
+        "source_key": "yu-1995-istar",
+        "role": "centroid",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-1997-early-phase-re",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+        "role": "classic-halo",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-et-al-2011-social-modeling",
+        "role": "classic-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2024-nine-pivots",
+        "role": "recent-yu",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-2025-social-agentics-crosstalk",
+        "role": "recent-yu",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+        "role": "recent-yu",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "zave-1997-four-dark-corners-re",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "nuseibeh-2000-re-a-roadmap",
+        "role": "re-canon",
+        "grounding": "full-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "goncalves-2019-istar-extension",
+        "role": "istar-extension-halo",
+        "grounding": "section-read",
+        "warrant_scope": "both"
+      },
+      {
+        "source_key": "dennett-1987-intentional-stance",
+        "role": "intentional-root",
+        "grounding": "section-read",
+        "warrant_scope": "argument-only"
+      }
     ],
     "warnings": [
       {
         "code": "RA-DNR-DEGENERATE",
-        "message": "semantic attestation view is based on a thin resolved seed set",
-        "severity": "WARNING"
+        "severity": "WARNING",
+        "message": "semantic attestation view is based on a thin resolved seed set"
+      }
+    ],
+    "path_roots": {
+      "profile_path_roots": {
+        "wiki_root": "B:/Agents/knowledge/LLM wiki",
+        "workspace_root": "B:/Agents",
+        "harness_root": "B:/Agents/platform/co-author-harness"
+      },
+      "effective": {
+        "wiki_root": "B:/Agents/knowledge/LLM wiki",
+        "workspace_root": "B:/Agents",
+        "harness_root": "B:/Agents/platform/co-author-harness"
+      },
+      "path_roots_mode": "profile"
+    },
+    "provenance": [
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1995-istar.md",
+        "sha256": "5ec47712ab6fcf1ff935fc05da2d6d08b362b763efb2257ea64a4ab47031672c"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1995-istar.pdf",
+        "sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md",
+        "sha256": "8b405ea07c60ff41d24094cc122fe943facc051250a2affd848526134e0ae79a"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.pdf",
+        "sha256": "446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-mylopoulos-1994-understanding-why-software-process-modelling.md",
+        "sha256": "cda59a522dd8bbff83977d0376586d0658d1eaaa53ab6ec6a6dddce2cb0fb6cb"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-mylopoulos-1994-understanding-why-software-process-modelling.pdf",
+        "sha256": "6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-1997-early-phase-re.md",
+        "sha256": "a0678535ddb12caa56cb51d46f5762bf5e490a7e17b089657c6c57726fef358c"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-1997-early-phase-re.pdf",
+        "sha256": "84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.md",
+        "sha256": "00a7c8710fd2272586722ca793201acbb5651846f1efbfdced213168b9ec9a0b"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-e-agent-orientation-as-a-modeling-paradigm-2001.pdf",
+        "sha256": "455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-et-al-2011-social-modeling.md",
+        "sha256": "a1ceb58cf6e9b56f9090828145a68cad8eb61c3e3b8397a171ac75d1a1d73ba9"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-giorgini-maiden-2011-social-modeling-requirements-engineering.pdf",
+        "sha256": "7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2024-nine-pivots.md",
+        "sha256": "ecb16f837929d3832045583dd5a8c4d04c0533461a247a2ee49f77ee278c81a2"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\franch-x-istar-social-modeling-in-ai-era-2024.pdf",
+        "sha256": "ad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-2025-social-agentics-crosstalk.md",
+        "sha256": "422b7808bbf5c12841c252e73b17c25dbe213a1bf6da78424954b8b622c65c26"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-2025-beyond-human-computer-binary.pdf",
+        "sha256": "4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\yu-lapouchnian-2025-social-agentics-bdi-star.md",
+        "sha256": "370f750c0ebe9c8c3923ca8cfaf5759f1b2320acf8a95245ee8b010a0a543f97"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\yu-lapouchnian-2025-social-insights-actionable.pdf",
+        "sha256": "c71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\zave-1997-four-dark-corners-re.md",
+        "sha256": "e9c4d70f4632e2f257b4246dd449e22a8e5a5ddff2923422638f45d204206f14"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\zave-1997-four-dark-corners-re.pdf",
+        "sha256": "382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\nuseibeh-2000-re-a-roadmap.md",
+        "sha256": "ae8ee71a8507e1a3013663844ac9822b8f977e0ae20f6a0fd85d7deec4e0799d"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\nuseibeh-2000-re-a-roadmap.pdf",
+        "sha256": "b67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\goncalves-2019-istar-extension.md",
+        "sha256": "0818fe2b8dfdf5bc414a67c54e3c79a1999776c2dd6a7350921b4733fb74e7d9"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\goncalves-2019-istar-extension.pdf",
+        "sha256": "961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820"
+      },
+      {
+        "role": "exemplar_source_page",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\wiki\\sources\\dennett-1987-intentional-stance.md",
+        "sha256": "45679b5dbb6c1c807c588c21e486e355622c361779d56771ea016a7e21a412c6"
+      },
+      {
+        "role": "surface_warrant_pdf",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\raw\\corpus\\dennett-1987-intentional-stance.pdf",
+        "sha256": "02bdcf90725be1b44293fb3f43b3322d08712b1b009400e66aa7e70ced6b2d71"
+      },
+      {
+        "role": "graph_provenance_only",
+        "path": "B:\\Agents\\knowledge\\LLM wiki\\graphify-out\\graph.json",
+        "sha256": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+      },
+      {
+        "role": "register_profile",
+        "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\reader_accessibility.v1.json",
+        "sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138"
+      },
+      {
+        "role": "package_profile",
+        "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\reader_accessibility.v1.json",
+        "sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138"
+      },
+      {
+        "role": "package_contributor",
+        "path": "B:\\Agents\\platform\\co-author-harness\\references\\READER_ACCESSIBILITY.md",
+        "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5"
+      },
+      {
+        "role": "package_contributor",
+        "path": "B:\\Agents\\platform\\co-author-harness\\references\\examples\\model_prose_corpus.md",
+        "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812"
       }
     ]
-  },
-  "resolved_profile": {
-    "adjacent_advisory_checks": {
-      "VE": {
-        "aggregate_member": false,
-        "follow_up_home": "C-8/M-6 verdict calibration",
-        "gate_contribution": "none",
-        "name": "verdict_edge_discipline",
-        "route": "Reflector Phase 2g recurrence only",
-        "scope": "sentence_clause",
-        "threshold_key": "thresholds.verdict_edge",
-        "transition_key": "transitions.VE"
-      }
-    },
-    "aggregate": {
-      "blocker": "one or more contributing BLOCKER findings",
-      "borderline": "exactly one independent MAJOR and no BLOCKER",
-      "clean": "no MAJOR or BLOCKER among contributing members",
-      "major": "two or more independent MAJOR findings and no BLOCKER",
-      "members": [
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H"
-      ]
-    },
-    "decision_approval": {
-      "approved_at": "2026-07-13",
-      "authority": "user",
-      "provenance": "user_approval_in_session"
-    },
-    "decision_record": "ADR-ACCESS-01",
-    "decision_status": "accepted",
-    "domain_native_register": {
-      "c7_fence": {
-        "anchor_scope": [
-          "domain_conventions",
-          "argument_derivation"
-        ],
-        "conflict_resolution": "surface_for_adjudication",
-        "protected_identity_layer": [
-          "sentence_length_signature",
-          "cadence",
-          "repetition_tolerance",
-          "point_of_view",
-          "humor",
-          "evaluative_stance",
-          "characteristic_metaphor"
-        ]
-      },
-      "corpus_binding": {
-        "graph": {
-          "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
-          "path": "knowledge/LLM wiki/graphify-out/graph.json",
-          "role": "index and provenance metadata only; never a gate target"
-        },
-        "hash_recipe": {
-          "attestation_view_pin": "newline join UTF-8-byte-sorted membership ids without trailing newline",
-          "exemplar_view_pin": "newline join UTF-8-byte-sorted source_key TAB normalized tier TAB source-page source_loc PDF sha256-or-dash tuples without trailing newline",
-          "normalize_tier": "strip whitespace-delimited em dash, en dash, or ASCII hyphen annotation; map full-text-pass to full-read and section-read-verified to section-read",
-          "pdf_staging_rule": "resolve source_loc from each contained wiki source page; missing PDF is dash; staging or byte change is a semantic delta"
-        },
-        "path_roots": {
-          "harness_root": "B:/Agents/platform/co-author-harness",
-          "wiki_root": "B:/Agents/knowledge/LLM wiki",
-          "workspace_root": "B:/Agents"
-        },
-        "pin": {
-          "algorithm": "SHA-256 over UTF-8 bytes, lowercase hex",
-          "level": "semantic",
-          "mf_policy_binding_keys": {
-            "attestation_view_pin": "attestation_view_pin",
-            "exemplar_view_pin": "exemplar_view_pin",
-            "graph_sha256_provenance": "graph_sha256_provenance",
-            "profile_sha256": "profile_sha256"
-          },
-          "pinned_objects": [
-            "attestation_view_pin",
-            "exemplar_view_pin"
-          ],
-          "recorded_provenance": [
-            "graph_sha256_provenance",
-            "graph_mtime_utc_provenance",
-            "unresolved_seed_ids"
-          ],
-          "repin_policy": "recompute at milestone transitions and grounded-source-admitting rounds; auto-accept no delta; real delta requires deliberate versioned repin; never intra-cycle"
-        },
-        "related_to_RE_predicate": {
-          "degeneracy_guard": {
-            "effect": "warning_only",
-            "primary_communities_lt": 2,
-            "resolved_seed_count_lte": 3
-          },
-          "import_neighbors": "one hop outside primary communities from a primary-community member",
-          "link_contract": "source and target canonical; mandatory _src and _tgt must agree",
-          "membership": "union_primary_communities_and_one_hop_import_neighbors",
-          "primary_communities": "unique integer communities of resolved seeds",
-          "seed_resolution": [
-            "exact_id",
-            "source_file_join",
-            "prefer_document_or_source",
-            "prefer_id_suffix_source",
-            "utf8_lexicographic_first"
-          ]
-        },
-        "views": {
-          "attestation": {
-            "absence_effect": "advisory_candidate_only",
-            "members": "related_to_RE_predicate membership",
-            "role": "negative check: is this construction foreign?"
-          },
-          "exemplar": {
-            "admission": "deny normalized stub and unresolved; admit every other tier",
-            "members": "exemplar_members admitted by deny list",
-            "role": "positive domain-native target"
-          }
-        }
-      },
-      "derivations": {
-        "review": {
-          "discipline": "absence of attestation or exemplar warrant is advisory only",
-          "profile_keys": [
-            "domain_native_register.corpus_binding",
-            "domain_native_register.warrant_layers"
-          ]
-        },
-        "revise": {
-          "discipline": "substitute an attested construction while preserving propositional content and identity-layer boundaries",
-          "profile_keys": [
-            "domain_native_register.warrant_layers.surface",
-            "domain_native_register.c7_fence"
-          ]
-        },
-        "write": {
-          "discipline": "condition drafting on retrieved near-neighbor passages; retrieval does not determine generation",
-          "profile_keys": [
-            "domain_native_register.exemplar_members",
-            "domain_native_register.warrant_layers"
-          ]
-        }
-      },
-      "exemplar_members": [
-        {
-          "grounding": "full-read",
-          "pdf": "raw/corpus/yu-1995-istar.pdf",
-          "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
-          "role": "centroid",
-          "source_key": "yu-1995-istar"
-        },
-        {
-          "grounding": "full-read",
-          "role": "classic-halo",
-          "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"
-        },
-        {
-          "grounding": "full-read",
-          "role": "classic-halo",
-          "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling"
-        },
-        {
-          "grounding": "full-read",
-          "role": "classic-halo",
-          "source_key": "yu-1997-early-phase-re"
-        },
-        {
-          "grounding": "full-read",
-          "role": "classic-halo",
-          "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001"
-        },
-        {
-          "grounding": "section-read",
-          "role": "classic-halo",
-          "source_key": "yu-et-al-2011-social-modeling"
-        },
-        {
-          "grounding": "read",
-          "role": "recent-yu",
-          "source_key": "yu-2024-nine-pivots"
-        },
-        {
-          "grounding": "read",
-          "role": "recent-yu",
-          "source_key": "yu-2025-social-agentics-crosstalk"
-        },
-        {
-          "grounding": "read",
-          "role": "recent-yu",
-          "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star"
-        },
-        {
-          "grounding": "full-read",
-          "role": "re-canon",
-          "source_key": "zave-1997-four-dark-corners-re"
-        },
-        {
-          "grounding": "full-read",
-          "role": "re-canon",
-          "source_key": "nuseibeh-2000-re-a-roadmap"
-        },
-        {
-          "grounding": "section-read",
-          "note": "promoted from stub 2026-07-13 (abstract+intro read-through; mid/end guideline set not exhaustively mapped \u2014 lower-confidence surface warrant; optional deepening to full-read)",
-          "role": "istar-extension-halo",
-          "source_key": "goncalves-2019-istar-extension"
-        },
-        {
-          "grounding": "section-read",
-          "role": "intentional-root",
-          "source_key": "dennett-1987-intentional-stance",
-          "warrant_scope": "argument-only"
-        }
-      ],
-      "exemplar_pending_grounding": [],
-      "expected_verification": {
-        "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
-        "exemplar_view_pin": "5f902a3b5510953b5d034443bbb4e66581f750fb36f1de180094ff07122bde6f",
-        "pin_epoch": 3,
-        "pinned_at": "2026-07-14T23:41:06Z"
-      },
-      "honesty_constraints": [
-        "corpus retrieval conditions generation but does not determine it",
-        "warrant absence is advisory only",
-        "Evaluator retains residual domain-native judgment"
-      ],
-      "reader_model": {
-        "audience_classes": [
-          "IS scholar",
-          "software engineer",
-          "systems engineer",
-          "requirements engineer"
-        ],
-        "imported_theory_registers": [
-          "sociology",
-          "psychology",
-          "philosophy"
-        ],
-        "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
-        "register_class": "domain-native",
-        "source": "M1 milestone reader declaration"
-      },
-      "warrant_layers": {
-        "argument": {
-          "hosts": [
-            "C-8 analytic moves",
-            "C-3 narrative arc",
-            "IS-theory pass"
-          ],
-          "question": "is this derivation or logic-connection an insider move?",
-          "sources": [
-            "exemplar wiki source pages",
-            "graph topology"
-          ]
-        },
-        "role_scoping": {
-          "argument_selector": [
-            "both",
-            "argument-only"
-          ],
-          "default_warrant_scope": "both",
-          "intentional_root_default": "argument-only",
-          "surface_selector": "both"
-        },
-        "surface": {
-          "hosts": [
-            "Sub-check H",
-            "humanizer/lexicon layer"
-          ],
-          "question": "is this term, phrase, connective, or sentence shape attested?",
-          "sources": [
-            "exemplar PDFs",
-            "verbatim extracts",
-            "attestation graph vocabulary"
-          ]
-        }
-      }
-    },
-    "domain_token_exclusions": [
-      "introduction",
-      "conclusion",
-      "abstract",
-      "methodology",
-      "discussion",
-      "reference",
-      "definition",
-      "condition",
-      "relation",
-      "application",
-      "operation",
-      "representation",
-      "description",
-      "interpretation",
-      "specification",
-      "implementation",
-      "verification",
-      "evaluation",
-      "presentation",
-      "generation",
-      "orientation"
-    ],
-    "lexicons": {
-      "hedges": [
-        "may",
-        "might",
-        "could",
-        "perhaps",
-        "possibly",
-        "likely",
-        "suggests",
-        "indicates",
-        "appears",
-        "seems",
-        "somewhat",
-        "relatively",
-        "generally",
-        "typically"
-      ],
-      "latinate_whitelist": [
-        "whereby",
-        "hence",
-        "notwithstanding",
-        "insofar as",
-        "qua",
-        "mutatis mutandis"
-      ],
-      "nominalisation_suffixes": [
-        "tion",
-        "ment",
-        "ance",
-        "ence",
-        "ity",
-        "ness"
-      ],
-      "plain_connectives": [
-        "and",
-        "but",
-        "because",
-        "so",
-        "yet",
-        "however",
-        "for example",
-        "in other words",
-        "at this point",
-        "next",
-        "finally"
-      ],
-      "prepositions": [
-        "of",
-        "in",
-        "for",
-        "with",
-        "to",
-        "by",
-        "on",
-        "at",
-        "from",
-        "under",
-        "over",
-        "through",
-        "via"
-      ]
-    },
-    "normative_authority": "references/READER_ACCESSIBILITY.md",
-    "override_contract": {
-      "directives": {
-        "legacy_register_class_alias": true,
-        "passage_scope_class_key": "passage_scope_class",
-        "path": "research_notes/directives.md",
-        "project_identity_key": "project_id"
-      },
-      "glossary": {
-        "path": "research_notes/glossary.txt",
-        "polarity": "extend_domain_token_exclusions"
-      },
-      "hedges": {
-        "path": "research_notes/hedges.txt",
-        "polarity": "replace"
-      },
-      "latinate_whitelist": {
-        "path": "research_notes/latinate_whitelist.txt",
-        "polarity": "supplement"
-      },
-      "plain_connectives": {
-        "path": "research_notes/plain_connectives.txt",
-        "polarity": "replace"
-      },
-      "terminology": {
-        "path": "research_notes/terminology.txt",
-        "polarity": "extend_domain_token_exclusions"
-      }
-    },
-    "package_contributors": [
-      "references/READER_ACCESSIBILITY.md",
-      "references/examples/model_prose_corpus.md"
-    ],
-    "passage_roles": [
-      "orienting_clause",
-      "contribution_clause",
-      "section_framing",
-      "inter_section_transition",
-      "worked_example_vignette",
-      "consolidation_anchor",
-      "abstract",
-      "introduction",
-      "conclusion",
-      "technical_body"
-    ],
-    "phase_values": [
-      "Ph1",
-      "Ph2",
-      "Ph3",
-      "Ph4"
-    ],
-    "policy_telos": "Reduce extraneous prose load while preserving intrinsic difficulty and supporting germane model-building load.",
-    "profile_version": "1.0.1",
-    "recurrence": {
-      "package_lesson_distinct_projects": 2,
-      "project_lesson_consecutive_rounds": 2,
-      "semantic_severity_effect": "none",
-      "state_owner": "Reflector evidence plus Planner approval"
-    },
-    "register_scope": {
-      "mixed": [
-        "orienting_clause",
-        "contribution_clause",
-        "section_framing",
-        "inter_section_transition",
-        "worked_example_vignette",
-        "consolidation_anchor",
-        "abstract",
-        "introduction",
-        "conclusion"
-      ],
-      "non-technical": [
-        "all_passages"
-      ],
-      "technical": [
-        "orienting_clause",
-        "contribution_clause",
-        "section_framing",
-        "inter_section_transition",
-        "worked_example_vignette",
-        "consolidation_anchor"
-      ]
-    },
-    "remediation_order": [
-      "preserve propositional content",
-      "add concrete or agentive construction",
-      "add a plain connective",
-      "signal a genuine register shift",
-      "prefer semicolon or colon when the resolved style profile limits em dashes",
-      "re-run deterministic candidates",
-      "Evaluator confirms functional compliance"
-    ],
-    "runtime_modes": {
-      "stability": {
-        "aggregation_source": "resolved_profile_and_bound_transition_state",
-        "independent_member_exclusions": false,
-        "negative_prefilter_short_circuit": false
-      }
-    },
-    "schema_version": "1.0.0",
-    "sub_checks": {
-      "A": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate",
-        "name": "paragraph_cadence",
-        "scope": "paragraph",
-        "threshold_key": "thresholds.cadence"
-      },
-      "B": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "judgment_only",
-        "do_not_flag_guards": [
-          "C-8/M-4 demonstrative anaphora",
-          "C-8/M-5 cadential verdict"
-        ],
-        "gate_contribution": "aggregate",
-        "name": "sentence_rhythm",
-        "scope": "passage",
-        "threshold_key": "thresholds.rhythm"
-      },
-      "C": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "judgment_only",
-        "gate_contribution": "aggregate",
-        "name": "first_use_definition",
-        "scope": "section",
-        "threshold_key": "thresholds.first_use"
-      },
-      "D": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate",
-        "name": "section_signpost",
-        "scope": "section_opening"
-      },
-      "E": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate",
-        "name": "jargon_discipline",
-        "scope": "paragraph",
-        "threshold_key": "thresholds.jargon"
-      },
-      "F": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate",
-        "name": "worked_example",
-        "scope": "density_spike",
-        "threshold_key": "thresholds.worked_example"
-      },
-      "G": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate_after_transition",
-        "name": "consolidation_anchor",
-        "scope": "full_manuscript",
-        "threshold_key": "thresholds.consolidation"
-      },
-      "H": {
-        "advisory_at": [
-          "Ph2"
-        ],
-        "binds_at": [
-          "Ph3",
-          "Ph4"
-        ],
-        "deterministic_disposition": "candidate_probe",
-        "gate_contribution": "aggregate_after_transition",
-        "name": "register_appropriateness",
-        "ph2_role_overrides": {
-          "orienting_clause": "blocker_candidate"
-        },
-        "register_model_key": "domain_native_register",
-        "scope": "resolved_passages",
-        "threshold_key": "thresholds.register"
-      }
-    },
-    "thresholds": {
-      "cadence": {
-        "above_ceiling": {
-          "blocker_when": "zero functional turn-points AND zero internal sentence-break signals",
-          "current_severity_floor": "MAJOR",
-          "mandatory_split": true
-        },
-        "bands": [
-          {
-            "deficit_severity": "CLEAN",
-            "max_words": 150,
-            "min_words": 0,
-            "required_functional_turn_points": 0
-          },
-          {
-            "deficit_severity": "MINOR",
-            "max_words": 200,
-            "min_words": 151,
-            "required_functional_turn_points": 1
-          },
-          {
-            "deficit_severity": "MAJOR",
-            "max_words": 300,
-            "min_words": 201,
-            "required_functional_turn_points": 2
-          }
-        ],
-        "calibration_status": "provisional",
-        "candidate_semantics": "nomination_only",
-        "functional_classes": [
-          "transition",
-          "counter_move",
-          "worked_example",
-          "thematic_refocus"
-        ],
-        "functional_confirmation_required": true,
-        "hard_ceiling_words": 300,
-        "internal_sentence_break_signals": [
-          "em_dash",
-          "colon",
-          "semicolon"
-        ],
-        "persistence": {
-          "changes_current_severity": false,
-          "identity_key": "paragraph_content_sha256",
-          "planner_workflow_trigger_after_unchanged_rounds": 2,
-          "reset_on_content_hash_change": true
-        },
-        "turn_point_candidates": [
-          "however",
-          "but",
-          "by contrast",
-          "on the other hand",
-          "for example",
-          "to illustrate",
-          "consider",
-          "yet",
-          "instead",
-          "rather",
-          "at this point",
-          "the key shift",
-          "the counterpoint"
-        ],
-        "unit": "paragraph_words"
-      },
-      "consolidation": {
-        "candidate_gap_paragraphs": 6,
-        "candidate_gap_words": {
-          "P0": 800,
-          "P1": 700,
-          "P2": 600
-        },
-        "construct_accumulation": 3,
-        "deterministic_gap_is_proxy_only": true,
-        "long_manuscript_candidate_words": 5000,
-        "pre_heading_scan_paragraphs": 2,
-        "prior_sections_dependency": 2,
-        "short_manuscript_guidance_words": 3000
-      },
-      "first_use": {
-        "definition_window_paragraphs": 1,
-        "manuscript_major_section_failures_min": 2
-      },
-      "jargon": {
-        "new_domain_terms_per_paragraph": {
-          "P0": 3,
-          "P1": 2,
-          "P2": 1
-        }
-      },
-      "register": {
-        "functional_removability_required": true,
-        "hedges_per_100_words_candidate": 2.0,
-        "minimum_positive_markers": 2,
-        "nominalisation_density_candidate": 0.08,
-        "positive_marker_count": 4,
-        "prepositional_run_candidate": 3,
-        "severity_model": {
-          "major_consecutive_passages": 3,
-          "minor_negative_markers_max": 2,
-          "minor_negative_markers_min": 1,
-          "nontechnical_blocker_major_fraction_above": 0.5,
-          "ph2_orienting_zero_positive": "blocker_candidate",
-          "weighted_roles": [
-            "orienting_clause",
-            "consolidation_anchor",
-            "inter_section_transition"
-          ]
-        }
-      },
-      "rhythm": {
-        "long_sentence_words_at_least": 25,
-        "mean_words_above": 28,
-        "minimum_sentence_count": 4,
-        "short_sentence_words_at_most": 12,
-        "standard_deviation_below": 6
-      },
-      "section_signpost": {
-        "opening_sentences_max": 3,
-        "opening_sentences_min": 1
-      },
-      "verdict_edge": {
-        "intensifier_classes_min": 2,
-        "intensifier_tokens_min": 3
-      },
-      "worked_example": {
-        "example_window_paragraphs": 1,
-        "rhetorical_question_stack_min": 3
-      }
-    },
-    "transitions": {
-      "G": {
-        "meaning": "new manuscript reaches Ph3",
-        "required_observed_count": 1,
-        "retirement_event": "planner_transition_approved",
-        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
-        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.G",
-        "workflow_effect_while_active": "findings recorded but excluded from aggregate"
-      },
-      "H": {
-        "meaning": "two complete revision cycles with H in scope",
-        "required_observed_count": 2,
-        "retirement_event": "planner_transition_approved",
-        "stability_mode_effect": "aggregation follows runtime_modes.stability plus bound transition state",
-        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.H",
-        "workflow_effect_while_active": "findings recorded but excluded from aggregate"
-      },
-      "VE": {
-        "meaning": "two complete observed advisory cycles",
-        "required_observed_count": 2,
-        "retirement_event": "planner_transition_approved",
-        "stability_mode_effect": "recurrence telemetry only",
-        "state_owner": "phase_state.json.milestone_framework.policy_bindings.reader_accessibility.transitions.VE",
-        "workflow_effect_after_retirement": "recurrence telemetry only",
-        "workflow_effect_while_active": "recurrence telemetry only"
-      }
-    }
-  },
-  "source_bindings": [
-    {
-      "path": "references/policies/reader_accessibility.v1.json",
-      "role": "package_profile",
-      "scope": "package",
-      "sha256": "821c99b606b4b72df6ed8ad719712341c23927510babab82108dc6c907f08277"
-    },
-    {
-      "path": "references/READER_ACCESSIBILITY.md",
-      "role": "package_contributor",
-      "scope": "package",
-      "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5"
-    },
-    {
-      "path": "references/examples/model_prose_corpus.md",
-      "role": "package_contributor",
-      "scope": "package",
-      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812"
-    }
-  ]
+  }
 }

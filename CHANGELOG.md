@@ -6,6 +6,35 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.31.1 — 2026-07-19
+
+### Full-run enforcement surfaces and deliberate register re-pin
+
+**What changed.** The existing full-run contract is now connected to the
+Claude Code plugin surface and the release gate. An explicitly scoped driver
+activates PreToolUse checks for manuscript Write/Edit operations and subagent
+Task/Agent dispatch, plus a Stop check for terminal-completion claims. The
+post-hoc completeness report preserves authoritative gate outcomes, including
+UNVERIFIABLE for execution errors and explicit expected roots in mixed trees.
+The previously orphaned full-run, semantic-bypass, enforcement-surface, and
+corpus-portability suites are release-gated with `errexit`-safe exit capture.
+
+**Verification and boundary.** Synthetic regressions cover inactive ordinary
+sessions, exact child-scope inheritance, slash-normalized manuscript paths,
+terminal claims, exit-code preservation, and mixed-root detection. Claude Code
+2.1.214 was exercised directly: its observed `Task` spelling was denied for an
+undeclared child scope and then allowed after exact `full_lifecycle`
+inheritance; the Stop hook also executed on the host. Shell writes remain
+outside the hook surface, driver activation remains explicit, and Cowork
+prevention is not claimed without build-specific verification.
+
+**Register and baseline repair.** A confirmed epoch-5 exemplar-view re-pin
+updates the three changed Yu-source tuples while retaining the attestation pin,
+membership, seed count, and primary communities. Its dry-run, applied snapshot,
+commit provenance, and read-back are recorded. The milestone smoke expectation
+now matches the intentionally unconditional
+`GRAPH_GOVERNED_GENERATION_UNAVAILABLE` authority gate introduced in v0.31.0.
+
 ## v0.31.0 — 2026-07-18
 
 ### Reproducible release packaging, evidence integrity, and Wiki-write deferral

@@ -1248,6 +1248,57 @@ fi
 # --- Verdict ---------------------------------------------------------------
 
 echo "============================================================"
+# --- Phase 0.57: full-run contract enforcement smoketests (2026-07-19 audit) --
+#     Regression-pins the FULL_RUN_CONTRACT gate against the 2026-07-17/18
+#     "narrated ladder, no artefacts" failure and the CodeRabbit semantic-bypass
+#     cases. These smoketests existed but were never gated (audit B7).
+#
+#     VOID-aware: cases that must resolve the pinned domain corpus raise
+#     CorpusRootError on a host that does not carry it (e.g. a Linux CI runner;
+#     see corpus_root_portability_smoketest.py and PR #12). Per the repo's
+#     environment-VOID != test-FAIL idiom (cf. build_plugin_provenance), a corpus
+#     void is a WARNING here, not a BLOCKER; a genuine contract-logic failure is
+#     a BLOCKER. The proper fix -- teaching these smoketests the --wiki-root
+#     override seam so they run everywhere -- is tracked in the hardening plan.
+for FRC_SMOKE in full_run_contract_smoketest.py full_run_semantic_bypass_smoketest.py full_run_enforcement_surfaces_smoketest.py; do
+    if [[ -f "$PLUGIN_ROOT/scripts/$FRC_SMOKE" ]]; then
+        echo "Full-run contract smoketest ($FRC_SMOKE)"
+        set +e
+        FRC_OUT="$(python3 "$PLUGIN_ROOT/scripts/$FRC_SMOKE" 2>&1)"; FRC_RC=$?
+        set -e
+        if [[ $FRC_RC -eq 0 ]]; then
+            echo "  [OK]      scripts/$FRC_SMOKE passed"
+        elif grep -q "CorpusRootError" <<< "$FRC_OUT"; then
+            echo "  [WARNING] scripts/$FRC_SMOKE VOID on this host: domain corpus not"
+            echo "            resolvable (CorpusRootError). Run on the corpus host or"
+            echo "            supply --wiki-root; logic cases still exercised."
+            WARNINGS=$((WARNINGS + 1))
+        else
+            echo "  [BLOCKER] scripts/$FRC_SMOKE failed (contract-logic regression)"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+        echo ""
+    else
+        echo "Full-run contract smoketest: script missing (scripts/$FRC_SMOKE)"
+        echo "  [BLOCKER] cannot run $FRC_SMOKE"
+        BLOCKERS=$((BLOCKERS + 1))
+        echo ""
+    fi
+done
+
+# --- Phase 0.57b: corpus-root portability contract (2026-07-19 audit) ---------
+#     Directly relevant to the above void handling and previously ungated.
+if [[ -f "$PLUGIN_ROOT/scripts/corpus_root_portability_smoketest.py" ]]; then
+    echo "Corpus-root portability smoketest"
+    if ! python3 "$PLUGIN_ROOT/scripts/corpus_root_portability_smoketest.py"; then
+        echo "  [BLOCKER] corpus_root_portability_smoketest.py failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      corpus_root_portability_smoketest.py passed"
+    fi
+    echo ""
+fi
+
 if (( BLOCKERS > 0 )); then
     echo "VERDICT: BLOCKED — $BLOCKERS blocker(s), $WARNINGS warning(s)"
     exit 1

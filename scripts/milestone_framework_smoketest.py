@@ -1732,7 +1732,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         "sk20_not_applicable_substitute_evidence": "research_notes/directives.md",
     }
     cases: list[tuple[str, dict[str, str], dict[str, str] | None, bool, str, int, list[str]]] = [
-        ("enabled_ready", base, None, True, "READY", 0, []),
+        ("enabled_graph_authority_unavailable", base, None, True, "MISCONFIGURED", 4, []),
         ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0, []),
         ("directive_authorized_disabled", base, na, False, "NOT_APPLICABLE", 0, []),
         ("directive_partial_cannot_inherit_claude_authorization", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, {"coupling_e_on_review": "false"}, False, "MISCONFIGURED", 4, []),
@@ -1955,10 +1955,15 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         external_payload = json.loads(external_result.stdout)
     except json.JSONDecodeError:
         external_payload = {}
-    print(f"sk20/absolute_external_inputs: expected=READY/0 actual={external_payload.get('outcome')}/{external_result.returncode}")
+    print(f"sk20/absolute_external_inputs: expected=MISCONFIGURED/4 actual={external_payload.get('outcome')}/{external_result.returncode}")
     external_after = {path: path.read_bytes() for path in external_inputs.iterdir()}
-    if external_result.returncode != 0 or external_payload.get("outcome") != "READY" or external_after != external_before:
-        failures.append("sk20/absolute_external_inputs must remain compatible and read-only")
+    if (
+        external_result.returncode != 4
+        or external_payload.get("outcome") != "MISCONFIGURED"
+        or external_payload.get("reason_code") != "GRAPH_GOVERNED_GENERATION_UNAVAILABLE"
+        or external_after != external_before
+    ):
+        failures.append("sk20/absolute_external_inputs must preserve graph-authority refusal and remain read-only")
 
     spec = importlib.util.spec_from_file_location("sk20_preflight_gate_transaction_test", SK20_GATE)
     if spec is None or spec.loader is None:
