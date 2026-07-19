@@ -1088,14 +1088,40 @@ def _validate_reader_accessibility_policy(
         deliverable = deliverables.get(milestone)
         path = f"milestone_framework.milestones.{milestone}.policy_evidence"
         accepted = record.get("status") in {"accepted", "superseded"} or record.get("handoff", {}).get("status") in {"ready", "consumed"}
-        started_required = ("profile_path", "profile_sha256", "resolved_sha256", "attestation_view_pin", "exemplar_view_pin", "manuscript_sha256", "phase", "cycle_id")
-        required = started_required + (("check8_path", "check8_sha256", "aggregate_verdict") if accepted else ())
+        stable_required = (
+            "profile_path", "profile_sha256", "resolved_sha256",
+            "attestation_view_pin", "exemplar_view_pin",
+        )
+        # M4 begins before its first manuscript bytes exist. At that boundary
+        # the Planner can bind only stable profile/register pins. The first
+        # deliverable_recorded transaction must add all manuscript-bound fields
+        # atomically; M5 still starts from an already-bound M4 manuscript.
+        manuscript_required = ("manuscript_sha256", "phase", "cycle_id")
+        has_deliverable = isinstance(deliverable, dict)
+        required = stable_required
+        if milestone == "M5" or has_deliverable:
+            required += manuscript_required
+        if accepted:
+            required += ("check8_path", "check8_sha256", "aggregate_verdict")
         if not isinstance(policy, dict) or any(policy.get(key) is None for key in required):
             findings.append(_finding("MF-POLICY", path, f"{milestone} must carry complete current-manuscript Check 8 policy evidence"))
             continue
+        if milestone == "M4" and not has_deliverable and set(policy) != set(stable_required):
+            findings.append(_finding(
+                "MF-POLICY", path,
+                "M4 before its first deliverable must carry exactly the five stable policy pins and no manuscript-bound fields",
+            ))
+        if accepted and milestone == "M4" and (
+            policy.get("phase") != "Ph3"
+            or policy.get("aggregate_verdict") not in {"CLEAN", "BORDERLINE"}
+        ):
+            findings.append(_finding(
+                "MF-POLICY", path,
+                "accepted M4 requires phase Ph3 and a CLEAN or BORDERLINE Check 8 aggregate",
+            ))
         if policy.get("profile_path") != binding.get("resolved_path") or policy.get("profile_sha256") != binding.get("profile_sha256") or policy.get("resolved_sha256") != binding.get("resolved_sha256") or policy.get("attestation_view_pin") != binding.get("attestation_view_pin") or policy.get("exemplar_view_pin") != binding.get("exemplar_view_pin"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} resolved policy binding is stale or differently configured"))
-        if not isinstance(deliverable, dict) or policy.get("manuscript_sha256") != deliverable.get("sha256"):
+        if has_deliverable and policy.get("manuscript_sha256") != deliverable.get("sha256"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} Check 8 evidence is not bound to the current manuscript hash"))
         if accepted:
             check_bytes = _file_binding(project_root, policy.get("check8_path"), policy.get("check8_sha256"), None, f"{path}.check8_path", findings, evidence, "MF-POLICY")

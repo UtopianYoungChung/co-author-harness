@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "status": "approved",
+  "milestone": "M1",
+  "authority": "user",
+  "approved_at": "2026-07-19T12:00:00Z",
+  "deliverable": {
+    "path": "research_notes/project_memo.md",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

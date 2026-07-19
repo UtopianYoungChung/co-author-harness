@@ -10,7 +10,7 @@ Grounding, provenance integrity, and root filesystem-integrity rules are non-ove
 
 ## 2. Orthogonal milestone and phase axes
 
-Milestones and phases are orthogonal. Assignment-derived milestones name project deliverables and accepted handoffs. Phases name the revision/readiness state of the active artifact or sections. For the four-milestone course-essay profile, M1-M3 normally execute within Ph1, M4 spans Ph2-Ph3, and the separate final paper occupies the terminal M5 framework slot at Ph4. Neither vocabulary supersedes the other.
+Milestones and phases are orthogonal. Assignment-derived milestones name project deliverables and accepted handoffs. Phases name the revision/readiness state of the active artifact or sections. For the four-milestone course-essay profile, M1-M3 normally execute within Ph1, M4 begins with its complete initial assembly in Ph1 and then spans Ph2-Ph3 review and convergence, and the separate final paper occupies the terminal M5 framework slot at Ph4. Neither vocabulary supersedes the other.
 
 The normal coordination is:
 

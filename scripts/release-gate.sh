@@ -382,6 +382,7 @@ MILESTONE_FRAMEWORK_TESTS=(
     assignment_process_gate_smoketest.py
     assignment_dispatch_preflight_smoketest.py
     assignment_receipt_transaction_smoketest.py
+    assignment_milestone_checkpoint_smoketest.py
     milestone_framework_smoketest.py
     reader_accessibility_contract_smoketest.py
     repin_register_smoketest.py
@@ -419,6 +420,8 @@ MILESTONE_COMPILE_TARGETS=(
     assignment_process_gate.py
     assignment_dispatch_preflight.py
     assignment_receipt_transaction.py
+    assignment_milestone_transaction.py
+    assignment_milestone_checkpoint.py
     assignment_writer_commit.py
     assignment_receipt_invalidate.py
     assignment_receipt_recover.py
@@ -442,6 +445,8 @@ if (( MILESTONE_COMPILE_READY == 1 )); then
         "$PLUGIN_ROOT/scripts/assignment_process_gate.py" \
         "$PLUGIN_ROOT/scripts/assignment_dispatch_preflight.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_transaction.py" \
+        "$PLUGIN_ROOT/scripts/assignment_milestone_transaction.py" \
+        "$PLUGIN_ROOT/scripts/assignment_milestone_checkpoint.py" \
         "$PLUGIN_ROOT/scripts/assignment_writer_commit.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_invalidate.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_recover.py" \

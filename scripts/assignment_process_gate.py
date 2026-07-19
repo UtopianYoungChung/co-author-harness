@@ -195,7 +195,9 @@ def _wiki_grounding_findings(
         datetime.fromisoformat(evidence["produced_at"].replace("Z", "+00:00"))
     except ValueError:
         return [("APG-WIKI-GROUNDING-STALE", "wiki-grounding produced_at must be RFC3339")]
-    active_lineage = milestone_framework.get("primary_lineage_id", "live")
+    active_lineage = milestone_framework.get(
+        "primary_lineage", milestone_framework.get("primary_lineage_id", "live")
+    )
     if evidence["lineage_id"] != active_lineage:
         return [("APG-WIKI-GROUNDING-STALE", "wiki-grounding evidence does not bind the active lineage")]
     skills = evidence.get("skills_invoked")
@@ -350,7 +352,10 @@ def _receipt_record(
     phase_state_path = project / "reviews" / "phase_state.json"
     phase_state = json.loads(phase_state_path.read_text(encoding="utf-8"))
     framework = phase_state.get("milestone_framework", {})
-    lineage = framework.get("primary_lineage_id", "live") if isinstance(framework, dict) else "live"
+    lineage = (
+        framework.get("primary_lineage", framework.get("primary_lineage_id", "live"))
+        if isinstance(framework, dict) else "live"
+    )
     authorized_role, authorized_writes, primary_path = derive_receipt_authority(target)
     authorized_paths = [row["path"] for row in authorized_writes]
     return {

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "milestone": "M1",
+  "feedback_records": [
+    {
+      "feedback_id": "m1-feedback-1",
+      "evidence_class": "direct_milestone_feedback",
+      "source_path": "reviews/m1_feedback.md",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_actor": "user",
+      "source_authority": "user",
+      "source_milestone": "M1",
+      "target_milestone": "M1",
+      "received_at": "2026-07-19T12:00:00Z",
+      "contemporaneity_evidence_path": "reviews/m1_feedback.md",
+      "contemporaneity_evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "lineage_id": "main",
+      "blocking": false,
+      "disposition": "informational",
+      "rationale": "Replace with the real adjudicated feedback rationale.",
+      "successor_effect": "Replace with the real successor effect."
+    }
+  ],
+  "inputs_consumed": [],
+  "decisions_frozen": [],
+  "open_debts": [],
+  "next_milestone_instructions": [],
+  "policy_evidence": {}
+}

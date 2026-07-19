@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""Public-command M1-M4 checkpoint walk and adversarial regressions."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+from assignment_fixture_support import write_valid_contract
+from assignment_milestone_transaction import (
+    MilestoneTransactionError, accept as accept_transaction,
+    record as record_transaction,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+BOOTSTRAP = ROOT / "scripts" / "native_project_bootstrap.py"
+GATE = ROOT / "scripts" / "assignment_process_gate.py"
+PREFLIGHT = ROOT / "scripts" / "assignment_dispatch_preflight.py"
+WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
+CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
+VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
+PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
+PATHS = {
+    "M1": "research_notes/project_memo.md",
+    "M2": "research_notes/annotated_references.md",
+    "M3": "manuscript/outline.md",
+    "M4": "manuscript/main.md",
+}
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def run(*args: object, expected: int = 0) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run([sys.executable, *(str(arg) for arg in args)], cwd=ROOT, text=True, capture_output=True, check=False)
+    if result.returncode != expected:
+        raise AssertionError(f"expected {expected}, got {result.returncode}: {' '.join(str(arg) for arg in args)}\n{result.stdout}{result.stderr}")
+    return result
+
+
+def write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def state(project: Path) -> dict:
+    return json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+
+
+def checkpoint_input(project: Path, milestone: str, at: str, *, valid_m4: bool = True) -> Path:
+    evidence = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_feedback.md"
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text(f"Synthetic adjudicated feedback for {milestone}.\n", encoding="utf-8")
+    policy: dict = {}
+    if milestone == "M3":
+        references = project / "references" / "REFERENCES.md"
+        references.parent.mkdir(parents=True, exist_ok=True)
+        references.write_text("# Verified synthetic references\n", encoding="utf-8")
+        wiki = project / "synthetic-wiki"
+        source = wiki / "sources" / "source.md"; source.parent.mkdir(parents=True, exist_ok=True); source.write_text("# Source\n", encoding="utf-8")
+        graph = wiki / "graphify-out" / "graph.json"; graph.parent.mkdir(parents=True, exist_ok=True); graph.write_text('{"nodes": []}\n', encoding="utf-8")
+        grounding = project / "reviews" / ".harness" / "assignment" / "wiki_grounding_walk.json"
+        write_json(grounding, {
+            "schema_version": "1.0.0", "lineage_id": "main", "produced_at": at,
+            "wiki_path": str(wiki), "wiki_first_resources": True,
+            "skills_invoked": ["seed-snowball-discovery"],
+            "references_path": "references/REFERENCES.md", "references_sha256": sha(references),
+            "graph_path": str(graph), "graph_sha256_provenance": sha(graph),
+            "sources_consulted": [{"path": str(source), "sha256": sha(source)}],
+            "authority": "planner", "notes": "Synthetic public-command walk evidence."
+        })
+        policy = {"wiki_grounding": {"evidence_path": grounding.relative_to(project).as_posix(), "evidence_sha256": sha(grounding)}}
+    elif milestone == "M4":
+        policy = {"phase": "Ph1", "cycle_id": "m4-initial-assembly-001"} if valid_m4 else {"phase": "Ph1"}
+    payload = {
+        "schema_version": "1.0.0", "milestone": milestone,
+        "feedback_records": [{
+            "feedback_id": f"{milestone.lower()}-feedback-1",
+            "evidence_class": "direct_milestone_feedback",
+            "source_path": evidence.relative_to(project).as_posix(), "source_sha256": sha(evidence),
+            "source_actor": "user", "source_authority": "user",
+            "source_milestone": milestone, "target_milestone": milestone,
+            "received_at": at,
+            "contemporaneity_evidence_path": evidence.relative_to(project).as_posix(),
+            "contemporaneity_evidence_sha256": sha(evidence),
+            "lineage_id": "main", "blocking": False, "disposition": "informational",
+            "rationale": "Synthetic feedback was reviewed and requires no revision.",
+            "successor_effect": "Proceed only after explicit approval."
+        }],
+        "inputs_consumed": [], "decisions_frozen": [f"Freeze {milestone} synthetic decision."],
+        "open_debts": [], "next_milestone_instructions": [f"Use accepted {milestone} evidence."],
+        "policy_evidence": policy,
+    }
+    path = evidence.with_name(f"{milestone.lower()}_checkpoint{'_invalid' if not valid_m4 else ''}.json")
+    write_json(path, payload)
+    return path
+
+
+def approval_input(project: Path, milestone: str, at: str) -> Path:
+    deliverable = project / PATHS[milestone]
+    path = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_approval.json"
+    write_json(path, {
+        "schema_version": "1.0.0", "status": "approved", "milestone": milestone,
+        "authority": "user", "approved_at": at,
+        "deliverable": {"path": PATHS[milestone], "sha256": sha(deliverable)},
+    })
+    return path
+
+
+def converge_m4_fixture(project: Path) -> None:
+    """Prepare upstream phase-owned state for the separate M4-accept test."""
+    document = state(project)
+    for section in document["sections"].values():
+        section["current_phase"] = "Ph3_converged"
+        section["phase_entry_log"].extend([
+            {"prev_phase": "Ph1", "new_phase": "Ph2", "trigger": "user_approval", "actor": "user", "notes": "Synthetic Ph2 entry.", "timestamp": "2026-07-19T00:00:23.1Z", "model_used": None},
+            {"prev_phase": "Ph2", "new_phase": "Ph3", "trigger": "user_approval", "actor": "user", "notes": "Synthetic Ph3 entry.", "timestamp": "2026-07-19T00:00:23.2Z", "model_used": None},
+            {"prev_phase": "Ph3", "new_phase": "Ph3_converged", "trigger": "ph3_convergence_signoff_terminal", "actor": "planner", "notes": "Synthetic terminal convergence signoff.", "timestamp": "2026-07-19T00:00:23.3Z", "model_used": None},
+        ])
+    write_json(project / "reviews" / "phase_state.json", document)
+
+
+def m4_acceptance_policy_input(project: Path) -> Path:
+    document = state(project)
+    framework = document["milestone_framework"]
+    binding = framework["policy_bindings"]["reader_accessibility"]
+    manuscript = project / PATHS["M4"]
+    transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}
+    check8 = project / "reviews" / "check8_m4_converged.json"
+    write_json(check8, {
+        "schema_version": "check8_evidence.v1", "cycle_id": "m4-converged-001",
+        "profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"],
+        "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"],
+        "manuscript_path": PATHS["M4"], "manuscript_sha256": sha(manuscript), "phase": "Ph3",
+        "transition_snapshot": transition_snapshot,
+        "subchecks": {letter: {"findings": []} for letter in "ABCDEFGH"},
+        "subcheck_verdicts": {letter: "CLEAN" for letter in "ABCDEFGH"},
+        "ve": {"aggregate_member": False, "gate_contribution": "none", "findings": []},
+        "aggregate_verdict": "CLEAN",
+    })
+    policy = project / "reviews" / ".harness" / "milestones" / "checkpoints" / "m4_acceptance_policy.json"
+    write_json(policy, {
+        "schema_version": "1.0.0", "milestone": "M4", "manuscript_sha256": sha(manuscript),
+        "phase": "Ph3", "cycle_id": "m4-converged-001",
+        "check8_path": check8.relative_to(project).as_posix(), "check8_sha256": sha(check8),
+        "aggregate_verdict": "CLEAN",
+    })
+    return policy
+
+
+def publish(project: Path, milestone: str, content: bytes) -> Path:
+    ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_{milestone}_walk.json"
+    run(GATE, "--project-root", project, "--stage", "draft", "--target-milestone", milestone, "--emit-receipt", ready)
+    record = json.loads(ready.read_text(encoding="utf-8"))
+    run(PREFLIGHT, "--project-root", project, "--receipt", ready, "--consumer", "planner", "--expected-target", milestone, "--write-path", PATHS[milestone])
+    reserved = ready.parent.parent / "reserved" / ready.name
+    staged = project / "reviews" / ".harness" / "assignment" / "staged" / record["receipt_id"] / f"{milestone.lower()}.md"
+    staged.parent.mkdir(parents=True, exist_ok=True); staged.write_bytes(content)
+    plan = staged.with_name("write_plan.json")
+    write_json(plan, {
+        "schema_version": "1.0.0", "receipt_id": record["receipt_id"],
+        "reservation_id": record["reservation_id"], "target_milestone": milestone,
+        "role": "generator", "writes": [{
+            "staged_path": staged.relative_to(project).as_posix(),
+            "target_path": PATHS[milestone], "sha256": hashlib.sha256(content).hexdigest(),
+        }]
+    })
+    run(WRITER, "--project-root", project, "--receipt", reserved, "--plan", plan)
+    return ready.parent.parent / "consumed" / ready.name
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory(prefix="assignment-milestone-checkpoint-") as raw:
+        project = Path(raw) / "walk"
+        run(BOOTSTRAP, "--project-root", project, "--project-name", "walk", "--title", "Synthetic Walk", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z")
+        write_valid_contract(project)
+
+        # No state or F9 handoff is edited by this test: every lifecycle change
+        # below goes through the public command under test.
+        ticks = iter(range(1, 30))
+        for milestone in ("M1", "M2", "M3"):
+            print(f"walk/{milestone}", flush=True)
+            if milestone != "M1":
+                run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
+            assert derived == {"status": "READY", "milestone": milestone, "action": "draft"}, derived
+            consumed = publish(project, milestone, f"# {milestone} synthetic deliverable\n".encode())
+            checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
+            run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
+            run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            run(VALIDATOR, "--project-root", project)
+
+        before_wrong_begin = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M3", "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
+        assert "AMC-ORDER" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == before_wrong_begin
+        run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M4", "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        print("walk/M4-started", flush=True)
+        before = state(project)["milestone_framework"]["milestones"]["M4"]
+        assert before["status"] == "in_progress" and not before["artifacts"]
+        assert set(before["policy_evidence"]) == {"profile_path", "profile_sha256", "resolved_sha256", "attestation_view_pin", "exemplar_view_pin"}
+        run(VALIDATOR, "--project-root", project)
+
+        consumed = publish(project, "M4", b"# M4 complete initial manuscript\n")
+        forged_receipt = project / "reviews" / ".harness" / "milestones" / "checkpoints" / "copied_consumed_receipt.json"
+        forged_receipt.write_bytes(consumed.read_bytes())
+        forged_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        phase_before_forgery = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", forged_receipt, "--checkpoint", forged_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
+        assert "APG-RECEIPT-INVALID" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == phase_before_forgery
+        invalid_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z", valid_m4=False)
+        phase_before_refusal = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", invalid_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
+        assert "AMC-CHECKPOINT" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == phase_before_refusal
+
+        valid_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        checkpoint_bytes = valid_checkpoint.read_bytes()
+        phase_before_mutation = (project / "reviews" / "phase_state.json").read_bytes()
+        try:
+            record_transaction(
+                project, "M4", consumed, valid_checkpoint,
+                f"2026-07-19T00:00:{next(ticks):02d}Z",
+                _before_state_publish=lambda: valid_checkpoint.write_bytes(checkpoint_bytes + b" "),
+            )
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-DEPENDENCY-CHANGED", exc.code
+        else:
+            raise AssertionError("record accepted a checkpoint mutated after validation")
+        assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_mutation
+        valid_checkpoint.write_bytes(checkpoint_bytes)
+        run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", valid_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        after = state(project)["milestone_framework"]["milestones"]["M4"]
+        manuscript = after["artifacts"][0]
+        assert after["policy_evidence"]["manuscript_sha256"] == manuscript["sha256"]
+        assert after["policy_evidence"]["phase"] == "Ph1"
+        assert after["policy_evidence"]["cycle_id"] == "m4-initial-assembly-001"
+        run(VALIDATOR, "--project-root", project)
+
+        approval = approval_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        phase_before_accept = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "accept", "--project-root", project, "--milestone", "M4", "--checkpoint", valid_checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
+        assert "AMC-M4-NOT-CONVERGED" in refused.stdout
+        assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_accept
+        assert not (project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json").exists()
+
+        # A live claim cannot be recovered, and there is no TTL bypass.
+        claim = project / "reviews" / ".harness" / "milestones" / "claims" / "transaction.lock"
+        write_json(claim, {"schema_version": "1.0.0", "pid": __import__("os").getpid(), "host": __import__("platform").node(), "operation": "test", "started_at": "2026-07-19T00:00:00Z"})
+        refused = run(CHECKPOINT, "recover", "--project-root", project, "--acknowledgement", "inspected-milestone-state-and-journal", expected=4)
+        assert "AMC-RECOVERY-LIVE" in refused.stdout and claim.exists()
+        claim.unlink()
+
+        write_json(claim, {"schema_version": "1.0.0", "pid": 2147483647, "host": "foreign-host", "operation": "accept:M4", "started_at": "2026-07-19T00:00:00Z"})
+        refused = run(CHECKPOINT, "recover", "--project-root", project, "--acknowledgement", "inspected-milestone-state-and-journal", expected=4)
+        assert "AMC-RECOVERY-FOREIGN" in refused.stdout and claim.exists()
+        claim.unlink()
+
+        # Adversarial residue injection is outside the positive public walk:
+        # inspected recovery archives both a dead claim and an unbound F9.
+        orphan = project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json"
+        write_json(orphan, {"synthetic_orphan": True})
+        write_json(claim, {"schema_version": "1.0.0", "pid": 2147483647, "host": __import__("platform").node(), "operation": "accept:M4", "started_at": "2026-07-19T00:00:00Z"})
+        run(CHECKPOINT, "recover", "--project-root", project, "--acknowledgement", "inspected-milestone-state-and-journal")
+        assert not claim.exists() and not orphan.exists()
+        journal = project / "reviews" / ".harness" / "milestones" / "journal"
+        assert list(journal.glob("recovered-claim-*.json")) and list(journal.glob("orphan-M4_to_M5-*.json"))
+
+        # Separate acceptance fixture: phase ownership is prepared explicitly,
+        # then the milestone acceptance itself remains public-command-only.
+        converge_m4_fixture(project)
+        run(PHASE_VALIDATOR, "--project-root", project)
+        policy = m4_acceptance_policy_input(project)
+        approval = approval_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        approval_bytes = approval.read_bytes()
+        phase_before_accept_mutation = (project / "reviews" / "phase_state.json").read_bytes()
+        try:
+            accept_transaction(
+                project, "M4", valid_checkpoint, approval,
+                f"2026-07-19T00:00:{next(ticks):02d}Z", policy,
+                _before_state_publish=lambda: approval.write_bytes(approval_bytes + b" "),
+            )
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-DEPENDENCY-CHANGED", exc.code
+        else:
+            raise AssertionError("accept published state after approval evidence mutation")
+        assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_accept_mutation
+        assert not (project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json").exists()
+        approval.write_bytes(approval_bytes)
+        run(CHECKPOINT, "accept", "--project-root", project, "--milestone", "M4", "--checkpoint", valid_checkpoint, "--approval-evidence", approval, "--policy-evidence", policy, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        accepted = state(project)["milestone_framework"]["milestones"]["M4"]
+        assert accepted["status"] == "accepted" and accepted["policy_evidence"]["phase"] == "Ph3"
+        run(VALIDATOR, "--project-root", project)
+
+    print("OK assignment_milestone_checkpoint_smoketest")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

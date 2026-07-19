@@ -154,10 +154,15 @@ REAL_CASES = {
     "policy_valid_bootstrap": ("READY", 0, None, None),
     "policy_valid_m1_started": ("READY", 0, None, None),
     "policy_valid_m3_started": ("READY", 0, None, None),
+    "policy_valid_m4_started_without_manuscript": ("READY", 0, None, None),
+    "policy_m4_started_missing_stable_pin": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_m4_started_with_premature_manuscript_pin": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_retired_without_events": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_valid_retired_transition": ("READY", 0, None, None),
     "policy_forged_check8_content": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_forged_other_round": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_accepted_m4_phase_ph1": ("MISCONFIGURED", 4, None, "MF-POLICY"),
+    "policy_accepted_m4_major": ("MISCONFIGURED", 4, None, "MF-POLICY"),
 }
 
 
@@ -1272,6 +1277,26 @@ def _write_real_case(case: str, project: Path) -> None:
             for name in ("M4", "M5"): _reset_milestone(milestones[name])
             ledger["events"] = [event for event in ledger["events"] if event["milestone"] in {"M1", "M2"} or (event["milestone"] == "M3" and event["event_type"] == "milestone_started")]
             _resequence_events(ledger)
+        elif case in {"policy_valid_m4_started_without_manuscript", "policy_m4_started_missing_stable_pin", "policy_m4_started_with_premature_manuscript_pin"}:
+            full_evidence = milestones["M4"]["policy_evidence"]
+            stable_keys = (
+                "profile_path", "profile_sha256", "resolved_sha256",
+                "attestation_view_pin", "exemplar_view_pin",
+            )
+            stable_evidence = {key: full_evidence[key] for key in stable_keys}
+            if case == "policy_m4_started_missing_stable_pin":
+                stable_evidence.pop("profile_sha256")
+            elif case == "policy_m4_started_with_premature_manuscript_pin":
+                stable_evidence["manuscript_sha256"] = "0" * 64
+            _reset_milestone(milestones["M4"], "in_progress")
+            milestones["M4"]["policy_evidence"] = stable_evidence
+            _reset_milestone(milestones["M5"])
+            ledger["events"] = [
+                event for event in ledger["events"]
+                if event["milestone"] in {"M1", "M2", "M3"}
+                or (event["milestone"] == "M4" and event["event_type"] == "milestone_started")
+            ]
+            _resequence_events(ledger)
         elif case == "policy_retired_without_events":
             binding["transitions"]["H"] = {"state": "retired", "observed_count": 0, "last_event_sequence": None, "events": []}
         elif case == "policy_valid_retired_transition":
@@ -1310,6 +1335,24 @@ def _write_real_case(case: str, project: Path) -> None:
             sidecar["cycle_id"] = "FORGED-OTHER-ROUND"
             forged_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
             evidence["check8_sha256"] = forged_hash
+            _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
+        elif case == "policy_accepted_m4_phase_ph1":
+            evidence = milestones["M4"]["policy_evidence"]
+            evidence["phase"] = "Ph1"
+            _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
+        elif case == "policy_accepted_m4_major":
+            evidence = milestones["M4"]["policy_evidence"]
+            sidecar_path = project / evidence["check8_path"]
+            sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            sidecar["subchecks"]["A"]["findings"] = [
+                {"finding_id":"major-a","severity":"MAJOR","independence_group":"major-a"},
+                {"finding_id":"major-b","severity":"MAJOR","independence_group":"major-b"},
+            ]
+            sidecar["subcheck_verdicts"]["A"] = "MAJOR"
+            sidecar["aggregate_verdict"] = "MAJOR"
+            major_hash, _ = _write_bound_file(project, evidence["check8_path"], json.dumps(sidecar, indent=2) + "\n")
+            evidence["check8_sha256"] = major_hash
+            evidence["aggregate_verdict"] = "MAJOR"
             _rewrite_packet(project, ledger, "M4", lambda packet: packet.update({"policy_evidence": evidence}))
 
     document: Any = _phase_document(ledger, document_phase)

@@ -80,9 +80,21 @@ The role field is an orchestration assertion enforced by the wrapper, not crypto
 
 ## 4. Native auto-walk and approval stops
 
-`/run-draft` derives one active target from the first non-`accepted` M1-M4 record. It gates and dispatches only that deliverable. At M1, M2, and M3, the Planner runs the F9 feedback/adjudication path and then stops for explicit user approval. Only that approval permits the Planner's atomic acceptance and F9 transaction. The invocation ends after the transaction; a later invocation derives the next target. No file, elapsed time, user silence, or phase advancement counts as milestone acceptance.
+`/run-draft` derives one active target by running `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>`. It gates and dispatches only the returned deliverable. The Planner does not reimplement the first-non-accepted predicate in prose.
+
+The same public command owns the lifecycle transaction:
+
+1. `begin --milestone M2|M3|M4` consumes the ready predecessor F9 and starts the successor atomically. M3 and M4 bind the five stable reader-policy/profile pins at this boundary.
+2. After `assignment_writer_commit.py` publishes the scoped Generator result, `record --milestone <M1-M4> --receipt <consumed-receipt> --checkpoint <structured-checkpoint>` validates the receipt/result/live bytes and records the deliverable plus adjudicated feedback in one state-last write. The checkpoint schema and authoring shape are `schemas/assignment_milestone_checkpoint.schema.json` and `templates/assignment_milestone_checkpoint.json`.
+3. `accept --milestone <M1-M4> --checkpoint <same-checkpoint> --approval-evidence <structured-approval>` requires a current-byte, project-local explicit approval. M4 additionally requires `--policy-evidence <current-policy>` after convergence; its strict schema/template bind the current manuscript hash, `phase: Ph3`, cycle, and a CLEAN or BORDERLINE Check 8 aggregate. The command publishes F9 first and `phase_state.json` last. Authoring shapes are `schemas/assignment_milestone_approval.schema.json`, `templates/assignment_milestone_approval.json`, `schemas/assignment_m4_acceptance_policy.schema.json`, and `templates/assignment_m4_acceptance_policy.json`.
+
+M4 has one intentional timing distinction. `begin M4` records only `profile_path`, `profile_sha256`, `resolved_sha256`, `attestation_view_pin`, and `exemplar_view_pin`, because no scoped manuscript bytes exist yet. The first successful `record M4` transaction must add the deliverable and `manuscript_sha256`, `phase`, and `cycle_id` atomically. An initial assembly uses `phase: Ph1`; this does not authorize acceptance. `accept M4` remains blocked until every in-scope section is `Ph3_converged` and the retained Check 8/phase gates pass.
+
+At M1, M2, and M3, the Planner stops for explicit user approval after the record checkpoint. Only that approval permits the acceptance/F9 transaction. The invocation ends after the transaction; a later invocation derives and begins the next target. No file, elapsed time, user silence, or phase advancement counts as milestone acceptance.
 
 Before the M3→M4 transaction, the Planner creates and binds current wiki-grounding evidence or records an authorized opt-out. M4 therefore becomes reachable only after three distinct acceptance checkpoints and the grounding gate. Legacy projects do not enter this walk until their migration boundary and acceptance evidence have been adjudicated.
+
+Milestone transactions use a separate no-TTL claim at `reviews/.harness/milestones/claims/transaction.lock`; they never reuse the assignment receipt lock. An unclean claim requires inspection of `phase_state.json` and the lifecycle journal, followed by `assignment_milestone_checkpoint.py recover --acknowledgement inspected-milestone-state-and-journal`. Recovery refuses a live local process and fails closed on a foreign-host claim pending separately verified administrative coordination. For a proven-dead local claim it writes collision-resistant, exclusive archives for the claim and any canonical F9 packet not bound as ready/consumed by authoritative state; it does not silently delete or overwrite crash residue.
 
 ## 5. Format and export authority
 
