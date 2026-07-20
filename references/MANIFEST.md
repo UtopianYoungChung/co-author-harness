@@ -165,7 +165,7 @@ Anti-duplication: `scripts/snippet-check.py` verifies the snippet's content does
 ## 5. Notes preserved from CLAUDE.md §3
 
 - **Autoresearch-inspired concepts (2026-04-13).** Six enhancements adapted from Karpathy's autoresearch project distributed across existing files: (1) primary gate metrics per phase (`ROUTING_SPINE.md §3`); (2) scope budgets per agent (`AGENT_CONTRACTS.md §§1–4`); (3) `round_program.md` per round (`AGENT_ORCHESTRATION.md §8.2`); (4) Retain/Revert Protocol (`AGENT_ORCHESTRATION.md §7`); (5) structured experiment logging in `revision_log.md` (`AGENT_CONTRACTS.md §3`); (6) three-layer architecture immutable/experimental/control (`AGENT_ORCHESTRATION.md §8.1`).
-- **Graphify Coupling E.2 (2026-04-16).** SK-20 `graph-grounding-overlay` reads peer `LLM wiki/graphify-out/{graph.json,GRAPH_REPORT.md}` and emits up to three finding types into `reviews/graph_overlay_YYYY-MM-DD.md`. Activation: project declares `coupling_e_on_review: true` and `wiki_linked: true`. Orchestration hook: `AGENT_ORCHESTRATION.md §8.6`.
+- **Graphify Coupling E.2 (2026-04-16; unavailable).** SK-20 `graph-grounding-overlay` remains fail-closed with `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`. `wiki_linked: true`, `coupling_e_on_review: true`, fresh files, and valid graph structure are necessary checks but cannot activate graph authority. Orchestration hook: `AGENT_ORCHESTRATION.md §8.6`.
 - **Examples folder (`references/examples/`).** Three artefact genres — review walkthroughs (`CAiSE_Rev01_walkthrough.md`, `INF3001_walkthrough.md`), calibration corpora (`model_prose_corpus.md`, mandatory load for `skills/accessibility-overlay/SKILL.md`), and finished-manuscript exemplars (`milestone5_v3_paper_trimmed.md` — INF3130 HCI M5 layperson register variant).
 
 ---

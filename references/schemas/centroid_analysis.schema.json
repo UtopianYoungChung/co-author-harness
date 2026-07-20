@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/centroid_analysis.schema.json",
+  "title": "Read-only centroid analysis candidate envelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "capability",
+    "status",
+    "reason_code",
+    "read_only",
+    "writes_performed",
+    "public_activation"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "capability": {"const": "centroid-pass"},
+    "status": {"enum": ["ready", "unavailable"]},
+    "reason_code": {"type": ["string", "null"]},
+    "read_only": {"const": true},
+    "writes_performed": {"const": false},
+    "public_activation": {"const": "unavailable"},
+    "detail": {"type": "string"},
+    "binding_provenance": {"enum": ["project", "package-default"]},
+    "manuscript": {"type": "object"},
+    "policy": {"type": "object"},
+    "analysis_contract": {"type": "object"},
+    "scope_metrics": {"type": "object"},
+    "semantic_findings": {"type": "array", "maxItems": 0},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "ready"}}},
+      "then": {
+        "required": [
+          "binding_provenance",
+          "manuscript",
+          "policy",
+          "analysis_contract",
+          "scope_metrics",
+          "semantic_findings",
+          "limitations"
+        ],
+        "properties": {"reason_code": {"type": "null"}}
+      },
+      "else": {
+        "required": ["detail"],
+        "properties": {"reason_code": {"type": "string", "minLength": 1}}
+      }
+    }
+  ],
+  "additionalProperties": false
+}

@@ -263,11 +263,11 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-20. `graph-grounding-overlay`
 - **File:** `skills/graph-grounding-overlay/SKILL.md`
-- **Pattern:** Materializes **Coupling E.2** — overlays graphify's knowledge-graph output (`LLM wiki/graphify-out/graph.json` + `GRAPH_REPORT.md`) onto the manuscript's citation set and emits three Evaluator-native finding types: Finding A (graph-stub citations — cited sources with zero graph nodes), Finding B (section-location mismatches — manuscript cites §X, graph locates claim at §Y), Finding C (missing-citation candidates — graphify edges between cited and uncited sources). Every finding carries a graph-specific source tag (`[source: graph-extracted]` / `[source: graph-inferred]` / `[source: graph-stub]`) so grounding-audit Category 8 can trace it back. Severity capped at MAJOR; BLOCKER escalation reserved for the Evaluator's judgment pass. P-stage-adjusted thresholds (P0 demotes Finding A; P2 promotes Finding C semantic-similar at EXTRACTED confidence). Graceful degradation: no-op if project not wiki-linked, if graphify output missing, or if graph is stale relative to manuscript/references.
+- **Pattern:** Unavailable Coupling E.2 overlay. The unconditional graph-authority gate returns `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`; structurally valid graph files do not grant authority and the skill produces no overlay findings.
 - **Created:** 2026-04-16
 - **Source:** Synergy analysis 2026-04-16 — graphify produces 43 nodes / 53 edges / 7 communities / 81% EXTRACTED 19% INFERRED / section-level provenance at `LLM wiki/graphify-out/`, but zero file in `.paper-package/` references it (grep confirmed). SK-20 is the v0.3.0 minimum-viable pilot: a single Evaluator pre-flight hook that converts graph topology into findings in the pipeline's native output format, preserving uncertainty inheritance through graph-specific source tags.
 - **Tier:** Package
-- **Status:** Active (v0.3.0 pilot — single-hook scope; validation target is INF3006Y_AgencyDelegation Round-N graph overlay vs manual findings)
+- **Status:** Unavailable (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`); a separate governed graph-generation contract is required before promotion.
 - **Depends on:** graphify toolchain (runs externally; produces `graph.json` and `GRAPH_REPORT.md` under `LLM wiki/graphify-out/`); SK-15 `backfill-source-stubs-from-references` (provides citation-key ↔ pdf-path mapping Phase 2 relies on); project CLAUDE.md declares `wiki_linked: true`; `reviews/classification.md` exists for P-stage adjustment
 - **Contract version gate:** Graphify output schema as observed 2026-04-13 (top-level keys: `directed`, `multigraph`, `graph`, `nodes`, `links`, `hyperedges`; node fields: `id`, `label`, `source_file`, `source_location`, `author`, `captured_at`, `community`, `norm_label`; edge fields: `relation`, `confidence`, `confidence_score`, `source_file`, `source_location`, `weight`, `source`, `target`). If graphify's output schema changes, update this skill before running against a new graph.
 - **Grounding-audit extension:** Adds Category 8 (graph-sourced claims) to grounding-audit, paralleling SK-18's Category 7 extension. Category 8 audits three tag classes (extracted, inferred, stub), enforces confidence-score inheritance, and blocks on fabricated node/edge references or false stubs. As of v0.4.0, Category 8 gains sub-item 8a (confidence-echo detector) — every `[GRAPH-OVERLAY][CAT-8]` finding whose severity matches the mechanical confidence-to-severity mapping (EXTRACTED→BLOCKER, INFERRED→MAJOR, AMBIGUOUS→MINOR) must carry an independent-reasoning note citing a passage, directive, P-stage rule, or Class 1 verifier cross-check. Echo findings (matching severity + missing note) are MAJOR at standard depth and BLOCKER at submission-bound depth; shallow findings (matching severity + confidence-only note) are one tier below. Round-level ECHO+SHALLOW rate ≥ 30% triggers a `[COUPLING-E.2 DEGRADED]` flag.
@@ -516,13 +516,13 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-47. `centroid-pass`
 - **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
-- **Pattern:** On-demand front door onto `domain_native_register.derivations` — runs the single-centroid Eric-Yu register `write` / `review` / `revise` derivation against a manuscript scope outside the automatic Ph1-Generator / Ph2–Ph4 Sub-check-H path. Advisory dry-run by default; `--apply` commits `write`/`revise` through the Generator with a logged diff (`review` is always read-only). Overrides the M1–M3 assignment-scope fence but emits `APG-EXEMPLAR-M4-FENCE-BYPASSED` whenever it runs below M4 or on an unbound project. Falls back to the package-pinned profile when the project is unbound. Reads a resolved profile only — never re-pins, never writes `phase_state.json`, never gates a TerminalSignoffRow.
-- **Created:** 2026-07-19 from a user directive to make the centroid on-demand (design decisions: milestone override-with-warning; advisory-default + `--apply`; package-default binding fallback).
+- **Pattern:** Unavailable public entrypoint returning a deterministic, read-only `IMPLEMENTATION_MISSING` envelope. The maintainer-only analysis candidate resolves the policy, pins, members, exact manuscript scope, hashes, and text metrics but emits no semantic finding and performs no write.
+- **Created:** 2026-07-19; capability-truth posture corrected during the WP5 live-interface audit.
 - **Tier:** Package
-- **Status:** Active
-- **Depends on:** `references/policies/reader_accessibility.v1.json` (`domain_native_register`), `scripts/reader_accessibility_policy.py` (resolve path), `agents/generator.md` (apply path, C-7 fence, DO_NOT_DISTURB), `references/GROUNDING_PROTOCOL.md`.
-- **Trigger:** Explicit `/centroid-pass <mode>` only; never auto-dispatched.
-- **Sibling:** SK-46 `repin-register` (the pin-motion path; centroid-pass never re-pins); `accessibility-overlay` Sub-check H (the automatic, gating counterpart of `review` mode).
+- **Status:** Unavailable (`IMPLEMENTATION_MISSING`); H2 is required for any public promotion.
+- **Depends on:** `references/policies/reader_accessibility.v1.json`, `scripts/reader_accessibility_policy.py`, and `references/GROUNDING_PROTOCOL.md`.
+- **Trigger:** Explicit `/centroid-pass`; returns the unavailable envelope only.
+- **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).
 
 ---
 

@@ -126,8 +126,18 @@ def validate(plugin_root: Path, data: dict[str, Any]) -> list[str]:
         elif availability == "unavailable":
             if mode != "deferred":
                 errors.append(f"{name}: unavailable capability must use deferred mode")
-            if not row.get("reason_code"):
+            reason_code = row.get("reason_code")
+            if not reason_code:
                 errors.append(f"{name}: unavailable capability needs reason_code")
+            elif skill_path is not None:
+                prelude = "\n".join(
+                    skill_path.read_text(encoding="utf-8").splitlines()[:80]
+                )
+                if reason_code not in prelude:
+                    errors.append(
+                        f"CAP-DEFERRED-UNDECLARED {name}: reason_code {reason_code!r} "
+                        "is absent from the first 80 skill lines"
+                    )
         elif availability == "external-dependent" and not row.get("provider"):
             errors.append(f"{name}: external-dependent capability needs provider")
 

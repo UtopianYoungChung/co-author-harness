@@ -1,7 +1,7 @@
 ---
 name: graph-grounding-overlay
-description: Overlay graphify's knowledge-graph outputs (graph.json + GRAPH_REPORT.md) onto a manuscript's citation set, producing three new grounding-style findings — graph-stub citations, section-location mismatches, and missing-citation candidates — tagged with confidence inherited from graphify's EXTRACTED/INFERRED/AMBIGUOUS labels. Materializes Coupling E.2 between the co-author-harness plugin and the peer LLM wiki's graphify layer.
-trigger: when the user asks to run a graph overlay on a manuscript, overlay graphify findings on a review, check the citation set against the knowledge graph, materialize Coupling E, or when the Evaluator invokes graph-aware pre-flight as a v0.3.0 pilot hook
+description: Unavailable graph-grounding overlay. Returns GRAPH_GOVERNED_GENERATION_UNAVAILABLE even when graph files are fresh and structurally valid; performs no graph-derived review or Wiki mutation.
+trigger: when the user asks to run a graph overlay or invoke Coupling E.2; return the fail-closed no-op only.
 created_by: Reflector (Coupling E.2 pilot)
 created_from: >-
   Synergy analysis 2026-04-16 — graphify produces 43 nodes / 53 edges / 7
@@ -43,7 +43,9 @@ Primary Research completion, approval, and release continue. Only governed graph
 
 Also run deterministic gate `scripts/sk20_preflight_gate.py` so readiness + no-op artifacts are emitted consistently. If `should_run_sk20` is false for any reason (including this graph-authority plane), SK-20 must no-op.
 
-You are executing **Coupling E.2** — the graph-to-pipeline overlay that feeds graphify's topological and provenance signals into the Evaluator's pre-flight stage. The overlay is **additive**: it produces new findings in the Evaluator's native format; it does not replace any existing step, modify the manuscript, or mutate graphify's output. Every finding it produces carries a graph-specific source tag so that downstream grounding-audit Category 8 can trace it back to the graph artefact that generated it.
+The remaining sections preserve the dormant Coupling E.2 design for a future
+governed promotion. They are non-executable while the unconditional gate is in
+force and cannot override the immediate no-op above.
 
 ## Preconditions
 

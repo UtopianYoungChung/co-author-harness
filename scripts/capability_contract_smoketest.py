@@ -43,6 +43,12 @@ def main() -> int:
     require_error(case, "unavailable capability needs reason_code")
 
     case = copy.deepcopy(data)
+    case["capabilities"]["centroid-pass"]["reason_code"] = (
+        "SYNTHETIC_REASON_NOT_DECLARED"
+    )
+    require_error(case, "CAP-DEFERRED-UNDECLARED")
+
+    case = copy.deepcopy(data)
     case["capabilities"]["advisor-escalation"].pop("provider")
     require_error(case, "external-dependent capability needs provider")
 
