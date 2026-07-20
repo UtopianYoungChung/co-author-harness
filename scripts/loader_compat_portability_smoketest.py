@@ -40,6 +40,7 @@ def main() -> int:
                     "source": "url",
                     "url": "https://github.com/example/loader-portability-fixture.git",
                 },
+                "repository": "https://github.com/example/loader-portability-fixture",
             }]
         }
         _write(root / ".claude-plugin/plugin.json", json.dumps(manifest))
