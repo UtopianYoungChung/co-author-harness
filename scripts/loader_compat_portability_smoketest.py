@@ -36,7 +36,10 @@ def main() -> int:
                 "name": manifest["name"],
                 "version": manifest["version"],
                 "description": description,
-                "source": "./",
+                "source": {
+                    "source": "url",
+                    "url": "https://github.com/example/loader-portability-fixture.git",
+                },
             }]
         }
         _write(root / ".claude-plugin/plugin.json", json.dumps(manifest))

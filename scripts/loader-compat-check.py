@@ -12,7 +12,7 @@ check that is diagnosable from the .plugin file alone:
      description budget per manifest-coherence-check.py, 12-keyword budget).
   4. Marketplace self-reference parity (.claude-plugin/marketplace.json:
      plugins[] entry whose name matches plugin.json — version match,
-     description match, source format != bare "." or "..").
+     description match, dual-loader remote URL source contract).
   5. Path-encoding scan (no backslashes, no absolute paths, no .. traversal,
      no non-ASCII bytes in member paths, no path components >255 bytes,
      no reserved Windows basenames).
@@ -57,6 +57,8 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Tuple
+
+from marketplace_contract import root_source_error
 
 
 # Release verification must work on native Windows consoles whose inherited
@@ -273,12 +275,13 @@ def check_marketplace_parity(report: Report, plugin_path: Path, manifest: dict) 
     name = manifest.get("name", "")
     self_entries = [p for p in plugins_list if p.get("name") == name]
     if not self_entries:
-        report.emit("WARN", "C4.self",
-                    "marketplace.json has plugins[] but no self-referencing entry")
+        report.emit("BLOCK", "C4.self",
+                    "marketplace.json must contain exactly one manifest-name entry; found 0")
         return
     if len(self_entries) > 1:
-        report.emit("WARN", "C4.self-count",
-                    f"{len(self_entries)} self-referencing entries (expected 1)")
+        report.emit("BLOCK", "C4.self-count",
+                    f"marketplace.json must contain exactly one manifest-name entry; "
+                    f"found {len(self_entries)}")
         return
 
     entry = self_entries[0]
@@ -299,12 +302,10 @@ def check_marketplace_parity(report: Report, plugin_path: Path, manifest: dict) 
                     "marketplace self-description matches plugin.json")
 
     source = entry.get("source", "")
-    if source in (".", ".."):
+    source_error = root_source_error(entry)
+    if source_error:
         report.emit("BLOCK", "C4.source-format",
-                    f"marketplace source {source!r} is bare-dot "
-                    f"(loader rejects); use {source}/ instead")
-    elif not source:
-        report.emit("WARN", "C4.source-empty", "marketplace self-entry has empty source")
+                    source_error)
     else:
         report.emit("PASS", "C4.source", f"marketplace source format ok ({source!r})")
 

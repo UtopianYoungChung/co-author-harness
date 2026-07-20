@@ -48,6 +48,12 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from marketplace_contract import (
+    manifest_entries,
+    manifest_entry_cardinality_error,
+    root_source_error,
+)
+
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -258,9 +264,11 @@ def check_changelog_structure(releases: List[Tuple[str, str]]) -> List[str]:
 def extract_marketplace_self_referencing_metadata(
     plugin_root: Path,
 ) -> Optional[List[Tuple[str, str, str]]]:
-    """Return [(plugin_name, version, license), ...] for marketplace entries
-    whose source resolves to the same plugin root (source == "." or "./",
-    or an absolute/relative path that resolves to plugin_root).
+    """Return [(plugin_name, version, license), ...] for the manifest entry.
+
+    Identity is the manifest name, matching loader behaviour. Source syntax is
+    validated separately so changing from a local path to the dual-loader URL
+    form cannot silently remove the entry from parity enforcement.
 
     Returns None when marketplace.json does not exist — the file is
     optional infrastructure (not every plugin ships with a co-located
@@ -281,45 +289,30 @@ def extract_marketplace_self_referencing_metadata(
         return None
 
     marketplace = json.loads(read_text(marketplace_path))
+    manifest = json.loads(read_text(plugin_root / ".claude-plugin" / "plugin.json"))
     plugins = marketplace.get("plugins", [])
     if not isinstance(plugins, list):
         return []
 
+    cardinality_error = manifest_entry_cardinality_error(plugins, manifest)
+    if cardinality_error:
+        return [(
+            str(manifest.get("name", "")).strip() or "<unnamed>",
+            f"<INVALID_SELF_ENTRY_COUNT: {cardinality_error}>",
+            "<missing>",
+        )]
+
     self_metadata: List[Tuple[str, str, str]] = []
-    for entry in plugins:
-        if not isinstance(entry, dict):
-            continue
-        source = str(entry.get("source", "")).strip()
-        if not source:
-            continue
-        # Format check (v0.10.1 follow-up): the Claude Code marketplace
-        # loader's schema rejects bare "." as `Invalid input` for the
-        # `source` field. Accepted forms surfaced empirically against
-        # working examples are relative paths starting with "./" or
-        # "../", and absolute git/HTTPS URLs. We do not enforce git URLs
-        # here (the loader handles those); we only flag the bare-dot
-        # class that has shipped twice (v0.10.0 RC marketplace skew and
-        # v0.10.1 RC schema-format slip) so future RC gates catch it.
-        if source in (".", ".."):
+    for entry in manifest_entries(plugins, manifest):
+        source_error = root_source_error(entry)
+        if source_error:
             self_metadata.append(
                 (
                     str(entry.get("name", "<unnamed>")).strip() or "<unnamed>",
-                    f"<INVALID_SOURCE_FORMAT: bare '{source}' rejected by "
-                    f"marketplace loader; use '{source}/' instead>",
+                    f"<INVALID_SOURCE_FORMAT: {source_error}>",
                     str(entry.get("license", "")).strip() or "<missing>",
                 )
             )
-            continue
-        # Normalise to absolute path for comparison; treat "./" and
-        # "../" as relative-to-marketplace.json's-directory by Claude
-        # Code convention. We additionally try the parent-of-marketplace
-        # interpretation (some marketplaces co-locate the registration
-        # one directory up) so the check is robust to layout variation.
-        candidates = [
-            (marketplace_path.parent / source).resolve(),  # ./ relative to marketplace.json
-            (marketplace_path.parent.parent / source).resolve(),  # ./ relative to plugin root
-        ]
-        if plugin_root.resolve() not in candidates:
             continue
 
         name = str(entry.get("name", "")).strip()

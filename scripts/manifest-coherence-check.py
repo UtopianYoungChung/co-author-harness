@@ -37,6 +37,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
+from marketplace_contract import manifest_entries, manifest_entry_cardinality_error
+
 try:
     import yaml  # type: ignore
 except ImportError:
@@ -177,45 +179,28 @@ def find_asserted_skill_counts(description: str) -> List[str]:
     return hits
 
 
-def extract_marketplace_self_description(plugin_root: Path) -> Optional[str]:
-    """Return the marketplace.json self-referencing entry's description.
+def extract_marketplace_self_description(
+    plugin_root: Path,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return (self-entry description, cardinality/parse error).
 
-    Returns None when marketplace.json does not exist or has no
-    self-referencing plugin entry. The check exists to enforce parity
-    between plugin.json and marketplace.json descriptions; absence on
-    either side trivially passes the check.
+    This package ships a marketplace, so zero or multiple manifest-identity
+    entries are parity failures rather than a reason to skip the check.
     """
     marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
     if not marketplace_path.exists():
-        return None
+        return None, "marketplace.json is missing"
     try:
         marketplace = load_json(marketplace_path)
+        manifest = load_json(plugin_root / ".claude-plugin" / "plugin.json")
     except (OSError, json.JSONDecodeError):
-        return None
+        return None, "marketplace.json or plugin.json could not be parsed"
     plugins = marketplace.get("plugins", [])
-    if not isinstance(plugins, list):
-        return None
-    for entry in plugins:
-        if not isinstance(entry, dict):
-            continue
-        source = str(entry.get("source", "")).strip()
-        if source not in (".", "./", "../"):
-            # Only inspect canonical self-reference forms; bare-dot is
-            # handled by version-check.py's separate format check.
-            candidates = [
-                (marketplace_path.parent / source).resolve()
-                if source
-                else None,
-                (marketplace_path.parent.parent / source).resolve()
-                if source
-                else None,
-            ]
-            if plugin_root.resolve() not in [c for c in candidates if c]:
-                continue
-        description = str(entry.get("description", "")).strip()
-        if description:
-            return description
-    return None
+    cardinality_error = manifest_entry_cardinality_error(plugins, manifest)
+    if cardinality_error:
+        return None, cardinality_error
+    entry = manifest_entries(plugins, manifest)[0]
+    return str(entry.get("description", "")).strip(), None
 
 
 def main() -> int:
@@ -306,9 +291,12 @@ def main() -> int:
         )
 
     # Check 5: description parity with marketplace.json self-reference
-    marketplace_description = extract_marketplace_self_description(plugin_root)
-    if marketplace_description is None:
-        parity_summary = "<no marketplace.json self-reference>"
+    marketplace_description, marketplace_error = extract_marketplace_self_description(
+        plugin_root
+    )
+    if marketplace_error:
+        parity_summary = "INVALID"
+        blockers.append(marketplace_error)
     elif marketplace_description == description:
         parity_summary = "OK (identical)"
     else:

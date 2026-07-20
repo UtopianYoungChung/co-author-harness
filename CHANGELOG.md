@@ -6,6 +6,31 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.33.1 — 2026-07-20
+
+### Dual-loader marketplace compatibility
+
+**What changed.** The single-plugin marketplace now resolves the repository-root
+package through a remote HTTPS URL source. Claude accepts the prior local
+`"./"` form, but Codex cannot resolve a plugin to the marketplace root. The URL
+form preserves the canonical root package, the single `main` branch, and one
+copy of the substrate while allowing both loaders to discover and install it.
+
+**Enforcement.** Marketplace identity is now determined by the manifest plugin
+name rather than by stringifying the source field. Version, license,
+description, and SSOT parity therefore remain active when the source changes
+from a local string to an object. A shared marketplace contract and synthetic
+regressions refuse root-relative sources, unsupported source objects,
+repository mismatches, and parity drift. The archive loader check consumes the
+same rule.
+
+**Release boundary.** The URL is intentionally not commit-pinned inside the
+self-hosted manifest: a release commit cannot contain its own SHA. Immutable
+release identity remains the semantic version plus annotated Git tag; a new
+version is required whenever package bytes change.
+
+---
+
 ## v0.33.0 — 2026-07-20
 
 ### Systematic package repair and canonical lifecycle

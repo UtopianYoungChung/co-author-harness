@@ -34,6 +34,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from marketplace_contract import is_manifest_entry, manifest_entry_cardinality_error
+
 try:
     import yaml  # type: ignore
 except ImportError:
@@ -105,18 +107,10 @@ def resolve_authority(
 def is_self_referencing_marketplace_entry(
     entry: Dict[str, Any], marketplace_path: Path, plugin_root: Path
 ) -> bool:
-    """True if this marketplace entry references the current plugin root."""
-    source = str(entry.get("source", "")).strip()
-    if not source:
-        return False
-    if source in (".", "./"):
-        # Convention: source-relative-to-marketplace-dir.
-        return marketplace_path.parent.resolve() == plugin_root.resolve()
-    candidates = [
-        (marketplace_path.parent / source).resolve(),
-        (marketplace_path.parent.parent / source).resolve(),
-    ]
-    return plugin_root.resolve() in candidates
+    """True when the marketplace entry has the package manifest identity."""
+    del marketplace_path  # identity must survive local -> remote source changes
+    manifest = load_json(plugin_root / ".claude-plugin" / "plugin.json")
+    return is_manifest_entry(entry, manifest)
 
 
 def check_consumer(
@@ -295,6 +289,19 @@ def main() -> int:
 
     blockers: List[str] = []
     fact_summary: List[str] = []
+
+    marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
+    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    try:
+        marketplace = load_json(marketplace_path)
+        manifest = load_json(manifest_path)
+        cardinality_error = manifest_entry_cardinality_error(
+            marketplace.get("plugins", []), manifest
+        )
+        if cardinality_error:
+            blockers.append(f"SSOT marketplace identity: {cardinality_error}")
+    except (OSError, json.JSONDecodeError) as exc:
+        blockers.append(f"SSOT marketplace identity could not be read: {exc}")
 
     for fact_name, fact_spec in facts.items():
         if not isinstance(fact_spec, dict):
