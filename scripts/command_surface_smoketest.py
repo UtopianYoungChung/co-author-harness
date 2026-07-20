@@ -42,6 +42,13 @@ def fixture(root: Path) -> None:
             }
         ),
     )
+    write(
+        root / "references/capabilities.yaml",
+        "capabilities:\n"
+        "  plugin-commands: {exposure: public}\n"
+        "  public-skill: {exposure: public}\n"
+        "  hidden-skill: {exposure: internal}\n",
+    )
     write(root / "AGENTS.md", "Use `/public-skill`.\n")
 
 
@@ -79,7 +86,19 @@ def main() -> int:
         findings = validate(root)
         assert any("advertises slash names outside" in item for item in findings)
 
-    print("PASS: command surface policy rejects duplicates, visibility drift, hidden catalog rows, and phantom advertised names")
+        fixture(root)
+        capabilities = root / "references/capabilities.yaml"
+        capabilities.write_text(
+            capabilities.read_text(encoding="utf-8").replace(
+                "hidden-skill: {exposure: internal}",
+                "hidden-skill: {exposure: public}",
+            ),
+            encoding="utf-8",
+        )
+        findings = validate(root)
+        assert any("capability registry exposure drift" in item for item in findings)
+
+    print("PASS: command surface policy rejects duplicates, visibility and capability drift, hidden catalog rows, and phantom advertised names")
     return 0
 
 

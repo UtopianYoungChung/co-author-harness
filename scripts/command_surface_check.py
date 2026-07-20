@@ -66,6 +66,20 @@ def load_policy(plugin_root: Path) -> tuple[set[str], dict[str, set[str]]]:
     return public, hidden
 
 
+def capability_exposures(plugin_root: Path) -> dict[str, str]:
+    path = plugin_root / "references" / "capabilities.yaml"
+    payload = yaml.safe_load(read_text(path)) or {}
+    capabilities = payload.get("capabilities")
+    if not isinstance(capabilities, dict):
+        raise ValueError(f"{path}: capabilities must be a mapping")
+    exposures: dict[str, str] = {}
+    for name, record in capabilities.items():
+        if not isinstance(record, dict) or not isinstance(record.get("exposure"), str):
+            raise ValueError(f"{path}: capability {name} lacks a string exposure")
+        exposures[str(name)] = record["exposure"]
+    return exposures
+
+
 def section(text: str, heading: str, next_heading: str) -> str:
     start = text.find(heading)
     if start < 0:
@@ -101,6 +115,7 @@ def validate(plugin_root: Path) -> list[str]:
         skills = discover_skills(plugin_root)
         public, hidden_by_category = load_policy(plugin_root)
         catalog = catalog_names(plugin_root)
+        exposures = capability_exposures(plugin_root)
     except (OSError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         return [str(exc)]
 
@@ -125,6 +140,22 @@ def validate(plugin_root: Path) -> list[str]:
         blockers.append(f"command policy is missing shipped skills: {', '.join(missing)}")
     if extra:
         blockers.append(f"command policy lists non-shipped skills: {', '.join(extra)}")
+
+    missing_capabilities = sorted(policy_names - set(exposures))
+    extra_capabilities = sorted(set(exposures) - policy_names)
+    if missing_capabilities:
+        blockers.append(f"capability registry is missing command-policy skills: {', '.join(missing_capabilities)}")
+    if extra_capabilities:
+        blockers.append(f"capability registry lists non-shipped skills: {', '.join(extra_capabilities)}")
+    expected_exposure = {name: "public" for name in public}
+    expected_exposure.update({name: "compatibility" for name in hidden_by_category.get("legacy", set())})
+    expected_exposure.update({name: "internal" for name in hidden - hidden_by_category.get("legacy", set())})
+    for name in sorted(policy_names & set(exposures)):
+        if exposures[name] != expected_exposure[name]:
+            blockers.append(
+                f"capability registry exposure drift for {name}: "
+                f"{exposures[name]} != {expected_exposure[name]}"
+            )
 
     command_files = sorted((plugin_root / "commands").glob("*.md"))
     if command_files:

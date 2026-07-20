@@ -576,7 +576,13 @@ def resolve_domain_native_register(
     for index, link in enumerate(links):
         if not isinstance(link, dict) or not isinstance(link.get("source"), str) or not isinstance(link.get("target"), str):
             raise PolicyError(f"domain-native graph link {index} lacks canonical endpoints")
-        if "_src" not in link or "_tgt" not in link or link["source"] != link["_src"] or link["target"] != link["_tgt"]:
+        canonical_endpoints = (link["source"], link["target"])
+        serialized_endpoints = (link.get("_src"), link.get("_tgt"))
+        if (
+            "_src" not in link
+            or "_tgt" not in link
+            or serialized_endpoints not in (canonical_endpoints, canonical_endpoints[::-1])
+        ):
             raise PolicyError(f"link endpoint divergence at links[{index}]")
         source, target = link["source"], link["target"]
         if source not in by_id or target not in by_id: raise PolicyError(f"domain-native graph link {index} references missing node")

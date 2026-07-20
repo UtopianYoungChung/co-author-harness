@@ -78,7 +78,7 @@
           "primary_communities_lt": 2,
           "effect": "warning_only"
         },
-        "link_contract": "source and target canonical; mandatory _src and _tgt must agree"
+        "link_contract": "source and target canonical; mandatory _src and _tgt must identify the same ordered or reversed endpoint pair"
       },
       "hash_recipe": {
         "attestation_view_pin": "newline join UTF-8-byte-sorted membership ids without trailing newline",

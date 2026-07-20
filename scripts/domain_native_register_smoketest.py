@@ -250,10 +250,22 @@ def main() -> int:
         assert annotation["exemplar_view_pin"] == pins[1]
         pdf=wiki/"raw/corpus/yu-1995-istar.pdf"; pdf.write_bytes(b"changed")
         assert policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)["exemplar_view_pin"] != pins[1]
-        graph["links"][0]["_tgt"]="divergent"; graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        original_link=copy.deepcopy(graph["links"][0])
+        graph["links"][0]["_src"]=original_link["target"]; graph["links"][0]["_tgt"]=original_link["source"]
+        graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
+        graph["links"][0]=copy.deepcopy(original_link); graph["links"][0].pop("_src")
+        graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
+        except policy.PolicyError as exc: assert "link endpoint divergence" in str(exc)
+        else: raise AssertionError("link missing _src passed")
+        graph["links"][0]=copy.deepcopy(original_link); graph["links"][0]["_tgt"]="divergent"; graph_path.write_text(json.dumps(graph),encoding="utf-8")
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         except policy.PolicyError as exc: assert "link endpoint divergence" in str(exc)
         else: raise AssertionError("link divergence passed")
+        graph["links"][0]={**original_link,"source":original_link["source"],"target":original_link["source"],"_src":original_link["source"],"_tgt":original_link["source"]}
+        graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
     live = policy.resolve_domain_native_register(profile)
     expected = model["expected_verification"]
     assert live["path_roots"]["path_roots_mode"] == "profile"

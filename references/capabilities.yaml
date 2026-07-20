@@ -22,8 +22,8 @@ capabilities:
   accessibility-overlay: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/reader_accessibility_contract_smoketest.py]}
   advisor-escalation: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: advisor-mcp, evidence: [scripts/skill-check.py]}
   analytic-move-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  centroid-pass: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: IMPLEMENTATION_MISSING, evidence: [scripts/centroid_service_smoketest.py, scripts/capability_contract_smoketest.py]}
+  backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  centroid-pass: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: IMPLEMENTATION_MISSING, evidence: [scripts/centroid_service_smoketest.py, scripts/capability_contract_smoketest.py]}
   check-abstract-body: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   check-contradictions: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   citation-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_citations.py]}
@@ -33,20 +33,20 @@ capabilities:
   dissolution-move-check: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   extend-snowball-incremental: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: source-verifiers, evidence: [scripts/skill-check.py]}
   grammar-mechanics-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_audit.py]}
-  graph-grounding-overlay: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/graph_authority_gate_smoketest.py]}
+  graph-grounding-overlay: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/graph_authority_gate_smoketest.py]}
   grounding-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/grounding_anchors_check.py]}
-  ingest-m5-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  ingest-m5-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
   inherit-snowball-from-wiki: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
   IS-theory-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   narrative-structure-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   p-stage-checker: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   plugin-commands: {availability: degraded, execution_mode: catalog-only, exposure: public, evidence: [scripts/catalog-check.py]}
-  promote-lessons-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  promote-lessons-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
   public-interest-accountability-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
   quick-deterministic: {availability: active, execution_mode: script-backed, exposure: public, implementation: scripts/audit/run_all.py, evidence: [scripts/audit/test_audit.py, scripts/audit/test_citations.py]}
-  repin-register: {availability: active, execution_mode: script-backed, exposure: public, implementation: scripts/reader_accessibility_policy.py, evidence: [scripts/repin_register_smoketest.py]}
+  repin-register: {availability: active, execution_mode: script-backed, exposure: internal, implementation: scripts/reader_accessibility_policy.py, evidence: [scripts/repin_register_smoketest.py]}
   response-letter-review: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  retrofit-concept-grounding: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  retrofit-concept-grounding: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
   run-draft: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
   run-finalize: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/full_run_contract_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
   run-generator-session: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
