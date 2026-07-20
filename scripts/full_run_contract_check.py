@@ -97,7 +97,7 @@ import io
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -692,7 +692,7 @@ VERDICT_RE = re.compile(r"(?mi)^\*\*Verdict:\*\*\s*(RETAIN|REVERT|PARTIAL)\b")
 REQUIRED_ROUND_FIELDS = ("Hypothesis", "Scope", "Changes")
 
 
-def check_authorship(project_root: Path) -> list[dict]:
+def check_authorship(project_root: Path, *, require_receipt: bool = True) -> list[dict]:
     findings: list[dict] = []
     man_dir = project_root / "manuscript"
     if not man_dir.is_dir():
@@ -750,6 +750,9 @@ def check_authorship(project_root: Path) -> list[dict]:
             f"round entry: missing {', '.join(missing)}. An incomplete entry is a "
             "claim that a round happened, not a record of one.",
             files=files, missing_fields=missing))
+        return findings
+
+    if not require_receipt:
         return findings
 
     # §3 requires BOTH halves: a Generator round entry AND a preflight receipt
@@ -1229,10 +1232,182 @@ def _f8_findings(project_root: Path, state: dict) -> list[dict]:
                    f"report claims round_id {claimed!r} but the terminal round is "
                    f"{bound!r}: the filename agrees with the binding and the "
                    "document does not.")]
+    if (fm or {}).get("evidence_status") != "complete":
+        return [_u("f8", FRC_LOCAL["artefact_family"], f"{rel}::evidence_status",
+                   "terminal close requires a complete F8 evidence synthesis; partial or incomplete reports remain non-terminal")]
     return []
 
 
-def check_terminal(project_root: Path) -> list[dict]:
+def _f7_findings(project_root: Path, state: dict) -> list[dict]:
+    """Requirement 6: at least one complete, event-indexed F7 for the terminal round."""
+    round_id = state.get("terminal_round_id")
+    events_path = project_root / "reviews" / ".harness" / "events.jsonl"
+    if not isinstance(round_id, str) or not events_path.is_file():
+        return [_u("f7", FRC_LOCAL["artefact_absent"], "reviews/.harness/events.jsonl",
+                   "terminal round has no append-only F7 event index")]
+    rows: list[dict] = []
+    try:
+        for number, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict) and row.get("round_id") == round_id and row.get("event") == "evidence_packet_written":
+                rows.append(row)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return [_u("f7", FRC_LOCAL["artefact_unreadable"], "reviews/.harness/events.jsonl", f"invalid F7 event index: {exc}")]
+    complete_paths: set[str] = set()
+    findings: list[dict] = []
+    for index, row in enumerate(rows):
+        rel = row.get("path")
+        event_id = row.get("event_id")
+        if not isinstance(rel, str) or rel != f"reviews/.harness/evidence/{event_id}.json":
+            findings.append(_u("f7", FRC_LOCAL["artefact_family"], f"reviews/.harness/events.jsonl[{index}]", "F7 event path must derive exactly from its event_id"))
+            continue
+        path = project_root / Path(*PurePosixPath(rel).parts)
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            findings.append(_u("f7", FRC_LOCAL["artefact_unreadable"], rel, f"invalid F7 packet: {exc}")); continue
+        if not isinstance(payload, dict):
+            findings.append(_u("f7", FRC_LOCAL["artefact_unreadable"], rel, "F7 packet is not a JSON object")); continue
+        for finding in afv.validate_path(path):
+            if finding.severity in {"BLOCKER", "MAJOR"}:
+                findings.append(_u("f7", finding.cls, f"{rel}::{finding.field}", finding.message))
+        if payload.get("round_id") != round_id or payload.get("event_id") != event_id:
+            findings.append(_u("f7", FRC_LOCAL["round_mismatch"], rel, "F7 packet identity disagrees with its event row"))
+        elif payload.get("evidence_status") == "complete":
+            complete_paths.add(rel)
+    if not rows or not complete_paths:
+        findings.append(_u("f7", FRC_LOCAL["artefact_absent"], "reviews/.harness/evidence/", "terminal round requires at least one complete F7 packet recorded in events.jsonl"))
+    framework = state.get("milestone_framework") if isinstance(state, dict) else None
+    milestones = framework.get("milestones") if isinstance(framework, dict) else None
+    m5 = milestones.get("M5") if isinstance(milestones, dict) else None
+    policy = m5.get("policy_evidence") if isinstance(m5, dict) else None
+    bindings = policy.get("bindings") if isinstance(policy, dict) else None
+    bound_f7 = [row.get("path") for row in bindings if isinstance(row, dict) and row.get("role") == "f7_evidence"] if isinstance(bindings, list) else []
+    if len(bound_f7) != 1 or bound_f7[0] not in complete_paths:
+        findings.append(_u("f7", "FRC-TERMINAL-EVIDENCE-BINDING", "milestone_framework.milestones.M5.policy_evidence.bindings", "the unique f7_evidence binding must name a complete terminal-round packet indexed by events.jsonl"))
+    return findings
+
+
+def _final_publication_findings(project_root: Path, state: dict) -> list[dict]:
+    """Require immutable evidence of a consumed public FINAL publication."""
+    milestones = ((state.get("milestone_framework") or {}).get("milestones")
+                  if isinstance(state.get("milestone_framework"), dict) else None)
+    m5 = milestones.get("M5") if isinstance(milestones, dict) else None
+    artifacts = m5.get("artifacts") if isinstance(m5, dict) else None
+    by_kind = {
+        row.get("artifact_kind"): row for row in artifacts
+        if isinstance(row, dict) and row.get("role") == "evidence"
+    } if isinstance(artifacts, list) else {}
+    receipt_art = by_kind.get("consumed_final_receipt")
+    result_art = by_kind.get("final_publication_result")
+    if not isinstance(receipt_art, dict) or not isinstance(result_art, dict):
+        return [_u("authorship", "FRC-FINAL-PUBLICATION-ABSENT", "milestone_framework.milestones.M5.artifacts",
+                   "accepted M5 must bind the consumed FINAL receipt and its publication result")]
+    try:
+        receipt_rel = PurePosixPath(receipt_art["path"])
+        result_rel = PurePosixPath(result_art["path"])
+        if receipt_rel.parts[:4] != ("reviews", ".harness", "assignment", "consumed"):
+            raise ValueError("FINAL receipt evidence is not in the consumed assignment scope")
+        if result_rel != receipt_rel.with_suffix(".result.json"):
+            raise ValueError("FINAL result evidence is not the consumed receipt's result sidecar")
+        receipt_path = project_root / Path(*receipt_rel.parts)
+        result_path = project_root / Path(*result_rel.parts)
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+    except (KeyError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return [_u("authorship", "FRC-FINAL-PUBLICATION-INVALID", "milestone_framework.milestones.M5.artifacts", f"cannot read bound FINAL publication evidence: {exc}")]
+    deliverable = next((row for row in artifacts if isinstance(row, dict) and row.get("role") == "deliverable"), None)
+    export = next((row for row in artifacts if isinstance(row, dict) and row.get("role") == "export"), None)
+    published = result.get("published") if isinstance(result, dict) else None
+    published_map = {row.get("path"): row.get("sha256") for row in published if isinstance(row, dict)} if isinstance(published, list) else {}
+    valid = (
+        isinstance(receipt, dict) and receipt.get("target_milestone") == "FINAL"
+        and receipt.get("stage") == "final" and receipt.get("authorized_role") == "generator"
+        and receipt.get("primary_deliverable_path") == (deliverable or {}).get("path")
+        and isinstance(result, dict) and result.get("outcome") == "published"
+        and result.get("receipt_id") == receipt.get("receipt_id")
+        and result.get("reservation_id") == receipt.get("reservation_id")
+        and published_map.get((deliverable or {}).get("path")) == (deliverable or {}).get("sha256")
+        and published_map.get((export or {}).get("path")) == (export or {}).get("sha256")
+        and (export or {}).get("source_sha256") == (deliverable or {}).get("sha256")
+    )
+    if not valid:
+        return [_u("authorship", "FRC-FINAL-PUBLICATION-INVALID", "milestone_framework.milestones.M5.artifacts", "bound receipt/result do not prove one exact Generator FINAL manuscript and released export")]
+    return []
+
+
+def _structured_terminal_signoff_findings(project_root: Path, state: dict) -> list[dict]:
+    """Bind G.4 and ship approval to the exact terminal manuscript and round."""
+    framework = state.get("milestone_framework") if isinstance(state, dict) else None
+    milestones = framework.get("milestones") if isinstance(framework, dict) else None
+    m5 = milestones.get("M5") if isinstance(milestones, dict) else None
+    artifacts = m5.get("artifacts") if isinstance(m5, dict) else None
+    deliverable = next((row for row in artifacts if isinstance(row, dict) and row.get("role") == "deliverable"), None) if isinstance(artifacts, list) else None
+    raw_policy = m5.get("policy_evidence") if isinstance(m5, dict) else None
+    policy = raw_policy if isinstance(raw_policy, dict) else {}
+    expected_common = {
+        "manuscript_path": (deliverable or {}).get("path"),
+        "manuscript_sha256": (deliverable or {}).get("sha256"),
+        "round_id": state.get("terminal_round_id"),
+    }
+    specs = {
+        "reviews/G4_signoff.md": {
+            **expected_common, "authority": "evaluator",
+            "check8_sha256": policy.get("check8_sha256"),
+            "safeguard_status": "CLEAN",
+        },
+        "reviews/ph4_ship_signoff.md": {
+            **expected_common, "authority": "user",
+        },
+    }
+    findings: list[dict] = []
+    terminal_bindings = policy.get("bindings")
+    required_roles = {"g4_signoff", "ship_signoff", "final_round_report", "reflector_full", "f7_evidence", "events_log", "findings", "convergence_log"}
+    observed_roles = {row.get("role") for row in terminal_bindings if isinstance(row, dict)} if isinstance(terminal_bindings, list) else set()
+    if (
+        policy.get("terminal_round_id") != state.get("terminal_round_id")
+        or policy.get("cycle_id") != state.get("terminal_round_id")
+        or observed_roles != required_roles
+        or not isinstance(terminal_bindings, list)
+        or len(terminal_bindings) != len(required_roles)
+    ):
+        findings.append(_u(
+            "signoff", "FRC-TERMINAL-EVIDENCE-BINDING", "milestone_framework.milestones.M5.policy_evidence",
+            "terminal M5 policy must bind its cycle and complete closure-evidence role set to terminal_round_id",
+        ))
+    elif isinstance(terminal_bindings, list):
+        for index, row in enumerate(terminal_bindings):
+            try:
+                bound = project_root / Path(*PurePosixPath(row["path"]).parts)
+                current = _sha256(bound)
+            except (KeyError, OSError, TypeError, ValueError) as exc:
+                findings.append(_u("signoff", "FRC-TERMINAL-EVIDENCE-BINDING", f"milestone_framework.milestones.M5.policy_evidence.bindings[{index}]", f"cannot read terminal evidence binding: {exc}")); continue
+            if current != row.get("sha256"):
+                findings.append(_u("signoff", "FRC-TERMINAL-EVIDENCE-BINDING", f"milestone_framework.milestones.M5.policy_evidence.bindings[{index}]", "terminal evidence hash is stale"))
+    for relative, expected in specs.items():
+        path = project_root / relative
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError) as exc:
+            findings.append(_u("signoff", FRC_LOCAL["artefact_unreadable"], relative, f"cannot read terminal signoff: {exc}")); continue
+        fields: dict[str, list[str]] = {}
+        for line in lines:
+            match = re.fullmatch(r"\s*([a-z0-9_]+)\s*:\s*(.*?)\s*", line, re.IGNORECASE)
+            if match:
+                fields.setdefault(match.group(1).lower(), []).append(match.group(2))
+        for key, value in expected.items():
+            observed = fields.get(key, [])
+            if len(observed) != 1 or observed[0] != value:
+                findings.append(_u(
+                    "signoff", "FRC-TERMINAL-SIGNOFF-BINDING", f"{relative}::{key}",
+                    f"terminal signoff must bind {key} exactly once to {value!r}; observed {observed!r}",
+                ))
+    return findings
+
+
+def check_terminal(project_root: Path, state_override: dict | None = None) -> list[dict]:
     """The fifteen requirements. Absence of the project is itself requirement 0.
 
     Composed, not reimplemented. Requirements 2-6 and 12 are decided by
@@ -1257,8 +1432,11 @@ def check_terminal(project_root: Path) -> list[dict]:
                            "fifteen requirements can be satisfied"))
         return findings
 
-    state, _ = _load_json(project_root / "reviews" / "phase_state.json")
-    state = state or {}
+    if state_override is None:
+        state, _ = _load_json(project_root / "reviews" / "phase_state.json")
+        state = state or {}
+    else:
+        state = state_override
 
     unmet: list[dict] = []
 
@@ -1321,9 +1499,16 @@ def check_terminal(project_root: Path) -> list[dict]:
                         str(getattr(finding, "message", finding))))
 
     # 7 -- revision log, as a Generator round (not as a filename).
-    for f in check_authorship(project_root):
+    # Candidate close changes phase_state by design, so the consumed receipt's
+    # pre-state hash is necessarily stale against the in-memory post-state.
+    # Historical FINAL receipt/result proof is checked below from immutable M5
+    # artifacts. Candidate validation still enforces the state-independent
+    # revision-log half; only the necessarily stale live-receipt half is skipped.
+    for f in check_authorship(project_root, require_receipt=state_override is None):
         unmet.append(_u("authorship", f["code"], "manuscript/revision_log.md",
                         f["message"]))
+    unmet.extend(_final_publication_findings(project_root, state))
+    unmet.extend(_structured_terminal_signoff_findings(project_root, state))
 
     # 8 -- deterministic + Check 8 accessibility evidence
     unmet.extend(_findings_json_findings(project_root, state))
@@ -1338,6 +1523,7 @@ def check_terminal(project_root: Path) -> list[dict]:
     unmet.extend(_f4_findings(project_root))
 
     # 14 -- F8 final-round report
+    unmet.extend(_f7_findings(project_root, state))
     unmet.extend(_f8_findings(project_root, state))
 
     # 15 -- terminal state. The FINAL/M5 packet binding is validate_gate's

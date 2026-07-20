@@ -326,11 +326,14 @@ def _resolve_receipt_path(project: Path, path: Path) -> Path:
 def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], str]:
     """Re-derive receipt writer authority from the live role contract."""
     role_contract = json.loads((ROOT / ROLE_OUTPUT_REL).read_text(encoding="utf-8"))
-    milestone = "M4" if target == "FINAL" else target
+    milestone = EXPECTED_MAPPING[target]
     milestone_row = role_contract["milestones"][milestone]
     role = milestone_row["deliverable_writer"]
     primary_path = milestone_row["deliverable_path"]
     writes = [{"path": primary_path, "mode": "replace"}]
+    export_path = milestone_row.get("released_export_path")
+    if isinstance(export_path, str) and export_path:
+        writes.append({"path": export_path, "mode": "replace"})
     for row in role_contract.get("common_generator_outputs", []):
         if not isinstance(row, dict):
             continue
@@ -340,6 +343,14 @@ def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], st
             if all(item["path"] != path for item in writes):
                 writes.append({"path": path, "mode": mode})
     return role, writes, primary_path
+
+
+def derive_released_export_path(target: str) -> str | None:
+    """Return the live role contract's released-export path, when declared."""
+    role_contract = json.loads((ROOT / ROLE_OUTPUT_REL).read_text(encoding="utf-8"))
+    milestone = EXPECTED_MAPPING[target]
+    export_path = role_contract["milestones"][milestone].get("released_export_path")
+    return export_path if isinstance(export_path, str) and export_path else None
 
 
 def _receipt_record(
@@ -654,6 +665,18 @@ def validate(
             status = record.get("status") if isinstance(record, dict) else None
             if status != "accepted":
                 findings.append((f"APG-PREREQUISITE-{key}", f"final-paper drafting requires accepted {key}; observed {status!r}"))
+        m5 = milestones.get("M5")
+        m5_status = m5.get("status") if isinstance(m5, dict) else None
+        if m5_status != "in_progress":
+            findings.append(("APG-FINAL-STATE", f"FINAL publication requires ledger M5 in_progress; observed {m5_status!r}"))
+        if state.get("terminal_phase_reached") is not False or state.get("terminal_round_id") is not None:
+            findings.append(("APG-FINAL-TERMINAL", "FINAL publication is refused after terminal close until an authorized reopen clears both terminal fields"))
+        sections = state.get("sections")
+        if not isinstance(sections, dict) or not sections or any(
+            not isinstance(row, dict) or row.get("current_phase") != "Ph4"
+            for row in sections.values()
+        ):
+            findings.append(("APG-FINAL-PHASE", "FINAL publication requires every in-scope section at Ph4"))
     return findings
 
 

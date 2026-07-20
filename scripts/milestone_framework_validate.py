@@ -1095,11 +1095,12 @@ def _validate_reader_accessibility_policy(
         # M4 begins before its first manuscript bytes exist. At that boundary
         # the Planner can bind only stable profile/register pins. The first
         # deliverable_recorded transaction must add all manuscript-bound fields
-        # atomically; M5 still starts from an already-bound M4 manuscript.
+        # atomically. M5 likewise starts by consuming M4's F9, then binds its
+        # distinct FINAL manuscript on the first scoped publication record.
         manuscript_required = ("manuscript_sha256", "phase", "cycle_id")
         has_deliverable = isinstance(deliverable, dict)
         required = stable_required
-        if milestone == "M5" or has_deliverable:
+        if has_deliverable:
             required += manuscript_required
         if accepted:
             required += ("check8_path", "check8_sha256", "aggregate_verdict")
@@ -1118,6 +1119,14 @@ def _validate_reader_accessibility_policy(
             findings.append(_finding(
                 "MF-POLICY", path,
                 "accepted M4 requires phase Ph3 and a CLEAN or BORDERLINE Check 8 aggregate",
+            ))
+        if accepted and milestone == "M5" and (
+            policy.get("phase") != "Ph4"
+            or policy.get("aggregate_verdict") not in {"CLEAN", "BORDERLINE"}
+        ):
+            findings.append(_finding(
+                "MF-POLICY", path,
+                "accepted M5 requires phase Ph4 and a CLEAN or BORDERLINE Check 8 aggregate",
             ))
         if policy.get("profile_path") != binding.get("resolved_path") or policy.get("profile_sha256") != binding.get("profile_sha256") or policy.get("resolved_sha256") != binding.get("resolved_sha256") or policy.get("attestation_view_pin") != binding.get("attestation_view_pin") or policy.get("exemplar_view_pin") != binding.get("exemplar_view_pin"):
             findings.append(_finding("MF-POLICY", path, f"{milestone} resolved policy binding is stale or differently configured"))

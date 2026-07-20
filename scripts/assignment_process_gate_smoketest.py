@@ -340,6 +340,10 @@ def main() -> int:
         assert blocked.returncode == 4 and "APG-PREREQUISITE-M4" in blocked.stdout, blocked.stdout + blocked.stderr
 
         phase_state["milestone_framework"]["milestones"]["M4"]["status"] = "accepted"
+        phase_state["milestone_framework"]["milestones"]["M5"]["status"] = "in_progress"
+        phase_state["terminal_phase_reached"] = False
+        phase_state["terminal_round_id"] = None
+        phase_state["sections"] = {"body": {"current_phase": "Ph4"}}
         (reviews / "phase_state.json").write_text(
             json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
         )

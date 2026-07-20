@@ -57,6 +57,7 @@ jobs:
             assignment_dispatch_preflight_smoketest.py \
             assignment_receipt_transaction_smoketest.py \
             assignment_milestone_checkpoint_smoketest.py \
+            assignment_terminal_close_smoketest.py \
             alias_parity_smoketest.py \
             migrate_v0150pre_stage_profile_smoketest.py \
             mcr_convergence_evidence_smoketest.py \

@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "status": {"const": "approved"},
-    "milestone": {"enum": ["M1", "M2", "M3", "M4"]},
+    "milestone": {"enum": ["M1", "M2", "M3", "M4", "M5"]},
     "authority": {"enum": ["user", "venue", "advisor", "instructor", "committee", "project_local_contract"]},
     "approved_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
     "deliverable": {

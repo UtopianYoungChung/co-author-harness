@@ -176,6 +176,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/assignment_process_gate_smoketest.py": [_default_case()],
     "scripts/assignment_receipt_transaction_smoketest.py": [_default_case()],
     "scripts/assignment_milestone_checkpoint_smoketest.py": [_default_case()],
+    "scripts/assignment_terminal_close_smoketest.py": [_default_case()],
     "scripts/audit/test_audit.py": [_default_case()],
     "scripts/audit/test_citations.py": [_default_case()],
     "scripts/build_plugin_provenance_smoketest.py": [_default_case()],

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/assignment_terminal_evidence.schema.json",
+  "title": "Planner FINAL/M5 terminal evidence input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "milestone", "terminal_round_id", "manuscript_sha256",
+    "phase", "cycle_id", "check8_path", "check8_sha256",
+    "aggregate_verdict", "bindings"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "milestone": {"const": "M5"},
+    "terminal_round_id": {"$ref": "#/$defs/round_id"},
+    "manuscript_sha256": {"$ref": "#/$defs/sha256"},
+    "phase": {"const": "Ph4"},
+    "cycle_id": {"$ref": "#/$defs/round_id"},
+    "check8_path": {"type": "string", "minLength": 1},
+    "check8_sha256": {"$ref": "#/$defs/sha256"},
+    "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE"]},
+    "bindings": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/binding"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "round_id": {"type": "string", "pattern": "^round_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{3}$"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256"],
+      "properties": {
+        "role": {
+          "enum": [
+            "g4_signoff", "ship_signoff", "final_round_report",
+            "reflector_full", "f7_evidence", "events_log",
+            "findings", "convergence_log"
+          ]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

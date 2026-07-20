@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public Planner command for assignment milestone begin/record/accept."""
+"""Public Planner command for assignment milestones M1-M4 and FINAL."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def main() -> int:
         command = sub.add_parser(name)
         command.add_argument("--project-root", type=Path, required=True)
         if name in {"begin", "record", "accept"}:
-            command.add_argument("--milestone", choices=("M1", "M2", "M3", "M4"), required=True)
+            command.add_argument("--milestone", choices=("M1", "M2", "M3", "M4", "FINAL"), required=True)
             command.add_argument("--at")
         if name == "record":
             command.add_argument("--receipt", type=Path, required=True)
@@ -28,6 +28,7 @@ def main() -> int:
             command.add_argument("--checkpoint", type=Path, required=True)
             command.add_argument("--approval-evidence", type=Path, required=True)
             command.add_argument("--policy-evidence", type=Path)
+            command.add_argument("--terminal-evidence", type=Path)
         if name == "recover":
             command.add_argument("--acknowledgement", required=True)
     args = parser.parse_args()
@@ -39,7 +40,11 @@ def main() -> int:
         elif args.command == "record":
             record(args.project_root, args.milestone, args.receipt, args.checkpoint, args.at); print(f"RECORDED {args.milestone}")
         elif args.command == "accept":
-            accept(args.project_root, args.milestone, args.checkpoint, args.approval_evidence, args.at, args.policy_evidence); print(f"ACCEPTED {args.milestone}")
+            accept(
+                args.project_root, args.milestone, args.checkpoint,
+                args.approval_evidence, args.at, args.policy_evidence,
+                args.terminal_evidence,
+            ); print(f"ACCEPTED {args.milestone}")
         else:
             archived = recover_claim(args.project_root, args.acknowledgement); print(f"RECOVERED {archived}")
     except MilestoneTransactionError as exc:

@@ -21,18 +21,25 @@ import stat
 from typing import Any, Callable, Iterator
 import uuid
 
-from assignment_process_gate import verify_receipt
-from milestone_framework_validate import validate_document
+from assignment_process_gate import (
+    derive_receipt_authority,
+    derive_released_export_path,
+    verify_receipt,
+)
+from milestone_framework_validate import validate_document, validate_gate
 
 
-MILESTONES = ("M1", "M2", "M3", "M4")
-SUCCESSOR = {"M1": "M2", "M2": "M3", "M3": "M4", "M4": "M5"}
-PREDECESSOR = {"M2": "M1", "M3": "M2", "M4": "M3"}
+MILESTONES = ("M1", "M2", "M3", "M4", "M5")
+PUBLIC_TO_LEDGER = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
+LEDGER_TO_PUBLIC = {value: key for key, value in PUBLIC_TO_LEDGER.items()}
+SUCCESSOR = {"M1": "M2", "M2": "M3", "M3": "M4", "M4": "M5", "M5": None}
+PREDECESSOR = {"M2": "M1", "M3": "M2", "M4": "M3", "M5": "M4"}
 ARTIFACT_KIND = {
     "M1": "project_memo",
     "M2": "annotated_references",
     "M3": "structured_outline",
     "M4": "manuscript",
+    "M5": "manuscript",
 }
 STABLE_POLICY_KEYS = (
     "profile_path", "profile_sha256", "resolved_sha256",
@@ -53,6 +60,15 @@ APPROVAL_FIELDS = {
 M4_ACCEPTANCE_POLICY_FIELDS = {
     "schema_version", "milestone", "manuscript_sha256", "phase", "cycle_id",
     "check8_path", "check8_sha256", "aggregate_verdict",
+}
+M5_TERMINAL_POLICY_FIELDS = {
+    "schema_version", "milestone", "terminal_round_id", "manuscript_sha256",
+    "phase", "cycle_id", "check8_path", "check8_sha256",
+    "aggregate_verdict", "bindings",
+}
+TERMINAL_BINDING_ROLES = {
+    "g4_signoff", "ship_signoff", "final_round_report", "reflector_full",
+    "f7_evidence", "events_log", "findings", "convergence_log",
 }
 FEEDBACK_FIELDS = {
     "feedback_id", "evidence_class", "source_path", "source_sha256",
@@ -311,10 +327,11 @@ def derive(project: Path) -> dict[str, Any]:
             raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
         if record.get("status") == "accepted":
             continue
+        public = LEDGER_TO_PUBLIC[milestone]
         if record.get("status") == "not_started":
             action = "begin"
         elif not record.get("artifacts"):
-            action = "draft"
+            action = "finalize" if milestone == "M5" else "draft"
         elif milestone == "M4" and any(
             section.get("current_phase") != "Ph3_converged"
             for section in state.get("sections", {}).values()
@@ -322,9 +339,9 @@ def derive(project: Path) -> dict[str, Any]:
         ):
             action = "revise"
         else:
-            action = "accept"
-        return {"status": "READY", "milestone": milestone, "action": action}
-    return {"status": "READY", "milestone": "FINAL", "action": "finalize"}
+            action = "close" if milestone == "M5" else "accept"
+        return {"status": "READY", "milestone": public, "action": action}
+    return {"status": "COMPLETE", "milestone": None, "action": None}
 
 
 def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
@@ -345,24 +362,25 @@ def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
 
 def begin(project: Path, milestone: str, at: str | None = None) -> None:
     project = project.resolve(); at = _timestamp(at)
-    if milestone not in PREDECESSOR:
-        raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, or M4")
+    ledger_milestone = PUBLIC_TO_LEDGER.get(milestone)
+    if ledger_milestone not in PREDECESSOR:
+        raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, M4, or FINAL")
     with transaction_claim(project, f"begin:{milestone}"):
         path, state, prehash = _load_state(project)
         if derive(project) != {"status": "READY", "milestone": milestone, "action": "begin"}:
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived begin action")
         proposed = copy.deepcopy(state); framework = _framework(proposed)
-        predecessor = PREDECESSOR[milestone]; prior = framework["milestones"][predecessor]
-        target = framework["milestones"][milestone]
+        predecessor = PREDECESSOR[ledger_milestone]; prior = framework["milestones"][predecessor]
+        target = framework["milestones"][ledger_milestone]
         if prior.get("status") != "accepted" or prior.get("handoff", {}).get("status") != "ready":
             raise MilestoneTransactionError("AMC-HANDOFF", f"{predecessor} must be accepted with a ready F9 handoff")
         prior["handoff"]["status"] = "consumed"
         binding = {"binding_type": "handoff_packet", "path": prior["handoff"]["packet_path"], "sha256": prior["handoff"]["packet_sha256"]}
         _append_event(framework, "handoff_consumed", predecessor, at, f"Planner consumed {predecessor} F9 to begin {milestone}.", bindings=[binding])
         target["status"] = "in_progress"
-        if milestone in {"M3", "M4"}:
+        if ledger_milestone in {"M3", "M4", "M5"}:
             target["policy_evidence"] = _stable_policy(framework)
-        _append_event(framework, "milestone_started", milestone, at, f"Planner began the derived {milestone} milestone.")
+        _append_event(framework, "milestone_started", ledger_milestone, at, f"Planner began the derived {milestone} milestone.")
         _validate_prospective(project, proposed)
         if _sha256(path) != prehash:
             raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state changed during begin transaction")
@@ -427,7 +445,7 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
     policy = checkpoint.get("policy_evidence")
     if not isinstance(policy, dict):
         raise MilestoneTransactionError("AMC-CHECKPOINT", "policy_evidence must be an object")
-    allowed = {"wiki_grounding", "wiki_grounding_opt_out"} if milestone == "M3" else ({"phase", "cycle_id"} if milestone == "M4" else set())
+    allowed = {"wiki_grounding", "wiki_grounding_opt_out"} if milestone == "M3" else ({"phase", "cycle_id"} if milestone in {"M4", "M5"} else set())
     if set(policy) - allowed:
         raise MilestoneTransactionError("AMC-CHECKPOINT", f"policy_evidence fields are invalid for {milestone}")
     if milestone == "M3":
@@ -443,12 +461,17 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
     elif milestone == "M4":
         if set(policy) != {"phase", "cycle_id"} or policy.get("phase") not in {"Ph1", "Ph2", "Ph3"} or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
             raise MilestoneTransactionError("AMC-CHECKPOINT", "M4 first record requires phase and safe cycle_id atomically")
+    elif milestone == "M5":
+        if set(policy) != {"phase", "cycle_id"} or policy.get("phase") != "Ph4" or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
+            raise MilestoneTransactionError("AMC-CHECKPOINT", "M5 record requires Ph4 and a safe terminal cycle_id atomically")
     elif policy:
         raise MilestoneTransactionError("AMC-CHECKPOINT", f"{milestone} does not accept checkpoint policy fields")
     return checkpoint, checkpoint_file, checkpoint_relative, hashlib.sha256(checkpoint_bytes).hexdigest(), len(checkpoint_bytes)
 
 
-def _receipt_result(project: Path, receipt_path: Path, milestone: str) -> tuple[dict[str, Any], str, Path, str, dict[str, str]]:
+def _receipt_result(
+    project: Path, receipt_path: Path, milestone: str, receipt_target: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], str, Path, str, dict[str, str]]:
     try:
         receipt_bytes = receipt_path.read_bytes(); receipt = json.loads(receipt_bytes)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -458,7 +481,8 @@ def _receipt_result(project: Path, receipt_path: Path, milestone: str) -> tuple[
     findings = verify_receipt(project, receipt_path, allow_consumed=True)
     if findings:
         code, message = findings[0]; raise MilestoneTransactionError(code, message)
-    if receipt_path.parent.name != "consumed" or receipt.get("target_milestone") != milestone or receipt.get("authorized_role") != "generator":
+    expected_target = receipt_target or milestone
+    if receipt_path.parent.name != "consumed" or receipt.get("target_milestone") != expected_target or receipt.get("authorized_role") != "generator":
         raise MilestoneTransactionError("AMC-RECEIPT", "record requires the canonical consumed Generator receipt for this milestone")
     result_path = receipt_path.with_suffix(".result.json")
     try:
@@ -477,13 +501,23 @@ def _receipt_result(project: Path, receipt_path: Path, milestone: str) -> tuple[
     deliverable_sha = _sha256(deliverable)
     if rows[0].get("sha256") != deliverable_sha:
         raise MilestoneTransactionError("AMC-RESULT", "published primary deliverable hash is stale")
+    if milestone == "M5":
+        export_path = derive_released_export_path("FINAL")
+        if export_path is None:
+            raise MilestoneTransactionError("AMC-RESULT", "live FINAL authority must name one released export")
+        export_rows = [row for row in result.get("published", []) if isinstance(row, dict) and row.get("path") == export_path]
+        if len(export_rows) != 1:
+            raise MilestoneTransactionError("AMC-RESULT", "FINAL publication result must contain exactly one released export")
+        export_file, export_relative = _safe_project_file(project, export_path, "AMC-RESULT")
+        if export_rows[0].get("sha256") != _sha256(export_file):
+            raise MilestoneTransactionError("AMC-RESULT", f"published released export hash is stale: {export_relative}")
     source_expectations = {
         str(receipt_path.resolve()): hashlib.sha256(receipt_bytes).hexdigest(),
         str(result_path.resolve()): hashlib.sha256(result_bytes).hexdigest(),
     }
     if _sha256(receipt_path) != source_expectations[str(receipt_path.resolve())] or _sha256(result_path) != source_expectations[str(result_path.resolve())]:
         raise MilestoneTransactionError("AMC-DEPENDENCY-CHANGED", "receipt or publication result changed during validation")
-    return receipt, relative, deliverable, deliverable_sha, source_expectations
+    return receipt, result, relative, deliverable, deliverable_sha, source_expectations
 
 
 def _checkpoint_dependencies(project: Path, checkpoint: dict[str, Any]) -> list[Path]:
@@ -522,22 +556,35 @@ def record(
     at: str | None = None, *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
     project = project.resolve(); at = _timestamp(at)
+    public_milestone = milestone
+    milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
-        raise MilestoneTransactionError("AMC-TARGET", "record target must be M1-M4")
+        raise MilestoneTransactionError("AMC-TARGET", "record target must be M1-M4 or FINAL")
     with transaction_claim(project, f"record:{milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         expected = derive(project)
-        allowed_actions = {"draft", "revise"} if milestone == "M4" else {"draft"}
-        if expected.get("milestone") != milestone or expected.get("action") not in allowed_actions:
-            raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived record action")
-        receipt_record, relative, deliverable_path, digest, source_expectations = _receipt_result(project, receipt.resolve(), milestone)
+        allowed_actions = {"draft", "revise"} if milestone == "M4" else ({"finalize"} if milestone == "M5" else {"draft"})
+        if expected.get("milestone") != public_milestone or expected.get("action") not in allowed_actions:
+            raise MilestoneTransactionError("AMC-ORDER", f"{public_milestone} is not the derived record action")
+        receipt_record, result_record, relative, deliverable_path, digest, source_expectations = _receipt_result(
+            project, receipt.resolve(), milestone, public_milestone,
+        )
         lineage = framework.get("primary_lineage")
         checkpoint, checkpoint_file, checkpoint_relative, checkpoint_sha, checkpoint_size = _validate_checkpoint(project, checkpoint_path.resolve(), milestone, lineage)
+        publication_dependencies: list[Path] = []
+        publication_expectations: dict[str, str] = {}
+        if milestone == "M5":
+            export_path = derive_released_export_path("FINAL")
+            if export_path is None:
+                raise MilestoneTransactionError("AMC-RESULT", "live FINAL authority must name one released export")
+            export_file = _safe_project_file(project, export_path, "AMC-RESULT")[0]
+            publication_dependencies.append(export_file)
+            publication_expectations[str(export_file.resolve())] = _sha256(export_file)
         dependencies = _dependency_snapshot(
             project,
-            [receipt.resolve(), receipt.resolve().with_suffix(".result.json"), deliverable_path, checkpoint_file, *_checkpoint_dependencies(project, checkpoint)],
+            [receipt.resolve(), receipt.resolve().with_suffix(".result.json"), deliverable_path, checkpoint_file, *publication_dependencies, *_checkpoint_dependencies(project, checkpoint)],
         )
-        expected_dependencies = {**source_expectations, **_checkpoint_dependency_expectations(project, checkpoint)}
+        expected_dependencies = {**source_expectations, **publication_expectations, **_checkpoint_dependency_expectations(project, checkpoint)}
         expected_dependencies[str(deliverable_path.resolve())] = digest
         expected_dependencies[str(checkpoint_file.resolve())] = checkpoint_sha
         if any(dependencies.get(path, (None, 0))[0] != expected_sha for path, expected_sha in expected_dependencies.items()):
@@ -562,7 +609,33 @@ def record(
             "bytes": checkpoint_size, "verified_at": at,
             "lineage_id": lineage,
         }
-        target["artifacts"] = [artifact, checkpoint_artifact]
+        artifacts = [artifact, checkpoint_artifact]
+        if milestone == "M5":
+            result_path = receipt.resolve().with_suffix(".result.json")
+            receipt_file, receipt_relative = _supplied_project_file(project, receipt.resolve(), "AMC-RECEIPT")
+            result_file, result_relative = _supplied_project_file(project, result_path, "AMC-RESULT")
+            export_path = derive_released_export_path("FINAL")
+            if export_path is None:
+                raise MilestoneTransactionError("AMC-RESULT", "live FINAL authority must name one released export")
+            export_file, export_relative = _safe_project_file(project, export_path, "AMC-RESULT")
+            artifacts.extend([
+                {
+                    "role": "export", "artifact_kind": "released_manuscript",
+                    "path": export_relative, "sha256": _sha256(export_file), "bytes": export_file.stat().st_size,
+                    "verified_at": at, "lineage_id": lineage, "source_path": relative, "source_sha256": digest,
+                },
+                {
+                    "role": "evidence", "artifact_kind": "consumed_final_receipt",
+                    "path": receipt_relative, "sha256": _sha256(receipt_file), "bytes": receipt_file.stat().st_size,
+                    "verified_at": at, "lineage_id": lineage,
+                },
+                {
+                    "role": "evidence", "artifact_kind": "final_publication_result",
+                    "path": result_relative, "sha256": _sha256(result_file), "bytes": result_file.stat().st_size,
+                    "verified_at": at, "lineage_id": lineage,
+                },
+            ])
+        target["artifacts"] = artifacts
         target["feedback_records"] = checkpoint["feedback_records"]
         if milestone == "M3":
             target["policy_evidence"].update(checkpoint["policy_evidence"])
@@ -579,6 +652,18 @@ def record(
             target["policy_evidence"].update({
                 "manuscript_sha256": digest,
                 "phase": checkpoint["policy_evidence"]["phase"],
+                "cycle_id": checkpoint["policy_evidence"]["cycle_id"],
+            })
+        elif milestone == "M5":
+            section_phases = {
+                row.get("current_phase") for row in state.get("sections", {}).values()
+                if isinstance(row, dict)
+            }
+            if section_phases != {"Ph4"}:
+                raise MilestoneTransactionError("AMC-CHECKPOINT", "M5 checkpoint requires every current in-scope section at Ph4")
+            target["policy_evidence"].update({
+                "manuscript_sha256": digest,
+                "phase": "Ph4",
                 "cycle_id": checkpoint["policy_evidence"]["cycle_id"],
             })
         artifact_binding = {"binding_type": "artifact", "path": artifact_relative, "sha256": digest}
@@ -650,6 +735,97 @@ def _validate_m4_acceptance_policy(
     return policy, policy_file, check8_file, hashlib.sha256(policy_bytes).hexdigest()
 
 
+def _validate_m5_terminal_policy(
+    project: Path, policy_path: Path, artifact: dict[str, Any]
+) -> tuple[dict[str, Any], Path, list[Path], str]:
+    policy_file, _ = _supplied_project_file(project, policy_path, "AMC-TERMINAL")
+    try:
+        policy_bytes = policy_file.read_bytes(); policy = json.loads(policy_bytes)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise MilestoneTransactionError("AMC-TERMINAL", f"cannot read valid M5 terminal evidence JSON: {exc}") from exc
+    terminal_round = policy.get("terminal_round_id") if isinstance(policy, dict) else None
+    valid = (
+        isinstance(policy, dict)
+        and set(policy) == M5_TERMINAL_POLICY_FIELDS
+        and policy.get("schema_version") == "1.0.0"
+        and policy.get("milestone") == "M5"
+        and isinstance(terminal_round, str)
+        and re.fullmatch(r"round_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{3}", terminal_round) is not None
+        and policy.get("phase") == "Ph4"
+        and policy.get("cycle_id") == terminal_round
+        and policy.get("manuscript_sha256") == artifact.get("sha256")
+        and policy.get("aggregate_verdict") in {"CLEAN", "BORDERLINE"}
+    )
+    if not valid:
+        raise MilestoneTransactionError("AMC-TERMINAL", "M5 terminal evidence must bind the current manuscript, Ph4, one terminal round, and a CLEAN or BORDERLINE Check 8 verdict")
+    check8_file, check8_relative = _safe_project_file(project, policy.get("check8_path"), "AMC-TERMINAL")
+    if policy.get("check8_sha256") != _sha256(check8_file):
+        raise MilestoneTransactionError("AMC-TERMINAL", f"M5 Check 8 binding is stale: {check8_relative}")
+    policy["check8_path"] = check8_relative
+    bindings = policy.get("bindings")
+    if not isinstance(bindings, list) or not bindings:
+        raise MilestoneTransactionError("AMC-TERMINAL", "terminal evidence bindings must be a non-empty array")
+    seen: dict[str, int] = {}
+    dependencies = [policy_file, check8_file]
+    normalized: list[dict[str, str]] = []
+    canonical = {
+        "g4_signoff": "reviews/G4_signoff.md",
+        "ship_signoff": "reviews/ph4_ship_signoff.md",
+        "final_round_report": f"reviews/final_round_report_{terminal_round}.md",
+        "reflector_full": "reviews/reflection_report.md",
+        "events_log": "reviews/.harness/events.jsonl",
+        "findings": "reviews/findings.json",
+        "convergence_log": "reviews/convergence_log.md",
+    }
+    for row in bindings:
+        if not isinstance(row, dict) or set(row) != {"role", "path", "sha256"} or row.get("role") not in TERMINAL_BINDING_ROLES:
+            raise MilestoneTransactionError("AMC-TERMINAL", "terminal binding must contain only a recognized role, path, and sha256")
+        role = row["role"]
+        seen[role] = seen.get(role, 0) + 1
+        if seen[role] > 1:
+            raise MilestoneTransactionError("AMC-TERMINAL", f"terminal binding role must be unique: {role}")
+        evidence, relative = _safe_project_file(project, row.get("path"), "AMC-TERMINAL")
+        if row.get("sha256") != _sha256(evidence):
+            raise MilestoneTransactionError("AMC-TERMINAL", f"terminal binding is stale: {relative}")
+        if role in canonical and relative != canonical[role]:
+            raise MilestoneTransactionError("AMC-TERMINAL", f"{role} must use canonical path {canonical[role]}")
+        if role == "f7_evidence" and not relative.startswith("reviews/.harness/evidence/"):
+            raise MilestoneTransactionError("AMC-TERMINAL", "F7 evidence must live under reviews/.harness/evidence/")
+        dependencies.append(evidence)
+        normalized.append({"role": role, "path": relative, "sha256": row["sha256"]})
+    if set(seen) != TERMINAL_BINDING_ROLES:
+        missing = sorted(TERMINAL_BINDING_ROLES - set(seen))
+        raise MilestoneTransactionError("AMC-TERMINAL", f"terminal evidence roles are incomplete: {missing}")
+    by_role = {row["role"]: row for row in normalized}
+    f7_relative = by_role["f7_evidence"]["path"]
+    f7_file = project / Path(*PurePosixPath(f7_relative).parts)
+    events_file = project / Path(*PurePosixPath(by_role["events_log"]["path"]).parts)
+    try:
+        f7_payload = json.loads(f7_file.read_text(encoding="utf-8"))
+        event_rows = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise MilestoneTransactionError("AMC-TERMINAL", f"cannot read bound F7 evidence and event index: {exc}") from exc
+    event_id = f7_payload.get("event_id") if isinstance(f7_payload, dict) else None
+    f7_valid = (
+        isinstance(f7_payload, dict)
+        and f7_payload.get("round_id") == terminal_round
+        and f7_payload.get("evidence_status") == "complete"
+        and isinstance(event_id, str)
+        and any(
+            isinstance(row, dict)
+            and row.get("event_id") == event_id
+            and row.get("round_id") == terminal_round
+            and row.get("event") == "evidence_packet_written"
+            and row.get("path") == f7_relative
+            for row in event_rows
+        )
+    )
+    if not f7_valid:
+        raise MilestoneTransactionError("AMC-TERMINAL", "bound F7 evidence must be complete, terminal-round current, and indexed by the bound events log")
+    policy["bindings"] = normalized
+    return policy, policy_file, dependencies, hashlib.sha256(policy_bytes).hexdigest()
+
+
 def _handoff_packet(state: dict[str, Any], milestone: str, checkpoint: dict[str, Any], approval: dict[str, Any], approval_path: str) -> dict[str, Any]:
     framework = _framework(state); record = framework["milestones"][milestone]
     artifact = next(row for row in record["artifacts"] if row.get("role") == "deliverable" and row.get("lineage_id") == framework["primary_lineage"])
@@ -657,14 +833,30 @@ def _handoff_packet(state: dict[str, Any], milestone: str, checkpoint: dict[str,
     if milestone != "M1":
         prior = framework["milestones"][MILESTONES[MILESTONES.index(milestone) - 1]]["handoff"]
         predecessor = {"path": prior["packet_path"], "sha256": prior["packet_sha256"]}
+    released_export = None
+    inputs_consumed = list(checkpoint["inputs_consumed"])
+    if milestone == "M5":
+        export = next(row for row in record["artifacts"] if row.get("role") == "export" and row.get("lineage_id") == framework["primary_lineage"])
+        released_export = {key: export[key] for key in ("role", "path", "sha256", "bytes", "source_sha256")}
+        if export.get("source_path") is not None:
+            released_export["source_path"] = export["source_path"]
+        for row in record.get("policy_evidence", {}).get("bindings", []):
+            binding = {"path": row["path"], "sha256": row["sha256"]}
+            if binding not in inputs_consumed:
+                inputs_consumed.append(binding)
+        for evidence in record["artifacts"]:
+            if evidence.get("artifact_kind") in {"consumed_final_receipt", "final_publication_result"}:
+                binding = {"path": evidence["path"], "sha256": evidence["sha256"]}
+                if binding not in inputs_consumed:
+                    inputs_consumed.append(binding)
     return {
         "artifact_family": "F9", "contract_version": "1.0.0",
         "project": state.get("manuscript_id"), "lineage_id": framework["primary_lineage"],
         "from_milestone": milestone, "to_milestone": SUCCESSOR[milestone],
         "predecessor_packet": predecessor,
         "deliverable": {key: artifact[key] for key in ("role", "path", "sha256", "bytes")},
-        "released_export": None,
-        "inputs_consumed": checkpoint["inputs_consumed"],
+        "released_export": released_export,
+        "inputs_consumed": inputs_consumed,
         "decisions_frozen": checkpoint["decisions_frozen"],
         "feedback_dispositions": [{"feedback_id": row["feedback_id"], "disposition": row["disposition"], "rationale": row["rationale"]} for row in record["feedback_records"]],
         "open_debts": checkpoint["open_debts"],
@@ -677,17 +869,20 @@ def _handoff_packet(state: dict[str, Any], milestone: str, checkpoint: dict[str,
 def accept(
     project: Path, milestone: str, checkpoint_path: Path, approval_path: Path,
     at: str | None = None, policy_path: Path | None = None,
+    terminal_evidence_path: Path | None = None,
     *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
     project = project.resolve(); at = _timestamp(at)
+    public_milestone = milestone
+    milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
-        raise MilestoneTransactionError("AMC-TARGET", "accept target must be M1-M4")
-    with transaction_claim(project, f"accept:{milestone}"):
+        raise MilestoneTransactionError("AMC-TARGET", "accept target must be M1-M4 or FINAL")
+    with transaction_claim(project, f"accept:{public_milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         derived = derive(project)
-        permitted_actions = {"accept", "revise"} if milestone == "M4" else {"accept"}
-        if derived.get("status") != "READY" or derived.get("milestone") != milestone or derived.get("action") not in permitted_actions:
-            raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived accept action")
+        permitted_actions = {"accept", "revise"} if milestone == "M4" else ({"close"} if milestone == "M5" else {"accept"})
+        if derived.get("status") != "READY" or derived.get("milestone") != public_milestone or derived.get("action") not in permitted_actions:
+            raise MilestoneTransactionError("AMC-ORDER", f"{public_milestone} is not the derived accept action")
         record_state = framework["milestones"][milestone]
         lineage = framework["primary_lineage"]
         checkpoint, checkpoint_file, checkpoint_relative, checkpoint_sha, checkpoint_size = _validate_checkpoint(project, checkpoint_path.resolve(), milestone, lineage)
@@ -708,41 +903,73 @@ def accept(
             raise MilestoneTransactionError("AMC-DELIVERABLE", "current primary-lineage deliverable is missing")
         acceptance_policy: dict[str, Any] | None = None
         policy_dependencies: list[Path] = []
+        policy_sha: str | None = None
+        terminal_policy_sha: str | None = None
         if milestone == "M4":
             if policy_path is None:
                 raise MilestoneTransactionError("AMC-POLICY", "M4 acceptance requires structured current-policy evidence")
             acceptance_policy, policy_file, check8_file, policy_sha = _validate_m4_acceptance_policy(project, policy_path.resolve(), artifact)
             policy_dependencies = [policy_file, check8_file]
+            if terminal_evidence_path is not None:
+                raise MilestoneTransactionError("AMC-TERMINAL", "terminal evidence is reserved for FINAL")
+        elif milestone == "M5":
+            if policy_path is not None:
+                raise MilestoneTransactionError("AMC-POLICY", "FINAL uses --terminal-evidence, not --policy-evidence")
+            if terminal_evidence_path is None:
+                raise MilestoneTransactionError("AMC-TERMINAL", "FINAL acceptance requires structured terminal evidence")
+            acceptance_policy, policy_file, policy_dependencies, terminal_policy_sha = _validate_m5_terminal_policy(
+                project, terminal_evidence_path.resolve(), artifact,
+            )
         elif policy_path is not None:
             raise MilestoneTransactionError("AMC-POLICY", "acceptance policy input is reserved for M4")
+        elif terminal_evidence_path is not None:
+            raise MilestoneTransactionError("AMC-TERMINAL", "terminal evidence is reserved for FINAL")
         approval, approval_relative, approval_sha = _validate_approval(project, approval_path.resolve(), milestone, artifact)
         latest_event_at = framework["events"][-1]["timestamp"]
         if _utc_datetime(approval["approved_at"]) < _utc_datetime(latest_event_at) or _utc_datetime(approval["approved_at"]) > _utc_datetime(at):
             raise MilestoneTransactionError("AMC-APPROVAL", "approval time must follow the recorded checkpoint and not postdate the acceptance event")
         deliverable_file = _safe_project_file(project, artifact["path"], "AMC-DELIVERABLE")[0]
+        artifact_dependencies: list[Path] = []
+        artifact_expectations: dict[str, str] = {}
+        if milestone == "M5":
+            for row in record_state.get("artifacts", []):
+                if not isinstance(row, dict):
+                    continue
+                bound_file = _safe_project_file(project, row.get("path"), "AMC-TERMINAL")[0]
+                artifact_dependencies.append(bound_file)
+                artifact_expectations[str(bound_file.resolve())] = row.get("sha256")
         dependencies = _dependency_snapshot(
             project,
-            [checkpoint_file, approval_path.resolve(), deliverable_file, *_checkpoint_dependencies(project, checkpoint), *policy_dependencies],
+            [checkpoint_file, approval_path.resolve(), deliverable_file, *artifact_dependencies, *_checkpoint_dependencies(project, checkpoint), *policy_dependencies],
         )
-        expected_dependencies = _checkpoint_dependency_expectations(project, checkpoint)
+        expected_dependencies = {**artifact_expectations, **_checkpoint_dependency_expectations(project, checkpoint)}
         expected_dependencies[str(checkpoint_file.resolve())] = checkpoint_sha
         expected_dependencies[str(approval_path.resolve())] = approval_sha
         expected_dependencies[str(deliverable_file.resolve())] = artifact["sha256"]
         if acceptance_policy is not None:
-            expected_dependencies[str(policy_dependencies[0].resolve())] = policy_sha
+            expected_dependencies[str(policy_dependencies[0].resolve())] = terminal_policy_sha or policy_sha
             expected_dependencies[str(policy_dependencies[1].resolve())] = acceptance_policy["check8_sha256"]
+            if milestone == "M5":
+                for row in acceptance_policy["bindings"]:
+                    expected_dependencies[str(_safe_project_file(project, row["path"], "AMC-TERMINAL")[0].resolve())] = row["sha256"]
         if any(dependencies.get(path, (None, 0))[0] != expected_sha for path, expected_sha in expected_dependencies.items()):
             raise MilestoneTransactionError("AMC-DEPENDENCY-CHANGED", "a bound dependency changed between validation and snapshot capture")
         proposed = copy.deepcopy(state); proposed_framework = _framework(proposed); target = proposed_framework["milestones"][milestone]
         if acceptance_policy is not None:
-            target["policy_evidence"].update({
-                key: acceptance_policy[key]
-                for key in ("manuscript_sha256", "phase", "cycle_id", "check8_path", "check8_sha256", "aggregate_verdict")
-            })
+            keys = ("manuscript_sha256", "phase", "cycle_id", "check8_path", "check8_sha256", "aggregate_verdict")
+            target["policy_evidence"].update({key: acceptance_policy[key] for key in keys})
+            if milestone == "M5":
+                target["policy_evidence"].update({
+                    "terminal_round_id": acceptance_policy["terminal_round_id"],
+                    "bindings": acceptance_policy["bindings"],
+                })
         target["status"] = "accepted"
         target["approval"] = {"status": "approved", "authority": approval["authority"], "evidence_path": approval_relative, "approved_at": approval["approved_at"]}
         packet = _handoff_packet(proposed, milestone, checkpoint, approval, approval_relative)
-        packet_relative = f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
+        packet_relative = (
+            "reviews/.harness/milestones/M5_terminal.json" if milestone == "M5"
+            else f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
+        )
         packet_path = project / Path(*PurePosixPath(packet_relative).parts)
         packet_bytes = _json_bytes(packet); packet_sha = hashlib.sha256(packet_bytes).hexdigest()
         target["handoff"] = {"status": "ready", "packet_path": packet_relative, "packet_sha256": packet_sha}
@@ -751,9 +978,26 @@ def accept(
         _append_event(proposed_framework, "milestone_accepted", milestone, at, f"Planner accepted {milestone} after explicit current-byte approval.", authority=approval["authority"], evidence_path=approval_relative, evidence_sha256=approval_sha, bindings=[artifact_binding, approval_binding])
         handoff_binding = {"binding_type": "handoff_packet", "path": packet_relative, "sha256": packet_sha}
         _append_event(proposed_framework, "handoff_ready", milestone, at, f"Planner finalized the accepted {milestone} F9 handoff.", authority=approval["authority"], evidence_path=approval_relative, evidence_sha256=approval_sha, bindings=[handoff_binding])
+        if milestone == "M5":
+            proposed["terminal_phase_reached"] = True
+            proposed["terminal_round_id"] = acceptance_policy["terminal_round_id"]
         created = _exclusive_bytes(packet_path, packet_bytes)
         try:
             _validate_prospective(project, proposed)
+            if milestone == "M5":
+                gate = validate_gate(project, proposed, "ph4_terminal_close")
+                if not gate.exit_permitted:
+                    detail = "; ".join(f"{row.code}: {row.message}" for row in gate.findings[:6])
+                    raise MilestoneTransactionError("AMC-TERMINAL-GATE", detail or "Ph4 terminal milestone gate failed")
+                from full_run_contract_check import check_terminal
+                terminal_findings = check_terminal(project, state_override=proposed)
+                if terminal_findings:
+                    first = terminal_findings[0]
+                    detail = first.get("unmet_findings") or []
+                    raise MilestoneTransactionError(
+                        "AMC-TERMINAL-CONTRACT",
+                        f"{first.get('message', 'full-run terminal contract failed')} first_unmet={json.dumps(detail[:3], sort_keys=True)}",
+                    )
             if _sha256(state_path) != prehash:
                 raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state changed during accept transaction")
             if _before_state_publish is not None:
@@ -835,7 +1079,10 @@ def recover_claim(project: Path, acknowledgement: str) -> Path:
         and row["handoff"].get("status") in {"ready", "consumed"}
     }
     for milestone in MILESTONES:
-        relative = f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
+        relative = (
+            "reviews/.harness/milestones/M5_terminal.json" if milestone == "M5"
+            else f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
+        )
         packet = project / Path(*PurePosixPath(relative).parts)
         if packet.exists() and relative not in bound_packets:
             if not packet.is_file() or _is_link(packet):

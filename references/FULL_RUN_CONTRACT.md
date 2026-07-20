@@ -219,7 +219,7 @@ That gate requires **all fifteen, unconditionally**:
 | 12 | valid `reviews/G4_signoff.md` |
 | 13 | Reflector-full close-out |
 | 14 | F8 final-round report |
-| 15 | terminal state (`terminal_phase_reached`) and final F9 packet |
+| 15 | accepted FINAL/M5 publication transaction: consumed immutable FINAL receipt + result, exact final/export bindings, complete structured terminal-evidence bindings, terminal state (`terminal_phase_reached`), and final F9 packet |
 
 An `adhoc_review` run **can never** satisfy this and must never imply it. Its
 response is not evidence: it cannot stand in for F7, F8, or F9, and it cannot

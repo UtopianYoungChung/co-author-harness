@@ -266,7 +266,6 @@ def valid_project(base: Path) -> Path:
     proj.mkdir(parents=True, exist_ok=True)
     ledger = _materialize_native_project(proj)
     ledger["mode"] = "native"
-    doc = _phase_document(ledger, "Ph4")
 
     # The full-run contract's own §4 requirements, beyond the ledger's.
     #
@@ -314,11 +313,123 @@ def valid_project(base: Path) -> Path:
        "  final_owner_state: closed\n")
     # `status:` lines, not `verdict:` prose -- milestone_framework_validate's
     # _signed_status is the authority for what a signoff says.
-    _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: PASS\n")
-    _w(proj / "reviews/ph4_ship_signoff.md", "# Ph4 ship\n\nstatus: APPROVED\n")
+    terminal_m5 = ledger["milestones"]["M5"]
+    terminal_deliverable = next(row for row in terminal_m5["artifacts"] if row["role"] == "deliverable")
+    _w(
+        proj / "reviews/G4_signoff.md",
+        "# G.4\n\nstatus: PASS\n"
+        f"manuscript_path: {terminal_deliverable['path']}\n"
+        f"manuscript_sha256: {terminal_deliverable['sha256']}\n"
+        "round_id: round_2026-07-17_001\n"
+        "authority: evaluator\n"
+        f"check8_sha256: {terminal_m5['policy_evidence']['check8_sha256']}\n"
+        "safeguard_status: CLEAN\n",
+    )
+    _w(
+        proj / "reviews/ph4_ship_signoff.md",
+        "# Ph4 ship\n\nstatus: APPROVED\n"
+        f"manuscript_path: {terminal_deliverable['path']}\n"
+        f"manuscript_sha256: {terminal_deliverable['sha256']}\n"
+        "round_id: round_2026-07-17_001\n"
+        "authority: user\n",
+    )
     _w(proj / "reviews/reflection_report.md", F4_REPORT)
     _w(proj / "reviews/final_round_report_round_2026-07-17_001.md", F8_REPORT)
-    _w(proj / "reviews/evidence/f7_round1.json", json.dumps({"checks": []}))
+    event_id = "round_2026-07-17_001__ph4__001"
+    f7 = proj / "reviews/.harness/evidence" / f"{event_id}.json"
+    _w(f7, json.dumps({
+        "artifact_family": "F7", "document_type": "evidence_packet",
+        "round_id": "round_2026-07-17_001", "event_id": event_id,
+        "phase": "Ph4", "target": ledger["milestones"]["M5"]["artifacts"][0]["path"],
+        "evidence_status": "complete", "created_at": "2026-07-17T00:00:00Z",
+    }, indent=2))
+    events = proj / "reviews/.harness/events.jsonl"
+    _w(events, json.dumps({
+        "round_id": "round_2026-07-17_001", "event_id": event_id,
+        "timestamp": "2026-07-17T00:00:00Z", "phase": "Ph4",
+        "event": "evidence_packet_written", "path": f7.relative_to(proj).as_posix(),
+    }) + "\n")
+
+    # Historical FINAL publication evidence. The public transaction smoketest
+    # proves the producer; this semantic fixture supplies the exact immutable
+    # read-side shape so bypass cases can mutate one terminal fact at a time.
+    m5 = ledger["milestones"]["M5"]
+    deliverable = next(row for row in m5["artifacts"] if row["role"] == "deliverable")
+    export = next(row for row in m5["artifacts"] if row["role"] == "export")
+    receipt_path = proj / "reviews/.harness/assignment/consumed/gate_receipt_FINAL_fixture.json"
+    result_path = receipt_path.with_suffix(".result.json")
+    receipt_id = "00000000-0000-4000-8000-000000000005"
+    reservation_id = "00000000-0000-4000-8000-000000000006"
+    _w(receipt_path, json.dumps({
+        "schema_version": "1.0.0", "receipt_id": receipt_id,
+        "reservation_id": reservation_id, "stage": "final",
+        "target_milestone": "FINAL", "authorized_role": "generator",
+        "primary_deliverable_path": deliverable["path"],
+    }, indent=2))
+    _w(result_path, json.dumps({
+        "schema_version": "1.0.0", "receipt_id": receipt_id,
+        "reservation_id": reservation_id, "outcome": "published",
+        "published": [
+            {"path": deliverable["path"], "sha256": deliverable["sha256"]},
+            {"path": export["path"], "sha256": export["sha256"]},
+        ],
+    }, indent=2))
+    for artifact_kind, evidence_path in (
+        ("consumed_final_receipt", receipt_path),
+        ("final_publication_result", result_path),
+    ):
+        m5["artifacts"].append({
+            "role": "evidence", "artifact_kind": artifact_kind,
+            "path": evidence_path.relative_to(proj).as_posix(), "sha256": _sha(evidence_path),
+            "bytes": evidence_path.stat().st_size, "verified_at": "2026-07-17T00:00:00Z",
+            "lineage_id": ledger["primary_lineage"],
+        })
+
+    terminal_bindings = []
+    for role, path in (
+        ("g4_signoff", proj / "reviews/G4_signoff.md"),
+        ("ship_signoff", proj / "reviews/ph4_ship_signoff.md"),
+        ("final_round_report", proj / "reviews/final_round_report_round_2026-07-17_001.md"),
+        ("reflector_full", proj / "reviews/reflection_report.md"),
+        ("f7_evidence", f7), ("events_log", events),
+        ("findings", proj / "reviews/findings.json"),
+        ("convergence_log", proj / "reviews/convergence_log.md"),
+    ):
+        terminal_bindings.append({"role": role, "path": path.relative_to(proj).as_posix(), "sha256": _sha(path)})
+    check8_path = proj / m5["policy_evidence"]["check8_path"]
+    check8 = json.loads(check8_path.read_text(encoding="utf-8"))
+    check8["cycle_id"] = "round_2026-07-17_001"
+    _w(check8_path, json.dumps(check8, indent=2))
+    m5["policy_evidence"]["cycle_id"] = "round_2026-07-17_001"
+    m5["policy_evidence"]["check8_sha256"] = _sha(check8_path)
+    m5["policy_evidence"]["terminal_round_id"] = "round_2026-07-17_001"
+    _w(
+        proj / "reviews/G4_signoff.md",
+        "# G.4\n\nstatus: PASS\n"
+        f"manuscript_path: {deliverable['path']}\n"
+        f"manuscript_sha256: {deliverable['sha256']}\n"
+        "round_id: round_2026-07-17_001\n"
+        "authority: evaluator\n"
+        f"check8_sha256: {m5['policy_evidence']['check8_sha256']}\n"
+        "safeguard_status: CLEAN\n",
+    )
+    next(row for row in terminal_bindings if row["role"] == "g4_signoff")["sha256"] = _sha(proj / "reviews/G4_signoff.md")
+    m5["policy_evidence"]["bindings"] = terminal_bindings
+    packet_path = proj / m5["handoff"]["packet_path"]
+    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    packet["policy_evidence"] = m5["policy_evidence"]
+    packet["inputs_consumed"] = [
+        {"path": row["path"], "sha256": row["sha256"]} for row in terminal_bindings
+    ] + [
+        {"path": receipt_path.relative_to(proj).as_posix(), "sha256": _sha(receipt_path)},
+        {"path": result_path.relative_to(proj).as_posix(), "sha256": _sha(result_path)},
+    ]
+    _w(packet_path, json.dumps(packet, indent=2))
+    m5["handoff"]["packet_sha256"] = _sha(packet_path)
+    for event in ledger["events"]:
+        if event.get("milestone") == "M5" and event.get("event_type") == "handoff_ready":
+            event["bindings"] = [{"binding_type": "handoff_packet", "path": m5["handoff"]["packet_path"], "sha256": m5["handoff"]["packet_sha256"]}]
+    doc = _phase_document(ledger, "Ph4")
     _w(proj / "reviews/phase_state.json", json.dumps(doc, indent=1))
     return proj
 
@@ -364,6 +475,18 @@ def case_g4_failed_wording() -> None:
         check("G.4 'status: FAIL' (word PASS elsewhere) is refused",
               rc == 4 and refused_for(p, "MF-GATE-M5", "reviews/G4_signoff.md"),
               f"rc={rc}")
+
+
+def case_g4_status_only_is_not_a_terminal_binding() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: PASS\n")
+        rc, payload = run("terminal", "--project-root", str(proj))
+        check(
+            "G.4 status-only file cannot bind the FINAL manuscript and round",
+            rc == 4 and refused_for(payload, "FRC-TERMINAL-SIGNOFF-BINDING", "reviews/G4_signoff.md::manuscript_path"),
+            f"rc={rc}",
+        )
 
 
 def case_artifact_hash_absent() -> None:
@@ -1000,6 +1123,24 @@ def case_f8_incomplete_evidence_is_refused() -> None:
                                       "::evidence_status"), f"rc={rc}")
 
 
+def case_non_object_f7_is_refused_not_a_crash() -> None:
+    """A JSON F7 array is malformed evidence, not permission to traceback."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        state_path = proj / "reviews/phase_state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        bindings = state["milestone_framework"]["milestones"]["M5"]["policy_evidence"]["bindings"]
+        f7_binding = next(row for row in bindings if row["role"] == "f7_evidence")
+        f7_path = proj / f7_binding["path"]
+        _w(f7_path, "[]\n")
+        f7_binding["sha256"] = _sha(f7_path)
+        _w(state_path, json.dumps(state, indent=1))
+        rc, p = run("terminal", "--project-root", str(proj))
+        check("non-object F7 is REFUSED without a traceback",
+              rc == 4 and refused_for(p, "FRC-ARTEFACT-UNREADABLE", f7_binding["path"]),
+              f"rc={rc}")
+
+
 # RETIRED: `case_ambiguous_f8_candidates_are_refused`.
 #
 # It asserted that ANY two F8 reports are ambiguous, which was the Major: it
@@ -1350,6 +1491,24 @@ def case_final_milestone_absent() -> None:
               f"rc={rc}")
 
 
+def case_terminal_state_without_final_publication_is_refused() -> None:
+    """Hand-built terminal state/F9 cannot authenticate a missing FINAL write."""
+    with tempfile.TemporaryDirectory() as td:
+        proj = valid_project(Path(td))
+        mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M5"].update({
+            "artifacts": [
+                row for row in st["milestone_framework"]["milestones"]["M5"]["artifacts"]
+                if row.get("artifact_kind") not in {"consumed_final_receipt", "final_publication_result"}
+            ]
+        }))
+        rc, payload = run("terminal", "--project-root", str(proj))
+        check(
+            "terminal state and F9 without consumed FINAL receipt/result are refused",
+            rc == 4 and refused_for(payload, "FRC-FINAL-PUBLICATION-ABSENT", "milestone_framework.milestones.M5.artifacts"),
+            f"rc={rc}",
+        )
+
+
 def case_final_packet_unbound() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
@@ -1609,6 +1768,7 @@ def main() -> int:
                case_f4_validator_findings_are_refused,
                case_f8_must_be_a_real_final_round_report,
                case_f8_incomplete_evidence_is_refused,
+               case_non_object_f7_is_refused_not_a_crash,
                case_non_object_contract_is_refused_not_a_crash,
                case_malformed_nested_milestone_data_is_refused_not_a_crash,
                case_malformed_section_container_is_refused_not_dropped,
@@ -1623,9 +1783,11 @@ def main() -> int:
                case_fabricated_check8_file_is_not_evidence,
                case_malformed_phase_state_is_refused_despite_code_prefix,
                case_g4_not_pass_substring, case_g4_failed_wording,
+               case_g4_status_only_is_not_a_terminal_binding,
                case_artifact_hash_absent, case_f9_packet_hash_absent,
                case_handoff_ready_not_consumed, case_mcr_filename_glob,
                case_mcr_failed_verdict, case_final_milestone_absent,
+               case_terminal_state_without_final_publication_is_refused,
                case_final_packet_unbound,
                case_empty_revision_log_is_not_authorship,
                case_fabricated_revision_log_is_not_authorship,

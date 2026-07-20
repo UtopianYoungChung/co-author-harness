@@ -12,7 +12,7 @@
   "common_generator_outputs": [
     {"path": "manuscript/revision_log.md", "mode": "append"}
   ],
-  "acceptance_model": "M1-M3 use acceptance_state because approval occurs within Ph1; M4 uses acceptance_readiness because acceptance requires convergence across Ph1-Ph3",
+  "acceptance_model": "M1-M3 use acceptance_state because approval occurs within Ph1; M4 uses acceptance_readiness because acceptance requires convergence across Ph1-Ph3; public FINAL maps to ledger M5 and closes only from Ph4",
   "milestones": {
     "M1": {
       "deliverable_writer": "generator",
@@ -57,6 +57,19 @@
       "explicit_approval_required": true,
       "approval_recorded_by": "planner",
       "handoff_path": "reviews/.harness/milestones/M4_to_M5.json"
+    },
+    "M5": {
+      "public_target": "FINAL",
+      "deliverable_writer": "generator",
+      "deliverable_path": "manuscript/final.md",
+      "released_export_path": "submission_bundle/final_manuscript.md",
+      "write_states": ["Ph4"],
+      "acceptance_state": "Ph4",
+      "evaluator_engagement": "required",
+      "feedback_adjudication_required": true,
+      "explicit_approval_required": true,
+      "approval_recorded_by": "planner",
+      "handoff_path": "reviews/.harness/milestones/M5_terminal.json"
     }
   },
   "specialization": {

@@ -383,6 +383,7 @@ MILESTONE_FRAMEWORK_TESTS=(
     assignment_dispatch_preflight_smoketest.py
     assignment_receipt_transaction_smoketest.py
     assignment_milestone_checkpoint_smoketest.py
+    assignment_terminal_close_smoketest.py
     milestone_framework_smoketest.py
     reader_accessibility_contract_smoketest.py
     repin_register_smoketest.py

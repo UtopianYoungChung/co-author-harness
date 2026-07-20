@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "milestone": "M5",
+  "terminal_round_id": "round_YYYY-MM-DD_NNN",
+  "manuscript_sha256": "<sha256-of-manuscript-final>",
+  "phase": "Ph4",
+  "cycle_id": "round_YYYY-MM-DD_NNN",
+  "check8_path": "reviews/.harness/policy/<m5-check8>.json",
+  "check8_sha256": "<sha256-of-check8>",
+  "aggregate_verdict": "CLEAN",
+  "bindings": [
+    {"role": "g4_signoff", "path": "reviews/G4_signoff.md", "sha256": "<sha256>"},
+    {"role": "ship_signoff", "path": "reviews/ph4_ship_signoff.md", "sha256": "<sha256>"},
+    {"role": "final_round_report", "path": "reviews/final_round_report_round_YYYY-MM-DD_NNN.md", "sha256": "<sha256>"},
+    {"role": "reflector_full", "path": "reviews/reflection_report.md", "sha256": "<sha256>"},
+    {"role": "f7_evidence", "path": "reviews/.harness/evidence/<event-id>.json", "sha256": "<sha256>"},
+    {"role": "events_log", "path": "reviews/.harness/events.jsonl", "sha256": "<sha256>"},
+    {"role": "findings", "path": "reviews/findings.json", "sha256": "<sha256>"},
+    {"role": "convergence_log", "path": "reviews/convergence_log.md", "sha256": "<sha256>"}
+  ]
+}

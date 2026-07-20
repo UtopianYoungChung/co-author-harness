@@ -371,6 +371,8 @@
         "check8_sha256": {"$ref": "#/$defs/sha256"},
         "aggregate_verdict": {"enum": ["CLEAN", "BORDERLINE", "MAJOR", "BLOCKER"]},
         "phase": {"enum": ["Ph2", "Ph3", "Ph4"]},
+        "terminal_round_id": {"type": "string", "pattern": "^round_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{3}$"},
+        "bindings": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["role", "path", "sha256"], "properties": {"role": {"enum": ["g4_signoff", "ship_signoff", "final_round_report", "reflector_full", "f7_evidence", "events_log", "findings", "convergence_log"]}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}},
         "wiki_grounding": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
         "wiki_grounding_opt_out": {"type": "object", "additionalProperties": false, "required": ["authority", "reason", "evidence_path", "evidence_sha256"], "properties": {"authority": {"enum": ["user", "advisor", "instructor"]}, "reason": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
       }

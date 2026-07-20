@@ -687,9 +687,9 @@ This section specifies their normal coordination and phase-conditioned agent dis
 | **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
 | **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Generator writes a structured outline only; prose stubs belong to M4. |
 | **M4 — Paper Draft** | `manuscript/main.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator assembles the first complete draft in Ph1; Ph2 is the first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
-| **M5 — Final Paper** | `manuscript/main.md` (submission-bound depth) | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
+| **M5 — Final Paper** (public target `FINAL`) | `manuscript/final.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
-The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. M5 certifies the exact final manuscript bytes at Ph4. Machine-readable authority: `role_output_contract.v1.json`.
+The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `manuscript/final.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.v1.json`.
 
 #### Native course-essay auto-walk
 
@@ -701,7 +701,7 @@ For the native `course-essay-four-milestones-v1` profile, `/run-draft` runs `ass
 4. After explicit current-byte approval only: Planner runs `assignment_milestone_checkpoint.py accept`, which publishes the exact F9 first and atomically publishes `phase_state.json` last. The next invocation runs `derive`, then `begin` to consume the predecessor F9 and start the successor before emitting its receipt.
 5. At M3→M4: before F9 finalization, write `reviews/.harness/assignment/wiki_grounding_<round>.json` after the wiki-first pass and bind its exact path/hash in M3 `policy_evidence`, or bind an explicit user/advisor/instructor opt-out.
 6. M4: require accepted M1-M3 plus current wiki evidence; exemplar conditioning may now use Yu for surface register and admitted Dennett for argument architecture only.
-7. FINAL: run the final gate, requiring accepted M1-M4 and still-current wiki evidence; emit and preflight a FINAL receipt. The M4-onward exemplar envelope remains available.
+7. FINAL: after accepted M4 and Ph4 admission, run `begin --milestone FINAL`, then the final gate with still-current wiki evidence; emit and preflight a FINAL receipt for the contract-owned final manuscript and released-export paths. After scoped publication, run public `record --milestone FINAL`, stop for explicit current-byte approval, then run `accept --milestone FINAL --terminal-evidence <path>`. That single close validates complete round-bound F7/F8, structured G.4 and user ship signoff, Reflector-full, deterministic findings, convergence, Check 8, and immutable consumed FINAL receipt/result evidence; it publishes `M5_terminal.json` first and terminal state last. The M4-onward exemplar envelope remains available.
 
 The loop is checkpoint-driven orchestration, not unattended acceptance. A request for a complete paper cannot jump to M4 while M1-M3 are open. Producing a complete essay or `reviews/ph1_draft_completion.md` while any of M1-M3 is non-`accepted` is an explicit refuse condition and protocol violation. Legacy mode emits `APG-SEQUENCE-LEGACY` and names required migration/acceptance work; it never infers acceptance from files. Ph1-Ph4 continue to govern revision maturity independently of this assignment sequence.
 
@@ -814,7 +814,8 @@ Planner (runs MCR admission check; rejects with [MCR-FIRST-RESPONSE] if any sect
                    Phase 4 skill proposals, Phase 5 memory → DO_NOT_DISTURB.md;
                    attempts Coupling C/D Wiki mutation (deferred: `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; non-blocking for Phase 4 completion) →
                    m5_wiki_ingest success trigger only after future governed ingestion; on deferral do not write the success trigger)
-  → Planner (writes terminal user_approval row with new_phase: "Ph4", terminal_phase_reached: true)
+  → Planner (runs public FINAL begin/gate/scoped-writer/record; stops for explicit current-byte approval;
+             accepts with structured terminal evidence, publishing M5_terminal.json first and terminal state last)
 ```
 
 Ph4 is the strict superset of Ph3. **Legal Ph4 → Ph3 demotions** at v0.8.0: EG-1 (`eg1_ph4_downgrade_to_ph3`, trigger 23) on Rule 1–7 grounding violation; EG-7 (`eg7_mcr_readmission_after_class_change`, trigger 22) when `reviews/classification.md` changes after MCR admission. Both demotions emit a TerminalSignoffRow → ReengagementSignoffRow pair and refresh `ph3_last_activity_at`.
