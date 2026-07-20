@@ -205,6 +205,7 @@ def commit_worktree(commit: str):
         rc = subprocess.run(
             [GIT, "-C", str(HARNESS), "worktree", "remove", "--force", str(path)],
             capture_output=True, text=True, encoding="utf-8",
+            errors="strict",
         )
         if rc.returncode != 0:
             failed = True
@@ -226,7 +227,7 @@ def commit_worktree(commit: str):
         # and check it, since a prune that fails leaves a registered worktree
         # pointing at nothing.
         pr = subprocess.run([GIT, "-C", str(HARNESS), "worktree", "prune"],
-                            capture_output=True, text=True, encoding="utf-8")
+                            capture_output=True, text=True, encoding="utf-8", errors="strict")
         if pr.returncode != 0:
             failed = True
             reasons.append(f"worktree prune exited {pr.returncode}: "
@@ -439,6 +440,7 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
     commit_epoch = int(subprocess.run(
         [GIT, "-C", str(HARNESS), "show", "-s", "--format=%ct", head_sha],
         capture_output=True, text=True, encoding="utf-8", check=True,
+        errors="strict",
     ).stdout.strip())
     commit_dt = datetime.datetime.fromtimestamp(commit_epoch, datetime.timezone.utc)
     zip_date_time = (commit_dt.year, commit_dt.month, commit_dt.day,

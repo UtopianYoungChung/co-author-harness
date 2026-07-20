@@ -49,7 +49,7 @@ def run_validator(script_path: Path, plugin_root: Path) -> Tuple[int, str]:
             [sys.executable, str(script_path), "--plugin-root", str(plugin_root)],
             check=False,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=30,
         )
     except (FileNotFoundError, subprocess.SubprocessError) as exc:
@@ -159,7 +159,7 @@ def assert_fixture_passes_pre_phase_advance(
             ],
             check=False,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=30,
         )
     except (FileNotFoundError, subprocess.SubprocessError) as exc:

@@ -204,7 +204,7 @@ def main() -> int:
             encoding="utf-8",
         )
         admission_command = [sys.executable, str(Path(__file__).with_name("pre_phase_advance_check.py")), "--project-root", str(admission_root), "--section", '["1. Test"]', "--target-phase", "Ph4"]
-        completed = subprocess.run(admission_command, capture_output=True, text=True, check=False)
+        completed = subprocess.run(admission_command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
         assert completed.returncode == 0 and "all seven clauses pass" in completed.stdout, completed.stderr + completed.stdout
         checks += 1
 
@@ -216,15 +216,15 @@ def main() -> int:
         checks += 1
 
         command = [sys.executable, str(Path(__file__).with_name("pre_phase_advance_check.py")), "--project-root", str(root), "--section", '["1. Test"]', "--target-phase", "Ph4", "--json"]
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
         assert completed.returncode == 1 and "MF-PHASE" in completed.stdout and "ph3_convergence_signoff.md" in completed.stdout
         checks += 1
         command.insert(-1, "--terminal-close")
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
         assert completed.returncode == 0, completed.stderr + completed.stdout
         checks += 1
         illegal = command.copy(); illegal[illegal.index("Ph4")] = "Ph2"
-        completed = subprocess.run(illegal, capture_output=True, text=True, check=False)
+        completed = subprocess.run(illegal, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
         assert completed.returncode != 0 and "terminal-close" in (completed.stderr + completed.stdout)
         checks += 1
 

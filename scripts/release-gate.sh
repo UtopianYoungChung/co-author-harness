@@ -19,8 +19,8 @@
 #   8. Runs scripts/path-hygiene-check.py for maintainer-local path hygiene.
 #   8a. [v0.15.0-pre] Runs scripts/snippet-check.py for packaging-time
 #       include resolution and anti-duplication of extracted policy blocks.
-#   8b. [v0.14.0] Runs scripts/output_economy_check.py then
-#       scripts/output_economy_smoketest.py (F7/F8 fixture + artefact validator).
+#   8b. Runs scripts/output_economy_check.py; all behavioral fixtures execute
+#       once through the authoritative registry.
 #   9. [Retired at v0.7.0] Rule-digest build-and-verify. The tier-gated digest
 #      exception (GROUNDING_PROTOCOL Rule 1, v0.6.0 and earlier) was retired in
 #      v0.7.0 in favour of full-file reads at every rung. `scripts/
@@ -308,114 +308,25 @@ for REG_CHECK in version-planes-check.py commitment-interactions-check.py retire
     fi
 done
 
-# --- Phase 0.56: notification-catalog smoketest (2026-07-07 audit item 9) --
+# --- Phase 0.56: authoritative fixture infrastructure + corpus -------------
 
-if [[ -f "$PLUGIN_ROOT/scripts/concept_introduction_contract_smoketest.py" ]]; then
-    echo "Concept-introduction contract smoketest"
-    if ! python3 "$PLUGIN_ROOT/scripts/concept_introduction_contract_smoketest.py"; then
-        echo "  [BLOCKER] concept-introduction contract smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      concept-introduction contract smoketest passed"
-    fi
-    echo ""
-else
-    echo "Concept-introduction contract smoketest: script missing"
-    echo "  [BLOCKER] cannot run concept-introduction contract smoketest"
+echo "Fixture infrastructure preflight"
+if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_infrastructure_check.py"; then
+    echo "  [BLOCKER] fixture infrastructure preflight failed"
     BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-if [[ -f "$PLUGIN_ROOT/scripts/semantic_predication_contract_smoketest.py" ]]; then
-    echo "Semantic-predication contract smoketest"
-    if ! python3 "$PLUGIN_ROOT/scripts/semantic_predication_contract_smoketest.py"; then
-        echo "  [BLOCKER] semantic-predication contract smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      semantic-predication contract smoketest passed"
-    fi
-    echo ""
 else
-    echo "Semantic-predication contract smoketest: script missing"
-    echo "  [BLOCKER] cannot run semantic-predication contract smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
+    echo "  [OK]      fixture infrastructure preflight passed"
 fi
+echo ""
 
-# --- Phase 0.58: pre-advance guardrail phase-surface smoketest (2026-07-13
-#     audit C1) — regression-pins load_ledger to reviews/phase_state.json. ----
-if [[ -f "$PLUGIN_ROOT/scripts/pre_phase_advance_phase_state_smoketest.py" ]]; then
-    echo "Pre-advance guardrail phase-surface smoketest"
-    if ! python3 "$PLUGIN_ROOT/scripts/pre_phase_advance_phase_state_smoketest.py"; then
-        echo "  [BLOCKER] pre-advance guardrail phase-surface smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      pre-advance guardrail phase-surface smoketest passed"
-    fi
-    echo ""
+echo "Authoritative fixture registry"
+if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" --no-write; then
+    echo "  [BLOCKER] authoritative fixture registry failed"
+    BLOCKERS=$((BLOCKERS + 1))
 else
-    echo "Pre-advance guardrail phase-surface smoketest: script missing"
-    echo "  [BLOCKER] cannot run pre-advance guardrail phase-surface smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
+    echo "  [OK]      authoritative fixture registry passed"
 fi
-
-if [[ -f "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py" ]]; then
-    echo "Notification catalog smoketest (scripts/phase_notifications_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/phase_notifications_smoketest.py"; then
-        echo "  [BLOCKER] scripts/phase_notifications_smoketest.py reported blocking issues"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      scripts/phase_notifications_smoketest.py passed"
-    fi
-    echo ""
-else
-    echo "Notification catalog smoketest: script missing"
-    echo "  [BLOCKER] cannot run phase_notifications_smoketest.py"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-# --- Phase 0.59: milestone-feedback and handoff framework ------------------
-
-MILESTONE_FRAMEWORK_TESTS=(
-    assignment_process_gate_smoketest.py
-    assignment_dispatch_preflight_smoketest.py
-    assignment_receipt_transaction_smoketest.py
-    assignment_milestone_checkpoint_smoketest.py
-    assignment_terminal_close_smoketest.py
-    milestone_framework_smoketest.py
-    reader_accessibility_contract_smoketest.py
-    repin_register_smoketest.py
-    render_lifecycle_state_smoketest.py
-    migrate_legacy_milestones_smoketest.py
-    native_project_bootstrap_smoketest.py
-    native_project_bootstrap_adversarial_smoketest.py
-    reader_accessibility_semantics_smoketest.py
-    reader_accessibility_adversarial_smoketest.py
-    render_lifecycle_state_adversarial_smoketest.py
-    migrate_legacy_milestones_adversarial_smoketest.py
-    retirement_sweep_smoketest.py
-)
-
-for TEST_RUNNER in "${MILESTONE_FRAMEWORK_TESTS[@]}"; do
-    if [[ ! -f "$PLUGIN_ROOT/scripts/$TEST_RUNNER" ]]; then
-        echo "Milestone-feedback framework: runner missing (scripts/$TEST_RUNNER)"
-        echo "  [BLOCKER] cannot run scripts/$TEST_RUNNER"
-        BLOCKERS=$((BLOCKERS + 1))
-        echo ""
-        continue
-    fi
-
-    echo "Milestone-feedback framework (scripts/$TEST_RUNNER)"
-    if ! python3 "$PLUGIN_ROOT/scripts/$TEST_RUNNER"; then
-        echo "  [BLOCKER] scripts/$TEST_RUNNER reported blocking issues"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      scripts/$TEST_RUNNER passed"
-    fi
-    echo ""
-done
+echo ""
 
 MILESTONE_COMPILE_TARGETS=(
     assignment_process_gate.py
@@ -480,60 +391,6 @@ else
     echo ""
 fi
 
-# --- Phase 0.60a: phase-skill alias parity (v0.15.0-pre PR-3b.3) ----------
-
-if [[ -f "$PLUGIN_ROOT/scripts/alias_parity_smoketest.py" ]]; then
-    echo "Phase-skill alias parity smoketest (scripts/alias_parity_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/alias_parity_smoketest.py"; then
-        echo "  [BLOCKER] alias parity smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      alias parity smoketest passed"
-    fi
-    echo ""
-else
-    echo "Phase-skill alias parity smoketest: script missing"
-    echo "  [BLOCKER] cannot run alias parity smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-# --- Phase 0.60b: stage/profile migration smoketest (v0.15.0-pre PR-3b.1) ---
-
-if [[ -f "$PLUGIN_ROOT/scripts/migrate_v0150pre_stage_profile_smoketest.py" ]]; then
-    echo "stage/profile migration smoketest (scripts/migrate_v0150pre_stage_profile_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/migrate_v0150pre_stage_profile_smoketest.py"; then
-        echo "  [BLOCKER] stage/profile migration smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      stage/profile migration smoketest passed"
-    fi
-    echo ""
-else
-    echo "stage/profile migration smoketest: script missing"
-    echo "  [BLOCKER] cannot run stage/profile migration smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-# --- Phase 0.60c: MCR convergence evidence smoketest (v0.15.0-pre PR-3b.2) -
-
-if [[ -f "$PLUGIN_ROOT/scripts/mcr_convergence_evidence_smoketest.py" ]]; then
-    echo "MCR convergence evidence smoketest (scripts/mcr_convergence_evidence_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/mcr_convergence_evidence_smoketest.py"; then
-        echo "  [BLOCKER] MCR convergence evidence smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      MCR convergence evidence smoketest passed"
-    fi
-    echo ""
-else
-    echo "MCR convergence evidence smoketest: script missing"
-    echo "  [BLOCKER] cannot run MCR convergence evidence smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
 # --- Phase 0.60d: GROUNDING_PROTOCOL stable anchors (v0.15.0-pre) ---------
 
 if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
@@ -548,24 +405,6 @@ if [[ -f "$PLUGIN_ROOT/scripts/grounding_anchors_check.py" ]]; then
 else
     echo "GROUNDING_PROTOCOL stable anchors: script missing (scripts/grounding_anchors_check.py)"
     echo "  [BLOCKER] cannot run grounding_anchors_check"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-# --- Phase 0.60d2: citation auditor smoketest (v0.15.0-pre PR-4a) ----------
-
-if [[ -f "$PLUGIN_ROOT/scripts/audit/test_citations.py" ]]; then
-    echo "Citation auditor smoketest (scripts/audit/test_citations.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/audit/test_citations.py"; then
-        echo "  [BLOCKER] citation auditor smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      citation auditor smoketest passed"
-    fi
-    echo ""
-else
-    echo "Citation auditor smoketest: script missing"
-    echo "  [BLOCKER] cannot run citation auditor smoketest"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi
@@ -612,24 +451,6 @@ else
     echo ""
 fi
 
-# --- Phase 0.60d4: token-budget smoketest + measurement (v0.15.0-pre PR-4d, WARN-ONLY) ---
-
-if [[ -f "$PLUGIN_ROOT/scripts/token_budget_smoketest.py" ]]; then
-    echo "Token-budget smoketest (scripts/token_budget_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/token_budget_smoketest.py"; then
-        echo "  [BLOCKER] token-budget smoketest failed (script regression)"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      token-budget smoketest passed"
-    fi
-    echo ""
-else
-    echo "Token-budget smoketest: script missing"
-    echo "  [BLOCKER] cannot run token-budget smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
 # Token-budget measurement is WARN-ONLY at PR-4d per the v0.15.0
 # architecture (measurement-first; the Reflector split + later slims
 # will pull breaching files under the threshold). Breaches do NOT
@@ -668,58 +489,6 @@ PY
     echo ""
 fi
 
-# --- Phase 0.60d5: Reflector split parity (v0.15.0-pre PR-4c) -------------
-
-if [[ -f "$PLUGIN_ROOT/scripts/reflector_split_parity_smoketest.py" ]]; then
-    echo "Reflector split parity (scripts/reflector_split_parity_smoketest.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/reflector_split_parity_smoketest.py"; then
-        echo "  [BLOCKER] reflector split parity smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      reflector split parity smoketest passed"
-    fi
-    echo ""
-else
-    echo "Reflector split parity: script missing"
-    echo "  [BLOCKER] cannot run reflector split parity smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-# --- Phase 0.60e: audit suite smoketest + resolve_includes unit tests (v0.15.0-pre) ---
-
-if [[ -f "$PLUGIN_ROOT/scripts/audit/test_audit.py" ]]; then
-    echo "Audit suite smoketest (scripts/audit/test_audit.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/audit/test_audit.py"; then
-        echo "  [BLOCKER] audit suite smoketest failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      audit suite smoketest passed"
-    fi
-    echo ""
-else
-    echo "Audit suite smoketest: script missing (scripts/audit/test_audit.py)"
-    echo "  [BLOCKER] cannot run audit suite smoketest"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-if [[ -f "$PLUGIN_ROOT/scripts/tests/test_resolve_includes.py" ]]; then
-    echo "resolve_includes unit tests (scripts/tests/test_resolve_includes.py)"
-    if ! python3 "$PLUGIN_ROOT/scripts/tests/test_resolve_includes.py"; then
-        echo "  [BLOCKER] resolve_includes unit tests failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      resolve_includes unit tests passed"
-    fi
-    echo ""
-else
-    echo "resolve_includes unit tests: script missing (scripts/tests/test_resolve_includes.py)"
-    echo "  [BLOCKER] cannot run resolve_includes unit tests"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
 # --- Phase 0.61: output economy guard + smoketest (v0.14.0) ---------------
 
 if [[ -f "$PLUGIN_ROOT/scripts/output_economy_check.py" ]]; then
@@ -734,22 +503,6 @@ if [[ -f "$PLUGIN_ROOT/scripts/output_economy_check.py" ]]; then
 else
     echo "Output economy check: script missing (scripts/output_economy_check.py)"
     echo "  [BLOCKER] cannot run output economy check"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
-if [[ -f "$PLUGIN_ROOT/scripts/output_economy_smoketest.py" ]]; then
-    echo "Output economy smoketest (F7/F8 fixture)"
-    if ! python3 "$PLUGIN_ROOT/scripts/output_economy_smoketest.py"; then
-        echo "  [BLOCKER] scripts/output_economy_smoketest.py failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      scripts/output_economy_smoketest.py passed"
-    fi
-    echo ""
-else
-    echo "Output economy smoketest: script missing (scripts/output_economy_smoketest.py)"
-    echo "  [BLOCKER] cannot run output economy smoketest"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi
@@ -799,166 +552,6 @@ fi
 # to keep the phase-number contract stable across release-gate invocations.
 echo "Rule digest build-and-verify — retired at v0.7.0 (no-op placeholder)"
 echo "  [SKIP]    digest exception retired; full-file reads are universal at v0.7.0+"
-echo ""
-
-# --- Phase 0.67: phase_state.json validator smoketest (v0.7.4+) -----------
-#
-# The Tier Marshal (v0.5.5 Phase F.1) was retired at v0.6.0; its artefacts
-# live at `legacy/marshal-f1-retired/`. At v0.7.0 the Progressive Approval
-# Staircase was superseded by the Lifecycle-Stage Ladder, and at v0.7.4 the
-# vocabulary was renamed to the Lifecycle-Phase Ladder (Ph1 Plan & Draft /
-# Ph2 Review & Revise / Ph3 Iterate & Converge / Ph4 Finalize & Close) and
-# the log row was widened to seven fields (adding `model_used`). Per-section
-# state now lives in `reviews/phase_state.json` at schema_version 0.7.4 with
-# the row-shape contracts specified in `references/phase_state_schema.md §3a`.
-# The validator — `scripts/phase_state_validate.py` — enforces the v0.7.4
-# failure taxonomy per `phase_state_schema.md §6.1` with exit-code map
-# {0: PASS, 1: usage, 2: I/O, 3: MINOR/MAJOR findings, 4: BLOCKER findings}.
-# This phase asserts:
-#   - phase_state_validate.py exits 0 on the PASS fixture (well-formed v0.7.4
-#     ledger with the two validator-required SectionStateObject fields
-#     present and a monotonic 2-row phase_entry_log).
-#   - phase_state_validate.py exits 4 on the BLOCK fixture
-#     (MONOTONICITY_VIOLATION under a non-exempt `user_rejection` trigger —
-#     BLOCKER severity in the v0.7.4 validator).
-# See: references/phase_state_schema.md (schema + failure codes),
-# scripts/fixtures/phase_state_smoketest/README.md (fixture layout + rename
-# provenance from the v0.7.0 tier_state_smoketest/ path).
-
-echo "phase_state.json validator smoketest (v0.7.4+)"
-PHASE_STATE_VALIDATE="$PLUGIN_ROOT/scripts/phase_state_validate.py"
-PS_FIXTURE_PASS="$PLUGIN_ROOT/scripts/fixtures/phase_state_smoketest/pass"
-PS_FIXTURE_BLOCK="$PLUGIN_ROOT/scripts/fixtures/phase_state_smoketest/block"
-if [[ -f "$PHASE_STATE_VALIDATE" && -d "$PS_FIXTURE_PASS" && -d "$PS_FIXTURE_BLOCK" ]]; then
-    set +e
-    python3 "$PHASE_STATE_VALIDATE" --project-root "$PS_FIXTURE_PASS" >/dev/null 2>&1
-    RC=$?
-    set -e
-    if [[ "$RC" -eq 0 ]]; then
-        echo "  [OK]      phase_state_validate.py PASS fixture returned exit 0"
-    else
-        echo "  [BLOCKER] phase_state_validate.py PASS fixture returned exit $RC (expected 0)"
-        BLOCKERS=$((BLOCKERS + 1))
-    fi
-    set +e
-    python3 "$PHASE_STATE_VALIDATE" --project-root "$PS_FIXTURE_BLOCK" >/dev/null 2>&1
-    RC=$?
-    set -e
-    if [[ "$RC" -eq 4 ]]; then
-        echo "  [OK]      phase_state_validate.py BLOCK fixture returned exit 4 (MONOTONICITY_VIOLATION BLOCKER)"
-    else
-        echo "  [BLOCKER] phase_state_validate.py BLOCK fixture returned exit $RC (expected 4)"
-        BLOCKERS=$((BLOCKERS + 1))
-    fi
-else
-    echo "  [WARN]    phase_state validator smoketest skipped: runner or fixture missing"
-    WARNINGS=$((WARNINGS + 1))
-fi
-echo ""
-
-# --- Phase 0.68: artefact_frontmatter validator smoketest (v0.8.0 P2.1a.1 + P2.1b) ---
-#
-# v0.8.0 P2.1a.1: F6 `planner_dispatch_plan` landed in the validator
-# (R-P2-VALIDATOR-F6) per proposals/v0.8.0_upgrade_architecture.md §9.3.
-# v0.8.0 P2.1b: F1 register + routing, F4 demoted block, F6 P2.1b profile fields
-# per the same document §9 move 2.
-#
-# All fixtures: scripts/fixtures/artefact_frontmatter_smoketest/README.md
-# Exit 0 on every PASS; exit 3 on every BLOCK (R-Refl-FM-1/2/3/4 at MAJOR —
-# no in-file R-Refl-FM-* BLOCKER in the v0.8.0 single-file map except
-# R-Refl-FM-7 on parse/author-bug paths).
-#
-# PASS: F6 (dispatch_plan_C0001), F1 (ph3_findings_p21b), F4 (reflector_full_p21b)
-# BLOCK: F6 (C0002 user_approval; p21b bad check_profile; F1 bad routing; F4 bad severity)
-
-echo "artefact_frontmatter validator smoketest (v0.8.0 P2.1a.1 + P2.1b)"
-AF_VALIDATE="$PLUGIN_ROOT/scripts/artefact_frontmatter_validate.py"
-AF_ROOT="$PLUGIN_ROOT/scripts/fixtures/artefact_frontmatter_smoketest"
-AF_PASS=( \
-  "$AF_ROOT/pass/reviews/dispatch_plan_C0001.md" \
-  "$AF_ROOT/pass/reviews/ph3_findings_p21b_2026-04-22_iter0.md" \
-  "$AF_ROOT/pass/reviews/reflector_full_p21b_2026-04-22.md" \
-)
-AF_BLOCK=( \
-  "$AF_ROOT/block/reviews/dispatch_plan_C0002.md" \
-  "$AF_ROOT/block/reviews/dispatch_plan_p21b_block_bad_check_profile.md" \
-  "$AF_ROOT/block/reviews/ph3_findings_p21b_bad_routing_rationale.md" \
-  "$AF_ROOT/block/reviews/reflector_full_p21b_bad_demoted_severity.md" \
-)
-if [[ -f "$AF_VALIDATE" ]]; then
-    AF_OK=1
-    for f in "${AF_PASS[@]}"; do
-        if [[ ! -f "$f" ]]; then AF_OK=0; break; fi
-    done
-    for f in "${AF_BLOCK[@]}"; do
-        if [[ ! -f "$f" ]]; then AF_OK=0; break; fi
-    done
-    if (( AF_OK == 1 )); then
-        for f in "${AF_PASS[@]}"; do
-            set +e
-            python3 "$AF_VALIDATE" "$f" >/dev/null 2>&1
-            RC=$?
-            set -e
-            if [[ "$RC" -eq 0 ]]; then
-                echo "  [OK]      artefact_frontmatter_validate.py PASS: $( basename "$f" )  exit 0"
-            else
-                echo "  [BLOCKER] artefact_frontmatter_validate.py PASS: $( basename "$f" )  exit $RC (expected 0)"
-                BLOCKERS=$((BLOCKERS + 1))
-            fi
-        done
-        for f in "${AF_BLOCK[@]}"; do
-            set +e
-            python3 "$AF_VALIDATE" "$f" >/dev/null 2>&1
-            RC=$?
-            set -e
-            if [[ "$RC" -eq 3 ]]; then
-                echo "  [OK]      artefact_frontmatter_validate.py BLOCK: $( basename "$f" )  exit 3 (MAJOR)"
-            else
-                echo "  [BLOCKER] artefact_frontmatter_validate.py BLOCK: $( basename "$f" )  exit $RC (expected 3)"
-                BLOCKERS=$((BLOCKERS + 1))
-            fi
-        done
-    else
-        echo "  [WARN]    artefact_frontmatter validator smoketest skipped: runner or fixture missing"
-        WARNINGS=$((WARNINGS + 1))
-    fi
-else
-    echo "  [WARN]    artefact_frontmatter validator skipped: $AF_VALIDATE missing"
-    WARNINGS=$((WARNINGS + 1))
-fi
-echo ""
-
-# --- Phase 0.69: paragraph_hash_map determinism (v0.8.0 P2.1c) ----------
-#
-# proposals/v0.8.0_upgrade_architecture.md §9.2 P2.1c: dry-run + determinism.
-# Fixture: scripts/fixtures/paragraph_hash_map_smoketest/minimal_project/
-
-echo "paragraph_hash_map.py determinism (v0.8.0 P2.1c)"
-PHM="$PLUGIN_ROOT/scripts/paragraph_hash_map.py"
-PHM_ROOT="$PLUGIN_ROOT/scripts/fixtures/paragraph_hash_map_smoketest/minimal_project"
-if [[ -f "$PHM" && -f "$PHM_ROOT/manuscript/main.md" ]]; then
-    PHM_TMP1="$( mktemp )"
-    PHM_TMP2="$( mktemp )"
-    set +e
-    python3 "$PHM" --project-root "$PHM_ROOT" >"$PHM_TMP1" 2>/dev/null
-    RC1=$?
-    python3 "$PHM" --project-root "$PHM_ROOT" >"$PHM_TMP2" 2>/dev/null
-    RC2=$?
-    set -e
-    if [[ "$RC1" -ne 0 || "$RC2" -ne 0 ]]; then
-        echo "  [BLOCKER] paragraph_hash_map.py run failed (exit $RC1 / $RC2, expected 0)"
-        BLOCKERS=$((BLOCKERS + 1))
-    elif cmp -s "$PHM_TMP1" "$PHM_TMP2"; then
-        echo "  [OK]      paragraph_hash_map.py: two runs byte-identical (exit 0)"
-    else
-        echo "  [BLOCKER] paragraph_hash_map.py: stdout differs across two runs (non-deterministic)"
-        BLOCKERS=$((BLOCKERS + 1))
-    fi
-    rm -f "$PHM_TMP1" "$PHM_TMP2"
-else
-    echo "  [WARN]    paragraph_hash_map smoketest skipped: runner or fixture missing"
-    WARNINGS=$((WARNINGS + 1))
-fi
 echo ""
 
 # --- Phase 0.695: superseded migration script smoketests retired at v0.11.0 -
@@ -1267,53 +860,6 @@ fi
 # --- Verdict ---------------------------------------------------------------
 
 echo "============================================================"
-# --- Phase 0.57: full-run contract enforcement smoketests (2026-07-19 audit) --
-#     Regression-pins the FULL_RUN_CONTRACT gate against the 2026-07-17/18
-#     "narrated ladder, no artefacts" failure and the CodeRabbit semantic-bypass
-#     cases. These smoketests existed but were never gated (audit B7).
-#
-#     Every nonzero result is a BLOCKER. Corpus portability has its own explicit
-#     override seam and Phase 0.57b regression, so an incidental error substring
-#     may never downgrade a genuine contract-logic failure to a warning.
-for FRC_SMOKE in full_run_contract_smoketest.py full_run_semantic_bypass_smoketest.py full_run_enforcement_surfaces_smoketest.py; do
-    if [[ -f "$PLUGIN_ROOT/scripts/$FRC_SMOKE" ]]; then
-        echo "Full-run contract smoketest ($FRC_SMOKE)"
-        set +e
-        FRC_OUT="$(python3 "$PLUGIN_ROOT/scripts/$FRC_SMOKE" 2>&1)"; FRC_RC=$?
-        set -e
-        if [[ $FRC_RC -eq 0 ]]; then
-            echo "  [OK]      scripts/$FRC_SMOKE passed"
-        else
-            echo "  [BLOCKER] scripts/$FRC_SMOKE failed (contract-logic regression)"
-            BLOCKERS=$((BLOCKERS + 1))
-        fi
-        echo ""
-    else
-        echo "Full-run contract smoketest: script missing (scripts/$FRC_SMOKE)"
-        echo "  [BLOCKER] cannot run $FRC_SMOKE"
-        BLOCKERS=$((BLOCKERS + 1))
-        echo ""
-    fi
-done
-
-# --- Phase 0.57b: corpus-root portability contract (2026-07-19 audit) ---------
-#     Directly relevant to the above void handling and previously ungated.
-if [[ -f "$PLUGIN_ROOT/scripts/corpus_root_portability_smoketest.py" ]]; then
-    echo "Corpus-root portability smoketest"
-    if ! python3 "$PLUGIN_ROOT/scripts/corpus_root_portability_smoketest.py"; then
-        echo "  [BLOCKER] corpus_root_portability_smoketest.py failed"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        echo "  [OK]      corpus_root_portability_smoketest.py passed"
-    fi
-    echo ""
-else
-    echo "Corpus-root portability smoketest: script missing"
-    echo "  [BLOCKER] cannot run corpus_root_portability_smoketest.py"
-    BLOCKERS=$((BLOCKERS + 1))
-    echo ""
-fi
-
 if (( BLOCKERS > 0 )); then
     echo "VERDICT: BLOCKED — $BLOCKERS blocker(s), $WARNINGS warning(s)"
     exit 1

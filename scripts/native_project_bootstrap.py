@@ -225,7 +225,7 @@ def _write(staging_root: Path, relative: str, content: str) -> Path:
 
 
 def _run_validator(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+    return subprocess.run(command, cwd=cwd, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
 
 
 def _validate_staging(staging_root: Path, validator_runner: ValidatorRunner) -> None:

@@ -91,7 +91,7 @@ def manuscript_relpath(manuscript_path: Path, project_root: Path) -> str:
 
 def build_map(manuscript_path: Path, project_root: Path) -> dict[str, object]:
     raw = manuscript_path.read_bytes()
-    text = raw.decode("utf-8")
+    text = raw.decode("utf-8", errors="strict")
     normalized = normalize_crlf(text)
     paragraphs = split_paragraphs(normalized)
     pmap: dict[str, str] = {}

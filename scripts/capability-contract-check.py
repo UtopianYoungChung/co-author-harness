@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -55,6 +56,24 @@ def _skill_frontmatter_name(path: Path) -> str | None:
     return str(data.get("name", "")).strip() or None
 
 
+def registered_fixture_paths(plugin_root: Path) -> set[str]:
+    """Read literal REGISTRY keys as Python structure, never source substrings."""
+    runner = plugin_root / "scripts" / "analysis" / "fixture_runner.py"
+    tree = ast.parse(runner.read_text(encoding="utf-8"), filename=str(runner))
+    for node in tree.body:
+        target = node.target if isinstance(node, ast.AnnAssign) else None
+        if isinstance(target, ast.Name) and target.id == "REGISTRY":
+            if not isinstance(node.value, ast.Dict):
+                raise ValueError("fixture REGISTRY must be a literal dictionary")
+            keys: set[str] = set()
+            for key in node.value.keys:
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    raise ValueError("fixture REGISTRY keys must be literal strings")
+                keys.add(key.value)
+            return keys
+    raise ValueError("fixture REGISTRY declaration is missing")
+
+
 def validate(plugin_root: Path, data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     caps = data.get("capabilities")
@@ -65,9 +84,7 @@ def validate(plugin_root: Path, data: dict[str, Any]) -> list[str]:
         p.parent.name for p in (plugin_root / "skills").glob("*/SKILL.md")
     }
     declared = set(caps)
-    fixture_registry = (plugin_root / "scripts" / "analysis" / "fixture_runner.py").read_text(
-        encoding="utf-8"
-    )
+    fixture_paths = registered_fixture_paths(plugin_root)
     for name in sorted(discovered - declared):
         errors.append(f"missing capability row: {name}")
     for name in sorted(declared - discovered):
@@ -117,7 +134,7 @@ def validate(plugin_root: Path, data: dict[str, Any]) -> list[str]:
             if SELF_TEST in (evidence or []):
                 errors.append(f"CAP-TEST-CIRCULAR {name}: capability smoke cannot be capability evidence")
             for rel in evidence or []:
-                if f'"{rel}"' not in fixture_registry:
+                if rel not in fixture_paths:
                     errors.append(f"CAP-TEST-UNREGISTERED {name}: {rel}")
             if skill_path is not None:
                 prelude = "\n".join(skill_path.read_text(encoding="utf-8").splitlines()[:80]).lower()

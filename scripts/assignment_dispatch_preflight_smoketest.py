@@ -106,7 +106,7 @@ def emit_receipt(project: Path, receipt: Path) -> subprocess.CompletedProcess[st
             "--emit-receipt",
             str(receipt),
         ],
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )
@@ -133,7 +133,7 @@ def run_preflight(
             "--write-path",
             write_path,
         ],
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )

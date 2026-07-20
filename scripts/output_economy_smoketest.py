@@ -55,7 +55,7 @@ def main() -> int:
         [sys.executable, str(val), str(evidence), str(f8)],
         cwd=str(root),
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
     )
     if proc.returncode != 0:
         sys.stderr.write(proc.stdout or "")

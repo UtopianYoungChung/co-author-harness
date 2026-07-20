@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -67,6 +68,18 @@ def main() -> int:
         "scripts/catalog-check.py"
     ]
     require_error(case, "CAP-TEST-UNREGISTERED")
+
+    with tempfile.TemporaryDirectory() as td:
+        fake_root = Path(td)
+        runner = fake_root / "scripts" / "analysis" / "fixture_runner.py"
+        runner.parent.mkdir(parents=True)
+        runner.write_text(
+            '# misleading comment: "scripts/comment_only_smoketest.py"\n'
+            'REGISTRY: dict[str, list[dict]] = {"scripts/real_smoketest.py": []}\n',
+            encoding="utf-8",
+        )
+        registered = MODULE.registered_fixture_paths(fake_root)
+        assert registered == {"scripts/real_smoketest.py"}, registered
 
     case = copy.deepcopy(data)
     graph = case["capabilities"]["graph-grounding-overlay"]

@@ -21,7 +21,7 @@ def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-I", "-S", str(script), *args],
         cwd=ROOT,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )

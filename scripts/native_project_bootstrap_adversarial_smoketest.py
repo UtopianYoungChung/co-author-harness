@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
-import os
 import io
+import locale
+import os
 import subprocess
 import sys
 import tempfile
@@ -48,7 +49,7 @@ def _run(
             timestamp,
         ],
         cwd=ROOT,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )
@@ -68,6 +69,8 @@ def _make_directory_link(link: Path, target: Path) -> str | None:
         result = subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(link), str(target)],
             text=True,
+            encoding=locale.getpreferredencoding(False),
+            errors="replace",
             capture_output=True,
             check=False,
         )

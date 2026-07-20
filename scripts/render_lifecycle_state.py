@@ -93,7 +93,7 @@ def _load_source(project_root: Path) -> tuple[bytes, dict[str, Any]]:
         raise RenderError(f"authoritative ledger is not a regular file: {SOURCE_RELATIVE}")
     try:
         payload = source.read_bytes()
-        text = payload.decode("utf-8")
+        text = payload.decode("utf-8", errors="strict")
         document = json.loads(text)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise RenderError(f"could not read authoritative ledger as UTF-8 JSON: {exc}") from exc
@@ -131,7 +131,7 @@ def _accepted_packets(project_root: Path, framework: dict[str, Any]) -> list[dic
         packet_path = _contained(project_root, relative)
         try:
             packet_payload = packet_path.read_bytes()
-            packet = json.loads(packet_payload.decode("utf-8"))
+            packet = json.loads(packet_payload.decode("utf-8", errors="strict"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise RenderError(f"could not read ledger-bound F9 packet {relative}: {exc}") from exc
         actual_hash = hashlib.sha256(packet_payload).hexdigest()
@@ -253,7 +253,7 @@ def _publish(project_root: Path, payload: bytes) -> None:
         time_match = re.search(rb"(?m)^generated_at: ([^\r\n]+)$", payload)
         if time_match is None:
             raise RenderError("rendered lifecycle payload lacks its generation-time binding")
-        regenerated = render_bytes(project_root, time_match.group(1).decode("utf-8"))
+        regenerated = render_bytes(project_root, time_match.group(1).decode("utf-8", errors="strict"))
         if regenerated != payload:
             raise RenderError("lifecycle evidence changed during rendering")
         if target.exists() and _is_reparse(target):

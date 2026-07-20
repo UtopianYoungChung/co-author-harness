@@ -1395,7 +1395,7 @@ def _validate_exemplar_registry(
         registry_path = (ROOT / registry_path).absolute()
     try:
         registry_snapshot = snapshots.capture(registry_path, "registry")
-        registry = json.loads(registry_snapshot.data.decode("utf-8"))
+        registry = json.loads(registry_snapshot.data.decode("utf-8", errors="strict"))
     except (_SnapshotError, UnicodeError, json.JSONDecodeError) as exc:
         findings.append(_finding("MF-EXEMPLAR", str(registry_path), f"exemplar registry is not valid UTF-8 JSON: {exc}"))
         return
@@ -1479,14 +1479,14 @@ def _validate_exemplar_registry(
     phase_state = _project_evidence(project_root, "reviews/phase_state.json", entry.get("phase_state_sha256"), f"{base}.phase_state_sha256", findings, evidence, snapshots)
     if phase_state is not None:
         try:
-            if json.loads(phase_state.decode("utf-8")) != document:
+            if json.loads(phase_state.decode("utf-8", errors="strict")) != document:
                 findings.append(_finding("MF-EXEMPLAR", f"{base}.phase_state_sha256", "registered ledger snapshot differs from the document under validation"))
         except (UnicodeError, json.JSONDecodeError):
             findings.append(_finding("MF-EXEMPLAR", f"{base}.phase_state_sha256", "registered ledger snapshot is not valid UTF-8 JSON"))
     approval_payload = _project_evidence(project_root, entry.get("approval_evidence_path"), entry.get("approval_evidence_sha256"), f"{base}.approval_evidence_path", findings, evidence, snapshots)
     if approval_payload is not None:
         try:
-            approval_text = approval_payload.decode("utf-8")
+            approval_text = approval_payload.decode("utf-8", errors="strict")
         except UnicodeError:
             approval_text = ""
         expected_authority = re.escape(entry["approval_authority"])
@@ -1566,7 +1566,7 @@ def _validate_exemplar_registry(
             if report_record.get("adjudication_outcome") != "approved" or report_record.get("authority") != boundary_authority:
                 findings.append(_finding("MF-EXEMPLAR", f"{base}.validator_evidence", "migration report must attest an approved adjudication by the boundary authority"))
             try:
-                migration_approval_text = migration_approval_payload.decode("utf-8") if migration_approval_payload is not None else ""
+                migration_approval_text = migration_approval_payload.decode("utf-8", errors="strict") if migration_approval_payload is not None else ""
             except UnicodeError:
                 migration_approval_text = ""
             authority_pattern = re.escape(boundary_authority) if isinstance(boundary_authority, str) else r"(?!)"

@@ -16,8 +16,9 @@ What a manifest written here PROVES:
     this process, in this run (one run_id);
   * each execution's exit code equaled the registry's declared expectation
     -- a mismatch aborts the run and NO manifest is written;
-  * the code under test was byte-identical before and after the run
-    (pre/post tested-inputs digests via the packaging authority);
+  * the code under test was canonically identical and the checkout's raw bytes
+    were byte-identical before and after the run (two separately labelled
+    pre/post digests over the packaging authority's population);
   * each suite's bytes are the hashed bytes (suite_sha256 at write time,
     inside the pre==post window).
 
@@ -55,10 +56,13 @@ Failure semantics (three outcomes, as everywhere in this workstream)
           mismatch, registry/universe disagreement, lock held by another
           runner) -> run VOID; no manifest is written.
 
-Evidence never outlives the run that supersedes it: the PRIOR manifest is
+In evidence-writing mode, evidence never outlives the run that supersedes it:
+the PRIOR manifest is
 voided immediately after the lock is acquired and before the first suite
 executes, so a red or void run cannot leave old green evidence visible --
-regardless of where in the run it failed.
+regardless of where in the run it failed. `--no-write` is the CI/release
+verification mode: it executes the same registry but never touches committed
+evidence.
 
 Concurrency
 -----------
@@ -86,6 +90,7 @@ atomically.
 Usage
 -----
     python scripts/analysis/fixture_runner.py            # run + write
+    python scripts/analysis/fixture_runner.py --no-write # run, preserve evidence
     python scripts/analysis/fixture_runner.py --list     # show registry
 Exit: 0 pass; 1 corpus failure; 2 run void.
 """
@@ -177,6 +182,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/assignment_receipt_transaction_smoketest.py": [_default_case()],
     "scripts/assignment_milestone_checkpoint_smoketest.py": [_default_case()],
     "scripts/assignment_terminal_close_smoketest.py": [_default_case()],
+    "scripts/artefact_frontmatter_smoketest.py": [_default_case()],
     "scripts/audit/test_audit.py": [_default_case()],
     "scripts/audit/test_citations.py": [_default_case()],
     "scripts/build_plugin_provenance_smoketest.py": [_default_case()],
@@ -191,6 +197,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/full_run_contract_smoketest.py": [_default_case()],
     "scripts/full_run_enforcement_surfaces_smoketest.py": [_default_case()],
     "scripts/full_run_semantic_bypass_smoketest.py": [_default_case()],
+    "scripts/fixture_authority_smoketest.py": [_default_case()],
     "scripts/graph_authority_gate_smoketest.py": [_default_case()],
     "scripts/lifecycle_contract_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
@@ -201,7 +208,9 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/native_project_bootstrap_adversarial_smoketest.py": [_default_case()],
     "scripts/native_project_bootstrap_smoketest.py": [_default_case()],
     "scripts/output_economy_smoketest.py": [_default_case()],
+    "scripts/paragraph_hash_map_smoketest.py": [_default_case()],
     "scripts/phase_notifications_smoketest.py": [_default_case()],
+    "scripts/phase_state_validator_smoketest.py": [_default_case()],
     "scripts/pre_phase_advance_phase_state_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
@@ -213,6 +222,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/retirement_sweep_smoketest.py": [_default_case()],
     "scripts/routing_role_coherence_smoketest.py": [_default_case()],
     "scripts/semantic_predication_contract_smoketest.py": [_default_case()],
+    "scripts/subprocess_text_policy_smoketest.py": [_default_case()],
     "scripts/tests/test_resolve_includes.py": [_default_case()],
     "scripts/token_budget_smoketest.py": [_default_case()],
     "scripts/version_policy_smoketest.py": [_default_case()],
@@ -278,7 +288,8 @@ def _release_lock(fh) -> None:
 
 
 def run(registry: dict[str, list[dict]],
-        universe: list[str] | None = None) -> int:
+        universe: list[str] | None = None,
+        *, write_manifest: bool = True) -> int:
     """Execute the registry; write the manifest only on a fully green run.
 
     `universe` exists for focused tests ONLY (they exercise the runner with
@@ -303,13 +314,14 @@ def run(registry: dict[str, list[dict]],
               "evidence untouched.", file=sys.stderr)
         return 2
     try:
-        return _run_locked(registry, universe)
+        return _run_locked(registry, universe, write_manifest=write_manifest)
     finally:
         _release_lock(lock)
 
 
 def _run_locked(registry: dict[str, list[dict]],
-                universe_arg: list[str] | None) -> int:
+                universe_arg: list[str] | None,
+                *, write_manifest: bool) -> int:
     universe = set(universe_arg if universe_arg is not None
                    else discover_suite_universe())
     registered = set(registry)
@@ -320,7 +332,8 @@ def _run_locked(registry: dict[str, list[dict]],
             print(f"ERROR: discovered suite not registered: {s}", file=sys.stderr)
         for s in phantom:
             print(f"ERROR: registry names undiscovered suite: {s}", file=sys.stderr)
-        _void_stale_manifest("registry/universe mismatch")
+        if write_manifest:
+            _void_stale_manifest("registry/universe mismatch")
         return 2
 
     print(f"fixture_runner: {len(universe)} suites, "
@@ -329,10 +342,14 @@ def _run_locked(registry: dict[str, list[dict]],
     # VOID PRIOR EVIDENCE NOW -- after the lock, before the first suite. From
     # this point there is no green manifest until THIS run earns one, so a
     # failure anywhere below cannot leave stale evidence visible.
-    _void_stale_manifest("superseded by the run now starting")
+    if write_manifest:
+        _void_stale_manifest("superseded by the run now starting")
 
     pre = compute_tested_inputs()
-    print(f"  tested-inputs pre:  {pre['sha256'][:12]} ({pre['file_count']} files)")
+    print(f"  tested-inputs canonical pre: {pre['sha256'][:12]} "
+          f"({pre['file_count']} files)")
+    print(f"  tested-inputs raw pre:       {pre['raw_sha256'][:12]} "
+          "(checkout-local)")
 
     run_id = str(uuid.uuid4())
     cases_out: list[dict] = []
@@ -381,8 +398,12 @@ def _run_locked(registry: dict[str, list[dict]],
         })
 
     post = compute_tested_inputs()
-    print(f"  tested-inputs post: {post['sha256'][:12]} ({post['file_count']} files)")
-    if (pre["sha256"], pre["file_count"]) != (post["sha256"], post["file_count"]):
+    print(f"  tested-inputs canonical post: {post['sha256'][:12]} "
+          f"({post['file_count']} files)")
+    print(f"  tested-inputs raw post:       {post['raw_sha256'][:12]} "
+          "(checkout-local)")
+    if ((pre["sha256"], pre["raw_sha256"], pre["file_count"])
+            != (post["sha256"], post["raw_sha256"], post["file_count"])):
         print("ERROR: code under test changed DURING the run; results describe "
               "no single tree", file=sys.stderr)
         return 2
@@ -391,8 +412,16 @@ def _run_locked(registry: dict[str, list[dict]],
         print(f"\nFAIL: {len(failures)} case(s):")
         for f in failures:
             print(f"  {f}")
-        print("  no manifest written; prior evidence was voided at run start")
+        print("  no manifest written; " + (
+            "prior evidence was voided at run start"
+            if write_manifest else "--no-write preserved prior evidence"
+        ))
         return 1
+
+    if not write_manifest:
+        print(f"\nPASS: {len(suites_out)} suites, {len(cases_out)} cases; "
+              "--no-write preserved committed evidence")
+        return 0
 
     manifest = {
         "schema": "coauthor-fixture-manifest/v1",
@@ -414,6 +443,9 @@ def _run_locked(registry: dict[str, list[dict]],
             "file_count": pre["file_count"],
             "pre_sha256": pre["sha256"],
             "post_sha256": post["sha256"],
+            "raw_mode": pre["raw_mode"],
+            "raw_pre_sha256": pre["raw_sha256"],
+            "raw_post_sha256": post["raw_sha256"],
         },
     }
     MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -437,6 +469,11 @@ def _run_locked(registry: dict[str, list[dict]],
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="print the registry and exit")
+    ap.add_argument(
+        "--no-write",
+        action="store_true",
+        help="run the authoritative registry without rewriting or voiding the manifest",
+    )
     args = ap.parse_args()
     if args.list:
         for rel in sorted(REGISTRY):
@@ -444,7 +481,7 @@ def main() -> int:
                 print(f"{rel}::{c['case_id']}  argv={c['argv']}  "
                       f"expect exit {c['expected_exit']}  {c['outcome_contract']}")
         return 0
-    return run(REGISTRY)
+    return run(REGISTRY, write_manifest=not args.no_write)
 
 
 if __name__ == "__main__":

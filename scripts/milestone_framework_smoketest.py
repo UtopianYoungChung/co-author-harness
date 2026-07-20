@@ -1447,7 +1447,7 @@ def _run_real_validator(
         command.extend(["--target", target])
     if registry is not None:
         command.extend(["--exemplar-registry", str(registry)])
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -1480,7 +1480,7 @@ def _write_exemplar_registry(
     if exemplar_class == "clean_lifecycle_exemplar":
         rendered = subprocess.run(
             [sys.executable, str(LIFECYCLE_RENDERER), "--project-root", str(project), "--generated-at", "2026-07-14T00:00:00Z"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         assert rendered.returncode == 0, rendered.stderr
         for role, name, content in (
@@ -1829,7 +1829,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         _write_sk20_project(project, claude_fields, directive_fields, graph=graph)
         result = subprocess.run(
             [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit", *extra_args],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         try:
             payload = json.loads(result.stdout)
@@ -1873,7 +1873,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         _write_sk20_project(invalid_date_project, base)
         invalid_date = subprocess.run(
             [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(invalid_date_project), "--date", invalid_value, "--strict-exit"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         print(f"sk20/{label}: expected=1 actual={invalid_date.returncode}")
         if invalid_date.returncode != 1 or list((invalid_date_project / "reviews").glob(f"*{invalid_value}*")):
@@ -1885,7 +1885,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     file_root.write_text("not a directory", encoding="utf-8")
     file_root_result = subprocess.run(
         [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(file_root), "--date", "2026-07-13", "--strict-exit"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/file_root: expected=2 actual={file_root_result.returncode}")
     if file_root_result.returncode != 2 or "Traceback" in file_root_result.stderr:
@@ -1893,7 +1893,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
 
     missing_root_result = subprocess.run(
         [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(directory / "missing-root"), "--date", "2026-07-13", "--strict-exit"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/missing_root: expected=2 actual={missing_root_result.returncode}")
     if missing_root_result.returncode != 2 or "Traceback" in missing_root_result.stderr:
@@ -1904,7 +1904,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     (malformed_project / "CLAUDE.md").write_bytes(b"\xff\xfe\x00")
     malformed = subprocess.run(
         [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(malformed_project), "--date", "2026-07-13", "--strict-exit"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/malformed_config: expected=2 actual={malformed.returncode}")
     if malformed.returncode != 2 or "Traceback" in malformed.stderr:
@@ -1917,7 +1917,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     (atomic_project / "reviews" / "sk20_noop_2026-07-13.json").mkdir()
     atomic = subprocess.run(
         [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(atomic_project), "--date", "2026-07-13", "--strict-exit"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/atomic_preservation: expected=2 actual={atomic.returncode}")
     if atomic.returncode != 2 or readiness.read_text(encoding="utf-8") != "SENTINEL" or "Traceback" in atomic.stderr:
@@ -1931,12 +1931,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         shutil.rmtree(junction_project / "reviews")
         link = subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(junction_project / "reviews"), str(outside_reviews)],
-            capture_output=True, text=True, check=False,
+            capture_output=True, check=False,
         )
         if link.returncode == 0:
             junction = subprocess.run(
                 [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(junction_project), "--date", "2026-07-13", "--strict-exit"],
-                capture_output=True, text=True, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"sk20/reviews_junction: expected=2 actual={junction.returncode}")
             if junction.returncode != 2 or any(outside_reviews.iterdir()) or "Traceback" in junction.stderr:
@@ -1950,12 +1950,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         (outside_evidence / "decision.md").write_text("# Decision\n", encoding="utf-8")
         evidence_link = subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(evidence_project / "evidence"), str(outside_evidence)],
-            capture_output=True, text=True, check=False,
+            capture_output=True, check=False,
         )
         if evidence_link.returncode == 0:
             evidence_result = subprocess.run(
                 [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(evidence_project), "--date", "2026-07-13", "--strict-exit"],
-                capture_output=True, text=True, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             try:
                 evidence_payload = json.loads(evidence_result.stdout)
@@ -1972,12 +1972,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         outside_output.write_text("OUTSIDE-SENTINEL", encoding="utf-8")
         output_link = subprocess.run(
             ["cmd", "/c", "mklink", str(output_project / "reviews" / "sk20_noop_2026-07-13.json"), str(outside_output)],
-            capture_output=True, text=True, check=False,
+            capture_output=True, check=False,
         )
         if output_link.returncode == 0:
             output_result = subprocess.run(
                 [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(output_project), "--date", "2026-07-13", "--strict-exit"],
-                capture_output=True, text=True, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"sk20/output_symlink: expected=2 actual={output_result.returncode}")
             if output_result.returncode != 2 or outside_output.read_text(encoding="utf-8") != "OUTSIDE-SENTINEL" or "Traceback" in output_result.stderr:
@@ -1991,12 +1991,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         (internal_evidence / "decision.md").write_text("# Internal decision\n", encoding="utf-8")
         internal_link = subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(internal_evidence_project / "evidence-alias"), str(internal_evidence)],
-            capture_output=True, text=True, check=False,
+            capture_output=True, check=False,
         )
         if internal_link.returncode == 0:
             internal_result = subprocess.run(
                 [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(internal_evidence_project), "--date", "2026-07-13", "--strict-exit"],
-                capture_output=True, text=True, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             try:
                 internal_payload = json.loads(internal_result.stdout)
@@ -2025,7 +2025,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
             "--references-path", str(external_references),
             "--classification-path", str(external_classification),
         ],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     try:
         external_payload = json.loads(external_result.stdout)
@@ -2209,7 +2209,7 @@ def main() -> int:
         _write_real_case("valid_native_chain", integration_project)
         integration = subprocess.run(
             [sys.executable, str(PHASE_VALIDATOR), "--project-root", str(integration_project), "--json"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         print(f"phase_state_integration: expected=0 actual={integration.returncode}")
         if integration.returncode != 0:
@@ -2223,7 +2223,7 @@ def main() -> int:
         _write_real_case("stale_deliverable_hash", invalid_integration_project)
         invalid_integration = subprocess.run(
             [sys.executable, str(PHASE_VALIDATOR), "--project-root", str(invalid_integration_project), "--json"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         try:
             invalid_findings = json.loads(invalid_integration.stdout)
@@ -2242,7 +2242,7 @@ def main() -> int:
 
         usage = subprocess.run(
             [sys.executable, str(VALIDATOR), "--project-root", str(integration_project), "--target", "M6"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         print(f"cli_usage_error: expected=1 actual={usage.returncode}")
         if usage.returncode != 1:
@@ -2253,7 +2253,7 @@ def main() -> int:
         (parse_project / "reviews" / "phase_state.json").write_text("{\n", encoding="utf-8")
         parse_failure = subprocess.run(
             [sys.executable, str(VALIDATOR), "--project-root", str(parse_project)],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         print(f"json_parse_error: expected=2 actual={parse_failure.returncode}")
         if parse_failure.returncode != 2:
@@ -2262,7 +2262,7 @@ def main() -> int:
         for isolated_script in (VALIDATOR, PHASE_VALIDATOR):
             isolated = subprocess.run(
                 [sys.executable, "-I", "-S", str(isolated_script), "--project-root", str(integration_project), "--json"],
-                capture_output=True, text=True, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"stdlib_isolation/{isolated_script.name}: expected=0 actual={isolated.returncode}")
             if isolated.returncode != 0 or "ModuleNotFoundError" in isolated.stderr:

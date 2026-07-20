@@ -139,7 +139,7 @@ def main() -> int:
 
         bad = project / "bad.json"
         bad.write_text("{not-json", encoding="utf-8")
-        proc = subprocess.run([sys.executable, str(LOADER), "--profile", str(bad), "--project-root", str(project)], capture_output=True, text=True)
+        proc = subprocess.run([sys.executable, str(LOADER), "--profile", str(bad), "--project-root", str(project)], capture_output=True, text=True, encoding="utf-8", errors="replace")
         check(proc.returncode == 4 and "Traceback" not in proc.stderr + proc.stdout, "malformed_input_is_controlled", "malformed profile escaped controlled contract")
 
     with tempfile.TemporaryDirectory() as td:

@@ -72,7 +72,7 @@ def _sha(b: bytes) -> str:
 
 def _git(repo: Path, *args: str, check_rc: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run([GIT, "-C", str(repo), *args],
-                          capture_output=True, text=True, encoding="utf-8", check=check_rc)
+                          capture_output=True, text=True, encoding="utf-8", errors="strict", check=check_rc)
 
 
 def _head_blob(repo: Path, rel: str) -> bytes | None:
@@ -261,7 +261,7 @@ def _overlay(repo: Path) -> None:
 
 def build(repo: Path) -> tuple[int, Path, str]:
     r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py")],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, repo / ".claude-plugin" / "co-author-harness-claude.plugin", (r.stdout + r.stderr)
 
 
@@ -305,7 +305,7 @@ def case_clean_build_equals_head() -> None:
                 if _sha(a) == _sha(h):
                     continue
                 try:
-                    rendered = resolve_includes_in_text(h.decode("utf-8"), Path(n), repo)
+                    rendered = resolve_includes_in_text(h.decode("utf-8", errors="strict"), Path(n), repo)
                     if rendered.encode("utf-8") != a:
                         bad.append(f"{n}:differs-beyond-rendering")
                 except Exception as exc:  # noqa: BLE001
@@ -365,7 +365,7 @@ def case_manifest_from_snapshot() -> None:
     with sandbox() as repo:
         rel = ".claude-plugin/plugin.json"
         import json as _json
-        manifest = _json.loads(_head_blob(repo, rel).decode("utf-8"))
+        manifest = _json.loads(_head_blob(repo, rel).decode("utf-8", errors="strict"))
         manifest["name"] = "HIJACKED-NAME"
         manifest["version"] = "99.99.99"
         (repo / rel).write_text(_json.dumps(manifest), encoding="utf-8")
@@ -403,7 +403,7 @@ def case_git_failure_fails_closed() -> None:
         # execution over presence.)
         _rmtree_force(repo / ".git")
         r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py")],
-                           capture_output=True, text=True, encoding="utf-8")
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         check("git failure: builder aborts (nonzero)", r.returncode != 0, f"rc={r.returncode}")
         check("git failure: no bundle emitted", not out.exists())
         check("git failure: error names the cause", "ERROR" in (r.stdout + r.stderr),
@@ -601,7 +601,7 @@ def case_committed_mutant_contracts() -> None:
     """
     with sandbox(destructive=True) as repo:
         rel = "scripts/build-plugin.py"
-        pristine = _head_blob(repo, rel).decode("utf-8")
+        pristine = _head_blob(repo, rel).decode("utf-8", errors="strict")
 
         def run_mutant(name: str, mutated: str, expect_rc: int, expect_msg: str) -> None:
             (repo / rel).write_text(mutated, encoding="utf-8")
@@ -656,7 +656,7 @@ def case_cleanup_failure_exit7() -> None:
         proc = subprocess.Popen(
             [sys.executable, str(repo / "scripts" / "build-plugin.py")],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, encoding="utf-8")
+            text=True, encoding="utf-8", errors="replace")
         handle = None
         out = err = ""
         deadline = time.time() + 120

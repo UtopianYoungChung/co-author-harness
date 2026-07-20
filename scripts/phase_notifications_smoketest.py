@@ -88,7 +88,7 @@ def main() -> int:
             blockers.append(f"loader import failure: {exc}")
         rendered = subprocess.run(
             [sys.executable, str(LOADER), "--class", "milestone_gate", "--key", "ready", "--context", '{"milestone":"M3"}'],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         if rendered.returncode != 0 or "M3 is READY" not in rendered.stdout:
             blockers.append(f"milestone notification loader failed: rc={rendered.returncode} stderr={rendered.stderr.strip()}")

@@ -5,8 +5,9 @@ This suite is intentionally synthetic.  It does not touch a live essay tree,
 does not depend on the domain corpus, and does not decide lifecycle truth.  It
 pins only the wrappers around ``full_run_contract_check.py``:
 
-* the release gate must be able to inspect an expected non-zero smoketest under
-  ``set -e``;
+* full-run regressions belong to the authoritative fixture registry and the
+  release gate invokes that registry once, rather than maintaining a second
+  suite list;
 * Claude Code's observed subagent tool name (``Task``), plus the SDK/forward
   compatible ``Agent`` spelling, must be intercepted only when a parent run
   scope is explicitly active;
@@ -48,23 +49,25 @@ def load_module(name: str, path: Path):
     return module
 
 
-def case_release_gate_captures_nonzero_under_errexit() -> None:
+def case_release_gate_uses_fixture_authority() -> None:
     text = (ROOT / "scripts" / "release-gate.sh").read_text(encoding="utf-8")
-    lines = text.splitlines()
-    idx = next((i for i, line in enumerate(lines) if 'FRC_OUT="$(' in line), -1)
-    check("release gate contains the full-run smoketest capture", idx >= 0)
-    if idx < 0:
-        return
-    before = "\n".join(lines[max(0, idx - 3):idx])
-    after = "\n".join(lines[idx + 1:idx + 4])
-    check("expected nonzero runs with errexit temporarily disabled",
-          "set +e" in before, before.strip())
-    check("errexit is restored before verdict classification",
-          "set -e" in after, after.strip())
-    check("every nonzero full-run smoketest is a blocker",
-          'grep -q "CorpusRootError"' not in text)
-    check("a missing corpus-portability smoketest is a blocker",
-          "Corpus-root portability smoketest: script missing" in text)
+    runner = load_module(
+        "fixture_runner_full_run_surface",
+        ROOT / "scripts" / "analysis" / "fixture_runner.py",
+    )
+    required = {
+        "scripts/full_run_contract_smoketest.py",
+        "scripts/full_run_semantic_bypass_smoketest.py",
+        "scripts/full_run_enforcement_surfaces_smoketest.py",
+        "scripts/corpus_root_portability_smoketest.py",
+    }
+    check("all full-run enforcement suites are registry-owned",
+          required <= set(runner.REGISTRY),
+          repr(sorted(required - set(runner.REGISTRY))))
+    check("release gate invokes the authoritative registry in non-writing mode",
+          'fixture_runner.py" --no-write' in text)
+    check("release gate has no independent full-run suite list",
+          not any(Path(rel).name in text for rel in required))
 
 
 def case_current_agent_interface_and_scope_activation() -> None:
@@ -277,7 +280,7 @@ def case_report_preserves_no_verdict_and_expected_roots() -> None:
 def main() -> int:
     print("full_run_enforcement_surfaces_smoketest")
     for case in (
-        case_release_gate_captures_nonzero_under_errexit,
+        case_release_gate_uses_fixture_authority,
         case_current_agent_interface_and_scope_activation,
         case_malformed_payload_fails_closed_only_when_scope_is_active,
         case_path_normalization_blocks_forward_slashes,

@@ -12,6 +12,9 @@ Covers the 2026-07-16 repair round:
   R3 concurrency        a second runner fails cleanly without executing
                         suites; prior evidence is voided at run start; a
                         red run leaves no manifest
+  R4 portability        canonical evidence follows Git-clean content across
+                        LF/CRLF checkouts while raw pre/post still observes
+                        the exact bytes exercised in one run
 
 DELIBERATELY NOT IN THE SUITE UNIVERSE: the filename carries no fixture
 marker, so the runner never executes this file -- it exercises the runner
@@ -107,6 +110,7 @@ from worktree_paths import sandbox_base  # noqa: E402
 def _run_git(repo: Path, *args: str, check_rc: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run([GIT, "-C", str(repo), *args],
                           capture_output=True, text=True, encoding="utf-8",
+                          errors="strict",
                           check=check_rc)
 
 
@@ -185,6 +189,9 @@ def case_census_writer_binding() -> None:
                 "exclude_files": ti["exclude_files"],
                 "file_count": ti["file_count"],
                 "pre_sha256": ti["sha256"], "post_sha256": ti["sha256"],
+                "raw_mode": ti["raw_mode"],
+                "raw_pre_sha256": ti["raw_sha256"],
+                "raw_post_sha256": ti["raw_sha256"],
             },
         }
 
@@ -270,6 +277,32 @@ def case_census_writer_binding() -> None:
           not census._is_excluded("docs/analysis/generated/predicate_rows.md"))
 
 
+def case_checkout_digest_portability(repo: Path) -> None:
+    """One clean Git tree may have different checkout bytes across hosts."""
+    census = _load(repo / "scripts" / "analysis" / "code_census.py",
+                   "cc_portability", repo=repo)
+    target = repo / "README.md"
+    original = target.read_bytes()
+    lf = original.replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    assert lf != crlf
+
+    target.write_bytes(lf)
+    first = census.compute_tested_inputs()
+    target.write_bytes(crlf)
+    second = census.compute_tested_inputs()
+    check("canonical digest is checkout-portable",
+          first["sha256"] == second["sha256"],
+          f"LF={first['sha256'][:12]} CRLF={second['sha256'][:12]}")
+    check("raw digest records exact exercised bytes",
+          first["raw_sha256"] != second["raw_sha256"],
+          f"LF={first.get('raw_sha256', '')[:12]} "
+          f"CRLF={second.get('raw_sha256', '')[:12]}")
+    check("raw digest has an explicit local-only mode",
+          first["raw_mode"] == "checkout-raw-bytes-v1")
+    target.write_bytes(original)
+
+
 # --------------------------------------------------------------------------
 # R3: runner concurrency + void semantics (disposable clone)
 # --------------------------------------------------------------------------
@@ -289,7 +322,8 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
     t0 = time.time()
     proc = subprocess.run(
         [sys.executable, str(repo / "scripts" / "analysis" / "fixture_runner.py")],
-        capture_output=True, text=True, encoding="utf-8", timeout=120)
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        timeout=120)
     took = time.time() - t0
     check("second runner exits 2 under contention", proc.returncode == 2,
           f"rc={proc.returncode}")
@@ -316,6 +350,17 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
           isinstance(man.get("runner_sha256"), str) and len(man["runner_sha256"]) == 64)
     check("no stray tmp files left",
           not list(dummy.parent.glob("fixture_manifest.*.tmp")))
+
+    before = dummy.read_bytes()
+    rc = runner.run(registry, universe, write_manifest=False)
+    check("green --no-write mini run returns 0", rc == 0, f"rc={rc}")
+    check("--no-write preserves committed evidence byte-for-byte",
+          dummy.read_bytes() == before)
+
+    rc = runner.run(bad_registry, universe, write_manifest=False)
+    check("red --no-write mini run returns 1", rc == 1, f"rc={rc}")
+    check("red --no-write run does not void prior evidence",
+          dummy.read_bytes() == before)
 
     # Empty registry is not evidence.
     rc = runner.run({}, [])
@@ -418,14 +463,15 @@ def case_repo_global_paths() -> None:
     # anywhere (including under the primary) must yield the SAME base and the
     # SAME lock, because both hang off the common dir, not off __file__.
     internal = HARNESS / ".worktrees" / "milestone-feedback-framework"
-    if internal.is_dir():
+    registered = {r.resolve() for r in roots}
+    if internal.is_dir() and internal.resolve() in registered:
         check("internal worktree yields the SAME common dir",
               wp.git_common_dir(internal) == common,
               f"{wp.git_common_dir(internal)}")
         check("internal worktree yields the SAME sandbox base",
               wp.sandbox_base(internal, ".coauthor-provenance-sbx") == base)
     else:
-        print("  SKIP  no internal worktree present to cross-check")
+        print("  SKIP  no registered internal worktree present to cross-check")
 
     # The guard is mechanical: point it at a path inside a worktree and it
     # must refuse, rather than document a rule it does not enforce.
@@ -457,12 +503,13 @@ def case_repo_global_paths() -> None:
     lock_path.touch()
     status = subprocess.run(
         [GIT, "-C", str(HARNESS), "status", "--porcelain", "--ignored"],
-        capture_output=True, text=True, encoding="utf-8").stdout
+        capture_output=True, text=True, encoding="utf-8", errors="strict").stdout
     check("runner lock is invisible to git status in the primary worktree",
           "coauthor-fixture-runner.lock" not in status)
     for r in roots:
         st = subprocess.run([GIT, "-C", str(r), "status", "--porcelain", "--ignored"],
-                            capture_output=True, text=True, encoding="utf-8").stdout
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="strict").stdout
         check(f"lock invisible to git status in {r.name}",
               "coauthor-fixture-runner.lock" not in st)
     check("no stale in-tree lock file from the per-worktree design",
@@ -507,7 +554,8 @@ def case_cross_worktree_lock(repo: Path, base: Path) -> None:
         t0 = time.time()
         proc = subprocess.run(
             [sys.executable, str(wt / "scripts" / "analysis" / "fixture_runner.py")],
-            capture_output=True, text=True, encoding="utf-8", timeout=180)
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=180)
         took = time.time() - t0
         out = proc.stdout + proc.stderr
         check("worktree B exits 2 under cross-worktree contention",
@@ -547,6 +595,9 @@ def main() -> int:
                                  dir=str(sandbox_base(HARNESS, ".coauthor-fic-sbx"))))
     try:
         repo = _make_clone(base)
+        print("case_checkout_digest_portability:")
+        case_checkout_digest_portability(repo)
+        print()
         print("case_runner_concurrency_and_void:")
         case_runner_concurrency_and_void(repo)
         print()

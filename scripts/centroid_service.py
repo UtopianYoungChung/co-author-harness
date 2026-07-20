@@ -54,7 +54,7 @@ def _read_manuscript(path: Path) -> tuple[Path, bytes, str]:
         if not resolved.is_file():
             raise OSError("not a regular file")
         payload = resolved.read_bytes()
-        text = payload.decode("utf-8")
+        text = payload.decode("utf-8", errors="strict")
     except (OSError, UnicodeError) as exc:
         raise Unavailable("MANUSCRIPT_UNREADABLE", f"cannot read UTF-8 manuscript: {exc}") from exc
     return resolved, payload, text

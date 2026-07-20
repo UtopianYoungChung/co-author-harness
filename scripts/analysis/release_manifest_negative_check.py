@@ -67,7 +67,8 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 def _git(repo: Path, *args: str, check_rc: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run([GIT, "-C", str(repo), *args], capture_output=True,
-                          text=True, encoding="utf-8", check=check_rc)
+                          text=True, encoding="utf-8", errors="strict",
+                          check=check_rc)
 
 
 def _rmtree_force(path: Path) -> None:
@@ -111,7 +112,8 @@ def _wrapper(repo: Path, version: str, timeout: int = 240) -> subprocess.Complet
     return subprocess.run(
         [BASH, "-c",
          f'cd "{_posix(repo)}" && scripts/build-release-zip.sh "{_posix(repo)}" "{version}"'],
-        capture_output=True, text=True, encoding="utf-8", timeout=timeout)
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        timeout=timeout)
 
 
 def _head_version(repo: Path) -> str:
@@ -123,7 +125,8 @@ def _verifier(repo: Path, archive: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(repo / "scripts" / "release_manifest_check.py"),
          str(archive), "--repo", str(repo)],
-        capture_output=True, text=True, encoding="utf-8", timeout=120)
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        timeout=120)
 
 
 def _tamper(archive: Path, out: Path, mutate) -> None:
@@ -257,7 +260,8 @@ def main() -> int:
             r = subprocess.run(
                 [BASH, "-c",
                  f'cd "{_posix(repo)}" && scripts/release-gate.sh --build'],
-                capture_output=True, text=True, encoding="utf-8", timeout=900)
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=900)
             out = r.stdout + r.stderr
             check("gate exits nonzero on dirty manifest", r.returncode != 0,
                   f"rc={r.returncode}")

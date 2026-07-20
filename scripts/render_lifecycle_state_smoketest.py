@@ -19,7 +19,7 @@ def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-I", "-S", str(script), *args],
         cwd=ROOT,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )
@@ -51,7 +51,7 @@ def main() -> int:
 
         _assert_ok(_run(RENDERER, "--project-root", str(project), "--generated-at", FIXED_TIME), "render")
         first = view.read_bytes()
-        text = first.decode("utf-8")
+        text = first.decode("utf-8", errors="strict")
         for expected in (
             "generated: true",
             "derived_from: reviews/phase_state.json",

@@ -59,7 +59,7 @@ def git_common_dir(repo: Path) -> Path:
     out = subprocess.run(
         [GIT, "-C", str(repo), "rev-parse", "--path-format=absolute",
          "--git-common-dir"],
-        capture_output=True, text=True, encoding="utf-8", check=True,
+        capture_output=True, text=True, encoding="utf-8", errors="strict", check=True,
     ).stdout.strip()
     return Path(out).resolve()
 
@@ -68,7 +68,7 @@ def registered_worktree_roots(repo: Path) -> list[Path]:
     """Every worktree root git knows about (primary first, per porcelain)."""
     out = subprocess.run(
         [GIT, "-C", str(repo), "worktree", "list", "--porcelain"],
-        capture_output=True, text=True, encoding="utf-8", check=True,
+        capture_output=True, text=True, encoding="utf-8", errors="strict", check=True,
     ).stdout
     roots: list[Path] = []
     for line in out.splitlines():

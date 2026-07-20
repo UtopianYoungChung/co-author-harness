@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import locale
 import os
 import subprocess
 import sys
@@ -53,7 +54,7 @@ def run_gate(
         command.extend(["--verify-receipt", str(verify_receipt)])
     return subprocess.run(
         command,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         capture_output=True,
         check=False,
     )
@@ -219,6 +220,8 @@ def main() -> int:
             junction = subprocess.run(
                 ["cmd", "/c", "mklink", "/J", str(ready_dir), str(junction_target)],
                 text=True,
+                encoding=locale.getpreferredencoding(False),
+                errors="replace",
                 capture_output=True,
                 check=False,
             )

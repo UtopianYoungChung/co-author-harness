@@ -38,7 +38,7 @@ def sha(path: Path) -> str:
 
 
 def run(*args: object, expected: int = 0) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run([sys.executable, *(str(arg) for arg in args)], cwd=ROOT, text=True, capture_output=True, check=False)
+    result = subprocess.run([sys.executable, *(str(arg) for arg in args)], cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
     if result.returncode != expected:
         raise AssertionError(f"expected {expected}, got {result.returncode}: {' '.join(str(arg) for arg in args)}\n{result.stdout}{result.stderr}")
     return result

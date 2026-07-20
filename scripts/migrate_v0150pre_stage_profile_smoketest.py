@@ -149,7 +149,7 @@ def test_dry_run_does_not_mutate_disk() -> None:
         result = subprocess.run(
             [sys.executable, str(HERE / "migrate_v0150pre_add_stage_profile.py"),
              "--path", str(target), "--dry-run"],
-            capture_output=True, text=True, encoding="utf-8",
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
         assert result.returncode == 0, result.stderr
         after = target.read_bytes()

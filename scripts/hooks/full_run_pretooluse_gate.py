@@ -115,7 +115,7 @@ def _first_finding(gate_stdout: str) -> str:
 
 def _run_gate(*gate_args: str) -> tuple[int, str]:
     proc = subprocess.run([sys.executable, str(GATE), *gate_args],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace")
     return proc.returncode, proc.stdout or proc.stderr
 
 

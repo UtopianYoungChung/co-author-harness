@@ -332,7 +332,7 @@ def main() -> int:
         counts=[]
         for flag in ("--passage-scope-class","--register-class"):
             mode="mixed" if flag=="--passage-scope-class" else "non-technical"
-            proc=subprocess.run([sys.executable,str(ROOT/"scripts/check8_h_prefilter.py"),str(manuscript),flag,mode],capture_output=True,text=True,check=True)
+            proc=subprocess.run([sys.executable,str(ROOT/"scripts/check8_h_prefilter.py"),str(manuscript),flag,mode],capture_output=True,text=True, encoding="utf-8", errors="replace",check=True)
             counts.append(int(next(line.rsplit(" ",1)[1] for line in proc.stdout.splitlines() if line.startswith("- Passages in scope:"))))
         assert counts[0] < counts[1], counts
     print("OK domain_native_register_smoketest")

@@ -43,6 +43,7 @@ import hashlib
 import io
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -128,7 +129,7 @@ FIXTURE_MARKERS = ("_smoketest", "_test", "test_")
 # source of truth, with no warning. A checker whose authority can be swapped by
 # adding a file is not a checker. If this import fails, the census must die.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from package_enumeration import enumerate_package_files  # noqa: E402
+from package_enumeration import GIT, enumerate_package_files  # noqa: E402
 
 # TWO KINDS OF EXCLUSION, MATCHED TWO DIFFERENT WAYS (2026-07-16, review F3).
 #
@@ -169,27 +170,20 @@ def _is_excluded(rel: str) -> bool:
 
 
 def compute_tested_inputs() -> dict:
-    """Deterministic content snapshot of the shipped subject.
+    """Canonical and checkout-local snapshots of the shipped subject.
 
-    Enumeration: scripts/package_enumeration.py (imported, not reimplemented).
-    Content: WORKING TREE. Merkle-style -- sort by repo-relative path, hash
-    `path\\0sha256` per file, digest the concatenation. Sorted -> stable across
-    filesystem order; per-path -> a rename is a change; content -> immune to
-    dirty worktrees.
+    Enumeration comes from the packaging authority. Content comes from the
+    current worktree, but Git's path-aware clean filters produce the canonical
+    digest. LF and CRLF checkout representations therefore converge while a
+    dirty semantic edit still changes the digest. A separately labelled raw
+    digest exists only for the runner's same-checkout pre/post mutation check.
 
-    Self-reference CLOSED at e4a23c7: package_enumeration.py is tracked, so the
-    module deciding which files are hashed is itself inside the hash. Before
-    that commit it was untracked -- the population definer sat outside the
-    population it defined, and the digest bound 450 files while excluding the
-    code that picked the 450. build-plugin.py keeps it in REQUIRED_FILES so a
-    bundle can never again ship the importer without its import target.
-
-    Raises SystemExit on any enumerated file missing from the worktree: a
-    smaller snapshot must never be silently "valid". The previous version
-    skipped missing roots and would have produced exactly that.
+    Missing enumerated files fail closed: absence must never yield a smaller
+    apparently valid snapshot.
     """
     files, _excluded_archives = enumerate_package_files()
-    entries: list[str] = []
+    included: list[str] = []
+    raw_entries: list[str] = []
     missing: list[str] = []
     for rel in files:
         if _is_excluded(rel):
@@ -198,19 +192,56 @@ def compute_tested_inputs() -> dict:
         if not p.is_file():
             missing.append(rel)
             continue
-        entries.append(f"{rel}\0{hashlib.sha256(p.read_bytes()).hexdigest()}")
+        included.append(rel)
+        raw_entries.append(f"{rel}\0{hashlib.sha256(p.read_bytes()).hexdigest()}")
     if missing:
         raise SystemExit(
             "BLOCKER: files enumerated by the packaging authority are absent from "
             f"the worktree ({len(missing)}): {missing[:5]}\n"
             "  A missing subject file must block, not yield a smaller valid snapshot."
         )
-    entries.sort()
-    digest = hashlib.sha256("\n".join(entries).encode("utf-8")).hexdigest()
+
+    included.sort()
+    try:
+        hashed = subprocess.run(
+            [GIT, "-C", str(PLUGIN_ROOT), "hash-object", "--stdin-paths"],
+            input="\n".join(included),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            check=True,
+        )
+    except (OSError, UnicodeError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(
+            "BLOCKER: Git could not compute the clean-filter canonical "
+            f"tested-input digest: {exc}"
+        ) from exc
+    object_ids = hashed.stdout.splitlines()
+    if len(object_ids) != len(included) or any(
+        not re.fullmatch(r"[0-9a-fA-F]+", oid) for oid in object_ids
+    ):
+        raise SystemExit(
+            "BLOCKER: git hash-object returned an incomplete or malformed "
+            f"tested-input set ({len(object_ids)} hashes for {len(included)} files)"
+        )
+
+    canonical_entries = [
+        f"{rel}\0{oid.lower()}" for rel, oid in zip(included, object_ids)
+    ]
+    digest = hashlib.sha256(
+        "\n".join(canonical_entries).encode("utf-8")
+    ).hexdigest()
+    raw_entries.sort()
+    raw_digest = hashlib.sha256(
+        "\n".join(raw_entries).encode("utf-8")
+    ).hexdigest()
     return {
-        "mode": "packaging-authority",
+        "mode": "packaging-authority-git-clean-filter-v1",
         "sha256": digest,
-        "file_count": len(entries),
+        "raw_mode": "checkout-raw-bytes-v1",
+        "raw_sha256": raw_digest,
+        "file_count": len(canonical_entries),
         # Provenance must name the module actually imported. This said
         # "build-plugin.py" after the enumeration moved to the neutral module --
         # a provenance field pointing at the wrong file is worse than none.
@@ -587,6 +618,12 @@ def _check_suite_bound_manifest_consistency(
                 f"tested_inputs.file_count {ti.get('file_count')} != current "
                 f"{current['file_count']}; the recorded run saw a different file set"
             )
+        if ti.get("raw_mode") != current["raw_mode"]:
+            problems.append(
+                f"tested_inputs.raw_mode {ti.get('raw_mode')!r} != "
+                f"{current['raw_mode']!r}; raw pre/post evidence is not explicitly "
+                "checkout-local"
+            )
         # PRE/POST equality. The runner must digest BEFORE and AFTER execution
         # and record both. A single post-run hash cannot detect code that
         # changed DURING the run -- the results would describe a mixture of two
@@ -607,6 +644,18 @@ def _check_suite_bound_manifest_consistency(
             problems.append(
                 "tested_inputs STALE: code under test changed since the recorded run "
                 f"(recorded {post[:12]}, current {current['sha256'][:12]})"
+            )
+        raw_pre = ti.get("raw_pre_sha256")
+        raw_post = ti.get("raw_post_sha256")
+        if not isinstance(raw_pre, str) or not isinstance(raw_post, str):
+            problems.append(
+                "tested_inputs needs raw_pre_sha256 and raw_post_sha256 so exact "
+                "checkout-byte mutation remains observable during the run"
+            )
+        elif raw_pre != raw_post:
+            problems.append(
+                f"tested_inputs raw pre/post differ ({raw_pre[:12]} -> "
+                f"{raw_post[:12]}): checkout bytes changed DURING the run"
             )
 
     if problems:

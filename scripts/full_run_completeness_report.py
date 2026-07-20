@@ -72,7 +72,7 @@ def _gate_terminal(root: Path) -> tuple[int, str]:
     """Delegate the completeness verdict to the authoritative gate."""
     proc = subprocess.run(
         [sys.executable, str(GATE), "terminal", "--project-root", str(root)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     return proc.returncode, (proc.stdout or proc.stderr).strip()
 

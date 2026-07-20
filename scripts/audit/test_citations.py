@@ -122,7 +122,7 @@ def test_cli_exits_1_on_bad_fixture() -> None:
     result = subprocess.run(
         [sys.executable, str(HERE / "audit_citations.py"), str(KNOWN_BAD),
          "--quiet"],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     assert result.returncode == 1, (
         f"expected exit 1 on bad fixture, got {result.returncode}; "
@@ -134,7 +134,7 @@ def test_cli_exits_0_on_good_fixture() -> None:
     result = subprocess.run(
         [sys.executable, str(HERE / "audit_citations.py"), str(KNOWN_GOOD),
          "--quiet"],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     assert result.returncode == 0, (
         f"expected exit 0 on good fixture, got {result.returncode}; "

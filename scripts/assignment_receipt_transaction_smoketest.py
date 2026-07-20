@@ -90,7 +90,7 @@ def emit(project: Path, ready: Path) -> subprocess.CompletedProcess[str]:
             "--stage", "draft", "--target-milestone", "M1",
             "--emit-receipt", str(ready),
         ],
-        text=True, capture_output=True, check=False,
+        text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
     )
 
 
@@ -104,7 +104,7 @@ def reserve_command(project: Path, ready: Path) -> list[str]:
 
 def reserve(project: Path, ready: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        reserve_command(project, ready), text=True, capture_output=True, check=False
+        reserve_command(project, ready), text=True, encoding="utf-8", errors="replace", capture_output=True, check=False
     )
 
 
@@ -184,7 +184,7 @@ def reserve_paths(
     ]
     for write_path in write_paths:
         command.extend(("--write-path", write_path))
-    return subprocess.run(command, text=True, capture_output=True, check=False)
+    return subprocess.run(command, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
 
 
 def commit_command(project: Path, reserved: Path, plan: Path) -> list[str]:
@@ -197,7 +197,7 @@ def commit_command(project: Path, reserved: Path, plan: Path) -> list[str]:
 def commit(project: Path, reserved: Path, plan: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         commit_command(project, reserved, plan),
-        text=True, capture_output=True, check=False,
+        text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
     )
 
 
@@ -382,7 +382,7 @@ def main() -> int:
         # One concurrent READY->RESERVED transition wins.
         project, ready, record = emitted_project(base, "race-reserve")
         processes = [
-            subprocess.Popen(reserve_command(project, ready), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.Popen(reserve_command(project, ready), text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             for _ in range(2)
         ]
         outcomes = [process.communicate() + (process.returncode,) for process in processes]
@@ -401,7 +401,7 @@ def main() -> int:
                 [sys.executable, str(GATE), "--project-root", str(p),
                  "--stage", "draft", "--target-milestone", "M1",
                  "--emit-receipt", str(same_ready)],
-                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
             for _ in range(2)
         ]
@@ -471,10 +471,10 @@ def main() -> int:
         assert reserve(p, r).returncode == 0
         rs, cs, iv = receipt_paths(r)
         race_plan = write_plan(p, rec)
-        commit_process = subprocess.Popen(commit_command(p, rs, race_plan), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        commit_process = subprocess.Popen(commit_command(p, rs, race_plan), text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         invalidate_process = subprocess.Popen(
             [sys.executable, str(INVALIDATE), "--project-root", str(p), "--receipt", str(rs)],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         race = [
             commit_process.communicate() + (commit_process.returncode,),
@@ -489,7 +489,7 @@ def main() -> int:
         rs, cs, _ = receipt_paths(r)
         race_plan = write_plan(p, rec)
         consumers = [
-            subprocess.Popen(commit_command(p, rs, race_plan), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.Popen(commit_command(p, rs, race_plan), text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             for _ in range(2)
         ]
         outcomes = [process.communicate() + (process.returncode,) for process in consumers]
@@ -593,13 +593,13 @@ def main() -> int:
         )
         inspect = subprocess.run(
             [sys.executable, str(RECOVER), "--project-root", str(p)],
-            text=True, capture_output=True, check=False,
+            text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
         )
         assert inspect.returncode == 4 and "APG-RECOVERY-ACK-REQUIRED" in inspect.stdout
         recovered = subprocess.run(
             [sys.executable, str(RECOVER), "--project-root", str(p),
              "--clear-stale-claim", "--acknowledge", "inspected-receipt-states-and-journal"],
-            text=True, capture_output=True, check=False,
+            text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
         )
         assert recovered.returncode == 0, recovered.stdout + recovered.stderr
         assert not claim.exists()

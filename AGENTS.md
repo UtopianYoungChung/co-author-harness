@@ -30,11 +30,16 @@ python scripts/catalog-check.py
 python scripts/path-hygiene-check.py
 python scripts/snippet-check.py
 python scripts/output_economy_check.py
-python scripts/output_economy_smoketest.py
 python scripts/version-planes-check.py
 python scripts/commitment-interactions-check.py
 python scripts/retirement-sweep-check.py
+python scripts/analysis/fixture_infrastructure_check.py
+python scripts/analysis/fixture_runner.py --no-write
 ```
+
+The fixture registry is the single behavioral-test authority. Omit
+`--no-write` only when intentionally regenerating the committed fixture
+manifest after a fully green run.
 
 For full release packaging (bash): `scripts/release-gate.sh` (see script header for flags).
 

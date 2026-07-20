@@ -342,7 +342,7 @@ class _Snapshot:
 
     def text(self) -> str:
         try:
-            return self.data.decode("utf-8")
+            return self.data.decode("utf-8", errors="strict")
         except UnicodeDecodeError as exc:
             raise PolicyError(f"domain-native input is not UTF-8: {self.role}: {self.path}: {exc}") from exc
 
@@ -869,7 +869,7 @@ def validate_profile(profile: dict[str, Any], schema_path: Path = PROFILE_SCHEMA
 
 def _load_profile_bytes(payload: bytes, schema_path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(payload.decode("utf-8"))
+        data = json.loads(payload.decode("utf-8", errors="strict"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise PolicyError(f"profile unreadable: {exc}") from exc
     if not isinstance(data, dict):

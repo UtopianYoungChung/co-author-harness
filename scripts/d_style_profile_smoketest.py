@@ -26,7 +26,7 @@ def run_check(project_root: Path, *, strict: bool = False, manuscript: Path | No
         cmd.extend(["--manuscript", str(manuscript)])
     if strict:
         cmd.append("--strict-exit")
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:

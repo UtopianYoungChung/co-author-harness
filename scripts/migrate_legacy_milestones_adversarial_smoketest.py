@@ -19,7 +19,7 @@ import migrate_legacy_milestones as migration
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, "-I", "-S", str(MIGRATOR), *args], cwd=ROOT, text=True, capture_output=True, check=False)
+    return subprocess.run([sys.executable, "-I", "-S", str(MIGRATOR), *args], cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
 
 
 def sha(path: Path) -> str:

@@ -81,7 +81,7 @@ def test_cli_always_exits_zero_warn_only() -> None:
     so release-gate.sh treats it as informational, not blocking."""
     result = subprocess.run(
         [sys.executable, str(HERE / "token_budget_check.py"), "--quiet"],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     assert result.returncode == 0, (
         f"warn-only invariant violated: expected exit 0, got "

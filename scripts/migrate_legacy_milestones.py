@@ -317,7 +317,7 @@ def _adjudication(project: Path, path: Path, matrix: dict[str, Any]) -> tuple[di
         raise MigrationError("adjudication must be a contained UTF-8 JSON file")
     payload = contained.read_bytes()
     try:
-        value = json.loads(payload.decode("utf-8"))
+        value = json.loads(payload.decode("utf-8", errors="strict"))
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise MigrationError(f"adjudication must be contained UTF-8 JSON: {exc}") from exc
     if not isinstance(value, dict):
@@ -640,7 +640,7 @@ def _framework(project: Path, matrix: dict[str, Any], adjudication: dict[str, An
 def _run_validator(script: str, project: Path) -> None:
     result = subprocess.run(
         [sys.executable, "-I", "-S", str(SCRIPT_DIR / script), "--project-root", str(project)],
-        cwd=PACKAGE_ROOT, text=True, capture_output=True, check=False,
+        cwd=PACKAGE_ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
     )
     if result.returncode != 0:
         detail = (result.stdout + result.stderr).strip()

@@ -142,7 +142,7 @@ def check_untracked_in_guarded_dirs(plugin_root: Path) -> List[str]:
                 check=False,
                 capture_output=True,
                 text=True,
-                errors="replace",
+                errors="strict", encoding="utf-8",
                 timeout=10,
             )
         except (FileNotFoundError, subprocess.SubprocessError):

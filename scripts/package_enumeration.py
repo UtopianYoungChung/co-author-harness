@@ -36,9 +36,10 @@ Enumeration answers "which files ship". It does NOT answer "what do they say
 now". Which content a caller reads is the CALLER's decision, and the two live
 callers correctly disagree:
 
-  * scripts/analysis/code_census.py  -> WORKTREE bytes. Detecting uncommitted
-    subject changes is the point; a run's evidence must go stale when the code
-    it exercised changes. HEAD blobs would hide exactly what it exists to find.
+  * scripts/analysis/code_census.py  -> WORKTREE content through Git's clean
+    filters, plus a separately labelled raw-byte pre/post digest. Semantic
+    uncommitted changes stale evidence; checkout-only EOL/smudge differences do
+    not make one commit claim different canonical identities across hosts.
   * scripts/build-plugin.py          -> HEAD bytes (via `git archive`).
     Producing a commit artifact is the point; worktree bytes would ship
     uncommitted content under a commit's file list.
@@ -100,7 +101,7 @@ def resolve_head() -> str:
     """
     return subprocess.run(
         [GIT, "-C", str(HARNESS), "rev-parse", "HEAD"],
-        capture_output=True, text=True, encoding="utf-8", check=True,
+        capture_output=True, text=True, encoding="utf-8", errors="strict", check=True,
     ).stdout.strip()
 
 
@@ -126,7 +127,7 @@ def enumerate_package_files(commit: str | None = None) -> tuple[list[str], list[
         [GIT, "-C", str(HARNESS), "ls-tree", "-r", commit or "HEAD", "--name-only"],
         capture_output=True,
         text=True,
-        encoding="utf-8",
+        encoding="utf-8", errors="strict",
         check=True,
     )
     files = [line for line in result.stdout.splitlines() if line.strip()]
