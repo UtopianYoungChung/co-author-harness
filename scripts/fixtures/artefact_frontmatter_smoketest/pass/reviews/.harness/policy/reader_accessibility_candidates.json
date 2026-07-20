@@ -5,24 +5,24 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138",
+  "profile_sha256": "de76ab5829f903cdb3e349de14217115530f05bab869ff786958c233e69c4983",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "fcdcc67751e002d244bd69ea31d68f053268981bd96df8c5ff4374cafb171138",
+      "sha256": "de76ab5829f903cdb3e349de14217115530f05bab869ff786958c233e69c4983",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "eb08c404acb48ccfb660a2faca28977ecd5d9aae22913233ecb1393a76a971a5",
+      "sha256": "ea9e7acb1f629051740837e1a9dd96a75d2557627532214511becf73927ee955",
       "role": "package_contributor"
     },
     {
       "scope": "package",
       "path": "references/examples/model_prose_corpus.md",
-      "sha256": "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
+      "sha256": "efa03146aa443309e08fe027bc4552ee0c68094840d9264e5308d82854e95f96",
       "role": "package_contributor"
     }
   ],
