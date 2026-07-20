@@ -6,6 +6,50 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.33.0 — 2026-07-20
+
+### Systematic package repair and canonical lifecycle
+
+**What changed.** The package now binds lifecycle, ownership, recovery, and
+capability truth through machine-readable contracts. A versioned Contract
+Kernel, canonical lifecycle transition table, role-output contract, and
+capability registry replace scattered prose as the operational authority.
+Planner-owned M1–M5 checkpoints, single-use scoped-writer receipts, atomic M4
+first-deliverable bindings, recovery transactions, and the M5/FINAL close now
+share one validated state model. Public entrypoints and reflection modes route
+through that model instead of maintaining parallel workflow interpretations.
+
+**Capability truth.** Every catalogued capability now has an explicit
+disposition and evidence path. Deferred graph/Wiki authority remains
+unavailable with deterministic reason codes. `/centroid-pass` remains publicly
+unavailable; its maintainer-only service prepares a read-only, hash-bound
+analysis packet but does not claim semantic judgment or write authority.
+
+### Fixture, packaging, and distribution integrity
+
+**One evidence authority.** The fixture registry is the sole behavioral-test
+population across local, CI, and release surfaces. It binds its writer,
+registered cases, tested-input census, and canonical checkout-portable digest;
+failed runs void stale evidence. Windows console encoding, detached-worktree
+packaging, and commit-bound provenance are regression tested.
+
+**Distribution rights.** The package license is MIT. Known raw third-party
+extracts, the advisor workbook/transcription, and the prior long-passage corpus
+and planning copies are absent from the current package and replaced with
+package-authored summaries or synthetic examples. `THIRD_PARTY_NOTICES.md` and
+`references/distribution_rights.json` state the forward-looking scope and bind
+whole-file hashes, normalized passage hashes, historical paths, and replacement
+bytes. This remediation governs the current tree and future artifacts; it does
+not rewrite Git history or make a legal determination.
+
+**Release acceptance.** Shipment requires the structural checks, the complete
+registered fixture corpus, a clean detached-worktree build, exact manifest and
+provenance reconciliation, archive-level rights and loader checks, and an
+installation receipt bound to the immutable artifact. Capability dispositions
+did not change during the rights repair, so H2 was not reopened.
+
+---
+
 ## v0.32.0 — 2026-07-19
 
 ### Full-run enforcement review follow-up
