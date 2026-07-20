@@ -37,7 +37,11 @@ ladder is now draft -> iterate -> finalize.
 
 ## Output Profile
 
-<!-- include: _snippets/output-profile.md -->
+**Runtime binding.** Before acting, resolve
+`../../references/_snippets/output-profile.md` relative to this `SKILL.md`,
+read it in full, and treat it as part of this skill contract. Its canonical
+plugin-root identity is `references/_snippets/output-profile.md`. Do not rely
+on build-time include expansion.
 
 Compatibility invocations still write F7 evidence packets at
 `reviews/.harness/evidence/<event_id>.json` and the matching event row with

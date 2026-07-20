@@ -19,6 +19,10 @@ from resolve_includes import (  # noqa: E402
     resolve_include_path,
     resolve_includes_in_text,
 )
+from runtime_snippet_binding import (  # noqa: E402
+    read_with_runtime_bindings,
+    resolve_runtime_binding,
+)
 
 
 def _make_tree(root: Path) -> None:
@@ -78,12 +82,68 @@ def test_no_includes_is_identity() -> None:
         assert rendered == text
 
 
+def test_consumer_relative_runtime_binding_resolves() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_tree(root)
+        target = root / "references" / "_snippets" / "foo.md"
+        target.write_text("FOO", encoding="utf-8")
+        consumer = root / "skills" / "demo" / "SKILL.md"
+        consumer.write_text("binding", encoding="utf-8")
+        resolved = resolve_runtime_binding(
+            root, "skills/demo/SKILL.md", "../../references/_snippets/foo.md"
+        )
+        assert resolved == target.resolve()
+
+
+def test_ambiguous_or_escaping_runtime_binding_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_tree(root)
+        target = root / "references" / "_snippets" / "foo.md"
+        target.write_text("FOO", encoding="utf-8")
+        consumer = root / "skills" / "demo" / "SKILL.md"
+        consumer.write_text("binding", encoding="utf-8")
+        for bad in ("references/_snippets/foo.md", "../../../outside.md"):
+            try:
+                resolve_runtime_binding(root, "skills/demo/SKILL.md", bad)
+            except ValueError:
+                continue
+            raise AssertionError(f"expected refusal for {bad!r}")
+
+
+def test_runtime_reader_loads_declared_snippet_and_fails_closed() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "references" / "_snippets").mkdir(parents=True)
+        (root / "skills" / "run-phase-1").mkdir(parents=True)
+        target = root / "references" / "_snippets" / "output-profile.md"
+        target.write_text("BOUND POLICY", encoding="utf-8")
+        consumer = root / "skills" / "run-phase-1" / "SKILL.md"
+        binding = "../../references/_snippets/output-profile.md"
+        consumer.write_text(
+            f"**Runtime binding.** Resolve `{binding}` relative to this `SKILL.md`.",
+            encoding="utf-8",
+        )
+        text = read_with_runtime_bindings(root, "skills/run-phase-1/SKILL.md")
+        assert "BOUND POLICY" in text, text
+        consumer.write_text("binding omitted", encoding="utf-8")
+        try:
+            read_with_runtime_bindings(root, "skills/run-phase-1/SKILL.md")
+        except ValueError:
+            return
+        raise AssertionError("expected missing runtime declaration to fail closed")
+
+
 def main() -> int:
     tests = [
         test_snippets_prefix_resolves_under_references,
         test_missing_include_raises,
         test_recursive_include_cycle_detected,
         test_no_includes_is_identity,
+        test_consumer_relative_runtime_binding_resolves,
+        test_ambiguous_or_escaping_runtime_binding_is_refused,
+        test_runtime_reader_loads_declared_snippet_and_fails_closed,
     ]
     failures: list[str] = []
     for t in tests:

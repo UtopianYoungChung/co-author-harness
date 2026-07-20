@@ -15,7 +15,11 @@ version: 0.7.4
 
 ## Output Profile
 
-<!-- include: _snippets/output-profile.md -->
+**Runtime binding.** Before acting, resolve
+`../../references/_snippets/output-profile.md` relative to this `SKILL.md`,
+read it in full, and treat it as part of this skill contract. Its canonical
+plugin-root identity is `references/_snippets/output-profile.md`. Do not rely
+on build-time include expansion.
 
 ---
 

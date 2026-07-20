@@ -27,7 +27,9 @@ This is the package-population authority for BOTH bundle paths. The Cowork
 full-release path converged 2026-07-16 -- `scripts/release-gate.sh` Phase 1
 now invokes the committed builder instead of its former independent
 `zip -r`-with-exclusions population, so the release zip IS the builder's
-artifact (commit-bound bytes, rendered includes, embedded PROVENANCE.json).
+artifact (commit-bound bytes, source-identical policy files, embedded
+PROVENANCE.json). The release source-parity gate forbids build-only policy
+rewriting on live package surfaces.
 One producer, one population rule.
 
 CONTRACT

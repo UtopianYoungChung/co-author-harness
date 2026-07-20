@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Set, Tuple
 
-from resolve_includes import resolve_includes_in_text
+from runtime_snippet_binding import read_with_runtime_bindings
 
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
@@ -138,7 +138,11 @@ def main() -> int:
         if not path.is_file():
             errors.append(f"missing file {rel}")
             continue
-        text = resolve_includes_in_text(path.read_text(encoding="utf-8"), path, root)
+        try:
+            text = read_with_runtime_bindings(root, rel)
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+            continue
         errors.extend(check_file(rel, text, PHASE_REQUIRED_PHRASES, True))
 
     planner_path = root / "agents" / "planner.md"

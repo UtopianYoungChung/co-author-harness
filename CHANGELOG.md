@@ -6,6 +6,31 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.33.2 — 2026-07-20
+
+### Remote-install and release-byte parity
+
+**What changed.** The six live consumers that previously depended on
+packaging-time Markdown include expansion now carry explicit consumer-relative
+runtime bindings to their canonical plugin-root snippet files. Claude and Codex Git-source
+marketplace installs therefore receive the same policy-bearing source bytes as
+the audited `.plugin` archive without duplicating the shared policy blocks.
+
+**Enforcement.** A new release source-parity checker compares every packaged
+member with its committed `HEAD` byte sequence and permits only the generated
+`PROVENANCE.json` member. It refuses missing, unexpected, duplicate, or
+rewritten source members. The release gate and full ZIP wrapper both invoke it;
+the fixture registry covers exact, tampered, missing, extra, duplicate, and
+live build-only-include cases. Snippet checks now bind the exact runtime
+consumer sets and reject live include sentinels.
+
+**Why a patch.** v0.33.1 repaired Codex discovery, but post-install cache
+comparison found six semantic differences between Git-source caches and the
+rendered release archive. The v0.33.1 tag remains immutable; this patch
+supersedes it.
+
+---
+
 ## v0.33.1 — 2026-07-20
 
 ### Dual-loader marketplace compatibility

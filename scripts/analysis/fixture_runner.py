@@ -217,6 +217,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_semantics_smoketest.py": [_default_case()],
+    "scripts/release_source_parity_smoketest.py": [_default_case()],
     "scripts/reflector_split_parity_smoketest.py": [_default_case()],
     "scripts/render_lifecycle_state_adversarial_smoketest.py": [_default_case()],
     "scripts/render_lifecycle_state_smoketest.py": [_default_case()],

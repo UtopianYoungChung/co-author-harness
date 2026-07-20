@@ -4,8 +4,8 @@
 Asserts:
   (1) The two split files exist, parse as Markdown with YAML frontmatter,
       and carry the correct `name` field.
-  (2) The shared snippet exists and is referenced via the include sentinel
-      from BOTH split files (not from the router or anywhere else).
+  (2) The shared snippet exists and is bound by plugin-root runtime path from
+      BOTH split files (not from the router or anywhere else).
   (3) The router (`agents/reflector.md`) names both split files verbatim
       and explicitly identifies itself as a router.
   (4) No Planner / Evaluator / Generator file was modified — the PR-4c
@@ -34,7 +34,8 @@ SPLIT_FILES = {
 ROUTER = HARNESS / "agents" / "reflector.md"
 RUN_SKILL = HARNESS / "skills" / "run-reflection" / "SKILL.md"
 SNIPPET = HARNESS / "references" / "_snippets" / "reflection-grounding.md"
-INCLUDE_SENTINEL = "<!-- include: _snippets/reflection-grounding.md -->"
+RUNTIME_SNIPPET_PATH = "references/_snippets/reflection-grounding.md"
+RUNTIME_RELATIVE_PATH = "../references/_snippets/reflection-grounding.md"
 
 UNTOUCHED_AGENTS = ["planner.md", "evaluator.md", "generator.md"]
 
@@ -69,26 +70,29 @@ def test_shared_snippet_exists() -> None:
         assert needle in text, f"snippet missing section: {needle!r}"
 
 
-def test_both_splits_include_the_snippet() -> None:
+def test_both_splits_runtime_bind_the_snippet() -> None:
     for path in SPLIT_FILES.values():
         text = path.read_text(encoding="utf-8")
-        assert INCLUDE_SENTINEL in text, (
-            f"{path.name} does not include the shared snippet via "
-            f"{INCLUDE_SENTINEL!r}"
+        assert (RUNTIME_SNIPPET_PATH in text and RUNTIME_RELATIVE_PATH in text
+                and "**Runtime binding.**" in text), (
+            f"{path.name} does not runtime-bind the shared snippet via "
+            f"{RUNTIME_SNIPPET_PATH!r}"
+        )
+        assert "<!-- include:" not in text, (
+            f"{path.name} retains build-only include expansion"
         )
 
 
 def test_snippet_is_not_inlined_outside_snippets_dir() -> None:
     """Anti-duplication: the snippet's distinctive 'Binding constraint'
     opening must not appear verbatim in agents/ or skills/ outside the
-    snippet itself (the include resolver inlines it at packaging time, not
-    at source time)."""
+    snippet itself; consumers load the canonical file at runtime."""
     distinctive = "You are its **primary enforcer**: you run the Grounding Audit on every round"
     for md in (HARNESS / "agents").rglob("*.md"):
         text = md.read_text(encoding="utf-8")
         assert distinctive not in text, (
             f"{md} contains the shared snippet's distinctive text verbatim "
-            f"— use {INCLUDE_SENTINEL!r} instead of inlining"
+            f"— use {RUNTIME_SNIPPET_PATH!r} as a runtime binding instead"
         )
 
 
@@ -98,10 +102,10 @@ def test_router_points_to_both_splits() -> None:
         assert needle in text, f"router missing reference to {needle!r}"
     # Router must self-identify
     assert "router" in text.lower(), "router file must self-identify as a router"
-    # Router must NOT include the substantive snippet — that's what the
+    # Router must NOT bind the substantive snippet — that's what the
     # split files do, and the router should stay tiny.
-    assert INCLUDE_SENTINEL not in text, (
-        "router must not include the shared snippet; it stays a thin "
+    assert "**Runtime binding.**" not in text, (
+        "router must not runtime-bind the shared snippet; it stays a thin "
         "routing surface"
     )
 
@@ -206,7 +210,7 @@ def main() -> int:
     tests = [
         test_split_files_exist_and_parse,
         test_shared_snippet_exists,
-        test_both_splits_include_the_snippet,
+        test_both_splits_runtime_bind_the_snippet,
         test_snippet_is_not_inlined_outside_snippets_dir,
         test_router_points_to_both_splits,
         test_router_frontmatter_preserves_legacy_name,

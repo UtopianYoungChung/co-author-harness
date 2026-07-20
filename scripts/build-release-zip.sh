@@ -8,7 +8,7 @@
 # also stripped historical release notes and .plugin-calibrator.json, which
 # the canonical population ships). Every bundle producer now delegates to
 # scripts/build-plugin.py: commit-bound bytes from a clean worktree re-exec,
-# rendered includes, embedded PROVENANCE.json, one population authority
+# source-identical policy bytes, embedded PROVENANCE.json, one population authority
 # (scripts/package_enumeration.py). If you need a different population,
 # change the authority, not a wrapper.
 #
@@ -204,6 +204,11 @@ fi
 # scripts/analysis/release_manifest_negative_check.py.
 if ! python3 "$PLUGIN_ROOT/scripts/release_manifest_check.py" "$ZIP_PATH" --repo "$PLUGIN_ROOT"; then
   printf 'error: archive manifest does not match committed HEAD manifest\n' >&2
+  exit 6
+fi
+
+if ! python3 "$PLUGIN_ROOT/scripts/release_source_parity_check.py" "$ZIP_PATH" --repo "$PLUGIN_ROOT"; then
+  printf 'error: archive source bytes do not match committed HEAD\n' >&2
   exit 6
 fi
 

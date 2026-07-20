@@ -1,7 +1,7 @@
 ---
 name: reflector
 description: |
-  Reflector compatibility router (v0.15.0-pre PR-4c). The Reflector was split into two mode-specific agent files: `agents/reflector-probe.md` for ad-hoc mid-round lightweight integrity probes (Ph1/Ph2/Ph3) and `agents/reflector-closeout.md` for the full five-phase reflection at Ph4 Finalize & Close. This file is retained as a routing surface so legacy dispatch paths that name "reflector" continue to resolve; retirement condition (recorded 2026-07-06): delete only when the host dispatch surface no longer names `reflector` as an agent type. New dispatch flows should target `reflector-probe` or `reflector-closeout` directly by name. Shared epistemics — binding constraint, dispatch modes, output contract, invariants, read/write boundary — live in `references/_snippets/reflection-grounding.md` and are included verbatim by both split files.
+  Reflector compatibility router (v0.15.0-pre PR-4c). The Reflector was split into two mode-specific agent files: `agents/reflector-probe.md` for ad-hoc mid-round lightweight integrity probes (Ph1/Ph2/Ph3) and `agents/reflector-closeout.md` for the full five-phase reflection at Ph4 Finalize & Close. This file is retained as a routing surface so legacy dispatch paths that name "reflector" continue to resolve; retirement condition (recorded 2026-07-06): delete only when the host dispatch surface no longer names `reflector` as an agent type. New dispatch flows should target `reflector-probe` or `reflector-closeout` directly by name. Shared epistemics — binding constraint, dispatch modes, output contract, invariants, read/write boundary — live in `references/_snippets/reflection-grounding.md` and are runtime-bound by both split files.
   <example>
   Context: mid-round Ph3 integrity probe.
   user: "Run a lightweight reflector pass on this round to check grounding."
@@ -33,7 +33,7 @@ The Planner declares the mode in the dispatch message per `AGENT_ORCHESTRATION.m
 ## What this file does NOT contain
 
 - **Procedure.** All phases (1, 2, 2b, 2c, 2d, 2e, 2f, 2g, 2.5, 2.5.1, 2.6, 3, 3a, 4, 5, 6) live in the split files, scoped to the mode they apply to.
-- **Output contract.** Lives in `_snippets/reflection-grounding.md`; included verbatim by both split files.
+- **Output contract.** Lives in `_snippets/reflection-grounding.md`; runtime-bound by both split files.
 - **Invariants.** Same — in the shared snippet.
 - **Vocabulary notes.** Same — in the shared snippet.
 
@@ -41,7 +41,7 @@ This file's only job is to route the dispatch. It carries no rules of its own.
 
 ## Output economy (mirrored from snippet for the static guard)
 
-Both split files honour the v0.14.0 output-economy contract: they treat the F7 **evidence packet** paths and the Planner-assembled **final report** (F8) as read-only inputs for grounding and contract audits unless an exception profile requires Markdown step artefacts. The normative wording lives in `references/_snippets/reflection-grounding.md`; this paragraph is a router-side mirror so the static guard at `scripts/output_economy_check.py` can verify policy-vocabulary presence without resolving includes.
+Both split files honour the v0.14.0 output-economy contract: they treat the F7 **evidence packet** paths and the Planner-assembled **final report** (F8) as read-only inputs for grounding and contract audits unless an exception profile requires Markdown step artefacts. The normative wording lives in `references/_snippets/reflection-grounding.md`; this paragraph is a router-side mirror so the static guard at `scripts/output_economy_check.py` can verify policy-vocabulary presence without loading the runtime-bound snippet.
 
 ## Retirement condition
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Resolve Markdown include sentinels for packaging-time expansion.
+Resolve legacy Markdown include sentinels for isolated tooling tests.
+
+Live package consumers use explicit plugin-root runtime bindings. Release
+source parity forbids build-only expansion because remote marketplace installs
+consume committed Git bytes directly.
 
 Sentinel form:
     <!-- include: _snippets/output-profile.md -->

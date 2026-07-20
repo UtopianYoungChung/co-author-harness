@@ -17,8 +17,8 @@
 #   6. Runs scripts/version-check.py for release-version consistency.
 #   7. Runs scripts/catalog-check.py for README and registry parity checks.
 #   8. Runs scripts/path-hygiene-check.py for maintainer-local path hygiene.
-#   8a. [v0.15.0-pre] Runs scripts/snippet-check.py for packaging-time
-#       include resolution and anti-duplication of extracted policy blocks.
+#   8a. Runs scripts/snippet-check.py for runtime-binding resolution and
+#       anti-duplication of extracted policy blocks.
 #   8b. Runs scripts/output_economy_check.py; all behavioral fixtures execute
 #       once through the authoritative registry.
 #   9. [Retired at v0.7.0] Rule-digest build-and-verify. The tier-gated digest
@@ -39,7 +39,7 @@
 #       BLOCKs if `max_subagent_chain_depth` exceeds the config's
 #       `thresholds.max_chain_depth` (default 15).
 #  11. Builds the release .zip via the committed builder (scripts/build-plugin.py):
-#      commit-bound bytes from a clean worktree re-exec, rendered includes,
+#      commit-bound bytes from a clean worktree re-exec, source-identical policy,
 #      embedded PROVENANCE.json, single population authority
 #      (scripts/package_enumeration.py). The former worktree `zip -r` with
 #      exclusion globs is retired -- it was a second, independent package
@@ -771,13 +771,13 @@ if (( BUILD == 1 )); then
     # ONE POPULATION AUTHORITY. This phase used to run its own `zip -r` over
     # the WORKTREE with exclusion globs -- a second, independent package
     # population (worktree bytes, raw include sentinels) beside
-    # scripts/package_enumeration.py (HEAD bytes, rendered includes). Two
+    # scripts/package_enumeration.py (HEAD bytes, historically rendered includes). Two
     # rules over one repo meant "drift impossible by construction" was FALSE,
     # and the release zip shipped UNRESOLVED include sentinels that Phase
     # 0.60's snippet guard had only verified resolvABLE, never resolved.
     #
     # The committed builder is now the only bundle producer: commit-bound
-    # bytes via clean-worktree re-exec, rendered includes, embedded
+    # bytes via clean-worktree re-exec, embedded
     # PROVENANCE.json with its own readback. Consequence, intended: a DIRTY
     # manifest now blocks below (the bundle carries HEAD's manifest, the
     # source comparison reads the worktree) -- a release must be a commit.
@@ -815,6 +815,12 @@ if (( BUILD == 1 )); then
             echo "  [OK]      archive manifest == committed HEAD manifest (digest-exact)"
         else
             echo "  [BLOCKER] archive manifest does not match committed HEAD manifest"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+        if python3 "$PLUGIN_ROOT/scripts/release_source_parity_check.py" "$BUNDLE_PATH" --repo "$PLUGIN_ROOT"; then
+            echo "  [OK]      archive source population == committed HEAD (remote-install parity)"
+        else
+            echo "  [BLOCKER] archive source bytes differ from committed HEAD"
             BLOCKERS=$((BLOCKERS + 1))
         fi
         # Git is the authority on "modified" (raw byte hashes false-block

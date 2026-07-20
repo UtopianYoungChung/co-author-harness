@@ -139,7 +139,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `RESEARCH_ROOT_CLAUDE.md` | Root-level CLAUDE.md for the Research folder |
 | `COWORK_SESSION_INSTRUCTIONS.md` | Cowork-session-specific operating notes |
 | `SKILL_REGISTRY.md` | Per-skill registry (SK-N entries); PR-3b.3 added SK-37/38/39 alias entries |
-| `_snippets/` | Atomic policy fragments resolved by `scripts/resolve_includes.py` (PR-1) |
+| `_snippets/` | Atomic policy fragments loaded by explicit plugin-root runtime bindings |
 
 ### Retired / migration-only
 
@@ -153,12 +153,12 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 
 ## 4. The `_snippets/` directory
 
-Atomic policy fragments resolved at packaging time by `scripts/resolve_includes.py`. Each `_snippets/*.md` file is intended to be ≤ 60 lines and represent a single normative block reused across multiple skills. Consumers reference snippets via the `<!-- include: _snippets/<name>.md -->` sentinel.
+Atomic policy fragments loaded at invocation time through explicit plugin-root paths. Each `_snippets/*.md` file is intended to be ≤ 60 lines and represent a single normative block reused across multiple skills or agents. Build-time include expansion is prohibited on live package surfaces because Git-source marketplace installs do not run the builder; source caches and the audited archive must carry identical policy bytes.
 
-Current snippets: `_snippets/reflection-grounding.md` (shared reflector epistemic preamble, included by both split reflector agents).
-- `_snippets/output-profile.md` — the canonical routine `silent_evidence` block (PR-1). Used by phase skills (`run-phase-1`, `run-phase-2`, `run-phase-3`).
+Current snippets: `_snippets/reflection-grounding.md` (shared reflector epistemic preamble, runtime-bound by both split reflector agents).
+- `_snippets/output-profile.md` — the canonical routine `silent_evidence` block (PR-1). Runtime-bound by `run-iterate` and the phase compatibility skills (`run-phase-1`, `run-phase-2`, `run-phase-3`).
 
-Anti-duplication: `scripts/snippet-check.py` verifies the snippet's content does not appear verbatim outside `_snippets/` at release-gate time.
+Anti-duplication and distribution parity: `scripts/snippet-check.py` verifies the exact runtime-consumer set, rejects build-only include sentinels, and ensures snippet content does not appear verbatim outside `_snippets/` at release-gate time.
 
 ---
 
