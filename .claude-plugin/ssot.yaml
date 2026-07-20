@@ -63,26 +63,6 @@ facts:
           descriptions; both must omit hardcoded counts.
 
   # ---------------------------------------------------------------
-  # Fact: command_count
-  # ---------------------------------------------------------------
-  command_count:
-    description: |
-      Number of shipped slash commands. Authority is the count of
-      `commands/*.md` files at validate-time. The plugin-commands SKILL
-      lists each command in a table — that table is the user-facing
-      catalog and is allowed to enumerate; it is NOT allowed to assert
-      a top-line count separately.
-    authority:
-      method: count
-      pattern: "commands/*.md"
-    consumers:
-      - path: .claude-plugin/plugin.json
-        method: none
-        rationale: |
-          Same posture as skill_count: no asserted-count claims in
-          manifest descriptions.
-
-  # ---------------------------------------------------------------
   # Fact: manifest_version
   # ---------------------------------------------------------------
   manifest_version:

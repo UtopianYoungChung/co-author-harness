@@ -1,5 +1,6 @@
 ---
 name: centroid-pass
+user-invocable: false
 description: 'Unavailable public centroid-analysis entrypoint. Returns a deterministic read-only envelope with reason code IMPLEMENTATION_MISSING; it never edits a manuscript, bypasses a milestone fence, mutates lifecycle state, or writes to the canonical Wiki.'
 trigger: when the user invokes /centroid-pass or asks for the package centroid pass.
 version: 1.1

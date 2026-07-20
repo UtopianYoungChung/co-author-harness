@@ -1,5 +1,6 @@
 ---
 name: tool-contract-roundtrip
+user-invocable: false
 description: Round-trip probe of every external-verifier MCP before a package release — invoke each advertised tool, inspect response payloads for undocumented contract fields, and surface placeholder namespaces, stale UUIDs, and referenced-but-unexercised tools. Use this before bumping the plugin version, when adding a new verifier, or when a runtime namespace mismatch is suspected.
 trigger: when the user asks to verify external-tool contracts, probe MCPs before a release, round-trip-test the verifier tier, or is preparing a plugin version bump that touches EXTERNAL_VERIFIERS.md
 created_by: Reflector

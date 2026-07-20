@@ -8,7 +8,7 @@ definitive-architectural-plan §3.3):
 1) plugin.json description ≤ 300 characters (forensic §4 Gap 1).
 2) plugin.json keywords ≤ 12 entries; every keyword is a non-empty string.
 3) Every keyword resolves to a substrate token visible somewhere under the
-   plugin root — discovered SKILL names, command names, the package's own
+   plugin root — discovered native SKILL names, the package's own
    name tokens, or one of an allow-list of governance/topic terms. The
    intent is to refuse keywords that name aspirations the package does
    not actually carry (forensic §4 Gap 2).
@@ -116,28 +116,16 @@ def discover_skill_names(plugin_root: Path) -> Set[str]:
     return names
 
 
-def discover_command_names(plugin_root: Path) -> Set[str]:
-    """Return the set of command shim names from commands/*.md."""
-    names: Set[str] = set()
-    cmd_dir = plugin_root / "commands"
-    if not cmd_dir.is_dir():
-        return names
-    for cmd_md in cmd_dir.glob("*.md"):
-        names.add(cmd_md.stem)
-    return names
-
-
 def keyword_resolves(
     keyword: str,
     skill_names: Set[str],
-    command_names: Set[str],
     plugin_name_tokens: Set[str],
 ) -> bool:
     """True if the keyword resolves to a substrate token.
 
     Resolution sources (any single match suffices):
       - exact match in the GOVERNANCE_KEYWORD_ALLOWLIST (case-insensitive)
-      - exact match in skill_names or command_names (case-insensitive)
+      - exact match in skill_names (case-insensitive)
       - substring match against any plugin-name token (case-insensitive)
       - canonical lower/dash form is a hyphenated compound of substrate
         tokens (e.g., "snowball-references" against tokens
@@ -150,8 +138,6 @@ def keyword_resolves(
         return True
     if canon in {n.lower() for n in skill_names}:
         return True
-    if canon in {c.lower() for c in command_names}:
-        return True
     for token in plugin_name_tokens:
         if token and token in canon:
             return True
@@ -161,7 +147,6 @@ def keyword_resolves(
         components = [c for c in canon.split("-") if c]
         all_tokens = (
             {n.lower() for n in skill_names}
-            | {c.lower() for c in command_names}
             | plugin_name_tokens
             | {k.lower() for k in GOVERNANCE_KEYWORD_ALLOWLIST}
         )
@@ -268,12 +253,11 @@ def main() -> int:
 
     # Check 3: keyword substrate resolution
     skill_names = discover_skill_names(plugin_root)
-    command_names = discover_command_names(plugin_root)
     unresolved_keywords: List[str] = []
     for kw in keywords_list:
         if not kw:
             continue
-        if not keyword_resolves(kw, skill_names, command_names, plugin_name_tokens):
+        if not keyword_resolves(kw, skill_names, plugin_name_tokens):
             unresolved_keywords.append(kw)
     if unresolved_keywords:
         blockers.append(
@@ -312,7 +296,6 @@ def main() -> int:
     print(f"- Description length: {len(description)} chars (budget {DESCRIPTION_MAX_CHARS})")
     print(f"- Keywords count: {len(keywords_list)} (budget {KEYWORDS_MAX_COUNT})")
     print(f"- Discovered skills: {len(skill_names)}")
-    print(f"- Discovered commands: {len(command_names)}")
     print(f"- Description parity (plugin.json vs marketplace.json): {parity_summary}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")

@@ -273,7 +273,7 @@ fi
 # --- Phase 0.5: catalog parity checks -------------------------------------
 
 if [[ -f "$PLUGIN_ROOT/scripts/catalog-check.py" ]]; then
-    echo "Catalog parity checks (README/commands/registry)"
+    echo "Catalog parity checks (README/public skills/registry)"
     if ! python3 "$PLUGIN_ROOT/scripts/catalog-check.py" --plugin-root "$PLUGIN_ROOT"; then
         echo "  [BLOCKER] scripts/catalog-check.py reported blocking issues"
         BLOCKERS=$((BLOCKERS + 1))
@@ -286,6 +286,19 @@ else
     echo "  [BLOCKER] cannot run catalog parity checks"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
+fi
+
+if [[ -f "$PLUGIN_ROOT/scripts/command_surface_check.py" ]]; then
+    echo "Native skill command-surface checks"
+    if ! python3 "$PLUGIN_ROOT/scripts/command_surface_check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/command_surface_check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/command_surface_check.py passed"
+    fi
+else
+    echo "Native skill command-surface checks: script missing (scripts/command_surface_check.py)"
+    BLOCKERS=$((BLOCKERS + 1))
 fi
 
 # --- Phase 0.6: path hygiene checks ---------------------------------------
@@ -432,9 +445,9 @@ fi
 # or skills/ fails closed. The smoketest above proves the auditor itself
 # works; this block runs it against the actual harness package.
 if [[ -f "$PLUGIN_ROOT/scripts/audit/audit_citations.py" ]]; then
-    echo "Live citation audit (references/, agents/, skills/, commands/)"
+    echo "Live citation audit (references/, agents/, skills/)"
     LIVE_AUDIT_FAILED=0
-    for target in references agents skills commands; do
+    for target in references agents skills; do
         if [[ -d "$PLUGIN_ROOT/$target" ]]; then
             if ! python3 "$PLUGIN_ROOT/scripts/audit/audit_citations.py" \
                     "$PLUGIN_ROOT/$target" --quiet; then

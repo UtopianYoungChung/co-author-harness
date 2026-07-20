@@ -4,7 +4,7 @@
 Closes the release-gate header's long-deferred retirement-sweep gap
 (docs/analysis/2026-07-07_full-links-coherence-audit.md §4 item 4).
 
-Invariant: on the LIVE surfaces (references/, agents/, skills/, commands/,
+Invariant: on the LIVE surfaces (references/, agents/, skills/,
 root CLAUDE.md / AGENTS.md / README.md), every `scripts/<name>.py|.sh`
 citation must either (a) resolve to an existing file under scripts/, or
 (b) sit on a line carrying a historical marker (retired / removed /
@@ -35,7 +35,7 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = PLUGIN_ROOT / "references" / "schemas" / "retired_surfaces.json"
 
-LIVE_DIRS = ["references", "agents", "skills", "commands"]
+LIVE_DIRS = ["references", "agents", "skills"]
 LIVE_FILES = ["CLAUDE.md", "AGENTS.md", "README.md"]
 CITE = re.compile(r"scripts/([A-Za-z0-9_\-.]+\.(?:py|sh))")
 RETIRED_MILESTONE_SPLIT = ("M4a", "M4b")

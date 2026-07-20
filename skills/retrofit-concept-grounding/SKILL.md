@@ -1,5 +1,6 @@
 ---
 name: retrofit-concept-grounding
+user-invocable: false
 description: >-
   Retrofit wiki concept pages with grounding citations to existing source pages. Converts
   in-prose author-year references into wikilinks to `sources/` pages, updates frontmatter

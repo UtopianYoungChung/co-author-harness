@@ -1,5 +1,6 @@
 ---
 name: promote-lessons-to-wiki
+user-invocable: false
 description: 'Fail-closed Coupling C entry point. Canonical Wiki promotion of research_notes/lessons_learned.md is unavailable; returns a structured deferred result only.'
 trigger: when the user asks to promote lessons to the wiki, close a reflection round with a wiki update, materialize Coupling C, or regenerate a lessons synthesis after L-xx append
 created_by: Reflector (Coupling C pilot)

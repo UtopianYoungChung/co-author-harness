@@ -4,7 +4,7 @@
 Verifies two invariants:
 
 (A) Every backticked file reference in `references/MANIFEST.md` that names
-    a Markdown file under `references/`, `agents/`, `skills/`, `commands/`,
+    a Markdown file under `references/`, `agents/`, or `skills/`,
     or `scripts/` resolves to an existing path.
 
 (B) `references/CLAUDE.md` continues to satisfy the binding-preservation
@@ -37,7 +37,7 @@ FILENAME_RE = re.compile(r"`([A-Za-z0-9_\-./]+\.(?:md|yaml|json|py))`")
 
 # Plausible roots a backticked filename in MANIFEST could resolve under.
 SEARCH_ROOTS = [
-    "references", "references/examples", "agents", "skills", "commands",
+    "references", "references/examples", "agents", "skills",
     "scripts",
 ]
 

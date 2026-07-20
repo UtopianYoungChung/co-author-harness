@@ -462,7 +462,7 @@ The phase-state ledger is a Planner-written, single-writer JSON file that carrie
 
 **Who reads it.** Every agent, every dispatch. The Reflector-full reads the aggregated `phase_entry_log` array at Ph4 close for Phase 2b's aggregated confirmation-failed history audit (`PHASE_PROTOCOL.md §9.2`, NEW-H-4) — at v0.7.0 this audit walks `confirmation_failed` rows imported from migrated v0.6.0 projects, since the trigger does not fire natively. The migration script `scripts/migrate_v060_to_v070.py [retired from tree]` reads v0.6.0 `tier_state.json` and writes the v0.7.0 schema per `PHASE_PROTOCOL.md §10.1`, preserving `confirmation_failed` rows read-only.
 
-**Lifecycle.** Created once per project at first `/review` (fresh project) or at migration (v0.6.0 → v0.7.0 project). Lives across the project's lifetime. Never overwritten between sessions. Never archived to a round-suffixed copy (unlike `escalation_log.md.<round-id>`) — the ledger itself is cross-round state, and the `phase_entry_log` array inside it is the audit trail.
+**Lifecycle.** Created once per project at the first lifecycle review invocation (fresh project) or at migration (v0.6.0 → v0.7.0 project). Lives across the project's lifetime. Never overwritten between sessions. Never archived to a round-suffixed copy (unlike `escalation_log.md.<round-id>`) — the ledger itself is cross-round state, and the `phase_entry_log` array inside it is the audit trail.
 
 **Structural overview.** The ledger is a JSON object with:
 

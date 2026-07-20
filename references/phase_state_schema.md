@@ -61,7 +61,7 @@ The Planner validates shape on every Phase 0 bootstrap via `scripts/phase_state_
 |---|---|---|---|
 | `schema_version` | string | `"0.7.4"` (exact match) | Hard-coded at v0.7.4. Migration scripts read the string to decide how to parse. |
 | `manuscript_id` | string | project slug (lower-kebab-case) | Stable identifier used in cross-project logs. |
-| `default_final_phase` | enum | `"Ph1"` / `"Ph2"` / `"Ph3"` / `"Ph4"` | Manuscript-wide ceiling. Caps the MCR target per `PHASE_PROTOCOL.md §9`. Writable via `/raise-ceiling` without `--section` (raises manuscript-wide) or at classification time. Renamed at v0.7.4 from `default_final_tier`. |
+| `default_final_phase` | enum | `"Ph1"` / `"Ph2"` / `"Ph3"` / `"Ph4"` | Manuscript-wide ceiling. Caps the MCR target per `PHASE_PROTOCOL.md §9`. Writable through the Planner's raise-ceiling intent (manuscript-wide) or at classification time. Renamed at v0.7.4 from `default_final_tier`. |
 | `fingerprint_mode` | enum | `"strict"` / `"tolerant"` / `"off"` | Controls canonicalization tolerance for `last_scope_fingerprint` drift detection (see §4). |
 | `terminal_phase_reached` | boolean | `true` only after a Ph4 Finalize & Close approval | Flipping to `true` dispatches the Reflector-full for the round and closes the Ph4 cycle. Planner-only write. Renamed at v0.7.4 from `terminal_tier_reached`. |
 | `terminal_round_id` | string \| null | `null`, or the round identifier `round_YYYY-MM-DD_NNN` (format owned by `scripts/round_identifier.py`; contract at `ARTEFACT_FRONTMATTER_SCHEMA.md` F6/F7/F8) | **Additive at v0.7.4** — `schema_version` stays `"0.7.4"`; a legacy **non-terminal** ledger may omit the key. The Planner-created round identifier for the round that reached terminal, persisted so a terminal claim NAMES its final round instead of leaving a reader to infer it. Written **atomically with `terminal_phase_reached: true`** in the same guarded transaction, and cleared to `null` atomically whenever terminal is cleared (reopen, `eg1_ph4_downgrade_to_ph3`, retraction, or starting another round). Planner-only write. Biconditional, enforced by `phase_state_validate` (`TERMINAL_ROUND_ID_INVALID`, BLOCKER): terminal true ⟺ well-formed id; terminal false ⟺ `null`/absent. A legacy **terminal** ledger lacking the key fails closed and requires explicit Planner/user-authorised terminal re-attestation with the id supplied — it is **never** inferred from filenames, mtimes, glob order, event order, `notes`, or historical reports, since inferring it from the artefacts it exists to select would be circular. Consumed by `full_run_contract_check.py::_f8_findings` to select `reviews/final_round_report_<terminal_round_id>.md`. |
@@ -134,7 +134,7 @@ Two **optional** shadow fields are accepted on every `SectionStateObject`:
 
 **`ceiling_locked`** — `boolean`. `true` when the section has been approved at a ceiling below Ph4. Cleared to `false` only on `ceiling_raised` trigger. Ceiling-lock participates in the MCR disjunctive admission rule per `PHASE_PROTOCOL.md §9.4` — a ceiling-locked section with `last_approved_phase == applicable_ceiling` satisfies MCR at Ph4 admission time without needing a `Ph3_converged` state.
 
-**`section_ceiling_override`** — `enum | null`. `null` inherits `default_final_phase`. When set, overrides per-section. Applicable ceiling is `min_by_phase(default_final_phase, section_ceiling_override)`. Writable via `/raise-ceiling --section <path> --to <phase>`.
+**`section_ceiling_override`** — `enum | null`. `null` inherits `default_final_phase`. When set, overrides per-section. Applicable ceiling is `min_by_phase(default_final_phase, section_ceiling_override)`. Writable through a section-scoped Planner raise-ceiling intent.
 
 **`iteration_count_at_current_phase`** — `non-negative integer`. Incremented on each review cycle at the same phase. Resets to `0` on advance or on rollback demotion via retraction. Under Ph3's unbounded loop, increments on every Generator re-dispatch and resets only when the terminal signoff row flips `current_phase` to `Ph3_converged`.
 
@@ -210,9 +210,9 @@ The authoritative enum lives in `PHASE_PROTOCOL.md §6.3` (original 28 values) a
 | 4 | `user_defer` | Explicit pause; no ledger movement. | `Ph_n → Ph_n` |
 | 5 | `fingerprint_reset` | `cumulative_drift_lines` exceeded `tolerant_drift_threshold` (tolerant) or fingerprint mismatch (strict); at Ph3 emits warning instead. | `Ph_n → Ph_n` |
 | 6 | `mcr_admission` | MCR cleared; Ph4 admission manuscript-wide. | `Ph3_converged → Ph4` |
-| 7 | `laggard_clearance_cancelled` | User invoked `/cancel-climb` during MCR (name preserved for audit continuity across the LCR→MCR rename). | No movement |
+| 7 | `laggard_clearance_cancelled` | User explicitly requested cancel-climb during MCR (name preserved for audit continuity across the LCR→MCR rename). | No movement |
 | 8 | `ceiling_locked` | Section reached applicable ceiling. | `Ph_n → Ph_n` |
-| 9 | `ceiling_raised` | `/raise-ceiling` invoked or classification updated. | No phase movement |
+| 9 | `ceiling_raised` | Planner accepted a raise-ceiling intent or classification was updated. | No phase movement |
 | 10 | `override_applied` | `section_ceiling_override` written. | No phase movement |
 | 11 | `retraction` | User explicitly retracts an approval (one of the three monotonicity-exempt triggers). Exact targets are enumerated; arbitrary deep rollback is illegal. | `Ph2 → Ph1`; `Ph3 → Ph2`; `Ph3_converged → Ph3`; `Ph4 → Ph3` |
 | 12 | `ph1_draft_completion_signed` | User signs `ph1_draft_completion.md`. Prerequisite for Ph1→Ph2 advance. | `Ph1 → Ph1` |

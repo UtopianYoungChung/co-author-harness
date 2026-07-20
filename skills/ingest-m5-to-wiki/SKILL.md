@@ -1,5 +1,6 @@
 ---
 name: ingest-m5-to-wiki
+user-invocable: false
 description: Fail-closed Coupling D entry point. Canonical Wiki ingestion of an M5 manuscript is unavailable; returns a structured deferred result only.
 trigger: when the user asks to ingest an M5 paper into the wiki, close out a project with a wiki source entry, materialize Coupling D, or finalize the wiki record for a completed manuscript after G.4 sign-off
 created_by: Reflector (Coupling D formalization)

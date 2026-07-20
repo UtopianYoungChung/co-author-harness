@@ -1,5 +1,6 @@
 ---
 name: run-phase-2
+user-invocable: false
 description: "Legacy compatibility router for the former Ph2 Review & Revise rung. Route to /run-iterate with profile=refine; preserve old invocations without advertising Ph2 as a public stage."
 trigger: when the user says "Ph2 review-and-revise," "run phase 2," "first evaluator pass," or when older project automation invokes /run-phase-2
 version: 0.15.1

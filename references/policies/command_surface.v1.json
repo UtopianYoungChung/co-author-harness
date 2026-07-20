@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0.0",
+  "authority": "Native skills are the only command implementation surface. The public menu is the public list below; hidden skills remain model-invocable unless their own frontmatter states otherwise.",
+  "public": [
+    "accessibility-overlay",
+    "advisor-escalation",
+    "analytic-move-audit",
+    "check-abstract-body",
+    "check-contradictions",
+    "citation-format-pass",
+    "claim-coverage-audit",
+    "classify-manuscript",
+    "definition-derivation-check",
+    "dissolution-move-check",
+    "extend-snowball-incremental",
+    "grammar-mechanics-pass",
+    "grounding-audit",
+    "inherit-snowball-from-wiki",
+    "IS-theory-pass",
+    "narrative-structure-pass",
+    "p-stage-checker",
+    "plugin-commands",
+    "public-interest-accountability-pass",
+    "quick-deterministic",
+    "response-letter-review",
+    "run-draft",
+    "run-finalize",
+    "run-generator-session",
+    "run-iterate",
+    "run-reflection",
+    "seed-snowball-discovery",
+    "sentence-level-pass",
+    "suchman-register-audit",
+    "turabian-format-pass"
+  ],
+  "hidden": {
+    "legacy": [
+      "run-phase-1",
+      "run-phase-2",
+      "run-phase-3",
+      "run-phase-3-stability",
+      "run-phase-4"
+    ],
+    "maintainer": [
+      "repin-register",
+      "tool-contract-roundtrip"
+    ],
+    "unavailable": [
+      "backfill-source-stubs-from-references",
+      "centroid-pass",
+      "graph-grounding-overlay",
+      "ingest-m5-to-wiki",
+      "promote-lessons-to-wiki",
+      "retrofit-concept-grounding"
+    ]
+  }
+}

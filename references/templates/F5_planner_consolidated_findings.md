@@ -41,7 +41,7 @@ aggregated_check_8: CLEAN            # one of {CLEAN, BORDERLINE, MAJOR, BLOCKER
 # Decision surface (required) — menu of next-move options presented to user
 # -------------------------------------------------------------------------
 decision_surface:
-  menu_items_presented: []           # list of slash-command strings, e.g. ["/run-phase-3", "/run-phase-3-stability", "/ph3-terminate"]
+  menu_items_presented: []           # public slash commands or named checkpoint intents, e.g. ["/run-iterate", "terminal-signoff intent"]
   recommended_first: ""              # the first-ranked menu item; "" when no recommendation is defensible
   ceiling_lock_detected: false       # v0.7.4 P-8 ceiling-lock marker
 

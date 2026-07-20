@@ -1,6 +1,6 @@
 # MANIFEST.md — references/ Routing Index
 
-**Status.** This file is an **index, not an authority layer.** It indexes the principal reference files under `references/` (style-substrate guideline files, templates, resources, and examples may be unlisted; the index is not a completeness guarantee) (plus the agents/, skills/, commands/ surfaces an invocation typically consults) and routes the reader by task to the correct file. The **rules themselves** live in those files; MANIFEST.md has no normative content of its own.
+**Status.** This file is an **index, not an authority layer.** It indexes the principal reference files under `references/` (style-substrate guideline files, templates, resources, and examples may be unlisted; the index is not a completeness guarantee) plus the `agents/` and native `skills/` surfaces an invocation typically consults, and routes the reader by task to the correct file. The **rules themselves** live in those files; MANIFEST.md has no normative content of its own.
 
 **Why this file exists.** Before v0.15.0-pre PR-4b, `references/CLAUDE.md §2` enumerated ~13 inline "Before X, read Y" routes that every agent loaded eagerly on every invocation. PR-4b moves that catalog here and slims CLAUDE.md to a small precedence + invocation surface. Agents consult MANIFEST when they need to know which reference applies; they do not read every file in this list.
 
@@ -139,6 +139,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `RESEARCH_ROOT_CLAUDE.md` | Root-level CLAUDE.md for the Research folder |
 | `COWORK_SESSION_INSTRUCTIONS.md` | Cowork-session-specific operating notes |
 | `SKILL_REGISTRY.md` | Per-skill registry (SK-N entries); PR-3b.3 added SK-37/38/39 alias entries |
+| `policies/command_surface.v1.json` | Machine-readable public, legacy-hidden, maintainer-hidden, and unavailable-hidden skill classification; enforced by `scripts/command_surface_check.py` |
 | `_snippets/` | Atomic policy fragments loaded by explicit plugin-root runtime bindings |
 
 ### Retired / migration-only

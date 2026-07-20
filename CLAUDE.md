@@ -21,6 +21,7 @@ python scripts/skill-check.py
 python scripts/version-check.py
 python scripts/distribution-rights-check.py
 python scripts/catalog-check.py
+python scripts/command_surface_check.py
 python scripts/path-hygiene-check.py
 python scripts/snippet-check.py
 python scripts/output_economy_check.py
@@ -52,7 +53,7 @@ The agent **must** read the package component files and follow the orchestration
 | User asks to bootstrap a new research project                           | "Set up a new project for X," "Create the folder structure for Y"                                                                                            |
 | User asks to build, extend, formalize, or audit a BFO-aligned ontology  | "Build this BFO domain ontology," "Audit these ontology definitions," "Formalize this taxonomy"                                                             |
 | User invokes an agent role                                              | "Run the planner," "Evaluate the manuscript," "Reflect on this round"                                                                                        |
-| User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-draft`, `/run-iterate`, `/run-finalize`, legacy `/run-phase-*` compatibility commands, `/run-reflection`, `/run-generator-session`, `/quick-deterministic`, `/check-contradictions` |
+| User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-draft`, `/run-iterate`, `/run-finalize`, `/run-reflection`, `/run-generator-session`, `/quick-deterministic`, `/check-contradictions` |
 | User asks about project lifecycle or milestones                         | "Where is this project?", "What milestone am I at?", "What's next?"                                                                                          |
 
 

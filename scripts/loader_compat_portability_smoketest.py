@@ -50,7 +50,6 @@ def main() -> int:
             "---\nname: sample\ndescription: Synthetic fixture skill.\n---\n\n# Sample\n",
         )
         _write(root / "agents/sample.md", "# Sample agent\n")
-        _write(root / "commands/sample.md", "# Sample command\n")
         _write(root / "README.md", "# Fixture\n")
         _write(root / "CHANGELOG.md", "# Changelog\n")
 

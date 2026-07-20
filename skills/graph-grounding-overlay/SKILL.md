@@ -1,5 +1,6 @@
 ---
 name: graph-grounding-overlay
+user-invocable: false
 description: Unavailable graph-grounding overlay. Returns GRAPH_GOVERNED_GENERATION_UNAVAILABLE even when graph files are fresh and structurally valid; performs no graph-derived review or Wiki mutation.
 trigger: when the user asks to run a graph overlay or invoke Coupling E.2; return the fail-closed no-op only.
 created_by: Reflector (Coupling E.2 pilot)

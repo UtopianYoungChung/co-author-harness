@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""Validate the plugin's single native-skill command surface."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+import yaml
+
+SLASH_NAME = re.compile(
+    r"(?<![A-Za-z0-9_.-])/([a-z][a-z0-9-]{1,63})(?![A-Za-z0-9_.-])"
+)
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def read_frontmatter(path: Path) -> dict:
+    match = re.search(r"^---\r?\n(.*?)\r?\n---", read_text(path), re.S)
+    if not match:
+        raise ValueError(f"{path}: missing YAML frontmatter")
+    parsed = yaml.safe_load(match.group(1)) or {}
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{path}: YAML frontmatter must be a mapping")
+    return parsed
+
+
+def discover_skills(plugin_root: Path) -> dict[str, dict]:
+    skills: dict[str, dict] = {}
+    for path in sorted((plugin_root / "skills").glob("*/SKILL.md")):
+        frontmatter = read_frontmatter(path)
+        name = str(frontmatter.get("name", "")).strip()
+        if not name:
+            raise ValueError(f"{path}: frontmatter name is empty")
+        if name in skills:
+            raise ValueError(f"duplicate skill name: {name}")
+        skills[name] = frontmatter
+    return skills
+
+
+def catalog_names(plugin_root: Path) -> set[str]:
+    path = plugin_root / "skills" / "plugin-commands" / "SKILL.md"
+    names: set[str] = set()
+    for line in read_text(path).splitlines():
+        match = re.match(r"^\|\s*`/([^`]+)`\s*\|", line.strip())
+        if match:
+            names.add(match.group(1).strip())
+    return names
+
+
+def load_policy(plugin_root: Path) -> tuple[set[str], dict[str, set[str]]]:
+    path = plugin_root / "references" / "policies" / "command_surface.v1.json"
+    payload = json.loads(read_text(path))
+    if payload.get("schema_version") != "1.0.0":
+        raise ValueError(f"{path}: schema_version must be 1.0.0")
+    public = set(payload.get("public", []))
+    hidden_raw = payload.get("hidden", {})
+    if not isinstance(hidden_raw, dict):
+        raise ValueError(f"{path}: hidden must be an object")
+    hidden = {category: set(names) for category, names in hidden_raw.items()}
+    return public, hidden
+
+
+def section(text: str, heading: str, next_heading: str) -> str:
+    start = text.find(heading)
+    if start < 0:
+        return ""
+    end = text.find(next_heading, start + len(heading))
+    return text[start:] if end < 0 else text[start:end]
+
+
+def advertised_slash_names(plugin_root: Path) -> dict[str, set[str]]:
+    surfaces: dict[str, set[str]] = {}
+    for rel in ("AGENTS.md", "CLAUDE.md"):
+        path = plugin_root / rel
+        if path.is_file():
+            surfaces[rel] = set(SLASH_NAME.findall(read_text(path)))
+
+    phase_path = plugin_root / "references" / "PHASE_PROTOCOL.md"
+    if phase_path.is_file():
+        excerpt = section(read_text(phase_path), "## 14. Invocation entry points", "## 15.")
+        surfaces["references/PHASE_PROTOCOL.md#14"] = set(SLASH_NAME.findall(excerpt))
+
+    registry_path = plugin_root / "references" / "SKILL_REGISTRY.md"
+    if registry_path.is_file():
+        excerpt = section(read_text(registry_path), "## Planner intents", "## Skill Retirement Criteria")
+        surfaces["references/SKILL_REGISTRY.md#Planner-intents"] = set(
+            SLASH_NAME.findall(excerpt)
+        )
+    return surfaces
+
+
+def validate(plugin_root: Path) -> list[str]:
+    blockers: list[str] = []
+    try:
+        skills = discover_skills(plugin_root)
+        public, hidden_by_category = load_policy(plugin_root)
+        catalog = catalog_names(plugin_root)
+    except (OSError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
+        return [str(exc)]
+
+    hidden: set[str] = set()
+    for category, names in hidden_by_category.items():
+        overlap = hidden & names
+        if overlap:
+            blockers.append(
+                f"command policy repeats hidden names in {category}: {', '.join(sorted(overlap))}"
+            )
+        hidden |= names
+
+    overlap = public & hidden
+    if overlap:
+        blockers.append(f"command policy lists names as both public and hidden: {', '.join(sorted(overlap))}")
+
+    policy_names = public | hidden
+    skill_names = set(skills)
+    missing = sorted(skill_names - policy_names)
+    extra = sorted(policy_names - skill_names)
+    if missing:
+        blockers.append(f"command policy is missing shipped skills: {', '.join(missing)}")
+    if extra:
+        blockers.append(f"command policy lists non-shipped skills: {', '.join(extra)}")
+
+    command_files = sorted((plugin_root / "commands").glob("*.md"))
+    if command_files:
+        blockers.append(
+            "duplicate commands/*.md surface is forbidden; native skills already provide slash commands: "
+            + ", ".join(path.name for path in command_files)
+        )
+
+    for name, frontmatter in skills.items():
+        invocable = frontmatter.get("user-invocable", True)
+        if not isinstance(invocable, bool):
+            blockers.append(f"skills/{name}/SKILL.md: user-invocable must be boolean")
+            continue
+        expected = name in public
+        if invocable != expected:
+            blockers.append(
+                f"skills/{name}/SKILL.md: user-invocable={str(invocable).lower()} "
+                f"but command policy classifies it as {'public' if expected else 'hidden'}"
+            )
+
+    missing_catalog = sorted(public - catalog)
+    extra_catalog = sorted(catalog - public)
+    if missing_catalog:
+        blockers.append(f"/plugin-commands omits public commands: {', '.join(missing_catalog)}")
+    if extra_catalog:
+        blockers.append(f"/plugin-commands exposes hidden or unknown commands: {', '.join(extra_catalog)}")
+
+    for surface, names in advertised_slash_names(plugin_root).items():
+        unknown = sorted(names - public)
+        if unknown:
+            blockers.append(
+                f"{surface} advertises slash names outside the public command policy: "
+                + ", ".join(unknown)
+            )
+    return blockers
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plugin-root", default=None)
+    args = parser.parse_args()
+    plugin_root = (
+        Path(args.plugin_root).resolve()
+        if args.plugin_root
+        else Path(__file__).resolve().parent.parent
+    )
+    blockers = validate(plugin_root)
+    print("COMMAND SURFACE CHECK")
+    print(f"- Plugin root: {plugin_root}")
+    print(f"- Blockers: {len(blockers)}")
+    for blocker in blockers:
+        print(f"[BLOCKER] {blocker}")
+    return 1 if blockers else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

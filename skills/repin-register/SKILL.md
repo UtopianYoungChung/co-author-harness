@@ -1,5 +1,6 @@
 ---
 name: repin-register
+user-invocable: false
 description: Deliberately recompute and version the domain-native register semantic pins, record the package-scoped snapshot and re-pin ledger, and optionally request a Planner-owned project rebind. Use at milestone transitions, after grounded-source admission, after MF-POLICY pin discovery, or for an explicit maintenance re-pin; never use intra-cycle to move an active round's yardstick.
 trigger: when the user asks to repin the reader-accessibility register, a milestone or snowball event changes the register corpus, MF-POLICY reports stale semantic pins, or package maintenance requires a pin audit
 created_by: Codex from accepted Joseph/Cowork/Codex architecture

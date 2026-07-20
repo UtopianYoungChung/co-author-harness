@@ -16,7 +16,7 @@
 
 ## Why this project
 
-**co-author-harness** ships the *Research and Academic Paper Writing Package* as a maintainable tree you can open as a **plugin root** or embed beside a research workspace. It coordinates **Planner → Evaluator → Generator → Reflector** work, tracks progress on a per-section lifecycle ledger at `reviews/phase_state.json`, and routes the public stage commands `/run-draft`, `/run-iterate`, and `/run-finalize` without abandoning the binding rules in `references/GROUNDING_PROTOCOL.md`. Legacy `run-phase-*` names remain compatibility entry points.
+**co-author-harness** ships the *Research and Academic Paper Writing Package* as a maintainable tree you can open as a **plugin root** or embed beside a research workspace. It coordinates **Planner → Evaluator → Generator → Reflector** work, tracks progress on a per-section lifecycle ledger at `reviews/phase_state.json`, and routes the public stage commands `/run-draft`, `/run-iterate`, and `/run-finalize` without abandoning the binding rules in `references/GROUNDING_PROTOCOL.md`. Legacy `run-phase-*` skills remain hidden compatibility bodies for internal routing.
 
 The harness root is **canonical** (formerly `research-writing-harness/`; `paper-harness/` is retired). Consolidation, ownership, and history: [`docs/agent-instructions/harness-architecture.md`](docs/agent-instructions/harness-architecture.md) · [`docs/agent-instructions/harness-history.md`](docs/agent-instructions/harness-history.md). Workspace contract (parent tree): `ROOT_ARCHITECTURE_INDEX.md` (workspace root — lives outside this repo).
 
@@ -31,7 +31,7 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 
 ### Skill catalog
 
-See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the slash-command table; the count is derived by `scripts/catalog-check.py` from the contents of `skills/`.
+See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the supported slash-command table. Visibility is governed by [`references/policies/command_surface.v1.json`](references/policies/command_surface.v1.json) and checked against native skill frontmatter by `scripts/command_surface_check.py`.
 
 ---
 
@@ -118,6 +118,7 @@ From the repo root, with **Python 3** and **PyYAML** installed:
 python scripts/skill-check.py
 python scripts/version-check.py
 python scripts/catalog-check.py
+python scripts/command_surface_check.py
 python scripts/path-hygiene-check.py
 python scripts/snippet-check.py
 python scripts/output_economy_check.py
@@ -142,6 +143,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.34.0** | Replaces the duplicated skill-plus-command-shim inventory with one native-skill surface; exposes only supported user commands, hides legacy/maintainer/unavailable contracts without deleting them, and machine-checks the menu against a command-surface policy. Phantom slash names are reclassified as real public skills or Planner intents. |
 | **0.33.2** | Makes Git-source Claude/Codex installs byte-equivalent to the audited release policy: six packaged snippet expansions become explicit runtime file bindings, and a release source-parity gate refuses any missing, extra, duplicate, or rewritten source member beyond generated provenance. |
 | **0.33.1** | Repairs Codex discovery of the repository-root plugin without duplicating the package or creating a distribution branch: the marketplace uses a dual-loader remote URL source, while shared validators keep manifest identity, version/license/description parity, source/repository agreement, and archive checks connected across source shapes. |
 | **0.33.0** | Systematic package repair: machine-readable Contract Kernel, canonical lifecycle and role contracts, transactional scoped-writer receipts and M1–M5 close, truthful capability dispositions, unified entrypoints, one behavioral fixture authority, Windows-portable commit-bound packaging, and forward-looking distribution-rights enforcement with package-authored replacements. Deferred graph/Wiki authority and public `/centroid-pass` execution remain explicitly unavailable. |

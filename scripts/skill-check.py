@@ -4,7 +4,7 @@ co-author-harness — skill-check.py
 
 Static integrity checks for package skills and manifest contract:
 1) Validate all skills/*/SKILL.md frontmatter and required fields.
-2) Verify /plugin-commands command table matches shipped skill names.
+2) Verify /plugin-commands matches user-invocable shipped skill names.
 3) Verify SKILL_REGISTRY contains every shipped skill name.
 4) Report registry entries that do not correspond to shipped skills (warning).
 5) Validate plugin manifest contract (required keys and forbidden hooks field).
@@ -164,20 +164,31 @@ def main() -> int:
     warnings.extend(skill_warnings)
 
     discovered_skill_names = set(skill_name_to_path.keys())
+    public_skill_names: Set[str] = set()
+    for name, path in skill_name_to_path.items():
+        try:
+            frontmatter, _ = parse_frontmatter(path)
+        except ValueError:
+            continue
+        user_invocable = frontmatter.get("user-invocable", True)
+        if not isinstance(user_invocable, bool):
+            blockers.append(f"{path}: 'user-invocable' must be boolean when present")
+        elif user_invocable:
+            public_skill_names.add(name)
 
     # /plugin-commands parity check
     try:
         command_catalog = parse_plugin_commands(plugin_root)
-        missing_in_catalog = sorted(discovered_skill_names - command_catalog)
-        extra_in_catalog = sorted(command_catalog - discovered_skill_names)
+        missing_in_catalog = sorted(public_skill_names - command_catalog)
+        extra_in_catalog = sorted(command_catalog - public_skill_names)
         if missing_in_catalog:
             blockers.append(
-                "/plugin-commands is missing commands for shipped skills: "
+                "/plugin-commands is missing user-invocable shipped skills: "
                 + ", ".join(missing_in_catalog)
             )
         if extra_in_catalog:
             blockers.append(
-                "/plugin-commands lists commands that are not shipped skills: "
+                "/plugin-commands lists hidden or non-shipped skills: "
                 + ", ".join(extra_in_catalog)
             )
     except Exception as exc:  # noqa: BLE001
@@ -209,6 +220,7 @@ def main() -> int:
     print("SKILL INTEGRITY CHECK")
     print(f"- Plugin root: {plugin_root}")
     print(f"- Shipped skills discovered: {len(discovered_skill_names)}")
+    print(f"- User-invocable skills: {len(public_skill_names)}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")
 
@@ -222,4 +234,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

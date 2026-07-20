@@ -20,7 +20,7 @@ v0.7.0 replaces the v0.6.0 Progressive Approval Staircase (four rungs of progres
 - **Ph2 Review & Revise** — Planner + Evaluator + Generator + Reflector-lightweight. Produce an externally-reviewable draft that has survived one full-file Evaluator pass. Exit artefact: user-approved `reviews/ph2_review_completion.md`. M4 begins as the manuscript deliverable; Ph2 entry is gated by the consumed M1→M2→M3 chain.
 - **Ph3 Iterate & Converge** — Full four-agent loop (Reflector-lightweight). Converge the M4 manuscript the human researcher actively declares satisfactory. User-gated unbounded iteration loop with a cumulative signoff file. Exit artefact: terminal row appended to `reviews/ph3_convergence_signoff.md` bearing `is_terminal: true`, which flips `current_phase: Ph3 → Ph3_converged`.
 - **Ph4 Finalize & Close** — Full four-agent loop (Reflector-full). Consume accepted M4, ship the M5 submission-bound artefact, and close the institutional-learning loop. MCR- and milestone-gated admission (§9). Exit artefact: `reviews/ph4_ship_signoff.md` + G.4 sign-off.
-- **T4R Response-Letter Sibling** — renamed from T3R at v0.7.0 to reflect its terminal-artefact nature. Entered independently via `/review-letter`; does **not** interact with the main ladder or consume `phase_state.json`.
+- **T4R Response-Letter Sibling** — renamed from T3R at v0.7.0 to reflect its terminal-artefact nature. Entered independently via `/response-letter-review`; does **not** interact with the main ladder or consume `phase_state.json`.
 
 **Advisor MCP (optional external feedback — plugin-bridged).** For projects that want **submission-defensibility–oriented** external consultation, the package recommends two **scheduled** `advisor-escalation` moments (see `references/ADVISOR_MCP.md`): **EP-1** after Ph2 review completion, before deep Ph3 iteration; **EP-2** after all in-scope sections reach `Ph3_converged`, before MCR clearance and Ph4. The co-author-harness **plugin** exposes `/advisor-escalation`; the **host** must connect the **advisor** MCP server so the `consult_advisor` tool is available. Filed `reviews/advisor_consultation_*.md` artefacts are auditable; they do **not** replace user approval on the ladder, `EXTERNAL_VERIFIERS` citation checks, or MCR/Ph4 gates.
 
@@ -28,7 +28,7 @@ Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human appr
 
 **Retired at v0.7.0.** Depth-of-review tier vocabulary, Confirmation Mode at Ph2 entry, the Generator Self-Ph1 Verdict (CLEAN / SUSPECT / DIRTY), escalation gate EG-2 (Self-Ph1 verdict mismatch), the "Laggard Clearance Report" name, the `Ph4_ready` enum value, and `AGENT_ORCHESTRATION.md §10.1`'s artefact-anchored milestone definitions (superseded by §4 here). See §11 for the full retirement ledger.
 
-**Preserved from v0.6.0.** The four-agent architecture (Planner / Evaluator / Generator / Reflector), the EYgp P-stage vocabulary (P0 / P1 / P2), the fingerprint policy (strict / tolerant / off), the monotonicity invariant on `last_approved_phase`, the `/run-phase-N` override surface (EG-6), the `/cancel-climb` and `/raise-ceiling` entry points, the external-verifier class contract (Class 1 / 1.5 / 2 / 3), the SAFEGUARD Layer's six v0.5.x checks (extended to eight at v0.7.2 with Check 7 Inter-Sentential Logical Connective Audit and Check 8 Reader-Experience / Prose Architecture Audit; see `SAFEGUARD_LAYER.md` and `docs/release-notes/RELEASE_NOTES_v0.7.2.md`), and the v0.6.0 `phase_entry_log` audit discipline (extended with the §6.3 trigger-enum additions and the §6.3a row-shape contracts).
+**Preserved from v0.6.0.** The four-agent architecture (Planner / Evaluator / Generator / Reflector), the EYgp P-stage vocabulary (P0 / P1 / P2), the fingerprint policy (strict / tolerant / off), the monotonicity invariant on `last_approved_phase`, the hidden `run-phase-N` compatibility bodies (EG-6), the Planner's cancel-climb and raise-ceiling intents, the external-verifier class contract (Class 1 / 1.5 / 2 / 3), the SAFEGUARD Layer's six v0.5.x checks (extended to eight at v0.7.2 with Check 7 Inter-Sentential Logical Connective Audit and Check 8 Reader-Experience / Prose Architecture Audit; see `SAFEGUARD_LAYER.md` and `docs/release-notes/RELEASE_NOTES_v0.7.2.md`), and the v0.6.0 `phase_entry_log` audit discipline (extended with the §6.3 trigger-enum additions and the §6.3a row-shape contracts).
 
 **Reflector re-expansion — explicit reversal of v0.6.0 §9.2.** v0.6.0 scoped the scheduled Reflector to Ph4-only, calling this a "real capability reduction at intermediate phases" and deferring re-expansion to v0.6.1. v0.7.0 reverses this deferral and reinstates the Reflector in *lightweight* mode at Ph1, Ph2, and Ph3, reserving *full* mode for Ph4. The grounding-integrity, divergence, drift, and reflexivity checks that a lightweight Reflector performs are now stage-specific safety surfaces that cannot be deferred to Ph4 without compromising the lifecycle handoffs. Cost consequence: Reflector-lightweight invocation adds 60–120 seconds per round per section on the grounding-audit path; `TOKEN_BUDGET_PROTOCOL.md` absorbs this overhead.
 
@@ -256,7 +256,7 @@ The batching contract preserves the full per-section audit trail while collapsin
 
 #### 3.3.6 Ceiling-lock termination ranking (v0.7.4, P-8)
 
-New at v0.7.4 as proposal **P-8** of the v0.7.4 economic-efficiency package (see Ph.D. Research-root `CLAUDE.md §12.10`). §9.4 already defines the MCR admission disjunction — a section is MCR-cleared if either `current_phase == Ph3_converged` or (`ceiling_locked == true` AND `last_approved_phase == applicable_ceiling`). What §9.4 does not specify is *when the Planner should propose that a section enter the ceiling-locked state* versus continuing to iterate. Before v0.7.4 the decision was implicit: a section kept iterating until the user manually escalated a `/cancel-climb` or the `convergence_metric` crossed the stability threshold on its own. The iter-7 diagnostic attributed roughly 7% of the observed cost overrun (n=1) to rounds that continued iterating on a section within a narrow band of the stability threshold while a single BORDERLINE advisory persisted unresolved — budget spent on diminishing returns rather than on material convergence.
+New at v0.7.4 as proposal **P-8** of the v0.7.4 economic-efficiency package (see Ph.D. Research-root `CLAUDE.md §12.10`). §9.4 already defines the MCR admission disjunction — a section is MCR-cleared if either `current_phase == Ph3_converged` or (`ceiling_locked == true` AND `last_approved_phase == applicable_ceiling`). What §9.4 does not specify is *when the Planner should propose that a section enter the ceiling-locked state* versus continuing to iterate. Before v0.7.4 the decision was implicit: a section kept iterating until the user explicitly asked to cancel the climb or the `convergence_metric` crossed the stability threshold on its own. The iter-7 diagnostic attributed roughly 7% of the observed cost overrun (n=1) to rounds that continued iterating on a section within a narrow band of the stability threshold while a single BORDERLINE advisory persisted unresolved — budget spent on diminishing returns rather than on material convergence.
 
 P-8 materialises a **termination-ranking and proposal** contract. The contract does **not** change the §9.4 admission rule (the disjunction is unchanged) and does **not** add a new monotonicity-exempt trigger. It defines a Planner-authored pre-admission mechanism that surfaces ceiling-lock candidates to the user at iteration boundaries, ranked by distance-to-ceiling.
 
@@ -279,7 +279,7 @@ P-8 materialises a **termination-ranking and proposal** contract. The contract d
 
 - **Relationship to `[CONVERGENCE-STABLE]`.** `[CONVERGENCE-STABLE]` (§3.3, three-round sub-threshold) and the P-8 tension rule (two-round in-band plus BORDERLINE) are orthogonal signals. A section can receive `[CONVERGENCE-STABLE]` without ever entering tension (CLEAN verdicts throughout), and can enter tension without ever receiving `[CONVERGENCE-STABLE]` (metric inside the band but never strictly sub-threshold). When both fire simultaneously (three consecutive sub-threshold iterations, the last two of which also sit inside the tension band with a BORDERLINE advisory), the Planner surfaces both advisories in the same Phase 5.5 presentation and the user elects between a normal `Ph3_converged` close and a ceiling-lock close; the two paths differ in `ceiling_locked` state but both are MCR-admissible via §9.4.
 
-- **Backward compatibility.** Pre-v0.7.4 projects carry no `ceiling_lock_proposal_*.md` artefacts and no `[CEILING-LOCK-STABLE]` markers in historical rows. The Reflector does not retroactively file `R-Refl-Ceil-*` findings against pre-v0.7.4 rows; migration is *absent-means-compliant*. Projects that entered `ceiling_locked: true` state under pre-v0.7.4 paths (explicit user `/cancel-climb` plus classification edit) remain valid under §9.4 without a retrofit proposal artefact.
+- **Backward compatibility.** Pre-v0.7.4 projects carry no `ceiling_lock_proposal_*.md` artefacts and no `[CEILING-LOCK-STABLE]` markers in historical rows. The Reflector does not retroactively file `R-Refl-Ceil-*` findings against pre-v0.7.4 rows; migration is *absent-means-compliant*. Projects that entered `ceiling_locked: true` state under pre-v0.7.4 paths (explicit cancel-climb intent plus classification edit) remain valid under §9.4 without a retrofit proposal artefact.
 
 The termination-ranking contract preserves user agency (ceiling-lock is *always* a user-gated election) while closing the budget surface: a BORDERLINE-plus-in-band section no longer silently consumes iteration budget until the user intervenes. The Planner surfaces the termination candidate explicitly, and the user's active election becomes the audit trail.
 
@@ -302,7 +302,7 @@ The termination-ranking contract preserves user agency (ceiling-lock is *always*
 
 ### 3.5 T4R — Response-Letter Sibling (renamed from T3R)
 
-The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at v0.7.0 to reflect its terminal-artefact nature. A response letter is a finalization artefact by definition. The skill (`response-letter-review`) retains its entry point (`/review-letter`), does **not** consume the main manuscript's `phase_state.json`, and runs a compressed four-stage pass: draft → review → iterate → finalize, packaged in a single skill invocation. The Reflector-full responsibilities are invoked at T4R close: lessons from the review round, optional Coupling D ingestion of the rebuttal.
+The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at v0.7.0 to reflect its terminal-artefact nature. A response letter is a finalization artefact by definition. The skill is invoked as `/response-letter-review`, does **not** consume the main manuscript's `phase_state.json`, and runs a compressed four-stage pass: draft → review → iterate → finalize, packaged in a single skill invocation. The Reflector-full responsibilities are invoked at T4R close: lessons from the review round, optional Coupling D ingestion of the rebuttal.
 
 ### 3.6 Terminal-phase (Ph4) composition — normative skill list
 
@@ -598,16 +598,16 @@ where:
 ### 8.2 Rejection and defer
 
 - **Rejection.** Writes a `user_rejection` row; `iteration_count_at_current_phase += 1`; `current_phase` unchanged. The Planner re-dispatches the Generator with the rejection findings. A per-phase soft cap of **5 consecutive rejections** at the same phase surfaces a Planner advisory suggesting the user reconsider scope or ceiling; the cap is not a hard block.
-- **Defer.** User pauses the climb. Writes a `user_defer` row; `current_phase` unchanged. A subsequent `/review` invocation resumes at the deferred section.
+- **Defer.** User pauses the climb. Writes a `user_defer` row; `current_phase` unchanged. A subsequent matching public lifecycle invocation resumes at the deferred section.
 
 ### 8.3 Auto-chaining
 
 Approval of a cycle **auto-invokes** the next cycle in two contexts:
 
 1. **MCR climb** within the Manuscript Convergence Report (§9): each phase cycle's approval auto-invokes the next cycle in the declared sequence.
-2. **Single-section climb** with `--chain`: if the user passed `/review --chain`, approval at phase Ph for section S auto-invokes `/review` at the next phase for the same section.
+2. **Single-section climb** with `--chain`: if the user passed `--chain` to the public lifecycle router, approval at phase Ph for section S auto-invokes the matching public lifecycle router at the next phase for the same section.
 
-Outside these contexts, approval **mutates state** (advances the ledger) but does **not** auto-invoke the next cycle. The user must re-invoke `/review` explicitly.
+Outside these contexts, approval **mutates state** (advances the ledger) but does **not** auto-invoke the next cycle. The user must invoke the matching public lifecycle command explicitly.
 
 ### 8.4 Ph3 iteration-count semantics
 
@@ -615,7 +615,7 @@ Under the unbounded Ph3 loop, `iteration_count_at_current_phase` functions as th
 
 ### 8.5 Explicit phase-down
 
-*Replaces v0.6.0 §6.4.* A user may explicitly phase-down a section via `/review --section S --phase-down` or by editing `classification.md` to set `section_ceiling_override` below `current_phase`. The Planner:
+*Replaces v0.6.0 §6.4.* A user may explicitly request a phase-down for section S or edit `classification.md` to set `section_ceiling_override` below `current_phase`. The Planner:
 
 1. Sets `current_phase ← override` (or previous `last_approved_phase`, whichever is higher).
 2. Sets `last_approved_phase ← override - 1` (if `override - 1` ≥ null; otherwise null).
@@ -650,11 +650,11 @@ Preserved from v0.6.0 §5.5 unchanged:
 
 ### 9.1 Target phase
 
-When `/run-phase-N` for N ≥ 3 or `/ship` is invoked and `phase_state.json` shows sections below the target phase, the Planner builds a **Manuscript Convergence Report (MCR)**. The MCR's target is **the maximum phase permitted by the project's applicable ceilings**, not unconditionally Ph4:
+When `/run-iterate` or `/run-finalize` is invoked and `phase_state.json` shows sections below the target phase, the Planner builds a **Manuscript Convergence Report (MCR)**. The MCR's target is **the maximum phase permitted by the project's applicable ceilings**, not unconditionally Ph4:
 
-- `/ship` or `/run-phase-4` invoked and every section has `applicable_ceiling(S) == Ph4` → target = Ph4.
-- `/ship` or `/run-phase-4` invoked and any section has `applicable_ceiling(S) < Ph4` → return error **before** building the plan: `"Ship target unavailable: §{S} has a sub-Ph4 ceiling. Raise the ceiling or run /run-phase-3 against section-group scope."`
-- `/run-phase-3` invoked with laggards → target = Ph3; sections with `applicable_ceiling(S) < Ph3` are excluded with a note.
+- `/run-finalize` invoked and every section has `applicable_ceiling(S) == Ph4` → target = Ph4.
+- `/run-finalize` invoked and any section has `applicable_ceiling(S) < Ph4` → return error **before** building the plan: `"Finalize target unavailable: §{S} has a sub-Ph4 ceiling. Raise the ceiling or run /run-iterate against section-group scope."`
+- `/run-iterate` invoked with laggards → target = Ph3; sections with `applicable_ceiling(S) < Ph3` are excluded with a note.
 
 ### 9.2 Structure (user-presented)
 
@@ -698,7 +698,7 @@ Approval semantics for this run:
     cycle's approval immediately auto-invokes the next cycle in the sequence.
   - Each cycle still presents a binary approval gate. Rejecting any cycle halts
     the climb and returns control to you.
-  - You may cancel the climb mid-sequence with /cancel-climb; phase_state.json
+  - You may ask to cancel the climb mid-sequence; phase_state.json
     records the partial progress.
 ```
 
@@ -724,7 +724,7 @@ When EG-7 (size-class change) fires at Ph4, the affected section drops to `curre
 ### 9.6 Approval paths
 
 - **Approve** → `mcr_admission` row is written. The climb begins; subsequent cycle approvals auto-invoke the next cycle.
-- **Reject** → no auto-invocation. User returns to an empty `/review` prompt to run cycles manually.
+- **Reject** → no auto-invocation. User returns to the appropriate public lifecycle command to run cycles manually.
 - **Modify** → user deselects laggards (temporarily defer a section, set a `section_ceiling_override` down to the section's `current_phase` to remove it from the clearance target, etc.). Deferrals are logged.
 
 ### 9.7 Iteration reserve
@@ -834,18 +834,22 @@ Migration is **one-way.** Rollback to v0.6.0 requires the archived `reviews/tier
 
 ## 14. Invocation entry points
 
-The seven first-class commands that route through this protocol are defined in `ROUTING_SPINE.md §2`:
+The supported user-facing lifecycle commands are:
 
-- `/review` — **default entry.** Planner-resident smart dispatch; reads `phase_state.json`; advances per §8.1 or triggers the MCR per §9.
-- `/run-phase-1`, `/run-phase-2`, `/run-phase-3`, `/run-phase-4` — **explicit phase entry** (EG-6 override). Logs `override_applied`; the Planner additionally logs `eg6_override_inconsistency_warning` if the target is inconsistent with the section's current state (§7).
-- `/ship` — alias for `/run-phase-4` with extra validation that every section has `applicable_ceiling(S) == Ph4`.
-- `/review-letter` — **T4R sibling ladder entry.** Invokes `response-letter-review` on a response-letter document.
-- `/cancel-climb` — **mid-climb escape.** Writes `laggard_clearance_cancelled` (name preserved for audit continuity across the LCR→MCR rename); halts auto-advance at the next cycle boundary.
-- `/raise-ceiling` — **per-section ceiling raise.** Writes `ceiling_raised`; unlocks `ceiling_locked` if set.
+- `/run-draft` — draft-stage M1→M4 work.
+- `/run-iterate` — post-draft review and revision, including `refine`, `structural`, `deep`, and `stability` profiles.
+- `/run-finalize` — Ph4 admission, MCR validation, and close-out.
+- `/response-letter-review` — independent T4R response-letter review.
 
-`/review --subsection` overrides the default top-level section resolution for a specific invocation.
+The Planner also recognizes natural-language review, cancel-climb,
+raise-ceiling, re-engagement, and terminal-signoff intents. These are state
+transitions or checkpoint elections, not installed slash commands. Hidden
+`run-phase-*` skills remain compatibility bodies for internal routing and old
+automation; they are not advertised in the user command menu.
 
-`/review --chain` enrols a single section into auto-advance mode (cycle-to-cycle auto-invocation within one section).
+Section or subsection scope arguments override default scope resolution for a
+specific public lifecycle invocation. `--chain` enrols one section into
+cycle-to-cycle auto-advance.
 
 ---
 
@@ -861,7 +865,7 @@ When `classification.md` has no `section_groups:` field, the Planner infers from
 - Headings matching `/^(discussion|conclusion|implications?|future work)/i` → group `discussion`.
 - Unrecognized headings → own single-section group with a `# inferred unmatched` advisory.
 
-The inferred grouping is written back to `classification.md` with a `# inferred` comment and surfaced to the user at next `/review`.
+The inferred grouping is written back to `classification.md` with a `# inferred` comment and surfaced to the user at the next public lifecycle invocation.
 
 ### 15.2 Plan-originated constants (reproduced from draft-5 §11)
 

@@ -1,5 +1,6 @@
 ---
 name: run-phase-1
+user-invocable: false
 description: "Compatibility body for the public /run-draft stage. Ph1 Plan & Draft bootstraps section state, records P-stage, and dispatches Generator drafting without Evaluator engagement."
 trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "start the ladder," begins a new section, or when the Planner bootstraps section state for a fresh section
 version: 0.7.4
@@ -73,7 +74,7 @@ The advance rule is canonically specified in `references/PHASE_PROTOCOL.md §4` 
 - **User approves the M4 Ph1 exit → advance to Ph2.** Planner writes a `ph1_draft_completion_signed` evidence row, then a phase-changing `user_approval` row in the same writer session. `current_phase: Ph2`, `last_approved_phase: Ph1`, `iteration_count_at_current_phase := 0`.
 - **User Approve with `applicable_ceiling == "Ph1"` → ceiling-lock.** Planner writes a `ph1_draft_completion_signed` row, a `user_approval` row, and a `ceiling_locked` row. `ceiling_locked: true`; no advance.
 - **User Reject → section stays at Ph1.** Planner writes a `user_rejection` row with the user's reason in the `notes` field (≤ 280 chars per `§3a.1`). `iteration_count_at_current_phase += 1`. If the counter exceeds `per_phase_budget × 1.5` (NEW-H-7), Planner surfaces the iteration-exhaustion warning and asks whether to apply `section_ceiling_override` or proceed.
-- **User Defer → no movement.** Planner writes a `user_defer` row; no iteration increment; the section resumes on the next `/review`.
+- **User Defer → no movement.** Planner writes a `user_defer` row; no iteration increment; the section resumes on the next `/run-draft` or matching lifecycle invocation.
 - **Retraction.** The only way to move the phase backward at Ph1 is `retraction`. At Ph1 this is rare — usually the user is starting fresh rather than rolling back.
 
 ## 5. Retired surfaces at v0.7.0 (previously visible at Ph1)

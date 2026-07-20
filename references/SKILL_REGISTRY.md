@@ -171,7 +171,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-11. `response-letter-review`
 - **File:** `skills/response-letter-review/SKILL.md`
-- **Pattern:** Six-part response letter review — opening strength, discipline provenance, tone audit (defensive vs. constructive matrix), coverage completeness, scope hedging, and SAFEGUARD integrity checks. Response letters are treated as a manuscript class under the Lifecycle-Phase Ladder rather than a sibling ladder: the Planner classifies the response-letter document, routes the appropriate phase work, and preserves traceability between reviewer points, manuscript changes, and response prose. Invoked via `/review-letter` or directly as `response-letter-review`.
+- **Pattern:** Six-part response letter review — opening strength, discipline provenance, tone audit (defensive vs. constructive matrix), coverage completeness, scope hedging, and SAFEGUARD integrity checks. Response letters are treated as a manuscript class under the Lifecycle-Phase Ladder rather than a sibling ladder: the Planner classifies the response-letter document, routes the appropriate phase work, and preserves traceability between reviewer points, manuscript changes, and response prose. Invoke directly as `/response-letter-review`; a natural-language review-letter request may route here through the Planner.
 - **Created:** 2026-04-11; reframed 2026-04-20 for v0.7.0 (T3R sibling ladder retired)
 - **Source:** Tier 3 skill build — `research_paper_writing_guidelines.md §8` response letter rules had no standalone review entry point; without the skill, agents miss edit traceability checks and structured priority-fix ranking
 - **Tier:** Package
@@ -294,7 +294,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Tier:** Package
 - **Status:** Active
 - **Depends on:** Current `skills/*/SKILL.md` set in the package. Command list should be updated whenever skills are added or retired.
-- **Sibling:** SK-04 `classify-manuscript` (recommended first command after `/plugin-commands` for review workflows); the `/review` orchestration command (Planner-dispatched, see Orchestration Commands below) is the primary v0.7.0 entry point; SK-25 `run-phase-1`, SK-29 `run-phase-2`, SK-26 `run-phase-3`, SK-27 `run-phase-4` are the per-rung explicit-dispatch siblings on the Lifecycle-Phase Ladder.
+- **Sibling:** SK-04 `classify-manuscript` (recommended first command after `/plugin-commands` for review workflows); public lifecycle routers SK-37 `run-draft`, SK-38 `run-iterate`, and SK-39 `run-finalize`; hidden compatibility bodies SK-25 `run-phase-1`, SK-29 `run-phase-2`, SK-26 `run-phase-3`, and SK-27 `run-phase-4`.
 
 ### SK-24. `public-interest-accountability-pass`
 - **File:** `skills/public-interest-accountability-pass/SKILL.md`
@@ -526,26 +526,29 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ---
 
-## Orchestration Commands (v0.7.0)
+## Planner intents (not slash commands)
 
-Net-new at v0.6.0; updated for current vocabulary (Lifecycle-Phase Ladder, Manuscript Convergence Report, `Ph3_converged`). These are **Planner-bound commands**, not skill files — they appear in the Planner's dispatch table at `agents/planner.md §Phase 2.5` and each resolves to one or more of the skills above under the ladder semantics of `references/PHASE_PROTOCOL.md`. They are registered here so users can discover them via SK-23 `plugin-commands` and the Evaluator can cross-reference them in findings.
+These natural-language intents appear in the Planner dispatch contract but have
+no skill file and are not advertised by `/plugin-commands`. They are retained
+here only so Planner and Evaluator prose can name the behavior without implying
+an installed command surface.
 
-### CMD-1. `/review`
+### INTENT-1. Review
 - **Dispatch target:** Planner Phase 2.5 command table.
 - **Pattern:** Default phase-agnostic review command. The Planner resolves scope precedence (1. `--section <heading-path>`, 2. `--subsection <heading-path>`, 3. most recent change per heading-path lookup, 4. first unlocked section below the applicable ceiling, 5. all-at-ceiling report) and then dispatches the matching `run-phase-N` skill per the section's `current_phase` in `reviews/phase_state.json`. The retired Confirmation Mode shortcut path is no longer attempted.
-- **Sibling:** `/run-phase-1..4` are the explicit-dispatch analogs when the user wants to bypass the scope-inference rule.
+- **Sibling:** `/run-draft`, `/run-iterate`, and `/run-finalize` are the explicit public lifecycle commands.
 
-### CMD-2. `/review-letter`
+### INTENT-2. Review letter
 - **Dispatch target:** Planner Phase 2.5 command table; resolves to SK-11 `response-letter-review`.
 - **Pattern:** Entry point for response-letter review. The retired T3R sibling ladder is no longer invoked; instead, response letters classify as manuscript-class artifacts under the Lifecycle-Phase Ladder per `paper_type` and phase declarations in `reviews/classification.md`. Escalation-out rules per `PHASE_PROTOCOL.md` apply when the response letter triggers a Ph4 Finalize & Close manuscript pass.
 
-### CMD-3. `/cancel-climb`
+### INTENT-3. Cancel climb
 - **Dispatch target:** Planner Phase 5.5 post-approval and Phase 6 Manuscript Convergence Report cycles.
 - **Pattern:** User-initiated cancellation of an in-flight climbing cycle (MCR section-by-section advance, Ph4 admission sequence, or multi-section ladder advance). Updates `reviews/phase_state.json` with `trigger: mcr_climbing_cancelled` in `phase_entry_log` (renamed from `laggard_clearance_cancelled`); preserves `last_approved_phase` so no work is lost. Grounding: `PHASE_PROTOCOL.md`.
 
-### CMD-4. `/raise-ceiling`
+### INTENT-4. Raise ceiling
 - **Dispatch target:** Planner Phase 2.5 command table; writes to `reviews/phase_state.json`.
-- **Pattern:** User-initiated upward revision of the applicable ceiling on a section, either by raising `section_ceiling_override` (per-section) or by raising `default_final_phase` (manuscript-wide). Emits `trigger: ceiling_raised` in `phase_entry_log`. The converse operation — locking a section at a lower ceiling — happens automatically on approval at that phase; `/cancel-climb` cannot lower the ceiling.
+- **Pattern:** User-initiated upward revision of the applicable ceiling on a section, either by raising `section_ceiling_override` (per-section) or by raising `default_final_phase` (manuscript-wide). Emits `trigger: ceiling_raised` in `phase_entry_log`. The converse operation — locking a section at a lower ceiling — happens automatically on approval at that phase; cancel-climb intent cannot lower the ceiling.
 
 ---
 

@@ -313,7 +313,7 @@ aggregated_severity:
 aggregated_check_8:      # string, one of {CLEAN, BORDERLINE, MAJOR, BLOCKER}; worst-case of F1 per-section aggregates
 
 decision_surface:
-  menu_items_presented:  # list of strings; e.g. [/run-phase-3, /run-phase-3-stability, /ph3-terminate, /ph3-reject]
+  menu_items_presented:  # list of strings; e.g. [/run-iterate, terminal-signoff intent, reject election]
   recommended_first:     # string; the first-ranked menu item
   ceiling_lock_detected: # boolean; v0.7.4 P-8 ceiling-lock marker
 

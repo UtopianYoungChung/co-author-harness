@@ -153,14 +153,9 @@
           "file": "references/AGENT_CONTRACTS.md",
           "assertion": "18-field",
           "value": "18"
-        },
-        {
-          "file": "skills/plugin-commands/SKILL.md",
-          "assertion": "18-field section state",
-          "value": "18"
         }
       ],
-      "note": "Derived-count plane added 2026-07-07 (deferred-register item 5): counts fixed in the coherence audit are guarded like version strings; schema file is authority."
+      "note": "Derived-count plane added 2026-07-07 (deferred-register item 5): counts fixed in the coherence audit are guarded like version strings; schema file is authority. The v0.34.0 command-surface cleanup deliberately removed the catalog's implementation-detail copy, leaving the schema and operational consumers as the registered assertions."
     },
     "trigger_enum_count": {
       "authority": "references/phase_state_schema.md",

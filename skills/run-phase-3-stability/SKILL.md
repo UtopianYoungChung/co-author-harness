@@ -1,5 +1,6 @@
 ---
 name: run-phase-3-stability
+user-invocable: false
 description: "Legacy compatibility router for the former Ph3 stability sub-mode. Route to /run-iterate with profile=stability; the stability envelope is now an iterate profile."
 trigger: when the user says "run a stability pass," "Ph3 stability check," "byte-stable iteration," "S-0 gate check," or older automation invokes /run-phase-3-stability
 version: 0.15.1

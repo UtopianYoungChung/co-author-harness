@@ -3,12 +3,12 @@
 
 Asserts that for every public/compatibility pair:
   (1) both `skills/<name>/SKILL.md` files exist and parse;
-  (2) both `commands/<name>.md` shims exist and parse;
+  (2) public skills are user-invocable and compatibility skills are hidden;
   (3) both names appear in `references/SKILL_REGISTRY.md`;
-  (4) both names appear in the `skills/plugin-commands/SKILL.md` catalog;
+  (4) only public names appear in the `skills/plugin-commands/SKILL.md` catalog;
   (5) the public SKILL.md owns the public vocabulary and names its
       compatibility body;
-  (6) the compatibility skill and command identify themselves as such;
+  (6) the compatibility skill identifies itself as such;
   (7) the capability registry exposes exactly the public member as public;
   (8) legacy Ph2 remains a compatibility router to /run-iterate refine, not
       a new public stage alias;
@@ -66,15 +66,14 @@ def test_canonical_and_alias_skill_files_exist() -> None:
             )
 
 
-def test_canonical_and_alias_command_shims_exist() -> None:
+def test_public_visible_and_compatibility_hidden() -> None:
     for public, compatibility in STAGE_PAIRS:
-        for name in (public, compatibility):
-            path = PLUGIN_ROOT / "commands" / f"{name}.md"
-            assert path.is_file(), f"missing command shim: {path}"
-            fm = _read_frontmatter(path)
-            assert fm.get("name") == name, (
-                f"{path}: frontmatter name={fm.get('name')!r} != {name!r}"
-            )
+        public_fm = _read_frontmatter(PLUGIN_ROOT / "skills" / public / "SKILL.md")
+        compatibility_fm = _read_frontmatter(
+            PLUGIN_ROOT / "skills" / compatibility / "SKILL.md"
+        )
+        assert public_fm.get("user-invocable", True) is True
+        assert compatibility_fm.get("user-invocable") is False
 
 
 def test_both_names_in_skill_registry() -> None:
@@ -89,14 +88,19 @@ def test_both_names_in_skill_registry() -> None:
             )
 
 
-def test_both_names_in_plugin_commands_catalog() -> None:
+def test_only_public_names_in_plugin_commands_catalog() -> None:
     catalog = (PLUGIN_ROOT / "skills" / "plugin-commands" / "SKILL.md").read_text(
         encoding="utf-8"
     )
     for public, compatibility in STAGE_PAIRS:
-        for name in (public, compatibility):
-            pat = re.compile(rf"^\|\s*`/{re.escape(name)}`\s*\|", re.MULTILINE)
-            assert pat.search(catalog), f"plugin-commands catalog has no `/{name}` row"
+        public_pat = re.compile(rf"^\|\s*`/{re.escape(public)}`\s*\|", re.MULTILINE)
+        compatibility_pat = re.compile(
+            rf"^\|\s*`/{re.escape(compatibility)}`\s*\|", re.MULTILINE
+        )
+        assert public_pat.search(catalog), f"plugin-commands catalog has no `/{public}` row"
+        assert not compatibility_pat.search(catalog), (
+            f"plugin-commands catalog exposes hidden compatibility skill `/{compatibility}`"
+        )
 
 
 def test_public_body_owns_vocabulary_and_names_compatibility_body() -> None:
@@ -118,15 +122,12 @@ def test_public_body_owns_vocabulary_and_names_compatibility_body() -> None:
 
 def test_compatibility_surfaces_are_explicit() -> None:
     for public, compatibility in STAGE_PAIRS:
-        for path in [
-            PLUGIN_ROOT / "skills" / compatibility / "SKILL.md",
-            PLUGIN_ROOT / "commands" / f"{compatibility}.md",
-        ]:
-            text = path.read_text(encoding="utf-8")
-            assert "compatibility" in text.lower(), (
-                f"{path}: legacy surface must identify itself as compatibility"
-            )
-            assert public in text, f"{path}: must route readers to `{public}`"
+        path = PLUGIN_ROOT / "skills" / compatibility / "SKILL.md"
+        text = path.read_text(encoding="utf-8")
+        assert "compatibility" in text.lower(), (
+            f"{path}: legacy surface must identify itself as compatibility"
+        )
+        assert public in text, f"{path}: must route readers to `{public}`"
 
 
 def test_capability_exposure_matches_public_ownership() -> None:
@@ -143,35 +144,23 @@ def test_ph2_legacy_surface_routes_to_iterate_refine() -> None:
     assert (PLUGIN_ROOT / "skills" / PH2_LEGACY / "SKILL.md").is_file(), (
         f"legacy {PH2_LEGACY} skill went missing"
     )
-    assert (PLUGIN_ROOT / "commands" / f"{PH2_LEGACY}.md").is_file(), (
-        f"legacy {PH2_LEGACY} command went missing"
-    )
     skill = (PLUGIN_ROOT / "skills" / PH2_LEGACY / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    command = (PLUGIN_ROOT / "commands" / f"{PH2_LEGACY}.md").read_text(
-        encoding="utf-8"
-    )
-    for text, label in ((skill, "skill"), (command, "command")):
-        assert "compatibility" in text.lower(), f"{label} must say compatibility"
-        assert "run-iterate" in text, f"{label} must route to run-iterate"
-        assert "refine" in text, f"{label} must route with refine profile"
+    assert "compatibility" in skill.lower(), "skill must say compatibility"
+    assert "run-iterate" in skill, "skill must route to run-iterate"
+    assert "refine" in skill, "skill must route with refine profile"
 
 
 def test_run_phase_3_stability_routes_to_iterate_stability() -> None:
-    """Stability is now an /run-iterate profile with a legacy command shim."""
+    """Stability is now an /run-iterate profile with a hidden legacy skill."""
     assert (PLUGIN_ROOT / "skills" / STABILITY_LEGACY / "SKILL.md").is_file()
-    assert (PLUGIN_ROOT / "commands" / f"{STABILITY_LEGACY}.md").is_file()
     skill = (PLUGIN_ROOT / "skills" / STABILITY_LEGACY / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    command = (PLUGIN_ROOT / "commands" / f"{STABILITY_LEGACY}.md").read_text(
-        encoding="utf-8"
-    )
-    for text, label in ((skill, "skill"), (command, "command")):
-        assert "compatibility" in text.lower(), f"{label} must say compatibility"
-        assert "run-iterate" in text, f"{label} must route to run-iterate"
-        assert "stability" in text, f"{label} must route with stability profile"
+    assert "compatibility" in skill.lower(), "skill must say compatibility"
+    assert "run-iterate" in skill, "skill must route to run-iterate"
+    assert "stability" in skill, "skill must route with stability profile"
     registry = (PLUGIN_ROOT / "references" / "SKILL_REGISTRY.md").read_text(
         encoding="utf-8"
     )
@@ -183,9 +172,9 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     tests = [
         test_canonical_and_alias_skill_files_exist,
-        test_canonical_and_alias_command_shims_exist,
+        test_public_visible_and_compatibility_hidden,
         test_both_names_in_skill_registry,
-        test_both_names_in_plugin_commands_catalog,
+        test_only_public_names_in_plugin_commands_catalog,
         test_public_body_owns_vocabulary_and_names_compatibility_body,
         test_compatibility_surfaces_are_explicit,
         test_capability_exposure_matches_public_ownership,

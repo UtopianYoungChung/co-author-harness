@@ -267,11 +267,11 @@ phase_transitions:
   cancel_climb:
     trigger: laggard_clearance_cancelled
     presented_to_user: true
-    log_detail: "/cancel-climb invoked during MCR cycle {cycle_id}; advancement halted; no section state lost."
+    log_detail: "Cancel-climb intent accepted during MCR cycle {cycle_id}; advancement halted; no section state lost."
     user_template: |
-      ► /cancel-climb accepted. MCR cycle {cycle_id} halted.
+      ► Cancel-climb accepted. MCR cycle {cycle_id} halted.
       No section rolled back; sections that climbed this cycle retain current_phase and last_approved_phase.
-      Ph4 admission deferred. Resume with `/review` on any unready section or `/raise-ceiling` to widen the target.
+      Ph4 admission deferred. Resume with `/run-iterate` on any unready section or ask the Planner to raise a ceiling.
 
   # Trigger 8: ceiling_locked (approval at section-capped phase)
   ceiling_locked:
@@ -280,8 +280,8 @@ phase_transitions:
     log_detail: "Section {section_heading_path} reached applicable_ceiling = {section_ceiling}; ceiling_locked := true."
     user_template: |
       ► {section_heading_path} reached its applicable ceiling = {section_ceiling} and is now locked at {prev_phase}.
-      Further `/review` on this section refuses-to-escalate. Raise the ceiling with
-      `/raise-ceiling --section {section_heading_path}` if you want to climb higher.
+      Further iteration on this section refuses-to-escalate. Ask the Planner to
+      raise the ceiling for {section_heading_path} if you want to climb higher.
 
   # Trigger 9: ceiling_raised
   ceiling_raised:
@@ -290,7 +290,7 @@ phase_transitions:
     log_detail: "section_ceiling_override for {section_heading_path} raised to {override_phase}."
     user_template: |
       ► Ceiling raised on {section_heading_path}: section_ceiling_override := {override_phase}.
-      If the section was at a lower ceiling lock, `ceiling_locked` is cleared and climbing resumes on next `/review`.
+      If the section was at a lower ceiling lock, `ceiling_locked` is cleared and climbing resumes on the next `/run-iterate`.
 
   # Trigger 10: override_applied (per-section override written at classification time)
   override_applied:
@@ -329,7 +329,7 @@ phase_transitions:
     log_detail: "User deferred approval on {section_heading_path} at {prev_phase}; no ledger movement."
     user_template: |
       ► Deferred on {section_heading_path} at {prev_phase}. No ledger movement;
-      resume with `/review --section {section_heading_path}` when ready.
+      resume with `/run-iterate --section {section_heading_path}` when ready.
 
   # Trigger 11: retraction
   retraction:
@@ -373,8 +373,8 @@ phase_transitions:
 
       {stale_section_list}
 
-      To clear: sign a ReengagementSignoffRow on each stale section (`/review --section <path>` runs the Ph3-iterate
-      loop, then append a re-engagement row). The MCR replays automatically on next `/review`.
+      To clear: sign a ReengagementSignoffRow on each stale section (`/run-iterate --section <path>` runs the Ph3-iterate
+      loop, then append a re-engagement row). The MCR replays automatically on the next `/run-iterate`.
       This is the Workflow Failure-Point defence (PHASE_PROTOCOL.md §3.3.1 / §9.3). E-MCR-BLOCKED-Ph3-STALE.
 
   # Trigger 22: eg7_mcr_readmission_after_class_change
@@ -448,7 +448,7 @@ escalation_gates:
       A Rule 1–7 grounding violation surfaced at Ph4 Finalize & Close. The section is DEMOTED Ph4 → Ph3
       so the iterate-until-stable loop can incorporate the fresh evidence. See
       reviews/grounding_threat_{cycle_id}.md for the specific rule and source.
-      MCR will replay on next `/review`; Ph4 re-admission follows a new TerminalSignoffRow.
+      MCR will replay on the next `/run-iterate`; Ph4 re-admission follows a new TerminalSignoffRow.
 
   EG3_cross_scope_reference:
     fires_at: "Ph2 only; any finding or fix that references material outside the section's heading_path"
@@ -511,7 +511,7 @@ ph3_loop:
       {iteration_number}) AND the most recent SAFEGUARD pass shows Check 8 aggregate verdict CLEAN (or BORDERLINE
       with no BLOCKER Sub-checks). The section is eligible for a TerminalSignoffRow, which flips current_phase
       Ph3 → Ph3_converged.
-      Append the signoff with `/ph3-terminate --section {section_heading_path}`.
+      Ask the Planner to record terminal signoff for {section_heading_path}.
       W-CONVERGENCE-STABLE.
 
   # v0.7.2 — Check 8 accessibility gate, PHASE_PROTOCOL.md §3.3.3.
@@ -528,7 +528,7 @@ ph3_loop:
       Ph3 iteration budget.
       To clear: the Generator runs a Ph3 iteration that resolves the failing Check 8 Sub-check(s) A–F named in
       reviews/safeguard_layer_results.md, followed by an Evaluator re-check that confirms clearance. On the next
-      `/review` the gate re-evaluates.
+      `/run-iterate` the gate re-evaluates.
       This is the Reader-Experience defence (PHASE_PROTOCOL.md §3.3.3; Hard Constraint #8 per Ph.D.-root CLAUDE.md §13).
 
   # v0.7.2 — advisory, non-blocking.
@@ -541,7 +541,7 @@ ph3_loop:
       BORDERLINE in the most recent pass (one MAJOR Sub-check; no BLOCKER). The Evaluator has filed the specific
       Sub-check(s) in reviews/safeguard_layer_results.md. If you proceed to signoff, the BORDERLINE verdict is
       recorded against the section for Reflector Phase 2g recurrence accounting (Ph.D.-root CLAUDE.md §13.4);
-      if you prefer to clear it first, run one more Ph3 iteration before `/ph3-terminate`.
+      if you prefer to clear it first, run one more Ph3 iteration before the terminal-signoff election.
       This is advisory — not a block.
 
   # v0.7.2 — bound to trigger 28 (ph3_accessibility_blocker_surfaced).
@@ -561,7 +561,7 @@ ph3_loop:
       ph3_last_activity_at is {stale_delta_days} days old (budget {stale_budget_days} days).
       No ledger rollback occurred — Option A semantics compute staleness on every Planner pass without a schema
       field. MCR admission is BLOCKED until a ReengagementSignoffRow is appended (append with
-      `/ph3-reengage --section {section_heading_path}`).
+      a section-scoped re-engagement intent for {section_heading_path}).
       W-Ph3-STALE.
 
   ph3_activity_null:
@@ -892,7 +892,7 @@ response_letter:
   t4r_entry:
     trigger: initial_dispatch
     presented_to_user: true
-    log_detail: "T4R sibling opened on response letter via `/review-letter`."
+    log_detail: "T4R sibling opened on response letter via `/response-letter-review`."
     user_template: |
       ► T4R opened on response letter. This is the sibling ladder and does not advance the Ph1→Ph4 staircase.
       Dispatching SK-11 `response-letter-review`: seven checks + SAFEGUARD 1/4/5 + Rule 7a (if Class-1 verifiers cited).
@@ -945,7 +945,7 @@ integrity:
         - `reviews/migration_report_v073_to_v074.md` (Pass 1 — Tier → Phase rename)
         - `reviews/migration_report_convergence_log_v074.md` (Pass 2 — P-4 convergence-log split)
 
-      Planner cannot accept `/review` until you confirm both migration reports. Reply "confirmed" to proceed
+      Planner cannot accept a lifecycle review invocation until you confirm both migration reports. Reply "confirmed" to proceed
       or ask about specific rows. Sections renamed `current_tier` → `current_phase` retain their full
       phase_entry_log history; rows dated before the v0.7.4 release carry `model_used: null` under
       absent-means-null (R-Refl-MA-5 MINOR suppressed for pre-release rows).
@@ -982,9 +982,9 @@ mcr:
 
       Approval paths:
         A) Approve MCR auto-climb: Planner walks each unready section to Ph3_converged, iterate-then-terminate.
-        B) Raise specific ceilings before climbing (`/raise-ceiling --section <path> --to <phase>`).
-        C) Re-engage stale sections (`/ph3-reengage --section <path>`) — required before Ph4 admission.
-        D) Cancel the climb (`/cancel-climb`) and ship at current mixed-ceiling.
+        B) Ask the Planner to raise specific ceilings before climbing.
+        C) Ask the Planner to re-engage stale sections — required before Ph4 admission.
+        D) Ask the Planner to cancel the climb and ship at current mixed-ceiling.
 
   climb_step:
     presented_to_user: true
@@ -1007,7 +1007,7 @@ mcr:
       ► [MCR-BLOCKED-Ph3-STALE] on {manuscript_id}.
       MCR admission is BLOCKED: {stale_section_count} section(s) carry computed [Ph3-STALE] = true
       (budget {stale_budget_days} days). Ph4 admission is refused by `pre_phase_advance_check.py` clause (f) at
-      manuscript scope. Sign a ReengagementSignoffRow on each stale section, then re-invoke `/review`.
+      manuscript scope. Sign a ReengagementSignoffRow on each stale section, then re-invoke `/run-iterate`.
 
       Stale sections:
       {stale_section_list}

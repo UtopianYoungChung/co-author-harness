@@ -17,7 +17,7 @@ check that is diagnosable from the .plugin file alone:
      no non-ASCII bytes in member paths, no path components >255 bytes,
      no reserved Windows basenames).
   6. Required-files presence (every skills/<name>/ has SKILL.md; agents/
-     and commands/ are all .md; README.md and CHANGELOG.md at archive root).
+     are all .md; README.md and CHANGELOG.md at archive root).
   7. SKILL.md frontmatter validity (CRLF-tolerant regex; PyYAML parse;
      `name` and `description` populated; description <= 500 chars per
      release-gate.sh Phase 0.2 safety margin).
@@ -363,17 +363,6 @@ def check_required_files(report: Report, plugin_path: Path) -> None:
                     f"{len(non_md_agents)} non-md files in agents/: {non_md_agents[0]}")
     else:
         report.emit("PASS", "C6.agents", f"All {len(agent_files)} agent files are .md")
-
-    command_files = sorted(n for n in namelist
-                            if n.startswith("commands/") and not n.endswith("/"))
-    if command_files:
-        non_md_commands = [n for n in command_files if not n.endswith(".md")]
-        if non_md_commands:
-            report.emit("WARN", "C6.commands",
-                        f"{len(non_md_commands)} non-md files in commands/: {non_md_commands[0]}")
-        else:
-            report.emit("PASS", "C6.commands",
-                        f"All {len(command_files)} command files are .md")
 
     if "README.md" in namelist:
         report.emit("PASS", "C6.readme", "README.md present at archive root")

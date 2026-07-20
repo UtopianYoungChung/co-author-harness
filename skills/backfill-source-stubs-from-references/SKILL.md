@@ -1,5 +1,6 @@
 ---
 name: backfill-source-stubs-from-references
+user-invocable: false
 description: >-
   Fail-closed Coupling A-revised entry point. Canonical wiki source-stub generation
   from references/REFERENCES.md is unavailable; returns a structured deferred result only.

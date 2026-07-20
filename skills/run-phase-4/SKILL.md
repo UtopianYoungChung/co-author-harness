@@ -1,5 +1,6 @@
 ---
 name: run-phase-4
+user-invocable: false
 description: "Compatibility body for the public /run-finalize stage. Ph4 Finalize & Close requires MCR admission, external verification, G.4, and Reflector-full close-out."
 trigger: when the user says "Ph4 finalize-and-close," "run phase 4," "ship this," "submission-bound pass," "G.4 sign-off," or when the Planner advances after MCR admission
 version: 0.8.0
@@ -86,16 +87,16 @@ The Planner emits the MCR when:
 
 - The user invokes this skill and any section is below `Ph3_converged` or any section is `[Ph3-STALE]`.
 - A section exhausts its per-phase iteration budget + 50% reserve and the Planner detects that the section is blocking Ph4 admission.
-- The user invokes `/raise-ceiling` and the new ceiling affects the MCR's pass/fail status.
+- The user asks the Planner to raise a ceiling and the new ceiling affects the MCR's pass/fail status.
 
 ### 2.4 MCR approval paths
 
 The user may:
 
 - **A — Approve MCR auto-climb.** Planner walks each unready section rung-by-rung per `PHASE_PROTOCOL.md §9`.
-- **B — Raise specific ceilings before climbing** (`/raise-ceiling --section <path> --to <phase>`).
-- **C — Re-engage stale sections** (`/t3-reengage --section <path>`) — required before Ph4 admission when `[Ph3-STALE]` is computed true.
-- **D — Cancel the climb** (`/cancel-climb`) and ship at current mixed-ceiling.
+- **B — Raise specific ceilings before climbing** through a section-scoped Planner intent.
+- **C — Re-engage stale sections** through a section-scoped Planner intent — required before Ph4 admission when `[Ph3-STALE]` is computed true.
+- **D — Cancel the climb** through the Planner's cancel-climb intent and ship at current mixed-ceiling.
 
 ### 2.5 Iteration reserve (NEW-H-7)
 
@@ -125,7 +126,7 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §9` for the shared four-agent 
    - no section carries computed `[Ph3-STALE] == true`;
    - every section has `pre_mcr_deep_pass_completed == true` (absent reads as false at the gate).
 
-   If any condition fails, emit the MCR per §2 and halt. Do not proceed to Ph4 dispatch until the MCR clears. A stale section blocks with `E-MCR-BLOCKED-Ph3-STALE` and the `[MCR-BLOCKED-Ph3-STALE]` notification; the user must append a `ReengagementSignoffRow` on each stale section (`/t3-reengage`) before the MCR can replay. A section missing the deep-pass flip blocks with **`E-MCR-PRE-DEEP-PASS-REQUIRED`** — schedule a `check_profile: deep` `run-phase-3` iteration per §2.1 item 4.
+   If any condition fails, emit the MCR per §2 and halt. Do not proceed to Ph4 dispatch until the MCR clears. A stale section blocks with `E-MCR-BLOCKED-Ph3-STALE` and the `[MCR-BLOCKED-Ph3-STALE]` notification; the user must ask the Planner to append a `ReengagementSignoffRow` on each stale section before the MCR can replay. A section missing the deep-pass flip blocks with **`E-MCR-PRE-DEEP-PASS-REQUIRED`** — schedule a `check_profile: deep` `/run-iterate` pass per §2.1 item 4.
 2. **`pre_phase_advance_check.py` (terminal run, all seven clauses).** Runs the full guardrail per `PHASE_PROTOCOL.md §7.3`, with clause (f) (MCR clearance including the ceiling-lock disjunction and `[Ph3-STALE] = false` on every section at admission time) in its manuscript-wide mode. Any failure refuses admission.
 3. **MCR admission (`mcr_admission` trigger).** Planner writes an `mcr_admission` row (trigger 6) to the manuscript-scope log. Ph4 admission is granted.
 4. **Ph4 full Evaluator pass.** Dispatch the Evaluator for the Ph4 pass. Runs the Ph3 dispatch sequence (`skills/run-phase-3/SKILL.md §5`, steps 4–12 — the **`deep`** envelope) with three modifications:
@@ -204,7 +205,7 @@ Additional Markdown artefacts at Ph4 severity floors (see `skills/run-phase-3/SK
 ## 10. Escalation paths
 
 - **MCR cannot clear (sections permanently stuck).** User decides: apply ceiling overrides to exclude stuck sections from Ph4 (R-02 respects overrides), retract stuck sections for substantial redrafting, or adjust `default_final_phase` to a rung every section can reach.
-- **MCR blocked by [Ph3-STALE].** User signs `ReengagementSignoffRow` on each stale section via `/t3-reengage`. MCR replays automatically on next `/review`.
+- **MCR blocked by [Ph3-STALE].** User signs `ReengagementSignoffRow` on each stale section through the Planner's re-engagement intent. MCR replays automatically on the next `/run-iterate`.
 - **MCR blocked by `E-MCR-PRE-DEEP-PASS-REQUIRED`.** User runs a full `run-phase-3` iteration with F6 `check_profile: deep` on each affected section; Planner flips `pre_mcr_deep_pass_completed` on close (`phase_state_schema.md` §2.1). MCR replays when all sections read `true`.
 - **G.4 BLOCKER after two resolution cycles.** Planner presents the structural issue and prompts for retraction to Ph3 for more substantial repair.
 - **External verifier reachability failure.** Gate for Ph4 — Planner notifies the user and holds dispatch until the verifier is reachable or the user explicitly waives the requirement with a documented rationale.

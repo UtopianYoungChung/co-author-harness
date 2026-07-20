@@ -1,5 +1,6 @@
 ---
 name: run-phase-3
+user-invocable: false
 description: "Ph3 Iterate & Converge — unbounded loop. F6 check_profile routes Evaluator envelope (`refine`|`structural`|`deep`). Track convergence_metric; surface [CONVERGENCE-STABLE] on three stable rows, no Check 8 BLOCKER. Exit via TerminalSignoffRow. MCR: pre_mcr_deep_pass_completed=true. Trigger: \"Ph3,\" \"iterate,\" \"converge,\" or after Ph2."
 trigger: when the user says "Ph3 iterate-and-converge," "run phase 3," "another iteration," "converge this section," or when the Planner advances after Ph2 approval
 version: 0.8.0
@@ -48,7 +49,7 @@ The shared convergence-metric contract (scalar vs P-12 object, journal shape, `[
 
 **[CONVERGENCE-BLOCKED-ACCESSIBILITY].** If the line-diff metric is stable but canonical Check 8 evidence recomputes to BLOCKER, the Planner emits `[CONVERGENCE-BLOCKED-ACCESSIBILITY]`. A–H membership and G/H inclusion are derived from the profile and validated transition event projection. VE never contributes. No prose flag or classification date changes the gate.
 
-**[CONVERGENCE-BORDERLINE-ACCESSIBILITY].** If the line-diff metric is stable and Check 8 carries MAJORs but no BLOCKERs, the Planner emits `[CONVERGENCE-BORDERLINE-ACCESSIBILITY]` on the `/t3-terminate` attempt: the write succeeds, but the user is prompted to confirm the open MAJORs have been reviewed and accepted. The MAJOR list is captured in the `TerminalSignoffRow`’s `notes` field for audit trail.
+**[CONVERGENCE-BORDERLINE-ACCESSIBILITY].** If the line-diff metric is stable and Check 8 carries MAJORs but no BLOCKERs, the Planner emits `[CONVERGENCE-BORDERLINE-ACCESSIBILITY]` on a terminal-signoff election: the write succeeds, but the user is prompted to confirm the open MAJORs have been reviewed and accepted. The MAJOR list is captured in the `TerminalSignoffRow`’s `notes` field for audit trail.
 
 **`paragraph_hash_map`** on journal rows is optional at v0.8.0 (P-10); when present it comes from `scripts/paragraph_hash_map.py` at Planner Phase 0.6 per protocol.
 
@@ -101,7 +102,7 @@ Each full Ph3 iteration is opened under a fresh F6 `planner_dispatch_plan` (`ART
 11. **Generator dispatch (if BLOCKERs or MAJORs exist).** Generator applies fixes per `agents/generator.md §Phase 2`. No Self-Ph1 Verdict.
 12. **Evaluator re-check.** Confirm flagged findings are resolved or document remaining issues in a short re-check report.
 13. **Planner: convergence-metric + journal update.** Populate `reviews/convergence_journal.jsonl` per §3.3.4 (P-12 object when the v0.8.0 writer is active; scalar or migrated object per migration state). Update `sections[].convergence_metric` for the section ledger. Record Check 8 aggregate and accessibility trajectory. Optionally attach `paragraph_hash_map` when Planner Phase 0.6 ran `paragraph_hash_map.py`. Append a `ph3_convergence_signoff_row` (non-terminal) to `reviews/ph3_convergence_signoff.md` if the user signs the iteration. Refresh `ph3_last_activity_at`. **`pre_mcr_deep_pass_completed`:** the Planner sets `sections[].pre_mcr_deep_pass_completed: true` on the Phase 5.5 log-write that **closes** a Ph3 iteration whose F6 declared `check_profile: deep` (`phase_state_schema.md` §2.1); `refine` / `structural` / stability sub-mode iterations do **not** satisfy that safety net.
-14. **Stable check.** Apply §3.2 (three-round object rule vs two-round legacy scalar rule). Surface `[CONVERGENCE-STABLE]` when the window is satisfied. The user may invoke `/t3-terminate --section <heading_path>` to append a `TerminalSignoffRow`.
+14. **Stable check.** Apply §3.2 (three-round object rule vs two-round legacy scalar rule). Surface `[CONVERGENCE-STABLE]` when the window is satisfied. The user may ask the Planner to append a `TerminalSignoffRow` for `<heading_path>`.
 15. **Iteration boundary.** Planner writes a `ph3_iteration_round` row (trigger 17). The next iteration starts; the loop is unbounded.
 
 ## 6. Termination — `TerminalSignoffRow`

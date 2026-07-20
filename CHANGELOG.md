@@ -6,6 +6,42 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.34.0 — 2026-07-20
+
+### One native command surface
+
+**What changed.** Claude Code now loads the plugin through native
+`skills/*/SKILL.md` commands only. The obsolete `commands/*.md` redirect layer
+was removed after the installed host reported each redirect and its same-named
+skill as separate inventory entries. The supported user menu is reduced to the
+active manuscript, review, formatting, evidence, advisor, and snowball
+workflows. Legacy lifecycle bodies, maintainer operations, and truthful
+unavailable capability contracts remain installed but are hidden from the
+user's slash menu with `user-invocable: false`.
+
+**Policy and enforcement.** `references/policies/command_surface.v1.json` is
+the machine-readable classification authority. `scripts/command_surface_check.py`
+refuses duplicate command files, incomplete classification, frontmatter/menu
+drift, and hidden catalog rows. Synthetic regressions cover duplicate shims,
+visibility drift, and hidden-row leakage. The skill and catalog checks now
+compare `/plugin-commands` with user-invocable skills rather than every
+installed capability.
+
+**Drift repair.** `/review`, `/ship`, `/review-letter`, `/cancel-climb`,
+`/raise-ceiling`, and Ph3 termination/re-engagement tokens had been described
+as slash commands without corresponding installed skills. Public behavior now
+routes through `/run-draft`, `/run-iterate`, `/run-finalize`, and
+`/response-letter-review`; cancellation, ceiling changes, re-engagement, and
+terminal signoff are named Planner intents or checkpoint elections rather than
+fabricated command surfaces.
+
+**Versioning.** This is a pre-1.0 minor release because it intentionally changes
+menu visibility at the user's request. The hidden legacy skills remain present
+and model-invocable; only the duplicated and misleading user-facing surface is
+removed.
+
+---
+
 ## v0.33.2 — 2026-07-20
 
 ### Remote-install and release-byte parity
