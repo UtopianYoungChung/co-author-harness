@@ -26,6 +26,7 @@ From this directory, with Python 3 and PyYAML available:
 ```bash
 python scripts/skill-check.py
 python scripts/version-check.py
+python scripts/distribution-rights-check.py
 python scripts/catalog-check.py
 python scripts/path-hygiene-check.py
 python scripts/snippet-check.py

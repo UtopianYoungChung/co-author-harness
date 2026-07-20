@@ -10,13 +10,13 @@ Use this guide systematically during the revision phases of the project.
 
 **Before applying any item below, identify the stage of the deliverable.** Items in this checklist are calibrated to different stages of the research lifecycle. Applying P2 items to a P0 paper will pull the draft into the wrong register and force premature commitment; applying P0 items to a P2 paper will look uncommitted and unfocused.
 
-The three stages, drawn from the project's problem-setting framework:
+The three stages, defined here as the package's operational problem-setting convention:
 
 - **P0 — Collected readings on the problem phenomenon.** Deliverable: bibliographic corpus + bullet points + tags (e.g. *#V0* = contains potential test case; *#V0a* = includes analysis/reasoning). Goal: assemble the materials from which a problem will eventually be characterized. Output artifact: bib list and notes.
 - **P1 — Characterization of the problem phenomenon.** Deliverable: a synthesis, digest, or interpretation of the phenomenon, possibly organized around classification dimensions or a theoretical framework. Sectioned paragraphs, tables, charts. A hierarchical map of problems and existing solutions. Output artifact: *Motivation* chapter / problem-statement document.
 - **P2 — Definition of research problems / questions / objectives.** Deliverable: the *specific technical problems* the research will address (e.g. "Given X, how to obtain Y"), specific enough to identify alternative technical approaches and tradeoffs. Research problems labeled as **q1, q11, q21…**; detailed sub-problems uncovered during downstream stages (S1, S2, S3). Output artifact: Research Objectives / Thesis Research Proposal.
 
-> See the project's P0/P1/P2 reference (problem-setting column) for the canonical definitions. The authoritative source is Prof. Eric Yu's *Research Process and Artifacts* workbook, registered in `GROUND_TRUTH.md` and available verbatim at `references/EYgp_Research_process_and_artifacts.md`. The "P2 vocabulary" list below ("research questions," "resolution," "answers") is package-level shorthand for reader-convention tells — only "research questions" is a direct workbook term; "resolution" and "answers" are package-recognised tells that do not appear in the workbook itself (see `reviews/ground_truth_verification_2026-04-17.md` §2.1, row Anti-a).
+> `GROUND_TRUTH.md` records the package-owned, non-verbatim interpretation and its limits. These definitions support package routing only; exact advisor-specific or EYgp conformance requires a lawfully supplied project-local source. The "P2 vocabulary" list below is a package review heuristic, not attributed source wording.
 
 **How to use the stage tags below.** Items in Parts 1–4 are now tagged **[P0]**, **[P1]**, **[P2]**, or **[all]**. Items tagged for a stage *above* yours are **deferred, not skipped** — they apply at a later stage of the same project. Items tagged for a stage *below* yours should already be satisfied by earlier work.
 

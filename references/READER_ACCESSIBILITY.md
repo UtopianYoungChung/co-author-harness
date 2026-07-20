@@ -79,7 +79,7 @@ The sentence is technically precise, but defined constructs do not themselves su
 
 The revision uses active first person, transparent connectives, and an explicit bridge into the methodological claim. Those are functional observations. `thresholds.register` owns their aggregation and verdict.
 
-Historical and positive-model calibration passages live in `references/examples/model_prose_corpus.md`. Calibration examples may support judgment but cannot become an independent threshold authority.
+Package-authored synthetic calibration examples live in `references/examples/model_prose_corpus.md`. They may illustrate a function but cannot become an independent threshold or verdict authority.
 
 ## Runtime and provenance
 

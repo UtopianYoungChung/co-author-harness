@@ -74,3 +74,7 @@ scripts/audit/reviews/
 # (cleanup 2026-05-27) ignore local scratch dir and stray .claude-plugin test zips
 scratch/
 .claude-plugin/*.zip
+
+# Lawfully acquired local source texts are user-local inputs. They must never
+# enter Git or either package builder.
+references/resources/local/

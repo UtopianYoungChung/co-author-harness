@@ -1,0 +1,97 @@
+{
+  "schema": "coauthor-distribution-rights/v1",
+  "package_license": "MIT",
+  "history_scope": "current-tree-and-future-artifacts-only",
+  "notice_path": "THIRD_PARTY_NOTICES.md",
+  "local_only_roots": [
+    "references/resources/local/"
+  ],
+  "materials": [
+    {
+      "id": "abbott-digital-paper-raw-extract",
+      "disposition": "excluded",
+      "historical_paths": ["references/resources/abbott_digital_paper_extract.txt"],
+      "forbidden_sha256": ["020995c571f96fead7ba06786c5701d3d252780bd5d4d63dbc7c63d1d74aa418"],
+      "replacement_paths": ["references/abbott_2014_research_process_guidelines.md"],
+      "replacement_sha256": {"references/abbott_2014_research_process_guidelines.md": "04038d5d7724be97820a6e359c11b6329224062ac9c7f40e5964b4a5d0414719"}
+    },
+    {
+      "id": "blue-book-grammar-raw-extract",
+      "disposition": "excluded",
+      "historical_paths": ["references/resources/blue_book_grammar_extract.txt"],
+      "forbidden_sha256": ["d0834f8e120394d6f60cc9814631f5013185d7491a88af95e7c95bdc04ec00b0"],
+      "replacement_paths": ["references/blue_book_grammar_guidelines.md"],
+      "replacement_sha256": {"references/blue_book_grammar_guidelines.md": "7fab06054d379e833ca0b509837354a956fe56d5ecaf5aa5c8fa301346e74072"}
+    },
+    {
+      "id": "turabian-chicago-raw-extract",
+      "disposition": "excluded",
+      "historical_paths": ["references/resources/turabian_chicago_extract.txt"],
+      "forbidden_sha256": ["801bd509d3c9cee5796eecd5663b585e98b159c25b86daab439f31152377ed2e"],
+      "replacement_paths": ["references/turabian_chicago_guidelines.md"],
+      "replacement_sha256": {"references/turabian_chicago_guidelines.md": "4d2b72a8a48b7f8c4761251122cb0af3330bdbf13e854a9db93197defddbc4fe"}
+    },
+    {
+      "id": "vidal-suchman-verbatim-calibration-corpus",
+      "disposition": "replaced-with-synthetic",
+      "historical_paths": [
+        "references/examples/model_prose_corpus.md",
+        "docs/superpowers/specs/2026-04-27-model-prose-corpus-accessibility-design.md",
+        "docs/superpowers/plans/2026-04-27-model-prose-corpus-implementation.md"
+      ],
+      "forbidden_sha256": [
+        "d24a186b2f118076c63ed47396738ce0ad95008907d87b455ffab9dcb3013812",
+        "f7568eb834f887a0ebc9432f1290c31e53ad2ed0f03305b1988a7c54205a01cd",
+        "87b57704b4a689b0c63ef3b0e2cee7cebb2429a721499f2051415585b0fb2f52"
+      ],
+      "forbidden_text_sha256": [
+        "685a8606cfc26798c39af44d3e44f14afa5f4b1dabcc6a59eb869b595a927e37",
+        "d375b442c34a06633f3f62129984131d9d22f6b35f9dc34413259d575b44e35a",
+        "3f6565e0a06ff3ae24a43578ad721873a3171eeae63e05ce9e1037702d29c723",
+        "944d6d28ad214e733a9d7daa303278e980d066da3e6cf728ba5403c30e87e1d7",
+        "9544a1cf28845e47d0ef57921c91bf444d8f38564529015f9c153b50d91178da",
+        "9b903ea153ee2ce4cc623ac9da2f637540c2ca7ed067b471747398de53edc129",
+        "7248b927e9f2706057d0c2c14879aeabf86d894bd2998e7c85c39ee60445b3e6",
+        "f7ea6d34b26143f44a1f467e4e492ab59b0f47e68e83c19227c953120f93a43a",
+        "20fa6f71a2d81370a7e5a8970e6f8c3c35ff68d1c9b8c396fb6f76dc8286b92c",
+        "a1221b37e47ed136668251d87bad48dffdc272fb043e5e1c8f5f03d591b4d459",
+        "1ada7b82353a703f3b7599f8918b4625aa1687c7ef63a98f8c80bafd7985c5ff",
+        "2999548667df992bb54f7f6b9487caaaab260fdd5badf604b4dc45455fd9cefd",
+        "02133af5cc3324f25c3879e4c42232834565a3b97316d48175e3da4b137ea5fc",
+        "68b795eaecb7c831016cf243a603c1d1e1375f97845210e9c6b4437ac8274427",
+        "4fc3b58533811938da9b0ece1ffdb83b0f566771f98c4b9ba5de974d1011e933"
+      ],
+      "replacement_paths": ["references/examples/model_prose_corpus.md"],
+      "replacement_sha256": {"references/examples/model_prose_corpus.md": "efa03146aa443309e08fe027bc4552ee0c68094840d9264e5308d82854e95f96"}
+    },
+    {
+      "id": "eygp-workbook-and-verbatim-extract",
+      "disposition": "excluded",
+      "historical_paths": [
+        "references/EYgp_Research_process_and_artifacts.xlsx",
+        "references/EYgp_Research_process_and_artifacts.md"
+      ],
+      "forbidden_sha256": [
+        "5bed11a17615600db8b195e8b278ea7b5b65aa3ae94dad2fa680bac0df479895",
+        "f3e2a0e114c76120aaed8e9de872873c59c5e1a94ca2bca619a7dafb4a9967ec"
+      ],
+      "replacement_paths": ["references/GROUND_TRUTH.md"],
+      "replacement_sha256": {"references/GROUND_TRUTH.md": "c8242ff28685d83a60ee03a2171f6a6064f8f7d08a4febae73334ed0a8e89109"}
+    },
+    {
+      "id": "eygp-verbatim-ground-truth-table",
+      "disposition": "replaced-with-summary",
+      "historical_paths": ["references/GROUND_TRUTH.md"],
+      "forbidden_sha256": ["16523ad1e4726da6bf4d0fa4ea2a58d8cca93df83fdbe5b427264ee6f30e319b"],
+      "replacement_paths": ["references/GROUND_TRUTH.md"],
+      "replacement_sha256": {"references/GROUND_TRUTH.md": "c8242ff28685d83a60ee03a2171f6a6064f8f7d08a4febae73334ed0a8e89109"}
+    }
+  ],
+  "enforcement_surfaces": {
+    "AGENTS.md": "python scripts/distribution-rights-check.py",
+    "CLAUDE.md": "python scripts/distribution-rights-check.py",
+    ".github/workflows/structural-checks.yml": "distribution-rights-check.py",
+    "scripts/release-gate.sh": "distribution-rights-check.py",
+    "scripts/analysis/fixture_runner.py": "scripts/distribution_rights_smoketest.py"
+  }
+}

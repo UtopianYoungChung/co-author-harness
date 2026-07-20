@@ -75,7 +75,7 @@ Each Sub-check emits the exact finding structure required by the Check 8 evidenc
 
 **MANDATORY — LOAD MACHINE AUTHORITY.** Resolve and validate `references/policies/reader_accessibility.v1.json` before producing findings. Read `references/READER_ACCESSIBILITY.md` for explanatory procedure, but never recover numeric or severity policy from prose.
 
-**MANDATORY — LOAD MODEL PROSE CORPUS.** After loading `READER_ACCESSIBILITY.md`, load `references/examples/model_prose_corpus.md`. The corpus provides one CLEAN example per Sub-check A–H from Vidal (2022) and Suchman (2007). Use them as positive calibration anchors when adjudicating borderline findings: if a passage is structurally similar to a corpus example and the criterion property is present, default toward CLEAN; if a passage clearly lacks a property that is present in the corpus example, escalate toward MAJOR. The corpus calibration notes identify what pairs of examples together demonstrate that neither alone demonstrates — read them before adjudicating any Sub-check finding rated BORDERLINE or above.
+**MANDATORY — LOAD MODEL PROSE CORPUS.** After loading `READER_ACCESSIBILITY.md`, load `references/examples/model_prose_corpus.md`. It provides one package-authored synthetic illustration per Sub-check A–H. Use each illustration to identify the relevant function, never as an automatic CLEAN/MAJOR classifier or an independent threshold authority. Apply the resolved profile and perform the judgment procedure in `references/sub_checks.md`.
 
 `SAFEGUARD_LAYER.md`, `READER_ACCESSIBILITY.md`, and this skill cite profile keys; none is an independent numeric authority.
 

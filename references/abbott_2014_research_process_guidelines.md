@@ -1,10 +1,8 @@
-# Abbott (2014): Library-Research Process — Extracted Guidelines
+# Abbott (2014): Library-Research Process — Synthesized Guidelines
 
 **Source:** Abbott, A. (2014). *Digital Paper: A Manual for Research and Writing with Library and Internet Materials*. University of Chicago Press. Chapters 3–12 (Fundamentals; Preliminary Phase; Midphase Bibliography; Scanning, Browsing, and Brute Force; Reading; Files and Organization; Analysis; Writing; Design; Endphase).
 
-**Note:** This file distills Abbott's *process* model — how a library-and-internet research project is actually run, from first orientation to finished argument. It is **not** a substitute for the book's extended worked examples. Rules were summarized from the plain-text extraction for reuse in project bootstrapping and the discovery phase.
-
-**Raw extraction:** `references/resources/abbott_digital_paper_extract.txt`.
+**Note:** This package-authored file distills Abbott's *process* model — how a library-and-internet research project is run, from first orientation to finished argument. It is **not** a substitute for the book or its worked examples. The source text is not distributed; exact source-level verification requires a lawfully obtained local copy outside the package.
 
 **Read by:** the **Planner** at project bootstrap and at the discovery/reference-seeding phase (read-surface — there is **no** invocable skill; Abbott governs *process*, not sentence or citation surface). Cross-referenced from `PROJECT_BOOTSTRAP.md` and from `skills/seed-snowball-discovery/SKILL.md`.
 

@@ -252,6 +252,24 @@ else
     echo ""
 fi
 
+# --- Phase 0.45: distribution-rights checks -------------------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/distribution-rights-check.py" ]]; then
+    echo "Distribution-rights checks (current tree + future artifacts)"
+    if ! python3 "$PLUGIN_ROOT/scripts/distribution-rights-check.py" --plugin-root "$PLUGIN_ROOT"; then
+        echo "  [BLOCKER] scripts/distribution-rights-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/distribution-rights-check.py passed"
+    fi
+    echo ""
+else
+    echo "Distribution-rights checks: script missing (scripts/distribution-rights-check.py)"
+    echo "  [BLOCKER] cannot run distribution-rights checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
 # --- Phase 0.5: catalog parity checks -------------------------------------
 
 if [[ -f "$PLUGIN_ROOT/scripts/catalog-check.py" ]]; then

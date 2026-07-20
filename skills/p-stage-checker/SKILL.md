@@ -11,7 +11,7 @@ version: 1.0
 
 You are verifying that a manuscript's vocabulary, argument arc, contribution claims, and structural register match its declared P-stage. This skill implements the P-stage gating logic from `project_writing_style_checklist.md` Part 0 and `REVIEW_ORCHESTRATION.md` §3.2 as a standalone check.
 
-**Prerequisite:** Read `project_writing_style_checklist.md` Part 0 (Anti-patterns) and `REVIEW_ORCHESTRATION.md` §3.2 (P-stage gating table) before proceeding.
+**Prerequisite:** Read `project_writing_style_checklist.md` Part 0 (Anti-patterns), `GROUND_TRUTH.md` (package convention and source boundary), and `REVIEW_ORCHESTRATION.md` §3.2 (P-stage gating table) before proceeding. This pass verifies the package P-stage convention. Do not claim exact EYgp or advisor-specific conformance unless a lawfully supplied project-local source has been read and identified in the findings.
 
 ---
 

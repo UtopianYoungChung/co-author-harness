@@ -193,6 +193,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/corpus_root_portability_smoketest.py": [_default_case()],
     "scripts/d_style_profile_smoketest.py": [_default_case()],
     "scripts/domain_native_register_smoketest.py": [_default_case()],
+    "scripts/distribution_rights_smoketest.py": [_default_case()],
     "scripts/end_to_end_smoketest.py": [_default_case()],
     "scripts/full_run_contract_smoketest.py": [_default_case()],
     "scripts/full_run_enforcement_surfaces_smoketest.py": [_default_case()],

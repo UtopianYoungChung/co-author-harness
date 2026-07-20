@@ -1,10 +1,8 @@
-# Turabian / Chicago: Citation Form & Mechanical Style — Extracted Guidelines
+# Turabian / Chicago: Citation Form & Mechanical Style — Synthesized Guidelines
 
 **Source:** Turabian, K. L. *A Manual for Writers of Research Papers, Theses, and Dissertations: Chicago Style for Students and Researchers* (rev. Booth, Colomb, Williams, Bizup, FitzGerald). University of Chicago Press. Part II (Source Citation, chs. 15–19), Part III (Style, chs. 20–26), Appendix (Paper Format and Submission).
 
-**Note:** This file distills citation *form* and mechanical *style* for academic prose. It is **not** a substitute for the full manual's source-type templates (chs. 17 and 19 cover dozens of specific source types). Rules were summarized from the plain-text extraction for reuse in copyediting and citation conformance.
-
-**Raw extraction:** `references/resources/turabian_chicago_extract.txt`.
+**Note:** This package-authored file distills citation *form* and mechanical *style* for academic prose. It is **not** a substitute for the full manual's source-type templates. The source text is not distributed; exact source-level verification requires a lawfully obtained local copy outside the package.
 
 **Read by:** the `citation-format-pass` skill (prerequisite); the Evaluator at Step 4 (citation precision) alongside `CITATION_DISCIPLINE.md`; the Generator before any citation-formatting fix.
 

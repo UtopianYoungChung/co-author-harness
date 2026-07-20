@@ -1,10 +1,8 @@
-# Blue Book (Kaufman & Straus): Grammar & Punctuation Mechanics — Extracted Guidelines
+# Blue Book (Kaufman & Straus): Grammar & Punctuation Mechanics — Synthesized Guidelines
 
 **Source:** Kaufman, L., & Straus, J. *The Blue Book of Grammar and Punctuation.* Jossey-Bass/Wiley. Chapters 1–5 (Grammar; Punctuation; Capitalization; Writing Numbers; Confusing Words and Homonyms).
 
-**Note:** This file distills actionable, mechanics-level guidance for academic prose. It is **not** a substitute for the full book, its examples, or its quizzes. Rules were summarized from the plain-text extraction for reuse in copyediting and revision. Where a rule is venue-sensitive (number style, serial comma), the project's declared style governs — see "Precedence and conflicts."
-
-**Raw extraction:** `references/resources/blue_book_grammar_extract.txt`.
+**Note:** This package-authored file distills actionable, mechanics-level guidance for academic prose. It is **not** a substitute for the full book, its examples, or its quizzes. The source text is not distributed; exact source-level verification requires a lawfully obtained local copy outside the package. Where a rule is venue-sensitive (number style, serial comma), the project's declared style governs — see "Precedence and conflicts."
 
 **Read by:** the `grammar-mechanics-pass` skill (prerequisite); the Generator before any mechanical/copyedit fix (`AGENT_CONTRACTS.md`); the Evaluator at the copyedit step. Mechanical, regex-detectable items are pre-filtered by `DETERMINISTIC_CHECKS.md`.
 

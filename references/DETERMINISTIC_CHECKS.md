@@ -237,42 +237,42 @@ The regex is intentionally over-inclusive: it flags any compound sentence with a
 
 From `project_writing_style_checklist.md` Part 0. Each pattern is a P-stage warning.
 
-**Authoritative axis definitions live in `GROUND_TRUTH.md` (registered to the EYgp workbook `references/EYgp_Research_process_and_artifacts.xlsx`).** The patterns below are package-level *reader-convention* tells, not direct transcriptions of the workbook. Items marked `[INFERRED]` in the provenance column extend the workbook definitions; see `reviews/ground_truth_verification_2026-04-17.md` §2 for the paraphrase audit.
+**The package's operational axis convention and exact-source boundary live in `GROUND_TRUTH.md`.** The patterns below are candidate-producing package heuristics, not transcriptions of an external workbook and not evidence of exact EYgp conformance.
 
-| Rule | Pattern | Stage where flagged | Severity | Fix hint | Workbook provenance |
+| Rule | Pattern | Stage where flagged | Severity | Fix hint | Package-convention basis |
 |---|---|---|---|---|---|
-| P2 vocabulary in a P0/P1 conclusion | `\b(resolution|resolves|answers|research question|RQ\d)\b` in conclusion section | P0 or P1 | MAJOR | Use "refined problem statement," "open questions," "candidate q-items." | `Sheet2!D3` supplies "research problems/questions/objectives" directly; `resolution`/`resolves`/`answers`/`RQ\d` are **package-recognised tells** `[INFERRED]` (not in workbook). |
+| P2 vocabulary in a P0/P1 conclusion | `\b(resolution|resolves|answers|research question|RQ\d)\b` in conclusion section | P0 or P1 | MAJOR | Use "refined problem statement," "open questions," "candidate q-items." | The package convention reserves committed research problems/questions and answer claims for P2; tokens remain review candidates, not source-verified violations. |
 | "Not X but Y" in P0/P1 positioning sentences | see §4 above | any stage | MAJOR if density | As §4. | Out of scope (prose-style rule, not an axis definition). |
-| Premature numbered RQs in §1 | `\bRQ[\d]+\b` or `\bq[0-9]+\b` in §1 of a P0/P1 paper | P0 or P1 | **BLOCKER** if the piece is P0/P1 | Restate as problem phenomenon + characterization lenses. | Workbook labels P2 problems as `q1 q11 q21 ...` (`Sheet2!D5`); `RQ\d` is a reader-convention proxy for `q#` `[INFERRED]`. |
+| Premature numbered RQs in §1 | `\bRQ[\d]+\b` or `\bq[0-9]+\b` in §1 of a P0/P1 paper | P0 or P1 | **BLOCKER** if the piece is P0/P1 | Restate as problem phenomenon + characterization lenses. | The package convention uses numbered or q-labeled items as a P2 commitment signal. |
 
-### 8a. EYgp ground-truth verification (all axes)
+### 8a. Research-process vocabulary pre-filter (all axes)
 
-This sub-section is a **pre-filter**, not a pass/fail check; it raises candidates for the P-stage / framework-conformance review lane (formerly the `eygp-framework-checker` skill, SK-28 — retired at v0.7.0 with stubs removed; SK-10 `p-stage-checker` covers the P-axis subset; see `references/SKILL_REGISTRY.md` Retired Skills). The patterns detect stage-label usage on any of the six EYgp axes so the framework checker can verify them against `GROUND_TRUTH.md`.
+This sub-section is a **pre-filter**, not a pass/fail check. It raises candidates for the package research-process review lane (formerly the `eygp-framework-checker` skill, SK-28 — retired at v0.7.0 with stubs removed; SK-10 `p-stage-checker` covers the P-axis subset). It cannot establish exact advisor-specific conformance without a lawfully supplied project-local source.
 
 | Marker class | Pattern | What to emit |
 |---|---|---|
 | Any axis-stage label | `\b(P[012]|R[012]|K[012]|S[1-5]|T[1-5]|V[0-5])\b` | file:line + matched label + one sentence of surrounding context |
 | Readiness tick | `[✓]{1,5}` (Unicode check marks) or `\b\d+%?\s*(ready|-tick)\b` | file:line + matched text |
-| Artefact-genre phrase tied to a stage | `\b(technical\s+(sketch|outline|note)|working\s+paper|published\s+paper)\b` | file:line + matched phrase (these map 1-to-1 to S1/S2/S3/S4/S5 in `Sheet1`) |
-| Thesis-chapter phrase tied to a stage | `\b(Bib|Motivation|Research\s+Objectives|Related\s+work|Contributions|Background\s+on\s+subject-matter\s+area|Solution\s+chapters|Tools\s+chapter|Validation\s+chapter)\b` | file:line + matched phrase (maps to workbook thesis-chapter cells) |
+| Artefact-genre phrase tied to a stage | `\b(technical\s+(sketch|outline|note)|working\s+paper|published\s+paper)\b` | file:line + matched phrase (candidate mapping under the package convention) |
+| Thesis-chapter phrase tied to a stage | `\b(Bib|Motivation|Research\s+Objectives|Related\s+work|Contributions|Background\s+on\s+subject-matter\s+area|Solution\s+chapters|Tools\s+chapter|Validation\s+chapter)\b` | file:line + matched phrase (candidate context only) |
 
 **Emission rule.** Every match adds one candidate location to the pre-filter's candidate queue (formerly the `eygp-framework-checker` work queue; skill retired at v0.7.0). A location may match multiple markers; aggregate them.
 
 **Output stub:**
 
 ```
-### EYgp axis pre-filter
+### Research-process axis pre-filter
 - Axis-stage labels found: <n>
   - <file:line>: <P1 | S3 | ...>
 - Readiness-tick claims found: <n>
 - Artefact-genre phrases: <n>
 - Thesis-chapter phrases: <n>
-- Candidate locations (EYgp pre-filter): <total unique>
+- Candidate locations (axis pre-filter): <total unique>
 ```
 
 **Scope.** This pre-filter is run on any artefact under review (manuscript, classification record, project memo, revision plan). It does **not** modify §8 severities — those remain the package's prose-style rules. It only produces a queue for the cross-axis framework check.
 
-**Rationale.** Axis stages were previously only referenced informally in the package. The EYgp workbook is the authoritative source; when a manuscript or plan mentions `S3` or `✓✓✓`, the verifier should be able to find every such mention mechanically and decide whether it survives the workbook comparison. See `GROUND_TRUTH.md` for the canonical definitions.
+**Rationale.** When a manuscript or plan mentions `S3` or a readiness tick, the verifier should locate the claim mechanically and decide whether it matches the package convention. Exact tick conversion or EYgp wording remains unavailable unless the project supplies the controlling source. See `GROUND_TRUTH.md` for this boundary.
 
 ---
 

@@ -28,6 +28,7 @@ jobs:
           for script in \
             skill-check.py \
             version-check.py \
+            distribution-rights-check.py \
             catalog-check.py \
             path-hygiene-check.py \
             snippet-check.py \

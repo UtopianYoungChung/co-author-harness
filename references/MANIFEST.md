@@ -40,7 +40,7 @@ Assignment writer transaction entry points are `scripts/assignment_process_gate.
 | **Generator writing prose** | `EMDASH_BUNDLE_DISCIPLINE.md` (binding B1/B2/B3 bundle); `CITATION_DISCIPLINE.md` (term-of-art two-question test) |
 | **Reflector post-round** | `DRIFT_CHECK.md` (Phase 2.6 MASTER/component reconciliation); `REFLEXIVITY_CHECK.md` (Phase 2.7 authorship-identity audit) |
 | **Skill-benchmark evidence** | `EVAL_METHODOLOGY.md` (disclosure standard; undisclosed scores reclassify as ICI) |
-| **Axis / readiness-band definition questions** | `GROUND_TRUTH.md` (workbook registration); `EYgp_Research_process_and_artifacts.md` (verbatim extract) |
+| **Research-process axis questions** | `GROUND_TRUTH.md` (package convention and exact-source boundary); project-local source when exact advisor-specific conformance is requested |
 | **First-time orientation / cold inheritance / mid-session correction** | `QUICKSTART.md`; `OPERATING_MANUAL.md` (full runbook) |
 
 ---
@@ -67,7 +67,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `GROUNDING_PROTOCOL.md` | No-hallucination rules — read-before-cite, compute-before-report, verify-before-reference, quote-before-attribute, mark-uncertainty, no-gap-filling | Always; enforced by Reflector every round; stable `<a id="gp-N"></a>` anchors at every rule (PR-3a); deterministic citation resolver at `scripts/audit/audit_citations.py` (PR-4a) |
 | `EMDASH_BUNDLE_DISCIPLINE.md` | AI-tell removal bundle B1/B2/B3 — em-dash overuse, negative parallelism, triadic-list repetition | Every Generator prose action; waiver requires explicit per-session user instruction |
 | `CITATION_DISCIPLINE.md` | Two-question test at term-of-art invocations: engagement-cite vs. demarcation-no-cite | Every citation-bearing prose action; consulted by Evaluator at Step 4 and Sub-check H |
-| `GROUND_TRUTH.md` | EYgp *Research Process and Artifacts* workbook registered as canonical axis/readiness-band source | Any reference to P/R/K/S/T/V stages or readiness ticks |
+| `GROUND_TRUTH.md` | Package-authored operational interpretation of P/R/K/S/T/V labels; explicitly not exact EYgp conformance | Package routing by research-process stage; exact advisor-specific checks require a project-local source |
 
 ### Lifecycle and orchestration
 
@@ -128,7 +128,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `EXTERNAL_VERIFIERS.md` | External verification requirement; Class 1/1.5/2/3 verifier registry; wiki-first ordering |
 | `EVAL_METHODOLOGY.md` | Skill-benchmark disclosure standard; undisclosed scores ⇒ ICI |
 | `SUCCESS_METRICS.md` | Six-dimension quality framework D1–D6 |
-| `EYgp_Research_process_and_artifacts.md` | Verbatim Markdown extract of the canonical workbook |
+| `distribution_rights.json` + `../THIRD_PARTY_NOTICES.md` | Forward-looking distribution dispositions, forbidden hashes, replacements, and historical-scope caveat |
 
 ### Operational
 
