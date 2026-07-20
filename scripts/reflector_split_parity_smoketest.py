@@ -32,6 +32,7 @@ SPLIT_FILES = {
     "reflector-closeout": HARNESS / "agents" / "reflector-closeout.md",
 }
 ROUTER = HARNESS / "agents" / "reflector.md"
+RUN_SKILL = HARNESS / "skills" / "run-reflection" / "SKILL.md"
 SNIPPET = HARNESS / "references" / "_snippets" / "reflection-grounding.md"
 INCLUDE_SENTINEL = "<!-- include: _snippets/reflection-grounding.md -->"
 
@@ -113,6 +114,42 @@ def test_router_frontmatter_preserves_legacy_name() -> None:
     )
 
 
+def test_public_skill_dispatches_one_declared_mode() -> None:
+    text = RUN_SKILL.read_text(encoding="utf-8")
+    fm = _read_frontmatter(RUN_SKILL)
+    assert fm.get("name") == "run-reflection"
+    for needle in [
+        "mode: lightweight",
+        "mode: full",
+        "agents/reflector-probe.md",
+        "agents/reflector-closeout.md",
+    ]:
+        assert needle in text, f"run-reflection missing dispatch contract {needle!r}"
+    normalized = re.sub(r"\s+", " ", text)
+    assert re.search(r"mode.{0,240}(halt|ask)", normalized, re.IGNORECASE), (
+        "run-reflection must halt or ask when the mode is undeclared"
+    )
+
+
+def test_public_skill_uses_plugin_relative_paths_and_preserves_output_ownership() -> None:
+    text = RUN_SKILL.read_text(encoding="utf-8")
+    assert r"B:\Agents\Paper\Package" not in text, (
+        "run-reflection must not name the retired package path"
+    )
+    assert "${CLAUDE_PLUGIN_ROOT}" in text
+    assert "F7 evidence packets and F8 final reports are read-only inputs" in text
+    assert "reviews/.harness/evidence/<event_id>.json" not in text
+    assert "_snippets/output-profile.md" not in text
+
+
+def test_router_has_one_retirement_condition() -> None:
+    text = ROUTER.read_text(encoding="utf-8")
+    assert "retained for **one minor version**" not in text, (
+        "router contains a second retirement schedule that contradicts the "
+        "host-dispatch retirement condition"
+    )
+
+
 def test_no_planner_evaluator_generator_change() -> None:
     """PR-4c scope is strictly the Reflector. The other three agents must
     still be present and parseable; this test is a structural pin against
@@ -173,6 +210,9 @@ def main() -> int:
         test_snippet_is_not_inlined_outside_snippets_dir,
         test_router_points_to_both_splits,
         test_router_frontmatter_preserves_legacy_name,
+        test_public_skill_dispatches_one_declared_mode,
+        test_public_skill_uses_plugin_relative_paths_and_preserves_output_ownership,
+        test_router_has_one_retirement_condition,
         test_no_planner_evaluator_generator_change,
         test_token_budget_reduction_landed,
     ]

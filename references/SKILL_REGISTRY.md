@@ -131,7 +131,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Source:** Early package skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Phase Ladder's unbounded Ph3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
 - **Tier:** Package
 - **Status:** Active
-- **Depends on:** `agents/reflector.md` Phases 1–6 (mode-gated as above), `references/PHASE_PROTOCOL.md §11` (retirement ledger cross-reference), `agents/planner.md` (three-filter gatekeeper logic for proposal routing)
+- **Depends on:** `skills/run-reflection/SKILL.md` (public mode router), `agents/reflector-probe.md` (lightweight procedure), `agents/reflector-closeout.md` (full procedure), `references/PHASE_PROTOCOL.md §11`, and `agents/planner.md` (proposal gatekeeper)
 
 ### SK-07. `sentence-level-pass`
 - **File:** `skills/sentence-level-pass/SKILL.md`
@@ -308,21 +308,21 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-25. `run-phase-1`
 - **File:** `skills/run-phase-1/SKILL.md` (renamed at v0.7.4 from `skills/run-tier-1/SKILL.md` as part of the tier→phase vocabulary sweep; earlier rename at v0.6.0 from `skills/run-tier-reflex/SKILL.md`; rewritten in place at v0.7.0)
-- **Pattern:** Single-command entry point for the **Ph1 Plan & Draft** rung of the Lifecycle-Phase Ladder — the planning-and-drafting rung covering scoping, problem framing, and initial prose generation (absorbed activities from milestones M1, M2, and M3). The Evaluator is **dormant at T1** at v0.7.0: drafting work is Generator-led with full execution authority (P-stage declaration, drafting, revision). The retired Generator Self-T1 Verdict is no longer emitted; drift-measurement signals migrate into the Generator's Phase 4 completion message. The retired Confirmation Mode is no longer entered at any rung. The retired Rule 1 tier-gated digest exception is no longer applied; full-file reads are the universal floor at every rung. On user approval, the Planner advances the section to T2 (`prev_tier: T1`, `new_tier: T2`, `trigger: user_approval`, `actor: planner`).
+- **Pattern:** Compatibility implementation body for the public `/run-draft` entrypoint. It preserves the **Ph1 Plan & Draft** rung of the Lifecycle-Phase Ladder — the planning-and-drafting rung covering scoping, problem framing, and initial prose generation (absorbed activities from milestones M1, M2, and M3). The Evaluator is **dormant at T1** at v0.7.0: drafting work is Generator-led with full execution authority (P-stage declaration, drafting, revision). The retired Generator Self-T1 Verdict is no longer emitted; drift-measurement signals migrate into the Generator's Phase 4 completion message. The retired Confirmation Mode is no longer entered at any rung. The retired Rule 1 tier-gated digest exception is no longer applied; full-file reads are the universal floor at every rung. On user approval, the Planner advances the section to T2 (`prev_tier: T1`, `new_tier: T2`, `trigger: user_approval`, `actor: planner`).
 - **Created:** 2026-04-19 (as `run-tier-reflex` under v0.4.19); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase B of the Incremental Tier Protocol (v0.4.19) seeded the skill; Phase 6 of the v0.6.0 rollout renamed and rewrote it to carry the staircase semantics; the v0.7.0 rewrite removes the Self-T1 Verdict, Confirmation Mode, and digest-exception couplings to align with the Lifecycle-Stage Ladder's full-file-read floor and tier-conditioned agent engagement.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-draft`)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph1 Plan & Draft)`, `references/GROUNDING_PROTOCOL.md` (full-file reads at every rung — no digest exception at v0.7.0), the per-section ledger `reviews/phase_state.json` (18-field SectionStateObject including `ph1_pstage_declaration`), and the Planner's `phase_entry_log` seven-field row contract per `AGENT_ORCHESTRATION.md §8.2a` (`prev_phase`, `new_phase`, `trigger`, `actor`, `notes`, `timestamp`, `model_used`).
 - **Sibling:** SK-03 `quick-deterministic` (mechanical-only ancestor); SK-29 `run-phase-2` (Review & Revise — advance target on approval); SK-26 `run-phase-3` and SK-27 `run-phase-4` (further rungs); SK-04 `classify-manuscript` (writes the `tier:` field this skill dispatches on, legal values `{T1, T2, T3, T4}` at v0.7.0).
 
 ### SK-26. `run-phase-3`
 - **File:** `skills/run-phase-3/SKILL.md` (renamed at v0.7.4 from `skills/run-tier-3/SKILL.md` as part of the tier→phase vocabulary sweep; earlier rename at v0.6.0 from `skills/run-tier-standard/SKILL.md`; rewritten in place at v0.7.0)
-- **Pattern:** Single-command entry point for the **Ph3 Iterate & Converge** rung of the Lifecycle-Phase Ladder — the unbounded-iteration convergence rung. Runs pre-flight deterministic checks (0a incl. §9a/§9b pre-filters), 0b, the full seven-step judgment pass, consolidated findings synthesis (Step 8), and the full SAFEGUARD_LAYER integrity audit (Step 8.5, all eight checks). Each Evaluator–Generator cycle is logged to `reviews/convergence_log.md` as an `## Iteration <N>` block with the convergence metric target, BLOCKER/MAJOR/MINOR counts, top unresolved finding, advisory warnings, and Generator handoff. The rung is unbounded — iteration continues until a **terminal sign-off row** flips `current_phase` to `Ph3_converged`, the v0.7.0 replacement state for the retired `T4_ready` (phase-named at v0.7.4). MCR admission (renamed from Laggard Clearance Report) gates Ph4 admission once every section reaches `Ph3_converged`. A **re-engagement sign-off row** refreshes `ph3_last_activity_at` to clear `[Ph3-STALE]` advisories without flipping `current_phase`. Full-file reads are the universal floor — the retired Rule 1 tier-gated digest exception is not invoked at any rung at v0.7.0.
+- **Pattern:** Compatibility implementation body for the public `/run-iterate` entrypoint's full **Ph3 Iterate & Converge** envelope. It preserves the unbounded-iteration convergence rung, including pre-flight deterministic checks, the judgment pass, SAFEGUARD integrity audit, convergence logging, terminal sign-off, MCR admission, and re-engagement semantics.
 - **Created:** 2026-04-19 (as `run-tier-standard` under v0.5.0); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase C of the Incremental Tier Protocol (v0.5.0) seeded the skill; Phase 6 of the v0.6.0 rollout renamed it for staircase-position clarity; the v0.7.0 rewrite reframes T3 from a single-pass Verify rung to an unbounded Iterate & Converge rung with explicit convergence-log and MCR semantics.
 - **Tier:** Package (Cowork-installable .skill file)
-- **Status:** Active
+- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-iterate`)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph3 Iterate & Converge)` and `§6 (Manuscript Convergence Report)`, `references/REVIEW_ORCHESTRATION.md §3.3` (tier table), the full seven-step review references, the `reviews/phase_state.json` ledger (18-field SectionStateObject including `convergence_metric`, `ph3_last_activity_at`), `reviews/convergence_log.md`, and `reviews/classification.md` declaring `tier: T3` (or the section's `current_phase` reaching Ph3 through ladder advance).
 - **Sibling:** SK-25 `run-phase-1` (Plan & Draft — two rungs below); SK-29 `run-phase-2` (Review & Revise — one rung below, the ladder predecessor); SK-27 `run-phase-4` (Finalize & Close — one rung above, the MCR-gated advance target); SK-04 `classify-manuscript` (writes the `tier:` field). SK-05 `run-full-review` (retired at v0.5.1; see Retired Skills) was the v0.4.x entry point this skill replaced.
 
@@ -340,11 +340,11 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-27. `run-phase-4`
 - **File:** `skills/run-phase-4/SKILL.md` (renamed at v0.7.4 from `skills/run-tier-4/SKILL.md` as part of the tier→phase vocabulary sweep; earlier rename at v0.6.0 from `skills/run-tier-submission/SKILL.md`; rewritten in place at v0.7.0)
-- **Pattern:** Single-command entry point for the **Ph4 Finalize & Close** rung of the Lifecycle-Phase Ladder — the terminal, submission-bound rung absorbing M5 activities. Strict superset of T3 that adds the required G.4 sign-off artifact (Step 9), the full-mode five-phase Reflector dispatch at close-out (with new audit phases 2d convergence-trajectory, 2e [T3-STALE]/MCR-volatility, and 2f tier-row contract), and tightens tolerance (no `[UNVERIFIED]` tags carried forward; full SAFEGUARD battery non-waivable; Class 1 verifier reachability is a hard precondition). **Admission gated by the Manuscript Convergence Report (MCR)**, the v0.7.0 replacement for the retired Laggard Clearance Report: T4 cannot open unless every section in `reviews/phase_state.json` reports `current_tier = T3_converged` (or its `section_ceiling_override` is already satisfied) and the MCR flips `mcr_admission = true`. Sections that have not converged are resolved via the MCR climbing cycle per `TIER_PROTOCOL.md §6`. **EG-1 fires at T4 as the grounding-demotion gate** (monotonicity-exempt: `prev_tier: T4`, `new_tier: T3`, `trigger: eg1_t4_downgrade_to_t3`). **EG-7** (`eg7_mcr_readmission_after_class_change`) fires on re-admission after a classification change — also monotonicity-exempt. Fires for final drafts destined for external handoff: journal/conference submission, thesis committee deposit, resubmissions paired with a response letter, final-marked coursework. On approval, the terminal sign-off row writes `mcr_admission = true` and the Reflector is dispatched in full mode for the round.
+- **Pattern:** Compatibility implementation body for the public `/run-finalize` entrypoint. It preserves the **Ph4 Finalize & Close** terminal envelope: M5, MCR admission, required G.4 sign-off, external verification, the full-mode Reflector close-out, and terminal sign-off semantics.
 - **Created:** 2026-04-19 (as `run-tier-submission` under v0.5.0); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase C of the Incremental Tier Protocol (v0.5.0) seeded the skill; Phase 6 of the v0.6.0 rollout renamed it and wired in the Laggard Clearance Report precondition; the v0.7.0 rewrite replaces the LCR with the MCR, wires in the monotonicity-exempt EG-1 (T4→T3 demotion) and the net-new EG-7 (MCR re-admission after classification change), and couples T4 approval to the Reflector's full-mode five-phase close-out including audit phases 2d/2e/2f.
 - **Tier:** Package (Cowork-installable .skill file)
-- **Status:** Active
+- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-finalize`)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph4 Finalize & Close)` and `§6 (Manuscript Convergence Report)`, `references/REVIEW_ORCHESTRATION.md §3.3` and `§6` (G.4 sign-off template), all T3 dependencies, the per-section `reviews/phase_state.json` ledger (18-field SectionStateObject, `mcr_admission` flag), `reviews/convergence_log.md`, and `reviews/classification.md` declaring `tier: T4` (or the ladder having advanced every section to `T3_converged`).
 - **Sibling:** SK-25 `run-phase-1` (Plan & Draft — three rungs below); SK-29 `run-phase-2` (Review & Revise — two rungs below); SK-26 `run-phase-3` (Iterate & Converge — one rung below, the ladder predecessor); SK-04 `classify-manuscript` (auto-recommends T4 on the submission-bound triggers listed in its Step 2); SK-06 `run-reflection` (full-mode Reflector dispatch at T4 close-out); SK-17 `ingest-m5-to-wiki` (downstream handoff after G.4 sign-off closes). SK-05 `run-full-review` (retired at v0.5.1; see Retired Skills) dispatched here when classification was T4 during the v0.5.0 transitional window.
 
@@ -415,12 +415,12 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-37. `run-draft`
 - **File:** `skills/run-draft/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** **Alias** for SK-25 `run-phase-1`. Both names resolve to the same canonical workflow under the v0.15.0-pre `stage × profile` vocabulary (`stage=draft`). The alias body redirects readers to `skills/run-phase-1/SKILL.md` and adds no new logic. Old name remains canonical; the alias exists to surface the new vocabulary alongside legacy phase-numbered names without breaking project scripts or muscle memory.
+- **Pattern:** Public **draft** stage entrypoint (`stage=draft`). It routes to SK-25 `run-phase-1`, retained as the compatibility implementation body so old project scripts and slash history continue to resolve without creating a second public name.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
-- **Status:** Active (vocabulary alias only; behaviour identical to canonical)
-- **Depends on:** `skills/run-phase-1/SKILL.md` (canonical body — the alias is a redirect, not a copy); `references/phase_state_schema.md §2.2` (the `stage` / `profile` shadow fields the vocabulary aligns with, additive at PR-3b.1).
-- **Sibling:** SK-25 `run-phase-1` (canonical); SK-38 `run-iterate` (public iterate router); SK-39 `run-finalize` (sibling alias for Ph4). `/run-phase-2` is retained only as a compatibility route to `/run-iterate --profile refine`.
+- **Status:** Active (public stage router)
+- **Depends on:** `skills/run-phase-1/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2` (the `stage` / `profile` shadow fields).
+- **Sibling:** SK-25 `run-phase-1` (compatibility body); SK-38 `run-iterate`; SK-39 `run-finalize`. `/run-phase-2` is retained only as a compatibility route to `/run-iterate --profile refine`.
 
 ### SK-38. `run-iterate`
 - **File:** `skills/run-iterate/SKILL.md` (new at v0.15.0-pre PR-3b.3)
@@ -428,17 +428,17 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
 - **Status:** Active (public stage/profile router)
-- **Depends on:** `skills/run-phase-3/SKILL.md` (canonical body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 `W-MCR-CONVERGENCE-EVIDENCE` advisory reads the `profile:` field this vocabulary aligns with).
+- **Depends on:** `skills/run-phase-3/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 `W-MCR-CONVERGENCE-EVIDENCE` advisory reads the `profile:` field this vocabulary aligns with).
 - **Sibling:** SK-26 `run-phase-3` (legacy full-iterate compatibility body); SK-29 `run-phase-2` (legacy refine compatibility router); SK-31 `run-phase-3-stability` (legacy stability compatibility router); SK-37 `run-draft`; SK-39 `run-finalize`.
 
 ### SK-39. `run-finalize`
 - **File:** `skills/run-finalize/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** **Alias** for SK-27 `run-phase-4`. Both names resolve to the same canonical workflow under the v0.15.0-pre `stage × profile` vocabulary (`stage=finalize`). The alias body redirects readers to the canonical and adds no new logic. MCR admission, G.4 sign-off, external-verifier requirements, and Reflector-full close-out are unchanged — see canonical for spec.
+- **Pattern:** Public **finalize** stage entrypoint (`stage=finalize`). It routes to SK-27 `run-phase-4`, retained as the compatibility implementation body. MCR admission, G.4 sign-off, external-verifier requirements, and Reflector-full close-out remain binding.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
-- **Status:** Active (vocabulary alias only; behaviour identical to canonical)
-- **Depends on:** `skills/run-phase-4/SKILL.md` (canonical body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 advisory at MCR boundary).
-- **Sibling:** SK-27 `run-phase-4` (canonical); SK-37 `run-draft`; SK-38 `run-iterate`.
+- **Status:** Active (public stage router)
+- **Depends on:** `skills/run-phase-4/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 advisory at MCR boundary).
+- **Sibling:** SK-27 `run-phase-4` (compatibility body); SK-37 `run-draft`; SK-38 `run-iterate`.
 
 ### SK-40. `grammar-mechanics-pass`
 - **File:** `skills/grammar-mechanics-pass/SKILL.md` (new at 2026-06-28)
@@ -599,7 +599,7 @@ A skill should be retired (moved to the Retired Skills section below) when **any
 
 ## How the Reflector creates new skills
 
-See `agents/reflector.md` Phase 4 (Skill Development). Summary:
+See `agents/reflector-closeout.md` Phase 4 (Skill Development). Summary:
 
 1. **Identify the pattern.** A recurring error, check, or workflow that appeared in 2+ rounds or 2+ projects.
 2. **Determine the tier.** Package, project, or global?

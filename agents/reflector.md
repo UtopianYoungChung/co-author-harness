@@ -43,9 +43,12 @@ This file's only job is to route the dispatch. It carries no rules of its own.
 
 Both split files honour the v0.14.0 output-economy contract: they treat the F7 **evidence packet** paths and the Planner-assembled **final report** (F8) as read-only inputs for grounding and contract audits unless an exception profile requires Markdown step artefacts. The normative wording lives in `references/_snippets/reflection-grounding.md`; this paragraph is a router-side mirror so the static guard at `scripts/output_economy_check.py` can verify policy-vocabulary presence without resolving includes.
 
-## Retirement schedule
+## Retirement condition
 
-The router is retained for **one minor version** so existing dispatch paths and legacy worktrees continue to resolve. After that window (no earlier than the next minor following the v0.15.0 release), this file is removed and `reflector-probe` / `reflector-closeout` are the only resolvable names. Project CLAUDE.md files, slash commands, and any in-tree references to `agents/reflector.md` should migrate before that removal.
+This router remains until the host dispatch surface no longer lists
+`reflector` as an agent type. There is no calendar- or version-based removal
+date. New dispatches use the explicit mode implementations; legacy dispatches
+continue to route here until the host condition is verified.
 
 ## See also
 

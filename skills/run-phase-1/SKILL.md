@@ -1,11 +1,15 @@
 ---
 name: run-phase-1
-description: "Ph1 Plan & Draft — bootstrap section state, record P-stage, dispatch Generator draft, run Reflector audit. No Evaluator. Exit: ph1_draft_completion.md. Trigger: \"Ph1,\" \"draft pass,\" \"phase 1,\" \"start ladder,\" new section."
+description: "Compatibility body for the public /run-draft stage. Ph1 Plan & Draft bootstraps section state, records P-stage, and dispatches Generator drafting without Evaluator engagement."
 trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "start the ladder," begins a new section, or when the Planner bootstraps section state for a fresh section
 version: 0.7.4
 ---
 
 # run-phase-1 — Ph1 Plan & Draft
+
+**Compatibility surface.** New user-facing guidance and dispatch should use
+`/run-draft`. This file remains the full Ph1 implementation body so legacy
+`/run-phase-1` invocations resolve without semantic drift.
 
 **Grounding basis:** `references/PHASE_PROTOCOL.md §§3 (lifecycle), 3.1 (Ph1 charter), 6.3 (trigger enum), 7 (escalation gates)`; `references/GROUNDING_PROTOCOL.md §Rule 1 full-file reads (phase-gated digest exception retired at v0.7.4)`; `references/phase_state_schema.md §2 (section object incl. v0.10.0 `references_initialized`), §3.1 (trigger enum incl. trigger 31 `seed_snowball_signed`), §3a.1 (PhaseEntryLogRow shape)`; `AGENT_ORCHESTRATION.md §3 (agent-role matrix — Reflector-lightweight at Ph1, no Evaluator)`; `phase_notifications.yaml §1 (ph1_entry, ph1_exit_signed)`; `skills/seed-snowball-discovery/SKILL.md` (SK-NEW-A; dispatched at Step 4.5 to scaffold `references/REFERENCES.md` on fresh sections).
 
@@ -51,7 +55,7 @@ Milestone approval for M1, M2, or M3 advances only the assignment milestone chai
 5. **Generator dispatch.** Planner hands the Generator the revision plan, diff scope, declared P-stage, reserved `assignment_gate_receipt`, and `assignment_gate_target`. Generator stages only beneath `reviews/.harness/assignment/staged/<receipt_id>/` and uses `assignment_writer_commit.py` to validate, consume, and publish the scoped write plan. Cancellation or pre-commit abort uses `assignment_receipt_invalidate.py`; there is no second preflight or direct final-path write. Generator drafts under `agents/generator.md` Phase 2 (Execute the Plan).
 6. **Deterministic mandatory subset (on diff scope).** Em-dash, absolute-language, LLM-tic, and sentence-length patterns from `references/DETERMINISTIC_CHECKS.md §Mandatory subset`. Write results to `reviews/ph1_deterministic_<YYYY-MM-DD>_<cycle_id>.md`.
 7. **Rule 1 full-file scope check.** Verify that every rule citation the Generator used is accompanied by a full-source read marker. **At v0.7.4 the Ph1-only digest exception is retired**; no citation may rest on a digest alone at any phase. This step runs on the full file, not the diff scope.
-8. **Reflector-lightweight grounding audit (optional, Planner-gated).** Integrity-probe subset of `agents/reflector.md §Phase 2.5.1`. No `lessons_learned.md` write. Writes `reviews/ph1_reflector_probe_<cycle_id>.md` if invoked.
+8. **Reflector-lightweight grounding audit (optional, Planner-gated).** Dispatch `/run-reflection mode: lightweight`, which loads `agents/reflector-probe.md` and its Phase 2.5.1-gated integrity subset. No `lessons_learned.md` write. Writes `reviews/ph1_reflector_probe_<cycle_id>.md` if invoked.
 9. **Assignment milestone branch (native M1-M3).** After the target deliverable's feedback has been recorded and adjudicated under `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`, stop for explicit user approval of that milestone. Only explicit approval authorizes the Planner to finalize the F9 packet and atomically write `accepted` state. On M3, the M3→M4 packet must also bind current wiki-grounding evidence or an authorized opt-out. End the invocation after the transaction with `current_phase: Ph1`; do not write a Ph1 exit artefact and do not run a phase-advance check. The next `/run-draft` derives the successor target.
 10. **Ph1 exit branch (M4 initial assembly only).** After M1-M3 are accepted and the Generator has assembled the complete M4 manuscript, the Planner writes `reviews/ph1_draft_completion.md` naming (i) the declared P-stage, (ii) the deterministic-check summary, (iii) the Rule 1 scope verdict, (iv) the Generator's revision log reference, and (v) any Reflector-lightweight findings. Writing it while M1-M3 remain open is a protocol violation.
 11. **`pre_phase_advance_check.py` (M4 branch only).** Run the Ph1 exit guardrail from `PHASE_PROTOCOL.md §7.3`. Any failure blocks phase movement.

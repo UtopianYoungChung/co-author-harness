@@ -87,7 +87,8 @@ overall_verdict: CLEAN               # one of {CLEAN, ADVISORY, MAJOR, BLOCKER}
      narrates each of the audit phases, extracts lessons, proposes skills
      (filed to reviews/plugin_update_proposals.md, NOT emitted directly),
      and closes the session. See AGENT_CONTRACTS.md §Reflector and
-     skills/run-reflection/ for the authoritative five-phase contract.
+     skills/run-reflection/SKILL.md for mode routing and
+     agents/reflector-closeout.md for the authoritative full-mode contract.
      ===================================================================== -->
 
 # Reflector full report — {{cycle_id}} Ph4 close-out

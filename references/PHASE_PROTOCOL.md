@@ -334,7 +334,7 @@ The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at 
 | Generator | Submission-bundle assembly | yes |
 | `advisor-escalation` | Strategic consult | if flagged (available at any phase) |
 | G.4 sign-off | Submission closure | **Ph4 terminal** |
-| Reflector-full (`run-reflection`) | Lessons extraction, Couplings A-revised / B / C / D closure, R1–R5 retirement proposals, A1–A5 addition proposals | **Ph4 terminal** |
+| Reflector-full (`/run-reflection mode: full`) | Lessons extraction, Couplings A-revised / B / C / D closure, R1–R5 retirement proposals, A1–A5 addition proposals | **Ph4 terminal** |
 | `ingest-m5-to-wiki` | Coupling D ingestion | **Ph4 terminal** |
 | `promote-lessons-to-wiki` | Coupling C closure | **Ph4 terminal** |
 

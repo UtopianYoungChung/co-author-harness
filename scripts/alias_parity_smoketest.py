@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Smoketest for v0.15.x stage-skill routing.
+"""Smoketest for public-stage and compatibility-entrypoint routing.
 
-Asserts that for every canonical/alias pair still present after the stage
-vocabulary landing:
+Asserts that for every public/compatibility pair:
   (1) both `skills/<name>/SKILL.md` files exist and parse;
   (2) both `commands/<name>.md` shims exist and parse;
   (3) both names appear in `references/SKILL_REGISTRY.md`;
   (4) both names appear in the `skills/plugin-commands/SKILL.md` catalog;
-  (5) the alias SKILL.md body references the canonical skill name verbatim;
-  (6) the alias frontmatter description begins with the literal string
-      "Alias for /<canonical>";
-  (7) legacy Ph2 remains a compatibility router to /run-iterate refine, not
+  (5) the public SKILL.md owns the public vocabulary and names its
+      compatibility body;
+  (6) the compatibility skill and command identify themselves as such;
+  (7) the capability registry exposes exactly the public member as public;
+  (8) legacy Ph2 remains a compatibility router to /run-iterate refine, not
       a new public stage alias;
-  (8) legacy stability remains a compatibility router to /run-iterate
+  (9) legacy stability remains a compatibility router to /run-iterate
       profile=stability, not a peer public stage.
 
 This test is structural -- it does not invoke the workflows. It guarantees
@@ -31,11 +31,11 @@ import yaml
 HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
 
-ALIAS_PAIRS = [
-    # (canonical, alias)
-    ("run-phase-1", "run-draft"),
-    ("run-phase-3", "run-iterate"),
-    ("run-phase-4", "run-finalize"),
+STAGE_PAIRS = [
+    # (public stage entrypoint, compatibility body)
+    ("run-draft", "run-phase-1"),
+    ("run-iterate", "run-phase-3"),
+    ("run-finalize", "run-phase-4"),
 ]
 PH2_LEGACY = "run-phase-2"
 STABILITY_LEGACY = "run-phase-3-stability"
@@ -56,8 +56,8 @@ def _read_body(path: Path) -> str:
 
 
 def test_canonical_and_alias_skill_files_exist() -> None:
-    for canonical, alias in ALIAS_PAIRS:
-        for name in (canonical, alias):
+    for public, compatibility in STAGE_PAIRS:
+        for name in (public, compatibility):
             path = PLUGIN_ROOT / "skills" / name / "SKILL.md"
             assert path.is_file(), f"missing skill: {path}"
             fm = _read_frontmatter(path)
@@ -67,8 +67,8 @@ def test_canonical_and_alias_skill_files_exist() -> None:
 
 
 def test_canonical_and_alias_command_shims_exist() -> None:
-    for canonical, alias in ALIAS_PAIRS:
-        for name in (canonical, alias):
+    for public, compatibility in STAGE_PAIRS:
+        for name in (public, compatibility):
             path = PLUGIN_ROOT / "commands" / f"{name}.md"
             assert path.is_file(), f"missing command shim: {path}"
             fm = _read_frontmatter(path)
@@ -81,8 +81,8 @@ def test_both_names_in_skill_registry() -> None:
     registry = (PLUGIN_ROOT / "references" / "SKILL_REGISTRY.md").read_text(
         encoding="utf-8"
     )
-    for canonical, alias in ALIAS_PAIRS:
-        for name in (canonical, alias):
+    for public, compatibility in STAGE_PAIRS:
+        for name in (public, compatibility):
             pat = re.compile(rf"^###\s+SK-\d+\.\s+`{re.escape(name)}`", re.MULTILINE)
             assert pat.search(registry), (
                 f"SKILL_REGISTRY.md has no `### SK-N. \\`{name}\\`` heading"
@@ -93,33 +93,49 @@ def test_both_names_in_plugin_commands_catalog() -> None:
     catalog = (PLUGIN_ROOT / "skills" / "plugin-commands" / "SKILL.md").read_text(
         encoding="utf-8"
     )
-    for canonical, alias in ALIAS_PAIRS:
-        for name in (canonical, alias):
+    for public, compatibility in STAGE_PAIRS:
+        for name in (public, compatibility):
             pat = re.compile(rf"^\|\s*`/{re.escape(name)}`\s*\|", re.MULTILINE)
             assert pat.search(catalog), f"plugin-commands catalog has no `/{name}` row"
 
 
-def test_alias_body_references_canonical_explicitly() -> None:
-    for canonical, alias in ALIAS_PAIRS:
-        body = _read_body(PLUGIN_ROOT / "skills" / alias / "SKILL.md")
-        assert canonical in body, (
-            f"alias `{alias}` SKILL body must mention canonical `{canonical}` "
-            f"verbatim so readers cannot miss the delegation"
+def test_public_body_owns_vocabulary_and_names_compatibility_body() -> None:
+    for public, compatibility in STAGE_PAIRS:
+        body = _read_body(PLUGIN_ROOT / "skills" / public / "SKILL.md")
+        assert compatibility in body, (
+            f"public `{public}` SKILL body must mention compatibility body "
+            f"`{compatibility}` verbatim"
         )
-        assert re.search(r"\balias\b", body, re.IGNORECASE), (
-            f"alias `{alias}` SKILL body must contain the word 'alias'"
+        assert re.search(r"\bpublic\b", body, re.IGNORECASE), (
+            f"public `{public}` SKILL body must identify the public surface"
         )
-
-
-def test_alias_description_prefix_is_machine_readable() -> None:
-    for canonical, alias in ALIAS_PAIRS:
-        fm = _read_frontmatter(PLUGIN_ROOT / "skills" / alias / "SKILL.md")
+        fm = _read_frontmatter(PLUGIN_ROOT / "skills" / public / "SKILL.md")
         desc = str(fm.get("description", ""))
-        assert desc.startswith(f"Alias for /{canonical}"), (
-            f"alias `{alias}` description must start with "
-            f"'Alias for /{canonical}' to support machine-readable parity. "
-            f"Got: {desc[:80]!r}"
+        assert not desc.startswith("Alias for /"), (
+            f"public `{public}` description must not identify itself as an alias"
         )
+
+
+def test_compatibility_surfaces_are_explicit() -> None:
+    for public, compatibility in STAGE_PAIRS:
+        for path in [
+            PLUGIN_ROOT / "skills" / compatibility / "SKILL.md",
+            PLUGIN_ROOT / "commands" / f"{compatibility}.md",
+        ]:
+            text = path.read_text(encoding="utf-8")
+            assert "compatibility" in text.lower(), (
+                f"{path}: legacy surface must identify itself as compatibility"
+            )
+            assert public in text, f"{path}: must route readers to `{public}`"
+
+
+def test_capability_exposure_matches_public_ownership() -> None:
+    registry = yaml.safe_load(
+        (PLUGIN_ROOT / "references" / "capabilities.yaml").read_text(encoding="utf-8")
+    )["capabilities"]
+    for public, compatibility in STAGE_PAIRS:
+        assert registry[public]["exposure"] == "public"
+        assert registry[compatibility]["exposure"] == "compatibility"
 
 
 def test_ph2_legacy_surface_routes_to_iterate_refine() -> None:
@@ -170,8 +186,9 @@ def main() -> int:
         test_canonical_and_alias_command_shims_exist,
         test_both_names_in_skill_registry,
         test_both_names_in_plugin_commands_catalog,
-        test_alias_body_references_canonical_explicitly,
-        test_alias_description_prefix_is_machine_readable,
+        test_public_body_owns_vocabulary_and_names_compatibility_body,
+        test_compatibility_surfaces_are_explicit,
+        test_capability_exposure_matches_public_ownership,
         test_ph2_legacy_surface_routes_to_iterate_refine,
         test_run_phase_3_stability_routes_to_iterate_stability,
     ]

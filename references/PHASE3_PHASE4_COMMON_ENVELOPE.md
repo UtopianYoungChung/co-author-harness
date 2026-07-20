@@ -77,7 +77,9 @@ The Evaluator treats graphify as a courier, not an authority: every severity ass
 
 ## 6. Reflector dispatch contract
 
-Authority: `agents/reflector.md`; `PHASE_PROTOCOL.md §§1, 5`.
+Authority: `skills/run-reflection/SKILL.md` mode router,
+`agents/reflector-probe.md` / `agents/reflector-closeout.md` mode procedures,
+and `PHASE_PROTOCOL.md §§1, 5`.
 
 | Context | Reflector mode | Scope |
 |---|---|---|

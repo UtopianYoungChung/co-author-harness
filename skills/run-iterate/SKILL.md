@@ -1,6 +1,6 @@
 ---
 name: run-iterate
-description: 'Alias for /run-phase-3 -- public iterate stage under the v0.15.x stage x profile vocabulary. /run-iterate is the canonical public surface; legacy /run-phase-2 routes here with profile=refine, and /run-phase-3-stability routes here with profile=stability.'
+description: 'Public iterate stage entrypoint under the v0.15.x stage x profile vocabulary. Legacy /run-phase-2, /run-phase-3, and /run-phase-3-stability remain compatibility routes.'
 trigger: 'when the user says "run iterate," "iterate," "stage = iterate," invokes "/run-iterate", or invokes a legacy review/stability command that routes to iterate'
 version: 0.15.1
 ---
@@ -22,7 +22,7 @@ the same full iterate workflow, while legacy `/run-phase-2` and
 | `/run-iterate --profile deep` | `iterate` | `deep` | full Ph3 parity and pre-MCR safety-net pass |
 | `/run-iterate --profile stability` | `iterate` | `stability` | byte-stable inheritance pass |
 | `/run-phase-2` | `iterate` | `refine` | legacy compatibility route |
-| `/run-phase-3` | `iterate` | F6-selected | legacy canonical route |
+| `/run-phase-3` | `iterate` | F6-selected | legacy compatibility route |
 | `/run-phase-3-stability` | `iterate` | `stability` | legacy compatibility route |
 
 If no profile is supplied, read the project's F6 dispatch plan. If the F6 is

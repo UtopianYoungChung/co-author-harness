@@ -12,7 +12,7 @@ The canonical harness substrate lives at the top level of this directory:
 co-author-harness/
 ├── .claude-plugin/plugin.json   # plugin manifest — authoritative version
 ├── agents/                      # agent prompts (planner, evaluator, generator; reflector router + reflector-probe / reflector-closeout split)
-├── skills/                      # slash-command skills (public ladder run-draft / run-iterate / run-finalize; canonical run-phase-1/3/4 + legacy routers; run-reflection, etc.)
+├── skills/                      # slash-command skills (public ladder run-draft / run-iterate / run-finalize; compatibility bodies run-phase-1/3/4 + legacy routers; run-reflection, etc.)
 ├── references/                  # canonical governance references (AGENT_ORCHESTRATION, REVIEW_ORCHESTRATION, GROUNDING_PROTOCOL, PHASE_PROTOCOL, etc.)
 ├── scripts/                     # phase_state_validate.py, pre_phase_advance_check.py, release-gate.sh, migration scripts
 ├── research_notes/              # package-tier lessons_learned.md

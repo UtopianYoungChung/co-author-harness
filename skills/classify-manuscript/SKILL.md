@@ -10,9 +10,11 @@ You are running the mandatory classification step for the Research and Academic 
 
 ## Step 1 — Locate and read the orchestration file
 
-Find the Research and Academic Paper Writing Package. It contains `REVIEW_ORCHESTRATION.md`, `MASTER_research_and_paper_guidelines.md`, and other component files. The canonical Windows path is `B:\Agents\Paper\Package`; in a Cowork session, use Glob to locate `REVIEW_ORCHESTRATION.md` if the path differs.
+Resolve the Research and Academic Paper Writing Package beneath
+`${CLAUDE_PLUGIN_ROOT}`. If that variable is unavailable, locate
+`references/REVIEW_ORCHESTRATION.md` from the workspace root the user opened.
 
-Read `REVIEW_ORCHESTRATION.md` §1 (the four classification inputs and their options), §3.1 (applicability by paper type), §3.2 (applicability by P-stage), and §3.3 (required steps by review depth) before proceeding. Do not rely on memory of these tables — they evolve.
+Read `references/REVIEW_ORCHESTRATION.md` §1 (the four classification inputs and their options), §3.1 (applicability by paper type), §3.2 (applicability by P-stage), and §3.3 (required steps by review depth) before proceeding. Do not rely on memory of these tables — they evolve.
 
 ## Step 2 — Gather the four classification inputs
 

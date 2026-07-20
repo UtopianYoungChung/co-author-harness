@@ -1,17 +1,23 @@
 ---
 name: run-finalize
-description: 'Alias for /run-phase-4 — Ph4 Finalize & Close under the v0.15.0-pre stage × profile vocabulary. Both /run-finalize and /run-phase-4 resolve to the same canonical workflow. stage=finalize.'
+description: 'Public finalize stage entrypoint under the v0.15.0-pre stage × profile vocabulary. Legacy /run-phase-4 remains a compatibility body for the same Ph4 Finalize & Close workflow. stage=finalize.'
 trigger: 'when the user says "run finalize," "finalize," "stage = finalize," "ship," or invokes "/run-finalize" — equivalent to "/run-phase-4"'
 version: 0.15.0-pre
 ---
 
-# run-finalize — alias for /run-phase-4
+# run-finalize — public finalize stage
 
-**This skill is an alias.** Introduced at v0.15.0-pre PR-3b.3 to surface the new `stage × profile` vocabulary alongside the legacy phase-numbered names. Both `/run-finalize` and `/run-phase-4` resolve to the same canonical workflow. Behaviour is identical.
+`/run-finalize` is the canonical public entrypoint for the finalize stage.
+Legacy `/run-phase-4` remains a compatibility entrypoint and implementation
+body for the same workflow; behaviour is identical.
 
 ## What you do
 
-Read `skills/run-phase-4/SKILL.md` and follow it as the binding instruction set for this invocation. Treat that file as the authority for MCR admission gates, G.4 sign-off, external-verifier requirements, and exit conditions. **Do not duplicate or re-interpret** the canonical spec from this alias file.
+Read `skills/run-phase-4/SKILL.md` and follow it as the compatibility
+implementation body for this invocation. Treat its MCR admission gates, G.4
+sign-off, external-verifier requirements, and exit conditions as binding.
+**Do not duplicate or reinterpret** that implementation body in this public
+router.
 
 For course essays, FINAL remains eligible for the M4-onward exemplar envelope: Yu may condition surface register; Dennett is argument-only when admitted. The canonical workflow begins public `FINAL` through `assignment_milestone_checkpoint.py`, emits a fresh FINAL receipt, reserves it once with `assignment_dispatch_preflight.py --expected-target FINAL --consumer planner --write-path manuscript/final.md --write-path submission_bundle/final_manuscript.md`, then requires Generator staging and `assignment_writer_commit.py` publication. Planner records FINAL and closes it through the same checkpoint command with structured terminal evidence and explicit current-byte approval. The final gate requires accepted M1-M4, M5 in progress, all sections at Ph4, and current wiki-grounding evidence or an authorized opt-out.
 
@@ -21,7 +27,7 @@ If `reviews/convergence_log.md` carries the `profile:` field per iteration row, 
 
 ## Vocabulary mapping
 
-| Old name (canonical) | New alias (v0.15.0-pre) | Stage | Profile |
+| Compatibility name | Public stage name | Stage | Profile |
 |---|---|---|---|
 | `/run-phase-1` | `/run-draft` | `draft` | — |
 | `/run-phase-2` | `/run-iterate --profile refine` | `iterate` | refine |
@@ -31,6 +37,7 @@ If `reviews/convergence_log.md` carries the `profile:` field per iteration row, 
 
 `/run-phase-2` is now a legacy compatibility route to `/run-iterate --profile refine`; it is not a separate public stage.
 
-## Where the canonical spec lives
+## Where the compatibility body lives
 
-`skills/run-phase-4/SKILL.md`. Always.
+`skills/run-phase-4/SKILL.md` carries the full Ph4 implementation for backward
+compatibility. This file owns the public finalize-stage name and mapping.

@@ -1,8 +1,8 @@
 ---
 name: run-draft
-description: Alias for /run-phase-1 — Ph1 Plan & Draft under the v0.15.0-pre stage × profile vocabulary. Both names resolve to the same canonical workflow.
+description: Public draft-stage entrypoint; legacy /run-phase-1 remains a compatibility route.
 ---
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/run-draft/SKILL.md` and follow it as the binding instruction set for this invocation. Treat that file as the authority — and note that the alias delegates to `skills/run-phase-1/SKILL.md` for the canonical workflow.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/run-draft/SKILL.md` and follow it as the binding public router. It delegates the full Ph1 implementation to the legacy-compatible `skills/run-phase-1/SKILL.md` body.
 
 If `${CLAUDE_PLUGIN_ROOT}` does not resolve in this host, fall back to `skills/run-draft/SKILL.md` from the workspace root the user opened.

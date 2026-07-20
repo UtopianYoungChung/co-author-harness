@@ -1,11 +1,15 @@
 ---
 name: run-phase-4
-description: "Ph4 Finalize & Close — terminal phase. Strict Ph3 superset: external verifiers REQUIRED, G.4 sign-off mandatory, Reflector-full, wiki ingest. MCR precondition: sections Ph3_converged (or ceiling-locked), no [Ph3-STALE], pre_mcr_deep_pass_completed=true. Trigger: \"Ph4,\" \"finalize,\" \"ship,\" \"submission,\" \"G.4,\" after MCR."
+description: "Compatibility body for the public /run-finalize stage. Ph4 Finalize & Close requires MCR admission, external verification, G.4, and Reflector-full close-out."
 trigger: when the user says "Ph4 finalize-and-close," "run phase 4," "ship this," "submission-bound pass," "G.4 sign-off," or when the Planner advances after MCR admission
 version: 0.8.0
 ---
 
 # run-phase-4 — Ph4 Finalize & Close
+
+**Compatibility surface.** New user-facing guidance and dispatch should use
+`/run-finalize`. This file remains the full Ph4 implementation body so legacy
+`/run-phase-4` invocations resolve without semantic drift.
 
 
 
@@ -26,7 +30,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
-**Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — judgment-pass structure, SAFEGUARD invocation + Ph4 severity floor escalation, convergence metric, [Ph3-STALE], Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.4 (Ph4 charter; pre-MCR deep gate), 7 (EG-1, EG-7), 8 (G.4 sign-off), 9 (MCR)`; `references/MASTER_research_and_paper_guidelines.md §G.4`; `references/EXTERNAL_VERIFIERS.md`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 6.1`; `skills/run-phase-3/SKILL.md §4.5`; `agents/reflector.md §§Phase 2b, 3, 4, 5`; `skills/ingest-m5-to-wiki/SKILL.md`; `phase_notifications.yaml §§1, 7`.
+**Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — judgment-pass structure, SAFEGUARD invocation + Ph4 severity floor escalation, convergence metric, [Ph3-STALE], Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.4 (Ph4 charter; pre-MCR deep gate), 7 (EG-1, EG-7), 8 (G.4 sign-off), 9 (MCR)`; `references/MASTER_research_and_paper_guidelines.md §G.4`; `references/EXTERNAL_VERIFIERS.md`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 6.1`; `skills/run-phase-3/SKILL.md §4.5`; `agents/reflector-closeout.md`; `skills/ingest-m5-to-wiki/SKILL.md`; `phase_notifications.yaml §§1, 7`.
 
 ## Output Profile
 
@@ -131,7 +135,7 @@ See `references/PHASE3_PHASE4_COMMON_ENVELOPE.md §9` for the shared four-agent 
 5. **Generator fix cycle (if BLOCKERs exist).** Standard Generator dispatch under the consolidated findings report. No Self-Ph1 Verdict.
 6. **Evaluator re-check.** Confirm every BLOCKER is resolved. A remaining BLOCKER blocks G.4 sign-off entirely.
 7. **G.4 sign-off artefact (mandatory).** Evaluator produces the G.4 sign-off per `MASTER_research_and_paper_guidelines.md §G.4`. Row 8.5 (SAFEGUARD layer outcome) must be CLEAN. Written to `reviews/g4_signoff_<YYYY-MM-DD>.md`.
-8. **Reflector-full dispatch (close-out).** Per `agents/reflector.md §§Phase 2b, 2.5, 2.5.1, 3, 4, 5`. Reflector-full:
+8. **Reflector-full dispatch (close-out).** Dispatch `/run-reflection mode: full` and follow `agents/reflector-closeout.md`. Reflector-full:
    - scans the entire `phase_state.json` history (including retired-but-migrated `confirmation_failed` rows) for aggregated patterns (NEW-H-4);
    - runs the full Phase 2.5.1 grounding audit at Ph4 severity floors;
    - synthesises lessons learned (Phase 3);

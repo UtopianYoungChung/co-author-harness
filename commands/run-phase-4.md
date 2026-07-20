@@ -1,8 +1,8 @@
 ---
 name: run-phase-4
-description: Ph4 Finalize & Close — strict superset of Ph3 with external verifiers required and G.4 sign-off
+description: Legacy compatibility route to public /run-finalize; preserves the full Ph4 implementation body.
 ---
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/run-phase-4/SKILL.md` and follow it as the binding instruction set for this invocation. Treat that file as the authority for trigger conditions, gates, finding format, and exit conditions.
+Compatibility entrypoint: read `${CLAUDE_PLUGIN_ROOT}/skills/run-phase-4/SKILL.md`, follow its binding Ph4 implementation, and present `/run-finalize` as the public stage name.
 
 If `${CLAUDE_PLUGIN_ROOT}` does not resolve in this host, fall back to `skills/run-phase-4/SKILL.md` from the workspace root the user opened.
