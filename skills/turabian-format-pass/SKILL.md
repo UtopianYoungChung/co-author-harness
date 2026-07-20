@@ -1,6 +1,6 @@
 ---
 name: turabian-format-pass
-description: 'Run a Turabian/Chicago document-FORMAT conformance pass against Appendix A (Paper Format and Submission) — heading-level hierarchy and per-level consistency, front-matter presence and order, title-page elements, table/figure numbering + caption + placement, and the physical-layout checklist (margins, spacing, pagination) deferred to the manual and any venue template. Orthogonal to citation form and grammar mechanics. Use when: "Turabian format check", "does this follow Turabian layout", "check my headings/front matter", "thesis format pass", "Appendix A check".'
+description: 'Check Turabian/Chicago Appendix A document format: heading hierarchy, front-matter order, title-page elements, tables and figures, and the manual physical-layout checklist. This pass is separate from citation form and grammar. Use for Turabian layout, headings/front matter, thesis formatting, or Appendix A checks.'
 trigger: when the user asks to check document/paper format, layout, headings, front matter, title page, or table/figure placement against Turabian/Chicago (Appendix A) — a thesis, dissertation, or Chicago-styled course paper with no overriding venue template
 created_by: maintainer
 created_from: 2026-07-01 D-STYLE/Turabian presentation-coverage audit — closes the Appendix A gap identified in turabian_chicago_guidelines.md §6 (format demoted to "pointers"; no skill enforced it)

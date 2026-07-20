@@ -1,7 +1,0 @@
-_listing.txt
-_state.txt
-co-author-harness-claude.plugin
-co-author-harness-claude-v0.15.0.plugin
-marketplace.json
-plugin.json
-ssot.yaml

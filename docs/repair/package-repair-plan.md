@@ -13,7 +13,7 @@ test and repair are committed together only after the work package is green.
 | WP2 | Receipt transaction and scoped writer authorization | Fresh positive dispatch passes; stale, copied, replayed, wrong-target, wrong-role, and wrong-path cases fail closed |
 | WP3 | Public workflow and checkpointed M1-M4 progression | Synthetic M1-M4 walk succeeds without manual state repair |
 | WP4 | Atomic M5/FINAL close | Exact G4, terminal round, F8/F9/M5, artifact hash, and terminal checker pass together |
-| WP5 | Centroid and provider-aware graph/wiki services | Every discoverable capability is callable and tested; no active unconditional deferral |
+| WP5 | Centroid and provider-aware graph/wiki services | Every capability has a truthful registry disposition: available capabilities are callable and tested; unavailable capabilities carry explicit reason, remediation, and evidence |
 | WP6 | Simplified entrypoints, reflection modes, hooks, and shim deduplication | One discoverable name per capability; supported host mutations fail closed |
 | WP7 | One fixture authority and Windows portability | Registry drives local/CI/release; native Windows and detached-clean checks pass |
 | WP8 | License/catalog/version/package/install alignment | Source, archive, Claude, and Codex agree on version, hash, capability set, and enabled state; H3 approval |

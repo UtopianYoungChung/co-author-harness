@@ -62,6 +62,15 @@ def extract_manifest_version(plugin_root: Path) -> str:
     return version
 
 
+def extract_manifest_license(plugin_root: Path) -> str:
+    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    manifest = json.loads(read_text(manifest_path))
+    license_id = str(manifest.get("license", "")).strip()
+    if not license_id:
+        raise ValueError("manifest license is empty")
+    return license_id
+
+
 def find_readme_version_assertions(plugin_root: Path) -> List[str]:
     """Return BLOCKERs for README surfaces that ASSERT a current version.
 
@@ -246,10 +255,10 @@ def check_changelog_structure(releases: List[Tuple[str, str]]) -> List[str]:
     return findings
 
 
-def extract_marketplace_self_referencing_versions(
+def extract_marketplace_self_referencing_metadata(
     plugin_root: Path,
-) -> Optional[List[Tuple[str, str]]]:
-    """Return [(plugin_name, version), ...] for marketplace.json entries
+) -> Optional[List[Tuple[str, str, str]]]:
+    """Return [(plugin_name, version, license), ...] for marketplace entries
     whose source resolves to the same plugin root (source == "." or "./",
     or an absolute/relative path that resolves to plugin_root).
 
@@ -276,7 +285,7 @@ def extract_marketplace_self_referencing_versions(
     if not isinstance(plugins, list):
         return []
 
-    self_versions: List[Tuple[str, str]] = []
+    self_metadata: List[Tuple[str, str, str]] = []
     for entry in plugins:
         if not isinstance(entry, dict):
             continue
@@ -292,11 +301,12 @@ def extract_marketplace_self_referencing_versions(
         # class that has shipped twice (v0.10.0 RC marketplace skew and
         # v0.10.1 RC schema-format slip) so future RC gates catch it.
         if source in (".", ".."):
-            self_versions.append(
+            self_metadata.append(
                 (
                     str(entry.get("name", "<unnamed>")).strip() or "<unnamed>",
                     f"<INVALID_SOURCE_FORMAT: bare '{source}' rejected by "
                     f"marketplace loader; use '{source}/' instead>",
+                    str(entry.get("license", "")).strip() or "<missing>",
                 )
             )
             continue
@@ -314,14 +324,16 @@ def extract_marketplace_self_referencing_versions(
 
         name = str(entry.get("name", "")).strip()
         version = str(entry.get("version", "")).strip()
-        if not name or not version:
-            # Self-referencing entry but missing name/version — flag with a
+        license_id = str(entry.get("license", "")).strip()
+        if not name or not version or not license_id:
+            # Self-referencing entry but missing identity metadata — flag with a
             # placeholder so main() can surface a useful BLOCKER.
-            self_versions.append((name or "<unnamed>", version or "<missing>"))
+            self_metadata.append((name or "<unnamed>", version or "<missing>",
+                                  license_id or "<missing>"))
             continue
-        self_versions.append((name, version))
+        self_metadata.append((name, version, license_id))
 
-    return self_versions
+    return self_metadata
 
 
 # Files where a version trailer is legitimate and expected: the manifests
@@ -400,6 +412,7 @@ def main() -> int:
 
     try:
         manifest_version = extract_manifest_version(plugin_root)
+        manifest_license = extract_manifest_license(plugin_root)
     except Exception as exc:  # noqa: BLE001
         print(f"[BLOCKER] manifest version check failed: {exc}")
         return 1
@@ -420,23 +433,29 @@ def main() -> int:
             "gap, not a release blocker."
         )
 
-    marketplace_versions = extract_marketplace_self_referencing_versions(plugin_root)
+    marketplace_metadata = extract_marketplace_self_referencing_metadata(plugin_root)
 
-    if marketplace_versions is None:
+    if marketplace_metadata is None:
         # marketplace.json is absent — silent skip per docstring contract.
         marketplace_summary = "<no marketplace.json>"
-    elif not marketplace_versions:
+    elif not marketplace_metadata:
         # marketplace.json present but no self-referencing entries.
         marketplace_summary = "<no self-referencing entries>"
     else:
         marketplace_summary = ", ".join(
-            f"{name}={version}" for name, version in marketplace_versions
+            f"{name}={version}/{license_id}"
+            for name, version, license_id in marketplace_metadata
         )
-        for name, version in marketplace_versions:
+        for name, version, license_id in marketplace_metadata:
             if version != manifest_version:
                 blockers.append(
                     f"marketplace.json plugin '{name}' version ({version}) "
                     f"!= manifest version ({manifest_version})"
+                )
+            if license_id != manifest_license:
+                blockers.append(
+                    f"marketplace.json plugin '{name}' license ({license_id}) "
+                    f"!= manifest license ({manifest_license})"
                 )
 
     # v0.11.0 c8: enforce the c7 trailer-strip invariant on active prose.
@@ -446,6 +465,7 @@ def main() -> int:
     print("VERSION CONSISTENCY CHECK")
     print(f"- Plugin root: {plugin_root}")
     print(f"- Manifest version (SOLE current-version authority): {manifest_version}")
+    print(f"- Manifest license: {manifest_license}")
     print(f"- README version assertions: {len(find_readme_version_assertions(plugin_root))} "
           f"(must be 0)")
     print(f"- CHANGELOG newest release (history, not authority): "
@@ -465,4 +485,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

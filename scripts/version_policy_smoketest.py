@@ -78,17 +78,21 @@ def _w(p: Path, t: str) -> Path:
     return p
 
 
-def fixture(base: Path, *, manifest="0.29.1", marketplace=None, readme=None,
+def fixture(base: Path, *, manifest="0.29.1", marketplace=None,
+            manifest_license="MIT", marketplace_license=None, readme=None,
             changelog=None) -> Path:
     """A minimal plugin root. Defaults are the COMPLIANT shape."""
     root = base / "plug"
     _w(root / ".claude-plugin/plugin.json",
        json.dumps({"name": "co-author-harness-claude", "version": manifest,
-                   "description": "d", "keywords": []}, indent=2) + "\n")
+                   "description": "d", "keywords": [],
+                   "license": manifest_license}, indent=2) + "\n")
     _w(root / ".claude-plugin/marketplace.json",
        json.dumps({"name": "m", "plugins": [
            {"name": "co-author-harness-claude", "source": "./",
-            "version": marketplace if marketplace is not None else manifest}]},
+            "version": marketplace if marketplace is not None else manifest,
+            "license": (marketplace_license if marketplace_license is not None
+                        else manifest_license)}]},
            indent=2) + "\n")
     _w(root / "README.md", readme if readme is not None else
        "# co-author-harness\n\nSee `.claude-plugin/plugin.json` for the current "
@@ -157,6 +161,17 @@ def case_marketplace_parity_is_a_hard_gate() -> None:
         rc, out = run(root)
         check("manifest<->marketplace skew is a HARD BLOCKER",
               rc == 1 and blocked_for(out, "marketplace", "0.29.0"),
+              str(blockers(out)[:2]))
+
+
+def case_marketplace_license_parity_is_a_hard_gate() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td), manifest_license="MIT",
+                       marketplace_license="UNLICENSED")
+        rc, out = run(root)
+        check("manifest<->marketplace license skew is a HARD BLOCKER",
+              rc == 1 and blocked_for(out, "marketplace", "license",
+                                      "UNLICENSED", "MIT"),
               str(blockers(out)[:2]))
 
 
@@ -405,6 +420,7 @@ def main() -> int:
                case_readme_badge_refused_even_when_matching,
                case_readme_version_literal_is_refused,
                case_marketplace_parity_is_a_hard_gate,
+               case_marketplace_license_parity_is_a_hard_gate,
                case_changelog_headings_are_permitted,
                case_changelog_is_not_current_version_authority,
                case_changelog_structure_is_still_validated,

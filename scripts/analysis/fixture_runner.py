@@ -200,6 +200,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/fixture_authority_smoketest.py": [_default_case()],
     "scripts/graph_authority_gate_smoketest.py": [_default_case()],
     "scripts/lifecycle_contract_smoketest.py": [_default_case()],
+    "scripts/loader_compat_portability_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],

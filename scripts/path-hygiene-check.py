@@ -2,7 +2,7 @@
 """
 co-author-harness — path-hygiene-check.py
 
-Three path-hygiene checks:
+Four path-hygiene checks:
 
 1. **Forbidden local absolute paths.** Blocks maintainer-local absolute
    paths (e.g., `C:\\Users\\young\\`, `/Users/young/`) from install-facing
@@ -18,6 +18,10 @@ Three path-hygiene checks:
    artefacts in `releases/` that the v0.10.x validators failed to detect;
    the resulting clean-up was P4 of the §5 punch list. The new rule
    prevents regression.
+
+4. **No captured build-state files in the plugin manifest directory.** Shell
+   listings and error captures are neither package metadata nor release
+   receipts; if tracked, the package builder ships them as product bytes.
 """
 
 from __future__ import annotations
@@ -51,6 +55,10 @@ EXTERNAL_LINK_PREFIXES = (
 
 # Directories that must remain free of untracked working files.
 UNTRACKED_GUARDED_DIRS = ("releases", "tmp")
+FORBIDDEN_TRACKED_STATE = (
+    ".claude-plugin/_listing.txt",
+    ".claude-plugin/_state.txt",
+)
 
 
 def read_text(path: Path) -> str:
@@ -161,6 +169,14 @@ def check_untracked_in_guarded_dirs(plugin_root: Path) -> List[str]:
     return findings
 
 
+def check_captured_build_state(plugin_root: Path) -> List[str]:
+    return [
+        f"captured build-state file must not ship: {rel}"
+        for rel in FORBIDDEN_TRACKED_STATE
+        if (plugin_root / rel).exists()
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Check for forbidden local absolute paths, README link "
@@ -180,6 +196,7 @@ def main() -> int:
     blockers.extend(check_forbidden_paths(plugin_root))
     blockers.extend(check_readme_link_resolution(plugin_root))
     blockers.extend(check_untracked_in_guarded_dirs(plugin_root))
+    blockers.extend(check_captured_build_state(plugin_root))
 
     print("PATH HYGIENE CHECK")
     print(f"- Plugin root: {plugin_root}")

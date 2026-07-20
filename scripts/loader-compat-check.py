@@ -59,6 +59,14 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 
+# Release verification must work on native Windows consoles whose inherited
+# ANSI code page cannot encode this check's own Unicode headings. Establish an
+# explicit output contract before any diagnostic is printed.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
 RESERVED_WIN_NAMES = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{i}" for i in range(1, 10)),
