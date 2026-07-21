@@ -143,6 +143,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.35.0** | Hardens the semantic-register re-pin boundary: governed graph writers fail closed, Codex and Claude semantic audits share one provenance-checked contract, attestation/exemplar projections are stable under real graph serialization, and a production Planner transaction verifies and applies pending project rebind requests without letting the re-pin writer mutate lifecycle state. |
 | **0.34.0** | Replaces the duplicated skill-plus-command-shim inventory with one native-skill surface; exposes only supported user commands, hides legacy/maintainer/unavailable contracts without deleting them, and machine-checks the menu against a command-surface policy. Phantom slash names are reclassified as real public skills or Planner intents. |
 | **0.33.2** | Makes Git-source Claude/Codex installs byte-equivalent to the audited release policy: six packaged snippet expansions become explicit runtime file bindings, and a release source-parity gate refuses any missing, extra, duplicate, or rewritten source member beyond generated provenance. |
 | **0.33.1** | Repairs Codex discovery of the repository-root plugin without duplicating the package or creating a distribution branch: the marketplace uses a dual-loader remote URL source, while shared validators keep manifest identity, version/license/description parity, source/repository agreement, and archive checks connected across source shapes. |

@@ -105,7 +105,10 @@ def initialize_main_commit(repository: Path) -> str:
     subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=repository, check=True)
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
     subprocess.run(["git", "commit", "-qm", "fixture repin"], cwd=repository, check=True)
-    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=repository, check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repository, check=True,
+        capture_output=True, text=True, encoding="utf-8", errors="strict",
+    ).stdout.strip()
 
 
 def case_no_delta() -> None:

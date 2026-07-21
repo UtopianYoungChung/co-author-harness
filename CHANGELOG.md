@@ -6,6 +6,36 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.35.0 — 2026-07-21
+
+### Semantic register stability and closed rebind loop
+
+**What changed.** The domain-native semantic register now accepts provenance-
+checked audits from either Codex or Claude Code, including multi-reviewer
+artifacts, while retaining exact reviewer counts and row lineage. Graph
+projections tolerate NetworkX's valid endpoint orientation and verify derived
+normal labels rather than treating serializer details as semantic drift.
+
+**Writer safety.** Governed semantic graph states are protected from legacy
+refresh, merge, and normalization writers. Stabilization preserves reviewer-
+scoped caches, safely reuses or archives candidate plans, and maintains unique
+history artifacts. The live corpus was re-audited and re-pinned at epoch 7 with
+zero unsupported sampled relations and no unresolved register seeds.
+
+**Planner transaction.** `assignment_milestone_checkpoint.py` now provides the
+missing production path for a pending rebind request. It refuses open rounds,
+verifies the current profile, both pins, epoch, timestamp, and append-only log
+row, retains G/H/VE transition history, publishes the resolver before state,
+checks concurrent changes, then archives the applied request. Regression
+coverage proves open-round and malformed-request refusals as well as the
+successful state-last path.
+
+**Why a minor release.** This closes a documented workflow capability gap and
+widens the supported semantic-audit provider contract without weakening any
+gate. The public slash-command surface remains unchanged.
+
+---
+
 ## v0.34.0 — 2026-07-20
 
 ### One native command surface

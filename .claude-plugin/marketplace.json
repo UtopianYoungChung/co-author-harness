@@ -16,7 +16,7 @@
         "url": "https://github.com/UtopianYoungChung/co-author-harness.git"
       },
       "description": "PhD-level academic-writing review for Claude Code. Four agents (Planner, Evaluator, Generator, Reflector) advance a per-section phase ledger under grounding discipline. Skills include snowball references, accessibility audit, and named-scholar style overlays.",
-      "version": "0.34.0",
+      "version": "0.35.0",
       "author": {
         "name": "Young Jo(seph) Chung",
         "email": "jo.chung@utoronto.ca"

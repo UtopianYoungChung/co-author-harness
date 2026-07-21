@@ -226,6 +226,61 @@ def main() -> int:
             run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             run(VALIDATOR, "--project-root", project)
 
+        # The re-pin producer publishes a request; only this Planner command
+        # may refresh the phase binding and archive that request. M3 acceptance
+        # leaves no round open, so exercise both fail-closed request validation
+        # and the positive state-last path at the authorized boundary.
+        initial = state(project)
+        initial_binding = initial["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+        request_path = project / "reviews" / "repin_rebind_request.json"
+        write_json(request_path, {"status": "pending"})
+        before_open_round_refusal = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project, expected=4)
+        assert "AMC-REPIN-ROUND" in refused.stdout
+        assert (project / "reviews" / "phase_state.json").read_bytes() == before_open_round_refusal
+        # Synthetic phase setup: this lifecycle fixture does not run the
+        # section-round closer, so mark its initial dispatch logs closed before
+        # testing the authorized no-open-round transaction boundary.
+        closed = state(project)
+        for section in closed["sections"].values():
+            if section.get("phase_entry_log"):
+                section["phase_entry_log"].append({
+                    "prev_phase": "Ph1", "new_phase": "Ph1",
+                    "trigger": "ph1_draft_completion_signed", "actor": "planner",
+                    "notes": "Synthetic no-open-round boundary for Planner rebind regression.",
+                    "timestamp": "2026-07-19T00:00:00Z", "model_used": None,
+                })
+        write_json(project / "reviews" / "phase_state.json", closed)
+        before_invalid_rebind = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project, expected=4)
+        assert "AMC-REPIN-REQUEST" in refused.stdout
+        assert (project / "reviews" / "phase_state.json").read_bytes() == before_invalid_rebind
+        repin_rows = [
+            json.loads(line) for line in
+            (ROOT / "references" / "policies" / "repin_log.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        epoch = initial_binding["pin_epoch"]
+        repin_row = next(row for row in repin_rows if row.get("epoch") == epoch)
+        write_json(request_path, {
+            "request_id": "synthetic-planner-rebind",
+            "pin_epoch": epoch,
+            "profile_sha256": initial_binding["profile_sha256"],
+            "attestation_view_pin": initial_binding["attestation_view_pin"],
+            "exemplar_view_pin": initial_binding["exemplar_view_pin"],
+            "delta_class": repin_row["delta_class"],
+            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
+            "status": "pending",
+        })
+        run(CHECKPOINT, "rebind-reader-policy", "--project-root", project)
+        archive = project / "reviews" / f"repin_rebind_request.{epoch}.applied.json"
+        applied = json.loads(archive.read_text(encoding="utf-8"))
+        rebound = state(project)["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+        assert not request_path.exists() and applied["status"] == "applied"
+        assert applied["applied_by"] == "planner" and rebound["pin_epoch"] == epoch
+        assert rebound["transitions"] == initial_binding["transitions"]
+        run(VALIDATOR, "--project-root", project)
+
         before_wrong_begin = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M3", "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
         assert "AMC-ORDER" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == before_wrong_begin

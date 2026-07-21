@@ -318,6 +318,160 @@ def transaction_claim(project: Path, operation: str) -> Iterator[None]:
             pass
 
 
+def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
+    """Apply a pending semantic-register rebind as a Planner transaction.
+
+    The re-pin writer deliberately publishes only a request.  This function is
+    the sole production bridge from that request to the Planner-owned phase
+    ledger.  It writes the fresh resolver artifact first, the authoritative
+    state second, and archives the request last.  Existing transition history
+    is retained byte-for-byte in the new binding.
+    """
+    import reader_accessibility_policy as policy
+
+    project = project.resolve()
+    at = _timestamp(at)
+    request_path = project / "reviews" / "repin_rebind_request.json"
+    profile_path = policy.DEFAULT_PROFILE.resolve()
+    ledger_path = policy.ROOT / "references" / "policies" / "repin_log.jsonl"
+    with transaction_claim(project, "rebind:reader_accessibility"):
+        state_path, state, prehash = _load_state(project)
+        framework = _framework(state)
+        if policy._open_project_round(project):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-ROUND", "reader-policy rebind requires no open review round"
+            )
+        if not request_path.is_file() or _is_link(request_path):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST", "pending reader-policy rebind request is missing or linked"
+            )
+        request = _load_object(request_path, "AMC-REPIN-REQUEST")
+        request_hash = _sha256(request_path)
+        required = {
+            "request_id", "pin_epoch", "profile_sha256", "attestation_view_pin",
+            "exemplar_view_pin", "delta_class", "repin_log_ref", "status",
+        }
+        if set(request) != required or request.get("status") != "pending":
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST", "rebind request fields or pending status are invalid"
+            )
+        if not profile_path.is_file() or not ledger_path.is_file():
+            raise MilestoneTransactionError(
+                "AMC-REPIN-POLICY", "canonical reader profile or re-pin ledger is missing"
+            )
+        profile = policy.load_profile(profile_path)
+        expected = profile["domain_native_register"]["expected_verification"]
+        profile_hash = _sha256(profile_path)
+        epoch = request.get("pin_epoch")
+        expected_request = {
+            "profile_sha256": profile_hash,
+            "attestation_view_pin": expected.get("attestation_view_pin"),
+            "exemplar_view_pin": expected.get("exemplar_view_pin"),
+            "pin_epoch": expected.get("pin_epoch"),
+            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
+        }
+        for key, value in expected_request.items():
+            if request.get(key) != value:
+                raise MilestoneTransactionError(
+                    "AMC-REPIN-REQUEST", f"pending request {key} does not match the current profile"
+                )
+        if not isinstance(expected.get("pinned_at"), str):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-POLICY", "current profile lacks a valid pinned_at value"
+            )
+        rows = []
+        try:
+            for line in ledger_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    row = json.loads(line)
+                    if isinstance(row, dict):
+                        rows.append(row)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise MilestoneTransactionError(
+                "AMC-REPIN-LEDGER", f"cannot read the re-pin ledger: {exc}"
+            ) from exc
+        row = next((item for item in rows if item.get("epoch") == epoch), None)
+        if not isinstance(row, dict):
+            raise MilestoneTransactionError("AMC-REPIN-LEDGER", "request epoch is absent from re-pin ledger")
+        if (
+            row.get("pinned_at") != expected.get("pinned_at")
+            or row.get("delta_class") != request.get("delta_class")
+            or row.get("profile_sha256", {}).get("new") != profile_hash
+            or row.get("attestation_view_pin", {}).get("new") != request.get("attestation_view_pin")
+            or row.get("exemplar_view_pin", {}).get("new") not in {None, request.get("exemplar_view_pin")}
+        ):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-LEDGER", "request, current profile, and re-pin ledger do not form one transaction"
+            )
+
+        old_binding = framework.get("policy_bindings", {}).get("reader_accessibility")
+        if not isinstance(old_binding, dict) or not isinstance(old_binding.get("transitions"), dict):
+            raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing reader-policy binding is invalid")
+        resolved_relative = old_binding.get("resolved_path")
+        if not isinstance(resolved_relative, str):
+            raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing resolved policy path is invalid")
+        resolved_path = (project / Path(*PurePosixPath(resolved_relative).parts)).resolve()
+        try:
+            resolved_path.relative_to(project)
+        except ValueError as exc:
+            raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path escapes project root") from exc
+        if _is_link(resolved_path) or _is_link(resolved_path.parent):
+            raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path is linked")
+
+        fresh = policy.resolve_policy(project)
+        if (
+            fresh.get("profile_sha256") != profile_hash
+            or fresh.get("attestation_view_pin") != request.get("attestation_view_pin")
+            or fresh.get("exemplar_view_pin") != request.get("exemplar_view_pin")
+        ):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-POLICY", "fresh resolver output differs from the pending request"
+            )
+        old_resolved = resolved_path.read_bytes() if resolved_path.is_file() else None
+        try:
+            old_resolved_payload = json.loads(old_resolved) if old_resolved is not None else None
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            old_resolved_payload = None
+        old_state_bytes = state_path.read_bytes()
+        profile_pre = _sha256(profile_path)
+        ledger_pre = _sha256(ledger_path)
+        request_pre = request_hash
+        try:
+            if old_resolved_payload != fresh:
+                _atomic_replace(resolved_path, fresh)
+            binding = policy.phase_state_binding(fresh, resolved_path, project)
+            binding["transitions"] = copy.deepcopy(old_binding["transitions"])
+            proposed = copy.deepcopy(state)
+            proposed_framework = _framework(proposed)
+            proposed_framework["policy_bindings"]["reader_accessibility"] = binding
+            if _sha256(state_path) != prehash or _sha256(request_path) != request_pre:
+                raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state or rebind request changed")
+            if _sha256(profile_path) != profile_pre or _sha256(ledger_path) != ledger_pre:
+                raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "profile or re-pin ledger changed")
+            _atomic_replace(state_path, proposed)
+            applied = copy.deepcopy(request)
+            applied.update({"status": "applied", "applied_at": at, "applied_by": "planner"})
+            archive = project / "reviews" / f"repin_rebind_request.{epoch}.applied.json"
+            archive_bytes = _json_bytes(applied)
+            _exclusive_bytes(archive, archive_bytes)
+            if _sha256(state_path) != hashlib.sha256(_json_bytes(proposed)).hexdigest():
+                raise MilestoneTransactionError("AMC-REPIN-READBACK", "phase-state read-back failed")
+            request_path.unlink()
+            return archive
+        except Exception:
+            # State-last publication makes the common failure path recoverable.
+            # If state was not published, restore the prior resolver bytes so
+            # the old binding never points at new, unbound content.
+            if state_path.read_bytes() == old_state_bytes:
+                if old_resolved is None:
+                    resolved_path.unlink(missing_ok=True)
+                else:
+                    temporary = resolved_path.with_name(f".{resolved_path.name}.{os.getpid()}.rollback.tmp")
+                    temporary.write_bytes(old_resolved)
+                    os.replace(temporary, resolved_path)
+            raise
+
+
 def derive(project: Path) -> dict[str, Any]:
     _, state, _ = _load_state(project.resolve())
     milestones = _framework(state)["milestones"]

@@ -8,14 +8,15 @@ import json
 from pathlib import Path
 
 from assignment_milestone_transaction import (
-    MilestoneTransactionError, accept, begin, derive, record, recover_claim,
+    MilestoneTransactionError, accept, begin, derive, record,
+    rebind_reader_accessibility, recover_claim,
 )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("derive", "begin", "record", "accept", "recover"):
+    for name in ("derive", "begin", "record", "accept", "rebind-reader-policy", "recover"):
         command = sub.add_parser(name)
         command.add_argument("--project-root", type=Path, required=True)
         if name in {"begin", "record", "accept"}:
@@ -45,6 +46,8 @@ def main() -> int:
                 args.approval_evidence, args.at, args.policy_evidence,
                 args.terminal_evidence,
             ); print(f"ACCEPTED {args.milestone}")
+        elif args.command == "rebind-reader-policy":
+            archive = rebind_reader_accessibility(args.project_root); print(f"REBOUND {archive}")
         else:
             archived = recover_claim(args.project_root, args.acknowledgement); print(f"RECOVERED {archived}")
     except MilestoneTransactionError as exc:
