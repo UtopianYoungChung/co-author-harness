@@ -7,7 +7,7 @@ lifecycle contracts. It does not define a second phase system.
 
 The persisted lifecycle states and legal edges are defined only by
 `lifecycle_transitions.v1.json`. Exact M1–M4 writer, path, timing, review, and
-acceptance responsibilities are defined only by `role_output_contract.v1.json`.
+acceptance responsibilities are defined only by `role_output_contract.json`.
 `reviews/phase_state.json` is project state, and the Planner is its sole writer.
 
 The labels **Think, Plan, Build, Review, Test, Ship, Reflect** are derived intent
@@ -55,7 +55,7 @@ an informal seven-step lifecycle.
 2. Use the table above to choose the entry intent; never write that label to the
    ledger.
 3. Validate the requested move against `lifecycle_transitions.v1.json` and the
-   deliverable dispatch against `role_output_contract.v1.json`.
+   deliverable dispatch against `role_output_contract.json`.
 4. Run the applicable preflight and receipt transaction before any deliverable
    bytes are written.
 5. Dispatch only the role authorized for the active milestone and state.

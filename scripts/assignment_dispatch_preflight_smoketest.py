@@ -116,7 +116,7 @@ def run_preflight(
     project: Path,
     receipt: Path,
     expected_target: str,
-    write_path: str = "research_notes/project_memo.md",
+    write_path: str = "milestones/M1_project_memo.md",
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [

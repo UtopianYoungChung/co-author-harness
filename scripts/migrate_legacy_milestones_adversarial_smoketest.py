@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATOR = ROOT / "scripts" / "migrate_legacy_milestones.py"
+PATH_MIGRATOR = ROOT / "scripts" / "migrate_milestone_paths.py"
 sys.path.insert(0, str(ROOT / "scripts"))
 import migrate_legacy_milestones as migration
 
@@ -31,6 +32,50 @@ def write_json(path: Path, value: object) -> None:
 
 
 def main() -> int:
+    # Canonical path-contract migration: reviewed dry-run, exact-byte move,
+    # idempotent reapply, rollback, and deterministic remigration.
+    with tempfile.TemporaryDirectory(prefix="milestone-path-migration-") as directory:
+        project = Path(directory) / "path-project"
+        legacy = project / "research_notes" / "project_memo.md"
+        legacy.parent.mkdir(parents=True)
+        original = b"# Exact legacy bytes\r\n\r\nKeep line endings.\r\n"
+        legacy.write_bytes(original)
+        state = project / "reviews" / "phase_state.json"
+        state.parent.mkdir(parents=True)
+        write_json(state, {
+            "sections": {},
+            "milestone_framework": {
+                "contract_version": "1.0.0", "mode": "native",
+                "primary_lineage": "main", "milestones": {}, "events": [],
+            },
+        })
+        dry = subprocess.run(
+            [sys.executable, "-I", "-S", str(PATH_MIGRATOR), "--project-root", str(project), "--dry-run"],
+            cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
+        )
+        assert dry.returncode == 0, dry.stdout + dry.stderr
+        reviewed = project / "reviewed-path-plan.json"
+        reviewed.write_text(dry.stdout, encoding="utf-8")
+        apply_args = [sys.executable, "-I", "-S", str(PATH_MIGRATOR), "--project-root", str(project), "--apply", "--reviewed-manifest", str(reviewed)]
+        applied = subprocess.run(apply_args, cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
+        assert applied.returncode == 0, applied.stdout + applied.stderr
+        canonical = project / "milestones" / "M1_project_memo.md"
+        assert canonical.read_bytes() == original and not legacy.exists()
+        reapplied = subprocess.run(apply_args, cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
+        assert reapplied.returncode == 0 and reapplied.stdout == applied.stdout
+        applied_manifest = Path(applied.stdout.strip().removeprefix("APPLIED "))
+        rolled = subprocess.run(
+            [sys.executable, "-I", "-S", str(PATH_MIGRATOR), "--project-root", str(project), "--rollback", "--manifest", str(applied_manifest)],
+            cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
+        )
+        assert rolled.returncode == 0, rolled.stdout + rolled.stderr
+        assert legacy.read_bytes() == original and not canonical.exists()
+        redry = subprocess.run(
+            [sys.executable, "-I", "-S", str(PATH_MIGRATOR), "--project-root", str(project), "--dry-run"],
+            cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
+        )
+        assert json.loads(redry.stdout)["plan_sha256"] == json.loads(dry.stdout)["plan_sha256"]
+
     with tempfile.TemporaryDirectory(prefix="legacy-migration-adversarial-") as directory:
         project = Path(directory) / "project"
         (project / "reviews").mkdir(parents=True)

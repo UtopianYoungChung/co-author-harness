@@ -63,9 +63,9 @@ Governed by `general_research_project_guidelines.md` and `AGENT_ORCHESTRATION.md
 
 | Milestone | Artifact | Agent responsible |
 |---|---|---|
-| M1 — Project Memo | `research_notes/project_memo.md` | Planner (classify + plan) → Generator (draft memo) → Evaluator (review against M1 criteria) |
-| M2 — Annotated References | `research_notes/annotated_references.md` | Planner (plan) → Generator (draft annotations) → Evaluator (check contribution-to-tension) |
-| M3 — Structured Outline | `manuscript/outline.md` | Planner (plan) → Generator (draft outline) → Evaluator (review skeleton + arc) |
+| M1 — Project Memo | `milestones/M1_project_memo.md` | Planner (classify + plan) → Generator (draft memo) → Evaluator (review against M1 criteria) |
+| M2 — Annotated References | `milestones/M2_annotated_references.md` | Planner (plan) → Generator (draft annotations) → Evaluator (check contribution-to-tension) |
+| M3 — Structured Outline | `milestones/M3_argument_evidence_outline.md` | Planner (plan) → Generator (draft outline) → Evaluator (review skeleton + arc) |
 
 ### Phase B: Drafting and revision (Milestones 4–5)
 
@@ -73,8 +73,8 @@ Governed by `REVIEW_ORCHESTRATION.md` and `AGENT_ORCHESTRATION.md §3` (The Loop
 
 | Milestone | Artifact | Agent responsible |
 |---|---|---|
-| M4 — Paper Draft | `manuscript/main.md` (or `main.tex`) | Full four-agent loop: Planner → Evaluator → Generator → Reflector |
-| M5 — Final Paper | `manuscript/main.md` (submission-bound) | Full four-agent loop at `submission-bound` depth + G.4 sign-off |
+| M4 — Paper Draft | `milestones/M4_complete_paper_draft.md` (or `main.tex`) | Full four-agent loop: Planner → Evaluator → Generator → Reflector |
+| M5 — Final Paper | `milestones/M5_final_paper.md` (submission-bound) | Full four-agent loop at `submission-bound` depth + G.4 sign-off |
 
 The Planner determines the current milestone by reading the project state. The user can override.
 
@@ -160,4 +160,3 @@ When the user asks to start a new research project, the agent reads `PROJECT_BOO
 | PROJECT_BOOTSTRAP.md | `.paper-package/PROJECT_BOOTSTRAP.md` | New project setup protocol |
 | GROUNDING_PROTOCOL.md | `.paper-package/GROUNDING_PROTOCOL.md` | Binding no-hallucination rules |
 | Year 2026 CLAUDE.md | Year 2026 root `CLAUDE.md` (peer folder, not under this Research root) | Year-level project notes (peer file, not parent) |
-

@@ -30,7 +30,7 @@
 
 **Writes (never):**
 
-- **`manuscript/main.md`** and everything under `manuscript/` — the Reflector reflects on work, never produces it.
+- **`milestones/M4_complete_paper_draft.md`** and everything under `manuscript/` — the Reflector reflects on work, never produces it.
 - **Evaluator artefacts** (`reviews/consolidated_findings_report.md`, step findings, `reviews/safeguard_layer_results.md`, `reviews/safeguard_check8_*.md`, `reviews/G4_signoff.md`) — read-only inputs.
 - **`reviews/phase_state.json`** — the Planner is the sole writer under `I-Planner-1`; the Reflector audits the ledger at Phase 2f but never mutates it. Violations of this boundary are themselves a Phase 2f finding (`R-Refl-SA-1` / ledger-write-out-of-contract).
 - **Lightweight-mode plugin-update proposals** — defer to closeout via `[DEFERRED TO FULL REFLECTOR]` marker.

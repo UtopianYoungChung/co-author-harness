@@ -39,7 +39,7 @@ Evidence packets live at `reviews/.harness/evidence/<event_id>.json` and contain
   "round_id": "round_2026-05-04_001",
   "event_id": "round_2026-05-04_001__ph2__001",
   "phase": "Ph2",
-  "target": "manuscript/main.md#section",
+  "target": "milestones/M4_complete_paper_draft.md#section",
   "evidence_status": "complete",
   "created_at": "2026-05-04T00:00:00Z",
   "checks_run": [],

@@ -142,7 +142,7 @@
 
 The Generator consumes the predecessor F9 packet and writes deliverable/revision-log artifacts only. It does not approve, accept, consume, reopen, supersede, or otherwise mutate milestone state.
 
-**Role metaphor.** Academic-deliverable writer and sole author of M1–M4 plus public FINAL/M5 deliverable bytes. Exact paths and timing are machine-bound by `role_output_contract.v1.json`. Operates against a Planner dispatch it did not approve and does not self-evaluate at the conceptual level.
+**Role metaphor.** Academic-deliverable writer and sole author of M1–M4 plus public FINAL/M5 deliverable bytes. Exact paths and timing are machine-bound by `role_output_contract.json`. Operates against a Planner dispatch it did not approve and does not self-evaluate at the conceptual level.
 
 **Preconditions for invocation.**
 - Planner preflight has atomically reserved an immutable assignment receipt for the active target and exact intended paths; the predecessor F9 preflight also passes where applicable.
@@ -155,14 +155,14 @@ The Generator consumes the predecessor F9 packet and writes deliverable/revision
 - The relevant rule files cited by the plan (e.g., `bacon_2009_well_crafted_sentence_guidelines.md` for line-edits, `Sexton_Fiction_to_Academic_Writing_Guide.md` for structural openings).
 - `STYLE_COMMITMENTS.md` to know which commitments (C-1…C-4) are in force.
 - `GROUNDING_PROTOCOL.md` (binding — applied on every write).
-- The active deliverable named by `role_output_contract.v1.json` and prior `manuscript/revision_log.md` entries.
+- The active deliverable named by `role_output_contract.json` and prior `manuscript/revision_log.md` entries.
 
 **Outputs (author through the scoped writer transaction).**
-- M1: `research_notes/project_memo.md` in Ph1.
-- M2: `research_notes/annotated_references.md` in Ph1.
-- M3: `manuscript/outline.md` in Ph1, structured outline only.
-- M4: `manuscript/main.md` in Ph1–Ph3; initial assembly in Ph1 and finding-driven revision from Ph2.
-- Public FINAL / ledger M5: `manuscript/final.md` and its released export `submission_bundle/final_manuscript.md` in Ph4.
+- M1: `milestones/M1_project_memo.md` in Ph1.
+- M2: `milestones/M2_annotated_references.md` in Ph1.
+- M3: `milestones/M3_argument_evidence_outline.md` in Ph1, structured outline only.
+- M4: `milestones/M4_complete_paper_draft.md` in Ph1–Ph3; initial assembly in Ph1 and finding-driven revision from Ph2.
+- Public FINAL / ledger M5: `milestones/M5_final_paper.md` and its released export `submission_bundle/final_manuscript.md` in Ph4.
 - `manuscript/revision_log.md` (append-only per-round entry using the **structured experiment log format** — see template below).
 
 The Generator stages these bytes only under `reviews/.harness/assignment/staged/<receipt_id>/` and authors a strict hash-bound write plan. `scripts/assignment_writer_commit.py` is the sole publisher to the live paths: it revalidates the reserved receipt, live role contract, target, `generator` role assertion, exact reserved path/mode set, reservation token, target preimages, and hashes; journals and publishes; writes the result sidecar; then consumes the receipt. Append-mode targets are staged as strict extensions. The Generator never bypasses this wrapper or edits receipt bytes. The staging directory and plan are the narrow transaction-control exception to I-Gen-1's general `reviews/*` prohibition.

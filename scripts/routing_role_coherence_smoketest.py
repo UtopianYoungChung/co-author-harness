@@ -17,12 +17,12 @@ def read(relative: str) -> str:
 
 
 def main() -> int:
-    role_contract = json.loads(read("references/role_output_contract.v1.json"))
+    role_contract = json.loads(read("references/role_output_contract.json"))
     expected_paths = {
-        "M1": "research_notes/project_memo.md",
-        "M2": "research_notes/annotated_references.md",
-        "M3": "manuscript/outline.md",
-        "M4": "manuscript/main.md",
+        "M1": "milestones/M1_project_memo.md",
+        "M2": "milestones/M2_annotated_references.md",
+        "M3": "milestones/M3_argument_evidence_outline.md",
+        "M4": "milestones/M4_complete_paper_draft.md",
     }
     for milestone, path in expected_paths.items():
         row = role_contract["milestones"][milestone]
@@ -43,10 +43,10 @@ def main() -> int:
 
     contracts = read("references/AGENT_CONTRACTS.md")
     for path in (
-        "research_notes/project_memo.md",
-        "research_notes/annotated_references.md",
-        "manuscript/outline.md",
-        "manuscript/main.md",
+        "milestones/M1_project_memo.md",
+        "milestones/M2_annotated_references.md",
+        "milestones/M3_argument_evidence_outline.md",
+        "milestones/M4_complete_paper_draft.md",
     ):
         assert path in contracts
     assert "Never writes to `reviews/*` except receipt-scoped staged content" in contracts

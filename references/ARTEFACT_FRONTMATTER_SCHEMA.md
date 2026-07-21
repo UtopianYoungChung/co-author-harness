@@ -33,7 +33,7 @@ This file is NORMATIVE. The validator at `scripts/artefact_frontmatter_validate.
 
 Every **Markdown** artefact that lives under `reviews/` and is read by any agent under v0.7.4+ belongs to exactly one of **six legacy** frontmatter families (F1–F6). The family is declared by the `document_type` frontmatter field, which is required on every such artefact.
 
-At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `reviews/.harness/evidence/`) and **F8** (Markdown final round reports under `reviews/`). F7 does not use YAML frontmatter; F8 does. The milestone-feedback contract adds **F9**, a JSON handoff packet under `reviews/.harness/milestones/`. F9 is never Markdown frontmatter and is validated through the milestone-framework validator against its dedicated JSON Schema.
+At **v0.14.0**, the output economy adds **F7** (JSON evidence packets under `reviews/.harness/evidence/`) and **F8** (Markdown final round reports under `reviews/`). F7 does not use YAML frontmatter; F8 does. The milestone-feedback contract adds **F9**, a JSON handoff packet under `reviews/.harness/handoffs/`. F9 is never Markdown frontmatter and is validated through the milestone-framework validator against its dedicated JSON Schema.
 
 | Family | `document_type` value | Produced by | Read by | Hash-inherited under P-2? |
 |---|---|---|---|---|
@@ -412,7 +412,7 @@ document_type: evidence_packet # required, string, exactly evidence_packet
 round_id: round_YYYY-MM-DD_NNN
 event_id: <round_id>__<kind>__NNN   # must start with round_id + "__"
 phase: Ph1|Ph2|Ph3|Ph3_converged|Ph4|round_close
-target: manuscript/main.md     # non-empty string; section anchor allowed
+target: milestones/M4_complete_paper_draft.md     # non-empty string; section anchor allowed
 evidence_status: complete|partial|incomplete
 created_at: ISO-8601           # UTC Z preferred
 ```
@@ -453,9 +453,9 @@ F8 uses **strict** unknown-field rejection in frontmatter only. Body prose is un
 
 ## 7d. Family F9 — milestone handoff evidence (JSON)
 
-Artefact path: `reviews/.harness/milestones/<milestone>_packet.json` (JSON file; **not** YAML-frontmatter Markdown).
+Artefact path: `reviews/.harness/handoffs/<milestone>_packet.json` (JSON file; **not** YAML-frontmatter Markdown).
 
-Machine-readable authority: `references/schemas/f9_milestone_handoff.schema.json`. Authoring shape: `references/templates/f9_milestone_handoff.json`. F9 records the accepted deliverable binding, predecessor packet, feedback dispositions, frozen decisions, open debts, successor instructions, and real approval provenance. Because those facts do not exist at native bootstrap, `reviews/.harness/milestones/` begins empty.
+Machine-readable authority: `references/schemas/f9_milestone_handoff.schema.json`. Authoring shape: `references/templates/f9_milestone_handoff.json`. F9 records the accepted deliverable binding, predecessor packet, feedback dispositions, frozen decisions, open debts, successor instructions, and real approval provenance. Because those facts do not exist at native bootstrap, `reviews/.harness/handoffs/` begins empty.
 
 F9 validation is routed through:
 

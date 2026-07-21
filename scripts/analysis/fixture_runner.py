@@ -208,6 +208,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],
     "scripts/migrate_v0150pre_stage_profile_smoketest.py": [_default_case()],
     "scripts/milestone_framework_smoketest.py": [_default_case()],
+    "scripts/milestone_path_contract_smoketest.py": [_default_case()],
     "scripts/native_project_bootstrap_adversarial_smoketest.py": [_default_case()],
     "scripts/native_project_bootstrap_smoketest.py": [_default_case()],
     "scripts/output_economy_smoketest.py": [_default_case()],

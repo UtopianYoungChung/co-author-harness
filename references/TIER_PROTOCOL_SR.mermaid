@@ -101,7 +101,7 @@ graph TD
   end
 
   %% -------------------------------------------------------------------
-  %% Generator actor — sole writer of manuscript/main.md · no Self-T1 Verdict at v0.7.0
+  %% Generator actor — sole writer of milestones/M4_complete_paper_draft.md · no Self-T1 Verdict at v0.7.0
   %% -------------------------------------------------------------------
   subgraph GenActor[" ✍️ Generator (agents/generator.md) "]
     G_G_Revise[["Apply findings into prose<br/>on the correct section"]]
@@ -110,9 +110,9 @@ graph TD
     G_T_T1Draft["T1 Plan & Draft<br/>full drafting authority"]
     G_T_T2T3Fix["T2 / T3 — fix application<br/>+ convergence-aware edits at T3"]
     G_T_T4Fix["T4 — fix-only, no new prose<br/>(EG-1 demotion if fabrication)"]
-    G_T_Apply["Apply revision log<br/>reviews/findings → manuscript/main.md"]
+    G_T_Apply["Apply revision log<br/>reviews/findings → milestones/M4_complete_paper_draft.md"]
     G_T_DriftReport["Report drift measurement<br/>(Phase 4 completion signal)"]
-    G_R_Manuscript>["manuscript/main.md<br/>(single writer = Generator)"]
+    G_R_Manuscript>["milestones/M4_complete_paper_draft.md<br/>(single writer = Generator)"]
 
     G_G_Revise -->|decomp| G_T_T1Draft
     G_G_Revise -->|decomp| G_T_T2T3Fix

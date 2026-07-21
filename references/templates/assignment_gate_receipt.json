@@ -6,14 +6,14 @@
   "target_milestone": "M1",
   "authorized_role": "generator",
   "authorized_paths": [
-    "research_notes/project_memo.md",
+    "milestones/M1_project_memo.md",
     "manuscript/revision_log.md"
   ],
   "authorized_writes": [
-    {"path": "research_notes/project_memo.md", "mode": "replace"},
+    {"path": "milestones/M1_project_memo.md", "mode": "replace"},
     {"path": "manuscript/revision_log.md", "mode": "append"}
   ],
-  "primary_deliverable_path": "research_notes/project_memo.md",
+  "primary_deliverable_path": "milestones/M1_project_memo.md",
   "project_root_name": "replace-with-project-root-name",
   "project_root_resolved": "replace-with-absolute-project-root",
   "produced_at": "1970-01-01T00:00:00Z",

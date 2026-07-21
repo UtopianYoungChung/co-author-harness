@@ -56,7 +56,7 @@ Before these checks, run deterministic gate `scripts/sk20_preflight_gate.py` so 
 
 1. **Project is wiki-linked.** The project CLAUDE.md contains `wiki_linked: true`. If absent or false, this skill is a no-op.
 2. **Graphify output exists.** Resolve `wiki_path` from the project CLAUDE.md (or deterministic gate overrides), then verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing, no-op.
-3. **Graph is not stale.** Compare the `captured_at` field in `graph.json` (or the date line in `GRAPH_REPORT.md`) against the most recent `Last updated:` date across the project's `references/REFERENCES.md` and `manuscript/main.md`. If the graph is older than either, no-op with `SK-20: graph stale — last captured <date>, manuscript/references updated <date>. Re-run graphify before overlay.`
+3. **Graph is not stale.** Compare the `captured_at` field in `graph.json` (or the date line in `GRAPH_REPORT.md`) against the most recent `Last updated:` date across the project's `references/REFERENCES.md` and `milestones/M4_complete_paper_draft.md`. If the graph is older than either, no-op with `SK-20: graph stale — last captured <date>, manuscript/references updated <date>. Re-run graphify before overlay.`
 4. **Manuscript is classified.** `reviews/classification.md` exists (or the user has explicitly set P-stage and paper-type). The overlay uses the classification to tune thresholds (e.g., P0 vs P1 expectations on orphan-node density) — without it, the overlay runs but reports all findings at their raw severity with no P-stage adjustment.
 5. **Manuscript cites at least one source.** If the manuscript has no in-text citations, no-op with `SK-20: no citations to overlay`.
 
@@ -101,7 +101,7 @@ When `reviews/coupling_readiness_YYYY-MM-DD.json` exists, prefer its `recommende
 
 ### Phase 2 — Enumerate the manuscript's citation set
 
-1. Read `manuscript/main.md` (or `main.tex`). Enumerate every in-text citation using the same pattern set as SK-16 `retrofit-concept-grounding` Phase 1 (Author YYYY, Author et al. YYYY, parenthetical, in-table). Produce `cites = [(author, year, citation_key_if_resolvable, text_location), ...]`.
+1. Read `milestones/M4_complete_paper_draft.md` (or `main.tex`). Enumerate every in-text citation using the same pattern set as SK-16 `retrofit-concept-grounding` Phase 1 (Author YYYY, Author et al. YYYY, parenthetical, in-table). Produce `cites = [(author, year, citation_key_if_resolvable, text_location), ...]`.
 2. Read `references/REFERENCES.md` and resolve each citation to a `raw/corpus/<file>.pdf` path if one exists. Produce `resolved_cites = [(author, year, citation_key, pdf_path, text_location), ...]` and `unresolved_cites = [(author, year, text_location, reason), ...]`.
 3. For each `resolved_cites` entry, look up the corresponding node set in `nodes_by_source_file`. Record `cited_sources_with_nodes` vs `cited_sources_without_nodes` (the latter are sources that graphify has not processed yet).
 
@@ -128,7 +128,7 @@ Write the overlay to `reviews/graph_overlay_YYYY-MM-DD.md` using the template be
 ```markdown
 # Graph Overlay Report
 
-**Artifact overlaid:** manuscript/main.md
+**Artifact overlaid:** milestones/M4_complete_paper_draft.md
 **Date:** <YYYY-MM-DD>
 **Graph captured:** <captured_at from graph.json>
 **P-stage:** <P0 | P1 | P2>

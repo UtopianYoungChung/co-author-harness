@@ -27,6 +27,7 @@ from assignment_process_gate import (
     verify_receipt,
 )
 from milestone_framework_validate import validate_document, validate_gate
+from milestone_path_contract import handoff_path, snapshot_path
 
 
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
@@ -748,7 +749,7 @@ def record(
         snapshot_created = False
         snapshot_bytes: bytes | None = None
         if milestone == "M4":
-            artifact_relative = f"reviews/.harness/milestones/artifacts/M4/{digest}.md"
+            artifact_relative = snapshot_path("M4", digest)
             artifact_path = project / Path(*PurePosixPath(artifact_relative).parts)
             snapshot_bytes = deliverable_path.read_bytes()
         proposed = copy.deepcopy(state); proposed_framework = _framework(proposed); target = proposed_framework["milestones"][milestone]
@@ -1120,10 +1121,7 @@ def accept(
         target["status"] = "accepted"
         target["approval"] = {"status": "approved", "authority": approval["authority"], "evidence_path": approval_relative, "approved_at": approval["approved_at"]}
         packet = _handoff_packet(proposed, milestone, checkpoint, approval, approval_relative)
-        packet_relative = (
-            "reviews/.harness/milestones/M5_terminal.json" if milestone == "M5"
-            else f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
-        )
+        packet_relative = handoff_path(LEDGER_TO_PUBLIC[milestone])
         packet_path = project / Path(*PurePosixPath(packet_relative).parts)
         packet_bytes = _json_bytes(packet); packet_sha = hashlib.sha256(packet_bytes).hexdigest()
         target["handoff"] = {"status": "ready", "packet_path": packet_relative, "packet_sha256": packet_sha}
@@ -1233,10 +1231,7 @@ def recover_claim(project: Path, acknowledgement: str) -> Path:
         and row["handoff"].get("status") in {"ready", "consumed"}
     }
     for milestone in MILESTONES:
-        relative = (
-            "reviews/.harness/milestones/M5_terminal.json" if milestone == "M5"
-            else f"reviews/.harness/milestones/{milestone}_to_{SUCCESSOR[milestone]}.json"
-        )
+        relative = handoff_path(LEDGER_TO_PUBLIC[milestone])
         packet = project / Path(*PurePosixPath(relative).parts)
         if packet.exists() and relative not in bound_packets:
             if not packet.is_file() or _is_link(packet):

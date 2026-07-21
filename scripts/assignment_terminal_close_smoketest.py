@@ -31,7 +31,7 @@ WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
 CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 TERMINAL = ROOT / "scripts" / "full_run_contract_check.py"
-FINAL_PATH = "manuscript/final.md"
+FINAL_PATH = "milestones/M5_final_paper.md"
 EXPORT_PATH = "submission_bundle/final_manuscript.md"
 
 
@@ -116,7 +116,7 @@ def publish_final(project: Path, final_bytes: bytes, export_bytes: bytes) -> Pat
     wrong_path = run(
         PREFLIGHT, "--project-root", project, "--receipt", ready,
         "--consumer", "planner", "--expected-target", "FINAL",
-        "--write-path", "manuscript/main.md", expected=4,
+        "--write-path", "milestones/M4_complete_paper_draft.md", expected=4,
     )
     assert "APG-RECEIPT-PATH-MISMATCH" in wrong_path.stdout and ready.is_file()
     run(
@@ -271,7 +271,7 @@ def main() -> int:
         before_close = state(project)
         assert before_close["terminal_phase_reached"] is False
         assert before_close["milestone_framework"]["milestones"]["M5"]["status"] == "in_progress"
-        packet_path = project / "reviews" / ".harness" / "milestones" / "M5_terminal.json"
+        packet_path = project / "reviews" / ".harness" / "handoffs" / "M5_terminal.json"
 
         revision_log = project / "manuscript" / "revision_log.md"
         revision_log_bytes = revision_log.read_bytes()
@@ -286,7 +286,7 @@ def main() -> int:
 
         packet_path.parent.mkdir(parents=True, exist_ok=True)
         packet_path.write_bytes(b'{"orphaned_terminal_packet":true}\n')
-        claim = packet_path.parent / "claims" / "transaction.lock"
+        claim = project / "reviews" / ".harness" / "milestones" / "claims" / "transaction.lock"
         write_json(claim, {
             "schema_version": "1.0.0", "pid": 2147483647,
             "host": __import__("platform").node(), "operation": "accept:FINAL",
@@ -297,7 +297,7 @@ def main() -> int:
             "--acknowledgement", "inspected-milestone-state-and-journal",
         )
         assert not packet_path.exists() and not claim.exists()
-        assert list((packet_path.parent / "journal").glob("orphan-M5_terminal-*.json"))
+        assert list((project / "reviews" / ".harness" / "milestones" / "journal").glob("orphan-M5_terminal-*.json"))
 
         terminal_payload = json.loads(terminal.read_text(encoding="utf-8"))
         for label, updates in (

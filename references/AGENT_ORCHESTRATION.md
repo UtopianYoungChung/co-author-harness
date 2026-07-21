@@ -33,7 +33,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 |---|---|---|---|
 | **Planner** | Session initializer and dispatcher. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md` | **Never** |
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
-| **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `manuscript/main.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
+| **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `milestones/M4_complete_paper_draft.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
 | **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Attempts Coupling C/D Wiki mutation via SK-14/SK-17; currently returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null` without blocking primary close-out. | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `references/SKILL_REGISTRY.md` (append) | **Never** |
 
@@ -227,7 +227,7 @@ Not every round requires all four agents. The user can shortcut:
 
 | File / directory | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| `manuscript/main.md` | read | read | **read + write** | read |
+| `milestones/M4_complete_paper_draft.md` | read | read | **read + write** | read |
 | `manuscript/revision_log.md` | read | read | **read + append** | read |
 | `reviews/classification.md` | **read + write** | read | read | read |
 | `reviews/revision_plan.md` | **read + write** | read | read | read |
@@ -268,7 +268,7 @@ Agent tool invocation for Evaluator at Ph3:
                  agents/evaluator.md (in the package folder) exactly.
 
                  Project: <project path>
-                 Task: Full review of manuscript/main.md at Ph3 (Iterate & Converge) depth.
+                 Task: Full review of milestones/M4_complete_paper_draft.md at Ph3 (Iterate & Converge) depth.
 
                  Read the project CLAUDE.md first, then follow the Evaluator procedure."
 ```
@@ -363,7 +363,7 @@ The autoresearch project (Karpathy, 2025) makes a productive architectural move:
 | Layer | Autoresearch analogue | Package equivalent | Who modifies |
 |-------|----------------------|-------------------|-------------|
 | **Immutable** | `prepare.py` — data prep, evaluation harness | Package infrastructure: `GROUNDING_PROTOCOL.md`, `REVIEW_ORCHESTRATION.md`, `DETERMINISTIC_CHECKS.md`, `SAFEGUARD_LAYER.md`, `AGENT_CONTRACTS.md`, `ROUTING_SPINE.md`, `DO_NOT_DISTURB.md` | Human only (Reflector may *propose* changes via reflection report, but never writes directly) |
-| **Experimental** | `train.py` — the model and training loop | The manuscript: `manuscript/main.md`, `manuscript/outline.md`, and their supporting artifacts (`revision_log.md`, `revision_plan.md`, findings files) | Agents within their declared permissions (`AGENT_CONTRACTS.md`) |
+| **Experimental** | `train.py` — the model and training loop | The manuscript: `milestones/M4_complete_paper_draft.md`, `milestones/M3_argument_evidence_outline.md`, and their supporting artifacts (`revision_log.md`, `revision_plan.md`, findings files) | Agents within their declared permissions (`AGENT_CONTRACTS.md`) |
 | **Control** | `program.md` — human-authored research direction | `round_program.md` (project-level, user-authored) + `research_notes/directives.md` (persistent) + user conversation | Human only |
 
 **Why naming matters.** When the layers are unnamed, agents make boundary errors: a Generator edits a package file, an Evaluator improvises a new check not in the immutable layer, a Planner overrides a user directive. Naming the layers makes the boundaries auditable. The Reflector's contract verification (§6 in `AGENT_CONTRACTS.md`) now includes a layer-violation check.
@@ -589,7 +589,7 @@ If `should_run_sk20` is false, SK-20 should not run. The gate script already emi
 
 1. Project CLAUDE.md declares `wiki_linked: true` and `coupling_e_on_review: true`.
 2. `knowledge/LLM wiki/graphify-out/graph.json` and `GRAPH_REPORT.md` exist.
-3. The graph's `captured_at` timestamp is no older than the most recent `Last updated:` timestamp on the project's `references/REFERENCES.md` or `manuscript/main.md`.
+3. The graph's `captured_at` timestamp is no older than the most recent `Last updated:` timestamp on the project's `references/REFERENCES.md` or `milestones/M4_complete_paper_draft.md`.
 4. `reviews/classification.md` exists (SK-20 uses it to tune P-stage severity adjustments).
 5. The manuscript has at least one in-text citation.
 
@@ -683,13 +683,13 @@ This section specifies their normal coordination and phase-conditioned agent dis
 
 | Milestone | Artifact | Normal phase binding | Dispatch notes |
 |---|---|---|---|
-| **M1 — Project Memo** | `research_notes/project_memo.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
-| **M2 — Annotated References** | `research_notes/annotated_references.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
-| **M3 — Structured Outline** | `manuscript/outline.md` | **Ph1 Plan & Draft** | Generator writes a structured outline only; prose stubs belong to M4. |
-| **M4 — Paper Draft** | `manuscript/main.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator assembles the first complete draft in Ph1; Ph2 is the first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
-| **M5 — Final Paper** (public target `FINAL`) | `manuscript/final.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
+| **M1 — Project Memo** | `milestones/M1_project_memo.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
+| **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
+| **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a structured outline only; prose stubs belong to M4. |
+| **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator assembles the first complete draft in Ph1; Ph2 is the first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
+| **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
 
-The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `manuscript/final.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.v1.json`.
+The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `milestones/M5_final_paper.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.json`.
 
 #### Native course-essay auto-walk
 
@@ -766,7 +766,7 @@ Planner (Ph1 — orchestrates outline sub-phase)
 
 ```
 Planner (requires accepted M1-M3 and a preflighted M4 receipt)
-  → Generator (assembles the first complete manuscript at manuscript/main.md)
+  → Generator (assembles the first complete manuscript at milestones/M4_complete_paper_draft.md)
   → Planner (runs deterministic and grounding gates; presents M4 draft checkpoint)
 ```
 

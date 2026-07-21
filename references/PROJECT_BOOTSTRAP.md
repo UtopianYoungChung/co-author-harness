@@ -153,7 +153,7 @@ None yet.
 *Last updated: <date>.*
 ```
 
-### 2.2 manuscript/main.md
+### 2.2 milestones/M4_complete_paper_draft.md
 
 ```markdown
 # <PROJECT_TITLE>
@@ -177,7 +177,7 @@ None yet.
 ## References
 ```
 
-### 2.3 manuscript/outline.md
+### 2.3 milestones/M3_argument_evidence_outline.md
 
 ```markdown
 # Structured Outline — <PROJECT_NAME>
@@ -295,7 +295,7 @@ Reflector may add entries. No agent may remove entries.
 
 The native seed has a fresh-target contract: the requested project root must not exist, and its parent must already exist. The generator builds the entire milestone seed in a newly created sibling staging directory, resolves every output path against that staging root, and runs both canonical validators there. Only a fully valid seed is atomically renamed to the requested root. Failure removes staging and never merges with, overwrites, or repairs an existing project. Existing projects use the migration workflow instead.
 
-`reviews/.harness/milestones/` starts empty. An F9 packet is created only after its source milestone has an accepted deliverable and real approval evidence. The mere presence of `project_memo.md`, `annotated_references.md`, `outline.md`, or `main.md` never changes milestone state.
+`reviews/.harness/handoffs/` and `reviews/.harness/snapshots/` start empty. An F9 packet or content-addressed M4 snapshot is created only by its state-last transaction; file presence never changes milestone state.
 
 ### 2.5c Course-essay assignment contract and first-write gate
 
@@ -332,16 +332,16 @@ After saving the resolved contract, derive the first non-`accepted` M1-M4 target
 
 ```powershell
 python <package-root>/scripts/assignment_process_gate.py --project-root <project-root> --stage draft --target-milestone M1 --emit-receipt <project-root>/reviews/.harness/assignment/ready/gate_receipt_M1_<utc>.json
-python <package-root>/scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <project-root>/reviews/.harness/assignment/ready/gate_receipt_M1_<utc>.json --expected-target M1 --consumer planner --write-path research_notes/project_memo.md
+python <package-root>/scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <project-root>/reviews/.harness/assignment/ready/gate_receipt_M1_<utc>.json --expected-target M1 --consumer planner --write-path milestones/M1_project_memo.md
 ```
 
-Only both exit-0 results authorize M1 staging. The safe first-run chain is: empty assignment configuration under `reviews/` → resolved contract bound to real bytes → immutable M1 READY receipt → Planner reservation → Generator stages **memo only** beneath the receipt-scoped staging directory → `assignment_writer_commit.py` consumes and publishes `research_notes/project_memo.md`. It does not authorize `manuscript/main.md`, M2, M3, or a complete essay. Cancellation invokes `assignment_receipt_invalidate.py`; a later M2 invocation still requires explicit M1 acceptance plus the normal F9 transaction.
+Only both exit-0 results authorize M1 staging. The safe first-run chain is: empty assignment configuration under `reviews/` → resolved contract bound to real bytes → immutable M1 READY receipt → Planner reservation → Generator stages **memo only** beneath the receipt-scoped staging directory → `assignment_writer_commit.py` consumes and publishes `milestones/M1_project_memo.md`. It does not authorize `milestones/M4_complete_paper_draft.md`, M2, M3, or a complete essay. Cancellation invokes `assignment_receipt_invalidate.py`; a later M2 invocation still requires explicit M1 acceptance plus the normal F9 transaction.
 
 #### Operator recovery for `2026-07-14_first-principles-RE-essay-fresh` (documentation only)
 
-Do not repair, rewrite, or silently normalize that live project as part of harness installation. On an explicit operator rerun: locate and read the real controlling assignment; compute its current hash and the current package-profile hash; create the resolved contract above; leave M1-M3 `reopened` and M4 `revision_required` until real feedback and approval change them; derive M1; emit and reserve a new M1 receipt; and dispatch the Generator to stage `research_notes/project_memo.md` only for scoped commit. Do not reuse the existing complete essay as evidence that M1-M3 were accepted, and do not write another full-essay `ph1_draft_completion.md`. Present the memo and adjudicated feedback to the user, then perform the existing F9/acceptance transaction only after explicit approval.
+Do not repair, rewrite, or silently normalize that live project as part of harness installation. On an explicit operator rerun: locate and read the real controlling assignment; compute its current hash and the current package-profile hash; create the resolved contract above; leave M1-M3 `reopened` and M4 `revision_required` until real feedback and approval change them; derive M1; emit and reserve a new M1 receipt; and dispatch the Generator to stage `milestones/M1_project_memo.md` only for scoped commit. Do not reuse the existing complete essay as evidence that M1-M3 were accepted, and do not write another full-essay `ph1_draft_completion.md`. Present the memo and adjudicated feedback to the user, then perform the existing F9/acceptance transaction only after explicit approval.
 
-### 2.6 research_notes/project_memo.md
+### 2.6 milestones/M1_project_memo.md
 
 ```markdown
 # Project Memo — <PROJECT_NAME>
@@ -371,7 +371,7 @@ File presence starts work; it does not record review, approval, acceptance, or h
 <!-- Core literature → tracks for genealogy, debate, precedents. -->
 ```
 
-### 2.7 research_notes/annotated_references.md
+### 2.7 milestones/M2_annotated_references.md
 
 ```markdown
 # Annotated References — <PROJECT_NAME>

@@ -93,9 +93,9 @@ Each Research root maintains a live `conductor.md` at its root (e.g., `Research/
 
 **Forbidden combinations under L2.**
 - Reflector (Round N) + Evaluator (Round N+1) — because the Evaluator needs the Reflector's output to know what patterns were just identified.
-- Generator (Round N fix) + Generator (Round N+1 section) — no concurrent writes to `manuscript/main.md` under any circumstances.
+- Generator (Round N fix) + Generator (Round N+1 section) — no concurrent writes to `milestones/M4_complete_paper_draft.md` under any circumstances.
 
-**Conflict detection.** At session exit the Planner diffs `manuscript/main.md` and all `reviews/` files against the session-entry snapshot. Any unexpected change (a file touched without a corresponding dispatch record) is flagged as a concurrency violation and recorded in `conductor.md`.
+**Conflict detection.** At session exit the Planner diffs `milestones/M4_complete_paper_draft.md` and all `reviews/` files against the session-entry snapshot. Any unexpected change (a file touched without a corresponding dispatch record) is flagged as a concurrency violation and recorded in `conductor.md`.
 
 ---
 

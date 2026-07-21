@@ -21,6 +21,11 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from reader_accessibility_policy import phase_state_binding, resolve_policy
+from milestone_path_contract import (
+    PATH_CONTRACT_VERSION,
+    canonical_deliverable,
+    validate_project_path_surface,
+)
 
 
 UTC_SHAPE = re.compile(
@@ -86,7 +91,7 @@ def _framework(
         ),
         "M2": _pending_record(
             "Build and annotate the evidence base needed to test and refine the M1 framing.",
-            ["Accepted M1 F9 handoff", "research_notes/project_memo.md"],
+            ["Accepted M1 F9 handoff", canonical_deliverable("M1")],
             [
                 "Annotated references cover the M1 tension and expose material gaps or disagreements.",
                 "Feedback is adjudicated and an authorized approver accepts the reference set.",
@@ -95,7 +100,7 @@ def _framework(
         ),
         "M3": _pending_record(
             "Turn the accepted framing and evidence base into a coherent argument and evidence plan.",
-            ["Accepted M2 F9 handoff", "research_notes/annotated_references.md"],
+            ["Accepted M2 F9 handoff", canonical_deliverable("M2")],
             [
                 "The outline maps claims, evidence, objections, and section dependencies.",
                 "Feedback is adjudicated and an authorized approver accepts the outline.",
@@ -104,7 +109,7 @@ def _framework(
         ),
         "M4": _pending_record(
             "Produce and stabilize a complete manuscript that realizes the accepted M3 argument plan.",
-            ["Accepted M3 F9 handoff", "manuscript/outline.md"],
+            ["Accepted M3 F9 handoff", canonical_deliverable("M3")],
             [
                 "A complete manuscript is bound as the deliverable rather than a plan or checklist.",
                 "Review feedback is adjudicated against the current manuscript hash.",
@@ -113,7 +118,7 @@ def _framework(
         ),
         "M5": _pending_record(
             "Finalize the accepted draft for its declared submission or delivery surface.",
-            ["Accepted M4 F9 handoff", "manuscript/main.md", "Venue or delivery requirements"],
+            ["Accepted M4 F9 handoff", canonical_deliverable("M4"), "Venue or delivery requirements"],
             [
                 "The submission-bound manuscript and released export are hash-bound.",
                 "Final feedback and closure checks are adjudicated.",
@@ -123,6 +128,7 @@ def _framework(
     }
     return {
         "contract_version": "1.0.0",
+        "path_contract_version": PATH_CONTRACT_VERSION,
         "mode": "native",
         "migration_boundary": None,
         "primary_lineage": "main",
@@ -162,7 +168,7 @@ def _phase_state(
         # reader to decide whether absence means not-yet or lost.
         "terminal_round_id": None,
         "sections": {
-            "manuscript/main.md": {
+            canonical_deliverable("M4"): {
                 "current_phase": "Ph1",
                 "phase_entry_log": [
                     {
@@ -286,7 +292,8 @@ def bootstrap(
 
     staging = Path(tempfile.mkdtemp(prefix=f".{project_root.name}.bootstrap-", dir=parent))
     try:
-        _mkdir(staging, "reviews/.harness/milestones")
+        _mkdir(staging, "reviews/.harness/handoffs")
+        _mkdir(staging, "reviews/.harness/snapshots")
         _write(
             staging,
             "research_notes/directives.md",
@@ -311,7 +318,7 @@ def bootstrap(
 
         _write(
             staging,
-            "research_notes/project_memo.md",
+            canonical_deliverable("M1"),
             f"# Project Memo — {project_name}\n\n**Milestone:** M1 (Project Memo)\n**Status:** In progress\n\n"
             "## Focus and framing\n\n## Core tension\n\n## Reader elicitation notes\n\n"
             + "\n".join(f"- {reader}" for reader in intended_readers) + "\n\n"
@@ -320,21 +327,27 @@ def bootstrap(
         )
         _write(
             staging,
-            "research_notes/annotated_references.md",
+            canonical_deliverable("M2"),
             f"# Annotated References — {project_name}\n\n**Milestone:** M2 (Annotated References)\n"
             "**Status:** Not started\n\nNo reference has been reviewed or accepted at bootstrap.\n",
         )
         _write(
             staging,
-            "manuscript/outline.md",
+            canonical_deliverable("M3"),
             f"# Structured Outline — {project_name}\n\n**Milestone:** M3 (Structured Outline)\n"
             "**Status:** Not started\n\nNo outline has been reviewed or accepted at bootstrap.\n",
         )
         _write(
             staging,
-            "manuscript/main.md",
+            canonical_deliverable("M4"),
             f"# {title}\n\n**Milestone:** M4 (Paper Draft)\n**Status:** Not started\n\n"
             "No manuscript has been reviewed or accepted at bootstrap.\n",
+        )
+        _write(
+            staging,
+            canonical_deliverable("M5"),
+            f"# Final Paper — {project_name}\n\n**Milestone:** M5 (Final Paper)\n"
+            "**Status:** Not started\n\nNo final paper has been reviewed or accepted at bootstrap.\n",
         )
         _write(
             staging,
@@ -343,6 +356,7 @@ def bootstrap(
             + "\n",
         )
         _validate_staging(staging, validator_runner)
+        validate_project_path_surface(staging)
         if project_root.exists() or project_root.is_symlink():
             raise ValueError("project root appeared during bootstrap; refusing publication")
         staging.rename(project_root)

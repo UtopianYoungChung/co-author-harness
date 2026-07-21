@@ -8,7 +8,7 @@
   "predecessor_packet": null,
   "deliverable": {
     "role": "deliverable",
-    "path": "research_notes/project_memo.md",
+    "path": "milestones/M1_project_memo.md",
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "bytes": 1
   },

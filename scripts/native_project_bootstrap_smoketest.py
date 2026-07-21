@@ -46,22 +46,33 @@ def main() -> int:
         required_files = {
             "reviews/phase_state.json",
             "reviews/.harness/policies/reader_accessibility.resolved.json",
-            "research_notes/project_memo.md",
-            "research_notes/annotated_references.md",
+            "milestones/M1_project_memo.md",
+            "milestones/M2_annotated_references.md",
             "research_notes/directives.md",
-            "manuscript/outline.md",
-            "manuscript/main.md",
+            "milestones/M3_argument_evidence_outline.md",
+            "milestones/M4_complete_paper_draft.md",
+            "milestones/M5_final_paper.md",
         }
         missing = sorted(path for path in required_files if not (project / path).is_file())
         if missing:
             raise AssertionError(f"bootstrap omitted required files: {missing}")
-        if not (project / "reviews" / ".harness" / "milestones").is_dir():
-            raise AssertionError("bootstrap omitted reviews/.harness/milestones/")
+        for directory_name in ("handoffs", "snapshots"):
+            if not (project / "reviews" / ".harness" / directory_name).is_dir():
+                raise AssertionError(f"bootstrap omitted reviews/.harness/{directory_name}/")
+        legacy = {
+            "research_notes/project_memo.md", "research_notes/annotated_references.md",
+            "manuscript/outline.md", "manuscript/main.md", "manuscript/final.md",
+        }
+        leaked = sorted(path for path in legacy if (project / path).exists() or (project / path).is_symlink())
+        if leaked:
+            raise AssertionError(f"bootstrap created legacy milestone aliases: {leaked}")
 
         phase_state = json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
         framework = phase_state.get("milestone_framework")
         if not isinstance(framework, dict):
             raise AssertionError("phase_state.json is not the milestone authority")
+        if framework.get("path_contract_version") != "2.0.0":
+            raise AssertionError("bootstrap omitted milestone_framework.path_contract_version")
         expected_statuses = {
             "M1": "in_progress",
             "M2": "not_started",

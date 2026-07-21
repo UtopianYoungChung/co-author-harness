@@ -137,11 +137,11 @@ Track which milestones have been completed and the quality of their artifacts:
 
 | Milestone | Artifact | Status | Quality |
 |---|---|---|---|
-| M1 — Project Memo | `research_notes/project_memo.md` | Not started / Draft / Complete | — / Reviewed / Approved |
-| M2 — Annotated References | `research_notes/annotated_references.md` | Not started / Draft / Complete | — / Reviewed / Approved |
-| M3 — Structured Outline | `manuscript/outline.md` | Not started / Draft / Complete | — / Reviewed / Approved |
-| M4 — Paper Draft | `manuscript/main.md` | Not started / Draft / Complete | — / Reviewed / Approved |
-| M5 — Final Paper | `manuscript/main.md` | Not started / Draft / Complete | — / G.4 signed / Submitted |
+| M1 — Project Memo | `milestones/M1_project_memo.md` | Not started / Draft / Complete | — / Reviewed / Approved |
+| M2 — Annotated References | `milestones/M2_annotated_references.md` | Not started / Draft / Complete | — / Reviewed / Approved |
+| M3 — Structured Outline | `milestones/M3_argument_evidence_outline.md` | Not started / Draft / Complete | — / Reviewed / Approved |
+| M4 — Paper Draft | `milestones/M4_complete_paper_draft.md` | Not started / Draft / Complete | — / Reviewed / Approved |
+| M5 — Final Paper | `milestones/M5_final_paper.md` | Not started / Draft / Complete | — / G.4 signed / Submitted |
 
 ### 6.2 Scoring
 
@@ -200,4 +200,3 @@ These metrics complement D1–D6 when measuring harness efficiency:
 Metrics are instruments, not verdicts. If the Evaluator's judgment says the piece is not ready but the metrics say it is (e.g., WFC = 0 but the argument is conceptually weak in a way no rule captures), the Evaluator's judgment wins. The Reflector should flag the gap and consider whether a new check or rule is needed.
 
 Conversely, if metrics flag issues but the user and Evaluator agree the piece is ready (e.g., a MINOR that the venue does not care about), the user's decision wins (precedence rule 1).
-

@@ -43,7 +43,7 @@ description: |
 
 The Generator's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §3` (Generator). A summary for discoverability:
 
-- **Writes (sole writer of academic deliverables).** The exact contract is `references/role_output_contract.v1.json`: M1 `research_notes/project_memo.md`; M2 `research_notes/annotated_references.md`; M3 `manuscript/outline.md` as a structured outline only; M4 `manuscript/main.md` (or the explicitly specialized manuscript path). `manuscript/revision_log.md` is the append-only change log. M1–M3 are written and separately accepted in Ph1; M4 initial assembly is Ph1 and finding-driven review begins in Ph2.
+- **Writes (sole writer of academic deliverables).** The exact contract is `references/role_output_contract.json`: M1 `milestones/M1_project_memo.md`; M2 `milestones/M2_annotated_references.md`; M3 `milestones/M3_argument_evidence_outline.md` as a structured outline only; M4 `milestones/M4_complete_paper_draft.md` (or the explicitly specialized manuscript path). `manuscript/revision_log.md` is the append-only change log. M1–M3 are written and separately accepted in Ph1; M4 initial assembly is Ph1 and finding-driven review begins in Ph2.
 - **Writes (never).** `reviews/*_findings.md` (Evaluator-only); `reviews/phase_state.json` (Planner-only); `reviews/reflection_report.md` or `research_notes/lessons_learned.md` (Reflector-only). The Generator never evaluates its own output — that integrity guarantee is what separates adversarial review from cosmetic review.
 - **Assignment-process boundary (mechanical first action).** Before any academic deliverable write, read only the dispatch brief fields `assignment_gate_receipt` and `assignment_gate_target`. The receipt must be the canonical `reserved` path returned by Planner preflight. Read its `receipt_id`, `reservation_id`, `authorized_role`, `authorized_paths`, and bound target; any mismatch requires **zero bytes** at every academic deliverable path and a verbatim blocker return. Write proposed bytes only below `reviews/.harness/assignment/staged/<receipt_id>/`, never at the final path. M4/FINAL additionally require current wiki-grounding evidence or an authorized opt-out. Treat M1-M4 according to the bound assignment profile, not generic labels. The terminal M5 framework slot does not rename a separately assigned final paper as a fifth milestone.
 - **Scoped commit.** Create a strict write-plan JSON binding schema `1.0.0`, receipt id, reservation id, target, role `generator`, and each staged path, final target path, and staged SHA-256. Run `python scripts/assignment_writer_commit.py --project-root <project-root> --receipt <reserved-path> --plan <plan-path>`. Only this wrapper may publish final deliverable bytes. Any non-zero exit leaves final paths untouched unless the blocker explicitly says the receipt was consumed and publication was interrupted; report that fail-closed terminal state rather than retrying. There is no best-effort draft, placeholder, partial outline, direct final-path write, or “write now, validate later” escape hatch.
@@ -82,7 +82,7 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
    - `reviews/consolidated_findings_report.md` — legacy consolidated findings or pointer (Ph2 onward) when present
    - `reviews/.harness/evidence/*.json` — F7 packets and `reviews/final_round_report_<round_id>.md` when the Planner cites them as the active review surface (v0.14.0+)
    - `reviews/convergence_log.md` — the Ph3 iteration record. At Ph3, read the prior iteration's "Generator handoff" bullets; they are part of your input.
-   - `manuscript/main.md` — the current draft (the file you write to)
+   - `milestones/M4_complete_paper_draft.md` — the current draft (the file you write to)
    - `manuscript/revision_log.md` — the running log (you append to this)
    - `research_notes/directives.md` — stable author decisions (binding constraints on your writing)
    - `research_notes/lessons_learned.md` — accumulated feedback (do not repeat past mistakes)
@@ -91,7 +91,7 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
 
 ## What you write
 
-- `manuscript/main.md` — the manuscript itself (edits and new content)
+- `milestones/M4_complete_paper_draft.md` — the manuscript itself (edits and new content)
 - `manuscript/revision_log.md` — append a new round entry for every set of changes (round header + per-edit entries; **no Self-Ph1 Verdict block at v0.7.0 or later**)
 
 ## What you do NOT write
@@ -134,14 +134,14 @@ For each action in the revision plan, in priority order:
    - The severity of the finding
    - The exact replacement text
 3. **Em-dash discipline on fixes (binding; same sources as new writing).** Most **em-dash inflation** happens here: models restate sentences to satisfy a finding and insert U+2014 (`—`) or LaTeX `---` for “smooth” clause breaks. **Do not add** em-dashes to sentences you touch unless (i) removing an existing em-dash as part of the fix, (ii) preserving a **verbatim quote**, or (iii) `directives.md` / venue template requires the glyph. When rewriting for a BLOCKER/MAJOR/MAJOR fix, aim for **the same or fewer** em-dashes in each **edited sentence** as before the edit; if your draft would add one, stop and use a comma, colon, semicolon, parentheses, or a period + new sentence (`research_paper_writing_guidelines.md` §7, `MASTER_research_and_paper_guidelines.md` §E.2). The en-dash (– / `--`) stays **only** for ranges, eligible compounds, and house-style tables—not as an em-dash substitute.
-4. Apply the edit to `manuscript/main.md`.
+4. Apply the edit to `milestones/M4_complete_paper_draft.md`.
 5. Log the edit in `manuscript/revision_log.md` with the rule reference and severity.
 6. **At Ph4 only.** Fixes are bounded to the surface change required by the finding. Do not extend a Ph4 fix into adjacent prose, even if you see drift — surface it to the Planner instead. Ph4 is fix-only-no-new-prose; introducing fresh prose at Ph4 risks an EG-1 demotion (Ph4 → Ph3) on the next Evaluator pass.
 
 #### If the action is **new writing** (co-authoring a new section or paragraph) — Ph1/Ph2/Ph3:
 
 1. Read the revision plan's brief for the new content (section purpose, target length, what it should accomplish).
-2. Read the surrounding sections of `manuscript/main.md` to match register, density, and voice.
+2. Read the surrounding sections of `milestones/M4_complete_paper_draft.md` to match register, density, and voice.
 3. If `reviews/wiki_synthesis_brief.md` defines clusters for this section, run a reconciliation pass before drafting:
    - Identify which sources converge.
    - Identify which sources conflict.
@@ -168,7 +168,7 @@ For each action in the revision plan, in priority order:
    - Vary sentence architecture (long + short).
    - Use first person at the argumentative hinges, not everywhere.
 
-5. Insert the new content into `manuscript/main.md` at the location specified in the plan.
+5. Insert the new content into `milestones/M4_complete_paper_draft.md` at the location specified in the plan.
 6. Log the addition in `manuscript/revision_log.md` with the plan reference and a one-line summary. For wiki-guided synthesis edits, include a short `Reconciliation:` note naming the cluster and whether it was written as convergence, contested, or unresolved.
 
 ### Phase 3 — Self-Check (before signaling completion)

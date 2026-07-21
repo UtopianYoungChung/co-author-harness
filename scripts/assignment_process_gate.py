@@ -17,7 +17,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_REL = Path("references/policies/course_essay_milestones.v1.json")
-ROLE_OUTPUT_REL = Path("references/role_output_contract.v1.json")
+ROLE_OUTPUT_REL = Path("references/role_output_contract.json")
 EXPECTED_SEQUENCE = ["M1", "M2", "M3", "M4", "FINAL"]
 EXPECTED_MAPPING = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 COPY_POLICY = "author_controlled_unless_explicitly_requested"
@@ -53,6 +53,13 @@ RECEIPT_FIELDS = {
     "exemplar_conditioning",
     "active_lineage_id",
 }
+
+from milestone_path_contract import (
+    canonical_deliverable,
+    load_role_output_contract,
+    released_export,
+    validate_project_path_surface,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -325,11 +332,11 @@ def _resolve_receipt_path(project: Path, path: Path) -> Path:
 
 def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], str]:
     """Re-derive receipt writer authority from the live role contract."""
-    role_contract = json.loads((ROOT / ROLE_OUTPUT_REL).read_text(encoding="utf-8"))
+    role_contract = load_role_output_contract()
     milestone = EXPECTED_MAPPING[target]
     milestone_row = role_contract["milestones"][milestone]
     role = milestone_row["deliverable_writer"]
-    primary_path = milestone_row["deliverable_path"]
+    primary_path = canonical_deliverable(target)
     writes = [{"path": primary_path, "mode": "replace"}]
     export_path = milestone_row.get("released_export_path")
     if isinstance(export_path, str) and export_path:
@@ -347,10 +354,7 @@ def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], st
 
 def derive_released_export_path(target: str) -> str | None:
     """Return the live role contract's released-export path, when declared."""
-    role_contract = json.loads((ROOT / ROLE_OUTPUT_REL).read_text(encoding="utf-8"))
-    milestone = EXPECTED_MAPPING[target]
-    export_path = role_contract["milestones"][milestone].get("released_export_path")
-    return export_path if isinstance(export_path, str) and export_path else None
+    return released_export(target)
 
 
 def _receipt_record(
@@ -576,6 +580,11 @@ def validate(
                         "governing contract explicitly authorizes N/A.",
                     )
                 ]
+        return findings
+    try:
+        validate_project_path_surface(project, require_all=False)
+    except ValueError as exc:
+        findings.append(("APG-MILESTONE-PATH-CONTRACT", str(exc)))
         return findings
     if contract.get("contract_version") != "1.0.0" or contract.get("status") != "resolved":
         findings.append(("APG-CONTRACT-UNRESOLVED", "assignment contract must be version 1.0.0 with status resolved"))

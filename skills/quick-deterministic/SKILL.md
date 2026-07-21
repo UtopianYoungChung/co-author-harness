@@ -13,7 +13,7 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 ## What you do
 
-1. **Resolve the target.** If the user named a path, use it. Otherwise default to `manuscript/main.md` (or the active project's draft path).
+1. **Resolve the target.** If the user named a path, use it. Otherwise default to `milestones/M4_complete_paper_draft.md` (or the active project's draft path).
 
 2. **Invoke the audit suite:**
    ```
@@ -61,4 +61,4 @@ If the user asks for a narrow check ("just em-dashes"):
 
 ## Coverage seam (recorded 2026-07-07)
 
-`run_all.py` dispatches the seven style/craft auditors plus (with `--project-root`) the D-STYLE profile pass. It does **not** run citation/grounding audits — those live in `scripts/audit/audit_citations.py`, invoked separately by `release-gate.sh`. A "quick check" therefore covers style, craft, and D-STYLE surfaces only. Note also that the script has **no default target**: the invoking agent supplies the manuscript path (`manuscript/main.md` by convention).
+`run_all.py` dispatches the seven style/craft auditors plus (with `--project-root`) the D-STYLE profile pass. It does **not** run citation/grounding audits — those live in `scripts/audit/audit_citations.py`, invoked separately by `release-gate.sh`. A "quick check" therefore covers style, craft, and D-STYLE surfaces only. Note also that the script has **no default target**: the invoking agent supplies the manuscript path (`milestones/M4_complete_paper_draft.md` by convention).

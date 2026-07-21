@@ -62,7 +62,7 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Interrogate the problem before any argument is committed to paper. Define the phenomenon concretely, name one or more tensions in the literature, list the terms whose assumptions need unpacking, and surface candidate questions (q-α, q-β, q-γ) that the later drafts will sharpen into RQs.
 
-**Invocation.** *"Bootstrap a new project on X, targeting venue V, paper type T."* Claude reads `PROJECT_BOOTSTRAP.md`, gathers missing inputs (your advisor, the submission deadline, the paper's expected length, the empirical corpus if any), creates the standard directory tree, and seeds the project `CLAUDE.md`. Then the Planner classifies the project (paper type + P-stage per `project_writing_style_checklist.md`), and the Generator drafts `research_notes/project_memo.md`.
+**Invocation.** *"Bootstrap a new project on X, targeting venue V, paper type T."* Claude reads `PROJECT_BOOTSTRAP.md`, gathers missing inputs (your advisor, the submission deadline, the paper's expected length, the empirical corpus if any), creates the standard directory tree, and seeds the project `CLAUDE.md`. Then the Planner classifies the project (paper type + P-stage per `project_writing_style_checklist.md`), and the Generator drafts `milestones/M1_project_memo.md`.
 
 **What you will be asked to decide.** The paper type (conceptual / empirical / position / methodological / tool / case-study), the P-stage (P0 problem-finding / P1 problem-framing / P2 problem-solving), the venue, and whether any style commitments (C-1…C-4 per `STYLE_COMMITMENTS.md`) are in force.
 
@@ -74,9 +74,9 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Build the scaffolding. M2 lays down the literature that will carry the argument; M3 lays down the argument that the literature will serve.
 
-**M2 invocation.** *"Build annotated references for the memo, following the snowball strategy."* Generator drafts `research_notes/annotated_references.md`; Evaluator checks each annotation for contribution-to-tension, track assignment, and coverage balance. The output is not a summary of papers but a working catalogue of who-says-what-and-what-does-that-do-for-us.
+**M2 invocation.** *"Build annotated references for the memo, following the snowball strategy."* Generator drafts `milestones/M2_annotated_references.md`; Evaluator checks each annotation for contribution-to-tension, track assignment, and coverage balance. The output is not a summary of papers but a working catalogue of who-says-what-and-what-does-that-do-for-us.
 
-**M3 invocation.** *"Outline the paper against the annotated references."* Generator drafts `manuscript/outline.md`; Evaluator checks for argument skeleton visible from outline alone, tension threaded intro-through-conclusion, framework critique slot present, synthesis slot for unresolved questions. The outline is the moment to make structural decisions you do not want to make later.
+**M3 invocation.** *"Outline the paper against the annotated references."* Generator drafts `milestones/M3_argument_evidence_outline.md`; Evaluator checks for argument skeleton visible from outline alone, tension threaded intro-through-conclusion, framework critique slot present, synthesis slot for unresolved questions. The outline is the moment to make structural decisions you do not want to make later.
 
 **Exit gates.** `ROUTING_SPINE.md §3` rows 2 and 3.
 
@@ -86,7 +86,7 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Produce a full manuscript pass from outline to prose. Every outline node gets at least one paragraph. No `TODO` / `TKTK` / `[?]` markers at the end.
 
-**Invocation.** *"Co-author §N"* (targeted) or *"Draft the paper against the outline"* (full pass). The Generator writes to `manuscript/main.md`; the revision log is opened. The Generator is the **only** agent that writes prose. At this phase the Generator also honors `GROUNDING_PROTOCOL.md` on every claim — no citation enters the draft without the source being readable from the project or from a registered verifier.
+**Invocation.** *"Co-author §N"* (targeted) or *"Draft the paper against the outline"* (full pass). The Generator writes to `milestones/M4_complete_paper_draft.md`; the revision log is opened. The Generator is the **only** agent that writes prose. At this phase the Generator also honors `GROUNDING_PROTOCOL.md` on every claim — no citation enters the draft without the source being readable from the project or from a registered verifier.
 
 **Exit gate.** `ROUTING_SPINE.md §3` row 4.
 
@@ -217,7 +217,7 @@ You can suppress per-round promotion while keeping M5 ingestion, or vice versa. 
 
 **The chain composes.** SK-15 populates stub sources. SK-16 consumes those stubs (and any full-read sources) to ground concept pages. SK-14 uses the now-grounded concepts and sources as wikilink targets when it writes syntheses. SK-17 replaces stubs with full-read source pages at M5 and queues further concept-page retrofits for a subsequent SK-16 sweep. Each skill has an explicit "do not do" list naming the others' work; if you see one skill doing another's job, file it as a lesson.
 
-**Preserved invariants.** Project files (`lessons_learned.md`, `manuscript/main.md`, `references/REFERENCES.md`) remain authoritative and append-only. Wiki pages are regenerable views — if a wiki page and a project file disagree, the project file wins. Source pages carry `grounding_status` frontmatter (`stub` | `retrofit <date>` | `full`) so the audit trail survives.
+**Preserved invariants.** Project files (`lessons_learned.md`, `milestones/M4_complete_paper_draft.md`, `references/REFERENCES.md`) remain authoritative and append-only. Wiki pages are regenerable views — if a wiki page and a project file disagree, the project file wins. Source pages carry `grounding_status` frontmatter (`stub` | `retrofit <date>` | `full`) so the audit trail survives.
 
 **When things go wrong.** Recovery patterns: if SK-14 writes a synthesis that misrepresents a lesson, fix the lesson in the project file and re-invoke SK-14 — regeneration behavior is a no-op when the lesson range hasn't changed, and an overwrite when it has. If SK-16 fabricates a citation or invents a source, that is a grounding-protocol violation and should be escalated to a full Evaluator round. If SK-17 fails at M5, the manuscript is not blocked — it is already signed off via G.4; SK-17's failure means the wiki source page has to be manually written from the `LLM wiki/CLAUDE.md §Operations / Ingest` protocol, and the failure should be filed as a lesson for the next Reflector round.
 
@@ -241,7 +241,7 @@ Most PhD weeks are multi-project. The conductor makes this safe.
 
 ### 9.1 The agent wrote to the wrong file
 
-The Evaluator wrote to `manuscript/main.md`. The Generator wrote to `reviews/`. Either is a contract violation. Run *"Contract audit per `AGENT_CONTRACTS.md §6`"*. The audit reads the round's file writes and names every invariant violation. Revert the violating writes from git (or from `DO_NOT_DISTURB.md`-style snapshots if git is not available) and re-dispatch the correct agent.
+The Evaluator wrote to `milestones/M4_complete_paper_draft.md`. The Generator wrote to `reviews/`. Either is a contract violation. Run *"Contract audit per `AGENT_CONTRACTS.md §6`"*. The audit reads the round's file writes and names every invariant violation. Revert the violating writes from git (or from `DO_NOT_DISTURB.md`-style snapshots if git is not available) and re-dispatch the correct agent.
 
 ### 9.2 A phase advanced without its gate
 

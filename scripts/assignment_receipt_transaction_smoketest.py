@@ -23,6 +23,7 @@ INVALIDATE = ROOT / "scripts" / "assignment_receipt_invalidate.py"
 RECOVER = ROOT / "scripts" / "assignment_receipt_recover.py"
 TRANSACTION = ROOT / "scripts" / "assignment_receipt_transaction.py"
 PROFILE = ROOT / "references" / "policies" / "course_essay_milestones.v1.json"
+M1_PATH = "milestones/M1_project_memo.md"
 
 
 def sha256(path: Path) -> str:
@@ -98,7 +99,7 @@ def reserve_command(project: Path, ready: Path) -> list[str]:
     return [
         sys.executable, str(PREFLIGHT), "--project-root", str(project),
         "--receipt", str(ready), "--consumer", "planner",
-        "--expected-target", "M1", "--write-path", "research_notes/project_memo.md",
+        "--expected-target", "M1", "--write-path", M1_PATH,
     ]
 
 
@@ -114,7 +115,7 @@ def write_plan(
     *,
     content: bytes = b"project memo\n",
     role: str = "generator",
-    target_path: str = "research_notes/project_memo.md",
+    target_path: str = M1_PATH,
     reservation_id: str | None = None,
 ) -> Path:
     staged_dir = (
@@ -217,9 +218,9 @@ def emitted_project(base: Path, name: str) -> tuple[Path, Path, dict]:
     record = json.loads(ready.read_text(encoding="utf-8"))
     assert record["schema_version"] == "2.1.0"
     assert record["authorized_role"] == "generator"
-    assert record["primary_deliverable_path"] == "research_notes/project_memo.md"
+    assert record["primary_deliverable_path"] == M1_PATH
     assert record["authorized_paths"] == [
-        "research_notes/project_memo.md", "manuscript/revision_log.md"
+        M1_PATH, "manuscript/revision_log.md"
     ]
     assert "status" not in record
     return project, ready, record
@@ -234,7 +235,7 @@ def forged_receipt_authorization_is_refused(base: Path) -> None:
         return
     reserved, _, _ = receipt_paths(ready)
     forged_plan = write_plan_rows(project, record, [
-        ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+        ("memo.md", M1_PATH, b"memo\n"),
         ("forged.md", "admin/forged.md", b"forged\n"),
     ])
     committed = commit(project, reserved, forged_plan)
@@ -252,7 +253,7 @@ def copied_consumed_receipt_cannot_replay(base: Path) -> None:
     first_plan = write_plan(project, record, content=b"first\n")
     first = commit(project, reserved, first_plan)
     assert first.returncode == 0, first.stdout + first.stderr
-    published = project / "research_notes" / "project_memo.md"
+    published = project / M1_PATH
     assert published.read_bytes() == b"first\n"
 
     # Directory state must not be replayable by restoring immutable receipt bytes.
@@ -280,15 +281,15 @@ def distinct_receipts_cannot_overwrite_same_snapshot(base: Path) -> None:
     first_plan = write_plan(project, first_record, content=b"first receipt\n")
     first_commit = commit(project, first_reserved, first_plan)
     assert first_commit.returncode == 0, first_commit.stdout + first_commit.stderr
-    assert (project / "research_notes" / "project_memo.md").read_bytes() == b"first receipt\n"
+    assert (project / M1_PATH).read_bytes() == b"first receipt\n"
 
 
 def reservation_scope_cannot_expand_at_commit(base: Path) -> None:
     project, ready, record = emitted_project(base, "scope-expansion")
-    assert reserve_paths(project, ready, "research_notes/project_memo.md").returncode == 0
+    assert reserve_paths(project, ready, M1_PATH).returncode == 0
     reserved, _, _ = receipt_paths(ready)
     expanded_plan = write_plan_rows(project, record, [
-        ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+        ("memo.md", M1_PATH, b"memo\n"),
         ("revision.md", "manuscript/revision_log.md", b"revision\n"),
     ])
     expanded = commit(project, reserved, expanded_plan)
@@ -307,13 +308,13 @@ def append_only_output_cannot_be_overwritten(base: Path) -> None:
     reserved_result = reserve_paths(
         project,
         ready,
-        "research_notes/project_memo.md",
+        M1_PATH,
         "manuscript/revision_log.md",
     )
     assert reserved_result.returncode == 0, reserved_result.stdout + reserved_result.stderr
     reserved, _, _ = receipt_paths(ready)
     overwrite_plan = write_plan_rows(project, record, [
-        ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+        ("memo.md", M1_PATH, b"memo\n"),
         ("revision.md", "manuscript/revision_log.md", b"replacement\n"),
     ])
     overwritten = commit(project, reserved, overwrite_plan)
@@ -329,12 +330,12 @@ def failure_after_first_publish_is_not_partial(base: Path) -> None:
     assert reserve_paths(
         project,
         ready,
-        "research_notes/project_memo.md",
+        M1_PATH,
         "manuscript/revision_log.md",
     ).returncode == 0
     reserved, consumed, _ = receipt_paths(ready)
     plan = write_plan_rows(project, record, [
-        ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+        ("memo.md", M1_PATH, b"memo\n"),
         ("revision.md", "manuscript/revision_log.md", b"revision\n"),
     ])
     spec = importlib.util.spec_from_file_location(
@@ -363,7 +364,7 @@ def failure_after_first_publish_is_not_partial(base: Path) -> None:
     finally:
         module.os.replace = real_replace
 
-    primary_exists = (project / "research_notes" / "project_memo.md").exists()
+    primary_exists = (project / M1_PATH).exists()
     revision_exists = (project / "manuscript" / "revision_log.md").exists()
     assert primary_exists == revision_exists, (
         "publication failure left a partially committed target set: "
@@ -414,7 +415,7 @@ def main() -> int:
         committed = commit(project, reserved, plan)
         assert committed.returncode == 0, committed.stdout + committed.stderr
         assert not reserved.exists() and consumed.is_file()
-        assert (project / "research_notes" / "project_memo.md").read_bytes() == b"project memo\n"
+        assert (project / M1_PATH).read_bytes() == b"project memo\n"
         result_sidecar = consumed.with_suffix(".result.json")
         assert result_sidecar.is_file()
 
@@ -515,21 +516,21 @@ def main() -> int:
         else:
             raise AssertionError("crash failpoint did not fail")
         assert rs.is_file() and not cs.exists()
-        assert not (p / "research_notes" / "project_memo.md").exists()
+        assert not (p / M1_PATH).exists()
         after_crash = commit(p, rs, crash_plan)
         assert after_crash.returncode == 0, after_crash.stdout + after_crash.stderr
         assert cs.is_file() and not rs.exists()
-        assert (p / "research_notes" / "project_memo.md").is_file()
+        assert (p / M1_PATH).is_file()
 
         # A hard interruption after one visible publication leaves a journal,
         # and the exact plan deterministically resumes the pending target.
         p, r, rec = emitted_project(base, "hard-crash-resume")
         assert reserve_paths(
-            p, r, "research_notes/project_memo.md", "manuscript/revision_log.md"
+            p, r, M1_PATH, "manuscript/revision_log.md"
         ).returncode == 0
         rs, cs, _ = receipt_paths(r)
         resume_plan = write_plan_rows(p, rec, [
-            ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+            ("memo.md", M1_PATH, b"memo\n"),
             ("revision.md", "manuscript/revision_log.md", b"revision\n"),
         ])
         spec = importlib.util.spec_from_file_location(
@@ -557,7 +558,7 @@ def main() -> int:
                 raise AssertionError("hard interruption failpoint did not fire")
         finally:
             crash_module.os.replace = real_replace
-        assert (p / "research_notes" / "project_memo.md").is_file()
+        assert (p / M1_PATH).is_file()
         assert not (p / "manuscript" / "revision_log.md").exists()
         resumed = commit(p, rs, resume_plan)
         assert resumed.returncode == 0, resumed.stdout + resumed.stderr
@@ -571,11 +572,11 @@ def main() -> int:
         revision.parent.mkdir(parents=True, exist_ok=True)
         revision.write_bytes(b"existing\n")
         assert reserve_paths(
-            p, r, "research_notes/project_memo.md", "manuscript/revision_log.md"
+            p, r, M1_PATH, "manuscript/revision_log.md"
         ).returncode == 0
         rs, _, _ = receipt_paths(r)
         append_plan = write_plan_rows(p, rec, [
-            ("memo.md", "research_notes/project_memo.md", b"memo\n"),
+            ("memo.md", M1_PATH, b"memo\n"),
             ("revision.md", "manuscript/revision_log.md", b"existing\nnew\n"),
         ])
         appended = commit(p, rs, append_plan)

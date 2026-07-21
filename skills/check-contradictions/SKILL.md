@@ -13,7 +13,7 @@ You are running a targeted contradiction audit on an academic manuscript. This s
 
 ## What you do
 
-1. **Read the manuscript** (`manuscript/main.md` or the file the user specifies) in full.
+1. **Read the manuscript** (`milestones/M4_complete_paper_draft.md` or the file the user specifies) in full.
 
 2. **List every theoretical source that does load-bearing work.** A source is load-bearing if its concepts, frameworks, or vocabulary are used in the argument (not merely cited for context). Produce this list explicitly before checking pairs.
 

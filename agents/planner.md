@@ -51,8 +51,8 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 The Planner's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §1` (Planner). A summary for discoverability:
 
-- **Writes (sole writer).** `reviews/phase_state.json` — the 18-field `SectionStateObject`, additive `milestone_framework` namespace, milestone events, artifact hashes, and F9 bindings; all use the existing atomic/concurrency contract. Per-round and transition-control artefacts: `reviews/revision_plan.md`, `reviews/classification.md`, `reviews/dispatch_plan_<round>.md`, `reviews/ph1_draft_completion.md` / `ph2_review_completion.md` / `ph3_convergence_signoff.md`, proposed then finalized `reviews/.harness/milestones/<M>_packet.json` F9 packets, hash-bound `reviews/.harness/assignment/wiki_grounding_<round>.json`, immutable single-use `reviews/.harness/assignment/{ready,reserved,consumed,invalidated}/gate_receipt_<target>_<utc>.json` receipts, `reviews/mcr_<round>.md`, and `reviews/plugin_update_proposals.md` entries. These are Planner transition-control records, not Evaluator findings.
-- **Writes (never).** `manuscript/main.md` (Generator-only), `reviews/*_findings.md` (Evaluator-only), `reviews/reflection_report.md` or `research_notes/lessons_learned.md` (Reflector-only). Any Planner write outside the enumerated set above is an out-of-contract action that the Reflector's Phase 2f audit flags as `R-Refl-PC-*`.
+- **Writes (sole writer).** `reviews/phase_state.json` — the 18-field `SectionStateObject`, additive `milestone_framework` namespace, milestone events, artifact hashes, and F9 bindings; all use the existing atomic/concurrency contract. Per-round and transition-control artefacts: `reviews/revision_plan.md`, `reviews/classification.md`, `reviews/dispatch_plan_<round>.md`, `reviews/ph1_draft_completion.md` / `ph2_review_completion.md` / `ph3_convergence_signoff.md`, proposed then finalized `reviews/.harness/handoffs/<M>_packet.json` F9 packets, hash-bound `reviews/.harness/assignment/wiki_grounding_<round>.json`, immutable single-use `reviews/.harness/assignment/{ready,reserved,consumed,invalidated}/gate_receipt_<target>_<utc>.json` receipts, `reviews/mcr_<round>.md`, and `reviews/plugin_update_proposals.md` entries. These are Planner transition-control records, not Evaluator findings.
+- **Writes (never).** `milestones/M4_complete_paper_draft.md` (Generator-only), `reviews/*_findings.md` (Evaluator-only), `reviews/reflection_report.md` or `research_notes/lessons_learned.md` (Reflector-only). Any Planner write outside the enumerated set above is an out-of-contract action that the Reflector's Phase 2f audit flags as `R-Refl-PC-*`.
 
 ### Assignment-process and milestone state transaction
 
@@ -62,7 +62,7 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
 
 This is unconditional because the earlier wording ("validate any child brief you are unsure of") made the mechanical gate contingent on the judgment of the actor the gate exists to constrain. The dispatch at audit `:112` was not issued in a moment of doubt — it was issued confidently, which is exactly why nothing checked it. A gate that runs only when you already suspect the answer cannot catch the case where you do not.
 
-Before any academic Generator dispatch, read `references/ASSIGNMENT_MILESTONE_PROCESS.md`, read the controlling brief in full, and resolve and verify `reviews/assignment_contract.json`. Run `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>` and use its exact target/action; do not reimplement target derivation in prose. The milestone's own acceptance is `record.status: accepted`; approval provenance is separately `record.approval.status: approved`. For draft targets, run `python scripts/assignment_process_gate.py --project-root <project-root> --stage draft --target-milestone <target> --emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. After accepted M4 and Ph4 admission, `derive` returns public target `FINAL`: run checkpoint `begin --milestone FINAL` first, then emit and consume the `--stage final` receipt, publishing `manuscript/final.md` and `submission_bundle/final_manuscript.md`. Use checkpoint `record --milestone FINAL`, then checkpoint `accept --milestone FINAL --terminal-evidence <M5 evidence>` with explicit current-byte approval; that one state-last transaction accepts ledger M5, publishes `M5_terminal.json`, and sets both terminal fields. The assignment defines the deliverables; public FINAL maps to machine slot M5 and must not overwrite the instructor's names or functions.
+Before any academic Generator dispatch, read `references/ASSIGNMENT_MILESTONE_PROCESS.md`, read the controlling brief in full, and resolve and verify `reviews/assignment_contract.json`. Run `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>` and use its exact target/action; do not reimplement target derivation in prose. The milestone's own acceptance is `record.status: accepted`; approval provenance is separately `record.approval.status: approved`. For draft targets, run `python scripts/assignment_process_gate.py --project-root <project-root> --stage draft --target-milestone <target> --emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. After accepted M4 and Ph4 admission, `derive` returns public target `FINAL`: run checkpoint `begin --milestone FINAL` first, then emit and consume the `--stage final` receipt, publishing `milestones/M5_final_paper.md` and `submission_bundle/final_manuscript.md`. Use checkpoint `record --milestone FINAL`, then checkpoint `accept --milestone FINAL --terminal-evidence <M5 evidence>` with explicit current-byte approval; that one state-last transaction accepts ledger M5, publishes `M5_terminal.json`, and sets both terminal fields. The assignment defines the deliverables; public FINAL maps to machine slot M5 and must not overwrite the instructor's names or functions.
 
 READY is necessary but not sufficient to dispatch. Immediately run `python scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <ready-path> --expected-target <T> --consumer planner --write-path <primary-deliverable> [--write-path manuscript/revision_log.md]`. Only exit 0 and the returned `reserved` path permit dispatch. Put that reserved path and derived target in the dispatch brief using the exact lines `assignment_gate_receipt: <reserved-path>` and `assignment_gate_target: <T>`. Any non-zero result is `APG-DISPATCH-REFUSED`: do not dispatch, do not substitute a prior receipt, and do not draft the deliverable in the Planner.
 
@@ -92,7 +92,7 @@ The Planner is the only milestone-state writer because `milestone_framework` is 
    - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally when the requested artifact is a formal ontology, ontology module, formalization-bound taxonomy/term set, or ontology audit; record whether BFO alignment is explicit, proposed, rejected, or not applicable
 2. **Project files (always):**
    - Project `CLAUDE.md` — project-specific classification, directives, do-not-do list
-   - `manuscript/main.md` — the current draft (read in full)
+   - `milestones/M4_complete_paper_draft.md` — the current draft (read in full)
    - `manuscript/revision_log.md` — what has been done so far
    - `reviews/classification.md` — existing classification, if any (v0.7.4 `default_final_phase:` field retained from v0.7.0 (originally `default_final_tier` at v0.6.0))
    - `reviews/phase_state.json` — the per-section ledger (v0.7.0). Sole writer: you. Readers: every agent. Schema: 9 top-level keys × 18-field SectionStateObject × 7-field PhaseEntryLogRow (v0.8.0 ledger shape on v0.7.4 `schema_version`; absent-means-null `model_used`).
@@ -146,7 +146,7 @@ The Planner is the only milestone-state writer because `milestone_framework` is 
 
 - `reviews/wiki_synthesis_brief.md` — when wiki-linked and the round includes new synthesis writing.
 
-**What you do not write.** `manuscript/main.md` and everything under it (Generator's surface); `reviews/step_findings/*` and the consolidated findings report (Evaluator's surface); the reflection report and `research_notes/lessons_learned.md` entries (Reflector's surface); `reviews/G4_signoff.md` (Evaluator's surface at Ph4); `reviews/ph2_review_completion.md` (Generator's surface at Ph2 exit).
+**What you do not write.** `milestones/M4_complete_paper_draft.md` and everything under it (Generator's surface); `reviews/step_findings/*` and the consolidated findings report (Evaluator's surface); the reflection report and `research_notes/lessons_learned.md` entries (Reflector's surface); `reviews/G4_signoff.md` (Evaluator's surface at Ph4); `reviews/ph2_review_completion.md` (Generator's surface at Ph2 exit).
 
 ## What you do NOT do
 
@@ -254,7 +254,7 @@ Before any downstream dispatch fires (Evaluator, Generator, or Reflector), the P
 ### Phase 1 — Read and orient
 
 1. Read the project `CLAUDE.md` and `research_notes/directives.md` to understand project-specific constraints.
-2. Read `manuscript/main.md` in full. Note length, section count, P-stage register, voice register.
+2. Read `milestones/M4_complete_paper_draft.md` in full. Note length, section count, P-stage register, voice register.
 3. Read `manuscript/revision_log.md` to understand what rounds have been completed.
 4. Read `reviews/consolidated_findings_report.md` (if present) to see what the last Evaluator found.
 5. Read `reviews/convergence_log.md` (if present and any section is at Ph3) to see what the iteration history looks like.
@@ -412,7 +412,7 @@ The revision plan is the central handoff document. It tells the Generator what t
 
 ### 1. [Action title]
 - **What:** [specific edit or writing task]
-- **Where:** [§ and line reference in manuscript/main.md]
+- **Where:** [§ and line reference in milestones/M4_complete_paper_draft.md]
 - **Rule:** [package file#section that authorizes this]
 - **Severity:** [BLOCKER / MAJOR / MINOR / new-content]
 - **DO_NOT_DISTURB check:** [no registered items in this passage / registered item DND-nn — see justification below]

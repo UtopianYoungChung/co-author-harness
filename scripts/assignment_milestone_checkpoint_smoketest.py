@@ -27,10 +27,10 @@ CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 PATHS = {
-    "M1": "research_notes/project_memo.md",
-    "M2": "research_notes/annotated_references.md",
-    "M3": "manuscript/outline.md",
-    "M4": "manuscript/main.md",
+    "M1": "milestones/M1_project_memo.md",
+    "M2": "milestones/M2_annotated_references.md",
+    "M3": "milestones/M3_argument_evidence_outline.md",
+    "M4": "milestones/M4_complete_paper_draft.md",
 }
 
 
@@ -318,7 +318,7 @@ def main() -> int:
         else:
             raise AssertionError("record accepted a checkpoint mutated after validation")
         assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_mutation
-        failed_snapshot = project / "reviews" / ".harness" / "milestones" / "artifacts" / "M4" / f"{sha(project / PATHS['M4'])}.md"
+        failed_snapshot = project / "reviews" / ".harness" / "snapshots" / "M4" / f"{sha(project / PATHS['M4'])}.md"
         assert not failed_snapshot.exists(), "failed record left an unbound M4 snapshot"
         valid_checkpoint.write_bytes(checkpoint_bytes)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", valid_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
@@ -365,7 +365,7 @@ def main() -> int:
         refused = run(CHECKPOINT, "accept", "--project-root", project, "--milestone", "M4", "--checkpoint", valid_checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
         assert "AMC-M4-NOT-CONVERGED" in refused.stdout
         assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_accept
-        assert not (project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json").exists()
+        assert not (project / "reviews" / ".harness" / "handoffs" / "M4_to_M5.json").exists()
 
         # A live claim cannot be recovered, and there is no TTL bypass.
         claim = project / "reviews" / ".harness" / "milestones" / "claims" / "transaction.lock"
@@ -381,7 +381,7 @@ def main() -> int:
 
         # Adversarial residue injection is outside the positive public walk:
         # inspected recovery archives both a dead claim and an unbound F9.
-        orphan = project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json"
+        orphan = project / "reviews" / ".harness" / "handoffs" / "M4_to_M5.json"
         write_json(orphan, {"synthetic_orphan": True})
         write_json(claim, {"schema_version": "1.0.0", "pid": 2147483647, "host": __import__("platform").node(), "operation": "accept:M4", "started_at": "2026-07-19T00:00:00Z"})
         run(CHECKPOINT, "recover", "--project-root", project, "--acknowledgement", "inspected-milestone-state-and-journal")
@@ -408,7 +408,7 @@ def main() -> int:
         else:
             raise AssertionError("accept published state after approval evidence mutation")
         assert (project / "reviews" / "phase_state.json").read_bytes() == phase_before_accept_mutation
-        assert not (project / "reviews" / ".harness" / "milestones" / "M4_to_M5.json").exists()
+        assert not (project / "reviews" / ".harness" / "handoffs" / "M4_to_M5.json").exists()
         approval.write_bytes(approval_bytes)
         run(CHECKPOINT, "accept", "--project-root", project, "--milestone", "M4", "--checkpoint", valid_checkpoint, "--approval-evidence", approval, "--policy-evidence", policy, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
         accepted = state(project)["milestone_framework"]["milestones"]["M4"]

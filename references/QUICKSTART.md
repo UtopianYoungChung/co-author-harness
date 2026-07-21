@@ -41,10 +41,10 @@ If no `conductor.md` exists at the Research root, say *"Seed the conductor per `
 
 | To do this | Say this | Lands on | First artifact you will see |
 |---|---|---|---|
-| Start a new project | *"Bootstrap a new project on X, targeting venue V, paper type T"* | **Think (M1)** | `research_notes/project_memo.md` |
-| Build the bibliography | *"Build annotated references for the memo"* | **Plan (M2)** | `research_notes/annotated_references.md` |
-| Structure the argument | *"Outline the paper"* | **Plan (M3)** | `manuscript/outline.md` |
-| Draft prose | *"Co-author §N on topic T"* | **Build (M4)** | Edits to `manuscript/main.md` + revision-log entry |
+| Start a new project | *"Bootstrap a new project on X, targeting venue V, paper type T"* | **Think (M1)** | `milestones/M1_project_memo.md` |
+| Build the bibliography | *"Build annotated references for the memo"* | **Plan (M2)** | `milestones/M2_annotated_references.md` |
+| Structure the argument | *"Outline the paper"* | **Plan (M3)** | `milestones/M3_argument_evidence_outline.md` |
+| Draft prose | *"Co-author §N on topic T"* | **Build (M4)** | Edits to `milestones/M4_complete_paper_draft.md` + revision-log entry |
 | Get a review | *"Run a full review"* or *"Critique §N"* | **Review** | `scripts/run-evaluator-preflight.ps1` then `reviews/consolidated_findings_report.md` |
 | Run only checks | *"Run the deterministic pass"* / *"Run the safeguard layer"* | **Test** | Per-check results under `reviews/` |
 | Sign off for submission | *"Is it ready?"* then *"Do the G.4 sign-off"* | **Ship (M5)** | `reviews/G4_signoff.md` |

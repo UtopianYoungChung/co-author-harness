@@ -43,7 +43,7 @@ description: |
 The Evaluator's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §2` (Evaluator). A summary for discoverability:
 
 - **Writes.** `reviews/*_findings.md` (MAJOR / MINOR / BLOCKER severity tags with locator + remediation); `reviews/safeguard_layer_results.md`; `reviews/safeguard_check8_*.md` (Reader-Experience Check 8 sub-finding breakdown); `reviews/convergence_log.md` (Trajectory-synthesis prose) + one row per iteration appended to `reviews/convergence_journal.jsonl` (v0.7.4 P-4); G.4 sign-off block in `reviews/G4_signoff.md` at Ph4 only; `TerminalSignoffRow` / `ReengagementSignoffRow` stubs handed to the Planner for Ph3 close-out.
-- **Writes (never).** `manuscript/main.md` (Generator-only); `reviews/phase_state.json` (Planner-only); `reviews/reflection_report.md` (Reflector-only). The Evaluator is the adversarial counterpart to the Generator and the single integrity constraint the pipeline rests on.
+- **Writes (never).** `milestones/M4_complete_paper_draft.md` (Generator-only); `reviews/phase_state.json` (Planner-only); `reviews/reflection_report.md` (Reflector-only). The Evaluator is the adversarial counterpart to the Generator and the single integrity constraint the pipeline rests on.
 - **Dormancy.** The Evaluator is **dormant at Ph1**. A Ph1 dispatch returns `E-EVALUATOR-PH1-DORMANT` to the Planner and writes no artifact. First engagement is Ph2. Full local-scope pass at Ph2; full seven-step judgment pass + complete SAFEGUARD layer at Ph3; strict superset with external verifiers required at Ph4.
 - **Invariants.** Full-file reads mandatory at every phase (Rule 1 phase-gated digest exception retired at v0.7.4); findings are grounded-before-filed under the GROUNDING_PROTOCOL; severity is assigned by rubric, not by taste; no finding surfaces without a locator and remediation.
 - **Subagent verdicts.** Under I-SubAgent-1, any subagent-returned aggregate (e.g., Check 8, graph-grounding overlay) is authoritative-as-read.
@@ -69,7 +69,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
    - `reviews/phase_state.json` — current phase per section; read `current_phase`, `last_approved_phase`, `ph1_pstage_declaration`, `ph3_last_activity_at`, `convergence_metric`, `phase_goal_declared`, `phase_deliverable_path`, and the `phase_entry_log` tail. Never write.
    - `reviews/revision_plan.md` — the current plan (if running a re-check after Generator edits).
    - `reviews/convergence_log.md` — the Ph3 iteration record (read only; you append via a new entry block, per Step 8.3 below).
-   - `manuscript/main.md` — the current draft (read in full; never write).
+   - `milestones/M4_complete_paper_draft.md` — the current draft (read in full; never write).
    - `manuscript/revision_log.md` — to detect what changed since last review (hypothesis → change → result → verdict).
    - `research_notes/directives.md` — to respect stable author decisions.
    - `research_notes/lessons_learned.md` — to avoid re-flagging known items.
@@ -92,7 +92,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
 
 ## What you do NOT do
 
-- **Never edit `manuscript/main.md`.** If you find a problem, describe the fix in the findings report. The Generator applies it.
+- **Never edit `milestones/M4_complete_paper_draft.md`.** If you find a problem, describe the fix in the findings report. The Generator applies it.
 - **Never write to `manuscript/revision_log.md`.** That is the Generator's log.
 - **Never write to `reviews/phase_state.json`.** The Planner is the sole writer. Your findings, verdicts, and convergence entries are inputs the Planner uses to compose rows; you do not append rows yourself.
 - **Never override project directives.** If a directive protects a passage you want to flag, note the conflict in the findings report §7 and let the Planner resolve it.
@@ -125,7 +125,7 @@ File findings in the register that matches the rhetorical frame of the check tha
 
 When F6 **`check_profile` is `refine`** or **`structural`**, align judgment-layer work with P-10:
 
-1. **Grounding floor unchanged.** Full-file read of `manuscript/main.md` (and declared grounding basis) wherever `GROUNDING_PROTOCOL.md` Rule 1 requires whole-manuscript substrate for counts and citations.
+1. **Grounding floor unchanged.** Full-file read of `milestones/M4_complete_paper_draft.md` (and declared grounding basis) wherever `GROUNDING_PROTOCOL.md` Rule 1 requires whole-manuscript substrate for counts and citations.
 2. **Judgment-layer scope.** For each scheduled check, respect **`halo_scope`** ∈ {`paragraph`, `immediate_neighbour`, `containing_section`} from `references/DETERMINISTIC_CHECKS.md` and `references/SAFEGUARD_LAYER.md` — authoritative matrix (P2.2 residual: if a check id is not yet listed, default to **containing_section** for that check until the matrix is pinned; do not invent rows).
 3. **Paragraph ids.** When the Planner supplies **`paragraph_hash_map`** (journal or Phase 0.6 artefact), cite stable `p-####` ids in locators where possible.
 
@@ -174,7 +174,7 @@ At Ph4 only, this step is extended by the **graph-grounding overlay** (`co-autho
 
 ### Step 0a — Deterministic Pre-flight
 
-Run every pattern in `DETERMINISTIC_CHECKS.md` against `manuscript/main.md`. Emit the count block in the format prescribed by `DETERMINISTIC_CHECKS.md` §10. Save as `reviews/step_0a_deterministic.md` (or with a date suffix for subsequent rounds).
+Run every pattern in `DETERMINISTIC_CHECKS.md` against `milestones/M4_complete_paper_draft.md`. Emit the count block in the format prescribed by `DETERMINISTIC_CHECKS.md` §10. Save as `reviews/step_0a_deterministic.md` (or with a date suffix for subsequent rounds).
 
 If any BLOCKER-severity count fails (e.g. `[REF to be verified]` placeholders at submission-bound depth), stop and report to the Planner. The Planner will decide whether to proceed or send the piece back to the Generator first.
 

@@ -120,6 +120,7 @@ import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
 import artefact_frontmatter_validate as afv        # noqa: E402
 import round_identifier as rid                     # noqa: E402
+from milestone_path_contract import canonical_deliverable  # noqa: E402
 from audit import schema as audit_schema           # noqa: E402
 
 
@@ -694,12 +695,11 @@ REQUIRED_ROUND_FIELDS = ("Hypothesis", "Scope", "Changes")
 
 def check_authorship(project_root: Path, *, require_receipt: bool = True) -> list[dict]:
     findings: list[dict] = []
-    man_dir = project_root / "manuscript"
-    if not man_dir.is_dir():
-        return findings
-    prose = [p for p in man_dir.rglob("*")
-             if p.is_file() and p.suffix.lower() in {".md", ".tex"}
-             and p.name != "revision_log.md" and p.name != "outline.md"]
+    prose = [
+        project_root / canonical_deliverable(target)
+        for target in ("M4", "FINAL")
+        if (project_root / canonical_deliverable(target)).is_file()
+    ]
     if not prose:
         return findings
     # Only non-empty prose needs an author.

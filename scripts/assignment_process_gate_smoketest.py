@@ -148,11 +148,11 @@ def main() -> int:
         assert receipt_record["target_milestone"] == "M1"
         assert receipt_record["authorized_role"] == "generator"
         assert receipt_record["authorized_writes"] == [
-            {"path": "research_notes/project_memo.md", "mode": "replace"},
+            {"path": "milestones/M1_project_memo.md", "mode": "replace"},
             {"path": "manuscript/revision_log.md", "mode": "append"},
         ]
         assert receipt_record["project_root_resolved"] == str(root.resolve())
-        assert receipt_record["primary_deliverable_path"] == "research_notes/project_memo.md"
+        assert receipt_record["primary_deliverable_path"] == "milestones/M1_project_memo.md"
         assert receipt_record["primary_deliverable_path"] in receipt_record["authorized_paths"]
         assert receipt_record["assignment_contract_sha256"] == sha256(
             reviews / "assignment_contract.json"

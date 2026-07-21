@@ -105,13 +105,13 @@ def main() -> int:
     )
 
     role_contract = json.loads(
-        (ROOT / "references" / "role_output_contract.v1.json").read_text(encoding="utf-8")
+        (ROOT / "references" / "role_output_contract.json").read_text(encoding="utf-8")
     )
     expected = {
-        "M1": ("research_notes/project_memo.md", ["Ph1"], "forbidden"),
-        "M2": ("research_notes/annotated_references.md", ["Ph1"], "forbidden"),
-        "M3": ("manuscript/outline.md", ["Ph1"], "forbidden"),
-        "M4": ("manuscript/main.md", ["Ph1", "Ph2", "Ph3"], "required-from-Ph2"),
+        "M1": ("milestones/M1_project_memo.md", ["Ph1"], "forbidden"),
+        "M2": ("milestones/M2_annotated_references.md", ["Ph1"], "forbidden"),
+        "M3": ("milestones/M3_argument_evidence_outline.md", ["Ph1"], "forbidden"),
+        "M4": ("milestones/M4_complete_paper_draft.md", ["Ph1", "Ph2", "Ph3"], "required-from-Ph2"),
     }
     for milestone, (path, write_states, evaluator) in expected.items():
         row = role_contract["milestones"][milestone]

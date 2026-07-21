@@ -23,6 +23,8 @@ REQUIRED_COMPONENT_IDS = {
     "assignment-process-gate", "assignment-dispatch-preflight",
     "assignment-receipt-transaction", "assignment-writer-commit",
     "assignment-receipt-invalidate", "assignment-receipt-recover",
+    "milestone-path-resolver", "milestone-path-migrator",
+    "milestone-framework-schema",
 }
 
 
@@ -76,10 +78,10 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
         role_contract = json.loads(role_path.read_text(encoding="utf-8"))
         role_milestones = role_contract.get("milestones", {})
         expected_paths = {
-            "M1": "research_notes/project_memo.md",
-            "M2": "research_notes/annotated_references.md",
-            "M3": "manuscript/outline.md",
-            "M4": "manuscript/main.md",
+            "M1": "milestones/M1_project_memo.md",
+            "M2": "milestones/M2_annotated_references.md",
+            "M3": "milestones/M3_argument_evidence_outline.md",
+            "M4": "milestones/M4_complete_paper_draft.md",
         }
         if {
             key: role_milestones.get(key, {}).get("deliverable_path")

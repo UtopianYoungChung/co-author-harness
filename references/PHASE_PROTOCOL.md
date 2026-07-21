@@ -61,7 +61,7 @@ Phases, milestones, and EYgp P-stages remain distinct questions recorded in one 
 | Property | Value |
 |---|---|
 | **Phase goal** | Produce a complete first draft articulating a coherent research intentionality. |
-| **Primary deliverables** | `manuscript/main.md` at prose-completeness; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). |
+| **Primary deliverables** | `milestones/M4_complete_paper_draft.md` at prose-completeness; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). |
 | **Exit artefact** | `reviews/ph1_draft_completion.md` — Planner-signed declaration that every section has prose, every in-text citation has a `wiki/sources/` stub (via the new incremental SK-16 sibling), every placeholder is explicit. |
 | **Milestone relationship** | M1→M2→M3 normally supply the consumed planning chain required for Ph2 entry. |
 | **Active agents** | Planner, Generator. |
@@ -81,7 +81,7 @@ Phases, milestones, and EYgp P-stages remain distinct questions recorded in one 
 | Property | Value |
 |---|---|
 | **Phase goal** | Produce an externally-reviewable draft that has survived one full-file Evaluator pass. |
-| **Primary deliverables** | `reviews/evaluator_findings_t2.md`; revised `manuscript/main.md`. |
+| **Primary deliverables** | `reviews/evaluator_findings_t2.md`; revised `milestones/M4_complete_paper_draft.md`. |
 | **Exit artefact** | `reviews/ph2_review_completion.md` — Generator-signed per-finding disposition record. Every finding carries `disposition: RESOLVED / ACKNOWLEDGED / ESCALATED`; every `ESCALATED` finding carries a `named_owner` field **and is bound to the Ph2→Ph3 transition contract specified in §3.2.1**. |
 | **Milestone relationship** | Produces and reviews M4; M4 remains one manuscript milestone through Ph3. |
 | **Active agents** | Planner, Evaluator, Generator, Reflector-lightweight. |
@@ -342,7 +342,7 @@ The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at 
 
 ## 4. Milestone and phase orthogonality
 
-`MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` defines the canonical M1–M5 deliverable chain: project memo → annotated references → structured outline → manuscript → submission-bound final. Milestones are not repurposed as phase labels and M4 is not split. M1–M3 are separately approved and handed forward while `current_phase` remains Ph1; their approval never exits the phase. The Generator writes each M1–M4 deliverable under `role_output_contract.v1.json`. M4 begins with initial assembly in Ph1, is reviewed in Ph2, converges in Ph3, and becomes acceptance-ready at `Ph3_converged`; M5 closes in Ph4. The `milestone_framework` namespace records this relationship without creating another lifecycle authority.
+`MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md` defines the canonical M1–M5 deliverable chain: project memo → annotated references → structured outline → manuscript → submission-bound final. Milestones are not repurposed as phase labels and M4 is not split. M1–M3 are separately approved and handed forward while `current_phase` remains Ph1; their approval never exits the phase. The Generator writes each M1–M4 deliverable under `role_output_contract.json`. M4 begins with initial assembly in Ph1, is reviewed in Ph2, converges in Ph3, and becomes acceptance-ready at `Ph3_converged`; M5 closes in Ph4. The `milestone_framework` namespace records this relationship without creating another lifecycle authority.
 
 Legacy projects may retain historical labels only behind an approved migration boundary. Derived views may summarize the map but never overwrite or reinterpret recorded history.
 
