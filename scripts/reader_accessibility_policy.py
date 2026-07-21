@@ -22,7 +22,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import stat_result
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
 
@@ -33,6 +33,7 @@ CHECK8_SCHEMA = ROOT / "references" / "schemas" / "check8_evidence.schema.json"
 CANDIDATE_SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_candidates.schema.json"
 PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+SEMANTIC_ARTIFACT_SCHEMA_VERSION = "1.0.0"
 DEFAULT_WIKI_ROOT = Path("B:/Agents/knowledge/LLM wiki")
 DEFAULT_WORKSPACE_ROOT = Path("B:/Agents")
 ROOT_ENV_VARS = {
@@ -453,10 +454,13 @@ class _SnapshotSet:
             self._hook("before_final_verify", "*", None)
         for item in self._items.values():
             try:
-                current = _stamp(item.path.stat())
+                with item.path.open("rb") as stream:
+                    before = _stamp(os.fstat(stream.fileno()))
+                    data = stream.read()
+                    after = _stamp(os.fstat(stream.fileno()))
             except OSError as exc:
                 raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}: {exc}") from exc
-            if current != item.stamp:
+            if before != after or after != item.stamp or hashlib.sha256(data).hexdigest() != item.sha256:
                 raise PolicyError(f"domain-native input changed during resolution: {item.role}: {item.path}")
         for item in self._absent.values():
             self._verify_absent(item)
@@ -511,6 +515,96 @@ def _utf8_key(value: str) -> bytes:
     return value.encode("utf-8")
 
 
+def validate_graph_semantic_eligibility(
+    graph: dict[str, Any], contract: dict[str, Any]
+) -> dict[str, str]:
+    """Refuse provisional graph material before any semantic pin is computed."""
+    modes = contract.get("extraction_modes")
+    statuses = contract.get("semantic_statuses")
+    failure_code = contract.get("failure_code")
+    if (
+        not isinstance(modes, list)
+        or not modes
+        or not all(isinstance(value, str) and value for value in modes)
+        or not isinstance(statuses, list)
+        or not statuses
+        or not all(isinstance(value, str) and value for value in statuses)
+        or contract.get("semantic_scope_required") is not True
+        or contract.get("inventory_directories") != ["wiki/sources", "wiki/concepts", "wiki/entities", "wiki/syntheses"]
+        or contract.get("inventory_root_files") != ["wiki/identity-sensitive-re-for-delegated-agency.md"]
+        or contract.get("inventory_digest_required") is not True
+        or failure_code != "GRAPH-SEMANTIC-INELIGIBLE"
+    ):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: malformed semantic eligibility contract")
+    metadata = graph.get("graph")
+    if not isinstance(metadata, dict):
+        raise PolicyError(f"{failure_code}: graph metadata object is required")
+    extraction_mode = metadata.get("extraction_mode")
+    if extraction_mode not in modes:
+        raise PolicyError(
+            f"{failure_code}: extraction_mode "
+            f"{extraction_mode!r} is not one of {sorted(modes)}"
+        )
+    semantic_status = metadata.get("semantic_status")
+    if semantic_status not in statuses:
+        raise PolicyError(
+            f"{failure_code}: semantic_status "
+            f"{semantic_status!r} is not one of {sorted(statuses)}"
+        )
+    if (extraction_mode, semantic_status) not in {
+        ("semantic", "complete"),
+        ("hybrid-structural-semantic", "validated"),
+    }:
+        raise PolicyError(f"{failure_code}: extraction mode/status pair is not admitted: {extraction_mode}/{semantic_status}")
+    semantic_scope = metadata.get("semantic_scope") or metadata.get("semantic_scope_note")
+    if not isinstance(semantic_scope, str) or not semantic_scope.strip():
+        raise PolicyError(f"{failure_code}: non-empty semantic_scope is required")
+    required_metadata = (
+        "semantic_manifest", "semantic_manifest_sha256", "semantic_audit",
+        "semantic_audit_sha256", "semantic_outputs_sha256", "semantic_output_files",
+        "semantic_report", "semantic_receipt", "semantic_pages_expected",
+        "semantic_pages_represented", "research_inventory_sha256",
+        "semantic_node_count", "semantic_edge_count",
+    )
+    missing = [key for key in required_metadata if key not in metadata]
+    if missing:
+        raise PolicyError(f"{failure_code}: required semantic provenance metadata missing: {missing}")
+    for key in ("semantic_manifest", "semantic_audit", "semantic_report", "semantic_receipt"):
+        if not isinstance(metadata[key], str) or not metadata[key].strip():
+            raise PolicyError(f"{failure_code}: {key} must be a non-empty relative path")
+    for key in ("semantic_manifest_sha256", "semantic_audit_sha256", "semantic_outputs_sha256", "research_inventory_sha256"):
+        if not isinstance(metadata[key], str) or re.fullmatch(r"[0-9a-f]{64}", metadata[key]) is None:
+            raise PolicyError(f"{failure_code}: {key} must be a lowercase SHA-256")
+    output_files = metadata["semantic_output_files"]
+    if not isinstance(output_files, list) or not output_files:
+        raise PolicyError(f"{failure_code}: semantic_output_files must be a non-empty array")
+    seen_output_paths: set[str] = set()
+    for row in output_files:
+        if (
+            not isinstance(row, dict)
+            or set(row) != {"path", "sha256"}
+            or not isinstance(row.get("path"), str)
+            or not row["path"].strip()
+            or row["path"] in seen_output_paths
+            or not isinstance(row.get("sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None
+        ):
+            raise PolicyError(f"{failure_code}: semantic_output_files contains an invalid or duplicate row")
+        seen_output_paths.add(row["path"])
+    if [row["path"] for row in output_files] != sorted((row["path"] for row in output_files), key=_utf8_key):
+        raise PolicyError(f"{failure_code}: semantic_output_files must be sorted by path")
+    for key in ("semantic_pages_expected", "semantic_pages_represented", "semantic_node_count", "semantic_edge_count"):
+        if not isinstance(metadata[key], int) or isinstance(metadata[key], bool) or metadata[key] < 1:
+            raise PolicyError(f"{failure_code}: {key} must be a positive integer")
+    if metadata["semantic_pages_expected"] != metadata["semantic_pages_represented"]:
+        raise PolicyError(f"{failure_code}: semantic_pages expected/represented mismatch")
+    return {
+        "extraction_mode": extraction_mode,
+        "semantic_status": semantic_status,
+        "semantic_scope": semantic_scope.strip(),
+    }
+
+
 def resolve_domain_native_register(
     profile: dict[str, Any], *, wiki_root: Path | None = None,
     workspace_root: Path | None = None, harness_root: Path | None = None,
@@ -539,9 +633,240 @@ def resolve_domain_native_register(
         raise PolicyError(f"domain-native graph unreadable: {graph_path}: {exc}") from exc
     if not isinstance(graph, dict):
         raise PolicyError("domain-native graph root must be an object")
+    graph_eligibility = validate_graph_semantic_eligibility(
+        graph, model["corpus_binding"]["graph"]["semantic_eligibility"]
+    )
     nodes = graph.get("nodes"); links = graph.get("links")
     if not isinstance(nodes, list) or not isinstance(links, list):
         raise PolicyError("domain-native graph requires nodes and links arrays")
+    metadata = graph["graph"]
+    semantic_nodes = [node for node in nodes if isinstance(node, dict) and node.get("semantic_status") == "validated"]
+    semantic_edges = [edge for edge in links if isinstance(edge, dict) and edge.get("semantic_status") == "validated" and isinstance(edge.get("semantic_edge_id"), str)]
+    if len(semantic_nodes) != metadata["semantic_node_count"]:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic_node_count mismatch: metadata={metadata['semantic_node_count']} actual={len(semantic_nodes)}")
+    if len(semantic_edges) != metadata["semantic_edge_count"]:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic_edge_count mismatch: metadata={metadata['semantic_edge_count']} actual={len(semantic_edges)}")
+    semantic_edge_by_id = {edge["semantic_edge_id"]: edge for edge in semantic_edges}
+    if len(semantic_edge_by_id) != len(semantic_edges):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic edge identifiers are duplicated")
+    semantic_node_by_id = {node.get("id"): node for node in semantic_nodes}
+    if len(semantic_node_by_id) != len(semantic_nodes) or None in semantic_node_by_id:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic node identifiers are missing or duplicated")
+    semantic_page_sources = {node.get("source_file") for node in semantic_nodes if isinstance(node.get("source_file"), str)}
+    if len(semantic_page_sources) != metadata["semantic_pages_represented"]:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic page coverage mismatch: metadata={metadata['semantic_pages_represented']} actual={len(semantic_page_sources)}")
+    semantic_artifacts: list[tuple[str, Any]] = []
+    for role, path_key, hash_key in (
+        ("semantic_manifest", "semantic_manifest", "semantic_manifest_sha256"),
+        ("semantic_audit", "semantic_audit", "semantic_audit_sha256"),
+    ):
+        artifact_path = _contained(wiki_root, metadata[path_key])
+        artifact_snapshot = snapshots.capture(artifact_path, role)
+        if artifact_snapshot.sha256 != metadata[hash_key]:
+            raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: {role} hash mismatch")
+        semantic_artifacts.append((role, artifact_snapshot))
+    output_binding_rows: list[dict[str, str]] = []
+    output_snapshots: list[Any] = []
+    for index, output_row in enumerate(metadata["semantic_output_files"]):
+        output_path = _contained(wiki_root, output_row["path"])
+        output_snapshot = snapshots.capture(output_path, f"semantic_output_{index + 1:03d}")
+        if output_snapshot.sha256 != output_row["sha256"]:
+            raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic output hash mismatch: {output_row['path']}")
+        output_binding_rows.append({"path": output_row["path"], "sha256": output_snapshot.sha256})
+        output_snapshots.append(output_snapshot)
+        semantic_artifacts.append((f"semantic_output_{index + 1:03d}", output_snapshot))
+    output_binding_payload = "\n".join(
+        f"{row['path']}\t{row['sha256']}" for row in output_binding_rows
+    ).encode("utf-8")
+    output_binding_sha256 = hashlib.sha256(output_binding_payload).hexdigest()
+    if output_binding_sha256 != metadata["semantic_outputs_sha256"]:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output aggregate hash mismatch")
+    report_path = _contained(wiki_root, metadata["semantic_report"])
+    report_snapshot = snapshots.capture(report_path, "semantic_report")
+    semantic_artifacts.append(("semantic_report", report_snapshot))
+    receipt_path = _contained(wiki_root, metadata["semantic_receipt"])
+    receipt_snapshot = snapshots.capture(receipt_path, "semantic_receipt")
+    try:
+        receipt = json.loads(receipt_snapshot.text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic receipt unreadable: {exc}") from exc
+    if not isinstance(receipt, dict):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic receipt must be a JSON object")
+    if receipt.get("schema_version") != SEMANTIC_ARTIFACT_SCHEMA_VERSION:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic receipt schema_version is unsupported")
+    receipt_expected = {
+        "final_graph_sha256": graph_snapshot.sha256,
+        "manifest_sha256": metadata["semantic_manifest_sha256"],
+        "audit_sha256": metadata["semantic_audit_sha256"],
+        "semantic_outputs_sha256": metadata["semantic_outputs_sha256"],
+        "research_inventory_sha256": metadata["research_inventory_sha256"],
+        "report_sha256": report_snapshot.sha256,
+        "extraction_mode": graph_eligibility["extraction_mode"],
+        "semantic_status": graph_eligibility["semantic_status"],
+        "semantic_scope": graph_eligibility["semantic_scope"],
+        "page_count": metadata["semantic_pages_represented"],
+        "semantic_node_count": metadata["semantic_node_count"],
+        "semantic_edge_count": metadata["semantic_edge_count"],
+    }
+    for key, expected_value in receipt_expected.items():
+        if receipt.get(key) != expected_value:
+            raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic receipt {key} mismatch")
+    try:
+        manifest_artifact = json.loads(semantic_artifacts[0][1].text())
+        audit_artifact = json.loads(semantic_artifacts[1][1].text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic manifest/audit unreadable: {exc}") from exc
+    if not isinstance(manifest_artifact, dict) or not isinstance(audit_artifact, dict):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest and audit must be JSON objects")
+    if manifest_artifact.get("schema_version") != SEMANTIC_ARTIFACT_SCHEMA_VERSION:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest schema_version is unsupported")
+    if audit_artifact.get("schema_version") != SEMANTIC_ARTIFACT_SCHEMA_VERSION:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit schema_version is unsupported")
+    manifest_pages = manifest_artifact.get("pages")
+    if not isinstance(manifest_pages, list) or any(
+        not isinstance(row, dict) or not isinstance(row.get("source_file"), str) or not row["source_file"]
+        for row in manifest_pages
+    ):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest pages are malformed")
+    manifest_page_sources = {row["source_file"] for row in manifest_pages}
+    if len(manifest_page_sources) != len(manifest_pages):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest contains duplicate pages")
+    semantic_edge_sources = {edge.get("source_file") for edge in semantic_edges if isinstance(edge.get("source_file"), str)}
+    if manifest_artifact.get("page_count") != metadata["semantic_pages_represented"] or len(manifest_page_sources) != metadata["semantic_pages_represented"]:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest page_count mismatch")
+    if manifest_artifact.get("chunk_count") != len(output_binding_rows):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest/output chunk count mismatch")
+    manifest_chunks = manifest_artifact.get("chunks")
+    if not isinstance(manifest_chunks, list) or len(manifest_chunks) != len(output_binding_rows):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest chunks are malformed")
+    manifest_page_by_source = {row["source_file"]: row for row in manifest_pages}
+    manifest_parent = PurePosixPath(metadata["semantic_manifest"]).parent
+    expected_output_paths: list[str] = []
+    chunk_source_files: list[str] = []
+    seen_chunk_ids: set[str] = set()
+    for chunk in manifest_chunks:
+        if (
+            not isinstance(chunk, dict)
+            or set(chunk) != {"chunk_id", "page_count", "source_files"}
+            or not isinstance(chunk.get("chunk_id"), str)
+            or chunk["chunk_id"] in seen_chunk_ids
+            or not isinstance(chunk.get("source_files"), list)
+            or chunk.get("page_count") != len(chunk["source_files"])
+            or any(not isinstance(value, str) for value in chunk["source_files"])
+        ):
+            raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest chunk contract is invalid")
+        seen_chunk_ids.add(chunk["chunk_id"])
+        expected_output_paths.append((manifest_parent / "chunks" / f"{chunk['chunk_id']}.output.json").as_posix())
+        chunk_source_files.extend(chunk["source_files"])
+    if [row["path"] for row in output_binding_rows] != expected_output_paths:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output paths differ from manifest chunks")
+    if chunk_source_files != [row["source_file"] for row in manifest_pages] or len(set(chunk_source_files)) != len(chunk_source_files):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest chunk/page partition mismatch")
+    derived_node_ids: set[str] = set()
+    derived_edge_ids: set[str] = set()
+    for chunk, output_snapshot in zip(manifest_chunks, output_snapshots):
+        try:
+            output = json.loads(output_snapshot.text())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: semantic output unreadable: {exc}") from exc
+        results = output.get("pages") if isinstance(output, dict) else None
+        if not isinstance(output, dict) or output.get("schema_version") != SEMANTIC_ARTIFACT_SCHEMA_VERSION or output.get("chunk_id") != chunk["chunk_id"] or not isinstance(results, list) or len(results) != chunk["page_count"]:
+            raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output schema/chunk/page count mismatch")
+        if [row.get("source_file") for row in results if isinstance(row, dict)] != chunk["source_files"]:
+            raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output page partition mismatch")
+        for result in results:
+            spec = manifest_page_by_source[result["source_file"]]
+            if result.get("sha256") != spec.get("sha256") or not isinstance(result.get("nodes"), list) or not isinstance(result.get("edges"), list):
+                raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output page/hash/payload mismatch")
+            for output_node in result["nodes"]:
+                node_id = output_node.get("id") if isinstance(output_node, dict) else None
+                actual_node = semantic_node_by_id.get(node_id)
+                if actual_node is None or node_id in derived_node_ids:
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output node is absent or duplicated in graph")
+                normalized_node = {key:value for key,value in actual_node.items() if key not in {"community", "extraction_status"}}
+                normalized_node["semantic_status"] = "candidate"
+                if normalized_node != output_node:
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output node payload differs from graph")
+                derived_node_ids.add(node_id)
+            for output_edge in result["edges"]:
+                if not isinstance(output_edge, dict):
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge is malformed")
+                matches = []
+                for edge_id, actual_edge in semantic_edge_by_id.items():
+                    if edge_id in derived_edge_ids:
+                        continue
+                    normalized_edge = {key:value for key,value in actual_edge.items() if key not in {"_src", "_tgt", "semantic_edge_id", "semantic_status"}}
+                    if normalized_edge == output_edge:
+                        matches.append(edge_id)
+                if len(matches) != 1:
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge payload is absent or ambiguous in graph")
+                derived_edge_ids.add(matches[0])
+    if derived_node_ids != set(semantic_node_by_id) or derived_edge_ids != set(semantic_edge_by_id):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic outputs do not exactly derive graph nodes and edges")
+    if manifest_page_sources != semantic_page_sources or manifest_page_sources != semantic_edge_sources:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest/node/edge page sets differ")
+    manifest_hash_rows = [
+        {"source_file": row["source_file"], "sha256": row.get("sha256")}
+        for row in manifest_pages
+    ]
+    if any(not isinstance(row["sha256"], str) or re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None for row in manifest_hash_rows):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest page hashes are malformed")
+    if path_roots_meta["path_roots_mode"] == "profile":
+        live_inventory_paths: list[Path] = []
+        for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
+            live_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
+        for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
+            candidate = _contained(wiki_root, relative_file)
+            if candidate.is_file():
+                live_inventory_paths.append(candidate)
+    else:
+        live_inventory_paths = [_contained(wiki_root, row["source_file"]) for row in manifest_hash_rows]
+    live_inventory_paths = sorted(set(live_inventory_paths), key=lambda path: path.relative_to(wiki_root).as_posix().encode("utf-8"))
+    live_inventory_rows = []
+    for inventory_path in live_inventory_paths:
+        inventory_snapshot = snapshots.capture(inventory_path, "semantic_inventory_page")
+        live_inventory_rows.append({"source_file":inventory_path.relative_to(wiki_root).as_posix(), "sha256":inventory_snapshot.sha256})
+    inventory_payload = "\n".join(f"{row['source_file']}\t{row['sha256']}" for row in live_inventory_rows).encode("utf-8")
+    inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
+    if live_inventory_rows != manifest_hash_rows or manifest_artifact.get("research_inventory_sha256") != inventory_sha256 or metadata["research_inventory_sha256"] != inventory_sha256:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: live research page inventory differs from semantic manifest")
+    if audit_artifact.get("manifest_sha256") != metadata["semantic_manifest_sha256"]:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit manifest binding mismatch")
+    if audit_artifact.get("semantic_outputs_sha256") != metadata["semantic_outputs_sha256"]:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit output binding mismatch")
+    counts = audit_artifact.get("verdict_counts")
+    if audit_artifact.get("reviewer") != "Claude Code" or not isinstance(counts, dict) or counts.get("unclear") != 0 or counts.get("unsupported") != 0 or counts.get("supported") != audit_artifact.get("sample_count"):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit is absent, incomplete, or not fully supported")
+    audit_rows = audit_artifact.get("edges")
+    if not isinstance(audit_rows, list) or len(audit_rows) != audit_artifact.get("sample_count") or len({row.get("semantic_edge_id") for row in audit_rows if isinstance(row, dict)}) != len(audit_rows) or any(not isinstance(row, dict) or row.get("verdict") != "supported" or not isinstance(row.get("note"), str) or not row["note"].strip() for row in audit_rows):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit rows are incomplete, duplicated, or not fully supported")
+    audit_edge_ids = {row["semantic_edge_id"] for row in audit_rows}
+    if not audit_edge_ids <= set(semantic_edge_by_id):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit references unknown graph edges")
+    audit_page_sources = {semantic_edge_by_id[edge_id]["source_file"] for edge_id in audit_edge_ids}
+    if audit_page_sources != manifest_page_sources:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit does not cover every manifest page")
+    semantic_sorted = sorted(semantic_edges, key=lambda edge: edge["semantic_edge_id"].encode("utf-8"))
+    by_semantic_page: dict[str, list[dict[str, Any]]] = {}
+    for edge in semantic_sorted:
+        by_semantic_page.setdefault(edge["source_file"], []).append(edge)
+    expected_audit_edges = [edges[0] for _, edges in sorted(by_semantic_page.items(), key=lambda item:item[0].encode("utf-8"))]
+    chosen_audit_ids = {edge["semantic_edge_id"] for edge in expected_audit_edges}
+    register_seed_pages = {f"wiki/sources/{member['source_key']}.md" for member in model["exemplar_members"]}
+    for edge in semantic_sorted:
+        if edge["source_file"] in register_seed_pages and edge["semantic_edge_id"] not in chosen_audit_ids:
+            expected_audit_edges.append(edge); chosen_audit_ids.add(edge["semantic_edge_id"])
+    represented_classes = {(edge.get("relation"), edge.get("confidence")) for edge in expected_audit_edges}
+    if any(not all(isinstance(value, str) and value for value in edge_class) for edge_class in represented_classes):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic graph lacks audit relation/confidence classes")
+    for edge in semantic_sorted:
+        edge_class = (edge.get("relation"), edge.get("confidence"))
+        if edge_class not in represented_classes:
+            expected_audit_edges.append(edge); chosen_audit_ids.add(edge["semantic_edge_id"]); represented_classes.add(edge_class)
+    if audit_edge_ids != {edge["semantic_edge_id"] for edge in expected_audit_edges}:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit sample differs from page/seed/class policy")
+    if not isinstance(audit_artifact.get("sample_count"), int) or audit_artifact["sample_count"] < metadata["semantic_pages_represented"] or receipt.get("audit_sample_count") != audit_artifact["sample_count"]:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit does not cover every represented page")
     by_id: dict[str, dict[str, Any]] = {}
     for node in nodes:
         if (not isinstance(node, dict) or not isinstance(node.get("id"), str) or not node.get("id")
@@ -558,7 +883,7 @@ def resolve_domain_native_register(
         if chosen is None:
             source_file = f"wiki/sources/{key}.md"
             candidates = [node for node in nodes if node.get("source_file") == source_file]
-            all_candidate_ids = [node["id"] for node in candidates]
+            all_candidate_ids = [node["id"] for node in candidates if node.get("semantic_status") != "validated"]
             preferred = [node for node in candidates if node.get("file_type") in {"document", "source"}]
             candidates = preferred or candidates
             preferred = [node for node in candidates if node["id"].endswith("_source")]
@@ -570,6 +895,11 @@ def resolve_domain_native_register(
                 if discarded: ties[key] = discarded
         if chosen is None: unresolved.append(key)
         else: resolution[key] = chosen["id"]
+    semantic_node_sources = semantic_page_sources
+    for key in resolution:
+        required_source = f"wiki/sources/{key}.md"
+        if required_source not in semantic_node_sources or required_source not in semantic_edge_sources:
+            raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: resolved register seed lacks semantic node/edge coverage: {required_source}")
     primary = sorted({by_id[node_id]["community"] for node_id in resolution.values()})
     primary_members = {node["id"] for node in nodes if node["community"] in primary}
     membership = set(primary_members)
@@ -629,6 +959,8 @@ def resolve_domain_native_register(
     provenance.extend([
         {"role":"graph_provenance_only","path":str(graph_path),"sha256":graph_hash},
         {"role":"register_profile","path":str(harness_profile),"sha256":profile_snapshot.sha256},
+        *({"role":role,"path":str(snapshot.path),"sha256":snapshot.sha256} for role, snapshot in semantic_artifacts),
+        {"role":"semantic_receipt","path":str(receipt_path),"sha256":receipt_snapshot.sha256},
     ])
     warnings=[]
     guard = model["corpus_binding"]["related_to_RE_predicate"]["degeneracy_guard"]
@@ -650,8 +982,25 @@ def resolve_domain_native_register(
         if _ingested_key not in resolution or resolution[_ingested_key] not in baseline_membership:
             warnings.append({"code":"RA-DNR-COHERENCE","severity":"WARNING","source_key":_ingested_key,"message":"exemplar lies outside the current attestation membership and its one-hop halo; review centroid dilution"})
     snapshots.verify_all()
+    if path_roots_meta["path_roots_mode"] == "profile":
+        final_inventory_paths: list[Path] = []
+        for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
+            final_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
+        for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
+            candidate = _contained(wiki_root, relative_file)
+            if candidate.is_file():
+                final_inventory_paths.append(candidate)
+    else:
+        final_inventory_paths = [_contained(wiki_root, row["source_file"]) for row in manifest_hash_rows]
+    final_inventory_paths = sorted(set(final_inventory_paths), key=lambda path:path.relative_to(wiki_root).as_posix().encode("utf-8"))
+    final_inventory_rows = [
+        {"source_file":path.relative_to(wiki_root).as_posix(), "sha256":_hash(path)}
+        for path in final_inventory_paths
+    ]
+    if final_inventory_rows != live_inventory_rows:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: live research page inventory changed during resolution")
     surface_keys = {item["source_key"] for item in surface_exemplar_members(profile)}
-    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"exemplar_members":admitted_members,"surface_exemplar_members":[item for item in admitted_members if item["source_key"] in surface_keys],"argument_exemplar_members":admitted_members,"warnings":warnings,"path_roots":path_roots_meta,"provenance":provenance}
+    return {"register_class":"domain-native","attestation_view_pin":attestation_pin,"exemplar_view_pin":exemplar_pin,"graph_sha256_provenance":graph_hash,"graph_mtime_utc_provenance":datetime.fromtimestamp(graph_snapshot.stamp[3] / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z"),"graph_extraction_mode":graph_eligibility["extraction_mode"],"graph_semantic_status":graph_eligibility["semantic_status"],"graph_semantic_scope":graph_eligibility["semantic_scope"],"seed_resolution_map":resolution,"seed_resolution_ties":ties,"unresolved_seed_ids":unresolved,"primary_communities":primary,"attestation_member_ids":sorted(membership,key=_utf8_key),"exemplar_hash_lines":sorted(exemplar_lines,key=_utf8_key),"exemplar_members":admitted_members,"surface_exemplar_members":[item for item in admitted_members if item["source_key"] in surface_keys],"argument_exemplar_members":admitted_members,"warnings":warnings,"path_roots":path_roots_meta,"provenance":provenance}
 
 
 def _contained(root: Path, relative: str) -> Path:
@@ -1052,7 +1401,14 @@ def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_r
     for key in ("attestation_view_pin", "exemplar_view_pin"):
         if expected.get(key) != resolved.get(key):
             raise PolicyError(f"initial semantic pin mismatch for {key}; deliberate profile repin required")
-    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "attestation_view_pin": resolved["attestation_view_pin"], "exemplar_view_pin": resolved["exemplar_view_pin"], "pin_epoch": expected["pin_epoch"], "pinned_at": expected["pinned_at"], "graph_sha256_provenance": resolved["graph_sha256_provenance"], "register_provenance": copy.deepcopy(resolved["register_provenance"]), "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
+    register_provenance = copy.deepcopy(resolved["register_provenance"])
+    # These eligibility facts remain in the resolver artifact and repin
+    # snapshot. The milestone schema's register provenance is a stable pin
+    # surface, so it carries the verified artifact hashes in ``provenance``
+    # without widening its top-level shape.
+    for key in ("graph_extraction_mode", "graph_semantic_status", "graph_semantic_scope"):
+        register_provenance.pop(key, None)
+    return {"profile_path": resolved["profile_path"], "profile_sha256": resolved["profile_sha256"], "resolved_path": relative, "resolved_sha256": _hash(path), "source_bindings": copy.deepcopy(resolved["source_bindings"]), "project_identity": resolved.get("project_identity"), "attestation_view_pin": resolved["attestation_view_pin"], "exemplar_view_pin": resolved["exemplar_view_pin"], "pin_epoch": expected["pin_epoch"], "pinned_at": expected["pinned_at"], "graph_sha256_provenance": resolved["graph_sha256_provenance"], "register_provenance": register_provenance, "transitions": {key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []} for key in ("G", "H", "VE")}}
 
 
 def _utc_now() -> str:
@@ -1078,6 +1434,7 @@ def _atomic_create_bytes(path: Path, payload: bytes) -> None:
     """Publish complete bytes only when the destination is still absent."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    published = False
     try:
         descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
@@ -1086,12 +1443,17 @@ def _atomic_create_bytes(path: Path, payload: bytes) -> None:
             os.fsync(stream.fileno())
         try:
             os.link(temporary, path)
+            published = True
         except FileExistsError as exc:
             raise PolicyError(f"destination appeared concurrently; refusing overwrite: {path}") from exc
         except OSError as exc:
             raise PolicyError(f"exclusive atomic publication failed for {path}: {exc}") from exc
     finally:
-        temporary.unlink(missing_ok=True)
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            if not published:
+                raise
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -1239,8 +1601,27 @@ def backfill_repin_commit(harness_root: Path, epoch: int, commit: str, *, confir
     if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit) is None:
         raise PolicyError("re-pin commit must be a 40- or 64-character lowercase hex object id")
     harness_root = harness_root.resolve()
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=harness_root,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != harness_root:
+        raise PolicyError("re-pin commit backfill requires the harness git worktree root")
+    commit_object = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=harness_root,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if commit_object.returncode != 0:
+        raise PolicyError(f"re-pin commit does not identify an existing commit object: {commit}")
+    reachable = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, "main"], cwd=harness_root,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if reachable.returncode != 0:
+        raise PolicyError(f"re-pin commit is not reachable from main: {commit}")
     lock_path = harness_root / "reviews/.repin.lock"
     token = _acquire_repin_lock(lock_path, force_lock=False, confirm=confirm or _confirmation)
+    result: dict[str, Any] | None = None
     try:
         ledger_path = harness_root / "references/policies/repin_log.jsonl"
         rows = _read_repin_rows(ledger_path)
@@ -1263,9 +1644,17 @@ def backfill_repin_commit(harness_root: Path, epoch: int, commit: str, *, confir
             else:
                 _atomic_bytes(markdown_path, markdown_before)
             raise
-        return {"status": "READY", "epoch": epoch, "commit": commit, "pins_recomputed": False}
+        result = {"status": "READY", "epoch": epoch, "commit": commit, "pins_recomputed": False}
+        return result
     finally:
-        _release_repin_lock(lock_path, token)
+        try:
+            _release_repin_lock(lock_path, token)
+        except Exception as exc:
+            if result is not None:
+                result["status"] = "COMMITTED_CLEANUP_REQUIRED"
+                result["cleanup_errors"] = [str(exc)]
+            else:
+                sys.stderr.write(f"cleanup warning while preserving primary re-pin commit-backfill failure: {exc}\n")
 
 
 def _confirmation(message: str) -> bool:
@@ -1285,8 +1674,8 @@ def _lock_state(lock_path: Path) -> tuple[bool, str]:
         return True, f"lock is unreadable: {exc}"
 
 
-def _acquire_repin_lock(lock_path: Path, *, force_lock: bool, confirm: Callable[[str], bool]) -> str:
-    """Acquire with O_EXCL and return the ownership token used for safe release."""
+def _acquire_repin_lock(lock_path: Path, *, force_lock: bool, confirm: Callable[[str], bool]) -> bytes:
+    """Acquire with O_EXCL and return the exact ownership bytes for safe release."""
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     if lock_path.exists():
         stale, detail = _lock_state(lock_path)
@@ -1302,28 +1691,72 @@ def _acquire_repin_lock(lock_path: Path, *, force_lock: bool, confirm: Callable[
             raise PolicyError(f"could not remove confirmed stale lock: {exc}") from exc
     token = uuid.uuid4().hex
     value = {"lock_id": token, "pid": os.getpid(), "host": socket.gethostname(), "started_at": _utc_now(), "stale_after": 1800}
+    payload = _json_bytes(value)
     try:
         descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError as exc:
         raise PolicyError("re-pin lock was acquired concurrently; retry after the holder exits") from exc
     try:
         with os.fdopen(descriptor, "wb") as stream:
-            stream.write(_json_bytes(value))
+            stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
     except Exception:
         lock_path.unlink(missing_ok=True)
         raise
-    return token
+    return payload
 
 
-def _release_repin_lock(lock_path: Path, token: str) -> None:
+def _release_repin_lock(lock_path: Path, ownership: bytes) -> None:
     try:
-        current = json.loads(lock_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return
-    if current.get("lock_id") == token:
-        lock_path.unlink(missing_ok=True)
+        current = lock_path.read_bytes()
+    except OSError as exc:
+        raise PolicyError(f"re-pin lock ownership was lost: {lock_path}: {exc}") from exc
+    if current != ownership:
+        raise PolicyError(f"re-pin lock ownership changed; refusing to unlink: {lock_path}")
+    lock_path.unlink()
+
+
+def _acquire_graph_boundary(wiki_root: Path) -> tuple[Path, bytes]:
+    """Coordinate a re-pin read transaction with every compliant graph writer."""
+    lock_path = wiki_root.resolve() / "graphify-out/.graph-write.lock"
+    payload = (json.dumps({
+        "pid": os.getpid(), "token": str(uuid.uuid4()), "created_at": _utc_now(),
+    }, sort_keys=True) + "\n").encode("utf-8")
+    try:
+        descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0))
+    except FileExistsError as exc:
+        raise PolicyError(f"graph write lock already exists; re-pin read boundary refused: {lock_path}") from exc
+    except OSError as exc:
+        raise PolicyError(f"graph write lock could not be created: {lock_path}: {exc}") from exc
+    descriptor_open = True
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor_open = False
+            written = stream.write(payload)
+            if written != len(payload):
+                raise OSError(f"short graph lock write: {written}/{len(payload)} bytes")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except Exception as exc:
+        if descriptor_open:
+            os.close(descriptor)
+        try:
+            lock_path.unlink(missing_ok=True)
+        except OSError as cleanup_exc:
+            raise PolicyError(f"graph write lock acquisition failed and cleanup failed: {exc}; {cleanup_exc}") from exc
+        raise PolicyError(f"graph write lock acquisition failed: {exc}") from exc
+    return lock_path, payload
+
+
+def _release_graph_boundary(lock_path: Path, payload: bytes) -> None:
+    try:
+        current = lock_path.read_bytes()
+    except OSError as exc:
+        raise PolicyError(f"graph write lock ownership was lost during re-pin: {lock_path}: {exc}") from exc
+    if current != payload:
+        raise PolicyError(f"graph write lock ownership changed during re-pin; refusing to unlink: {lock_path}")
+    lock_path.unlink()
 
 
 def _open_project_round(project_root: Path) -> bool:
@@ -1442,6 +1875,8 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
         raise PolicyError("schema migration required: add expected_verification.pin_epoch and pinned_at before re-pin")
     lock_path = harness_root / "reviews/.repin.lock"
     lock_token = _acquire_repin_lock(lock_path, force_lock=force_lock, confirm=confirm)
+    graph_boundary: tuple[Path, bytes] | None = None
+    result: dict[str, Any] | None = None
     try:
         # The O_EXCL lock is already held, so its untracked status is owned by
         # this invocation rather than a prior re-pin diff. A pre-existing lock
@@ -1462,9 +1897,12 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             raise PolicyError(f"profile unreadable: {exc}") from exc
         profile = _load_profile_bytes(old_profile_bytes, schema_path)
         old_profile_hash = hashlib.sha256(old_profile_bytes).hexdigest()
+        if harness_root == ROOT.resolve() and (wiki_root is not None or workspace_root is not None):
+            raise PolicyError("canonical package re-pin refuses wiki/workspace root overrides; use the profile-bound corpus")
         effective_wiki, effective_workspace, _, _ = _resolve_register_roots(
             profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root
         )
+        graph_boundary = _acquire_graph_boundary(effective_wiki)
         prospective, members_added, members_dropped, ingested_key = _stage_exemplar_change(
             profile, wiki_root=effective_wiki, add_key=add_exemplar, drop_key=drop_exemplar,
             role=role, warrant_scope=warrant_scope,
@@ -1496,6 +1934,9 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             "epoch": event_epoch, "captured_at": _utc_now(),
             "graph_sha256_provenance": current["graph_sha256_provenance"],
             "graph_mtime_utc_provenance": current["graph_mtime_utc_provenance"],
+            "graph_extraction_mode": current["graph_extraction_mode"],
+            "graph_semantic_status": current["graph_semantic_status"],
+            "graph_semantic_scope": current["graph_semantic_scope"],
             "attestation_view_pin": current["attestation_view_pin"], "exemplar_view_pin": current["exemplar_view_pin"],
             "seed_resolution_map": current["seed_resolution_map"], "seed_resolution_ties": current["seed_resolution_ties"],
             "unresolved_seed_ids": current["unresolved_seed_ids"], "primary_communities": current["primary_communities"],
@@ -1505,7 +1946,6 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             "surface_exemplar_members": current["surface_exemplar_members"],
             "argument_exemplar_members": current["argument_exemplar_members"],
         }
-        _atomic_bytes(harness_root / snapshot_ref, _json_bytes(snapshot))
         report = _delta_report(previous_snapshot, current)
         report["exemplar_members_added"] = members_added
         report["exemplar_members_dropped"] = members_dropped
@@ -1557,6 +1997,39 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
         if profile_path.read_bytes() != old_profile_bytes:
             (harness_root / snapshot_ref).unlink(missing_ok=True)
             raise PolicyError("profile changed after compute/confirmation; refusing concurrent overwrite")
+        request_path: Path | None = None
+        request_reused = False
+        request_to_create: bytes | None = None
+        if project_root is not None:
+            resolved_project_root = project_root.resolve()
+            if _open_project_round(resolved_project_root):
+                raise PolicyError("project opened a round during re-pin; request write refused")
+            current_expected = (updated if applied else profile)["domain_native_register"]["expected_verification"]
+            current_profile_hash = new_profile_hash if applied else old_profile_hash
+            source_row = next((item for item in reversed(rows) if item.get("delta_class") != "none" and item.get("profile_sha256", {}).get("new") == current_profile_hash), row)
+            request_path = resolved_project_root / "reviews/repin_rebind_request.json"
+            request_fields = {
+                "pin_epoch": current_expected["pin_epoch"],
+                "profile_sha256": current_profile_hash,
+                "attestation_view_pin": current["attestation_view_pin"],
+                "exemplar_view_pin": current["exemplar_view_pin"],
+                "delta_class": source_row["delta_class"],
+                "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{source_row['epoch']}",
+                "status": "pending",
+            }
+            if request_path.exists():
+                try:
+                    existing_request = json.loads(request_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise PolicyError(f"existing rebind request changed or is unreadable; refusing overwrite: {exc}") from exc
+                comparable = {key: existing_request.get(key) for key in request_fields}
+                if comparable != request_fields or not isinstance(existing_request.get("request_id"), str):
+                    raise PolicyError("a different rebind request is already pending; Planner must apply or archive it before retry")
+                request_reused = True
+            else:
+                request_to_create = _json_bytes({"request_id": str(uuid.uuid4()), **request_fields})
+        _atomic_bytes(harness_root / snapshot_ref, _json_bytes(snapshot))
+        request_published = False
         try:
             if applied:
                 _atomic_bytes(profile_path, intended_profile_bytes)
@@ -1564,7 +2037,31 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             _atomic_bytes(markdown_path, _render_repin_log(rows).encode("utf-8"))
             if applied and (profile_path.read_bytes() != intended_profile_bytes or _hash(profile_path) != new_profile_hash):
                 raise PolicyError("atomic profile full-byte read-back assertion failed")
-        except Exception:
+            post_install = resolve_domain_native_register(
+                updated if applied else prospective,
+                wiki_root=wiki_root, workspace_root=workspace_root,
+                harness_root=harness_root, _ingested_key=ingested_key,
+            )
+            stable_keys = (
+                "graph_sha256_provenance", "graph_extraction_mode", "graph_semantic_status",
+                "graph_semantic_scope", "attestation_view_pin", "exemplar_view_pin",
+                "seed_resolution_map", "seed_resolution_ties", "unresolved_seed_ids",
+                "primary_communities", "attestation_member_ids", "exemplar_hash_lines",
+                "exemplar_members", "surface_exemplar_members", "argument_exemplar_members",
+            )
+            if any(post_install[key] != current[key] for key in stable_keys):
+                raise PolicyError("domain-native inputs changed during final installation; re-pin transaction rolled back")
+            if request_to_create is not None and request_path is not None:
+                _atomic_create_bytes(request_path, request_to_create)
+                request_published = True
+                post_publish = resolve_domain_native_register(
+                    updated if applied else prospective,
+                    wiki_root=wiki_root, workspace_root=workspace_root,
+                    harness_root=harness_root, _ingested_key=ingested_key,
+                )
+                if any(post_publish[key] != current[key] for key in stable_keys):
+                    raise PolicyError("domain-native inputs changed during rebind request publication; package transaction rolled back")
+        except Exception as exc:
             if markdown_before is None:
                 markdown_path.unlink(missing_ok=True)
             else:
@@ -1576,39 +2073,35 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
             if applied and profile_path.is_file() and profile_path.read_bytes() == intended_profile_bytes:
                 _atomic_bytes(profile_path, old_profile_bytes)
             (harness_root / snapshot_ref).unlink(missing_ok=True)
+            if request_published and request_path is not None:
+                raise PolicyError(
+                    f"{exc}; published rebind request was preserved but is inert after package rollback; "
+                    "Planner must inspect and archive it before retry"
+                ) from exc
             raise
-        request_path = None
-        request_reused = False
-        if project_root is not None:
-            if _open_project_round(project_root.resolve()):
-                raise PolicyError("project opened a round during re-pin; request write refused")
-            current_expected = (updated if applied else profile)["domain_native_register"]["expected_verification"]
-            current_profile_hash = new_profile_hash if applied else old_profile_hash
-            source_row = next((item for item in reversed(rows) if item.get("delta_class") != "none" and item.get("profile_sha256", {}).get("new") == current_profile_hash), row)
-            request_path = project_root.resolve() / "reviews/repin_rebind_request.json"
-            request_fields = {"pin_epoch": current_expected["pin_epoch"], "profile_sha256": current_profile_hash,
-                              "attestation_view_pin": current["attestation_view_pin"], "exemplar_view_pin": current["exemplar_view_pin"],
-                              "delta_class": source_row["delta_class"], "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{source_row['epoch']}", "status": "pending"}
-            existed = request_path.exists()
-            if existed:
-                try:
-                    existing_request = json.loads(request_path.read_text(encoding="utf-8"))
-                except (OSError, json.JSONDecodeError) as exc:
-                    raise PolicyError(f"existing rebind request changed or is unreadable; refusing overwrite: {exc}") from exc
-                comparable = {key: existing_request.get(key) for key in request_fields}
-                if comparable != request_fields or not isinstance(existing_request.get("request_id"), str):
-                    raise PolicyError("a different rebind request is already pending; Planner must apply or archive it before retry")
-                request_reused = True
-            else:
-                request = {"request_id": str(uuid.uuid4()), **request_fields}
-                _atomic_create_bytes(request_path, _json_bytes(request))
-        return {"status": "READY", "delta_class": delta_class, "delta_report": report, "epoch": event_epoch,
-                "applied": applied, "dry_run": dry_run, "snapshot_ref": snapshot_ref,
-                "rebind_request": str(request_path) if request_path else None, "request_reused": request_reused,
-                "read_back_verified": applied, "warnings": current["warnings"],
-                "commit_proposal": "chore(accessibility): re-pin domain-native register views" if applied else None}
+        result = {"status": "READY", "delta_class": delta_class, "delta_report": report, "epoch": event_epoch,
+                  "applied": applied, "dry_run": dry_run, "snapshot_ref": snapshot_ref,
+                  "rebind_request": str(request_path) if request_path else None, "request_reused": request_reused,
+                  "read_back_verified": applied, "warnings": current["warnings"],
+                  "commit_proposal": "chore(accessibility): re-pin domain-native register views" if applied else None}
+        return result
     finally:
-        _release_repin_lock(lock_path, lock_token)
+        cleanup_errors: list[str] = []
+        try:
+            if graph_boundary is not None:
+                _release_graph_boundary(*graph_boundary)
+        except Exception as exc:
+            cleanup_errors.append(str(exc))
+        try:
+            _release_repin_lock(lock_path, lock_token)
+        except Exception as exc:
+            cleanup_errors.append(str(exc))
+        if cleanup_errors:
+            if result is not None:
+                result["status"] = "COMMITTED_CLEANUP_REQUIRED"
+                result["cleanup_errors"] = cleanup_errors
+            else:
+                sys.stderr.write("cleanup warning while preserving primary re-pin failure: " + "; ".join(cleanup_errors) + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:

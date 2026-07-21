@@ -916,9 +916,14 @@ def reader_policy_staleness_codes(binding: dict[str, Any], current: dict[str, An
     return codes
 
 
-def policy_epoch_findings(binding: dict[str, Any], profile_epoch: int, request: dict[str, Any] | None, *, opening_new_cycle: bool) -> list[str]:
+def policy_epoch_findings(binding: dict[str, Any], profile_epoch: int, request: dict[str, Any] | None, *, opening_new_cycle: bool, current_profile_sha256: str | None = None) -> list[str]:
     """Apply epoch softening: only a newly opened cycle is held for rebind."""
-    pending = isinstance(request, dict) and request.get("status") == "pending"
+    pending = (
+        isinstance(request, dict)
+        and request.get("status") == "pending"
+        and request.get("pin_epoch") == profile_epoch
+        and (current_profile_sha256 is None or request.get("profile_sha256") == current_profile_sha256)
+    )
     stale = isinstance(binding.get("pin_epoch"), int) and binding["pin_epoch"] < profile_epoch
     return ["MF-POLICY-PIN-EPOCH-STALE"] if opening_new_cycle and (stale or pending) else []
 
@@ -992,7 +997,7 @@ def _validate_reader_accessibility_policy(
         except (OSError, json.JSONDecodeError):
             request = {"status": "pending"}
     if isinstance(profile_expected.get("pin_epoch"), int):
-        for code in policy_epoch_findings(binding, profile_expected["pin_epoch"], request, opening_new_cycle=opening_new_cycle):
+        for code in policy_epoch_findings(binding, profile_expected["pin_epoch"], request, opening_new_cycle=opening_new_cycle, current_profile_sha256=canonical_hash):
             findings.append(_finding(code, f"{base}.pin_epoch", "binding epoch predates the current profile epoch; Planner must apply the pending rebind before opening a new cycle"))
     resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
     try:

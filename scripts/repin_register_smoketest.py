@@ -7,6 +7,7 @@ This is the authoritative home for the nine acceptance criteria in
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import subprocess
@@ -98,6 +99,15 @@ def rows(harness: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
+def initialize_main_commit(repository: Path) -> str:
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.name", "fixture"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=repository, check=True)
+    subprocess.run(["git", "add", "."], cwd=repository, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture repin"], cwd=repository, check=True)
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=repository, check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+
+
 def case_no_delta() -> None:
     with tempfile.TemporaryDirectory() as td:
         harness, profile_path, wiki, workspace = fixture(Path(td))
@@ -109,8 +119,214 @@ def case_no_delta() -> None:
         assert len(ledger) == 1 and ledger[0]["delta_class"] == "none"
         assert ledger[0]["attestation_view_pin"] == {"old": None, "new": None}
         assert ledger[0]["exemplar_view_pin"] == {"old": None, "new": None}
-        policy.backfill_repin_commit(harness, ledger[0]["epoch"], "a" * 40)
-        assert rows(harness)[0]["commit"] == "a" * 40
+        try:
+            policy.backfill_repin_commit(harness, ledger[0]["epoch"], "a" * 40)
+        except policy.PolicyError as exc:
+            assert "existing commit" in str(exc) or "git worktree" in str(exc)
+        else:
+            raise AssertionError("nonexistent commit was accepted for re-pin backfill")
+        approved_commit = initialize_main_commit(harness)
+        policy.backfill_repin_commit(harness, ledger[0]["epoch"], approved_commit)
+        assert rows(harness)[0]["commit"] == approved_commit
+
+
+def case_graph_semantic_eligibility() -> None:
+    mutations = (
+        ("missing metadata", lambda graph: graph.pop("graph"), "metadata object is required"),
+        ("missing extraction mode", lambda graph: graph["graph"].pop("extraction_mode"), "extraction_mode"),
+        ("structural only", lambda graph: graph["graph"].update(extraction_mode="structural-only"), "structural-only"),
+        ("missing semantic status", lambda graph: graph["graph"].pop("semantic_status"), "semantic_status"),
+        ("semantic pending", lambda graph: graph["graph"].update(semantic_status="pending"), "pending"),
+        ("missing semantic scope", lambda graph: graph["graph"].pop("semantic_scope"), "semantic_scope"),
+        ("missing manifest", lambda graph: graph["graph"].pop("semantic_manifest"), "semantic_manifest"),
+        ("missing output digest", lambda graph: graph["graph"].pop("semantic_outputs_sha256"), "semantic_outputs_sha256"),
+        ("missing output list", lambda graph: graph["graph"].pop("semantic_output_files"), "semantic_output_files"),
+        ("missing inventory digest", lambda graph: graph["graph"].pop("research_inventory_sha256"), "research_inventory_sha256"),
+        ("duplicate output path", lambda graph: graph["graph"]["semantic_output_files"].append(copy.deepcopy(graph["graph"]["semantic_output_files"][0])), "invalid or duplicate"),
+        ("missing report", lambda graph: graph["graph"].pop("semantic_report"), "semantic_report"),
+        ("missing receipt", lambda graph: graph["graph"].pop("semantic_receipt"), "semantic_receipt"),
+        ("count mismatch", lambda graph: graph["graph"].update(semantic_edge_count=2), "semantic_edge_count"),
+        ("tiny tagged scope", lambda graph: graph["graph"].update(semantic_scope="one page", semantic_pages_expected=265, semantic_pages_represented=1), "semantic_pages"),
+    )
+    for label, mutate, needle in mutations:
+        with tempfile.TemporaryDirectory() as td:
+            harness, profile_path, wiki, workspace = fixture(Path(td))
+            graph_path = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+            graph = json.loads(graph_path.read_text(encoding="utf-8"))
+            mutate(graph)
+            write_json(graph_path, graph)
+            result = invoke(harness, profile_path, wiki, workspace, "--dry-run")
+            output = result.stdout + result.stderr
+            assert result.returncode != 0, f"{label} graph passed semantic eligibility"
+            assert "GRAPH-SEMANTIC-INELIGIBLE" in output and needle in output, output
+            assert not (harness / "references/policies/repin_log.jsonl").exists()
+            snapshots = harness / "reviews/.harness/repin"
+            assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+
+def case_graph_semantic_artifact_integrity() -> None:
+    cases = ("receipt_hash", "manifest_hash", "output_hash", "synchronized_schema_drift", "non_object_receipt", "non_object_manifest", "non_object_audit", "arbitrary_output", "audit_output_binding", "audit_unknown_edge", "unaudited_seed_edge", "page_set", "seed_coverage")
+    for case in cases:
+        with tempfile.TemporaryDirectory() as td:
+            harness, profile_path, wiki, workspace = fixture(Path(td))
+            graph_path = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+            if case == "receipt_hash":
+                receipt_path = wiki / "graphify-out/fixture-receipt.json"
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["final_graph_sha256"] = "0" * 64
+                write_json(receipt_path, receipt)
+                needle = "receipt final_graph_sha256 mismatch"
+            elif case == "manifest_hash":
+                manifest_path = wiki / "graphify-out/fixture-manifest.json"
+                manifest_path.write_bytes(manifest_path.read_bytes() + b" ")
+                needle = "manifest hash mismatch"
+            elif case == "output_hash":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                output_path = wiki / graph["graph"]["semantic_output_files"][0]["path"]
+                output_path.write_bytes(output_path.read_bytes() + b" ")
+                needle = "semantic output hash mismatch"
+            elif case == "synchronized_schema_drift":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                metadata = graph["graph"]
+                manifest_path = wiki / metadata["semantic_manifest"]
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest["schema_version"] = "9.9.9"
+                write_json(manifest_path, manifest)
+                metadata["semantic_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+                for output_row in metadata["semantic_output_files"]:
+                    output_path = wiki / output_row["path"]
+                    output = json.loads(output_path.read_text(encoding="utf-8"))
+                    output["schema_version"] = "9.9.9"
+                    write_json(output_path, output)
+                    output_row["sha256"] = hashlib.sha256(output_path.read_bytes()).hexdigest()
+                output_payload = "\n".join(f"{row['path']}\t{row['sha256']}" for row in metadata["semantic_output_files"]).encode("utf-8")
+                metadata["semantic_outputs_sha256"] = hashlib.sha256(output_payload).hexdigest()
+                audit_path = wiki / metadata["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                audit.update(schema_version="9.9.9", manifest_sha256=metadata["semantic_manifest_sha256"], semantic_outputs_sha256=metadata["semantic_outputs_sha256"])
+                write_json(audit_path, audit)
+                metadata["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / metadata["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt.update(schema_version="9.9.9", manifest_sha256=metadata["semantic_manifest_sha256"], audit_sha256=metadata["semantic_audit_sha256"], semantic_outputs_sha256=metadata["semantic_outputs_sha256"], final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest())
+                write_json(receipt_path, receipt)
+                needle = "semantic receipt schema_version is unsupported"
+            elif case == "non_object_receipt":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                write_json(wiki / graph["graph"]["semantic_receipt"], [])
+                needle = "semantic receipt must be a JSON object"
+            elif case == "non_object_manifest":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                metadata = graph["graph"]
+                manifest_path = wiki / metadata["semantic_manifest"]
+                write_json(manifest_path, [])
+                metadata["semantic_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / metadata["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt.update(manifest_sha256=metadata["semantic_manifest_sha256"], final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest())
+                write_json(receipt_path, receipt)
+                needle = "semantic manifest and audit must be JSON objects"
+            elif case == "non_object_audit":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                metadata = graph["graph"]
+                audit_path = wiki / metadata["semantic_audit"]
+                write_json(audit_path, [])
+                metadata["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / metadata["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt.update(audit_sha256=metadata["semantic_audit_sha256"], final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest())
+                write_json(receipt_path, receipt)
+                needle = "semantic manifest and audit must be JSON objects"
+            elif case == "arbitrary_output":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                metadata = graph["graph"]
+                output_path = wiki / metadata["semantic_output_files"][0]["path"]
+                write_json(output_path, {"unrelated": "content"})
+                metadata["semantic_output_files"][0]["sha256"] = hashlib.sha256(output_path.read_bytes()).hexdigest()
+                payload = "\n".join(f"{row['path']}\t{row['sha256']}" for row in metadata["semantic_output_files"]).encode("utf-8")
+                metadata["semantic_outputs_sha256"] = hashlib.sha256(payload).hexdigest()
+                audit_path = wiki / metadata["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                audit["semantic_outputs_sha256"] = metadata["semantic_outputs_sha256"]
+                write_json(audit_path, audit)
+                metadata["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / metadata["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt.update(semantic_outputs_sha256=metadata["semantic_outputs_sha256"], audit_sha256=metadata["semantic_audit_sha256"], final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest())
+                write_json(receipt_path, receipt)
+                needle = "semantic output schema/chunk/page count mismatch"
+            elif case == "audit_output_binding":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                audit_path = wiki / graph["graph"]["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                audit["semantic_outputs_sha256"] = "0" * 64
+                write_json(audit_path, audit)
+                graph["graph"]["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / graph["graph"]["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["audit_sha256"] = graph["graph"]["semantic_audit_sha256"]
+                receipt["final_graph_sha256"] = hashlib.sha256(graph_path.read_bytes()).hexdigest()
+                write_json(receipt_path, receipt)
+                needle = "semantic audit output binding mismatch"
+            elif case == "page_set":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                next(node for node in graph["nodes"] if node.get("id") == "sem_fixture_yu")["source_file"] = "wiki/sources/import.md"
+                write_json(graph_path, graph)
+                receipt_path = wiki / graph["graph"]["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["final_graph_sha256"] = hashlib.sha256(graph_path.read_bytes()).hexdigest()
+                write_json(receipt_path, receipt)
+                needle = "semantic output node payload differs from graph"
+            elif case == "audit_unknown_edge":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                audit_path = wiki / graph["graph"]["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                audit["edges"][0]["semantic_edge_id"] = "fixture:forged"
+                write_json(audit_path, audit)
+                graph["graph"]["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / graph["graph"]["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["audit_sha256"] = graph["graph"]["semantic_audit_sha256"]
+                receipt["final_graph_sha256"] = hashlib.sha256(graph_path.read_bytes()).hexdigest()
+                write_json(receipt_path, receipt)
+                needle = "semantic audit references unknown graph edges"
+            elif case == "unaudited_seed_edge":
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                graph["nodes"].append({"id":"sem_fixture_yu_extra","community":5,"label":"fixture yu extra","file_type":"claim","source_file":"wiki/sources/yu-1995-istar.md","source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"})
+                graph["links"].append({"source":"yu-1995-istar","target":"sem_fixture_yu_extra","_src":"yu-1995-istar","_tgt":"sem_fixture_yu_extra","semantic_edge_id":"fixture:yu-extra","semantic_status":"validated","relation":"supports","confidence":"INFERRED","confidence_score":0.8,"source_file":"wiki/sources/yu-1995-istar.md","source_location":"fixture","weight":1.0,"evidence":"fixture"})
+                write_json(graph_path, graph)
+                dnr_fixture.refresh_semantic_fixture(wiki, graph_path)
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                audit_path = wiki / graph["graph"]["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                audit["edges"] = [row for row in audit["edges"] if row["semantic_edge_id"] != "fixture:yu-extra"]
+                audit["sample_count"] = len(audit["edges"])
+                audit["verdict_counts"]["supported"] = len(audit["edges"])
+                write_json(audit_path, audit)
+                graph["graph"]["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / graph["graph"]["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt.update(audit_sha256=graph["graph"]["semantic_audit_sha256"], audit_sample_count=len(audit["edges"]), final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest())
+                write_json(receipt_path, receipt)
+                needle = "semantic audit sample differs from page/seed/class policy"
+            else:
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                graph["nodes"] = [node for node in graph["nodes"] if node.get("id") != "sem_fixture_yu"]
+                graph["links"] = [edge for edge in graph["links"] if edge.get("semantic_edge_id") != "fixture:yu"]
+                write_json(graph_path, graph)
+                dnr_fixture.refresh_semantic_fixture(wiki, graph_path)
+                needle = "resolved register seed lacks semantic node/edge coverage"
+            result = invoke(harness, profile_path, wiki, workspace, "--dry-run")
+            output = result.stdout + result.stderr
+            assert result.returncode != 0 and "GRAPH-SEMANTIC-INELIGIBLE" in output and needle in output, f"{case}: {output}"
+            assert not (harness / "references/policies/repin_log.jsonl").exists()
 
 
 def case_delta_apply() -> None:
@@ -125,6 +341,7 @@ def case_delta_apply() -> None:
         value = json.loads(graph.read_text(encoding="utf-8"))
         value["nodes"].append({"id": "repin-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
         write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
         result = invoke(harness, profile_path, wiki, workspace, answer="yes\n")
         assert result.returncode == 0, result.stdout + result.stderr
         report = json.loads(result.stdout)
@@ -151,6 +368,198 @@ def case_delta_apply() -> None:
         refused = invoke(harness, profile_path, wiki, workspace, "--project-root", str(project))
         assert refused.returncode != 0 and "open round" in refused.stdout.lower()
         assert (project / "reviews/repin_rebind_request.json").read_bytes() == request_before
+
+
+def case_rebind_transaction_rollback() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        project = root / "project"
+        write_json(project / "reviews/phase_state.json", {"sentinel": "Planner-only"})
+        request_path = project / "reviews/repin_rebind_request.json"
+        write_json(request_path, {"request_id": "incompatible", "status": "pending", "pin_epoch": 999})
+        request_before = request_path.read_bytes()
+        profile_before = profile_path.read_bytes()
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({"id": "rollback-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        refused = invoke(harness, profile_path, wiki, workspace, "--project-root", str(project), answer="yes\n")
+        assert refused.returncode != 0 and "different rebind request" in (refused.stdout + refused.stderr).lower()
+        assert profile_path.read_bytes() == profile_before
+        assert request_path.read_bytes() == request_before
+        assert not (harness / "references/policies/repin_log.jsonl").exists()
+        assert not (harness / "references/policies/repin_log.md").exists()
+        snapshots = harness / "reviews/.harness/repin"
+        assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        project = root / "project"
+        write_json(project / "reviews/phase_state.json", {"sentinel": "Planner-only"})
+        profile_before = profile_path.read_bytes()
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({"id": "publication-freshness-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        request_path = project / "reviews/repin_rebind_request.json"
+        original_atomic_create = policy._atomic_create_bytes
+
+        def mutate_inventory_after_publication(path: Path, payload: bytes) -> None:
+            original_atomic_create(path, payload)
+            if path == request_path:
+                page = wiki / "wiki/sources/yu-1995-istar.md"
+                page.write_bytes(page.read_bytes() + b"publication-time mutation\n")
+
+        policy._atomic_create_bytes = mutate_inventory_after_publication
+        try:
+            policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=project,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar=None, drop_exemplar=None,
+                role=None, warrant_scope=None, confirm_drop_locked_role=False,
+                confirm=lambda _: True,
+            )
+        except policy.PolicyError as exc:
+            assert ("inventory" in str(exc).lower() or "changed" in str(exc).lower()) and "archive" in str(exc).lower()
+        else:
+            raise AssertionError("inventory mutation during request publication returned READY")
+        finally:
+            policy._atomic_create_bytes = original_atomic_create
+        assert request_path.is_file(), "published request was destructively removed during rollback"
+        assert profile_path.read_bytes() == profile_before
+        stale_request = json.loads(request_path.read_text(encoding="utf-8"))
+        old_profile = json.loads(profile_before)
+        old_epoch = old_profile["domain_native_register"]["expected_verification"]["pin_epoch"]
+        old_profile_hash = hashlib.sha256(profile_before).hexdigest()
+        assert milestone_validator.policy_epoch_findings(
+            {"pin_epoch": old_epoch}, old_epoch, stale_request,
+            opening_new_cycle=True, current_profile_sha256=old_profile_hash,
+        ) == [], "rolled-back request remained an active pending rebind"
+        assert not (harness / "references/policies/repin_log.jsonl").exists()
+        assert not (harness / "references/policies/repin_log.md").exists()
+        snapshots = harness / "reviews/.harness/repin"
+        assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({"id": "cleanup-status-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        original_release_graph_boundary = policy._release_graph_boundary
+
+        def lose_graph_lock_ownership(path: Path, payload: bytes) -> None:
+            path.write_bytes(b"foreign graph lock ownership\n")
+            original_release_graph_boundary(path, payload)
+
+        policy._release_graph_boundary = lose_graph_lock_ownership
+        try:
+            committed = policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=None,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar=None, drop_exemplar=None,
+                role=None, warrant_scope=None, confirm_drop_locked_role=False,
+                confirm=lambda _: True,
+            )
+        finally:
+            policy._release_graph_boundary = original_release_graph_boundary
+        assert committed["status"] == "COMMITTED_CLEANUP_REQUIRED"
+        assert committed["applied"] is True and committed["cleanup_errors"]
+        assert json.loads(profile_path.read_text(encoding="utf-8"))["profile_version"] == "1.0.1"
+        assert rows(harness) and (harness / rows(harness)[-1]["snapshot_ref"]).is_file()
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        project = root / "project"
+        write_json(project / "reviews/phase_state.json", {"sentinel": "Planner-only"})
+        profile_before = profile_path.read_bytes()
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({"id": "ownership-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        request_path = project / "reviews/repin_rebind_request.json"
+        foreign_request = b'{"request_id":"foreign-owner","status":"pending"}\n'
+        original_atomic_create = policy._atomic_create_bytes
+
+        def foreign_request_wins_create(path: Path, payload: bytes) -> None:
+            if path == request_path:
+                request_path.write_bytes(foreign_request)
+                raise policy.PolicyError("destination appeared concurrently; refusing overwrite")
+            original_atomic_create(path, payload)
+
+        policy._atomic_create_bytes = foreign_request_wins_create
+        try:
+            policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=project,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar=None, drop_exemplar=None,
+                role=None, warrant_scope=None, confirm_drop_locked_role=False,
+                confirm=lambda _: True,
+            )
+        except policy.PolicyError as exc:
+            assert "destination appeared" in str(exc).lower()
+        else:
+            raise AssertionError("foreign rebind request replacement was silently accepted")
+        finally:
+            policy._atomic_create_bytes = original_atomic_create
+        assert request_path.read_bytes() == foreign_request
+        assert profile_path.read_bytes() == profile_before
+        assert not (harness / "references/policies/repin_log.jsonl").exists()
+        assert not (harness / "references/policies/repin_log.md").exists()
+        snapshots = harness / "reviews/.harness/repin"
+        assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        project = root / "project"
+        write_json(project / "reviews/phase_state.json", {"sentinel": "Planner-only"})
+        profile_before = profile_path.read_bytes()
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({"id": "freshness-new", "community": 5, "file_type": "concept", "source_file": "wiki/sources/import.md"})
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        original_open_project_round = policy._open_project_round
+
+        def mutate_inventory_during_request(_: Path) -> bool:
+            page = wiki / "wiki/sources/yu-1995-istar.md"
+            page.write_bytes(page.read_bytes() + b"late mutation\n")
+            return False
+
+        policy._open_project_round = mutate_inventory_during_request
+        try:
+            policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=project,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar=None, drop_exemplar=None,
+                role=None, warrant_scope=None, confirm_drop_locked_role=False,
+                confirm=lambda _: True,
+            )
+        except policy.PolicyError as exc:
+            assert "inventory" in str(exc).lower() or "changed" in str(exc).lower()
+        else:
+            raise AssertionError("inventory change during request publication was applied")
+        finally:
+            policy._open_project_round = original_open_project_round
+        assert profile_path.read_bytes() == profile_before
+        assert not (project / "reviews/repin_rebind_request.json").exists()
+        assert not (harness / "references/policies/repin_log.jsonl").exists()
+        assert not (harness / "references/policies/repin_log.md").exists()
+        snapshots = harness / "reviews/.harness/repin"
+        assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
 
 
 def case_epoch_softening() -> None:
@@ -285,7 +694,62 @@ def case_lock_and_prior_diff() -> None:
                 raise AssertionError("exclusive lock admitted a second owner")
         finally:
             policy._release_repin_lock(lock, token)
+        ownership = policy._acquire_repin_lock(lock, force_lock=False, confirm=lambda _: False)
+        lock.write_bytes(b"replacement ownership\n")
+        try:
+            policy._release_repin_lock(lock, ownership)
+        except policy.PolicyError as exc:
+            assert "ownership changed" in str(exc)
+        else:
+            raise AssertionError("replaced re-pin lock ownership was silently released")
+        assert lock.read_bytes() == b"replacement ownership\n"
+        lock.unlink()
         assert policy.repin_prior_diff_refusal(["references/policies/repin_log.jsonl"])
+    with tempfile.TemporaryDirectory() as td:
+        wiki = Path(td) / "wiki"
+        (wiki / "graphify-out").mkdir(parents=True)
+        graph_lock = wiki / "graphify-out/.graph-write.lock"
+        original_fsync = policy.os.fsync
+
+        def fail_fsync(_: int) -> None:
+            raise OSError("injected fsync failure")
+
+        policy.os.fsync = fail_fsync
+        try:
+            try:
+                policy._acquire_graph_boundary(wiki)
+            except policy.PolicyError as exc:
+                assert "acquisition failed" in str(exc)
+            else:
+                raise AssertionError("graph lock fsync failure was accepted")
+        finally:
+            policy.os.fsync = original_fsync
+        assert not graph_lock.exists(), "failed graph lock acquisition stranded a lock"
+        try:
+            policy._acquire_graph_boundary(Path(td) / "missing-wiki")
+        except policy.PolicyError as exc:
+            assert "could not be created" in str(exc)
+        else:
+            raise AssertionError("missing graph lock parent leaked raw OSError or was accepted")
+    with tempfile.TemporaryDirectory() as td:
+        harness, profile_path, wiki, workspace = fixture(Path(td))
+        initial = invoke(harness, profile_path, wiki, workspace)
+        assert initial.returncode == 0, initial.stdout + initial.stderr
+        approved_commit = initialize_main_commit(harness)
+        original_release_repin_lock = policy._release_repin_lock
+
+        def lose_repin_lock_ownership(path: Path, ownership: bytes) -> None:
+            path.write_bytes(b"foreign repin lock ownership\n")
+            original_release_repin_lock(path, ownership)
+
+        policy._release_repin_lock = lose_repin_lock_ownership
+        try:
+            committed = policy.backfill_repin_commit(harness, 2, approved_commit)
+        finally:
+            policy._release_repin_lock = original_release_repin_lock
+        assert committed["status"] == "COMMITTED_CLEANUP_REQUIRED"
+        assert committed["commit"] == approved_commit and committed["cleanup_errors"]
+        assert rows(harness)[0]["commit"] == approved_commit
 
 
 def case_schema_first() -> None:
@@ -412,7 +876,10 @@ def case_exemplar_ingestion() -> None:
             "file_type": "document",
             "source_file": "wiki/sources/dennett-1987-intentional-stance.md",
         })
+        graph["nodes"].append({"id":"sem_fixture_dennett","community":99,"file_type":"claim","source_file":"wiki/sources/dennett-1987-intentional-stance.md","semantic_status":"validated"})
+        graph["links"].append({"source":"dennett-1987-intentional-stance","target":"sem_fixture_dennett","_src":"dennett-1987-intentional-stance","_tgt":"sem_fixture_dennett","semantic_edge_id":"fixture:dennett","semantic_status":"validated","source_file":"wiki/sources/dennett-1987-intentional-stance.md"})
         write_json(graph_path, graph)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph_path)
         added = invoke(
             harness, profile_path, wiki, workspace,
             "--add-exemplar", "dennett-1987-intentional-stance", "--role", "intentional-root",
@@ -539,8 +1006,11 @@ def case_exemplar_ingestion() -> None:
 
 def main() -> int:
     cases = [
+        case_graph_semantic_eligibility,
+        case_graph_semantic_artifact_integrity,
         case_no_delta,
         case_delta_apply,
+        case_rebind_transaction_rollback,
         case_epoch_softening,
         case_reason_code_matrix,
         case_scoped_dirty,

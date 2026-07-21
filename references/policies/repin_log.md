@@ -8,3 +8,4 @@ Derived from `repin_log.jsonl`; do not edit.
 | 3 | 2026-07-14T23:41:06Z | false | exemplar | manual | `reviews/.harness/repin/epoch-3.snapshot.json` |
 | 4 | 2026-07-19T02:47:47Z | true | exemplar | manual | `reviews/.harness/repin/epoch-4.snapshot.json` |
 | 5 | 2026-07-19T02:53:40Z | false | exemplar | manual | `reviews/.harness/repin/epoch-5.snapshot.json` |
+| 6 | 2026-07-20T21:21:37Z | true | attestation | manual | `reviews/.harness/repin/epoch-6.snapshot.json` |

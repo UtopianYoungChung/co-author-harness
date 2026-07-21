@@ -25,6 +25,34 @@ import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
 
 
+def _write_output_fixture(
+    wiki: Path, pages: list[str], semantic_nodes: list[dict], semantic_edges: list[dict]
+) -> tuple[str, list[dict[str, str]], list[dict]]:
+    rows: list[dict[str, str]] = []
+    chunks: list[dict] = []
+    for index, source_file in enumerate(pages, start=1):
+        chunk_id = f"fixture-chunk-{index:03d}"
+        relative_path = f"graphify-out/chunks/{chunk_id}.output.json"
+        output_path = wiki / relative_path
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        page_nodes = []
+        for node in semantic_nodes:
+            if node.get("source_file") == source_file:
+                value = {key:item for key,item in node.items() if key not in {"community", "extraction_status"}}
+                value["semantic_status"] = "candidate"
+                page_nodes.append(value)
+        page_edges = [
+            {key:item for key,item in edge.items() if key not in {"_src", "_tgt", "semantic_edge_id", "semantic_status"}}
+            for edge in semantic_edges if edge.get("source_file") == source_file
+        ]
+        source_sha256 = hashlib.sha256((wiki / source_file).read_bytes()).hexdigest()
+        output_path.write_text(json.dumps({"schema_version":"1.0.0","chunk_id":chunk_id,"pages":[{"source_file":source_file,"sha256":source_sha256,"nodes":page_nodes,"edges":page_edges}]}) + "\n", encoding="utf-8")
+        rows.append({"path": relative_path, "sha256": hashlib.sha256(output_path.read_bytes()).hexdigest()})
+        chunks.append({"chunk_id":chunk_id,"page_count":1,"source_files":[source_file]})
+    payload = "\n".join(f"{row['path']}\t{row['sha256']}" for row in rows).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest(), rows, chunks
+
+
 def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]:
     """Write a hermetic wiki+workspace corpus.
 
@@ -47,17 +75,75 @@ def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]
         tier = "full-read — annotation" if index == 0 else member["grounding"]
         (wiki / f"wiki/sources/{member['source_key']}.md").write_text(f"---\ngrounding_status: {tier}\n---\n", encoding="utf-8")
     pdf = wiki / "raw/corpus/yu-1995-istar.pdf"; pdf.write_bytes(b"synthetic yu")
-    graph = {"nodes":[
+    provenance_dir = wiki / "graphify-out"
+    provenance_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = provenance_dir / "fixture-manifest.json"
+    audit_path = provenance_dir / "fixture-audit.json"
+    receipt_path = provenance_dir / "fixture-receipt.json"
+    report_path = provenance_dir / "fixture-report.md"
+    pages = ["wiki/sources/yu-1995-istar.md", "wiki/sources/yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md", "wiki/sources/yu-mylopoulos-1994-understanding-why-software-process-modelling.md"]
+    semantic_nodes = [
+        {"id":"sem_fixture_yu","community":5,"label":"fixture yu","file_type":"claim","source_file":pages[0],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+        {"id":"sem_fixture_bpr","community":10,"label":"fixture bpr","file_type":"claim","source_file":pages[1],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+        {"id":"sem_fixture_icse","community":10,"label":"fixture icse","file_type":"claim","source_file":pages[2],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+    ]
+    semantic_edges = [
+        {"source":"yu-1995-istar","target":"sem_fixture_yu","_src":"yu-1995-istar","_tgt":"sem_fixture_yu","semantic_edge_id":"fixture:yu","semantic_status":"validated","relation":"describes","confidence":"EXTRACTED","confidence_score":1.0,"source_file":pages[0],"source_location":"fixture","weight":1.0,"evidence":"fixture"},
+        {"source":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_document","target":"sem_fixture_bpr","_src":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_document","_tgt":"sem_fixture_bpr","semantic_edge_id":"fixture:bpr","semantic_status":"validated","relation":"describes","confidence":"EXTRACTED","confidence_score":1.0,"source_file":pages[1],"source_location":"fixture","weight":1.0,"evidence":"fixture"},
+        {"source":"icse-alpha","target":"sem_fixture_icse","_src":"icse-alpha","_tgt":"sem_fixture_icse","semantic_edge_id":"fixture:icse","semantic_status":"validated","relation":"describes","confidence":"EXTRACTED","confidence_score":1.0,"source_file":pages[2],"source_location":"fixture","weight":1.0,"evidence":"fixture"},
+    ]
+    outputs_sha256, output_rows, chunks = _write_output_fixture(wiki, pages, semantic_nodes, semantic_edges)
+    manifest_pages = [{"source_file":page,"sha256":hashlib.sha256((wiki/page).read_bytes()).hexdigest()} for page in pages]
+    inventory_payload = "\n".join(f"{row['source_file']}\t{row['sha256']}" for row in manifest_pages).encode("utf-8")
+    inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
+    manifest_path.write_text(json.dumps({"schema_version":"1.0.0","page_count":3,"chunk_count":len(output_rows),"research_inventory_sha256":inventory_sha256,"pages":manifest_pages,"chunks":chunks}) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Claude Code","sample_count":3,"verdict_counts":{"supported":3,"unclear":0,"unsupported":0},"edges":[{"semantic_edge_id":"fixture:yu","verdict":"supported","note":"fixture"},{"semantic_edge_id":"fixture:bpr","verdict":"supported","note":"fixture"},{"semantic_edge_id":"fixture:icse","verdict":"supported","note":"fixture"}]}) + "\n", encoding="utf-8")
+    report_path.write_text("# Synthetic semantic report\n", encoding="utf-8")
+    graph = {"graph":{"extraction_mode":"hybrid-structural-semantic","semantic_status":"validated","semantic_scope":"synthetic-fixture","semantic_manifest":"graphify-out/fixture-manifest.json","semantic_manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"semantic_output_files":output_rows,"semantic_audit":"graphify-out/fixture-audit.json","semantic_audit_sha256":hashlib.sha256(audit_path.read_bytes()).hexdigest(),"semantic_report":"graphify-out/fixture-report.md","semantic_receipt":"graphify-out/fixture-receipt.json","semantic_pages_expected":3,"semantic_pages_represented":3,"research_inventory_sha256":inventory_sha256,"semantic_node_count":3,"semantic_edge_count":3},"nodes":[
         {"id":"yu-1995-istar","community":5,"file_type":"document","source_file":"wiki/sources/yu-1995-istar.md"},
         {"id":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_concept","community":10,"file_type":"concept","source_file":"wiki/sources/yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md"},
         {"id":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_document","community":10,"file_type":"document","source_file":"wiki/sources/yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md"},
         {"id":"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_source","community":10,"file_type":"source","source_file":"wiki/sources/yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md"},
         {"id":"icse-zeta","community":10,"file_type":"concept","source_file":"wiki/sources/yu-mylopoulos-1994-understanding-why-software-process-modelling.md"},
         {"id":"icse-alpha","community":10,"file_type":"concept","source_file":"wiki/sources/yu-mylopoulos-1994-understanding-why-software-process-modelling.md"},
-        {"id":"import","community":11,"file_type":"document","source_file":"wiki/sources/import.md"}],
-        "links":[{"source":"yu-1995-istar","target":"import","_src":"yu-1995-istar","_tgt":"import"}]}
+        {"id":"import","community":11,"file_type":"document","source_file":"wiki/sources/import.md"},
+        *semantic_nodes],
+        "links":[{"source":"yu-1995-istar","target":"import","_src":"yu-1995-istar","_tgt":"import"},*semantic_edges]}
     graph_path = workspace / "knowledge/LLM wiki/graphify-out/graph.json"; graph_path.write_text(json.dumps(graph), encoding="utf-8")
+    receipt_path.write_text(json.dumps({"schema_version":"1.0.0","final_graph_sha256":hashlib.sha256(graph_path.read_bytes()).hexdigest(),"manifest_sha256":graph["graph"]["semantic_manifest_sha256"],"audit_sha256":graph["graph"]["semantic_audit_sha256"],"semantic_outputs_sha256":outputs_sha256,"research_inventory_sha256":inventory_sha256,"report_sha256":hashlib.sha256(report_path.read_bytes()).hexdigest(),"extraction_mode":"hybrid-structural-semantic","semantic_status":"validated","semantic_scope":"synthetic-fixture","page_count":3,"semantic_node_count":3,"semantic_edge_count":3,"audit_sample_count":3}) + "\n", encoding="utf-8")
     return wiki, workspace
+
+
+def refresh_semantic_fixture(wiki: Path, graph_path: Path) -> None:
+    """Rebind the synthetic semantic commit marker after an intentional graph edit."""
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    metadata = graph["graph"]
+    semantic_nodes = [node for node in graph["nodes"] if node.get("semantic_status") == "validated"]
+    semantic_edges = [edge for edge in graph["links"] if edge.get("semantic_status") == "validated" and isinstance(edge.get("semantic_edge_id"), str)]
+    pages = sorted({edge.get("source_file") for edge in semantic_edges if isinstance(edge.get("source_file"), str)})
+    manifest_path = wiki / metadata["semantic_manifest"]
+    audit_path = wiki / metadata["semantic_audit"]
+    report_path = wiki / metadata["semantic_report"]
+    receipt_path = wiki / metadata["semantic_receipt"]
+    outputs_sha256, output_rows, chunks = _write_output_fixture(wiki, pages, semantic_nodes, semantic_edges)
+    manifest_pages = [{"source_file":page,"sha256":hashlib.sha256((wiki/page).read_bytes()).hexdigest()} for page in pages]
+    inventory_payload = "\n".join(f"{row['source_file']}\t{row['sha256']}" for row in manifest_pages).encode("utf-8")
+    inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
+    manifest_path.write_text(json.dumps({"schema_version":"1.0.0","page_count":len(pages),"chunk_count":len(output_rows),"research_inventory_sha256":inventory_sha256,"pages":manifest_pages,"chunks":chunks}) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    audit_rows = [{"semantic_edge_id":edge["semantic_edge_id"],"verdict":"supported","note":"fixture"} for edge in sorted(semantic_edges,key=lambda edge:edge["semantic_edge_id"].encode("utf-8"))]
+    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Claude Code","sample_count":len(audit_rows),"verdict_counts":{"supported":len(audit_rows),"unclear":0,"unsupported":0},"edges":audit_rows}) + "\n", encoding="utf-8")
+    metadata.update(
+        semantic_manifest_sha256=manifest_sha256,
+        semantic_audit_sha256=hashlib.sha256(audit_path.read_bytes()).hexdigest(),
+        semantic_outputs_sha256=outputs_sha256, semantic_output_files=output_rows,
+        semantic_pages_expected=len(pages), semantic_pages_represented=len(pages),
+        research_inventory_sha256=inventory_sha256,
+        semantic_node_count=len(semantic_nodes), semantic_edge_count=len(semantic_edges),
+    )
+    graph_path.write_text(json.dumps(graph), encoding="utf-8")
+    receipt_path.write_text(json.dumps({"schema_version":"1.0.0","final_graph_sha256":hashlib.sha256(graph_path.read_bytes()).hexdigest(),"manifest_sha256":metadata["semantic_manifest_sha256"],"audit_sha256":metadata["semantic_audit_sha256"],"semantic_outputs_sha256":outputs_sha256,"research_inventory_sha256":inventory_sha256,"report_sha256":hashlib.sha256(report_path.read_bytes()).hexdigest(),"extraction_mode":metadata["extraction_mode"],"semantic_status":metadata["semantic_status"],"semantic_scope":metadata["semantic_scope"],"page_count":len(pages),"semantic_node_count":len(semantic_nodes),"semantic_edge_count":len(semantic_edges),"audit_sample_count":len(audit_rows)}) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -86,6 +172,7 @@ def main() -> int:
         except policy.PolicyError: return
         raise AssertionError("closed domain-native semantics mutation passed")
     rejected(lambda p: p["domain_native_register"]["corpus_binding"].update(hash_recipe={}))
+    rejected(lambda p: p["domain_native_register"]["corpus_binding"]["graph"].update(semantic_eligibility={}))
     rejected(lambda p: p["domain_native_register"]["corpus_binding"]["related_to_RE_predicate"].update(membership="anything"))
     rejected(lambda p: p["domain_native_register"]["c7_fence"].update(protected_identity_layer=["foo"]))
     rejected(lambda p: p["domain_native_register"]["warrant_layers"].update(argument=copy.deepcopy(p["domain_native_register"]["warrant_layers"]["surface"])))
@@ -104,6 +191,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); wiki,workspace=write_fixture(root)
         resolved=policy.resolve_domain_native_register(baseline, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT)
+        assert resolved["graph_extraction_mode"] == "hybrid-structural-semantic"
+        assert resolved["graph_semantic_status"] == "validated"
+        assert resolved["graph_semantic_scope"] == "synthetic-fixture"
         assert resolved["surface_exemplar_members"] == resolved["argument_exemplar_members"]
         assert all(item["warrant_scope"] == "both" for item in resolved["exemplar_members"])
         assert resolved["path_roots"]["path_roots_mode"] == "override"
@@ -166,7 +256,7 @@ def main() -> int:
         graph_path.write_bytes(valid_graph_bytes)
         source_page=wiki/"wiki/sources/yu-1995-istar.md"; valid_source_bytes=source_page.read_bytes(); source_page.write_bytes(b"\xff")
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
-        except policy.PolicyError as exc: assert "not UTF-8" in str(exc)
+        except policy.PolicyError as exc: assert "not UTF-8" in str(exc) or "live research page inventory differs" in str(exc)
         else: raise AssertionError("invalid UTF-8 source page escaped controlled policy error")
         proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT)],capture_output=True,text=True,encoding="utf-8",errors="replace")
         assert proc.returncode==4 and json.loads(proc.stdout)["code"]=="RA-POLICY" and "Traceback" not in proc.stdout+proc.stderr
@@ -174,6 +264,7 @@ def main() -> int:
         absent_key=profile["domain_native_register"]["exemplar_members"][1]["source_key"]
         absent_page=wiki/f"wiki/sources/{absent_key}.md"
         absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         (wiki/"raw/future").mkdir(parents=True,exist_ok=True)
         stable_absence=policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         assert f"{absent_key}\tfull-read\t-" in stable_absence["exemplar_hash_lines"]
@@ -189,6 +280,7 @@ def main() -> int:
         wiki,workspace=write_fixture(root)
         absent_page=wiki/f"wiki/sources/{absent_key}.md"
         absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        refresh_semantic_fixture(wiki, workspace/"knowledge/LLM wiki/graphify-out/graph.json")
         replaced_parent=False
         def replace_absent_parent(stage: str, role: str, path: Path | None):
             nonlocal replaced_parent
@@ -200,6 +292,7 @@ def main() -> int:
         wiki,workspace=write_fixture(root)
         absent_page=wiki/f"wiki/sources/{absent_key}.md"
         absent_page.write_text("---\ngrounding_status: full-read\nsource_loc: raw/future/not-yet-staged.pdf\n---\n",encoding="utf-8")
+        refresh_semantic_fixture(wiki, workspace/"knowledge/LLM wiki/graphify-out/graph.json")
         removed_anchor=False
         def remove_anchor_during_acquisition(stage: str, role: str, path: Path | None):
             nonlocal removed_anchor
@@ -239,13 +332,25 @@ def main() -> int:
         except policy.PolicyError as exc: assert "changed during resolution" in str(exc)
         else: raise AssertionError("cross-file churn before final verification was not rejected")
         wiki,workspace=write_fixture(root)
+        same_size_churn=False
+        def churn_same_size_restore_mtime(stage: str, role: str, path: Path | None):
+            nonlocal same_size_churn
+            if not same_size_churn and stage == "before_final_verify":
+                source=wiki/"wiki/sources/yu-1995-istar.md"; stat=source.stat(); data=bytearray(source.read_bytes()); data[-2] = ord("x") if data[-2] != ord("x") else ord("y"); source.write_bytes(bytes(data)); os.utime(source,ns=(stat.st_atime_ns,stat.st_mtime_ns)); same_size_churn=True
+        try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT,_snapshot_hook=churn_same_size_restore_mtime)
+        except policy.PolicyError as exc: assert "changed during resolution" in str(exc)
+        else: raise AssertionError("same-size same-mtime input tamper was not rejected")
+        wiki,workspace=write_fixture(root)
         pins=(resolved["attestation_view_pin"],resolved["exemplar_view_pin"])
         graph_path=workspace/"knowledge/LLM wiki/graphify-out/graph.json"; graph=json.loads(graph_path.read_text()); graph["generated_at"]="churn"; graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         churn=policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         assert (churn["attestation_view_pin"],churn["exemplar_view_pin"]) == pins
         graph["nodes"].append({"id":"new-primary-member","community":5,"file_type":"concept","source_file":"wiki/sources/new.md"}); graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         assert policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)["attestation_view_pin"] != pins[0]
         page=wiki/"wiki/sources/yu-1995-istar.md"; page.write_text("---\ngrounding_status: full-read - changed note\n---\n",encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         annotation=policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         assert annotation["exemplar_view_pin"] == pins[1]
         pdf=wiki/"raw/corpus/yu-1995-istar.pdf"; pdf.write_bytes(b"changed")
@@ -253,18 +358,22 @@ def main() -> int:
         original_link=copy.deepcopy(graph["links"][0])
         graph["links"][0]["_src"]=original_link["target"]; graph["links"][0]["_tgt"]=original_link["source"]
         graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         graph["links"][0]=copy.deepcopy(original_link); graph["links"][0].pop("_src")
         graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         except policy.PolicyError as exc: assert "link endpoint divergence" in str(exc)
         else: raise AssertionError("link missing _src passed")
         graph["links"][0]=copy.deepcopy(original_link); graph["links"][0]["_tgt"]="divergent"; graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         except policy.PolicyError as exc: assert "link endpoint divergence" in str(exc)
         else: raise AssertionError("link divergence passed")
         graph["links"][0]={**original_link,"source":original_link["source"],"target":original_link["source"],"_src":original_link["source"],"_tgt":original_link["source"]}
         graph_path.write_text(json.dumps(graph),encoding="utf-8")
+        refresh_semantic_fixture(wiki, graph_path)
         policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
     live = policy.resolve_domain_native_register(profile)
     expected = model["expected_verification"]

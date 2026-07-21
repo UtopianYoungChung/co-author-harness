@@ -1,0 +1,471 @@
+{
+  "epoch": 6,
+  "captured_at": "2026-07-20T21:21:37Z",
+  "graph_sha256_provenance": "c6388e413316ca21c158cdffca70ebd237abee237062a8dc93a49bdc121741bf",
+  "graph_mtime_utc_provenance": "2026-07-20T20:59:25.405788Z",
+  "attestation_view_pin": "73cd7d356e862caa7b124202eb31e6fd4a176133573af89f4ce33605c1570e96",
+  "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+  "seed_resolution_map": {
+    "yu-1995-istar": "wiki_1b2cd43978870ecf",
+    "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p": "wiki_daf4409ce0ace057",
+    "yu-mylopoulos-1994-understanding-why-software-process-modelling": "wiki_9ecd3bdf7e835a37",
+    "yu-1997-early-phase-re": "wiki_e596312487bdd0f5",
+    "yu-e-agent-orientation-as-a-modeling-paradigm-2001": "wiki_56ae9670d3131d61",
+    "yu-et-al-2011-social-modeling": "wiki_e7f8559a5ec0bf9b",
+    "yu-2024-nine-pivots": "wiki_976e4692ebc20114",
+    "yu-2025-social-agentics-crosstalk": "wiki_b0574971b6274d08",
+    "yu-lapouchnian-2025-social-agentics-bdi-star": "wiki_c85acab204248d56",
+    "zave-1997-four-dark-corners-re": "wiki_d5e3dafd2414616b",
+    "nuseibeh-2000-re-a-roadmap": "wiki_b3f58ce9419a8aee",
+    "goncalves-2019-istar-extension": "wiki_6448cf585369915e",
+    "dennett-1987-intentional-stance": "wiki_e630e4efab896d1e"
+  },
+  "seed_resolution_ties": {},
+  "unresolved_seed_ids": [],
+  "primary_communities": [
+    2,
+    4
+  ],
+  "warnings": [],
+  "attestation_member_ids": [
+    "corpus_0cd0df48b8713009",
+    "corpus_10fde655a3ffc807",
+    "corpus_11338bca50942b26",
+    "corpus_129c823854e8488b",
+    "corpus_1ec1ddcd6e1f0e18",
+    "corpus_1f2a8a4cfc9c12c7",
+    "corpus_25ee6b7b6f53f568",
+    "corpus_2abbe33d01c79b02",
+    "corpus_2c6e1edcdc0edd06",
+    "corpus_2e3afa9a87c687af",
+    "corpus_33bd9825c6e96722",
+    "corpus_4ddbc3f483c338ea",
+    "corpus_53799105028fba0a",
+    "corpus_55fd966aab7fbdfd",
+    "corpus_5f57032c2a27b18d",
+    "corpus_6dde3c0c7ea4447b",
+    "corpus_76cca9516107e8bd",
+    "corpus_7944e319a46886f5",
+    "corpus_7a2b2a09fe0ffc6b",
+    "corpus_7dd879d2ac5ca82f",
+    "corpus_824b5d926a6c0e3a",
+    "corpus_851fe893a358a712",
+    "corpus_886e4b66fb02c650",
+    "corpus_8981fa3549a6fcd8",
+    "corpus_91957fb93b1cb655",
+    "corpus_92669ef2e396d35f",
+    "corpus_98933bc4f1324882",
+    "corpus_99b1dc53bff4c3c0",
+    "corpus_9aaf0832733ab5d4",
+    "corpus_9bcd38e45706af9b",
+    "corpus_9ca8ccb29cb9ac9e",
+    "corpus_a3e739002034572f",
+    "corpus_a3f8fb8cb1eb2b23",
+    "corpus_ab5421e174cecb74",
+    "corpus_ad411eee66068706",
+    "corpus_b10dc2e7fba8643e",
+    "corpus_b3c77145d3d1cd5b",
+    "corpus_c23637b893e98799",
+    "corpus_c26be48322436779",
+    "corpus_c64177aa015d42f8",
+    "corpus_c68a3244d121201f",
+    "corpus_c6c871d59c54a77b",
+    "corpus_cadb115403b0399b",
+    "corpus_cb9c5ef07fca75a4",
+    "corpus_cb9cd7ccf4a974cd",
+    "corpus_cc41e508c76316f4",
+    "corpus_cd692caff519e5f0",
+    "corpus_d29d326964495c26",
+    "corpus_e3f139fc4b3b6a06",
+    "corpus_e461f39a880d17cb",
+    "corpus_ea18fe1ff1b5926f",
+    "corpus_ed23dbfe903fe8d5",
+    "corpus_ee99eb765734e158",
+    "corpus_f1265366447f48e1",
+    "corpus_f1b370889d49b7fa",
+    "wiki_04caba0a8771ea9c",
+    "wiki_056bdd138f6313e8",
+    "wiki_0816dfac93659f5d",
+    "wiki_0c1556f4191faf57",
+    "wiki_0c2c565bbbdff731",
+    "wiki_1374282d7f5aff50",
+    "wiki_19bd3c5481628ffd",
+    "wiki_1a5dd56fd57efc81",
+    "wiki_1b2cd43978870ecf",
+    "wiki_1c8a12a250250005",
+    "wiki_1e948874e59db6a9",
+    "wiki_205bc8b33ec5fe23",
+    "wiki_219e0d7d167dcdc7",
+    "wiki_23049d57a2203555",
+    "wiki_29e245cf38decc7b",
+    "wiki_2a011417600dd1da",
+    "wiki_2c44d998e53e14e5",
+    "wiki_2db4fad9553a4e6f",
+    "wiki_2dbcf8e1a4b34489",
+    "wiki_2ee8dee8fb69c975",
+    "wiki_30150368f1827510",
+    "wiki_33d384ecf4a3f841",
+    "wiki_34114cd6c0e605b7",
+    "wiki_34acdb88ee271b9a",
+    "wiki_356c23fa98f5b320",
+    "wiki_35895cb7939f2e26",
+    "wiki_370d5c1add868517",
+    "wiki_3b6a233c2b78a3c3",
+    "wiki_3bf502eee7e07907",
+    "wiki_3d1bcb55394642b5",
+    "wiki_3de0334b00a38775",
+    "wiki_3e10319d92838086",
+    "wiki_3edfdbf5ce68ea2e",
+    "wiki_3f8d518131242679",
+    "wiki_414c6717698373b2",
+    "wiki_46e49d8d6e5abd0f",
+    "wiki_47add60a5d098012",
+    "wiki_49b9fd90dd470958",
+    "wiki_4a28ad39a95283f5",
+    "wiki_4d3438778486adb6",
+    "wiki_4f967378479870af",
+    "wiki_5161eb1af74f6eef",
+    "wiki_5454db97843c1f87",
+    "wiki_5488b40436f3abf6",
+    "wiki_54fa61c4ccd6b5e5",
+    "wiki_56ae9670d3131d61",
+    "wiki_591ab4a5132871c7",
+    "wiki_5a910ab10db4a4e5",
+    "wiki_5be46ff65592422f",
+    "wiki_5c6f03ace081e1de",
+    "wiki_5d5562949c08869c",
+    "wiki_60ae603c9dfcd65e",
+    "wiki_60f4cf0687d4ed69",
+    "wiki_636a1a88115fa4f5",
+    "wiki_63992214f3cb4c0f",
+    "wiki_6448cf585369915e",
+    "wiki_654772651ef80995",
+    "wiki_747a2d45c6daf62a",
+    "wiki_7551515f39e55715",
+    "wiki_758078aedf872d4c",
+    "wiki_78f658df6996a8a6",
+    "wiki_7b79acff9198cc0a",
+    "wiki_7e312a1afca37239",
+    "wiki_7ea5392cc2cf39f2",
+    "wiki_834aac8977effdfa",
+    "wiki_84a9d4284b8add69",
+    "wiki_88ce02679d22dd1d",
+    "wiki_8b94d87112a39e71",
+    "wiki_8d9901f0927ac03e",
+    "wiki_8e9151d23b967d84",
+    "wiki_8f6ddf82edc69a7e",
+    "wiki_9057b03ea312e7d4",
+    "wiki_947d17641604963b",
+    "wiki_9504bf18bfef5afc",
+    "wiki_976e4692ebc20114",
+    "wiki_98b796939a5b860f",
+    "wiki_9c2275d7ec439e01",
+    "wiki_9ecd3bdf7e835a37",
+    "wiki_9f5615cdfbaee958",
+    "wiki_a7909930ec20259c",
+    "wiki_a9546f99a19dcccb",
+    "wiki_aa0c03a7acd9b2be",
+    "wiki_abebbefb2586fb23",
+    "wiki_ac04372543ba6654",
+    "wiki_b0574971b6274d08",
+    "wiki_b166d3436cf175cf",
+    "wiki_b3f58ce9419a8aee",
+    "wiki_b41afe2d86bbb530",
+    "wiki_b66a1fec95cd1d73",
+    "wiki_b76e39295bc28baf",
+    "wiki_b889102ff44cb071",
+    "wiki_b94f5ade8f28c943",
+    "wiki_be979c1b90822fee",
+    "wiki_bf2e2105620e302d",
+    "wiki_bfccaa60dddf234c",
+    "wiki_c07ed13fc694af07",
+    "wiki_c3d6f4c8ed8be7eb",
+    "wiki_c43faadf36134eb9",
+    "wiki_c45bda66ed35e07a",
+    "wiki_c5f80ed5867c08e5",
+    "wiki_c642370fe7268d24",
+    "wiki_c6793a2db4ec96d1",
+    "wiki_c6bc4d876f19078b",
+    "wiki_c85acab204248d56",
+    "wiki_c906359dc66ed012",
+    "wiki_ca87eb477ade28e0",
+    "wiki_cb8f5dc8f57cf19f",
+    "wiki_cc075590e2813da6",
+    "wiki_ccf3e01968b1a6b1",
+    "wiki_d13ff734b73b6b13",
+    "wiki_d5e3dafd2414616b",
+    "wiki_d5f578471c6abdab",
+    "wiki_d7e71d7f453e8987",
+    "wiki_dab272c0c9184025",
+    "wiki_daf4409ce0ace057",
+    "wiki_dcbe74df363b81e8",
+    "wiki_dd9bac447b82d0a6",
+    "wiki_de36a7a9ad3544cc",
+    "wiki_df9f8dc337a4b398",
+    "wiki_e0e254b16209740f",
+    "wiki_e2131f0053f9832a",
+    "wiki_e4772c7366e33828",
+    "wiki_e51e8250293f6ba4",
+    "wiki_e596312487bdd0f5",
+    "wiki_e5abbc3e50c8324c",
+    "wiki_e630e4efab896d1e",
+    "wiki_e7785e7bdafc5f16",
+    "wiki_e7f8559a5ec0bf9b",
+    "wiki_e882f2efa6dd0568",
+    "wiki_ea3ff777aed1a943",
+    "wiki_f53a4ed99164a13e",
+    "wiki_f836149cdf854e5b",
+    "wiki_f9f28271a7916600",
+    "wiki_fe6057b2047275b6"
+  ],
+  "member_count": 189,
+  "exemplar_hash_lines": [
+    "dennett-1987-intentional-stance\tsection-read\t02bdcf90725be1b44293fb3f43b3322d08712b1b009400e66aa7e70ced6b2d71",
+    "goncalves-2019-istar-extension\tsection-read\t961605e546648323a5e133e20922409530557330c69ead11aa97d0a768aa5820",
+    "nuseibeh-2000-re-a-roadmap\tfull-read\tb67d43787169d682db91f3fff245b26a71a554c8ea916ece9b87e27eb6634eba",
+    "yu-1995-istar\tfull-read\tc5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
+    "yu-1997-early-phase-re\tfull-read\t84ac6bc3aabd97b5a153ec0d051a86db48c8e6f2f17ce599b36c0c05c54ea5cc",
+    "yu-2024-nine-pivots\tsection-read\tad8a264e1a16b5a11627c8fbfc833902b979598503ee300e6ef8cbc592985320",
+    "yu-2025-social-agentics-crosstalk\tfull-read\t4c75a406bb785f0dbbd29d5cc50f50fe2b1a2d46fb55f7c43453d6f9a91845c1",
+    "yu-e-agent-orientation-as-a-modeling-paradigm-2001\tfull-read\t455089dd559f982fcc9f4b6f3afa5752f6837d2b3bd039401778112c5712d242",
+    "yu-et-al-2011-social-modeling\tsection-read\t7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
+    "yu-lapouchnian-2025-social-agentics-bdi-star\tfull-read\tc71a351e2d686c3a43464bcb3c51f17ad8cb25199fcdfbae11ec6e9c1cc1115f",
+    "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p\tfull-read\t446c5b797dc7c913328591b281f0e65faf8cb5a566ed21f2ab5d689efd6ccece",
+    "yu-mylopoulos-1994-understanding-why-software-process-modelling\tfull-read\t6451423b914b56433c14529aa900313c6ab84f434389bdd7c7862c16d8e16809",
+    "zave-1997-four-dark-corners-re\tfull-read\t382e5f7723ee15c5ebe67c1056540bc57ee9098f1bd3144a887ee02665425dca"
+  ],
+  "exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "dennett-1987-intentional-stance",
+      "role": "intentional-root",
+      "grounding": "section-read",
+      "warrant_scope": "argument-only"
+    }
+  ],
+  "surface_exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    }
+  ],
+  "argument_exemplar_members": [
+    {
+      "source_key": "yu-1995-istar",
+      "role": "centroid",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-mylopoulos-1994-understanding-why-software-process-modelling",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-1997-early-phase-re",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-e-agent-orientation-as-a-modeling-paradigm-2001",
+      "role": "classic-halo",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-et-al-2011-social-modeling",
+      "role": "classic-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2024-nine-pivots",
+      "role": "recent-yu",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-2025-social-agentics-crosstalk",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "yu-lapouchnian-2025-social-agentics-bdi-star",
+      "role": "recent-yu",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "zave-1997-four-dark-corners-re",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "nuseibeh-2000-re-a-roadmap",
+      "role": "re-canon",
+      "grounding": "full-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "goncalves-2019-istar-extension",
+      "role": "istar-extension-halo",
+      "grounding": "section-read",
+      "warrant_scope": "both"
+    },
+    {
+      "source_key": "dennett-1987-intentional-stance",
+      "role": "intentional-root",
+      "grounding": "section-read",
+      "warrant_scope": "argument-only"
+    }
+  ]
+}

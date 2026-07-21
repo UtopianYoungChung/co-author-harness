@@ -28,6 +28,9 @@ project phase, whose only direct project write is
    schema admits `expected_verification.pin_epoch` and `pinned_at`.
 2. Run from the package root. Preserve the package lock at
    `reviews/.repin.lock`; never remove or steal it manually.
+   The loader also holds the Wiki's shared `.graph-write.lock` from semantic
+   resolution through final read-back, so graph publication and re-pin cannot
+   overlap.
 3. If `--project-root` is supplied, confirm the path is the intended project.
    The loader refuses an open round. Do not work around that refusal.
 4. Explain that old-cycle evidence remains valid; only a new cycle is held for
@@ -70,7 +73,12 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
    package-scoped snapshot, ledger row, atomic read-back result, and optional
    project request path. Do not claim the project is rebound until the Planner
    applies and archives the request.
-6. Run:
+   If the loader returns `COMMITTED_CLEANUP_REQUIRED`, report every
+   `cleanup_errors` entry and stop for lock-owner recovery. The package writes
+   are committed, but this is not clean `READY`: do not run another re-pin,
+   proceed to tests, or propose/perform a commit until the named lock state has
+   been inspected and recovered.
+6. Only after clean `READY`, run:
 
    `python scripts/repin_register_smoketest.py`
 
@@ -83,8 +91,12 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
 
    `python scripts/reader_accessibility_policy.py --backfill-repin-commit <40-or-64-character-object-id> --repin-epoch <N>`
 
-   Commit or amend that ledger-only backfill according to the repository's
-   release procedure. Never predict a commit ID or record a pre-commit value.
+   The loader requires that object to exist as a commit and be reachable from
+   `main`. Commit or amend that ledger-only backfill according to the
+   repository's release procedure. Never predict a commit ID or record a
+   pre-commit value. If backfill returns `COMMITTED_CLEANUP_REQUIRED`, the
+   pointer is already recorded: report `cleanup_errors` and stop for lock-owner
+   recovery rather than retrying or claiming clean completion.
 
 ## Refusals are authoritative
 
@@ -96,7 +108,15 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
 - Unrelated dirt: list it; proceed only when the user supplied
   `--allow-unrelated-dirty`.
 - Schema migration missing, graph/wiki/root unreachable, malformed graph/link
-  contract, or project open round: stop with the loader's exact reason.
+  contract, graph semantic eligibility missing or provisional
+  (`GRAPH-SEMANTIC-INELIGIBLE`), stale research-page inventory, incomplete
+  semantic output chain, non-conforming audit sample, or project open round:
+  stop with the loader's exact reason. Never repin a `structural-only` or
+  `pending` graph.
+- A post-publication freshness refusal may preserve an inert project rebind
+  request while rolling package files back. Report its exact path and have the
+  Planner inspect and archive it before retrying; never delete or overwrite it
+  as part of re-pin recovery.
 
 ## Ownership boundary
 

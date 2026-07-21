@@ -40,7 +40,16 @@
       "graph": {
         "path": "knowledge/LLM wiki/graphify-out/graph.json",
         "role": "index and provenance metadata only; never a gate target",
-        "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f"
+        "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+        "semantic_eligibility": {
+          "extraction_modes": ["semantic", "hybrid-structural-semantic"],
+          "semantic_statuses": ["complete", "validated"],
+          "semantic_scope_required": true,
+          "inventory_directories": ["wiki/sources", "wiki/concepts", "wiki/entities", "wiki/syntheses"],
+          "inventory_root_files": ["wiki/identity-sensitive-re-for-delegated-agency.md"],
+          "inventory_digest_required": true,
+          "failure_code": "GRAPH-SEMANTIC-INELIGIBLE"
+        }
       },
       "pin": {
         "level": "semantic",
