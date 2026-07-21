@@ -38,7 +38,7 @@ def _write_output_fixture(
         page_nodes = []
         for node in semantic_nodes:
             if node.get("source_file") == source_file:
-                value = {key:item for key,item in node.items() if key not in {"community", "extraction_status"}}
+                value = {key:item for key,item in node.items() if key not in {"community", "extraction_status", "norm_label"}}
                 value["semantic_status"] = "candidate"
                 page_nodes.append(value)
         page_edges = [
@@ -83,9 +83,9 @@ def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]
     report_path = provenance_dir / "fixture-report.md"
     pages = ["wiki/sources/yu-1995-istar.md", "wiki/sources/yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p.md", "wiki/sources/yu-mylopoulos-1994-understanding-why-software-process-modelling.md"]
     semantic_nodes = [
-        {"id":"sem_fixture_yu","community":5,"label":"fixture yu","file_type":"claim","source_file":pages[0],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
-        {"id":"sem_fixture_bpr","community":10,"label":"fixture bpr","file_type":"claim","source_file":pages[1],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
-        {"id":"sem_fixture_icse","community":10,"label":"fixture icse","file_type":"claim","source_file":pages[2],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+        {"id":"sem_fixture_yu","community":5,"label":"fixture yu","norm_label":"fixture yu","file_type":"claim","source_file":pages[0],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+        {"id":"sem_fixture_bpr","community":10,"label":"fixture bpr","norm_label":"fixture bpr","file_type":"claim","source_file":pages[1],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
+        {"id":"sem_fixture_icse","community":10,"label":"fixture icse","norm_label":"fixture icse","file_type":"claim","source_file":pages[2],"source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"},
     ]
     semantic_edges = [
         {"source":"yu-1995-istar","target":"sem_fixture_yu","_src":"yu-1995-istar","_tgt":"sem_fixture_yu","semantic_edge_id":"fixture:yu","semantic_status":"validated","relation":"describes","confidence":"EXTRACTED","confidence_score":1.0,"source_file":pages[0],"source_location":"fixture","weight":1.0,"evidence":"fixture"},
@@ -98,7 +98,7 @@ def write_fixture(root: Path, *, all_members: bool = False) -> tuple[Path, Path]
     inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
     manifest_path.write_text(json.dumps({"schema_version":"1.0.0","page_count":3,"chunk_count":len(output_rows),"research_inventory_sha256":inventory_sha256,"pages":manifest_pages,"chunks":chunks}) + "\n", encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Claude Code","sample_count":3,"verdict_counts":{"supported":3,"unclear":0,"unsupported":0},"edges":[{"semantic_edge_id":"fixture:yu","verdict":"supported","note":"fixture"},{"semantic_edge_id":"fixture:bpr","verdict":"supported","note":"fixture"},{"semantic_edge_id":"fixture:icse","verdict":"supported","note":"fixture"}]}) + "\n", encoding="utf-8")
+    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Codex","reviewers":["Codex"],"reviewer_counts":{"Codex":3},"sample_count":3,"verdict_counts":{"supported":3,"unclear":0,"unsupported":0},"edges":[{"semantic_edge_id":"fixture:yu","verdict":"supported","note":"fixture","reviewer":"Codex"},{"semantic_edge_id":"fixture:bpr","verdict":"supported","note":"fixture","reviewer":"Codex"},{"semantic_edge_id":"fixture:icse","verdict":"supported","note":"fixture","reviewer":"Codex"}]}) + "\n", encoding="utf-8")
     report_path.write_text("# Synthetic semantic report\n", encoding="utf-8")
     graph = {"graph":{"extraction_mode":"hybrid-structural-semantic","semantic_status":"validated","semantic_scope":"synthetic-fixture","semantic_manifest":"graphify-out/fixture-manifest.json","semantic_manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"semantic_output_files":output_rows,"semantic_audit":"graphify-out/fixture-audit.json","semantic_audit_sha256":hashlib.sha256(audit_path.read_bytes()).hexdigest(),"semantic_report":"graphify-out/fixture-report.md","semantic_receipt":"graphify-out/fixture-receipt.json","semantic_pages_expected":3,"semantic_pages_represented":3,"research_inventory_sha256":inventory_sha256,"semantic_node_count":3,"semantic_edge_count":3},"nodes":[
         {"id":"yu-1995-istar","community":5,"file_type":"document","source_file":"wiki/sources/yu-1995-istar.md"},
@@ -132,8 +132,8 @@ def refresh_semantic_fixture(wiki: Path, graph_path: Path) -> None:
     inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
     manifest_path.write_text(json.dumps({"schema_version":"1.0.0","page_count":len(pages),"chunk_count":len(output_rows),"research_inventory_sha256":inventory_sha256,"pages":manifest_pages,"chunks":chunks}) + "\n", encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-    audit_rows = [{"semantic_edge_id":edge["semantic_edge_id"],"verdict":"supported","note":"fixture"} for edge in sorted(semantic_edges,key=lambda edge:edge["semantic_edge_id"].encode("utf-8"))]
-    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Claude Code","sample_count":len(audit_rows),"verdict_counts":{"supported":len(audit_rows),"unclear":0,"unsupported":0},"edges":audit_rows}) + "\n", encoding="utf-8")
+    audit_rows = [{"semantic_edge_id":edge["semantic_edge_id"],"verdict":"supported","note":"fixture","reviewer":"Codex"} for edge in sorted(semantic_edges,key=lambda edge:edge["semantic_edge_id"].encode("utf-8"))]
+    audit_path.write_text(json.dumps({"schema_version":"1.0.0","manifest_sha256":manifest_sha256,"semantic_outputs_sha256":outputs_sha256,"reviewer":"Codex","reviewers":["Codex"],"reviewer_counts":{"Codex":len(audit_rows)},"sample_count":len(audit_rows),"verdict_counts":{"supported":len(audit_rows),"unclear":0,"unsupported":0},"edges":audit_rows}) + "\n", encoding="utf-8")
     metadata.update(
         semantic_manifest_sha256=manifest_sha256,
         semantic_audit_sha256=hashlib.sha256(audit_path.read_bytes()).hexdigest(),

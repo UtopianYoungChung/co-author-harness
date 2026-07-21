@@ -165,7 +165,7 @@ def case_graph_semantic_eligibility() -> None:
 
 
 def case_graph_semantic_artifact_integrity() -> None:
-    cases = ("receipt_hash", "manifest_hash", "output_hash", "synchronized_schema_drift", "non_object_receipt", "non_object_manifest", "non_object_audit", "arbitrary_output", "audit_output_binding", "audit_unknown_edge", "unaudited_seed_edge", "page_set", "seed_coverage")
+    cases = ("receipt_hash", "manifest_hash", "output_hash", "synchronized_schema_drift", "non_object_receipt", "non_object_manifest", "non_object_audit", "arbitrary_output", "audit_output_binding", "audit_reviewer", "audit_reviewer_counts", "audit_unknown_edge", "unaudited_seed_edge", "page_set", "seed_coverage")
     for case in cases:
         with tempfile.TemporaryDirectory() as td:
             harness, profile_path, wiki, workspace = fixture(Path(td))
@@ -273,6 +273,26 @@ def case_graph_semantic_artifact_integrity() -> None:
                 receipt["final_graph_sha256"] = hashlib.sha256(graph_path.read_bytes()).hexdigest()
                 write_json(receipt_path, receipt)
                 needle = "semantic audit output binding mismatch"
+            elif case in {"audit_reviewer", "audit_reviewer_counts"}:
+                graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                audit_path = wiki / graph["graph"]["semantic_audit"]
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                if case == "audit_reviewer":
+                    audit.update(reviewer="Unapproved", reviewers=["Unapproved"], reviewer_counts={"Unapproved": len(audit["edges"])})
+                    for row in audit["edges"]:
+                        row["reviewer"] = "Unapproved"
+                    needle = "semantic audit reviewer provenance is invalid"
+                else:
+                    audit["reviewer_counts"]["Codex"] += 1
+                    needle = "semantic audit row reviewer provenance mismatch"
+                write_json(audit_path, audit)
+                graph["graph"]["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+                write_json(graph_path, graph)
+                receipt_path = wiki / graph["graph"]["semantic_receipt"]
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                receipt["audit_sha256"] = graph["graph"]["semantic_audit_sha256"]
+                receipt["final_graph_sha256"] = hashlib.sha256(graph_path.read_bytes()).hexdigest()
+                write_json(receipt_path, receipt)
             elif case == "page_set":
                 graph = json.loads(graph_path.read_text(encoding="utf-8"))
                 next(node for node in graph["nodes"] if node.get("id") == "sem_fixture_yu")["source_file"] = "wiki/sources/import.md"
@@ -308,6 +328,7 @@ def case_graph_semantic_artifact_integrity() -> None:
                 audit["edges"] = [row for row in audit["edges"] if row["semantic_edge_id"] != "fixture:yu-extra"]
                 audit["sample_count"] = len(audit["edges"])
                 audit["verdict_counts"]["supported"] = len(audit["edges"])
+                audit["reviewer_counts"]["Codex"] = len(audit["edges"])
                 write_json(audit_path, audit)
                 graph["graph"]["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
                 write_json(graph_path, graph)

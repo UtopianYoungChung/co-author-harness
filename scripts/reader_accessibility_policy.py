@@ -18,6 +18,7 @@ import re
 import socket
 import subprocess
 import sys
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -34,6 +35,7 @@ CANDIDATE_SCHEMA = ROOT / "references" / "schemas" / "reader_accessibility_candi
 PHASES = ("Ph1", "Ph2", "Ph3", "Ph4")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SEMANTIC_ARTIFACT_SCHEMA_VERSION = "1.0.0"
+ALLOWED_SEMANTIC_AUDIT_REVIEWERS = {"Claude Code", "Codex"}
 DEFAULT_WIKI_ROOT = Path("B:/Agents/knowledge/LLM wiki")
 DEFAULT_WORKSPACE_ROOT = Path("B:/Agents")
 ROOT_ENV_VARS = {
@@ -783,24 +785,53 @@ def resolve_domain_native_register(
                 actual_node = semantic_node_by_id.get(node_id)
                 if actual_node is None or node_id in derived_node_ids:
                     raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output node is absent or duplicated in graph")
-                normalized_node = {key:value for key,value in actual_node.items() if key not in {"community", "extraction_status"}}
+                if "norm_label" in actual_node:
+                    label = output_node.get("label") if isinstance(output_node, dict) else None
+                    expected_norm_label = "".join(
+                        character
+                        for character in unicodedata.normalize("NFKD", label or "")
+                        if not unicodedata.combining(character)
+                    ).lower()
+                    if actual_node.get("norm_label") != expected_norm_label:
+                        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic graph norm_label differs from the output label")
+                normalized_node = {key:value for key,value in actual_node.items() if key not in {"community", "extraction_status", "norm_label"}}
                 normalized_node["semantic_status"] = "candidate"
                 if normalized_node != output_node:
                     raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output node payload differs from graph")
                 derived_node_ids.add(node_id)
-            for output_edge in result["edges"]:
+            for edge_index, output_edge in enumerate(result["edges"]):
                 if not isinstance(output_edge, dict):
                     raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge is malformed")
-                matches = []
-                for edge_id, actual_edge in semantic_edge_by_id.items():
-                    if edge_id in derived_edge_ids:
-                        continue
-                    normalized_edge = {key:value for key,value in actual_edge.items() if key not in {"_src", "_tgt", "semantic_edge_id", "semantic_status"}}
-                    if normalized_edge == output_edge:
-                        matches.append(edge_id)
-                if len(matches) != 1:
+                expected_edge_id = f"{chunk['chunk_id']}:" + hashlib.sha256(
+                    (result["source_file"] + ":" + str(edge_index) + ":" + str(output_edge.get("source")) + ":" + str(output_edge.get("target"))).encode("utf-8")
+                ).hexdigest()[:16]
+                actual_edge = semantic_edge_by_id.get(expected_edge_id)
+                actual_edge_id = expected_edge_id
+                if actual_edge is None:
+                    fallback_matches = []
+                    for edge_id, candidate_edge in semantic_edge_by_id.items():
+                        if edge_id in derived_edge_ids:
+                            continue
+                        candidate_endpoints = (candidate_edge.get("source"), candidate_edge.get("target"))
+                        output_endpoints = (output_edge.get("source"), output_edge.get("target"))
+                        candidate_normalized = {key:value for key,value in candidate_edge.items() if key not in {"_src", "_tgt", "semantic_edge_id", "semantic_status"}}
+                        candidate_normalized["source"], candidate_normalized["target"] = output_endpoints
+                        if candidate_endpoints in {output_endpoints, output_endpoints[::-1]} and candidate_normalized == output_edge:
+                            fallback_matches.append((edge_id, candidate_edge))
+                    if len(fallback_matches) != 1:
+                        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge id is absent or ambiguous in graph")
+                    actual_edge_id, actual_edge = fallback_matches[0]
+                if actual_edge_id in derived_edge_ids:
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge is duplicated in graph")
+                actual_endpoints = (actual_edge.get("source"), actual_edge.get("target"))
+                output_endpoints = (output_edge.get("source"), output_edge.get("target"))
+                if actual_endpoints not in {output_endpoints, output_endpoints[::-1]}:
+                    raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge endpoints differ from graph")
+                normalized_edge = {key:value for key,value in actual_edge.items() if key not in {"_src", "_tgt", "semantic_edge_id", "semantic_status"}}
+                normalized_edge["source"], normalized_edge["target"] = output_endpoints
+                if normalized_edge != output_edge:
                     raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic output edge payload is absent or ambiguous in graph")
-                derived_edge_ids.add(matches[0])
+                derived_edge_ids.add(actual_edge_id)
     if derived_node_ids != set(semantic_node_by_id) or derived_edge_ids != set(semantic_edge_by_id):
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic outputs do not exactly derive graph nodes and edges")
     if manifest_page_sources != semantic_page_sources or manifest_page_sources != semantic_edge_sources:
@@ -835,11 +866,35 @@ def resolve_domain_native_register(
     if audit_artifact.get("semantic_outputs_sha256") != metadata["semantic_outputs_sha256"]:
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit output binding mismatch")
     counts = audit_artifact.get("verdict_counts")
-    if audit_artifact.get("reviewer") != "Claude Code" or not isinstance(counts, dict) or counts.get("unclear") != 0 or counts.get("unsupported") != 0 or counts.get("supported") != audit_artifact.get("sample_count"):
+    reviewers = audit_artifact.get("reviewers")
+    multi_reviewer = reviewers is not None
+    if multi_reviewer:
+        if (
+            not isinstance(reviewers, list)
+            or not reviewers
+            or reviewers != sorted(set(reviewers), key=lambda value: value.encode("utf-8") if isinstance(value, str) else b"")
+            or not set(reviewers) <= ALLOWED_SEMANTIC_AUDIT_REVIEWERS
+            or audit_artifact.get("reviewer") != (reviewers[0] if len(reviewers) == 1 else "multiple")
+        ):
+            raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit reviewer provenance is invalid")
+    elif audit_artifact.get("reviewer") not in ALLOWED_SEMANTIC_AUDIT_REVIEWERS:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit reviewer is not approved")
+    if not isinstance(counts, dict) or counts.get("unclear") != 0 or counts.get("unsupported") != 0 or counts.get("supported") != audit_artifact.get("sample_count"):
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit is absent, incomplete, or not fully supported")
     audit_rows = audit_artifact.get("edges")
     if not isinstance(audit_rows, list) or len(audit_rows) != audit_artifact.get("sample_count") or len({row.get("semantic_edge_id") for row in audit_rows if isinstance(row, dict)}) != len(audit_rows) or any(not isinstance(row, dict) or row.get("verdict") != "supported" or not isinstance(row.get("note"), str) or not row["note"].strip() for row in audit_rows):
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit rows are incomplete, duplicated, or not fully supported")
+    if multi_reviewer:
+        row_reviewer_counts = {
+            reviewer: sum(1 for row in audit_rows if row.get("reviewer") == reviewer)
+            for reviewer in reviewers
+        }
+        if (
+            any(row.get("reviewer") not in reviewers for row in audit_rows)
+            or audit_artifact.get("reviewer_counts") != row_reviewer_counts
+            or sum(row_reviewer_counts.values()) != len(audit_rows)
+        ):
+            raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit row reviewer provenance mismatch")
     audit_edge_ids = {row["semantic_edge_id"] for row in audit_rows}
     if not audit_edge_ids <= set(semantic_edge_by_id):
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit references unknown graph edges")
