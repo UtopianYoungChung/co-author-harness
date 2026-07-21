@@ -599,8 +599,16 @@ def case_epoch_softening() -> None:
         ledger = milestone_fixture._materialize_native_project(project)
         document = milestone_fixture._phase_document(ledger, "Ph4")
         bound_epoch = ledger["policy_bindings"]["reader_accessibility"]["pin_epoch"]
+        binding = ledger["policy_bindings"]["reader_accessibility"]
         write_json(project / "reviews/repin_rebind_request.json", {
-            "status": "pending", "pin_epoch": bound_epoch,
+            "request_id": "fixture-request",
+            "status": "pending",
+            "pin_epoch": bound_epoch,
+            "profile_sha256": binding["profile_sha256"],
+            "attestation_view_pin": binding["attestation_view_pin"],
+            "exemplar_view_pin": binding["exemplar_view_pin"],
+            "delta_class": "attestation",
+            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{bound_epoch}",
         })
         continuing = milestone_validator.validate_document(
             project, copy.deepcopy(document), opening_new_cycle=False,
@@ -897,8 +905,8 @@ def case_exemplar_ingestion() -> None:
             "file_type": "document",
             "source_file": "wiki/sources/dennett-1987-intentional-stance.md",
         })
-        graph["nodes"].append({"id":"sem_fixture_dennett","community":99,"file_type":"claim","source_file":"wiki/sources/dennett-1987-intentional-stance.md","semantic_status":"validated"})
-        graph["links"].append({"source":"dennett-1987-intentional-stance","target":"sem_fixture_dennett","_src":"dennett-1987-intentional-stance","_tgt":"sem_fixture_dennett","semantic_edge_id":"fixture:dennett","semantic_status":"validated","source_file":"wiki/sources/dennett-1987-intentional-stance.md"})
+        graph["nodes"].append({"id":"sem_fixture_dennett","community":99,"label":"fixture Dennett claim","file_type":"claim","source_file":"wiki/sources/dennett-1987-intentional-stance.md","source_location":"fixture","semantic_status":"validated","extraction_status":"semantic"})
+        graph["links"].append({"source":"dennett-1987-intentional-stance","target":"sem_fixture_dennett","_src":"dennett-1987-intentional-stance","_tgt":"sem_fixture_dennett","semantic_edge_id":"fixture:dennett","semantic_status":"validated","relation":"describes","confidence":"EXTRACTED","confidence_score":1.0,"source_file":"wiki/sources/dennett-1987-intentional-stance.md","source_location":"fixture","weight":1.0,"evidence":"fixture"})
         write_json(graph_path, graph)
         dnr_fixture.refresh_semantic_fixture(wiki, graph_path)
         added = invoke(

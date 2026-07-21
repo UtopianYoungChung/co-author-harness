@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "profile_version": "1.0.2",
+  "profile_version": "1.0.3",
   "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
   "decision_approval": {
@@ -40,13 +40,26 @@
       "graph": {
         "path": "knowledge/LLM wiki/graphify-out/graph.json",
         "role": "index and provenance metadata only; never a gate target",
-        "observed_sha256_at_review": "edf94fa6121794915a8c9c221d41869333ba3e837ddd7f5b9138290042f3090f",
+        "observed_sha256_at_review": "0e1ce432a1a887d9547e155f127189054271cccd45c2c54a284b9c745556f6e3",
         "semantic_eligibility": {
-          "extraction_modes": ["semantic", "hybrid-structural-semantic"],
-          "semantic_statuses": ["complete", "validated"],
+          "extraction_modes": [
+            "semantic",
+            "hybrid-structural-semantic"
+          ],
+          "semantic_statuses": [
+            "complete",
+            "validated"
+          ],
           "semantic_scope_required": true,
-          "inventory_directories": ["wiki/sources", "wiki/concepts", "wiki/entities", "wiki/syntheses"],
-          "inventory_root_files": ["wiki/identity-sensitive-re-for-delegated-agency.md"],
+          "inventory_directories": [
+            "wiki/sources",
+            "wiki/concepts",
+            "wiki/entities",
+            "wiki/syntheses"
+          ],
+          "inventory_root_files": [
+            "wiki/identity-sensitive-re-for-delegated-agency.md"
+          ],
           "inventory_digest_required": true,
           "failure_code": "GRAPH-SEMANTIC-INELIGIBLE"
         }
@@ -260,10 +273,10 @@
       "Evaluator retains residual domain-native judgment"
     ],
     "expected_verification": {
-      "attestation_view_pin": "91152c47665199a76605c9db9b091b185b59b617e1574ae82dc2e9eb2309cdfe",
+      "attestation_view_pin": "522242df35d21a5df244948fdc2b573fc9e28b0abebffc1706c504f9220e2807",
       "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
-      "pin_epoch": 5,
-      "pinned_at": "2026-07-19T02:53:40Z"
+      "pin_epoch": 7,
+      "pinned_at": "2026-07-21T04:28:33Z"
     }
   },
   "phase_values": [

@@ -391,7 +391,8 @@ def main() -> int:
     assert live["attestation_view_pin"] == expected["attestation_view_pin"]
     assert live["exemplar_view_pin"] == expected["exemplar_view_pin"]
     assert live["graph_sha256_provenance"] == hashlib.sha256((Path("B:/Agents")/model["corpus_binding"]["graph"]["path"]).read_bytes()).hexdigest()
-    assert len(live["seed_resolution_map"]) == 3 and len(live["unresolved_seed_ids"]) == len(model["exemplar_members"]) - 3 and live["warnings"]
+    assert len(live["seed_resolution_map"]) == len(model["exemplar_members"])
+    assert live["unresolved_seed_ids"] == [] and live["warnings"] == []
     assert {entry["role"] for entry in live["provenance"]} >= {"exemplar_source_page","surface_warrant_pdf","graph_provenance_only","register_profile"}
     bad_expected=copy.deepcopy(profile); bad_expected["domain_native_register"]["exemplar_members"][0]["pdf_sha256"]="0"*64
     try: policy.resolve_domain_native_register(bad_expected)
@@ -407,7 +408,7 @@ def main() -> int:
         assert any(f.code=="MF-POLICY-PROVENANCE" for f in result.findings)
         for key in ("seed_resolution_ties","unresolved_seed_ids","primary_communities","attestation_member_ids","exemplar_hash_lines","warnings"):
             ledger=milestone_fixture._materialize_native_project(project); binding=ledger["policy_bindings"]["reader_accessibility"]
-            binding["register_provenance"][key]={} if isinstance(binding["register_provenance"][key],dict) else []
+            binding["register_provenance"][key]={"__drift__": []} if isinstance(binding["register_provenance"][key],dict) else ["__drift__"]
             result=milestone_validator.validate_document(project,milestone_fixture._phase_document(ledger))
             assert any(f.code=="MF-POLICY-PROVENANCE" for f in result.findings), key
         for field in ("path", "sha256"):
