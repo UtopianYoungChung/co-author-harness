@@ -137,7 +137,7 @@ def case_lightweight_child_blocks() -> None:
     rc, p, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
                    stdin="run_scope: full_lifecycle\n"
                          "Run a Ph3 Evaluator pass, check_profile=refine, on "
-                         "manuscript/main.md. Write F7 evidence packets and update "
+                         "milestones/M4_complete_paper_draft.md. Write F7 evidence packets and update "
                          "reviews/ as usual. assignment_gate_receipt: reviews/r.json")
     check("legitimate declared full-lifecycle dispatch passes", rc == 0, f"rc={rc}")
 
@@ -249,12 +249,13 @@ def case_m4_blocks_while_m1_m3_unaccepted() -> None:
         (proj / "reviews").mkdir(parents=True)
         (proj / "research_notes").mkdir(parents=True)
         (proj / "manuscript").mkdir(parents=True)
+        (proj / "milestones").mkdir(parents=True)
         # Files EXIST for every milestone -- presence must not imply acceptance.
-        (proj / "research_notes" / "project_memo.md").write_text("memo\n", encoding="utf-8")
-        (proj / "research_notes" / "annotated_references.md").write_text("refs\n",
+        (proj / "milestones" / "M1_project_memo.md").write_text("memo\n", encoding="utf-8")
+        (proj / "milestones" / "M2_annotated_references.md").write_text("refs\n",
                                                                         encoding="utf-8")
-        (proj / "manuscript" / "outline.md").write_text("outline\n", encoding="utf-8")
-        (proj / "manuscript" / "main.md").write_text("# Essay\n\nBody.\n", encoding="utf-8")
+        (proj / "milestones" / "M3_argument_evidence_outline.md").write_text("outline\n", encoding="utf-8")
+        (proj / "milestones" / "M4_complete_paper_draft.md").write_text("# Essay\n\nBody.\n", encoding="utf-8")
         (proj / "reviews" / "assignment_contract.json").write_text(
             json.dumps({"status": "resolved"}), encoding="utf-8")
         ms = {}
@@ -331,7 +332,8 @@ def case_authorship_catches_non_generator_prose() -> None:
                   f"gate did not emit one: {log[-120:]}")
             return
         (proj / "manuscript").mkdir(parents=True, exist_ok=True)
-        (proj / "manuscript" / "main.md").write_text("# Essay\n\nProse nobody logged.\n",
+        (proj / "milestones").mkdir(parents=True, exist_ok=True)
+        (proj / "milestones" / "M4_complete_paper_draft.md").write_text("# Essay\n\nProse nobody logged.\n",
                                                      encoding="utf-8")
 
         # 1. prose, no log at all -> refused
@@ -359,7 +361,7 @@ def case_authorship_catches_non_generator_prose() -> None:
             [sys.executable, str(ROOT / "scripts" / "assignment_dispatch_preflight.py"),
              "--project-root", str(proj), "--receipt", str(receipt),
              "--expected-target", "M4", "--consumer", "planner",
-             "--write-path", "manuscript/main.md",
+             "--write-path", "milestones/M4_complete_paper_draft.md",
              "--write-path", "manuscript/revision_log.md"],
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         check("M4 receipt reserves for the exact writer paths", preflight.returncode == 0,
@@ -370,14 +372,14 @@ def case_authorship_catches_non_generator_prose() -> None:
         staged.mkdir(parents=True, exist_ok=True)
         staged_main = staged / "main.md"
         staged_log = staged / "revision_log.md"
-        staged_main.write_bytes((proj / "manuscript" / "main.md").read_bytes())
+        staged_main.write_bytes((proj / "milestones" / "M4_complete_paper_draft.md").read_bytes())
         staged_log.write_text(_ROUND_ENTRY, encoding="utf-8")
         plan = {
             "schema_version": "1.0.0", "receipt_id": record["receipt_id"],
             "reservation_id": record["reservation_id"], "target_milestone": "M4",
             "role": "generator", "writes": [
                 {"staged_path": staged_main.relative_to(proj).as_posix(),
-                 "target_path": "manuscript/main.md",
+                 "target_path": "milestones/M4_complete_paper_draft.md",
                  "sha256": hashlib.sha256(staged_main.read_bytes()).hexdigest()},
                 {"staged_path": staged_log.relative_to(proj).as_posix(),
                  "target_path": "manuscript/revision_log.md",

@@ -101,7 +101,7 @@ def main() -> int:
             raise AssertionError("existing target was modified")
 
         f9_target = root / "preexisting-f9"
-        f9 = f9_target / "reviews" / ".harness" / "milestones" / "M1_packet.json"
+        f9 = f9_target / "reviews" / ".harness" / "handoffs" / "M1_packet.json"
         f9.parent.mkdir(parents=True)
         f9.write_text('{"fabricated": true}\n', encoding="utf-8")
         result = _run(f9_target)
@@ -222,9 +222,10 @@ def main() -> int:
         result = _run(success)
         if result.returncode != 0 or result.stdout.count("BOOTSTRAPPED") != 1:
             raise AssertionError(f"fresh transactional bootstrap failed: {result.stdout}{result.stderr}")
-        milestone_dir = success / "reviews" / ".harness" / "milestones"
-        if not milestone_dir.is_dir() or list(milestone_dir.iterdir()):
-            raise AssertionError("successful bootstrap fabricated an F9 packet")
+        for namespace in ("handoffs", "snapshots"):
+            directory = success / "reviews" / ".harness" / namespace
+            if not directory.is_dir() or list(directory.iterdir()):
+                raise AssertionError(f"successful bootstrap fabricated {namespace} evidence")
         if list(root.glob(f".{success.name}.bootstrap-*")):
             raise AssertionError("successful bootstrap left a staging directory")
         directives = (success / "research_notes" / "directives.md").read_text(encoding="utf-8")

@@ -90,7 +90,7 @@ def main() -> int:
         phase_source = invalid_phase / "reviews" / "phase_state.json"
         def break_phase() -> None:
             document = json.loads(phase_source.read_text(encoding="utf-8"))
-            document["sections"]["manuscript/main.md"]["current_phase"] = "Ph99"
+            document["sections"]["milestones/M4_complete_paper_draft.md"]["current_phase"] = "Ph99"
             phase_source.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
         _must_fail_without_change(invalid_phase, break_phase, "canonically invalid phase state")
 
@@ -110,7 +110,7 @@ def main() -> int:
         if accepted_result.returncode != 0:
             raise AssertionError(accepted_result.stdout + accepted_result.stderr)
         accepted_view = (accepted / "reviews" / "lifecycle_state.md").read_text(encoding="utf-8")
-        if "| M1 | M2 | `reviews/.harness/milestones/M1_packet.json`" not in accepted_view:
+        if "| M1 | M2 | `reviews/.harness/handoffs/M1_packet.json`" not in accepted_view:
             raise AssertionError("accepted/current F9 evidence was not rendered")
         if accepted_source.read_bytes() != before:
             raise AssertionError("renderer mutated the authoritative ledger")

@@ -969,7 +969,7 @@ def case_findings_json_row_and_count_integrity() -> None:
             (proj / "reviews/phase_state.json").read_text(encoding="utf-8")
         )["milestone_framework"]["milestones"]["M5"]["artifacts"][0]["path"]
         row = {"check_id": "c1", "category": "style", "severity": "default",
-               "locator": "manuscript/main.md:1", "evidence": "e", "rule_ref": "r",
+               "locator": "milestones/M4_complete_paper_draft.md:1", "evidence": "e", "rule_ref": "r",
                "tentative": False}
 
         # counts lie about the findings
@@ -1528,7 +1528,7 @@ def case_empty_revision_log_is_not_authorship() -> None:
     """A filename is not evidence. An EMPTY log must not attribute prose."""
     with tempfile.TemporaryDirectory() as td:
         proj = Path(td) / "p"
-        _w(proj / "manuscript/main.md", "# Essay\n\nProse nobody wrote.\n")
+        _w(proj / "milestones/M4_complete_paper_draft.md", "# Essay\n\nProse nobody wrote.\n")
         _w(proj / "manuscript/revision_log.md", "")
         rc, p = run("authorship", "--project-root", str(proj))
         check("empty revision_log.md does not establish authorship",
@@ -1546,7 +1546,7 @@ def case_complete_round_entry_still_needs_a_receipt() -> None:
     """
     with tempfile.TemporaryDirectory() as td:
         proj = Path(td) / "p"
-        _w(proj / "manuscript/main.md", "# Essay\n\nProse.\n")
+        _w(proj / "milestones/M4_complete_paper_draft.md", "# Essay\n\nProse.\n")
         _w(proj / "manuscript/revision_log.md",
            "## Round 1 — 2026-07-17\n\n"
            "**Hypothesis:** h\n**Scope:** §1\n"
@@ -1650,7 +1650,7 @@ def case_preflight_only_rejection_is_target_mismatch() -> None:
             [sys.executable, str(ROOT / "scripts" / "assignment_dispatch_preflight.py"),
              "--project-root", str(proj), "--receipt", str(receipt),
              "--expected-target", "M2", "--consumer", "planner",
-             "--write-path", "research_notes/project_memo.md"],
+             "--write-path", "milestones/M1_project_memo.md"],
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
         check("preflight refuses an M1 receipt for an M2 dispatch "
@@ -1664,7 +1664,7 @@ def case_fabricated_revision_log_is_not_authorship() -> None:
     """Arbitrary prose in the log must not attribute the manuscript."""
     with tempfile.TemporaryDirectory() as td:
         proj = Path(td) / "p"
-        _w(proj / "manuscript/main.md", "# Essay\n\nProse nobody wrote.\n")
+        _w(proj / "milestones/M4_complete_paper_draft.md", "# Essay\n\nProse nobody wrote.\n")
         _w(proj / "manuscript/revision_log.md", "today I had a sandwich\n")
         rc, p = run("authorship", "--project-root", str(proj))
         check("fabricated revision_log content does not establish authorship",

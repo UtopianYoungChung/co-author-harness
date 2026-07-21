@@ -341,7 +341,7 @@ def _valid_ledger() -> dict[str, Any]:
             },
             "handoff": {
                 "status": "consumed" if milestone != "M5" else "ready",
-                "packet_path": f"reviews/.harness/milestones/{milestone}_packet.json",
+                "packet_path": f"reviews/.harness/handoffs/{milestone}_packet.json",
                 "packet_sha256": "2" * 64,
             },
             "dependency_state": "current",
@@ -717,7 +717,7 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
                 "approved_at": record["approval"]["approved_at"],
             },
         }
-        packet_path = f"reviews/.harness/milestones/{milestone}_packet.json"
+        packet_path = f"reviews/.harness/handoffs/{milestone}_packet.json"
         packet_hash, _ = _write_bound_file(
             project, packet_path, json.dumps(packet, indent=2) + "\n"
         )
