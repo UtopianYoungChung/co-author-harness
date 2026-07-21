@@ -23,6 +23,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -475,4 +476,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with semantic_graph_fixture_environment():
+        sys.exit(main())

@@ -11,6 +11,7 @@ import sys
 import tempfile
 
 from assignment_fixture_support import write_valid_contract
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from assignment_milestone_transaction import (
     MilestoneTransactionError, accept as accept_transaction,
     record as record_transaction,
@@ -419,4 +420,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

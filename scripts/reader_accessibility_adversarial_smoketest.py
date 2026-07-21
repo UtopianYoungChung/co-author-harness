@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import check8_h_prefilter as h
 import reader_accessibility_policy as policy
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 def rejects(mutator, needle: str) -> None:
@@ -166,4 +167,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

@@ -21,6 +21,7 @@ from milestone_framework_smoketest import (
     _write_real_case,
 )
 from pre_phase_advance_check import check_milestone_gate
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 def _project(root: Path) -> dict:
@@ -233,4 +234,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

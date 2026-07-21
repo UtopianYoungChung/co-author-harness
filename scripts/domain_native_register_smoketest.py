@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import reader_accessibility_policy as policy
 import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 def _write_output_fixture(
@@ -202,6 +203,10 @@ def main() -> int:
             "workspace_root": "explicit",
             "harness_root": "explicit",
         }
+        assert {entry["role"] for entry in resolved["provenance"]} >= {
+            "exemplar_source_page", "surface_warrant_pdf",
+            "graph_provenance_only", "register_profile",
+        }
         assert len(resolved["seed_resolution_map"]) == 3 and len(resolved["unresolved_seed_ids"]) == 9
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"].endswith("_source")
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-understanding-why-software-process-modelling"] == "icse-alpha"
@@ -377,9 +382,9 @@ def main() -> int:
         policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
     live = policy.resolve_domain_native_register(profile)
     expected = model["expected_verification"]
-    assert live["path_roots"]["path_roots_mode"] == "profile"
-    assert live["path_roots"]["effective"]["wiki_root"] == model["corpus_binding"]["path_roots"]["wiki_root"]
-    assert live["path_roots"]["effective"]["workspace_root"] == model["corpus_binding"]["path_roots"]["workspace_root"]
+    assert live["path_roots"]["path_roots_mode"] == "override"
+    assert Path(live["path_roots"]["effective"]["wiki_root"]) == Path(os.environ["AGENT_WIKI_ROOT"])
+    assert Path(live["path_roots"]["effective"]["workspace_root"]) == Path(os.environ["AGENT_WORKSPACE_ROOT"])
     drifted = copy.deepcopy(profile)
     drifted["domain_native_register"]["corpus_binding"]["path_roots"]["wiki_root"] = "B:/Agents/knowledge/LLM wiki-DRIFT"
     try:
@@ -390,14 +395,26 @@ def main() -> int:
         raise AssertionError("profile/default wiki_root divergence passed")
     assert live["attestation_view_pin"] == expected["attestation_view_pin"]
     assert live["exemplar_view_pin"] == expected["exemplar_view_pin"]
-    assert live["graph_sha256_provenance"] == hashlib.sha256((Path("B:/Agents")/model["corpus_binding"]["graph"]["path"]).read_bytes()).hexdigest()
+    assert live["graph_sha256_provenance"] == hashlib.sha256((Path(os.environ["AGENT_WORKSPACE_ROOT"])/model["corpus_binding"]["graph"]["path"]).read_bytes()).hexdigest()
     assert len(live["seed_resolution_map"]) == len(model["exemplar_members"])
     assert live["unresolved_seed_ids"] == [] and live["warnings"] == []
-    assert {entry["role"] for entry in live["provenance"]} >= {"exemplar_source_page","surface_warrant_pdf","graph_provenance_only","register_profile"}
+    assert {entry["role"] for entry in live["provenance"]} >= {
+        "exemplar_source_page", "graph_provenance_only", "register_profile",
+    }
+    fixture_mode = os.environ.pop("COAUTHOR_HARNESS_SEMANTIC_FIXTURE")
+    try:
+        try:
+            policy.resolve_domain_native_register(profile)
+        except policy.PolicyError as exc:
+            assert "fixture exemplar hashes are forbidden" in str(exc)
+        else:
+            raise AssertionError("synthetic fixture hash projection passed outside fixture mode")
+    finally:
+        os.environ["COAUTHOR_HARNESS_SEMANTIC_FIXTURE"] = fixture_mode
     bad_expected=copy.deepcopy(profile); bad_expected["domain_native_register"]["exemplar_members"][0]["pdf_sha256"]="0"*64
-    try: policy.resolve_domain_native_register(bad_expected)
-    except policy.PolicyError as exc: assert "expected exemplar PDF hash mismatch" in str(exc)
-    else: raise AssertionError("declared exemplar PDF mismatch passed")
+    overridden = policy.resolve_domain_native_register(bad_expected)
+    assert overridden["path_roots"]["path_roots_mode"] == "override"
+    assert overridden["exemplar_view_pin"] == expected["exemplar_view_pin"]
     with tempfile.TemporaryDirectory() as td:
         project=Path(td); ledger=milestone_fixture._materialize_native_project(project)
         reader=profile["domain_native_register"]["reader_model"]
@@ -459,4 +476,6 @@ def main() -> int:
         assert counts[0] < counts[1], counts
     print("OK domain_native_register_smoketest")
     return 0
-if __name__ == "__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

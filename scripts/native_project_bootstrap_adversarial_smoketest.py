@@ -17,6 +17,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import native_project_bootstrap as bootstrap_module
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -235,4 +236,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

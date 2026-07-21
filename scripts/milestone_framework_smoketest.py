@@ -20,6 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -2281,4 +2282,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with semantic_graph_fixture_environment():
+        sys.exit(main())

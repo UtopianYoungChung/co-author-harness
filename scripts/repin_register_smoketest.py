@@ -23,6 +23,7 @@ import milestone_framework_smoketest as milestone_fixture
 import milestone_framework_validate as milestone_validator
 import reader_accessibility_policy as policy
 import check8_h_prefilter
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 import reader_accessibility_candidates
 
 
@@ -1058,4 +1059,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

@@ -1815,4 +1815,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    from semantic_graph_fixture_support import semantic_graph_fixture_environment
+    with semantic_graph_fixture_environment():
+        sys.exit(main())

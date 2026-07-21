@@ -17,6 +17,7 @@ import check8_g_prefilter as g
 import milestone_framework_smoketest as fixture
 import milestone_framework_validate as mf
 import artefact_frontmatter_validate as frontmatter
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 def schema_const_paths(schema, root, path=()):
     paths=[]
@@ -258,4 +259,6 @@ def main() -> int:
 
     print("OK reader_accessibility_semantics_smoketest")
     return 0
-if __name__ == "__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

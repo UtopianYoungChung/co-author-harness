@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 from assignment_fixture_support import write_valid_contract
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from assignment_milestone_checkpoint_smoketest import (
     approval_input, checkpoint_input, converge_m4_fixture,
     m4_acceptance_policy_input, publish,
@@ -423,4 +424,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -184,4 +185,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with semantic_graph_fixture_environment():
+        raise SystemExit(main())

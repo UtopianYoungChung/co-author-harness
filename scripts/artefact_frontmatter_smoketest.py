@@ -6,6 +6,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,4 +42,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with semantic_graph_fixture_environment():
+        sys.exit(main())

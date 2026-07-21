@@ -1007,6 +1007,56 @@ def resolve_domain_native_register(
             "grounding": normalize_tier(grounding),
             "warrant_scope": _effective_warrant_scope(member),
         })
+    fixture_hash_lines = metadata.get("fixture_exemplar_hash_lines")
+    if fixture_hash_lines is not None:
+        if (
+            os.environ.get("COAUTHOR_HARNESS_SEMANTIC_FIXTURE") != "1"
+            or path_roots_meta["path_roots_mode"] != "override"
+            or graph_eligibility["semantic_scope"] != "synthetic-fixture"
+        ):
+            raise PolicyError(
+                "GRAPH-SEMANTIC-INELIGIBLE: fixture exemplar hashes are forbidden "
+                "outside an explicit synthetic fixture override"
+            )
+        if (
+            not isinstance(fixture_hash_lines, list)
+            or not fixture_hash_lines
+            or len(fixture_hash_lines) != len(set(fixture_hash_lines))
+            or any(not isinstance(line, str) for line in fixture_hash_lines)
+        ):
+            raise PolicyError(
+                "GRAPH-SEMANTIC-INELIGIBLE: fixture exemplar hashes are malformed"
+            )
+        parsed_fixture_lines: dict[str, tuple[str, str]] = {}
+        for line in fixture_hash_lines:
+            fields = line.split("\t")
+            if (
+                len(fields) != 3
+                or not fields[0]
+                or fields[0] in parsed_fixture_lines
+                or not grounding_admitted(fields[1])
+                or re.fullmatch(r"[0-9a-f]{64}", fields[2]) is None
+            ):
+                raise PolicyError(
+                    "GRAPH-SEMANTIC-INELIGIBLE: fixture exemplar hash row is invalid"
+                )
+            parsed_fixture_lines[fields[0]] = (normalize_tier(fields[1]), fields[2])
+        admitted_grounding = {
+            row["source_key"]: normalize_tier(row["grounding"])
+            for row in admitted_members
+        }
+        if (
+            set(parsed_fixture_lines) != set(admitted_grounding)
+            or any(
+                parsed_fixture_lines[key][0] != tier
+                for key, tier in admitted_grounding.items()
+            )
+        ):
+            raise PolicyError(
+                "GRAPH-SEMANTIC-INELIGIBLE: fixture exemplar hashes do not match "
+                "the admitted live source-page grounding set"
+            )
+        exemplar_lines = list(fixture_hash_lines)
     exemplar_pin = hashlib.sha256("\n".join(sorted(exemplar_lines, key=_utf8_key)).encode("utf-8")).hexdigest()
     graph_hash = graph_snapshot.sha256
     harness_profile = _contained(harness_root, "references/policies/reader_accessibility.v1.json")
