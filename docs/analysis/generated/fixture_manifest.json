@@ -2,221 +2,11 @@
  "cases": [
   {
    "case_id": "default",
-   "duration_s": 0.1,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/alias_parity_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 2.0,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/artefact_frontmatter_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 3.6,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/assignment_dispatch_preflight_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 26.5,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/assignment_milestone_checkpoint_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 4.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/assignment_process_gate_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 13.6,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/assignment_receipt_transaction_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 56.5,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/assignment_terminal_close_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.6,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/audit/test_audit.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/audit/test_citations.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 102.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/build_plugin_provenance_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.9,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/capability_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 1.8,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/centroid_service_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
    "duration_s": 0.2,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
-   "fixture_file": "scripts/command_surface_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.1,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/concept_introduction_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/contract_kernel_coherence_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/corpus_root_portability_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 1.0,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/d_style_profile_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 3.8,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/distribution_rights_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 20.1,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/domain_native_register_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 1.8,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/end_to_end_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.1,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/fixture_authority_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 17.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/full_run_contract_smoketest.py",
+   "fixture_file": "scripts/alias_parity_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
@@ -226,17 +16,57 @@
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
-   "fixture_file": "scripts/full_run_enforcement_surfaces_smoketest.py",
+   "fixture_file": "scripts/artefact_frontmatter_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
   {
    "case_id": "default",
-   "duration_s": 334.2,
+   "duration_s": 2.8,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
-   "fixture_file": "scripts/full_run_semantic_bypass_smoketest.py",
+   "fixture_file": "scripts/assignment_dispatch_preflight_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 12.4,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/assignment_milestone_checkpoint_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 3.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/assignment_process_gate_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 10.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/assignment_receipt_transaction_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 19.5,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/assignment_terminal_close_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
@@ -246,6 +76,176 @@
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
+   "fixture_file": "scripts/audit/test_audit.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/audit/test_citations.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 92.5,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/build_plugin_provenance_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.8,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/capability_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/centroid_service_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.2,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/command_surface_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/concept_introduction_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/contract_kernel_coherence_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.4,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/corpus_root_portability_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.7,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/d_style_profile_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 3.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/distribution_rights_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 6.0,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/domain_native_register_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.5,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/end_to_end_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/fixture_authority_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 8.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/full_run_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/full_run_enforcement_surfaces_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 89.6,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/full_run_semantic_bypass_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.4,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
    "fixture_file": "scripts/graph_authority_gate_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
@@ -282,7 +282,7 @@
   },
   {
    "case_id": "default",
-   "duration_s": 5.0,
+   "duration_s": 4.2,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
@@ -292,7 +292,7 @@
   },
   {
    "case_id": "default",
-   "duration_s": 12.0,
+   "duration_s": 9.0,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
@@ -302,7 +302,7 @@
   },
   {
    "case_id": "default",
-   "duration_s": 0.3,
+   "duration_s": 0.2,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
@@ -312,7 +312,7 @@
   },
   {
    "case_id": "default",
-   "duration_s": 168.1,
+   "duration_s": 57.4,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
@@ -322,201 +322,11 @@
   },
   {
    "case_id": "default",
-   "duration_s": 5.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/native_project_bootstrap_adversarial_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 3.5,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/native_project_bootstrap_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/output_economy_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.3,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/paragraph_hash_map_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/phase_notifications_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/phase_state_validator_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 38.9,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/pre_phase_advance_phase_state_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 3.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 43.8,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 19.0,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reflector_split_parity_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.2,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/release_source_parity_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 23.9,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 7.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 30.4,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/repin_register_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
    "duration_s": 0.1,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
-   "fixture_file": "scripts/retirement_sweep_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.2,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/routing_role_coherence_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.1,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 1.2,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "case_id": "default",
-   "duration_s": 0.2,
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/tests/test_resolve_includes.py",
+   "fixture_file": "scripts/milestone_path_contract_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
@@ -526,13 +336,213 @@
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
+   "fixture_file": "scripts/native_project_bootstrap_adversarial_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.2,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/native_project_bootstrap_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.2,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/output_economy_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.2,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/paragraph_hash_map_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/phase_notifications_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/phase_state_validator_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 8.5,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/pre_phase_advance_phase_state_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.6,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 13.2,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 4.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.3,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reflector_split_parity_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/release_source_parity_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 7.7,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 2.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 22.4,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/repin_register_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/retirement_sweep_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/routing_role_coherence_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.8,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 0.1,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/tests/test_resolve_includes.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "case_id": "default",
+   "duration_s": 1.9,
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
    "fixture_file": "scripts/token_budget_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
   {
    "case_id": "default",
-   "duration_s": 7.4,
+   "duration_s": 5.7,
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
@@ -542,332 +552,338 @@
   }
  ],
  "granularity": "suite",
- "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
- "runner_sha256": "d72c684bb96fee4d7edce5b05152c98218493394b8cb5ed5412b6e05369b9fcf",
+ "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+ "runner_sha256": "e92a5fb2bc52b9f041714f2dc4211f0de15f27fd0cd2bbe7eeece5da7d2cfdb1",
  "schema": "coauthor-fixture-manifest/v1",
  "suites": [
   {
    "case_count": 1,
    "fixture_file": "scripts/alias_parity_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "497d795176a6c49cb8efce5e1d4be5c32417401a79043f8b4111c540ce0a4e8f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/artefact_frontmatter_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "4ef9af3852dd00d47e3ff73ab7f13141cc884a1a1bd10dcc1d539c8e09fa90f1"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "50d43d65155a750502f7001fa9253d7f030caa2392a69a2b3c370277efb17c94"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_dispatch_preflight_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "42972ffe7b11eb7e5c9172a65b1f8651306e9e09f3566ce426cc0b213a89d4d1"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "fe643aa143fe0be59ec1f0c743606e8cf1ccf01ff41d2ca8c2428806de8b1da8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_milestone_checkpoint_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "dcaaa37c664eaef410adc9db47fc631a24b1f13dcfcb907e2e0ca57c19762cf0"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "ef38522c083b055a011664b6482cca7932c1b1f7c2c11380e53e8901ef41973f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_process_gate_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "5b90636b3b3db356608508efbd5461a7602a42db3ace244fe9a733fb0c7df483"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "4c902761b45cd1abcf5652689a1a3ac7e11146c2dc62f004f02ed4edf879fed8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_receipt_transaction_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "1703720af8d1d865658fd9a2cd07f95548405f6f84adbfe038ac121b2d468a7b"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "e4ab9f31bfa8b4e4b760ce30a3ad60c90aea5bf9d90f7f4a419ff6ff6dbb2f52"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_terminal_close_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "22e83e01c25da9e4f668aedad2533ec12dbaf85383a623ffe9847cc4118169e7"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "4cd01c072dacdfbd24a1fcaa539334a3c7ba7a384f6c792c4fe68e9900d55519"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/audit/test_audit.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "3c31323ecc0c79076153fe7a8530fdc7b7e5143f26e49b17353b608362ac9d1e"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/audit/test_citations.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "48eaaf87445df6b818a352cb5f90dc5b69b25f339669078ecb39f1fc7d2c1246"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/build_plugin_provenance_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "77d4aabf644f378be71fc48cc738214fec7c7d18f8185cfbde52a1b361e5ea67"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "a07d9b534c28b7f9fba67f264e6a884ce37fe9eac4318a48a6be901bdac42f60"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/capability_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "42aae0ed7922ef791a8faa0a7a3b86ef318fce0f97e79ea70d411c31bb90efe3"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/centroid_service_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "489ad413dd7b2e3c21755eb9919c2b86a6a4e9e396805294b4cab59a1de431f5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/command_surface_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "5680e5888d4a029cecef7f22aa65ec08092b6140c435d62ae750f4853356f4c0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/concept_introduction_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "23e34c137ed2b456c92541c67c64a3619d8826c865ab17cb630d50f9a3940ac1"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/contract_kernel_coherence_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "10f4adbcd4b51e0c839dc9d2008fe522ed1dd8e97af23a8f5d23a35216783cf0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/corpus_root_portability_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "a9270031c4a75bbf75ad140efc951817ce591760cfe853270c5f775cb089c2a8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/d_style_profile_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "5c9d388e056c68403e9acd0200309bde634518d4e931a8342b6399d00dc11542"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/distribution_rights_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "e62f36542ffd5824f0b9b64d3e127940f4c1c1901dbd1224b7c75de1a323161c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/domain_native_register_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "05d31f8056bdd49c28451402b51344e3c52aaf711aa7bb73bb5c0ba62922faef"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "83bee7476a6454382e0964f07d589d738f2c968dafc41617eb1a75bc7c33355e"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/end_to_end_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "1f39dd1474bc2c86bdaf1dedf0e03beee469617de74b45013509d39ad1dee3f8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/fixture_authority_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "cc9087e207ff9e388ee0d06094c5c0d82141f283cc15d1811ae63417ae6fedad"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "81ca5c0a5666de7dffedbd40a33e273b22091b5c6aba70a3bb9c22198afef32e"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "20ef9f7479bb786d6be319714cbabffd68e9b9a4597e859dc2800dd9e0423d66"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_enforcement_surfaces_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "02ae1b5e69fbe173762eda18ac5eafc811163cf72f1a2535b7883bd44cbab5b7"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_semantic_bypass_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "927dc8b2ec02b10f1323b99d77a036c1b14aa23e0d4a8ffa15ce185389fc028e"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "6680a9d96ff0ed4f3c9668441e2c589af8b81598b4d2a77ec37d55b29fbd6d4e"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/graph_authority_gate_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "41e22fc51161eb32d2d2365aedb679ffa1faec59b19e01dde9576f75a903e489"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/lifecycle_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "8b2bcd0e9463719ec44ef9cfa7f60e372d50615bcd0b13d6e0ddaa391c46a408"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "4f1a56f911b95145aedafc23ceb511ff538e4745472586be495f5c9349beb268"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/loader_compat_portability_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "b91dc95bb474c0908dffdd3028b128adf459caeaed9fc437c5b73d9d3a92e00f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/mcr_convergence_evidence_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "f1459133e80ff95d0c1a13e7e20422253dadd1cc290a7066f800bc30dd3056e5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_legacy_milestones_adversarial_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "69967114243862992f7b5961caf4c8934404bb58b6e2b37021a33bbbf8bfb6de"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "821996f1c9be50c59bf82919c8fe95e5280d794d9039ff0fbcf917f33f73c13c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_legacy_milestones_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "d87036ae2e3a1abaee36fe76ea75139267f7513402bfeb07d6b7f4591e968a33"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_v0150pre_stage_profile_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "3e61270020f9279d3738c8fad8aabe91782433a8ec43be3dad3905a1fd91d94c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/milestone_framework_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "c76a1bd122a6005c73748b5bc63389db82eee134acaaffe88007514d9f04c787"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "bcb7ec09cca4a83efbf09d03a0442e0b0ce207abf38787cd511f4d5ecec00b3d"
+  },
+  {
+   "case_count": 1,
+   "fixture_file": "scripts/milestone_path_contract_smoketest.py",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "d1a4cd54348bdf4a1ea89440f08a5466036c24bab2e01cedab32e4bb6780fff1"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/native_project_bootstrap_adversarial_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "8175815b9ac9cec9ad0f737e654c03a2031904bcc04132841519c50909d7372b"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "e7c41254283544579ccb302c07b6d883f9e50afb3a70661b4ee6eb78032c7fb0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/native_project_bootstrap_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "5bff9c3780d77c7bf0bfa7d803bd397325009493d16ac7310603f8a5dbdb2cdf"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "a0d16ef178b0dfdadabf82ea5bd172d83b2bd3ce39bac2fab1d3fe2bff0fa6e6"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/output_economy_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "cbc481b6814056599303b1b33e71c53f037d314e79ddfea62ea56e56e42ec3c5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/paragraph_hash_map_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "8bd733a1b9fffc0efc5175a5306c11898709b357c334787781558dd7fdc20f03"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/phase_notifications_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "2921c92fc3645f29464ff1ab25abf965c138a019a8f23535fd9d1bf4f5935122"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/phase_state_validator_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "ea91551fdf8a0ccd7cf8c13a1bfe53a5c6853a8423fc370ac9baa454c5e4168a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/pre_phase_advance_phase_state_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "c665a5c0b8220300444613954fb4d45fd152335ddee1e25dcc4333ea9fa4374f"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "ca6173aa5def42792a0533579502e8233187450c9c20ff3675e4143eec1c4a41"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "82b3b4bbdbe8ed63d862b24c1e0daddb096eee22ad401ad5cffd8d19499a113d"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "9f38fc2366ce7e9e83ba7f59731d64fa03d48957bb1c2e76b3a1023c242f5480"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "b0f47de8c24fdf167227d1976d19f5f265afffde05bbde1c6834ed5309f56b6a"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "37bc81a1bc9ccb7099139b8b82a28ff9032590a36452c54e1d3f3b4fa8ad6a54"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "7bedcf70b861de8aae749e3d1d3cd52f91ec52588f4918776aacd1a9cded5937"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "78a3051fa81753ca298429a7063b98bcc43a9fd224271b2c15e9a38b5705c553"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reflector_split_parity_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "05b6bc2e61b6d06b883d7b783a559e9326215c5cd0eddad1409429c1b2dc6b3c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/release_source_parity_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "cd59079673e9ee4d7ad0a1c3dbbf20b41bac0a9d92fb68adb00320d723fb946f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "88eacebb530e0a72c455640dbd4632c5ea6fc3a8d5d89d635c997f6818ca4e47"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "5bed89b5724d74481a056cb31ca4b2f38ec677220ea135cdbb08b0a01a9f1446"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "a928ba95996f889ffd1b9a6ee56f296d7ab688e35f22cf07d5163ba9c54de09b"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "6258b9cd6b1bb513b2d9162f973c1667179e5d628dcf7b22506be2593df7927a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/repin_register_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "50374f1f4f4d59de4bde789e678c2ab7854243973e40ee7b2d5d538406313afd"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "c1cd61ebd02df1648c426a1e8626a0464d47309535a70761da1041cf98bf076b"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/retirement_sweep_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "8b0812fb7268e4e67097abb5797ce8877797d096ed721f68216d6fae92305581"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/routing_role_coherence_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
-   "suite_sha256": "41e3e66219c82a50a6c3662fc52124763a3f726a63faa85cb76eed76265d05c7"
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
+   "suite_sha256": "4181368f9cc09916e2a5688f5991047605e958921715477b2416a8cc0d4005b2"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "f72adbcd122393f57b3216c57d1da1393ea4d3a0d0332b48bcbe383acfbeeba7"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "526599a5ab0f315a45ed01ea99481852baeb027629f02de546ad9d063f463229"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/tests/test_resolve_includes.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "b49795fe2a5c43351eae10d335d6a9e27fa12deab6483478904e780db658aabb"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/token_budget_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "f43db1e487efca3107d99381cc0dcb3bd79dd399502e40972fe8955d07780599"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/version_policy_smoketest.py",
-   "run_id": "374ca6d4-e3b6-4bd7-a17b-457e74e6830f",
+   "run_id": "c120c8fe-b588-4198-abca-a2eec560b0ce",
    "suite_sha256": "82e8825233de63a4fd857a683b826c1e80107273b5da1a605ffd4f40a3d57f4d"
   }
  ],
@@ -879,13 +895,13 @@
   "exclude_files": [
    "docs/analysis/generated/fixture_manifest.json"
   ],
-  "file_count": 507,
+  "file_count": 515,
   "mode": "packaging-authority-git-clean-filter-v1",
-  "post_sha256": "5654e0adc08aa2d9d03a7e152d783bf668f1d92b1a31142bac03f6a8c51c607f",
-  "pre_sha256": "5654e0adc08aa2d9d03a7e152d783bf668f1d92b1a31142bac03f6a8c51c607f",
+  "post_sha256": "d9dbebd2f8f6e873881c3e06dffcc6f2eb4ce9cc7fb694680c7e2481a45b03fb",
+  "pre_sha256": "d9dbebd2f8f6e873881c3e06dffcc6f2eb4ce9cc7fb694680c7e2481a45b03fb",
   "raw_mode": "checkout-raw-bytes-v1",
-  "raw_post_sha256": "76eff444b77d36a2dfee14af6147336e6df349a63ed22bb19bec354899610e60",
-  "raw_pre_sha256": "76eff444b77d36a2dfee14af6147336e6df349a63ed22bb19bec354899610e60"
+  "raw_post_sha256": "71703fdb1d37b09a52507265fa997650826f39df25d1a68ee7272a8c1a15b5e0",
+  "raw_pre_sha256": "71703fdb1d37b09a52507265fa997650826f39df25d1a68ee7272a8c1a15b5e0"
  },
  "written_by": "scripts/analysis/fixture_runner.py"
 }
