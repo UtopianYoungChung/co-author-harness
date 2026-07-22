@@ -255,10 +255,17 @@ def case_output_redirect_refusals() -> None:
                                encoding="utf-8", errors="replace", env=env)
             after = {p.relative_to(protected_dir) for p in protected_dir.rglob("*")}
             out = r.stdout + r.stderr
-            check(f"{label}: refuses (nonzero exit)", r.returncode != 0,
+            # Exactly the documented refusal code: a refusal that exits via an
+            # unrelated crash (e.g. a NameError in the refusal path) passed the
+            # old any-nonzero form while printing DEST-PROTECTED only inside
+            # the traceback -- measured 2026-07-22 on d_style_profile_check.
+            check(f"{label}: refuses with the documented code 4", r.returncode == 4,
                   f"rc={r.returncode}")
             check(f"{label}: names DEST-PROTECTED", "DEST-PROTECTED" in out,
                   out.strip().splitlines()[-1][:80] if out.strip() else "silent")
+            check(f"{label}: clean diagnostic, no traceback",
+                  "Traceback" not in out,
+                  out.strip().splitlines()[-1][:80] if "Traceback" in out else "")
             check(f"{label}: wrote nothing into the protected root",
                   after == before,
                   f"created {sorted(str(x) for x in (after - before))[:3]}")
