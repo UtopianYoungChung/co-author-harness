@@ -6,6 +6,32 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.1 — 2026-07-22
+
+### Producer boundary R2: clean refusal exit codes; runbook parity enforced
+
+**What.** Patch corrections found by supervisory review of R1.
+
+- `d_style_profile_check.py` refused protected destinations correctly but
+  exited 1 through a `NameError` traceback (missing `import sys`) instead of
+  the documented refusal code 4. Fixed; and
+  `destination_capability_smoketest.py`'s redirect-refusal cases now require
+  **exactly** exit 4 with a clean, traceback-free `[BLOCKER] DEST-PROTECTED`
+  diagnostic — an any-nonzero contract had let a crashing refusal pass.
+- `destination-coverage-check.py` now also fails unless BOTH root maintainer
+  runbooks (`CLAUDE.md` **and** `AGENTS.md`) list the coverage command;
+  `AGENTS.md` had been missed, and it is the runbook governing Codex and
+  other agents. Its own sha256 pin was refreshed through the `--pin`
+  workflow after the inspected change.
+
+**Why.** A refusal that crashes is not a contract, and a battery only some
+agents run is a battery that rots.
+
+**How to apply.** Redirectable-writer refusals must exit 4 cleanly; keep the
+two runbook battery lists in lockstep — the coverage check now enforces it.
+
+---
+
 ## v0.37.0 — 2026-07-22
 
 ### Producer boundary R1: machine-enforced writer coverage

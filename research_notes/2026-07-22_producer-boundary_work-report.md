@@ -124,6 +124,31 @@ by this revision:
    unapplied governance shipment presented for explicit user adjudication;
    it is not closed by this report.
 
+## Revision R2 — bounded corrections to R1 (2026-07-22, post-R1)
+
+1. **Clean refusal correction.** `d_style_profile_check.py` refused protected
+   destinations before writing but exited 1 through a `NameError` traceback
+   (missing `import sys`) rather than the documented refusal code 4. The
+   redirect-refusal regression was tightened first — every probed writer must
+   now exit **exactly 4** with a traceback-free `[BLOCKER] DEST-PROTECTED`
+   diagnostic (the prior any-nonzero contract let the crash pass) — the red
+   result was observed against a disposable synthetic tree (exit 1,
+   `NameError`, nothing written), and the smallest fix landed.
+2. **Runbook battery parity.** `destination-coverage-check.py` now fails
+   unless both root runbooks (`CLAUDE.md` and `AGENTS.md`) list the coverage
+   command; `AGENTS.md` had omitted it. Red observed, command added in the
+   same relative position, pin refreshed via the supported `--pin` workflow;
+   registry re-validates 34 writers / 24 guarded / 0 unclassified / 0 drifted.
+3. **Blocker 2 shipment superseded.** The earlier sealed run
+   (`run-20260722T195308Z-87a2a5fb`) is preserved unmodified and superseded
+   by a newly sealed run whose change record (a) removes the false claim that
+   the `new-research-strand-note` evidence refresh is "rejectable
+   independently" — it is bundled into the final `shadow_events.yaml`
+   artifact and is not severable at path-and-hash application granularity —
+   and (b) ships the consumer-inventory evidence artifact the prior record
+   referenced but did not contain. Blocker 2 remains a proposal awaiting
+   explicit user acceptance and root-governance application.
+
 ## 8. Where everything lives
 
 - Closeout shipment (human + machine + evidence): `B:\Agents\outputs\co-author-harness\staging\producer-boundary-closeout\run-20260722T185523Z-6f0fd411\`
