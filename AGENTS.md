@@ -15,6 +15,22 @@ first prove its tip is reachable from `main` so no committed history is lost.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
+**Producer boundary (binding, 2026-07-22).** The harness is a producer, not a
+decision maker. For any destination under a governed workspace root outside
+this package (in this workspace: `research/`, `knowledge/`, `governance/`, and
+every other governed surface), the harness reads only explicitly allowlisted
+inputs and returns path-and-hash-bounded shipments; it never writes,
+registers, promotes, adjudicates, or updates authoritative state there
+(contract: `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing:
+`governance/output-routing/`). Writable destinations are exactly this package
+root and the governed staging lane
+`outputs/co-author-harness/staging/<work-id>/<run-id>/`. Script writers
+resolve destinations through `scripts/destination_capability.py`
+(`DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without discoverable
+workspace governance). The same prohibition binds agent-directed writes made
+with general file tools; never infer authority from a harness verdict, phase
+label, terminal PASS, or artifact quality.
+
 *Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../ROOT_ARCHITECTURE_INDEX.md`.
 
 ---

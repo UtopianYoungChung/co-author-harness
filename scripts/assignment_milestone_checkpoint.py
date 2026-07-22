@@ -11,6 +11,7 @@ from assignment_milestone_transaction import (
     MilestoneTransactionError, accept, begin, derive, record,
     rebind_reader_accessibility, recover_claim,
 )
+from destination_capability import DestinationRefused
 
 
 def main() -> int:
@@ -50,6 +51,11 @@ def main() -> int:
             archive = rebind_reader_accessibility(args.project_root); print(f"REBOUND {archive}")
         else:
             archived = recover_claim(args.project_root, args.acknowledgement); print(f"RECOVERED {archived}")
+    except DestinationRefused as exc:
+        # Producer boundary: the destination is illegal regardless of domain
+        # state, so this refusal outranks every transaction-level check.
+        print(f"MISCONFIGURED\n[BLOCKER] {exc}")
+        return 4
     except MilestoneTransactionError as exc:
         print(f"MISCONFIGURED\n[BLOCKER] {exc.code}: {exc.message}")
         return 4

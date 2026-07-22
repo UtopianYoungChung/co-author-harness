@@ -296,6 +296,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reviewed-manifest", type=Path)
     parser.add_argument("--manifest", type=Path)
     args = parser.parse_args(argv)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        parser.exit(4, f"[BLOCKER] {exc}\n")
     try:
         if args.dry_run:
             print(json.dumps(build_plan(args.project_root), indent=2, ensure_ascii=False))

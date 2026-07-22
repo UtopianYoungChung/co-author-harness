@@ -700,6 +700,12 @@ def main() -> int:
     receipt_mode.add_argument("--verify-receipt", type=Path)
     args = parser.parse_args()
     project = args.project_root.resolve()
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(project)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
 
     if args.verify_receipt is not None:
         if args.stage is not None or args.target_milestone is not None or args.exemplar_conditioning:

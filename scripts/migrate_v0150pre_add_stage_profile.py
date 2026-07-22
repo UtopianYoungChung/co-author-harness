@@ -95,6 +95,13 @@ def main(argv: list[str] | None = None) -> int:
                         help="Print the migrated doc to stdout, do not write")
     args = parser.parse_args(argv)
 
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.path)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
+
     if not args.path.is_file():
         print(f"[BLOCKER] not a file: {args.path}", file=sys.stderr)
         return 2

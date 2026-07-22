@@ -1,5 +1,19 @@
 # Assignment-Derived Milestone Process
 
+## 0. Producer boundary (binding, 2026-07-22)
+
+Milestone transactions are production bookkeeping, never research authority.
+Every transaction verb (`begin`, `record`, `accept`, `rebind-reader-policy`,
+`recover`) and every writer CLI resolves its project root through
+`scripts/destination_capability.py` and refuses a destination under a governed
+workspace root outside the harness package with `DEST-PROTECTED`. Work whose
+consumer is the research tree runs in the governed staging lane
+(`outputs/co-author-harness/staging/<work-id>/<run-id>/`) and reaches its
+consumer only as a path-and-hash-bounded shipment adjudicated under
+`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`. No milestone status,
+gate PASS, or handoff written by the harness implies acceptance, registration,
+promotion, or permission to mutate a consumer tree.
+
 ## 1. Binding rule
 
 Before drafting any academic deliverable, the Planner must read the controlling assignment, advisor brief, venue call, or current user instruction in full and resolve `reviews/assignment_contract.json`. A filename, prior harness default, or existing milestone label is not a substitute for reading the source. If the source is unavailable or the contract is unresolved, drafting is blocked rather than guessed.

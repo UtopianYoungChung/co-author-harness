@@ -432,6 +432,13 @@ def main() -> int:
     parser.add_argument("--allow-legacy-graph-confidence", required=False, help="Allow compatibility normalization for legacy numeric/null graph confidence values (true/false)")
     args = parser.parse_args()
 
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
+
     try:
         stamp = _parse_stamp(args.date)
     except GateUsageError as exc:

@@ -15,8 +15,11 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
 - Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
   fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
-- Automatic callers treat the deferred result as a visible non-blocking
-  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+- There are no automatic callers (producer boundary, 2026-07-22): canonical
+  Wiki and lessons promotion run only on explicit user instruction, and any
+  canonical Wiki change is a separately adjudicated shipment to Wiki
+  governance. A persistent `wiki_writes` flag is configuration, not current
+  promotion authority. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
 *Canonical schema contract for `reviews/*.md` artefact frontmatter. Introduced at plugin v0.7.4 under proposal P-3 (Structured-data-first artefact authoring). Amended at v0.8.0 P2.1b per `proposals/v0.8.0_upgrade_architecture.md` — F1 register + routing, F4 `demoted_check_advisories`, F6 `check_profile` / stability-budget field trio + `threshold_version`. Read by `scripts/artefact_frontmatter_validate.py` and by the P-2 stability sub-mode as the hash-checkable inheritance substrate.*

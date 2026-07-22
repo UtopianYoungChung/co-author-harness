@@ -27,8 +27,11 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
 - Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
   fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
-- Automatic callers treat the deferred result as a visible non-blocking
-  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+- There are no automatic callers (producer boundary, 2026-07-22): canonical
+  Wiki and lessons promotion run only on explicit user instruction, and any
+  canonical Wiki change is a separately adjudicated shipment to Wiki
+  governance. A persistent `wiki_writes` flag is configuration, not current
+  promotion authority. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — judgment-pass structure, SAFEGUARD invocation + Ph4 severity floor escalation, convergence metric, [Ph3-STALE], Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.4 (Ph4 charter; pre-MCR deep gate), 7 (EG-1, EG-7), 8 (G.4 sign-off), 9 (MCR)`; `references/MASTER_research_and_paper_guidelines.md §G.4`; `references/EXTERNAL_VERIFIERS.md`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 6.1`; `skills/run-phase-3/SKILL.md §4.5`; `agents/reflector-closeout.md`; `skills/ingest-m5-to-wiki/SKILL.md`; `phase_notifications.yaml §§1, 7`.
@@ -48,7 +51,7 @@ Ph4 is the **Finalize & Close** stage of the Lifecycle-Phase Ladder — the term
 1. **External verifiers move from optional to REQUIRED.** Zotero MCP citation probe, Scholar Gateway render-contract audit, Coupling E.2 overlay, and register-specific passes are gating at Ph4 (advisory at Ph3).
 2. **G.4 sign-off artefact is mandatory.** Row 8.5 (SAFEGUARD layer outcome) must be CLEAN; a partial G.4 blocks ship.
 3. **Reflector-full runs at close-out.** The full Reflector pipeline runs — Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons synthesis, Phase 4 skill-development proposals (formalised by the Planner via the `plugin_update_proposed_by_planner` trigger), Phase 5 memory updates (`lessons_learned.md`, `DO_NOT_DISTURB.md`).
-4. **Coupling D M5 wiki ingest (deferred).** At Ph4 close, SK-17 `ingest-m5-to-wiki` is attempted but currently returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null`. Do **not** write an `m5_wiki_ingest` success trigger. Phase 4 completion does not depend on Wiki write availability.
+4. **Coupling D M5 wiki ingest (explicit-invocation only).** Ph4 close does **not** auto-attempt SK-17 `ingest-m5-to-wiki` (producer boundary, 2026-07-22). If the user explicitly invokes it, it returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null`, and a canonical Wiki change proceeds only as a separately adjudicated shipment to Wiki governance. Do **not** write an `m5_wiki_ingest` success trigger. Phase 4 completion does not depend on Wiki write availability.
 
 The v0.7.0 structural change from v0.6.0 is the **MCR replaces the LCR** (the renamed admission gate), the **Ph4_ready → Ph3_converged enum rename**, and the **[Ph3-STALE] block** on MCR admission. At v0.8.0 (β-P-9a), MCR admission adds **`pre_mcr_deep_pass_completed: true` on every in-scope section** before the Planner may assemble a passing MCR (`PHASE_PROTOCOL.md §3.4`, `phase_state_schema.md` §2.1).
 

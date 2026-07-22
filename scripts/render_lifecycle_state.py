@@ -275,6 +275,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--check", action="store_true", help="Detect missing or stale output without writing.")
     args = parser.parse_args(argv)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     try:
         project_root = _safe_root(args.project_root)
         expected = render_bytes(project_root, args.generated_at)

@@ -1,6 +1,18 @@
 # AGENT ORCHESTRATION — Four-Agent Architecture
 
+## Producer boundary (binding, 2026-07-22)
 
+Every agent in this system is a **producer, not a decision maker**. No agent —
+via script or general file tool — creates, modifies, moves, renames, or
+deletes a path under a governed workspace root outside the harness package
+(`research/`, `knowledge/`, `governance/`, and every other governed surface).
+Writable destinations are exactly the harness package root and the governed
+staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`; script
+writers enforce this through `scripts/destination_capability.py`
+(`DEST-PROTECTED` / `DEST-UNGOVERNED`). Work destined for a governed consumer
+leaves the harness only as a path-and-hash-bounded shipment adjudicated under
+`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; no phase label,
+verdict, terminal PASS, or artifact quality implies authority to apply it.
 
 ## Wiki write deferral (Research Truth Phase 0/1)
 
@@ -15,8 +27,11 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
 - Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
   fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
-- Automatic callers treat the deferred result as a visible non-blocking
-  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+- There are no automatic callers (producer boundary, 2026-07-22): canonical
+  Wiki and lessons promotion run only on explicit user instruction, and any
+  canonical Wiki change is a separately adjudicated shipment to Wiki
+  governance. A persistent `wiki_writes` flag is configuration, not current
+  promotion authority. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
 **Purpose.** This file describes the four-agent system that operates on manuscripts governed by the Research and Academic Paper Writing Package. It defines roles, permissions, the dispatch loop, and user checkpoints.

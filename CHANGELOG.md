@@ -6,6 +6,59 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.36.0 — 2026-07-22
+
+### Producer boundary: destination-capability guard, staging lane, shipment_only mode
+
+**What.** The harness is now structurally a producer, not a decision maker,
+for every governed workspace consumer (constitutional basis:
+`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`, binding 2026-07-22).
+
+- `scripts/destination_capability.py` — single write-destination chokepoint:
+  harness package and the governed staging lane
+  (`outputs/co-author-harness/staging/<work-id>/<run-id>/`) are writable;
+  any other destination under a governed root refuses `DEST-PROTECTED`; no
+  discoverable workspace governance fails closed `DEST-UNGOVERNED` for all
+  non-package writes. All 5 milestone transaction verbs, 3 receipt-transaction
+  entries, and 13 writer CLIs are wired through it; the additive-only
+  `COAUTHOR_EXTRA_GOVERNED_ROOTS` test hook can never un-protect a real root.
+- `scripts/staging_run.py` + `references/schemas/shipment_manifest.schema.json`
+  — staging-run lifecycle: immutable input snapshots, exclusive byte-verified
+  `effect_scope: proposal_only` shipment emission, tamper detection,
+  consumer-side application-receipt recognition (absence means NOT applied).
+- Authority mode `shipment_only` (orthogonal to assignment profile and run
+  scope; operating mode stays reserved-empty): `derive` reports
+  `authority_mode`; staging-lane events, genesis bootstrap events, and F9
+  handoffs carry `effect_scope: proposal_only` (additive optional schema
+  fields; historical evidence remains valid; direct-local output unchanged).
+- Staging revisability: post-convergence M4 and recorded M5 (FINAL) candidates
+  re-record freely in staging; the superseding `deliverable_recorded` event
+  carries a `previous_content` binding, names `candidate_superseded`, and
+  discloses the research-master revalidation advisory the harness never
+  applies. M5 staging deliverables are content-addressed snapshots so
+  historical event bindings stay byte-valid. Direct-local projects keep the
+  historical AMC-ORDER refusals.
+- Wiki: automatic canonical-Wiki/lessons-promotion attempt wiring removed
+  across skills/agents/references; canonical Wiki changes are separately
+  adjudicated shipments to Wiki governance; `wiki_writes` is configuration,
+  not promotion authority.
+- Binding producer-boundary duty declarations landed in the harness root
+  `CLAUDE.md`/`AGENTS.md`, `AGENT_ORCHESTRATION.md`, and
+  `ASSIGNMENT_MILESTONE_PROCESS.md` §0.
+
+**Why.** The July 22 shipment boundary gives the harness zero direct-write
+authority under the research root; code, contracts, and instructions now
+enforce what the constitution declares, with the temporary C→E functional gap
+(research-rooted direct milestone writes refuse until staging-lane runs are
+adopted) accepted as correct boundary enforcement.
+
+**How to apply.** Run research-facing work in a staging-lane project
+(`shipment_only` derives automatically); return `shipment/MANIFEST.json` to
+research governance for adjudication; never treat any harness verdict, phase
+label, terminal PASS, or `accepted` status as research authority.
+
+---
+
 ## v0.35.0 — 2026-07-21
 
 ### Semantic register stability and closed rebind loop

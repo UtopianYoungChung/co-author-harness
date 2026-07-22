@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from destination_capability import guard_project_root
+
 
 STATE_NAMES = ("ready", "reserved", "consumed", "invalidated")
 PLAN_FIELDS = {
@@ -307,6 +309,7 @@ def reserve_receipt(
     requested_paths: list[str],
 ) -> tuple[dict[str, Any], Path]:
     project = project.resolve()
+    guard_project_root(project)
     with _transaction_claim(project):
         ready = _require_state_path(project, receipt, "ready")
         record = _verify_live(project, ready)
@@ -608,6 +611,7 @@ def commit_receipt(
     fail_after_consume: bool = False,
 ) -> tuple[Path, Path]:
     project = project.resolve()
+    guard_project_root(project)
     with _transaction_claim(project):
         reserved = _require_state_path(project, receipt, "reserved")
         record = _verify_live(project, reserved)
@@ -700,6 +704,7 @@ def commit_receipt(
 
 def invalidate_receipt(project: Path, receipt: Path) -> Path:
     project = project.resolve()
+    guard_project_root(project)
     with _transaction_claim(project):
         supplied = receipt.resolve()
         candidates = {

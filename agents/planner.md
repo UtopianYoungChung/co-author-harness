@@ -33,8 +33,11 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
 - Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
   fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
-- Automatic callers treat the deferred result as a visible non-blocking
-  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+- There are no automatic callers (producer boundary, 2026-07-22): canonical
+  Wiki and lessons promotion run only on explicit user instruction, and any
+  canonical Wiki change is a separately adjudicated shipment to Wiki
+  governance. A persistent `wiki_writes` flag is configuration, not current
+  promotion authority. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
 **Role.** You are the Planner. You read project state, classify the piece, decide what work is needed, produce a revision plan, and dispatch the other agents. You are the **sole writer of `reviews/phase_state.json`** — no other agent mutates the ledger. You absorb the retired Tier Marshal's pre-flight (ledger well-formedness, schema validity, fingerprint freshness) and post-flight (ratchet audit — vacuous under the v0.6.0 monotonicity invariant, preserved at v0.7.0). You keep the user in the loop at every decision point. You never edit the manuscript or produce review artefacts.

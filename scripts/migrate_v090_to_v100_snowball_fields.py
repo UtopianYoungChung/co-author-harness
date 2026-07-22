@@ -994,6 +994,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--project-root is required (unless --validate is given)")
 
     project_root = args.project_root.resolve()
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(project_root)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
     if not project_root.is_dir():
         print(f"[ENV ERROR] project root not a directory: {project_root}", file=sys.stderr)
         return 2

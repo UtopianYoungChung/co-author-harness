@@ -26,6 +26,7 @@ from assignment_process_gate import (
     derive_released_export_path,
     verify_receipt,
 )
+from destination_capability import guard_project_root
 from milestone_framework_validate import validate_document, validate_gate
 from milestone_path_contract import handoff_path, snapshot_path
 
@@ -264,6 +265,27 @@ def _framework(state: dict[str, Any]) -> dict[str, Any]:
     return framework
 
 
+_ACTIVE_AUTHORITY_MODE = "direct_local"
+
+
+def _authority_mode_for(project: Path) -> str:
+    """shipment_only inside the governed staging lane; direct_local elsewhere.
+
+    Producer-boundary Phase E: staging is production territory (freely
+    revisable, proposal-only stamping); everywhere else keeps the historical
+    direct-local transaction semantics unchanged. Assignment profile, run
+    scope, and (reserved-empty) operating mode are separate dimensions.
+    """
+    from destination_capability import classify
+    return "shipment_only" if classify(project) == "staging" else "direct_local"
+
+
+def _enter_authority_mode(project: Path) -> str:
+    global _ACTIVE_AUTHORITY_MODE
+    _ACTIVE_AUTHORITY_MODE = _authority_mode_for(project)
+    return _ACTIVE_AUTHORITY_MODE
+
+
 def _append_event(
     framework: dict[str, Any], event_type: str, milestone: str, at: str, reason: str,
     *, authority: str | None = None, evidence_path: str | None = None,
@@ -274,7 +296,7 @@ def _append_event(
         raise MilestoneTransactionError("AMC-PHASE-STATE", "milestone event stream is invalid")
     if events and at < str(events[-1].get("timestamp", "")):
         raise MilestoneTransactionError("AMC-TIMESTAMP", "event time must not precede the latest milestone event")
-    events.append({
+    row = {
         "sequence": len(events) + 1,
         "event_type": event_type,
         "timestamp": at,
@@ -287,7 +309,12 @@ def _append_event(
         "evidence_sha256": evidence_sha256,
         "caused_by_sequence": None,
         "bindings": bindings or [],
-    })
+    }
+    if _ACTIVE_AUTHORITY_MODE == "shipment_only":
+        # Producer boundary: everything written from the staging lane is a
+        # production proposal, never research authority.
+        row["effect_scope"] = "proposal_only"
+    events.append(row)
 
 
 def _validate_prospective(project: Path, state: dict[str, Any]) -> None:
@@ -331,6 +358,8 @@ def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
     import reader_accessibility_policy as policy
 
     project = project.resolve()
+    guard_project_root(project)
+    _enter_authority_mode(project)
     at = _timestamp(at)
     request_path = project / "reviews" / "repin_rebind_request.json"
     profile_path = policy.DEFAULT_PROFILE.resolve()
@@ -495,8 +524,10 @@ def derive(project: Path) -> dict[str, Any]:
             action = "revise"
         else:
             action = "close" if milestone == "M5" else "accept"
-        return {"status": "READY", "milestone": public, "action": action}
-    return {"status": "COMPLETE", "milestone": None, "action": None}
+        return {"status": "READY", "milestone": public, "action": action,
+                "authority_mode": _authority_mode_for(project)}
+    return {"status": "COMPLETE", "milestone": None, "action": None,
+            "authority_mode": _authority_mode_for(project)}
 
 
 def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
@@ -516,13 +547,14 @@ def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
 
 
 def begin(project: Path, milestone: str, at: str | None = None) -> None:
-    project = project.resolve(); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     ledger_milestone = PUBLIC_TO_LEDGER.get(milestone)
     if ledger_milestone not in PREDECESSOR:
         raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, M4, or FINAL")
     with transaction_claim(project, f"begin:{milestone}"):
         path, state, prehash = _load_state(project)
-        if derive(project) != {"status": "READY", "milestone": milestone, "action": "begin"}:
+        derived = derive(project)
+        if (derived.get("status"), derived.get("milestone"), derived.get("action")) != ("READY", milestone, "begin"):
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived begin action")
         proposed = copy.deepcopy(state); framework = _framework(proposed)
         predecessor = PREDECESSOR[ledger_milestone]; prior = framework["milestones"][predecessor]
@@ -710,7 +742,7 @@ def record(
     project: Path, milestone: str, receipt: Path, checkpoint_path: Path,
     at: str | None = None, *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
@@ -719,6 +751,18 @@ def record(
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         expected = derive(project)
         allowed_actions = {"draft", "revise"} if milestone == "M4" else ({"finalize"} if milestone == "M5" else {"draft"})
+        supersedes_candidate = False
+        if _ACTIVE_AUTHORITY_MODE == "shipment_only":
+            # Producer-boundary Phase F: staging production is freely
+            # revisable. A post-convergence M4 or recorded M5 candidate may be
+            # re-recorded; the re-record supersedes the prior candidate with
+            # proposal-only events. The harness reports that prior convergence
+            # or handoff evidence would need research-master revalidation --
+            # it never applies that revalidation or any phase regression.
+            staging_extra = {"accept"} if milestone == "M4" else ({"close"} if milestone == "M5" else set())
+            if expected.get("action") in staging_extra:
+                supersedes_candidate = True
+                allowed_actions = allowed_actions | staging_extra
         if expected.get("milestone") != public_milestone or expected.get("action") not in allowed_actions:
             raise MilestoneTransactionError("AMC-ORDER", f"{public_milestone} is not the derived record action")
         receipt_record, result_record, relative, deliverable_path, digest, source_expectations = _receipt_result(
@@ -748,8 +792,12 @@ def record(
         artifact_relative = relative
         snapshot_created = False
         snapshot_bytes: bytes | None = None
-        if milestone == "M4":
-            artifact_relative = snapshot_path("M4", digest)
+        if milestone == "M4" or (milestone == "M5" and _ACTIVE_AUTHORITY_MODE == "shipment_only"):
+            # M4 always; M5 additionally in staging mode: content-addressed
+            # snapshots keep every historical event binding byte-valid across
+            # free staging re-records (the live FINAL path mutates; snapshots
+            # never do).
+            artifact_relative = snapshot_path(milestone, digest)
             artifact_path = project / Path(*PurePosixPath(artifact_relative).parts)
             snapshot_bytes = deliverable_path.read_bytes()
         proposed = copy.deepcopy(state); proposed_framework = _framework(proposed); target = proposed_framework["milestones"][milestone]
@@ -822,7 +870,28 @@ def record(
                 "cycle_id": checkpoint["policy_evidence"]["cycle_id"],
             })
         artifact_binding = {"binding_type": "artifact", "path": artifact_relative, "sha256": digest}
-        _append_event(proposed_framework, "deliverable_recorded", milestone, at, f"Planner recorded the consumed scoped-writer {milestone} deliverable.", bindings=[artifact_binding])
+        deliverable_reason = f"Planner recorded the consumed scoped-writer {milestone} deliverable."
+        deliverable_bindings = [artifact_binding]
+        if supersedes_candidate:
+            # The supersession record is this event itself: the prior candidate
+            # rides along as a previous_content binding (the binding type that
+            # exists for exactly this), and the reason discloses both the
+            # candidate_superseded fact and the revalidation advisory. The
+            # reserved reopening vocabulary (milestone_reopened /
+            # downstream_stale) belongs to accepted-milestone lifecycles and is
+            # deliberately NOT used for staging candidate supersession.
+            prior = next((row for row in framework["milestones"][milestone].get("artifacts", [])
+                          if isinstance(row, dict) and row.get("role") == "deliverable"), None)
+            if isinstance(prior, dict):
+                deliverable_bindings.append(
+                    {"binding_type": "previous_content", "path": prior["path"], "sha256": prior["sha256"]})
+            deliverable_reason += (
+                f" Staging re-record: prior {public_milestone} candidate candidate_superseded;"
+                " prior convergence or handoff evidence would require research-master"
+                " revalidation, which the harness does not apply; proposal-only"
+                " production bookkeeping with no research-master force."
+            )
+        _append_event(proposed_framework, "deliverable_recorded", milestone, at, deliverable_reason, bindings=deliverable_bindings)
         feedback_bindings = [{"binding_type": "feedback", "path": row["source_path"], "sha256": row["source_sha256"]} for row in checkpoint["feedback_records"]]
         _append_event(proposed_framework, "feedback_recorded", milestone, at, f"Planner recorded current {milestone} feedback provenance.", bindings=feedback_bindings)
         _append_event(proposed_framework, "feedback_adjudicated", milestone, at, f"Planner recorded non-pending {milestone} feedback dispositions.", bindings=feedback_bindings)
@@ -1027,7 +1096,7 @@ def accept(
     terminal_evidence_path: Path | None = None,
     *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
@@ -1121,6 +1190,10 @@ def accept(
         target["status"] = "accepted"
         target["approval"] = {"status": "approved", "authority": approval["authority"], "evidence_path": approval_relative, "approved_at": approval["approved_at"]}
         packet = _handoff_packet(proposed, milestone, checkpoint, approval, approval_relative)
+        if _ACTIVE_AUTHORITY_MODE == "shipment_only":
+            # Staging F9 is a proposed handoff, never an authoritative
+            # research-master handoff (HARNESS_SHIPMENT_BOUNDARY.md).
+            packet["effect_scope"] = "proposal_only"
         packet_relative = handoff_path(LEDGER_TO_PUBLIC[milestone])
         packet_path = project / Path(*PurePosixPath(packet_relative).parts)
         packet_bytes = _json_bytes(packet); packet_sha = hashlib.sha256(packet_bytes).hexdigest()
@@ -1166,7 +1239,7 @@ def accept(
 
 
 def recover_claim(project: Path, acknowledgement: str) -> Path:
-    project = project.resolve(); root = _ensure_control_tree(project)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); root = _ensure_control_tree(project)
     if acknowledgement != "inspected-milestone-state-and-journal":
         raise MilestoneTransactionError("AMC-RECOVERY-ACK", "exact acknowledgement is required after inspecting phase_state.json and lifecycle journal")
     claim = root / "claims" / "transaction.lock"

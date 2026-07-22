@@ -349,10 +349,17 @@ def bootstrap(
             f"# Final Paper — {project_name}\n\n**Milestone:** M5 (Final Paper)\n"
             "**Status:** Not started\n\nNo final paper has been reviewed or accepted at bootstrap.\n",
         )
+        phase_state_doc = _phase_state(project_name, created_at, framework)
+        from destination_capability import classify
+        if classify(project_root) == "staging":
+            # Producer boundary: a staging-lane project's genesis event is
+            # production bookkeeping, proposal-only like every later event.
+            for row in phase_state_doc["milestone_framework"]["events"]:
+                row["effect_scope"] = "proposal_only"
         _write(
             staging,
             "reviews/phase_state.json",
-            json.dumps(_phase_state(project_name, created_at, framework), indent=2, ensure_ascii=False)
+            json.dumps(phase_state_doc, indent=2, ensure_ascii=False)
             + "\n",
         )
         _validate_staging(staging, validator_runner)
@@ -376,6 +383,11 @@ def main(argv: list[str] | None = None) -> int:
         default=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
     )
     args = parser.parse_args(argv)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        parser.exit(4, f"[BLOCKER] {exc}\n")
     try:
         bootstrap(
             args.project_root,

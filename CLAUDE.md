@@ -12,6 +12,16 @@
 
 ---
 
+## Producer boundary (binding, 2026-07-22)
+
+The harness is a **producer, not a decision maker**. For any destination under a governed workspace root outside this package (in this workspace: `research/`, `knowledge/`, `governance/`, and every other governed surface), the harness reads only explicitly allowlisted inputs and returns path-and-hash-bounded shipments; it never writes, registers, promotes, adjudicates, or updates authoritative state there. Contract: `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing: `governance/output-routing/`.
+
+- Writable destinations are exactly: this package root (repo rules) and the governed staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
+- Every script writer resolves destinations through `scripts/destination_capability.py`: a protected destination refuses with `DEST-PROTECTED`; an install without discoverable workspace governance fails closed (`DEST-UNGOVERNED`) for all non-package writes.
+- This binds agent-directed writes with general file tools exactly as it binds scripts: do not create, modify, move, rename, or delete any path under a protected root, and never infer authority from a harness verdict, phase label, terminal PASS, or artifact quality.
+
+---
+
 ## Maintainer — structural checks (harness root)
 
 From this directory, with Python 3 and PyYAML available:

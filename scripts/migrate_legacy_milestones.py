@@ -17,6 +17,8 @@ from typing import Any, Callable, Iterable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 PACKAGE_ROOT = SCRIPT_DIR.parent
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
 AUTHORITIES = {"user", "venue", "advisor", "instructor", "committee", "project_local_contract"}
@@ -1217,6 +1219,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adjudication", type=Path)
     parser.add_argument("--rollback", type=Path)
     args = parser.parse_args(argv)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        parser.exit(4, f"[BLOCKER] {exc}\n")
     try:
         if args.rollback is not None:
             if args.apply or args.adjudication is not None:

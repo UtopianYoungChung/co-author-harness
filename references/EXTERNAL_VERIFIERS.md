@@ -15,8 +15,11 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE`, `wiki_page_key: null`.
 - Do **not** write `m5_wiki_ingest` as a success trigger and do **not**
   fabricate `wiki_page_key` or `lessons_promoted_to_wiki` success values.
-- Automatic callers treat the deferred result as a visible non-blocking
-  downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
+- There are no automatic callers (producer boundary, 2026-07-22): canonical
+  Wiki and lessons promotion run only on explicit user instruction, and any
+  canonical Wiki change is a separately adjudicated shipment to Wiki
+  governance. A persistent `wiki_writes` flag is configuration, not current
+  promotion authority. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
 **Status.** This file is a **binding component** of the Grounding Protocol. It enumerates the external Model-Context-Protocol (MCP) servers that the four agents (Planner, Evaluator, Generator, Reflector) may invoke as **ground-truth validity layers** when verifying citations, attributions, factual claims, or retraction status. It also defines **§1.5** (peer `LLM wiki/` paths and optional `/llm-wiki-query` — not MCP) for **discovery** ordering. Every verification tier in §2 onward participates in the Chain of Verification (`GROUNDING_PROTOCOL.md` Rule 7) and in Rule 7a (the external-verifier rule introduced below).

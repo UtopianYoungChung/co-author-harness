@@ -32,6 +32,12 @@ def main() -> int:
     )
     args = parser.parse_args()
     project = args.project_root.resolve()
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(project)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     assignment = project / "reviews" / ".harness" / "assignment"
     claim = assignment / "claims" / "transaction.lock"
     journals = sorted((assignment / "journal").glob("*.json")) if (assignment / "journal").is_dir() else []

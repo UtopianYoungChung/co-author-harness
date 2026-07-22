@@ -2246,6 +2246,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backfill-repin-commit", metavar="OBJECT_ID", help="backfill the commit field for an existing re-pin event; never recomputes pins")
     parser.add_argument("--repin-epoch", type=int, help="ledger event epoch used with --backfill-repin-commit")
     args = parser.parse_args(argv)
+    if args.project_root is not None:
+        from destination_capability import DestinationRefused, guard_project_root
+        try:
+            guard_project_root(args.project_root)
+        except DestinationRefused as exc:
+            print(f"[BLOCKER] {exc}")
+            return 4
     try:
         if args.backfill_repin_commit:
             if args.repin_epoch is None:

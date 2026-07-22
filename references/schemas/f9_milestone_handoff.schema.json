@@ -28,6 +28,9 @@
     "contract_version": {
       "const": "1.0.0"
     },
+    "effect_scope": {
+      "const": "proposal_only"
+    },
     "project": {
       "type": "string",
       "minLength": 1

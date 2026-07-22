@@ -189,6 +189,7 @@
         "evidence_path": { "$ref": "#/$defs/nullable_path" },
         "evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
         "caused_by_sequence": { "type": ["integer", "null"], "minimum": 1 },
+        "effect_scope": { "const": "proposal_only" },
         "bindings": {
           "type": "array",
           "items": {

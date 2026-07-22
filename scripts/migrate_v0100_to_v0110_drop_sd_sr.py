@@ -170,6 +170,12 @@ def main() -> int:
         help="Path to reviews/classification.md of the consuming project.",
     )
     args = parser.parse_args()
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.classification)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
     return migrate(args.classification)
 
 

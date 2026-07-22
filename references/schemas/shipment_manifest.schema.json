@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shipment_manifest.schema.json",
+  "title": "Producer-boundary shipment manifest",
+  "description": "Path-and-hash-bounded proposal a harness staging run returns to its governed consumer. A shipment is a proposal, not authority (research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md): no field in this document implies acceptance, registration, promotion, or permission to mutate any consumer tree.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "shipment_id", "run_id", "work_id", "created_at",
+    "producer", "effect_scope", "inputs", "proposed_operations", "artifacts",
+    "limitations", "unresolved_findings"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "shipment_id": {"type": "string", "pattern": "^shp-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"},
+    "run_id": {"type": "string", "pattern": "^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"},
+    "work_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 20},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "harness_commit"],
+      "properties": {
+        "name": {"const": "co-author-harness"},
+        "harness_commit": {"type": "string", "minLength": 7}
+      }
+    },
+    "effect_scope": {"const": "proposal_only"},
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_path", "snapshot_path", "sha256"],
+        "properties": {
+          "source_path": {"type": "string", "minLength": 1},
+          "snapshot_path": {"type": "string", "pattern": "^inputs/"},
+          "sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "proposed_operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["op", "destination", "artifact", "sha256"],
+        "properties": {
+          "op": {"enum": ["create", "modify"]},
+          "destination": {"type": "string", "minLength": 1},
+          "artifact": {"type": "string", "pattern": "^(work|state|evidence)/"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^(work|state|evidence)/"},
+          "sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "unresolved_findings": {"type": "array", "items": {"type": "string"}},
+    "application_receipt": {
+      "description": "Present only after the consumer's governance applied the shipment and recorded it; written by the CONSUMER side, echoed here on recognition. Its absence means NOT applied.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_path", "receipt_sha256", "recognized_at"],
+      "properties": {
+        "receipt_path": {"type": "string", "minLength": 1},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "recognized_at": {"type": "string", "minLength": 20}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

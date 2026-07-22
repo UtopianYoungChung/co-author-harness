@@ -219,7 +219,7 @@ def main() -> int:
             if milestone != "M1":
                 run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
-            assert derived == {"status": "READY", "milestone": milestone, "action": "draft"}, derived
+            assert derived == {"status": "READY", "milestone": milestone, "action": "draft", "authority_mode": "direct_local"}, derived
             consumed = publish(project, milestone, f"# {milestone} synthetic deliverable\n".encode())
             checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
             run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
@@ -337,7 +337,7 @@ def main() -> int:
         advance_m4_fixture_to_ph2(project)
         run(PHASE_VALIDATOR, "--project-root", project)
         derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
-        assert derived == {"status": "READY", "milestone": "M4", "action": "revise"}, derived
+        assert derived == {"status": "READY", "milestone": "M4", "action": "revise", "authority_mode": "direct_local"}, derived
         revised_consumed = publish(
             project, "M4", b"# M4 substantively revised manuscript\n",
             label="ph2-revision",

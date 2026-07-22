@@ -259,6 +259,7 @@ def main() -> int:
         install_ph4_evidence(project, Path(raw) / "fixture")
         assert json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout) == {
             "status": "READY", "milestone": "FINAL", "action": "begin",
+            "authority_mode": "direct_local",
         }
         run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "FINAL", "--at", "2026-07-19T01:00:01Z")
         final_bytes = b"# Submission-bound final manuscript\n\nChanged after accepted M4.\n"
@@ -417,6 +418,7 @@ def main() -> int:
         run(TERMINAL, "terminal", "--project-root", project)
         assert json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout) == {
             "status": "COMPLETE", "milestone": None, "action": None,
+            "authority_mode": "direct_local",
         }
 
     print("OK assignment_terminal_close_smoketest")
