@@ -178,6 +178,14 @@ def main() -> int:
 
     md_path = Path(md_output)
     json_path = Path(json_output)
+    from destination_capability import DestinationRefused, assert_writable, guard_project_root
+    try:
+        guard_project_root(project_root)
+        assert_writable(md_path, purpose="coupling-health markdown output")
+        assert_writable(json_path, purpose="coupling-health JSON output")
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     md_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 

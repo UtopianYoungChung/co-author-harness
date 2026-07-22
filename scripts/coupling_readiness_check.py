@@ -313,6 +313,15 @@ def main() -> int:
     parser.add_argument("--allow-legacy-graph-confidence", required=False, help="Allow compatibility normalization for legacy numeric/null graph confidence values (true/false)")
     args = parser.parse_args()
 
+    from destination_capability import DestinationRefused, assert_writable
+    try:
+        for dest in (args.output_json, getattr(args, "noop_output_json", None)):
+            if dest:
+                assert_writable(Path(dest), purpose="readiness report output")
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
+
     project_root = Path(args.project_root)
     overrides = {
         "project_claude_path": args.project_claude_path,

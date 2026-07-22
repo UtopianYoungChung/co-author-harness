@@ -92,6 +92,12 @@ def main() -> int:
     args = parser.parse_args()
 
     project_root = Path(args.project_root)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(project_root)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     if not project_root.exists():
         raise SystemExit(f"Project root not found: {project_root}")
 

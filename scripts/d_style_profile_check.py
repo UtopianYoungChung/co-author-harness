@@ -580,6 +580,15 @@ def main() -> int:
     args = parser.parse_args()
 
     project_root = Path(args.project_root).resolve()
+    from destination_capability import DestinationRefused, assert_writable, guard_project_root
+    try:
+        if not args.no_write:
+            guard_project_root(project_root)
+            if args.output:
+                assert_writable(Path(args.output).resolve(), purpose="D-STYLE profile output")
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
     directives_path = (
         Path(args.directives_path).resolve()
         if args.directives_path

@@ -217,6 +217,14 @@ def main() -> int:
                     help="write report to file; default stdout")
     args = ap.parse_args()
 
+    if args.output:
+        from destination_capability import DestinationRefused, assert_writable
+        try:
+            assert_writable(pathlib.Path(args.output), purpose="tuner report output")
+        except DestinationRefused as exc:
+            sys.stderr.write(f"[BLOCKER] {exc}\n")
+            return 4
+
     roots = [pathlib.Path(p).resolve() for p in args.project_roots]
     missing = [p for p in roots if not p.exists()]
     if missing:

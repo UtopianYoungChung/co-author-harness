@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0.0",
+  "policy": {
+    "authority": "scripts/destination-coverage-check.py enforces this registry; a census writer without an entry, a guarded entry without a live guard call or named regression, and a pinned entry whose bytes drift all fail the check.",
+    "classes": {
+      "guarded": "destination checks in-file via destination_capability; negative regression named",
+      "package_confined": "writes only package-derived paths; sha256-pinned so any change forces re-review",
+      "test_only": "test/fixture support writing only to caller-supplied test sandboxes or hermetic temp clones; sha256-pinned",
+      "excluded": "mechanically bounded non-governed writes (see reason); sha256-pinned"
+    },
+    "pattern_exempt": "*smoketest*.py, test_*.py, scripts/tests/** (test material by name)"
+  },
+  "writers": {
+    "scripts/aggregate_h_calibration.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/analysis/fixture_infrastructure_check.py": {
+      "class": "test_only",
+      "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
+      "sha256": "bae6bddab546589f9dc74daa0443d7a6f3f4ace74e0595d7f515bdee6cc6fd6d"
+    },
+    "scripts/analysis/fixture_runner.py": {
+      "class": "package_confined",
+      "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
+      "sha256": "d86137d67c90fcb45bff596f93e277bf6c9fa81ca6fd19481dc55ff7f1b2bb63"
+    },
+    "scripts/analysis/release_manifest_negative_check.py": {
+      "class": "test_only",
+      "justification": "hermetic negative probes: mutates manifests only inside disposable clone sandboxes it creates and removes",
+      "sha256": "18e9e23036120b10ab05b02677be4f4256a67ff9713cdc70dc4377afe9f9252e"
+    },
+    "scripts/assignment_fixture_support.py": {
+      "class": "test_only",
+      "justification": "smoketest fixture scaffolding; invoked only by suites against temp or hermetic staging trees",
+      "sha256": "d6c2a271bc3cc38a387a24f5b58e9af709e7bccdfbed0f09d116dd9761434ebd"
+    },
+    "scripts/assignment_milestone_transaction.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring + scripts/staging_authority_mode_smoketest.py"
+    },
+    "scripts/assignment_process_gate.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/assignment_receipt_recover.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/assignment_receipt_transaction.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring (via checkpoint/receipt CLIs)"
+    },
+    "scripts/audit/run_all.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
+    },
+    "scripts/audit/schema.py": {
+      "class": "excluded",
+      "reason": "write-helper library with no CLI entry; its only writing caller is scripts/audit/run_all.py, which is guarded; sha256 pin forces re-review of any change",
+      "sha256": "35ae8f1c4d7364def0011b4059049ec8ddc8601e5bb2fc401960d333aab0bc65"
+    },
+    "scripts/build-plugin.py": {
+      "class": "package_confined",
+      "evidence": "no CLI arguments at all; every write path derives from the package root (bundle under .claude-plugin/, build worktree under .worktrees/)",
+      "sha256": "aff24ec5f133891466ddca1e6b59d2fe74399845679d3e99f7f6776675c39094"
+    },
+    "scripts/check8_g_prefilter.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/coupling_health_report.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring + case_output_redirect_refusals (alias spelling)"
+    },
+    "scripts/coupling_readiness_check.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
+    },
+    "scripts/d_style_profile_check.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
+    },
+    "scripts/destination-coverage-check.py": {
+      "class": "package_confined",
+      "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
+      "sha256": "e27ebf1f57acea6890c4e82e94eaf0f824db3962d6f181e83fb006fd76851f9f"
+    },
+    "scripts/gate_threshold_tuner.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
+    },
+    "scripts/hooks/full_run_pretooluse_gate.py": {
+      "class": "excluded",
+      "reason": "only write is a NamedTemporaryFile in the OS temp directory, unlinked in a finally block; no destination input exists",
+      "sha256": "f65aa350396c1130c22ed8e26e177987afa507fef984435a8776a0143e1b7fdb"
+    },
+    "scripts/install_preflight_assets.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_legacy_milestones.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_milestone_paths.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_v0100_to_v0110_drop_sd_sr.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_v0150pre_add_stage_profile.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_v090_to_v100_snowball_fields.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/native_project_bootstrap.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/reader_accessibility_policy.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/render_lifecycle_state.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/semantic_graph_fixture_support.py": {
+      "class": "test_only",
+      "justification": "smoketest fixture environment support; invoked only by suites against temp or hermetic staging trees",
+      "sha256": "dc4bd1eeca84bcd98cee4769cc36917b02ca4aeeb032aedf487a20a1ffbb24b9"
+    },
+    "scripts/sk20_overlay_run.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/sk20_preflight_gate.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/staging_run.py": {
+      "class": "guarded",
+      "regression": "scripts/shipment_manifest_smoketest.py (refusal outside the lane; ungoverned fail-closed)"
+    },
+    "scripts/token_budget_check.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
+    },
+    "scripts/worktree_paths.py": {
+      "class": "test_only",
+      "justification": "sandbox-base helper for hermetic smoketest clones (sibling of the primary worktree); production writers never route destinations through it",
+      "sha256": "afdd5b4dc0dbfb138b81be041c72c4236c6c49adac4a84950c44f2f1ba1124d6"
+    }
+  }
+}

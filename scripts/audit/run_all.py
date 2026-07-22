@@ -149,6 +149,17 @@ def main(argv: List[str] | None = None) -> int:
         print(f"[BLOCKER] project root not found: {args.project_root}", file=sys.stderr)
         return 2
 
+    from destination_capability import DestinationRefused, assert_writable, guard_project_root
+    try:
+        if args.project_root:
+            guard_project_root(args.project_root)
+        for dest in ([] if args.stdout else [args.out]) + [args.d_style_profile_out, args.accessibility_out]:
+            if dest is not None:
+                assert_writable(Path(dest).resolve(), purpose="audit output")
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
+
     report = audit_target(args.target)
     profile_report: dict[str, object] | None = None
     profile_output: Path | None = None

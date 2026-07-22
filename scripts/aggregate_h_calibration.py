@@ -327,6 +327,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = ap.parse_args(argv)
 
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
+
     reviews_dir = args.project_root / "reviews"
     if not reviews_dir.is_dir():
         print(

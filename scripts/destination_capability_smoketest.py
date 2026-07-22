@@ -182,6 +182,12 @@ WIRED_MUTATORS = [
      _script("render_lifecycle_state.py", "--project-root", "{ROOT}")),
     ("reader accessibility policy",
      _script("reader_accessibility_policy.py", "--project-root", "{ROOT}")),
+    ("coupling health report",
+     _script("coupling_health_report.py", "--project-root", "{ROOT}")),
+    ("h-calibration aggregate",
+     _script("aggregate_h_calibration.py", "{ROOT}")),
+    ("install preflight assets",
+     _script("install_preflight_assets.py", "--project-root", "{ROOT}")),
 ]
 
 
@@ -205,10 +211,64 @@ def case_mutator_wiring() -> None:
                   f"created {sorted(str(x) for x in (after - before))[:3]}")
 
 
+def case_output_redirect_refusals() -> None:
+    """Writers with redirectable output paths must refuse a protected
+    destination even when their project root / target is external, including
+    alias spellings (mixed case, forward slashes)."""
+    with tempfile.TemporaryDirectory(prefix="destcap-out-") as td:
+        fake = make_fake_root(Path(td))
+        (fake / "research" / "60_Workbench" / "probe").mkdir(parents=True, exist_ok=True)
+        external = Path(td) / "external-project"
+        (external / "reviews").mkdir(parents=True)
+        target_md = external / "manuscript.md"
+        target_md.write_text("# external target\n", encoding="utf-8")
+        env = {**os.environ, "COAUTHOR_EXTRA_GOVERNED_ROOTS": str(fake)}
+        protected_dir = fake / "research" / "60_Workbench" / "probe"
+        alias_out = str(protected_dir / "coupling_health.md").replace(
+            "research", "RESEARCH").replace("\\", "/")
+        probes = [
+            ("coupling-health alias output",
+             [sys.executable, str(HARNESS / "scripts" / "coupling_health_report.py"),
+              "--project-root", str(external), "--output-md", alias_out,
+              "--output-json", str(external / "reviews" / "ok.json")]),
+            ("tuner redirected output",
+             [sys.executable, str(HARNESS / "scripts" / "gate_threshold_tuner.py"),
+              "--project-root", str(external),
+              "--output", str(protected_dir / "tuner_report.md")]),
+            ("audit run_all redirected out",
+             [sys.executable, str(HARNESS / "scripts" / "audit" / "run_all.py"),
+              str(target_md), "--out", str(protected_dir / "findings.json")]),
+            ("coupling-readiness redirected output",
+             [sys.executable, str(HARNESS / "scripts" / "coupling_readiness_check.py"),
+              "--project-root", str(external),
+              "--output-json", str(protected_dir / "readiness.json")]),
+            ("d-style profile protected project",
+             [sys.executable, str(HARNESS / "scripts" / "d_style_profile_check.py"),
+              "--project-root", str(protected_dir)]),
+            ("token-budget redirected out",
+             [sys.executable, str(HARNESS / "scripts" / "token_budget_check.py"),
+              "--out", str(protected_dir / "token_budget_report.json")]),
+        ]
+        for label, argv in probes:
+            before = {p.relative_to(protected_dir) for p in protected_dir.rglob("*")}
+            r = subprocess.run(argv, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", env=env)
+            after = {p.relative_to(protected_dir) for p in protected_dir.rglob("*")}
+            out = r.stdout + r.stderr
+            check(f"{label}: refuses (nonzero exit)", r.returncode != 0,
+                  f"rc={r.returncode}")
+            check(f"{label}: names DEST-PROTECTED", "DEST-PROTECTED" in out,
+                  out.strip().splitlines()[-1][:80] if out.strip() else "silent")
+            check(f"{label}: wrote nothing into the protected root",
+                  after == before,
+                  f"created {sorted(str(x) for x in (after - before))[:3]}")
+
+
 def main() -> int:
     print("destination_capability_smoketest")
     for fn in (case_classifier, case_real_workspace_discovery,
-               case_ungoverned_fails_closed, case_mutator_wiring):
+               case_ungoverned_fails_closed, case_mutator_wiring,
+               case_output_redirect_refusals):
         print(f"{fn.__name__}:")
         try:
             fn()

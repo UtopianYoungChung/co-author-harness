@@ -284,6 +284,14 @@ def main(argv: List[str] | None = None) -> int:
                         help="Suppress per-file output (still writes --out)")
     args = parser.parse_args(argv)
 
+    if args.out:
+        from destination_capability import DestinationRefused, assert_writable
+        try:
+            assert_writable(args.out.resolve(), purpose="token-budget report output")
+        except DestinationRefused as exc:
+            print(f"[BLOCKER] {exc}", file=sys.stderr)
+            return 4
+
     report = build_report()
 
     if args.out:
