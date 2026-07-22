@@ -572,9 +572,12 @@ def _validate_doc(doc: dict, findings: list[Finding]) -> None:
 # -----------------------------------------------------------------------------
 
 
-def _render_text(findings: list[Finding]) -> str:
+def _render_text(findings: list[Finding], skipped_checks: list[dict[str, str]] | None = None) -> str:
+    skipped_checks = skipped_checks or []
     if not findings:
-        return "PASS  (no findings)\n"
+        out = ["PASS  (no findings)"]
+        out.extend(f"  {check['check']}: {check['status']}" for check in skipped_checks)
+        return "\n".join(out) + "\n"
     out: list[str] = []
     blockers = [f for f in findings if f.severity == Severity.BLOCKER]
     majors = [f for f in findings if f.severity == Severity.MAJOR]
@@ -586,20 +589,29 @@ def _render_text(findings: list[Finding]) -> str:
     for f in findings:
         out.append(f"  [{f.severity.value}] {f.code}  @ {f.path}")
         out.append(f"           {f.message}")
+    out.extend(f"  {check['check']}: {check['status']}" for check in skipped_checks)
     return "\n".join(out) + "\n"
 
 
-def _render_json(findings: list[Finding]) -> str:
+def _render_json(findings: list[Finding], skipped_checks: list[dict[str, str]] | None = None) -> str:
+    rows = [
+        {
+            "code": f.code,
+            "severity": f.severity.value,
+            "path": f.path,
+            "message": f.message,
+        }
+        for f in findings
+    ]
+    rows.extend({
+        "code": "MF-POLICY-SKIPPED",
+        "severity": "SKIPPED",
+        "path": check["check"],
+        "message": check["status"],
+        "mode": check["mode"],
+    } for check in (skipped_checks or []))
     return json.dumps(
-        [
-            {
-                "code": f.code,
-                "severity": f.severity.value,
-                "path": f.path,
-                "message": f.message,
-            }
-            for f in findings
-        ],
+        rows,
         indent=2,
     ) + "\n"
 
@@ -643,6 +655,7 @@ def main(argv: list[str]) -> int:
     tier_path = reviews_dir / "tier_state.json"
 
     findings: list[Finding] = []
+    skipped_checks: list[dict[str, str]] = []
     source_path: Path
     if phase_path.exists() and tier_path.exists():
         findings.append(Finding(
@@ -686,6 +699,7 @@ def main(argv: list[str]) -> int:
     _validate_doc(doc, findings)
     if isinstance(doc, dict) and "milestone_framework" in doc:
         milestone_result = validate_milestone_document(project_root, doc)
+        skipped_checks.extend(milestone_result.skipped_checks)
         for milestone_finding in milestone_result.findings:
             findings.append(Finding(
                 code=milestone_finding.code,
@@ -700,11 +714,11 @@ def main(argv: list[str]) -> int:
 
     # Render.
     if args.json:
-        sys.stdout.write(_render_json(findings))
+        sys.stdout.write(_render_json(findings, skipped_checks))
     elif findings:
-        sys.stdout.write(_render_text(findings))
+        sys.stdout.write(_render_text(findings, skipped_checks))
     elif not args.quiet:
-        sys.stdout.write(_render_text(findings))
+        sys.stdout.write(_render_text(findings, skipped_checks))
 
     # Exit code.
     if any(f.severity == Severity.BLOCKER for f in findings):

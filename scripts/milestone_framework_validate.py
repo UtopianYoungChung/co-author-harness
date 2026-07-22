@@ -98,6 +98,7 @@ class ValidationResult:
     target: str | None
     findings: tuple[Finding, ...]
     evidence_bindings: tuple[dict[str, Any], ...]
+    skipped_checks: tuple[dict[str, str], ...]
 
     def json_value(self) -> dict[str, Any]:
         return {
@@ -106,6 +107,7 @@ class ValidationResult:
             "target": self.target,
             "findings": [finding.json_value() for finding in self.findings],
             "evidence_bindings": list(self.evidence_bindings),
+            "skipped_checks": list(self.skipped_checks),
         }
 
 
@@ -238,12 +240,147 @@ def _finding(code: str, path: str, message: str, severity: Severity = Severity.B
     return Finding(code=code, severity=severity, path=path, message=message)
 
 
+def _trusted_path_migrations(
+    project_root: Path,
+    ledger: dict[str, Any],
+    findings: list[Finding],
+) -> dict[str, dict[str, Any]]:
+    """Load only target-bound applied manifests signed by migration events."""
+    mappings: dict[str, dict[str, Any]] = {}
+    events = ledger.get("events")
+    if not isinstance(events, list):
+        return mappings
+    for index, event in enumerate(events):
+        if not isinstance(event, dict) or event.get("event_type") != "migration_accepted":
+            continue
+        base = f"milestone_framework.events[{index}].evidence_path"
+        relative = event.get("evidence_path")
+        expected_sha = event.get("evidence_sha256")
+        candidate = _canonical_path(project_root, relative)
+        if (
+            candidate is None
+            or not isinstance(relative, str)
+            or not relative.startswith("reviews/.harness/path_migrations/")
+            or not relative.endswith(".applied.json")
+            or not candidate.is_file()
+        ):
+            findings.append(_finding("MF-EVENT", base, "migration manifest must be a contained applied path-migration manifest"))
+            continue
+        try:
+            payload = candidate.read_bytes()
+            manifest = json.loads(payload)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            findings.append(_finding("MF-EVENT", base, f"migration manifest is unreadable: {exc}"))
+            continue
+        actual_sha = hashlib.sha256(payload).hexdigest()
+        migration_id = manifest.get("migration_id") if isinstance(manifest, dict) else None
+        expected_name = f"{migration_id}.applied.json" if isinstance(migration_id, str) else None
+        plan_payload = {
+            "moves": manifest.get("moves") if isinstance(manifest, dict) else None,
+            "receipts": manifest.get("receipt_inventory") if isinstance(manifest, dict) else None,
+            "state": manifest.get("state") if isinstance(manifest, dict) else None,
+        }
+        plan_sha = hashlib.sha256(json.dumps(
+            plan_payload, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
+        trusted = (
+            isinstance(manifest, dict)
+            and expected_sha == actual_sha
+            and manifest.get("schema_version") == "1.0.0"
+            and manifest.get("path_contract_version") == ledger.get("path_contract_version")
+            and manifest.get("manifest_path") == relative
+            and candidate.name == expected_name
+            and manifest.get("project_root") == str(project_root.resolve())
+            and manifest.get("applied_at") == event.get("timestamp")
+            and manifest.get("plan_sha256") == plan_sha
+            and isinstance(manifest.get("moves"), list)
+        )
+        if not trusted:
+            findings.append(_finding("MF-EVENT", base, "migration manifest is unsigned, unknown, drifted, or not target-bound"))
+            continue
+        for move_index, move in enumerate(manifest["moves"]):
+            if not isinstance(move, dict):
+                findings.append(_finding("MF-EVENT", base, f"migration move {move_index} must be an object"))
+                continue
+            source = move.get("source")
+            target = move.get("target")
+            source_sha = move.get("sha256")
+            if (
+                not isinstance(source, str)
+                or not isinstance(target, str)
+                or not isinstance(source_sha, str)
+                or re.fullmatch(r"[0-9a-f]{64}", source_sha) is None
+                or _canonical_path(project_root, source) is None
+                or _canonical_path(project_root, target) is None
+                or source in mappings
+            ):
+                findings.append(_finding("MF-EVENT", base, f"migration move {move_index} is unsafe, malformed, or conflicting"))
+                continue
+            mappings[source] = {
+                "target": target,
+                "source_sha256": source_sha,
+                "applied_sequence": event.get("sequence"),
+                "manifest_path": relative,
+            }
+    return mappings
+
+
+def _later_authorized_baseline(
+    events: list[Any], index: int, event: dict[str, Any], binding_type: Any,
+) -> bool:
+    if binding_type not in {"artifact", "feedback", "handoff_packet"}:
+        return False
+    milestone = event.get("milestone")
+    lineage = event.get("lineage_id")
+    for later in events[index + 1:]:
+        if not isinstance(later, dict) or later.get("lineage_id") != lineage:
+            continue
+        if later.get("milestone") == milestone and later.get("event_type") in {
+            "milestone_reopened", "milestone_superseded", "authorized_override", "downstream_stale",
+        }:
+            return True
+    return False
+
+
+def _validate_event_binding(
+    project_root: Path,
+    events: list[Any],
+    event_index: int,
+    event: dict[str, Any],
+    binding: dict[str, Any],
+    binding_path: str,
+    migrations: dict[str, dict[str, Any]],
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+) -> None:
+    relative = binding.get("path")
+    expected_sha = binding.get("sha256")
+    migration = migrations.get(relative) if isinstance(relative, str) else None
+    resolved = migration.get("target") if isinstance(migration, dict) else relative
+    candidate = _canonical_path(project_root, resolved)
+    if candidate is None:
+        findings.append(_finding("MF-CANON", binding_path, "path must be non-empty and remain inside the project root"))
+        return
+    if not candidate.is_file():
+        findings.append(_finding("MF-CANON", binding_path, f"canonical path does not exist: {relative!r}"))
+        return
+    if isinstance(migration, dict) and expected_sha == migration.get("source_sha256"):
+        return
+    if _later_authorized_baseline(events, event_index, event, binding.get("binding_type")):
+        return
+    _file_binding(
+        project_root, resolved, expected_sha, None, binding_path,
+        findings, evidence, "MF-EVENT",
+    )
+
+
 def _validate_events(
     project_root: Path,
     ledger: dict[str, Any],
     milestones: dict[str, Any],
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    migrations: dict[str, dict[str, Any]],
 ) -> None:
     events = ledger.get("events")
     if not isinstance(events, list):
@@ -283,9 +420,9 @@ def _validate_events(
         if isinstance(bindings, list):
             for binding_index, binding in enumerate(bindings):
                 if isinstance(binding, dict):
-                    _file_binding(
-                        project_root, binding.get("path"), binding.get("sha256"), None,
-                        f"{base}.bindings[{binding_index}]", findings, evidence, "MF-EVENT",
+                    _validate_event_binding(
+                        project_root, events, index, event, binding,
+                        f"{base}.bindings[{binding_index}]", migrations, findings, evidence,
                     )
         cause = event.get("caused_by_sequence")
         if event_type in {"downstream_stale", "downstream_revalidated"}:
@@ -342,7 +479,10 @@ def _validate_events(
             and artifact.get("role") == "deliverable"
             and artifact.get("lineage_id") == ledger.get("primary_lineage")
         ] if isinstance(artifacts, list) else []
-        if status in {"in_progress", "feedback_pending", "revision_required", "reopened"}:
+        if (
+            status in {"in_progress", "feedback_pending", "revision_required", "reopened"}
+            and record.get("dependency_state") != "needs_revalidation"
+        ):
             recorded = [
                 event for event in milestone_events
                 if event.get("event_type") == "deliverable_recorded"
@@ -389,12 +529,12 @@ def _validate_events(
                 or override_event.get("evidence_sha256") != override.get("substitute_evidence_sha256")
             ):
                 findings.append(_finding("MF-EVENT", "milestone_framework.events", f"current {milestone} override event must bind its authority and substitute evidence"))
-        lifecycle = [event for event in milestone_events if event.get("event_type") in {"milestone_started", "milestone_accepted", "milestone_reopened", "milestone_superseded", "authorized_override", "migration_hold", "migration_accepted"}]
+        lifecycle = [event for event in milestone_events if event.get("event_type") in {"milestone_started", "milestone_accepted", "milestone_reopened", "milestone_superseded", "authorized_override", "migration_hold"}]
         allowed_latest = {
             "not_started": {"migration_hold"},
             "in_progress": {"milestone_started"},
             "not_applicable": {"authorized_override"},
-            "accepted": {"milestone_accepted", "migration_accepted"},
+            "accepted": {"milestone_accepted"},
             "reopened": {"milestone_reopened"},
             "superseded": {"milestone_superseded"},
         }.get(status, set())
@@ -935,6 +1075,7 @@ def _validate_reader_accessibility_policy(
     deliverables: dict[str, dict[str, Any] | None],
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    skipped_checks: list[dict[str, str]],
     opening_new_cycle: bool,
 ) -> None:
     bindings = ledger.get("policy_bindings")
@@ -947,11 +1088,34 @@ def _validate_reader_accessibility_policy(
     if not isinstance(binding, dict):
         findings.append(_finding("MF-POLICY", base, "reader-accessibility policy binding must be an object"))
         return
+    resolved_bytes: bytes | None = None
+    resolved_payload: Any = None
     try:
         expected_resolved = resolve_policy(project_root)
     except PolicyError as exc:
-        findings.append(_finding("MF-POLICY", base, f"cannot re-derive resolved policy: {exc}"))
-        return
+        reason = str(exc)
+        if not reason.startswith("GRAPH-SEMANTIC-INELIGIBLE:"):
+            findings.append(_finding("MF-POLICY", base, f"cannot re-derive resolved policy: {exc}"))
+            return
+        skipped_checks.append({
+            "check": "reader_accessibility_policy_semantic_rederivation",
+            "mode": "structural-fallback",
+            "reason": reason,
+            "status": f"SKIPPED({reason})",
+        })
+        resolved_bytes = _file_binding(
+            project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None,
+            f"{base}.resolved_path", findings, evidence, "MF-POLICY",
+        )
+        try:
+            resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
+        except (UnicodeDecodeError, json.JSONDecodeError) as parse_exc:
+            findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {parse_exc}"))
+            return
+        if not isinstance(resolved_payload, dict):
+            findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "structural fallback requires a valid bound resolved policy object"))
+            return
+        expected_resolved = resolved_payload
     for index, source in enumerate(binding.get("source_bindings", [])):
         if not isinstance(source, dict) or source.get("scope") not in {"package", "project"} or not isinstance(source.get("path"), str):
             findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "malformed scoped source binding")); return
@@ -999,12 +1163,13 @@ def _validate_reader_accessibility_policy(
     if isinstance(profile_expected.get("pin_epoch"), int):
         for code in policy_epoch_findings(binding, profile_expected["pin_epoch"], request, opening_new_cycle=opening_new_cycle, current_profile_sha256=canonical_hash):
             findings.append(_finding(code, f"{base}.pin_epoch", "binding epoch predates the current profile epoch; Planner must apply the pending rebind before opening a new cycle"))
-    resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
-    try:
-        resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
-        resolved_payload = None
+    if resolved_bytes is None:
+        resolved_bytes = _file_binding(project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None, f"{base}.resolved_path", findings, evidence, "MF-POLICY")
+        try:
+            resolved_payload = json.loads(resolved_bytes) if resolved_bytes is not None else None
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"resolved policy artifact must be valid JSON: {exc}"))
+            resolved_payload = None
     stable_keys = ("profile_path", "profile_sha256", "source_bindings", "project_identity", "register_class", "passage_scope_class", "resolved_profile", "attestation_view_pin", "exemplar_view_pin")
     if not isinstance(resolved_payload, dict) or (not (epoch_gap or continuing_semantic_compatibility) and any(resolved_payload.get(key) != expected_resolved.get(key) for key in stable_keys)):
         findings.append(_finding("MF-POLICY", f"{base}.resolved_path", "resolved policy gate projection differs from fresh resolver output"))
@@ -1606,6 +1771,57 @@ def _validate_exemplar_registry(
         findings.append(_finding("MF-EXEMPLAR", str(registry_path), str(exc)))
 
 
+def _historically_authorized_successor_start(
+    ledger: dict[str, Any], predecessor: str, successor: str,
+) -> bool:
+    """Recognize a valid handoff consumed before a later authorized reopen."""
+    events = ledger.get("events")
+    milestones = ledger.get("milestones")
+    if not isinstance(events, list) or not isinstance(milestones, dict):
+        return False
+    dependent = milestones.get(successor)
+    if not isinstance(dependent, dict) or dependent.get("dependency_state") != "needs_revalidation":
+        return False
+    for start in events:
+        if not isinstance(start, dict) or start.get("milestone") != successor or start.get("event_type") != "milestone_started":
+            continue
+        sequence = start.get("sequence")
+        lineage = start.get("lineage_id")
+        if not isinstance(sequence, int):
+            continue
+        before = [
+            event for event in events
+            if isinstance(event, dict)
+            and event.get("lineage_id") == lineage
+            and isinstance(event.get("sequence"), int)
+            and event["sequence"] < sequence
+        ]
+        accepted = [event for event in before if event.get("milestone") == predecessor and event.get("event_type") == "milestone_accepted"]
+        consumed = [event for event in before if event.get("milestone") == predecessor and event.get("event_type") == "handoff_consumed"]
+        if not accepted or not consumed or consumed[-1]["sequence"] < accepted[-1]["sequence"]:
+            continue
+        later_reopens = [
+            event for event in events
+            if isinstance(event, dict)
+            and event.get("milestone") == predecessor
+            and event.get("lineage_id") == lineage
+            and event.get("event_type") == "milestone_reopened"
+            and isinstance(event.get("sequence"), int)
+            and event["sequence"] > sequence
+        ]
+        for reopened in later_reopens:
+            if any(
+                isinstance(event, dict)
+                and event.get("milestone") == successor
+                and event.get("lineage_id") == lineage
+                and event.get("event_type") == "downstream_stale"
+                and event.get("caused_by_sequence") == reopened.get("sequence")
+                for event in events
+            ):
+                return True
+    return False
+
+
 def validate_document(
     project_root: Path, document: Any, target: str | None = None,
     exemplar_registry_path: Path | None = None,
@@ -1615,6 +1831,7 @@ def validate_document(
     """Validate the additive namespace in an already-parsed phase document."""
     findings: list[Finding] = []
     evidence: list[dict[str, Any]] = []
+    skipped_checks: list[dict[str, str]] = []
     if not isinstance(document, dict):
         findings.append(_finding("MF-STRUCTURE", "$", "phase state must be a JSON object"))
         return _result(target, None, findings, evidence)
@@ -1638,7 +1855,8 @@ def validate_document(
     milestones = ledger.get("milestones")
     if not isinstance(milestones, dict):
         return _result(target, ledger, findings, evidence)
-    _validate_events(project_root, ledger, milestones, findings, evidence)
+    migrations = _trusted_path_migrations(project_root, ledger, findings)
+    _validate_events(project_root, ledger, milestones, findings, evidence, migrations)
 
     primary_lineage = ledger.get("primary_lineage")
     phase_identity = document.get("manuscript_id")
@@ -1701,11 +1919,20 @@ def validate_document(
             previous = milestones.get(MILESTONES[index - 1], {})
             previous_approval = previous.get("approval") if isinstance(previous, dict) else None
             previous_handoff = previous.get("handoff") if isinstance(previous, dict) else None
-            if not isinstance(previous_approval, dict) or previous_approval.get("status") != "approved" or not isinstance(previous_handoff, dict) or previous_handoff.get("status") != "consumed":
+            current_chain_ready = (
+                isinstance(previous_approval, dict)
+                and previous_approval.get("status") == "approved"
+                and isinstance(previous_handoff, dict)
+                and previous_handoff.get("status") == "consumed"
+            )
+            historically_ready = _historically_authorized_successor_start(
+                ledger, MILESTONES[index - 1], milestone,
+            )
+            if not current_chain_ready and not historically_ready:
                 findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}", "successor work started before predecessor approval and consumed handoff"))
 
     _validate_reader_accessibility_policy(
-        project_root, ledger, milestones, deliverables, findings, evidence,
+        project_root, ledger, milestones, deliverables, findings, evidence, skipped_checks,
         opening_new_cycle=opening_new_cycle,
     )
 
@@ -1911,7 +2138,7 @@ def validate_document(
                         "Ph4 MCR continuity requires current terminal Ph3 convergence signoff evidence",
                     ))
 
-    return _result(target, ledger, findings, evidence)
+    return _result(target, ledger, findings, evidence, skipped_checks)
 
 
 def _result(
@@ -1919,6 +2146,7 @@ def _result(
     ledger: dict[str, Any] | None,
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    skipped_checks: list[dict[str, str]] | None = None,
 ) -> ValidationResult:
     unique = tuple(dict.fromkeys(findings))
     if unique:
@@ -1946,6 +2174,7 @@ def _result(
         target=target,
         findings=unique,
         evidence_bindings=tuple(evidence),
+        skipped_checks=tuple(skipped_checks or ()),
     )
 
 
@@ -1953,6 +2182,8 @@ def _render_text(result: ValidationResult) -> str:
     lines = [f"{result.outcome.value} target={result.target or 'all'} exit_permitted={str(result.exit_permitted).lower()}"]
     for finding in result.findings:
         lines.append(f"[{finding.severity.value}] {finding.code} @ {finding.path}: {finding.message}")
+    for check in result.skipped_checks:
+        lines.append(f"{check['check']}: {check['status']}")
     return "\n".join(lines) + "\n"
 
 

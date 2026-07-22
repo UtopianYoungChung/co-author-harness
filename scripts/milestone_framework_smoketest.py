@@ -1762,10 +1762,251 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
         failures.append(f"exemplar/evidence_during_read_swap escaped controlled validation: {exc!r}")
 
 
+def _event(
+    sequence: int,
+    event_type: str,
+    milestone: str,
+    *,
+    bindings: list[dict[str, str]] | None = None,
+    authority: str | None = None,
+    caused_by_sequence: int | None = None,
+) -> dict[str, Any]:
+    return {
+        "sequence": sequence,
+        "event_type": event_type,
+        "timestamp": f"2026-07-{19 + (sequence // 12):02d}T{sequence % 24:02d}:00:00Z",
+        "milestone": milestone,
+        "lineage_id": "main",
+        "actor": "planner",
+        "authority": authority,
+        "reason": f"Synthetic path-v2 regression event {sequence}.",
+        "evidence_path": None,
+        "evidence_sha256": None,
+        "caused_by_sequence": caused_by_sequence,
+        "bindings": bindings or [],
+    }
+
+
+def _write_path_v2_regression_fixture(project: Path) -> dict[str, Any]:
+    """Materialize the Paper-1 defect shape without copying project evidence."""
+    ledger = _materialize_native_project(project)
+    milestones = ledger["milestones"]
+
+    m1 = milestones["M1"]
+    m2 = milestones["M2"]
+    m1_artifact = m1["artifacts"][0]
+    m2_artifact = m2["artifacts"][0]
+    m1_old_hash = hashlib.sha256(b"synthetic M1 event-time bytes\n").hexdigest()
+    m2_old_hash = hashlib.sha256(b"synthetic M2 event-time bytes\n").hexdigest()
+    m1_current = b"synthetic M1 authorized revised bytes\n"
+    m2_current = b"synthetic M2 needs-revalidation bytes\n"
+    (project / m1_artifact["path"]).write_bytes(m1_current)
+    (project / m2_artifact["path"]).write_bytes(m2_current)
+
+    feedback = m2["feedback_records"][0]
+    feedback_path = project / feedback["source_path"]
+    old_feedback = b"synthetic M2 event-time feedback\n"
+    old_feedback_hash = hashlib.sha256(old_feedback).hexdigest()
+    feedback_path.write_bytes(b"synthetic M2 later unbound feedback mutation\n")
+    feedback.update({
+        "source_sha256": old_feedback_hash,
+        "contemporaneity_evidence_path": feedback["source_path"],
+        "contemporaneity_evidence_sha256": old_feedback_hash,
+    })
+
+    approval_path = m1["approval"]["evidence_path"]
+    approval_hash = hashlib.sha256((project / approval_path).read_bytes()).hexdigest()
+    old_handoff_path = "reviews/.harness/milestones/M1_to_M2.json"
+    new_handoff_path = "reviews/.harness/handoffs/M1_packet.json"
+    old_handoff_hash = hashlib.sha256(b"synthetic pre-migration handoff\n").hexdigest()
+    (project / new_handoff_path).write_bytes(b"synthetic structurally rebound handoff\n")
+
+    m1.update({
+        "status": "in_progress",
+        "artifacts": [],
+        "feedback_records": [],
+        "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
+        "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
+        "dependency_state": "current",
+    })
+    m2.update({
+        "status": "in_progress",
+        "approval": {"status": "pending", "authority": None, "evidence_path": None, "approved_at": None},
+        "handoff": {"status": "not_ready", "packet_path": None, "packet_sha256": None},
+        "dependency_state": "needs_revalidation",
+    })
+    m2_artifact.update({
+        "sha256": m2_old_hash,
+        "bytes": len(b"synthetic M2 event-time bytes\n"),
+    })
+    for milestone in ("M3", "M4", "M5"):
+        _reset_milestone(milestones[milestone])
+
+    events = [
+        _event(1, "milestone_started", "M1"),
+        _event(2, "deliverable_recorded", "M1", bindings=[{"binding_type": "artifact", "path": "research_notes/project_memo.md", "sha256": m1_old_hash}]),
+        _event(3, "feedback_recorded", "M1"),
+        _event(4, "feedback_adjudicated", "M1"),
+        _event(5, "milestone_accepted", "M1", authority="user", bindings=[{"binding_type": "artifact", "path": "research_notes/project_memo.md", "sha256": m1_old_hash}]),
+        _event(6, "handoff_ready", "M1", bindings=[{"binding_type": "handoff_packet", "path": old_handoff_path, "sha256": old_handoff_hash}]),
+        _event(7, "handoff_consumed", "M1", bindings=[{"binding_type": "handoff_packet", "path": old_handoff_path, "sha256": old_handoff_hash}]),
+        _event(8, "milestone_started", "M2"),
+        _event(9, "deliverable_recorded", "M2", bindings=[{"binding_type": "artifact", "path": "research_notes/annotated_references.md", "sha256": m2_old_hash}]),
+        _event(10, "feedback_recorded", "M2", bindings=[{"binding_type": "feedback", "path": feedback["source_path"], "sha256": old_feedback_hash}]),
+        _event(11, "feedback_adjudicated", "M2", bindings=[{"binding_type": "feedback", "path": feedback["source_path"], "sha256": old_feedback_hash}]),
+        _event(12, "milestone_reopened", "M1", authority="user"),
+        _event(13, "downstream_stale", "M2", authority="user", caused_by_sequence=12),
+        _event(14, "milestone_started", "M1", authority="user"),
+    ]
+
+    moves = [
+        {"kind": "deliverable", "source": "research_notes/project_memo.md", "target": m1_artifact["path"], "sha256": hashlib.sha256(m1_current).hexdigest(), "bytes": len(m1_current)},
+        {"kind": "deliverable", "source": "research_notes/annotated_references.md", "target": m2_artifact["path"], "sha256": hashlib.sha256(m2_current).hexdigest(), "bytes": len(m2_current)},
+        {"kind": "deliverable", "source": "manuscript/outline.md", "target": "milestones/M3_argument_evidence_outline.md", "sha256": "3" * 64, "bytes": 3},
+        {"kind": "deliverable", "source": "manuscript/main.md", "target": "milestones/M4_complete_paper_draft.md", "sha256": "4" * 64, "bytes": 4},
+        {"kind": "handoff", "source": old_handoff_path, "target": new_handoff_path, "sha256": old_handoff_hash, "bytes": len(b"synthetic pre-migration handoff\n")},
+    ]
+    manifest_state = {"path": "reviews/phase_state.json", "sha256": "a" * 64, "bytes": 1}
+    plan_hash = hashlib.sha256(json.dumps(
+        {"moves": moves, "receipts": [], "state": manifest_state},
+        sort_keys=True, separators=(",", ":"),
+    ).encode()).hexdigest()
+    migration_id = f"milestone-paths-v2-{plan_hash[:16]}"
+    manifest_relative = f"reviews/.harness/path_migrations/{migration_id}.applied.json"
+    manifest = {
+        "schema_version": "1.0.0",
+        "migration_id": migration_id,
+        "path_contract_version": "2.0.0",
+        "project_root": str(project.resolve()),
+        "moves": moves,
+        "receipt_inventory": [],
+        "invalidate_receipts": [],
+        "state": manifest_state,
+        "plan_sha256": plan_hash,
+        "applied_at": "2026-07-21T15:00:00Z",
+        "rollback": [],
+        "manifest_path": manifest_relative,
+    }
+    manifest_path = project / manifest_relative
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    migration_event = _event(15, "migration_accepted", "M1", authority="project_local_contract")
+    migration_event.update({
+        "timestamp": manifest["applied_at"],
+        "evidence_path": manifest_relative,
+        "evidence_sha256": manifest_hash,
+    })
+    events.append(migration_event)
+    ledger["events"] = events
+    ledger["path_contract_version"] = "2.0.0"
+
+    document = _phase_document(ledger, "Ph1")
+    document["manuscript_id"] = "synthetic-path-v2-regression"
+    document["sections"] = {}
+    reviews = project / "reviews"
+    reviews.mkdir(parents=True, exist_ok=True)
+    (reviews / "phase_state.json").write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return document
+
+
+def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
+    spec = importlib.util.spec_from_file_location("milestone_framework_validate_path_v2_test", VALIDATOR)
+    assert spec is not None and spec.loader is not None
+    validator = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = validator
+    spec.loader.exec_module(validator)
+
+    project = directory / "path-v2-regression"
+    project.mkdir()
+    document = _write_path_v2_regression_fixture(project)
+    original_resolver = validator.resolve_policy
+    validator.resolve_policy = lambda _root: (_ for _ in ()).throw(
+        validator.PolicyError("GRAPH-SEMANTIC-INELIGIBLE: extraction_mode 'structural-only'")
+    )
+    try:
+        result = validator.validate_document(project, document)
+    finally:
+        validator.resolve_policy = original_resolver
+
+    residual = [(finding.code, finding.severity.value, finding.path) for finding in result.findings]
+    expected_dispositions = [
+        ("MF-CANON", "events[1].bindings[0]", "PASS"),
+        ("MF-CANON", "events[4].bindings[0]", "PASS"),
+        ("MF-CANON", "events[5].bindings[0]", "PASS"),
+        ("MF-CANON", "events[6].bindings[0]", "PASS"),
+        ("MF-CANON", "events[8].bindings[0]", "PASS"),
+        ("MF-EVENT", "events[9].bindings[0]", "PASS"),
+        ("MF-EVENT", "events[10].bindings[0]", "PASS"),
+        ("MF-EVENT", "latest lifecycle event", "PASS"),
+        ("MF-EVENT", "not_ready handoff", "PASS"),
+        ("MF-EVENT", "current primary-lineage deliverable", "PASS"),
+        ("MF-FEEDBACK", "feedback_records[0].source_path", "FINDING"),
+        ("MF-FEEDBACK", "feedback_records[0].contemporaneity_evidence_path", "FINDING"),
+        ("MF-HANDOFF", "milestones.M2", "PASS"),
+        ("MF-POLICY", "policy_bindings.reader_accessibility", "SKIPPED"),
+    ]
+    expected_residual = [
+        ("MF-FEEDBACK", "BLOCKER", "milestone_framework.milestones.M2.feedback_records[0].source_path"),
+        ("MF-FEEDBACK", "BLOCKER", "milestone_framework.milestones.M2.feedback_records[0].contemporaneity_evidence_path"),
+    ]
+    print(f"path_v2/regression_14_to_2: actual={residual}")
+    if residual != expected_residual:
+        failures.append(f"path-v2 regression expected only unchanged MF-FEEDBACK blockers, got {residual}")
+    skipped = getattr(result, "skipped_checks", ())
+    if not any(row.get("status", "").startswith("SKIPPED(") for row in skipped):
+        failures.append("path-v2 structural policy fallback was not reported visibly as SKIPPED(reason)")
+    phase_spec = importlib.util.spec_from_file_location("phase_state_validate_path_v2_test", PHASE_VALIDATOR)
+    assert phase_spec is not None and phase_spec.loader is not None
+    phase_validator = importlib.util.module_from_spec(phase_spec)
+    sys.modules[phase_spec.name] = phase_validator
+    phase_spec.loader.exec_module(phase_validator)
+    phase_rows = json.loads(phase_validator._render_json([], list(skipped)))
+    if not any(row.get("severity") == "SKIPPED" and row.get("message", "").startswith("SKIPPED(") for row in phase_rows):
+        failures.append("phase-state wrapper silently dropped the structural policy fallback")
+    if len(expected_dispositions) != 14:
+        failures.append("path-v2 baseline disposition table no longer covers all 14 findings")
+    for code, locator, disposition in expected_dispositions:
+        matches = [
+            finding for finding in result.findings
+            if finding.code == code and (locator in finding.path or locator in finding.message)
+        ]
+        if disposition == "FINDING" and not matches:
+            failures.append(f"path-v2 {code}/{locator} did not preserve its finding classification")
+        if disposition in {"PASS", "SKIPPED"} and matches:
+            failures.append(f"path-v2 {code}/{locator} remained a finding instead of {disposition}")
+
+    unsigned_project = directory / "path-v2-unsigned"
+    shutil.copytree(project, unsigned_project)
+    unsigned_document = json.loads((unsigned_project / "reviews/phase_state.json").read_text(encoding="utf-8"))
+    unsigned_document["milestone_framework"]["events"][-1]["evidence_sha256"] = "0" * 64
+    unsigned = validator.validate_document(unsigned_project, unsigned_document)
+    if "MF-CANON" not in {finding.code for finding in unsigned.findings}:
+        failures.append("path-v2 unsigned migration manifest was allowed to resolve retired paths")
+
+    unknown_project = directory / "path-v2-unknown"
+    shutil.copytree(project, unknown_project)
+    unknown_document = json.loads((unknown_project / "reviews/phase_state.json").read_text(encoding="utf-8"))
+    unknown_document["milestone_framework"]["events"][-1]["event_type"] = "milestone_started"
+    unknown = validator.validate_document(unknown_project, unknown_document)
+    if "MF-CANON" not in {finding.code for finding in unknown.findings}:
+        failures.append("path-v2 unreferenced migration manifest was allowed to resolve retired paths")
+
+    corrupt_project = directory / "path-v2-corrupt"
+    corrupt_project.mkdir()
+    _write_real_case("valid_native_chain", corrupt_project)
+    corrupt_document = json.loads((corrupt_project / "reviews/phase_state.json").read_text(encoding="utf-8"))
+    corrupt_artifact = corrupt_document["milestone_framework"]["milestones"]["M3"]["artifacts"][0]
+    (corrupt_project / corrupt_artifact["path"]).write_text("tampered milestone bytes\n", encoding="utf-8")
+    corrupt = validator.validate_document(corrupt_project, corrupt_document)
+    if not any(finding.code == "MF-BINDING" and "current" in finding.message for finding in corrupt.findings):
+        failures.append("path-v2 genuine milestone corruption did not fail closed")
+
+
 def _write_sk20_project(project: Path, claude_fields: dict[str, str], directive_fields: dict[str, str] | None = None, *, graph: bool = True) -> None:
     project.mkdir()
     (project / "reviews").mkdir()
-    (project / "manuscript").mkdir()
+    (project / "milestones").mkdir()
     (project / "references").mkdir()
     (project / "research_notes").mkdir()
     wiki = project / "wiki"
@@ -1782,7 +2023,10 @@ def _write_sk20_project(project: Path, claude_fields: dict[str, str], directive_
         directives += "## SK-20 applicability override\n\n" + table(directive_fields)
     (project / "research_notes" / "directives.md").write_text(directives, encoding="utf-8")
     (project / "reviews" / "classification.md").write_text("# Classification\n", encoding="utf-8")
-    (project / "manuscript" / "main.md").write_text(
+    (project / "milestones" / "M3_argument_evidence_outline.md").write_text(
+        "Last updated: 2026-07-13\n\nOutline grounded claim (Smith 2026).\n", encoding="utf-8"
+    )
+    (project / "milestones" / "M4_complete_paper_draft.md").write_text(
         "Last updated: 2026-07-13\n\nA grounded claim (Smith 2026).\n", encoding="utf-8"
     )
     (project / "references" / "REFERENCES.md").write_text("Last updated: 2026-07-13\n", encoding="utf-8")
@@ -1852,6 +2096,12 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
             readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
             if readiness.get("outcome") != expected_outcome:
                 failures.append(f"sk20/{name} readiness evidence outcome is not truthful")
+            inputs = readiness.get("metadata", {}).get("inputs", {})
+            manuscript_path = str(inputs.get("manuscript_path", "")).replace("\\", "/")
+            if name == "enabled_graph_authority_unavailable" and not manuscript_path.endswith(
+                "/milestones/M4_complete_paper_draft.md"
+            ):
+                failures.append("sk20/default manuscript probe did not use path-contract 2.0.0 M4")
             if expected_outcome == "NOT_APPLICABLE":
                 expected_source = "CLI" if name.startswith("cli_") else (
                     "research_notes/directives.md" if name.startswith("directive_") else "project CLAUDE.md"
@@ -2204,6 +2454,7 @@ def main() -> int:
                 failures.append(f"real/{name} emitted a traceback")
 
         _run_exemplar_cases(directory, failures)
+        _run_path_v2_regressions(directory, failures)
 
         integration_project = directory / "phase-integration"
         integration_project.mkdir()

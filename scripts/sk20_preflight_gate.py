@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coupling_readiness_check import CheckResult, derive_noop_reason, resolve_project_claude_path, run_checks
 from graph_authority_gate import evaluate_graph_authority
+from milestone_path_contract import canonical_deliverable
 
 
 OUTCOME_READY = "READY"
@@ -454,7 +455,10 @@ def main() -> int:
             "classification_path": args.classification_path,
             "allow_legacy_graph_confidence": args.allow_legacy_graph_confidence,
         }
-        overrides["manuscript_path"] = str(_read_only_input_path(project_root, args.manuscript_path, "manuscript/main.md"))
+        default_manuscript = canonical_deliverable("M4")
+        if not (project_root / default_manuscript).is_file():
+            default_manuscript = canonical_deliverable("M3")
+        overrides["manuscript_path"] = str(_read_only_input_path(project_root, args.manuscript_path, default_manuscript))
         overrides["references_path"] = str(_read_only_input_path(project_root, args.references_path, "references/REFERENCES.md"))
         overrides["classification_path"] = str(_read_only_input_path(project_root, args.classification_path, "reviews/classification.md"))
         applicability, config_metadata, reason_code, reason_detail = _resolve_configuration(project_root, args)
