@@ -6,6 +6,38 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.0 — 2026-07-22
+
+### Producer boundary R1: machine-enforced writer coverage
+
+**What.** Bounded revision to v0.36.0 after supervisory review found the
+guard coverage incomplete: `coupling_health_report.py` demonstrably wrote
+into a protected governed root while the corpus was green.
+
+- New maintainer check `scripts/destination-coverage-check.py` +
+  `references/destination_coverage_registry.json`: a mechanical census of
+  every filesystem writer under `scripts/` must classify each as guarded
+  (with a live guard call and a named negative regression), package-confined,
+  test-only, or excluded — the last three sha256-pinned so any change forces
+  deliberate re-review. An unclassified new writer fails the battery.
+- Census result: 34 writers, including seven the prose inventory had missed.
+  Newly guarded: `coupling_health_report`, `aggregate_h_calibration`,
+  `install_preflight_assets`, `gate_threshold_tuner` (`--output`),
+  `audit/run_all` (project root + all output paths),
+  `coupling_readiness_check` (output paths), `d_style_profile_check`,
+  `token_budget_check` (`--out`). Each observed red against a disposable
+  synthetic tree first; refusal cases (including alias spellings) added to
+  `destination_capability_smoketest.py`.
+
+**Why.** Coverage that lives only in prose rots; the registry makes writer
+coverage a failing check instead of a claim.
+
+**How to apply.** Adding any writer now requires either a guard + regression
+or an explicit pinned classification; `--pin` refreshes pins only as a
+deliberate re-review act.
+
+---
+
 ## v0.36.0 — 2026-07-22
 
 ### Producer boundary: destination-capability guard, staging lane, shipment_only mode

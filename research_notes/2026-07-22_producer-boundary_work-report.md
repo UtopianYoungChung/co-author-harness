@@ -1,6 +1,7 @@
 # Work Report — Producer-Boundary Workstream (for supervisory review)
 
-**Date:** 2026-07-22 · **Repository:** `platform/co-author-harness`, branch `main`, HEAD `90c39fd`, working tree clean · **Plugin version:** v0.36.0 (authority: `.claude-plugin/plugin.json`)
+**Date:** 2026-07-22 · **Repository:** `platform/co-author-harness`, branch `main` · **Plugin version:** authority is `.claude-plugin/plugin.json`
+**Record provenance:** the tested implementation/fixture-manifest snapshot this report describes is `90c39fd`; this report was filed as the subsequent package-record commit (identified by git history, not restated here — a document cannot stably contain the hash of the commit that contains it). Later bounded-revision work is identified by git history after that filing and by the subsequent closeout receipt.
 **Prepared for:** the reviewing authority adjudicating the final closeout shipment
 **Decision requested:** Accept / Reject / Revise of the closeout shipment at
 `outputs/co-author-harness/staging/producer-boundary-closeout/run-20260722T185523Z-6f0fd411/`
@@ -39,7 +40,7 @@ All work on `main` (single-branch policy), TDD per defect (every regression obse
 | A | Baseline receipt (full battery recorded; one pre-existing environment-sensitive test failure documented, explicitly not treated as green) + mechanical inventory of all 21 writer entry points and agent/skill write surfaces | `3c9e9c4` |
 | Side fix (separately authorized) | Root-caused and fixed the flaky provenance smoketest (one-shot `git clean` vs. transient external file handles; misclassified environment failure). Deterministic Windows handle-injection regression added | `d11cd4c`, manifest `31dc941` |
 | B (governance; **applied by root governance after explicit user acceptance**) | Staging-lane route into the `WS_OUTPUTS` zone (`outputs/co-author-harness/staging/<work-id>/<run-id>/`), routing-contract enum extensions, prose meaning paragraph, workspace-index reconciliation of both stale claims, change record `2026-07-22_harness-staging-route.yaml` → `installed`. Byte-exact hash verification; routing gate exit 0; containment guard 0 errors | applied outside this repo |
-| C | `destination_capability.py` — single write-destination chokepoint: harness package and staging lane writable; anything else under a governed root refuses `DEST-PROTECTED`; installs without discoverable workspace governance fail closed (`DEST-UNGOVERNED`). Wired through 5 transaction verbs, 3 receipt-transaction entries, 13 writer CLIs. Alias-resistant (case-folding, forward slashes, `..`, junctions). Binding producer-duty declarations in `CLAUDE.md`, `AGENTS.md`, `AGENT_ORCHESTRATION.md`, `ASSIGNMENT_MILESTONE_PROCESS.md` §0 | `8e95abb` |
+| C | `destination_capability.py` — shared write-destination guard: harness package and staging lane writable; anything else under a governed root refuses `DEST-PROTECTED`; installs without discoverable workspace governance fail closed (`DEST-UNGOVERNED`). At this snapshot it was wired through 5 transaction verbs, 3 receipt-transaction entries, and 13 writer CLIs — a coverage set later shown incomplete and completed under machine enforcement (see Revision R1). Alias-resistant (case-folding, forward slashes, `..`, junctions). Binding producer-duty declarations in `CLAUDE.md`, `AGENTS.md`, `AGENT_ORCHESTRATION.md`, `ASSIGNMENT_MILESTONE_PROCESS.md` §0 | `8e95abb` |
 | D | `staging_run.py` + `shipment_manifest.schema.json` — run lifecycle: immutable input snapshots (bytes + source path + SHA-256), exclusive byte-verified shipment emission, tamper detection, application-receipt recognition (no receipt = not applied) | `8e95abb` |
 | E | Authority mode `shipment_only` (orthogonal to assignment profile and run scope; "operating mode" stays reserved-empty). `derive` reports the mode; staging events, bootstrap genesis events, and F9 handoffs carry `effect_scope: proposal_only`. Direct-local output byte-identical to before | `8e95abb` |
 | F | Staging revisability: post-convergence M4 and recorded M5 candidates re-record freely **in staging only**; the superseding event carries a `previous_content` binding, names `candidate_superseded`, and discloses the research-master revalidation advisory the harness never applies. M5 staging deliverables became content-addressed snapshots so historical event bindings stay byte-valid. Direct-local projects keep the historical refusals (regression-pinned) | `8e95abb` |
@@ -89,6 +90,39 @@ Safety property of the test design worth noting: red-phase runs mutate a **fake*
 | **Revise** | Name the items (e.g., add the staging `accept:FINAL` walk; different schema-versioning form); the workstream reopens for exactly those. |
 
 **Recommendation:** Accept, with two named follow-ups routed to their proper owners — (a) the Paper 1 staging-transition shipment (research master, with user authorization), and (b) optionally the staging `accept:FINAL` regression (harness, small).
+
+## Revision R1 — bounded three-blocker revision (2026-07-22, post-filing)
+
+The supervisory verdict on the original filing was **Revise** with three
+bounded blockers; Phases A–I were preserved, not reopened. Corrections made
+by this revision:
+
+1. **Coverage completeness (Blocker 1).** The original filing's completeness
+   language ("single chokepoint", the 5+3+13 wiring set) overstated coverage:
+   `coupling_health_report.py` was reproduced writing two files into a
+   protected governed root while the corpus was green, and a machine census
+   surfaced further unclassified writers the prose inventory missed
+   (`coupling_readiness_check`, `d_style_profile_check`, `token_budget_check`
+   output paths, audit orchestrator outputs, and others). Coverage is now
+   **machine-enforced**: `scripts/destination-coverage-check.py` (added to
+   the maintainer battery) fails on any census writer without a
+   classification in `references/destination_coverage_registry.json` —
+   34 writers classified: 24 guarded (each with a named negative
+   regression), 3 package-confined, 5 test-only, 2 excluded, with sha256
+   pins forcing deliberate re-review whenever a non-guarded writer's bytes
+   change. Every newly guarded surface was observed red against a disposable
+   synthetic tree before its fix.
+2. **Record provenance (Blocker 3).** The original header conflated the
+   tested snapshot with the report's own filing commit; the provenance block
+   at the top now distinguishes tested snapshot (`90c39fd`), the filing
+   commit (git history), and this revision (git history + the subsequent
+   closeout receipt). No document claims the hash of its own commit.
+3. **Sealed closeout manifest.** The original closeout run's human manifest
+   is sealed (tamper-evident by emission); it is superseded by the
+   subsequent closeout receipt rather than edited in place.
+4. **Routing reconciliation (Blocker 2)** is addressed as a separate
+   unapplied governance shipment presented for explicit user adjudication;
+   it is not closed by this report.
 
 ## 8. Where everything lives
 
