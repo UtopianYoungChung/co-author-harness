@@ -122,6 +122,44 @@ def _rmtree_force(path: Path, attempts: int = 6) -> None:
 _SHARED: dict[str, Path] = {}
 
 
+class SandboxEnvironmentError(RuntimeError):
+    """The sandbox INFRASTRUCTURE broke -- an ACQ-* fact about the reader's
+    environment, never a PRJ-* fact about the builder. Callers must route this
+    to ERRORS (run VOID, exit 2), not FAILURES (subject wrong, exit 1)."""
+
+
+def _reset_shared(repo: Path, attempts: int = 6) -> bool:
+    """Restore the shared clone to HEAD; False if it cannot be restored.
+
+    `reset --hard` + `clean -qfdx` must delete the previous case's untracked
+    output (the built bundle, __pycache__). Measured 2026-07-22: git clean
+    fails in ~0.15s with NO internal retry when an external handle (AV or
+    indexer under fresh-file churn -- the machine state right after a full
+    fixture-corpus run) blocks one unlink: "failed to remove ...: Invalid
+    argument", exit 1. One-shot check=True turned that into nine consecutive
+    case failures reported as PROVENANCE failures -- infrastructure noise
+    masquerading as a contract breach, the exact collapse _verdict() exists
+    to prevent. Same bounded-retry shape as _rmtree_force, and for the same
+    reason; the caller falls back to a fresh clone when the fixture is
+    genuinely unrestorable.
+    """
+    delay = 0.05
+    last = ""
+    for attempt in range(1, attempts + 1):
+        r = _git(repo, "reset", "--hard", "--quiet", check_rc=False)
+        if r.returncode == 0:
+            r = _git(repo, "clean", "-qfdx", check_rc=False)
+            if r.returncode == 0:
+                return True
+        last = (r.stderr or "").strip()
+        if attempt < attempts:
+            time.sleep(delay)
+            delay *= 2
+    print(f"  note  shared-sandbox reset failed after {attempts} attempts "
+          f"({last[:120]!r}) -- discarding the clone, using a fresh one")
+    return False
+
+
 @contextmanager
 def sandbox(destructive: bool = False):
     """A disposable clone of the harness. All mutation happens HERE, never in
@@ -147,11 +185,22 @@ def sandbox(destructive: bool = False):
         repo = _SHARED["repo"]
         # Restore to HEAD. clean -fdx also removes the previous overlay and any
         # bundle, so the next case starts from commit content exactly.
-        _git(repo, "reset", "--hard", "--quiet")
-        _git(repo, "clean", "-qfdx")
-        _overlay(repo)
-        yield repo
-        return
+        if _reset_shared(repo):
+            _overlay(repo)
+            yield repo
+            return
+        # Unrestorable fixture: discard it and fall through to the fresh-clone
+        # path below. If even the discard fails, that is an environment fact
+        # (run VOID), never a provenance verdict.
+        stale = _SHARED.pop("tmp", None)
+        _SHARED.pop("repo", None)
+        if stale is not None:
+            try:
+                _rmtree_force(stale)
+            except OSError as exc:
+                raise SandboxEnvironmentError(
+                    f"could not discard unrestorable shared sandbox {stale.name}: "
+                    f"{type(exc).__name__}: {exc}") from exc
 
     tmp = Path(tempfile.mkdtemp(prefix="sbx-", dir=str(base)))
     try:
@@ -474,6 +523,45 @@ def _commit_date_time(repo: Path) -> tuple:
     return (d.year, d.month, d.day, d.hour, d.minute, d.second)
 
 
+def case_reset_survives_transient_handle() -> None:
+    """The inter-case shared-sandbox reset must survive a transient external
+    handle on an untracked file it has to delete.
+
+    Measured 2026-07-22 (baseline receipt,
+    research_notes/2026-07-22_producer-boundary_phase-a_baseline.md): after a
+    full fixture-corpus run, `clean -qfdx` in this reset exited 1 for nine
+    consecutive cases -- an external holder (AV/indexer under fresh-file
+    churn) blocking deletion of the previous case's untracked output -- then
+    the identical suite passed 3/3 once the machine went idle. A one-shot
+    reset cannot see that; _rmtree_force learned the same lesson for rmtree.
+    This injects the exact shape deterministically: an open handle without
+    FILE_SHARE_DELETE on an untracked file, released ~1.5s later, must not
+    produce a case failure.
+    """
+    if os.name != "nt":
+        print("  SKIP  handle-based injection is Windows-only; retry path "
+              "exercised only where deletion can actually be blocked")
+        return
+    import threading
+    with sandbox():
+        pass  # ensure the shared clone exists before we plant the probe
+    victim = _SHARED["repo"] / "TRANSIENT_HOLD.tmp"
+    victim.write_bytes(b"untracked probe\n")
+    # CPython opens without FILE_SHARE_DELETE, so git's unlink gets a sharing
+    # violation. Measured: `clean -qfdx` fails in ~0.15s with NO internal
+    # retry ("failed to remove ...: Invalid argument", exit 1). The hold must
+    # outlive the `reset --hard` step (~0.3-0.5s on this clone) or it releases
+    # before clean runs and the injection tests nothing.
+    handle = open(victim, "rb")
+    threading.Timer(1.5, handle.close).start()
+    try:
+        with sandbox() as repo:  # enters the reset path while the handle is held
+            check("transient handle: reset survived and fixture restored",
+                  not (repo / "TRANSIENT_HOLD.tmp").exists())
+    finally:
+        handle.close()
+
+
 def case_no_temp_leak() -> None:
     before = {p.name for p in Path(tempfile.gettempdir()).glob("coauthor-*")}
     with sandbox() as repo:
@@ -722,11 +810,23 @@ def main() -> int:
         case_committed_mutant_contracts,
         case_cleanup_failure_exit7,
         case_git_failure_fails_closed,
+        case_reset_survives_transient_handle,
         case_no_temp_leak,
     ):
         print(f"{fn.__name__}:")
         try:
             fn()
+        except SandboxEnvironmentError as exc:
+            # Reader broke, not the subject: no verdict, run VOID (exit 2).
+            ERRORS.append(f"{fn.__name__}: {exc}")
+            print(f"  ERROR  environment: {exc} -- no verdict for this case")
+        except subprocess.CalledProcessError as exc:
+            # Surface git's stderr: "exit status 1" without the refused path
+            # cost a full diagnosis round (2026-07-22).
+            stderr = (exc.stderr or "").strip() if isinstance(exc.stderr, str) else ""
+            check(fn.__name__, False,
+                  f"raised CalledProcessError: {exc}"
+                  + (f" :: stderr {stderr[:160]!r}" if stderr else ""))
         except Exception as exc:  # noqa: BLE001
             check(fn.__name__, False, f"raised {type(exc).__name__}: {exc}")
         print()
