@@ -32,7 +32,7 @@
     {"id": "grounding-protocol", "path": "references/GROUNDING_PROTOCOL.md", "revision_kind": "sha256", "sha256": "248dc4226145ed52d246f3674a4b80754627a480e5f775305d8d76dce715fe32", "migration_ids": []},
     {"id": "artefact-schema", "path": "references/ARTEFACT_FRONTMATTER_SCHEMA.md", "revision_kind": "sha256", "sha256": "8323018b15c93d67f3366cbe55e25fb609197aa3e77fa086d73bceccd1d0d391", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "course-essay-milestones", "path": "references/policies/course_essay_milestones.v1.json", "revision_kind": "sha256", "sha256": "134c7d6fd3dd3d07a8e130c6404e1a47cd18dadb4e0ee68c4d5d27651c0c20fe", "migration_ids": []},
-    {"id": "reader-accessibility", "path": "references/policies/reader_accessibility.v1.json", "revision_kind": "sha256", "sha256": "02dfc1f2abf31c3a14c5654e0a74b443a54279f61192e3d06817d99da3c4d719", "migration_ids": []},
+    {"id": "reader-accessibility", "path": "references/policies/reader_accessibility.v1.json", "revision_kind": "sha256", "sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2", "migration_ids": []},
     {"id": "assignment-receipt-schema", "path": "references/schemas/assignment_gate_receipt.schema.json", "revision_kind": "sha256", "sha256": "0a256594a12a93004a32e920089704f62aef1bcf32c625d109b181d4478855e3", "migration_ids": []},
     {"id": "assignment-receipt-template", "path": "references/templates/assignment_gate_receipt.json", "revision_kind": "sha256", "sha256": "3d9075be4643aad84fe54d6b0c674f33fc9c74484f05db60e3f5325b8f41a89c", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "assignment-checkpoint-schema", "path": "references/schemas/assignment_milestone_checkpoint.schema.json", "revision_kind": "sha256", "sha256": "69e4fc2341958888b0bb1d7500278d1b5499df301870e0fc3529ef04c78adf08", "migration_ids": []},
@@ -53,6 +53,6 @@
     {"id": "assignment-receipt-recover", "path": "scripts/assignment_receipt_recover.py", "revision_kind": "sha256", "sha256": "c05e1a7ecb5a313b37e15786768e3d788dac63c7ae87e0ce13c658353f471832", "migration_ids": []},
     {"id": "milestone-path-resolver", "path": "scripts/milestone_path_contract.py", "revision_kind": "sha256", "sha256": "fb509f52eda47b95d41f34d0783d9eb6cb0ecd4617e18de1b41fe17f49f8bfa9", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "milestone-path-migrator", "path": "scripts/migrate_milestone_paths.py", "revision_kind": "sha256", "sha256": "a09b79e791718d135a197dd627fc5ef5ea734ea24a5b307e09b094f0c0ee39f7", "migration_ids": ["milestone-path-contract-v2"]},
-    {"id": "milestone-framework-schema", "path": "references/schemas/milestone_framework.schema.json", "revision_kind": "sha256", "sha256": "c8da8e4a1ada7bfd9e44b7aad5852e08eb7cfaf2e7d0c18c7ea0c659d5c3a452", "migration_ids": ["milestone-path-contract-v2"]}
+    {"id": "milestone-framework-schema", "path": "references/schemas/milestone_framework.schema.json", "revision_kind": "sha256", "sha256": "b4390ee81ba2328a603a681d0469739ffc41dc4f3bcf1d861f25fdd4cab744f4", "migration_ids": ["milestone-path-contract-v2"]}
   ]
 }
