@@ -63,7 +63,7 @@
     "scripts/build-plugin.py": {
       "class": "package_confined",
       "evidence": "no CLI arguments at all; every write path derives from the package root (bundle under .claude-plugin/, build worktree under .worktrees/)",
-      "sha256": "aff24ec5f133891466ddca1e6b59d2fe74399845679d3e99f7f6776675c39094"
+      "sha256": "7c0471cb7d51301359cd0fce4cefbf5d5afe18598afc8cb6bff2fe348137cd85"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
