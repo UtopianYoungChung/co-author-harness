@@ -12,6 +12,7 @@ Exit: 0 all pass; 1 a case failed.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -22,6 +23,13 @@ HARNESS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HARNESS / "scripts"))
 
 import destination_capability as dc  # noqa: E402
+
+PATH_HYGIENE_SPEC = importlib.util.spec_from_file_location(
+    "path_hygiene_check", HARNESS / "scripts" / "path-hygiene-check.py"
+)
+assert PATH_HYGIENE_SPEC and PATH_HYGIENE_SPEC.loader
+path_hygiene = importlib.util.module_from_spec(PATH_HYGIENE_SPEC)
+PATH_HYGIENE_SPEC.loader.exec_module(path_hygiene)
 
 FAILURES: list[str] = []
 
@@ -96,6 +104,18 @@ def case_classifier() -> None:
                   dc.classify(other_out) == "protected", dc.classify(other_out))
             check("harness package path -> package",
                   dc.classify(HARNESS / "research_notes" / "x.md") == "package")
+            local_staging = (HARNESS / "outputs" / "co-author-harness" /
+                             "staging" / "w1" / "r1" / "work" / "d.md")
+            check("package-local staging lookalike -> misrouted",
+                  dc.classify(local_staging) == "misrouted",
+                  dc.classify(local_staging))
+            refused = None
+            try:
+                dc.assert_writable(local_staging)
+            except dc.DestinationRefused as exc:
+                refused = exc
+            check("package-local staging raises DEST-MISROUTED",
+                  refused is not None and refused.code == dc.DEST_MISROUTED)
             ext = Path(td) / "unrelated" / "x.txt"
             check("path outside every governed root -> external",
                   dc.classify(ext) == "external", dc.classify(ext))
@@ -123,6 +143,19 @@ def case_classifier() -> None:
                   dc.assert_writable(shipment) == "shipment")
         finally:
             os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+
+
+def case_package_local_staging_hygiene() -> None:
+    with tempfile.TemporaryDirectory(prefix="destcap-hygiene-") as td:
+        root = Path(td)
+        check("absent package-local staging passes hygiene",
+              path_hygiene.check_repo_local_project_staging(root) == [])
+        forbidden = root / "outputs" / "co-author-harness" / "staging" / "w1" / "r1"
+        forbidden.mkdir(parents=True)
+        findings = path_hygiene.check_repo_local_project_staging(root)
+        check("present package-local staging blocks hygiene",
+              len(findings) == 1 and "governed workspace root" in findings[0],
+              str(findings))
 
 
 def case_real_workspace_discovery() -> None:
@@ -331,7 +364,8 @@ def case_audit_shipment_output() -> None:
 
 def main() -> int:
     print("destination_capability_smoketest")
-    for fn in (case_classifier, case_real_workspace_discovery,
+    for fn in (case_classifier, case_package_local_staging_hygiene,
+               case_real_workspace_discovery,
                case_ungoverned_fails_closed, case_mutator_wiring,
                case_output_redirect_refusals, case_audit_shipment_output):
         print(f"{fn.__name__}:")

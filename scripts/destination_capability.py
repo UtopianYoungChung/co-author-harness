@@ -8,6 +8,8 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
 
   package    harness package root                    -> writable (repo rules)
   staging    <governed-root>/outputs/co-author-harness/staging/  -> writable
+  misrouted  <harness>/outputs/co-author-harness/    -> REFUSE (project output
+                                                        cannot live in package)
   shipment   <governed-root>/research/60_Workbench/<work-id>/
              reviews/.harness/shipments/<shipment-id>/ -> writable (reports only)
   protected  anywhere else under a governed root     -> REFUSE
@@ -43,6 +45,7 @@ HARNESS = Path(__file__).resolve().parent.parent
 
 _MANIFEST_REL = Path("governance") / "output-routing" / "output_routing.yaml"
 _STAGING_REL = Path("outputs") / "co-author-harness" / "staging"
+_PACKAGE_PROJECT_OUTPUT_REL = Path("outputs") / "co-author-harness"
 _SHIPMENT_PREFIX = tuple(os.path.normcase(p) for p in ("research", "60_Workbench"))
 _SHIPMENT_SUFFIX = tuple(os.path.normcase(p) for p in ("reviews", ".harness", "shipments"))
 
@@ -62,6 +65,7 @@ _REPIN_SIDECAR_TAIL = tuple(
 # Error codes (stable contract for tests and callers)
 DEST_PROTECTED = "DEST-PROTECTED"
 DEST_UNGOVERNED = "DEST-UNGOVERNED"
+DEST_MISROUTED = "DEST-MISROUTED"
 
 
 class DestinationRefused(RuntimeError):
@@ -177,6 +181,8 @@ def governed_roots() -> list[Path]:
 def classify(destination: os.PathLike | str) -> str:
     """Classify a resolved write destination. Pure; raises nothing."""
     dest = _canon(destination)
+    if _is_under(dest, HARNESS / _PACKAGE_PROJECT_OUTPUT_REL):
+        return "misrouted"
     if _is_under(dest, HARNESS):
         return "package"
     roots = governed_roots()
@@ -198,6 +204,14 @@ def classify(destination: os.PathLike | str) -> str:
 def assert_writable(destination: os.PathLike | str, purpose: str = "write") -> str:
     """Return the writable classification or raise DestinationRefused."""
     kind = classify(destination)
+    if kind == "misrouted":
+        raise DestinationRefused(
+            DEST_MISROUTED,
+            f"{purpose} destination {os.fspath(destination)!r} resolves inside "
+            "the harness package's forbidden project-output lookalike. Project "
+            "staging belongs under <governed-workspace-root>/outputs/"
+            "co-author-harness/staging/<work-id>/<run-id>/; a project must not "
+            "become package state or a governing authority for the harness.")
     if kind == "protected":
         raise DestinationRefused(
             DEST_PROTECTED,

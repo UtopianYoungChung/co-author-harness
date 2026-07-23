@@ -7,7 +7,11 @@ Every transaction verb (`begin`, `record`, `accept`, `rebind-reader-policy`,
 `recover`) resolves its mutable project root through
 `scripts/destination_capability.py` and refuses a protected consumer project
 with `DEST-PROTECTED`. Work whose consumer is the research tree normally runs
-in the governed staging lane (`outputs/co-author-harness/staging/<work-id>/<run-id>/`).
+in the governed staging lane
+(`<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`).
+The package-local lookalike `co-author-harness\outputs\co-author-harness\` is
+forbidden: project output cannot become package state or give one project
+governing authority over the harness.
 Report-only tools may read a protected project and write only to its exact
 private lane
 `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`;

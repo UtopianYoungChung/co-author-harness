@@ -16,8 +16,8 @@
 
 The harness is a **producer, not a decision maker**. It may write private Stage reports, evidence, and manifests only inside an active research package's exact lane `research\60_Workbench\<work-id>\reviews\.harness\shipments\<shipment-id>\`. Those bytes remain scratch/private and imply no acceptance, registration, promotion, or authoritative-state update. All other governed consumer paths remain protected; research governance alone may apply a user-authorized, path-and-hash-bounded change beyond the shipment lane. Contract: `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing: `governance/output-routing/`.
 
-- Writable destinations are exactly: this package root (repo rules), the governed staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`, and the exact private shipment lane above.
-- Every script writer resolves destinations through `scripts/destination_capability.py`: a protected destination refuses with `DEST-PROTECTED`; an install without discoverable workspace governance fails closed (`DEST-UNGOVERNED`) for all non-package writes.
+- Writable destinations are exactly: this package root (repo rules), the governed staging lane `<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`, and the exact private shipment lane above. The lookalike path `co-author-harness\outputs\co-author-harness\` is forbidden: project output must never become package state or make one project a governing body for the harness.
+- Every script writer resolves destinations through `scripts/destination_capability.py`: package-local project output refuses with `DEST-MISROUTED`; a protected destination refuses with `DEST-PROTECTED`; an install without discoverable workspace governance fails closed (`DEST-UNGOVERNED`) for all non-package writes.
 - This binds agent-directed writes with general file tools exactly as it binds scripts. Do not create, modify, move, rename, or delete any protected path; the shipment exception does not authorize direct Apply-mode mutation.
 
 ---

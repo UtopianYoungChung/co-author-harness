@@ -26,12 +26,16 @@ path-and-hash-bounded change beyond the shipment lane (contract:
 `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing:
 `governance/output-routing/`). Writable harness destinations are therefore
 this package root, the governed staging lane
-`outputs/co-author-harness/staging/<work-id>/<run-id>/`, and the exact private
+`<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`, and the exact private
 shipment lane above. Script writers resolve destinations through
-`scripts/destination_capability.py` (`DEST-PROTECTED` refusal;
-`DEST-UNGOVERNED` fail-closed without discoverable workspace governance).
+`scripts/destination_capability.py` (`DEST-MISROUTED` for package-local project
+output; `DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without
+discoverable workspace governance).
 Never infer authority from a harness verdict, phase label, terminal PASS, or
 artifact quality.
+The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
+project output must never become package state or make one project a governing
+body for the harness.
 
 *Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../ROOT_ARCHITECTURE_INDEX.md`.
 

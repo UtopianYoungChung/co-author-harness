@@ -10,11 +10,15 @@ governed workspace root outside the harness package (`research/`,
 Private Stage reports, evidence, and manifests may be written only inside
 `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
 The other writable destinations are the harness package root and the governed
-staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`. Every
+staging lane `<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`.
+The lookalike path `co-author-harness\outputs\co-author-harness\` is forbidden:
+project output must never become package state or make one project a governing
+body for the harness. Every
 other governed consumer path remains protected, and research governance alone
 applies an explicitly authorized change beyond the shipment lane. Script
 writers enforce this through `scripts/destination_capability.py`
-(`DEST-PROTECTED` / `DEST-UNGOVERNED`). A shipment remains scratch/private;
+(`DEST-MISROUTED` / `DEST-PROTECTED` / `DEST-UNGOVERNED`). A shipment remains
+scratch/private;
 no phase label, verdict, terminal PASS, or artifact quality implies authority
 to apply it.
 

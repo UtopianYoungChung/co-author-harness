@@ -2,7 +2,7 @@
 """
 co-author-harness — path-hygiene-check.py
 
-Four path-hygiene checks:
+Five path-hygiene checks:
 
 1. **Forbidden local absolute paths.** Blocks maintainer-local absolute
    paths (e.g., `C:\\Users\\young\\`, `/Users/young/`) from install-facing
@@ -22,6 +22,11 @@ Four path-hygiene checks:
 4. **No captured build-state files in the plugin manifest directory.** Shell
    listings and error captures are neither package metadata nor release
    receipts; if tracked, the package builder ships them as product bytes.
+
+5. **No package-local project staging.** Project outputs belong under the
+   governed workspace root, never under the harness package. The package-local
+   lookalike is blocked even when empty so general file tools cannot bypass the
+   runtime destination classifier.
 """
 
 from __future__ import annotations
@@ -59,6 +64,7 @@ FORBIDDEN_TRACKED_STATE = (
     ".claude-plugin/_listing.txt",
     ".claude-plugin/_state.txt",
 )
+FORBIDDEN_PACKAGE_PROJECT_OUTPUT = Path("outputs") / "co-author-harness"
 
 
 def read_text(path: Path) -> str:
@@ -177,10 +183,23 @@ def check_captured_build_state(plugin_root: Path) -> List[str]:
     ]
 
 
+def check_repo_local_project_staging(plugin_root: Path) -> List[str]:
+    forbidden = plugin_root / FORBIDDEN_PACKAGE_PROJECT_OUTPUT
+    if not forbidden.exists():
+        return []
+    return [
+        "package-local project staging is forbidden: "
+        f"{FORBIDDEN_PACKAGE_PROJECT_OUTPUT.as_posix()} exists; project outputs "
+        "belong under <governed workspace root>/outputs/co-author-harness/"
+        "staging/<work-id>/<run-id>/"
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Check for forbidden local absolute paths, README link "
-        "drift, and untracked files in guarded directories."
+        "drift, untracked files in guarded directories, and package-local "
+        "project staging."
     )
     parser.add_argument(
         "--plugin-root",
@@ -197,6 +216,7 @@ def main() -> int:
     blockers.extend(check_readme_link_resolution(plugin_root))
     blockers.extend(check_untracked_in_guarded_dirs(plugin_root))
     blockers.extend(check_captured_build_state(plugin_root))
+    blockers.extend(check_repo_local_project_staging(plugin_root))
 
     print("PATH HYGIENE CHECK")
     print(f"- Plugin root: {plugin_root}")
