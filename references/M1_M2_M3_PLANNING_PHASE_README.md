@@ -59,7 +59,7 @@
    - You: "Resolve it — models capture current dependencies, not stable entities"
    - ✓ Done
 
-**After M1, run the Planner feedback gate:** The Planner records attributable user/advisor feedback, applies the exemplar and tension checks as Planner evidence, and requests revision where needed. The Evaluator is not engaged at Ph1.
+**After M1, run the Planner feedback gate:** The Planner records attributable user/advisor feedback and verifies the independent current-byte centroid/governing-policy evaluation before requesting revision or approval.
 
 ---
 
@@ -86,7 +86,7 @@
    - You: "Illustration — constructed scenario grounded in evidence from platform work, clinical systems, policing."
    - ✓ Labeled in annotation with empirical backing noted
 
-**After M2, run the Planner feedback gate:** The Planner records attributable user/advisor feedback and checks whether each framework transfer is justified and each source is epistemologically classified. The Evaluator is not engaged at Ph1.
+**After M2, run the Planner feedback gate:** The Planner records attributable user/advisor feedback, verifies the independent current-byte policy evaluation, and checks whether each framework transfer is justified and each source is epistemologically classified.
 
 ---
 

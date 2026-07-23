@@ -25,5 +25,14 @@
   "decisions_frozen": [],
   "open_debts": [],
   "next_milestone_instructions": [],
-  "policy_evidence": {}
+  "policy_evidence": {
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/shipments/<shipment-id>/draft_governance_M1_generation.verified.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/shipments/<shipment-id>/draft_governance_M1_evaluation.verified.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
 }

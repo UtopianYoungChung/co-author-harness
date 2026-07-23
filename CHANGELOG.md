@@ -8,6 +8,22 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## v0.37.1 — 2026-07-22
 
+### Universal centroid and all-drafts governance
+
+**What.** Promoted `/centroid-pass` to a public read-only orchestration surface
+and installed `draft_governance.v1.json` plus a deterministic resolver/verifier.
+Every M1-M4 and FINAL draft now requires centroid-conditioned Generator evidence
+and independent Evaluator evidence over the exact current bytes. The obligation
+does not depend on whether a milestone artifact already exists. The bundle
+includes D-STYLE, retained grammar/style commitments, grounding, deterministic
+checks, SAFEGUARD, and every piece-conditional overlay.
+
+**Enforcement.** Assignment receipts always bind centroid conditioning;
+milestone `record` refuses missing, stale, self-evaluated, or incomplete policy
+envelopes; the terminal full-run gate rechecks all five deliverables. Ph1 now has
+a bounded policy Evaluator pass while the full revision-maturity review remains
+Ph2+.
+
 ### Producer boundary R2: clean refusal exit codes; runbook parity enforced
 
 **What.** Patch corrections found by supervisory review of R1.

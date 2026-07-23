@@ -14,7 +14,7 @@ import tempfile
 from assignment_fixture_support import write_valid_contract
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from assignment_milestone_checkpoint_smoketest import (
-    approval_input, checkpoint_input, converge_m4_fixture,
+    approval_input, checkpoint_input, converge_m4_fixture, draft_policy_evidence,
     m4_acceptance_policy_input, publish,
 )
 from assignment_milestone_transaction import (
@@ -169,7 +169,10 @@ def terminal_inputs(project: Path) -> tuple[Path, Path, Path]:
         }],
         "inputs_consumed": [], "decisions_frozen": ["Freeze submission-bound bytes."],
         "open_debts": [], "next_milestone_instructions": ["Archive terminal evidence."],
-        "policy_evidence": {"phase": "Ph4", "cycle_id": BOUND},
+        "policy_evidence": {
+            **draft_policy_evidence(project, "M5", "terminal"),
+            "phase": "Ph4", "cycle_id": BOUND,
+        },
     })
 
     transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}

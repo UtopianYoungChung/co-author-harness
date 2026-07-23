@@ -37,7 +37,7 @@ def main() -> int:
     assert "M1, M2, and M3 are separately presented" in routing_flat
     assert "M4 begins with initial manuscript assembly in Ph1" in routing_flat
     assert "M4 initial assembly in Ph1 | Planner dispatches Generator" in routing_flat
-    assert "Evaluator is dormant for M1–M3 and throughout Ph1" in routing_flat
+    assert "Evaluator performs the bounded all-drafts centroid/policy pass" in routing_flat
     assert "seven phases, mapped" not in routing_flat
     assert "every request lands on exactly one phase" not in routing_flat
 

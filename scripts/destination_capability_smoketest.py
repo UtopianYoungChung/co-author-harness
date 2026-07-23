@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""destination_capability_smoketest - the producer boundary refuses governed writes.
+"""destination_capability_smoketest - producer writes stay in exact governed lanes.
 
 Hermetic: a FAKE governed root under a temp dir is added via
 COAUTHOR_EXTRA_GOVERNED_ROOTS (additive-only test hook), so red-phase runs that
@@ -63,6 +63,15 @@ def case_classifier() -> None:
             lane = fake / "outputs" / "co-author-harness" / "staging" / "w1" / "r1" / "work" / "d.md"
             check("staging lane -> staging (writable)",
                   dc.classify(lane) == "staging", dc.classify(lane))
+            shipment = (fake / "research" / "60_Workbench" / "w1" /
+                        "reviews" / ".harness" / "shipments" / "s1" /
+                        "findings.json")
+            check("research shipment lane -> shipment (writable)",
+                  dc.classify(shipment) == "shipment", dc.classify(shipment))
+            shipment_parent = shipment.parents[1]
+            check("shipment parent without shipment id -> protected",
+                  dc.classify(shipment_parent) == "protected",
+                  dc.classify(shipment_parent))
             other_out = fake / "outputs" / "adhoc" / "x.txt"
             check("outputs outside the lane -> protected",
                   dc.classify(other_out) == "protected", dc.classify(other_out))
@@ -91,6 +100,8 @@ def case_classifier() -> None:
                 refused = exc
             check("assert_writable raises DEST-PROTECTED",
                   refused is not None and refused.code == dc.DEST_PROTECTED)
+            check("assert_writable permits exact shipment child",
+                  dc.assert_writable(shipment) == "shipment")
         finally:
             os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
 
@@ -271,11 +282,39 @@ def case_output_redirect_refusals() -> None:
                   f"created {sorted(str(x) for x in (after - before))[:3]}")
 
 
+def case_audit_shipment_output() -> None:
+    """A read-only audit may consume a protected project while writing its
+    report only to that project's exact private shipment lane."""
+    with tempfile.TemporaryDirectory(prefix="destcap-shipment-audit-") as td:
+        fake = make_fake_root(Path(td))
+        project = fake / "research" / "60_Workbench" / "w1"
+        target = project / "milestones" / "M3.md"
+        target.parent.mkdir(parents=True)
+        target.write_text("# M3\n\nA bounded test paragraph.\n", encoding="utf-8")
+        shipment = (project / "reviews" / ".harness" / "shipments" /
+                    "s1")
+        output = shipment / "findings.json"
+        env = {**os.environ, "COAUTHOR_EXTRA_GOVERNED_ROOTS": str(fake)}
+        r = subprocess.run(
+            [sys.executable, str(HARNESS / "scripts" / "audit" / "run_all.py"),
+             str(target), "--project-root", str(project), "--out", str(output),
+             "--skip-d-style-profile", "--skip-accessibility"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=env)
+        detail = (r.stdout + r.stderr).strip()[-120:]
+        detail = detail.encode("ascii", "backslashreplace").decode("ascii")
+        check("audit writes exact shipment output", r.returncode == 0,
+              f"rc={r.returncode}: {detail}")
+        check("audit shipment report exists", output.is_file())
+        outside = project / "reviews" / "findings.json"
+        check("audit creates no loose project report", not outside.exists())
+
+
 def main() -> int:
     print("destination_capability_smoketest")
     for fn in (case_classifier, case_real_workspace_discovery,
                case_ungoverned_fails_closed, case_mutator_wiring,
-               case_output_redirect_refusals):
+               case_output_redirect_refusals, case_audit_shipment_output):
         print(f"{fn.__name__}:")
         try:
             fn()
@@ -285,7 +324,7 @@ def main() -> int:
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {FAILURES}")
         return 1
-    print("PASS: producer boundary refuses every governed write destination")
+    print("PASS: producer boundary permits only package, staging, and exact shipment writes")
     return 0
 
 

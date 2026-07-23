@@ -320,7 +320,7 @@ def _append_event(
 def _validate_prospective(project: Path, state: dict[str, Any]) -> None:
     result = validate_document(project, state)
     if not result.exit_permitted:
-        detail = "; ".join(f"{row.code}: {row.message}" for row in result.findings[:6])
+        detail = "; ".join(f"{row.code} at {row.path}: {row.message}" for row in result.findings[:6])
         raise MilestoneTransactionError("AMC-STATE-INVALID", detail or "prospective milestone state is invalid")
 
 
@@ -632,13 +632,69 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
     policy = checkpoint.get("policy_evidence")
     if not isinstance(policy, dict):
         raise MilestoneTransactionError("AMC-CHECKPOINT", "policy_evidence must be an object")
-    allowed = {"wiki_grounding", "wiki_grounding_opt_out"} if milestone == "M3" else ({"phase", "cycle_id"} if milestone in {"M4", "M5"} else set())
+    draft_keys = {"draft_generation", "draft_evaluation"}
+    allowed = set(draft_keys)
+    if milestone == "M3":
+        allowed |= {"wiki_grounding", "wiki_grounding_opt_out"}
+    if milestone in {"M4", "M5"}:
+        allowed |= {"phase", "cycle_id"}
     if set(policy) - allowed:
         raise MilestoneTransactionError("AMC-CHECKPOINT", f"policy_evidence fields are invalid for {milestone}")
+    if not draft_keys <= set(policy):
+        raise MilestoneTransactionError(
+            "AMC-DRAFT-POLICY-MISSING",
+            f"{milestone} requires current generation and independent evaluation policy evidence",
+        )
+    public_target = LEDGER_TO_PUBLIC[milestone]
+    _, _, deliverable_relative = derive_receipt_authority(public_target)
+    deliverable, _ = _safe_project_file(project, deliverable_relative, "AMC-DRAFT-POLICY")
+    deliverable_sha = _sha256(deliverable)
+    phase_requirements = {
+        "draft_generation": ("generation", "generator", "centroid-generation"),
+        "draft_evaluation": ("evaluation", "evaluator", "centroid-evaluation"),
+    }
+    always_ids = {
+        "grounding-protocol", "d-style-profile", "reader-accessibility",
+        "master-guidelines", "research-writing-playbook", "style-commitments",
+        "integrated-style-checklist", "grammar-mechanics", "citation-discipline",
+        "emdash-bundle", "sentence-craft", "narrative-structure",
+        "deterministic-audit",
+    }
+    for key, (phase_name, role, centroid_id) in phase_requirements.items():
+        binding = policy.get(key)
+        if not isinstance(binding, dict) or set(binding) != {"evidence_path", "evidence_sha256"}:
+            raise MilestoneTransactionError("AMC-DRAFT-POLICY", f"{key} must be a path/hash binding")
+        evidence, relative = _safe_project_file(project, binding.get("evidence_path"), "AMC-DRAFT-POLICY")
+        if binding.get("evidence_sha256") != _sha256(evidence):
+            raise MilestoneTransactionError("AMC-DRAFT-POLICY-STALE", f"policy evidence is stale: {relative}")
+        try:
+            envelope = json.loads(evidence.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise MilestoneTransactionError("AMC-DRAFT-POLICY", f"invalid verified envelope: {relative}") from exc
+        obligation_ids = envelope.get("obligation_ids") if isinstance(envelope, dict) else None
+        centroid = envelope.get("centroid") if isinstance(envelope, dict) else None
+        if (
+            envelope.get("schema_version") != "1.0.0"
+            or envelope.get("status") != "verified"
+            or envelope.get("phase") != phase_name
+            or envelope.get("role") != role
+            or envelope.get("target") != public_target
+            or envelope.get("artifact_sha256") != deliverable_sha
+            or not isinstance(centroid, dict)
+            or centroid.get("required") is not True
+            or not isinstance(obligation_ids, list)
+            or not (always_ids | {centroid_id}) <= set(obligation_ids)
+        ):
+            raise MilestoneTransactionError(
+                "AMC-DRAFT-POLICY",
+                f"{key} does not verify the current {public_target} bytes and complete always-on bundle",
+            )
+        binding["evidence_path"] = relative
     if milestone == "M3":
-        if set(policy) not in ({"wiki_grounding"}, {"wiki_grounding_opt_out"}):
+        grounding_keys = set(policy) - draft_keys
+        if grounding_keys not in ({"wiki_grounding"}, {"wiki_grounding_opt_out"}):
             raise MilestoneTransactionError("AMC-CHECKPOINT", "M3 requires exactly one wiki-grounding binding or explicit opt-out")
-        grounding = next(iter(policy.values()))
+        grounding = policy[next(iter(grounding_keys))]
         if not isinstance(grounding, dict):
             raise MilestoneTransactionError("AMC-CHECKPOINT", "M3 policy evidence must be an object")
         evidence, relative = _safe_project_file(project, grounding.get("evidence_path"), "AMC-CHECKPOINT")
@@ -646,13 +702,13 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
             raise MilestoneTransactionError("AMC-CHECKPOINT", f"wiki-grounding binding is stale: {relative}")
         grounding["evidence_path"] = relative
     elif milestone == "M4":
-        if set(policy) != {"phase", "cycle_id"} or policy.get("phase") not in {"Ph1", "Ph2", "Ph3"} or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
+        if set(policy) != draft_keys | {"phase", "cycle_id"} or policy.get("phase") not in {"Ph1", "Ph2", "Ph3"} or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
             raise MilestoneTransactionError("AMC-CHECKPOINT", "M4 first record requires phase and safe cycle_id atomically")
     elif milestone == "M5":
-        if set(policy) != {"phase", "cycle_id"} or policy.get("phase") != "Ph4" or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
+        if set(policy) != draft_keys | {"phase", "cycle_id"} or policy.get("phase") != "Ph4" or not isinstance(policy.get("cycle_id"), str) or CYCLE_RE.fullmatch(policy["cycle_id"]) is None:
             raise MilestoneTransactionError("AMC-CHECKPOINT", "M5 record requires Ph4 and a safe terminal cycle_id atomically")
-    elif policy:
-        raise MilestoneTransactionError("AMC-CHECKPOINT", f"{milestone} does not accept checkpoint policy fields")
+    elif set(policy) != draft_keys:
+        raise MilestoneTransactionError("AMC-CHECKPOINT", f"{milestone} accepts only draft governance policy evidence")
     return checkpoint, checkpoint_file, checkpoint_relative, hashlib.sha256(checkpoint_bytes).hexdigest(), len(checkpoint_bytes)
 
 
@@ -840,6 +896,10 @@ def record(
             ])
         target["artifacts"] = artifacts
         target["feedback_records"] = checkpoint["feedback_records"]
+        target.setdefault("policy_evidence", {}).update({
+            key: checkpoint["policy_evidence"][key]
+            for key in ("draft_generation", "draft_evaluation")
+        })
         if milestone == "M3":
             target["policy_evidence"].update(checkpoint["policy_evidence"])
         elif milestone == "M4":

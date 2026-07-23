@@ -38,7 +38,7 @@ an informal seven-step lifecycle.
 - The Generator writes the exact M1–M4 deliverable bytes. The Planner dispatches,
   records approval, writes F9 handoffs, and mutates lifecycle state; it does not
   co-author the deliverable.
-- The Evaluator is dormant for M1–M3 and throughout Ph1. It first engages in Ph2
+- The Evaluator performs the bounded all-drafts centroid/policy pass for M1–M4 in Ph1. Full revision-maturity review first engages in Ph2
   to independently review M4.
 - M3 is a structured outline only. Prose stubs belong to M4 initial assembly.
 - M4 begins with initial manuscript assembly in Ph1, is independently reviewed in

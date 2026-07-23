@@ -8,6 +8,7 @@
     "check-abstract-body",
     "check-contradictions",
     "citation-format-pass",
+    "centroid-pass",
     "claim-coverage-audit",
     "classify-manuscript",
     "definition-derivation-check",
@@ -47,7 +48,6 @@
     ],
     "unavailable": [
       "backfill-source-stubs-from-references",
-      "centroid-pass",
       "graph-grounding-overlay",
       "ingest-m5-to-wiki",
       "promote-lessons-to-wiki",

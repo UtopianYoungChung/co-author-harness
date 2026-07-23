@@ -4,15 +4,18 @@
 
 Milestone transactions are production bookkeeping, never research authority.
 Every transaction verb (`begin`, `record`, `accept`, `rebind-reader-policy`,
-`recover`) and every writer CLI resolves its project root through
-`scripts/destination_capability.py` and refuses a destination under a governed
-workspace root outside the harness package with `DEST-PROTECTED`. Work whose
-consumer is the research tree runs in the governed staging lane
-(`outputs/co-author-harness/staging/<work-id>/<run-id>/`) and reaches its
-consumer only as a path-and-hash-bounded shipment adjudicated under
+`recover`) resolves its mutable project root through
+`scripts/destination_capability.py` and refuses a protected consumer project
+with `DEST-PROTECTED`. Work whose consumer is the research tree normally runs
+in the governed staging lane (`outputs/co-author-harness/staging/<work-id>/<run-id>/`).
+Report-only tools may read a protected project and write only to its exact
+private lane
+`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`;
+they must declare every output path, and no default loose report is permitted.
+Research governance adjudicates and applies any change beyond that lane under
 `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`. No milestone status,
-gate PASS, or handoff written by the harness implies acceptance, registration,
-promotion, or permission to mutate a consumer tree.
+gate PASS, handoff, or shipment implies acceptance, registration, promotion,
+or permission to mutate authoritative consumer state.
 
 ## 1. Binding rule
 
@@ -64,25 +67,25 @@ An opt-out is valid only when `M3.policy_evidence.wiki_grounding_opt_out` record
 
 This pre-M4 read-side grounding is distinct from Coupling D. M5-to-wiki ingestion remains a post-final write-side action and cannot satisfy this gate.
 
-### 3.2 Exemplar-conditioning scope
+### 3.2 Universal centroid and governing-style scope
 
-The Planner passes `--exemplar-conditioning` only when the dispatch will retrieve and condition prose on domain-native exemplar passages. The gate blocks that flag, or an equivalent `exemplar_conditioning: true` contract/dispatch field, at M1-M3 with `APG-EXEMPLAR-SCOPE`. This restriction concerns conditioning, not ordinary scholarship: M2 may read, annotate, and cite Yu or Dennett when the Grounding Protocol is satisfied.
+Every M1-M4 and FINAL dispatch requires centroid-conditioned generation and an independent centroid evaluation. Existing, missing, stub, staged, migrated, and reopened artifacts receive the same policy resolution. The gate records `exemplar_conditioning: true` on every READY receipt; a receipt that disables it fails with `APG-EXEMPLAR-REQUIRED`.
 
-At M4 and FINAL, Yu is the domain-native surface centroid. Dennett is the intentional-root and is admissible only for argument architecture with `warrant_scope: argument-only`; it is never a surface-register emulation target. When Dennett is pending rather than admitted, the gate emits `APG-EXEMPLAR-DENNETT-PENDING` as an advisory while Yu-conditioned drafting remains available.
+Yu is the default domain-native surface centroid at every milestone. Dennett is the intentional-root and is admissible only for argument architecture with `warrant_scope: argument-only`; it is never a surface-register emulation target. When Dennett is pending rather than admitted, the gate emits `APG-EXEMPLAR-DENNETT-PENDING` as an advisory while Yu-conditioned drafting remains available. Ordinary scholarly citation remains separately governed by the Grounding Protocol.
 
 | Target | Accepted predecessors | Wiki grounding | Exemplar conditioning |
 |---|---|---|---|
-| M1 | none | not required | forbidden |
-| M2 | M1 | not required | forbidden; scholarly citation allowed |
-| M3 | M1, M2 | not required | forbidden |
-| M4 | M1, M2, M3 | current evidence or authorized opt-out | allowed under Yu/Dennett role split |
-| FINAL | M1-M4 | current evidence or authorized opt-out | allowed under Yu/Dennett role split |
+| M1 | none | not required | mandatory generation + independent evaluation |
+| M2 | M1 | not required | mandatory generation + independent evaluation; scholarly citation separately grounded |
+| M3 | M1, M2 | not required | mandatory generation + independent evaluation |
+| M4 | M1, M2, M3 | current evidence or authorized opt-out | mandatory under Yu/Dennett role split |
+| FINAL | M1-M4 | current evidence or authorized opt-out | mandatory under Yu/Dennett role split |
 
 ### 3.3 READY receipt lifecycle
 
 The Planner records a successful gate result with `--emit-receipt <path>`. The path must match `reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`; the gate refuses the basename if it already exists in any receipt-state directory. A receipt is immutable evidence for one Planner-to-Generator transaction, not a milestone ledger or an acceptance record. Its strict schema is `references/schemas/assignment_gate_receipt.schema.json`, and its non-authoritative bootstrap example is `references/templates/assignment_gate_receipt.json`.
 
-Each receipt binds the project name, stage, target, active lineage, exemplar-conditioning decision, exact assignment-contract, phase-state, and package-profile hashes, plus a digest of the gate's READY output, a reservation token, the Generator role, and exact authorized output paths. `python scripts/assignment_process_gate.py --project-root <project-root> --verify-receipt <receipt>` re-hashes all bound files and re-runs the sole `validate()` predicate engine. Verification never updates milestone state.
+Each receipt binds the project name, stage, target, active lineage, mandatory exemplar-conditioning state, exact assignment-contract, phase-state, and package-profile hashes, plus a digest of the gate's READY output, a reservation token, the Generator role, and exact authorized output paths. `python scripts/assignment_process_gate.py --project-root <project-root> --verify-receipt <receipt>` re-hashes all bound files and re-runs the sole `validate()` predicate engine. Verification never updates milestone state.
 
 Receipt state is its directory: `ready`, `reserved`, `consumed`, or `invalidated`. Receipt bytes never change. Immediately before dispatch, the Planner runs `assignment_dispatch_preflight.py` with `--consumer planner` and every intended `--write-path`; the command validates the live bindings and atomically moves `ready` to `reserved`. A second reservation fails closed.
 
@@ -99,7 +102,7 @@ The role field is an orchestration assertion enforced by the wrapper, not crypto
 The same public command owns the lifecycle transaction:
 
 1. `begin --milestone M2|M3|M4|FINAL` consumes the ready predecessor F9 and starts the successor atomically. M3, M4, and FINAL bind the five stable reader-policy/profile pins at this boundary.
-2. After `assignment_writer_commit.py` publishes the scoped Generator result, `record --milestone <M1-M4|FINAL> --receipt <consumed-receipt> --checkpoint <structured-checkpoint>` validates the receipt/result/live bytes and records the deliverable plus adjudicated feedback in one state-last write. Public FINAL requires both `milestones/M5_final_paper.md` and `submission_bundle/final_manuscript.md`; its checkpoint says ledger milestone `M5`. The checkpoint schema and authoring shape are `schemas/assignment_milestone_checkpoint.schema.json` and `templates/assignment_milestone_checkpoint.json`.
+2. After `assignment_writer_commit.py` publishes the scoped Generator result, the Evaluator runs the independent all-drafts policy pass. `record --milestone <M1-M4|FINAL> --receipt <consumed-receipt> --checkpoint <structured-checkpoint>` requires current-byte `draft_generation` and `draft_evaluation` verified envelopes, validates the receipt/result/live bytes, and records the deliverable plus adjudicated feedback in one state-last write. Public FINAL requires both `milestones/M5_final_paper.md` and `submission_bundle/final_manuscript.md`; its checkpoint says ledger milestone `M5`. The checkpoint schema and authoring shape are `schemas/assignment_milestone_checkpoint.schema.json` and `templates/assignment_milestone_checkpoint.json`.
 3. `accept --milestone <M1-M4|FINAL> --checkpoint <same-checkpoint> --approval-evidence <structured-approval>` requires a current-byte, project-local explicit approval. M4 additionally requires `--policy-evidence <current-policy>` after convergence. FINAL instead requires `--terminal-evidence <structured-M5-evidence>` per `schemas/assignment_terminal_evidence.schema.json`; it binds the terminal round, Check 8, F7/F8, G.4, ship signoff, reflection, deterministic findings, convergence, consumed FINAL receipt/result, and export provenance. The command publishes F9 first and `phase_state.json` last; FINAL uses `M5_terminal.json` with `to_milestone: null` and sets both terminal fields only after the prospective full-run terminal check passes. Authoring shapes are under `schemas/` and `templates/` with matching assignment names.
 
 M4 has one intentional timing distinction. `begin M4` records only `profile_path`, `profile_sha256`, `resolved_sha256`, `attestation_view_pin`, and `exemplar_view_pin`, because no scoped manuscript bytes exist yet. The first successful `record M4` transaction must add the deliverable and `manuscript_sha256`, `phase`, and `cycle_id` atomically. An initial assembly uses `phase: Ph1`; this does not authorize acceptance. `accept M4` remains blocked until every in-scope section is `Ph3_converged` and the retained Check 8/phase gates pass.

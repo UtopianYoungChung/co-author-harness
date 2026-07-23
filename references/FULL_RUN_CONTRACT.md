@@ -208,7 +208,8 @@ That gate requires **all fifteen, unconditionally**:
 | 1 | resolved assignment contract |
 | 2 | M1–M4 `accepted` with approval authority + evidence |
 | 3 | exact-byte deliverable bindings (recorded sha256 == file on disk) |
-| 4 | consumed predecessor handoffs (F9 packets, `status: consumed`) |
+| 4 | current-byte Generator and independent Evaluator draft-governance envelopes for every M1-M4 and FINAL artifact, including centroid, D-STYLE, grammar/style, grounding, and applicable overlays |
+| 5 | consumed predecessor handoffs (F9 packets, `status: consumed`) |
 | 5 | valid F9 packets with `packet_sha256` matching bytes |
 | 6 | F7 evidence packets and recorded events |
 | 7 | `manuscript/revision_log.md` |

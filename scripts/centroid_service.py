@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare a deterministic, read-only centroid analysis packet.
+"""Prepare a deterministic, read-only centroid execution packet.
 
-This is maintainer-only candidate substrate. It does not activate the public
-``/centroid-pass`` capability and cannot produce semantic findings or writes.
+The public ``/centroid-pass`` orchestration uses this script to bind the live
+reader-accessibility profile, corpus members, warrants, manuscript scope, and
+hashes before a Generator or Evaluator performs the semantic pass.
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ def _base(status: str, reason_code: str | None) -> dict[str, Any]:
         "reason_code": reason_code,
         "read_only": True,
         "writes_performed": False,
-        "public_activation": "unavailable",
+        "public_activation": "active",
     }
 
 
@@ -119,7 +120,7 @@ def _prose_lines(text: str) -> list[str]:
 def _binding_provenance(project_root: Path | None, resolved: dict[str, Any]) -> str:
     if project_root is None:
         return "package-default"
-    state_path = project_root / "phase_state.json"
+    state_path = project_root / "reviews" / "phase_state.json"
     if not state_path.is_file():
         return "project" if any(
             item.get("scope") == "project" for item in resolved.get("source_bindings", [])
@@ -202,7 +203,7 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
         "both": sorted(set(surface_keys) | set(argument_keys)),
     }[args.exemplar_warrant]
     model = resolved["resolved_profile"]["domain_native_register"]
-    derivation = model["derivations"]["review"]
+    derivation = model["derivations"][args.mode]
     scope_bytes = scoped_text.encode("utf-8")
     words = WORD_RE.findall("\n".join(prose))
 
@@ -225,7 +226,7 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
             "c7_fence": model["c7_fence"],
         },
         "analysis_contract": {
-            "derivation": "review",
+            "derivation": args.mode,
             "profile_keys": derivation["profile_keys"],
             "discipline": derivation["discipline"],
             "exemplar_warrant": args.exemplar_warrant,
@@ -239,9 +240,9 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
         },
         "semantic_findings": [],
         "limitations": [
-            "This candidate resolves policy, pins, members, scope, hashes, and deterministic text metrics only.",
-            "It does not retrieve passages or assert attestations, locators, quotations, or semantic findings.",
-            "It does not activate /centroid-pass and performs no manuscript, lifecycle, review, graph, or Wiki write.",
+            "This script resolves policy, pins, members, scope, hashes, and deterministic text metrics only.",
+            "The dispatched Generator or Evaluator must retrieve grounded passages and perform the semantic judgment.",
+            "It performs no manuscript, lifecycle, review, graph, or Wiki write.",
         ],
     })
     return packet
@@ -254,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manuscript", required=True, help="UTF-8 manuscript path to read")
     parser.add_argument("--project-root", help="Optional project root for policy overrides/binding checks")
     parser.add_argument("--heading", help="Exact Markdown heading text; default is the full manuscript")
+    parser.add_argument("--mode", choices=("write", "review", "revise"), default="review")
     parser.add_argument("--exemplar-warrant", choices=("surface", "argument", "both"), default="both")
     parser.add_argument("--wiki-root", help="Explicit corpus root for portable resolution")
     parser.add_argument("--workspace-root", help="Explicit workspace root for portable resolution")

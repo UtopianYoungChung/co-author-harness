@@ -277,9 +277,7 @@ def _ready_lines(
     except (OSError, UnicodeError, json.JSONDecodeError):
         contract = {}
     if (
-        target in {"M4", "FINAL"}
-        and isinstance(contract, dict)
-        and _exemplar_requested(contract, exemplar_conditioning)
+        isinstance(contract, dict)
         and contract.get("dennett_exemplar_status") == "pending"
     ):
         lines.append(
@@ -396,7 +394,10 @@ def _receipt_record(
         "phase_state_sha256": _sha256(phase_state_path),
         "profile_sha256": _sha256(ROOT / PROFILE_REL),
         "role_output_contract_sha256": _sha256(ROOT / ROLE_OUTPUT_REL),
-        "exemplar_conditioning": exemplar_conditioning,
+        # Centroid/exemplar conditioning is a universal draft-policy obligation.
+        # The CLI flag remains accepted for backward-compatible invocations, but
+        # no milestone may emit a receipt that disables the obligation.
+        "exemplar_conditioning": True,
         "active_lineage_id": lineage,
     }
 
@@ -531,6 +532,8 @@ def verify_receipt(
     stage = receipt["stage"]
     target = receipt["target_milestone"]
     exemplar_conditioning = receipt["exemplar_conditioning"]
+    if exemplar_conditioning is not True:
+        return [("APG-EXEMPLAR-REQUIRED", "all assignment drafts require centroid/exemplar conditioning")]
     gate_findings = validate(project, stage, target, exemplar_conditioning)
     if gate_findings:
         return gate_findings
@@ -629,14 +632,6 @@ def validate(
     if target is None:
         findings.append(("APG-SEQUENCE-TARGET", "draft stage requires an explicit --target-milestone"))
         return findings
-
-    if target in {"M1", "M2", "M3"} and _exemplar_requested(contract, exemplar_conditioning):
-        findings.append(
-            (
-                "APG-EXEMPLAR-SCOPE",
-                f"{target} forbids domain-native exemplar retrieval conditioning; ordinary scholarly citation remains allowed",
-            )
-        )
 
     state = _load_json(project / "reviews" / "phase_state.json", "APG-PHASE-STATE-MISSING", findings)
     milestone_framework = state.get("milestone_framework", {}) if isinstance(state, dict) else {}

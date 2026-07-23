@@ -1,7 +1,7 @@
 ---
 name: run-phase-1
 user-invocable: false
-description: "Compatibility body for the public /run-draft stage. Ph1 Plan & Draft bootstraps section state, records P-stage, and dispatches Generator drafting without Evaluator engagement."
+description: "Compatibility body for the public /run-draft stage. Ph1 bootstraps state, records P-stage, and requires centroid-conditioned Generator drafting plus a bounded independent Evaluator policy pass."
 trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "start the ladder," begins a new section, or when the Planner bootstraps section state for a fresh section
 version: 0.7.4
 ---
@@ -12,7 +12,7 @@ version: 0.7.4
 `/run-draft`. This file remains the full Ph1 implementation body so legacy
 `/run-phase-1` invocations resolve without semantic drift.
 
-**Grounding basis:** `references/PHASE_PROTOCOL.md §§3 (lifecycle), 3.1 (Ph1 charter), 6.3 (trigger enum), 7 (escalation gates)`; `references/GROUNDING_PROTOCOL.md §Rule 1 full-file reads (phase-gated digest exception retired at v0.7.4)`; `references/phase_state_schema.md §2 (section object incl. v0.10.0 `references_initialized`), §3.1 (trigger enum incl. trigger 31 `seed_snowball_signed`), §3a.1 (PhaseEntryLogRow shape)`; `AGENT_ORCHESTRATION.md §3 (agent-role matrix — Reflector-lightweight at Ph1, no Evaluator)`; `phase_notifications.yaml §1 (ph1_entry, ph1_exit_signed)`; `skills/seed-snowball-discovery/SKILL.md` (SK-NEW-A; dispatched at Step 4.5 to scaffold `references/REFERENCES.md` on fresh sections).
+**Grounding basis:** `references/PHASE_PROTOCOL.md §§3, 3.1, 6.3, 7`; `references/GROUNDING_PROTOCOL.md` full-file rules; `references/phase_state_schema.md`; `AGENT_ORCHESTRATION.md §3` (bounded Evaluator all-drafts policy pass plus Reflector-lightweight at Ph1); `phase_notifications.yaml`; and `skills/seed-snowball-discovery/SKILL.md`.
 
 ## Output Profile
 
@@ -39,11 +39,13 @@ Milestone approval for M1, M2, or M3 advances only the assignment milestone chai
 | **Planner** | Bootstraps section state; records `ph1_pstage_declaration`; writes all `phase_entry_log` rows; runs the pre-advance check. **Dispatches SK-NEW-A `seed-snowball-discovery` at Step 4.5** as part of pre-draft setup when the section's `references_initialized` is `false` or absent and `references/REFERENCES.md` is missing (per architecture plan §5.2 Edit-1). | `ph1_draft_completion.md`; SK-NEW-A artefacts at Step 4.5 (see §6) |
 | **Generator** | Drafts prose under the declared P-stage register; applies the deterministic-check mandatory subset to the diff; produces the revision log entry. | `manuscript/*.md`, `manuscript/revision_log.md` |
 | **Reflector-lightweight** | Grounding audit subset only (no aggregated `Phase 2b`, no `lessons_learned.md` write, no skill-proposal emission). Integrity probe against the Ph1 deliverables. | `reviews/ph1_reflector_probe_<cycle_id>.md` (optional) |
-| **Evaluator** | **Not dispatched at Ph1.** First engagement is at Ph2. Any Ph1 invocation of the Evaluator is a `SAFEGUARD Check 1 (scope drift)` violation. | — |
+| **Evaluator** | Runs the bounded all-drafts centroid and governing-policy evaluation after every Generator publication. Full revision-maturity review begins at Ph2. | Current-byte evaluation envelope and findings |
 
 ## 3. Dispatch sequence
 
-0. **Assignment-process receipt gate and executable checkpoint derivation.** Read `references/ASSIGNMENT_MILESTONE_PROCESS.md` and the controlling brief in full; require a resolved `reviews/assignment_contract.json`. Run `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>` and obey its exact target/action. If it returns `begin`, run that public subcommand before gate emission; if it returns `draft`, run `python scripts/assignment_process_gate.py --project-root <project-root> --stage draft --target-milestone <M1|M2|M3|M4> --emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. M1-M3 omit `--exemplar-conditioning`; M4 includes it only when the approved dispatch will use exemplars. Planner runs `assignment_dispatch_preflight.py`, Generator publishes through `assignment_writer_commit.py`, and Planner records the consumed result through `assignment_milestone_checkpoint.py record`. Only project-local explicit approval permits its `accept` subcommand. Any non-zero result halts dispatch and all academic deliverable writing. `APG-SEQUENCE-LEGACY` requires migration/acceptance work, never synthesized acceptance. The assigned deliverable's function governs; the phase ladder does not redefine it.
+The Planner reservation boundary is `assignment_dispatch_preflight.py`; no Generator dispatch precedes its successful reservation.
+
+0. **Assignment-process receipt gate and executable checkpoint derivation.** Read `references/ASSIGNMENT_MILESTONE_PROCESS.md` and the controlling brief in full; require a resolved `reviews/assignment_contract.json`. Run `assignment_milestone_checkpoint.py derive` and obey its exact target/action. Emit the target receipt; centroid conditioning is mandatory for M1-M4 regardless of the compatibility flag. Prepare the generation policy contract, reserve the receipt, dispatch the Generator, publish through `assignment_writer_commit.py`, then prepare and complete the independent Evaluator contract over the exact bytes. Planner may call `record` only with both verified envelopes. Only project-local explicit approval permits `accept`. Any non-zero result halts. `APG-SEQUENCE-LEGACY` requires migration/acceptance work, never synthesized acceptance.
 
 1. **Planner Phase 0 (preflight).** Read `reviews/phase_state.json`. If the target section's entry is missing, create it under `phase_state_schema.md §2` with the full 18-field invariant (`phase_state_schema.md §2`, 18 fields as of v0.10.0): `current_phase: "Ph1"`, `last_approved_phase: null`, `iteration_count_at_current_phase: 0`, empty `phase_entry_log`, `phase_goal_declared` and `phase_deliverable_path` populated from the `§2.1` lookup tables keyed by Ph1, `convergence_metric: null`, `ph1_pstage_declaration: null`, `ph3_last_activity_at: null`. Compute `applicable_ceiling`. If `applicable_ceiling == "Ph1"` the section will ceiling-lock on approval; the Planner notes this in the user template.
 2. **Planner: P-stage declaration.** Read `reviews/classification.md` for the P-stage (P0 / P1 / P2). Write the value to `sections[].ph1_pstage_declaration`. If the classification is missing, emit `W-PSTAGE-UNAVAILABLE` and leave the field null; the user must update the classification before Ph1 exit is signed.
@@ -112,7 +114,7 @@ Legacy Markdown paths may still be written when SK-NEW-A, deterministic tooling,
 
 ## 7. What this stage does NOT do
 
-- **No Evaluator engagement.** The Evaluator joins at Ph2. Any Ph1 dispatch of the Evaluator is a scope violation.
+- **Bounded Evaluator engagement is mandatory.** Every Ph1 milestone draft receives independent centroid and complete applicable policy evaluation. The full Ph2 review remains distinct.
 - **No full seven-step judgment pass.** That lives at Ph2 (Steps 1–3 + integrated checklist) and Ph3 (the full seven-step loop).
 - **No convergence metric.** `convergence_metric` is Ph3-only; at Ph1 it is `null`.
 - **No MCR.** The Manuscript Convergence Report is a Ph4-admission artefact.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavioral contract for the read-only centroid analysis candidate."""
+"""Behavioral contract for the public read-only centroid packet builder."""
 
 from __future__ import annotations
 
@@ -112,13 +112,20 @@ def main() -> int:
         assert packet["status"] == "ready"
         assert packet["reason_code"] is None
         assert packet["read_only"] is True
-        assert packet["public_activation"] == "unavailable"
+        assert packet["public_activation"] == "active"
         assert packet["semantic_findings"] == []
         assert packet["manuscript"]["scope"]["kind"] == "full_manuscript"
         assert len(packet["manuscript"]["sha256"]) == 64
         assert packet["policy"]["attestation_view_pin"]
         assert packet["policy"]["exemplar_view_pin"]
         assert "review" == packet["analysis_contract"]["derivation"]
+
+        write_mode = invoke(
+            *common_args(project, manuscript, wiki, workspace),
+            "--mode", "write",
+        )
+        assert write_mode.returncode == 0, write_mode.stdout + write_mode.stderr
+        assert json.loads(write_mode.stdout)["analysis_contract"]["derivation"] == "write"
 
         heading = invoke(
             *common_args(project, manuscript, wiki, workspace),
@@ -153,7 +160,8 @@ def main() -> int:
         assert json.loads(duplicate.stdout)["reason_code"] == "HEADING_AMBIGUOUS"
 
         manuscript.write_text("# Bound\n\nCurrent prose.\n", encoding="utf-8")
-        (project / "phase_state.json").write_text(
+        (project / "reviews").mkdir(parents=True)
+        (project / "reviews" / "phase_state.json").write_text(
             json.dumps({
                 "milestone_framework": {
                     "policy_bindings": {
@@ -172,7 +180,8 @@ def main() -> int:
         stale_packet = json.loads(stale.stdout)
         validate_packet(stale_packet, schema)
         assert stale_packet["reason_code"] == "PROJECT_BINDING_STALE"
-        (project / "phase_state.json").unlink()
+        (project / "reviews" / "phase_state.json").unlink()
+        (project / "reviews").rmdir()
 
         missing = invoke(*common_args(project, project / "missing.md", wiki, workspace))
         assert missing.returncode == 4
@@ -188,14 +197,14 @@ def main() -> int:
         help_result = invoke("--help")
         assert help_result.returncode == 0
         assert "--apply" not in help_result.stdout
-        assert "write mode" not in help_result.stdout.lower()
+        assert "--mode" in help_result.stdout
 
         after = {path: tree_digest(path) for path in (project, wiki, workspace)}
         # Restore-neutral comparison: only the smoke itself changed the manuscript.
         assert before[wiki] == after[wiki]
         assert before[workspace] == after[workspace]
         assert not (project / "reviews").exists()
-        assert not (project / "phase_state.json").exists()
+        assert not (project / "reviews" / "phase_state.json").exists()
 
     print("centroid_service_smoketest: PASS")
     return 0

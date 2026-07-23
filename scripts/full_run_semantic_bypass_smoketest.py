@@ -396,6 +396,45 @@ def valid_project(base: Path) -> Path:
         ("convergence_log", proj / "reviews/convergence_log.md"),
     ):
         terminal_bindings.append({"role": role, "path": path.relative_to(proj).as_posix(), "sha256": _sha(path)})
+    # Universal all-drafts evidence: every accepted artifact carries separate
+    # Generator and Evaluator verified envelopes bound to its exact hash.
+    predecessor_packet = None
+    for milestone in ("M1", "M2", "M3", "M4", "M5"):
+        record = ledger["milestones"][milestone]
+        artifact = next(row for row in record["artifacts"] if row.get("role") == "deliverable")
+        target = "FINAL" if milestone == "M5" else milestone
+        record.setdefault("policy_evidence", {})
+        for field, phase, role in (
+            ("draft_generation", "generation", "generator"),
+            ("draft_evaluation", "evaluation", "evaluator"),
+        ):
+            evidence_path = proj / "reviews" / ".harness" / "shipments" / "synthetic" / f"{milestone.lower()}_{phase}.verified.json"
+            _w(evidence_path, json.dumps({
+                "schema_version": "1.0.0", "status": "verified",
+                "phase": phase, "role": role, "target": target,
+                "artifact_sha256": artifact["sha256"],
+                "centroid": {"required": True}, "obligation_ids": [],
+            }, indent=2))
+            record["policy_evidence"][field] = {
+                "evidence_path": evidence_path.relative_to(proj).as_posix(),
+                "evidence_sha256": _sha(evidence_path),
+            }
+        if milestone != "M5" and isinstance(record.get("handoff"), dict) and record["handoff"].get("packet_path"):
+            handoff_path = proj / record["handoff"]["packet_path"]
+            handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+            handoff["policy_evidence"] = record["policy_evidence"]
+            handoff["predecessor_packet"] = predecessor_packet
+            _w(handoff_path, json.dumps(handoff, indent=2))
+            record["handoff"]["packet_sha256"] = _sha(handoff_path)
+            for event in ledger["events"]:
+                for event_binding in event.get("bindings", []):
+                    if event_binding.get("path") == record["handoff"]["packet_path"]:
+                        event_binding["sha256"] = record["handoff"]["packet_sha256"]
+            predecessor_packet = {
+                "path": record["handoff"]["packet_path"],
+                "sha256": record["handoff"]["packet_sha256"],
+            }
+
     check8_path = proj / m5["policy_evidence"]["check8_path"]
     check8 = json.loads(check8_path.read_text(encoding="utf-8"))
     check8["cycle_id"] = "round_2026-07-17_001"
@@ -418,6 +457,7 @@ def valid_project(base: Path) -> Path:
     packet_path = proj / m5["handoff"]["packet_path"]
     packet = json.loads(packet_path.read_text(encoding="utf-8"))
     packet["policy_evidence"] = m5["policy_evidence"]
+    packet["predecessor_packet"] = predecessor_packet
     packet["inputs_consumed"] = [
         {"path": row["path"], "sha256": row["sha256"]} for row in terminal_bindings
     ] + [

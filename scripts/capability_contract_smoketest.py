@@ -40,11 +40,11 @@ def main() -> int:
     require_error(case, "active capability cannot be deferred")
 
     case = copy.deepcopy(data)
-    case["capabilities"]["centroid-pass"].pop("reason_code")
+    case["capabilities"]["graph-grounding-overlay"].pop("reason_code")
     require_error(case, "unavailable capability needs reason_code")
 
     case = copy.deepcopy(data)
-    case["capabilities"]["centroid-pass"]["reason_code"] = (
+    case["capabilities"]["graph-grounding-overlay"]["reason_code"] = (
         "SYNTHETIC_REASON_NOT_DECLARED"
     )
     require_error(case, "CAP-DEFERRED-UNDECLARED")

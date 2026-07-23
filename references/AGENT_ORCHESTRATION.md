@@ -2,17 +2,21 @@
 
 ## Producer boundary (binding, 2026-07-22)
 
-Every agent in this system is a **producer, not a decision maker**. No agent —
-via script or general file tool — creates, modifies, moves, renames, or
-deletes a path under a governed workspace root outside the harness package
-(`research/`, `knowledge/`, `governance/`, and every other governed surface).
-Writable destinations are exactly the harness package root and the governed
-staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`; script
+Every agent in this system is a **producer, not a decision maker**. Outside
+the exact private shipment exception below, no agent — via script or general
+file tool — creates, modifies, moves, renames, or deletes a path under a
+governed workspace root outside the harness package (`research/`,
+`knowledge/`, `governance/`, and every other governed surface).
+Private Stage reports, evidence, and manifests may be written only inside
+`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
+The other writable destinations are the harness package root and the governed
+staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`. Every
+other governed consumer path remains protected, and research governance alone
+applies an explicitly authorized change beyond the shipment lane. Script
 writers enforce this through `scripts/destination_capability.py`
-(`DEST-PROTECTED` / `DEST-UNGOVERNED`). Work destined for a governed consumer
-leaves the harness only as a path-and-hash-bounded shipment adjudicated under
-`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; no phase label,
-verdict, terminal PASS, or artifact quality implies authority to apply it.
+(`DEST-PROTECTED` / `DEST-UNGOVERNED`). A shipment remains scratch/private;
+no phase label, verdict, terminal PASS, or artifact quality implies authority
+to apply it.
 
 ## Wiki write deferral (Research Truth Phase 0/1)
 
@@ -36,7 +40,9 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 **Purpose.** This file describes the four-agent system that operates on manuscripts governed by the Research and Academic Paper Writing Package. It defines roles, permissions, the dispatch loop, and user checkpoints.
 
-**v0.8.0 framing — Lifecycle-Phase Ladder.** Agent engagement is phase-conditioned under the Lifecycle-Phase Ladder (`PHASE_PROTOCOL.md §1`): Ph1 Plan & Draft runs Planner + Generator + Reflector-lightweight (no Evaluator); Ph2 Review & Revise is the first rung that engages the Evaluator; Ph3 Iterate & Converge runs the full four-agent loop with Reflector-lightweight; Ph4 Finalize & Close runs the full four-agent loop with **Reflector-full** (Phase 2b aggregated confirmation-failed history audit, Phase 3 lessons, Phase 4 skill proposals, Phase 5 memory). The canonical agent-to-phase engagement matrix lives in `PHASE_PROTOCOL.md §2.3`; this file describes what each agent does when dispatched, not when it is dispatched.
+**All-drafts amendment (binding, 2026-07-22).** For every M1-M4 and FINAL academic deliverable or revision, including when the target artifact is absent at dispatch time, the Planner must bind the complete applicable policy bundle, the Generator must draft with the resolved centroid, and the Evaluator must independently evaluate the exact produced bytes before milestone record or approval. The Ph1 pass is bounded to centroid, D-STYLE, grammar/mechanics, citation, grounding, reader accessibility, deterministic checks, SAFEGUARD, and applicable overlays; full revision-maturity review still begins at Ph2. This amendment supersedes every historical `Evaluator dormant at Ph1`, `no Evaluator`, `M4-only exemplar`, or `M1-M3 exemplar forbidden` statement that remains below.
+
+**Lifecycle-Phase Ladder framing.** Ph1 runs Planner + Generator + the bounded Evaluator all-drafts policy pass + Reflector-lightweight. Ph2 is the first full revision-maturity Evaluator rung. Ph3 and Ph4 run the full four-agent loop, with Reflector-full at terminal close. The canonical engagement matrix lives in `PHASE_PROTOCOL.md §2.3`.
 
 **Relationship to `REVIEW_ORCHESTRATION.md`.** The review orchestration defines the *steps* (what to check, in what order, what to emit). This file defines the *agents* (who does what, who dispatches whom, where the user intervenes). The two files are complementary: the agents execute the steps.
 
@@ -189,7 +195,7 @@ The standard workflow for a revision round at Ph3 or Ph4:
       ROUND COMPLETE
 ```
 
-### 3.2 The Ph1 truncated loop (no Evaluator)
+### 3.2 The Ph1 draft-policy loop
 
 ```
 USER REQUEST
@@ -208,7 +214,7 @@ Triggers written on approval: ph1_draft_completion_signed (trigger 12)
 then user_approval (trigger 2).
 ```
 
-At Ph1 the Evaluator is **not engaged**. Attempts to dispatch the Evaluator at Ph1 are a scope-drift violation; the Planner must reject the dispatch and escalate to Ph2 first.
+At Ph1 the Evaluator is required after every Generator publication for the bounded current-byte policy pass. Dispatching broader full-review work remains scope drift until Ph2.
 
 ### User checkpoints (mandatory)
 
@@ -698,11 +704,11 @@ This section specifies their normal coordination and phase-conditioned agent dis
 
 | Milestone | Artifact | Normal phase binding | Dispatch notes |
 |---|---|---|---|
-| **M1 — Project Memo** | `milestones/M1_project_memo.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
-| **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Generator writes the deliverable; Planner dispatches and records approval; no Evaluator engagement |
-| **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a structured outline only; prose stubs belong to M4. |
-| **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator assembles the first complete draft in Ph1; Ph2 is the first Evaluator engagement; Ph3 is the converging dispatch stage with the unbounded loop, `convergence_metric` stability test, and Coupling E.2 graph-grounding overlay at Step 0.2 |
-| **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | External verifiers required; G.4 mandatory; Reflector-full close-out; Coupling D wiki ingest via SK-16 |
+| **M1 — Project Memo** | `milestones/M1_project_memo.md` | **Ph1 Plan & Draft** | Centroid-conditioned Generator draft; independent current-byte policy evaluation; user approval |
+| **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Centroid-conditioned Generator draft; independent current-byte policy evaluation; user approval |
+| **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a centroid-conditioned structured outline only; Evaluator performs independent current-byte policy evaluation; prose stubs belong to M4. |
+| **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator performs centroid-conditioned initial assembly; Evaluator performs bounded evaluation in Ph1; full review begins in Ph2; Ph3 converges. |
+| **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | Generator writes FINAL under the centroid/policy bundle; Evaluator independently evaluates and certifies; G.4 and Reflector-full close-out remain mandatory. |
 
 The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `milestones/M5_final_paper.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.json`.
 
@@ -710,12 +716,12 @@ The mapping coordinates two contracts rather than collapsing them. M1-M3 retain 
 
 For the native `course-essay-four-milestones-v1` profile, `/run-draft` runs `assignment_milestone_checkpoint.py derive` and obeys its executable first-non-accepted target/action result. The Planner dispatches one deliverable at a time through a single-use receipt:
 
-1. M1-M3: run the target gate without exemplar conditioning and with `--emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. M4 and FINAL use the same mechanism after their additional predicates pass.
+1. M1-M4 and FINAL: run the target gate with mandatory centroid conditioning and `--emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. Artifact absence at this point is valid and does not waive policy resolution.
 2. Planner runs `python scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <ready-path> --expected-target <T> --consumer planner --write-path <primary-deliverable> [--write-path manuscript/revision_log.md]`. Exit 0 atomically reserves the receipt. Put the returned reserved path in `assignment_gate_receipt: <reserved-path>` and the target in `assignment_gate_target: <T>`; a non-zero result emits `APG-DISPATCH-REFUSED` and forbids dispatch.
-3. Generator authors only receipt-scoped staged bytes, then invokes `assignment_writer_commit.py` with a target/role/token/path/hash-bound plan. The wrapper journals and publishes the exact reserved set, writes its result sidecar, and only then consumes the receipt; handled partial failure rolls back, while interrupted work resumes only from the exact journaled plan. Cancellation or a pre-commit abort invokes `assignment_receipt_invalidate.py`; receipts are never edited or reused. Planner runs `assignment_milestone_checkpoint.py record` with that consumed receipt and the structured feedback checkpoint, then stops at a user approval checkpoint.
+3. Generator authors only receipt-scoped staged bytes, then invokes `assignment_writer_commit.py`. Evaluator independently executes the centroid and applicable policy bundle over the exact published bytes. Planner runs `record` only when the checkpoint binds both current-byte verified envelopes, then stops at user approval.
 4. After explicit current-byte approval only: Planner runs `assignment_milestone_checkpoint.py accept`, which publishes the exact F9 first and atomically publishes `phase_state.json` last. The next invocation runs `derive`, then `begin` to consume the predecessor F9 and start the successor before emitting its receipt.
 5. At M3→M4: before F9 finalization, write `reviews/.harness/assignment/wiki_grounding_<round>.json` after the wiki-first pass and bind its exact path/hash in M3 `policy_evidence`, or bind an explicit user/advisor/instructor opt-out.
-6. M4: require accepted M1-M3 plus current wiki evidence; exemplar conditioning may now use Yu for surface register and admitted Dennett for argument architecture only.
+6. M4: require accepted M1-M3 plus current wiki evidence; the same Yu-surface/Dennett-argument-only split already used at M1-M3 remains binding.
 7. FINAL: after accepted M4 and Ph4 admission, run `begin --milestone FINAL`, then the final gate with still-current wiki evidence; emit and preflight a FINAL receipt for the contract-owned final manuscript and released-export paths. After scoped publication, run public `record --milestone FINAL`, stop for explicit current-byte approval, then run `accept --milestone FINAL --terminal-evidence <path>`. That single close validates complete round-bound F7/F8, structured G.4 and user ship signoff, Reflector-full, deterministic findings, convergence, Check 8, and immutable consumed FINAL receipt/result evidence; it publishes `M5_terminal.json` first and terminal state last. The M4-onward exemplar envelope remains available.
 
 The loop is checkpoint-driven orchestration, not unattended acceptance. A request for a complete paper cannot jump to M4 while M1-M3 are open. Producing a complete essay or `reviews/ph1_draft_completion.md` while any of M1-M3 is non-`accepted` is an explicit refuse condition and protocol violation. Legacy mode emits `APG-SEQUENCE-LEGACY` and names required migration/acceptance work; it never infers acceptance from files. Ph1-Ph4 continue to govern revision maturity independently of this assignment sequence.
@@ -742,7 +748,7 @@ Planner (Ph1 bootstrap; reads classification.md for P-stage; populates ph1_pstag
 | Argumentative framing | When the memo claims a disciplinary placement or integration (e.g., "Problem X belongs in Discipline Y"), are existing research programs named that demonstrate the claimed integration? Presence of claim ≠ demonstration of claim. |
 | Premise mapping | When the memo introduces theoretical premises (e.g., "Actors are provisional stabilizations" + "We use models"), are potential internal tensions between premises identified and noted for resolution at Ph2? |
 
-**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset on the memo text under the unconditional Grounding Protocol. The Evaluator does not engage at Ph1, so the deterministic checks are run by the Planner as part of the pre-phase-advance check (clause (g) of `pre_phase_advance_check.py`).
+**Deterministic checks at Ph1:** Run the mandatory DETERMINISTIC_CHECKS.md subset under the unconditional Grounding Protocol. Generator and independent Evaluator envelopes both bind the current bytes; Planner verifies them before record.
 
 #### M2 deliverable — Annotated References (at Ph1 sub-phase 2)
 
@@ -781,13 +787,13 @@ Planner (Ph1 — orchestrates outline sub-phase)
 
 ```
 Planner (requires accepted M1-M3 and a preflighted M4 receipt)
-  → Generator (assembles the first complete manuscript at milestones/M4_complete_paper_draft.md)
-  → Planner (runs deterministic and grounding gates; presents M4 draft checkpoint)
+  → Generator (assembles the centroid-conditioned complete manuscript)
+  → Evaluator (bounded current-byte centroid and complete applicable policy pass)
+  → Planner (verifies both envelopes; presents M4 draft checkpoint)
 ```
 
-M4 initial assembly completes Ph1 drafting maturity; it does not engage the
-Evaluator. Only after the Ph1 exit gate and explicit phase approval may the
-project advance to Ph2.
+M4 initial assembly completes Ph1 drafting maturity only after the bounded
+Evaluator pass. The full review pipeline still waits for Ph2.
 
 #### M4 dispatch stage — Review-ready draft at Ph2
 

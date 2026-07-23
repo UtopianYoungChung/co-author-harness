@@ -149,13 +149,37 @@ def main(argv: List[str] | None = None) -> int:
         print(f"[BLOCKER] project root not found: {args.project_root}", file=sys.stderr)
         return 2
 
-    from destination_capability import DestinationRefused, assert_writable, guard_project_root
+    from destination_capability import (
+        DEST_PROTECTED,
+        DestinationRefused,
+        assert_writable,
+        classify,
+        guard_project_root,
+    )
     try:
-        if args.project_root:
+        project_kind = classify(args.project_root) if args.project_root else None
+        destinations = ([] if args.stdout else [args.out])
+        if args.project_root and not args.skip_d_style_profile:
+            destinations.append(
+                args.d_style_profile_out
+                or args.project_root / "reviews" /
+                f"d_style_profile_{args.date or datetime.now().strftime('%Y-%m-%d')}.json")
+        if args.project_root and not args.skip_accessibility:
+            destinations.append(
+                args.accessibility_out
+                or args.project_root / "reviews" /
+                f"reader_accessibility_candidates_{args.cycle_id}.json")
+        if args.project_root and project_kind != "protected":
             guard_project_root(args.project_root)
-        for dest in ([] if args.stdout else [args.out]) + [args.d_style_profile_out, args.accessibility_out]:
+        for dest in destinations:
             if dest is not None:
-                assert_writable(Path(dest).resolve(), purpose="audit output")
+                output_kind = assert_writable(Path(dest).resolve(), purpose="audit output")
+                if project_kind == "protected" and output_kind != "shipment":
+                    raise DestinationRefused(
+                        DEST_PROTECTED,
+                        "an audit of a protected project may write only to its "
+                        "private reviews/.harness/shipments/<shipment-id>/ lane; "
+                        f"got {Path(dest).resolve()!s}")
     except DestinationRefused as exc:
         print(f"[BLOCKER] {exc}", file=sys.stderr)
         return 4

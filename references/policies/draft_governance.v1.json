@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "all-drafts-centroid-and-governing-style-v1",
+  "authority_note": "Every academic draft or revision governed by the harness is centroid-conditioned and independently evaluated against the complete applicable policy bundle. Artifact presence never satisfies or waives an obligation.",
+  "targets": {
+    "M1": {"centroid_generation_required": true, "centroid_evaluation_required": true},
+    "M2": {"centroid_generation_required": true, "centroid_evaluation_required": true},
+    "M3": {"centroid_generation_required": true, "centroid_evaluation_required": true},
+    "M4": {"centroid_generation_required": true, "centroid_evaluation_required": true},
+    "FINAL": {"centroid_generation_required": true, "centroid_evaluation_required": true}
+  },
+  "artifact_presence_rule": "existing, missing, stub, staged, migrated, and reopened artifacts receive the same policy resolution; only current hash-bound evidence satisfies the contract",
+  "centroid": {
+    "profile_path": "references/policies/reader_accessibility.v1.json",
+    "generation_derivation": "write",
+    "revision_derivation": "revise",
+    "evaluation_derivation": "review",
+    "default_surface_role": "centroid",
+    "argument_only_surface_forbidden": true,
+    "c7_identity_fence_required": true
+  },
+  "obligations": [
+    {"id": "grounding-protocol", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/GROUNDING_PROTOCOL.md"]},
+    {"id": "d-style-profile", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["scripts/d_style_profile_check.py"]},
+    {"id": "centroid-generation", "phases": ["generation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json"]},
+    {"id": "centroid-evaluation", "phases": ["evaluation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json"]},
+    {"id": "reader-accessibility", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/READER_ACCESSIBILITY.md", "references/policies/reader_accessibility.v1.json"]},
+    {"id": "master-guidelines", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/MASTER_research_and_paper_guidelines.md"]},
+    {"id": "research-writing-playbook", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/research_paper_writing_guidelines.md"]},
+    {"id": "style-commitments", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/STYLE_COMMITMENTS.md"]},
+    {"id": "integrated-style-checklist", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/project_writing_style_checklist.md"]},
+    {"id": "grammar-mechanics", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["skills/grammar-mechanics-pass/SKILL.md", "references/blue_book_grammar_guidelines.md"]},
+    {"id": "citation-discipline", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/CITATION_DISCIPLINE.md"]},
+    {"id": "emdash-bundle", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/EMDASH_BUNDLE_DISCIPLINE.md"]},
+    {"id": "sentence-craft", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/bacon_2009_well_crafted_sentence_guidelines.md"]},
+    {"id": "narrative-structure", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/Sexton_Fiction_to_Academic_Writing_Guide.md"]},
+    {"id": "is-paper-architecture", "phases": ["generation", "evaluation"], "activation": "is_or_adjacent_piece", "paths": ["references/baird_2021_writing_guidelines.md"]},
+    {"id": "suchman-register", "phases": ["generation", "evaluation"], "activation": "declared_suchman_or_blend_register", "paths": ["references/suchman_writing_style.md"]},
+    {"id": "public-interest-register", "phases": ["generation", "evaluation"], "activation": "public_interest_or_inequality_piece", "paths": ["references/eubanks_2018_automating_inequality_style_guidelines.md"]},
+    {"id": "voice-preservation", "phases": ["generation", "evaluation"], "activation": "author_voice_present", "paths": ["references/voice_preservation_guidelines.md"]},
+    {"id": "analytic-construction", "phases": ["generation", "evaluation"], "activation": "theory_or_conceptual_argument", "paths": ["references/analytic_construction_guidelines.md", "skills/analytic-move-audit/SKILL.md"]},
+    {"id": "turabian-mechanics", "phases": ["generation", "evaluation"], "activation": "turabian_declared", "paths": ["references/turabian_chicago_guidelines.md", "skills/turabian-format-pass/SKILL.md"]},
+    {"id": "deterministic-audit", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/DETERMINISTIC_CHECKS.md", "scripts/audit/run_all.py"]},
+    {"id": "review-orchestration", "phases": ["evaluation"], "activation": "always", "paths": ["references/REVIEW_ORCHESTRATION.md"]},
+    {"id": "safeguard-layer", "phases": ["evaluation"], "activation": "always", "paths": ["references/SAFEGUARD_LAYER.md"]},
+    {"id": "grounding-audit", "phases": ["evaluation"], "activation": "always", "paths": ["skills/grounding-audit/SKILL.md"]},
+    {"id": "formal-ontology-policy", "phases": ["generation", "evaluation"], "activation": "formal_bfo_ontology_artifact", "paths": ["references/BFO_ONTOLOGY_DESIGN.md"]}
+  ]
+}

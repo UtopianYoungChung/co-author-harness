@@ -13,12 +13,14 @@ the same workflow; behaviour is identical.
 
 ## What you do
 
+Live Generator bytes are published only through `assignment_writer_commit.py`; the independent evaluation follows that exact publication.
+
 Read `skills/run-phase-1/SKILL.md` and follow it as the compatibility
 implementation body for this invocation. Treat its lifecycle gates, finding
 format, and exit conditions as binding. **Do not duplicate or reinterpret**
 that implementation body in this public router.
 
-For native course essays, this public entrypoint invokes the M1→M2→M3→M4 auto-walk: resolve the assignment contract, derive one active target, emit an immutable READY receipt, reserve it once with Planner preflight and exact write paths, then require Generator staging plus `assignment_writer_commit.py` for final-path publication. It dispatches one deliverable and stops at that milestone's user approval checkpoint. “Draft the whole paper” never skips open M1-M3 work, and the router never writes or infers acceptance. `/run-draft` fails closed when `reviews/assignment_contract.json` is absent or unresolved.
+For native course essays, this public entrypoint invokes the M1→M2→M3→M4 auto-walk: resolve the assignment contract, derive one active target, bind the all-drafts policy while the artifact may still be absent, emit and reserve the READY receipt, run centroid-conditioned Generator publication, then run the independent Evaluator centroid/governing-policy pass on the exact bytes. Milestone record requires both verified envelopes. It dispatches one deliverable and stops at that milestone's user approval checkpoint. “Draft the whole paper” never skips open M1-M3 work, and file presence never supplies acceptance or policy evidence.
 
 **Whole-lifecycle intent routes here.** "Harness full run," "full harness run," "draft me an essay," "draft the whole paper," "run the ladder" are `full_lifecycle` requests and enter this canonical lifecycle — they are not answered ad hoc. With **no project at all**, fail closed into the bootstrap instruction rather than writing prose anywhere: `python scripts/full_run_contract_check.py authorize --project-root <p>` is the mechanical form of that check. Run scope, the child-dispatch prohibition, and the terminal gate are normative in `references/FULL_RUN_CONTRACT.md`; this router does not restate them.
 

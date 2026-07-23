@@ -15,11 +15,11 @@ The strategic-dependency framing is that the author depends on each agent for a 
 | Agent | Ph1 Plan & Draft | Ph2 Review & Revise | Ph3 Iterate & Converge | Ph4 Finalize & Close |
 |---|---|---|---|---|
 | **Planner** | Sonnet 4.6 | Sonnet 4.6 | Sonnet 4.6 | Sonnet 4.6 ↓ |
-| **Evaluator** | — *(dormant)* | **Opus 4.7** ★ | **Opus 4.7** ★ | **Opus 4.7** ★ |
+| **Evaluator** | **Opus 4.7** ★ *(bounded policy pass)* | **Opus 4.7** ★ | **Opus 4.7** ★ | **Opus 4.7** ★ |
 | **Generator** | Sonnet 4.6 ↓ | Sonnet 4.6 | Sonnet 4.6 | Sonnet 4.6 ↓ |
 | **Reflector** | Haiku 4.5 *(lightweight)* | Haiku 4.5 *(lightweight)* | Haiku 4.5 *(lightweight)* | **Opus 4.7** *(full)* ★ |
 
-**Legend.** ★ = non-negotiable Opus 4.7 floor (see §3). ↓ = downshift from the naive default of "match model to role-seniority"; rationale in §4. *(dormant)* = phase-conditioned non-engagement per `AGENT_ORCHESTRATION.md §3.0`. *(lightweight)* / *(full)* = Reflector dispatch mode per the two-mode split retained from v0.7.0.
+**Legend.** ★ = non-negotiable Opus 4.7 floor (see §3). ↓ = downshift from the naive default of "match model to role-seniority"; rationale in §4. *(bounded policy pass)* = the Ph1 centroid and all-drafts governance evaluation, not the full Ph2 review. *(lightweight)* / *(full)* = Reflector dispatch mode.
 
 The model strings the Planner passes to the Agent tool's `model` parameter are `claude-opus-4-7`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001` respectively. The Planner does not accept per-agent overrides in `agents/*.md` frontmatter; dispatch is resolved exclusively from this file.
 
@@ -66,7 +66,7 @@ The Planner reads the directive at dispatch, logs the override to `reviews/phase
 
 Phase 2f of the Reflector-full run (tier-row contract audit) is extended at v0.7.3 to audit model-selection consistency across the round. The three invariants checked are:
 
-- **I-MA-1 (allocation concordance).** Every dispatch in the round's `phase_state.json` `phase_entry_log` array resolves to an `actor` and `trigger` consistent with the agent's allocation in §2 for the row's phase. If a row shows `actor: evaluator` at a Ph1 row, the audit flags `E-MA-DORMANT-ACTOR-ENGAGED` — the Evaluator is dormant at Ph1 and should not have written a row.
+- **I-MA-1 (allocation concordance).** Every dispatch in the round's `phase_state.json` `phase_entry_log` array resolves to an `actor` and trigger consistent with §2. A Ph1 Evaluator row is valid only for the bounded all-drafts policy pass and must bind the target and current artifact hash; broader Ph1 Evaluator work remains scope drift.
 - **I-MA-2 (capability non-inversion).** No round in the log shows the Evaluator downshifted below the Generator on the family ordering `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}`. Violations are `R-Refl-MA-1` with BLOCKER severity.
 - **I-MA-3 (override provenance).** Every `model_override:...` notes-field entry corresponds to an active directive in `research_notes/directives.md`. Orphan overrides are `R-Refl-MA-3` with MAJOR severity.
 

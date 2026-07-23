@@ -46,6 +46,7 @@ for internal routing, compatibility, and truthful failure behavior.
 | `/check-contradictions` | Audit theoretical and terminological contradictions across sources. | Multi-theory manuscripts. |
 | `/p-stage-checker` | Check manuscript claims and vocabulary against the declared P-stage. | Stage-drift diagnosis. |
 | `/accessibility-overlay` | Run the governed reader-accessibility checks. | Review and sign-off passes. |
+| `/centroid-pass` | Bind and execute centroid-conditioned generation, review, or revision. | Every academic draft and explicit centroid audits. |
 | `/analytic-move-audit` | Audit Abbott-style analytic construction across seven moves. | Theory-building arguments. |
 | `/definition-derivation-check` | Check whether load-bearing terms are derived, imported, or stipulated. | Definitions and construct formation. |
 | `/dissolution-move-check` | Check charitable reconstruction, buried assumptions, and dissolution moves. | Rival-view engagement. |

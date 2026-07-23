@@ -8,7 +8,9 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
 
   package    harness package root                    -> writable (repo rules)
   staging    <governed-root>/outputs/co-author-harness/staging/  -> writable
-  protected  anywhere else under a governed root     -> REFUSE (shipment-only)
+  shipment   <governed-root>/research/60_Workbench/<work-id>/
+             reviews/.harness/shipments/<shipment-id>/ -> writable (reports only)
+  protected  anywhere else under a governed root     -> REFUSE
   external   outside every governed root             -> writable (OS temp, test
              sandboxes; not governed space)
   ungoverned no governed root discoverable at all    -> REFUSE all non-package
@@ -28,8 +30,8 @@ separators), so `B:/agents/RESEARCH/x`, a junction into the research tree, and a
 `..` traversal all classify identically to the canonical spelling.
 
 Route rows in the routing manifest are NOT consulted for write capability:
-route != write-enable (OUTPUT_ROUTING_CONTRACT.md sec.5). The only writable
-governed destination is the staging lane the Phase B shipment installed.
+route != write-enable (OUTPUT_ROUTING_CONTRACT.md sec.5). Governed writes are
+limited to the staging lane and the exact private research shipment lane.
 """
 
 from __future__ import annotations
@@ -41,6 +43,8 @@ HARNESS = Path(__file__).resolve().parent.parent
 
 _MANIFEST_REL = Path("governance") / "output-routing" / "output_routing.yaml"
 _STAGING_REL = Path("outputs") / "co-author-harness" / "staging"
+_SHIPMENT_PREFIX = tuple(os.path.normcase(p) for p in ("research", "60_Workbench"))
+_SHIPMENT_SUFFIX = tuple(os.path.normcase(p) for p in ("reviews", ".harness", "shipments"))
 
 # Error codes (stable contract for tests and callers)
 DEST_PROTECTED = "DEST-PROTECTED"
@@ -62,6 +66,25 @@ def _canon(p: os.PathLike | str) -> str:
 def _is_under(child_canon: str, root: Path) -> bool:
     root_canon = _canon(root)
     return child_canon == root_canon or child_canon.startswith(root_canon + os.sep)
+
+
+def _is_research_shipment(child_canon: str, root: Path) -> bool:
+    """True only below one identified Workbench shipment directory.
+
+    The work-id and shipment-id segments are required. The parent
+    ``.../shipments`` directory is intentionally still protected.
+    """
+    root_canon = _canon(root)
+    if not _is_under(child_canon, root):
+        return False
+    rel = os.path.relpath(child_canon, root_canon)
+    parts = tuple(os.path.normcase(p) for p in Path(rel).parts)
+    if len(parts) < 7:
+        return False
+    return (parts[:2] == _SHIPMENT_PREFIX
+            and parts[3:6] == _SHIPMENT_SUFFIX
+            and parts[2] not in {"", ".", ".."}
+            and parts[6] not in {"", ".", ".."})
 
 
 def discovered_workspace_root() -> Path | None:
@@ -98,6 +121,8 @@ def classify(destination: os.PathLike | str) -> str:
     for root in roots:
         if _is_under(dest, root / _STAGING_REL):
             return "staging"
+        if _is_research_shipment(dest, root):
+            return "shipment"
     for root in roots:
         if _is_under(dest, root):
             return "protected"
@@ -111,10 +136,9 @@ def assert_writable(destination: os.PathLike | str, purpose: str = "write") -> s
         raise DestinationRefused(
             DEST_PROTECTED,
             f"{purpose} destination {os.fspath(destination)!r} resolves inside a "
-            "governed workspace root outside the harness staging lane. The "
-            "harness is a shipment producer with zero direct-write authority "
-            "there (research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md); "
-            "produce a shipment instead.")
+            "governed workspace root outside the harness staging or private "
+            "shipment lanes. The harness has no write authority there "
+            "(research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md).")
     if kind == "ungoverned":
         raise DestinationRefused(
             DEST_UNGOVERNED,

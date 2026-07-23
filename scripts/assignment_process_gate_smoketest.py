@@ -161,6 +161,9 @@ def main() -> int:
             reviews / "phase_state.json"
         )
         assert receipt_record["profile_sha256"] == sha256(PROFILE)
+        assert receipt_record["exemplar_conditioning"] is True, (
+            "every academic draft gate must bind centroid conditioning, including M1"
+        )
         verified = run_gate(root, verify_receipt=receipt_argument)
         assert (
             verified.returncode == 0 and "VERIFIED assignment-process receipt" in verified.stdout
@@ -297,10 +300,7 @@ def main() -> int:
         assert m4.returncode == 0 and "target=M4" in m4.stdout, m4.stdout + m4.stderr
 
         m2_exemplar = run_gate(root, "draft", "M2", exemplar_conditioning=True)
-        assert (
-            m2_exemplar.returncode == 4
-            and "APG-EXEMPLAR-SCOPE" in m2_exemplar.stdout
-        ), m2_exemplar.stdout + m2_exemplar.stderr
+        assert m2_exemplar.returncode == 0, m2_exemplar.stdout + m2_exemplar.stderr
         m4_exemplar = run_gate(root, "draft", "M4", exemplar_conditioning=True)
         assert m4_exemplar.returncode == 0, m4_exemplar.stdout + m4_exemplar.stderr
 

@@ -31,6 +31,7 @@ PATHS = {
     "M2": "milestones/M2_annotated_references.md",
     "M3": "milestones/M3_argument_evidence_outline.md",
     "M4": "milestones/M4_complete_paper_draft.md",
+    "M5": "milestones/M5_final_paper.md",
 }
 
 
@@ -54,6 +55,39 @@ def state(project: Path) -> dict:
     return json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
 
 
+def draft_policy_evidence(project: Path, milestone: str, label: str) -> dict:
+    artifact = project / PATHS[milestone]
+    artifact_sha = sha(artifact)
+    always = {
+        "grounding-protocol", "d-style-profile", "reader-accessibility",
+        "master-guidelines", "research-writing-playbook", "style-commitments",
+        "integrated-style-checklist", "grammar-mechanics", "citation-discipline",
+        "emdash-bundle", "sentence-craft", "narrative-structure",
+        "deterministic-audit",
+    }
+    bindings = {}
+    for key, phase, role, centroid_id in (
+        ("draft_generation", "generation", "generator", "centroid-generation"),
+        ("draft_evaluation", "evaluation", "evaluator", "centroid-evaluation"),
+    ):
+        evidence = (
+            project / "reviews" / ".harness" / "shipments" / "synthetic"
+            / f"{milestone.lower()}_{label}_{phase}.verified.json"
+        )
+        write_json(evidence, {
+            "schema_version": "1.0.0", "status": "verified",
+            "phase": phase, "role": role, "target": "FINAL" if milestone == "M5" else milestone,
+            "contract_sha256": "1" * 64, "artifact_sha256": artifact_sha,
+            "centroid": {"required": True, "binding_provenance": "project"},
+            "obligation_ids": sorted(always | {centroid_id}),
+        })
+        bindings[key] = {
+            "evidence_path": evidence.relative_to(project).as_posix(),
+            "evidence_sha256": sha(evidence),
+        }
+    return bindings
+
+
 def checkpoint_input(
     project: Path, milestone: str, at: str, *, valid_m4: bool = True,
     label: str = "initial", phase: str = "Ph1", cycle_id: str | None = None,
@@ -62,7 +96,7 @@ def checkpoint_input(
     evidence = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_feedback{suffix}.md"
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text(f"Synthetic adjudicated feedback for {milestone}.\n", encoding="utf-8")
-    policy: dict = {}
+    policy: dict = draft_policy_evidence(project, milestone, label)
     if milestone == "M3":
         references = project / "references" / "REFERENCES.md"
         references.parent.mkdir(parents=True, exist_ok=True)
@@ -80,12 +114,12 @@ def checkpoint_input(
             "sources_consulted": [{"path": str(source), "sha256": sha(source)}],
             "authority": "planner", "notes": "Synthetic public-command walk evidence."
         })
-        policy = {"wiki_grounding": {"evidence_path": grounding.relative_to(project).as_posix(), "evidence_sha256": sha(grounding)}}
+        policy["wiki_grounding"] = {"evidence_path": grounding.relative_to(project).as_posix(), "evidence_sha256": sha(grounding)}
     elif milestone == "M4":
-        policy = {
+        policy.update({
             "phase": phase,
             "cycle_id": cycle_id or f"m4-{label}-assembly-001",
-        } if valid_m4 else {"phase": phase}
+        } if valid_m4 else {"phase": phase})
     payload = {
         "schema_version": "1.0.0", "milestone": milestone,
         "feedback_records": [{

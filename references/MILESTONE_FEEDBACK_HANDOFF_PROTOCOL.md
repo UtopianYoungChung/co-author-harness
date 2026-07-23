@@ -93,7 +93,7 @@ Every record binds `feedback_id`, evidence class, source path and SHA-256, the a
 
 `pending | accepted | partially_accepted | rejected | deferred | informational`
 
-Every blocking record must be adjudicated before its handoff can become ready. Direct external feedback is not mandatory at every milestone; an explicit truthful gate is mandatory. The gate may record received and adjudicated feedback, feedback not requested, unavailable history under an approved legacy boundary, or authorized non-applicability. During Ph1 the Evaluator is dormant: Planner checks, user/advisor responses, and deterministic evidence must retain their real actor and evidence class and must never be labeled Evaluator feedback.
+Every blocking record must be adjudicated before its handoff can become ready. Direct external feedback is not mandatory at every milestone; an explicit truthful gate is mandatory. The gate may record received and adjudicated feedback, feedback not requested, unavailable history under an approved legacy boundary, or authorized non-applicability. During Ph1 the Evaluator runs the bounded all-drafts policy pass: its findings retain Evaluator actor provenance, while Planner checks and user/advisor responses retain their own real actors and evidence classes.
 
 ## 7. F9 handoff evidence
 

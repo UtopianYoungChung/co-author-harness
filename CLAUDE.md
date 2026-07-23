@@ -12,13 +12,13 @@
 
 ---
 
-## Producer boundary (binding, 2026-07-22)
+## Producer boundary (binding, revised 2026-07-22)
 
-The harness is a **producer, not a decision maker**. For any destination under a governed workspace root outside this package (in this workspace: `research/`, `knowledge/`, `governance/`, and every other governed surface), the harness reads only explicitly allowlisted inputs and returns path-and-hash-bounded shipments; it never writes, registers, promotes, adjudicates, or updates authoritative state there. Contract: `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing: `governance/output-routing/`.
+The harness is a **producer, not a decision maker**. It may write private Stage reports, evidence, and manifests only inside an active research package's exact lane `research\60_Workbench\<work-id>\reviews\.harness\shipments\<shipment-id>\`. Those bytes remain scratch/private and imply no acceptance, registration, promotion, or authoritative-state update. All other governed consumer paths remain protected; research governance alone may apply a user-authorized, path-and-hash-bounded change beyond the shipment lane. Contract: `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; routing: `governance/output-routing/`.
 
-- Writable destinations are exactly: this package root (repo rules) and the governed staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
+- Writable destinations are exactly: this package root (repo rules), the governed staging lane `outputs/co-author-harness/staging/<work-id>/<run-id>/`, and the exact private shipment lane above.
 - Every script writer resolves destinations through `scripts/destination_capability.py`: a protected destination refuses with `DEST-PROTECTED`; an install without discoverable workspace governance fails closed (`DEST-UNGOVERNED`) for all non-package writes.
-- This binds agent-directed writes with general file tools exactly as it binds scripts: do not create, modify, move, rename, or delete any path under a protected root, and never infer authority from a harness verdict, phase label, terminal PASS, or artifact quality.
+- This binds agent-directed writes with general file tools exactly as it binds scripts. Do not create, modify, move, rename, or delete any protected path; the shipment exception does not authorize direct Apply-mode mutation.
 
 ---
 

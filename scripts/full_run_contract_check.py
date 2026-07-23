@@ -1479,6 +1479,56 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     "applicability -- it is the failure this contract exists to "
                     "prevent, in the vocabulary of a feature."))
 
+        # Every terminal deliverable must retain current-byte proof that the
+        # Generator applied the all-drafts bundle and an independent Evaluator
+        # checked it. A milestone file or accepted flag is never a substitute.
+        for key in ("M1", "M2", "M3", "M4", "M5"):
+            record = milestones.get(key)
+            if not isinstance(record, dict):
+                continue
+            deliverables = [
+                row for row in record.get("artifacts", [])
+                if isinstance(row, dict) and row.get("role") == "deliverable"
+            ]
+            if len(deliverables) != 1:
+                continue
+            artifact_sha = deliverables[0].get("sha256")
+            policy = record.get("policy_evidence")
+            for field, phase, role in (
+                ("draft_generation", "generation", "generator"),
+                ("draft_evaluation", "evaluation", "evaluator"),
+            ):
+                binding = policy.get(field) if isinstance(policy, dict) else None
+                where = f"milestone_framework.milestones.{key}.policy_evidence.{field}"
+                if not isinstance(binding, dict):
+                    unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-MISSING", where,
+                                    "accepted deliverable lacks current-byte generation or independent evaluation evidence"))
+                    continue
+                raw_path = binding.get("evidence_path")
+                try:
+                    evidence_path = (project_root / raw_path).resolve(strict=True)
+                    evidence_path.relative_to(project_root.resolve())
+                    if not evidence_path.is_file() or binding.get("evidence_sha256") != _sha256(evidence_path):
+                        raise ValueError("stale binding")
+                    envelope = json.loads(evidence_path.read_text(encoding="utf-8"))
+                except (OSError, TypeError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
+                    unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-STALE", where,
+                                    f"draft-policy evidence is unreadable, outside the project, or hash-stale: {exc}"))
+                    continue
+                target = "FINAL" if key == "M5" else key
+                if (
+                    not isinstance(envelope, dict)
+                    or envelope.get("status") != "verified"
+                    or envelope.get("phase") != phase
+                    or envelope.get("role") != role
+                    or envelope.get("target") != target
+                    or envelope.get("artifact_sha256") != artifact_sha
+                    or not isinstance(envelope.get("centroid"), dict)
+                    or envelope["centroid"].get("required") is not True
+                ):
+                    unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-INVALID", where,
+                                    "draft-policy envelope does not bind the target, role, centroid, and current artifact hash"))
+
     # phase state shape -- the phase authority, ALL of it.
     #
     # The previous filter kept only codes starting with "E", on the assumption

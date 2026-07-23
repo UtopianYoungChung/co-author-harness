@@ -94,7 +94,7 @@
 **Role metaphor.** Independent reviewer. Treats the manuscript as unfamiliar text. Does not write prose. Does not know how any given passage came to be the way it is, and does not care; only reads what is there.
 
 **Preconditions for invocation.**
-- The target section exists in `manuscript/*` and its `reviews/phase_state.json` SectionStateObject sits at a phase that engages the Evaluator: **Ph2, Ph3, or Ph4** (`PHASE_PROTOCOL.md §§3.2–3.4`). The Evaluator is dormant at Ph1. *(Milestone-artifact preconditions — memo/M1, references/M2, outline/M3, `main.md`/M4–M5 — are the retired pre-ladder formulation, kept only in `docs/release-notes/` history.)*
+- For the Ph1 bounded pass, the exact M1-M4 artifact has just been published and both its target and SHA-256 are named; artifact absence before generation does not waive the preceding Generator contract. For full review, the target section exists in `manuscript/*` and sits at Ph2, Ph3, or Ph4. FINAL receives the same generation/evaluation evidence contract at Ph4.
 - `reviews/classification.md` exists (dispatched by Planner) OR Evaluator is invoked in test-only mode against `DETERMINISTIC_CHECKS.md` / `SAFEGUARD_LAYER.md`.
 
 **Inputs (read).**
@@ -118,7 +118,7 @@
 - I-Eval-3: Never silently carries findings across phases. Each phase's output stands alone.
 - I-Eval-4: At Ph4 (formerly `submission-bound` depth), every cited claim is verified per `EXTERNAL_VERIFIERS.md` Rule 7a or flagged as unverified-and-blocking.
 - I-Eval-5: Does not adjudicate between its own findings and user overrides — flags the conflict for the Planner.
-- I-Eval-6 (v0.7.3): Runs on the Planner-dispatched model per `MODEL_ALLOCATION.md §2`; does not override the model at dispatch time or reason about its own capability assignment. A dormant-at-T1 invocation (trigger-absent row for an Evaluator `actor` at a T1 row) is a dispatch-contract violation; the Reflector Phase 2f audit flags it as `E-MA-DORMANT-ACTOR-ENGAGED`.
+- I-Eval-6: Runs on the Planner-dispatched model per `MODEL_ALLOCATION.md §2`; does not override the model at dispatch time. A Ph1 invocation is valid only for the bounded all-drafts policy pass with target and current-byte bindings. Any broader or unbound Ph1 Evaluator dispatch is a contract violation.
 - I-Eval-7 (v0.7.4): When the Evaluator delegates a sub-pass (a SAFEGUARD Check 8 sub-check run, a graph-grounding overlay, or a targeted deterministic-counter probe) to a subagent, invariants I-SubAgent-1..3 of §4.5 apply. The Evaluator's F1 findings artefact cites the subagent's F2/F3 artefact by path; the verdict is consumed as-returned and is not re-derived from the subagent's raw counters. If the Evaluator disagrees with a subagent verdict on audit-integrity grounds, the permitted move is `refuse-and-redispatch` (recorded as a fresh dispatch envelope) — never silent re-adjudication.
 - I-Eval-8 (v0.8.0, P-13): **Parallel subagent dispatch is F6-gated.** Before launching more than one sub-pass concurrently at Ph3 or Ph4, the Evaluator reads the round's approved F6 `reviews/dispatch_plan_<cycle_id>.md` (via `dispatch_plan_reference` on the Evaluator's F1 artefact when present, or the active round plan otherwise). Per `ARTEFACT_FRONTMATTER_SCHEMA.md §7a.3`, **`parallel_dispatch` absent → `true`** (parallelism allowed when checks are independent). If the approved F6 sets **`parallel_dispatch: false`**, sub-passes MUST run **strictly sequentially** (`PHASE_PROTOCOL.md` §3.0 A-OT-3; `agents/evaluator.md` §3.0). When **`parallel_dispatch: true`** and sub-passes are independent, the Evaluator may parallelize compatible delegations and MUST log **`parallel_dispatch_cost_multiplier`** in the consolidated findings whenever parallelism was used (A-OT-2). The Evaluator MUST NOT override `parallel_dispatch` without a superseding user-approved F6 (`modifications_recorded: true`). Violations are audit-surfaced as MAJOR plan drift in the P-13 channel (compose with `R-Refl-DP-1` when the execution envelope contradicts the approved F6).
 
@@ -146,7 +146,7 @@ The Generator consumes the predecessor F9 packet and writes deliverable/revision
 
 **Preconditions for invocation.**
 - Planner preflight has atomically reserved an immutable assignment receipt for the active target and exact intended paths; the predecessor F9 preflight also passes where applicable.
-- For M1–M3, the Planner dispatch names the exact target and no Evaluator artifact is required or permitted.
+- For M1–M3, the Planner dispatch names the exact target and requires the bounded current-byte Evaluator policy artifact before milestone record.
 - For M4 at Ph2+, `reviews/revision_plan.md` exists and the Evaluator's findings have been merged into the plan by the Planner.
 
 **Inputs (read).**

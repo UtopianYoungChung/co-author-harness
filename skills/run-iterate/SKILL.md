@@ -46,7 +46,7 @@ profile: refine
 legacy_current_phase: Ph2
 ```
 
-Run the former first Evaluator engagement envelope as a refine-profile iterate
+Run the first full revision-maturity Evaluator envelope as a refine-profile iterate
 round: claim-coverage and snowball checks may still run as discovery-layer
 preflight, the Evaluator performs the local findings pass, the Generator applies
 fixes, and the Planner writes F7 evidence packets. New ledger writes should add

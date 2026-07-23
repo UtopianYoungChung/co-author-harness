@@ -1,61 +1,79 @@
 ---
 name: centroid-pass
-user-invocable: false
-description: 'Unavailable public centroid-analysis entrypoint. Returns a deterministic read-only envelope with reason code IMPLEMENTATION_MISSING; it never edits a manuscript, bypasses a milestone fence, mutates lifecycle state, or writes to the canonical Wiki.'
-trigger: when the user invokes /centroid-pass or asks for the package centroid pass.
-version: 1.1
+user-invocable: true
+description: 'Bind and execute the package centroid for generation, review, or revision. The deterministic service resolves the live corpus policy and scope; the dispatched Generator or Evaluator performs the grounded semantic pass.'
+trigger: automatically for every academic draft or revision at M1, M2, M3, M4, and FINAL, and explicitly when the user invokes /centroid-pass.
+version: 2.0
 ---
 
-# centroid-pass — unavailable public entrypoint
+# centroid-pass
 
-## Capability disposition
+## Contract
 
-`/centroid-pass` is **unavailable**. Its registry reason code is
-`IMPLEMENTATION_MISSING`: the package does not yet expose a promoted public
-centroid-analysis workflow.
+This pass is mandatory for every academic deliverable and revision, including
+M1-M3. An existing milestone artefact is neither a prerequisite nor a waiver.
+Use `write` before generation, `review` after generation, and `revise` before a
+finding-driven rewrite. The pass is read-only: the Generator remains the sole
+academic-prose writer and the Evaluator remains the independent reviewer.
 
-Return this machine-readable envelope and stop:
+The policy at `references/policies/reader_accessibility.v1.json` is authoritative
+for centroid membership, warrant layers, derivations, semantic pins, and the C-7
+identity fence. `references/GROUNDING_PROTOCOL.md` remains absolute. Never invent
+a passage, quotation, attestation, locator, or member.
 
-```json
-{
-  "schema_version": "1.0.0",
-  "capability": "centroid-pass",
-  "status": "unavailable",
-  "reason_code": "IMPLEMENTATION_MISSING",
-  "read_only": true,
-  "writes_performed": false
-}
-```
+## Required execution
 
-Do not create a review artefact merely to record the refusal. Do not edit the
-manuscript, `phase_state.json`, assignment receipts, milestone evidence, or any
-Wiki path.
+1. Resolve the project and exact target. Run:
 
-## What is not promised
+   `python scripts/draft_governance.py prepare --project-root <project-root> --target <M1|M2|M3|M4|FINAL> --role <generator|evaluator> --phase <generation|evaluation> [--artifact <path>]`
 
-- There is no public `write`, `revise`, `all`, or `--apply` mode.
-- This entrypoint does not bypass the Generator's M1–M3 exemplar fence.
-- It does not retrieve or invent exemplar passages, attestations, quotations,
-  corpus locators, or semantic findings.
-- It does not re-pin the reader-accessibility policy or promote a capability.
-- It cannot make graph generation or Wiki mutation available.
+   If the target file does not yet exist, omit `--artifact`. The returned
+   `artifact_state: absent` is valid and does not relax any obligation.
 
-## Maintainer-only candidate
+2. Build the centroid packet with
+   `python scripts/centroid_service.py --mode <write|review|revise>
+   --manuscript <input-or-draft> --project-root <project-root>`. For `write` when
+   the target is absent, use the closest grounded controlling text that will
+   actually condition the draft: accepted predecessor, structured outline, or
+   assignment source. Do not create placeholder prose merely to satisfy this
+   argument.
 
-The repository may contain `scripts/centroid_service.py`, a read-only candidate
-that prepares a hash-bound analysis packet from an explicitly named manuscript
-and the resolved reader-accessibility policy. That script is testable substrate,
-not public activation. It writes JSON to stdout only, reports deterministic
-unavailability when inputs cannot be resolved, and emits no semantic verdict.
+3. Retrieve only passages admitted by the packet's member and warrant views.
+   `surface` members condition register; `argument` members condition argument
+   architecture; a member without the relevant warrant is not silently promoted.
+   Record the corpus locator and source hash for each passage actually used.
 
-Changing this skill or `references/capabilities.yaml` from unavailable to an
-active posture requires the separately governed H2 promotion decision and
-evidence for the exact promoted interface.
+4. In `write`, the Generator conditions the draft on the retrieved passages but
+   does not imitate a source's identity-layer voice. In `review`, the Evaluator
+   independently compares the produced draft with the resolved centroid and
+   records strengths, deviations, warrant limits, and actionable findings. In
+   `revise`, preserve propositional content and C-7 identity features while
+   substituting only grounded, attested constructions.
 
-## Inherited authority
+5. Complete every applicable obligation in the returned draft-governance
+   contract, including D-STYLE, grammar/mechanics, citation and em-dash policy,
+   deterministic checks, Grounding, SAFEGUARD, and project/venue overlays. An
+   always-on obligation may not be marked `not_applicable`.
 
-The policy object at `references/policies/reader_accessibility.v1.json` remains
-the authority for centroid membership, warrant layers, the C-7 identity fence,
-derivations, and semantic pins. `references/GROUNDING_PROTOCOL.md` remains
-absolute. This skill creates no new corpus membership, lifecycle authority,
-write authority, or warrant claim.
+6. Run `draft_governance.py verify` against the exact generated bytes and the
+   completed obligation receipt. Preserve both generation and evaluation
+   verified envelopes in the authorized run's private evidence lane. A milestone
+   record or acceptance without both current-byte envelopes fails closed.
+
+## Semantic output
+
+The deterministic service deliberately emits no semantic verdict. Its job is to
+prove which policy, members, warrants, scope, and bytes the role received. The
+Generator or Evaluator must perform and document the semantic judgment; empty
+`semantic_findings` from the service is not evidence that the prose passed.
+
+## Prohibitions
+
+- Do not skip the pass because an M1-M3 artefact exists, is missing, or was
+  migrated from an older run.
+- Do not treat centroid conformity as citation grounding, grammatical
+  correctness, D-STYLE compliance, or user acceptance; each has separate
+  evidence.
+- Do not let the Generator self-certify the evaluation receipt.
+- Do not mutate lifecycle state, the canonical Wiki, or a protected consumer
+  path from this skill.

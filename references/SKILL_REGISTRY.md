@@ -350,7 +350,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-29. `run-phase-2`
 - **File:** `skills/run-phase-2/SKILL.md` (renamed at v0.7.4 from `skills/run-tier-2/SKILL.md` as part of the tier→phase vocabulary sweep; net-new at v0.6.0; rewritten in place at v0.7.0)
-- **Pattern:** **Compatibility router** for the former T2/Ph2 Review & Revise rung. The public surface is now `/run-iterate --profile refine`; this legacy command preserves old slash histories and project automation while routing first Evaluator engagement into the iterate stage. Historical Ph2 artefacts remain valid evidence, but new user-facing guidance should describe first-pass review as iterate/refine.
+- **Pattern:** **Compatibility router** for the former T2/Ph2 Review & Revise rung. The public surface is now `/run-iterate --profile refine`; this legacy command preserves old slash histories while routing the first full revision-maturity Evaluator engagement into iterate. Historical Ph2 artefacts remain valid evidence.
 - **Created:** 2026-04-19 (v0.6.0 Phase 6 skill build); rewritten 2026-04-20 (v0.7.0).
 - **Source:** The v0.5.5 T2 "local" tier had no standalone skill entry point — it was dispatched implicitly by the Planner from the `tier:` field. The v0.6.0 staircase promoted T2 to a first-class approval rung between Draft and Verify; the v0.7.0 Lifecycle-Stage Ladder (since renamed Lifecycle-Phase) retains T2 as a first-class rung but retires Confirmation Mode entirely and removes the Self-T1 Verdict coupling.
 - **Tier:** Package (Cowork-installable .skill file)
@@ -516,12 +516,12 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-47. `centroid-pass`
 - **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
-- **Pattern:** Unavailable public entrypoint returning a deterministic, read-only `IMPLEMENTATION_MISSING` envelope. The maintainer-only analysis candidate resolves the policy, pins, members, exact manuscript scope, hashes, and text metrics but emits no semantic finding and performs no write.
-- **Created:** 2026-07-19; capability-truth posture corrected during the WP5 live-interface audit.
+- **Pattern:** Public, read-only orchestration. A deterministic packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass.
+- **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.
 - **Tier:** Package
-- **Status:** Unavailable (`IMPLEMENTATION_MISSING`); H2 is required for any public promotion.
-- **Depends on:** `references/policies/reader_accessibility.v1.json`, `scripts/reader_accessibility_policy.py`, and `references/GROUNDING_PROTOCOL.md`.
-- **Trigger:** Explicit `/centroid-pass`; returns the unavailable envelope only.
+- **Status:** Active; mandatory within academic draft generation, evaluation, and revision orchestration.
+- **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/policies/draft_governance.v1.json`, `scripts/centroid_service.py`, `scripts/draft_governance.py`, and `references/GROUNDING_PROTOCOL.md`.
+- **Trigger:** Every M1-M4/FINAL draft or revision, or explicit `/centroid-pass`.
 - **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).
 
 ---
