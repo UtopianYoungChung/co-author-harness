@@ -2247,9 +2247,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repin-epoch", type=int, help="ledger event epoch used with --backfill-repin-commit")
     args = parser.parse_args(argv)
     if args.project_root is not None:
-        from destination_capability import DestinationRefused, guard_project_root
+        from destination_capability import (
+            DestinationRefused,
+            guard_project_root,
+            guard_repin_project_root,
+        )
+        # Re-pin writes are confined to the re-pin lane inside one work-id root;
+        # every other subcommand keeps the strict project-root guard.
         try:
-            guard_project_root(args.project_root)
+            if args.repin:
+                guard_repin_project_root(args.project_root)
+            else:
+                guard_project_root(args.project_root)
         except DestinationRefused as exc:
             print(f"[BLOCKER] {exc}")
             return 4

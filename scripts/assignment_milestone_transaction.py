@@ -26,7 +26,7 @@ from assignment_process_gate import (
     derive_released_export_path,
     verify_receipt,
 )
-from destination_capability import guard_project_root
+from destination_capability import guard_project_root, guard_repin_project_root
 from milestone_framework_validate import validate_document, validate_gate
 from milestone_path_contract import handoff_path, snapshot_path
 
@@ -195,12 +195,26 @@ def _atomic_replace(path: Path, payload: dict[str, Any]) -> None:
     if _is_link(path.parent):
         raise MilestoneTransactionError("AMC-PATH-INVALID", f"state parent is linked or junctioned: {path.parent}")
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    original_mode: int | None = None
+    target_unlocked = False
+    if path.exists():
+        original_mode = stat.S_IMODE(path.stat().st_mode)
     try:
         with temporary.open("xb") as handle:
             handle.write(_json_bytes(payload))
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        if original_mode is not None:
+            os.chmod(temporary, original_mode)
+            if not (original_mode & stat.S_IWRITE):
+                os.chmod(path, original_mode | stat.S_IWRITE)
+                target_unlocked = True
+        try:
+            os.replace(temporary, path)
+        except BaseException:
+            if target_unlocked and path.exists():
+                os.chmod(path, original_mode)
+            raise
     finally:
         try:
             temporary.unlink()
@@ -358,7 +372,7 @@ def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
     import reader_accessibility_policy as policy
 
     project = project.resolve()
-    guard_project_root(project)
+    guard_repin_project_root(project)
     _enter_authority_mode(project)
     at = _timestamp(at)
     request_path = project / "reviews" / "repin_rebind_request.json"
@@ -500,6 +514,95 @@ def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
                     temporary.write_bytes(old_resolved)
                     os.replace(temporary, resolved_path)
             raise
+
+
+def archive_stale_reader_accessibility_request(
+    project: Path, expected_request_sha256: str, at: str | None = None,
+) -> Path:
+    """Archive an inert rebind request without changing lifecycle state.
+
+    A request matching the current profile is live and must go through the
+    ordinary rebind transaction. Only a hash-bound request that differs from
+    the current profile may be archived by this explicit Planner recovery.
+    """
+    import reader_accessibility_policy as policy
+
+    project = project.resolve()
+    guard_repin_project_root(project)
+    _enter_authority_mode(project)
+    at = _timestamp(at)
+    if not isinstance(expected_request_sha256, str) or SHA_RE.fullmatch(expected_request_sha256) is None:
+        raise MilestoneTransactionError(
+            "AMC-REPIN-REQUEST-HASH", "expected request sha256 must be 64 lowercase hex characters"
+        )
+    request_path = project / "reviews" / "repin_rebind_request.json"
+    with transaction_claim(project, "archive-stale:reader_accessibility"):
+        state_path, _, state_pre = _load_state(project)
+        if policy._open_project_round(project):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-ROUND", "stale reader-policy request archival requires no open review round"
+            )
+        if not request_path.is_file() or _is_link(request_path):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST", "pending reader-policy rebind request is missing or linked"
+            )
+        request_hash = _sha256(request_path)
+        if request_hash != expected_request_sha256:
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST-HASH", "pending request bytes differ from the explicitly supplied sha256"
+            )
+        request = _load_object(request_path, "AMC-REPIN-REQUEST")
+        required = {
+            "request_id", "pin_epoch", "profile_sha256", "attestation_view_pin",
+            "exemplar_view_pin", "delta_class", "repin_log_ref", "status",
+        }
+        if set(request) != required or request.get("status") != "pending":
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST", "rebind request fields or pending status are invalid"
+            )
+        profile_path = policy.DEFAULT_PROFILE.resolve()
+        if not profile_path.is_file():
+            raise MilestoneTransactionError("AMC-REPIN-POLICY", "canonical reader profile is missing")
+        profile = policy.load_profile(profile_path)
+        expected = profile["domain_native_register"]["expected_verification"]
+        current_fields = {
+            "profile_sha256": _sha256(profile_path),
+            "attestation_view_pin": expected.get("attestation_view_pin"),
+            "exemplar_view_pin": expected.get("exemplar_view_pin"),
+            "pin_epoch": expected.get("pin_epoch"),
+            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{expected.get('pin_epoch')}",
+        }
+        if all(request.get(key) == value for key, value in current_fields.items()):
+            raise MilestoneTransactionError(
+                "AMC-REPIN-REQUEST-CURRENT",
+                "pending request matches the current profile; apply rebind-reader-policy instead of archiving it",
+            )
+        epoch = request.get("pin_epoch")
+        if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch < 1:
+            raise MilestoneTransactionError("AMC-REPIN-REQUEST", "pending request pin_epoch is invalid")
+        archive = (
+            project / "reviews"
+            / f"repin_rebind_request.{epoch}.{request_hash[:16]}.stale.json"
+        )
+        payload = {
+            "schema_version": "1.0.0",
+            "status": "archived_stale",
+            "archived_at": at,
+            "archived_by": "planner",
+            "reason": "request_does_not_match_current_profile_after_package_rollback",
+            "request_sha256": request_hash,
+            "request": request,
+        }
+        archive_bytes = _json_bytes(payload)
+        _exclusive_bytes(archive, archive_bytes)
+        if _sha256(state_path) != state_pre or _sha256(request_path) != request_hash:
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE", "phase state or rebind request changed during stale-request archival"
+            )
+        if archive.read_bytes() != archive_bytes:
+            raise MilestoneTransactionError("AMC-REPIN-READBACK", "stale-request archive read-back failed")
+        request_path.unlink()
+        return archive
 
 
 def derive(project: Path) -> dict[str, Any]:

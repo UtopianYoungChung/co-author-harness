@@ -8,7 +8,8 @@ import json
 from pathlib import Path
 
 from assignment_milestone_transaction import (
-    MilestoneTransactionError, accept, begin, derive, record,
+    MilestoneTransactionError, accept, archive_stale_reader_accessibility_request,
+    begin, derive, record,
     rebind_reader_accessibility, recover_claim,
 )
 from destination_capability import DestinationRefused
@@ -33,6 +34,9 @@ def main() -> int:
             command.add_argument("--terminal-evidence", type=Path)
         if name == "recover":
             command.add_argument("--acknowledgement", required=True)
+        if name == "rebind-reader-policy":
+            command.add_argument("--archive-stale-request", action="store_true")
+            command.add_argument("--expected-request-sha256")
     args = parser.parse_args()
     try:
         if args.command == "derive":
@@ -48,7 +52,23 @@ def main() -> int:
                 args.terminal_evidence,
             ); print(f"ACCEPTED {args.milestone}")
         elif args.command == "rebind-reader-policy":
-            archive = rebind_reader_accessibility(args.project_root); print(f"REBOUND {archive}")
+            if args.archive_stale_request:
+                if not args.expected_request_sha256:
+                    raise MilestoneTransactionError(
+                        "AMC-REPIN-REQUEST-HASH",
+                        "--archive-stale-request requires --expected-request-sha256",
+                    )
+                archive = archive_stale_reader_accessibility_request(
+                    args.project_root, args.expected_request_sha256,
+                )
+                print(f"ARCHIVED_STALE {archive}")
+            elif args.expected_request_sha256:
+                raise MilestoneTransactionError(
+                    "AMC-REPIN-REQUEST-HASH",
+                    "--expected-request-sha256 is valid only with --archive-stale-request",
+                )
+            else:
+                archive = rebind_reader_accessibility(args.project_root); print(f"REBOUND {archive}")
         else:
             archived = recover_claim(args.project_root, args.acknowledgement); print(f"RECOVERED {archived}")
     except DestinationRefused as exc:

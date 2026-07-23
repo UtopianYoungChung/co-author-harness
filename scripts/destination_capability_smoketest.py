@@ -68,6 +68,25 @@ def case_classifier() -> None:
                         "findings.json")
             check("research shipment lane -> shipment (writable)",
                   dc.classify(shipment) == "shipment", dc.classify(shipment))
+            work_id = fake / "research" / "60_Workbench" / "w1"
+            repin_pending = work_id / "reviews" / "repin_rebind_request.json"
+            repin_applied = work_id / "reviews" / "repin_rebind_request.8.applied.json"
+            repin_stale = work_id / "reviews" / "repin_rebind_request.8.abc123.stale.json"
+            repin_sidecar = (work_id / "reviews" / ".harness" / "policies" /
+                             "reader_accessibility.resolved.json")
+            for label, path in (
+                ("pending", repin_pending), ("applied", repin_applied),
+                ("stale", repin_stale), ("resolved sidecar", repin_sidecar),
+            ):
+                check(f"exact re-pin {label} path -> repin (writable)",
+                      dc.classify(path) == "repin", dc.classify(path))
+            adjacent_review = work_id / "reviews" / "phase_state.json"
+            check("adjacent review path remains protected",
+                  dc.classify(adjacent_review) == "protected",
+                  dc.classify(adjacent_review))
+            check("re-pin work-id root gets container capability only through guard",
+                  dc.classify(work_id) == "protected"
+                  and dc.guard_repin_project_root(work_id) == "repin_container")
             shipment_parent = shipment.parents[1]
             check("shipment parent without shipment id -> protected",
                   dc.classify(shipment_parent) == "protected",

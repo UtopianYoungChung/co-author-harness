@@ -116,7 +116,12 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
 - A post-publication freshness refusal may preserve an inert project rebind
   request while rolling package files back. Report its exact path and have the
   Planner inspect and archive it before retrying; never delete or overwrite it
-  as part of re-pin recovery.
+  as part of re-pin recovery. Bind the recovery to the request's exact bytes:
+
+  `python scripts/assignment_milestone_checkpoint.py rebind-reader-policy --project-root <project-root> --archive-stale-request --expected-request-sha256 <sha256>`
+
+  The Planner command refuses an open round, a wrong hash, or a request that
+  matches the current profile (which must be applied rather than archived).
 
 ## Ownership boundary
 

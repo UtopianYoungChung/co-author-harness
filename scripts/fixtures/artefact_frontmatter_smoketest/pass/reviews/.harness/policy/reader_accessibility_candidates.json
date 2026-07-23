@@ -5,12 +5,12 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "c44891c141e451cbb04188ee1195aea558550a46767351d394738f9e6d8de4c5",
+  "profile_sha256": "02dfc1f2abf31c3a14c5654e0a74b443a54279f61192e3d06817d99da3c4d719",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "c44891c141e451cbb04188ee1195aea558550a46767351d394738f9e6d8de4c5",
+      "sha256": "02dfc1f2abf31c3a14c5654e0a74b443a54279f61192e3d06817d99da3c4d719",
       "role": "package_profile"
     },
     {
@@ -28,7 +28,7 @@
   ],
   "register_class": "domain-native",
   "passage_scope_class": "technical",
-  "attestation_view_pin": "522242df35d21a5df244948fdc2b573fc9e28b0abebffc1706c504f9220e2807",
+  "attestation_view_pin": "00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e",
   "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
   "candidate_only": true,
   "evaluator_judgment_required": true,

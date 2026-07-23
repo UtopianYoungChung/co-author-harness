@@ -84,7 +84,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "7550088f2ce1dd0645c8703976cb3e1e219a66e160683a3b0e1d2a6bc9182a5e"
+      "sha256": "e688e6a79f070b384f5a849a4afd6980358c0fe423176d721a2fdbdee6f1e018"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",

@@ -6,6 +6,41 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.3 — 2026-07-23
+
+### Reader-policy rebind completion and epoch-8 semantic refresh
+
+**What.** Closed the live `PROJECT_BINDING_STALE` failure that prevented the
+mandatory centroid write/review derivations from executing after the canonical
+Wiki semantic refresh. The producer boundary now admits only the exact
+Planner-owned re-pin request, applied archive, resolved sidecar, and hash-bound
+stale-request archive surfaces. The Planner can archive an inert request only
+when its caller supplies the exact request hash and the request no longer
+matches the current profile.
+
+**Windows state transaction.** Atomic Planner state replacement now preserves
+an existing target's file mode. A read-only `reviews/phase_state.json` is
+temporarily unlocked only for the same-directory atomic replacement and is
+read-only again after success; rollback restores the original mode. This closes
+the observed `WinError 5` without weakening the protected research-root guard.
+
+**Semantic pin.** Deliberate epoch 8 binds graph SHA-256
+`587d07c48c11d86e71005ebda660af5e296c81c98ed1889c34d4795ecf194f03`,
+attestation pin
+`00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e`,
+and the unchanged exemplar pin
+`5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344`.
+Static accessibility fixtures and contract-kernel hashes were refreshed in
+lockstep.
+
+**Verification.** The live project rebind completed while preserving the
+read-only state attribute. Centroid `write` on accepted M3 and centroid
+`review` on the current M4 both return `ready` with 13 admitted members. This
+does not retroactively certify the existing M4 as centroid-generated. All 59
+registered fixture suites pass with `--no-write`.
+
+---
+
 ## v0.37.2 — 2026-07-22
 
 ### Centroid CLI and refusal-code truth repair

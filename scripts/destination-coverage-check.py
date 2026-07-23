@@ -48,7 +48,9 @@ WRITE_PATTERN = re.compile(
     r"write_text|write_bytes|open\([^)]*[\"']w|open\([^)]*[\"']x"
     r"|os\.replace|shutil\.(?:move|copy|rmtree)|\.rename\(|\.unlink\(|\.mkdir\("
 )
-GUARD_PATTERN = re.compile(r"guard_project_root\(|assert_writable\(")
+GUARD_PATTERN = re.compile(
+    r"guard_project_root\(|guard_repin_project_root\(|assert_writable\("
+)
 CLASSES = {"guarded", "package_confined", "test_only", "excluded"}
 
 

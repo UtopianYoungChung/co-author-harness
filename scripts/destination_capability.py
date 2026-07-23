@@ -46,6 +46,19 @@ _STAGING_REL = Path("outputs") / "co-author-harness" / "staging"
 _SHIPMENT_PREFIX = tuple(os.path.normcase(p) for p in ("research", "60_Workbench"))
 _SHIPMENT_SUFFIX = tuple(os.path.normcase(p) for p in ("reviews", ".harness", "shipments"))
 
+# Re-pin lane: the exact semantic-register re-pin transition-control artifacts a
+# Planner may write inside one Workbench work-id's reviews/ directory. Nothing
+# else under reviews/ is opened by this lane.
+_REVIEWS = os.path.normcase("reviews")
+_REPIN_REQUEST_NAME = os.path.normcase("repin_rebind_request.json")
+_REPIN_APPLIED_PREFIX = os.path.normcase("repin_rebind_request.")
+_REPIN_APPLIED_SUFFIX = os.path.normcase(".applied.json")
+_REPIN_STALE_SUFFIX = os.path.normcase(".stale.json")
+_REPIN_SIDECAR_TAIL = tuple(
+    os.path.normcase(p)
+    for p in (".harness", "policies", "reader_accessibility.resolved.json")
+)
+
 # Error codes (stable contract for tests and callers)
 DEST_PROTECTED = "DEST-PROTECTED"
 DEST_UNGOVERNED = "DEST-UNGOVERNED"
@@ -87,6 +100,57 @@ def _is_research_shipment(child_canon: str, root: Path) -> bool:
             and parts[6] not in {"", ".", ".."})
 
 
+def _work_id_rel_parts(child_canon: str, root: Path) -> tuple[str, ...] | None:
+    """Normcased path parts of child relative to root, or None if not under it."""
+    if not _is_under(child_canon, root):
+        return None
+    rel = os.path.relpath(child_canon, _canon(root))
+    return tuple(os.path.normcase(p) for p in Path(rel).parts)
+
+
+def _is_workbench_work_id_root(child_canon: str, root: Path) -> bool:
+    """True only for a Workbench package root: research/60_Workbench/<work-id>."""
+    parts = _work_id_rel_parts(child_canon, root)
+    if parts is None or len(parts) != 3:
+        return False
+    return parts[:2] == _SHIPMENT_PREFIX and parts[2] not in {"", ".", ".."}
+
+
+def _is_repin_lane(child_canon: str, root: Path) -> bool:
+    """True only for the three re-pin transition-control artifacts under a
+    Workbench work-id's ``reviews/`` directory:
+
+      research/60_Workbench/<work-id>/reviews/repin_rebind_request.json
+      research/60_Workbench/<work-id>/reviews/repin_rebind_request.<epoch>.applied.json
+      research/60_Workbench/<work-id>/reviews/.harness/policies/reader_accessibility.resolved.json
+
+    Nothing else under ``reviews/`` is opened by this predicate.
+    """
+    parts = _work_id_rel_parts(child_canon, root)
+    if parts is None or len(parts) < 5:
+        return False
+    if parts[:2] != _SHIPMENT_PREFIX or parts[2] in {"", ".", ".."}:
+        return False
+    if parts[3] != _REVIEWS:
+        return False
+    tail = parts[4:]
+    if len(tail) == 1:
+        name = tail[0]
+        if name == _REPIN_REQUEST_NAME:
+            return True
+        return (
+            name.startswith(_REPIN_APPLIED_PREFIX)
+            and (
+                name.endswith(_REPIN_APPLIED_SUFFIX)
+                or name.endswith(_REPIN_STALE_SUFFIX)
+            )
+            and len(name) > len(_REPIN_APPLIED_PREFIX) + min(
+                len(_REPIN_APPLIED_SUFFIX), len(_REPIN_STALE_SUFFIX)
+            )
+        )
+    return tail == _REPIN_SIDECAR_TAIL
+
+
 def discovered_workspace_root() -> Path | None:
     """Nearest ancestor of the harness root carrying the routing manifest."""
     node = HARNESS
@@ -123,6 +187,8 @@ def classify(destination: os.PathLike | str) -> str:
             return "staging"
         if _is_research_shipment(dest, root):
             return "shipment"
+        if _is_repin_lane(dest, root):
+            return "repin"
     for root in roots:
         if _is_under(dest, root):
             return "protected"
@@ -151,3 +217,20 @@ def assert_writable(destination: os.PathLike | str, purpose: str = "write") -> s
 def guard_project_root(project_root: os.PathLike | str) -> str:
     """Writer entry-point guard: a mutable project root must be writable."""
     return assert_writable(project_root, purpose="project-root mutation")
+
+
+def guard_repin_project_root(project_root: os.PathLike | str) -> str:
+    """Re-pin / rebind entry guard.
+
+    The semantic-register re-pin writer and its Planner rebind transaction write
+    only the re-pin lane artifacts (see ``_is_repin_lane``) plus phase state,
+    all confined to one Workbench work-id root. Those two flows may therefore
+    treat that work-id root as a writable ``repin_container``. Every other
+    transaction still resolves through ``guard_project_root`` and a governed
+    project root stays ``protected``.
+    """
+    dest = _canon(project_root)
+    for root in governed_roots():
+        if _is_workbench_work_id_root(dest, root):
+            return "repin_container"
+    return guard_project_root(project_root)

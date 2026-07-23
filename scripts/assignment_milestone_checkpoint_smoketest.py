@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -37,6 +39,15 @@ PATHS = {
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def is_read_only(path: Path) -> bool:
+    current = path.stat()
+    attributes = getattr(current, "st_file_attributes", 0)
+    read_only_flag = getattr(stat, "FILE_ATTRIBUTE_READONLY", 0x0001)
+    if attributes:
+        return bool(attributes & read_only_flag)
+    return not bool(current.st_mode & stat.S_IWUSR)
 
 
 def run(*args: object, expected: int = 0) -> subprocess.CompletedProcess[str]:
@@ -298,6 +309,35 @@ def main() -> int:
         epoch = initial_binding["pin_epoch"]
         repin_row = next(row for row in repin_rows if row.get("epoch") == epoch)
         write_json(request_path, {
+            "request_id": "synthetic-inert-rebind",
+            "pin_epoch": epoch,
+            "profile_sha256": initial_binding["profile_sha256"],
+            "attestation_view_pin": "f" * 64,
+            "exemplar_view_pin": initial_binding["exemplar_view_pin"],
+            "delta_class": repin_row["delta_class"],
+            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
+            "status": "pending",
+        })
+        inert_sha = sha(request_path)
+        before_inert_archive = (project / "reviews" / "phase_state.json").read_bytes()
+        refused = run(
+            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
+            "--archive-stale-request", "--expected-request-sha256", "0" * 64,
+            expected=4,
+        )
+        assert "AMC-REPIN-REQUEST-HASH" in refused.stdout
+        assert request_path.is_file()
+        run(
+            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
+            "--archive-stale-request", "--expected-request-sha256", inert_sha,
+        )
+        stale_archives = list((project / "reviews").glob(f"repin_rebind_request.{epoch}.*.stale.json"))
+        assert len(stale_archives) == 1 and not request_path.exists()
+        stale = json.loads(stale_archives[0].read_text(encoding="utf-8"))
+        assert stale["status"] == "archived_stale" and stale["request_sha256"] == inert_sha
+        assert stale["request"]["request_id"] == "synthetic-inert-rebind"
+        assert (project / "reviews" / "phase_state.json").read_bytes() == before_inert_archive
+        write_json(request_path, {
             "request_id": "synthetic-planner-rebind",
             "pin_epoch": epoch,
             "profile_sha256": initial_binding["profile_sha256"],
@@ -307,7 +347,20 @@ def main() -> int:
             "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
             "status": "pending",
         })
-        run(CHECKPOINT, "rebind-reader-policy", "--project-root", project)
+        current_request_sha = sha(request_path)
+        refused = run(
+            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
+            "--archive-stale-request", "--expected-request-sha256", current_request_sha,
+            expected=4,
+        )
+        assert "AMC-REPIN-REQUEST-CURRENT" in refused.stdout and request_path.is_file()
+        state_path = project / "reviews" / "phase_state.json"
+        os.chmod(state_path, stat.S_IREAD)
+        try:
+            run(CHECKPOINT, "rebind-reader-policy", "--project-root", project)
+            assert is_read_only(state_path), "Planner rebind must preserve the read-only state attribute"
+        finally:
+            os.chmod(state_path, stat.S_IREAD | stat.S_IWRITE)
         archive = project / "reviews" / f"repin_rebind_request.{epoch}.applied.json"
         applied = json.loads(archive.read_text(encoding="utf-8"))
         rebound = state(project)["milestone_framework"]["policy_bindings"]["reader_accessibility"]
