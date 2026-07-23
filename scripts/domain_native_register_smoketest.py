@@ -215,7 +215,58 @@ def main() -> int:
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"].endswith("_source")
         assert resolved["seed_resolution_map"]["yu-mylopoulos-1994-understanding-why-software-process-modelling"] == "icse-alpha"
         assert set(resolved["seed_resolution_ties"]["yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p"]) == {"yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_concept","yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p_document"}
-        assert resolved["warnings"] and resolved["warnings"][0]["code"] == "RA-DNR-DEGENERATE"
+        assert "RA-DNR-DEGENERATE" in {warning["code"] for warning in resolved["warnings"]}
+        baseline_enrichment_sources = {
+            warning["source_file"] for warning in resolved["warnings"]
+            if warning["code"] == "RA-DNR-SEMANTIC-ENRICHMENT"
+        }
+        extra_page = wiki / "wiki/sources/live-enrichment-candidate.md"
+        extra_page.write_text("# Live enrichment candidate\n", encoding="utf-8")
+        enriched = policy.resolve_domain_native_register(
+            baseline, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT
+        )
+        enrichment_warnings = [
+            warning for warning in enriched["warnings"]
+            if warning["code"] == "RA-DNR-SEMANTIC-ENRICHMENT"
+        ]
+        assert [
+            warning for warning in enrichment_warnings
+            if warning["source_file"] not in baseline_enrichment_sources
+        ] == [{
+            "code": "RA-DNR-SEMANTIC-ENRICHMENT",
+            "severity": "WARNING",
+            "source_file": "wiki/sources/live-enrichment-candidate.md",
+            "message": "live wiki page is outside the pinned semantic inventory and is an enrichment candidate",
+        }]
+        extra_page.unlink()
+        pinned_page = wiki / "wiki/sources/yu-1995-istar.md"
+        pinned_bytes = pinned_page.read_bytes()
+        pinned_page.write_bytes(pinned_bytes + b"\nsemantic drift\n")
+        try:
+            policy.resolve_domain_native_register(
+                baseline, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT
+            )
+        except policy.PolicyError as exc:
+            assert str(exc) == (
+                "GRAPH-SEMANTIC-INELIGIBLE: pinned semantic page hash mismatch: "
+                "wiki/sources/yu-1995-istar.md"
+            )
+        else:
+            raise AssertionError("pinned semantic page hash mismatch passed")
+        pinned_page.write_bytes(pinned_bytes)
+        pinned_page.unlink()
+        try:
+            policy.resolve_domain_native_register(
+                baseline, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT
+            )
+        except policy.PolicyError as exc:
+            assert str(exc) == (
+                "GRAPH-SEMANTIC-INELIGIBLE: pinned semantic page missing from live wiki: "
+                "wiki/sources/yu-1995-istar.md"
+            )
+        else:
+            raise AssertionError("missing pinned semantic page passed")
+        pinned_page.write_bytes(pinned_bytes)
         env_wiki = root / "env-wiki"
         env_workspace = root / "env-workspace"
         explicit_workspace = root / "explicit-workspace"
@@ -265,7 +316,7 @@ def main() -> int:
         graph_path.write_bytes(valid_graph_bytes)
         source_page=wiki/"wiki/sources/yu-1995-istar.md"; valid_source_bytes=source_page.read_bytes(); source_page.write_bytes(b"\xff")
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
-        except policy.PolicyError as exc: assert "not UTF-8" in str(exc) or "live research page inventory differs" in str(exc)
+        except policy.PolicyError as exc: assert "not UTF-8" in str(exc) or "pinned semantic page hash mismatch" in str(exc)
         else: raise AssertionError("invalid UTF-8 source page escaped controlled policy error")
         proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT)],capture_output=True,text=True,encoding="utf-8",errors="replace")
         assert proc.returncode==4 and json.loads(proc.stdout)["code"]=="RA-POLICY" and "Traceback" not in proc.stdout+proc.stderr

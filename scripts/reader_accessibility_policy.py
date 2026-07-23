@@ -370,7 +370,17 @@ class _SnapshotSet:
         except OSError as exc:
             raise PolicyError(f"domain-native input unreadable: {role}: {path}: {exc}") from exc
         if resolved in self._items:
-            return self._items[resolved]
+            item = self._items[resolved]
+            if self._hook:
+                self._hook("after_capture", role, resolved)
+            try:
+                if _stamp(resolved.stat()) != item.stamp:
+                    raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}")
+            except PolicyError:
+                raise
+            except OSError as exc:
+                raise PolicyError(f"domain-native input changed during resolution: {role}: {resolved}: {exc}") from exc
+            return item
         try:
             with resolved.open("rb") as stream:
                 before = _stamp(os.fstat(stream.fileno()))
@@ -842,25 +852,54 @@ def resolve_domain_native_register(
     ]
     if any(not isinstance(row["sha256"], str) or re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None for row in manifest_hash_rows):
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest page hashes are malformed")
-    if path_roots_meta["path_roots_mode"] == "profile":
-        live_inventory_paths: list[Path] = []
-        for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
-            live_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
-        for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
-            candidate = _contained(wiki_root, relative_file)
-            if candidate.is_file():
-                live_inventory_paths.append(candidate)
-    else:
-        live_inventory_paths = [_contained(wiki_root, row["source_file"]) for row in manifest_hash_rows]
+    expected_manifest_order = sorted(
+        manifest_hash_rows, key=lambda row: row["source_file"].encode("utf-8")
+    )
+    if manifest_hash_rows != expected_manifest_order:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest pages are not canonically ordered")
+    for row in manifest_hash_rows:
+        _contained(wiki_root, row["source_file"])
+    manifest_inventory_payload = "\n".join(
+        f"{row['source_file']}\t{row['sha256']}" for row in manifest_hash_rows
+    ).encode("utf-8")
+    manifest_inventory_sha256 = hashlib.sha256(manifest_inventory_payload).hexdigest()
+    if manifest_artifact.get("research_inventory_sha256") != manifest_inventory_sha256:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic manifest inventory hash mismatch")
+    if metadata["research_inventory_sha256"] != manifest_inventory_sha256:
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic graph inventory binding mismatch")
+    live_inventory_paths: list[Path] = []
+    for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
+        live_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
+    for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
+        candidate = _contained(wiki_root, relative_file)
+        if candidate.is_file():
+            live_inventory_paths.append(candidate)
     live_inventory_paths = sorted(set(live_inventory_paths), key=lambda path: path.relative_to(wiki_root).as_posix().encode("utf-8"))
     live_inventory_rows = []
     for inventory_path in live_inventory_paths:
         inventory_snapshot = snapshots.capture(inventory_path, "semantic_inventory_page")
         live_inventory_rows.append({"source_file":inventory_path.relative_to(wiki_root).as_posix(), "sha256":inventory_snapshot.sha256})
-    inventory_payload = "\n".join(f"{row['source_file']}\t{row['sha256']}" for row in live_inventory_rows).encode("utf-8")
-    inventory_sha256 = hashlib.sha256(inventory_payload).hexdigest()
-    if live_inventory_rows != manifest_hash_rows or manifest_artifact.get("research_inventory_sha256") != inventory_sha256 or metadata["research_inventory_sha256"] != inventory_sha256:
-        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: live research page inventory differs from semantic manifest")
+    manifest_hash_by_source = {row["source_file"]: row["sha256"] for row in manifest_hash_rows}
+    live_hash_by_source = {row["source_file"]: row["sha256"] for row in live_inventory_rows}
+    missing_pinned_pages = sorted(set(manifest_hash_by_source) - set(live_hash_by_source), key=_utf8_key)
+    if missing_pinned_pages:
+        raise PolicyError(
+            "GRAPH-SEMANTIC-INELIGIBLE: pinned semantic page missing from live wiki: "
+            + ", ".join(missing_pinned_pages)
+        )
+    mismatched_pinned_pages = sorted(
+        (
+            source_file for source_file, pinned_sha256 in manifest_hash_by_source.items()
+            if live_hash_by_source[source_file] != pinned_sha256
+        ),
+        key=_utf8_key,
+    )
+    if mismatched_pinned_pages:
+        raise PolicyError(
+            "GRAPH-SEMANTIC-INELIGIBLE: pinned semantic page hash mismatch: "
+            + ", ".join(mismatched_pinned_pages)
+        )
+    enrichment_candidates = sorted(set(live_hash_by_source) - set(manifest_hash_by_source), key=_utf8_key)
     if audit_artifact.get("manifest_sha256") != metadata["semantic_manifest_sha256"]:
         raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: semantic audit manifest binding mismatch")
     if audit_artifact.get("semantic_outputs_sha256") != metadata["semantic_outputs_sha256"]:
@@ -1070,7 +1109,15 @@ def resolve_domain_native_register(
         *({"role":role,"path":str(snapshot.path),"sha256":snapshot.sha256} for role, snapshot in semantic_artifacts),
         {"role":"semantic_receipt","path":str(receipt_path),"sha256":receipt_snapshot.sha256},
     ])
-    warnings=[]
+    warnings=[
+        {
+            "code":"RA-DNR-SEMANTIC-ENRICHMENT",
+            "severity":"WARNING",
+            "source_file":source_file,
+            "message":"live wiki page is outside the pinned semantic inventory and is an enrichment candidate",
+        }
+        for source_file in enrichment_candidates
+    ]
     guard = model["corpus_binding"]["related_to_RE_predicate"]["degeneracy_guard"]
     if len(resolution) <= guard["resolved_seed_count_lte"] or len(primary) < guard["primary_communities_lt"]:
         warnings.append({"code":"RA-DNR-DEGENERATE","severity":"WARNING","message":"semantic attestation view is based on a thin resolved seed set"})
@@ -1090,16 +1137,13 @@ def resolve_domain_native_register(
         if _ingested_key not in resolution or resolution[_ingested_key] not in baseline_membership:
             warnings.append({"code":"RA-DNR-COHERENCE","severity":"WARNING","source_key":_ingested_key,"message":"exemplar lies outside the current attestation membership and its one-hop halo; review centroid dilution"})
     snapshots.verify_all()
-    if path_roots_meta["path_roots_mode"] == "profile":
-        final_inventory_paths: list[Path] = []
-        for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
-            final_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
-        for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
-            candidate = _contained(wiki_root, relative_file)
-            if candidate.is_file():
-                final_inventory_paths.append(candidate)
-    else:
-        final_inventory_paths = [_contained(wiki_root, row["source_file"]) for row in manifest_hash_rows]
+    final_inventory_paths: list[Path] = []
+    for relative_dir in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_directories"]:
+        final_inventory_paths.extend(_contained(wiki_root, relative_dir).glob("*.md"))
+    for relative_file in model["corpus_binding"]["graph"]["semantic_eligibility"]["inventory_root_files"]:
+        candidate = _contained(wiki_root, relative_file)
+        if candidate.is_file():
+            final_inventory_paths.append(candidate)
     final_inventory_paths = sorted(set(final_inventory_paths), key=lambda path:path.relative_to(wiki_root).as_posix().encode("utf-8"))
     final_inventory_rows = [
         {"source_file":path.relative_to(wiki_root).as_posix(), "sha256":_hash(path)}

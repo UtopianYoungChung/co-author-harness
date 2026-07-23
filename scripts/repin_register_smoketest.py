@@ -450,7 +450,11 @@ def case_rebind_transaction_rollback() -> None:
                 confirm=lambda _: True,
             )
         except policy.PolicyError as exc:
-            assert ("inventory" in str(exc).lower() or "changed" in str(exc).lower()) and "archive" in str(exc).lower()
+            assert (
+                "inventory" in str(exc).lower()
+                or "changed" in str(exc).lower()
+                or "pinned semantic page hash mismatch" in str(exc).lower()
+            ) and "archive" in str(exc).lower()
         else:
             raise AssertionError("inventory mutation during request publication returned READY")
         finally:
@@ -574,7 +578,11 @@ def case_rebind_transaction_rollback() -> None:
                 confirm=lambda _: True,
             )
         except policy.PolicyError as exc:
-            assert "inventory" in str(exc).lower() or "changed" in str(exc).lower()
+            assert (
+                "inventory" in str(exc).lower()
+                or "changed" in str(exc).lower()
+                or "pinned semantic page hash mismatch" in str(exc).lower()
+            )
         else:
             raise AssertionError("inventory change during request publication was applied")
         finally:
