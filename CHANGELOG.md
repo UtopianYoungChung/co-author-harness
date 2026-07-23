@@ -6,6 +6,31 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.4 — 2026-07-23
+
+### Project-neutral centroid freeze and shipment boundary
+
+**What.** Installed the 290-page semantic inventory freeze for the universal
+centroid, with Yu, Giorgini, and Maiden (2011) as its primary reference. Pin
+integrity is fail-closed: a missing pinned page or a pinned-path hash mismatch
+blocks use. Later live Wiki additions are reported as enrichment candidates
+and do not invalidate an otherwise intact freeze.
+
+**Governance boundary.** The harness remains a project-neutral producer. It
+may stage only beneath a governed workspace root and may write private
+shipments only into an active research package's exact shipment lane. A path
+under this repository's own `outputs/co-author-harness/` is now refused as
+`DEST-MISROUTED`, and path hygiene fails if that misleading tree reappears.
+No project can become the governing body for the harness.
+
+**Verification.** The semantic inventory, graph eligibility, destination
+capability, path hygiene, documentation, and Contract Kernel pins are covered
+by the authoritative fixture registry. The final committed release is accepted
+only after the complete 59-suite registry passes from a clean detached
+checkout.
+
+---
+
 ## v0.37.3 — 2026-07-23
 
 ### Reader-policy rebind completion and epoch-8 semantic refresh
