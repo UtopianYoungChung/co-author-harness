@@ -892,7 +892,7 @@ def case_exemplar_ingestion() -> None:
 
         locked_drop = invoke(
             harness, profile_path, wiki, workspace,
-            "--drop-exemplar", "yu-1995-istar",
+            "--drop-exemplar", "yu-et-al-2011-social-modeling",
         )
         assert locked_drop.returncode != 0 and "--confirm-drop-locked-role" in locked_drop.stdout
 

@@ -1001,12 +1001,15 @@ def resolve_domain_native_register(
         elif key == _ingested_key:
             missing_pdf_keys.append(key)
         exemplar_lines.append(f"{key}\t{normalize_tier(grounding)}\t{pdf_hash}")
-        admitted_members.append({
+        admitted_member = {
             "source_key": key,
             "role": member["role"],
             "grounding": normalize_tier(grounding),
             "warrant_scope": _effective_warrant_scope(member),
-        })
+        }
+        if member.get("retrieval_scope"):
+            admitted_member["retrieval_scope"] = member["retrieval_scope"]
+        admitted_members.append(admitted_member)
     fixture_hash_lines = metadata.get("fixture_exemplar_hash_lines")
     if fixture_hash_lines is not None:
         if (
@@ -1187,6 +1190,8 @@ def validate_profile(profile: dict[str, Any], schema_path: Path = PROFILE_SCHEMA
     for item in register_members:
         if not grounding_admitted(item["grounding"]):
             raise PolicyError(f"exemplar member has denied grounding tier: {item['source_key']}")
+        if item.get("role") == "centroid" and not item.get("retrieval_scope"):
+            raise PolicyError("centroid exemplar requires a non-empty retrieval_scope")
         if item.get("role") == "intentional-root" and _effective_warrant_scope(item) != "argument-only":
             raise PolicyError("intentional-root requires warrant_scope argument-only")
     if tuple(profile["phase_values"]) != PHASES:
@@ -1912,7 +1917,7 @@ def _delta_report(old_snapshot: dict[str, Any] | None, current: dict[str, Any]) 
 
 
 _LOCKED_EXEMPLAR_ROLES = {
-    "centroid": "yu-1995-istar",
+    "centroid": "yu-et-al-2011-social-modeling",
     "intentional-root": "dennett-1987-intentional-stance",
 }
 

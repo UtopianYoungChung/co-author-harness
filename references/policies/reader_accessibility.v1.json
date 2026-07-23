@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "profile_version": "1.0.4",
+  "profile_version": "1.0.5",
   "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
   "decision_approval": {
@@ -124,10 +124,11 @@
     "exemplar_members": [
       {
         "source_key": "yu-1995-istar",
-        "role": "centroid",
+        "role": "classic-halo",
         "grounding": "full-read",
         "pdf": "raw/corpus/yu-1995-istar.pdf",
-        "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+        "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
+        "note": "Historical dissertation anchor retained as classic context after the user-designated 2011 mature published centroid promotion."
       },
       {
         "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
@@ -151,8 +152,12 @@
       },
       {
         "source_key": "yu-et-al-2011-social-modeling",
-        "role": "classic-halo",
-        "grounding": "section-read"
+        "role": "centroid",
+        "grounding": "section-read",
+        "pdf": "raw/corpus/yu-giorgini-maiden-2011-social-modeling-requirements-engineering.pdf",
+        "pdf_sha256": "7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
+        "retrieval_scope": "Primary mature-published centroid. Retrieve only the verified Yu-authored volume introduction (book pp. 3-10) and Yu's i-star core chapter (book pp. 11-52); do not attribute other edited-volume chapters to Yu.",
+        "note": "User-designated primary centroid reference for Yu's argument architecture and domain register; the full PDF is hash-bound while passage use remains section-grounded."
       },
       {
         "source_key": "yu-2024-nine-pivots",

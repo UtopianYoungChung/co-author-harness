@@ -42,9 +42,14 @@ project phase, whose only direct project write is
 inside the same compute/confirmation/epoch transaction; they never perform a
 metadata-only edit. Addition uses the exact `wiki/sources/KEY.md` page (no
 alias resolution), requires a live grounding tier outside `stub`/`unresolved`,
-and requires `--role`. `centroid` is locked to `yu-1995-istar`;
+and requires `--role`. `centroid` is locked to
+`yu-et-al-2011-social-modeling`;
 `intentional-root` is locked to `dennett-1987-intentional-stance` and defaults
 to `argument-only`. Explicitly assigning that role `both` is a refusal.
+
+The centroid's retrieval scope is limited to the
+verified Yu-authored volume introduction and i* core chapter recorded in the
+profile; the rest of the edited volume is not a Yu-style warrant.
 
 Missing PDFs and membership/one-hop coherence are advisories for human
 judgment, not admission gates. Dropping a locked-role member additionally

@@ -182,7 +182,11 @@ def main() -> int:
     rejected(lambda p: p["domain_native_register"].update(honesty_constraints=["retrieval guarantees deterministic native prose"]))
     rejected(lambda p: p["sub_checks"]["H"].update(threshold_key="thresholds.cadence"))
     rejected(lambda p: p["sub_checks"]["H"].update(register_model_key="anything"))
-    rejected(lambda p: p["domain_native_register"]["exemplar_members"][0].update(source_key="forged"))
+    centroid_index = next(
+        index for index, member in enumerate(profile["domain_native_register"]["exemplar_members"])
+        if member["role"] == "centroid"
+    )
+    rejected(lambda p: p["domain_native_register"]["exemplar_members"][centroid_index].update(source_key="forged"))
     rejected(lambda p: p["domain_native_register"]["exemplar_members"][0].update(role="forged"))
     rejected(lambda p: p["domain_native_register"]["exemplar_members"][0].update(grounding="stub"))
     assert policy.normalize_tier("full-read — 201/201 pages") == "full-read"

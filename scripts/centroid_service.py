@@ -163,10 +163,13 @@ def _member_view(items: Any) -> list[dict[str, str]]:
     for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict) or not isinstance(item.get("source_key"), str):
             continue
-        output.append({
+        member = {
             key: str(item.get(key, ""))
             for key in ("source_key", "role", "grounding", "warrant_scope")
-        })
+        }
+        if item.get("retrieval_scope"):
+            member["retrieval_scope"] = str(item["retrieval_scope"])
+        output.append(member)
     return sorted(output, key=lambda item: item["source_key"].encode("utf-8"))
 
 
@@ -210,6 +213,10 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
         "argument": argument_keys,
         "both": sorted(set(surface_keys) | set(argument_keys)),
     }[args.exemplar_warrant]
+    primary = sorted(
+        item["source_key"] for item in members if item.get("role") == "centroid"
+    )
+    retrieval_order = primary + [key for key in selected if key not in set(primary)]
     model = resolved["resolved_profile"]["domain_native_register"]
     derivation = model["derivations"][args.mode]
     scope_bytes = scoped_text.encode("utf-8")
@@ -239,6 +246,8 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
             "discipline": derivation["discipline"],
             "exemplar_warrant": args.exemplar_warrant,
             "selected_member_keys": selected,
+            "primary_member_keys": primary,
+            "retrieval_order": retrieval_order,
         },
         "scope_metrics": {
             "utf8_bytes": len(scope_bytes),

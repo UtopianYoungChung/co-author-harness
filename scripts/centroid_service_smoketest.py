@@ -119,6 +119,16 @@ def main() -> int:
         assert packet["policy"]["attestation_view_pin"]
         assert packet["policy"]["exemplar_view_pin"]
         assert "review" == packet["analysis_contract"]["derivation"]
+        assert packet["analysis_contract"]["primary_member_keys"] == [
+            "yu-et-al-2011-social-modeling"
+        ]
+        assert packet["analysis_contract"]["retrieval_order"][0] == "yu-et-al-2011-social-modeling"
+        primary = next(
+            member for member in packet["policy"]["members"]
+            if member["source_key"] == "yu-et-al-2011-social-modeling"
+        )
+        assert primary["role"] == "centroid"
+        assert "book pp. 3-10" in primary["retrieval_scope"]
 
         write_mode = invoke(
             *common_args(project, manuscript, wiki, workspace),
