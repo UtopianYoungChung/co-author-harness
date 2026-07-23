@@ -6,6 +6,25 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.2 — 2026-07-22
+
+### Centroid CLI and refusal-code truth repair
+
+**What.** Corrected two defects found by executing the promoted centroid
+contract against the live M4 project. `draft_governance.py prepare` now accepts
+the documented mandatory `--role` argument and refuses a role that does not
+match the requested generation/evaluation phase. `centroid_service.py` now
+preserves the stable `GRAPH-SEMANTIC-INELIGIBLE` policy refusal instead of
+flattening it into the generic `PROFILE_UNRESOLVED` envelope.
+
+**Verification.** Failing-first regressions cover the exact documented CLI and
+the structural-only graph refusal. The authoritative fixture registry passes
+59/59 suites with stable source digests, and the live project round trip now
+returns a ready 25-obligation generation contract followed by the truthful
+graph-eligibility refusal.
+
+---
+
 ## v0.37.1 — 2026-07-22
 
 ### Universal centroid and all-drafts governance

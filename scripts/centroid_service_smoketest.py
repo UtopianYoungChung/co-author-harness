@@ -127,6 +127,16 @@ def main() -> int:
         assert write_mode.returncode == 0, write_mode.stdout + write_mode.stderr
         assert json.loads(write_mode.stdout)["analysis_contract"]["derivation"] == "write"
 
+        graph_path = workspace / "knowledge" / "LLM wiki" / "graphify-out" / "graph.json"
+        graph_bytes = graph_path.read_bytes()
+        graph = json.loads(graph_bytes)
+        graph["graph"]["extraction_mode"] = "structural-only"
+        graph_path.write_text(json.dumps(graph), encoding="utf-8")
+        ineligible = invoke(*common_args(project, manuscript, wiki, workspace))
+        assert ineligible.returncode == 4
+        assert json.loads(ineligible.stdout)["reason_code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+        graph_path.write_bytes(graph_bytes)
+
         heading = invoke(
             *common_args(project, manuscript, wiki, workspace),
             "--heading", "Methods",

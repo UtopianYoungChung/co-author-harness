@@ -33,6 +33,14 @@ class Unavailable(RuntimeError):
         self.detail = detail
 
 
+def _policy_reason(exc: Exception) -> str:
+    """Preserve a policy's stable refusal code instead of flattening it."""
+    detail = str(exc)
+    if detail.startswith("GRAPH-SEMANTIC-INELIGIBLE:"):
+        return "GRAPH-SEMANTIC-INELIGIBLE"
+    return "PROFILE_UNRESOLVED"
+
+
 def _base(status: str, reason_code: str | None) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
@@ -186,7 +194,7 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
             harness_root=Path(args.harness_root) if args.harness_root else None,
         )
     except (policy.PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise Unavailable("PROFILE_UNRESOLVED", str(exc)) from exc
+        raise Unavailable(_policy_reason(exc), str(exc)) from exc
 
     provenance = _binding_provenance(project_root, resolved)
     register = resolved["register_provenance"]

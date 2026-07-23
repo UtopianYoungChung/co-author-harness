@@ -55,12 +55,14 @@ def require(condition: bool, message: str) -> None:
 
 
 def prepare(project: Path, artifact: Path, target: str, phase: str) -> dict:
+    role = {"generation": "generator", "evaluation": "evaluator"}[phase]
     result = run(
         "prepare",
         "--project-root", str(project),
         "--artifact", str(artifact),
         "--target", target,
         "--phase", phase,
+        "--role", role,
     )
     require(result.returncode == 0, result.stdout + result.stderr)
     return json.loads(result.stdout)
@@ -91,6 +93,20 @@ def main() -> int:
                 "a missing milestone artifact must still produce a governance contract")
         require(missing_contract["centroid"]["required"] is True,
                 "centroid generation must be mandatory at M1")
+
+        wrong_role = run(
+            "prepare",
+            "--project-root", str(project),
+            "--artifact", str(missing),
+            "--target", "M1",
+            "--phase", "generation",
+            "--role", "evaluator",
+        )
+        require(
+            wrong_role.returncode == 4
+            and "DRAFT-POLICY-ROLE" in wrong_role.stdout,
+            "prepare must reject a role that does not match the requested phase",
+        )
 
         artifact = project / "milestones" / "artifact.md"
         artifact.parent.mkdir(parents=True, exist_ok=True)

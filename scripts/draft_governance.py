@@ -119,6 +119,11 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         raise ContractError("DRAFT-POLICY-TARGET", f"unsupported target: {args.target}")
     if args.phase not in PHASE_ROLE:
         raise ContractError("DRAFT-POLICY-PHASE", f"unsupported phase: {args.phase}")
+    if args.role != PHASE_ROLE[args.phase]:
+        raise ContractError(
+            "DRAFT-POLICY-ROLE",
+            f"role {args.role!r} does not satisfy phase {args.phase!r}",
+        )
     policy = _load(POLICY_PATH, "DRAFT-POLICY-CONTRACT")
     target_policy = policy.get("targets", {}).get(args.target)
     if not isinstance(target_policy, dict) or not all(
@@ -252,6 +257,9 @@ def main(argv: list[str] | None = None) -> int:
     prepare_parser.add_argument("--artifact")
     prepare_parser.add_argument("--target", choices=sorted(TARGETS), required=True)
     prepare_parser.add_argument("--phase", choices=sorted(PHASE_ROLE), required=True)
+    prepare_parser.add_argument(
+        "--role", choices=sorted(set(PHASE_ROLE.values())), required=True
+    )
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("--contract", required=True)
     verify_parser.add_argument("--receipt", required=True)
