@@ -12,3 +12,4 @@ Derived from `repin_log.jsonl`; do not edit.
 | 7 | 2026-07-21T04:28:33Z | false | attestation | manual | `reviews/.harness/repin/epoch-7.snapshot.json` |
 | 8 | 2026-07-23T05:26:16Z | false | attestation | milestone | `reviews/.harness/repin/epoch-8.snapshot.json` |
 | 9 | 2026-07-23T13:55:51Z | true | attestation | manual | `reviews/.harness/repin/epoch-9.snapshot.json` |
+| 10 | 2026-07-23T14:06:05Z | false | attestation | manual | `reviews/.harness/repin/epoch-10.snapshot.json` |

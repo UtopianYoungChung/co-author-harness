@@ -1,13 +1,13 @@
 {
   "contract_version": "1.1.0",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "02dfc1f2abf31c3a14c5654e0a74b443a54279f61192e3d06817d99da3c4d719",
+  "profile_sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
   "register_class": "domain-native",
   "passage_scope_class": "technical",
   "project_identity": null,
   "resolved_profile": {
     "schema_version": "1.0.0",
-    "profile_version": "1.0.4",
+    "profile_version": "1.0.6",
     "decision_status": "accepted",
     "decision_record": "ADR-ACCESS-01",
     "decision_approval": {
@@ -47,7 +47,7 @@
         "graph": {
           "path": "knowledge/LLM wiki/graphify-out/graph.json",
           "role": "index and provenance metadata only; never a gate target",
-          "observed_sha256_at_review": "587d07c48c11d86e71005ebda660af5e296c81c98ed1889c34d4795ecf194f03",
+          "observed_sha256_at_review": "5fef2729c6974fc1f639755d01b994091cb35bae4e39c2148f6596c302529975",
           "semantic_eligibility": {
             "extraction_modes": [
               "semantic",
@@ -131,10 +131,11 @@
       "exemplar_members": [
         {
           "source_key": "yu-1995-istar",
-          "role": "centroid",
+          "role": "classic-halo",
           "grounding": "full-read",
           "pdf": "raw/corpus/yu-1995-istar.pdf",
-          "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199"
+          "pdf_sha256": "c5f6472ee3348dbdf1d1d239bbf1ff9003b231953ac2c72266da63a4381e0199",
+          "note": "Historical dissertation anchor retained as classic context after the user-designated 2011 mature published centroid promotion."
         },
         {
           "source_key": "yu-mylopoulos-1994-modelling-strategic-actor-relationships-bpr-8p",
@@ -158,8 +159,12 @@
         },
         {
           "source_key": "yu-et-al-2011-social-modeling",
-          "role": "classic-halo",
-          "grounding": "section-read"
+          "role": "centroid",
+          "grounding": "section-read",
+          "pdf": "raw/corpus/yu-giorgini-maiden-2011-social-modeling-requirements-engineering.pdf",
+          "pdf_sha256": "7934f852ccdfd41b28eee5ea74481a18dbea1d180efead9bb46615345f43ec83",
+          "retrieval_scope": "Primary mature-published centroid. Retrieve only the verified Yu-authored volume introduction (book pp. 3-10) and Yu's i-star core chapter (book pp. 11-52); do not attribute other edited-volume chapters to Yu.",
+          "note": "User-designated primary centroid reference for Yu's argument architecture and domain register; the full PDF is hash-bound while passage use remains section-grounded."
         },
         {
           "source_key": "yu-2024-nine-pivots",
@@ -280,10 +285,10 @@
         "Evaluator retains residual domain-native judgment"
       ],
       "expected_verification": {
-        "attestation_view_pin": "00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e",
+        "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
         "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
-        "pin_epoch": 8,
-        "pinned_at": "2026-07-23T05:26:16Z"
+        "pin_epoch": 10,
+        "pinned_at": "2026-07-23T14:06:05Z"
       }
     },
     "phase_values": [
@@ -774,7 +779,7 @@
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "02dfc1f2abf31c3a14c5654e0a74b443a54279f61192e3d06817d99da3c4d719",
+      "sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
       "role": "package_profile"
     },
     {
@@ -790,12 +795,12 @@
       "role": "package_contributor"
     }
   ],
-  "attestation_view_pin": "00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e",
+  "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
   "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
   "graph_sha256_provenance": "587d07c48c11d86e71005ebda660af5e296c81c98ed1889c34d4795ecf194f03",
   "register_provenance": {
     "register_class": "domain-native",
-    "attestation_view_pin": "00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e",
+    "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
     "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
     "graph_sha256_provenance": "587d07c48c11d86e71005ebda660af5e296c81c98ed1889c34d4795ecf194f03",
     "graph_mtime_utc_provenance": "2026-07-23T04:44:20.610257Z",

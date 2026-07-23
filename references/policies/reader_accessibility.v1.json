@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "profile_version": "1.0.5",
+  "profile_version": "1.0.6",
   "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
   "decision_approval": {
@@ -40,7 +40,7 @@
       "graph": {
         "path": "knowledge/LLM wiki/graphify-out/graph.json",
         "role": "index and provenance metadata only; never a gate target",
-        "observed_sha256_at_review": "587d07c48c11d86e71005ebda660af5e296c81c98ed1889c34d4795ecf194f03",
+        "observed_sha256_at_review": "5fef2729c6974fc1f639755d01b994091cb35bae4e39c2148f6596c302529975",
         "semantic_eligibility": {
           "extraction_modes": [
             "semantic",
@@ -278,10 +278,10 @@
       "Evaluator retains residual domain-native judgment"
     ],
     "expected_verification": {
-      "attestation_view_pin": "00133e506e399db25cd8a182a97f0d82e9c6a1140b0cfef115da2331c0aa7f5e",
+      "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
       "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
-      "pin_epoch": 8,
-      "pinned_at": "2026-07-23T05:26:16Z"
+      "pin_epoch": 10,
+      "pinned_at": "2026-07-23T14:06:05Z"
     }
   },
   "phase_values": [
