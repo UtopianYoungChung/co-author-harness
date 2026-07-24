@@ -264,7 +264,11 @@ def publish(project: Path, milestone: str, content: bytes, *, label: str = "init
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="assignment-milestone-checkpoint-") as raw:
+    # Package-local scratch keeps this end-to-end fixture runnable from a
+    # distributed plugin cache whose production boundary correctly refuses
+    # unrelated OS-temp writes when no workspace manifest is discoverable.
+    with tempfile.TemporaryDirectory(
+            prefix="assignment-milestone-checkpoint-", dir=ROOT) as raw:
         project = Path(raw) / "walk"
         run(BOOTSTRAP, "--project-root", project, "--project-name", "walk", "--title", "Synthetic Walk", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z")
         write_valid_contract(project)

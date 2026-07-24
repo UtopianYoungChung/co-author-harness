@@ -45,6 +45,9 @@ def make_fake_root(base: Path) -> Path:
     (fake / "research" / "60_Workbench").mkdir(parents=True)
     (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True)
     (fake / "knowledge").mkdir(parents=True)
+    manifest = fake / "governance" / "output-routing" / "output_routing.yaml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
     return fake
 
 
@@ -170,7 +173,37 @@ def case_real_workspace_discovery() -> None:
           got == "protected", got)
     check("real staging lane -> staging via discovered governance",
           dc.classify(ws / "outputs" / "co-author-harness" / "staging" / "w" / "r")
-          == "staging")
+              == "staging")
+
+
+def case_distributed_destination_discovery() -> None:
+    """An installed cache discovers governance from the destination, not cwd."""
+    with tempfile.TemporaryDirectory(prefix="destcap-distributed-") as td:
+        base = Path(td)
+        fake = make_fake_root(base)
+        real = dc.discovered_workspace_root
+        dc.discovered_workspace_root = lambda: None
+        os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+        try:
+            project = fake / "research" / "60_Workbench" / "w1"
+            staging = (fake / "outputs" / "co-author-harness" / "staging" /
+                       "w1" / "r1" / "draft.md")
+            shipment = (project / "reviews" / ".harness" / "shipments" /
+                        "s1" / "findings.json")
+            check("distributed: project discovers destination governance",
+                  dc.classify(project) == "protected", dc.classify(project))
+            check("distributed: staging remains writable",
+                  dc.classify(staging) == "staging", dc.classify(staging))
+            check("distributed: shipment remains writable",
+                  dc.classify(shipment) == "shipment", dc.classify(shipment))
+            check("distributed: re-pin guard resolves destination governance",
+                  dc.guard_repin_project_root(project) == "repin_container")
+            unrelated = base / "outside" / "x.txt"
+            check("distributed: unrelated path remains ungoverned",
+                  dc.classify(unrelated) == "ungoverned",
+                  dc.classify(unrelated))
+        finally:
+            dc.discovered_workspace_root = real
 
 
 def case_ungoverned_fails_closed() -> None:
@@ -365,9 +398,10 @@ def case_audit_shipment_output() -> None:
 def main() -> int:
     print("destination_capability_smoketest")
     for fn in (case_classifier, case_package_local_staging_hygiene,
-               case_real_workspace_discovery,
-               case_ungoverned_fails_closed, case_mutator_wiring,
-               case_output_redirect_refusals, case_audit_shipment_output):
+                case_real_workspace_discovery,
+                case_distributed_destination_discovery,
+                case_ungoverned_fails_closed, case_mutator_wiring,
+                case_output_redirect_refusals, case_audit_shipment_output):
         print(f"{fn.__name__}:")
         try:
             fn()

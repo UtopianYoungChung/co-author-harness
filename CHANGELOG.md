@@ -33,7 +33,10 @@ bytes that depart from the latest sanctioned postimage. A recoverable stale
 policy binding is classified as `PROJECT_BINDING_REBIND_AVAILABLE` with the
 exact Planner command. The canonical audit command accepts explicit wiki and
 workspace roots, so mechanics and product checks run together without a
-host-specific retry sequence.
+host-specific retry sequence. Distributed plugin caches discover governance
+from the requested destination's ancestor manifest as well as from the package
+checkout; this restores installed operation without using process cwd as an
+authority source or weakening `DEST-UNGOVERNED` fail-closed behavior.
 
 **Incident closure.** Synthetic regressions encode the 2026-07-24 failures:
 skipped passage use, self-certification, missing/misassigned quotes, 1994a/b

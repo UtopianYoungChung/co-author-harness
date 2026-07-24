@@ -19,9 +19,11 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
              destinations (fail closed: a distributed install without workspace
              governance has no basis to claim any write capability)
 
-Governed-root discovery walks up from the harness root looking for
-`governance/output-routing/output_routing.yaml` (the workspace routing manifest;
-authority: OUTPUT_ROUTING_CONTRACT.md). `COAUTHOR_EXTRA_GOVERNED_ROOTS`
+Governed-root discovery walks up from both the harness root and the requested
+destination looking for `governance/output-routing/output_routing.yaml` (the
+workspace routing manifest; authority: OUTPUT_ROUTING_CONTRACT.md). Destination
+discovery is what lets a distributed plugin cache recognize a governed consumer
+workspace without granting authority from the process cwd. `COAUTHOR_EXTRA_GOVERNED_ROOTS`
 (os.pathsep-separated) ADDS governed roots -- used by hermetic tests to govern a
 fake tree. It is additive only: it can never remove or replace the discovered
 root, so pointing it elsewhere cannot un-protect the real workspace.
@@ -155,9 +157,9 @@ def _is_repin_lane(child_canon: str, root: Path) -> bool:
     return tail == _REPIN_SIDECAR_TAIL
 
 
-def discovered_workspace_root() -> Path | None:
-    """Nearest ancestor of the harness root carrying the routing manifest."""
-    node = HARNESS
+def _discover_ancestor_root(start: os.PathLike | str) -> Path | None:
+    """Nearest real-path ancestor of *start* carrying the routing manifest."""
+    node = Path(os.path.realpath(os.fspath(start)))
     while True:
         if (node / _MANIFEST_REL).is_file():
             return node
@@ -166,16 +168,42 @@ def discovered_workspace_root() -> Path | None:
         node = node.parent
 
 
-def governed_roots() -> list[Path]:
-    """Discovered root plus any extra roots from the environment (additive only)."""
+def discovered_workspace_root() -> Path | None:
+    """Nearest ancestor of the harness root carrying the routing manifest."""
+    return _discover_ancestor_root(HARNESS)
+
+
+def discovered_destination_workspace_root(
+        destination: os.PathLike | str) -> Path | None:
+    """Nearest governed workspace containing an intended destination.
+
+    This is deliberately destination-bound, not cwd-bound: invocation location
+    must not widen the producer's write authority.
+    """
+    return _discover_ancestor_root(destination)
+
+
+def governed_roots(destination: os.PathLike | str | None = None) -> list[Path]:
+    """Discovered roots plus additive environment roots, de-duplicated."""
     roots: list[Path] = []
     found = discovered_workspace_root()
     if found is not None:
         roots.append(found)
+    if destination is not None:
+        found = discovered_destination_workspace_root(destination)
+        if found is not None:
+            roots.append(found)
     extra = os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "")
     for item in filter(None, extra.split(os.pathsep)):
         roots.append(Path(item))
-    return roots
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = _canon(root)
+        if key not in seen:
+            seen.add(key)
+            unique.append(root)
+    return unique
 
 
 def classify(destination: os.PathLike | str) -> str:
@@ -185,7 +213,7 @@ def classify(destination: os.PathLike | str) -> str:
         return "misrouted"
     if _is_under(dest, HARNESS):
         return "package"
-    roots = governed_roots()
+    roots = governed_roots(destination)
     if not roots:
         return "ungoverned"
     for root in roots:
@@ -244,7 +272,7 @@ def guard_repin_project_root(project_root: os.PathLike | str) -> str:
     project root stays ``protected``.
     """
     dest = _canon(project_root)
-    for root in governed_roots():
+    for root in governed_roots(project_root):
         if _is_workbench_work_id_root(dest, root):
             return "repin_container"
     return guard_project_root(project_root)

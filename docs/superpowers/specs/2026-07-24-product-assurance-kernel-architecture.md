@@ -39,6 +39,13 @@ library extraction is not canonical PDF evidence.
 project, wiki, and workspace roots and runs the normal product gate in one
 command. It does not create authority or widen output destinations.
 
+The destination-capability kernel discovers a routing manifest from both the
+plugin package and the intended destination. This makes an installed cache
+operational against a governed workspace while keeping authority bound to the
+destination itself: process cwd is never consulted, protected paths remain
+protected, and destinations with no discoverable manifest remain
+`DEST-UNGOVERNED`.
+
 ## 3. Product checks
 
 The kernel distinguishes hard evidence failures from adjudication candidates.
