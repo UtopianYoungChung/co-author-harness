@@ -92,7 +92,12 @@ def write_receipt(path: Path, manuscript: Path, source_a: Path, extract_a: Path,
 
 def main() -> int:
     assert SCRIPT.is_file(), "product assurance kernel has not been implemented"
-    with tempfile.TemporaryDirectory(prefix="product-assurance-") as td:
+    # Keep the hermetic fixture inside the plugin package.  A distributed
+    # install intentionally has no discoverable workspace governance, so an OS
+    # temp directory is correctly classified DEST-UNGOVERNED by the production
+    # extractor.  Package-local scratch remains authorized and exercises the
+    # same extraction path from both a source checkout and an installed cache.
+    with tempfile.TemporaryDirectory(prefix="product-assurance-", dir=ROOT) as td:
         root = Path(td)
         source_a = root / "why.txt"; extract_a = root / "why.extract.txt"
         source_b = root / "actors.txt"; extract_b = root / "actors.extract.txt"
