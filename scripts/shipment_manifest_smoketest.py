@@ -70,8 +70,13 @@ def case_run_creation() -> None:
 
 
 def case_ungoverned_fails_closed() -> None:
-    real = dc.discovered_workspace_root
+    # staging_run imports the resolver by value, so suppress both module
+    # bindings.  This keeps the negative case genuinely ungoverned even as the
+    # capability kernel independently discovers manifests from destinations.
+    real_dc = dc.discovered_workspace_root
+    real_sr = sr.discovered_workspace_root
     dc.discovered_workspace_root = lambda: None
+    sr.discovered_workspace_root = lambda: None
     os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
     try:
         refused = None
@@ -82,7 +87,8 @@ def case_ungoverned_fails_closed() -> None:
         check("no governed root: create_run fails closed",
               refused is not None and refused.code == dc.DEST_UNGOVERNED)
     finally:
-        dc.discovered_workspace_root = real
+        dc.discovered_workspace_root = real_dc
+        sr.discovered_workspace_root = real_sr
 
 
 def case_input_snapshots() -> None:
