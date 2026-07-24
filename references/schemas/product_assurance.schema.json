@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/product_assurance.schema.json",
+  "title": "Exact-byte product assurance report",
+  "type": "object",
+  "required": ["schema_version", "report_type", "status", "artifact", "semantic_receipt", "corpus_extract_sha256", "dimensions", "findings", "adjudications"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "report_type": {"const": "product_assurance"},
+    "status": {"enum": ["passed", "needs_adjudication", "blocked"]},
+    "artifact": {"$ref": "#/$defs/binding"},
+    "semantic_receipt": {"$ref": "#/$defs/binding"},
+    "corpus_extract_sha256": {"$ref": "#/$defs/sha256"},
+    "dimensions": {
+      "type": "object",
+      "required": ["quotation", "citation", "grounding", "register"],
+      "additionalProperties": false,
+      "properties": {
+        "quotation": {"enum": ["passed", "failed"]},
+        "citation": {"enum": ["passed", "failed"]},
+        "grounding": {"enum": ["passed", "needs_adjudication"]},
+        "register": {"enum": ["passed", "needs_adjudication"]}
+      }
+    },
+    "findings": {"type": "array", "items": {"type": "object"}},
+    "adjudications": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binding": {
+      "type": "object", "required": ["path", "sha256"], "additionalProperties": false,
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}
+    }
+  }
+}

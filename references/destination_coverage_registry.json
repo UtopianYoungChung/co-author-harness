@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "06c71a7a5bd59286a77b7e0b89d004432c55b087f45cbbb2f98d21bcb2ae5b41"
+      "sha256": "8fc3bcf5347d790cb525015eab867ddf3bc04525d40038ee755d63a71d9d645d"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -58,7 +58,15 @@
     "scripts/audit/schema.py": {
       "class": "excluded",
       "reason": "write-helper library with no CLI entry; its only writing caller is scripts/audit/run_all.py, which is guarded; sha256 pin forces re-review of any change",
-      "sha256": "35ae8f1c4d7364def0011b4059049ec8ddc8601e5bb2fc401960d333aab0bc65"
+      "sha256": "5dffcc635b2a64075be1eebcfda88fd6e8527bd0d185f566be62484fed70177e"
+    },
+    "scripts/product_assurance.py": {
+      "class": "guarded",
+      "regression": "scripts/product_assurance_smoketest.py"
+    },
+    "scripts/source_extract.py": {
+      "class": "guarded",
+      "regression": "scripts/product_assurance_smoketest.py"
     },
     "scripts/build-plugin.py": {
       "class": "package_confined",

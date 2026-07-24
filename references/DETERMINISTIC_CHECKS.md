@@ -16,7 +16,7 @@
 Before Step 0a counters, run the canonical pre-flight:
 
 ```powershell
-python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --out "reviews/findings.json"
+python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --semantic-receipt "<role-semantic-receipt>" --wiki-root "<wiki-root>" --workspace-root "<workspace-root>" --out "<authorized-shipment>/findings.json" --product-assurance-out "<authorized-shipment>/product_assurance.json"
 ```
 
 This emits `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
@@ -39,6 +39,28 @@ are MAJOR under `project_local` and BLOCKER under `venue_required` or
 `overseer_escalate`. Passing the surface validators does not prove the argument,
 evidence display, or disclosure is adequate; it proves those issues are exposed for
 Evaluator judgment.
+
+## 0a. Product-assurance checks
+
+When `--semantic-receipt` is supplied, the same entrypoint runs the
+product-assurance kernel and merges its findings into `findings.json` while
+preserving a separate exact-byte report. These checks operate on the bound
+member extracts, not on a generic dictionary:
+
+| Check | Signal | Gate behavior |
+|---|---|---|
+| `QUOTE-NOT-IN-EXTRACT` | normalized verbatim quote absent from canonical extract | hard failure |
+| `CITATION-SAME-YEAR` | quote-local suffix disagrees with source title/label mapping | hard failure |
+| `TERM-COINAGE` | hyphenated term absent from bound extracts and not visibly owned | Evaluator candidate |
+| `REGISTER-ABSENT` | high-frequency manuscript token absent from bound extracts | Evaluator candidate; separate from grounding |
+| `INSIDER-NEGATION` | abstract negates a reader term before introduction | Evaluator candidate |
+| `EMPIRICAL-UNSUPPORTED` | frequency/tendency generalization lacks citation or `[S]` ownership | Evaluator candidate |
+
+PDF evidence is canonical only when produced by `scripts/source_extract.py`
+with `pdftotext`. Generation may surface semantic candidates; evaluation must
+dispose each current code/locator pair with a rationale. Hard evidence failures
+cannot be waived. This preserves human adjudication for contestable synthesis
+without allowing silence to count as clearance.
 
 **Output stub:**
 

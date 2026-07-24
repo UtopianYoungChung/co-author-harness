@@ -148,7 +148,13 @@ Ph4 consumes the accumulated F4 block as prior context; Reflector Phase **2g.3**
 
 Before SK-20 and Step 0a, run the canonical pre-flight:
 
-`python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --out "reviews/findings.json"`
+`python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --semantic-receipt "<evaluation-semantic-receipt>" --wiki-root "<wiki-root>" --workspace-root "<workspace-root>" --out "<shipment>/findings.json" --product-assurance-out "<shipment>/product_assurance.json"`
+
+The product-assurance portion is not a style overlay. Verify canonical quote
+containment and same-year title/label identity; then adjudicate each current
+coinage, register-absence, insider-negation, and empirical-claim candidate by
+exact code and locator. Hard quote/citation failures cannot be waived. The
+Generator cannot author these evaluation dispositions.
 
 This writes both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
 Cite the D-STYLE profile report in the deterministic summary. Treat its

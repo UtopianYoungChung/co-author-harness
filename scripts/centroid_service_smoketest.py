@@ -75,7 +75,7 @@ def validate_packet(packet: dict, schema: dict) -> None:
         if isinstance(value, list) and "maxItems" in rule:
             assert len(value) <= rule["maxItems"]
     conditional = schema["allOf"][0]
-    branch = conditional["then"] if packet["status"] == "ready" else conditional["else"]
+    branch = conditional["then"] if packet["status"] == "binding_resolved" else conditional["else"]
     assert set(branch["required"]) <= set(packet)
     for key, rule in branch.get("properties", {}).items():
         value = packet[key]
@@ -109,7 +109,7 @@ def main() -> int:
         assert ready.returncode == 0, (ready.returncode, ready.stdout, ready.stderr)
         packet = json.loads(ready.stdout)
         validate_packet(packet, schema)
-        assert packet["status"] == "ready"
+        assert packet["status"] == "binding_resolved"
         assert packet["reason_code"] is None
         assert packet["read_only"] is True
         assert packet["public_activation"] == "active"
@@ -200,6 +200,15 @@ def main() -> int:
         stale_packet = json.loads(stale.stdout)
         validate_packet(stale_packet, schema)
         assert stale_packet["reason_code"] == "PROJECT_BINDING_STALE"
+        (project / "reviews" / "repin_rebind_request.json").write_text("{}\n", encoding="utf-8")
+        recoverable = invoke(*common_args(project, manuscript, wiki, workspace))
+        assert recoverable.returncode == 4
+        recoverable_packet = json.loads(recoverable.stdout)
+        validate_packet(recoverable_packet, schema)
+        assert recoverable_packet["reason_code"] == "PROJECT_BINDING_REBIND_AVAILABLE"
+        assert recoverable_packet["recovery"]["classification"] == "routine_rebind"
+        assert "rebind-reader-policy" in recoverable_packet["recovery"]["command"]
+        (project / "reviews" / "repin_rebind_request.json").unlink()
         (project / "reviews" / "phase_state.json").unlink()
         (project / "reviews").rmdir()
 

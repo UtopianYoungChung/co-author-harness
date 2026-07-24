@@ -215,6 +215,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/native_project_bootstrap_smoketest.py": [_default_case()],
     "scripts/output_economy_smoketest.py": [_default_case()],
     "scripts/paragraph_hash_map_smoketest.py": [_default_case()],
+    "scripts/product_assurance_smoketest.py": [_default_case()],
     "scripts/phase_notifications_smoketest.py": [_default_case()],
     "scripts/phase_state_validator_smoketest.py": [_default_case()],
     "scripts/pre_phase_advance_phase_state_smoketest.py": [_default_case()],

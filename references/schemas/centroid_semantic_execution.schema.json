@@ -17,7 +17,7 @@
     "semantic_assessment"
   ],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "2.0.0"},
     "receipt_type": {"const": "centroid_semantic_execution"},
     "target": {"enum": ["M1", "M2", "M3", "M4", "FINAL"]},
     "phase": {"enum": ["generation", "evaluation"]},
@@ -27,6 +27,20 @@
     "artifact": {"$ref": "#/$defs/binding"},
     "centroid_packet": {"$ref": "#/$defs/binding"},
     "generation_envelope": {"$ref": "#/$defs/binding"},
+    "adjudications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "locator", "disposition", "rationale"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "locator": {"type": "string", "minLength": 1},
+          "disposition": {"enum": ["accepted_synthesis", "false_positive", "resolved_in_bytes"]},
+          "rationale": {"type": "string", "minLength": 1}
+        }
+      }
+    },
     "passages": {
       "type": "array",
       "minItems": 1,
@@ -56,11 +70,11 @@
       "if": {"properties": {"phase": {"const": "generation"}}},
       "then": {
         "properties": {"role": {"const": "generator"}},
-        "not": {"required": ["generation_envelope"]}
+        "not": {"anyOf": [{"required": ["generation_envelope"]}, {"required": ["adjudications"]}]}
       },
       "else": {
         "properties": {"role": {"const": "evaluator"}},
-        "required": ["generation_envelope"]
+        "required": ["generation_envelope", "adjudications"]
       }
     }
   ],
@@ -85,6 +99,9 @@
         "source",
         "locator",
         "extract",
+        "extraction",
+        "quote",
+        "citation",
         "use"
       ],
       "properties": {
@@ -93,6 +110,28 @@
         "source": {"$ref": "#/$defs/binding"},
         "locator": {"type": "string", "minLength": 1},
         "extract": {"$ref": "#/$defs/binding"},
+        "extraction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "tool", "canonical"],
+          "properties": {
+            "method": {"enum": ["pdftotext", "text-direct"]},
+            "tool": {"type": "string", "minLength": 1},
+            "canonical": {"const": true}
+          }
+        },
+        "quote": {"type": "string", "minLength": 1},
+        "citation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authors", "year", "title", "label"],
+          "properties": {
+            "authors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "year": {"type": "integer", "minimum": 1900, "maximum": 2100},
+            "title": {"type": "string", "minLength": 1},
+            "label": {"type": "string", "pattern": "^(19|20)[0-9]{2}[a-z]?$"}
+          }
+        },
         "use": {"type": "string", "minLength": 1}
       }
     }

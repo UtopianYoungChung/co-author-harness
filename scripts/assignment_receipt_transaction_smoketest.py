@@ -21,6 +21,7 @@ PREFLIGHT = ROOT / "scripts" / "assignment_dispatch_preflight.py"
 WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
 INVALIDATE = ROOT / "scripts" / "assignment_receipt_invalidate.py"
 RECOVER = ROOT / "scripts" / "assignment_receipt_recover.py"
+MUTATION_CHECK = ROOT / "scripts" / "assignment_mutation_check.py"
 TRANSACTION = ROOT / "scripts" / "assignment_receipt_transaction.py"
 PROFILE = ROOT / "references" / "policies" / "course_essay_milestones.v1.json"
 M1_PATH = "milestones/M1_project_memo.md"
@@ -255,6 +256,21 @@ def copied_consumed_receipt_cannot_replay(base: Path) -> None:
     assert first.returncode == 0, first.stdout + first.stderr
     published = project / M1_PATH
     assert published.read_bytes() == b"first\n"
+    checked = subprocess.run(
+        [sys.executable, str(MUTATION_CHECK), "--project-root", str(project),
+         "--target", M1_PATH], capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    original = published.read_bytes()
+    published.write_bytes(original + b"unlogged\n")
+    drifted = subprocess.run(
+        [sys.executable, str(MUTATION_CHECK), "--project-root", str(project),
+         "--target", M1_PATH], capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    assert drifted.returncode == 4 and "APG-MUTATION-UNJOURNALED" in drifted.stdout
+    published.write_bytes(original)
 
     # Directory state must not be replayable by restoring immutable receipt bytes.
     shutil.copy2(consumed, reserved)

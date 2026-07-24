@@ -34,6 +34,7 @@ from d_style_profile_check import build_report as build_d_style_profile_report
 from reader_accessibility_policy import PolicyError, resolve_policy
 from reader_accessibility_candidates import build_candidate_artifact
 from schema import Finding, FindingsReport
+from product_assurance import AssuranceError, build as build_product_assurance
 
 Auditor = Callable[[str, Path], List[Finding]]
 
@@ -139,6 +140,8 @@ def main(argv: List[str] | None = None) -> int:
              "only); see --wiki-root. Recorded as path_roots_mode=override.",
     )
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
+    parser.add_argument("--semantic-receipt", type=Path, help="v2 centroid semantic receipt; enables quotation, citation, coinage, register, insider-negation, and empirical-claim product checks")
+    parser.add_argument("--product-assurance-out", type=Path, help="Exact product-assurance report path (required with --stdout when --semantic-receipt is used)")
     parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. Lets run_all act as a blocking pre-send gate. C-7 caution: 'any' also gates on advisory craft/voice/length findings, which are C-7 candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for an automated gate, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
 
@@ -169,6 +172,13 @@ def main(argv: List[str] | None = None) -> int:
                 args.accessibility_out
                 or args.project_root / "reviews" /
                 f"reader_accessibility_candidates_{args.cycle_id}.json")
+        product_output = None
+        if args.semantic_receipt:
+            product_output = args.product_assurance_out or (
+                args.project_root / "reviews" / f"product_assurance_{args.cycle_id}.json"
+                if args.project_root else args.out.with_name("product_assurance.json")
+            )
+            destinations.append(product_output)
         if args.project_root and project_kind != "protected":
             guard_project_root(args.project_root)
         for dest in destinations:
@@ -185,6 +195,47 @@ def main(argv: List[str] | None = None) -> int:
         return 4
 
     report = audit_target(args.target)
+    product_report: dict[str, object] | None = None
+    product_output: Path | None = None
+    if args.semantic_receipt:
+        product_output = args.product_assurance_out or (
+            args.project_root / "reviews" / f"product_assurance_{args.cycle_id}.json"
+            if args.project_root else args.out.with_name("product_assurance.json")
+        )
+        try:
+            product_report = build_product_assurance(args.target, args.semantic_receipt)
+        except (AssuranceError, OSError, UnicodeError) as exc:
+            code = exc.code if isinstance(exc, AssuranceError) else "PRODUCT-ASSURANCE-IO"
+            message = exc.message if isinstance(exc, AssuranceError) else str(exc)
+            product_report = {
+                "schema_version": "1.0.0", "report_type": "product_assurance",
+                "status": "blocked", "findings": [{
+                    "code": code, "dimension": "evidence", "severity": "hard",
+                    "locator": "$", "evidence": message, "tentative": False,
+                }],
+            }
+        product_output.parent.mkdir(parents=True, exist_ok=True)
+        product_output.write_text(
+            json.dumps(product_report, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        for row in product_report.get("findings", []):
+            if not isinstance(row, dict):
+                continue
+            dimension = row.get("dimension")
+            category = (
+                "citation" if dimension in {"citation", "quotation", "evidence"}
+                else "grounding" if dimension == "grounding" else "register"
+            )
+            report.add(Finding(
+                check_id=str(row.get("code", "PRODUCT-ASSURANCE")),
+                category=category,
+                severity="inviolable" if row.get("severity") == "hard" else "default",
+                locator=str(row.get("locator", args.target.as_posix())),
+                evidence=str(row.get("evidence", "product-assurance finding")),
+                rule_ref="product-assurance-kernel",
+                tentative=bool(row.get("tentative", False)),
+            ))
     profile_report: dict[str, object] | None = None
     profile_output: Path | None = None
     if args.project_root and not args.skip_d_style_profile:
@@ -222,12 +273,17 @@ def main(argv: List[str] | None = None) -> int:
         print(f"OK wrote {profile_output} -- d_style_profile: {profile_report['verdict']}")
     if not args.stdout and accessibility_report and accessibility_output:
         print(f"OK wrote {accessibility_output} -- reader_accessibility candidates; Evaluator judgment required")
+    if not args.stdout and product_report and product_output:
+        print(f"OK wrote {product_output} -- product_assurance: {product_report.get('status')}")
     counts = report.counts()
     if args.fail_on == "any" and counts["total"] > 0:
         print(f"[GATE] {counts['total']} findings; failing per --fail-on=any", file=sys.stderr)
         return 2
     if args.fail_on == "inviolable" and counts["by_severity"].get("inviolable", 0) > 0:
         print("[GATE] inviolable findings present; failing per --fail-on=inviolable", file=sys.stderr)
+        return 2
+    if product_report is not None and product_report.get("status") != "passed":
+        print("[GATE] product assurance did not pass", file=sys.stderr)
         return 2
     return 0
 

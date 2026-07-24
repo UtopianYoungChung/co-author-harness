@@ -18,6 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "draft_governance.py"
 POLICY = ROOT / "references" / "policies" / "draft_governance.v1.json"
+sys.path.insert(0, str(ROOT / "scripts"))
+from product_assurance import build as build_product_assurance  # noqa: E402
 TARGETS = ("M1", "M2", "M3", "M4", "FINAL")
 REQUIRED_IDS = {
     "grounding-protocol",
@@ -88,7 +90,7 @@ def centroid_packet(
     write_json(path, {
         "schema_version": "1.0.0",
         "capability": "centroid-pass",
-        "status": "ready",
+        "status": "binding_resolved",
         "reason_code": None,
         "read_only": True,
         "writes_performed": False,
@@ -134,7 +136,7 @@ def semantic_receipt(
     target: str = "M2",
 ) -> None:
     value = {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "receipt_type": "centroid_semantic_execution",
         "target": target,
         "phase": phase,
@@ -149,6 +151,14 @@ def semantic_receipt(
             "source": binding(source),
             "locator": "p. 1",
             "extract": binding(extract),
+            "extraction": {"method": "text-direct", "tool": "utf-8", "canonical": True},
+            "quote": "A grounded fixture source passage.",
+            "citation": {
+                "authors": ["Fixture, F."],
+                "year": 2026,
+                "title": "Fixture source",
+                "label": "2026",
+            },
             "use": "Condition the fixture register and argument.",
         }],
         "semantic_assessment": {
@@ -161,6 +171,7 @@ def semantic_receipt(
     }
     if generation_envelope is not None:
         value["generation_envelope"] = binding(generation_envelope)
+        value["adjudications"] = []
     write_json(path, value)
 
 
@@ -174,6 +185,9 @@ def obligation_receipt(
 ) -> dict:
     role = {"generation": "generator", "evaluation": "evaluator"}[phase]
     centroid_id = f"centroid-{phase}"
+    assurance_path = semantic_path.with_name(semantic_path.stem + ".product-assurance.json")
+    assurance = build_product_assurance(artifact, semantic_path)
+    assurance_path.write_text(json.dumps(assurance, indent=2) + "\n", encoding="utf-8")
     return {
         "schema_version": "1.0.0",
         "phase": phase,
@@ -184,9 +198,10 @@ def obligation_receipt(
             {
                 "id": row["id"],
                 "status": "applied",
-                "evidence": [binding(
-                    semantic_path if row["id"] == centroid_id else generic_evidence
-                )],
+                "evidence": (
+                    [binding(semantic_path), binding(assurance_path)]
+                    if row["id"] == centroid_id else [binding(generic_evidence)]
+                ),
                 "rationale": "fixture evidence",
             }
             for row in contract["obligations"]
@@ -237,7 +252,10 @@ def main() -> int:
 
         artifact = project / "milestones" / "artifact.md"
         artifact.parent.mkdir(parents=True, exist_ok=True)
-        artifact.write_text("# Draft\n\nA governed sentence.\n", encoding="utf-8")
+        artifact.write_text(
+            "# Draft\n\nA governed sentence quotes \"A grounded fixture source passage.\"\n",
+            encoding="utf-8",
+        )
         for target in TARGETS:
             for phase in ("generation", "evaluation"):
                 contract = prepare(project, artifact, target, phase)

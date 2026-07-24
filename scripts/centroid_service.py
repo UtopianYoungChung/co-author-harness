@@ -27,10 +27,11 @@ WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*", re.UNICODE)
 
 
 class Unavailable(RuntimeError):
-    def __init__(self, reason_code: str, detail: str):
+    def __init__(self, reason_code: str, detail: str, recovery: dict[str, str] | None = None):
         super().__init__(detail)
         self.reason_code = reason_code
         self.detail = detail
+        self.recovery = recovery
 
 
 def _policy_reason(exc: Exception) -> str:
@@ -151,6 +152,18 @@ def _binding_provenance(project_root: Path | None, resolved: dict[str, Any]) -> 
     }
     mismatched = [key for key, value in expected.items() if binding.get(key) != value]
     if mismatched:
+        request = project_root / "reviews" / "repin_rebind_request.json"
+        if request.is_file():
+            command = (
+                "python scripts/assignment_milestone_checkpoint.py "
+                f"rebind-reader-policy --project-root \"{project_root}\""
+            )
+            raise Unavailable(
+                "PROJECT_BINDING_REBIND_AVAILABLE",
+                "project binding differs from current canon and a pending Planner rebind request is present for: "
+                + ", ".join(mismatched),
+                {"classification": "routine_rebind", "owner": "planner", "command": command},
+            )
         raise Unavailable(
             "PROJECT_BINDING_STALE",
             "project reader-accessibility binding differs for: " + ", ".join(mismatched),
@@ -222,7 +235,7 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
     scope_bytes = scoped_text.encode("utf-8")
     words = WORD_RE.findall("\n".join(prose))
 
-    packet = _base("ready", None)
+    packet = _base("binding_resolved", None)
     packet.update({
         "binding_provenance": provenance,
         "manuscript": {
@@ -283,6 +296,8 @@ def main(argv: list[str] | None = None) -> int:
     except Unavailable as exc:
         packet = _base("unavailable", exc.reason_code)
         packet["detail"] = exc.detail
+        if exc.recovery is not None:
+            packet["recovery"] = exc.recovery
         print(json.dumps(packet, indent=2, ensure_ascii=False))
         return EXIT_UNAVAILABLE
     print(json.dumps(packet, indent=2, ensure_ascii=False))

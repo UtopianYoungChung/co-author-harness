@@ -15,12 +15,22 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "capability": {"const": "centroid-pass"},
-    "status": {"enum": ["ready", "unavailable"]},
+    "status": {"enum": ["binding_resolved", "unavailable"]},
     "reason_code": {"type": ["string", "null"]},
     "read_only": {"const": true},
     "writes_performed": {"const": false},
     "public_activation": {"const": "active"},
     "detail": {"type": "string"},
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "owner", "command"],
+      "properties": {
+        "classification": {"const": "routine_rebind"},
+        "owner": {"const": "planner"},
+        "command": {"type": "string", "minLength": 1}
+      }
+    },
     "binding_provenance": {"enum": ["project", "package-default"]},
     "manuscript": {"type": "object"},
     "policy": {"type": "object"},
@@ -31,7 +41,7 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "ready"}}},
+      "if": {"properties": {"status": {"const": "binding_resolved"}}},
       "then": {
         "required": [
           "binding_provenance",

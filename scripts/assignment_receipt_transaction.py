@@ -166,6 +166,128 @@ def _append_ledger(project: Path, basename: str, payload: dict[str, Any]) -> Non
             pass
 
 
+def _mutation_ledger_path(project: Path) -> Path:
+    return _assignment_root(project) / "mutation_ledger.jsonl"
+
+
+def _mutation_row_hash(row: dict[str, Any]) -> str:
+    unsigned = {key: value for key, value in row.items() if key != "row_sha256"}
+    return hashlib.sha256(
+        json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def load_mutation_ledger(project: Path) -> list[dict[str, Any]]:
+    """Load and verify the append-only manuscript mutation hash-chain."""
+    path = _mutation_ledger_path(project.resolve())
+    if not path.is_file():
+        return []
+    rows: list[dict[str, Any]] = []
+    prior: str | None = None
+    try:
+        for sequence, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            row = json.loads(line)
+            if not isinstance(row, dict):
+                raise ValueError("row is not an object")
+            if row.get("sequence") != sequence or row.get("prior_row_sha256") != prior:
+                raise ValueError("sequence or prior-row binding is invalid")
+            digest = row.get("row_sha256")
+            if not isinstance(digest, str) or digest != _mutation_row_hash(row):
+                raise ValueError("row hash is invalid")
+            rows.append(row)
+            prior = digest
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ReceiptTransactionError(
+            "APG-MUTATION-LEDGER-INVALID", f"invalid mutation ledger: {exc}"
+        ) from exc
+    return rows
+
+
+def validate_mutation_target(project: Path, target_path: str) -> dict[str, Any]:
+    """Require live target bytes to equal the last sanctioned postimage."""
+    project = project.resolve()
+    relative = _safe_relative(target_path, "APG-MUTATION-TARGET")
+    rows = [row for row in load_mutation_ledger(project)
+            if row.get("target_path") == relative.as_posix()]
+    if not rows:
+        raise ReceiptTransactionError(
+            "APG-MUTATION-AUTHORITY-MISSING",
+            f"target has no sanctioned mutation row: {relative.as_posix()}",
+        )
+    target = _resolved_inside(project, relative)
+    live = _target_snapshot(target)
+    expected = rows[-1].get("postimage")
+    if live != expected:
+        raise ReceiptTransactionError(
+            "APG-MUTATION-UNJOURNALED",
+            f"live target differs from latest sanctioned postimage: {relative.as_posix()}",
+        )
+    return rows[-1]
+
+
+def _append_mutation_rows(project: Path, record: dict[str, Any],
+                          journal: dict[str, Any]) -> dict[str, str]:
+    path = _mutation_ledger_path(project)
+    rows = load_mutation_ledger(project)
+    prior = rows[-1]["row_sha256"] if rows else None
+    by_identity = {
+        (row.get("receipt_id"), row.get("target_path")): row for row in rows
+    }
+    appended: list[dict[str, Any]] = []
+    row_hashes: dict[str, str] = {}
+    for write in journal["writes"]:
+        identity = (record["receipt_id"], write["target_path"])
+        existing = by_identity.get(identity)
+        postimage = _target_snapshot(
+            _resolved_inside(project, _safe_relative(write["target_path"]))
+        )
+        if postimage.get("sha256") != write["desired_sha256"]:
+            raise ReceiptTransactionError(
+                "APG-MUTATION-UNJOURNALED",
+                f"published target does not equal desired postimage: {write['target_path']}",
+            )
+        if existing is not None:
+            if existing.get("postimage") != postimage or existing.get("preimage") != write["preimage"]:
+                raise ReceiptTransactionError(
+                    "APG-MUTATION-LEDGER-INVALID",
+                    f"existing mutation row conflicts with publication: {write['target_path']}",
+                )
+            row_hashes[write["target_path"]] = existing["row_sha256"]
+            continue
+        row = {
+            "schema_version": "1.0.0",
+            "sequence": len(rows) + len(appended) + 1,
+            "prior_row_sha256": prior,
+            "receipt_id": record["receipt_id"],
+            "reservation_id": record["reservation_id"],
+            "target_path": write["target_path"],
+            "mode": write["mode"],
+            "preimage": write["preimage"],
+            "postimage": postimage,
+        }
+        row["row_sha256"] = _mutation_row_hash(row)
+        appended.append(row)
+        prior = row["row_sha256"]
+        row_hashes[write["target_path"]] = row["row_sha256"]
+    if appended:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        prior_bytes = path.read_bytes() if path.exists() else b""
+        payload = prior_bytes + b"".join(
+            json.dumps(row, sort_keys=True).encode("utf-8") + b"\n" for row in appended
+        )
+        temporary = path.with_name(path.name + f".tmp.{os.getpid()}")
+        try:
+            with temporary.open("xb") as handle:
+                handle.write(payload); handle.flush(); os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+    return row_hashes
+
+
 def _ledger_events(project: Path, basename: str) -> list[dict[str, Any]]:
     path = _assignment_root(project) / "ledger" / f"{basename}.jsonl"
     if not path.exists():
@@ -666,8 +788,10 @@ def commit_receipt(
 
         consumed = state_path(project, reserved.name, "consumed")
         result_path = consumed.with_suffix(".result.json")
+        mutation_hashes = _append_mutation_rows(project, record, journal)
         published = [
-            {"path": row["target_path"], "sha256": row["desired_sha256"], "mode": row["mode"]}
+            {"path": row["target_path"], "sha256": row["desired_sha256"],
+             "mode": row["mode"], "mutation_row_sha256": mutation_hashes[row["target_path"]]}
             for row in journal["writes"]
         ]
         result = {

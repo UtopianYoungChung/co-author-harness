@@ -96,6 +96,7 @@ def draft_policy_evidence(project: Path, milestone: str, label: str) -> dict:
             "dispatch_id": f"{milestone.lower()}-{label}-{phase}",
             "semantic_receipt_sha256": "2" * 64,
             "centroid_packet_sha256": "3" * 64,
+            "product_assurance_sha256": "4" * 64,
             "passage_count": 1,
             "passage_source_keys": ["fixture-source"],
         }

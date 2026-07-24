@@ -6,6 +6,40 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.38.0 — 2026-07-24
+
+### Product-assurance kernel and mutation authority
+
+**What.** Replaced the process-proxy centroid boundary with a five-stage
+contract: binding resolution, canonical source extraction, role-produced
+passage execution, exact-byte product assurance, and hash-chained manuscript
+mutation authority. The deterministic centroid state is now
+`binding_resolved`; it cannot be read as conditioned or acceptable.
+
+**Product gate.** v2 semantic receipts carry the verbatim quote, canonical
+extract method, source/title citation identity, locator, warrant, and use.
+`product_assurance.py`, invoked through the canonical `run_all.py` surface,
+checks quote containment, bibliography same-year title/label mapping,
+corpus-relative coinage and register, abstract insider-negation, and uncited
+empirical generalization. Quote/citation failures are hard; semantic candidates
+remain visible for independent Evaluator adjudication by exact code/locator.
+Grounding and register are reported as separate dimensions.
+
+**Lifecycle and operations.** Generation and evaluation envelopes bind the
+product report; evaluation remains structurally independent and cannot pass
+unresolved candidates. Assignment publication appends preimage/postimage rows
+to a project-wide mutation hash-chain, and milestone/terminal gates reject live
+bytes that depart from the latest sanctioned postimage. A recoverable stale
+policy binding is classified as `PROJECT_BINDING_REBIND_AVAILABLE` with the
+exact Planner command. The canonical audit command accepts explicit wiki and
+workspace roots, so mechanics and product checks run together without a
+host-specific retry sequence.
+
+**Incident closure.** Synthetic regressions encode the 2026-07-24 failures:
+skipped passage use, self-certification, missing/misassigned quotes, 1994a/b
+title-label drift, `design-time`, repeated corpus-absent `bounded`, abstract
+`not rungs`, uncited `often`, a lossy PDF adapter, and an unlogged direct edit.
+
 ## v0.37.5 — 2026-07-23
 
 ### Passage-bound centroid execution and independent evaluation

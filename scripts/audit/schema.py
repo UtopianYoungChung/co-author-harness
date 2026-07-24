@@ -16,7 +16,7 @@ SEVERITY_INVIOLABLE = "inviolable"
 SEVERITY_DEFAULT = "default"
 
 VALID_SEVERITY = {SEVERITY_INVIOLABLE, SEVERITY_DEFAULT}
-VALID_CATEGORY = {"style", "register", "citation", "structure", "passive", "economy"}
+VALID_CATEGORY = {"style", "register", "grounding", "citation", "structure", "passive", "economy"}
 
 
 @dataclass

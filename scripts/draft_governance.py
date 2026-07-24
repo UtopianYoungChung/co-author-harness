@@ -151,7 +151,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         })
     return {
         "schema_version": "1.0.0",
-        "status": "ready",
+        "status": "binding_resolved",
         "policy": {
             "path": str(POLICY_PATH),
             "sha256": _sha(POLICY_PATH),
@@ -205,6 +205,51 @@ def _load_semantic_receipt(paths: list[Path]) -> tuple[Path, dict[str, Any]]:
     return matches[0]
 
 
+def _load_product_assurance(paths: list[Path], semantic_path: Path,
+                            artifact_path: Path, artifact_sha: str,
+                            phase: str) -> tuple[Path, dict[str, Any]]:
+    matches: list[tuple[Path, dict[str, Any]]] = []
+    for path in paths:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict) and value.get("report_type") == "product_assurance":
+            matches.append((path, value))
+    if len(matches) != 1:
+        raise ContractError(
+            "DRAFT-POLICY-PRODUCT-ASSURANCE",
+            "centroid evidence must contain exactly one product-assurance report",
+        )
+    path, report = matches[0]
+    artifact = report.get("artifact")
+    semantic = report.get("semantic_receipt")
+    dimensions = report.get("dimensions")
+    if (
+        report.get("schema_version") != "1.0.0"
+        or report.get("status") not in (
+            {"passed", "needs_adjudication"} if phase == "generation" else {"passed"}
+        )
+        or not isinstance(artifact, dict)
+        or artifact.get("path") != str(artifact_path)
+        or artifact.get("sha256") != artifact_sha
+        or not isinstance(semantic, dict)
+        or Path(str(semantic.get("path", ""))).resolve(strict=False) != semantic_path
+        or semantic.get("sha256") != _sha(semantic_path)
+        or not isinstance(dimensions, dict)
+        or any(dimensions.get(key) != "passed" for key in ("quotation", "citation"))
+        or (phase == "evaluation" and any(
+            dimensions.get(key) != "passed" for key in ("grounding", "register")
+        ))
+        or (phase == "evaluation" and report.get("findings") != [])
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-PRODUCT-ASSURANCE",
+            "product assurance does not pass all dimensions for the exact semantic receipt and artifact",
+        )
+    return path, report
+
+
 def _packet_members(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
     members = packet.get("policy", {}).get("members")
     if not isinstance(members, list):
@@ -234,8 +279,10 @@ def _verify_semantic_execution(
         "schema_version", "receipt_type", "target", "phase", "role", "actor_id",
         "dispatch_id", "artifact", "centroid_packet", "passages", "semantic_assessment",
     }
-    expected_fields = base_fields | ({"generation_envelope"} if phase == "evaluation" else set())
-    if set(semantic) != expected_fields or semantic.get("schema_version") != "1.0.0":
+    expected_fields = base_fields | (
+        {"generation_envelope", "adjudications"} if phase == "evaluation" else set()
+    )
+    if set(semantic) != expected_fields or semantic.get("schema_version") != "2.0.0":
         raise ContractError(
             "DRAFT-POLICY-CENTROID-EVIDENCE",
             "semantic execution receipt fields or version are invalid",
@@ -267,14 +314,14 @@ def _verify_semantic_execution(
     packet = _load(packet_path, "DRAFT-POLICY-CENTROID-EVIDENCE")
     if (
         packet.get("capability") != "centroid-pass"
-        or packet.get("status") != "ready"
+        or packet.get("status") != "binding_resolved"
         or packet.get("read_only") is not True
         or packet.get("writes_performed") is not False
         or packet.get("semantic_findings") != []
     ):
         raise ContractError(
             "DRAFT-POLICY-CENTROID-EVIDENCE",
-            "semantic receipt does not bind a ready deterministic centroid packet",
+            "semantic receipt does not bind a deterministic binding-resolved centroid packet",
         )
     centroid = contract.get("centroid")
     policy = packet.get("policy")
@@ -312,7 +359,10 @@ def _verify_semantic_execution(
         raise ContractError(
             "DRAFT-POLICY-CENTROID-EVIDENCE", "semantic execution records no passages"
         )
-    passage_fields = {"source_key", "use_scope", "source", "locator", "extract", "use"}
+    passage_fields = {
+        "source_key", "use_scope", "source", "locator", "extract", "extraction",
+        "quote", "citation", "use",
+    }
     seen: set[tuple[str, str, str, str]] = set()
     surface_count = 0
     source_keys: list[str] = []
@@ -341,10 +391,20 @@ def _verify_semantic_execution(
             )
         source_path = _binding(passage.get("source"), "DRAFT-POLICY-CENTROID-EVIDENCE")
         extract_path = _binding(passage.get("extract"), "DRAFT-POLICY-CENTROID-EVIDENCE")
-        if not extract_path.read_bytes() or not _nonempty(passage.get("locator")) or not _nonempty(passage.get("use")):
+        extraction = passage.get("extraction")
+        citation = passage.get("citation")
+        if (
+            not extract_path.read_bytes()
+            or not _nonempty(passage.get("locator"))
+            or not _nonempty(passage.get("quote"))
+            or not _nonempty(passage.get("use"))
+            or not isinstance(extraction, dict)
+            or extraction.get("canonical") is not True
+            or not isinstance(citation, dict)
+        ):
             raise ContractError(
                 "DRAFT-POLICY-CENTROID-EVIDENCE",
-                "passage extract, locator, and use must be non-empty",
+                "passage extract, extraction, quote, citation, locator, and use must be complete",
             )
         identity = (str(key), str(use_scope), str(source_path), passage["extract"]["sha256"])
         if identity in seen:
@@ -374,6 +434,9 @@ def _verify_semantic_execution(
             "DRAFT-POLICY-CENTROID-EVIDENCE", "semantic assessment is incomplete"
         )
 
+    assurance_path, _ = _load_product_assurance(
+        evidence_paths, semantic_path, artifact_path, artifact_sha, phase
+    )
     result = {
         "actor_id": semantic["actor_id"],
         "dispatch_id": semantic["dispatch_id"],
@@ -381,6 +444,7 @@ def _verify_semantic_execution(
         "centroid_packet_sha256": _sha(packet_path),
         "passage_count": len(passages),
         "passage_source_keys": sorted(set(source_keys)),
+        "product_assurance_sha256": _sha(assurance_path),
     }
     if phase == "evaluation":
         generation_path = _binding(
@@ -412,7 +476,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     artifact_path = Path(args.artifact).resolve(strict=True)
     contract = _load(contract_path, "DRAFT-POLICY-CONTRACT")
     receipt = _load(receipt_path, "DRAFT-POLICY-RECEIPT")
-    if contract.get("status") != "ready" or contract.get("phase") != args.phase:
+    if contract.get("status") != "binding_resolved" or contract.get("phase") != args.phase:
         raise ContractError("DRAFT-POLICY-CONTRACT", "contract phase or status is invalid")
     if contract.get("required_role") != args.role or PHASE_ROLE.get(args.phase) != args.role:
         raise ContractError("DRAFT-POLICY-ROLE", "role does not satisfy the contract")

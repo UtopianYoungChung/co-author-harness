@@ -26,6 +26,7 @@ from assignment_process_gate import (
     derive_released_export_path,
     verify_receipt,
 )
+from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
 from destination_capability import guard_project_root, guard_repin_project_root
 from milestone_framework_validate import validate_document, validate_gate
 from milestone_path_contract import handoff_path, snapshot_path
@@ -797,6 +798,8 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
             or SHA_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
             or not isinstance(envelope.get("centroid_packet_sha256"), str)
             or SHA_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
+            or not isinstance(envelope.get("product_assurance_sha256"), str)
+            or SHA_RE.fullmatch(envelope["product_assurance_sha256"]) is None
             or not isinstance(envelope.get("passage_count"), int)
             or envelope["passage_count"] < 1
             or not isinstance(envelope.get("passage_source_keys"), list)
@@ -875,6 +878,15 @@ def _receipt_result(
     deliverable_sha = _sha256(deliverable)
     if rows[0].get("sha256") != deliverable_sha:
         raise MilestoneTransactionError("AMC-RESULT", "published primary deliverable hash is stale")
+    try:
+        mutation = validate_mutation_target(project, relative)
+    except ReceiptTransactionError as exc:
+        raise MilestoneTransactionError(exc.code, exc.message) from exc
+    if rows[0].get("mutation_row_sha256") != mutation.get("row_sha256"):
+        raise MilestoneTransactionError(
+            "AMC-MUTATION-BINDING",
+            "publication result does not bind the sanctioned primary-deliverable mutation row",
+        )
     if milestone == "M5":
         export_path = derive_released_export_path("FINAL")
         if export_path is None:
@@ -885,6 +897,15 @@ def _receipt_result(
         export_file, export_relative = _safe_project_file(project, export_path, "AMC-RESULT")
         if export_rows[0].get("sha256") != _sha256(export_file):
             raise MilestoneTransactionError("AMC-RESULT", f"published released export hash is stale: {export_relative}")
+        try:
+            export_mutation = validate_mutation_target(project, export_relative)
+        except ReceiptTransactionError as exc:
+            raise MilestoneTransactionError(exc.code, exc.message) from exc
+        if export_rows[0].get("mutation_row_sha256") != export_mutation.get("row_sha256"):
+            raise MilestoneTransactionError(
+                "AMC-MUTATION-BINDING",
+                "publication result does not bind the sanctioned released-export mutation row",
+            )
     source_expectations = {
         str(receipt_path.resolve()): hashlib.sha256(receipt_bytes).hexdigest(),
         str(result_path.resolve()): hashlib.sha256(result_bytes).hexdigest(),

@@ -366,12 +366,32 @@ def valid_project(base: Path) -> Path:
         "target_milestone": "FINAL", "authorized_role": "generator",
         "primary_deliverable_path": deliverable["path"],
     }, indent=2))
+    mutation_rows = []
+    prior = None
+    for sequence, artifact in enumerate((deliverable, export), 1):
+        target = proj / artifact["path"]
+        row = {
+            "schema_version": "1.0.0", "sequence": sequence,
+            "prior_row_sha256": prior, "receipt_id": receipt_id,
+            "reservation_id": reservation_id, "target_path": artifact["path"],
+            "mode": "create", "preimage": {"exists": False, "sha256": None, "size": 0},
+            "postimage": {"exists": True, "sha256": artifact["sha256"], "size": target.stat().st_size},
+        }
+        row["row_sha256"] = hashlib.sha256(
+            json.dumps(row, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        mutation_rows.append(row)
+        prior = row["row_sha256"]
+    mutation_path = proj / "reviews/.harness/assignment/mutation_ledger.jsonl"
+    _w(mutation_path, "".join(json.dumps(row, sort_keys=True) + "\n" for row in mutation_rows))
     _w(result_path, json.dumps({
         "schema_version": "1.0.0", "receipt_id": receipt_id,
         "reservation_id": reservation_id, "outcome": "published",
         "published": [
-            {"path": deliverable["path"], "sha256": deliverable["sha256"]},
-            {"path": export["path"], "sha256": export["sha256"]},
+            {"path": deliverable["path"], "sha256": deliverable["sha256"],
+             "mutation_row_sha256": mutation_rows[0]["row_sha256"]},
+            {"path": export["path"], "sha256": export["sha256"],
+             "mutation_row_sha256": mutation_rows[1]["row_sha256"]},
         ],
     }, indent=2))
     for artifact_kind, evidence_path in (
@@ -419,6 +439,7 @@ def valid_project(base: Path) -> Path:
                 "dispatch_id": f"{milestone.lower()}-{phase}",
                 "semantic_receipt_sha256": "2" * 64,
                 "centroid_packet_sha256": "3" * 64,
+                "product_assurance_sha256": "4" * 64,
                 "passage_count": 1,
                 "passage_source_keys": ["fixture-source"],
             }

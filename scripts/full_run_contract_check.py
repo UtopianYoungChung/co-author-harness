@@ -122,6 +122,9 @@ import artefact_frontmatter_validate as afv        # noqa: E402
 import round_identifier as rid                     # noqa: E402
 from milestone_path_contract import canonical_deliverable  # noqa: E402
 from audit import schema as audit_schema           # noqa: E402
+from assignment_receipt_transaction import (       # noqa: E402
+    ReceiptTransactionError, validate_mutation_target,
+)
 
 
 # There is no boundary->milestone map here.
@@ -1336,6 +1339,18 @@ def _final_publication_findings(project_root: Path, state: dict) -> list[dict]:
     )
     if not valid:
         return [_u("authorship", "FRC-FINAL-PUBLICATION-INVALID", "milestone_framework.milestones.M5.artifacts", "bound receipt/result do not prove one exact Generator FINAL manuscript and released export")]
+    for artifact in (deliverable, export):
+        try:
+            mutation = validate_mutation_target(project_root, artifact["path"])
+        except (ReceiptTransactionError, KeyError) as exc:
+            code = exc.code if isinstance(exc, ReceiptTransactionError) else "APG-MUTATION-AUTHORITY-MISSING"
+            message = exc.message if isinstance(exc, ReceiptTransactionError) else str(exc)
+            return [_u("authorship", code, "reviews/.harness/assignment/mutation_ledger.jsonl", message)]
+        result_row = next(row for row in published if isinstance(row, dict)
+                          and row.get("path") == artifact["path"])
+        if result_row.get("mutation_row_sha256") != mutation.get("row_sha256"):
+            return [_u("authorship", "FRC-FINAL-MUTATION-BINDING", artifact["path"],
+                       "FINAL publication result does not bind the sanctioned mutation row")]
     return []
 
 
@@ -1536,6 +1551,8 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     or SHA256_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
                     or not isinstance(envelope.get("centroid_packet_sha256"), str)
                     or SHA256_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
+                    or not isinstance(envelope.get("product_assurance_sha256"), str)
+                    or SHA256_RE.fullmatch(envelope["product_assurance_sha256"]) is None
                     or not isinstance(envelope.get("passage_count"), int)
                     or envelope["passage_count"] < 1
                     or not isinstance(envelope.get("passage_source_keys"), list)
