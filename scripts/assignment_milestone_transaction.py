@@ -763,6 +763,8 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
         "emdash-bundle", "sentence-craft", "narrative-structure",
         "deterministic-audit",
     }
+    verified_envelopes: dict[str, dict[str, Any]] = {}
+    evidence_hashes: dict[str, str] = {}
     for key, (phase_name, role, centroid_id) in phase_requirements.items():
         binding = policy.get(key)
         if not isinstance(binding, dict) or set(binding) != {"evidence_path", "evidence_sha256"}:
@@ -787,12 +789,38 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
             or centroid.get("required") is not True
             or not isinstance(obligation_ids, list)
             or not (always_ids | {centroid_id}) <= set(obligation_ids)
+            or not isinstance(envelope.get("actor_id"), str)
+            or not envelope["actor_id"].strip()
+            or not isinstance(envelope.get("dispatch_id"), str)
+            or not envelope["dispatch_id"].strip()
+            or not isinstance(envelope.get("semantic_receipt_sha256"), str)
+            or SHA_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
+            or not isinstance(envelope.get("centroid_packet_sha256"), str)
+            or SHA_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
+            or not isinstance(envelope.get("passage_count"), int)
+            or envelope["passage_count"] < 1
+            or not isinstance(envelope.get("passage_source_keys"), list)
+            or not envelope["passage_source_keys"]
         ):
             raise MilestoneTransactionError(
                 "AMC-DRAFT-POLICY",
                 f"{key} does not verify the current {public_target} bytes and complete always-on bundle",
             )
         binding["evidence_path"] = relative
+        verified_envelopes[key] = envelope
+        evidence_hashes[key] = binding["evidence_sha256"]
+    generation_envelope = verified_envelopes["draft_generation"]
+    evaluation_envelope = verified_envelopes["draft_evaluation"]
+    if (
+        evaluation_envelope.get("generation_envelope_sha256")
+        != evidence_hashes["draft_generation"]
+        or evaluation_envelope.get("actor_id") == generation_envelope.get("actor_id")
+        or evaluation_envelope.get("dispatch_id") == generation_envelope.get("dispatch_id")
+    ):
+        raise MilestoneTransactionError(
+            "AMC-DRAFT-POLICY",
+            "draft evaluation is not bound to an independent verified generation envelope",
+        )
     if milestone == "M3":
         grounding_keys = set(policy) - draft_keys
         if grounding_keys not in ({"wiki_grounding"}, {"wiki_grounding_opt_out"}):

@@ -22,8 +22,8 @@
   "obligations": [
     {"id": "grounding-protocol", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/GROUNDING_PROTOCOL.md"]},
     {"id": "d-style-profile", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["scripts/d_style_profile_check.py"]},
-    {"id": "centroid-generation", "phases": ["generation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json"]},
-    {"id": "centroid-evaluation", "phases": ["evaluation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json"]},
+    {"id": "centroid-generation", "phases": ["generation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json", "references/schemas/centroid_semantic_execution.schema.json"]},
+    {"id": "centroid-evaluation", "phases": ["evaluation"], "activation": "always", "paths": ["scripts/centroid_service.py", "references/policies/reader_accessibility.v1.json", "references/schemas/centroid_semantic_execution.schema.json"]},
     {"id": "reader-accessibility", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/READER_ACCESSIBILITY.md", "references/policies/reader_accessibility.v1.json"]},
     {"id": "master-guidelines", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/MASTER_research_and_paper_guidelines.md"]},
     {"id": "research-writing-playbook", "phases": ["generation", "evaluation"], "activation": "always", "paths": ["references/research_paper_writing_guidelines.md"]},

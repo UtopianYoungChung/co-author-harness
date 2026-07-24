@@ -404,17 +404,29 @@ def valid_project(base: Path) -> Path:
         artifact = next(row for row in record["artifacts"] if row.get("role") == "deliverable")
         target = "FINAL" if milestone == "M5" else milestone
         record.setdefault("policy_evidence", {})
+        generation_sha = None
         for field, phase, role in (
             ("draft_generation", "generation", "generator"),
             ("draft_evaluation", "evaluation", "evaluator"),
         ):
             evidence_path = proj / "reviews" / ".harness" / "shipments" / "synthetic" / f"{milestone.lower()}_{phase}.verified.json"
-            _w(evidence_path, json.dumps({
+            envelope = {
                 "schema_version": "1.0.0", "status": "verified",
                 "phase": phase, "role": role, "target": target,
                 "artifact_sha256": artifact["sha256"],
                 "centroid": {"required": True}, "obligation_ids": [],
-            }, indent=2))
+                "actor_id": "generator-A" if phase == "generation" else "evaluator-B",
+                "dispatch_id": f"{milestone.lower()}-{phase}",
+                "semantic_receipt_sha256": "2" * 64,
+                "centroid_packet_sha256": "3" * 64,
+                "passage_count": 1,
+                "passage_source_keys": ["fixture-source"],
+            }
+            if phase == "evaluation":
+                envelope["generation_envelope_sha256"] = generation_sha
+            _w(evidence_path, json.dumps(envelope, indent=2))
+            if phase == "generation":
+                generation_sha = _sha(evidence_path)
             record["policy_evidence"][field] = {
                 "evidence_path": evidence_path.relative_to(proj).as_posix(),
                 "evidence_sha256": _sha(evidence_path),

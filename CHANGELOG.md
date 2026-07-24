@@ -6,6 +6,31 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.37.5 — 2026-07-23
+
+### Passage-bound centroid execution and independent evaluation
+
+**What.** Replaced generic centroid path/hash evidence with a role-produced
+semantic execution receipt. Every passage actually used must bind an admitted
+member, warrant scope, original source hash, non-empty extract hash, precise
+locator, use statement, exact artifact, and deterministic centroid packet.
+Generation now requires the packet's `write` derivation; evaluation requires
+`review`, binds the verified generation envelope, and refuses a reused actor or
+dispatch identity.
+
+**Lifecycle enforcement.** Evaluation preparation is bound to the exact bytes
+subsequently reviewed. Milestone transactions and the terminal full-run gate
+require the enriched generation/evaluation envelopes and independently bind the
+evaluation envelope to the generation-envelope hash. A ready deterministic
+packet or an empty `semantic_findings` array remains policy-resolution evidence,
+not proof that passages conditioned prose.
+
+**Verification.** Failing-first regressions cover generic evidence, wrong packet
+derivation, post-prepare byte changes, and Generator self-evaluation. The focused
+draft-governance, milestone-checkpoint, and semantic-bypass suites pass; release
+acceptance still requires the complete 59-suite registry from the committed
+clean checkout and installed-cache byte parity.
+
 ## v0.37.4 — 2026-07-23
 
 ### Project-neutral centroid freeze and shipment boundary

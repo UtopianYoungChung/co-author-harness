@@ -77,6 +77,7 @@ def draft_policy_evidence(project: Path, milestone: str, label: str) -> dict:
         "deterministic-audit",
     }
     bindings = {}
+    generation_sha = None
     for key, phase, role, centroid_id in (
         ("draft_generation", "generation", "generator", "centroid-generation"),
         ("draft_evaluation", "evaluation", "evaluator", "centroid-evaluation"),
@@ -85,13 +86,24 @@ def draft_policy_evidence(project: Path, milestone: str, label: str) -> dict:
             project / "reviews" / ".harness" / "shipments" / "synthetic"
             / f"{milestone.lower()}_{label}_{phase}.verified.json"
         )
-        write_json(evidence, {
+        envelope = {
             "schema_version": "1.0.0", "status": "verified",
             "phase": phase, "role": role, "target": "FINAL" if milestone == "M5" else milestone,
             "contract_sha256": "1" * 64, "artifact_sha256": artifact_sha,
             "centroid": {"required": True, "binding_provenance": "project"},
             "obligation_ids": sorted(always | {centroid_id}),
-        })
+            "actor_id": "generator-A" if phase == "generation" else "evaluator-B",
+            "dispatch_id": f"{milestone.lower()}-{label}-{phase}",
+            "semantic_receipt_sha256": "2" * 64,
+            "centroid_packet_sha256": "3" * 64,
+            "passage_count": 1,
+            "passage_source_keys": ["fixture-source"],
+        }
+        if phase == "evaluation":
+            envelope["generation_envelope_sha256"] = generation_sha
+        write_json(evidence, envelope)
+        if phase == "generation":
+            generation_sha = sha(evidence)
         bindings[key] = {
             "evidence_path": evidence.relative_to(project).as_posix(),
             "evidence_sha256": sha(evidence),

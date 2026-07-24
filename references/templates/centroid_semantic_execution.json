@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "receipt_type": "centroid_semantic_execution",
+  "target": "M4",
+  "phase": "generation",
+  "role": "generator",
+  "actor_id": "<role-instance-id>",
+  "dispatch_id": "<dispatch-id>",
+  "artifact": {
+    "path": "<absolute-artifact-path>",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "centroid_packet": {
+    "path": "<absolute-centroid-packet-path>",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "passages": [
+    {
+      "source_key": "<admitted-centroid-member>",
+      "use_scope": "surface",
+      "source": {
+        "path": "<absolute-source-path>",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "locator": "<page-or-section-locator>",
+      "extract": {
+        "path": "<absolute-extract-path>",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "use": "<how this passage conditioned or evaluated the artifact>"
+    }
+  ],
+  "semantic_assessment": {
+    "summary": "<semantic judgment>",
+    "strengths": [],
+    "deviations": [],
+    "warrant_limits": [],
+    "actionable_findings": []
+  }
+}

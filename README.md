@@ -144,6 +144,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.37.5** | Requires passage-level centroid semantic receipts, exact write/review derivations, current-byte generation/evaluation envelopes, and independent Evaluator identity before milestone or terminal acceptance. |
 | **0.37.2** | Repairs the promoted centroid execution contract: the documented `prepare --role` CLI is now real and phase-checked, while a structural-only corpus returns the specific `GRAPH-SEMANTIC-INELIGIBLE` refusal instead of being flattened into `PROFILE_UNRESOLVED`. |
 | **0.35.0** | Hardens the semantic-register re-pin boundary: governed graph writers fail closed, Codex and Claude semantic audits share one provenance-checked contract, attestation/exemplar projections are stable under real graph serialization, and a production Planner transaction verifies and applies pending project rebind requests without letting the re-pin writer mutate lifecycle state. |
 | **0.34.0** | Replaces the duplicated skill-plus-command-shim inventory with one native-skill surface; exposes only supported user commands, hides legacy/maintainer/unavailable contracts without deleting them, and machine-checks the menu against a command-surface policy. Phantom slash names are reclassified as real public skills or Planner intents. |

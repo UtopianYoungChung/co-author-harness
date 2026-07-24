@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/centroid_semantic_execution.schema.json",
+  "title": "Role-produced centroid semantic execution receipt",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "receipt_type",
+    "target",
+    "phase",
+    "role",
+    "actor_id",
+    "dispatch_id",
+    "artifact",
+    "centroid_packet",
+    "passages",
+    "semantic_assessment"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "centroid_semantic_execution"},
+    "target": {"enum": ["M1", "M2", "M3", "M4", "FINAL"]},
+    "phase": {"enum": ["generation", "evaluation"]},
+    "role": {"enum": ["generator", "evaluator"]},
+    "actor_id": {"type": "string", "minLength": 1},
+    "dispatch_id": {"type": "string", "minLength": 1},
+    "artifact": {"$ref": "#/$defs/binding"},
+    "centroid_packet": {"$ref": "#/$defs/binding"},
+    "generation_envelope": {"$ref": "#/$defs/binding"},
+    "passages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/passage"}
+    },
+    "semantic_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "strengths",
+        "deviations",
+        "warrant_limits",
+        "actionable_findings"
+      ],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1},
+        "strengths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "deviations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "warrant_limits": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "actionable_findings": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"phase": {"const": "generation"}}},
+      "then": {
+        "properties": {"role": {"const": "generator"}},
+        "not": {"required": ["generation_envelope"]}
+      },
+      "else": {
+        "properties": {"role": {"const": "evaluator"}},
+        "required": ["generation_envelope"]
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "passage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_key",
+        "use_scope",
+        "source",
+        "locator",
+        "extract",
+        "use"
+      ],
+      "properties": {
+        "source_key": {"type": "string", "minLength": 1},
+        "use_scope": {"enum": ["surface", "argument"]},
+        "source": {"$ref": "#/$defs/binding"},
+        "locator": {"type": "string", "minLength": 1},
+        "extract": {"$ref": "#/$defs/binding"},
+        "use": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -24,6 +24,7 @@ TARGET_PATHS = {
     "FINAL": "milestones/M5_final_paper.md",
 }
 SHA_KEYS = ("profile_sha256", "attestation_view_pin", "exemplar_view_pin")
+SEMANTIC_RECEIPT_TYPE = "centroid_semantic_execution"
 
 
 class ContractError(RuntimeError):
@@ -167,7 +168,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def _binding(row: Any, code: str) -> None:
+def _binding(row: Any, code: str) -> Path:
     if not isinstance(row, dict) or set(row) != {"path", "sha256"}:
         raise ContractError(code, "evidence binding must contain path and sha256")
     try:
@@ -176,6 +177,233 @@ def _binding(row: Any, code: str) -> None:
         raise ContractError(code, f"evidence path is unreadable: {row.get('path')}") from exc
     if not path.is_file() or row.get("sha256") != _sha(path):
         raise ContractError(code, f"evidence binding is stale: {path}")
+    return path
+
+
+def _nonempty(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _string_list(value: Any) -> bool:
+    return isinstance(value, list) and all(_nonempty(item) for item in value)
+
+
+def _load_semantic_receipt(paths: list[Path]) -> tuple[Path, dict[str, Any]]:
+    matches: list[tuple[Path, dict[str, Any]]] = []
+    for path in paths:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict) and value.get("receipt_type") == SEMANTIC_RECEIPT_TYPE:
+            matches.append((path, value))
+    if len(matches) != 1:
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "centroid obligation requires exactly one role-produced semantic execution receipt",
+        )
+    return matches[0]
+
+
+def _packet_members(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    members = packet.get("policy", {}).get("members")
+    if not isinstance(members, list):
+        raise ContractError("DRAFT-POLICY-CENTROID-EVIDENCE", "centroid packet lacks members")
+    by_key: dict[str, dict[str, Any]] = {}
+    for row in members:
+        key = row.get("source_key") if isinstance(row, dict) else None
+        if not _nonempty(key) or key in by_key:
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-EVIDENCE",
+                "centroid packet member keys are missing or duplicated",
+            )
+        by_key[key] = row
+    return by_key
+
+
+def _verify_semantic_execution(
+    evidence_paths: list[Path],
+    contract: dict[str, Any],
+    artifact_path: Path,
+    artifact_sha: str,
+    phase: str,
+    role: str,
+) -> dict[str, Any]:
+    semantic_path, semantic = _load_semantic_receipt(evidence_paths)
+    base_fields = {
+        "schema_version", "receipt_type", "target", "phase", "role", "actor_id",
+        "dispatch_id", "artifact", "centroid_packet", "passages", "semantic_assessment",
+    }
+    expected_fields = base_fields | ({"generation_envelope"} if phase == "evaluation" else set())
+    if set(semantic) != expected_fields or semantic.get("schema_version") != "1.0.0":
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "semantic execution receipt fields or version are invalid",
+        )
+    if (
+        semantic.get("target") != contract.get("target")
+        or semantic.get("phase") != phase
+        or semantic.get("role") != role
+        or not _nonempty(semantic.get("actor_id"))
+        or not _nonempty(semantic.get("dispatch_id"))
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "semantic execution target, phase, role, actor, or dispatch is invalid",
+        )
+
+    semantic_artifact = _binding(
+        semantic.get("artifact"), "DRAFT-POLICY-CENTROID-EVIDENCE"
+    )
+    if semantic_artifact != artifact_path or semantic["artifact"].get("sha256") != artifact_sha:
+        raise ContractError(
+            "DRAFT-POLICY-ARTIFACT-STALE",
+            "semantic execution receipt does not bind the exact artifact bytes",
+        )
+
+    packet_path = _binding(
+        semantic.get("centroid_packet"), "DRAFT-POLICY-CENTROID-EVIDENCE"
+    )
+    packet = _load(packet_path, "DRAFT-POLICY-CENTROID-EVIDENCE")
+    if (
+        packet.get("capability") != "centroid-pass"
+        or packet.get("status") != "ready"
+        or packet.get("read_only") is not True
+        or packet.get("writes_performed") is not False
+        or packet.get("semantic_findings") != []
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "semantic receipt does not bind a ready deterministic centroid packet",
+        )
+    centroid = contract.get("centroid")
+    policy = packet.get("policy")
+    if not isinstance(centroid, dict) or not isinstance(policy, dict):
+        raise ContractError("DRAFT-POLICY-CENTROID-EVIDENCE", "centroid bindings are invalid")
+    if packet.get("binding_provenance") != centroid.get("binding_provenance") or any(
+        policy.get(key) != centroid.get(key) for key in SHA_KEYS
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "centroid packet does not match the prepared profile and pins",
+        )
+    expected_derivation = centroid.get(
+        "generation_derivation" if phase == "generation" else "evaluation_derivation"
+    )
+    if policy.get("derivation") != expected_derivation:
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            f"centroid packet derivation must be {expected_derivation!r} for {phase}",
+        )
+    packet_manuscript = packet.get("manuscript")
+    if phase == "evaluation" and (
+        not isinstance(packet_manuscript, dict)
+        or packet_manuscript.get("sha256") != artifact_sha
+        or Path(str(packet_manuscript.get("path", ""))).resolve(strict=False) != artifact_path
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-ARTIFACT-STALE",
+            "evaluation centroid packet does not bind the exact artifact bytes",
+        )
+
+    members = _packet_members(packet)
+    passages = semantic.get("passages")
+    if not isinstance(passages, list) or not passages:
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE", "semantic execution records no passages"
+        )
+    passage_fields = {"source_key", "use_scope", "source", "locator", "extract", "use"}
+    seen: set[tuple[str, str, str, str]] = set()
+    surface_count = 0
+    source_keys: list[str] = []
+    for passage in passages:
+        if not isinstance(passage, dict) or set(passage) != passage_fields:
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-EVIDENCE", "passage record fields are invalid"
+            )
+        key = passage.get("source_key")
+        use_scope = passage.get("use_scope")
+        member = members.get(key)
+        if member is None or use_scope not in {"surface", "argument"}:
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-EVIDENCE",
+                "passage source or use scope is not admitted by the centroid packet",
+            )
+        warrant = member.get("warrant_scope")
+        allowed = (
+            warrant in {"both", use_scope}
+            or (use_scope == "argument" and warrant == "argument-only")
+        )
+        if not allowed:
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-WARRANT",
+                f"{key} lacks {use_scope} warrant",
+            )
+        source_path = _binding(passage.get("source"), "DRAFT-POLICY-CENTROID-EVIDENCE")
+        extract_path = _binding(passage.get("extract"), "DRAFT-POLICY-CENTROID-EVIDENCE")
+        if not extract_path.read_bytes() or not _nonempty(passage.get("locator")) or not _nonempty(passage.get("use")):
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-EVIDENCE",
+                "passage extract, locator, and use must be non-empty",
+            )
+        identity = (str(key), str(use_scope), str(source_path), passage["extract"]["sha256"])
+        if identity in seen:
+            raise ContractError(
+                "DRAFT-POLICY-CENTROID-EVIDENCE", "duplicate passage record"
+            )
+        seen.add(identity)
+        source_keys.append(str(key))
+        surface_count += int(use_scope == "surface")
+    if surface_count == 0:
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-WARRANT",
+            "semantic execution requires at least one surface-warranted passage",
+        )
+
+    assessment = semantic.get("semantic_assessment")
+    assessment_fields = {
+        "summary", "strengths", "deviations", "warrant_limits", "actionable_findings"
+    }
+    if (
+        not isinstance(assessment, dict)
+        or set(assessment) != assessment_fields
+        or not _nonempty(assessment.get("summary"))
+        or any(not _string_list(assessment.get(key)) for key in assessment_fields - {"summary"})
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE", "semantic assessment is incomplete"
+        )
+
+    result = {
+        "actor_id": semantic["actor_id"],
+        "dispatch_id": semantic["dispatch_id"],
+        "semantic_receipt_sha256": _sha(semantic_path),
+        "centroid_packet_sha256": _sha(packet_path),
+        "passage_count": len(passages),
+        "passage_source_keys": sorted(set(source_keys)),
+    }
+    if phase == "evaluation":
+        generation_path = _binding(
+            semantic.get("generation_envelope"), "DRAFT-POLICY-EVALUATOR-INDEPENDENCE"
+        )
+        generation = _load(generation_path, "DRAFT-POLICY-EVALUATOR-INDEPENDENCE")
+        if (
+            generation.get("status") != "verified"
+            or generation.get("phase") != "generation"
+            or generation.get("role") != "generator"
+            or generation.get("target") != contract.get("target")
+            or generation.get("artifact_sha256") != artifact_sha
+            or not _nonempty(generation.get("actor_id"))
+            or not _nonempty(generation.get("dispatch_id"))
+            or generation.get("actor_id") == semantic.get("actor_id")
+            or generation.get("dispatch_id") == semantic.get("dispatch_id")
+        ):
+            raise ContractError(
+                "DRAFT-POLICY-EVALUATOR-INDEPENDENCE",
+                "evaluation is not independent of the verified generation dispatch",
+            )
+        result["generation_envelope_sha256"] = _sha(generation_path)
+    return result
 
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
@@ -188,6 +416,11 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         raise ContractError("DRAFT-POLICY-CONTRACT", "contract phase or status is invalid")
     if contract.get("required_role") != args.role or PHASE_ROLE.get(args.phase) != args.role:
         raise ContractError("DRAFT-POLICY-ROLE", "role does not satisfy the contract")
+    contract_artifact = contract.get("artifact")
+    if not isinstance(contract_artifact, dict) or Path(
+        str(contract_artifact.get("path", ""))
+    ).resolve(strict=False) != artifact_path:
+        raise ContractError("DRAFT-POLICY-ARTIFACT", "contract artifact path is invalid")
     required_receipt = {
         "schema_version", "phase", "role", "contract_sha256", "artifact", "obligations"
     }
@@ -201,6 +434,15 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     if not isinstance(artifact, dict) or artifact.get("path") != str(artifact_path):
         raise ContractError("DRAFT-POLICY-ARTIFACT", "receipt artifact path is invalid")
     artifact_sha = _sha(artifact_path)
+    if args.phase == "evaluation" and (
+        contract_artifact.get("state") != "present"
+        or contract_artifact.get("sha256") != artifact_sha
+        or contract_artifact.get("bytes") != artifact_path.stat().st_size
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CONTRACT-ARTIFACT-STALE",
+            "evaluation artifact changed after draft-governance prepare",
+        )
     if artifact.get("sha256") != artifact_sha:
         raise ContractError("DRAFT-POLICY-ARTIFACT-STALE", "receipt artifact hash is stale")
     rows = receipt.get("obligations")
@@ -217,6 +459,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "DRAFT-POLICY-OBLIGATION-MISSING",
             "receipt omits: " + ", ".join(missing),
         )
+    centroid_evidence_paths: list[Path] = []
     for obligation_id, contract_row in required.items():
         row = by_id[obligation_id]
         if set(row) != {"id", "status", "evidence", "rationale"}:
@@ -234,8 +477,15 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         evidence = row.get("evidence")
         if status == "applied" and (not isinstance(evidence, list) or not evidence):
             raise ContractError("DRAFT-POLICY-RECEIPT", f"missing evidence for {obligation_id}")
-        for item in evidence if isinstance(evidence, list) else []:
+        bound_paths = [
             _binding(item, "DRAFT-POLICY-EVIDENCE-STALE")
+            for item in evidence if isinstance(evidence, list)
+        ]
+        if obligation_id == f"centroid-{args.phase}":
+            centroid_evidence_paths = bound_paths
+    semantic = _verify_semantic_execution(
+        centroid_evidence_paths, contract, artifact_path, artifact_sha, args.phase, args.role
+    )
     return {
         "schema_version": "1.0.0",
         "status": "verified",
@@ -246,6 +496,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         "artifact_sha256": artifact_sha,
         "centroid": contract.get("centroid"),
         "obligation_ids": sorted(required),
+        **semantic,
     }
 
 

@@ -690,6 +690,7 @@ def cmd_scope(args) -> int:
 # attributed a manuscript to a round that never ran. A filename is not evidence.
 ROUND_HEADER_RE = re.compile(r"(?mi)^##\s+Round\s+\S+")
 VERDICT_RE = re.compile(r"(?mi)^\*\*Verdict:\*\*\s*(RETAIN|REVERT|PARTIAL)\b")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_ROUND_FIELDS = ("Hypothesis", "Scope", "Changes")
 
 
@@ -1494,6 +1495,8 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                 continue
             artifact_sha = deliverables[0].get("sha256")
             policy = record.get("policy_evidence")
+            verified_draft_envelopes = {}
+            verified_draft_hashes = {}
             for field, phase, role in (
                 ("draft_generation", "generation", "generator"),
                 ("draft_evaluation", "evaluation", "evaluator"),
@@ -1525,9 +1528,37 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     or envelope.get("artifact_sha256") != artifact_sha
                     or not isinstance(envelope.get("centroid"), dict)
                     or envelope["centroid"].get("required") is not True
+                    or not isinstance(envelope.get("actor_id"), str)
+                    or not envelope["actor_id"].strip()
+                    or not isinstance(envelope.get("dispatch_id"), str)
+                    or not envelope["dispatch_id"].strip()
+                    or not isinstance(envelope.get("semantic_receipt_sha256"), str)
+                    or SHA256_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
+                    or not isinstance(envelope.get("centroid_packet_sha256"), str)
+                    or SHA256_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
+                    or not isinstance(envelope.get("passage_count"), int)
+                    or envelope["passage_count"] < 1
+                    or not isinstance(envelope.get("passage_source_keys"), list)
+                    or not envelope["passage_source_keys"]
                 ):
                     unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-INVALID", where,
                                     "draft-policy envelope does not bind the target, role, centroid, and current artifact hash"))
+                else:
+                    verified_draft_envelopes[field] = envelope
+                    verified_draft_hashes[field] = binding.get("evidence_sha256")
+            generation_envelope = verified_draft_envelopes.get("draft_generation")
+            evaluation_envelope = verified_draft_envelopes.get("draft_evaluation")
+            if generation_envelope is not None and evaluation_envelope is not None and (
+                evaluation_envelope.get("generation_envelope_sha256")
+                != verified_draft_hashes.get("draft_generation")
+                or evaluation_envelope.get("actor_id") == generation_envelope.get("actor_id")
+                or evaluation_envelope.get("dispatch_id") == generation_envelope.get("dispatch_id")
+            ):
+                unmet.append(_u(
+                    "full_lifecycle", "FRC-DRAFT-POLICY-INVALID",
+                    f"milestone_framework.milestones.{key}.policy_evidence.draft_evaluation",
+                    "draft evaluation is not bound to an independent verified generation envelope",
+                ))
 
     # phase state shape -- the phase authority, ALL of it.
     #
