@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/verifier_publication_manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "transaction_id", "mode", "state", "inputs", "semantics_digest", "intended_outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"},
+    "mode": {"const": "committed"},
+    "state": {"const": "prepared"},
+    "inputs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/binding"}},
+    "semantics_digest": {"$ref": "#/$defs/sha256"},
+    "intended_outputs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/binding"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"enum": ["project", "wiki", "harness"]}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
+    "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}}
+  }
+}

@@ -87,7 +87,7 @@ def main() -> int:
         )
         raw_bytes = raw_path.read_bytes()
 
-    raw_text = raw_bytes.decode("utf-8")
+    raw_text = raw_bytes.decode("utf-8", errors="strict")
     normalized_text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
     RAW.write_bytes(raw_bytes)
     NORMALIZED.write_text(normalized_text, encoding="utf-8", newline="\n")

@@ -113,10 +113,11 @@ Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](
 
 ## For maintainers
 
-From the repo root, with **Python 3** and **PyYAML** installed:
+From the repo root, with **Python 3**, **PyYAML**, and **jsonschema** installed:
 
 ```bash
 python scripts/skill-check.py
+python scripts/schema_runtime_check.py
 python scripts/version-check.py
 python scripts/catalog-check.py
 python scripts/command_surface_check.py

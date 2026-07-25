@@ -10,9 +10,6 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import yaml
-
-
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 SUPPORTED_EXTRACTOR = {
     "name": "pdftotext.exe",
@@ -70,7 +67,7 @@ def load_canonical_document(
     try:
         raw = path.read_bytes()
         value = json.loads(
-            raw.decode("utf-8"),
+            raw.decode("utf-8", errors="strict"),
             object_pairs_hook=_object_no_duplicates,
             parse_constant=_reject_constant,
         )
@@ -508,6 +505,13 @@ def validate_extract_receipt(
 
 
 def _frontmatter(path: Path) -> dict[str, Any]:
+    try:
+        import yaml
+    except ImportError as exc:
+        raise EvidenceValidationError(
+            "CITATION-METADATA-MISSING",
+            "canonical page metadata cannot be validated because PyYAML is unavailable",
+        ) from exc
     try:
         text = path.read_text(encoding="utf-8")
         if not text.startswith("---\n"):

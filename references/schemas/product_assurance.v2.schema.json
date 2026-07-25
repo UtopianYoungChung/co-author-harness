@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/product_assurance.v2.schema.json",
+  "title": "Verifier-recomputed product assurance payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_type", "status", "qualification_mode", "product_disposition", "artifact", "semantic_receipt", "corpus_binding_sha256", "semantics_digest", "detector", "dimensions", "findings", "adjudications", "kernel_output_sha256"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "report_type": {"const": "product_assurance"},
+    "status": {"enum": ["passed", "needs_adjudication"]},
+    "qualification_mode": {"const": "governed_v3"},
+    "product_disposition": {"enum": ["evaluation_ready", "product_qualified"]},
+    "artifact": {"$ref": "#/$defs/binding"},
+    "semantic_receipt": {"$ref": "#/$defs/binding"},
+    "corpus_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "semantics_digest": {"$ref": "#/$defs/sha256"},
+    "detector": {"type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": {"name": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}},
+    "dimensions": {"type": "object", "additionalProperties": false, "required": ["quotation", "citation", "grounding", "register"], "properties": {"quotation": {"enum": ["passed", "failed"]}, "citation": {"enum": ["passed", "failed"]}, "grounding": {"enum": ["passed", "needs_adjudication"]}, "register": {"enum": ["passed", "needs_adjudication"]}}},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "adjudications": {"type": "array", "items": {"$ref": "#/$defs/adjudication"}},
+    "kernel_output_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"product_disposition": {"const": "product_qualified"}}}, "then": {"properties": {"status": {"const": "passed"}, "qualification_mode": {"const": "governed_v3"}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"enum": ["project", "wiki", "harness"]}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
+    "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}},
+    "span": {"type": "object", "additionalProperties": false, "required": ["start_utf8", "end_utf8", "text_sha256"], "properties": {"start_utf8": {"type": "integer", "minimum": 0}, "end_utf8": {"type": "integer", "minimum": 1}, "text_sha256": {"$ref": "#/$defs/sha256"}}},
+    "finding": {"type": "object", "additionalProperties": false, "required": ["code", "dimension", "severity", "locator", "evidence", "tentative"], "properties": {"code": {"type": "string", "minLength": 1}, "dimension": {"enum": ["quotation", "citation", "grounding", "register", "evidence"]}, "severity": {"enum": ["hard", "candidate"]}, "locator": {"type": "string", "minLength": 1}, "evidence": {"type": "string", "minLength": 1}, "tentative": {"type": "boolean"}, "candidate_text": {"type": "string", "minLength": 1}, "span": {"$ref": "#/$defs/span"}, "candidate_fingerprint": {"$ref": "#/$defs/sha256"}}, "dependentRequired": {"candidate_text": ["span", "candidate_fingerprint"], "span": ["candidate_text", "candidate_fingerprint"], "candidate_fingerprint": ["candidate_text", "span"]}, "allOf": [{"if": {"properties": {"severity": {"const": "candidate"}}}, "then": {"required": ["candidate_text", "span", "candidate_fingerprint"], "properties": {"tentative": {"const": true}}}}, {"if": {"properties": {"severity": {"const": "hard"}}}, "then": {"properties": {"tentative": {"const": false}}}}]},
+    "adjudication": {"type": "object", "additionalProperties": false, "required": ["candidate_fingerprint", "code", "locator", "disposition", "rationale", "evidence"], "properties": {"candidate_fingerprint": {"$ref": "#/$defs/sha256"}, "code": {"type": "string", "minLength": 1}, "locator": {"type": "string", "minLength": 1}, "disposition": {"enum": ["accepted_synthesis", "false_positive", "resolved_in_bytes"]}, "rationale": {"type": "string", "minLength": 1}, "evidence": {"type": "string", "minLength": 1}}}
+  }
+}

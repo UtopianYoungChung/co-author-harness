@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from draft_evidence_verifier import (
+    VerifierError,
+    publish_verifier_transaction,
+    recompute_product_assurance,
+    report_payload_sha256,
+    validate_verifier_transaction,
+)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 POLICY_PATH = ROOT / "references" / "policies" / "draft_governance.v1.json"
@@ -205,59 +213,17 @@ def _load_semantic_receipt(paths: list[Path]) -> tuple[Path, dict[str, Any]]:
     return matches[0]
 
 
-def _load_product_assurance(paths: list[Path], semantic_path: Path,
-                            artifact_path: Path, artifact_sha: str,
-                            phase: str) -> tuple[Path, dict[str, Any]]:
-    matches: list[tuple[Path, dict[str, Any]]] = []
+def _reject_supplied_product_assurance(paths: list[Path]) -> None:
     for path in paths:
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
             continue
         if isinstance(value, dict) and value.get("report_type") == "product_assurance":
-            matches.append((path, value))
-    if len(matches) != 1:
-        raise ContractError(
-            "DRAFT-POLICY-PRODUCT-ASSURANCE",
-            "centroid evidence must contain exactly one product-assurance report",
-        )
-    path, report = matches[0]
-    findings = report.get("findings")
-    if isinstance(findings, list) and any(
-        isinstance(row, dict)
-        and row.get("code") == "CENTROID-COVERAGE-INCOMPLETE"
-        for row in findings
-    ):
-        raise ContractError(
-            "CENTROID-COVERAGE-INCOMPLETE",
-            "product assurance found no centroid-role surface passage",
-        )
-    artifact = report.get("artifact")
-    semantic = report.get("semantic_receipt")
-    dimensions = report.get("dimensions")
-    if (
-        report.get("schema_version") != "1.0.0"
-        or report.get("status") not in (
-            {"passed", "needs_adjudication"} if phase == "generation" else {"passed"}
-        )
-        or not isinstance(artifact, dict)
-        or artifact.get("path") != str(artifact_path)
-        or artifact.get("sha256") != artifact_sha
-        or not isinstance(semantic, dict)
-        or Path(str(semantic.get("path", ""))).resolve(strict=False) != semantic_path
-        or semantic.get("sha256") != _sha(semantic_path)
-        or not isinstance(dimensions, dict)
-        or any(dimensions.get(key) != "passed" for key in ("quotation", "citation"))
-        or (phase == "evaluation" and any(
-            dimensions.get(key) != "passed" for key in ("grounding", "register")
-        ))
-        or (phase == "evaluation" and report.get("findings") != [])
-    ):
-        raise ContractError(
-            "DRAFT-POLICY-PRODUCT-ASSURANCE",
-            "product assurance does not pass all dimensions for the exact semantic receipt and artifact",
-        )
-    return path, report
+            raise ContractError(
+                "ASSURANCE-FORGED",
+                "role-supplied product assurance cannot prove its own result",
+            )
 
 
 def _packet_members(packet: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -444,9 +410,15 @@ def _verify_semantic_execution(
             "DRAFT-POLICY-CENTROID-EVIDENCE", "semantic assessment is incomplete"
         )
 
-    assurance_path, _ = _load_product_assurance(
-        evidence_paths, semantic_path, artifact_path, artifact_sha, phase
-    )
+    _reject_supplied_product_assurance(evidence_paths)
+    try:
+        assurance = recompute_product_assurance(
+            artifact=artifact_path,
+            semantic_receipt=semantic_path,
+            phase=phase,
+        )
+    except VerifierError as exc:
+        raise ContractError(exc.code, exc.message) from exc
     result = {
         "actor_id": semantic["actor_id"],
         "dispatch_id": semantic["dispatch_id"],
@@ -454,7 +426,7 @@ def _verify_semantic_execution(
         "centroid_packet_sha256": _sha(packet_path),
         "passage_count": len(passages),
         "passage_source_keys": sorted(set(source_keys)),
-        "product_assurance_sha256": _sha(assurance_path),
+        "product_assurance_sha256": report_payload_sha256(assurance),
     }
     if phase == "evaluation":
         generation_path = _binding(
@@ -478,6 +450,74 @@ def _verify_semantic_execution(
             )
         result["generation_envelope_sha256"] = _sha(generation_path)
     return result
+
+
+def _verify_current_semantic_transaction(
+    *,
+    args: argparse.Namespace,
+    semantic_path: Path,
+    semantic: dict[str, Any],
+    evidence_paths: list[Path],
+    contract: dict[str, Any],
+    artifact_path: Path,
+    artifact_sha: str,
+) -> dict[str, Any]:
+    _reject_supplied_product_assurance(evidence_paths)
+    if (
+        semantic.get("schema_version") != "3.0.0"
+        or semantic.get("target") != contract.get("target")
+        or semantic.get("phase") != args.phase
+        or semantic.get("role") != args.role
+        or semantic.get("artifact", {}).get("sha256") != artifact_sha
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "current semantic receipt does not match the draft-governance context",
+        )
+    if not args.wiki_root or not args.verifier_out_dir:
+        raise ContractError(
+            "DRAFT-POLICY-CENTROID-EVIDENCE",
+            "semantic receipt 3.0.0 requires --wiki-root and --verifier-out-dir",
+        )
+    project_root = Path(str(contract.get("project_root", ""))).resolve(strict=True)
+    semantics_manifest = Path(args.semantics_manifest).resolve(strict=True)
+    try:
+        published = publish_verifier_transaction(
+            artifact=artifact_path,
+            semantic_receipt=semantic_path,
+            phase=args.phase,
+            project_root=project_root,
+            wiki_root=Path(args.wiki_root),
+            harness_root=ROOT,
+            semantics_manifest=semantics_manifest,
+            out_dir=Path(args.verifier_out_dir),
+            requested_independence_level=args.requested_independence_level,
+        )
+        transaction = validate_verifier_transaction(
+            transaction=published["transaction"],
+            publication_manifest=published["publication_manifest"],
+            commit_marker=published["commit_marker"],
+            artifact=artifact_path,
+            semantic_receipt=semantic_path,
+            project_root=project_root,
+            wiki_root=Path(args.wiki_root),
+            harness_root=ROOT,
+            semantics_manifest=semantics_manifest,
+        )
+    except VerifierError as exc:
+        raise ContractError(exc.code, exc.message) from exc
+    return {
+        "semantic_receipt_sha256": _sha(semantic_path),
+        "product_assurance_sha256": _sha(published["product_assurance"]),
+        "verifier_transaction_id": transaction["transaction_id"],
+        "verifier_transaction_path": str(published["transaction"]),
+        "verifier_transaction_sha256": _sha(published["transaction"]),
+        "verifier_commit_marker_path": str(published["commit_marker"]),
+        "verifier_commit_marker_sha256": _sha(published["commit_marker"]),
+        "product_disposition": transaction["product_disposition"],
+        "requested_independence_level": transaction["requested_independence_level"],
+        "achieved_independence_level": transaction["achieved_independence_level"],
+    }
 
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
@@ -557,8 +597,26 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if obligation_id == f"centroid-{args.phase}":
             centroid_evidence_paths = bound_paths
-    semantic = _verify_semantic_execution(
-        centroid_evidence_paths, contract, artifact_path, artifact_sha, args.phase, args.role
+    semantic_path, semantic_value = _load_semantic_receipt(centroid_evidence_paths)
+    semantic = (
+        _verify_current_semantic_transaction(
+            args=args,
+            semantic_path=semantic_path,
+            semantic=semantic_value,
+            evidence_paths=centroid_evidence_paths,
+            contract=contract,
+            artifact_path=artifact_path,
+            artifact_sha=artifact_sha,
+        )
+        if semantic_value.get("schema_version") == "3.0.0"
+        else _verify_semantic_execution(
+            centroid_evidence_paths,
+            contract,
+            artifact_path,
+            artifact_sha,
+            args.phase,
+            args.role,
+        )
     )
     return {
         "schema_version": "1.0.0",
@@ -591,6 +649,17 @@ def main(argv: list[str] | None = None) -> int:
     verify_parser.add_argument("--artifact", required=True)
     verify_parser.add_argument("--phase", choices=sorted(PHASE_ROLE), required=True)
     verify_parser.add_argument("--role", choices=sorted(set(PHASE_ROLE.values())), required=True)
+    verify_parser.add_argument("--wiki-root")
+    verify_parser.add_argument("--verifier-out-dir")
+    verify_parser.add_argument(
+        "--semantics-manifest",
+        default=str(ROOT / "references" / "semantics_manifest.v1.json"),
+    )
+    verify_parser.add_argument(
+        "--requested-independence-level",
+        choices=("none", "dispatch_separation", "host_attested_independence"),
+        default="none",
+    )
     args = parser.parse_args(argv)
     try:
         result = prepare(args) if args.command == "prepare" else verify(args)

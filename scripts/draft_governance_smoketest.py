@@ -196,9 +196,6 @@ def obligation_receipt(
 ) -> dict:
     role = {"generation": "generator", "evaluation": "evaluator"}[phase]
     centroid_id = f"centroid-{phase}"
-    assurance_path = semantic_path.with_name(semantic_path.stem + ".product-assurance.json")
-    assurance = build_product_assurance(artifact, semantic_path)
-    assurance_path.write_text(json.dumps(assurance, indent=2) + "\n", encoding="utf-8")
     return {
         "schema_version": "1.0.0",
         "phase": phase,
@@ -210,7 +207,7 @@ def obligation_receipt(
                 "id": row["id"],
                 "status": "applied",
                 "evidence": (
-                    [binding(semantic_path), binding(assurance_path)]
+                    [binding(semantic_path)]
                     if row["id"] == centroid_id else [binding(generic_evidence)]
                 ),
                 "rationale": "fixture evidence",
@@ -411,6 +408,36 @@ def main() -> int:
         )
         require(verified.returncode == 0, verified.stdout + verified.stderr)
         require(json.loads(verified.stdout)["status"] == "verified", "receipt did not verify")
+
+        # C1 red specification: a hand-authored green assurance object with
+        # current hashes must never qualify itself.  v0.38 accepts it because
+        # draft_governance shape-checks the supplied report instead of invoking
+        # the product kernel or validating a verifier-issued transaction.
+        forged_assurance_path = project / "forged-green-assurance.json"
+        write_json(
+            forged_assurance_path,
+            build_product_assurance(artifact, evaluation_semantic),
+        )
+        forged_receipt = json.loads(json.dumps(receipt))
+        for row in forged_receipt["obligations"]:
+            if row["id"] == "centroid-evaluation":
+                row["evidence"] = [
+                    binding(evaluation_semantic), binding(forged_assurance_path)
+                ]
+        forged_receipt_path = project / "forged-green-receipt.json"
+        write_json(forged_receipt_path, forged_receipt)
+        forged_result = run(
+            "verify", "--contract", str(contract_path),
+            "--receipt", str(forged_receipt_path), "--artifact", str(artifact),
+            "--phase", "evaluation", "--role", "evaluator",
+        )
+        if not (
+            forged_result.returncode != 0 and "ASSURANCE-FORGED" in forged_result.stdout
+        ):
+            intended_red.append(
+                "ASSURANCE-FORGED: hand-authored green assurance with current hashes "
+                f"returned {forged_result.returncode}"
+            )
 
         # C1 red specification: one halo surface passage cannot stand in for a
         # centroid-role surface passage.  The future per-argument-member

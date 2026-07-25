@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/evidence_publication_journal.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "transaction_id", "plan_sha256", "state", "published", "inputs", "writes"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "plan_sha256": {"$ref": "#/$defs/sha256"},
+    "state": {"enum": ["prepared", "publishing", "published", "recovery_required", "rolled_back"]},
+    "published": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+    "writes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/write"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "input": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}},
+    "write": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size", "prepared", "prior_sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}, "prepared": {"type": "string", "minLength": 1}, "prior_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}}}
+  }
+}

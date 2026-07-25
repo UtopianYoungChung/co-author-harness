@@ -51,6 +51,8 @@ STOPWORDS = {
     "to", "under", "was", "we", "were", "what", "when", "where", "which",
     "who", "why", "will", "with", "would", "you", "your",
 }
+DETECTOR_NAME = "product-assurance-semantic-candidates"
+DETECTOR_VERSION = "2.0.0"
 
 V3_LEGACY_COMPATIBILITY_FIELDS = frozenset({
     "schema_version",
@@ -114,7 +116,7 @@ def sha256(path: Path) -> str:
 def load_json_document(path: Path, code: str) -> tuple[dict[str, Any], bytes]:
     try:
         raw = path.read_bytes()
-        value = json.loads(raw.decode("utf-8"))
+        value = json.loads(raw.decode("utf-8", errors="strict"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise AssuranceError(code, f"cannot read valid JSON at {path}: {exc}") from exc
     if not isinstance(value, dict):
@@ -158,11 +160,74 @@ def line_for(text: str, offset: int) -> int:
 
 
 def finding(code: str, dimension: str, severity: str, locator: str,
-            evidence: str, *, tentative: bool = False) -> dict[str, Any]:
-    return {
+            evidence: str, *, tentative: bool = False,
+            candidate_text: str | None = None,
+            span: dict[str, Any] | None = None) -> dict[str, Any]:
+    value = {
         "code": code, "dimension": dimension, "severity": severity,
         "locator": locator, "evidence": evidence, "tentative": tentative,
     }
+    if candidate_text is not None and span is not None:
+        value["candidate_text"] = candidate_text
+        value["span"] = span
+    return value
+
+
+def _span(text: str, start: int, end: int) -> dict[str, Any]:
+    selected = text[start:end]
+    return {
+        "start_utf8": len(text[:start].encode("utf-8")),
+        "end_utf8": len(text[:end].encode("utf-8")),
+        "text_sha256": hashlib.sha256(selected.encode("utf-8")).hexdigest(),
+    }
+
+
+def _candidate_fingerprint(
+    row: dict[str, Any],
+    *,
+    artifact_sha256: str,
+    corpus_binding_sha256: str,
+    policy_sha256: str,
+) -> str:
+    payload = {
+        "schema_version": "1.0.0",
+        "artifact_sha256": artifact_sha256,
+        "detector": {"name": DETECTOR_NAME, "version": DETECTOR_VERSION},
+        "code": row["code"],
+        "locator": row["locator"],
+        "span": row["span"],
+        "candidate_text": row["candidate_text"],
+        "corpus_binding_sha256": corpus_binding_sha256,
+        "policy_sha256": policy_sha256,
+        "evidence_sha256": hashlib.sha256(
+            canonical_bytes({"evidence": row["evidence"]})
+        ).hexdigest(),
+    }
+    return hashlib.sha256(canonical_bytes(payload)).hexdigest()
+
+
+def _corpus_binding_sha256(receipt: dict[str, Any]) -> str:
+    governed = receipt.get("corpus_digest")
+    if isinstance(governed, str) and SHA_RE.fullmatch(governed):
+        return governed
+    legacy_rows: list[dict[str, Any]] = []
+    for row in receipt.get("passages", []):
+        if not isinstance(row, dict):
+            continue
+        source = row.get("source")
+        extract = row.get("extract")
+        legacy_rows.append({
+            "source_key": row.get("source_key"),
+            "source_sha256": (
+                source.get("sha256") if isinstance(source, dict) else None
+            ),
+            "extract_sha256": (
+                extract.get("sha256") if isinstance(extract, dict) else None
+            ),
+            "extraction": row.get("extraction"),
+            "citation": row.get("citation"),
+        })
+    return hashlib.sha256(canonical_bytes(legacy_rows)).hexdigest()
 
 
 def _validate_passage_shape(row: Any) -> None:
@@ -306,23 +371,49 @@ def _semantic_findings(artifact: Path, text: str, corpus: str) -> list[dict[str,
     abstract_end = next((i for i, line in enumerate(lines[1:], 1)
                          if line.startswith("#") and "abstract" not in line.casefold()),
                         min(len(lines), 20))
-    abstract_text = "\n".join(lines[:abstract_end])
+    line_starts: list[int] = []
+    cursor = 0
+    for raw_line in text.splitlines(keepends=True):
+        line_starts.append(cursor)
+        cursor += len(raw_line)
+    if len(line_starts) < len(lines):
+        line_starts.append(cursor)
+    abstract_limit = line_starts[abstract_end] if abstract_end < len(line_starts) else len(text)
+    abstract_text = text[:abstract_limit]
+
+    token_spans: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
+    for number, line in enumerate(prose_lines, 1):
+        base = line_starts[number - 1]
+        for match in WORD_RE.finditer(line):
+            token_spans[match.group(0).casefold()].append(
+                (base + match.start(), base + match.end(), match.group(0))
+            )
 
     for number, line in enumerate(prose_lines, 1):
+        base = line_starts[number - 1]
         owned = "[s]" in line.casefold()
-        for token in words(line):
+        for match in WORD_RE.finditer(line):
+            token = match.group(0).casefold()
             if ("-" in token and token not in corpus_tokens and len(token) >= 6
                     and not owned):
+                start = base + match.start()
+                end = base + match.end()
                 out.append(finding(
                     "TERM-COINAGE", "grounding", "candidate",
                     f"{artifact.as_posix()}:{number}",
-                    f"hyphenated term absent from bound extracts: {token}", tentative=True,
+                    f"hyphenated term absent from bound extracts: {token}",
+                    tentative=True, candidate_text=text[start:end],
+                    span=_span(text, start, end),
                 ))
         if EMPIRICAL_RE.search(line) and not owned and not AUTHOR_YEAR_RE.search(line):
+            candidate_text = line.strip()
+            start = base + (len(line) - len(line.lstrip()))
+            end = start + len(candidate_text)
             out.append(finding(
                 "EMPIRICAL-UNSUPPORTED", "grounding", "candidate",
                 f"{artifact.as_posix()}:{number}",
-                line.strip()[:240], tentative=True,
+                candidate_text[:240], tentative=True,
+                candidate_text=candidate_text, span=_span(text, start, end),
             ))
 
     seen_prefix = ""
@@ -330,20 +421,26 @@ def _semantic_findings(artifact: Path, text: str, corpus: str) -> list[dict[str,
         phrase = match.group(1).strip().rstrip(".,;:")
         head = phrase.split()[0].casefold()
         if head not in set(words(seen_prefix)):
+            start = match.start(1)
+            end = match.end(1)
             out.append(finding(
                 "INSIDER-NEGATION", "register", "candidate",
                 f"{artifact.as_posix()}:{line_for(abstract_text, match.start())}",
-                f"abstract negates an unintroduced reader term: {phrase}", tentative=True,
+                f"abstract negates an unintroduced reader term: {phrase}",
+                tentative=True, candidate_text=abstract_text[start:end],
+                span=_span(text, start, end),
             ))
         seen_prefix = abstract_text[:match.end()]
 
     for token, count in sorted(manuscript_counts.items()):
         if (count >= 3 and token not in corpus_tokens and token not in STOPWORDS
                 and len(token) >= 6 and "-" not in token):
+            start, end, candidate_text = token_spans[token][0]
             out.append(finding(
                 "REGISTER-ABSENT", "register", "candidate", artifact.as_posix(),
                 f"high-frequency manuscript token absent from bound extracts: {token} ({count}x)",
-                tentative=True,
+                tentative=True, candidate_text=candidate_text,
+                span=_span(text, start, end),
             ))
     return out
 
@@ -503,7 +600,7 @@ def build(
     bound_artifact = resolve_binding(working_receipt.get("artifact"), "ARTIFACT-BINDING")
     if bound_artifact != artifact:
         raise AssuranceError("ARTIFACT-BINDING", "semantic receipt targets a different artifact")
-    text = artifact.read_text(encoding="utf-8", errors="strict")
+    text = artifact.read_bytes().decode("utf-8", errors="strict")
     passages = working_receipt.get("passages")
     if not isinstance(passages, list) or not passages:
         raise AssuranceError("PASSAGE-MISSING", "semantic receipt contains no passages")
@@ -513,6 +610,23 @@ def build(
         if coverage_finding is not None:
             hard.append(coverage_finding)
     semantic = _semantic_findings(artifact, text, corpus)
+    corpus_sha256 = hashlib.sha256(corpus.encode("utf-8")).hexdigest()
+    corpus_binding_sha256 = _corpus_binding_sha256(receipt)
+    policy_binding = receipt.get("policy", receipt.get("centroid_packet", {}))
+    policy_sha256 = (
+        policy_binding.get("sha256")
+        if isinstance(policy_binding, dict)
+        and isinstance(policy_binding.get("sha256"), str)
+        and SHA_RE.fullmatch(policy_binding["sha256"])
+        else "0" * 64
+    )
+    for row in semantic:
+        row["candidate_fingerprint"] = _candidate_fingerprint(
+            row,
+            artifact_sha256=sha256(artifact),
+            corpus_binding_sha256=corpus_binding_sha256,
+            policy_sha256=policy_sha256,
+        )
     adjudications = working_receipt.get("adjudications", [])
     if not isinstance(adjudications, list):
         raise AssuranceError("ADJUDICATION-SHAPE", "adjudications must be an array")
@@ -521,14 +635,21 @@ def build(
     for row in adjudications:
         if (
             not isinstance(row, dict)
-            or set(row) != {"code", "locator", "disposition", "rationale"}
+            or set(row) != {
+                "candidate_fingerprint", "code", "locator", "disposition", "rationale"
+            }
+            or not isinstance(row.get("candidate_fingerprint"), str)
+            or not SHA_RE.fullmatch(row["candidate_fingerprint"])
             or row.get("disposition") not in {"accepted_synthesis", "false_positive", "resolved_in_bytes"}
             or not isinstance(row.get("rationale"), str)
             or not row["rationale"].strip()
         ):
             raise AssuranceError("ADJUDICATION-SHAPE", "adjudication row is invalid")
         match = next((item for item in remaining_semantic
-                      if item["code"] == row.get("code") and item["locator"] == row.get("locator")), None)
+                      if item["code"] == row.get("code")
+                      and item["locator"] == row.get("locator")
+                      and item["candidate_fingerprint"]
+                      == row.get("candidate_fingerprint")), None)
         if match is None:
             raise AssuranceError(
                 "ADJUDICATION-STALE",
@@ -554,7 +675,7 @@ def build(
             "path": str(receipt_path),
             "sha256": hashlib.sha256(receipt_bytes).hexdigest(),
         },
-        "corpus_extract_sha256": hashlib.sha256(corpus.encode("utf-8")).hexdigest(),
+        "corpus_extract_sha256": corpus_sha256,
         "dimensions": dimensions, "findings": findings, "adjudications": cleared,
     }
 

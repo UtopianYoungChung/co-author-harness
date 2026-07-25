@@ -47,6 +47,7 @@ REGISTRY = ROOT / "references" / "destination_coverage_registry.json"
 WRITE_PATTERN = re.compile(
     r"write_text|write_bytes|open\([^)]*[\"']w|open\([^)]*[\"']x"
     r"|os\.replace|shutil\.(?:move|copy|rmtree)|\.rename\(|\.unlink\(|\.mkdir\("
+    r"|publish_committed\("
 )
 GUARD_PATTERN = re.compile(
     r"guard_project_root\(|guard_repin_project_root\(|assert_writable\("

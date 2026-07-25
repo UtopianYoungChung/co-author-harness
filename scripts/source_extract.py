@@ -153,7 +153,7 @@ def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> i
             return _block("EXTRACTOR-FAILED", result.stderr.strip())
         raw_bytes = prepared_raw.read_bytes()
         try:
-            raw_text = raw_bytes.decode("utf-8")
+            raw_text = raw_bytes.decode("utf-8", errors="strict")
         except UnicodeError as exc:
             return _block("EXTRACTOR-FAILED", f"extract is not UTF-8: {exc}")
         normalized = raw_text.replace("\r\n", "\n").replace("\r", "\n")
@@ -162,7 +162,9 @@ def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> i
         if args.page_map_seed is not None:
             try:
                 page_map_seed_bytes = args.page_map_seed.read_bytes()
-                page_map_value = json.loads(page_map_seed_bytes.decode("utf-8"))
+                page_map_value = json.loads(
+                    page_map_seed_bytes.decode("utf-8", errors="strict")
+                )
                 page_map_seed_digest = hashlib.sha256(page_map_seed_bytes).hexdigest()
             except (OSError, UnicodeError, json.JSONDecodeError) as exc:
                 return _block("EXTRACT-LOCATOR-MISMATCH", f"page-map seed is invalid: {exc}")
@@ -309,7 +311,7 @@ def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> i
         )
     except EvidencePublicationError as exc:
         return _block("EXTRACT-RECEIPT-INVALID", str(exc))
-    print(canonical_bytes(receipt).decode("utf-8").rstrip("\n"))
+    print(canonical_bytes(receipt).decode("utf-8", errors="strict").rstrip("\n"))
     return 0
 
 

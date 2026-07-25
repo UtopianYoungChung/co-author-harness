@@ -276,7 +276,14 @@ def publish_committed(
                 raise EvidencePublicationError(
                     "visible commit marker has a non-matching output prefix; inspected recovery required"
                 )
-            journal["published"] = [row["path"] for row in journal["writes"]]
+            expected_published = [row["path"] for row in journal["writes"]]
+            if (
+                journal.get("state") == "published"
+                and journal.get("published") == expected_published
+                and claim.get("state") == "consumed"
+            ):
+                return
+            journal["published"] = expected_published
             journal["state"] = "published"
             claim["state"] = "consumed"
             _durable_write(journal_path, _canonical(journal))
@@ -310,44 +317,241 @@ def publish_committed(
             ) from exc
 
 
+def validate_committed(
+    *,
+    project_root: Path,
+    transaction_id: str,
+    preconditions: list[tuple[Path, str]],
+    inventory_preconditions: list[tuple[Path, dict[str, str]]],
+    outputs: list[tuple[Path, bytes]],
+    marker: tuple[Path, bytes],
+) -> None:
+    """Validate exact published bytes and the consumed transaction journal."""
+    root = project_root.resolve(strict=True)
+    all_rows = [*outputs, marker]
+    resolved = [(path.resolve(strict=True), data) for path, data in all_rows]
+    if not transaction_id or len({path for path, _ in resolved}) != len(resolved):
+        raise EvidencePublicationError("transaction id or output set is invalid")
+    if any(not path.is_relative_to(root) for path, _ in resolved):
+        raise EvidencePublicationError("publication output escapes project root")
+    plan = {
+        "schema_version": "1.0.0",
+        "transaction_id": transaction_id,
+        "inputs": [
+            {
+                "path": str(path.resolve(strict=True)),
+                "sha256": digest,
+                "size": path.resolve(strict=True).stat().st_size,
+            }
+            for path, digest in preconditions
+        ],
+        "inventories": [
+            {
+                "root": str(inventory_root.resolve(strict=True)),
+                "files": expected,
+            }
+            for inventory_root, expected in inventory_preconditions
+        ],
+        "outputs": [_binding(root, path, data) for path, data in resolved],
+        "marker_path": resolved[-1][0].relative_to(root).as_posix(),
+    }
+    plan_hash = _digest(_canonical(plan))
+    lane = (root / ".harness-evidence-transactions" / transaction_id).resolve()
+    if not lane.is_relative_to(root):
+        raise EvidencePublicationError("transaction lane escapes project root")
+    claim_path = lane / "claim.json"
+    journal_path = lane / "journal.json"
+    try:
+        claim_raw = claim_path.read_bytes()
+        journal_raw = journal_path.read_bytes()
+        claim = json.loads(claim_raw.decode("utf-8", errors="strict"))
+        journal = json.loads(journal_raw.decode("utf-8", errors="strict"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise EvidencePublicationError("transaction state is unreadable") from exc
+    if claim_raw != _canonical(claim) or journal_raw != _canonical(journal):
+        raise EvidencePublicationError("transaction state is not canonical")
+    if (
+        claim.get("schema_version") != "1.0.0"
+        or claim.get("transaction_id") != transaction_id
+        or claim.get("claim_type") != "exclusive_no_ttl"
+        or claim.get("state") != "consumed"
+        or claim.get("plan_sha256") != plan_hash
+        or not isinstance(claim.get("owner_pid"), int)
+    ):
+        raise EvidencePublicationError("transaction claim is inconsistent")
+    expected_writes: list[dict[str, Any]] = []
+    for index, row in enumerate(plan["outputs"]):
+        prepared_path = lane / "prepared" / f"{index:03d}.bin"
+        expected = {
+            **row,
+            "prepared": prepared_path.relative_to(root).as_posix(),
+        }
+        expected_writes.append(expected)
+    writes = journal.get("writes")
+    if not isinstance(writes, list) or len(writes) != len(expected_writes):
+        raise EvidencePublicationError("transaction journal write set is inconsistent")
+    for actual, expected in zip(writes, expected_writes, strict=True):
+        prior = actual.get("prior_sha256") if isinstance(actual, dict) else None
+        if prior is not None and (
+            not isinstance(prior, str)
+            or len(prior) != 64
+            or any(char not in "0123456789abcdef" for char in prior)
+        ):
+            raise EvidencePublicationError("transaction prior hash is invalid")
+        if not isinstance(actual, dict) or {
+            key: value for key, value in actual.items() if key != "prior_sha256"
+        } != expected:
+            raise EvidencePublicationError("transaction journal write binding differs")
+        prepared_path = (root / expected["prepared"]).resolve(strict=True)
+        if (
+            not prepared_path.is_relative_to(lane / "prepared")
+            or _digest(prepared_path.read_bytes()) != expected["sha256"]
+        ):
+            raise EvidencePublicationError("prepared publication bytes are stale")
+    expected_published = [row["path"] for row in writes]
+    if (
+        journal.get("schema_version") != "1.0.0"
+        or journal.get("transaction_id") != transaction_id
+        or journal.get("plan_sha256") != plan_hash
+        or journal.get("state") != "published"
+        or journal.get("inputs") != plan["inputs"]
+        or journal.get("published") != expected_published
+    ):
+        raise EvidencePublicationError("transaction journal is not committed")
+    for path, data in resolved:
+        if path.read_bytes() != data:
+            raise EvidencePublicationError("published bytes differ from exact intent")
+
+
 def recover_committed(
     *,
     project_root: Path,
     transaction_id: str,
     acknowledgement: str,
+    preconditions: list[tuple[Path, str]],
+    inventory_preconditions: list[tuple[Path, dict[str, str]]],
+    outputs: list[tuple[Path, bytes]],
+    marker: tuple[Path, bytes],
+    destination_validator: Callable[[Path], None],
 ) -> str:
-    """Recover a non-live publication without deleting its journal history."""
+    """Recover only a caller-rederived and destination-authorized intent."""
     if acknowledgement != "inspected-evidence-state-and-journal":
         raise EvidencePublicationError("exact recovery acknowledgement is required")
     root = project_root.resolve(strict=True)
-    lane = root / ".harness-evidence-transactions" / transaction_id
+    all_rows = [*outputs, marker]
+    resolved = [(path.resolve(), data) for path, data in all_rows]
+    if not transaction_id or len({path for path, _ in resolved}) != len(resolved):
+        raise EvidencePublicationError("transaction id or output set is invalid")
+    if any(not path.is_relative_to(root) for path, _ in resolved):
+        raise EvidencePublicationError("publication output escapes project root")
+    for path, _data in resolved:
+        destination_validator(path)
+    for path, expected in preconditions:
+        resolved_input = path.resolve(strict=True)
+        if _digest(resolved_input.read_bytes()) != expected:
+            raise EvidencePublicationError(
+                f"publication dependency changed before recovery: {resolved_input}"
+            )
+    for inventory_root, expected in inventory_preconditions:
+        resolved_inventory = inventory_root.resolve(strict=True)
+        actual = {
+            path.relative_to(resolved_inventory).as_posix(): _digest(path.read_bytes())
+            for path in sorted(resolved_inventory.glob("*.md"))
+            if path.is_file()
+        }
+        if actual != expected:
+            raise EvidencePublicationError(
+                f"publication inventory changed before recovery: {resolved_inventory}"
+            )
+    plan = {
+        "schema_version": "1.0.0",
+        "transaction_id": transaction_id,
+        "inputs": [
+            {
+                "path": str(path.resolve(strict=True)),
+                "sha256": digest,
+                "size": path.resolve(strict=True).stat().st_size,
+            }
+            for path, digest in preconditions
+        ],
+        "inventories": [
+            {
+                "root": str(inventory_root.resolve(strict=True)),
+                "files": expected,
+            }
+            for inventory_root, expected in inventory_preconditions
+        ],
+        "outputs": [_binding(root, path, data) for path, data in resolved],
+        "marker_path": resolved[-1][0].relative_to(root).as_posix(),
+    }
+    plan_hash = _digest(_canonical(plan))
+    lane = (root / ".harness-evidence-transactions" / transaction_id).resolve()
+    if not lane.is_relative_to(root):
+        raise EvidencePublicationError("transaction lane escapes project root")
     claim_path = lane / "claim.json"
     journal_path = lane / "journal.json"
     with _claim_lock(lane / "claim.lock"):
         try:
-            claim = json.loads(claim_path.read_text(encoding="utf-8"))
-            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            claim_raw = claim_path.read_bytes()
+            journal_raw = journal_path.read_bytes()
+            claim = json.loads(claim_raw.decode("utf-8", errors="strict"))
+            journal = json.loads(journal_raw.decode("utf-8", errors="strict"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise EvidencePublicationError("transaction state is unreadable") from exc
+        if claim_raw != _canonical(claim) or journal_raw != _canonical(journal):
+            raise EvidencePublicationError("transaction state is not canonical")
         if (
-            claim.get("transaction_id") != transaction_id
+            claim.get("schema_version") != "1.0.0"
+            or claim.get("transaction_id") != transaction_id
+            or claim.get("claim_type") != "exclusive_no_ttl"
+            or claim.get("state") not in {"active", "consumed"}
+            or claim.get("plan_sha256") != plan_hash
+            or not isinstance(claim.get("owner_pid"), int)
+            or journal.get("schema_version") != "1.0.0"
             or journal.get("transaction_id") != transaction_id
-            or claim.get("plan_sha256") != journal.get("plan_sha256")
+            or journal.get("plan_sha256") != plan_hash
+            or journal.get("state") not in {
+                "prepared", "publishing", "published", "recovery_required"
+            }
+            or journal.get("inputs") != plan["inputs"]
             or not isinstance(journal.get("writes"), list)
-            or not journal["writes"]
+            or len(journal["writes"]) != len(resolved)
         ):
             raise EvidencePublicationError("transaction state is inconsistent")
+        expected_writes: list[dict[str, Any]] = []
+        for index, row in enumerate(plan["outputs"]):
+            expected_writes.append({
+                **row,
+                "prepared": (
+                    lane / "prepared" / f"{index:03d}.bin"
+                ).relative_to(root).as_posix(),
+            })
+        for actual, expected in zip(journal["writes"], expected_writes, strict=True):
+            prior = actual.get("prior_sha256") if isinstance(actual, dict) else None
+            if prior is not None and (
+                not isinstance(prior, str)
+                or len(prior) != 64
+                or any(char not in "0123456789abcdef" for char in prior)
+            ):
+                raise EvidencePublicationError("transaction prior hash is invalid")
+            if not isinstance(actual, dict) or {
+                key: value for key, value in actual.items() if key != "prior_sha256"
+            } != expected:
+                raise EvidencePublicationError("transaction journal differs from intent")
+            prepared_path = (root / expected["prepared"]).resolve(strict=True)
+            if (
+                not prepared_path.is_relative_to(lane / "prepared")
+                or _digest(prepared_path.read_bytes()) != expected["sha256"]
+            ):
+                raise EvidencePublicationError("prepared recovery bytes are stale")
         states: list[str] = []
-        for row in journal["writes"]:
-            destination = (root / row["path"]).resolve()
-            if not destination.is_relative_to(root):
-                raise EvidencePublicationError("journal output escapes project root")
+        for row, (destination, data) in zip(journal["writes"], resolved, strict=True):
             actual = (
-                hashlib.sha256(destination.read_bytes()).hexdigest()
+                _digest(destination.read_bytes())
                 if destination.is_file()
                 else None
             )
-            if actual == row["sha256"]:
+            if actual == _digest(data):
                 states.append("desired")
             elif actual == row.get("prior_sha256"):
                 states.append("prior")
@@ -365,13 +569,13 @@ def recover_committed(
                 raise EvidencePublicationError(
                     "visible commit marker has a non-matching output prefix"
                 )
-            journal["published"] = [row["path"] for row in journal["writes"]]
+            journal["published"] = [row["path"] for row in expected_writes]
             journal["state"] = "published"
             claim["state"] = "consumed"
             _durable_write(journal_path, _canonical(journal))
             _durable_write(claim_path, _canonical(claim))
             return "committed"
-        marker_destination = (root / journal["writes"][-1]["path"]).resolve()
+        marker_destination = resolved[-1][0]
         if marker_destination.exists():
             journal["state"] = "recovery_required"
             _durable_write(journal_path, _canonical(journal))
@@ -395,7 +599,9 @@ def recover_committed(
                 "plan_sha256": journal["plan_sha256"],
             })
             return "rolled_back"
-        for row, state in zip(journal["writes"], states, strict=True):
+        for row, state, (destination, _data) in zip(
+            journal["writes"], states, resolved, strict=True
+        ):
             if state == "desired":
                 continue
             prepared_path = (root / row["prepared"]).resolve(strict=True)
@@ -405,12 +611,11 @@ def recover_committed(
                 != row["sha256"]
             ):
                 raise EvidencePublicationError("prepared recovery bytes are stale")
-            destination = (root / row["path"]).resolve()
             if row is journal["writes"][-1]:
                 _exclusive_marker(destination, prepared_path.read_bytes())
             else:
                 _durable_write(destination, prepared_path.read_bytes())
-        journal["published"] = [row["path"] for row in journal["writes"]]
+        journal["published"] = [row["path"] for row in expected_writes]
         journal["state"] = "published"
         claim["state"] = "consumed"
         _durable_write(journal_path, _canonical(journal))

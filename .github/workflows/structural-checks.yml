@@ -21,12 +21,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install pyyaml tiktoken
+        run: pip install pyyaml tiktoken jsonschema
       - name: Structural + registry checks
         run: |
           set -e
           for script in \
             skill-check.py \
+            schema_runtime_check.py \
             version-check.py \
             distribution-rights-check.py \
             catalog-check.py \
@@ -71,7 +72,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install pyyaml tiktoken
+        run: pip install pyyaml tiktoken jsonschema
       - name: Fixture infrastructure preflight
         run: python scripts/analysis/fixture_infrastructure_check.py
       - name: Authoritative fixture registry

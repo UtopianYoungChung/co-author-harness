@@ -29,6 +29,11 @@ V3_SCHEMA = json.loads(
         encoding="utf-8"
     )
 )
+V2_SEMANTIC_SCHEMA = json.loads(
+    (ROOT / "references" / "schemas" / "centroid_semantic_execution.schema.json").read_text(
+        encoding="utf-8"
+    )
+)
 EXTRACT_SCHEMA = json.loads(
     (ROOT / "references" / "schemas" / "canonical_extract_receipt.schema.json").read_text(
         encoding="utf-8"
@@ -612,8 +617,32 @@ def main() -> int:
         semantic_candidates = [row for row in candidate_payload["findings"]
                                if row["severity"] == "candidate"]
         assert semantic_candidates
+
+        crlf_candidate = root / "candidate-crlf.md"
+        crlf_candidate.write_bytes(
+            candidate.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8")
+        )
+        crlf_receipt = root / "candidate-crlf-receipt.json"
+        write_receipt(
+            crlf_receipt, crlf_candidate, source_a, extract_a, source_b, extract_b,
+            quote="the whys behind the whats and hows",
+        )
+        crlf_report = root / "candidate-crlf-report.json"
+        crlf_result = run(crlf_candidate, crlf_receipt, crlf_report)
+        assert crlf_result.returncode == 2
+        crlf_payload = json.loads(crlf_report.read_text(encoding="utf-8"))
+        raw_artifact = crlf_candidate.read_bytes()
+        for row in crlf_payload["findings"]:
+            if row["severity"] != "candidate":
+                continue
+            span = row["span"]
+            selected = raw_artifact[span["start_utf8"]:span["end_utf8"]]
+            assert selected.decode("utf-8", errors="strict") == row["candidate_text"]
+            assert hashlib.sha256(selected).hexdigest() == span["text_sha256"]
+
         receipt_payload = json.loads(candidate_receipt.read_text(encoding="utf-8"))
         receipt_payload["adjudications"] = [{
+            "candidate_fingerprint": row["candidate_fingerprint"],
             "code": row["code"], "locator": row["locator"],
             "disposition": "accepted_synthesis",
             "rationale": "Independent Evaluator accepts this explicit synthesis for the fixture.",
@@ -621,8 +650,39 @@ def main() -> int:
         candidate_receipt.write_text(
             canonical_json(receipt_payload), encoding="utf-8", newline="\n"
         )
+        Draft202012Validator(V2_SEMANTIC_SCHEMA).validate(receipt_payload)
         adjudicated = run(candidate, candidate_receipt, root / "candidate-adjudicated.json")
         assert adjudicated.returncode == 0, adjudicated.stdout + adjudicated.stderr
+
+        # C3 first red: a disposition binds the exact candidate, not merely a
+        # detector code and locator.  Keep both of those legacy lookup fields
+        # constant while changing the candidate text and the current artifact
+        # binding.  The legacy kernel wrongly carries the old disposition
+        # forward to the new candidate.
+        candidate.write_text(
+            candidate.read_text(encoding="utf-8").replace(
+                "bounded contribution is bounded and bounded",
+                "limited contribution is limited and limited",
+            ),
+            encoding="utf-8",
+        )
+        stale_payload = json.loads(candidate_receipt.read_text(encoding="utf-8"))
+        stale_payload["artifact"] = binding(candidate)
+        candidate_receipt.write_text(
+            canonical_json(stale_payload), encoding="utf-8", newline="\n"
+        )
+        Draft202012Validator(V2_SEMANTIC_SCHEMA).validate(stale_payload)
+        stale_adjudication = run(
+            candidate, candidate_receipt, root / "candidate-stale-adjudication.json"
+        )
+        if not (
+            stale_adjudication.returncode != 0
+            and "ADJUDICATION-STALE" in stale_adjudication.stdout
+        ):
+            intended_red.append(
+                "ADJUDICATION-STALE: changed candidate text at the same code/locator "
+                f"returned {stale_adjudication.returncode}"
+            )
 
         bad = root / "bad.md"
         bad.write_text(

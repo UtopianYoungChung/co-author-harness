@@ -250,6 +250,14 @@ def main() -> int:
         transaction_lane = (
             activation.root / ".harness-evidence-transactions" / transaction_id
         )
+        recovery_marker_bytes = generated_marker.read_bytes()
+        recovery_outputs = [
+            (generated_raw, generated_raw.read_bytes()),
+            (generated_text, generated_text.read_bytes()),
+            (generated_map, generated_map.read_bytes()),
+            (generated_manifest, generated_manifest.read_bytes()),
+            (generated_receipt, generated_receipt.read_bytes()),
+        ]
         generated_marker.unlink()
         journal_path = transaction_lane / "journal.json"
         claim_path = transaction_lane / "claim.json"
@@ -267,6 +275,20 @@ def main() -> int:
             project_root=activation.root,
             transaction_id=transaction_id,
             acknowledgement="inspected-evidence-state-and-journal",
+            preconditions=[
+                (activation.root / "miniature.pdf", sha(activation.root / "miniature.pdf")),
+                (activation.project_manifest, sha(activation.project_manifest)),
+                (tool, sha(tool)),
+                (ASSET_ROOT / "expected_page_span_map.json", sha(
+                    ASSET_ROOT / "expected_page_span_map.json"
+                )),
+            ],
+            inventory_preconditions=[],
+            outputs=recovery_outputs,
+            marker=(generated_marker, recovery_marker_bytes),
+            destination_validator=lambda path: path.resolve().relative_to(
+                activation.root.resolve()
+            ),
         ) == "committed"
         assert generated_marker.is_file()
         assert list((transaction_lane / "recovery").glob("*.json"))

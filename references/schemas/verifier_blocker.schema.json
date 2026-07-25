@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/verifier_blocker.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_type", "status", "reason_code", "detail"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "report_type": {"const": "verifier_blocker"},
+    "status": {"const": "blocked"},
+    "reason_code": {"type": "string", "minLength": 1},
+    "detail": {"type": "string", "minLength": 1}
+  }
+}

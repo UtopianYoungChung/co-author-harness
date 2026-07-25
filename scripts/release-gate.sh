@@ -67,8 +67,8 @@
 # Description length is measured empirically against installed peers; there is no
 # hard-coded character target in this script.
 #
-# This script runs under bash 4+. It requires python3, PyYAML (python `yaml` module),
-# zip, and unzip. No jq, no yq, no node.
+# This script runs under bash 4+. It requires python3, PyYAML (python `yaml`
+# module), jsonschema, referencing, zip, and unzip. No jq, no yq, no node.
 
 set -euo pipefail
 
@@ -230,6 +230,24 @@ if [[ -f "$PLUGIN_ROOT/scripts/skill-check.py" ]]; then
 else
     echo "Skill integrity checks: script missing (scripts/skill-check.py)"
     echo "  [BLOCKER] cannot run skill integrity checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.3b: JSON Schema runtime capability ---------------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/schema_runtime_check.py" ]]; then
+    echo "JSON Schema runtime capability"
+    if ! python3 "$PLUGIN_ROOT/scripts/schema_runtime_check.py"; then
+        echo "  [BLOCKER] required Draft 2020-12 runtime is unavailable"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      required Draft 2020-12 runtime passed"
+    fi
+    echo ""
+else
+    echo "JSON Schema runtime capability: script missing"
+    echo "  [BLOCKER] cannot verify required runtime"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi

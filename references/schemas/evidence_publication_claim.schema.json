@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/evidence_publication_claim.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "transaction_id", "claim_type", "owner_pid", "state", "plan_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "claim_type": {"const": "exclusive_no_ttl"},
+    "owner_pid": {"type": "integer", "minimum": 0},
+    "state": {"enum": ["active", "consumed", "recovered_rollback"]},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

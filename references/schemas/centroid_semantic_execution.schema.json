@@ -32,8 +32,9 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "locator", "disposition", "rationale"],
+        "required": ["candidate_fingerprint", "code", "locator", "disposition", "rationale"],
         "properties": {
+          "candidate_fingerprint": {"$ref": "#/$defs/sha256"},
           "code": {"type": "string", "minLength": 1},
           "locator": {"type": "string", "minLength": 1},
           "disposition": {"enum": ["accepted_synthesis", "false_positive", "resolved_in_bytes"]},

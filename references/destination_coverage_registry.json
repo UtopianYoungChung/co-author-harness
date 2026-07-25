@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "a65ac95785e21e46a0fc849528293cfd8f6d932e9df3bf6f6312ded98a693247"
+      "sha256": "3d30778a31f4ee4176fcb64b143ccec212c9336a1ff332913712a8cf36a2c9b2"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -60,14 +60,22 @@
       "reason": "write-helper library with no CLI entry; its only writing caller is scripts/audit/run_all.py, which is guarded; sha256 pin forces re-review of any change",
       "sha256": "5dffcc635b2a64075be1eebcfda88fd6e8527bd0d185f566be62484fed70177e"
     },
+    "scripts/canonical_bibliography.py": {
+      "class": "guarded",
+      "regression": "scripts/canonical_bibliography_smoketest.py"
+    },
     "scripts/product_assurance.py": {
       "class": "guarded",
       "regression": "scripts/product_assurance_smoketest.py"
     },
     "scripts/evidence_publication.py": {
       "class": "excluded",
-      "reason": "journaled publication and recovery library with no CLI entry; its writing callers are the guarded source_extract.py and canonical_bibliography.py publishers",
-      "sha256": "0e713f170d83ce316dd85c6ea6cfa32f9ec867ab2a346633f838858752f65bff"
+      "reason": "journaled publication, validation, and recovery library with no CLI entry; its writing callers are guarded publishers",
+      "sha256": "e002ed4cac4101ef95f535ad90cfc741432c8511de0850d641630201aa3fa94f"
+    },
+    "scripts/draft_evidence_verifier.py": {
+      "class": "guarded",
+      "regression": "scripts/draft_evidence_verifier_smoketest.py"
     },
     "scripts/source_extract.py": {
       "class": "guarded",
@@ -102,7 +110,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "e688e6a79f070b384f5a849a4afd6980358c0fe423176d721a2fdbdee6f1e018"
+      "sha256": "da336e4ee1932d43b32418bb31d614a306b42bdf4ad5532debcf8ee567b8c821"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",
@@ -157,7 +165,7 @@
     "scripts/fixtures/assurance_provenance_c2/build_c2_assets.py": {
       "class": "package_confined",
       "evidence": "regenerates only the fixed package fixture directory derived from __file__; build intermediates use a temporary directory",
-      "sha256": "26e620b75d6289ff454b91f9908a41696c2e2e9081e287ac23bc5f9b98d1ab62"
+      "sha256": "efc2517d51acf48677e261b70c835cda371afe6cda7ad03ae27218499b377ec2"
     },
     "scripts/sk20_overlay_run.py": {
       "class": "guarded",

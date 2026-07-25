@@ -398,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
         return _block("CITATION-ROOT-MISMATCH", str(exc))
     except (BibliographyPublishError, EvidencePublicationError, OSError) as exc:
         return _block(getattr(exc, "code", "CITATION-SNAPSHOT-INVALID"), str(exc))
-    print(canonical_bytes(value).decode("utf-8").rstrip("\n"))
+    print(canonical_bytes(value).decode("utf-8", errors="strict").rstrip("\n"))
     return 0
 
 

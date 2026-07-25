@@ -43,10 +43,11 @@ body for the harness.
 
 ## Maintainer — structural checks (harness root)
 
-From this directory, with Python 3 and PyYAML available:
+From this directory, with Python 3, PyYAML, and jsonschema available:
 
 ```bash
 python scripts/skill-check.py
+python scripts/schema_runtime_check.py
 python scripts/version-check.py
 python scripts/distribution-rights-check.py
 python scripts/catalog-check.py
