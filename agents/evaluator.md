@@ -146,17 +146,22 @@ Ph4 consumes the accumulated F4 block as prior context; Reflector Phase **2g.3**
 
 ### Step 0 — Coupling E.2 gate
 
-Before SK-20 and Step 0a, run the canonical pre-flight:
+Before SK-20 and Step 0a, run the mechanical pre-flight:
 
-`python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --semantic-receipt "<evaluation-semantic-receipt>" --wiki-root "<wiki-root>" --workspace-root "<workspace-root>" --out "<shipment>/findings.json" --product-assurance-out "<shipment>/product_assurance.json"`
+`python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --wiki-root "<wiki-root>" --workspace-root "<workspace-root>" --out "<shipment>/findings.json"`
 
-The product-assurance portion is not a style overlay. Verify canonical quote
+That command is diagnostic mechanics only. For governed product qualification,
+publish the Evaluator's committed evaluation-verifier transaction and run:
+
+`python scripts/run_product_gate.py --mode governed-product --project-root "<project-root>" --artifact "<manuscript>" --out-dir "<shipment>/product-gate" --wiki-root "<wiki-root>" --semantic-receipt "<evaluation-semantic-receipt>" --verifier-transaction "<evaluation-verifier-transaction>" --verifier-publication-manifest "<evaluation-verifier-publication-manifest>" --verifier-commit-marker "<evaluation-verifier-commit-marker>"`
+
+The governed product gate is not a style overlay. Verify canonical quote
 containment and same-year title/label identity; then adjudicate each current
 coinage, register-absence, insider-negation, and empirical-claim candidate by
 exact code and locator. Hard quote/citation failures cannot be waived. The
 Generator cannot author these evaluation dispositions.
 
-This writes both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
+The mechanical pre-flight writes both `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
 Cite the D-STYLE profile report in the deterministic summary. Treat its
 `active_obligations[]` as the routing surface and its `findings[]` as D-STYLE
 pre-flight findings for this round. The report tells you whether to foreground

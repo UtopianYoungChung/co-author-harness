@@ -29,6 +29,14 @@ for internal routing, compatibility, and truthful failure behavior.
 | Inspect evidence integrity | `/grounding-audit` |
 | Learn from a round | `/run-reflection lightweight|full` |
 
+`/quick-deterministic` is mechanics-only. Governed product qualification is an
+Evaluator lifecycle operation, exposed from a source checkout as:
+
+`python scripts/run_product_gate.py --mode governed-product --project-root "<project-root>" --artifact "<manuscript>" --out-dir "<shipment>/product-gate" --wiki-root "<wiki-root>" --semantic-receipt "<evaluation-semantic-receipt>" --verifier-transaction "<evaluation-verifier-transaction>" --verifier-publication-manifest "<evaluation-verifier-publication-manifest>" --verifier-commit-marker "<evaluation-verifier-commit-marker>"`
+
+Do not substitute `scripts/audit/run_all.py` output or a compatibility semantic
+receipt for that governed evidence.
+
 ## Command catalog
 
 | Command | Purpose | Best use |

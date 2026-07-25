@@ -44,6 +44,7 @@ REQUIRED_SEMANTICS_MEMBERS = (
     "references/schemas/assignment_mutation_anchor.schema.json",
     "references/schemas/assignment_mutation_genesis.schema.json",
     "references/schemas/assignment_mutation_state.schema.json",
+    "references/schemas/lifecycle_verifier_binding.schema.json",
     "references/schemas/canonical_bibliography_snapshot.schema.json",
     "references/schemas/canonical_extract_receipt.schema.json",
     "references/schemas/centroid_semantic_execution.schema.json",
@@ -848,6 +849,139 @@ def validate_verifier_transaction(
     except EvidencePublicationError as exc:
         raise VerifierError("VERIFIER-TRANSACTION-INCOMPLETE", str(exc)) from exc
     return intent["transaction_value"]
+
+
+def validate_lifecycle_verifier_binding(
+    *,
+    locator: Path,
+    artifact: Path,
+    project_root: Path,
+    harness_root: Path,
+    expected_phase: str,
+    expected_disposition: str,
+) -> dict[str, Any]:
+    """Validate the exact shared verifier transaction consumed by lifecycle gates."""
+    project_root = project_root.resolve(strict=True)
+    harness_root = harness_root.resolve(strict=True)
+    locator = locator.resolve(strict=True)
+    artifact = artifact.resolve(strict=True)
+    if not locator.is_relative_to(project_root) or not artifact.is_relative_to(project_root):
+        raise VerifierError("LIFECYCLE-EVIDENCE-ROOT-MISMATCH", "lifecycle evidence escapes the project root")
+    try:
+        value = json.loads(locator.read_text(encoding="utf-8"))
+        _schema(
+            "lifecycle_verifier_binding.schema.json", harness_root=harness_root
+        ).validate(value)
+    except Exception as exc:
+        raise VerifierError("LIFECYCLE-EVIDENCE-INVALID", str(exc)) from exc
+    if (
+        value.get("phase") != expected_phase
+        or value.get("product_disposition") != expected_disposition
+    ):
+        raise VerifierError(
+            "LIFECYCLE-EVIDENCE-DISPOSITION",
+            "lifecycle verifier phase or disposition differs from the gate",
+        )
+
+    def resolve(row: dict[str, Any], expected_root: str) -> Path:
+        if row.get("root") != expected_root:
+            raise VerifierError("LIFECYCLE-EVIDENCE-ROOT-MISMATCH", "binding root differs")
+        base = project_root if expected_root == "project" else harness_root
+        path = (base / Path(row["path"])).resolve()
+        if not path.is_relative_to(base) or not path.is_file() or _sha(path) != row.get("sha256"):
+            raise VerifierError("LIFECYCLE-EVIDENCE-STALE", f"binding is stale: {row.get('path')}")
+        return path
+
+    transaction = resolve(value["transaction"], "project")
+    publication_manifest = resolve(value["publication_manifest"], "project")
+    commit_marker = resolve(value["commit_marker"], "project")
+    semantic_receipt = resolve(value["semantic_receipt"], "project")
+    dispatch_claim = resolve(value["dispatch_claim"], "project")
+    dispatch_consumption = resolve(value["dispatch_consumption"], "project")
+    semantics_manifest = resolve(value["semantics_manifest"], "harness")
+    wiki_binding = value["wiki_root"]
+    wiki_base = project_root if wiki_binding["root"] == "project" else harness_root
+    wiki_root = (wiki_base / Path(wiki_binding["path"])).resolve()
+    wiki_manifest = wiki_root / "manifest.json"
+    if (
+        not wiki_root.is_relative_to(wiki_base)
+        or not wiki_root.is_dir()
+        or not wiki_manifest.is_file()
+        or _sha(wiki_manifest) != wiki_binding["manifest_sha256"]
+    ):
+        raise VerifierError("LIFECYCLE-EVIDENCE-ROOT-MISMATCH", "wiki root is unavailable")
+    transaction_value = validate_verifier_transaction(
+        transaction=transaction,
+        publication_manifest=publication_manifest,
+        commit_marker=commit_marker,
+        artifact=artifact,
+        semantic_receipt=semantic_receipt,
+        project_root=project_root,
+        wiki_root=wiki_root,
+        harness_root=harness_root,
+        semantics_manifest=semantics_manifest,
+    )
+    if (
+        transaction_value.get("phase") != expected_phase
+        or transaction_value.get("product_disposition") != expected_disposition
+    ):
+        raise VerifierError(
+            "LIFECYCLE-EVIDENCE-DISPOSITION",
+            "committed verifier transaction does not qualify this lifecycle gate",
+        )
+    try:
+        from assignment_dispatch_claim import validate_consumed_claim_for_context
+        from assignment_receipt_transaction import ReceiptTransactionError
+
+        claim_value = json.loads(dispatch_claim.read_text(encoding="utf-8"))
+        validate_consumed_claim_for_context(
+            project_root,
+            dispatch_claim,
+            dispatch_consumption,
+            expected_role="generator" if expected_phase == "generation" else "evaluator",
+            expected_target=value["target"],
+            expected_receipt_id=value["receipt_id"],
+            expected_artifact_sha256=_sha(artifact),
+            expected_generation_transaction_id=value["generation_verifier_transaction_id"],
+        )
+    except ReceiptTransactionError as exc:
+        raise VerifierError("LIFECYCLE-EVIDENCE-CLAIM", f"{exc.code}: {exc.message}") from exc
+    if claim_value.get("claim_kind") != expected_phase:
+        raise VerifierError("LIFECYCLE-EVIDENCE-CLAIM", "dispatch claim phase differs")
+
+    dependencies: list[dict[str, str]] = []
+    paths = {
+        locator,
+        artifact,
+        transaction,
+        publication_manifest,
+        commit_marker,
+        semantic_receipt,
+        dispatch_claim,
+        dispatch_consumption,
+        semantics_manifest,
+        dispatch_claim.parent / "publication_manifest.json",
+        dispatch_claim.parent / "commit_marker.json",
+        dispatch_consumption.parent / "publication_manifest.json",
+        dispatch_consumption.parent / "commit_marker.json",
+        project_root / "project_manifest.json",
+        harness_root / ".claude-plugin" / "plugin.json",
+        wiki_manifest,
+    }
+    for row in transaction_value.get("dependency_hashes", []):
+        paths.add((harness_root / Path(row["path"])).resolve())
+    product = transaction_value.get("product_assurance", {})
+    if isinstance(product.get("path"), str):
+        paths.add((project_root / Path(product["path"])).resolve())
+    for path in sorted(paths, key=lambda item: str(item)):
+        if not path.is_file():
+            raise VerifierError("LIFECYCLE-EVIDENCE-STALE", f"dependency is missing: {path}")
+        dependencies.append({"path": str(path.resolve()), "sha256": _sha(path)})
+    return {
+        "locator": value,
+        "transaction": transaction_value,
+        "dependencies": dependencies,
+    }
 
 
 def recover_verifier_transaction(

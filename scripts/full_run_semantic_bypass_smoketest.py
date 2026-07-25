@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -83,6 +84,9 @@ REPO_GATE = ROOT / "scripts" / "full_run_contract_check.py"
 GATE = REPO_GATE
 sys.path.insert(0, str(ROOT / "scripts"))
 FAILURES: list[str] = []
+_VALID_TEMPLATE_OWNER: tempfile.TemporaryDirectory[str] | None = None
+_VALID_TEMPLATE: Path | None = None
+_VALID_WORKING: Path | None = None
 
 # The baseline is the MILESTONE AUTHORITY'S OWN valid-project fixture, not one
 # invented here.
@@ -262,7 +266,20 @@ def valid_project(base: Path) -> Path:
     hole; if the baseline itself stopped passing, every case would 'pass' for
     the wrong reason -- so the baseline is asserted first, as an anchor.
     """
-    proj = base / "p"
+    global _VALID_TEMPLATE_OWNER, _VALID_TEMPLATE, _VALID_WORKING
+    del base
+    if _VALID_TEMPLATE is not None:
+        assert _VALID_WORKING is not None
+        if _VALID_WORKING.is_dir():
+            shutil.rmtree(_VALID_WORKING)
+        shutil.copytree(_VALID_TEMPLATE, _VALID_WORKING)
+        return _VALID_WORKING
+    _VALID_TEMPLATE_OWNER = tempfile.TemporaryDirectory(
+        prefix="full-run-valid-template-", dir=ROOT
+    )
+    owner_root = Path(_VALID_TEMPLATE_OWNER.name)
+    _VALID_WORKING = owner_root / "working" / "p"
+    proj = _VALID_WORKING
     proj.mkdir(parents=True, exist_ok=True)
     ledger = _materialize_native_project(proj)
     ledger["mode"] = "native"
@@ -417,44 +434,51 @@ def valid_project(base: Path) -> Path:
     ):
         terminal_bindings.append({"role": role, "path": path.relative_to(proj).as_posix(), "sha256": _sha(path)})
     # Universal all-drafts evidence: every accepted artifact carries separate
-    # Generator and Evaluator verified envelopes bound to its exact hash.
+    # claim-bound Generator and Evaluator verifier transactions.  The support
+    # builder uses only this synthetic project and the production C2/C4/C5
+    # publishers; no hand-authored evidence envelope is accepted here.
+    from c5_lifecycle_fixture_support import build_existing_artifact_pair
+
+    def rebind_artifact(node, path: str, old_sha: str, new_sha: str) -> None:
+        if isinstance(node, dict):
+            if node.get("path") == path and node.get("sha256") == old_sha:
+                node["sha256"] = new_sha
+            if (
+                node.get("manuscript_path") == path
+                and node.get("manuscript_sha256") == old_sha
+            ):
+                node["manuscript_sha256"] = new_sha
+            for value in node.values():
+                rebind_artifact(value, path, old_sha, new_sha)
+        elif isinstance(node, list):
+            for value in node:
+                rebind_artifact(value, path, old_sha, new_sha)
+
     predecessor_packet = None
+    lifecycle_pairs = {}
     for milestone in ("M1", "M2", "M3", "M4", "M5"):
         record = ledger["milestones"][milestone]
         artifact = next(row for row in record["artifacts"] if row.get("role") == "deliverable")
-        target = "FINAL" if milestone == "M5" else milestone
+        public_milestone = "FINAL" if milestone == "M5" else milestone
+        pair = build_existing_artifact_pair(
+            proj,
+            artifact_relative=artifact["path"],
+            public_milestone=public_milestone,
+            label=f"terminal-{milestone.lower()}",
+        )
+        lifecycle_pairs[milestone] = pair
+        old_sha = artifact["sha256"]
+        new_sha = pair["artifact_sha256"]
+        rebind_artifact(ledger, artifact["path"], old_sha, new_sha)
+        artifact["sha256"] = new_sha
+        artifact["bytes"] = pair["artifact_bytes"]
         record.setdefault("policy_evidence", {})
-        generation_sha = None
-        for field, phase, role in (
-            ("draft_generation", "generation", "generator"),
-            ("draft_evaluation", "evaluation", "evaluator"),
-        ):
-            evidence_path = proj / "reviews" / ".harness" / "shipments" / "synthetic" / f"{milestone.lower()}_{phase}.verified.json"
-            envelope = {
-                "schema_version": "1.0.0", "status": "verified",
-                "phase": phase, "role": role, "target": target,
-                "artifact_sha256": artifact["sha256"],
-                "centroid": {"required": True}, "obligation_ids": [],
-                "actor_id": "generator-A" if phase == "generation" else "evaluator-B",
-                "dispatch_id": f"{milestone.lower()}-{phase}",
-                "semantic_receipt_sha256": "2" * 64,
-                "centroid_packet_sha256": "3" * 64,
-                "product_assurance_sha256": "4" * 64,
-                "passage_count": 1,
-                "passage_source_keys": ["fixture-source"],
-            }
-            if phase == "evaluation":
-                envelope["generation_envelope_sha256"] = generation_sha
-            _w(evidence_path, json.dumps(envelope, indent=2))
-            if phase == "generation":
-                generation_sha = _sha(evidence_path)
-            record["policy_evidence"][field] = {
-                "evidence_path": evidence_path.relative_to(proj).as_posix(),
-                "evidence_sha256": _sha(evidence_path),
-            }
+        record["policy_evidence"].update(pair["policy_evidence"])
         if milestone != "M5" and isinstance(record.get("handoff"), dict) and record["handoff"].get("packet_path"):
             handoff_path = proj / record["handoff"]["packet_path"]
             handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+            rebind_artifact(handoff, artifact["path"], old_sha, new_sha)
+            handoff["deliverable"]["bytes"] = artifact["bytes"]
             handoff["policy_evidence"] = record["policy_evidence"]
             handoff["predecessor_packet"] = predecessor_packet
             _w(handoff_path, json.dumps(handoff, indent=2))
@@ -467,6 +491,55 @@ def valid_project(base: Path) -> Path:
                 "path": record["handoff"]["packet_path"],
                 "sha256": record["handoff"]["packet_sha256"],
             }
+
+    # The historical FINAL publication fixture was created before the C5 pair
+    # replaced the manuscript. Rebind its read-side result to the new sanctioned
+    # mutation row and refresh the corresponding evidence artifact.
+    final_pair = lifecycle_pairs["M5"]
+    result_value = json.loads(result_path.read_text(encoding="utf-8"))
+    final_published = next(
+        row for row in result_value["published"] if row["path"] == deliverable["path"]
+    )
+    final_published["sha256"] = deliverable["sha256"]
+    final_published["mutation_row_sha256"] = final_pair["mutation_row"]["row_sha256"]
+    _w(result_path, json.dumps(result_value, indent=2))
+    result_artifact = next(
+        row for row in m5["artifacts"]
+        if row.get("artifact_kind") == "final_publication_result"
+    )
+    result_artifact["sha256"] = _sha(result_path)
+    result_artifact["bytes"] = result_path.stat().st_size
+
+    for milestone in ("M4", "M5"):
+        policy_evidence = ledger["milestones"][milestone]["policy_evidence"]
+        sidecar = proj / policy_evidence["check8_path"]
+        sidecar_value = json.loads(sidecar.read_text(encoding="utf-8"))
+        live_artifact = next(
+            row for row in ledger["milestones"][milestone]["artifacts"]
+            if row.get("role") == "deliverable"
+        )
+        sidecar_value["manuscript_sha256"] = live_artifact["sha256"]
+        _w(sidecar, json.dumps(sidecar_value, indent=2))
+        policy_evidence["manuscript_sha256"] = live_artifact["sha256"]
+        policy_evidence["check8_sha256"] = _sha(sidecar)
+
+    m4_record = ledger["milestones"]["M4"]
+    m4_packet_path = proj / m4_record["handoff"]["packet_path"]
+    m4_packet = json.loads(m4_packet_path.read_text(encoding="utf-8"))
+    m4_packet["policy_evidence"] = m4_record["policy_evidence"]
+    _w(m4_packet_path, json.dumps(m4_packet, indent=2))
+    m4_record["handoff"]["packet_sha256"] = _sha(m4_packet_path)
+    for event in ledger["events"]:
+        for event_binding in event.get("bindings", []):
+            if event_binding.get("path") == m4_record["handoff"]["packet_path"]:
+                event_binding["sha256"] = m4_record["handoff"]["packet_sha256"]
+    predecessor_packet = {
+        "path": m4_record["handoff"]["packet_path"],
+        "sha256": m4_record["handoff"]["packet_sha256"],
+    }
+
+    export["source_path"] = deliverable["path"]
+    export["source_sha256"] = deliverable["sha256"]
 
     check8_path = proj / m5["policy_evidence"]["check8_path"]
     check8 = json.loads(check8_path.read_text(encoding="utf-8"))
@@ -485,10 +558,23 @@ def valid_project(base: Path) -> Path:
         f"check8_sha256: {m5['policy_evidence']['check8_sha256']}\n"
         "safeguard_status: CLEAN\n",
     )
+    _w(
+        proj / "reviews/ph4_ship_signoff.md",
+        "# Ph4 ship\n\nstatus: APPROVED\n"
+        f"manuscript_path: {deliverable['path']}\n"
+        f"manuscript_sha256: {deliverable['sha256']}\n"
+        "round_id: round_2026-07-17_001\n"
+        "authority: user\n",
+    )
     next(row for row in terminal_bindings if row["role"] == "g4_signoff")["sha256"] = _sha(proj / "reviews/G4_signoff.md")
+    next(row for row in terminal_bindings if row["role"] == "ship_signoff")["sha256"] = _sha(proj / "reviews/ph4_ship_signoff.md")
     m5["policy_evidence"]["bindings"] = terminal_bindings
     packet_path = proj / m5["handoff"]["packet_path"]
     packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    packet["deliverable"]["sha256"] = deliverable["sha256"]
+    packet["deliverable"]["bytes"] = deliverable["bytes"]
+    packet["released_export"]["source_path"] = export["source_path"]
+    packet["released_export"]["source_sha256"] = export["source_sha256"]
     packet["policy_evidence"] = m5["policy_evidence"]
     packet["predecessor_packet"] = predecessor_packet
     packet["inputs_consumed"] = [
@@ -504,6 +590,8 @@ def valid_project(base: Path) -> Path:
             event["bindings"] = [{"binding_type": "handoff_packet", "path": m5["handoff"]["packet_path"], "sha256": m5["handoff"]["packet_sha256"]}]
     doc = _phase_document(ledger, "Ph4")
     _w(proj / "reviews/phase_state.json", json.dumps(doc, indent=1))
+    _VALID_TEMPLATE = owner_root / "pristine" / "p"
+    shutil.copytree(proj, _VALID_TEMPLATE)
     return proj
 
 

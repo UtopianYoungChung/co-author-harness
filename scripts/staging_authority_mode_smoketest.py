@@ -78,14 +78,14 @@ def drive_to_m4_recorded_converged(project: Path) -> Path:
     for milestone in ("M1", "M2", "M3"):
         if milestone != "M1":
             run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
-        consumed = publish(project, milestone, f"# {milestone} staging deliverable\n".encode(), label="staging")
-        checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z", label="staging")
+        consumed, lifecycle_policy = publish(project, milestone, f"# {milestone} staging deliverable\n".encode(), label="staging")
+        checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z", label="staging", policy=lifecycle_policy)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
         approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
         run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
     run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M4", "--at", "2026-07-19T00:00:20Z")
-    consumed = publish(project, "M4", b"# M4 staging manuscript v1\n", label="staging")
-    checkpoint = checkpoint_input(project, "M4", "2026-07-19T00:00:21Z", label="staging", phase="Ph1", cycle_id="m4-staging-001")
+    consumed, lifecycle_policy = publish(project, "M4", b"# M4 staging manuscript v1\n", label="staging")
+    checkpoint = checkpoint_input(project, "M4", "2026-07-19T00:00:21Z", label="staging", phase="Ph1", cycle_id="m4-staging-001", policy=lifecycle_policy)
     run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", checkpoint, "--at", "2026-07-19T00:00:22Z")
     converge_m4_fixture(project)
     return checkpoint
@@ -147,8 +147,8 @@ def case_shipment_only_walk(raw: Path) -> None:
         assert derive(project) == {**derive(project)}  # shape probe only
         check("F: derived M4 action is accept (post-convergence)",
               derive(project).get("action") == "accept", str(derive(project)))
-        consumed2 = publish(project, "M4", b"# M4 staging manuscript v2 (post-convergence edit)\n", label="staging2")
-        checkpoint2 = checkpoint_input(project, "M4", "2026-07-19T00:00:30Z", label="staging2", phase="Ph3", cycle_id="m4-staging-002")
+        consumed2, lifecycle_policy2 = publish(project, "M4", b"# M4 staging manuscript v2 (post-convergence edit)\n", label="staging2")
+        checkpoint2 = checkpoint_input(project, "M4", "2026-07-19T00:00:30Z", label="staging2", phase="Ph3", cycle_id="m4-staging-002", policy=lifecycle_policy2)
         rerecord = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4",
                        "--receipt", consumed2, "--checkpoint", checkpoint2,
                        "--at", "2026-07-19T00:00:31Z", expected=0)
@@ -189,14 +189,14 @@ def case_shipment_only_walk(raw: Path) -> None:
         # --- F: FINAL (M5) re-record after first record ---
         install_ph4_evidence(project, raw / "fixture")
         run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "FINAL", "--at", "2026-07-19T01:00:01Z")
-        consumed_final = publish_final(project, b"# FINAL staging v1\n", b"# FINAL export v1\n")
-        checkpoint_final, _terminal, _approval = terminal_inputs(project)
+        consumed_final, lifecycle_final = publish_final(project, b"# FINAL staging v1\n", b"# FINAL export v1\n")
+        checkpoint_final, _terminal, _approval = terminal_inputs(project, lifecycle_final)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
             "--receipt", consumed_final, "--checkpoint", checkpoint_final, "--at", "2026-07-19T01:00:02Z")
         check("F: derived M5 action is close after first record",
               derive(project).get("action") == "close", str(derive(project)))
-        consumed_final2 = publish_final_rev(project, b"# FINAL staging v2 (post-record edit)\n", b"# FINAL export v2\n", "rev2")
-        checkpoint_final2, _terminal2, _approval2 = terminal_inputs(project)
+        consumed_final2, lifecycle_final2 = publish_final(project, b"# FINAL staging v2 (post-record edit)\n", b"# FINAL export v2\n", label="rev2")
+        checkpoint_final2, _terminal2, _approval2 = terminal_inputs(project, lifecycle_final2)
         rerecord_final = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
                              "--receipt", consumed_final2, "--checkpoint", checkpoint_final2,
                              "--at", "2026-07-19T01:00:04Z", expected=0)
@@ -222,8 +222,8 @@ def case_direct_local_unchanged(raw: Path) -> None:
     derived = derive(project)
     check("direct_local: derive reports direct_local",
           derived.get("authority_mode") == "direct_local", str(derived))
-    consumed2 = publish(project, "M4", b"# direct-local M4 v2\n", label="direct2")
-    checkpoint2 = checkpoint_input(project, "M4", "2026-07-19T00:00:40Z", label="direct2", phase="Ph3", cycle_id="m4-direct-002")
+    consumed2, lifecycle_policy2 = publish(project, "M4", b"# direct-local M4 v2\n", label="direct2")
+    checkpoint2 = checkpoint_input(project, "M4", "2026-07-19T00:00:40Z", label="direct2", phase="Ph3", cycle_id="m4-direct-002", policy=lifecycle_policy2)
     refused = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4",
                   "--receipt", consumed2, "--checkpoint", checkpoint2,
                   "--at", "2026-07-19T00:00:41Z", expected=4)

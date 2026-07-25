@@ -8,6 +8,18 @@
 
 **Precedence.** On any conflict between this file and an `agents/<role>.md` prompt, the contract wins on *obligations* (what must be done) and the prompt wins on *method* (how to do it).
 
+**C5 product-evidence invariant.** `scripts/audit/run_all.py` is diagnostic
+mechanics/compatibility only. No agent may use its exit code, findings report,
+or optional semantic compatibility report as milestone, terminal, or governed
+product evidence. The Generator consumes a kernel-issued generation claim and
+publishes a committed generation verifier transaction. The independent
+Evaluator consumes the evaluation claim, publishes the committed evaluation
+verifier transaction, and qualifies it through `scripts/run_product_gate.py
+--mode governed-product`. The Planner records only the resulting current-byte
+lifecycle locators and committed governed-product manifest. The Reflector treats
+any mechanics-mode substitution, missing commit marker, stale hash, absent
+claim consumption, or non-evaluation verifier as a blocking evidence failure.
+
 ---
 
 ## 1. Planner Contract

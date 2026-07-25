@@ -28,10 +28,12 @@ from assignment_process_gate import (
 )
 from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
 from destination_capability import guard_project_root, guard_repin_project_root
+from draft_evidence_verifier import VerifierError, validate_lifecycle_verifier_binding
 from milestone_framework_validate import validate_document, validate_gate
 from milestone_path_contract import handoff_path, snapshot_path
 
 
+ROOT = Path(__file__).resolve().parents[1]
 MILESTONES = ("M1", "M2", "M3", "M4", "M5")
 PUBLIC_TO_LEDGER = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 LEDGER_TO_PUBLIC = {value: key for key, value in PUBLIC_TO_LEDGER.items()}
@@ -97,13 +99,20 @@ def _sha256(path: Path) -> str:
 
 def _dependency_snapshot(project: Path, paths: list[Path]) -> dict[str, tuple[str, int]]:
     snapshot: dict[str, tuple[str, int]] = {}
-    root = project.resolve()
+    project_root = project.resolve()
+    harness_root = ROOT.resolve()
     for supplied in paths:
         path = supplied.resolve()
-        try:
-            relative = path.relative_to(root)
-        except ValueError as exc:
-            raise MilestoneTransactionError("AMC-DEPENDENCY", f"dependency escapes project root: {path}") from exc
+        if path.is_relative_to(project_root):
+            root = project_root
+        elif path.is_relative_to(harness_root):
+            root = harness_root
+        else:
+            raise MilestoneTransactionError(
+                "AMC-DEPENDENCY",
+                f"dependency escapes the governed project and harness roots: {path}",
+            )
+        relative = path.relative_to(root)
         current = root
         for part in relative.parts:
             current = current / part
@@ -754,19 +763,10 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
     deliverable, _ = _safe_project_file(project, deliverable_relative, "AMC-DRAFT-POLICY")
     deliverable_sha = _sha256(deliverable)
     phase_requirements = {
-        "draft_generation": ("generation", "generator", "centroid-generation"),
-        "draft_evaluation": ("evaluation", "evaluator", "centroid-evaluation"),
+        "draft_generation": ("generation", "evaluation_ready"),
+        "draft_evaluation": ("evaluation", "product_qualified"),
     }
-    always_ids = {
-        "grounding-protocol", "d-style-profile", "reader-accessibility",
-        "master-guidelines", "research-writing-playbook", "style-commitments",
-        "integrated-style-checklist", "grammar-mechanics", "citation-discipline",
-        "emdash-bundle", "sentence-craft", "narrative-structure",
-        "deterministic-audit",
-    }
-    verified_envelopes: dict[str, dict[str, Any]] = {}
-    evidence_hashes: dict[str, str] = {}
-    for key, (phase_name, role, centroid_id) in phase_requirements.items():
+    for key, (phase_name, disposition) in phase_requirements.items():
         binding = policy.get(key)
         if not isinstance(binding, dict) or set(binding) != {"evidence_path", "evidence_sha256"}:
             raise MilestoneTransactionError("AMC-DRAFT-POLICY", f"{key} must be a path/hash binding")
@@ -774,56 +774,25 @@ def _validate_checkpoint(project: Path, path: Path, milestone: str, lineage: str
         if binding.get("evidence_sha256") != _sha256(evidence):
             raise MilestoneTransactionError("AMC-DRAFT-POLICY-STALE", f"policy evidence is stale: {relative}")
         try:
-            envelope = json.loads(evidence.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise MilestoneTransactionError("AMC-DRAFT-POLICY", f"invalid verified envelope: {relative}") from exc
-        obligation_ids = envelope.get("obligation_ids") if isinstance(envelope, dict) else None
-        centroid = envelope.get("centroid") if isinstance(envelope, dict) else None
-        if (
-            envelope.get("schema_version") != "1.0.0"
-            or envelope.get("status") != "verified"
-            or envelope.get("phase") != phase_name
-            or envelope.get("role") != role
-            or envelope.get("target") != public_target
-            or envelope.get("artifact_sha256") != deliverable_sha
-            or not isinstance(centroid, dict)
-            or centroid.get("required") is not True
-            or not isinstance(obligation_ids, list)
-            or not (always_ids | {centroid_id}) <= set(obligation_ids)
-            or not isinstance(envelope.get("actor_id"), str)
-            or not envelope["actor_id"].strip()
-            or not isinstance(envelope.get("dispatch_id"), str)
-            or not envelope["dispatch_id"].strip()
-            or not isinstance(envelope.get("semantic_receipt_sha256"), str)
-            or SHA_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
-            or not isinstance(envelope.get("centroid_packet_sha256"), str)
-            or SHA_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
-            or not isinstance(envelope.get("product_assurance_sha256"), str)
-            or SHA_RE.fullmatch(envelope["product_assurance_sha256"]) is None
-            or not isinstance(envelope.get("passage_count"), int)
-            or envelope["passage_count"] < 1
-            or not isinstance(envelope.get("passage_source_keys"), list)
-            or not envelope["passage_source_keys"]
-        ):
+            result = validate_lifecycle_verifier_binding(
+                locator=evidence,
+                artifact=deliverable,
+                project_root=project,
+                harness_root=ROOT,
+                expected_phase=phase_name,
+                expected_disposition=disposition,
+            )
+        except VerifierError as exc:
+            code = "AMC-DRAFT-POLICY-STALE" if exc.code in {
+                "LIFECYCLE-EVIDENCE-STALE", "EVIDENCE-TOCTOU",
+                "VERIFIER-TRANSACTION-INCOMPLETE",
+            } else "AMC-DRAFT-POLICY"
+            raise MilestoneTransactionError(code, f"{exc.code}: {exc.message}") from exc
+        if result["locator"].get("target") != deliverable_relative:
             raise MilestoneTransactionError(
-                "AMC-DRAFT-POLICY",
-                f"{key} does not verify the current {public_target} bytes and complete always-on bundle",
+                "AMC-DRAFT-POLICY", f"{key} target differs from {deliverable_relative}"
             )
         binding["evidence_path"] = relative
-        verified_envelopes[key] = envelope
-        evidence_hashes[key] = binding["evidence_sha256"]
-    generation_envelope = verified_envelopes["draft_generation"]
-    evaluation_envelope = verified_envelopes["draft_evaluation"]
-    if (
-        evaluation_envelope.get("generation_envelope_sha256")
-        != evidence_hashes["draft_generation"]
-        or evaluation_envelope.get("actor_id") == generation_envelope.get("actor_id")
-        or evaluation_envelope.get("dispatch_id") == generation_envelope.get("dispatch_id")
-    ):
-        raise MilestoneTransactionError(
-            "AMC-DRAFT-POLICY",
-            "draft evaluation is not bound to an independent verified generation envelope",
-        )
     if milestone == "M3":
         grounding_keys = set(policy) - draft_keys
         if grounding_keys not in ({"wiki_grounding"}, {"wiki_grounding_opt_out"}):
@@ -915,6 +884,43 @@ def _receipt_result(
     return receipt, result, relative, deliverable, deliverable_sha, source_expectations
 
 
+def _lifecycle_policy_dependencies(
+    project: Path, checkpoint: dict[str, Any]
+) -> dict[str, str]:
+    milestone = checkpoint["milestone"]
+    public_target = LEDGER_TO_PUBLIC[milestone]
+    _, _, deliverable_relative = derive_receipt_authority(public_target)
+    deliverable, _ = _safe_project_file(
+        project, deliverable_relative, "AMC-DRAFT-POLICY"
+    )
+    expected: dict[str, str] = {}
+    for key, phase, disposition in (
+        ("draft_generation", "generation", "evaluation_ready"),
+        ("draft_evaluation", "evaluation", "product_qualified"),
+    ):
+        locator, _ = _safe_project_file(
+            project,
+            checkpoint["policy_evidence"][key]["evidence_path"],
+            "AMC-DRAFT-POLICY",
+        )
+        try:
+            result = validate_lifecycle_verifier_binding(
+                locator=locator,
+                artifact=deliverable,
+                project_root=project,
+                harness_root=ROOT,
+                expected_phase=phase,
+                expected_disposition=disposition,
+            )
+        except VerifierError as exc:
+            raise MilestoneTransactionError(
+                "AMC-DRAFT-POLICY-STALE", f"{exc.code}: {exc.message}"
+            ) from exc
+        for row in result["dependencies"]:
+            expected[row["path"]] = row["sha256"]
+    return expected
+
+
 def _checkpoint_dependencies(project: Path, checkpoint: dict[str, Any]) -> list[Path]:
     paths: list[Path] = []
     for row in checkpoint["feedback_records"]:
@@ -926,6 +932,7 @@ def _checkpoint_dependencies(project: Path, checkpoint: dict[str, Any]) -> list[
     grounding = policy.get("wiki_grounding") or policy.get("wiki_grounding_opt_out")
     if isinstance(grounding, dict) and isinstance(grounding.get("evidence_path"), str):
         paths.append(_safe_project_file(project, grounding["evidence_path"], "AMC-DEPENDENCY")[0])
+    paths.extend(Path(path) for path in _lifecycle_policy_dependencies(project, checkpoint))
     return paths
 
 
@@ -943,6 +950,7 @@ def _checkpoint_dependency_expectations(project: Path, checkpoint: dict[str, Any
     if isinstance(grounding, dict) and isinstance(grounding.get("evidence_path"), str):
         path = _safe_project_file(project, grounding["evidence_path"], "AMC-DEPENDENCY")[0]
         expected[str(path.resolve())] = grounding["evidence_sha256"]
+    expected.update(_lifecycle_policy_dependencies(project, checkpoint))
     return expected
 
 

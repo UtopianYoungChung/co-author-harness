@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/lifecycle_verifier_binding.schema.json",
+  "title": "Lifecycle verifier binding 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "binding_type", "phase", "product_disposition",
+    "target", "receipt_id", "transaction", "publication_manifest",
+    "commit_marker", "semantic_receipt", "wiki_root", "semantics_manifest",
+    "dispatch_claim", "dispatch_consumption", "generation_verifier_transaction_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "binding_type": {"const": "lifecycle_verifier_transaction"},
+    "phase": {"enum": ["generation", "evaluation"]},
+    "product_disposition": {"enum": ["evaluation_ready", "product_qualified"]},
+    "target": {"type": "string", "minLength": 1},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "transaction": {"$ref": "#/$defs/project_binding"},
+    "publication_manifest": {"$ref": "#/$defs/project_binding"},
+    "commit_marker": {"$ref": "#/$defs/project_binding"},
+    "semantic_receipt": {"$ref": "#/$defs/project_binding"},
+    "wiki_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "manifest_sha256"],
+      "properties": {
+        "root": {"enum": ["project", "harness"]},
+        "path": {"$ref": "#/$defs/safe_path"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "semantics_manifest": {"$ref": "#/$defs/harness_binding"},
+    "dispatch_claim": {"$ref": "#/$defs/project_binding"},
+    "dispatch_consumption": {"$ref": "#/$defs/project_binding"},
+    "generation_verifier_transaction_id": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"phase": {"const": "generation"}}},
+      "then": {
+        "properties": {
+          "product_disposition": {"const": "evaluation_ready"},
+          "generation_verifier_transaction_id": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"phase": {"const": "evaluation"}}},
+      "then": {
+        "properties": {
+          "product_disposition": {"const": "product_qualified"},
+          "generation_verifier_transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "safe_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
+    "project_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256"],
+      "properties": {
+        "root": {"const": "project"},
+        "path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "harness_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256"],
+      "properties": {
+        "root": {"const": "harness"},
+        "path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -3,6 +3,11 @@
 Single entry point so skills and agents invoke ONE command and consume ONE
 findings.json artifact. Adding a new auditor means appending to AUDITORS
 below; the schema and run-surface do not change.
+
+This command is diagnostic and never produces lifecycle product evidence.
+Its optional semantic-receipt path is retained as a compatibility report only;
+governed product qualification is owned by ``scripts/run_product_gate.py`` in
+``governed-product`` mode with a committed evaluation verifier transaction.
 """
 
 from __future__ import annotations
@@ -140,10 +145,18 @@ def main(argv: List[str] | None = None) -> int:
              "only); see --wiki-root. Recorded as path_roots_mode=override.",
     )
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
-    parser.add_argument("--semantic-receipt", type=Path, help="v2 centroid semantic receipt; enables quotation, citation, coinage, register, insider-negation, and empirical-claim product checks")
-    parser.add_argument("--product-assurance-out", type=Path, help="Exact product-assurance report path (required with --stdout when --semantic-receipt is used)")
-    parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. Lets run_all act as a blocking pre-send gate. C-7 caution: 'any' also gates on advisory craft/voice/length findings, which are C-7 candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for an automated gate, or pair 'any' with a human C-7 review.")
+    parser.add_argument("--semantic-receipt", type=Path, help="compatibility-only semantic receipt; emits diagnostic product-assurance findings and never lifecycle evidence")
+    parser.add_argument("--product-assurance-out", type=Path, help="Exact diagnostic compatibility report path (required with --stdout when --semantic-receipt is used)")
+    parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 within this diagnostic mechanics command if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. This result is never governed product or lifecycle qualification. C-7 caution: 'any' also checks advisory craft/voice/length candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for automated diagnostics, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
+
+    if args.semantic_receipt:
+        print(
+            "[DIAGNOSTIC] run_all semantic compatibility output is not governed "
+            "product or lifecycle evidence; use run_product_gate.py --mode "
+            "governed-product with a committed evaluation verifier transaction.",
+            file=sys.stderr,
+        )
 
     if not args.target.is_file():
         print(f"[BLOCKER] target not found: {args.target}", file=sys.stderr)
@@ -274,16 +287,19 @@ def main(argv: List[str] | None = None) -> int:
     if not args.stdout and accessibility_report and accessibility_output:
         print(f"OK wrote {accessibility_output} -- reader_accessibility candidates; Evaluator judgment required")
     if not args.stdout and product_report and product_output:
-        print(f"OK wrote {product_output} -- product_assurance: {product_report.get('status')}")
+        print(
+            f"OK wrote {product_output} -- diagnostic_compatibility_product_assurance: "
+            f"{product_report.get('status')} (lifecycle_eligible=false)"
+        )
     counts = report.counts()
     if args.fail_on == "any" and counts["total"] > 0:
-        print(f"[GATE] {counts['total']} findings; failing per --fail-on=any", file=sys.stderr)
+        print(f"[DIAGNOSTIC-FAIL] {counts['total']} findings; failing per --fail-on=any", file=sys.stderr)
         return 2
     if args.fail_on == "inviolable" and counts["by_severity"].get("inviolable", 0) > 0:
-        print("[GATE] inviolable findings present; failing per --fail-on=inviolable", file=sys.stderr)
+        print("[DIAGNOSTIC-FAIL] inviolable findings present; failing per --fail-on=inviolable", file=sys.stderr)
         return 2
     if product_report is not None and product_report.get("status") != "passed":
-        print("[GATE] product assurance did not pass", file=sys.stderr)
+        print("[DIAGNOSTIC-FAIL] compatibility product assurance did not pass; lifecycle_eligible=false", file=sys.stderr)
         return 2
     return 0
 

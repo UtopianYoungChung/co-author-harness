@@ -117,6 +117,7 @@ def utf8_span(value: str, needle: str) -> dict[str, int | str]:
 @dataclass
 class ActivationFixture:
     root: Path
+    support_root: Path
     wiki_root: Path
     artifact: Path
     receipt: Path
@@ -317,12 +318,12 @@ class ActivationFixture:
         ):
             extract_rc = source_extract_main([
                 "--source", str(self.root / "miniature.pdf"),
-                "--text-out", str(self.root / "normalized.txt"),
+                "--text-out", str(self.support_root / "normalized.txt"),
                 "--receipt-out", str(self.extract_receipt),
                 "--project-root", str(self.root),
                 "--project-manifest", str(self.project_manifest),
                 "--source-key", "fixture-centroid-evidence",
-                "--raw-out", str(self.root / "raw.txt"),
+                "--raw-out", str(self.support_root / "raw.txt"),
                 "--page-map-out", str(self.page_span_map),
                 "--page-map-seed", str(ASSET_ROOT / "expected_page_span_map.json"),
                 "--manifest-out", str(self.extract_manifest),
@@ -401,7 +402,7 @@ class ActivationFixture:
         self._rebind_external_objects()
 
     def substitute_extract_objects(self) -> None:
-        substitute_root = self.root / "coordinated-extract-substitution"
+        substitute_root = self.support_root / "coordinated-extract-substitution"
         substitute_root.mkdir(parents=True, exist_ok=True)
         copies = {
             "source": (ASSET_ROOT / "miniature.pdf", substitute_root / "miniature.pdf"),
@@ -428,7 +429,7 @@ class ActivationFixture:
         self._rebind_external_objects()
 
     def substitute_bibliography_root(self) -> None:
-        lookalike = self.root / "lookalike-wiki"
+        lookalike = self.support_root / "lookalike-wiki"
         page_root = lookalike / "wiki" / "sources"
         source_root = lookalike / "sources"
         page_root.mkdir(parents=True, exist_ok=True)
@@ -488,6 +489,7 @@ def build_activation_fixture(
     root: Path,
     *,
     artifact_relative: str = "final.md",
+    evidence_relative: str | None = None,
 ) -> ActivationFixture:
     static_artifact = ASSET_ROOT / "final.md"
     static_pdf = ASSET_ROOT / "miniature.pdf"
@@ -523,12 +525,29 @@ def build_activation_fixture(
     ):
         raise AssertionError(f"unsafe synthetic artifact path: {artifact_relative!r}")
     root.mkdir(parents=True, exist_ok=True)
+    if evidence_relative is None:
+        support_root = root
+    else:
+        relative_evidence = Path(evidence_relative)
+        if (
+            relative_evidence.is_absolute()
+            or "\\" in evidence_relative
+            or any(part in {"", ".", ".."} for part in relative_evidence.parts)
+        ):
+            raise AssertionError(
+                f"unsafe synthetic evidence path: {evidence_relative!r}"
+            )
+        support_root = root / relative_evidence
+        support_root.mkdir(parents=True, exist_ok=True)
     artifact = root / relative_artifact
     artifact.parent.mkdir(parents=True, exist_ok=True)
+    # The frozen wiki metadata names ``miniature.pdf`` at the project root.
+    # Namespaced fixtures may share these immutable source bytes while all
+    # mutable publications remain isolated below ``support_root``.
     pdf = root / "miniature.pdf"
-    raw = root / "raw.txt"
-    extract = root / "normalized.txt"
-    runtime_page_map = root / "page-span-map.json"
+    raw = support_root / "raw.txt"
+    extract = support_root / "normalized.txt"
+    runtime_page_map = support_root / "page-span-map.json"
     for source, destination in (
         (static_artifact, artifact),
         (static_pdf, pdf),
@@ -538,13 +557,13 @@ def build_activation_fixture(
     ):
         shutil.copyfile(source, destination)
 
-    project_manifest = root / "synthetic-project-manifest.json"
+    project_manifest = support_root / "synthetic-project-manifest.json"
     write_json(project_manifest, {
         "schema_version": "synthetic-nonqualifying-1.0.0",
         "fixture_id": "assurance-provenance-c2-activation",
         "identity": "c2-synthetic-project",
         "admitted_sources": [{
-            "path": "miniature.pdf",
+            "path": pdf.relative_to(root).as_posix(),
             "sha256": sha(pdf),
         }],
         "governed_artifacts": [{
@@ -580,7 +599,7 @@ def build_activation_fixture(
             evidence_type=evidence_type,
         )
 
-    packet = root / "synthetic-centroid-packet.json"
+    packet = support_root / "synthetic-centroid-packet.json"
     write_json(packet, {
         "schema_version": "1.0.0",
         "status": "synthetic_nonqualifying",
@@ -590,13 +609,13 @@ def build_activation_fixture(
         ],
     })
 
-    extract_manifest = root / "synthetic-extract-publication-manifest.json"
-    extract_marker = root / "synthetic-extract-publication-marker.json"
+    extract_manifest = support_root / "synthetic-extract-publication-manifest.json"
+    extract_marker = support_root / "synthetic-extract-publication-marker.json"
 
     base_page_map = json.loads(static_page_map.read_text(encoding="utf-8"))
     write_json(runtime_page_map, base_page_map)
 
-    extract_receipt = root / "canonical-extract-2.json"
+    extract_receipt = support_root / "canonical-extract-2.json"
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
         io.StringIO()
     ):
@@ -617,10 +636,10 @@ def build_activation_fixture(
         raise AssertionError(f"production source publisher failed: {extract_rc}")
     base_extract = json.loads(extract_receipt.read_text(encoding="utf-8"))
 
-    bibliography_manifest = root / "synthetic-bibliography-publication-manifest.json"
-    bibliography_marker = root / "synthetic-bibliography-publication-marker.json"
+    bibliography_manifest = support_root / "synthetic-bibliography-publication-manifest.json"
+    bibliography_marker = support_root / "synthetic-bibliography-publication-marker.json"
 
-    bibliography = root / "canonical-bibliography-1.json"
+    bibliography = support_root / "canonical-bibliography-1.json"
     base_bibliography = publish_bibliography(
         project_root=root,
         project_manifest=project_manifest,
@@ -775,9 +794,10 @@ def build_activation_fixture(
         },
         "diagnostic_legacy_view": {"passages": legacy_passages},
     }
-    receipt = root / "semantic-execution-3.json"
+    receipt = support_root / "semantic-execution-3.json"
     fixture = ActivationFixture(
         root=root,
+        support_root=support_root,
         wiki_root=wiki_root,
         artifact=artifact,
         receipt=receipt,
@@ -795,5 +815,9 @@ def build_activation_fixture(
         base_bibliography_snapshot=base_bibliography,
         base_page_span_map=base_page_map,
     )
-    fixture.reset()
+    if evidence_relative is None:
+        fixture.reset()
+    else:
+        write_json(fixture.receipt, copy.deepcopy(fixture.base_receipt))
+        fixture._rebind_external_objects()
     return fixture

@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "f95fd9ce5153e9674c2a1f558f7c003fc05054b20986af93ddaac7ee21b58995"
+      "sha256": "a38106d655bfcacc7422918a7e98c382e4e0a91df656b4a1813b266c85cf95fb"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -81,6 +81,10 @@
       "class": "guarded",
       "regression": "scripts/product_assurance_smoketest.py"
     },
+    "scripts/run_product_gate.py": {
+      "class": "guarded",
+      "regression": "scripts/run_product_gate_smoketest.py::protected destination and marker-last recovery refusals"
+    },
     "scripts/evidence_publication.py": {
       "class": "excluded",
       "reason": "journaled publication, validation, and recovery library with no CLI entry; its writing callers are guarded publishers",
@@ -102,7 +106,12 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "e0c0f62a0e7000eeca5e0b1fa292937624be6459de57f3acf72f19047505295f"
+      "sha256": "4dead01683525a6401400b9acde462e4aa5f4f549b3df37af1c6066dc8849386"
+    },
+    "scripts/c5_lifecycle_fixture_support.py": {
+      "class": "test_only",
+      "justification": "C5 fixture support writes only beneath caller-supplied hermetic synthetic project roots",
+      "sha256": "7d284957235a73580437c0a85c0217b961f356037ee1b47a7ccf724a1695aceb"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

@@ -11,12 +11,23 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
-## 0. D-STYLE canonical pre-flight
+## 0. Mechanics pre-flight and governed product gate
 
-Before Step 0a counters, run the canonical pre-flight:
+`scripts/audit/run_all.py` is the mechanics/compatibility surface. Its output is
+diagnostic and never satisfies a product or lifecycle gate, including when the
+legacy `--semantic-receipt` option is supplied:
 
 ```powershell
-python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --semantic-receipt "<role-semantic-receipt>" --wiki-root "<wiki-root>" --workspace-root "<workspace-root>" --out "<authorized-shipment>/findings.json" --product-assurance-out "<authorized-shipment>/product_assurance.json"
+python scripts/audit/run_all.py "<manuscript>" --project-root "<project-root>" --date "YYYY-MM-DD" --out "<authorized-shipment>/findings.json"
+```
+
+For lifecycle-eligible product evidence, validate the exact committed Evaluator
+transaction through the governed adapter. Missing semantic or verifier evidence
+fails closed; the marker-last run manifest records checks, hashes, runtime
+versions, omissions, outputs, recovery command, and terminal state:
+
+```powershell
+python scripts/run_product_gate.py --mode governed-product --project-root "<project-root>" --artifact "<manuscript>" --out-dir "<authorized-run-lane>" --check semantic-product-verifier --wiki-root "<wiki-root>" --semantic-receipt "<evaluation-semantic-receipt>" --verifier-transaction "<evaluation-verifier-transaction>" --verifier-publication-manifest "<evaluation-publication-manifest>" --verifier-commit-marker "<evaluation-commit-marker>"
 ```
 
 This emits `reviews/findings.json` and `reviews/d_style_profile_YYYY-MM-DD.json`.
@@ -42,9 +53,9 @@ Evaluator judgment.
 
 ## 0a. Product-assurance checks
 
-When `--semantic-receipt` is supplied, the same entrypoint runs the
-product-assurance kernel and merges its findings into `findings.json` while
-preserving a separate exact-byte report. These checks operate on the bound
+When `--semantic-receipt` is supplied to `run_all.py`, the compatibility path
+runs the product-assurance kernel and merges its findings into `findings.json`
+while preserving a separate exact-byte diagnostic report. These checks operate on the bound
 member extracts, not on a generic dictionary:
 
 | Check | Signal | Gate behavior |

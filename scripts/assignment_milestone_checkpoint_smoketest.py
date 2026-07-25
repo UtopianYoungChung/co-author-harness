@@ -12,7 +12,10 @@ import subprocess
 import sys
 import tempfile
 
+import assignment_dispatch_claim as dispatch_claims
+import draft_evidence_verifier as verifier
 from assignment_fixture_support import write_valid_contract
+from c2_evidence_fixture_support import build_activation_fixture
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from assignment_milestone_transaction import (
     MilestoneTransactionError, accept as accept_transaction,
@@ -66,61 +69,69 @@ def state(project: Path) -> dict:
     return json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
 
 
-def draft_policy_evidence(project: Path, milestone: str, label: str) -> dict:
-    artifact = project / PATHS[milestone]
-    artifact_sha = sha(artifact)
-    always = {
-        "grounding-protocol", "d-style-profile", "reader-accessibility",
-        "master-guidelines", "research-writing-playbook", "style-commitments",
-        "integrated-style-checklist", "grammar-mechanics", "citation-discipline",
-        "emdash-bundle", "sentence-craft", "narrative-structure",
-        "deterministic-audit",
+def _root_binding(project: Path, path: Path, root: str) -> dict[str, str]:
+    base = project if root == "project" else ROOT
+    return {
+        "root": root,
+        "path": path.resolve().relative_to(base.resolve()).as_posix(),
+        "sha256": sha(path),
     }
-    bindings = {}
-    generation_sha = None
-    for key, phase, role, centroid_id in (
-        ("draft_generation", "generation", "generator", "centroid-generation"),
-        ("draft_evaluation", "evaluation", "evaluator", "centroid-evaluation"),
-    ):
-        evidence = (
-            project / "reviews" / ".harness" / "shipments" / "synthetic"
-            / f"{milestone.lower()}_{label}_{phase}.verified.json"
-        )
-        envelope = {
-            "schema_version": "1.0.0", "status": "verified",
-            "phase": phase, "role": role, "target": "FINAL" if milestone == "M5" else milestone,
-            "contract_sha256": "1" * 64, "artifact_sha256": artifact_sha,
-            "centroid": {"required": True, "binding_provenance": "project"},
-            "obligation_ids": sorted(always | {centroid_id}),
-            "actor_id": "generator-A" if phase == "generation" else "evaluator-B",
-            "dispatch_id": f"{milestone.lower()}-{label}-{phase}",
-            "semantic_receipt_sha256": "2" * 64,
-            "centroid_packet_sha256": "3" * 64,
-            "product_assurance_sha256": "4" * 64,
-            "passage_count": 1,
-            "passage_source_keys": ["fixture-source"],
-        }
-        if phase == "evaluation":
-            envelope["generation_envelope_sha256"] = generation_sha
-        write_json(evidence, envelope)
-        if phase == "generation":
-            generation_sha = sha(evidence)
-        bindings[key] = {
-            "evidence_path": evidence.relative_to(project).as_posix(),
-            "evidence_sha256": sha(evidence),
-        }
-    return bindings
+
+
+def _lifecycle_locator(
+    project: Path, *, milestone: str, label: str, phase: str,
+    receipt_id: str, paths: dict, claim: Path, consumption: Path,
+    semantic_receipt: Path, wiki_root: Path,
+    generation_transaction_id: str | None,
+) -> dict[str, str]:
+    transaction = paths["transaction"]
+    locator = (
+        project / "reviews" / ".harness" / "shipments" / "synthetic"
+        / f"{milestone.lower()}_{label}_{phase}.lifecycle.json"
+    )
+    write_json(locator, {
+        "schema_version": "1.0.0",
+        "binding_type": "lifecycle_verifier_transaction",
+        "phase": phase,
+        "product_disposition": (
+            "evaluation_ready" if phase == "generation" else "product_qualified"
+        ),
+        "target": PATHS[milestone],
+        "receipt_id": receipt_id,
+        "transaction": _root_binding(project, transaction, "project"),
+        "publication_manifest": _root_binding(
+            project, paths["publication_manifest"], "project"
+        ),
+        "commit_marker": _root_binding(project, paths["commit_marker"], "project"),
+        "semantic_receipt": _root_binding(project, semantic_receipt, "project"),
+        "wiki_root": {
+            "root": "harness",
+            "path": wiki_root.resolve().relative_to(ROOT).as_posix(),
+            "manifest_sha256": sha(wiki_root / "manifest.json"),
+        },
+        "semantics_manifest": _root_binding(
+            project, ROOT / "references" / "semantics_manifest.v1.json", "harness"
+        ),
+        "dispatch_claim": _root_binding(project, claim, "project"),
+        "dispatch_consumption": _root_binding(project, consumption, "project"),
+        "generation_verifier_transaction_id": generation_transaction_id,
+    })
+    return {
+        "evidence_path": locator.relative_to(project).as_posix(),
+        "evidence_sha256": sha(locator),
+    }
 
 
 def checkpoint_input(
     project: Path, milestone: str, at: str, *, valid_m4: bool = True,
     label: str = "initial", phase: str = "Ph1", cycle_id: str | None = None,
+    policy: dict,
 ) -> Path:
     suffix = "" if label == "initial" else f"_{label}"
     evidence = project / "reviews" / ".harness" / "milestones" / "checkpoints" / f"{milestone.lower()}_feedback{suffix}.md"
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text(f"Synthetic adjudicated feedback for {milestone}.\n", encoding="utf-8")
-    policy: dict = draft_policy_evidence(project, milestone, label)
+    policy = json.loads(json.dumps(policy))
     if milestone == "M3":
         references = project / "references" / "REFERENCES.md"
         references.parent.mkdir(parents=True, exist_ok=True)
@@ -242,25 +253,143 @@ def m4_acceptance_policy_input(project: Path) -> Path:
     return policy
 
 
-def publish(project: Path, milestone: str, content: bytes, *, label: str = "initial") -> Path:
+def publish(
+    project: Path, milestone: str, content: bytes, *, label: str = "initial"
+) -> tuple[Path, dict]:
+    activation = build_activation_fixture(
+        project,
+        artifact_relative=PATHS[milestone],
+        evidence_relative=f"reviews/.harness/fixtures/{milestone.lower()}-{label}",
+    )
+    suffix = content.decode("utf-8", errors="strict").strip()
+    activation.mutate_artifact(lambda text: f"{text}\n\n{suffix}\n")
+    project_manifest = project / "project_manifest.json"
+    if not project_manifest.is_file():
+        write_json(project_manifest, {
+            "schema_version": "synthetic-nonqualifying-1.0.0",
+            "identity": "c5-milestone-lifecycle-fixture",
+            "fixture_id": "c5-milestone-lifecycle-fixture",
+            "production_authority": False,
+        })
+    artifact_bytes = activation.artifact.read_bytes()
     ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_{milestone}_walk_{label}.json"
     run(GATE, "--project-root", project, "--stage", "draft", "--target-milestone", milestone, "--emit-receipt", ready)
     record = json.loads(ready.read_text(encoding="utf-8"))
     run(PREFLIGHT, "--project-root", project, "--receipt", ready, "--consumer", "planner", "--expected-target", milestone, "--write-path", PATHS[milestone])
     reserved = ready.parent.parent / "reserved" / ready.name
+    generation_claim, generation_claim_path, _ = dispatch_claims.issue_generation_claim(
+        project,
+        reserved,
+        policy_path=activation.wiki_root / "policy.json",
+        bibliography_snapshot=activation.bibliography_snapshot,
+        nonce=hashlib.sha256(f"{milestone}:{label}:generation".encode()).hexdigest()[:32],
+        issuer_transaction_id=f"assignment-reserve-{milestone}",
+        issued_at="2026-07-19T00:00:00Z",
+    )
     staged = project / "reviews" / ".harness" / "assignment" / "staged" / record["receipt_id"] / f"{milestone.lower()}_{label}.md"
-    staged.parent.mkdir(parents=True, exist_ok=True); staged.write_bytes(content)
+    staged.parent.mkdir(parents=True, exist_ok=True); staged.write_bytes(artifact_bytes)
     plan = staged.with_name("write_plan.json")
     write_json(plan, {
         "schema_version": "1.0.0", "receipt_id": record["receipt_id"],
         "reservation_id": record["reservation_id"], "target_milestone": milestone,
         "role": "generator", "writes": [{
             "staged_path": staged.relative_to(project).as_posix(),
-            "target_path": PATHS[milestone], "sha256": hashlib.sha256(content).hexdigest(),
+            "target_path": PATHS[milestone], "sha256": hashlib.sha256(artifact_bytes).hexdigest(),
         }]
     })
     run(WRITER, "--project-root", project, "--receipt", reserved, "--plan", plan)
-    return ready.parent.parent / "consumed" / ready.name
+    consumed_receipt = ready.parent.parent / "consumed" / ready.name
+    generation_consumption, generation_consumption_path, _ = (
+        dispatch_claims.consume_dispatch_claim(
+            project,
+            generation_claim_path,
+            role="generator",
+            consumer_transaction_id=f"assignment-write-{milestone}",
+            target_paths=[PATHS[milestone]],
+            consumed_at="2026-07-19T00:00:01Z",
+        )
+    )
+    verifier_root = (
+        project / "reviews" / ".harness" / "verifier"
+        / f"{milestone.lower()}-{label}"
+    )
+    generation_paths = verifier.publish_verifier_transaction(
+        artifact=activation.artifact,
+        semantic_receipt=activation.receipt,
+        phase="generation",
+        project_root=project,
+        wiki_root=activation.wiki_root,
+        harness_root=ROOT,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        out_dir=verifier_root / "generation",
+        requested_independence_level="none",
+    )
+    evaluation_claim, evaluation_claim_path, _ = dispatch_claims.issue_evaluation_claim(
+        project,
+        generation_claim_path,
+        generation_consumption=generation_consumption_path,
+        artifact=activation.artifact,
+        generation_transaction=generation_paths["transaction"],
+        generation_publication_manifest=generation_paths["publication_manifest"],
+        generation_commit_marker=generation_paths["commit_marker"],
+        generation_semantic_receipt=activation.receipt,
+        wiki_root=activation.wiki_root,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        nonce=hashlib.sha256(f"{milestone}:{label}:evaluation".encode()).hexdigest()[:32],
+        issuer_transaction_id=f"assignment-evaluation-{milestone}",
+        issued_at="2026-07-19T00:00:02Z",
+    )
+    evaluation_consumption, evaluation_consumption_path, _ = (
+        dispatch_claims.consume_dispatch_claim(
+            project,
+            evaluation_claim_path,
+            role="evaluator",
+            consumer_transaction_id=f"evaluation-{milestone}",
+            target_paths=[PATHS[milestone]],
+            consumed_at="2026-07-19T00:00:03Z",
+        )
+    )
+    evaluation_semantic = verifier_root / "evaluation-semantic.json"
+    evaluation_value = json.loads(activation.receipt.read_text(encoding="utf-8"))
+    evaluation_value["phase"] = "evaluation"
+    evaluation_value["role"] = "evaluator"
+    evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
+    evaluation_semantic.write_bytes(verifier.canonical_bytes(evaluation_value))
+    evaluation_paths = verifier.publish_verifier_transaction(
+        artifact=activation.artifact,
+        semantic_receipt=evaluation_semantic,
+        phase="evaluation",
+        project_root=project,
+        wiki_root=activation.wiki_root,
+        harness_root=ROOT,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        out_dir=verifier_root / "evaluation",
+        requested_independence_level="none",
+    )
+    generation_id = json.loads(
+        generation_paths["transaction"].read_text(encoding="utf-8")
+    )["transaction_id"]
+    policy = {
+        "draft_generation": _lifecycle_locator(
+            project, milestone=milestone, label=label, phase="generation",
+            receipt_id=record["receipt_id"], paths=generation_paths,
+            claim=generation_claim_path, consumption=generation_consumption_path,
+            semantic_receipt=activation.receipt, wiki_root=activation.wiki_root,
+            generation_transaction_id=None,
+        ),
+        "draft_evaluation": _lifecycle_locator(
+            project, milestone=milestone, label=label, phase="evaluation",
+            receipt_id=record["receipt_id"], paths=evaluation_paths,
+            claim=evaluation_claim_path, consumption=evaluation_consumption_path,
+            semantic_receipt=evaluation_semantic, wiki_root=activation.wiki_root,
+            generation_transaction_id=generation_id,
+        ),
+    }
+    assert generation_claim["receipt_id"] == record["receipt_id"]
+    assert generation_consumption["claim_id"] == generation_claim["claim_id"]
+    assert evaluation_claim["receipt_id"] == record["receipt_id"]
+    assert evaluation_consumption["claim_id"] == evaluation_claim["claim_id"]
+    return consumed_receipt, policy
 
 
 def main() -> int:
@@ -282,8 +411,13 @@ def main() -> int:
                 run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
             assert derived == {"status": "READY", "milestone": milestone, "action": "draft", "authority_mode": "direct_local"}, derived
-            consumed = publish(project, milestone, f"# {milestone} synthetic deliverable\n".encode())
-            checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
+            consumed, draft_policy = publish(
+                project, milestone, f"# {milestone} synthetic deliverable\n".encode()
+            )
+            checkpoint = checkpoint_input(
+                project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z",
+                policy=draft_policy,
+            )
             run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
             run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
@@ -396,19 +530,30 @@ def main() -> int:
         assert set(before["policy_evidence"]) == {"profile_path", "profile_sha256", "resolved_sha256", "attestation_view_pin", "exemplar_view_pin"}
         run(VALIDATOR, "--project-root", project)
 
-        consumed = publish(project, "M4", b"# M4 complete initial manuscript\n")
+        consumed, draft_policy = publish(
+            project, "M4", b"# M4 complete initial manuscript\n"
+        )
         forged_receipt = project / "reviews" / ".harness" / "milestones" / "checkpoints" / "copied_consumed_receipt.json"
         forged_receipt.write_bytes(consumed.read_bytes())
-        forged_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        forged_checkpoint = checkpoint_input(
+            project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z",
+            policy=draft_policy,
+        )
         phase_before_forgery = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", forged_receipt, "--checkpoint", forged_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
         assert "APG-RECEIPT-INVALID" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == phase_before_forgery
-        invalid_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z", valid_m4=False)
+        invalid_checkpoint = checkpoint_input(
+            project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z",
+            valid_m4=False, policy=draft_policy,
+        )
         phase_before_refusal = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", invalid_checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)
         assert "AMC-CHECKPOINT" in refused.stdout and (project / "reviews" / "phase_state.json").read_bytes() == phase_before_refusal
 
-        valid_checkpoint = checkpoint_input(project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        valid_checkpoint = checkpoint_input(
+            project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z",
+            policy=draft_policy,
+        )
         checkpoint_bytes = valid_checkpoint.read_bytes()
         phase_before_mutation = (project / "reviews" / "phase_state.json").read_bytes()
         try:
@@ -442,13 +587,14 @@ def main() -> int:
         run(PHASE_VALIDATOR, "--project-root", project)
         derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
         assert derived == {"status": "READY", "milestone": "M4", "action": "revise", "authority_mode": "direct_local"}, derived
-        revised_consumed = publish(
+        revised_consumed, revised_policy = publish(
             project, "M4", b"# M4 substantively revised manuscript\n",
             label="ph2-revision",
         )
         revised_checkpoint = checkpoint_input(
             project, "M4", f"2026-07-19T00:00:{next(ticks):02d}Z",
             label="ph2-revision", phase="Ph2", cycle_id="m4-ph2-revision-001",
+            policy=revised_policy,
         )
         run(
             CHECKPOINT, "record", "--project-root", project, "--milestone", "M4",

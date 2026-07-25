@@ -11,10 +11,13 @@ import subprocess
 import sys
 import tempfile
 
+import assignment_dispatch_claim as dispatch_claims
+import draft_evidence_verifier as verifier
 from assignment_fixture_support import write_valid_contract
+from c2_evidence_fixture_support import build_activation_fixture
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from assignment_milestone_checkpoint_smoketest import (
-    approval_input, checkpoint_input, converge_m4_fixture, draft_policy_evidence,
+    _lifecycle_locator, approval_input, checkpoint_input, converge_m4_fixture,
     m4_acceptance_policy_input, publish,
 )
 from assignment_milestone_transaction import (
@@ -72,14 +75,14 @@ def prepare_public_m1_m4(project: Path) -> None:
     for milestone in ("M1", "M2", "M3"):
         if milestone != "M1":
             run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
-        consumed = publish(project, milestone, f"# {milestone} terminal walk deliverable\n".encode(), label="terminal")
-        checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z", label="terminal")
+        consumed, lifecycle_policy = publish(project, milestone, f"# {milestone} terminal walk deliverable\n".encode(), label="terminal")
+        checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z", label="terminal", policy=lifecycle_policy)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
         approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
         run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
     run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M4", "--at", "2026-07-19T00:00:20Z")
-    consumed = publish(project, "M4", b"# Accepted M4 manuscript\n", label="terminal")
-    checkpoint = checkpoint_input(project, "M4", "2026-07-19T00:00:21Z", label="terminal", phase="Ph1", cycle_id="m4-terminal-001")
+    consumed, lifecycle_policy = publish(project, "M4", b"# Accepted M4 manuscript\n", label="terminal")
+    checkpoint = checkpoint_input(project, "M4", "2026-07-19T00:00:21Z", label="terminal", phase="Ph1", cycle_id="m4-terminal-001", policy=lifecycle_policy)
     run(CHECKPOINT, "record", "--project-root", project, "--milestone", "M4", "--receipt", consumed, "--checkpoint", checkpoint, "--at", "2026-07-19T00:00:22Z")
     converge_m4_fixture(project)
     policy = m4_acceptance_policy_input(project)
@@ -109,8 +112,21 @@ def install_ph4_evidence(project: Path, fixture_root: Path) -> None:
         shutil.copy2(source_path, target)
 
 
-def publish_final(project: Path, final_bytes: bytes, export_bytes: bytes) -> Path:
-    ready = project / "reviews" / ".harness" / "assignment" / "ready" / "gate_receipt_FINAL_terminal.json"
+def publish_final(
+    project: Path, final_bytes: bytes, export_bytes: bytes, *, label: str = "terminal"
+) -> tuple[Path, dict]:
+    activation = build_activation_fixture(
+        project,
+        artifact_relative=FINAL_PATH,
+        evidence_relative=f"reviews/.harness/fixtures/final-{label}",
+    )
+    requested_final = final_bytes
+    requested_export = export_bytes
+    final_text = requested_final.decode("utf-8", errors="strict").strip()
+    activation.mutate_artifact(lambda text: f"{text}\n\n{final_text}\n")
+    final_bytes = activation.artifact.read_bytes()
+    export_bytes = final_bytes if requested_export == requested_final else requested_export
+    ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_FINAL_{label}.json"
     run(GATE, "--project-root", project, "--stage", "final", "--emit-receipt", ready)
     receipt = json.loads(ready.read_text(encoding="utf-8"))
     wrong_path = run(
@@ -125,6 +141,15 @@ def publish_final(project: Path, final_bytes: bytes, export_bytes: bytes) -> Pat
         "--write-path", FINAL_PATH, "--write-path", EXPORT_PATH,
     )
     reserved = ready.parent.parent / "reserved" / ready.name
+    generation_claim, generation_claim_path, _ = dispatch_claims.issue_generation_claim(
+        project,
+        reserved,
+        policy_path=activation.wiki_root / "policy.json",
+        bibliography_snapshot=activation.bibliography_snapshot,
+        nonce=hashlib.sha256(f"FINAL:{label}:generation".encode()).hexdigest()[:32],
+        issuer_transaction_id="assignment-reserve-FINAL",
+        issued_at="2026-07-19T01:00:01.1Z",
+    )
     staged_root = project / "reviews" / ".harness" / "assignment" / "staged" / receipt["receipt_id"]
     staged_final = staged_root / "final.md"
     staged_export = staged_root / "final_export.md"
@@ -141,10 +166,92 @@ def publish_final(project: Path, final_bytes: bytes, export_bytes: bytes) -> Pat
         ],
     })
     run(WRITER, "--project-root", project, "--receipt", reserved, "--plan", plan)
-    return ready.parent.parent / "consumed" / ready.name
+    consumed = ready.parent.parent / "consumed" / ready.name
+    generation_consumption, generation_consumption_path, _ = dispatch_claims.consume_dispatch_claim(
+        project,
+        generation_claim_path,
+        role="generator",
+        consumer_transaction_id=f"assignment-write-FINAL-{label}",
+        target_paths=[FINAL_PATH, EXPORT_PATH],
+        consumed_at="2026-07-19T01:00:02Z",
+    )
+    verifier_root = project / "reviews" / ".harness" / "verifier" / f"final-{label}"
+    generation_paths = verifier.publish_verifier_transaction(
+        artifact=project / FINAL_PATH,
+        semantic_receipt=activation.receipt,
+        phase="generation",
+        project_root=project,
+        wiki_root=activation.wiki_root,
+        harness_root=ROOT,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        out_dir=verifier_root / "generation",
+        requested_independence_level="none",
+    )
+    evaluation_claim, evaluation_claim_path, _ = dispatch_claims.issue_evaluation_claim(
+        project,
+        generation_claim_path,
+        generation_consumption=generation_consumption_path,
+        artifact=project / FINAL_PATH,
+        generation_transaction=generation_paths["transaction"],
+        generation_publication_manifest=generation_paths["publication_manifest"],
+        generation_commit_marker=generation_paths["commit_marker"],
+        generation_semantic_receipt=activation.receipt,
+        wiki_root=activation.wiki_root,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        nonce=hashlib.sha256(f"FINAL:{label}:evaluation".encode()).hexdigest()[:32],
+        issuer_transaction_id="assignment-evaluation-FINAL",
+        issued_at="2026-07-19T01:00:02.1Z",
+    )
+    evaluation_consumption, evaluation_consumption_path, _ = dispatch_claims.consume_dispatch_claim(
+        project,
+        evaluation_claim_path,
+        role="evaluator",
+        consumer_transaction_id=f"evaluation-FINAL-{label}",
+        target_paths=[FINAL_PATH],
+        consumed_at="2026-07-19T01:00:02.2Z",
+    )
+    evaluation_semantic = verifier_root / "evaluation-semantic.json"
+    evaluation_value = json.loads(activation.receipt.read_text(encoding="utf-8"))
+    evaluation_value["phase"] = "evaluation"
+    evaluation_value["role"] = "evaluator"
+    evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
+    evaluation_semantic.write_bytes(verifier.canonical_bytes(evaluation_value))
+    evaluation_paths = verifier.publish_verifier_transaction(
+        artifact=project / FINAL_PATH,
+        semantic_receipt=evaluation_semantic,
+        phase="evaluation",
+        project_root=project,
+        wiki_root=activation.wiki_root,
+        harness_root=ROOT,
+        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        out_dir=verifier_root / "evaluation",
+        requested_independence_level="none",
+    )
+    generation_id = json.loads(
+        generation_paths["transaction"].read_text(encoding="utf-8")
+    )["transaction_id"]
+    policy = {
+        "draft_generation": _lifecycle_locator(
+            project, milestone="M5", label=label, phase="generation",
+            receipt_id=receipt["receipt_id"], paths=generation_paths,
+            claim=generation_claim_path, consumption=generation_consumption_path,
+            semantic_receipt=activation.receipt, wiki_root=activation.wiki_root,
+            generation_transaction_id=None,
+        ),
+        "draft_evaluation": _lifecycle_locator(
+            project, milestone="M5", label=label, phase="evaluation",
+            receipt_id=receipt["receipt_id"], paths=evaluation_paths,
+            claim=evaluation_claim_path, consumption=evaluation_consumption_path,
+            semantic_receipt=evaluation_semantic, wiki_root=activation.wiki_root,
+            generation_transaction_id=generation_id,
+        ),
+    }
+    assert generation_consumption["claim_id"] == generation_claim["claim_id"]
+    assert evaluation_consumption["claim_id"] == evaluation_claim["claim_id"]
+    return consumed, policy
 
 
-def terminal_inputs(project: Path) -> tuple[Path, Path, Path]:
+def terminal_inputs(project: Path, lifecycle_policy: dict) -> tuple[Path, Path, Path]:
     document = state(project)
     framework = document["milestone_framework"]
     binding = framework["policy_bindings"]["reader_accessibility"]
@@ -170,7 +277,7 @@ def terminal_inputs(project: Path) -> tuple[Path, Path, Path]:
         "inputs_consumed": [], "decisions_frozen": ["Freeze submission-bound bytes."],
         "open_debts": [], "next_milestone_instructions": ["Archive terminal evidence."],
         "policy_evidence": {
-            **draft_policy_evidence(project, "M5", "terminal"),
+            **lifecycle_policy,
             "phase": "Ph4", "cycle_id": BOUND,
         },
     })
@@ -266,8 +373,8 @@ def main() -> int:
         }
         run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "FINAL", "--at", "2026-07-19T01:00:01Z")
         final_bytes = b"# Submission-bound final manuscript\n\nChanged after accepted M4.\n"
-        consumed = publish_final(project, final_bytes, final_bytes)
-        checkpoint, terminal, approval = terminal_inputs(project)
+        consumed, lifecycle_policy = publish_final(project, final_bytes, final_bytes)
+        checkpoint, terminal, approval = terminal_inputs(project, lifecycle_policy)
         run(
             CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
             "--receipt", consumed, "--checkpoint", checkpoint, "--at", "2026-07-19T01:00:04Z",

@@ -476,6 +476,61 @@ def accept_claim_for_context(
     return claim
 
 
+def validate_consumed_claim_for_context(
+    project: Path,
+    claim_path: Path,
+    consumption_path: Path,
+    *,
+    expected_role: str,
+    expected_target: str,
+    expected_receipt_id: str,
+    expected_artifact_sha256: str,
+    expected_generation_transaction_id: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Validate one committed claim and its one-time artifact consumption."""
+    project = project.resolve()
+    claim = accept_claim_for_context(
+        project,
+        claim_path,
+        expected_role=expected_role,
+        expected_target=expected_target,
+        expected_receipt_id=expected_receipt_id,
+        expected_artifact_sha256=(
+            expected_artifact_sha256 if expected_role == "evaluator" else None
+        ),
+        expected_generation_transaction_id=expected_generation_transaction_id,
+    )
+    consumption = _load_published(
+        project,
+        consumption_path,
+        schema=CONSUMPTION_SCHEMA,
+        missing_code="APG-DISPATCH-CLAIM-MISSING",
+        invalid_code="APG-DISPATCH-CLAIM-INVALID",
+        uncommitted_code="APG-DISPATCH-CLAIM-UNCOMMITTED",
+    )
+    _resolve_binding(
+        project,
+        consumption["claim"],
+        code="APG-DISPATCH-CLAIM-RECEIPT-MISMATCH",
+        expected_path=claim_path,
+    )
+    postimages = consumption.get("postimages", [])
+    expected_postimage = next(
+        (row for row in postimages if row.get("path") == expected_target), None
+    )
+    if (
+        consumption.get("claim_id") != claim.get("claim_id")
+        or consumption.get("role") != expected_role
+        or not isinstance(expected_postimage, dict)
+        or expected_postimage.get("sha256") != expected_artifact_sha256
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-ARTIFACT-MISMATCH",
+            "claim consumption does not bind the exact governed artifact",
+        )
+    return claim, consumption
+
+
 def validate_generation_for_evaluation(
     project: Path,
     *,

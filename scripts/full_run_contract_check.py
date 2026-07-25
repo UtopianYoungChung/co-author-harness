@@ -116,6 +116,10 @@ if str(SCRIPTS) not in sys.path:
 import assignment_process_gate as apg              # noqa: E402
 import milestone_framework_validate as mfv         # noqa: E402
 import phase_state_validate as psv                 # noqa: E402
+from draft_evidence_verifier import (              # noqa: E402
+    VerifierError,
+    validate_lifecycle_verifier_binding,
+)
 import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
 import artefact_frontmatter_validate as afv        # noqa: E402
@@ -1495,9 +1499,8 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     "applicability -- it is the failure this contract exists to "
                     "prevent, in the vocabulary of a feature."))
 
-        # Every terminal deliverable must retain current-byte proof that the
-        # Generator applied the all-drafts bundle and an independent Evaluator
-        # checked it. A milestone file or accepted flag is never a substitute.
+        # Every terminal deliverable must retain the same committed verifier
+        # transactions accepted by the milestone transaction kernel.
         for key in ("M1", "M2", "M3", "M4", "M5"):
             record = milestones.get(key)
             if not isinstance(record, dict):
@@ -1508,13 +1511,23 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
             ]
             if len(deliverables) != 1:
                 continue
-            artifact_sha = deliverables[0].get("sha256")
+            artifact_binding = deliverables[0]
+            try:
+                artifact_path = (project_root / artifact_binding["path"]).resolve(strict=True)
+                artifact_path.relative_to(project_root.resolve())
+                if not artifact_path.is_file() or _sha256(artifact_path) != artifact_binding.get("sha256"):
+                    raise ValueError("stale artifact binding")
+            except (KeyError, OSError, TypeError, ValueError) as exc:
+                unmet.append(_u(
+                    "full_lifecycle", "FRC-DRAFT-POLICY-STALE",
+                    f"milestone_framework.milestones.{key}.artifacts",
+                    f"accepted deliverable binding is stale: {exc}",
+                ))
+                continue
             policy = record.get("policy_evidence")
-            verified_draft_envelopes = {}
-            verified_draft_hashes = {}
-            for field, phase, role in (
-                ("draft_generation", "generation", "generator"),
-                ("draft_evaluation", "evaluation", "evaluator"),
+            for field, phase, disposition in (
+                ("draft_generation", "generation", "evaluation_ready"),
+                ("draft_evaluation", "evaluation", "product_qualified"),
             ):
                 binding = policy.get(field) if isinstance(policy, dict) else None
                 where = f"milestone_framework.milestones.{key}.policy_evidence.{field}"
@@ -1528,54 +1541,52 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     evidence_path.relative_to(project_root.resolve())
                     if not evidence_path.is_file() or binding.get("evidence_sha256") != _sha256(evidence_path):
                         raise ValueError("stale binding")
-                    envelope = json.loads(evidence_path.read_text(encoding="utf-8"))
-                except (OSError, TypeError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
+                except (OSError, TypeError, ValueError) as exc:
                     unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-STALE", where,
                                     f"draft-policy evidence is unreadable, outside the project, or hash-stale: {exc}"))
                     continue
-                target = "FINAL" if key == "M5" else key
-                if (
-                    not isinstance(envelope, dict)
-                    or envelope.get("status") != "verified"
-                    or envelope.get("phase") != phase
-                    or envelope.get("role") != role
-                    or envelope.get("target") != target
-                    or envelope.get("artifact_sha256") != artifact_sha
-                    or not isinstance(envelope.get("centroid"), dict)
-                    or envelope["centroid"].get("required") is not True
-                    or not isinstance(envelope.get("actor_id"), str)
-                    or not envelope["actor_id"].strip()
-                    or not isinstance(envelope.get("dispatch_id"), str)
-                    or not envelope["dispatch_id"].strip()
-                    or not isinstance(envelope.get("semantic_receipt_sha256"), str)
-                    or SHA256_RE.fullmatch(envelope["semantic_receipt_sha256"]) is None
-                    or not isinstance(envelope.get("centroid_packet_sha256"), str)
-                    or SHA256_RE.fullmatch(envelope["centroid_packet_sha256"]) is None
-                    or not isinstance(envelope.get("product_assurance_sha256"), str)
-                    or SHA256_RE.fullmatch(envelope["product_assurance_sha256"]) is None
-                    or not isinstance(envelope.get("passage_count"), int)
-                    or envelope["passage_count"] < 1
-                    or not isinstance(envelope.get("passage_source_keys"), list)
-                    or not envelope["passage_source_keys"]
-                ):
-                    unmet.append(_u("full_lifecycle", "FRC-DRAFT-POLICY-INVALID", where,
-                                    "draft-policy envelope does not bind the target, role, centroid, and current artifact hash"))
-                else:
-                    verified_draft_envelopes[field] = envelope
-                    verified_draft_hashes[field] = binding.get("evidence_sha256")
-            generation_envelope = verified_draft_envelopes.get("draft_generation")
-            evaluation_envelope = verified_draft_envelopes.get("draft_evaluation")
-            if generation_envelope is not None and evaluation_envelope is not None and (
-                evaluation_envelope.get("generation_envelope_sha256")
-                != verified_draft_hashes.get("draft_generation")
-                or evaluation_envelope.get("actor_id") == generation_envelope.get("actor_id")
-                or evaluation_envelope.get("dispatch_id") == generation_envelope.get("dispatch_id")
-            ):
-                unmet.append(_u(
-                    "full_lifecycle", "FRC-DRAFT-POLICY-INVALID",
-                    f"milestone_framework.milestones.{key}.policy_evidence.draft_evaluation",
-                    "draft evaluation is not bound to an independent verified generation envelope",
-                ))
+                try:
+                    locator_probe = json.loads(evidence_path.read_text(encoding="utf-8"))
+                    target = locator_probe.get("target")
+                    if not isinstance(target, str) or not target:
+                        raise ValueError("locator target is absent")
+                    lifecycle_artifact = (
+                        project_root / Path(*PurePosixPath(target).parts)
+                    ).resolve(strict=True)
+                    lifecycle_artifact.relative_to(project_root.resolve())
+                    if (
+                        not lifecycle_artifact.is_file()
+                        or _sha256(lifecycle_artifact) != artifact_binding.get("sha256")
+                    ):
+                        raise ValueError(
+                            "locator target differs from accepted deliverable bytes"
+                        )
+                    result = validate_lifecycle_verifier_binding(
+                        locator=evidence_path,
+                        artifact=lifecycle_artifact,
+                        project_root=project_root,
+                        harness_root=ROOT,
+                        expected_phase=phase,
+                        expected_disposition=disposition,
+                    )
+                    if result["locator"].get("target") != target:
+                        raise VerifierError(
+                            "LIFECYCLE-EVIDENCE-CLAIM", "locator target differs"
+                        )
+                except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                    unmet.append(_u(
+                        "full_lifecycle", "FRC-DRAFT-POLICY-STALE", where,
+                        f"lifecycle target is unreadable, outside the project, or byte-stale: {exc}",
+                    ))
+                except VerifierError as exc:
+                    code = "FRC-DRAFT-POLICY-STALE" if exc.code in {
+                        "LIFECYCLE-EVIDENCE-STALE", "EVIDENCE-TOCTOU",
+                        "VERIFIER-TRANSACTION-INCOMPLETE",
+                    } else "FRC-DRAFT-POLICY-INVALID"
+                    unmet.append(_u(
+                        "full_lifecycle", code, where,
+                        f"{exc.code}: {exc.message}",
+                    ))
 
     # phase state shape -- the phase authority, ALL of it.
     #
