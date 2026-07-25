@@ -9,6 +9,7 @@ import os
 import platform
 import shutil
 import stat
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -387,6 +388,213 @@ def _transaction_claim(project: Path):
             claim.unlink()
         except FileNotFoundError:
             pass
+
+
+def _issue_dispatch_kernel_authorization(
+    project: Path,
+    claim_path: Path,
+) -> tuple[dict[str, Any], Path]:
+    """Write one kernel-owned authorization fact while holding the transaction lock.
+
+    The authorization identifier is generated here and is never accepted from
+    the dispatch caller.  The fact binds the exact claim publication and the
+    stable prefix containing its reservation transition.
+    """
+    project = project.resolve()
+    guard_project_root(project)
+    root = _assignment_root(project)
+    lock_path = root / "claims" / "transaction.lock"
+    lock = _load_record(lock_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+    if lock.get("pid") != os.getpid() or lock.get("host") != platform.node():
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "dispatch authorization requires the current kernel transaction lock",
+        )
+
+    claim_path = claim_path.resolve()
+    claim = _load_record(claim_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+    claim_id = claim.get("claim_id")
+    claim_kind = claim.get("claim_kind")
+    receipt_id = claim.get("receipt_id")
+    reservation_id = claim.get("reservation_id")
+    milestone = claim.get("target_milestone")
+    issuer = claim.get("issuer")
+    if (
+        not isinstance(claim_id, str)
+        or claim_kind not in {"generation", "evaluation"}
+        or not isinstance(receipt_id, str)
+        or not isinstance(reservation_id, str)
+        or not isinstance(milestone, str)
+        or not isinstance(issuer, dict)
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "claim authority fields are incomplete"
+        )
+    expected_claim_path = root / "dispatch" / "claims" / claim_id / "claim.json"
+    if claim_path != expected_claim_path.resolve() or _is_link(claim_path):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "claim is outside its canonical lane"
+        )
+    transaction_id = issuer.get("transaction_id")
+    allowed_transactions = (
+        {
+            f"assignment-reserve-{milestone}",
+            f"assignment-recovery-{milestone}",
+        }
+        if claim_kind == "generation"
+        else {f"assignment-evaluation-{milestone}"}
+    )
+    if (
+        issuer.get("name") != "assignment_transaction_kernel"
+        or issuer.get("version") != "1.0.0"
+        or transaction_id not in allowed_transactions
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "claim issuer is not kernel-derived"
+        )
+
+    manifest_path = claim_path.parent / "publication_manifest.json"
+    marker_path = claim_path.parent / "commit_marker.json"
+    manifest = _load_record(manifest_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+    marker = _load_record(marker_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+    claim_relative = claim_path.relative_to(project).as_posix()
+    manifest_relative = manifest_path.relative_to(project).as_posix()
+    if (
+        manifest.get("transaction_id") != transaction_id
+        or manifest.get("products")
+        != [{"path": claim_relative, "sha256": _sha256(claim_path)}]
+        or marker.get("state") != "committed"
+        or marker.get("transaction_id") != transaction_id
+        or marker.get("publication_manifest") != manifest_relative
+        or marker.get("publication_manifest_sha256") != _sha256(manifest_path)
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "claim publication is not the exact committed kernel input",
+        )
+
+    reservation_path = root / "reservations" / f"{receipt_id}.json"
+    reservation = _load_record(
+        reservation_path, "APG-DISPATCH-CLAIM-AUTHORITY"
+    )
+    receipt_binding = claim.get("assignment_receipt")
+    reservation_binding = claim.get("reservation")
+    if not isinstance(receipt_binding, dict) or not isinstance(reservation_binding, dict):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "claim reservation bindings are absent"
+        )
+    expected_reservation_relative = reservation_path.relative_to(project).as_posix()
+    if (
+        reservation.get("receipt_id") != receipt_id
+        or reservation.get("reservation_id") != reservation_id
+        or reservation.get("target_milestone") != milestone
+        or reservation.get("writes") != claim.get("authorized_writes")
+        or reservation.get("receipt_sha256") != receipt_binding.get("sha256")
+        or reservation_binding.get("path") != expected_reservation_relative
+        or reservation_binding.get("sha256") != _sha256(reservation_path)
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "claim does not bind the exact live reservation",
+        )
+
+    receipt_raw = receipt_binding.get("path")
+    receipt_relative = _safe_relative(
+        receipt_raw, "APG-DISPATCH-CLAIM-AUTHORITY"
+    )
+    receipt_basename = receipt_relative.name
+    if not receipt_basename:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "receipt transition identity is absent"
+        )
+    ledger_path = root / "ledger" / f"{receipt_basename}.jsonl"
+    try:
+        ledger_raw = ledger_path.read_bytes()
+    except OSError as exc:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "reservation transition ledger is absent"
+        ) from exc
+    if not ledger_raw or not ledger_raw.endswith(b"\n") or b"\r" in ledger_raw:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY", "reservation transition ledger is malformed"
+        )
+    expected_event = {
+        "state": "reserved",
+        "receipt_id": receipt_id,
+        "reservation_id": reservation_id,
+    }
+    matches: list[tuple[int, bytes]] = []
+    prefix = b""
+    for sequence, line in enumerate(ledger_raw.splitlines(keepends=True), 1):
+        prefix += line
+        try:
+            event = json.loads(line.decode("utf-8", errors="strict"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "reservation transition ledger is malformed",
+            ) from exc
+        canonical = json.dumps(event, sort_keys=True).encode("utf-8") + b"\n"
+        if line != canonical:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "reservation transition ledger is not canonical",
+            )
+        if event == expected_event:
+            matches.append((sequence, prefix))
+    if len(matches) != 1:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "claim has no unique exact reservation transition",
+        )
+    transition_sequence, transition_prefix = matches[0]
+
+    authorization_id = str(uuid.uuid4())
+    authorization = {
+        "schema_version": "1.0.0",
+        "authorization_type": "assignment_dispatch_kernel",
+        "authorization_id": authorization_id,
+        "state": "authorized",
+        "authorized_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "kernel": {
+            "name": "assignment_transaction_kernel",
+            "version": "1.0.0",
+            "transaction_id": transaction_id,
+        },
+        "claim": {
+            "path": claim_relative,
+            "sha256": _sha256(claim_path),
+            "claim_id": claim_id,
+            "claim_kind": claim_kind,
+        },
+        "publication": {
+            "manifest_path": manifest_relative,
+            "manifest_sha256": _sha256(manifest_path),
+            "commit_marker_path": marker_path.relative_to(project).as_posix(),
+            "commit_marker_sha256": _sha256(marker_path),
+        },
+        "reservation_transition": {
+            "reservation_path": expected_reservation_relative,
+            "reservation_sha256": _sha256(reservation_path),
+            "receipt_id": receipt_id,
+            "reservation_id": reservation_id,
+            "target_milestone": milestone,
+            "receipt_sha256": reservation["receipt_sha256"],
+            "receipt_ledger_path": ledger_path.relative_to(project).as_posix(),
+            "sequence": transition_sequence,
+            "event": expected_event,
+            "ledger_prefix_sha256": hashlib.sha256(transition_prefix).hexdigest(),
+        },
+    }
+    authorization_relative = PurePosixPath(
+        "reviews/.harness/assignment/dispatch/kernel_authorizations"
+    ) / authorization_id / "authorization.json"
+    authorization_path = _resolved_inside(
+        project,
+        authorization_relative,
+    )
+    _atomic_json(authorization_path, authorization, exclusive=True)
+    return authorization, authorization_path
 
 
 def _state_files(project: Path, basename: str) -> dict[str, Path]:

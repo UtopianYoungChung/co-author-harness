@@ -120,7 +120,7 @@
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",
       "justification": "C5 fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "7d284957235a73580437c0a85c0217b961f356037ee1b47a7ccf724a1695aceb"
+      "sha256": "7e80c6cc82f7cfd9b10fdc243097e7ed9d6d53812b57694b5c457d1aea704c0d"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

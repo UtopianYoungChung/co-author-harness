@@ -60,6 +60,24 @@ def relative(project: Path, path: Path) -> str:
     return path.resolve().relative_to(project.resolve()).as_posix()
 
 
+def write_fixture_semantics_manifest(path: Path) -> None:
+    """Pin current owned validator bytes without editing the governed manifest."""
+    value = json.loads(
+        (ROOT / "references" / "semantics_manifest.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    refreshed = {
+        "references/schemas/assignment_dispatch_issuance.schema.json",
+        "scripts/assignment_dispatch_claim.py",
+        "scripts/assignment_receipt_transaction.py",
+    }
+    members = {row["path"]: row for row in value["members"]}
+    for member_path in refreshed:
+        members[member_path]["sha256"] = sha(ROOT / member_path)
+    write_json(path, value)
+
+
 def rebind_publication(
     project: Path,
     object_path: Path,
@@ -81,6 +99,101 @@ def rebind_publication(
         marker["transaction_id"] = transaction_id
     marker["publication_manifest_sha256"] = sha(manifest_path)
     write_json(marker_path, marker)
+
+
+def republish_issuance_chain(
+    project: Path,
+    rows: list[dict[str, Any]],
+) -> None:
+    """Recompute a synthetic ledger chain and all deterministic prefix markers."""
+    prior = None
+    for sequence, row in enumerate(rows, 1):
+        row["sequence"] = sequence
+        row["prior_row_sha256"] = prior
+        row["row_sha256"] = claims._issuance_row_hash(row)
+        prior = row["row_sha256"]
+    root = claims._issuance_root(project)
+    ledger = root / "ledger.jsonl"
+    ledger.write_bytes(b"".join(canonical_bytes(row) for row in rows))
+    marker_root = root / "markers"
+    if marker_root.is_dir():
+        shutil.rmtree(marker_root)
+    prefix = b""
+    prior = None
+    for row in rows:
+        prefix += canonical_bytes(row)
+        marker = {
+            "schema_version": "1.0.0",
+            "marker_type": "assignment_dispatch_issuance",
+            "state": "committed",
+            "sequence": row["sequence"],
+            "row_count": row["sequence"],
+            "prior_head_row_sha256": prior,
+            "head_row_sha256": row["row_sha256"],
+            "ledger_path": relative(project, ledger),
+            "ledger_prefix_sha256": hashlib.sha256(prefix).hexdigest(),
+            "transaction_id": row["issuer"]["transaction_id"],
+        }
+        write_json(claims._issuance_marker_path(project, row), marker)
+        prior = row["row_sha256"]
+
+
+def append_role_authored_issuance(
+    project: Path,
+    claim: dict[str, Any],
+    claim_path: Path,
+    *,
+    copied_authorization: dict[str, Any] | None = None,
+) -> None:
+    """Manufacture a fully consistent issuance row without calling the kernel."""
+    rows = claims._load_issuance_ledger(project)
+    if copied_authorization is None:
+        authorization_id = "00000000-0000-4000-8000-000000000000"
+        authorization_path = (
+            _assignment_root(project)
+            / "dispatch"
+            / "kernel_authorizations"
+            / authorization_id
+            / "authorization.json"
+        )
+        authorization_binding = claims.binding_from_digest(
+            project,
+            authorization_path,
+            "0" * 64,
+            "assignment_dispatch_kernel_authorization",
+        )
+    else:
+        authorization_id = copied_authorization["authorization_id"]
+        authorization_binding = copied_authorization["kernel_authorization"]
+    row: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "issuance_type": "assignment_dispatch_claim",
+        "sequence": len(rows) + 1,
+        "prior_row_sha256": rows[-1]["row_sha256"] if rows else None,
+        "claim": claims.binding(project, claim_path, "assignment_dispatch_claim"),
+        "claim_id": claim["claim_id"],
+        "claim_sha256": sha(claim_path),
+        "claim_kind": claim["claim_kind"],
+        "receipt_id": claim["receipt_id"],
+        "reservation_id": claim["reservation_id"],
+        "issuer": claim["issuer"],
+        "issued_at": claim["issued_at"],
+        "publication_manifest": claims.binding(
+            project,
+            claim_path.parent / "publication_manifest.json",
+            "assignment_dispatch_claim_manifest",
+        ),
+        "commit_marker": claims.binding(
+            project,
+            claim_path.parent / "commit_marker.json",
+            "assignment_dispatch_claim_marker",
+        ),
+        "kernel_authorization": authorization_binding,
+        "authorization_id": authorization_id,
+    }
+    row["row_sha256"] = claims._issuance_row_hash(row)
+    rows.append(row)
+    republish_issuance_chain(project, rows)
 
 
 def resign_fixture_record(
@@ -455,17 +568,344 @@ def expect_future_refusal(
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="assignment-dispatch-c4-") as td:
+    global SEMANTICS
+    with tempfile.TemporaryDirectory(
+        prefix="assignment-dispatch-semantics-", dir=ROOT
+    ) as semantics_td, tempfile.TemporaryDirectory(
+        prefix="assignment-dispatch-c4-"
+    ) as td:
+        SEMANTICS = Path(semantics_td) / "semantics-manifest.json"
+        write_fixture_semantics_manifest(SEMANTICS)
         base = Path(td)
         control = base / "control" / "project"
         facts = build_control(control)
         intended_red: list[str] = []
         fixture_adapter = DeterministicFixtureAdapter()
+        issuance_rows = claims._load_issuance_ledger(control)
+        assert [row["claim_kind"] for row in issuance_rows] == [
+            "generation", "generation", "evaluation"
+        ]
+        assert {row["claim_id"] for row in issuance_rows} == {
+            facts["generation_claim_value"]["claim_id"],
+            facts["recovery_claim_value"]["claim_id"],
+            facts["evaluation_claim_value"]["claim_id"],
+        }
+        assert len({row["authorization_id"] for row in issuance_rows}) == 3
+        for row in issuance_rows:
+            authorization_path = control / row["kernel_authorization"]["path"]
+            assert authorization_path.is_file()
+            assert sha(authorization_path) == row["kernel_authorization"]["sha256"]
 
         def claim_case(name: str, *, evaluation: bool = False) -> tuple[Path, Path]:
             project = clone_control(control, base / "cases", name)
             key = "evaluation_claim" if evaluation else "generation_claim"
             return project, project / facts[key]
+
+        # QG-1 executable red: deterministic claim bytes plus the canonical
+        # object/manifest/marker publication are not issuance authority.  This
+        # forged claim keeps every live binding and an allowed transaction id,
+        # recomputes its identifier, and occupies its derived canonical lane,
+        # but no assignment-kernel issuance record exists for it.
+        project, _path = claim_case("missing_issuance_row")
+        forged = copy.deepcopy(facts["generation_claim_value"])
+        forged["issued_at"] = "2026-07-25T12:00:01Z"
+        unsigned = {key: value for key, value in forged.items() if key != "claim_id"}
+        forged["claim_id"] = "dispatch-" + hashlib.sha256(
+            json.dumps(
+                unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        forged_lane = (
+            _assignment_root(project)
+            / "dispatch"
+            / "claims"
+            / forged["claim_id"]
+        )
+        forged_path, _forged_manifest, forged_marker = claims._publish_record(
+            project,
+            forged_lane,
+            "claim.json",
+            forged,
+            "assignment-reserve-M1",
+        )
+        assert forged_marker.is_file()
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                forged_path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_preimages=forged["authorized_writes"],
+                expected_policy_sha256=forged["policy"]["sha256"],
+                expected_corpus_digest=forged["corpus_digest"],
+            ),
+            intended_red,
+        )
+
+        # Stronger QG-1 boundary: the role also manufactures the complete,
+        # internally consistent deterministic issuance journal and marker.
+        project, _path = claim_case("coordinated_role_authored_issuance")
+        coordinated = copy.deepcopy(facts["generation_claim_value"])
+        coordinated["issued_at"] = "2026-07-25T12:00:03Z"
+        unsigned = {
+            key: value for key, value in coordinated.items()
+            if key != "claim_id"
+        }
+        coordinated["claim_id"] = "dispatch-" + hashlib.sha256(
+            json.dumps(
+                unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        coordinated_lane = (
+            _assignment_root(project)
+            / "dispatch"
+            / "claims"
+            / coordinated["claim_id"]
+        )
+        coordinated_path, _, coordinated_marker = claims._publish_record(
+            project,
+            coordinated_lane,
+            "claim.json",
+            coordinated,
+            "assignment-reserve-M1",
+        )
+        assert coordinated_marker.is_file()
+        append_role_authored_issuance(project, coordinated, coordinated_path)
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                coordinated_path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_preimages=coordinated["authorized_writes"],
+                expected_policy_sha256=coordinated["policy"]["sha256"],
+                expected_corpus_digest=coordinated["corpus_digest"],
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("generation_authorization_absent")
+        rows = claims._load_issuance_ledger(project)
+        generation_row = next(
+            row for row in rows
+            if row["claim_id"] == facts["generation_claim_value"]["claim_id"]
+        )
+        (project / generation_row["kernel_authorization"]["path"]).unlink()
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("evaluation_authorization_absent", evaluation=True)
+        rows = claims._load_issuance_ledger(project)
+        evaluation_row = next(
+            row for row in rows
+            if row["claim_id"] == facts["evaluation_claim_value"]["claim_id"]
+        )
+        (project / evaluation_row["kernel_authorization"]["path"]).unlink()
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="evaluator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_artifact_sha256=facts["evaluation_claim_value"]["artifact"]["sha256"],
+                expected_generation_transaction_id=(
+                    facts["evaluation_claim_value"]["generation_verifier"]["transaction_id"]
+                ),
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("kernel_authorization_rewritten")
+        rows = claims._load_issuance_ledger(project)
+        row_index = next(
+            index for index, row in enumerate(rows)
+            if row["claim_id"] == facts["generation_claim_value"]["claim_id"]
+        )
+        authorization_path = project / rows[row_index]["kernel_authorization"]["path"]
+        authorization = json.loads(authorization_path.read_text(encoding="utf-8"))
+        authorization["claim"]["sha256"] = "0" * 64
+        write_json(authorization_path, authorization)
+        rows[row_index]["kernel_authorization"] = claims.binding(
+            project,
+            authorization_path,
+            "assignment_dispatch_kernel_authorization",
+        )
+        republish_issuance_chain(project, rows)
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+            ),
+            intended_red,
+        )
+
+        project, _path = claim_case("kernel_authorization_copied")
+        copied = copy.deepcopy(facts["generation_claim_value"])
+        copied["issued_at"] = "2026-07-25T12:00:04Z"
+        unsigned = {key: value for key, value in copied.items() if key != "claim_id"}
+        copied["claim_id"] = "dispatch-" + hashlib.sha256(
+            json.dumps(
+                unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        copied_lane = (
+            _assignment_root(project) / "dispatch" / "claims" / copied["claim_id"]
+        )
+        copied_path, _, copied_marker = claims._publish_record(
+            project,
+            copied_lane,
+            "claim.json",
+            copied,
+            "assignment-reserve-M1",
+        )
+        assert copied_marker.is_file()
+        rows = claims._load_issuance_ledger(project)
+        original_row = next(
+            row for row in rows
+            if row["claim_id"] == facts["generation_claim_value"]["claim_id"]
+        )
+        append_role_authored_issuance(
+            project,
+            copied,
+            copied_path,
+            copied_authorization=original_row,
+        )
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                copied_path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_preimages=copied["authorized_writes"],
+                expected_policy_sha256=copied["policy"]["sha256"],
+                expected_corpus_digest=copied["corpus_digest"],
+            ),
+            intended_red,
+        )
+
+        project, _path = claim_case("missing_evaluation_issuance_row", evaluation=True)
+        forged_evaluation = copy.deepcopy(facts["evaluation_claim_value"])
+        forged_evaluation["issued_at"] = "2026-07-25T12:01:01Z"
+        unsigned = {
+            key: value for key, value in forged_evaluation.items()
+            if key != "claim_id"
+        }
+        forged_evaluation["claim_id"] = "dispatch-" + hashlib.sha256(
+            json.dumps(
+                unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        forged_lane = (
+            _assignment_root(project)
+            / "dispatch"
+            / "claims"
+            / forged_evaluation["claim_id"]
+        )
+        forged_evaluation_path, _, forged_evaluation_marker = claims._publish_record(
+            project,
+            forged_lane,
+            "claim.json",
+            forged_evaluation,
+            "assignment-evaluation-M1",
+        )
+        assert forged_evaluation_marker.is_file()
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                forged_evaluation_path,
+                expected_role="evaluator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_artifact_sha256=forged_evaluation["artifact"]["sha256"],
+                expected_generation_transaction_id=(
+                    forged_evaluation["generation_verifier"]["transaction_id"]
+                ),
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("issuance_marker_missing", evaluation=True)
+        rows = claims._load_issuance_ledger(project)
+        claims._issuance_marker_path(project, rows[-1]).unlink()
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="evaluator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+                expected_artifact_sha256=facts["evaluation_claim_value"]["artifact"]["sha256"],
+                expected_generation_transaction_id=(
+                    facts["evaluation_claim_value"]["generation_verifier"]["transaction_id"]
+                ),
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("issuance_reordered")
+        ledger = claims._issuance_root(project) / "ledger.jsonl"
+        lines = ledger.read_bytes().splitlines(keepends=True)
+        ledger.write_bytes(lines[1] + lines[0] + b"".join(lines[2:]))
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+            ),
+            intended_red,
+        )
+
+        project, path = claim_case("issuance_rewritten")
+        rewritten = claims._load_issuance_ledger(project)
+        rewritten[0]["issued_at"] = "2026-07-25T12:00:02Z"
+        republish_issuance_chain(project, rewritten)
+        expect_future_refusal(
+            project,
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims.accept_claim_for_context(
+                project,
+                path,
+                expected_role="generator",
+                expected_target=TARGET,
+                expected_receipt_id=facts["receipt_id"],
+            ),
+            intended_red,
+        )
 
         project, path = claim_case("malformed")
         malformed = project / "reviews/.harness/assignment/dispatch/malformed.json"

@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""C4 assignment-dispatch claim activation seam.
-
-This module intentionally contains only the narrow C4 activation boundary.
-Issuers create schema-valid, marker-committed controls under the existing
-assignment transaction lock.  Context and replay validation is deliberately
-not implemented until the independently reviewed red boundary exists.
-"""
+"""C4 assignment-dispatch claim issuance and replay validation."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,6 +17,7 @@ from assignment_receipt_transaction import (
     ReceiptTransactionError,
     _assignment_root,
     _atomic_json,
+    _issue_dispatch_kernel_authorization,
     _json_bytes,
     _load_record,
     _target_snapshot,
@@ -37,6 +33,15 @@ CONSUMPTION_SCHEMA = (
     ROOT / "references" / "schemas" / "assignment_dispatch_consumption.schema.json"
 )
 HOST_SCHEMA = ROOT / "references" / "schemas" / "assignment_host_attestation.schema.json"
+ISSUANCE_SCHEMA = (
+    ROOT / "references" / "schemas" / "assignment_dispatch_issuance.schema.json"
+)
+KERNEL_AUTHORIZATION_SCHEMA = (
+    ROOT
+    / "references"
+    / "schemas"
+    / "assignment_dispatch_kernel_authorization.schema.json"
+)
 KERNEL_NAME = "assignment_transaction_kernel"
 KERNEL_VERSION = "1.0.0"
 PRODUCTION_HOST_ADAPTERS: dict[str, Any] = {}
@@ -205,6 +210,375 @@ def _load_published(
     return value
 
 
+def _issuance_root(project: Path) -> Path:
+    return _assignment_root(project) / "dispatch" / "issuance"
+
+
+def _issuance_row_hash(row: dict[str, Any]) -> str:
+    unsigned = {key: value for key, value in row.items() if key != "row_sha256"}
+    return _digest_bytes(_canonical_bytes(unsigned))
+
+
+def _issuance_line_bytes(row: dict[str, Any]) -> bytes:
+    return _canonical_bytes(row) + b"\n"
+
+
+def _issuance_marker_path(project: Path, row: dict[str, Any]) -> Path:
+    return (
+        _issuance_root(project)
+        / "markers"
+        / f"{row['sequence']:08d}-{row['row_sha256'][:16]}"
+        / "commit_marker.json"
+    )
+
+
+def _validate_kernel_authorization(
+    project: Path,
+    row: dict[str, Any],
+    claim_path: Path,
+    claim: dict[str, Any],
+) -> None:
+    """Require the exact kernel-owned fact behind one issuance row."""
+    authorization_id = row["authorization_id"]
+    authorization_path = (
+        _assignment_root(project)
+        / "dispatch"
+        / "kernel_authorizations"
+        / authorization_id
+        / "authorization.json"
+    )
+    _resolve_binding(
+        project,
+        row["kernel_authorization"],
+        code="APG-DISPATCH-CLAIM-AUTHORITY",
+        expected_path=authorization_path,
+    )
+    authorization = _load_record(
+        authorization_path, "APG-DISPATCH-CLAIM-AUTHORITY"
+    )
+    _validate_schema(
+        authorization,
+        KERNEL_AUTHORIZATION_SCHEMA,
+        "APG-DISPATCH-CLAIM-AUTHORITY",
+    )
+    manifest_path = claim_path.parent / "publication_manifest.json"
+    marker_path = claim_path.parent / "commit_marker.json"
+    expected_claim = {
+        "path": claim_path.relative_to(project).as_posix(),
+        "sha256": _digest_path(claim_path),
+        "claim_id": claim["claim_id"],
+        "claim_kind": claim["claim_kind"],
+    }
+    expected_publication = {
+        "manifest_path": manifest_path.relative_to(project).as_posix(),
+        "manifest_sha256": _digest_path(manifest_path),
+        "commit_marker_path": marker_path.relative_to(project).as_posix(),
+        "commit_marker_sha256": _digest_path(marker_path),
+    }
+    expected_kernel = {
+        "name": KERNEL_NAME,
+        "version": KERNEL_VERSION,
+        "transaction_id": claim["issuer"]["transaction_id"],
+    }
+    reservation_path = (
+        _assignment_root(project)
+        / "reservations"
+        / f"{claim['receipt_id']}.json"
+    )
+    reservation = _load_record(
+        reservation_path, "APG-DISPATCH-CLAIM-AUTHORITY"
+    )
+    transition = authorization["reservation_transition"]
+    receipt_path = Path(claim["assignment_receipt"]["path"])
+    ledger_path = (
+        _assignment_root(project) / "ledger" / f"{receipt_path.name}.jsonl"
+    )
+    if (
+        authorization["authorization_id"] != authorization_id
+        or authorization["claim"] != expected_claim
+        or authorization["publication"] != expected_publication
+        or authorization["kernel"] != expected_kernel
+        or transition["reservation_path"]
+        != reservation_path.relative_to(project).as_posix()
+        or transition["reservation_sha256"] != _digest_path(reservation_path)
+        or transition["receipt_id"] != claim["receipt_id"]
+        or transition["reservation_id"] != claim["reservation_id"]
+        or transition["target_milestone"] != claim["target_milestone"]
+        or transition["receipt_sha256"] != reservation.get("receipt_sha256")
+        or transition["receipt_ledger_path"]
+        != ledger_path.relative_to(project).as_posix()
+        or transition["event"]
+        != {
+            "state": "reserved",
+            "receipt_id": claim["receipt_id"],
+            "reservation_id": claim["reservation_id"],
+        }
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "kernel authorization does not bind the exact claim transition",
+        )
+    try:
+        ledger_raw = ledger_path.read_bytes()
+        lines = ledger_raw.splitlines(keepends=True)
+        sequence = transition["sequence"]
+        if sequence > len(lines):
+            raise ValueError("transition sequence is beyond the live ledger")
+        prefix = b"".join(lines[:sequence])
+        event = json.loads(lines[sequence - 1].decode("utf-8", errors="strict"))
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError, IndexError) as exc:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "kernel authorization reservation transition is unreadable",
+        ) from exc
+    if (
+        event != transition["event"]
+        or lines[sequence - 1]
+        != json.dumps(event, sort_keys=True).encode("utf-8") + b"\n"
+        or _digest_bytes(prefix) != transition["ledger_prefix_sha256"]
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "kernel authorization reservation transition bytes differ",
+        )
+
+
+def _load_issuance_ledger(project: Path) -> list[dict[str, Any]]:
+    """Validate the canonical issuance chain, every prefix marker, and head."""
+    project = project.resolve()
+    root = _issuance_root(project)
+    ledger = root / "ledger.jsonl"
+    marker_root = root / "markers"
+    if not ledger.is_file():
+        extras = list(marker_root.glob("*/commit_marker.json")) if marker_root.is_dir() else []
+        if extras:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance markers exist without an issuance ledger",
+            )
+        return []
+    raw = ledger.read_bytes()
+    if not raw or not raw.endswith(b"\n") or b"\r" in raw:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "issuance ledger is not canonical newline-delimited JSON",
+        )
+    raw_lines = raw.splitlines(keepends=True)
+    rows: list[dict[str, Any]] = []
+    expected_markers: set[Path] = set()
+    prefix = b""
+    prior: str | None = None
+    seen_claim_ids: set[str] = set()
+    for sequence, line in enumerate(raw_lines, 1):
+        try:
+            row = json.loads(line.decode("utf-8", errors="strict"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance ledger row is not valid UTF-8 JSON",
+            ) from exc
+        if not isinstance(row, dict) or line != _issuance_line_bytes(row):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance ledger row is not canonical",
+            )
+        _validate_schema(
+            row, ISSUANCE_SCHEMA, "APG-DISPATCH-CLAIM-AUTHORITY"
+        )
+        expected_hash = _issuance_row_hash(row)
+        if (
+            row["sequence"] != sequence
+            or row["prior_row_sha256"] != prior
+            or row["row_sha256"] != expected_hash
+            or row["claim_sha256"] != row["claim"]["sha256"]
+            or row["claim_id"] in seen_claim_ids
+        ):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance ledger sequence, chain, row hash, or uniqueness is invalid",
+            )
+        claim_path = (
+            _assignment_root(project)
+            / "dispatch"
+            / "claims"
+            / row["claim_id"]
+            / "claim.json"
+        )
+        manifest_path = claim_path.parent / "publication_manifest.json"
+        commit_marker_path = claim_path.parent / "commit_marker.json"
+        _resolve_binding(
+            project,
+            row["claim"],
+            code="APG-DISPATCH-CLAIM-AUTHORITY",
+            expected_path=claim_path,
+        )
+        _resolve_binding(
+            project,
+            row["publication_manifest"],
+            code="APG-DISPATCH-CLAIM-AUTHORITY",
+            expected_path=manifest_path,
+        )
+        _resolve_binding(
+            project,
+            row["commit_marker"],
+            code="APG-DISPATCH-CLAIM-AUTHORITY",
+            expected_path=commit_marker_path,
+        )
+        claim = _load_record(claim_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+        if (
+            claim.get("claim_id") != row["claim_id"]
+            or claim.get("claim_kind") != row["claim_kind"]
+            or claim.get("receipt_id") != row["receipt_id"]
+            or claim.get("reservation_id") != row["reservation_id"]
+            or claim.get("issuer") != row["issuer"]
+            or claim.get("issued_at") != row["issued_at"]
+        ):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance row does not bind the exact claim authority fields",
+            )
+        _validate_kernel_authorization(project, row, claim_path, claim)
+        prefix += line
+        marker_path = _issuance_marker_path(project, row)
+        expected_markers.add(marker_path.resolve())
+        if not marker_path.is_file():
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance prefix has no marker-last commit record",
+            )
+        marker = _load_record(marker_path, "APG-DISPATCH-CLAIM-AUTHORITY")
+        expected_marker = {
+            "schema_version": "1.0.0",
+            "marker_type": "assignment_dispatch_issuance",
+            "state": "committed",
+            "sequence": sequence,
+            "row_count": sequence,
+            "prior_head_row_sha256": prior,
+            "head_row_sha256": row["row_sha256"],
+            "ledger_path": ledger.relative_to(project).as_posix(),
+            "ledger_prefix_sha256": _digest_bytes(prefix),
+            "transaction_id": row["issuer"]["transaction_id"],
+        }
+        if marker != expected_marker:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "issuance prefix/head marker is stale or malformed",
+            )
+        seen_claim_ids.add(row["claim_id"])
+        prior = row["row_sha256"]
+        rows.append(row)
+    actual_markers = {
+        path.resolve() for path in marker_root.glob("*/commit_marker.json")
+    } if marker_root.is_dir() else set()
+    if actual_markers != expected_markers:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "issuance marker inventory differs from the ledger prefixes",
+        )
+    return rows
+
+
+def _append_issuance_row(
+    project: Path,
+    claim: dict[str, Any],
+    claim_path: Path,
+    authorization_path: Path,
+) -> dict[str, Any]:
+    """Append one claim issuance and publish its prefix marker last."""
+    rows = _load_issuance_ledger(project)
+    manifest_path = claim_path.parent / "publication_manifest.json"
+    commit_marker_path = claim_path.parent / "commit_marker.json"
+    authorization = _load_record(
+        authorization_path, "APG-DISPATCH-CLAIM-AUTHORITY"
+    )
+    _validate_schema(
+        authorization,
+        KERNEL_AUTHORIZATION_SCHEMA,
+        "APG-DISPATCH-CLAIM-AUTHORITY",
+    )
+    row: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "issuance_type": "assignment_dispatch_claim",
+        "sequence": len(rows) + 1,
+        "prior_row_sha256": rows[-1]["row_sha256"] if rows else None,
+        "claim": binding(project, claim_path, "assignment_dispatch_claim"),
+        "claim_id": claim["claim_id"],
+        "claim_sha256": _digest_path(claim_path),
+        "claim_kind": claim["claim_kind"],
+        "receipt_id": claim["receipt_id"],
+        "reservation_id": claim["reservation_id"],
+        "issuer": claim["issuer"],
+        "issued_at": claim["issued_at"],
+        "publication_manifest": binding(
+            project, manifest_path, "assignment_dispatch_claim_manifest"
+        ),
+        "commit_marker": binding(
+            project, commit_marker_path, "assignment_dispatch_claim_marker"
+        ),
+        "kernel_authorization": binding(
+            project,
+            authorization_path,
+            "assignment_dispatch_kernel_authorization",
+        ),
+        "authorization_id": authorization["authorization_id"],
+    }
+    row["row_sha256"] = _issuance_row_hash(row)
+    _validate_schema(row, ISSUANCE_SCHEMA, "APG-DISPATCH-CLAIM-AUTHORITY")
+    root = _issuance_root(project)
+    root.mkdir(parents=True, exist_ok=True)
+    ledger = root / "ledger.jsonl"
+    line = _issuance_line_bytes(row)
+    with ledger.open("ab") as handle:
+        handle.write(line)
+        handle.flush()
+        os.fsync(handle.fileno())
+    marker_path = _issuance_marker_path(project, row)
+    marker_path.parent.mkdir(parents=True, exist_ok=False)
+    prefix = ledger.read_bytes()
+    marker = {
+        "schema_version": "1.0.0",
+        "marker_type": "assignment_dispatch_issuance",
+        "state": "committed",
+        "sequence": row["sequence"],
+        "row_count": row["sequence"],
+        "prior_head_row_sha256": row["prior_row_sha256"],
+        "head_row_sha256": row["row_sha256"],
+        "ledger_path": ledger.relative_to(project).as_posix(),
+        "ledger_prefix_sha256": _digest_bytes(prefix),
+        "transaction_id": row["issuer"]["transaction_id"],
+    }
+    _atomic_json(marker_path, marker, exclusive=True)
+    validated = _load_issuance_ledger(project)
+    if validated[-1] != row:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "issuance ledger did not commit the exact appended row",
+        )
+    return row
+
+
+def _validate_issuance_authority(
+    project: Path,
+    claim_path: Path,
+    claim: dict[str, Any],
+) -> None:
+    rows = _load_issuance_ledger(project)
+    exact = [
+        row for row in rows
+        if row["claim_id"] == claim["claim_id"]
+        and row["claim_sha256"] == _digest_path(claim_path)
+        and row["claim_kind"] == claim["claim_kind"]
+        and row["receipt_id"] == claim["receipt_id"]
+        and row["reservation_id"] == claim["reservation_id"]
+        and row["issuer"] == claim["issuer"]
+    ]
+    if len(exact) != 1:
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            "claim has no unique exact kernel issuance ledger row",
+        )
+
+
 def _validate_claim_publication(project: Path, claim_path: Path | None) -> dict[str, Any]:
     claim = _load_published(
         project,
@@ -264,6 +638,7 @@ def _validate_claim_publication(project: Path, claim_path: Path | None) -> dict[
             "APG-DISPATCH-CLAIM-AUTHORITY",
             "claim is not bound to the live kernel reservation transition",
         )
+    _validate_issuance_authority(project, claim_path.resolve(), claim)
     return claim
 
 
@@ -417,6 +792,10 @@ def issue_generation_claim(
         claim_path, _, marker_path = _publish_record(
             project, lane, "claim.json", claim, issuer_transaction_id
         )
+        _, authorization_path = _issue_dispatch_kernel_authorization(
+            project, claim_path
+        )
+        _append_issuance_row(project, claim, claim_path, authorization_path)
     return claim, claim_path, marker_path
 
 
@@ -718,6 +1097,10 @@ def issue_evaluation_claim(
         claim_path, _, marker_path = _publish_record(
             project, lane, "claim.json", claim, issuer_transaction_id
         )
+        _, authorization_path = _issue_dispatch_kernel_authorization(
+            project, claim_path
+        )
+        _append_issuance_row(project, claim, claim_path, authorization_path)
     return claim, claim_path, marker_path
 
 

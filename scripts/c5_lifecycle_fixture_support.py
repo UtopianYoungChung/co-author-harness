@@ -38,6 +38,12 @@ def write_json(path: Path, value: object) -> None:
     path.write_bytes(canonical_bytes(value))
 
 
+def write_receipt_transition(path: Path, value: dict[str, str]) -> None:
+    """Write the exact canonical kernel-ledger event used by this synthetic fixture."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(json.dumps(value, sort_keys=True).encode("utf-8") + b"\n")
+
+
 def _binding(project: Path, path: Path, root: str) -> dict[str, str]:
     base = project if root == "project" else ROOT
     return {
@@ -171,6 +177,14 @@ def build_existing_artifact_pair(
             "preimage": preimage,
         }],
     })
+    write_receipt_transition(
+        assignment / "ledger" / f"{reserved.name}.jsonl",
+        {
+            "state": "reserved",
+            "receipt_id": receipt_id,
+            "reservation_id": reservation_id,
+        },
+    )
     mutation = _append_mutation(
         project, receipt_id=receipt_id, reservation_id=reservation_id,
         target=artifact_relative, preimage=preimage,

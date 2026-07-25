@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/assignment_dispatch_kernel_authorization.schema.json",
+  "title": "Assignment dispatch kernel authorization 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authorization_type",
+    "authorization_id",
+    "state",
+    "authorized_at",
+    "kernel",
+    "claim",
+    "publication",
+    "reservation_transition"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "authorization_type": {"const": "assignment_dispatch_kernel"},
+    "authorization_id": {"type": "string", "format": "uuid"},
+    "state": {"const": "authorized"},
+    "authorized_at": {"$ref": "#/$defs/timestamp"},
+    "kernel": {"$ref": "#/$defs/kernel"},
+    "claim": {"$ref": "#/$defs/claim"},
+    "publication": {"$ref": "#/$defs/publication"},
+    "reservation_transition": {"$ref": "#/$defs/reservationTransition"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+    },
+    "kernel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "transaction_id"],
+      "properties": {
+        "name": {"const": "assignment_transaction_kernel"},
+        "version": {"const": "1.0.0"},
+        "transaction_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "claim_id", "claim_kind"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
+        "claim_kind": {"enum": ["generation", "evaluation"]}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_path",
+        "manifest_sha256",
+        "commit_marker_path",
+        "commit_marker_sha256"
+      ],
+      "properties": {
+        "manifest_path": {"$ref": "#/$defs/safePath"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "commit_marker_path": {"$ref": "#/$defs/safePath"},
+        "commit_marker_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "reservationEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "receipt_id", "reservation_id"],
+      "properties": {
+        "state": {"const": "reserved"},
+        "receipt_id": {"type": "string", "format": "uuid"},
+        "reservation_id": {"type": "string", "format": "uuid"}
+      }
+    },
+    "reservationTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reservation_path",
+        "reservation_sha256",
+        "receipt_id",
+        "reservation_id",
+        "target_milestone",
+        "receipt_sha256",
+        "receipt_ledger_path",
+        "sequence",
+        "event",
+        "ledger_prefix_sha256"
+      ],
+      "properties": {
+        "reservation_path": {"$ref": "#/$defs/safePath"},
+        "reservation_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_id": {"type": "string", "format": "uuid"},
+        "reservation_id": {"type": "string", "format": "uuid"},
+        "target_milestone": {"type": "string", "minLength": 1},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_ledger_path": {"$ref": "#/$defs/safePath"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "event": {"$ref": "#/$defs/reservationEvent"},
+        "ledger_prefix_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_SEMANTICS_MEMBERS = (
     "references/policies/draft_governance.v1.json",
     "references/schemas/assignment_dispatch_claim.schema.json",
+    "references/schemas/assignment_dispatch_issuance.schema.json",
+    "references/schemas/assignment_dispatch_kernel_authorization.schema.json",
     "references/schemas/assignment_dispatch_consumption.schema.json",
     "references/schemas/assignment_host_attestation.schema.json",
     "references/schemas/assignment_mutation_anchor.schema.json",
