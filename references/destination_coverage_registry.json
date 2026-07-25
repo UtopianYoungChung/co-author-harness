@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "8fc3bcf5347d790cb525015eab867ddf3bc04525d40038ee755d63a71d9d645d"
+      "sha256": "a65ac95785e21e46a0fc849528293cfd8f6d932e9df3bf6f6312ded98a693247"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -64,14 +64,24 @@
       "class": "guarded",
       "regression": "scripts/product_assurance_smoketest.py"
     },
+    "scripts/evidence_publication.py": {
+      "class": "excluded",
+      "reason": "journaled publication and recovery library with no CLI entry; its writing callers are the guarded source_extract.py and canonical_bibliography.py publishers",
+      "sha256": "0e713f170d83ce316dd85c6ea6cfa32f9ec867ab2a346633f838858752f65bff"
+    },
     "scripts/source_extract.py": {
       "class": "guarded",
-      "regression": "scripts/product_assurance_smoketest.py"
+      "regression": "scripts/source_extract_smoketest.py"
     },
     "scripts/build-plugin.py": {
       "class": "package_confined",
       "evidence": "no CLI arguments at all; every write path derives from the package root (bundle under .claude-plugin/, build worktree under .worktrees/)",
       "sha256": "7c0471cb7d51301359cd0fce4cefbf5d5afe18598afc8cb6bff2fe348137cd85"
+    },
+    "scripts/c2_evidence_fixture_support.py": {
+      "class": "test_only",
+      "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
+      "sha256": "993c7b46a6e9ca020a9983f14416c24a66e5f4cdd7e97cc7d9d6473fdacd50cf"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
@@ -143,6 +153,11 @@
       "class": "test_only",
       "justification": "smoketest fixture environment support; invoked only by suites against temp or hermetic staging trees",
       "sha256": "dc4bd1eeca84bcd98cee4769cc36917b02ca4aeeb032aedf487a20a1ffbb24b9"
+    },
+    "scripts/fixtures/assurance_provenance_c2/build_c2_assets.py": {
+      "class": "package_confined",
+      "evidence": "regenerates only the fixed package fixture directory derived from __file__; build intermediates use a temporary directory",
+      "sha256": "26e620b75d6289ff454b91f9908a41696c2e2e9081e287ac23bc5f9b98d1ab62"
     },
     "scripts/sk20_overlay_run.py": {
       "class": "guarded",

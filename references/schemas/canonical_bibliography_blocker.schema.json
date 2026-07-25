@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/canonical_bibliography_blocker.schema.json",
+  "title": "Canonical bibliography publication blocker",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_type", "status", "reason_code", "detail"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "report_type": {"const": "canonical_bibliography_blocker"},
+    "status": {"const": "blocked"},
+    "reason_code": {
+      "enum": [
+        "CITATION-METADATA-MISSING",
+        "CITATION-REDIRECT-INVALID",
+        "CITATION-BIBLIOGRAPHY-AMBIGUOUS",
+        "CITATION-SNAPSHOT-INVALID",
+        "CITATION-SNAPSHOT-STALE",
+        "CITATION-ROOT-MISMATCH",
+        "CITATION-IDENTITY-MISMATCH"
+      ]
+    },
+    "detail": {"type": "string", "minLength": 1}
+  }
+}

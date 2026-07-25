@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "c2-synthetic-citation-policy",
+  "authority": "synthetic_nonqualifying",
+  "same_year_order": "canonical_title"
+}

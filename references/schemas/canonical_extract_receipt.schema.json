@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/canonical_extract_receipt.schema.json",
+  "title": "Canonical extract receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "source_key", "source", "raw_output", "normalized_output", "page_span_map", "extraction", "publication"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "receipt_type": {"const": "canonical_extract_receipt"},
+    "source_key": {"type": "string", "minLength": 1},
+    "source": {"$ref": "#/$defs/portableBinding"},
+    "raw_output": {"$ref": "#/$defs/portableBinding"},
+    "normalized_output": {"$ref": "#/$defs/portableBinding"},
+    "page_span_map": {"$ref": "#/$defs/portableBinding"},
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "executable", "argv", "layout_mode", "normalization_version"],
+      "properties": {
+        "adapter": {"const": "poppler-pdftotext"},
+        "executable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version", "sha256", "size"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "version": {"type": "string", "minLength": 1},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "size": {"type": "integer", "minimum": 1}
+          }
+        },
+        "argv": {"type": "array", "items": {"type": "string"}},
+        "layout_mode": {"type": "string", "minLength": 1},
+        "normalization_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "publication": {"$ref": "#/$defs/publication"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "discovery", "manifest_sha256"],
+      "properties": {
+        "kind": {"enum": ["project", "wiki"]},
+        "identity": {"type": "string", "minLength": 1},
+        "discovery": {"type": "string", "pattern": "^explicit:[^\\\\].+"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "portableBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256", "evidence_type"],
+      "properties": {
+        "root": {"$ref": "#/$defs/root"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "transaction_id", "manifest", "commit_marker"],
+      "properties": {
+        "mode": {"const": "committed"},
+        "transaction_id": {"type": "string", "minLength": 1},
+        "manifest": {"$ref": "#/$defs/portableBinding"},
+        "commit_marker": {"$ref": "#/$defs/portableBinding"}
+      }
+    }
+  }
+}

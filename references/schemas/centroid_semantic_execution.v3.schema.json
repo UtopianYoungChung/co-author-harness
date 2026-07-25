@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/centroid_semantic_execution.v3.schema.json",
+  "title": "C2 centroid semantic execution receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "authority_mode", "target", "phase", "role", "artifact", "centroid_packet", "policy", "corpus_digest", "canonical_extract_receipts", "canonical_bibliography_snapshot", "passages", "member_coverage", "semantic_assessment", "diagnostic_legacy_view"],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "receipt_type": {"const": "centroid_semantic_execution"},
+    "authority_mode": {"const": "legacy_compatibility"},
+    "target": {"const": "FINAL"},
+    "phase": {"const": "generation"},
+    "role": {"const": "generator"},
+    "artifact": {"$ref": "#/$defs/portableBinding"},
+    "centroid_packet": {"$ref": "#/$defs/portableBinding"},
+    "policy": {"$ref": "#/$defs/portableBinding"},
+    "corpus_digest": {"$ref": "#/$defs/sha256"},
+    "canonical_extract_receipts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/portableBinding"}},
+    "canonical_bibliography_snapshot": {"$ref": "#/$defs/portableBinding"},
+    "passages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/passage"}},
+    "member_coverage": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_key", "member_role", "disposition", "rationale"],
+        "properties": {
+          "source_key": {"type": "string", "minLength": 1},
+          "member_role": {"type": "string", "minLength": 1},
+          "disposition": {"enum": ["included", "omitted"]},
+          "rationale": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "semantic_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "strengths", "deviations", "warrant_limits", "actionable_findings"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1},
+        "strengths": {"type": "array", "items": {"type": "string"}},
+        "deviations": {"type": "array", "items": {"type": "string"}},
+        "warrant_limits": {"type": "array", "items": {"type": "string"}},
+        "actionable_findings": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "diagnostic_legacy_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passages"],
+      "properties": {"passages": {"type": "array", "minItems": 1, "items": {"type": "object"}}}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "discovery", "manifest_sha256"],
+      "properties": {
+        "kind": {"enum": ["project", "wiki"]},
+        "identity": {"type": "string", "minLength": 1},
+        "discovery": {"type": "string", "pattern": "^explicit:[^\\\\].+"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "portableBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256", "evidence_type"],
+      "properties": {
+        "root": {"$ref": "#/$defs/root"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page_start", "page_end", "normalized_start_utf8", "normalized_end_utf8", "occurrence", "text_sha256"],
+      "properties": {
+        "page_start": {"type": "integer", "minimum": 1},
+        "page_end": {"type": "integer", "minimum": 1},
+        "normalized_start_utf8": {"type": "integer", "minimum": 0},
+        "normalized_end_utf8": {"type": "integer", "minimum": 1},
+        "occurrence": {"type": "integer", "minimum": 1},
+        "text_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_utf8", "end_utf8", "text_sha256"],
+      "properties": {
+        "start_utf8": {"type": "integer", "minimum": 0},
+        "end_utf8": {"type": "integer", "minimum": 1},
+        "text_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_key", "authors", "year", "title", "label"],
+      "properties": {
+        "source_key": {"type": "string", "minLength": 1},
+        "authors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "year": {"type": "integer", "minimum": 1900, "maximum": 2100},
+        "title": {"type": "string", "minLength": 1},
+        "label": {"type": "string", "pattern": "^(19|20)[0-9]{2}[a-z]?$"}
+      }
+    },
+    "passage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_key", "use_scope", "passage_use", "canonical_extract_receipt", "locator", "manuscript_span", "direct_quotation", "citation"],
+          "properties": {
+            "source_key": {"type": "string", "minLength": 1},
+            "use_scope": {"enum": ["surface", "argument"]},
+            "passage_use": {"const": "direct_quotation"},
+            "canonical_extract_receipt": {"$ref": "#/$defs/portableBinding"},
+            "locator": {"$ref": "#/$defs/locator"},
+            "manuscript_span": {"$ref": "#/$defs/span"},
+            "direct_quotation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["text"],
+              "properties": {"text": {"type": "string", "minLength": 1}}
+            },
+            "citation": {"$ref": "#/$defs/citation"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_key", "use_scope", "passage_use", "canonical_extract_receipt", "locator", "manuscript_span", "influence_statement", "evaluator_review", "citation"],
+          "properties": {
+            "source_key": {"type": "string", "minLength": 1},
+            "use_scope": {"enum": ["surface", "argument"]},
+            "passage_use": {"const": "conditioning_passage"},
+            "canonical_extract_receipt": {"$ref": "#/$defs/portableBinding"},
+            "locator": {"$ref": "#/$defs/locator"},
+            "manuscript_span": {"$ref": "#/$defs/span"},
+            "influence_statement": {"type": "string", "minLength": 1},
+            "evaluator_review": {"$ref": "#/$defs/evaluatorReview"},
+            "citation": {"$ref": "#/$defs/citation"}
+          }
+        }
+      ]
+    },
+    "evaluatorReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "review_type", "reviewer_role", "disposition", "influence_statement_sha256", "source_passage_sha256", "manuscript_span_sha256", "artifact_sha256"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "review_type": {"const": "conditioning_influence_review"},
+        "reviewer_role": {"const": "evaluator"},
+        "disposition": {"const": "accepted"},
+        "influence_statement_sha256": {"$ref": "#/$defs/sha256"},
+        "source_passage_sha256": {"$ref": "#/$defs/sha256"},
+        "manuscript_span_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -3,3 +3,7 @@
 # so SKILL.md frontmatter never reaches the marketplace packager with CRLF
 # (CRLF in frontmatter breaks the strict YAML validator). See v0.16.0 upload fix.
 * text=auto eol=lf
+
+# This fixture intentionally preserves pdftotext's exact Windows raw bytes;
+# the paired normalized fixture remains LF text.
+scripts/fixtures/assurance_provenance_c2/expected_pdftotext_raw.txt -text -diff

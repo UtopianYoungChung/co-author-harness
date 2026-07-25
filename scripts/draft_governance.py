@@ -222,6 +222,16 @@ def _load_product_assurance(paths: list[Path], semantic_path: Path,
             "centroid evidence must contain exactly one product-assurance report",
         )
     path, report = matches[0]
+    findings = report.get("findings")
+    if isinstance(findings, list) and any(
+        isinstance(row, dict)
+        and row.get("code") == "CENTROID-COVERAGE-INCOMPLETE"
+        for row in findings
+    ):
+        raise ContractError(
+            "CENTROID-COVERAGE-INCOMPLETE",
+            "product assurance found no centroid-role surface passage",
+        )
     artifact = report.get("artifact")
     semantic = report.get("semantic_receipt")
     dimensions = report.get("dimensions")

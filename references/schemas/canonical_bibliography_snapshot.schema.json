@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/canonical_bibliography_snapshot.schema.json",
+  "title": "Canonical bibliography snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_type", "snapshot_id", "wiki_root", "policy", "sources", "publication"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "snapshot_type": {"const": "canonical_bibliography_snapshot"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "wiki_root": {"$ref": "#/$defs/root"},
+    "policy": {"$ref": "#/$defs/portableBinding"},
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_key", "lookup_key", "canonical_page", "redirect_chain", "aliases", "zotero_key", "source_loc", "source", "authors", "year", "title"],
+        "properties": {
+          "source_key": {"type": "string", "minLength": 1},
+          "lookup_key": {"type": "string", "minLength": 1},
+          "canonical_page": {"$ref": "#/$defs/portableBinding"},
+          "redirect_chain": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "aliases": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "zotero_key": {"type": "string", "minLength": 1},
+          "source_loc": {"type": "string", "minLength": 1},
+          "source": {"$ref": "#/$defs/portableBinding"},
+          "authors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "year": {"type": "integer", "minimum": 1900, "maximum": 2100},
+          "title": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "publication": {"$ref": "#/$defs/publication"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "discovery", "manifest_sha256"],
+      "properties": {
+        "kind": {"enum": ["project", "wiki"]},
+        "identity": {"type": "string", "minLength": 1},
+        "discovery": {"type": "string", "pattern": "^explicit:[^\\\\].+"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "portableBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256", "evidence_type"],
+      "properties": {
+        "root": {"$ref": "#/$defs/root"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "transaction_id", "manifest", "commit_marker"],
+      "properties": {
+        "mode": {"const": "committed"},
+        "transaction_id": {"type": "string", "minLength": 1},
+        "manifest": {"$ref": "#/$defs/portableBinding"},
+        "commit_marker": {"$ref": "#/$defs/portableBinding"}
+      }
+    }
+  }
+}

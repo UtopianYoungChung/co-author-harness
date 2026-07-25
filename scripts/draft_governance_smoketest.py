@@ -72,7 +72,17 @@ def prepare(project: Path, artifact: Path, target: str, phase: str) -> dict:
 
 def write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def binding(path: Path) -> dict[str, str]:
@@ -133,6 +143,7 @@ def semantic_receipt(
     extract: Path,
     generation_envelope: Path | None = None,
     use_scope: str = "surface",
+    source_key: str = "fixture-source",
     target: str = "M2",
 ) -> None:
     value = {
@@ -146,7 +157,7 @@ def semantic_receipt(
         "artifact": binding(artifact),
         "centroid_packet": binding(packet),
         "passages": [{
-            "source_key": "fixture-source",
+            "source_key": source_key,
             "use_scope": use_scope,
             "source": binding(source),
             "locator": "p. 1",
@@ -218,6 +229,7 @@ def main() -> int:
     require(set(policy["targets"]) == set(TARGETS), "policy must cover M1-M4 and FINAL")
     require(REQUIRED_IDS <= {row["id"] for row in policy["obligations"]},
             "governing policy bundle is incomplete")
+    intended_red: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix="draft-governance-") as td:
         project = Path(td) / "project"
@@ -400,6 +412,50 @@ def main() -> int:
         require(verified.returncode == 0, verified.stdout + verified.stderr)
         require(json.loads(verified.stdout)["status"] == "verified", "receipt did not verify")
 
+        # C1 red specification: one halo surface passage cannot stand in for a
+        # centroid-role surface passage.  The future per-argument-member
+        # rationale is a separate C2 interface-blocked case.
+        coverage_contract = prepare(project, artifact, "M2", "generation")
+        coverage_contract_path = project / "coverage-contract.json"
+        write_json(coverage_contract_path, coverage_contract)
+        coverage_packet = project / "coverage-centroid-packet.json"
+        centroid_packet(coverage_packet, coverage_contract, artifact)
+        coverage_packet_value = json.loads(coverage_packet.read_text(encoding="utf-8"))
+        coverage_packet_value["policy"]["members"].append({
+            "source_key": "fixture-halo",
+            "role": "halo",
+            "grounding": "full-read",
+            "warrant_scope": "both",
+        })
+        write_json(coverage_packet, coverage_packet_value)
+        coverage_semantic = project / "coverage-semantic.json"
+        semantic_receipt(
+            coverage_semantic,
+            phase="generation", role="generator", actor_id="generator-coverage",
+            dispatch_id="generation-coverage", artifact=artifact,
+            packet=coverage_packet, source=source, extract=extract,
+            source_key="fixture-halo",
+        )
+        coverage_receipt = obligation_receipt(
+            coverage_contract, coverage_contract_path, artifact, "generation",
+            coverage_semantic, evidence,
+        )
+        coverage_receipt_path = project / "coverage-receipt.json"
+        write_json(coverage_receipt_path, coverage_receipt)
+        coverage_result = run(
+            "verify", "--contract", str(coverage_contract_path),
+            "--receipt", str(coverage_receipt_path), "--artifact", str(artifact),
+            "--phase", "generation", "--role", "generator",
+        )
+        if not (
+            coverage_result.returncode != 0
+            and "CENTROID-COVERAGE-INCOMPLETE" in coverage_result.stdout
+        ):
+            intended_red.append(
+                "CENTROID-COVERAGE-INCOMPLETE: halo-only surface evidence "
+                f"returned {coverage_result.returncode}"
+            )
+
         semantic_receipt(
             evaluation_semantic,
             phase="evaluation", role="evaluator", actor_id="generator-A",
@@ -429,6 +485,12 @@ def main() -> int:
         )
         require(rejected.returncode != 0 and "DRAFT-POLICY-OBLIGATION-MISSING" in rejected.stdout,
                 "an incomplete governing-policy receipt must fail closed")
+
+        require(
+            not intended_red,
+            "C1 intended-red trust-boundary regressions remain open:\n- "
+            + "\n- ".join(intended_red),
+        )
 
     print("draft_governance_smoketest: PASS")
     return 0

@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "assurance-provenance-c2",
+  "files": [
+    {
+      "path": "PROVENANCE.md",
+      "sha256": "ef1a426726ac4801be21ce15852028af6dd17593c86a5654db968379ee5f86d9"
+    },
+    {
+      "path": "build_c2_assets.py",
+      "sha256": "26e620b75d6289ff454b91f9908a41696c2e2e9081e287ac23bc5f9b98d1ab62"
+    },
+    {
+      "path": "expected_page_span_map.json",
+      "sha256": "bb32746f8aa7acd0e7dd0fc7524ff5c759c4ef386aa274873a853501245b3b71"
+    },
+    {
+      "path": "expected_pdftotext_raw.txt",
+      "sha256": "e92f3113b26f73dcfd20f3ffef802439277a866e713a0908ea6d64e36503b942"
+    },
+    {
+      "path": "expected_utf8_lf_v1.txt",
+      "sha256": "62260ccc2f6bcddf37f55f23d17d184493b2ba9ab17e3d9484d757b9f2ae5b87"
+    },
+    {
+      "path": "final.md",
+      "sha256": "76eef54242f20089d92df90c04a46c0a86e47ee882c95acc2fe7ddabce0fd620"
+    },
+    {
+      "path": "miniature.pdf",
+      "sha256": "e21a489ac04667bc46d4335e604f6e6ba3fbfa27d8f473a96d0ebce9737a6c3a"
+    },
+    {
+      "path": "miniature_source.tex",
+      "sha256": "94ef37086e56fcd371b9093f0522e36c3b37490b34f9d4326bc2dc3bf2226bcd"
+    },
+    {
+      "path": "miniature_source.txt",
+      "sha256": "bf65c92db71408cfc426d85a0f05c7f8816d51fb4c818fa24061b7e6db0088f7"
+    },
+    {
+      "path": "wiki/manifest.json",
+      "sha256": "4221125abecf155091593d6686c6512d54dd0219e041cd0b6672675af9d009a2"
+    },
+    {
+      "path": "wiki/policy.json",
+      "sha256": "d38bfae99c4b10de53a53d9134e33ef1b9eecda8a6b4d5b3224eea0c7dfbd8f1"
+    },
+    {
+      "path": "wiki/wiki/sources/c2-argument.md",
+      "sha256": "a529817fa1f0a4ba27755c063fb4d26c71a97acd6773d3e3e01796c3692bd6e6"
+    },
+    {
+      "path": "wiki/wiki/sources/c2-centroid.md",
+      "sha256": "8dfb47e1b767eaa6b03c5eed78e3e7806bdc0bdb319d161cb01d9b481b503051"
+    },
+    {
+      "path": "wiki/wiki/sources/c2-redirect.md",
+      "sha256": "67ea60772687483bd29b21df0cdb3fd936470eab8b5988631831b46a4d553720"
+    }
+  ]
+}

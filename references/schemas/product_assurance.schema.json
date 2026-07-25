@@ -3,7 +3,7 @@
   "$id": "https://co-author-harness.local/schemas/product_assurance.schema.json",
   "title": "Exact-byte product assurance report",
   "type": "object",
-  "required": ["schema_version", "report_type", "status", "artifact", "semantic_receipt", "corpus_extract_sha256", "dimensions", "findings", "adjudications"],
+  "required": ["schema_version", "report_type", "status", "findings"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "report_type": {"const": "product_assurance"},
@@ -25,6 +25,23 @@
     "findings": {"type": "array", "items": {"type": "object"}},
     "adjudications": {"type": "array", "items": {"type": "object"}}
   },
+  "anyOf": [
+    {
+      "required": ["artifact", "semantic_receipt", "corpus_extract_sha256", "dimensions", "adjudications"]
+    },
+    {
+      "properties": {"status": {"const": "blocked"}},
+      "not": {
+        "anyOf": [
+          {"required": ["artifact"]},
+          {"required": ["semantic_receipt"]},
+          {"required": ["corpus_extract_sha256"]},
+          {"required": ["dimensions"]},
+          {"required": ["adjudications"]}
+        ]
+      }
+    }
+  ],
   "additionalProperties": false,
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

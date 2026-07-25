@@ -18,6 +18,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from c2_evidence_validation import (
+    EvidenceValidationError,
+    canonical_bytes,
+    load_canonical_document,
+    validate_v3_receipt,
+)
 from destination_capability import DestinationRefused, assert_writable
 
 
@@ -46,6 +52,53 @@ STOPWORDS = {
     "who", "why", "will", "with", "would", "you", "your",
 }
 
+V3_LEGACY_COMPATIBILITY_FIELDS = frozenset({
+    "schema_version",
+    "receipt_type",
+    "authority_mode",
+    "target",
+    "phase",
+    "role",
+    "artifact",
+    "centroid_packet",
+    "policy",
+    "corpus_digest",
+    "canonical_extract_receipts",
+    "canonical_bibliography_snapshot",
+    "passages",
+    "member_coverage",
+    "semantic_assessment",
+    "diagnostic_legacy_view",
+})
+V2_FIELDS = frozenset({
+    "schema_version",
+    "receipt_type",
+    "target",
+    "phase",
+    "role",
+    "actor_id",
+    "dispatch_id",
+    "artifact",
+    "centroid_packet",
+    "generation_envelope",
+    "adjudications",
+    "passages",
+    "semantic_assessment",
+})
+V2_REQUIRED_FIELDS = frozenset({
+    "schema_version",
+    "receipt_type",
+    "target",
+    "phase",
+    "role",
+    "actor_id",
+    "dispatch_id",
+    "artifact",
+    "centroid_packet",
+    "passages",
+    "semantic_assessment",
+})
+
 
 class AssuranceError(RuntimeError):
     def __init__(self, code: str, message: str):
@@ -58,13 +111,19 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def load_json(path: Path, code: str) -> dict[str, Any]:
+def load_json_document(path: Path, code: str) -> tuple[dict[str, Any], bytes]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise AssuranceError(code, f"cannot read valid JSON at {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise AssuranceError(code, f"JSON root is not an object: {path}")
+    return value, raw
+
+
+def load_json(path: Path, code: str) -> dict[str, Any]:
+    value, _raw = load_json_document(path, code)
     return value
 
 
@@ -289,22 +348,172 @@ def _semantic_findings(artifact: Path, text: str, corpus: str) -> list[dict[str,
     return out
 
 
-def build(artifact: Path, receipt_path: Path) -> dict[str, Any]:
+def _legacy_centroid_surface_finding(
+    receipt: dict[str, Any], artifact: Path
+) -> dict[str, Any] | None:
+    """Apply the C2 centroid-surface invariant when a real v2 packet is bound."""
+    try:
+        packet_path = resolve_binding(
+            receipt.get("centroid_packet"), "CENTROID-PACKET-BINDING"
+        )
+    except AssuranceError:
+        # Historical diagnostic receipts used non-resolving packet placeholders.
+        # They remain diagnostic-only; a resolvable packet cannot evade C2.
+        return None
+    packet = load_json(packet_path, "CENTROID-COVERAGE-INCOMPLETE")
+    policy = packet.get("policy")
+    members = policy.get("members") if isinstance(policy, dict) else None
+    if not isinstance(members, list):
+        return finding(
+            "CENTROID-COVERAGE-INCOMPLETE",
+            "grounding",
+            "hard",
+            artifact.as_posix(),
+            "bound centroid packet has no member inventory",
+        )
+    centroid_keys = {
+        row.get("source_key")
+        for row in members
+        if isinstance(row, dict) and row.get("role") == "centroid"
+    }
+    passages = receipt.get("passages")
+    if not isinstance(passages, list) or not any(
+        isinstance(row, dict)
+        and row.get("source_key") in centroid_keys
+        and row.get("use_scope") == "surface"
+        for row in passages
+    ):
+        return finding(
+            "CENTROID-COVERAGE-INCOMPLETE",
+            "grounding",
+            "hard",
+            artifact.as_posix(),
+            "no centroid-role surface passage exists",
+        )
+    return None
+
+
+def diagnostic_legacy_view(
+    receipt: dict[str, Any],
+    *,
+    artifact: Path,
+    project_root: Path | None,
+    wiki_root: Path | None,
+) -> dict[str, Any]:
+    """Project permanent non-authoritative v3 compatibility data to v2.
+
+    The caller-supplied diagnostic view is quarantined compatibility input, not
+    evidence authority.  Future extraction, bibliography, locator,
+    classification, span, and coverage objects are intentionally not inspected
+    here.  Later hardening must cross-check this view against independently
+    validated future evidence before diagnostic execution.  The two roots are
+    accepted only to freeze the retained production call surface; resolving
+    them here would implement trust predicates before their independently
+    reviewed red tests exist.
+    """
+    del project_root, wiki_root
+    if (
+        receipt.get("authority_mode") != "legacy_compatibility"
+        or receipt.get("target") != "FINAL"
+        or receipt.get("phase") != "generation"
+        or receipt.get("role") != "generator"
+        or set(receipt) != V3_LEGACY_COMPATIBILITY_FIELDS
+    ):
+        raise AssuranceError(
+            "SEMANTIC-RECEIPT-VERSION",
+            "semantic v3 is available only for the exact FINAL generation "
+            "legacy-compatibility surface",
+        )
+    view = receipt.get("diagnostic_legacy_view")
+    if (
+        not isinstance(view, dict)
+        or set(view) != {"passages"}
+        or not isinstance(view.get("passages"), list)
+        or not view["passages"]
+    ):
+        raise AssuranceError(
+            "SEMANTIC-RECEIPT-VERSION",
+            "semantic v3 diagnostic legacy view is incomplete",
+        )
+    projected = {
+        "schema_version": "2.0.0",
+        "receipt_type": "centroid_semantic_execution",
+        "phase": receipt.get("phase"),
+        "artifact": {"path": str(artifact), "sha256": sha256(artifact)},
+        "passages": view["passages"],
+        "semantic_assessment": receipt.get("semantic_assessment"),
+    }
+    return projected
+
+
+def build(
+    artifact: Path,
+    receipt_path: Path,
+    *,
+    project_root: Path | None = None,
+    wiki_root: Path | None = None,
+) -> dict[str, Any]:
     artifact = artifact.resolve(strict=True)
     receipt_path = receipt_path.resolve(strict=True)
-    receipt = load_json(receipt_path, "SEMANTIC-RECEIPT")
-    if receipt.get("schema_version") != "2.0.0" or receipt.get("receipt_type") != "centroid_semantic_execution":
+    try:
+        receipt, receipt_bytes = load_canonical_document(
+            receipt_path,
+            schema_code="EVIDENCE-SCHEMA-INVALID",
+        )
+    except EvidenceValidationError as exc:
+        raise AssuranceError(exc.code, exc.message) from exc
+    has_diagnostic_view = "diagnostic_legacy_view" in receipt
+    if (
+        receipt.get("schema_version") == "2.0.0"
+        and receipt.get("receipt_type") == "centroid_semantic_execution"
+        and not has_diagnostic_view
+    ):
+        if not V2_REQUIRED_FIELDS <= set(receipt) or not set(receipt) <= V2_FIELDS:
+            raise AssuranceError(
+                "EVIDENCE-SCHEMA-INVALID",
+                "v2 semantic receipt fields do not match the closed schema",
+            )
+        working_receipt = receipt
+    elif (
+        receipt.get("schema_version") == "3.0.0"
+        and receipt.get("receipt_type") == "centroid_semantic_execution"
+        and receipt.get("authority_mode") == "legacy_compatibility"
+    ):
+        if set(receipt) != V3_LEGACY_COMPATIBILITY_FIELDS:
+            raise AssuranceError(
+                "SEMANTIC-RECEIPT-VERSION",
+                "v3 semantic receipt fields do not match the closed C2 schema",
+            )
+        try:
+            working_receipt = validate_v3_receipt(
+                receipt,
+                artifact=artifact,
+                project_root=project_root,
+                wiki_root=wiki_root,
+            )
+        except EvidenceValidationError as exc:
+            raise AssuranceError(exc.code, exc.message) from exc
+    else:
         raise AssuranceError("SEMANTIC-RECEIPT-VERSION", "product assurance requires a v2 semantic receipt")
-    bound_artifact = resolve_binding(receipt.get("artifact"), "ARTIFACT-BINDING")
+    if receipt_bytes != canonical_bytes(receipt):
+        raise AssuranceError(
+            "EVIDENCE-CANONICALIZATION-INVALID",
+            "semantic receipt is not in the frozen canonical JSON form",
+        )
+    bound_artifact = resolve_binding(working_receipt.get("artifact"), "ARTIFACT-BINDING")
     if bound_artifact != artifact:
         raise AssuranceError("ARTIFACT-BINDING", "semantic receipt targets a different artifact")
     text = artifact.read_text(encoding="utf-8", errors="strict")
-    passages = receipt.get("passages")
+    passages = working_receipt.get("passages")
     if not isinstance(passages, list) or not passages:
         raise AssuranceError("PASSAGE-MISSING", "semantic receipt contains no passages")
     hard, corpus = _hard_evidence_findings(artifact, text, passages)
+    if receipt.get("schema_version") == "2.0.0":
+        coverage_finding = _legacy_centroid_surface_finding(receipt, artifact)
+        if coverage_finding is not None:
+            hard.append(coverage_finding)
     semantic = _semantic_findings(artifact, text, corpus)
-    adjudications = receipt.get("adjudications", [])
+    adjudications = working_receipt.get("adjudications", [])
     if not isinstance(adjudications, list):
         raise AssuranceError("ADJUDICATION-SHAPE", "adjudications must be an array")
     cleared: list[dict[str, Any]] = []
@@ -335,13 +544,16 @@ def build(artifact: Path, receipt_path: Path) -> dict[str, Any]:
         "register": "needs_adjudication" if any(f["dimension"] == "register" for f in remaining_semantic) else "passed",
     }
     status = "passed" if not findings else (
-        "needs_adjudication" if not hard and receipt.get("phase") == "generation" else "blocked"
+        "needs_adjudication" if not hard and working_receipt.get("phase") == "generation" else "blocked"
     )
     return {
         "schema_version": "1.0.0", "report_type": "product_assurance",
         "status": status,
         "artifact": {"path": str(artifact), "sha256": sha256(artifact)},
-        "semantic_receipt": {"path": str(receipt_path), "sha256": sha256(receipt_path)},
+        "semantic_receipt": {
+            "path": str(receipt_path),
+            "sha256": hashlib.sha256(receipt_bytes).hexdigest(),
+        },
         "corpus_extract_sha256": hashlib.sha256(corpus.encode("utf-8")).hexdigest(),
         "dimensions": dimensions, "findings": findings, "adjudications": cleared,
     }
@@ -353,6 +565,8 @@ def main(argv: list[str] | None = None) -> int:
     command = sub.add_parser("build")
     command.add_argument("--artifact", type=Path, required=True)
     command.add_argument("--semantic-receipt", type=Path, required=True)
+    command.add_argument("--project-root", type=Path)
+    command.add_argument("--wiki-root", type=Path)
     command.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
@@ -361,7 +575,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "blocked", "reason_code": exc.code, "detail": str(exc)}))
         return 4
     try:
-        report = build(args.artifact, args.semantic_receipt)
+        report = build(
+            args.artifact,
+            args.semantic_receipt,
+            project_root=args.project_root,
+            wiki_root=args.wiki_root,
+        )
     except (AssuranceError, OSError, UnicodeError) as exc:
         code = exc.code if isinstance(exc, AssuranceError) else "PRODUCT-ASSURANCE-IO"
         message = exc.message if isinstance(exc, AssuranceError) else str(exc)
