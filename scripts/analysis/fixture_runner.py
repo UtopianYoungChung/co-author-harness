@@ -177,6 +177,7 @@ def _default_case() -> dict:
 # its own literal entry; do not widen _default_case for one suite's needs.
 REGISTRY: dict[str, list[dict]] = {
     "scripts/alias_parity_smoketest.py": [_default_case()],
+    "scripts/archive_runtime_probe_smoketest.py": [_default_case()],
     "scripts/command_surface_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_claim_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_preflight_smoketest.py": [_default_case()],
@@ -230,6 +231,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_semantics_smoketest.py": [_default_case()],
+    "scripts/release_evidence_index_smoketest.py": [_default_case()],
     "scripts/release_source_parity_smoketest.py": [_default_case()],
     "scripts/reflector_split_parity_smoketest.py": [_default_case()],
     "scripts/render_lifecycle_state_adversarial_smoketest.py": [_default_case()],
@@ -243,6 +245,8 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/staging_authority_mode_smoketest.py": [_default_case()],
     "scripts/source_extract_smoketest.py": [_default_case()],
     "scripts/subprocess_text_policy_smoketest.py": [_default_case()],
+    "scripts/update_version_manifests_smoketest.py": [_default_case()],
+    "scripts/write_release_checksum_smoketest.py": [_default_case()],
     "scripts/tests/test_resolve_includes.py": [_default_case()],
     "scripts/token_budget_smoketest.py": [_default_case()],
     "scripts/version_policy_smoketest.py": [_default_case()],

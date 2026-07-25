@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "e154eb9ed3b3442be3a239c3c3c5dbc226d82f24feeacf415280116f48a4326f"
+      "sha256": "49a0959e04f1c9d7243b3c2fa18430384455cce94f94e1949bc4a10c7a8e960e"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -93,6 +93,22 @@
     "scripts/runtime_plane_probe.py": {
       "class": "guarded",
       "regression": "scripts/runtime_plane_probe_smoketest.py::output lane plus protected and ungoverned destination refusals"
+    },
+    "scripts/archive_runtime_probe.py": {
+      "class": "guarded",
+      "regression": "scripts/archive_runtime_probe_smoketest.py::output-lane and unsafe archive refusals"
+    },
+    "scripts/release_evidence_index.py": {
+      "class": "guarded",
+      "regression": "scripts/release_evidence_index_smoketest.py::protected destination, immutable index, and link-target refusals"
+    },
+    "scripts/update_version_manifests.py": {
+      "class": "guarded",
+      "regression": "scripts/update_version_manifests_smoketest.py::protected destination and manifest-parity refusals"
+    },
+    "scripts/write_release_checksum.py": {
+      "class": "guarded",
+      "regression": "scripts/write_release_checksum_smoketest.py::protected destination, traversal, symlink, and junction refusals"
     },
     "scripts/evidence_publication.py": {
       "class": "excluded",

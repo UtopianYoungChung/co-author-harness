@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/archive_runtime_receipt.schema.json",
+  "title": "Archive extraction and unpacked runtime receipts 1.0.0",
+  "oneOf": [
+    {"$ref": "#/$defs/archiveReceipt"},
+    {"$ref": "#/$defs/runtimeReceipt"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size", "member_count"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size": {"type": "integer", "minimum": 1},
+        "member_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "sha256", "member_count"],
+      "properties": {
+        "algorithm": {"const": "sha256(path-NUL-kind-NUL-content-sha256-LF)"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "member_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "memberDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "pre", "post", "stable"],
+      "properties": {
+        "algorithm": {"const": "sha256(path-NUL-kind-NUL-content-sha256-LF)"},
+        "pre": {"$ref": "#/$defs/digest"},
+        "post": {"$ref": "#/$defs/digest"},
+        "stable": {"type": "boolean"}
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "size", "compressed_size", "crc32", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["file", "directory"]},
+        "size": {"type": "integer", "minimum": 0},
+        "compressed_size": {"type": "integer", "minimum": 0},
+        "crc32": {"type": "string", "pattern": "^[0-9a-f]{8}$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "centralDirectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inspected_before_write", "members"],
+      "properties": {
+        "inspected_before_write": {"const": true},
+        "members": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/member"}}
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temporary_root", "created_new", "member_by_member", "targets_contained", "extracted_member_count"],
+      "properties": {
+        "temporary_root": {"type": "string", "minLength": 1},
+        "created_new": {"const": true},
+        "member_by_member": {"const": true},
+        "targets_contained": {"const": true},
+        "extracted_member_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "runtimeExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["script", "argv", "cwd", "environment", "returncode", "status", "stdout_sha256", "stderr_sha256"],
+      "properties": {
+        "script": {"const": "scripts/runtime_plane_probe.py"},
+        "argv": {"type": "array", "minItems": 10, "items": {"type": "string"}, "contains": {"const": "-I"}},
+        "cwd": {"type": "string", "minLength": 1},
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "PYTHONHOME"],
+          "properties": {
+            "PYTHONPATH": {"const": ""},
+            "PYTHONDONTWRITEBYTECODE": {"const": "1"},
+            "PYTHONNOUSERSITE": {"const": "1"},
+            "PYTHONHOME": {"type": "null"}
+          }
+        },
+        "returncode": {"type": ["integer", "null"]},
+        "status": {"enum": ["passed", "failed"]},
+        "stdout_sha256": {"$ref": "#/$defs/sha256"},
+        "stderr_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "runtimePlaneReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "verdict", "retained"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "verdict": {"enum": ["qualified", "qualified_with_caveats", "blocked", null]},
+        "retained": {"const": false}
+      }
+    },
+    "sourceIsolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_root", "cwd_outside_source", "extraction_outside_source", "pythonpath_empty", "isolated_flag", "source_root_absent_from_sys_path", "interpreter_sys_path_observed", "interpreter_sys_path"],
+      "properties": {
+        "source_root": {"type": "string", "minLength": 1},
+        "cwd_outside_source": {"type": "boolean"},
+        "extraction_outside_source": {"type": "boolean"},
+        "pythonpath_empty": {"type": "boolean"},
+        "isolated_flag": {"type": "boolean"},
+        "source_root_absent_from_sys_path": {"type": "boolean"},
+        "interpreter_sys_path_observed": {"type": "boolean"},
+        "interpreter_sys_path": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temporary_root_removed", "cwd_removed", "temporary_root_exists_after", "cwd_exists_after", "runtime_plane_receipt_retained"],
+      "properties": {
+        "temporary_root_removed": {"const": true},
+        "cwd_removed": {"const": true},
+        "temporary_root_exists_after": {"const": false},
+        "cwd_exists_after": {"const": false},
+        "runtime_plane_receipt_retained": {"const": false}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^ARCHIVE-[A-Z0-9-]+$"},
+        "severity": {"const": "BLOCKER"},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "common": {
+      "type": "object",
+      "required": ["schema_version", "receipt_type", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "receipt_type": {"enum": ["archive_runtime_probe", "unpacked_zip_runtime"]},
+        "archive": {"$ref": "#/$defs/artifact"},
+        "extraction": {"$ref": "#/$defs/extraction"},
+        "runtime_execution": {"$ref": "#/$defs/runtimeExecution"},
+        "runtime_plane_receipt": {"$ref": "#/$defs/runtimePlaneReceipt"},
+        "member_digests": {"$ref": "#/$defs/memberDigests"},
+        "source_isolation": {"$ref": "#/$defs/sourceIsolation"},
+        "cleanup": {"$ref": "#/$defs/cleanup"},
+        "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+        "verdict": {"enum": ["qualified", "blocked"]}
+      }
+    },
+    "archiveReceipt": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_version", "receipt_type", "archive", "central_directory", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "unpacked_runtime_receipt", "findings", "verdict"],
+          "properties": {
+            "schema_version": true,
+            "receipt_type": {"const": "archive_runtime_probe"},
+            "archive": true,
+            "central_directory": {"$ref": "#/$defs/centralDirectory"},
+            "extraction": true,
+            "runtime_execution": true,
+            "runtime_plane_receipt": true,
+            "member_digests": true,
+            "source_isolation": true,
+            "cleanup": true,
+            "unpacked_runtime_receipt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}
+            },
+            "findings": true,
+            "verdict": true
+          }
+        }
+      ]
+    },
+    "runtimeReceipt": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_version", "receipt_type", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
+          "properties": {
+            "schema_version": true,
+            "receipt_type": {"const": "unpacked_zip_runtime"},
+            "archive": true,
+            "extraction": true,
+            "runtime_execution": true,
+            "runtime_plane_receipt": true,
+            "member_digests": true,
+            "source_isolation": true,
+            "cleanup": true,
+            "findings": true,
+            "verdict": true
+          }
+        }
+      ]
+    }
+  }
+}

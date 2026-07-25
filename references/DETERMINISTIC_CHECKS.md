@@ -94,7 +94,32 @@ extras block. Missing embedded provenance remains visible and cannot support a
 canonical-archive claim. A source or cache plane passing its suites is runtime
 evidence only; it does not establish archive identity or host attestation.
 
-## 0c. Synthetic protocol conformance
+## 0c. Release archive and evidence publication
+
+The release helpers fail closed on unsafe archive members, noncanonical
+checksums, stale evidence bindings, replacement of immutable indices, and
+manual drift between the authoritative plugin manifest and packaged
+marketplace parity:
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+python scripts/archive_runtime_probe_smoketest.py
+python scripts/write_release_checksum_smoketest.py
+python scripts/release_evidence_index_smoketest.py
+python scripts/update_version_manifests_smoketest.py
+```
+
+`archive_runtime_probe.py` inspects the complete central directory before
+extracting into a new temporary root and runs the bundled runtime probe with
+isolated imports. `write_release_checksum.py` publishes exactly one lowercase
+SHA-256, two spaces, the final ZIP basename, and LF, then re-reads both files.
+`release_evidence_index.py` binds repository-relative paths to live SHA-256
+bytes and writes immutable package and release indices; the human shipment
+report is rendered from the final index. `update_version_manifests.py` is the
+command-driven path for advancing `.claude-plugin/plugin.json` and its
+required packaged marketplace parity together.
+
+## 0d. Synthetic protocol conformance
 
 `scripts/protocol_conformance_smoketest.py` records a synthetic M1-to-FINAL
 assignment through the production receipt, claim, verifier, mutation,
