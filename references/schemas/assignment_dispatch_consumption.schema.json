@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/assignment_dispatch_consumption.schema.json",
+  "title": "Assignment dispatch consumption 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "consumption_type", "consumption_id", "state", "claim", "claim_id", "role", "consumer_transaction_id", "postimages", "mutation_row_hashes", "mutation_head", "consumed_at", "nonce"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "consumption_type": {"const": "assignment_dispatch"},
+    "consumption_id": {"type": "string", "pattern": "^consume-[0-9a-f]{16}$"},
+    "state": {"const": "consumed"},
+    "claim": {"$ref": "#/$defs/binding"},
+    "claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
+    "role": {"enum": ["generator", "evaluator"]},
+    "consumer_transaction_id": {"type": "string", "minLength": 1},
+    "artifact": {"$ref": "#/$defs/binding"},
+    "postimages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/postimage"}},
+    "mutation_row_hashes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/sha256"}},
+    "mutation_head": {"$ref": "#/$defs/sha256"},
+    "consumed_at": {"$ref": "#/$defs/timestamp"},
+    "nonce": {"type": "string", "pattern": "^[0-9a-f]{32,64}$"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
+    "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"enum": ["project", "harness"]}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
+    "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}},
+    "postimage": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}}
+  }
+}

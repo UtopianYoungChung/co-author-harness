@@ -269,6 +269,24 @@ def _append_mutation_rows(project: Path, record: dict[str, Any],
         appended.append(row)
         prior = row["row_sha256"]
         row_hashes[write["target_path"]] = row["row_sha256"]
+    append_state = {
+        "state": "prepared",
+        "prior_row_count": len(rows),
+        "prior_head": rows[-1]["row_sha256"] if rows else None,
+        "prospective_rows": appended,
+        "prospective_row_count": len(rows) + len(appended),
+        "prospective_head": prior,
+        "targets": [
+            {
+                "path": write["target_path"],
+                "sha256": write["desired_sha256"],
+            }
+            for write in journal["writes"]
+        ],
+    }
+    journal["mutation_append"] = append_state
+    journal_path = _assignment_root(project) / "journal" / f"{record['receipt_id']}.json"
+    _atomic_json(journal_path, journal)
     if appended:
         path.parent.mkdir(parents=True, exist_ok=True)
         prior_bytes = path.read_bytes() if path.exists() else b""
@@ -285,7 +303,43 @@ def _append_mutation_rows(project: Path, record: dict[str, Any],
                 temporary.unlink()
             except FileNotFoundError:
                 pass
+    append_state["state"] = "ledger_appended"
+    append_state["ledger_sha256"] = _sha256(path)
+    _atomic_json(journal_path, journal)
     return row_hashes
+
+
+def _write_mutation_append_marker(
+    project: Path,
+    record: dict[str, Any],
+    consumed: Path,
+    journal_path: Path,
+) -> Path:
+    ledger_path = _mutation_ledger_path(project)
+    rows = load_mutation_ledger(project)
+    marker_path = (
+        _assignment_root(project)
+        / "mutation"
+        / "append"
+        / str(record["receipt_id"])
+        / "commit_marker.json"
+    )
+    marker = {
+        "schema_version": "1.0.0",
+        "state": "committed",
+        "receipt_id": record["receipt_id"],
+        "reservation_id": record["reservation_id"],
+        "consumed_receipt": consumed.relative_to(project).as_posix(),
+        "consumed_receipt_sha256": _sha256(consumed),
+        "journal": journal_path.relative_to(project).as_posix(),
+        "journal_sha256": _sha256(journal_path),
+        "ledger": ledger_path.relative_to(project).as_posix(),
+        "ledger_sha256": _sha256(ledger_path),
+        "row_count": len(rows),
+        "head": rows[-1]["row_sha256"] if rows else None,
+    }
+    _atomic_json(marker_path, marker, exclusive=True)
+    return marker_path
 
 
 def _ledger_events(project: Path, basename: str) -> list[dict[str, Any]]:
@@ -731,6 +785,7 @@ def commit_receipt(
     plan_path: Path,
     *,
     fail_after_consume: bool = False,
+    fail_after_mutation_append: bool = False,
 ) -> tuple[Path, Path]:
     project = project.resolve()
     guard_project_root(project)
@@ -789,6 +844,11 @@ def commit_receipt(
         consumed = state_path(project, reserved.name, "consumed")
         result_path = consumed.with_suffix(".result.json")
         mutation_hashes = _append_mutation_rows(project, record, journal)
+        if fail_after_mutation_append:
+            raise ReceiptTransactionError(
+                "APG-WRITE-PUBLISH-FAILED",
+                "injected interruption after mutation append and before completion marker",
+            )
         published = [
             {"path": row["target_path"], "sha256": row["desired_sha256"],
              "mode": row["mode"], "mutation_row_sha256": mutation_hashes[row["target_path"]]}
@@ -823,6 +883,7 @@ def commit_receipt(
             "receipt_id": record["receipt_id"],
             "reservation_id": record["reservation_id"],
         })
+        _write_mutation_append_marker(project, record, consumed, journal_path)
     return consumed, result_path
 
 

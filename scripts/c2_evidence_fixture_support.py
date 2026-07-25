@@ -29,12 +29,26 @@ def binding(path: Path) -> dict[str, str]:
     return {"path": str(path.resolve()), "sha256": sha(path)}
 
 
+def _manifest_identity(manifest: Path) -> str:
+    try:
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise AssertionError(f"fixture manifest is unreadable: {manifest}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise AssertionError(f"fixture manifest must be an object: {manifest}")
+    for key in ("identity", "manifest_id", "fixture_id", "name"):
+        identity = value.get(key)
+        if isinstance(identity, str) and identity.strip():
+            return identity
+    raise AssertionError(f"fixture manifest has no identity field: {manifest}")
+
+
 def root_descriptor(
-    *, kind: str, identity: str, root: Path, manifest: Path
+    *, kind: str, root: Path, manifest: Path
 ) -> dict[str, str]:
     return {
         "kind": kind,
-        "identity": identity,
+        "identity": _manifest_identity(manifest),
         "discovery": (
             "explicit:"
             + manifest.resolve().relative_to(root.resolve()).as_posix()
@@ -48,13 +62,12 @@ def portable_binding(
     *,
     root: Path,
     kind: str,
-    identity: str,
     manifest: Path,
     evidence_type: str,
 ) -> dict[str, Any]:
     return {
         "root": root_descriptor(
-            kind=kind, identity=identity, root=root, manifest=manifest
+            kind=kind, root=root, manifest=manifest
         ),
         "path": path.resolve().relative_to(root.resolve()).as_posix(),
         "sha256": sha(path),
@@ -126,7 +139,6 @@ class ActivationFixture:
             path,
             root=self.root,
             kind="project",
-            identity="c2-synthetic-project",
             manifest=self.project_manifest,
             evidence_type=evidence_type,
         )
@@ -136,7 +148,6 @@ class ActivationFixture:
             path,
             root=ASSET_ROOT,
             kind="package",
-            identity="co-author-harness-c2-fixture",
             manifest=self.fixture_manifest,
             evidence_type=evidence_type,
         )
@@ -146,7 +157,6 @@ class ActivationFixture:
             path,
             root=self.wiki_root,
             kind="wiki",
-            identity="c2-synthetic-wiki",
             manifest=self.wiki_root / "manifest.json",
             evidence_type=evidence_type,
         )
@@ -208,7 +218,6 @@ class ActivationFixture:
             "commit_marker": {
                 "root": root_descriptor(
                     kind="project",
-                    identity="c2-synthetic-project",
                     root=self.root,
                     manifest=self.project_manifest,
                 ),
@@ -270,7 +279,6 @@ class ActivationFixture:
             "commit_marker": {
                 "root": root_descriptor(
                     kind="project",
-                    identity="c2-synthetic-project",
                     root=self.root,
                     manifest=self.project_manifest,
                 ),
@@ -446,7 +454,6 @@ class ActivationFixture:
                 path,
                 root=lookalike,
                 kind="wiki",
-                identity="c2-lookalike-wiki",
                 manifest=lookalike_manifest,
                 evidence_type=evidence_type,
             )
@@ -454,7 +461,6 @@ class ActivationFixture:
         value = json.loads(self.bibliography_snapshot.read_text(encoding="utf-8"))
         value["wiki_root"] = root_descriptor(
             kind="wiki",
-            identity="c2-lookalike-wiki",
             root=lookalike,
             manifest=lookalike_manifest,
         )
@@ -478,7 +484,11 @@ class ActivationFixture:
         self._rebind_external_objects()
 
 
-def build_activation_fixture(root: Path) -> ActivationFixture:
+def build_activation_fixture(
+    root: Path,
+    *,
+    artifact_relative: str = "final.md",
+) -> ActivationFixture:
     static_artifact = ASSET_ROOT / "final.md"
     static_pdf = ASSET_ROOT / "miniature.pdf"
     static_raw = ASSET_ROOT / "expected_pdftotext_raw.txt"
@@ -505,8 +515,16 @@ def build_activation_fixture(root: Path) -> ActivationFixture:
         if not path.is_file():
             raise AssertionError(f"C2 fixture asset is missing: {path}")
 
+    relative_artifact = Path(artifact_relative)
+    if (
+        relative_artifact.is_absolute()
+        or "\\" in artifact_relative
+        or any(part in {"", ".", ".."} for part in relative_artifact.parts)
+    ):
+        raise AssertionError(f"unsafe synthetic artifact path: {artifact_relative!r}")
     root.mkdir(parents=True, exist_ok=True)
-    artifact = root / "final.md"
+    artifact = root / relative_artifact
+    artifact.parent.mkdir(parents=True, exist_ok=True)
     pdf = root / "miniature.pdf"
     raw = root / "raw.txt"
     extract = root / "normalized.txt"
@@ -530,7 +548,7 @@ def build_activation_fixture(root: Path) -> ActivationFixture:
             "sha256": sha(pdf),
         }],
         "governed_artifacts": [{
-            "path": "final.md",
+            "path": relative_artifact.as_posix(),
             "sha256": sha(artifact),
         }],
     })
@@ -540,7 +558,6 @@ def build_activation_fixture(root: Path) -> ActivationFixture:
             path,
             root=ASSET_ROOT,
             kind="package",
-            identity="co-author-harness-c2-fixture",
             manifest=fixture_manifest,
             evidence_type=evidence_type,
         )
@@ -550,7 +567,6 @@ def build_activation_fixture(root: Path) -> ActivationFixture:
             path,
             root=root,
             kind="project",
-            identity="c2-synthetic-project",
             manifest=project_manifest,
             evidence_type=evidence_type,
         )
@@ -560,7 +576,6 @@ def build_activation_fixture(root: Path) -> ActivationFixture:
             path,
             root=wiki_root,
             kind="wiki",
-            identity="c2-synthetic-wiki",
             manifest=wiki_manifest,
             evidence_type=evidence_type,
         )

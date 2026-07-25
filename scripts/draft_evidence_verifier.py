@@ -38,6 +38,12 @@ from product_assurance import (
 ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_SEMANTICS_MEMBERS = (
     "references/policies/draft_governance.v1.json",
+    "references/schemas/assignment_dispatch_claim.schema.json",
+    "references/schemas/assignment_dispatch_consumption.schema.json",
+    "references/schemas/assignment_host_attestation.schema.json",
+    "references/schemas/assignment_mutation_anchor.schema.json",
+    "references/schemas/assignment_mutation_genesis.schema.json",
+    "references/schemas/assignment_mutation_state.schema.json",
     "references/schemas/canonical_bibliography_snapshot.schema.json",
     "references/schemas/canonical_extract_receipt.schema.json",
     "references/schemas/centroid_semantic_execution.schema.json",
@@ -51,6 +57,9 @@ REQUIRED_SEMANTICS_MEMBERS = (
     "references/schemas/verifier_commit_marker.schema.json",
     "references/schemas/verifier_publication_manifest.schema.json",
     "references/schemas/verifier_transaction.schema.json",
+    "scripts/assignment_dispatch_claim.py",
+    "scripts/assignment_mutation_anchor.py",
+    "scripts/assignment_receipt_transaction.py",
     "scripts/c2_evidence_validation.py",
     "scripts/canonical_bibliography.py",
     "scripts/destination_capability.py",

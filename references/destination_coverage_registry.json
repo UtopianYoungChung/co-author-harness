@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "3d30778a31f4ee4176fcb64b143ccec212c9336a1ff332913712a8cf36a2c9b2"
+      "sha256": "f95fd9ce5153e9674c2a1f558f7c003fc05054b20986af93ddaac7ee21b58995"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -35,9 +35,22 @@
       "justification": "smoketest fixture scaffolding; invoked only by suites against temp or hermetic staging trees",
       "sha256": "d6c2a271bc3cc38a387a24f5b58e9af709e7bccdfbed0f09d116dd9761434ebd"
     },
+    "scripts/assignment_dispatch_claim.py": {
+      "class": "guarded",
+      "regression": "scripts/assignment_dispatch_claim_smoketest.py::destination capability refusals"
+    },
+    "scripts/assignment_c4_fixture_support.py": {
+      "class": "test_only",
+      "justification": "C4 fixture support writes only beneath caller-supplied hermetic temporary project roots",
+      "sha256": "6018cc8987bc6ec25b52b1f6d701fa3e6d9066ebc20b83da154dee50e3f06028"
+    },
     "scripts/assignment_milestone_transaction.py": {
       "class": "guarded",
       "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring + scripts/staging_authority_mode_smoketest.py"
+    },
+    "scripts/assignment_mutation_anchor.py": {
+      "class": "guarded",
+      "regression": "scripts/assignment_mutation_anchor_smoketest.py::destination capability refusals"
     },
     "scripts/assignment_process_gate.py": {
       "class": "guarded",
@@ -89,7 +102,7 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "993c7b46a6e9ca020a9983f14416c24a66e5f4cdd7e97cc7d9d6473fdacd50cf"
+      "sha256": "e0c0f62a0e7000eeca5e0b1fa292937624be6459de57f3acf72f19047505295f"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
@@ -110,7 +123,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "da336e4ee1932d43b32418bb31d614a306b42bdf4ad5532debcf8ee567b8c821"
+      "sha256": "b434ebce42806b532d857c2692b4062cf66f17193ecc79f218db176bcae9dc11"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",

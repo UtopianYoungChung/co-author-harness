@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/assignment_mutation_state.schema.json",
+  "title": "Assignment mutation authority state 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state_type", "authority_kind", "authority", "accepted_prefix", "live_head"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "state_type": {"const": "assignment_mutation_authority"},
+    "authority_kind": {"enum": ["genesis", "legacy_anchor"]},
+    "authority": {"$ref": "#/$defs/binding"},
+    "accepted_prefix": {"$ref": "#/$defs/prefix"},
+    "live_head": {"$ref": "#/$defs/liveHead"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
+    "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"const": "project"}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
+    "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}},
+    "target": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}},
+    "prefix": {"type": "object", "additionalProperties": false, "required": ["row_count", "prefix_sha256", "head"], "properties": {"row_count": {"type": "integer", "minimum": 0}, "prefix_sha256": {"$ref": "#/$defs/sha256"}, "head": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}}},
+    "liveHead": {"type": "object", "additionalProperties": false, "required": ["row_count", "ledger_sha256", "head", "targets"], "properties": {"row_count": {"type": "integer", "minimum": 0}, "ledger_sha256": {"$ref": "#/$defs/sha256"}, "head": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}, "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}}}}
+  }
+}

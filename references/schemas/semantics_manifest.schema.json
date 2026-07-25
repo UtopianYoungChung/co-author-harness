@@ -9,6 +9,6 @@
     "manifest_type": {"const": "verifier_semantics"},
     "harness_identity": {"type": "string", "minLength": 1},
     "members": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "evidence_type"], "properties": {"path": {"type": "string", "pattern": "^[^\\\\].+"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "evidence_type": {"type": "string", "minLength": 1}}}},
-    "deferred_components": {"const": ["claim_validator:C4"]}
+    "deferred_components": {"const": []}
   }
 }

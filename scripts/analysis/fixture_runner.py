@@ -178,7 +178,9 @@ def _default_case() -> dict:
 REGISTRY: dict[str, list[dict]] = {
     "scripts/alias_parity_smoketest.py": [_default_case()],
     "scripts/command_surface_smoketest.py": [_default_case()],
+    "scripts/assignment_dispatch_claim_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_preflight_smoketest.py": [_default_case()],
+    "scripts/assignment_mutation_anchor_smoketest.py": [_default_case()],
     "scripts/assignment_process_gate_smoketest.py": [_default_case()],
     "scripts/assignment_receipt_transaction_smoketest.py": [_default_case()],
     "scripts/assignment_milestone_checkpoint_smoketest.py": [_default_case()],
