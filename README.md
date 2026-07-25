@@ -145,6 +145,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.39.0** | Closes assurance-provenance gaps with kernel-issued one-time dispatch authority, shared current-byte verifier transactions across milestone and terminal consumers, a recorded synthetic M1-to-FINAL qualification, governed product-gate and runtime-plane probes, safe archive extraction, canonical checksums, and immutable package/release evidence indices. Package-cleared, shipped, and host-qualified remain distinct. |
 | **0.38.0** | Introduces the product-assurance kernel: `binding_resolved` replaces ambiguous centroid `ready`; canonical `pdftotext` evidence and v2 passage receipts gate quotes and same-year citation identity; corpus-relative coinage/register, insider-negation, and empirical-claim candidates require independent adjudication; assignment writes form a terminally verified mutation hash-chain; routine rebinds return the exact Planner command. |
 | **0.37.5** | Requires passage-level centroid semantic receipts, exact write/review derivations, current-byte generation/evaluation envelopes, and independent Evaluator identity before milestone or terminal acceptance. |
 | **0.37.2** | Repairs the promoted centroid execution contract: the documented `prepare --role` CLI is now real and phase-checked, while a structural-only corpus returns the specific `GRAPH-SEMANTIC-INELIGIBLE` refusal instead of being flattened into `PROFILE_UNRESOLVED`. |

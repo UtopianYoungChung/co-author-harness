@@ -6,6 +6,30 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.39.0 — 2026-07-25
+
+### Assurance provenance closure and release qualification
+
+**Authority.** Replaced self-asserted workflow identities with kernel-issued,
+role-scoped, one-time dispatch authority. Generation and evaluation issuance,
+claim consumption, manuscript mutation, milestone acceptance, handoff, and
+terminal close now share exact candidate and transaction bindings. Host
+attestation and externally authorized legacy mutation remain explicitly
+separate trust roots.
+
+**Evidence and lifecycle.** Canonical extraction, citation identity, passage
+use, product-assurance adjudication, and verifier transactions are checked as
+one current-byte evidence graph. A recorded synthetic M1-to-FINAL fixture
+exercises the production lifecycle and targeted tamper paths without claiming
+human-quality semantic judgment or host-attested agent separation.
+
+**Runtime and shipment.** Added the governed product gate, source/archive/cache
+runtime-plane receipts, safe central-directory-first archive extraction,
+canonical read-back SHA-256 publication, immutable hash-bound release evidence
+indices, and command-driven plugin/marketplace version parity. Package
+clearance, repository shipment, and live Cowork host qualification are recorded
+as distinct states.
+
 ## v0.38.0 — 2026-07-24
 
 ### Product-assurance kernel and mutation authority
