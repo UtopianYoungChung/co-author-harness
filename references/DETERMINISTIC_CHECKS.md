@@ -62,16 +62,47 @@ member extracts, not on a generic dictionary:
 |---|---|---|
 | `QUOTE-NOT-IN-EXTRACT` | normalized verbatim quote absent from canonical extract | hard failure |
 | `CITATION-SAME-YEAR` | quote-local suffix disagrees with source title/label mapping | hard failure |
-| `TERM-COINAGE` | hyphenated term absent from bound extracts and not visibly owned | Evaluator candidate |
-| `REGISTER-ABSENT` | high-frequency manuscript token absent from bound extracts | Evaluator candidate; separate from grounding |
-| `INSIDER-NEGATION` | abstract negates a reader term before introduction | Evaluator candidate |
-| `EMPIRICAL-UNSUPPORTED` | frequency/tendency generalization lacks citation or `[S]` ownership | Evaluator candidate |
+| `TERM-COINAGE` | compound term absent from bound extracts after narrow lemma and hyphen/space sequence matching, and not owned by the sentence containing `[S]` | Evaluator candidate |
+| `REGISTER-ABSENT` | high-frequency manuscript lemma absent from bound extracts | Evaluator candidate; separate from grounding |
+| `INSIDER-NEGATION` | an explicit Markdown Abstract section negates a reader term before introduction | Evaluator candidate |
+| `EMPIRICAL-UNSUPPORTED` | a sentence-level frequency/tendency generalization lacks a parenthetical or narrative author-year citation and lacks `[S]` ownership in that sentence | Evaluator candidate |
 
 PDF evidence is canonical only when produced by `scripts/source_extract.py`
 with `pdftotext`. Generation may surface semantic candidates; evaluation must
 dispose each current code/locator pair with a rationale. Hard evidence failures
-cannot be waived. This preserves human adjudication for contestable synthesis
-without allowing silence to count as clearance.
+cannot be waived. Candidate fingerprints bind the detector version, exact span,
+and candidate text, so an adjudication from an older detector remains stale.
+This preserves human adjudication for contestable synthesis without allowing
+silence to count as clearance.
+
+## 0b. Runtime-plane qualification
+
+`scripts/runtime_plane_probe.py` compares one explicit runtime plane with a
+source baseline, runs the governed product-gate self-check and portable core
+suites under isolated imports, and writes a typed receipt only beneath the
+baseline package's `releases/verification/` lane. Run it with bytecode writes
+disabled:
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+python scripts/runtime_plane_probe.py --local-root "<plane-root>" --baseline-root "<source-root>" --out "<source-root>/releases/verification/<release>/runtime-plane.json"
+```
+
+The receipt keeps exact files, CRLF-only transformations, semantic differences,
+missing files, and foreign extras separate. Import- or policy-participating
+extras block. Missing embedded provenance remains visible and cannot support a
+canonical-archive claim. A source or cache plane passing its suites is runtime
+evidence only; it does not establish archive identity or host attestation.
+
+## 0c. Synthetic protocol conformance
+
+`scripts/protocol_conformance_smoketest.py` records a synthetic M1-to-FINAL
+assignment through the production receipt, claim, verifier, mutation,
+milestone, handoff, and terminal authorities. It uses the committed
+self-authored miniature PDF and exercises quotation, conditioning, product
+candidate adjudication, and targeted tamper refusals. Its
+`protocol_conformance` result proves executable protocol coverage only: it does
+not claim human-quality semantic judgment or host-attested separate agents.
 
 **Output stub:**
 

@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "a38106d655bfcacc7422918a7e98c382e4e0a91df656b4a1813b266c85cf95fb"
+      "sha256": "e154eb9ed3b3442be3a239c3c3c5dbc226d82f24feeacf415280116f48a4326f"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -81,9 +81,18 @@
       "class": "guarded",
       "regression": "scripts/product_assurance_smoketest.py"
     },
+    "scripts/protocol_conformance_fixture_support.py": {
+      "class": "test_only",
+      "justification": "C7 protocol-conformance support writes only beneath the caller-supplied synthetic temporary fixture root and composes production publishers for test evidence",
+      "sha256": "acba295d134d6a966ff1fdf71ddfa7c81651366daa4820039556b069fd6f6035"
+    },
     "scripts/run_product_gate.py": {
       "class": "guarded",
       "regression": "scripts/run_product_gate_smoketest.py::protected destination and marker-last recovery refusals"
+    },
+    "scripts/runtime_plane_probe.py": {
+      "class": "guarded",
+      "regression": "scripts/runtime_plane_probe_smoketest.py::output lane plus protected and ungoverned destination refusals"
     },
     "scripts/evidence_publication.py": {
       "class": "excluded",

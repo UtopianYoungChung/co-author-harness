@@ -13,6 +13,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from c2_evidence_fixture_support import build_activation_fixture
+import product_assurance as detector
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +46,15 @@ BIBLIOGRAPHY_SCHEMA = json.loads(
     )
 )
 PRODUCT_VALIDATOR = Draft202012Validator(PRODUCT_SCHEMA)
+DETECTOR_CASES = json.loads(
+    (
+        ROOT
+        / "scripts"
+        / "fixtures"
+        / "product_assurance_detector_v3"
+        / "cases.json"
+    ).read_text(encoding="utf-8")
+)
 
 
 def sha(path: Path) -> str:
@@ -123,6 +133,45 @@ def expect_intended_refusal(
             f"{label}: expected nonzero/{expected_code}, "
             f"actual rc={result.returncode} codes={sorted(actual_codes)}"
         )
+
+
+def detector_fixture_failures() -> list[str]:
+    """Return all detector-v3 precision/recall mismatches without short-circuiting."""
+    failures: list[str] = []
+    declared = DETECTOR_CASES.get("detector")
+    expected_identity = {
+        "name": detector.DETECTOR_NAME,
+        "version": detector.DETECTOR_VERSION,
+    }
+    if declared != expected_identity or declared.get("version") != "3.0.0":
+        failures.append(
+            f"detector fixture identity {declared!r} != runtime {expected_identity!r}"
+        )
+    for case in DETECTOR_CASES.get("cases", []):
+        artifact = Path(f"detector-fixture/{case['id']}.md")
+        findings = detector._semantic_findings(
+            artifact, case["artifact"], case["corpus"]
+        )
+        observed = {(row["code"], row.get("candidate_text")) for row in findings}
+        expected = {
+            (row["code"], row["candidate_text"])
+            for row in case.get("expected", [])
+        }
+        if observed != expected:
+            failures.append(
+                f"{case['id']}: expected exact {sorted(expected)!r}; "
+                f"observed={sorted(observed)!r}"
+            )
+        for row in case.get("forbidden", []):
+            key = (row["code"], row["candidate_text"])
+            if key in observed:
+                failures.append(f"{case['id']}: false positive {key!r}")
+        for row in findings:
+            if row.get("severity") != "candidate" or row.get("tentative") is not True:
+                failures.append(
+                    f"{case['id']}: heuristic escaped candidate-only contract: {row!r}"
+                )
+    return failures
 
 
 def write_receipt(path: Path, manuscript: Path, source_a: Path, extract_a: Path,
@@ -231,6 +280,40 @@ def main() -> int:
         assert payload["dimensions"]["register"] == "passed"
 
         intended_red: list[str] = []
+        intended_red.extend(detector_fixture_failures())
+
+        fingerprint_probe = detector.finding(
+            "TERM-COINAGE",
+            "grounding",
+            "candidate",
+            "detector-fixture/fingerprint.md:1",
+            "compound term absent from bound extracts: probe-term",
+            tentative=True,
+            candidate_text="probe-term",
+            span=detector._span("probe-term", 0, len("probe-term")),
+        )
+        runtime_fingerprint = detector._candidate_fingerprint(
+            fingerprint_probe,
+            artifact_sha256="1" * 64,
+            corpus_binding_sha256="2" * 64,
+            policy_sha256="3" * 64,
+        )
+        runtime_version = detector.DETECTOR_VERSION
+        try:
+            detector.DETECTOR_VERSION = "2.0.0"
+            prior_fingerprint = detector._candidate_fingerprint(
+                fingerprint_probe,
+                artifact_sha256="1" * 64,
+                corpus_binding_sha256="2" * 64,
+                policy_sha256="3" * 64,
+            )
+        finally:
+            detector.DETECTOR_VERSION = runtime_version
+        if runtime_version != "3.0.0" or runtime_fingerprint == prior_fingerprint:
+            intended_red.append(
+                "detector-version fingerprint: v3 candidate identity does not "
+                "differ from v2"
+            )
 
         # C1 canonical JSON parser attacks. Each malicious document has a
         # semantically benign twin that v0.38 already accepts.
@@ -641,6 +724,40 @@ def main() -> int:
             assert hashlib.sha256(selected).hexdigest() == span["text_sha256"]
 
         receipt_payload = json.loads(candidate_receipt.read_text(encoding="utf-8"))
+        prior_version_payload = json.loads(json.dumps(receipt_payload))
+        runtime_version = detector.DETECTOR_VERSION
+        try:
+            detector.DETECTOR_VERSION = "2.0.0"
+            prior_version_payload["adjudications"] = [{
+                "candidate_fingerprint": detector._candidate_fingerprint(
+                    row,
+                    artifact_sha256=sha(candidate),
+                    corpus_binding_sha256=detector._corpus_binding_sha256(
+                        receipt_payload
+                    ),
+                    policy_sha256=receipt_payload["centroid_packet"]["sha256"],
+                ),
+                "code": row["code"],
+                "locator": row["locator"],
+                "disposition": "accepted_synthesis",
+                "rationale": "Fixture adjudication issued for detector v2.",
+            } for row in semantic_candidates]
+        finally:
+            detector.DETECTOR_VERSION = runtime_version
+        candidate_receipt.write_text(
+            canonical_json(prior_version_payload), encoding="utf-8", newline="\n"
+        )
+        Draft202012Validator(V2_SEMANTIC_SCHEMA).validate(prior_version_payload)
+        prior_version_adjudication = run(
+            candidate,
+            candidate_receipt,
+            root / "candidate-prior-detector-adjudication.json",
+        )
+        assert (
+            prior_version_adjudication.returncode != 0
+            and "ADJUDICATION-STALE" in prior_version_adjudication.stdout
+        ), prior_version_adjudication.stdout + prior_version_adjudication.stderr
+
         receipt_payload["adjudications"] = [{
             "candidate_fingerprint": row["candidate_fingerprint"],
             "code": row["code"], "locator": row["locator"],

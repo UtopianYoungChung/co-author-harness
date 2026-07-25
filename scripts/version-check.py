@@ -77,6 +77,18 @@ def extract_manifest_license(plugin_root: Path) -> str:
     return license_id
 
 
+def find_retired_host_manifests(plugin_root: Path) -> List[str]:
+    """Refuse unmanaged host manifests that duplicate package authority."""
+    cursor_manifest = plugin_root / ".cursor-plugin" / "plugin.json"
+    if cursor_manifest.exists():
+        return [
+            ".cursor-plugin/plugin.json is a retired unmanaged host manifest; "
+            "Cursor uses the source checkout directly, and package identity/version "
+            "must come only from .claude-plugin/plugin.json"
+        ]
+    return []
+
+
 def find_readme_version_assertions(plugin_root: Path) -> List[str]:
     """Return BLOCKERs for README surfaces that ASSERT a current version.
 
@@ -412,6 +424,7 @@ def main() -> int:
 
     # README must not assert a current version (AGENTS.md authority rule).
     blockers.extend(find_readme_version_assertions(plugin_root))
+    blockers.extend(find_retired_host_manifests(plugin_root))
 
     # CHANGELOG: structure + release consistency; never the current-version authority.
     blockers.extend(find_malformed_release_headings(plugin_root))
@@ -460,6 +473,8 @@ def main() -> int:
     print(f"- Manifest version (SOLE current-version authority): {manifest_version}")
     print(f"- Manifest license: {manifest_license}")
     print(f"- README version assertions: {len(find_readme_version_assertions(plugin_root))} "
+          f"(must be 0)")
+    print(f"- Retired host manifests present: {len(find_retired_host_manifests(plugin_root))} "
           f"(must be 0)")
     print(f"- CHANGELOG newest release (history, not authority): "
           f"{('v' + changelog_version) if changelog_version else '<none>'}")

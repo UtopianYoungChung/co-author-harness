@@ -156,6 +156,21 @@ def case_compliant_readme_passes() -> None:
               str(blockers(out)[:1]))
 
 
+def case_retired_cursor_manifest_is_refused() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td))
+        _w(root / ".cursor-plugin/plugin.json", json.dumps({
+            "name": "co-author-harness-claude",
+            "version": "0.37.2",
+        }, indent=2) + "\n")
+        rc, out = run(root)
+        check(
+            "retired Cursor manifest is REFUSED",
+            rc == 1 and blocked_for(out, ".cursor-plugin/plugin.json", "retired"),
+            str(blockers(out)[:2]),
+        )
+
+
 def case_readme_badge_is_refused() -> None:
     """A hard-coded badge is duplicated authority -> BLOCKER."""
     with tempfile.TemporaryDirectory() as td:
@@ -521,6 +536,7 @@ def main() -> int:
     print("            changelog/release identifiers are historical records.")
     print()
     for fn in (case_compliant_readme_passes,
+               case_retired_cursor_manifest_is_refused,
                case_readme_badge_is_refused,
                case_readme_badge_refused_even_when_matching,
                case_readme_version_literal_is_refused,

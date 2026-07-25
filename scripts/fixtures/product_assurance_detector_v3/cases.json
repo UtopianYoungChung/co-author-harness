@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "detector": {
+    "name": "product-assurance-semantic-candidates",
+    "version": "3.0.0"
+  },
+  "cases": [
+    {
+      "id": "ownership_is_sentence_scoped",
+      "artifact": "# Body\nSystems often fail [S]. Projects often stall.\n",
+      "corpus": "systems fail projects stall",
+      "expected": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Projects often stall."}],
+      "forbidden": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often fail [S]."}]
+    },
+    {
+      "id": "ownership_crosses_markdown_soft_wrap",
+      "artifact": "# Body\nSystems often\nfail [S]. Projects often stall.\n",
+      "corpus": "systems fail projects stall",
+      "expected": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Projects often stall."}],
+      "forbidden": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often\nfail [S]."}]
+    },
+    {
+      "id": "compound_term_matches_spaced_lemma",
+      "artifact": "# Body\nThe design-time models guide work.\n",
+      "corpus": "A design time model guides work.",
+      "expected": [],
+      "forbidden": [{"code": "TERM-COINAGE", "candidate_text": "design-time"}]
+    },
+    {
+      "id": "absent_compound_remains_candidate",
+      "artifact": "# Body\nThe counterfactual-actor model guides work.\n",
+      "corpus": "A dependency model guides work.",
+      "expected": [{"code": "TERM-COINAGE", "candidate_text": "counterfactual-actor"}],
+      "forbidden": []
+    },
+    {
+      "id": "register_plural_matches_corpus_lemma",
+      "artifact": "# Body\nContributions align. Contributions matter. Contributions persist.\n",
+      "corpus": "A contribution aligns with the evidence.",
+      "expected": [],
+      "forbidden": [{"code": "REGISTER-ABSENT", "candidate_text": "Contributions"}]
+    },
+    {
+      "id": "register_absence_survives_lemmatization",
+      "artifact": "# Body\nSynthesizers align. Synthesizers matter. Synthesizers persist.\n",
+      "corpus": "A contribution aligns with the evidence.",
+      "expected": [{"code": "REGISTER-ABSENT", "candidate_text": "Synthesizers"}],
+      "forbidden": []
+    },
+    {
+      "id": "narrative_citation_supports_its_sentence",
+      "artifact": "# Body\nSystems often adapt, as Yu and Mylopoulos (1994) report.\n",
+      "corpus": "systems adapt report",
+      "expected": [],
+      "forbidden": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often adapt, as Yu and Mylopoulos (1994) report."}]
+    },
+    {
+      "id": "narrative_et_al_citation_supports_its_sentence",
+      "artifact": "# Body\nSystems often adapt, as Yu et al. (1994) report.\n",
+      "corpus": "systems adapt report",
+      "expected": [],
+      "forbidden": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often adapt, as Yu et al. (1994) report."}]
+    },
+    {
+      "id": "narrative_et_al_near_miss_remains_candidate",
+      "artifact": "# Body\nSystems often adapt, as Yu et al (1994) report.\n",
+      "corpus": "systems adapt report",
+      "expected": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often adapt, as Yu et al (1994) report."}],
+      "forbidden": []
+    },
+    {
+      "id": "citation_is_sentence_scoped",
+      "artifact": "# Body\nSystems often adapt (Yu, 1994). Projects often fail.\n",
+      "corpus": "systems adapt projects fail",
+      "expected": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Projects often fail."}],
+      "forbidden": [{"code": "EMPIRICAL-UNSUPPORTED", "candidate_text": "Systems often adapt (Yu, 1994)."}]
+    },
+    {
+      "id": "abstract_excludes_preamble_and_body",
+      "artifact": "# Title\nNot a widget.\n\n# Abstract\nA neutral summary.\n\n# Body\nNot a ladder.\n",
+      "corpus": "widget summary ladder",
+      "expected": [],
+      "forbidden": [
+        {"code": "INSIDER-NEGATION", "candidate_text": "widget"},
+        {"code": "INSIDER-NEGATION", "candidate_text": "ladder"}
+      ]
+    },
+    {
+      "id": "missing_abstract_heading_has_empty_scope",
+      "artifact": "# Introduction\nNot a widget.\n",
+      "corpus": "widget",
+      "expected": [],
+      "forbidden": [{"code": "INSIDER-NEGATION", "candidate_text": "widget"}]
+    },
+    {
+      "id": "exact_abstract_heading_still_detects",
+      "artifact": "# Abstract\nNot a widget.\n\n# Body\nA neutral discussion.\n",
+      "corpus": "widget discussion",
+      "expected": [{"code": "INSIDER-NEGATION", "candidate_text": "widget"}],
+      "forbidden": []
+    },
+    {
+      "id": "abstract_substring_is_not_a_heading",
+      "artifact": "# Abstractness\nNot a widget.\n\n# Body\nA neutral discussion.\n",
+      "corpus": "widget discussion",
+      "expected": [],
+      "forbidden": [{"code": "INSIDER-NEGATION", "candidate_text": "widget"}]
+    }
+  ]
+}

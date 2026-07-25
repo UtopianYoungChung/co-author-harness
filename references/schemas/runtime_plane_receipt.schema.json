@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/runtime_plane_receipt.schema.json",
+  "title": "Runtime plane probe receipt 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_type",
+    "baseline_root",
+    "local_root",
+    "environment",
+    "interpreter",
+    "tool_versions",
+    "identity",
+    "exact_files",
+    "crlf_only",
+    "semantic_differences",
+    "missing_files",
+    "foreign_extras",
+    "package_digests",
+    "suites",
+    "findings",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "runtime_plane_probe"},
+    "baseline_root": {"type": "string", "minLength": 1},
+    "local_root": {"type": "string", "minLength": 1},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pythondontwritebytecode", "isolated_python", "pythonpath", "dependency_paths"],
+      "properties": {
+        "pythondontwritebytecode": {"const": "1"},
+        "isolated_python": {"const": true},
+        "pythonpath": {"const": ""},
+        "dependency_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
+    "interpreter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable", "implementation", "version", "version_info", "platform"],
+      "properties": {
+        "executable": {"type": "string", "minLength": 1},
+        "implementation": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "version_info": {"type": "array", "minItems": 3, "items": {"type": "integer", "minimum": 0}},
+        "platform": {"type": "string", "minLength": 1}
+      }
+    },
+    "tool_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python", "jsonschema", "referencing", "pyyaml", "git"],
+      "properties": {
+        "python": {"type": "string", "minLength": 1},
+        "jsonschema": {"type": ["string", "null"]},
+        "referencing": {"type": ["string", "null"]},
+        "pyyaml": {"type": ["string", "null"]},
+        "git": {"type": ["string", "null"]}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "embedded", "version_match", "exact_version_match", "provenance_match", "canonical_archive_claim"],
+      "properties": {
+        "source": {"$ref": "#/$defs/sourceIdentity"},
+        "embedded": {"$ref": "#/$defs/embeddedIdentity"},
+        "version_match": {"type": ["boolean", "null"]},
+        "exact_version_match": {"type": ["boolean", "null"]},
+        "provenance_match": {"type": ["boolean", "null"]},
+        "canonical_archive_claim": {"type": "boolean"}
+      }
+    },
+    "exact_files": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
+    "crlf_only": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
+    "semantic_differences": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
+    "missing_files": {"type": "array", "items": {"$ref": "#/$defs/fileRecord"}},
+    "foreign_extras": {"type": "array", "items": {"$ref": "#/$defs/foreignExtra"}},
+    "package_digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "pre", "post", "stable"],
+      "properties": {
+        "baseline": {"$ref": "#/$defs/digest"},
+        "pre": {"$ref": "#/$defs/digest"},
+        "post": {"$ref": "#/$defs/digest"},
+        "stable": {"type": "boolean"}
+      }
+    },
+    "suites": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/suite"}},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "verdict": {"enum": ["qualified", "qualified_with_caveats", "blocked"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "status", "name", "version", "base_version", "host_suffix", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "status": {"enum": ["valid", "missing", "invalid"]},
+        "name": {"type": ["string", "null"]},
+        "version": {"type": ["string", "null"]},
+        "base_version": {"type": ["string", "null"]},
+        "host_suffix": {"type": ["string", "null"]},
+        "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "status", "schema", "commit", "sha256"],
+      "properties": {
+        "kind": {"enum": ["source_git", "embedded_archive"]},
+        "path": {"type": ["string", "null"]},
+        "status": {"enum": ["valid", "missing", "invalid"]},
+        "schema": {"type": ["string", "null"]},
+        "commit": {"anyOf": [{"$ref": "#/$defs/gitCommit"}, {"type": "null"}]},
+        "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "provenance"],
+      "properties": {
+        "manifest": {"$ref": "#/$defs/manifest"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "embeddedIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "provenance"],
+      "properties": {
+        "manifest": {"$ref": "#/$defs/manifest"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["file", "symlink"]},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "baseline_kind", "local_kind", "baseline_sha256", "local_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "baseline_kind": {"enum": ["file", "symlink"]},
+        "local_kind": {"enum": ["file", "symlink"]},
+        "baseline_sha256": {"$ref": "#/$defs/sha256"},
+        "local_sha256": {"$ref": "#/$defs/sha256"},
+        "blocking": {"type": "boolean"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "foreignExtra": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "sha256", "blocking", "reason"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["file", "symlink"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "blocking": {"type": "boolean"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "sha256", "file_count"],
+      "properties": {
+        "algorithm": {"const": "sha256(path-NUL-kind-NUL-content-sha256-LF)"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "file_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "script", "argv", "cwd", "returncode", "status", "stdout_sha256", "stderr_sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["governed_product_gate_self_check", "portable_core"]},
+        "script": {"type": "string", "minLength": 1},
+        "argv": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+        "cwd": {"type": "string", "minLength": 1},
+        "returncode": {"type": ["integer", "null"]},
+        "status": {"enum": ["passed", "failed", "missing"]},
+        "stdout_sha256": {"$ref": "#/$defs/sha256"},
+        "stderr_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^RUNTIME-PLANE-[A-Z0-9-]+$"},
+        "severity": {"enum": ["BLOCKER", "WARNING"]},
+        "path": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "gitCommit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}
+  }
+}

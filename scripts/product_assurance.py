@@ -30,7 +30,17 @@ from destination_capability import DestinationRefused, assert_writable
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 WORD_RE = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*", re.UNICODE)
 QUOTE_SPACE_RE = re.compile(r"\s+")
-AUTHOR_YEAR_RE = re.compile(r"\(([^()]{1,120}?),\s*((?:19|20)\d{2}[a-z]?)\)")
+PARENTHETICAL_AUTHOR_YEAR_RE = re.compile(
+    r"\([^()\n]{1,120}?,\s*(?:19|20)\d{2}[a-z]?\)", re.IGNORECASE
+)
+NARRATIVE_AUTHOR_YEAR_RE = re.compile(
+    r"\b[A-Z][A-Za-z'\N{RIGHT SINGLE QUOTATION MARK}-]+"
+    r"(?:\s+(?:(?:and|&)\s+[A-Z][A-Za-z'\N{RIGHT SINGLE QUOTATION MARK}-]+|et\s+al\.))?"
+    r"\s+\((?:19|20)\d{2}[a-z]?\)"
+)
+MARKDOWN_HEADING_RE = re.compile(
+    r"^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$"
+)
 EMPIRICAL_RE = re.compile(
     r"\b(?:is|are|was|were|has|have|had)?\s*(?:often|frequently|typically|generally|usually)\b"
     r"|\b(?:tends?|most|majority of)\b",
@@ -52,7 +62,7 @@ STOPWORDS = {
     "who", "why", "will", "with", "would", "you", "your",
 }
 DETECTOR_NAME = "product-assurance-semantic-candidates"
-DETECTOR_VERSION = "2.0.0"
+DETECTOR_VERSION = "3.0.0"
 
 V3_LEGACY_COMPATIBILITY_FIELDS = frozenset({
     "schema_version",
@@ -153,6 +163,123 @@ def normalize(text: str) -> str:
 
 def words(text: str) -> list[str]:
     return [item.casefold() for item in WORD_RE.findall(text)]
+
+
+def _lemma(token: str) -> str:
+    """Apply a deliberately small, deterministic English inflection fold."""
+    value = token.casefold()
+    if len(value) > 4 and value.endswith("ies"):
+        return value[:-3] + "y"
+    if len(value) > 4 and value.endswith(("ches", "shes", "sses", "xes", "zes")):
+        return value[:-2]
+    if (len(value) > 3 and value.endswith("s")
+            and not value.endswith(("ss", "us", "is"))):
+        return value[:-1]
+    return value
+
+
+def _lexical_lemmas(text: str) -> list[str]:
+    """Tokenize compounds as word sequences before applying light lemmatization."""
+    out: list[str] = []
+    for token in words(text):
+        out.extend(_lemma(part) for part in token.split("-") if part)
+    return out
+
+
+def _contains_sequence(haystack: list[str], needle: list[str]) -> bool:
+    if not needle or len(needle) > len(haystack):
+        return False
+    width = len(needle)
+    return any(haystack[index:index + width] == needle
+               for index in range(len(haystack) - width + 1))
+
+
+def _trimmed_span(text: str, start: int, end: int) -> tuple[int, int] | None:
+    while start < end and text[start].isspace():
+        start += 1
+    while end > start and text[end - 1].isspace():
+        end -= 1
+    return (start, end) if start < end else None
+
+
+def _sentence_spans(text: str) -> list[tuple[int, int]]:
+    """Return Markdown prose sentence spans across soft line breaks."""
+    spans: list[tuple[int, int]] = []
+    blocks: list[tuple[int, int]] = []
+    block_start: int | None = None
+    block_end: int | None = None
+    offset = 0
+    for raw in text.splitlines(keepends=True):
+        content = raw.rstrip("\r\n")
+        stripped = content.strip()
+        hard_boundary = not stripped or MARKDOWN_HEADING_RE.fullmatch(stripped)
+        if hard_boundary:
+            if block_start is not None and block_end is not None:
+                blocks.append((block_start, block_end))
+            block_start = block_end = None
+        else:
+            if block_start is None:
+                block_start = offset
+            block_end = offset + len(content)
+        offset += len(raw)
+    if block_start is not None and block_end is not None:
+        blocks.append((block_start, block_end))
+
+    for block_start, block_end in blocks:
+        cursor = block_start
+        for boundary in re.finditer(r"[.!?]+(?=\s|$)", text[block_start:block_end]):
+            raw_end = block_start + boundary.end()
+            prefix = text[cursor:raw_end]
+            if re.search(r"\bet\s+al\.$", prefix, re.IGNORECASE):
+                continue
+            span = _trimmed_span(text, cursor, raw_end)
+            if span is not None:
+                spans.append(span)
+            cursor = raw_end
+        span = _trimmed_span(text, cursor, block_end)
+        if span is not None:
+            spans.append(span)
+    return spans
+
+
+def _has_author_year_citation(text: str) -> bool:
+    return bool(
+        PARENTHETICAL_AUTHOR_YEAR_RE.search(text)
+        or NARRATIVE_AUTHOR_YEAR_RE.search(text)
+    )
+
+
+def _abstract_span(text: str) -> tuple[int, int] | None:
+    """Resolve the body owned by an explicit Markdown Abstract heading."""
+    records: list[tuple[int, int, str]] = []
+    cursor = 0
+    for raw in text.splitlines(keepends=True):
+        records.append((cursor, cursor + len(raw), raw.rstrip("\r\n")))
+        cursor += len(raw)
+    if not records and text:
+        records.append((0, len(text), text))
+
+    abstract_index: int | None = None
+    abstract_level: int | None = None
+    for index, (_start, _end, line) in enumerate(records):
+        heading = MARKDOWN_HEADING_RE.fullmatch(line.strip())
+        if heading and heading.group(2).strip().casefold() == "abstract":
+            abstract_index = index
+            abstract_level = len(heading.group(1))
+            break
+    if abstract_index is None or abstract_level is None:
+        return None
+
+    start = records[abstract_index][1]
+    end = len(text)
+    for _index, (line_start, _line_end, line) in enumerate(
+        records[abstract_index + 1:], abstract_index + 1
+    ):
+        heading = MARKDOWN_HEADING_RE.fullmatch(line.strip())
+        if heading and len(heading.group(1)) <= abstract_level:
+            end = line_start
+            break
+    return start, end
 
 
 def line_for(text: str, offset: int) -> int:
@@ -361,16 +488,13 @@ def _hard_evidence_findings(artifact: Path, text: str,
 
 def _semantic_findings(artifact: Path, text: str, corpus: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    corpus_tokens = set(words(corpus))
+    corpus_lemmas = _lexical_lemmas(corpus)
+    corpus_lemma_set = set(corpus_lemmas)
     lines = text.splitlines()
     references_at = next((i for i, line in enumerate(lines)
                           if re.match(r"^#{1,6}\s+(references|bibliography)\s*$", line.strip(), re.IGNORECASE)),
                          len(lines))
     prose_lines = lines[:references_at]
-    manuscript_counts = Counter(words("\n".join(prose_lines)))
-    abstract_end = next((i for i, line in enumerate(lines[1:], 1)
-                         if line.startswith("#") and "abstract" not in line.casefold()),
-                        min(len(lines), 20))
     line_starts: list[int] = []
     cursor = 0
     for raw_line in text.splitlines(keepends=True):
@@ -378,67 +502,75 @@ def _semantic_findings(artifact: Path, text: str, corpus: str) -> list[dict[str,
         cursor += len(raw_line)
     if len(line_starts) < len(lines):
         line_starts.append(cursor)
-    abstract_limit = line_starts[abstract_end] if abstract_end < len(line_starts) else len(text)
-    abstract_text = text[:abstract_limit]
 
-    token_spans: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
+    lemma_spans: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
     for number, line in enumerate(prose_lines, 1):
         base = line_starts[number - 1]
         for match in WORD_RE.finditer(line):
-            token_spans[match.group(0).casefold()].append(
-                (base + match.start(), base + match.end(), match.group(0))
-            )
+            token = match.group(0)
+            if "-" not in token:
+                lemma_spans[_lemma(token)].append(
+                    (base + match.start(), base + match.end(), token)
+                )
+    manuscript_counts = Counter({lemma: len(spans)
+                                 for lemma, spans in lemma_spans.items()})
 
-    for number, line in enumerate(prose_lines, 1):
-        base = line_starts[number - 1]
-        owned = "[s]" in line.casefold()
-        for match in WORD_RE.finditer(line):
-            token = match.group(0).casefold()
-            if ("-" in token and token not in corpus_tokens and len(token) >= 6
-                    and not owned):
-                start = base + match.start()
-                end = base + match.end()
+    prose_end = line_starts[references_at] if references_at < len(line_starts) else len(text)
+    for sentence_start, sentence_end in _sentence_spans(text[:prose_end]):
+        sentence = text[sentence_start:sentence_end]
+        number = line_for(text, sentence_start)
+        owned = "[s]" in sentence.casefold()
+        for match in WORD_RE.finditer(sentence):
+            token = match.group(0)
+            term_lemmas = _lexical_lemmas(token)
+            if ("-" in token and len(token) >= 6 and not owned
+                    and not _contains_sequence(corpus_lemmas, term_lemmas)):
+                start = sentence_start + match.start()
+                end = sentence_start + match.end()
                 out.append(finding(
                     "TERM-COINAGE", "grounding", "candidate",
                     f"{artifact.as_posix()}:{number}",
-                    f"hyphenated term absent from bound extracts: {token}",
+                    "compound term absent from bound extracts: "
+                    + " ".join(term_lemmas),
                     tentative=True, candidate_text=text[start:end],
                     span=_span(text, start, end),
                 ))
-        if EMPIRICAL_RE.search(line) and not owned and not AUTHOR_YEAR_RE.search(line):
-            candidate_text = line.strip()
-            start = base + (len(line) - len(line.lstrip()))
-            end = start + len(candidate_text)
+        if (EMPIRICAL_RE.search(sentence) and not owned
+                and not _has_author_year_citation(sentence)):
             out.append(finding(
                 "EMPIRICAL-UNSUPPORTED", "grounding", "candidate",
                 f"{artifact.as_posix()}:{number}",
-                candidate_text[:240], tentative=True,
-                candidate_text=candidate_text, span=_span(text, start, end),
+                sentence[:240], tentative=True,
+                candidate_text=sentence, span=_span(text, sentence_start, sentence_end),
             ))
 
-    seen_prefix = ""
-    for match in INSIDER_RE.finditer(abstract_text):
-        phrase = match.group(1).strip().rstrip(".,;:")
-        head = phrase.split()[0].casefold()
-        if head not in set(words(seen_prefix)):
-            start = match.start(1)
-            end = match.end(1)
+    abstract_bounds = _abstract_span(text)
+    if abstract_bounds is not None:
+        abstract_start, abstract_end = abstract_bounds
+        abstract_text = text[abstract_start:abstract_end]
+        for match in INSIDER_RE.finditer(abstract_text):
+            phrase = match.group(1).strip().rstrip(".,;:")
+            head = _lemma(phrase.split()[0])
+            if head in set(_lexical_lemmas(abstract_text[:match.start()])):
+                continue
+            start = abstract_start + match.start(1)
+            end = abstract_start + match.end(1)
             out.append(finding(
                 "INSIDER-NEGATION", "register", "candidate",
-                f"{artifact.as_posix()}:{line_for(abstract_text, match.start())}",
+                f"{artifact.as_posix()}:{line_for(text, start)}",
                 f"abstract negates an unintroduced reader term: {phrase}",
-                tentative=True, candidate_text=abstract_text[start:end],
+                tentative=True, candidate_text=text[start:end],
                 span=_span(text, start, end),
             ))
-        seen_prefix = abstract_text[:match.end()]
 
-    for token, count in sorted(manuscript_counts.items()):
-        if (count >= 3 and token not in corpus_tokens and token not in STOPWORDS
-                and len(token) >= 6 and "-" not in token):
-            start, end, candidate_text = token_spans[token][0]
+    stopword_lemmas = {_lemma(token) for token in STOPWORDS}
+    for lemma, count in sorted(manuscript_counts.items()):
+        if (count >= 3 and lemma not in corpus_lemma_set
+                and lemma not in stopword_lemmas and len(lemma) >= 6):
+            start, end, candidate_text = lemma_spans[lemma][0]
             out.append(finding(
                 "REGISTER-ABSENT", "register", "candidate", artifact.as_posix(),
-                f"high-frequency manuscript token absent from bound extracts: {token} ({count}x)",
+                f"high-frequency manuscript lemma absent from bound extracts: {lemma} ({count}x)",
                 tentative=True, candidate_text=candidate_text,
                 span=_span(text, start, end),
             ))
