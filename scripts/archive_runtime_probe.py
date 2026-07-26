@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import site
 import stat
 import subprocess
 import sys
@@ -255,20 +256,6 @@ def _validate(receipt: Mapping[str, Any]) -> None:
         )
 
 
-def _remove_probe_output(path: Path, extraction_root: Path, pre_dirs: set[str]) -> None:
-    path.unlink(missing_ok=True)
-    current = path.parent
-    while current != extraction_root and _inside(current, extraction_root):
-        relative = current.relative_to(extraction_root).as_posix()
-        if relative in pre_dirs:
-            break
-        try:
-            current.rmdir()
-        except OSError:
-            break
-        current = current.parent
-
-
 def _write_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f".{uuid.uuid4().hex}.tmp")
@@ -310,6 +297,7 @@ def probe_archive(
 
     member_records, selected = _inspect_archive(archive)
     extraction_root = Path(tempfile.mkdtemp(prefix="coauthor-archive-runtime-")).resolve()
+    runtime_receipt_dir: Path | None = None
     runtime_receipt_path: Path | None = None
     pre_digest: dict[str, Any] | None = None
     post_digest: dict[str, Any] | None = None
@@ -322,14 +310,14 @@ def probe_archive(
         _extract_members(archive, selected, extraction_root)
         pre_inventory = _tree_inventory(extraction_root)
         pre_digest = _digest(pre_inventory)
-        pre_dirs = {path for path, value in pre_inventory.items() if value["kind"] == "directory"}
         runtime_script = extraction_root / RUNTIME_PROBE
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
-        runtime_receipt_path = (
-            extraction_root / "releases" / "verification"
-            / f".archive-runtime-probe-{uuid.uuid4().hex}" / "runtime_plane.json"
+        runtime_receipt_dir = (
+            source_root / "releases" / "verification"
+            / f".archive-runtime-probe-{uuid.uuid4().hex}"
         )
+        runtime_receipt_path = runtime_receipt_dir / "runtime_plane.json"
         child_env = dict(os.environ)
         child_env["PYTHONPATH"] = ""
         child_env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -348,10 +336,22 @@ def probe_archive(
                     sys_path_observed = True
             except (UnicodeError, json.JSONDecodeError):
                 pass
+        dependency_paths = tuple(sorted({
+            str(Path(path).resolve())
+            for path in (*site.getsitepackages(), site.getusersitepackages())
+            if path and Path(path).is_dir()
+        }))
+        isolated_runner = (
+            "import runpy,site,sys;"
+            f"[site.addsitedir(path) for path in {dependency_paths!r}];"
+            f"sys.path.insert(0,{str(runtime_script.parent)!r});"
+            f"sys.argv=[{str(runtime_script)!r},*sys.argv[1:]];"
+            f"runpy.run_path({str(runtime_script)!r},run_name='__main__')"
+        )
         argv = [
-            sys.executable, "-I", "-B", str(runtime_script),
+            sys.executable, "-I", "-B", "-c", isolated_runner,
             "--local-root", str(extraction_root),
-            "--baseline-root", str(extraction_root),
+            "--baseline-root", str(source_root),
             "--out", str(runtime_receipt_path),
         ]
         if runtime_script.is_file():
@@ -371,7 +371,8 @@ def probe_archive(
             findings.append(_finding("ARCHIVE-RUNTIME-ISOLATION-PROBE", "isolated interpreter sys.path could not be observed"))
 
         runtime_receipt_sha = _sha_path(runtime_receipt_path) if runtime_receipt_path.is_file() else None
-        _remove_probe_output(runtime_receipt_path, extraction_root, pre_dirs)
+        if runtime_receipt_dir.exists():
+            shutil.rmtree(runtime_receipt_dir, ignore_errors=False)
         post_inventory = _tree_inventory(extraction_root)
         post_digest = _digest(post_inventory)
         if pre_digest != post_digest:
@@ -407,6 +408,7 @@ def probe_archive(
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONNOUSERSITE": "1",
                 "PYTHONHOME": None,
+                "dependency_paths": list(dependency_paths),
             },
             "returncode": completed.returncode if completed is not None else None,
             "status": (

@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "references" / "schemas" / "archive_runtime_receipt.schema.json"
 
 RUNTIME_STUB = b'''#!/usr/bin/env python3
-import argparse,json,os,sys
+import argparse,json,jsonschema,os,sys
 from pathlib import Path
 parser=argparse.ArgumentParser()
 parser.add_argument("--local-root",type=Path,required=True)
@@ -147,6 +147,7 @@ def main() -> int:
         assert archive_receipt["member_digests"]["stable"] is True
         assert runtime_receipt["runtime_execution"]["argv"][1:3] == ["-I", "-B"]
         assert runtime_receipt["runtime_execution"]["environment"]["PYTHONPATH"] == ""
+        assert runtime_receipt["runtime_execution"]["environment"]["dependency_paths"]
         assert runtime_receipt["source_isolation"]["source_root_absent_from_sys_path"] is True
         assert runtime_receipt["source_isolation"]["interpreter_sys_path_observed"] is True
         assert runtime_receipt["cleanup"] == {
