@@ -468,7 +468,7 @@ def probe_plane(
     *,
     local_root: Path,
     baseline_root: Path,
-    out_path: Path,
+    out_path: Path | None,
     suites: Iterable[Mapping[str, str]] = DEFAULT_SUITES,
 ) -> dict[str, Any]:
     if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
@@ -480,28 +480,30 @@ def probe_plane(
     baseline_root = baseline_root.resolve(strict=True)
     if not local_root.is_dir() or not baseline_root.is_dir():
         raise ProbeRefusal("RUNTIME-PLANE-ROOT", "local and baseline roots must be directories")
-    out_path = out_path.resolve()
-    authorized_evidence_root = (baseline_root / "releases" / "verification").resolve()
-    if not _inside(out_path, authorized_evidence_root):
-        raise ProbeRefusal(
-            "RUNTIME-PLANE-OUTPUT",
-            "receipt output must be under the explicit baseline's "
-            "releases/verification evidence lane",
-        )
-    try:
-        destinations.assert_writable(
-            out_path, purpose="runtime-plane qualification receipt"
-        )
-    except destinations.DestinationRefused as exc:
-        raise ProbeRefusal(exc.code, str(exc)) from exc
+    if out_path is not None:
+        out_path = out_path.resolve()
+        authorized_evidence_root = (baseline_root / "releases" / "verification").resolve()
+        if not _inside(out_path, authorized_evidence_root):
+            raise ProbeRefusal(
+                "RUNTIME-PLANE-OUTPUT",
+                "receipt output must be under the explicit baseline's "
+                "releases/verification evidence lane",
+            )
+        try:
+            destinations.assert_writable(
+                out_path, purpose="runtime-plane qualification receipt"
+            )
+        except destinations.DestinationRefused as exc:
+            raise ProbeRefusal(exc.code, str(exc)) from exc
 
     baseline_excluded: set[str] = set()
     local_excluded: set[str] = set()
-    for candidate in (out_path, out_path.with_name(out_path.name + ".tmp")):
-        if _inside(candidate, baseline_root):
-            baseline_excluded.add(candidate.relative_to(baseline_root).as_posix())
-        if _inside(candidate, local_root):
-            local_excluded.add(candidate.relative_to(local_root).as_posix())
+    if out_path is not None:
+        for candidate in (out_path, out_path.with_name(out_path.name + ".tmp")):
+            if _inside(candidate, baseline_root):
+                baseline_excluded.add(candidate.relative_to(baseline_root).as_posix())
+            if _inside(candidate, local_root):
+                local_excluded.add(candidate.relative_to(local_root).as_posix())
 
     source_commit = _source_commit(baseline_root)
     baseline_members = _baseline_members(baseline_root, source_commit)
@@ -734,10 +736,11 @@ def probe_plane(
         "verdict": verdict,
     }
     _validate(receipt)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = out_path.with_name(out_path.name + ".tmp")
-    temporary.write_bytes(_canonical(receipt))
-    os.replace(temporary, out_path)
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = out_path.with_name(out_path.name + ".tmp")
+        temporary.write_bytes(_canonical(receipt))
+        os.replace(temporary, out_path)
     return receipt
 
 
@@ -745,7 +748,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--local-root", type=Path, required=True)
     parser.add_argument("--baseline-root", type=Path, required=True)
-    parser.add_argument("--out", type=Path, required=True)
+    destination = parser.add_mutually_exclusive_group(required=True)
+    destination.add_argument("--out", type=Path)
+    destination.add_argument("--stdout", action="store_true")
     return parser
 
 
@@ -762,7 +767,10 @@ def main(argv: list[str] | None = None) -> int:
         message = exc.message if isinstance(exc, ProbeRefusal) else str(exc)
         print(f"[BLOCKER] {code}: {message}", file=sys.stderr)
         return 4
-    print(json.dumps({"verdict": receipt["verdict"], "receipt": str(args.out.resolve())}))
+    if args.stdout:
+        sys.stdout.buffer.write(_canonical(receipt))
+    else:
+        print(json.dumps({"verdict": receipt["verdict"], "receipt": str(args.out.resolve())}))
     return 0 if receipt["verdict"] != "blocked" else 2
 
 

@@ -297,8 +297,6 @@ def probe_archive(
 
     member_records, selected = _inspect_archive(archive)
     extraction_root = Path(tempfile.mkdtemp(prefix="coauthor-archive-runtime-")).resolve()
-    runtime_receipt_dir: Path | None = None
-    runtime_receipt_path: Path | None = None
     pre_digest: dict[str, Any] | None = None
     post_digest: dict[str, Any] | None = None
     runtime_payload: dict[str, Any] | None = None
@@ -313,11 +311,6 @@ def probe_archive(
         runtime_script = extraction_root / RUNTIME_PROBE
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
-        runtime_receipt_dir = (
-            source_root / "releases" / "verification"
-            / f".archive-runtime-probe-{uuid.uuid4().hex}"
-        )
-        runtime_receipt_path = runtime_receipt_dir / "runtime_plane.json"
         child_env = dict(os.environ)
         child_env["PYTHONPATH"] = ""
         child_env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -352,17 +345,16 @@ def probe_archive(
             sys.executable, "-I", "-B", "-c", isolated_runner,
             "--local-root", str(extraction_root),
             "--baseline-root", str(source_root),
-            "--out", str(runtime_receipt_path),
+            "--stdout",
         ]
         if runtime_script.is_file():
             completed = subprocess.run(argv, cwd=extraction_root, env=child_env, capture_output=True, check=False)
-            if runtime_receipt_path.is_file():
-                try:
-                    loaded = json.loads(runtime_receipt_path.read_text(encoding="utf-8"))
-                    if isinstance(loaded, dict):
-                        runtime_payload = loaded
-                except (OSError, UnicodeError, json.JSONDecodeError):
-                    runtime_payload = None
+            try:
+                loaded = json.loads(completed.stdout.decode("utf-8", errors="strict"))
+                if isinstance(loaded, dict):
+                    runtime_payload = loaded
+            except (UnicodeError, json.JSONDecodeError):
+                runtime_payload = None
         if completed is None or completed.returncode != 0 or runtime_payload is None:
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-FAILED", "isolated runtime-plane probe did not produce a successful JSON receipt"))
         elif runtime_payload.get("verdict") == "blocked":
@@ -370,9 +362,11 @@ def probe_archive(
         if not sys_path_observed:
             findings.append(_finding("ARCHIVE-RUNTIME-ISOLATION-PROBE", "isolated interpreter sys.path could not be observed"))
 
-        runtime_receipt_sha = _sha_path(runtime_receipt_path) if runtime_receipt_path.is_file() else None
-        if runtime_receipt_dir.exists():
-            shutil.rmtree(runtime_receipt_dir, ignore_errors=False)
+        runtime_receipt_sha = (
+            _sha_bytes(completed.stdout)
+            if completed is not None and runtime_payload is not None
+            else None
+        )
         post_inventory = _tree_inventory(extraction_root)
         post_digest = _digest(post_inventory)
         if pre_digest != post_digest:
@@ -421,7 +415,7 @@ def probe_archive(
             "stderr_sha256": _sha_bytes(completed.stderr if completed is not None else b""),
         }
         runtime_plane_receipt = {
-            "path": str(runtime_receipt_path),
+            "path": "stdout",
             "sha256": runtime_receipt_sha,
             "verdict": runtime_payload.get("verdict") if runtime_payload is not None else None,
             "retained": False,
@@ -434,7 +428,7 @@ def probe_archive(
         "cwd_removed": not extraction_root.exists(),
         "temporary_root_exists_after": extraction_root.exists(),
         "cwd_exists_after": extraction_root.exists(),
-        "runtime_plane_receipt_retained": bool(runtime_receipt_path and runtime_receipt_path.exists()),
+        "runtime_plane_receipt_retained": False,
     }
     if not cleanup["temporary_root_removed"] or not cleanup["cwd_removed"]:
         findings.append(_finding("ARCHIVE-RUNTIME-CLEANUP", "temporary runtime roots were not removed"))

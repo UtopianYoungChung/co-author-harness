@@ -41,12 +41,11 @@ from pathlib import Path
 parser=argparse.ArgumentParser()
 parser.add_argument("--local-root",type=Path,required=True)
 parser.add_argument("--baseline-root",type=Path,required=True)
-parser.add_argument("--out",type=Path,required=True)
+parser.add_argument("--stdout",action="store_true",required=True)
 args=parser.parse_args()
 if "-I" not in sys.orig_argv or os.environ.get("PYTHONPATH") != "" or os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
     raise SystemExit(9)
-args.out.parent.mkdir(parents=True,exist_ok=True)
-args.out.write_text(json.dumps({"verdict":"qualified","isolated":True},sort_keys=True)+"\\n",encoding="utf-8")
+print(json.dumps({"verdict":"qualified","isolated":True},sort_keys=True))
 '''
 
 MUTATING_RUNTIME_STUB = RUNTIME_STUB + b'''\n(args.local_root / "runtime-mutation.txt").write_text("mutated\\n",encoding="utf-8")\n'''

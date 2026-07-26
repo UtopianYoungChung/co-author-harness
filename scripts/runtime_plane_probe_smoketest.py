@@ -250,6 +250,11 @@ def main() -> int:
 
         source_plane = base / "source-output-lane"
         package(source_plane)
+        emitted_receipt = probe.probe_plane(
+            local_root=source_plane, baseline_root=source_plane, out_path=None
+        )
+        validate(emitted_receipt)
+        assert not (source_plane / "releases").exists()
         governed_out = source_plane / "releases" / "verification" / "fixture" / "runtime-plane.json"
         source_receipt = probe.probe_plane(
             local_root=source_plane, baseline_root=source_plane, out_path=governed_out
