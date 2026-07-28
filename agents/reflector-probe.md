@@ -29,7 +29,7 @@ plugin-root identity is `references/_snippets/reflection-grounding.md`.
 Read the artifacts listed in the shared preamble's "What you read (mode-independent core)" block. Reconstruct the round's story at the granularity needed for the audit:
 
 1. What did the Planner intend? (revision plan scope and actions)
-2. What did the Evaluator find? (BLOCKER/MAJOR/MINOR counts; dormant at Ph1)
+2. What did the phase-required Evaluator pass find? (BLOCKER/MAJOR/MINOR counts; bounded independent scope at Ph1)
 3. What did the Generator change? (revision log entries for this round)
 4. What phase did this round run against? (`current_phase` from `phase_state.json`)
 

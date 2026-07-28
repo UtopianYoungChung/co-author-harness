@@ -57,6 +57,7 @@ python scripts/snippet-check.py
 python scripts/output_economy_check.py
 python scripts/version-planes-check.py
 python scripts/commitment-interactions-check.py
+python scripts/phase_engagement_check.py
 python scripts/retirement-sweep-check.py
 python scripts/destination-coverage-check.py
 python scripts/analysis/fixture_infrastructure_check.py

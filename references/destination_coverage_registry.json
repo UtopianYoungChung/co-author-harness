@@ -15,15 +15,20 @@
       "class": "guarded",
       "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
     },
+    "scripts/analysis/fixture_cache.py": {
+      "class": "excluded",
+      "reason": "write-helper library called only by the package-confined authoritative fixture runner and the hermetic fixture-infrastructure self-probes; callers own the exact cache root",
+      "sha256": "85259d3cf2a588ef72b0ac66609ebe8837f84c5d542a94addc57803ee41d747b"
+    },
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "bae6bddab546589f9dc74daa0443d7a6f3f4ace74e0595d7f515bdee6cc6fd6d"
+      "sha256": "0a08c1ff8e36e1a3e65351cb5417ecf8079dfe8cc3d969a7a8ffbdbccb14fa20"
     },
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "49a0959e04f1c9d7243b3c2fa18430384455cce94f94e1949bc4a10c7a8e960e"
+      "sha256": "22dfe4c00d4845a2153434d73dc665c911b71035602a33c4c147f8fd8d7795a2"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -77,14 +82,26 @@
       "class": "guarded",
       "regression": "scripts/canonical_bibliography_smoketest.py"
     },
+    "scripts/control_plane_transition.py": {
+      "class": "guarded",
+      "regression": "scripts/control_plane_transition_smoketest.py::destination capability, alias, marker-last, crash/replay, and recovery refusals"
+    },
     "scripts/product_assurance.py": {
       "class": "guarded",
       "regression": "scripts/product_assurance_smoketest.py"
     },
+    "scripts/product_assurance_detector_evaluation.py": {
+      "class": "guarded",
+      "regression": "scripts/product_assurance_detector_evaluation_smoketest.py::misrouted score output refusal"
+    },
+    "scripts/receipt_compaction.py": {
+      "class": "guarded",
+      "regression": "scripts/receipt_compaction_smoketest.py::destination capability and DEST-MISROUTED refusal"
+    },
     "scripts/protocol_conformance_fixture_support.py": {
       "class": "test_only",
       "justification": "C7 protocol-conformance support writes only beneath the caller-supplied synthetic temporary fixture root and composes production publishers for test evidence",
-      "sha256": "acba295d134d6a966ff1fdf71ddfa7c81651366daa4820039556b069fd6f6035"
+      "sha256": "675d0c00a54007091dc79d29c643634db9ff044504c82bace9f149e1bcfe08d4"
     },
     "scripts/run_product_gate.py": {
       "class": "guarded",
@@ -93,6 +110,10 @@
     "scripts/runtime_plane_probe.py": {
       "class": "guarded",
       "regression": "scripts/runtime_plane_probe_smoketest.py::output lane plus protected and ungoverned destination refusals"
+    },
+    "scripts/host_qualification_transaction.py": {
+      "class": "guarded",
+      "regression": "scripts/host_qualification_transaction_smoketest.py::destination boundary, marker-last publication, and partial recovery"
     },
     "scripts/archive_runtime_probe.py": {
       "class": "guarded",
@@ -108,7 +129,7 @@
     },
     "scripts/write_release_checksum.py": {
       "class": "guarded",
-      "regression": "scripts/write_release_checksum_smoketest.py::protected destination, traversal, symlink, and junction refusals"
+      "regression": "scripts/write_release_checksum_smoketest.py::protected destination, traversal, reparse, exclusive-create fallback, and typed no-partial refusals"
     },
     "scripts/evidence_publication.py": {
       "class": "excluded",
@@ -136,7 +157,12 @@
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",
       "justification": "C5 fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "7e80c6cc82f7cfd9b10fdc243097e7ed9d6d53812b57694b5c457d1aea704c0d"
+      "sha256": "9a22a81cf56ae92f5db0f9a103a8b7fa7f6f3d012443bb28643bb631daee28cb"
+    },
+    "scripts/scholarly_assurance_fixture_support.py": {
+      "class": "test_only",
+      "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
+      "sha256": "450186ba4ce078377b8ebb67b087f1abf8faddd3c4ef8fe7c2106970be410f25"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

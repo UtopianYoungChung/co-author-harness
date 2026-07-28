@@ -122,7 +122,7 @@ is not a judgement call — it is refused with `FRC-SCOPE-DOWNGRADE`.
 2. `reviews/assignment_contract.json` is present and **resolved**;
 3. the active target milestone is derived from state — the first non-`accepted`
    of M1…M4 — never chosen by the agent;
-4. `scripts/assignment_process_gate.py` emits an immutable READY receipt for that target and exact Generator output paths;
+4. `scripts/assignment_process_gate.py` emits an immutable READY receipt for that target and exact Generator output paths; after any committed control transition the receipt must bind and replay that exact transition and active target;
 5. Planner `scripts/assignment_dispatch_preflight.py` exits 0 and atomically reserves that receipt for those paths and modes; Generator stages only beneath its receipt-scoped staging root, and `scripts/assignment_writer_commit.py` journals and publishes the exact set, emits a publication-result sidecar binding paths, modes, and hashes, then consumes the receipt.
 
 If (1) or (2) is missing the run **fails closed** and the only permitted output
@@ -208,7 +208,7 @@ That gate requires **all fifteen, unconditionally**:
 | 1 | resolved assignment contract |
 | 2 | M1–M4 `accepted` with approval authority + evidence |
 | 3 | exact-byte deliverable bindings (recorded sha256 == file on disk) |
-| 4 | current-byte Generator and independent Evaluator draft-governance envelopes for every M1-M4 and FINAL artifact, including centroid, D-STYLE, grammar/style, grounding, and applicable overlays |
+| 4 | current-byte Generator and independent Evaluator draft-governance envelopes plus a separate qualified C6 scholarly evaluation for every M1-M4 and FINAL artifact; the C6 evidence reuses the consumed receipt/dispatch chain, binds the complete claim/criteria/profile/obligation read set, and has no unresolved `BLOCKER` or `MAJOR` |
 | 5 | consumed predecessor handoffs (F9 packets, `status: consumed`) |
 | 5 | valid F9 packets with `packet_sha256` matching bytes |
 | 6 | F7 evidence packets and recorded events |
@@ -252,6 +252,8 @@ this contract exists to make unsayable.
 | `FRC-MILESTONE-ORDER` | target milestone runs ahead of an unaccepted predecessor |
 | `FRC-PRESENCE-NOT-ACCEPTANCE` | acceptance inferred from a file's existence |
 | `FRC-AUTHORSHIP` | manuscript movement not attributable to a Generator round |
+| `FRC-SCHOLARLY-EVALUATION-MISSING` | an accepted milestone lacks the required C6 scholarly-evaluation binding |
+| `FRC-SCHOLARLY-EVALUATION-STALE` | a present C6 binding, authority chain, artifact, obligation, or transitive dependency is stale or unqualified |
 | `FRC-TERMINAL-UNPROVEN` | terminal claim without the §4 evidence |
 
 ---

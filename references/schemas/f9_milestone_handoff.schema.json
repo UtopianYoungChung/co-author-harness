@@ -366,6 +366,7 @@
         "profile_path": {"type": "string", "minLength": 1},
         "profile_sha256": {"$ref": "#/$defs/sha256"},
         "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "semantic_usage": {"const": "not_invoked"},
         "attestation_view_pin": {"$ref": "#/$defs/sha256"},
         "exemplar_view_pin": {"$ref": "#/$defs/sha256"},
         "manuscript_sha256": {"$ref": "#/$defs/sha256"},
@@ -379,7 +380,9 @@
         "wiki_grounding": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
         "wiki_grounding_opt_out": {"type": "object", "additionalProperties": false, "required": ["authority", "reason", "evidence_path", "evidence_sha256"], "properties": {"authority": {"enum": ["user", "advisor", "instructor"]}, "reason": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
         "draft_generation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
-        "draft_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
+        "draft_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+        "scholarly_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+        "assignment_receipt": {"type": "object", "additionalProperties": false, "required": ["receipt_id", "evidence_path", "evidence_sha256"], "properties": {"receipt_id": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
       }
     }
     ,"reader_model":{"type":"object","additionalProperties":false,"required":["audience_classes","imported_theory_registers","reading_task","register_class","source"],"properties":{"audience_classes":{"const":["IS scholar","software engineer","systems engineer","requirements engineer"]},"imported_theory_registers":{"const":["sociology","psychology","philosophy"]},"reading_task":{"const":"recover the argument's claims and their derivation on a single read, without leaving the page to look up a term"},"register_class":{"const":"domain-native"},"source":{"const":"M1 milestone reader declaration"}}}

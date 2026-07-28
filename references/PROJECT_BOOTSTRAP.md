@@ -293,6 +293,8 @@ Reflector may add entries. No agent may remove entries.
 
 `reviews/phase_state.json` is the **only writable authority** for both the phase ledger and the `milestone_framework` namespace. Generate its native seed with `scripts/native_project_bootstrap.py`; do not copy status claims out of the Markdown files. The seed records M1 as `in_progress`, M2–M5 as `not_started`, empty artifact and feedback arrays, pending approvals, and not-ready handoffs. It also records only the evidence-free `milestone_started` event for M1.
 
+Every new native project receives reader-profile binding v2 from that command: `binding_version: 2.0.0`, `binding_kind: reader_profile`, and `semantic_usage: not_invoked`. Do not hand-author, copy, or downgrade this binding. Canonical validation rejects a native project that omits it. A legacy project uses the explicit migration transaction; it is never repaired by running bootstrap over an existing directory.
+
 The native seed has a fresh-target contract: the requested project root must not exist, and its parent must already exist. The generator builds the entire milestone seed in a newly created sibling staging directory, resolves every output path against that staging root, and runs both canonical validators there. Only a fully valid seed is atomically renamed to the requested root. Failure removes staging and never merges with, overwrites, or repairs an existing project. Existing projects use the migration workflow instead.
 
 `reviews/.harness/handoffs/` and `reviews/.harness/snapshots/` start empty. An F9 packet or content-addressed M4 snapshot is created only by its state-last transaction; file presence never changes milestone state.

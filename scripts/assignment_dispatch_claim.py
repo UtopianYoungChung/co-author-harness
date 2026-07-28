@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
+from referencing.exceptions import Unresolvable
 
 from destination_capability import guard_project_root
 from assignment_receipt_transaction import (
@@ -35,6 +37,16 @@ CONSUMPTION_SCHEMA = (
 HOST_SCHEMA = ROOT / "references" / "schemas" / "assignment_host_attestation.schema.json"
 ISSUANCE_SCHEMA = (
     ROOT / "references" / "schemas" / "assignment_dispatch_issuance.schema.json"
+)
+COMMON_SCHEMA = (
+    ROOT / "references" / "schemas" / "common_scholarly_primitives.schema.json"
+)
+COMMON_SCHEMA_ID = (
+    "https://co-author-harness.local/schemas/"
+    "common_scholarly_primitives.schema.json"
+)
+COMMON_SCHEMA_SHA256 = (
+    "b5a397a4e90431c422a788414e40c1eed6ca5ba98191ed0aecaaa70aac3365e4"
 )
 KERNEL_AUTHORIZATION_SCHEMA = (
     ROOT
@@ -68,14 +80,73 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _validator(path: Path) -> Draft202012Validator:
-    schema = json.loads(path.read_text(encoding="utf-8"))
-    Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema, format_checker=FormatChecker())
+def _validator(
+    path: Path,
+    code: str = "APG-DISPATCH-CLAIM-INVALID",
+    *,
+    common_schema_path: Path = COMMON_SCHEMA,
+) -> Draft202012Validator:
+    """Build a validator with the exact frozen common primitive resource."""
+
+    try:
+        schema_raw = path.read_bytes()
+        common_raw = common_schema_path.read_bytes()
+        schema = json.loads(schema_raw.decode("utf-8", errors="strict"))
+        common = json.loads(common_raw.decode("utf-8", errors="strict"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ReceiptTransactionError(
+            code, f"dispatch schema resource is unavailable or invalid: {exc}"
+        ) from exc
+    if not isinstance(schema, dict) or not isinstance(common, dict):
+        raise ReceiptTransactionError(
+            code, "dispatch schema resources must be JSON objects"
+        )
+    if common.get("$id") != COMMON_SCHEMA_ID:
+        raise ReceiptTransactionError(
+            code, "common scholarly primitive schema has the wrong canonical $id"
+        )
+    if _digest_bytes(common_raw) != COMMON_SCHEMA_SHA256:
+        raise ReceiptTransactionError(
+            code,
+            "common scholarly primitive schema hash differs from the frozen resource",
+        )
+    try:
+        Draft202012Validator.check_schema(common)
+        Draft202012Validator.check_schema(schema)
+        registry = Registry().with_resource(
+            COMMON_SCHEMA_ID, Resource.from_contents(common)
+        )
+        return Draft202012Validator(
+            schema,
+            registry=registry,
+            format_checker=FormatChecker(),
+        )
+    except Exception as exc:
+        raise ReceiptTransactionError(
+            code, f"dispatch schema resource cannot be registered: {exc}"
+        ) from exc
 
 
-def _validate_schema(payload: dict[str, Any], schema: Path, code: str) -> None:
-    errors = sorted(_validator(schema).iter_errors(payload), key=lambda error: list(error.path))
+def _validate_schema(
+    payload: dict[str, Any],
+    schema: Path,
+    code: str,
+    *,
+    common_schema_path: Path = COMMON_SCHEMA,
+) -> None:
+    validator = _validator(
+        schema,
+        code,
+        common_schema_path=common_schema_path,
+    )
+    try:
+        errors = sorted(
+            validator.iter_errors(payload), key=lambda error: list(error.path)
+        )
+    except Unresolvable as exc:
+        raise ReceiptTransactionError(
+            code, f"dispatch schema reference is unresolved: {exc}"
+        ) from exc
     if errors:
         raise ReceiptTransactionError(code, errors[0].message)
 

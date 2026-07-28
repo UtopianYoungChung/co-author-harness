@@ -20,7 +20,10 @@ PACKAGE_ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from reader_accessibility_policy import phase_state_binding, resolve_policy
+from reader_accessibility_policy import (
+    reader_profile_phase_state_binding,
+    resolve_reader_profile,
+)
 from milestone_path_contract import (
     PATH_CONTRACT_VERSION,
     canonical_deliverable,
@@ -75,8 +78,8 @@ def _framework(
     intended_readers: list[str],
     created_at: str,
     policy_binding: dict[str, Any],
+    reader_model: dict[str, Any],
 ) -> dict[str, Any]:
-    reader_model = resolve_policy(None)["resolved_profile"]["domain_native_register"]["reader_model"]
     milestones = {
         "M1": _pending_record(
             "Establish the project's focus, motivating tension, intended readers, and question candidates.",
@@ -307,14 +310,17 @@ def bootstrap(
         policy_path = _destination(
             staging, "reviews/.harness/policies/reader_accessibility.resolved.json"
         )
-        resolved = resolve_policy(staging)
+        resolved = resolve_reader_profile(staging)
         _write(
             staging,
             "reviews/.harness/policies/reader_accessibility.resolved.json",
             json.dumps(resolved, indent=2, ensure_ascii=False) + "\n",
         )
-        binding = phase_state_binding(resolved, policy_path, staging)
-        framework = _framework(project_name, intended_readers, created_at, binding)
+        binding = reader_profile_phase_state_binding(resolved, policy_path, staging)
+        reader_model = resolved["resolved_profile"]["domain_native_register"]["reader_model"]
+        framework = _framework(
+            project_name, intended_readers, created_at, binding, reader_model
+        )
 
         _write(
             staging,
@@ -398,6 +404,10 @@ def main(argv: list[str] | None = None) -> int:
         )
     except (OSError, ValueError) as exc:
         parser.exit(2, f"error: {exc}\n")
+    state = json.loads((args.project_root / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+    binding = state["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+    if binding.get("binding_version") == "2.0.0":
+        print("READER_PROFILE_READY semantic_usage=not_invoked")
     print(f"BOOTSTRAPPED {args.project_root.resolve()}")
     return 0
 

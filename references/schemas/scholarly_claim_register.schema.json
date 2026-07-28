@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/scholarly_claim_register.schema.json",
+  "title": "Scholarly claim register 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "register_id",
+    "artifact",
+    "review_dispatch",
+    "claims",
+    "generator_inventory",
+    "evaluator_additions",
+    "evaluator_omissions",
+    "coverage_disposition",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "register_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "artifact": {"$ref": "#/$defs/artifactBinding"},
+    "review_dispatch": {"$ref": "#/$defs/reviewDispatch"},
+    "claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"}},
+    "generator_inventory": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/claimId"},
+      "uniqueItems": true
+    },
+    "evaluator_additions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/claim"}
+    },
+    "evaluator_omissions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/omission"}
+    },
+    "coverage_disposition": {"enum": ["complete", "incomplete", "blocked"]},
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "claimId": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "artifactBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byte_length"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_length": {"type": "integer", "minimum": 0}
+      }
+    },
+    "reviewDispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dispatch_id", "role"],
+      "properties": {
+        "dispatch_id": {"type": "string", "minLength": 1},
+        "role": {"const": "evaluator"}
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "line", "byte_start", "byte_end"],
+      "properties": {
+        "section": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "byte_start": {"type": "integer", "minimum": 0},
+        "byte_end": {"type": "integer", "minimum": 1}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "text",
+        "span_sha256",
+        "locator",
+        "load_bearing",
+        "viewpoint",
+        "provenance",
+        "admission_use",
+        "argument_leg",
+        "modal_force",
+        "warrant_relation"
+      ],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/claimId"},
+        "text": {"type": "string", "minLength": 1},
+        "span_sha256": {"$ref": "#/$defs/sha256"},
+        "locator": {"$ref": "#/$defs/locator"},
+        "load_bearing": {"type": "boolean"},
+        "viewpoint": {
+          "enum": ["source_ascription", "author_analysis", "project_position", "constructed_synthesis", "open_question"]
+        },
+        "provenance": {
+          "enum": ["direct_source", "cross_source_comparison", "author_derivation", "project_governance", "constructed_example", "unresolved"]
+        },
+        "evidence_locator": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidenceSpan"}
+        },
+        "admission_use": {
+          "enum": ["admitted_evidence", "derivation_only", "working_position", "open_question", "not_applicable"]
+        },
+        "argument_leg": {
+          "anyOf": [
+            {"enum": ["ascription", "composition", "recognition", "cross_leg"]},
+            {"type": "string", "pattern": "^project:[a-z][a-z0-9_-]*$"}
+          ]
+        },
+        "modal_force": {"enum": ["asserted", "qualified", "candidate", "unresolved"]},
+        "warrant_relation": {"enum": ["necessary", "sufficient", "defeater", "constraint", "candidate", "unresolved"]}
+      }
+    },
+    "evidenceSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byte_start", "byte_end", "span_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_start": {"type": "integer", "minimum": 0},
+        "byte_end": {"type": "integer", "minimum": 1},
+        "span_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "text", "span_sha256", "locator", "reason"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/claimId"},
+        "text": {"type": "string", "minLength": 1},
+        "span_sha256": {"$ref": "#/$defs/sha256"},
+        "locator": {"$ref": "#/$defs/locator"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -22,7 +22,7 @@
    - M1 criteria include "Exemplar enumeration" and "Premise mapping"
    - M2 criteria include "Framework transfer justification" and "Epistemological clarity"
    - M3 criteria include "Alternative positions addressed," "Tension resolution," and "Illustration flagging"
-   - This file tells you what the Planner checks at Ph1. The Evaluator remains dormant until Ph2.
+   - This file tells you what the Planner checks at Ph1. The separate bounded Evaluator pass is required by `policies/phase_engagement.v1.json`; full revision-maturity review begins at Ph2.
 
 2. **`M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` — The operational playbook**
    - Has concrete decision trees and checklists for each check

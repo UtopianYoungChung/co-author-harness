@@ -56,7 +56,8 @@ def main() -> int:
     generator = read("agents/generator.md")
     assert "sole writer of academic deliverables" in generator
     evaluator = read("agents/evaluator.md")
-    assert "E-EVALUATOR-PH1-DORMANT" in evaluator
+    assert "bounded_independent_required" in evaluator
+    assert "references/policies/phase_engagement.v1.json" in evaluator
     assert "ph1_noop_" not in evaluator
 
     phase1 = read("skills/run-phase-1/SKILL.md")

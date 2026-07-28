@@ -53,6 +53,19 @@ def _binding(project: Path, path: Path, root: str) -> dict[str, str]:
     }
 
 
+def _wiki_binding(project: Path, wiki_root: Path) -> dict[str, str]:
+    resolved = wiki_root.resolve()
+    if resolved.is_relative_to(project.resolve()):
+        root, base = "project", project.resolve()
+    else:
+        root, base = "harness", ROOT.resolve()
+    return {
+        "root": root,
+        "path": resolved.relative_to(base).as_posix(),
+        "manifest_sha256": sha(wiki_root / "manifest.json"),
+    }
+
+
 def _snapshot(path: Path) -> dict[str, object]:
     if not path.is_file():
         return {"exists": False, "sha256": None, "size": 0}
@@ -105,11 +118,7 @@ def _locator(
         ),
         "commit_marker": _binding(project, paths["commit_marker"], "project"),
         "semantic_receipt": _binding(project, semantic_receipt, "project"),
-        "wiki_root": {
-            "root": "harness",
-            "path": wiki_root.resolve().relative_to(ROOT).as_posix(),
-            "manifest_sha256": sha(wiki_root / "manifest.json"),
-        },
+        "wiki_root": _wiki_binding(project, wiki_root),
         "semantics_manifest": _binding(project, SEMANTICS, "harness"),
         "dispatch_claim": _binding(project, claim, "project"),
         "dispatch_consumption": _binding(project, consumption, "project"),
@@ -141,9 +150,8 @@ def build_existing_artifact_pair(
         artifact_relative=artifact_relative,
         evidence_relative=f"reviews/.harness/fixtures/{label}",
     )
-    activation.mutate_artifact(
-        lambda text: f"{text}\n\nSynthetic lifecycle target {label}.\n"
-    )
+    claim_text = f"Synthetic lifecycle target {label}."
+    activation.mutate_artifact(lambda text: f"{text}\n\n{claim_text}\n")
 
     receipt_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"c5:{label}:receipt"))
     reservation_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"c5:{label}:reservation"))
@@ -228,24 +236,32 @@ def build_existing_artifact_pair(
         issuer_transaction_id=f"assignment-evaluation-{public_milestone}",
         issued_at="2026-07-25T12:00:02Z",
     )
-    evaluation_consumption, evaluation_consumption_path, _ = (
-        claims.consume_dispatch_claim(
-            project, evaluation_path, role="evaluator",
-            consumer_transaction_id=f"evaluation-{public_milestone}",
-            target_paths=[artifact_relative], consumed_at="2026-07-25T12:00:03Z",
-        )
+    from scholarly_assurance_fixture_support import (
+        build_qualified_scholarly_from_authorities,
     )
-    evaluation_semantic = lane / "evaluation-semantic.json"
-    evaluation_value = json.loads(activation.receipt.read_text(encoding="utf-8"))
-    evaluation_value["phase"] = "evaluation"
-    evaluation_value["role"] = "evaluator"
-    write_json(evaluation_semantic, evaluation_value)
-    evaluation_paths = verifier.publish_verifier_transaction(
-        artifact=artifact, semantic_receipt=evaluation_semantic,
-        phase="evaluation", project_root=project, wiki_root=activation.wiki_root,
-        harness_root=ROOT, semantics_manifest=SEMANTICS,
-        out_dir=lane / "evaluation", requested_independence_level="none",
+
+    scholarly = build_qualified_scholarly_from_authorities(
+        project,
+        authorities={
+            "artifact": artifact,
+            "artifact_relative": artifact_relative,
+            "receipt_id": receipt_id,
+            "reservation_id": reservation_id,
+            "activation": activation,
+            "semantics": SEMANTICS,
+            "generation": generation,
+            "generation_path": generation_path,
+            "generation_consumption": generation_consumption_path,
+            "generation_paths": generation_paths,
+            "evaluator": evaluation,
+            "evaluator_path": evaluation_path,
+        },
+        label=label,
+        claim_text=claim_text,
     )
+    evaluation_consumption_path = scholarly.evaluation_consumption
+    evaluation_semantic = scholarly.evaluation_semantic_receipt
+    evaluation_paths = scholarly.evaluation_verifier
     generation_id = json.loads(
         generation_paths["transaction"].read_text(encoding="utf-8")
     )["transaction_id"]
@@ -264,6 +280,12 @@ def build_existing_artifact_pair(
             claim=evaluation_path, consumption=evaluation_consumption_path,
             generation_id=generation_id,
         ),
+        "scholarly_evaluation": scholarly.binding,
+        "assignment_receipt": {
+            "receipt_id": receipt_id,
+            "evidence_path": consumed.relative_to(project).as_posix(),
+            "evidence_sha256": sha(consumed),
+        },
     }
     return {
         "policy_evidence": policy,
@@ -274,5 +296,7 @@ def build_existing_artifact_pair(
         "generation_claim": generation,
         "generation_consumption": generation_consumption,
         "evaluation_claim": evaluation,
-        "evaluation_consumption": evaluation_consumption,
+        "evaluation_consumption": json.loads(
+            evaluation_consumption_path.read_text(encoding="utf-8")
+        ),
     }

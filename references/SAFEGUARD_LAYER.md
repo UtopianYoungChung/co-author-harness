@@ -2,7 +2,7 @@
 
 **Purpose.** This file prescribes eight structured checks that run **after** the consolidated findings report is drafted (Step 8) but **before** the author approves edits. It is Step 8.5 in `REVIEW_ORCHESTRATION.md`. Its job is to catch problems the seven-step review does not prescribe: regression from edits, drift between rounds, abstract-body inconsistency, unacknowledged theoretical contradictions, untraceable edits, voice degradation from AI-assisted revision, unwarranted inter-sentential logical connectives, and reader-experience / prose-architecture failure.
 
-**When to run.** Always, at every phase at which the Evaluator engages, per the Lifecycle-Phase Ladder: Evaluator dormant at **Ph1**; at **Ph2** run checks 1, 4, 5, and **8** (accessibility baseline); at **Ph3** and **Ph4** run all eight. The full routing table is '### Which checks run at which phase rung' below. See `agents/evaluator.md §Step 8.5` for phase-conditioned dispatch. *(The v0.4.x review-depth vocabulary — `quick` / `standard` / `submission-bound` — is retired; Check 7's pre-filter coupling now binds to Ph4.)*
+**When to run.** Evaluator engagement is resolved only from `policies/phase_engagement.v1.json`. At **Ph1** the bounded independent pass runs the applicable subset; at **Ph2** run checks 1, 4, 5, and **8** (accessibility baseline); at **Ph3** and **Ph4** run all eight. The full routing table is '### Which checks run at which phase rung' below. See `agents/evaluator.md §Step 8.5` for phase-conditioned dispatch. *(The v0.4.x review-depth vocabulary — `quick` / `standard` / `submission-bound` — is retired; Check 7's pre-filter coupling now binds to Ph4.)*
 
 **Relationship to other package files.**
 - `DETERMINISTIC_CHECKS.md` catches mechanical tics **before** the judgment review.
@@ -480,18 +480,18 @@ Checks 1, 4, and 5 run at all depths because they catch the highest-severity pro
 
 ### Which checks run at which phase rung (introduced v0.7.2 under the stage vocabulary; phase-named per the v0.7.4 rename)
 
-| Check | Ph1 (dormant) | Ph2 | Ph3 | Ph4 |
+| Check | Ph1 (bounded independent) | Ph2 | Ph3 | Ph4 |
 |---|---|---|---|---|
-| 1 — Regression Guard | — | **Yes** | **Yes** | **Yes** |
+| 1 — Regression Guard | **Yes** | **Yes** | **Yes** | **Yes** |
 | 2 — Drift Detection | — | No | **Yes** | **Yes** |
 | 3 — Abstract ↔ Body Consistency | — | No | **Yes** | **Yes** |
-| 4 — Contradiction Audit | — | **Yes** | **Yes** | **Yes** |
-| 5 — Edit Traceability | — | **Yes** | **Yes** | **Yes** |
+| 4 — Contradiction Audit | **Yes** | **Yes** | **Yes** | **Yes** |
+| 5 — Edit Traceability | **Yes** | **Yes** | **Yes** | **Yes** |
 | 6 — Humanness Voice Audit | — | No | **Yes** | **Yes** |
 | 7 — Inter-Sentential Logical Connective Audit | — | No | **Yes** | **Yes** |
-| 8 — Reader-Experience / Prose Architecture Audit | — | **Profile-routed** | **Profile-routed** | **Profile-routed** |
+| 8 — Reader-Experience / Prose Architecture Audit | **Profile-routed** | **Profile-routed** | **Profile-routed** | **Profile-routed** |
 
-**Phase scope.** Resolve Ph2/Ph3/Ph4 applicability from `sub_checks.*.advisory_at`, `binds_at`, passage-role overrides, and validated G/H transition states. Check 8 becomes convergence-gating only through those machine contracts; historical rollout prose is not executable authority.
+**Phase scope.** Resolve engagement from `policies/phase_engagement.v1.json`, then resolve check applicability from `sub_checks.*.advisory_at`, `binds_at`, passage-role overrides, and validated G/H transition states. Check 8 becomes convergence-gating only through those machine contracts; historical rollout prose is not executable authority.
 
 ---
 

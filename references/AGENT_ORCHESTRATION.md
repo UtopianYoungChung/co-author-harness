@@ -44,9 +44,9 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 **Purpose.** This file describes the four-agent system that operates on manuscripts governed by the Research and Academic Paper Writing Package. It defines roles, permissions, the dispatch loop, and user checkpoints.
 
-**All-drafts amendment (binding, 2026-07-22).** For every M1-M4 and FINAL academic deliverable or revision, including when the target artifact is absent at dispatch time, the Planner must bind the complete applicable policy bundle, the Generator must draft with the resolved centroid, and the Evaluator must independently evaluate the exact produced bytes before milestone record or approval. The Ph1 pass is bounded to centroid, D-STYLE, grammar/mechanics, citation, grounding, reader accessibility, deterministic checks, SAFEGUARD, and applicable overlays; full revision-maturity review still begins at Ph2. This amendment supersedes every historical `Evaluator dormant at Ph1`, `no Evaluator`, `M4-only exemplar`, or `M1-M3 exemplar forbidden` statement that remains below.
+**All-drafts amendment (binding, 2026-07-22; capability clarification, 2026-07-27).** For every M1-M4 and FINAL academic deliverable or revision, including when the target artifact is absent at dispatch time, the Planner must bind the complete capability-applicable policy bundle, the Generator must draft under the obligations derived from the authoritative reader binding, and the Evaluator must independently evaluate the exact produced bytes before milestone record or approval. Reader-profile v2 with `semantic_usage: not_invoked` omits centroid generation and exemplar evidence but retains D-STYLE, grammar/mechanics, citation, grounding, reader accessibility, deterministic checks, SAFEGUARD, and applicable overlays. Governed semantic bindings retain their declared centroid obligations. Full revision-maturity review still begins at Ph2. Role engagement is resolved only from `references/policies/phase_engagement.v1.json`; superseded participation statements belong only in its retirement ledger.
 
-**Lifecycle-Phase Ladder framing.** Ph1 runs Planner + Generator + the bounded Evaluator all-drafts policy pass + Reflector-lightweight. Ph2 is the first full revision-maturity Evaluator rung. Ph3 and Ph4 run the full four-agent loop, with Reflector-full at terminal close. The canonical engagement matrix lives in `PHASE_PROTOCOL.md §2.3`.
+**Lifecycle-Phase Ladder framing.** Ph1 runs Planner + Generator + the bounded Evaluator all-drafts policy pass + Reflector-lightweight. Ph2 is the first full revision-maturity Evaluator rung. Ph3 and Ph4 run the full four-agent loop, with Reflector-full at terminal close. The canonical engagement matrix lives in `references/policies/phase_engagement.v1.json`; prose tables only project it.
 
 **Relationship to `REVIEW_ORCHESTRATION.md`.** The review orchestration defines the *steps* (what to check, in what order, what to emit). This file defines the *agents* (who does what, who dispatches whom, where the user intervenes). The two files are complementary: the agents execute the steps.
 
@@ -95,12 +95,12 @@ When dispatching an agent (via the Agent tool, a skill, or a direct instruction)
 
 ### 3.0 Phase-conditioned engagement (v0.7.0)
 
-The v0.7.0 Lifecycle-Phase Ladder conditions agent engagement on the current phase. The loop diagrams below are the Ph3/Ph4 canonical reference. For Ph1 and Ph2 the loop is **truncated**; the canonical table is in `PHASE_PROTOCOL.md §2.3`.
+The Lifecycle-Phase Ladder conditions agent engagement on the current phase. The sole engagement authority is `references/policies/phase_engagement.v1.json`; the table below delegates to that matrix and summarizes work scope. The loop diagrams below remain the Ph3/Ph4 workflow reference.
 
 | Phase | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| **Ph1 Plan & Draft** | Bootstraps state; drafts revision plan. | **Not engaged** | Drafts under P-stage register on diff scope (Rule 1 digest exception applies) | Lightweight integrity probe only |
-| **Ph2 Review & Revise** | Dispatches; runs pre-phase-advance check | First engagement — full local-scope pass on changed sections | Applies findings under P-stage register | Lightweight integrity probe only |
+| **Ph1 Plan & Draft** | Bootstraps state; drafts revision plan. | Bounded independent current-byte policy pass | Drafts under P-stage register with full-file grounding | Lightweight integrity probe only |
+| **Ph2 Review & Revise** | Dispatches; runs pre-phase-advance check | Full revision-maturity local-scope pass on changed sections | Applies findings under P-stage register | Lightweight integrity probe only |
 | **Ph3 Iterate & Converge** | Dispatches; runs MCR admission check at close-out | Full-scope pass; external verifiers optional; Coupling E.2 at Step 0.2 | Applies findings under P-stage register | Lightweight integrity probe only |
 | **Ph4 Finalize & Close** | Dispatches; runs MCR admission check; G.4 gate | Full-scope pass; external verifiers required; G.4 mandatory | Final edits under declared submission-bound register | **Reflector-full** five-phase close-out |
 
@@ -108,7 +108,7 @@ The v0.7.0 Lifecycle-Phase Ladder conditions agent engagement on the current pha
 
 | Phase | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| **Ph1** | Sonnet 4.6 | — (dormant) | Sonnet 4.6 ↓ | Haiku 4.5 (lightweight) |
+| **Ph1** | Sonnet 4.6 | Opus 4.7 (bounded independent) | Sonnet 4.6 ↓ | Haiku 4.5 (lightweight) |
 | **Ph2** | Sonnet 4.6 | **Opus 4.7** ★ | Sonnet 4.6 | Haiku 4.5 (lightweight) |
 | **Ph3** | Sonnet 4.6 | **Opus 4.7** ★ | Sonnet 4.6 | Haiku 4.5 (lightweight) |
 | **Ph4** | Sonnet 4.6 ↓ | **Opus 4.7** ★ | Sonnet 4.6 ↓ | **Opus 4.7** (full) ★ |
@@ -708,10 +708,10 @@ This section specifies their normal coordination and phase-conditioned agent dis
 
 | Milestone | Artifact | Normal phase binding | Dispatch notes |
 |---|---|---|---|
-| **M1 — Project Memo** | `milestones/M1_project_memo.md` | **Ph1 Plan & Draft** | Centroid-conditioned Generator draft; independent current-byte policy evaluation; user approval |
-| **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Centroid-conditioned Generator draft; independent current-byte policy evaluation; user approval |
-| **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a centroid-conditioned structured outline only; Evaluator performs independent current-byte policy evaluation; prose stubs belong to M4. |
-| **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator performs centroid-conditioned initial assembly; Evaluator performs bounded evaluation in Ph1; full review begins in Ph2; Ph3 converges. |
+| **M1 — Project Memo** | `milestones/M1_project_memo.md` | **Ph1 Plan & Draft** | Binding-governed Generator draft; independent current-byte policy evaluation; user approval |
+| **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Binding-governed Generator draft; independent current-byte policy evaluation; user approval |
+| **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a binding-governed structured outline only; centroid conditioning applies only when enabled by the authoritative reader binding. Evaluator performs independent current-byte policy evaluation; prose stubs belong to M4. |
+| **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator performs binding-governed initial assembly; centroid conditioning applies only when enabled by the authoritative reader binding. Evaluator performs bounded evaluation in Ph1; full review begins in Ph2; Ph3 converges. |
 | **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | Generator writes FINAL under the centroid/policy bundle; Evaluator independently evaluates and certifies; G.4 and Reflector-full close-out remain mandatory. |
 
 The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `milestones/M5_final_paper.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.json`.
@@ -791,7 +791,7 @@ Planner (Ph1 — orchestrates outline sub-phase)
 
 ```
 Planner (requires accepted M1-M3 and a preflighted M4 receipt)
-  → Generator (assembles the centroid-conditioned complete manuscript)
+  → Generator (assembles the binding-governed complete manuscript; centroid conditioning only when enabled)
   → Evaluator (bounded current-byte centroid and complete applicable policy pass)
   → Planner (verifies both envelopes; presents M4 draft checkpoint)
 ```
@@ -803,7 +803,7 @@ Evaluator pass. The full review pipeline still waits for Ph2.
 
 ```
 Planner (runs pre_phase_advance_check.py clauses (a)(b)(d)(e)(g) for Ph2 entry)
-  → Evaluator (FIRST ENGAGEMENT — full local-scope pass on changed sections; Confirmation Mode RETIRED)
+  → Evaluator (full revision-maturity local-scope pass on changed sections; bounded Ph1 pass already complete; Confirmation Mode RETIRED)
   → Planner (merges findings into revision_plan.md)
   → Generator (applies findings under declared P-stage register)
   → Evaluator (re-check mode — full local pass; EG-3 cross-scope reference scan)

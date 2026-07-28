@@ -26,7 +26,7 @@ Every research project under this root follows the **Lifecycle-Phase Ladder** de
 
 **Ph1 Plan & Draft → Ph2 Review & Revise → Ph3 Iterate & Converge → Ph4 Finalize & Close**
 
-The ladder is climb-only, user-gated, and arbitrated by a per-section ledger at `reviews/phase_state.json` with an 18-field `SectionStateObject` and a 31-trigger enum. Agent engagement is phase-conditioned: the Evaluator is dormant at Ph1, joins at Ph2, and the full four-agent loop runs at Ph3/Ph4. Full-file reads are the universal grounding floor at every rung.
+The ladder is climb-only, user-gated, and arbitrated by a per-section ledger at `reviews/phase_state.json` with an 18-field `SectionStateObject` and a 31-trigger enum. Agent engagement is resolved from `references/policies/phase_engagement.v1.json`: the Evaluator runs a bounded independent Ph1 pass, full revision-maturity review at Ph2, iterative review at Ph3, and strict final review at Ph4. Full-file reads are the universal grounding floor at every rung.
 
 Admission to Ph4 is gated by the **Manuscript Convergence Report (MCR)**: every section must reach `current_phase: Ph3_converged`, and no section may carry a computed `[Ph3-STALE]` flag.
 
@@ -50,7 +50,7 @@ The Planner determines the current milestone and rung from the single machine-re
 
 ## Bootstrapping a new project
 
-When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. For a native project, the requested project root must not exist: `scripts/native_project_bootstrap.py` stages the milestone seed beside the requested root, validates it, and atomically publishes it before the remaining non-milestone support templates are added. It never merges with an existing tree; legacy or partially initialized projects use migration. Native state begins with M1 `in_progress` and M2–M5 `not_started`; no approval, feedback, F9 packet, or accepted artifact is fabricated at bootstrap.
+When the user asks to start a new research project, the agent reads `references/PROJECT_BOOTSTRAP.md` and follows its protocol. For a native project, the requested project root must not exist: `scripts/native_project_bootstrap.py` stages the milestone seed beside the requested root, installs reader-profile binding v2 (`semantic_usage: not_invoked`), validates it, and atomically publishes it before the remaining non-milestone support templates are added. It never merges with an existing tree; legacy or partially initialized projects use migration. Native state begins with M1 `in_progress` and M2–M5 `not_started`; no approval, feedback, F9 packet, semantic graph authority, or accepted artifact is fabricated at bootstrap.
 
 **Quick reference — the standard project structure:**
 

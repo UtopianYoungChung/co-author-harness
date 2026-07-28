@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused C6 boundary tests for typed runtime-plane parity receipts."""
+"""Focused V40-01 cleared-ZIP/cache provenance and contamination tests."""
 
 from __future__ import annotations
 
@@ -10,13 +10,17 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import warnings
+import zipfile
 from pathlib import Path
 
 if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1" or not sys.dont_write_bytecode:
     environment = dict(os.environ)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
-        [sys.executable, "-B", os.path.abspath(__file__)], env=environment,
+        [sys.executable, "-B", os.path.abspath(__file__)],
+        env=environment,
         check=False,
     )
     raise SystemExit(completed.returncode)
@@ -27,6 +31,31 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parent.parent
 PROBE_PATH = ROOT / "scripts" / "runtime_plane_probe.py"
 SCHEMA_PATH = ROOT / "references" / "schemas" / "runtime_plane_receipt.schema.json"
+
+
+class RetryingTemporaryDirectory(tempfile.TemporaryDirectory):
+    """Windows-safe cleanup for short-lived Git/subprocess fixture trees."""
+
+    def cleanup(self) -> None:
+        self._finalizer.detach()
+
+        def repair_and_retry(function, path, _error) -> None:
+            os.chmod(path, 0o700)
+            function(path)
+
+        for attempt in range(7):
+            try:
+                try:
+                    shutil.rmtree(self.name, onexc=repair_and_retry)
+                except TypeError:  # Python < 3.12 compatibility
+                    shutil.rmtree(self.name, onerror=repair_and_retry)
+                return
+            except FileNotFoundError:
+                return
+            except (PermissionError, OSError):
+                if attempt == 6:
+                    raise
+                time.sleep(0.05 * (2 ** attempt))
 
 
 def load_probe():
@@ -43,15 +72,27 @@ def write(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
-def package(root: Path, *, mutating_suite: bool = False) -> None:
-    manifest = {"name": "fixture-plugin", "version": "1.2.3"}
-    write(root / ".claude-plugin" / "plugin.json", json.dumps(manifest).encode())
+def package(
+    root: Path,
+    *,
+    mutating_suite: bool = False,
+    failed_suite: str | None = None,
+    missing_suite: str | None = None,
+) -> None:
+    write(
+        root / ".claude-plugin" / "plugin.json",
+        json.dumps({"name": "fixture-plugin", "version": "1.2.3"}).encode(),
+    )
     write(root / "README.md", b"alpha\nbeta\n")
     write(root / "references" / "policies" / "base.json", b"{}\n")
     suites = {
         "run_product_gate_smoketest.py": (
             "from pathlib import Path\n"
-            + ("Path('README.md').write_text('mutated\\n', encoding='utf-8')\n" if mutating_suite else "")
+            + (
+                "Path('README.md').write_text('mutated\\n', encoding='utf-8')\n"
+                if mutating_suite
+                else ""
+            )
             + "raise SystemExit(0)\n"
         ),
         "schema_runtime_check.py": "raise SystemExit(0)\n",
@@ -59,68 +100,52 @@ def package(root: Path, *, mutating_suite: bool = False) -> None:
         "skill-check.py": "raise SystemExit(0)\n",
     }
     for name, source in suites.items():
+        if name == missing_suite:
+            continue
+        if name == failed_suite:
+            source = "raise SystemExit(7)\n"
         write(root / "scripts" / name, source.encode())
 
 
-def copy_package(source: Path, target: Path) -> None:
-    shutil.copytree(source, target, ignore=shutil.ignore_patterns(".git"))
-
-
-def validate(receipt: dict) -> None:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    errors = sorted(Draft202012Validator(schema).iter_errors(receipt), key=lambda e: list(e.path))
-    assert not errors, "; ".join(error.message for error in errors)
-
-
-def run_case(probe, base: Path, name: str, mutate=None) -> dict:
-    source = base / name / "source"
-    local = base / name / "local"
-    out = source / "releases" / "verification" / "fixture" / "runtime-plane.json"
-    package(source)
-    copy_package(source, local)
-    if mutate:
-        mutate(source, local)
-    receipt = probe.probe_plane(local_root=local, baseline_root=source, out_path=out)
-    assert json.loads(out.read_text(encoding="utf-8")) == receipt
-    validate(receipt)
-    return receipt
-
-
 def git_commit(root: Path) -> str:
-    commands = (
+    for argv in (
         ["git", "init", "--quiet"],
         ["git", "config", "user.email", "fixture@example.invalid"],
         ["git", "config", "user.name", "Fixture"],
         ["git", "add", "."],
         ["git", "commit", "--quiet", "-m", "fixture"],
-    )
-    for argv in commands:
+    ):
         subprocess.run(argv, cwd=root, check=True, capture_output=True)
     return subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, check=True,
-        capture_output=True, text=True, encoding="utf-8", errors="strict",
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
     ).stdout.strip()
 
 
-def provenance_record(root: Path, commit: str) -> dict:
-    source_head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, check=True,
-        capture_output=True, text=True, encoding="utf-8", errors="strict",
-    ).stdout.strip()
-    tracked = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", source_head], cwd=root,
-        check=True, capture_output=True, text=True, encoding="utf-8", errors="strict",
+def tracked(root: Path, commit: str) -> list[str]:
+    return subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", commit],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
     ).stdout.splitlines()
-    package_count = len([
-        path for path in tracked
-        if not path.lower().endswith((".zip", ".plugin"))
-    ])
-    return {
+
+
+def provenance(commit: str, count: int) -> bytes:
+    return (json.dumps({
         "schema": "coauthor-build-provenance/v1",
         "commit": commit,
         "enumerator": "scripts/package_enumeration.py::enumerate_package_files",
-        "package_member_count": package_count,
-        "archive_member_count": package_count + 1,
+        "package_member_count": count,
+        "archive_member_count": count + 1,
         "toolchain": {},
         "toolchain_is_commit": True,
         "runtime": {
@@ -130,222 +155,251 @@ def provenance_record(root: Path, commit: str) -> dict:
             "compression": "ZIP_DEFLATED",
             "note": "synthetic provenance fixture",
         },
-        "zip_date_time_stored": [2026, 7, 25, 0, 0, 0],
-        "zip_date_time_commit": [2026, 7, 25, 0, 0, 0],
-    }
+        "zip_date_time_stored": [2026, 7, 27, 0, 0, 0],
+        "zip_date_time_commit": [2026, 7, 27, 0, 0, 0],
+    }, sort_keys=True) + "\n").encode()
+
+
+def build_zip(
+    source: Path,
+    archive: Path,
+    commit: str,
+    *,
+    overrides: dict[str, bytes] | None = None,
+    provenance_commit: str | None = None,
+    extras: list[tuple[str, bytes]] | None = None,
+) -> None:
+    names = tracked(source, commit)
+    overrides = overrides or {}
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as out:
+        for name in names:
+            out.writestr(name, overrides.get(name, (source / name).read_bytes()))
+        out.writestr(PROVENANCE, provenance(provenance_commit or commit, len(names)))
+        for name, data in extras or []:
+            out.writestr(name, data)
+
+
+PROVENANCE = "PROVENANCE.json"
+
+
+def extract(archive: Path, target: Path) -> None:
+    with zipfile.ZipFile(archive, "r") as source:
+        source.extractall(target)
+
+
+def validate(receipt: dict) -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(receipt), key=lambda error: list(error.path)
+    )
+    assert not errors, "; ".join(error.message for error in errors)
+
+
+def fixture(
+    base: Path,
+    name: str,
+    *,
+    package_options: dict | None = None,
+    zip_options: dict | None = None,
+) -> tuple[Path, Path, Path, str]:
+    source = base / name / "source"
+    local = base / name / "local"
+    archive = base / name / "cleared.zip"
+    package(source, **(package_options or {}))
+    commit = git_commit(source)
+    build_zip(source, archive, commit, **(zip_options or {}))
+    extract(archive, local)
+    return source, local, archive, commit
+
+
+def probe_case(
+    probe,
+    source: Path,
+    local: Path,
+    archive: Path | None,
+    commit: str | None,
+    *,
+    crlf_mode: str = "forbid",
+) -> dict:
+    out = source / "releases" / "verification" / "fixture" / "runtime-plane.json"
+    receipt = probe.probe_plane(
+        local_root=local,
+        baseline_root=source,
+        cleared_zip_path=archive,
+        source_commit=commit,
+        crlf_mode=crlf_mode,
+        out_path=out,
+    )
+    assert json.loads(out.read_text(encoding="utf-8")) == receipt
+    validate(receipt)
+    return receipt
+
+
+def contaminated(receipt: dict) -> None:
+    assert receipt["cache_state"] == "CACHE_PROVENANCE_CONTAMINATED"
+    assert receipt["verdict"] == "blocked"
+    assert any(row["code"] == "CACHE-PROVENANCE-CONTAMINATED" for row in receipt["findings"])
 
 
 def main() -> int:
     assert os.environ.get("PYTHONDONTWRITEBYTECODE") == "1"
     probe = load_probe()
-    with tempfile.TemporaryDirectory(prefix="runtime-plane-c6-") as td:
+    cases: list[str] = []
+    with RetryingTemporaryDirectory(prefix="runtime-plane-v40-", dir=ROOT) as td:
         base = Path(td)
 
-        exact = run_case(probe, base, "exact")
-        assert exact["verdict"] == "qualified_with_caveats"
-        assert exact["identity"]["embedded"]["provenance"]["status"] == "missing"
-        assert exact["identity"]["canonical_archive_claim"] is False
-        assert not exact["crlf_only"] and not exact["semantic_differences"]
+        source, local, archive, commit = fixture(base, "clean")
+        clean = probe_case(probe, source, local, archive, commit)
+        assert clean["cache_state"] == "CODEX_CACHE_QUALIFIED"
+        assert clean["verdict"] == "qualified"
+        assert clean["identity"]["canonical_archive_claim"] is True
+        assert len(clean["suites"]) == 4 and all(row["status"] == "passed" for row in clean["suites"])
+        cases.append("clean_qualification")
 
-        crlf = run_case(
-            probe, base, "crlf",
-            lambda _source, local: write(local / "README.md", b"alpha\r\nbeta\r\n"),
-        )
-        assert [entry["path"] for entry in crlf["crlf_only"]] == ["README.md"]
-        assert crlf["verdict"] == "qualified_with_caveats"
+        source, local, archive, commit = fixture(base, "provenance-missing")
+        shutil.rmtree(local)
+        shutil.copytree(source, local, ignore=shutil.ignore_patterns(".git"))
+        missing_provenance = probe_case(probe, source, local, None, None)
+        assert missing_provenance["cache_state"] == "CACHE_PROVENANCE_MISSING"
+        assert missing_provenance["verdict"] == "blocked"
+        cases.append("cache_provenance_missing")
 
-        semantic = run_case(
-            probe, base, "semantic",
-            lambda _source, local: write(local / "README.md", b"different\n"),
+        source, local, archive, commit = fixture(
+            base, "wrong-zip-bytes", zip_options={"overrides": {"README.md": b"wrong archive bytes\n"}}
         )
-        assert [entry["path"] for entry in semantic["semantic_differences"]] == ["README.md"]
-        assert semantic["verdict"] == "blocked"
+        wrong_zip = probe_case(probe, source, local, archive, commit)
+        contaminated(wrong_zip)
+        assert wrong_zip["identity"]["embedded"]["provenance"]["status"] == "valid"
+        assert any(row["code"] == "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE" for row in wrong_zip["findings"])
+        cases.append("zip_claim_without_member_equality")
 
-        missing = run_case(
-            probe, base, "missing",
-            lambda _source, local: (local / "README.md").unlink(),
+        source, local, archive, commit = fixture(base, "dirty-same-head")
+        write(source / "README.md", b"dirty worktree bytes\n")
+        dirty_archive = archive.with_name("dirty-same-head.zip")
+        build_zip(source, dirty_archive, commit)
+        shutil.rmtree(local)
+        extract(dirty_archive, local)
+        dirty_same_head = probe_case(probe, source, local, dirty_archive, commit)
+        contaminated(dirty_same_head)
+        assert any(
+            row["code"] == "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE"
+            for row in dirty_same_head["findings"]
         )
-        assert [entry["path"] for entry in missing["missing_files"]] == ["README.md"]
-        assert missing["verdict"] == "blocked"
+        cases.append("source_commit_uses_git_object_bytes")
 
-        benign = run_case(
-            probe, base, "benign-extra",
-            lambda _source, local: write(local / "host-note.txt", b"host metadata\n"),
+        source, local, archive, commit = fixture(
+            base, "wrong-provenance", zip_options={"provenance_commit": "0" * 40}
         )
-        extra = next(entry for entry in benign["foreign_extras"] if entry["path"] == "host-note.txt")
-        assert extra["blocking"] is False
+        wrong_provenance = probe_case(probe, source, local, archive, commit)
+        contaminated(wrong_provenance)
+        cases.append("wrong_zip_provenance")
+
+        source, local, archive, commit = fixture(base, "semantic-edit")
+        write(local / "README.md", b"different\n")
+        semantic = probe_case(probe, source, local, archive, commit)
+        contaminated(semantic)
+        assert [row["path"] for row in semantic["semantic_differences"]] == ["README.md"]
+        cases.append("semantic_edit")
+
+        source, local, archive, commit = fixture(base, "missing-file")
+        (local / "README.md").unlink()
+        missing = probe_case(probe, source, local, archive, commit)
+        contaminated(missing)
+        assert [row["path"] for row in missing["missing_files"]] == ["README.md"]
+        cases.append("missing_file")
+
+        source, local, archive, commit = fixture(base, "blocking-extra")
+        write(local / "rogue.py", b"VALUE = 1\n")
+        blocking = probe_case(probe, source, local, archive, commit)
+        contaminated(blocking)
+        assert next(row for row in blocking["foreign_extras"] if row["path"] == "rogue.py")["blocking"]
+        cases.append("blocking_extra")
+
+        source, local, archive, commit = fixture(base, "duplicate-member")
+        clean_archive = archive
+        duplicate_archive = archive.with_name("duplicate.zip")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            build_zip(source, duplicate_archive, commit, extras=[("README.md", b"duplicate\n")])
+        duplicate = probe_case(probe, source, local, duplicate_archive, commit)
+        contaminated(duplicate)
+        assert any("duplicate archive member" in row["message"] for row in duplicate["findings"])
+        assert clean_archive.is_file()
+        cases.append("duplicate_archive_member")
+
+        source, local, archive, commit = fixture(base, "escape-member")
+        escape_archive = archive.with_name("escape.zip")
+        build_zip(source, escape_archive, commit, extras=[("../escape.py", b"bad\n")])
+        escaped = probe_case(probe, source, local, escape_archive, commit)
+        contaminated(escaped)
+        assert any("unsafe archive member" in row["message"] for row in escaped["findings"])
+        cases.append("path_escape_archive_member")
+
+        source, local, archive, commit = fixture(
+            base, "unstable", package_options={"mutating_suite": True}
+        )
+        unstable = probe_case(probe, source, local, archive, commit)
+        contaminated(unstable)
+        assert unstable["package_digests"]["stable"] is False
+        cases.append("unstable_core_digest")
+
+        source, local, archive, commit = fixture(
+            base, "failed-suite", package_options={"failed_suite": "schema_runtime_check.py"}
+        )
+        failed = probe_case(probe, source, local, archive, commit)
+        contaminated(failed)
+        assert next(row for row in failed["suites"] if row["name"] == "schema_runtime_check")["status"] == "failed"
+        cases.append("failed_core_suite")
+
+        source, local, archive, commit = fixture(
+            base, "missing-suite", package_options={"missing_suite": "skill-check.py"}
+        )
+        absent = probe_case(probe, source, local, archive, commit)
+        contaminated(absent)
+        assert next(row for row in absent["suites"] if row["name"] == "skill_check")["status"] == "missing"
+        cases.append("missing_core_suite")
+
+        source, local, archive, commit = fixture(base, "crlf-forbidden")
+        write(local / "README.md", b"alpha\r\nbeta\r\n")
+        forbidden = probe_case(probe, source, local, archive, commit)
+        contaminated(forbidden)
+        assert forbidden["normalization_policy"]["crlf_mode"] == "forbid"
+        cases.append("crlf_forbidden")
+
+        source, local, archive, commit = fixture(base, "crlf-allowed")
+        write(local / "README.md", b"alpha\r\nbeta\r\n")
+        allowed = probe_case(
+            probe, source, local, archive, commit, crlf_mode="allow_utf8_crlf_only"
+        )
+        assert allowed["cache_state"] == "CODEX_CACHE_QUALIFIED"
+        assert allowed["verdict"] == "qualified_with_caveats"
+        assert allowed["identity"]["canonical_archive_claim"] is False
+        cases.append("crlf_explicitly_allowed")
+
+        source, local, archive, commit = fixture(base, "benign-extra")
+        write(local / "host-note.txt", b"host metadata\n")
+        benign = probe_case(probe, source, local, archive, commit)
+        assert benign["cache_state"] == "CODEX_CACHE_QUALIFIED"
         assert benign["verdict"] == "qualified_with_caveats"
+        assert not next(row for row in benign["foreign_extras"] if row["path"] == "host-note.txt")["blocking"]
+        cases.append("benign_extra")
 
-        py_extra = run_case(
-            probe, base, "python-extra",
-            lambda _source, local: write(local / "rogue.py", b"VALUE = 1\n"),
-        )
-        extra = next(entry for entry in py_extra["foreign_extras"] if entry["path"] == "rogue.py")
-        assert extra["blocking"] is True and py_extra["verdict"] == "blocked"
-
-        policy_extra = run_case(
-            probe, base, "policy-extra",
-            lambda _source, local: write(local / "references" / "policies" / "rogue.json", b"{}\n"),
-        )
-        extra = next(entry for entry in policy_extra["foreign_extras"] if entry["path"].endswith("rogue.json"))
-        assert extra["blocking"] is True and policy_extra["verdict"] == "blocked"
-
-        version = run_case(
-            probe, base, "version-mismatch",
-            lambda _source, local: write(
-                local / ".claude-plugin" / "plugin.json",
-                json.dumps({"name": "fixture-plugin", "version": "9.9.9"}).encode(),
-            ),
-        )
-        assert version["identity"]["version_match"] is False
-        assert version["verdict"] == "blocked"
-
-        suffix = run_case(
-            probe, base, "host-suffix",
-            lambda _source, local: write(
-                local / ".claude-plugin" / "plugin.json",
-                json.dumps({"name": "fixture-plugin", "version": "1.2.3+codex.fixture"}).encode(),
-            ),
-        )
-        assert suffix["identity"]["version_match"] is True
-        assert suffix["identity"]["exact_version_match"] is False
-        assert suffix["identity"]["embedded"]["manifest"]["host_suffix"] == "+codex.fixture"
-        assert suffix["verdict"] == "qualified_with_caveats"
-
-        prov_source = base / "provenance-mismatch" / "source"
-        prov_local = base / "provenance-mismatch" / "local"
-        package(prov_source)
-        head = git_commit(prov_source)
-        assert len(head) == 40
-        copy_package(prov_source, prov_local)
-        write(
-            prov_local / "PROVENANCE.json",
-            json.dumps(provenance_record(prov_source, "0" * 40)).encode(),
-        )
-        prov_out = prov_source / "releases" / "verification" / "fixture" / "runtime-plane.json"
-        provenance = probe.probe_plane(
-            local_root=prov_local, baseline_root=prov_source, out_path=prov_out
-        )
-        validate(provenance)
-        assert provenance["identity"]["provenance_match"] is False
-        assert provenance["verdict"] == "blocked"
-
-        canonical_source = base / "provenance-match" / "source"
-        canonical_local = base / "provenance-match" / "local"
-        package(canonical_source)
-        canonical_head = git_commit(canonical_source)
-        canonical_out = canonical_source / "releases" / "verification" / "fixture" / "runtime-plane.json"
-        copy_package(canonical_source, canonical_local)
-        write(
-            canonical_local / "PROVENANCE.json",
-            json.dumps(provenance_record(canonical_source, canonical_head)).encode(),
-        )
-        canonical = probe.probe_plane(
-            local_root=canonical_local, baseline_root=canonical_source, out_path=canonical_out
-        )
-        validate(canonical)
-        assert canonical["identity"]["provenance_match"] is True
-        assert canonical["identity"]["canonical_archive_claim"] is True
-        assert canonical["verdict"] == "qualified"
-
-        source_plane = base / "source-output-lane"
-        package(source_plane)
-        emitted_receipt = probe.probe_plane(
-            local_root=source_plane, baseline_root=source_plane, out_path=None
-        )
-        validate(emitted_receipt)
-        assert not (source_plane / "releases").exists()
-        governed_out = source_plane / "releases" / "verification" / "fixture" / "runtime-plane.json"
-        source_receipt = probe.probe_plane(
-            local_root=source_plane, baseline_root=source_plane, out_path=governed_out
-        )
-        validate(source_receipt)
-        assert governed_out.is_file()
         try:
             probe.probe_plane(
-                local_root=source_plane,
-                baseline_root=source_plane,
-                out_path=source_plane / "reviews" / "runtime-plane.json",
+                local_root=local,
+                baseline_root=source,
+                cleared_zip_path=archive,
+                source_commit=commit,
+                out_path=source / "reviews" / "runtime-plane.json",
             )
         except probe.ProbeRefusal as exc:
             assert exc.code == "RUNTIME-PLANE-OUTPUT"
         else:
-            raise AssertionError("arbitrary in-root receipt path was accepted")
-        try:
-            probe.probe_plane(
-                local_root=source_plane,
-                baseline_root=source_plane,
-                out_path=base / "outside" / "runtime-plane.json",
-            )
-        except probe.ProbeRefusal as exc:
-            assert exc.code == "RUNTIME-PLANE-OUTPUT"
-        else:
-            raise AssertionError("receipt path outside the package evidence lane was accepted")
+            raise AssertionError("arbitrary in-package output was accepted")
+        cases.append("destination_boundary")
 
-        governed = base / "governed-workspace"
-        write(
-            governed / "governance" / "output-routing" / "output_routing.yaml",
-            b"schema_version: 1\n",
-        )
-        protected_source = governed / "protected" / "runtime-source"
-        package(protected_source)
-        prior_extra = os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS")
-        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(governed)
-        try:
-            probe.probe_plane(
-                local_root=protected_source,
-                baseline_root=protected_source,
-                out_path=(
-                    protected_source / "releases" / "verification"
-                    / "fixture" / "runtime-plane.json"
-                ),
-            )
-        except probe.ProbeRefusal as exc:
-            assert exc.code == "DEST-PROTECTED"
-        else:
-            raise AssertionError("protected governed baseline accepted a receipt")
-        finally:
-            if prior_extra is None:
-                os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
-            else:
-                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = prior_extra
-
-        ungoverned_harness = base / "ungoverned-harness"
-        ungoverned_source = base / "ungoverned-source"
-        package(ungoverned_harness)
-        package(ungoverned_source)
-        original_harness = probe.destinations.HARNESS
-        probe.destinations.HARNESS = ungoverned_harness
-        try:
-            probe.probe_plane(
-                local_root=ungoverned_source,
-                baseline_root=ungoverned_source,
-                out_path=(
-                    ungoverned_source / "releases" / "verification"
-                    / "fixture" / "runtime-plane.json"
-                ),
-            )
-        except probe.ProbeRefusal as exc:
-            assert exc.code == "DEST-UNGOVERNED"
-        else:
-            raise AssertionError("ungoverned baseline accepted a receipt")
-        finally:
-            probe.destinations.HARNESS = original_harness
-
-        mutation_source = base / "pre-post-mutation" / "source"
-        mutation_local = base / "pre-post-mutation" / "local"
-        mutation_out = mutation_source / "releases" / "verification" / "fixture" / "runtime-plane.json"
-        package(mutation_source, mutating_suite=True)
-        copy_package(mutation_source, mutation_local)
-        mutation = probe.probe_plane(
-            local_root=mutation_local, baseline_root=mutation_source, out_path=mutation_out
-        )
-        validate(mutation)
-        assert mutation["package_digests"]["stable"] is False
-        assert mutation["verdict"] == "blocked"
-        assert any(f["code"] == "RUNTIME-PLANE-MUTATED" for f in mutation["findings"])
-
-    print("PASS: runtime-plane parity, authority, and stability boundaries")
+    print(f"runtime_plane_probe_smoketest: PASS ({len(cases)} cases)")
     return 0
 
 

@@ -86,7 +86,7 @@ graph TD
     E_SG_Indep(("Independence from Generator<br/>(no self-evaluation)"))
     E_SG_Grounding(("Zero uninspected claims<br/>(full-file reads · no digest exception)"))
     E_SG_Converge(("Convergence observed honestly<br/>(thrash vs converge)"))
-    E_T_T1_Dormant["(Dormant at T1 Plan & Draft<br/>— no evaluator run)"]
+    E_T_T1_Dormant["Bounded independent evaluator<br/>at Ph1 Plan & Draft"]
     E_T_T2["T2 Review & Revise — local pass<br/>+ SAFEGUARD 1/4/5"]
     E_T_T3["T3 Iterate & Converge — full 7-step pass<br/>+ SAFEGUARD x8<br/>+ convergence_log entry (§8.3)<br/>+ [T3-STALE] advisory"]
     E_T_T4["T4 Finalize & Close — strict superset<br/>+ Coupling E.2 overlay mandatory<br/>+ G.4 sign-off mandatory<br/>+ EG-1/EG-7 detection"]
@@ -94,7 +94,7 @@ graph TD
     E_G_Review -->|means-ends| E_T_T2
     E_G_Review -->|means-ends| E_T_T3
     E_G_Review -->|means-ends| E_T_T4
-    E_T_T1_Dormant -.->|no contribution — dormant| E_SG_Indep
+    E_T_T1_Dormant -.->|current-byte bounded contribution| E_SG_Indep
     E_T_T3 -.->|contribution ++| E_SG_Grounding
     E_T_T3 -.->|contribution +| E_SG_Converge
     E_T_T4 -.->|contribution ++| E_SG_Grounding
@@ -159,7 +159,7 @@ graph TD
   %% -------------------------------------------------------------------
   subgraph Ladder[" 🪜 Lifecycle-Stage Ladder (per section) "]
     direction LR
-    T1_node["T1 Plan & Draft<br/>full drafting<br/>Evaluator dormant"]
+    T1_node["T1 Plan & Draft<br/>full drafting<br/>bounded Evaluator pass"]
     T2_node["T2 Review & Revise<br/>local pass<br/>SD/SR read-prereq (opt-in)"]
     T3_node["T3 Iterate & Converge<br/>unbounded iteration<br/>convergence_log · [T3-STALE]"]
     T3_converged_node(("T3_converged<br/>awaits MCR<br/>(terminal-flag state)"))

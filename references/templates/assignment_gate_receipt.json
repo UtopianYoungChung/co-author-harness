@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1.0",
+  "schema_version": "2.2.0",
   "receipt_id": "00000000-0000-0000-0000-000000000000",
   "reservation_id": "00000000-0000-0000-0000-000000000000",
   "stage": "draft",
@@ -31,5 +31,6 @@
   "profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "role_output_contract_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "exemplar_conditioning": false,
-  "active_lineage_id": "live"
+  "active_lineage_id": "live",
+  "control_transition": null
 }

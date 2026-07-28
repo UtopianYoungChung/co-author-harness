@@ -12,7 +12,7 @@
 |---|---|---|
 | Methodological stance | `references/STYLE_COMMITMENTS.md` **C-5** (`:17`, `:22`) | The meta-rule that operationalises C-1…C-4; the *only* commitment that cannot be suspended via the §4 relaxation procedure. |
 | Policy prose | `references/READER_ACCESSIBILITY.md` §13.1–13.5 | Definition, two-scale (local/cumulative) model, eight operational criteria, enforcement mechanics. |
-| Enforcement | SAFEGUARD **Check 8**, Sub-checks A–H | Run by the Evaluator at Ph2/Ph3/Ph4. |
+| Enforcement | SAFEGUARD **Check 8**, Sub-checks A–H | Run at the phase-conditioned scope selected by `references/policies/phase_engagement.v1.json`, including the bounded Ph1 pass. |
 
 Design consequence for Codex: **H governs register *construction* inside structurally non-technical passages only** (signposts, framing, transitions, vignette bodies, consolidation anchors) — not register *choice* across the manuscript. The policy explicitly refuses manuscript-wide plain register as *dilution* (`READER_ACCESSIBILITY.md:15`, §13.4; C-5 "commits against … dilution that collapses intrinsic load," `STYLE_COMMITMENTS.md:17`). If the new architecture frames "plain English" as a document-level readability target, it contradicts the load-bearing design commitment.
 

@@ -25,7 +25,7 @@ from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
 def _project(root: Path) -> dict:
-    ledger = _materialize_native_project(root)
+    ledger = _materialize_native_project(root, include_scholarly=True)
     document = _phase_document(ledger, "Ph4")
     (root / "reviews" / "phase_state.json").write_text(json.dumps(document), encoding="utf-8")
     (root / "reviews" / "ph4_ship_signoff.md").write_text("status: SIGNED\n", encoding="utf-8")
@@ -55,7 +55,11 @@ def main() -> int:
         checks += 1
 
         na_root = root / "na"; na_root.mkdir()
-        na_ledger = _materialize_native_project(na_root)
+        na_ledger = _materialize_native_project(
+            na_root,
+            include_scholarly=True,
+            scholarly_milestones=frozenset({"M1", "M2"}),
+        )
         m3 = na_ledger["milestones"]["M3"]
         evidence = na_root / "reviews" / "not_applicable_approval.md"
         evidence.write_text("advisor-approved M3 substitute\n", encoding="utf-8")
@@ -177,7 +181,10 @@ def main() -> int:
         checks += 1
 
         admission_root = root / "admission"; admission_root.mkdir()
-        admission_ledger = _materialize_native_project(admission_root)
+        admission_ledger = _materialize_native_project(
+            admission_root,
+            include_scholarly=True,
+        )
         _reset_milestone(admission_ledger["milestones"]["M5"])
         _drop_milestone_events(admission_ledger, "M5")
         section = {

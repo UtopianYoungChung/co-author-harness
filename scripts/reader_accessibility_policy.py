@@ -1458,6 +1458,17 @@ def validate_candidate_artifact(candidate: dict[str, Any]) -> None:
 
 def validate_check8_evidence(evidence: dict[str, Any]) -> None:
     validate_schema_file(evidence, CHECK8_SCHEMA)
+    version = evidence.get("schema_version") if isinstance(evidence, dict) else None
+    if version == "check8_evidence.v1":
+        if any(evidence.get(key) is None for key in ("attestation_view_pin", "exemplar_view_pin")):
+            raise PolicyError("Check 8 v1 requires both semantic register pins")
+    elif version == "check8_evidence.v2":
+        if evidence.get("semantic_usage") != "not_invoked":
+            raise PolicyError("Check 8 v2 requires semantic_usage not_invoked")
+        if any(key in evidence for key in ("attestation_view_pin", "exemplar_view_pin")):
+            raise PolicyError("Check 8 v2 cannot assert semantic register pins")
+    else:
+        raise PolicyError("unsupported Check 8 schema version")
 
 
 def render_policy_view(profile: dict[str, Any]) -> str:
@@ -1482,9 +1493,10 @@ def update_persistence(previous_content_sha256: str | None, current_content_sha2
     return {"paragraph_content_sha256": current_content_sha256, "unchanged_rounds": unchanged, "current_severity": current_severity, "planner_workflow_escalation_candidate": unchanged >= 2 and approved, "approved_revision_evidence_observed": approved, "last_approval_sequence": newest_sequence if approved else previous_approval_sequence}
 
 
-def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
-                   wiki_root: Path | None = None, workspace_root: Path | None = None,
-                   harness_root: Path | None = None) -> dict[str, Any]:
+def resolve_policy_scaffold(
+    project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
+) -> dict[str, Any]:
+    """Resolve policy and project inputs without asserting graph semantics."""
     profile_path = profile_path.resolve()
     profile = load_profile(profile_path)
     resolved = copy.deepcopy(profile)
@@ -1536,13 +1548,177 @@ def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PR
             else:
                 resolved["domain_token_exclusions"] = list(dict.fromkeys(resolved["domain_token_exclusions"] + values))
             bindings.append({"scope": "project", "path": path.relative_to(project_root).as_posix(), "sha256": _hash(path), "role": f"project_{key}", "polarity": rule["polarity"]})
+    return {
+        "profile": profile,
+        "resolved_profile": resolved,
+        "profile_path": profile_relative,
+        "profile_sha256": _hash(profile_path),
+        "source_bindings": bindings,
+        "passage_scope_class": passage_scope_class,
+        "project_identity": project_identity,
+        "project_root": project_root,
+    }
+
+
+def resolve_reader_profile(
+    project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
+) -> dict[str, Any]:
+    """Resolve reader/source policy without invoking a semantic graph capability."""
+    scaffold = resolve_policy_scaffold(project_root, profile_path=profile_path)
+    return {
+        "contract_version": "2.0.0",
+        "binding_kind": "reader_profile",
+        "semantic_usage": "not_invoked",
+        "profile_path": scaffold["profile_path"],
+        "profile_sha256": scaffold["profile_sha256"],
+        "register_class": "domain-native",
+        "passage_scope_class": scaffold["passage_scope_class"],
+        "project_identity": scaffold["project_identity"],
+        "resolved_profile": scaffold["resolved_profile"],
+        "source_bindings": scaffold["source_bindings"],
+    }
+
+
+def resolve_policy(project_root: Path | None, *, profile_path: Path = DEFAULT_PROFILE,
+                   wiki_root: Path | None = None, workspace_root: Path | None = None,
+                   harness_root: Path | None = None) -> dict[str, Any]:
+    scaffold = resolve_policy_scaffold(project_root, profile_path=profile_path)
+    profile = scaffold["profile"]
+    resolved = scaffold["resolved_profile"]
+    profile_relative = scaffold["profile_path"]
+    bindings = scaffold["source_bindings"]
+    passage_scope_class = scaffold["passage_scope_class"]
+    project_identity = scaffold["project_identity"]
+    project_root = scaffold["project_root"]
     register = resolve_domain_native_register(profile, wiki_root=wiki_root, workspace_root=workspace_root, harness_root=harness_root)
     for source in bindings:
         owner = ROOT if source["scope"] == "package" else project_root
         if owner is not None:
             recorded_path = str((owner / source["path"]).resolve()) if source["scope"] == "package" else f"project://{source['path']}"
             register["provenance"].append({"role": source["role"], "path": recorded_path, "sha256": source["sha256"]})
-    return {"contract_version": "1.1.0", "profile_path": profile_relative, "profile_sha256": _hash(profile_path), "register_class": "domain-native", "passage_scope_class": passage_scope_class, "project_identity": project_identity, "resolved_profile": resolved, "source_bindings": bindings, "attestation_view_pin": register["attestation_view_pin"], "exemplar_view_pin": register["exemplar_view_pin"], "graph_sha256_provenance": register["graph_sha256_provenance"], "register_provenance": register}
+    return {"contract_version": "1.1.0", "profile_path": profile_relative, "profile_sha256": scaffold["profile_sha256"], "register_class": "domain-native", "passage_scope_class": passage_scope_class, "project_identity": project_identity, "resolved_profile": resolved, "source_bindings": bindings, "attestation_view_pin": register["attestation_view_pin"], "exemplar_view_pin": register["exemplar_view_pin"], "graph_sha256_provenance": register["graph_sha256_provenance"], "register_provenance": register}
+
+
+def resolve_unavailable_policy(
+    project_root: Path,
+    reason: str,
+    *,
+    profile_path: Path = DEFAULT_PROFILE,
+    wiki_root: Path | None = None,
+    workspace_root: Path | None = None,
+    harness_root: Path | None = None,
+) -> dict[str, Any]:
+    """Bind a structural graph observation without granting semantic authority."""
+    if not reason.startswith("GRAPH-SEMANTIC-INELIGIBLE:"):
+        raise PolicyError("unavailable policy requires GRAPH-SEMANTIC-INELIGIBLE")
+    scaffold = resolve_policy_scaffold(project_root, profile_path=profile_path)
+    profile = scaffold["profile"]
+    effective_wiki, effective_workspace, _, _ = _resolve_register_roots(
+        profile,
+        wiki_root=wiki_root,
+        workspace_root=workspace_root,
+        harness_root=harness_root,
+    )
+    del effective_wiki
+    graph_relative = profile["domain_native_register"]["corpus_binding"]["graph"]["path"]
+    graph_path = _contained(effective_workspace, graph_relative)
+    try:
+        graph_bytes = graph_path.read_bytes()
+        graph = json.loads(graph_bytes.decode("utf-8", errors="strict"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PolicyError(f"GRAPH-SEMANTIC-INELIGIBLE: structural graph observation failed: {exc}") from exc
+    metadata = graph.get("graph") if isinstance(graph, dict) else None
+    if not isinstance(metadata, dict):
+        raise PolicyError("GRAPH-SEMANTIC-INELIGIBLE: graph metadata object is required")
+    extraction_mode = metadata.get("extraction_mode")
+    semantic_status = metadata.get("semantic_status")
+    if extraction_mode != "structural-only" or semantic_status != "pending":
+        raise PolicyError(
+            "GRAPH-SEMANTIC-INELIGIBLE: unavailable bootstrap only admits "
+            f"structural-only/pending, observed {extraction_mode}/{semantic_status}"
+        )
+    return {
+        "contract_version": "1.0.0",
+        "availability": "semantic_graph_unavailable",
+        "profile_path": scaffold["profile_path"],
+        "profile_sha256": scaffold["profile_sha256"],
+        "register_class": "domain-native",
+        "passage_scope_class": scaffold["passage_scope_class"],
+        "project_identity": scaffold["project_identity"],
+        "resolved_profile": scaffold["resolved_profile"],
+        "source_bindings": scaffold["source_bindings"],
+        "blocker": {
+            "code": "GRAPH-SEMANTIC-INELIGIBLE",
+            "reason": reason,
+            "graph_path": graph_relative,
+            "graph_sha256": hashlib.sha256(graph_bytes).hexdigest(),
+            "extraction_mode": extraction_mode,
+            "semantic_status": semantic_status,
+        },
+    }
+
+
+def unavailable_phase_state_binding(
+    resolved: dict[str, Any], resolved_path: Path, project_root: Path,
+) -> dict[str, Any]:
+    """Build an M1-only binding for a currently unavailable semantic graph."""
+    path = resolved_path.resolve()
+    try:
+        relative = path.relative_to(project_root.resolve()).as_posix()
+    except ValueError as exc:
+        raise PolicyError("resolved artifact escapes project root") from exc
+    if not path.is_file():
+        raise PolicyError("resolved artifact is missing")
+    if resolved.get("availability") != "semantic_graph_unavailable":
+        raise PolicyError("unavailable binding requires an unavailable resolver artifact")
+    return {
+        "availability": "semantic_graph_unavailable",
+        "profile_path": resolved["profile_path"],
+        "profile_sha256": resolved["profile_sha256"],
+        "resolved_path": relative,
+        "resolved_sha256": _hash(path),
+        "source_bindings": copy.deepcopy(resolved["source_bindings"]),
+        "project_identity": resolved.get("project_identity"),
+        "blocker": copy.deepcopy(resolved["blocker"]),
+        "transitions": {
+            key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []}
+            for key in ("G", "H", "VE")
+        },
+    }
+
+
+def reader_profile_phase_state_binding(
+    resolved: dict[str, Any], resolved_path: Path, project_root: Path,
+) -> dict[str, Any]:
+    """Build the graph-independent v2 reader-profile binding."""
+    path = resolved_path.resolve()
+    try:
+        relative = path.relative_to(project_root.resolve()).as_posix()
+    except ValueError as exc:
+        raise PolicyError("resolved artifact escapes project root") from exc
+    if not path.is_file():
+        raise PolicyError("resolved artifact is missing")
+    if (
+        resolved.get("contract_version") != "2.0.0"
+        or resolved.get("binding_kind") != "reader_profile"
+        or resolved.get("semantic_usage") != "not_invoked"
+    ):
+        raise PolicyError("reader-profile binding requires a v2 graph-independent resolver artifact")
+    return {
+        "binding_version": "2.0.0",
+        "binding_kind": "reader_profile",
+        "semantic_usage": "not_invoked",
+        "profile_path": resolved["profile_path"],
+        "profile_sha256": resolved["profile_sha256"],
+        "resolved_path": relative,
+        "resolved_sha256": _hash(path),
+        "source_bindings": copy.deepcopy(resolved["source_bindings"]),
+        "project_identity": resolved.get("project_identity"),
+        "transitions": {
+            key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []}
+            for key in ("G", "H", "VE")
+        },
+    }
 
 
 def phase_state_binding(resolved: dict[str, Any], resolved_path: Path, project_root: Path) -> dict[str, Any]:

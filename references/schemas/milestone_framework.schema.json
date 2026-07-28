@@ -121,6 +121,30 @@
       ]
     },
     "reader_accessibility_binding": {
+      "oneOf": [
+        {"$ref": "#/$defs/reader_accessibility_profile_binding"},
+        {"$ref": "#/$defs/reader_accessibility_active_binding"},
+        {"$ref": "#/$defs/reader_accessibility_unavailable_binding"}
+      ]
+    },
+    "reader_accessibility_profile_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_version", "binding_kind", "semantic_usage", "profile_path", "profile_sha256", "resolved_path", "resolved_sha256", "source_bindings", "project_identity", "transitions"],
+      "properties": {
+        "binding_version": {"const": "2.0.0"},
+        "binding_kind": {"const": "reader_profile"},
+        "semantic_usage": {"const": "not_invoked"},
+        "profile_path": {"type": "string", "minLength": 1},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "resolved_path": {"type": "string", "minLength": 1},
+        "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "source_bindings": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/policy_source_binding"}},
+        "project_identity": {"type": ["string", "null"]},
+        "transitions": {"type": "object", "additionalProperties": false, "required": ["G", "H", "VE"], "properties": {"G": {"$ref": "#/$defs/transition_state"}, "H": {"$ref": "#/$defs/transition_state"}, "VE": {"$ref": "#/$defs/transition_state"}}}
+      }
+    },
+    "reader_accessibility_active_binding": {
       "type": "object",
       "additionalProperties": false,
       "required": ["profile_path", "profile_sha256", "resolved_path", "resolved_sha256", "source_bindings", "attestation_view_pin", "exemplar_view_pin", "pin_epoch", "pinned_at", "graph_sha256_provenance", "register_provenance", "transitions"],
@@ -140,6 +164,34 @@
         "transitions": {"type": "object", "additionalProperties": false, "required": ["G", "H", "VE"], "properties": {"G": {"$ref": "#/$defs/transition_state"}, "H": {"$ref": "#/$defs/transition_state"}, "VE": {"$ref": "#/$defs/transition_state"}}}
       }
     },
+    "reader_accessibility_unavailable_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "profile_path", "profile_sha256", "resolved_path", "resolved_sha256", "source_bindings", "project_identity", "blocker", "transitions"],
+      "properties": {
+        "availability": {"const": "semantic_graph_unavailable"},
+        "profile_path": {"type": "string", "minLength": 1},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "resolved_path": {"type": "string", "minLength": 1},
+        "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "source_bindings": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/policy_source_binding"}},
+        "project_identity": {"type": "string", "minLength": 1},
+        "blocker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "reason", "graph_path", "graph_sha256", "extraction_mode", "semantic_status"],
+          "properties": {
+            "code": {"const": "GRAPH-SEMANTIC-INELIGIBLE"},
+            "reason": {"type": "string", "pattern": "^GRAPH-SEMANTIC-INELIGIBLE:.*"},
+            "graph_path": {"type": "string", "minLength": 1},
+            "graph_sha256": {"$ref": "#/$defs/sha256"},
+            "extraction_mode": {"const": "structural-only"},
+            "semantic_status": {"const": "pending"}
+          }
+        },
+        "transitions": {"type": "object", "additionalProperties": false, "required": ["G", "H", "VE"], "properties": {"G": {"$ref": "#/$defs/transition_state"}, "H": {"$ref": "#/$defs/transition_state"}, "VE": {"$ref": "#/$defs/transition_state"}}}
+      }
+    },
     "register_provenance":{"type":"object","additionalProperties":false,"required":["register_class","attestation_view_pin","exemplar_view_pin","graph_sha256_provenance","graph_mtime_utc_provenance","seed_resolution_map","seed_resolution_ties","unresolved_seed_ids","primary_communities","attestation_member_ids","exemplar_hash_lines","warnings","path_roots","provenance"],"properties":{"register_class":{"const":"domain-native"},"attestation_view_pin":{"$ref":"#/$defs/sha256"},"exemplar_view_pin":{"$ref":"#/$defs/sha256"},"graph_sha256_provenance":{"$ref":"#/$defs/sha256"},"graph_mtime_utc_provenance":{"type":"string","minLength":1},"seed_resolution_map":{"type":"object","additionalProperties":{"type":"string","minLength":1}},"seed_resolution_ties":{"type":"object","additionalProperties":{"type":"array","items":{"type":"string","minLength":1}}},"unresolved_seed_ids":{"type":"array","items":{"type":"string","minLength":1}},"primary_communities":{"type":"array","items":{"type":"integer"}},"attestation_member_ids":{"type":"array","items":{"type":"string","minLength":1}},"exemplar_hash_lines":{"type":"array","items":{"type":"string","minLength":1}},"exemplar_members":{"$ref":"#/$defs/resolved_exemplar_members"},"surface_exemplar_members":{"$ref":"#/$defs/resolved_exemplar_members"},"argument_exemplar_members":{"$ref":"#/$defs/resolved_exemplar_members"},"warnings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["code","severity","message"],"properties":{"code":{"enum":["RA-DNR-DEGENERATE","RA-DNR-PDF-MISSING","RA-DNR-COHERENCE","RA-DNR-SEMANTIC-ENRICHMENT"]},"severity":{"const":"WARNING"},"message":{"type":"string","minLength":1},"source_key":{"type":"string","minLength":1},"source_file":{"type":"string","minLength":1}}}},"path_roots":{"type":"object","additionalProperties":false,"required":["profile_path_roots","effective","path_roots_mode"],"properties":{"profile_path_roots":{"$ref":"#/$defs/path_roots_record"},"effective":{"$ref":"#/$defs/path_roots_record"},"path_roots_mode":{"enum":["profile","override"]},"resolution_sources":{"$ref":"#/$defs/path_root_resolution_sources"},"harness_root_note":{"type":"string","minLength":1}}},"provenance":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["role","path","sha256"],"properties":{"role":{"type":"string","minLength":1},"path":{"type":"string","minLength":1},"sha256":{"$ref":"#/$defs/sha256"}}}}}},
     "resolved_exemplar_members":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["source_key","role","grounding","warrant_scope"],"properties":{"source_key":{"type":"string","minLength":1},"role":{"type":"string","minLength":1},"grounding":{"type":"string","minLength":1},"warrant_scope":{"enum":["both","argument-only"]},"retrieval_scope":{"type":"string","minLength":1}}}},
     "path_roots_record":{"type":"object","additionalProperties":false,"required":["wiki_root","workspace_root","harness_root"],"properties":{"wiki_root":{"type":"string","minLength":1},"workspace_root":{"type":"string","minLength":1},"harness_root":{"type":"string","minLength":1}}},
@@ -156,6 +208,7 @@
         "profile_path": {"type": "string", "minLength": 1},
         "profile_sha256": {"$ref": "#/$defs/sha256"},
         "resolved_sha256": {"$ref": "#/$defs/sha256"},
+        "semantic_usage": {"const": "not_invoked"},
         "attestation_view_pin": {"$ref": "#/$defs/sha256"},
         "exemplar_view_pin": {"$ref": "#/$defs/sha256"},
         "manuscript_sha256": {"$ref": "#/$defs/sha256"},
@@ -169,7 +222,9 @@
         "wiki_grounding": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
         "wiki_grounding_opt_out": {"type": "object", "additionalProperties": false, "required": ["authority", "reason", "evidence_path", "evidence_sha256"], "properties": {"authority": {"enum": ["user", "advisor", "instructor"]}, "reason": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
         "draft_generation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
-        "draft_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
+        "draft_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+        "scholarly_evaluation": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+        "assignment_receipt": {"type": "object", "additionalProperties": false, "required": ["receipt_id", "evidence_path", "evidence_sha256"], "properties": {"receipt_id": {"type": "string", "minLength": 1}, "evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}}
       }
     },
     "reader_model":{"type":"object","additionalProperties":false,"required":["audience_classes","imported_theory_registers","reading_task","register_class","source"],"properties":{"audience_classes":{"const":["IS scholar","software engineer","systems engineer","requirements engineer"]},"imported_theory_registers":{"const":["sociology","psychology","philosophy"]},"reading_task":{"const":"recover the argument's claims and their derivation on a single read, without leaving the page to look up a term"},"register_class":{"const":"domain-native"},"source":{"const":"M1 milestone reader declaration"}}},

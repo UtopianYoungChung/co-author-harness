@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/host_qualification_transaction.schema.json",
+  "title": "Host qualification transaction 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transaction_id",
+    "state",
+    "host",
+    "registry_row",
+    "installed_manifest",
+    "cache_comparison",
+    "cleared_zip",
+    "core_probe",
+    "package_clearance_state",
+    "publication_manifest",
+    "commit_marker",
+    "failure",
+    "claims",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^host-qualification:[a-z0-9][a-z0-9._:-]{7,127}$"
+    },
+    "state": {
+      "enum": [
+        "HOST_QUALIFICATION_PENDING",
+        "HOST_FUNCTIONAL_UNBOUND",
+        "HOST_QUALIFICATION_FAILED",
+        "HOST_QUALIFIED"
+      ]
+    },
+    "host": {
+      "$ref": "#/$defs/host"
+    },
+    "registry_row": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "installed_manifest": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cache_comparison": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cleared_zip": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/zipBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "core_probe": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "package_clearance_state": {
+      "enum": [
+        "NOT_EVALUATED",
+        "PACKAGE_CLEARED",
+        "PACKAGE_NOT_CLEARED"
+      ]
+    },
+    "publication_manifest": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "commit_marker": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/failure"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cache_equality_implies_host_load",
+        "host_state_changes_package_clearance",
+        "fresh_task_required",
+        "marker_last"
+      ],
+      "properties": {
+        "cache_equality_implies_host_load": {
+          "const": false
+        },
+        "host_state_changes_package_clearance": {
+          "const": false
+        },
+        "fresh_task_required": {
+          "const": true
+        },
+        "marker_last": {
+          "const": true
+        }
+      }
+    },
+    "created_at": {
+      "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "HOST_QUALIFIED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "host": {
+            "properties": {
+              "fresh_task": {
+                "const": true
+              }
+            }
+          },
+          "registry_row": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "installed_manifest": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "cache_comparison": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "cleared_zip": {
+            "$ref": "#/$defs/zipBinding"
+          },
+          "core_probe": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "package_clearance_state": {
+            "const": "PACKAGE_CLEARED"
+          },
+          "publication_manifest": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "commit_marker": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "failure": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "HOST_FUNCTIONAL_UNBOUND"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "core_probe": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "commit_marker": {
+            "type": "null"
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "cleared_zip": {
+                "type": "null"
+              }
+            }
+          },
+          {
+            "properties": {
+              "cache_comparison": {
+                "type": "null"
+              }
+            }
+          },
+          {
+            "properties": {
+              "package_clearance_state": {
+                "not": {
+                  "const": "PACKAGE_CLEARED"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "HOST_QUALIFICATION_PENDING"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "commit_marker": {
+            "type": "null"
+          },
+          "failure": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "HOST_QUALIFICATION_FAILED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "commit_marker": {
+            "type": "null"
+          },
+          "failure": {
+            "$ref": "#/$defs/failure"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "zipBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byte_length",
+        "source_commit",
+        "provenance_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "provenance_sha256": {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product",
+        "version",
+        "task_id",
+        "fresh_task",
+        "observed_at"
+      ],
+      "properties": {
+        "product": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fresh_task": {
+          "type": "boolean"
+        },
+        "observed_at": {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "HOST-REGISTRY-MISSING",
+            "HOST-INSTALLED-MANIFEST-MISSING",
+            "HOST-CACHE-COMPARISON-MISSING",
+            "HOST-CLEARED-ZIP-UNBOUND",
+            "HOST-CORE-PROBE-FAILED",
+            "HOST-PUBLICATION-INCOMPLETE"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

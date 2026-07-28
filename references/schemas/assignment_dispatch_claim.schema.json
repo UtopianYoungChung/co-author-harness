@@ -35,14 +35,14 @@
     {"if": {"properties": {"claim_kind": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact", "generation_verifier"]}}
   ],
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
-    "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
-    "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"enum": ["project", "harness", "wiki"]}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
-    "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}},
+    "sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"},
+    "timestamp": {"allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/timestamp"}, {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"}]},
+    "safePath": {"allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/safePath"}, {"type": "string", "pattern": "^(?!.*:).+$"}]},
+    "root": {"allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/rootIdentity"}, {"type": "object", "properties": {"kind": {"enum": ["project", "harness", "wiki"]}}}]},
+    "binding": {"allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/rootedBinding"}, {"type": "object", "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"$ref": "#/$defs/safePath"}}}]},
     "snapshot": {"type": "object", "additionalProperties": false, "required": ["exists", "sha256", "size"], "properties": {"exists": {"type": "boolean"}, "sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}, "size": {"type": "integer", "minimum": 0}}},
     "write": {"type": "object", "additionalProperties": false, "required": ["path", "mode", "preimage"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "mode": {"enum": ["create", "replace", "append"]}, "preimage": {"$ref": "#/$defs/snapshot"}}},
     "issuer": {"type": "object", "additionalProperties": false, "required": ["name", "version", "transaction_id"], "properties": {"name": {"const": "assignment_transaction_kernel"}, "version": {"const": "1.0.0"}, "transaction_id": {"type": "string", "minLength": 1}}},
-    "generationVerifier": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "transaction", "publication_manifest", "commit_marker", "product_disposition"], "properties": {"transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}, "transaction": {"$ref": "#/$defs/binding"}, "publication_manifest": {"$ref": "#/$defs/binding"}, "commit_marker": {"$ref": "#/$defs/binding"}, "product_disposition": {"const": "evaluation_ready"}}}
+    "generationVerifier": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "transaction", "publication_manifest", "commit_marker", "product_disposition"], "allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/publicationChain"}], "properties": {"transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}, "transaction": {"$ref": "#/$defs/binding"}, "publication_manifest": {"$ref": "#/$defs/binding"}, "commit_marker": {"$ref": "#/$defs/binding"}, "product_disposition": {"const": "evaluation_ready"}}}
   }
 }

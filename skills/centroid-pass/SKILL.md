@@ -2,7 +2,7 @@
 name: centroid-pass
 user-invocable: true
 description: 'Bind and execute the package centroid for generation, review, or revision. The deterministic service resolves the live corpus policy and scope; the dispatched Generator or Evaluator performs the grounded semantic pass.'
-trigger: automatically for every academic draft or revision at M1, M2, M3, M4, and FINAL, and explicitly when the user invokes /centroid-pass.
+trigger: automatically for M1, M2, M3, M4, and FINAL only when the authoritative reader binding enables governed semantic use, and explicitly when the user invokes /centroid-pass. Reader-profile v2 with semantic_usage not_invoked does not auto-dispatch this skill.
 version: 3.0
 ---
 

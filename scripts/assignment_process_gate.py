@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 from typing import Any
@@ -28,7 +29,10 @@ PREDECESSORS = {
     "M4": ("M1", "M2", "M3"),
     "FINAL": ("M1", "M2", "M3", "M4"),
 }
-RECEIPT_SCHEMA_VERSION = "2.1.0"
+RECEIPT_SCHEMA_VERSION = "2.2.0"
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+SAFE_ATOM_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+SAFE_PATH_RE = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))(?!.*[\\:]).+$")
 RECEIPT_FIELDS = {
     "schema_version",
     "receipt_id",
@@ -52,6 +56,7 @@ RECEIPT_FIELDS = {
     "role_output_contract_sha256",
     "exemplar_conditioning",
     "active_lineage_id",
+    "control_transition",
 }
 
 from milestone_path_contract import (
@@ -264,6 +269,23 @@ def _exemplar_requested(contract: dict[str, Any], cli_requested: bool) -> bool:
     )
 
 
+def _graph_independent_reader_profile(project: Path) -> bool:
+    try:
+        state = json.loads((project / "reviews" / "phase_state.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    binding = (
+        state.get("milestone_framework", {})
+        .get("policy_bindings", {})
+        .get("reader_accessibility")
+    )
+    return (
+        isinstance(binding, dict)
+        and binding.get("binding_version") == "2.0.0"
+        and binding.get("semantic_usage") == "not_invoked"
+    )
+
+
 def _ready_lines(
     project: Path,
     stage: str,
@@ -361,6 +383,7 @@ def _receipt_record(
     target: str,
     exemplar_conditioning: bool,
     ready_lines: list[str],
+    control_transition_id: str | None = None,
 ) -> dict[str, Any]:
     phase_state_path = project / "reviews" / "phase_state.json"
     phase_state = json.loads(phase_state_path.read_text(encoding="utf-8"))
@@ -394,11 +417,67 @@ def _receipt_record(
         "phase_state_sha256": _sha256(phase_state_path),
         "profile_sha256": _sha256(ROOT / PROFILE_REL),
         "role_output_contract_sha256": _sha256(ROOT / ROLE_OUTPUT_REL),
-        # Centroid/exemplar conditioning is a universal draft-policy obligation.
-        # The CLI flag remains accepted for backward-compatible invocations, but
-        # no milestone may emit a receipt that disables the obligation.
-        "exemplar_conditioning": True,
+        # Reader-profile v2 records that the semantic graph capability was not
+        # invoked. Legacy semantic projects retain mandatory conditioning.
+        "exemplar_conditioning": not _graph_independent_reader_profile(project),
         "active_lineage_id": lineage,
+        "control_transition": _control_transition_binding(
+            project, primary_path, control_transition_id,
+        ),
+    }
+
+
+def _control_transition_root(project: Path) -> Path:
+    return project / "reviews" / ".harness" / "control-plane" / "transitions"
+
+
+def _has_control_transition_history(project: Path) -> bool:
+    root = _control_transition_root(project)
+    if not root.exists():
+        return False
+    if not root.is_dir() or _is_link_or_reparse(root):
+        raise ValueError(f"control transition root is not a plain directory: {root}")
+    return any(root.iterdir())
+
+
+def _control_transition_binding(
+    project: Path, primary_path: str, transition_id: str | None,
+) -> dict[str, Any] | None:
+    """Bind post-rebind Generator authority to one replayable C2 commit."""
+
+    from control_plane_transition import ControlPlaneRefusal, verify_committed
+
+    if transition_id is None:
+        if _has_control_transition_history(project):
+            raise ControlPlaneRefusal(
+                "CPT-LIVE-RECEIPT",
+                "post-rebind Generator authority requires --control-transition-id",
+            )
+        return None
+    verified = verify_committed(project, transition_id)
+    record = verified["record"]
+    active = record["active_target"]
+    if active.get("path") != primary_path:
+        raise ControlPlaneRefusal(
+            "CPT-IDENTITY-SPLIT",
+            "committed control active target differs from Generator publication target",
+        )
+    target = project / Path(*Path(primary_path).parts)
+    if (
+        not target.is_file()
+        or _sha256(target) != active.get("sha256")
+        or target.stat().st_size != active.get("byte_length")
+    ):
+        raise ControlPlaneRefusal(
+            "CPT-IDENTITY-SPLIT",
+            "committed control active target bytes differ from the Generator target",
+        )
+    marker = record["commit_marker"]
+    return {
+        "transition_id": transition_id,
+        "commit_marker": dict(marker),
+        "postimage_digest": record["postimage_digest"],
+        "active_target": dict(active),
     }
 
 
@@ -426,6 +505,32 @@ def _receipt_shape_finding(receipt: Any) -> tuple[str, str] | None:
         "phase_state_sha256",
         "profile_sha256",
         "role_output_contract_sha256",
+    )
+    def file_binding(value: Any) -> bool:
+        return (
+            isinstance(value, dict)
+            and set(value) == {"path", "sha256", "byte_length"}
+            and isinstance(value["path"], str)
+            and bool(SAFE_PATH_RE.fullmatch(value["path"]))
+            and isinstance(value["sha256"], str)
+            and bool(SHA256_RE.fullmatch(value["sha256"]))
+            and isinstance(value["byte_length"], int)
+            and not isinstance(value["byte_length"], bool)
+            and value["byte_length"] >= 0
+        )
+
+    control = receipt.get("control_transition")
+    control_valid = control is None or (
+        isinstance(control, dict)
+        and set(control) == {
+            "transition_id", "commit_marker", "postimage_digest", "active_target"
+        }
+        and isinstance(control["transition_id"], str)
+        and bool(SAFE_ATOM_RE.fullmatch(control["transition_id"]))
+        and isinstance(control["postimage_digest"], str)
+        and bool(SHA256_RE.fullmatch(control["postimage_digest"]))
+        and file_binding(control["commit_marker"])
+        and file_binding(control["active_target"])
     )
     valid = (
         receipt["schema_version"] == RECEIPT_SCHEMA_VERSION
@@ -467,6 +572,7 @@ def _receipt_shape_finding(receipt: Any) -> tuple[str, str] | None:
         and isinstance(receipt["exemplar_conditioning"], bool)
         and isinstance(receipt["active_lineage_id"], str)
         and bool(receipt["active_lineage_id"])
+        and control_valid
     )
     if not valid:
         return ("APG-RECEIPT-INVALID", f"receipt values do not satisfy schema version {RECEIPT_SCHEMA_VERSION}")
@@ -529,11 +635,25 @@ def verify_receipt(
         if receipt[field] != live_hash:
             return [("APG-RECEIPT-STALE", f"receipt hash is stale for {live_path}")]
 
+    try:
+        control = receipt.get("control_transition")
+        expected_control = _control_transition_binding(
+            project,
+            receipt["primary_deliverable_path"],
+            control.get("transition_id") if isinstance(control, dict) else None,
+        )
+    except Exception as exc:  # ControlPlaneRefusal plus fail-closed path errors.
+        code = getattr(exc, "code", "APG-RECEIPT-STALE")
+        message = getattr(exc, "message", str(exc))
+        return [(code, message)]
+    if control != expected_control:
+        return [("APG-RECEIPT-STALE", "receipt control-transition binding is stale")]
+
     stage = receipt["stage"]
     target = receipt["target_milestone"]
     exemplar_conditioning = receipt["exemplar_conditioning"]
-    if exemplar_conditioning is not True:
-        return [("APG-EXEMPLAR-REQUIRED", "all assignment drafts require centroid/exemplar conditioning")]
+    if exemplar_conditioning is not True and not _graph_independent_reader_profile(project):
+        return [("APG-EXEMPLAR-REQUIRED", "semantic-v1 assignment drafts require centroid/exemplar conditioning")]
     gate_findings = validate(project, stage, target, exemplar_conditioning)
     if gate_findings:
         return gate_findings
@@ -690,6 +810,7 @@ def main() -> int:
     parser.add_argument("--stage", choices=("draft", "final"))
     parser.add_argument("--target-milestone", choices=EXPECTED_SEQUENCE)
     parser.add_argument("--exemplar-conditioning", action="store_true")
+    parser.add_argument("--control-transition-id")
     receipt_mode = parser.add_mutually_exclusive_group()
     receipt_mode.add_argument("--emit-receipt", type=Path)
     receipt_mode.add_argument("--verify-receipt", type=Path)
@@ -703,7 +824,7 @@ def main() -> int:
         return 4
 
     if args.verify_receipt is not None:
-        if args.stage is not None or args.target_milestone is not None or args.exemplar_conditioning:
+        if args.stage is not None or args.target_milestone is not None or args.exemplar_conditioning or args.control_transition_id is not None:
             _print_findings(
                 [
                     (
@@ -745,28 +866,41 @@ def main() -> int:
                 [("APG-RECEIPT-INVALID", "new receipts must be emitted into the ready directory")]
             )
             return 4
-        assignment_root = receipt_path.parent.parent
-        collisions = [
-            assignment_root / state / receipt_path.name
-            for state in ("ready", "reserved", "consumed", "invalidated")
-            if (assignment_root / state / receipt_path.name).exists()
-        ]
-        if collisions:
-            _print_findings(
-                [("APG-RECEIPT-INVALID", f"refusing duplicate receipt basename: {collisions[0]}")]
-            )
-            return 4
+        from control_plane_transition import (
+            ControlPlaneRefusal,
+            authority_issuance_guard,
+        )
         try:
-            _atomic_write_json(
-                receipt_path,
-                _receipt_record(
-                    project,
-                    args.stage,
-                    target,
-                    args.exemplar_conditioning,
-                    ready_lines,
-                ),
-            )
+            # Hold the same OS barrier used by control-plane prepare while the
+            # duplicate-state check and the first durable ready write occur.
+            # This closes the check/prepare/write race around the bound
+            # authority snapshot.
+            with authority_issuance_guard(project):
+                assignment_root = receipt_path.parent.parent
+                collisions = [
+                    assignment_root / state / receipt_path.name
+                    for state in ("ready", "reserved", "consumed", "invalidated")
+                    if (assignment_root / state / receipt_path.name).exists()
+                ]
+                if collisions:
+                    _print_findings(
+                        [("APG-RECEIPT-INVALID", f"refusing duplicate receipt basename: {collisions[0]}")]
+                    )
+                    return 4
+                _atomic_write_json(
+                    receipt_path,
+                    _receipt_record(
+                        project,
+                        args.stage,
+                        target,
+                        args.exemplar_conditioning,
+                        ready_lines,
+                        args.control_transition_id,
+                    ),
+                )
+        except ControlPlaneRefusal as exc:
+            _print_findings([(exc.code, exc.message)])
+            return 4
         except (OSError, UnicodeError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             _print_findings(
                 [("APG-RECEIPT-INVALID", f"cannot emit assignment gate receipt: {exc}")]

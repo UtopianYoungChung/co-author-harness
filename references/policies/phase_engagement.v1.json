@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "co-author-harness-phase-engagement-v1",
+  "phases": {
+    "Ph1": {
+      "planner": "required",
+      "generator": "required",
+      "evaluator": "bounded_independent_required",
+      "reflector": "lightweight_required"
+    },
+    "Ph2": {
+      "planner": "required",
+      "generator": "required",
+      "evaluator": "full_revision_maturity_required",
+      "reflector": "lightweight_required"
+    },
+    "Ph3": {
+      "planner": "required",
+      "generator": "required",
+      "evaluator": "full_iterative_required",
+      "reflector": "lightweight_required"
+    },
+    "Ph4": {
+      "planner": "required",
+      "generator": "fix_only_required",
+      "evaluator": "strict_final_required",
+      "reflector": "full_required",
+      "external_verifiers": "required"
+    }
+  },
+  "retirement_ledger": [
+    "references/retired/PHASE_ENGAGEMENT_RETIREMENT_LEDGER.md"
+  ],
+  "effective_at": "2026-07-26T00:00:00Z"
+}

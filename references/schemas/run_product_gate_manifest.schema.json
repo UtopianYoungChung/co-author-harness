@@ -4,7 +4,7 @@
   "title": "Governed product-gate run manifest 1.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "manifest_type", "run_id", "state", "mode", "lifecycle_eligible", "requested_checks", "inputs", "verifier_transaction", "runtime_versions", "omissions", "dispositions", "outputs", "recovery_command", "terminal_state"],
+  "required": ["schema_version", "manifest_type", "run_id", "state", "mode", "lifecycle_eligible", "requested_checks", "inputs", "verifier_transaction", "scholarly_evaluation", "runtime_versions", "omissions", "dispositions", "outputs", "recovery_command", "terminal_state"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "manifest_type": {"const": "product_gate_run"},
@@ -15,6 +15,7 @@
     "requested_checks": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["deterministic-audit-suite", "semantic-product-verifier"]}},
     "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/input"}},
     "verifier_transaction": {"oneOf": [{"$ref": "#/$defs/verifier"}, {"type": "null"}]},
+    "scholarly_evaluation": {"oneOf": [{"$ref": "#/$defs/scholarlyEvaluation"}, {"type": "null"}]},
     "runtime_versions": {"$ref": "#/$defs/runtimeVersions"},
     "omissions": {"type": "array", "items": {"$ref": "#/$defs/omission"}},
     "dispositions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/disposition"}},
@@ -23,13 +24,17 @@
     "terminal_state": {"enum": ["diagnostic_complete", "product_qualified"]}
   },
   "allOf": [
-    {"if": {"properties": {"mode": {"const": "mechanics"}}}, "then": {"properties": {"lifecycle_eligible": {"const": false}, "verifier_transaction": {"type": "null"}, "terminal_state": {"const": "diagnostic_complete"}}}},
-    {"if": {"properties": {"mode": {"const": "governed-product"}}}, "then": {"properties": {"lifecycle_eligible": {"const": true}, "verifier_transaction": {"$ref": "#/$defs/verifier"}, "terminal_state": {"const": "product_qualified"}}}}
+    {"if": {"properties": {"mode": {"const": "mechanics"}}}, "then": {"properties": {"lifecycle_eligible": {"const": false}, "verifier_transaction": {"type": "null"}, "scholarly_evaluation": {"type": "null"}, "terminal_state": {"const": "diagnostic_complete"}}}},
+    {"if": {"properties": {"mode": {"const": "governed-product"}}}, "then": {"properties": {"lifecycle_eligible": {"const": true}, "verifier_transaction": {"$ref": "#/$defs/verifier"}, "scholarly_evaluation": {"$ref": "#/$defs/scholarlyEvaluation"}, "terminal_state": {"const": "product_qualified"}}}}
   ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "input": {"type": "object", "additionalProperties": false, "required": ["kind", "path", "sha256", "size"], "properties": {"kind": {"enum": ["governed_artifact", "semantic_receipt", "verifier_transaction", "verifier_publication_manifest", "verifier_commit_marker", "semantics_manifest", "wiki_root_manifest", "project_root_manifest"]}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}},
+    "input": {"type": "object", "additionalProperties": false, "required": ["kind", "path", "sha256", "size"], "properties": {"kind": {"enum": ["governed_artifact", "semantic_receipt", "verifier_transaction", "verifier_publication_manifest", "verifier_commit_marker", "semantics_manifest", "wiki_root_manifest", "project_root_manifest", "scholarly_evaluation"]}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}},
     "verifier": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "phase", "product_disposition", "transaction_sha256", "publication_manifest_sha256", "commit_marker_sha256"], "properties": {"transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}, "phase": {"const": "evaluation"}, "product_disposition": {"const": "product_qualified"}, "transaction_sha256": {"$ref": "#/$defs/sha256"}, "publication_manifest_sha256": {"$ref": "#/$defs/sha256"}, "commit_marker_sha256": {"$ref": "#/$defs/sha256"}}},
+    "exactArtifact": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "byte_length"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "byte_length": {"type": "integer", "minimum": 0}}},
+    "dependency": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "byte_length"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "byte_length": {"type": "integer", "minimum": 0}}},
+    "scholarlyBinding": {"type": "object", "additionalProperties": false, "required": ["evidence_path", "evidence_sha256"], "properties": {"evidence_path": {"type": "string", "minLength": 1}, "evidence_sha256": {"$ref": "#/$defs/sha256"}}},
+    "scholarlyEvaluation": {"type": "object", "additionalProperties": false, "required": ["binding", "artifact", "evaluation_id", "status", "judgment_truth_certified", "dependencies"], "properties": {"binding": {"$ref": "#/$defs/scholarlyBinding"}, "artifact": {"$ref": "#/$defs/exactArtifact"}, "evaluation_id": {"type": "string", "pattern": "^SET-[A-Za-z0-9_-]+$"}, "status": {"const": "qualified"}, "judgment_truth_certified": {"const": false}, "dependencies": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/dependency"}}}},
     "runtimeVersions": {"type": "object", "additionalProperties": false, "required": ["extractor", "detector"], "properties": {"extractor": {"type": "object", "additionalProperties": false, "required": ["name", "version", "sha256"], "properties": {"name": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}}, "detector": {"type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": {"name": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}}}},
     "omission": {"type": "object", "additionalProperties": false, "required": ["check", "reason"], "properties": {"check": {"enum": ["deterministic-audit-suite", "semantic-product-verifier"]}, "reason": {"type": "string", "minLength": 1}}},
     "disposition": {"type": "object", "additionalProperties": false, "required": ["check", "status", "detail"], "properties": {"check": {"enum": ["deterministic-audit-suite", "semantic-product-verifier"]}, "status": {"enum": ["diagnostic", "qualified"]}, "detail": {"type": "string", "minLength": 1}}},

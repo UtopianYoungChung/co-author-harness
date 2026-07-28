@@ -16,10 +16,23 @@ import destination_capability as destinations
 
 SAFE_ZIP_BASENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.zip$")
 LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+CHECKSUM_PUBLICATION_UNSUPPORTED = "CHECKSUM-PUBLICATION-UNSUPPORTED"
+CHECKSUM_PUBLICATION_PARTIAL = "CHECKSUM-PUBLICATION-PARTIAL"
+CHECKSUM_PUBLICATION_CONCURRENT = "CHECKSUM-PUBLICATION-CONCURRENT"
+CHECKSUM_INVALID = "CHECKSUM-INVALID"
 
 
 class ChecksumError(RuntimeError):
     """The release checksum contract was not satisfied."""
+
+    def __init__(self, message: str, *, code: str = CHECKSUM_INVALID) -> None:
+        super().__init__(f"{code}: {message}")
+        self.code = code
+        self.message = message
+
+
+def _publication_error(code: str, message: str) -> ChecksumError:
+    return ChecksumError(message, code=code)
 
 
 def _is_link_or_reparse(path: Path) -> bool:
@@ -95,6 +108,184 @@ def _sidecar_bytes(digest: str, archive_basename: str) -> bytes:
     return rendered
 
 
+def _file_identity_from_handle(handle: object) -> tuple[int, int]:
+    value = os.fstat(handle.fileno())
+    return value.st_dev, value.st_ino
+
+
+def _same_identity(path: Path, identity: tuple[int, int]) -> bool:
+    try:
+        value = os.stat(path, follow_symlinks=False)
+    except OSError:
+        return False
+    return not _is_link_or_reparse(path) and (value.st_dev, value.st_ino) == identity
+
+
+def _remove_owned(path: Path, identity: tuple[int, int]) -> None:
+    """Remove only the file created by this transaction."""
+
+    if not path.exists() and not path.is_symlink():
+        return
+    if not _same_identity(path, identity):
+        raise _publication_error(
+            CHECKSUM_PUBLICATION_PARTIAL,
+            f"refusing to remove checksum path whose identity changed: {path}",
+        )
+    try:
+        path.unlink()
+    except OSError as exc:
+        raise _publication_error(
+            CHECKSUM_PUBLICATION_PARTIAL,
+            f"cannot remove partial checksum publication: {exc}",
+        ) from exc
+
+
+def _write_and_sync(handle: object, payload: bytes) -> None:
+    written = handle.write(payload)
+    if written != len(payload):
+        raise OSError(f"short checksum write: expected {len(payload)}, wrote {written}")
+    handle.flush()
+    os.fsync(handle.fileno())
+
+
+def _hard_link(source: Path, destination: Path) -> None:
+    os.link(source, destination)
+
+
+def _open_sidecar_exclusive(path: Path) -> object:
+    """Capability seam: exclusive create with read-back on the same handle."""
+
+    return path.open("x+b")
+
+
+def _write_direct_payload(handle: object, payload: bytes) -> None:
+    _write_and_sync(handle, payload)
+
+
+def _publish_exclusive(sidecar: Path, payload: bytes) -> tuple[int, int]:
+    """Publish directly only when the filesystem proves exclusive-create."""
+
+    created = False
+    identity: tuple[int, int] | None = None
+    try:
+        with _open_sidecar_exclusive(sidecar) as handle:
+            created = True
+            identity = _file_identity_from_handle(handle)
+            _write_direct_payload(handle, payload)
+            handle.seek(0)
+            if handle.read() != payload:
+                raise OSError("exclusive checksum read-back differs from requested bytes")
+        assert identity is not None
+        if not _same_identity(sidecar, identity):
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                "exclusive checksum path identity changed before publication completed",
+            )
+        return identity
+    except FileExistsError as exc:
+        if created and identity is not None:
+            _remove_owned(sidecar, identity)
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                f"exclusive checksum publication failed after creation: {exc}",
+            ) from exc
+        raise _publication_error(
+            CHECKSUM_PUBLICATION_CONCURRENT,
+            "checksum output appeared concurrently; refusing overwrite",
+        ) from exc
+    except ChecksumError:
+        if created and identity is not None:
+            _remove_owned(sidecar, identity)
+        raise
+    except OSError as exc:
+        if created and identity is not None:
+            _remove_owned(sidecar, identity)
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                f"exclusive checksum publication failed after creation: {exc}",
+            ) from exc
+        raise _publication_error(
+            CHECKSUM_PUBLICATION_UNSUPPORTED,
+            f"filesystem provides neither hard-link nor exclusive-create publication: {exc}",
+        ) from exc
+
+
+def _publish_new_sidecar(sidecar: Path, payload: bytes) -> tuple[int, int]:
+    """Publish by hard link, with an exclusive-create portability fallback."""
+
+    temporary = sidecar.with_name(sidecar.name + f".tmp.{os.getpid()}")
+    if temporary.exists() or temporary.is_symlink():
+        raise ChecksumError("checksum temporary path already exists")
+    temporary_identity: tuple[int, int] | None = None
+    link_succeeded = False
+    try:
+        try:
+            with temporary.open("xb") as handle:
+                temporary_identity = _file_identity_from_handle(handle)
+                _write_and_sync(handle, payload)
+        except OSError as exc:
+            if temporary_identity is not None:
+                _remove_owned(temporary, temporary_identity)
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                f"checksum staging publication failed: {exc}",
+            ) from exc
+        try:
+            _hard_link(temporary, sidecar)
+            link_succeeded = True
+        except FileExistsError as exc:
+            if temporary_identity is not None and _same_identity(
+                sidecar, temporary_identity
+            ):
+                _remove_owned(sidecar, temporary_identity)
+                raise _publication_error(
+                    CHECKSUM_PUBLICATION_PARTIAL,
+                    f"hard-link publication failed after creating the sidecar: {exc}",
+                ) from exc
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_CONCURRENT,
+                "checksum output appeared concurrently; refusing overwrite",
+            ) from exc
+        except OSError as exc:
+            if sidecar.exists() or sidecar.is_symlink():
+                if temporary_identity is not None and _same_identity(
+                    sidecar, temporary_identity
+                ):
+                    _remove_owned(sidecar, temporary_identity)
+                    raise _publication_error(
+                        CHECKSUM_PUBLICATION_PARTIAL,
+                        f"hard-link publication failed after creating the sidecar: {exc}",
+                    ) from exc
+                raise _publication_error(
+                    CHECKSUM_PUBLICATION_CONCURRENT,
+                    "checksum output appeared during failed hard-link publication",
+                ) from exc
+            # The link operation is unavailable. Remove staging first, then
+            # require the destination filesystem to prove O_EXCL semantics.
+            assert temporary_identity is not None
+            _remove_owned(temporary, temporary_identity)
+            temporary_identity = None
+            return _publish_exclusive(sidecar, payload)
+        assert temporary_identity is not None
+        if not _same_identity(sidecar, temporary_identity):
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                "hard-link checksum publication did not preserve file identity",
+            )
+        return temporary_identity
+    finally:
+        if temporary_identity is not None and (
+            temporary.exists() or temporary.is_symlink()
+        ):
+            _remove_owned(temporary, temporary_identity)
+        if not link_succeeded and temporary.exists():
+            # Defensive invariant only: never leave transaction-created staging.
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                f"checksum staging artifact remains after refusal: {temporary}",
+            )
+
+
 def validate_release_checksum(
     archive: Path,
     sidecar: Path | None = None,
@@ -137,26 +328,19 @@ def write_release_checksum(
     if sidecar.exists():
         if sidecar.read_bytes() != payload:
             raise ChecksumError("refusing to overwrite a non-identical checksum sidecar")
+        owned_identity = None
     else:
-        temporary = sidecar.with_name(sidecar.name + f".tmp.{os.getpid()}")
-        if temporary.exists() or temporary.is_symlink():
-            raise ChecksumError("checksum temporary path already exists")
-        try:
-            with temporary.open("xb") as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.link(temporary, sidecar)
-        except FileExistsError as exc:
-            raise ChecksumError("checksum output appeared concurrently; refusing overwrite") from exc
-        except OSError as exc:
-            raise ChecksumError(f"cannot publish checksum sidecar: {exc}") from exc
-        finally:
-            try:
-                temporary.unlink()
-            except FileNotFoundError:
-                pass
-    verified_digest, sidecar_digest = validate_release_checksum(archive, sidecar)
+        owned_identity = _publish_new_sidecar(sidecar, payload)
+    try:
+        verified_digest, sidecar_digest = validate_release_checksum(archive, sidecar)
+    except (ChecksumError, OSError) as exc:
+        if owned_identity is not None:
+            _remove_owned(sidecar, owned_identity)
+            raise _publication_error(
+                CHECKSUM_PUBLICATION_PARTIAL,
+                f"checksum publication failed final read-back: {exc}",
+            ) from exc
+        raise
     return sidecar, verified_digest, sidecar_digest
 
 

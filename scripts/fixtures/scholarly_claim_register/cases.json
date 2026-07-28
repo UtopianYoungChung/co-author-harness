@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_kind": "scholarly_claim_register_red_boundary",
+  "provenance": {
+    "author": "Evidence Builder",
+    "origin": "self_authored_synthetic",
+    "live_research_material": false,
+    "purpose": "C1 interface boundary only"
+  },
+  "cases": [
+    {
+      "id": "missing_viewpoint",
+      "base_changes": [],
+      "red_change": {"op": "remove", "path": "claims.0.viewpoint"},
+      "expected_refusal_codes": ["SCR-VIEWPOINT-MISSING"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "ambiguous_viewpoint",
+      "base_changes": [],
+      "red_change": {
+        "op": "set",
+        "path": "claims.0.viewpoint",
+        "value": ["source_ascription", "author_analysis"]
+      },
+      "expected_refusal_codes": ["SCR-VIEWPOINT-AMBIGUOUS"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "missing_provenance",
+      "base_changes": [],
+      "red_change": {"op": "remove", "path": "claims.0.provenance"},
+      "expected_refusal_codes": ["SCR-PROVENANCE-MISSING"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "ambiguous_provenance",
+      "base_changes": [],
+      "red_change": {
+        "op": "set",
+        "path": "claims.0.provenance",
+        "value": ["direct_source", "author_derivation"]
+      },
+      "expected_refusal_codes": ["SCR-PROVENANCE-AMBIGUOUS"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "required_locator_absent",
+      "base_changes": [],
+      "red_change": {"op": "remove", "path": "claims.0.evidence_locator"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "generator_omission_added_by_evaluator",
+      "base_changes": [],
+      "red_change": {
+        "op": "generator_omit",
+        "path": "claims.1",
+        "value": "C-002"
+      },
+      "expected_refusal_codes": ["SCR-COVERAGE-INCOMPLETE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "derivation_only_marked_admitted_evidence",
+      "base_changes": [
+        {"op": "set", "path": "claims.0.viewpoint", "value": "author_analysis"},
+        {"op": "set", "path": "claims.0.provenance", "value": "author_derivation"},
+        {"op": "set", "path": "claims.0.admission_use", "value": "derivation_only"},
+        {"op": "remove", "path": "claims.0.evidence_locator"}
+      ],
+      "red_change": {
+        "op": "set",
+        "path": "claims.0.admission_use",
+        "value": "admitted_evidence"
+      },
+      "expected_refusal_codes": ["SCR-ADMISSION-USE-INCONSISTENT"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_artifact_hash",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "artifact.sha256", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_artifact_length",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "artifact.byte_length", "value": 1},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_artifact_path",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "artifact.path", "value": "missing-synthetic.md"},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_claim_span_hash",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.span_sha256", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_claim_locator",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.locator.byte_start", "value": 0},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_claim_section",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.locator.section", "value": "Wrong section"},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "missing_evidence_source",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.evidence_locator.0.path", "value": "missing-source.txt"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_evidence_source_hash",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.evidence_locator.0.sha256", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "out_of_range_evidence_span",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.evidence_locator.0.byte_end", "value": 999999},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "stale_evidence_span_hash",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.evidence_locator.0.span_sha256", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "unknown_evidence_locator_field",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.evidence_locator.0.fragment", "value": "claim=C-001"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "duplicate_evidence_locator",
+      "base_changes": [],
+      "red_change": {"op": "duplicate_evidence_locator", "path": "claims.0.evidence_locator"},
+      "expected_refusal_codes": ["SCR-LOCATOR-REQUIRED"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "evaluator_addition_cannot_close_complete",
+      "base_changes": [],
+      "red_change": {"op": "evaluator_addition_complete", "path": "claims.1"},
+      "expected_refusal_codes": ["SCR-COVERAGE-INCOMPLETE"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "unverified_register_fingerprint_rejected",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "register_fingerprint", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-SCHEMA"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "unverified_claim_fingerprint_rejected",
+      "base_changes": [],
+      "red_change": {"op": "set", "path": "claims.0.current_fingerprint", "value": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected_refusal_codes": ["SCR-SCHEMA"],
+      "clean_expected_findings": []
+    },
+    {
+      "id": "duplicate_claim_span_alias",
+      "base_changes": [],
+      "red_change": {"op": "duplicate_claim_span_alias", "path": "claims.1"},
+      "expected_refusal_codes": ["SCR-ARTIFACT-STALE"],
+      "clean_expected_findings": []
+    }
+  ]
+}

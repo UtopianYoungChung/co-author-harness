@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0.0",
+  "corpus_id": "product-assurance-detector-v4-held-out",
+  "split": "held_out",
+  "candidate_only": true,
+  "label_authority": {
+    "authority": "self-authored synthetic fixture labels",
+    "method": "explicit per-code expected-candidate annotation",
+    "provenance": "created solely for package detector evaluation; no research or external-source claims",
+    "judgment_truth_certified": false
+  },
+  "codes": ["EMPIRICAL-UNSUPPORTED", "INSIDER-NEGATION", "REGISTER-ABSENT", "TERM-COINAGE"],
+  "items": [
+    {
+      "id": "held-term-positive",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nA boundary-spanning role coordinates work.\n", "sha256": "f1d52a954a7ae739e060c7de42e721abd802e15f0398141e704a321487130565", "byte_length": 50},
+      "corpus": {"text": "A coordination role guides work.\n", "sha256": "2efa74bcee73c3bd8ef315d591f08a699d10b6d5c8afefc93ae113bc6b9be18d", "byte_length": 33},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": true, "rationale": "The hyphenated compound is absent from the held-out corpus.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-term-benign",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nA goal-oriented model coordinates work.\n", "sha256": "54dc530bf99950a0337cd412f5d4b3d4fe2d9500c1f4045cacbe9ff4986acb96", "byte_length": 47},
+      "corpus": {"text": "A goal oriented model coordinates work.\n", "sha256": "493da4ab13b5814a36258ba304cd8a012552ef54f4fe570e16ede2e11af021b4", "byte_length": 40},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "The corpus contains the compound as an equivalent lemma sequence.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-empirical-positive",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nTeams frequently revise.\n", "sha256": "a7a1947e7ddbf365c763bfb931331ae133bc23c53041d65e3ee63a8ab2de3779", "byte_length": 32},
+      "corpus": {"text": "Teams revise their plans.\n", "sha256": "f1e6adfbf18c602e005a70de0aa98451a9478fece1b271c855b57c5be5e6dcb3", "byte_length": 26},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": true, "rationale": "Frequently cues an uncited empirical generalization candidate.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-empirical-benign",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nTeams frequently revise (Yu, 1994).\n", "sha256": "28173ec98d63910ddf1e27e84b997ba5a4dfaabdcf5e55869d5035f0e0999315", "byte_length": 43},
+      "corpus": {"text": "Teams revise their plans.\n", "sha256": "f1e6adfbf18c602e005a70de0aa98451a9478fece1b271c855b57c5be5e6dcb3", "byte_length": 26},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "The empirical cue is accompanied by an author-year citation.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-insider-positive",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Abstract\nNot a protocol.\n\n# Body\nA neutral account.\n", "sha256": "06fc8a451ef020385968c6d62af52dffadc4a31e3006f3bc93d5cad83a821da3", "byte_length": 54},
+      "corpus": {"text": "A protocol appears in the synthetic corpus.\n", "sha256": "f914b6fa5d57852ab0a5fc8134dd314b4efcc3bffe0d8437b34d7b46a0878b7c", "byte_length": 44},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": true, "rationale": "The Abstract negates protocol before introducing that reader term.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-insider-benign",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Abstract\nA protocol is defined. It is not a protocol.\n\n# Body\nA neutral account.\n", "sha256": "0e8946fa3e3bd61e123171f038ea6c04f8ea3e2b0aed0b73a382eb293d774561", "byte_length": 83},
+      "corpus": {"text": "A protocol appears in the synthetic corpus.\n", "sha256": "f914b6fa5d57852ab0a5fc8134dd314b4efcc3bffe0d8437b34d7b46a0878b7c", "byte_length": 44},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "Protocol is introduced before its later negated occurrence.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-register-positive",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nAssemblages align. Assemblages matter. Assemblages persist.\n", "sha256": "4ca62ccdc7a659960ab2905d641019b39427b618fcd1d21d30cab536d971a1ae", "byte_length": 67},
+      "corpus": {"text": "A structure aligns with the evidence.\n", "sha256": "4bae77d43375247b7e9195b4dafec1b7feec9723d80b9bd93db2358f83546c07", "byte_length": 38},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": true, "rationale": "The repeated assemblage lemma is absent from the held-out corpus.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
+      "id": "held-register-benign",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nStructures align. Structures matter. Structures persist.\n", "sha256": "7466d2c90a8f2d482c89cf3685a1c261dd33bff716c073e3ecea6263b479ea16", "byte_length": 64},
+      "corpus": {"text": "A structure aligns with the evidence.\n", "sha256": "4bae77d43375247b7e9195b4dafec1b7feec9723d80b9bd93db2358f83546c07", "byte_length": 38},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "No empirical generalization cue appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "The repeated structure lemma is present in the corpus.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    }
+  ]
+}

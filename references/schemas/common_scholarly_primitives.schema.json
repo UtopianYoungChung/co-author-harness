@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json",
+  "title": "Co-author harness common contract primitives 1.0.0",
+  "$comment": "Mechanical primitives only. Domain schemas retain all semantic constraints and refusal vocabularies.",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byte_length"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "rootIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "identity",
+        "discovery",
+        "manifest_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "discovery": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "rootedBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "path",
+        "sha256",
+        "evidence_type"
+      ],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/rootIdentity"
+        },
+        "path": {
+          "$ref": "#/$defs/safePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "publicationChain": {
+      "type": "object",
+      "required": [
+        "transaction_id",
+        "publication_manifest",
+        "commit_marker"
+      ],
+      "properties": {
+        "transaction_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_manifest": {
+          "$ref": "#/$defs/rootedBinding"
+        },
+        "commit_marker": {
+          "$ref": "#/$defs/rootedBinding"
+        }
+      }
+    },
+    "chainLink": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "prior_row_sha256",
+        "row_sha256"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "prior_row_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

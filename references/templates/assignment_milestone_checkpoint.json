@@ -33,6 +33,10 @@
     "draft_evaluation": {
       "evidence_path": "reviews/.harness/shipments/<shipment-id>/draft_governance_M1_evaluation.verified.json",
       "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "reviews/.harness/shipments/<shipment-id>/scholarly_evaluation_M1.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   }
 }

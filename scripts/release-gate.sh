@@ -339,7 +339,7 @@ fi
 
 # --- Phase 0.55: registry checks (2026-07-06 improvement plan WS-2/WS-3) ---
 
-for REG_CHECK in version-planes-check.py commitment-interactions-check.py retirement-sweep-check.py; do
+for REG_CHECK in version-planes-check.py commitment-interactions-check.py phase_engagement_check.py retirement-sweep-check.py; do
     if [[ -f "$PLUGIN_ROOT/scripts/$REG_CHECK" ]]; then
         echo "Registry check ($REG_CHECK)"
         if ! python3 "$PLUGIN_ROOT/scripts/$REG_CHECK"; then

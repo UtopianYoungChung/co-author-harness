@@ -24,7 +24,7 @@ v0.7.0 replaces the v0.6.0 Progressive Approval Staircase (four rungs of progres
 
 **Advisor MCP (optional external feedback — plugin-bridged).** For projects that want **submission-defensibility–oriented** external consultation, the package recommends two **scheduled** `advisor-escalation` moments (see `references/ADVISOR_MCP.md`): **EP-1** after Ph2 review completion, before deep Ph3 iteration; **EP-2** after all in-scope sections reach `Ph3_converged`, before MCR clearance and Ph4. The co-author-harness **plugin** exposes `/advisor-escalation`; the **host** must connect the **advisor** MCP server so the `consult_advisor` tool is available. Filed `reviews/advisor_consultation_*.md` artefacts are auditable; they do **not** replace user approval on the ladder, `EXTERNAL_VERIFIERS` citation checks, or MCR/Ph4 gates.
 
-Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human approval` cycle appropriate to its lifecycle role. Ph1 runs `plan → centroid-conditioned draft → bounded independent policy evaluation → human milestone approval`. User approval at a phase advances the section per §8.1. The monotonicity invariant survives from v0.6.0: **a section's `last_approved_phase` is non-decreasing within a session except for explicit user-initiated phase-down** (§8.5) or a fingerprint demotion (§8.6).
+Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human approval` cycle appropriate to its lifecycle role. Ph1 runs `plan → binding-governed draft → bounded independent policy evaluation → human milestone approval`; centroid work appears only when enabled by the authoritative reader binding. User approval at a phase advances the section per §8.1. The monotonicity invariant survives from v0.6.0: **a section's `last_approved_phase` is non-decreasing within a session except for explicit user-initiated phase-down** (§8.5) or a fingerprint demotion (§8.6).
 
 **Retired at v0.7.0.** Depth-of-review tier vocabulary, Confirmation Mode at Ph2 entry, the Generator Self-Ph1 Verdict (CLEAN / SUSPECT / DIRTY), escalation gate EG-2 (Self-Ph1 verdict mismatch), the "Laggard Clearance Report" name, the `Ph4_ready` enum value, and `AGENT_ORCHESTRATION.md §10.1`'s artefact-anchored milestone definitions (superseded by §4 here). See §11 for the full retirement ledger.
 
@@ -54,7 +54,7 @@ Phases, milestones, and EYgp P-stages remain distinct questions recorded in one 
 
 ## 3. Per-phase specification
 
-*Source: draft-5 §3.* Per-phase specifications below are normative; the cross-phase matrix in §5 is their synthesis for agent orchestration.
+*Source: draft-5 §3.* Per-phase work specifications below are normative after engagement is resolved. The sole cross-phase agent-engagement authority is `references/policies/phase_engagement.v1.json`; §5 delegates to it.
 
 ### 3.1 Ph1 — Plan & Draft
 
@@ -64,17 +64,17 @@ Phases, milestones, and EYgp P-stages remain distinct questions recorded in one 
 | **Primary deliverables** | `milestones/M4_complete_paper_draft.md` at prose-completeness; `reviews/classification.md` (advisory at Ph1 entry, required at Ph1 exit). |
 | **Exit artefact** | `reviews/ph1_draft_completion.md` — Planner-signed declaration that every section has prose, every in-text citation has a `wiki/sources/` stub (via the new incremental SK-16 sibling), every placeholder is explicit. |
 | **Milestone relationship** | M1→M2→M3 normally supply the consumed planning chain required for Ph2 entry. |
-| **Active agents** | Planner, Generator. |
-| **Evaluator** | **Dormant** — no adversarial review at draft stage. |
+| **Active agents** | Planner, Generator, bounded independent Evaluator, Reflector-lightweight. Exact engagement values come from `references/policies/phase_engagement.v1.json`. |
+| **Evaluator** | Required bounded independent current-byte draft-policy pass; full revision-maturity review begins at Ph2. |
 | **Reflector mode** | Lightweight: grounding audit only (Rule 1 read-before-cite); non-blocking. |
 | **Deterministic checks** | `DETERMINISTIC_CHECKS.md` mandatory subset only (em-dashes, absolutes, LLM tics, sentence-length outliers). |
-| **Rule 1 digest exception** | Applies, but *scoped to prose drafting only*. Sections classified as M2 literature-review must run a full-file `grounding-audit` regardless — the exception does not cover literature-work prose (§10, Q-E resolution). |
+| **Rule 1 full-file floor** | Full-file grounding applies at every phase; the former Ph1 digest exception is retired. |
 | **`p-stage-checker` discipline** | High-priority at the Ph1 declaration point; blocking at Ph2 entry if declaration is absent or malformed; drift-only thereafter. |
 | **Classification** | Advisory at Ph1 entry (warning if absent); required at Ph1 exit (blocks `ph1_draft_completion.md`) — Q-B resolution. |
 | **User-gated exit** | User approves `ph1_draft_completion.md`; section auto-advances to Ph2, or remains at Ph1 if `applicable_ceiling == Ph1` (see §9.4 for Ph1-ceiling terminal-artefact semantics). |
 | **Wall-clock target** | Variable. The phase imposes no wall-clock budget; only artefact completeness. |
 
-**SD contract at Ph1.** The human researcher depends on the Planner for orchestration, the Generator for centroid-conditioned prose, and the Evaluator for independent current-byte compliance with centroid, D-STYLE, grammar, grounding, and every applicable policy overlay. This is a bounded draft-policy dependency; the full externalizability review remains Ph2. The Reflector's lightweight contract remains a safety dependency.
+**SD contract at Ph1.** The human researcher depends on the Planner for orchestration, the Generator for binding-governed prose, and the Evaluator for independent current-byte compliance with every capability-applicable policy overlay. Centroid generation and review apply only when enabled by the authoritative reader binding; reader-profile v2 with `semantic_usage: not_invoked` retains the non-graph controls without fabricating semantic evidence. This is a bounded draft-policy dependency; the full externalizability review remains Ph2. The Reflector's lightweight contract remains a safety dependency.
 
 ### 3.2 Ph2 — Review & Revise
 
@@ -350,14 +350,14 @@ Legacy projects may retain historical labels only behind an approved migration b
 
 ## 5. Agent role matrix
 
-*Source: draft-5 §5.* This matrix is the normative per-phase agent-role assignment; `AGENT_ORCHESTRATION.md §3` must be rewritten to match.
+This table is a human-readable projection of `references/policies/phase_engagement.v1.json`, the sole normative per-phase engagement authority. Work details remain in the phase sections above; automated coherence is enforced by `scripts/phase_engagement_check.py`.
 
 ### 5.1 The matrix
 
 | Agent | Ph1 Plan & Draft | Ph2 Review & Revise | Ph3 Iterate & Converge | Ph4 Finalize & Close |
 |---|---|---|---|---|
 | **Planner** | Bootstrap ledger, orchestrate drafting, freeze P-stage declaration. | Orchestrate Evaluator/Generator handoff, fire `p-stage-checker` (drift-only), track named owners of ESCALATED findings, **carry `named_owner` into Ph3 entry per §3.2.1**. | Orchestrate iteration loop, write cumulative signoff rows, track `ph3_last_activity_at`, emit convergence-stable and staleness warnings, **enforce `transfer_rationale` non-emptiness on ownership transfers**, gate on signed terminal row. | Orchestrate MCR admission (including `[Ph3-STALE]` clearance and EG-7 re-admission), coordinate terminal-phase composition, **formalize Reflector-emitted plugin proposals into `plugin_update_proposals.md`** (sole gatekeeper), **emit override-inconsistency warning on EG-6 fires**. |
-| **Evaluator** | **Dormant.** | Full first-pass review (seven-step judgment, deterministic full, grounding audit, abstract–body, contradictions, SAFEGUARD, Bacon, Sexton). | Re-review per iteration; re-engagement on unresolved findings plus fresh surfaces exposed by Generator revisions. | Terminal review: verify `submission_bundle/` against `main.md`, render-contract drift, external-verifier internalization. |
+| **Evaluator** | Bounded independent current-byte policy evaluation after each Generator publication. | Full revision-maturity review (seven-step judgment, deterministic full, grounding audit, abstract–body, contradictions, SAFEGUARD, Bacon, Sexton). | Re-review per iteration; re-engagement on unresolved findings plus fresh surfaces exposed by Generator revisions. | Terminal review: verify `submission_bundle/` against `main.md`, render-contract drift, external-verifier internalization. |
 | **Generator** | Primary active: drafting from lit anchors. | Respond to findings: per-finding RESOLVED / ACKNOWLEDGED / ESCALATED (with named owner); no new substantive claims. | Iterative response; per-round self-verdict `Ph3-verdict: CONVERGING / CONTESTED / DIVERGING`; **propose ownership transfer with rationale when escalated finding moves domain (§3.2.1)**. | Final polish: assemble submission bundle, cover letter, response letter; no new substantive claims. |
 | **Reflector** | **Lightweight:** grounding audit (Rule 1). | **Lightweight:** grounding integrity. | **Lightweight:** confirmation-failed history, drift, reflexivity. | **Full:** lessons extraction, Coupling A-revised reconciliation, Coupling B retrofit, Coupling C promotion, Coupling D ingest, skill-retirement proposals (R1–R5), skill-addition proposals (A1–A5, §5.3), tool-contract roundtrip. |
 

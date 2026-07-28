@@ -1,0 +1,201 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_kind": "scholarly_evaluation_red_boundary",
+  "provenance": {
+    "author": "Evidence Builder",
+    "origin": "self_authored_synthetic",
+    "live_research_material": false,
+    "purpose": "C1 frozen semantic boundary exercised by the C6 authenticated Evaluator transaction"
+  },
+  "cases": [
+    {
+      "id": "constructed_synthesis_as_direct_source",
+      "changed_fact": "provenance representation",
+      "changed_field": "provenance",
+      "clean_claim_text": "This essay constructs a comparison in which Author A may be narrower than Author B.",
+      "red_claim_text": "This essay constructs a comparison but states that Author A directly says Author A may be narrower than Author B.",
+      "red_span_text": "This essay constructs a comparison but states that Author A directly says Author A may be narrower than Author B.",
+      "clean_claim_profile": {"viewpoint": "constructed_synthesis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "cross_leg", "modal_force": "qualified", "warrant_relation": "candidate"},
+      "red_claim_profile": {"viewpoint": "constructed_synthesis", "provenance": "direct_source", "admission_use": "derivation_only", "argument_leg": "cross_leg", "modal_force": "qualified", "warrant_relation": "candidate"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-CONSTRUCTED-AS-SOURCE",
+          "code": "SCHOLARLY-CONSTRUCTED-SYNTHESIS-AS-DIRECT-SOURCE",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "The prose directly attributes a comparison that the claim register identifies as constructed synthesis.",
+          "reasoning": "A constructed relation is presented as if it were stated by one source.",
+          "required_disposition": "resolve_in_bytes_or_reclassify",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-CONSTRUCTED-SYNTHESIS-AS-DIRECT-SOURCE",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "derivation_only_declared_no_role",
+      "changed_fact": "declared argumentative role",
+      "changed_field": "admission_use",
+      "clean_claim_text": "This inference has a derivation-only role and may contribute to the claim.",
+      "red_claim_text": "This inference has no argumentative role and may contribute to the claim.",
+      "red_span_text": "This inference has no argumentative role and may contribute to the claim.",
+      "clean_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "candidate"},
+      "red_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "not_applicable", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "candidate"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-DERIVATION-NO-ROLE",
+          "code": "SCHOLARLY-DERIVATION-NO-ROLE",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "The prose declares no argumentative role while the inference still carries a claim.",
+          "reasoning": "A derivational claim cannot simultaneously declare that it has no argumentative role.",
+          "required_disposition": "assign_role_or_remove_claim",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-DERIVATION-NO-ROLE",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "cross_leg_generalization",
+      "changed_fact": "argument-leg scope",
+      "changed_field": "argument_leg",
+      "clean_claim_text": "Evidence E supports recognition only, so the conclusion remains limited to recognition.",
+      "red_claim_text": "Evidence E supports recognition only; therefore the conclusion also holds for composition.",
+      "red_span_text": "Evidence E supports recognition only; therefore the conclusion also holds for composition.",
+      "clean_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "recognition", "modal_force": "qualified", "warrant_relation": "constraint"},
+      "red_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "cross_leg", "modal_force": "qualified", "warrant_relation": "constraint"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-CROSS-LEG",
+          "code": "SCHOLARLY-CROSS-LEG-GENERALIZATION",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "A result established for the recognition leg is generalized to the composition leg.",
+          "reasoning": "The stated evidence does not warrant transfer across distinct argument legs.",
+          "required_disposition": "limit_scope_or_supply_warrant",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-CROSS-LEG-GENERALIZATION",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "necessary_only_promoted_to_sufficient",
+      "changed_fact": "warrant relation",
+      "changed_field": "warrant_relation",
+      "clean_claim_text": "The evidence establishes only that N is necessary for O; it does not establish sufficiency.",
+      "red_claim_text": "The evidence establishes only that N is necessary for O; therefore N is sufficient for O.",
+      "red_span_text": "The evidence establishes only that N is necessary for O; therefore N is sufficient for O.",
+      "clean_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "necessary"},
+      "red_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "sufficient"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-NECESSARY-SUFFICIENT",
+          "code": "SCHOLARLY-NECESSARY-AS-SUFFICIENT",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "A necessary condition is used as though it independently guarantees the outcome.",
+          "reasoning": "Necessity does not entail sufficiency.",
+          "required_disposition": "restore_modal_limit",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-NECESSARY-AS-SUFFICIENT",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "defeater_promoted_to_sufficient",
+      "changed_fact": "defeater force",
+      "changed_field": "warrant_relation",
+      "clean_claim_text": "The evidence only removes defeater D; this does not establish O.",
+      "red_claim_text": "The evidence only removes defeater D; therefore O is established.",
+      "red_span_text": "The evidence only removes defeater D; therefore O is established.",
+      "clean_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "defeater"},
+      "red_claim_profile": {"viewpoint": "author_analysis", "provenance": "author_derivation", "admission_use": "derivation_only", "argument_leg": "composition", "modal_force": "qualified", "warrant_relation": "sufficient"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-DEFEATER-SUFFICIENT",
+          "code": "SCHOLARLY-DEFEATER-AS-SUFFICIENT",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "The absence of one defeater is treated as sufficient positive warrant.",
+          "reasoning": "Removing a defeater does not itself establish the conclusion.",
+          "required_disposition": "supply_positive_warrant_or_limit_claim",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-DEFEATER-AS-SUFFICIENT",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "unhedged_author_comparison",
+      "changed_fact": "modal hedge",
+      "changed_field": "modal_force",
+      "clean_claim_text": "From this essay's interpretive comparison, Author A may be narrower than Author B.",
+      "red_claim_text": "From this essay's interpretive comparison, Author A is narrower than Author B.",
+      "red_span_text": "From this essay's interpretive comparison, Author A is narrower than Author B.",
+      "clean_claim_profile": {"viewpoint": "constructed_synthesis", "provenance": "cross_source_comparison", "admission_use": "derivation_only", "argument_leg": "cross_leg", "modal_force": "qualified", "warrant_relation": "candidate"},
+      "red_claim_profile": {"viewpoint": "constructed_synthesis", "provenance": "cross_source_comparison", "admission_use": "derivation_only", "argument_leg": "cross_leg", "modal_force": "asserted", "warrant_relation": "candidate"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-UNHEDGED-COMPARISON",
+          "code": "SCHOLARLY-UNHEDGED-AUTHOR-COMPARISON",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "An authorial comparison is stated categorically despite inferential provenance.",
+          "reasoning": "Claim strength exceeds the registered warrant and provenance.",
+          "required_disposition": "hedge_or_add_direct_support",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-UNHEDGED-AUTHOR-COMPARISON",
+      "clean_expected_findings": []
+    },
+    {
+      "id": "open_question_with_settled_answer",
+      "changed_fact": "question-answer status",
+      "changed_field": "modal_force",
+      "clean_claim_text": "The evidence leaves whether P holds as an open question, so no settled answer is offered.",
+      "red_claim_text": "The evidence leaves whether P holds as an open question, and P definitively holds.",
+      "red_span_text": "The evidence leaves whether P holds as an open question, and P definitively holds.",
+      "clean_claim_profile": {"viewpoint": "open_question", "provenance": "unresolved", "admission_use": "open_question", "argument_leg": "composition", "modal_force": "unresolved", "warrant_relation": "unresolved"},
+      "red_claim_profile": {"viewpoint": "open_question", "provenance": "unresolved", "admission_use": "open_question", "argument_leg": "composition", "modal_force": "asserted", "warrant_relation": "unresolved"},
+      "red_change": {
+        "op": "append",
+        "path": "findings",
+        "value": {
+          "finding_id": "F-QUESTION-SETTLED",
+          "code": "SCHOLARLY-OPEN-QUESTION-SETTLED",
+          "severity": "MAJOR",
+          "claim_id": "C-001",
+          "evidence": "The claim register marks the issue open while the prose asserts a settled answer.",
+          "reasoning": "Question status and answer force are inconsistent.",
+          "required_disposition": "align_question_and_answer_status",
+          "disposition": "open"
+        }
+      },
+      "expected_refusal_codes": ["SET-FINDING-UNRESOLVED"],
+      "expected_scholarly_code": "SCHOLARLY-OPEN-QUESTION-SETTLED",
+      "clean_expected_findings": []
+    }
+  ]
+}

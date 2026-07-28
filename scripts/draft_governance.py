@@ -17,10 +17,18 @@ from draft_evidence_verifier import (
     report_payload_sha256,
     validate_verifier_transaction,
 )
+from obligation_result import (
+    ObligationResultRefusal,
+    validate_obligation_registry,
+    verify_obligation_result,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
 POLICY_PATH = ROOT / "references" / "policies" / "draft_governance.v1.json"
+OBLIGATION_REGISTRY_PATH = (
+    ROOT / "references" / "policies" / "obligation_result_registry.v1.json"
+)
 READER_PROFILE = ROOT / "references" / "policies" / "reader_accessibility.v1.json"
 TARGETS = {"M1", "M2", "M3", "M4", "FINAL"}
 PHASE_ROLE = {"generation": "generator", "evaluation": "evaluator"}
@@ -60,6 +68,80 @@ def _load(path: Path, code: str) -> dict[str, Any]:
     return data
 
 
+def _resolved_obligation_registry(
+    policy: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    registry = _load(OBLIGATION_REGISTRY_PATH, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+    try:
+        adapters = validate_obligation_registry(registry)
+    except ObligationResultRefusal as exc:
+        raise ContractError(exc.code, exc.detail) from exc
+    policy_rows = {
+        row.get("id"): row
+        for row in policy.get("obligations", [])
+        if isinstance(row, dict) and isinstance(row.get("id"), str)
+    }
+    if set(policy_rows) != set(adapters):
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-UNKNOWN",
+            "draft-governance policy and obligation registry IDs differ",
+        )
+    for obligation_id, policy_row in policy_rows.items():
+        adapter = adapters[obligation_id]
+        if (
+            adapter.get("activation") != policy_row.get("activation")
+            or adapter.get("phases") != policy_row.get("phases")
+        ):
+            raise ContractError(
+                "DRAFT-POLICY-OBLIGATION-SCHEMA",
+                f"registry activation or phases split from policy: {obligation_id}",
+            )
+    return registry, adapters
+
+
+def _contract_obligations(
+    policy: dict[str, Any],
+    adapters: dict[str, dict[str, Any]],
+    phase: str,
+) -> list[dict[str, Any]]:
+    obligations: list[dict[str, Any]] = []
+    for row in policy.get("obligations", []):
+        if not isinstance(row, dict):
+            raise ContractError("DRAFT-POLICY-CONTRACT", "obligation row must be an object")
+        paths = []
+        for rel in row.get("paths", []):
+            source = (ROOT / rel).resolve()
+            if not source.is_file():
+                raise ContractError("DRAFT-POLICY-PATH", f"governing path is missing: {rel}")
+            paths.append({"path": rel, "sha256": _sha(source)})
+        adapter = adapters.get(row.get("id"))
+        if adapter is None:
+            raise ContractError(
+                "DRAFT-POLICY-OBLIGATION-UNKNOWN",
+                f"obligation is absent from the closed registry: {row.get('id')}",
+            )
+        obligations.append({
+            "id": row.get("id"),
+            "phases": row.get("phases"),
+            "activation": row.get("activation"),
+            "required_this_phase": phase in row.get("phases", []),
+            "sources": paths,
+            "typed_result_required": True,
+            "result_adapter": {
+                key: adapter[key]
+                for key in (
+                    "adapter_id",
+                    "adapter_version",
+                    "report_schema",
+                    "adjudication_schema",
+                    "blocking_threshold",
+                    "diagnostic_only",
+                )
+            },
+        })
+    return obligations
+
+
 def _safe_root(path: str) -> Path:
     try:
         root = Path(path).resolve(strict=True)
@@ -81,6 +163,33 @@ def _artifact(path: str) -> dict[str, Any]:
 
 
 def _centroid_binding(project: Path) -> dict[str, Any]:
+    state_path = project / "reviews" / "phase_state.json"
+    if state_path.is_file():
+        state = _load(state_path, "DRAFT-POLICY-CENTROID")
+        project_binding = (
+            state.get("milestone_framework", {})
+            .get("policy_bindings", {})
+            .get("reader_accessibility")
+        )
+        if (
+            isinstance(project_binding, dict)
+            and project_binding.get("binding_version") == "2.0.0"
+            and project_binding.get("semantic_usage") == "not_invoked"
+        ):
+            return {
+                "required": False,
+                "binding_provenance": "project",
+                "binding_version": "2.0.0",
+                "profile_path": project_binding.get("profile_path"),
+                "profile_sha256": project_binding.get("profile_sha256"),
+                "resolved_sha256": project_binding.get("resolved_sha256"),
+                "semantic_usage": "not_invoked",
+                "unavailable_code": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+                "generation_derivation": "not_invoked",
+                "evaluation_derivation": "not_invoked",
+                "revision_derivation": "not_invoked",
+                "c7_identity_fence_required": True,
+            }
     profile = _load(READER_PROFILE, "DRAFT-POLICY-CENTROID")
     model = profile.get("domain_native_register")
     if not isinstance(model, dict):
@@ -100,7 +209,6 @@ def _centroid_binding(project: Path) -> dict[str, Any]:
         "revision_derivation": "revise",
         "c7_identity_fence_required": True,
     }
-    state_path = project / "reviews" / "phase_state.json"
     if state_path.is_file():
         state = _load(state_path, "DRAFT-POLICY-CENTROID")
         project_binding = (
@@ -122,6 +230,15 @@ def _centroid_binding(project: Path) -> dict[str, Any]:
     return binding
 
 
+def _effective_obligations(
+    policy: dict[str, Any], adapters: dict[str, Any], phase: str, *, centroid_required: bool,
+) -> list[dict[str, Any]]:
+    obligations = _contract_obligations(policy, adapters, phase)
+    if centroid_required:
+        return obligations
+    return [row for row in obligations if row.get("id") != f"centroid-{phase}"]
+
+
 def prepare(args: argparse.Namespace) -> dict[str, Any]:
     project = _safe_root(args.project_root)
     if args.target not in TARGETS:
@@ -134,29 +251,17 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             f"role {args.role!r} does not satisfy phase {args.phase!r}",
         )
     policy = _load(POLICY_PATH, "DRAFT-POLICY-CONTRACT")
+    registry, adapters = _resolved_obligation_registry(policy)
     target_policy = policy.get("targets", {}).get(args.target)
     if not isinstance(target_policy, dict) or not all(
         target_policy.get(key) is True
         for key in ("centroid_generation_required", "centroid_evaluation_required")
     ):
         raise ContractError("DRAFT-POLICY-TARGET", f"target is not fully governed: {args.target}")
-    obligations: list[dict[str, Any]] = []
-    for row in policy.get("obligations", []):
-        if not isinstance(row, dict):
-            raise ContractError("DRAFT-POLICY-CONTRACT", "obligation row must be an object")
-        paths = []
-        for rel in row.get("paths", []):
-            source = (ROOT / rel).resolve()
-            if not source.is_file():
-                raise ContractError("DRAFT-POLICY-PATH", f"governing path is missing: {rel}")
-            paths.append({"path": rel, "sha256": _sha(source)})
-        obligations.append({
-            "id": row.get("id"),
-            "phases": row.get("phases"),
-            "activation": row.get("activation"),
-            "required_this_phase": args.phase in row.get("phases", []),
-            "sources": paths,
-        })
+    centroid = _centroid_binding(project)
+    obligations = _effective_obligations(
+        policy, adapters, args.phase, centroid_required=centroid.get("required") is True,
+    )
     return {
         "schema_version": "1.0.0",
         "status": "binding_resolved",
@@ -165,13 +270,19 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
             "sha256": _sha(POLICY_PATH),
             "policy_id": policy.get("policy_id"),
         },
+        "obligation_registry": {
+            "path": str(OBLIGATION_REGISTRY_PATH),
+            "sha256": _sha(OBLIGATION_REGISTRY_PATH),
+            "byte_length": OBLIGATION_REGISTRY_PATH.stat().st_size,
+            "registry_id": registry.get("registry_id"),
+        },
         "project_root": str(project),
         "target": args.target,
         "phase": args.phase,
         "required_role": PHASE_ROLE[args.phase],
         "artifact": _artifact(args.artifact or str(project / TARGET_PATHS[args.target])),
         "artifact_presence_rule": policy.get("artifact_presence_rule"),
-        "centroid": _centroid_binding(project),
+            "centroid": centroid,
         "obligations": obligations,
     }
 
@@ -185,6 +296,32 @@ def _binding(row: Any, code: str) -> Path:
         raise ContractError(code, f"evidence path is unreadable: {row.get('path')}") from exc
     if not path.is_file() or row.get("sha256") != _sha(path):
         raise ContractError(code, f"evidence binding is stale: {path}")
+    return path
+
+
+def _typed_result_binding(row: Any, project: Path) -> Path:
+    code = "DRAFT-POLICY-OBLIGATION-STALE"
+    if not isinstance(row, dict) or set(row) != {"path", "sha256", "byte_length"}:
+        raise ContractError(code, "typed result binding must contain path, sha256, and byte_length")
+    raw = row.get("path")
+    if not isinstance(raw, str) or not raw:
+        raise ContractError(code, "typed result path is missing")
+    source = Path(raw)
+    if not source.is_absolute():
+        source = project / source
+    if source.is_symlink():
+        raise ContractError(code, f"typed result path cannot be a link: {source}")
+    try:
+        path = source.resolve(strict=True)
+        path.relative_to(project.resolve(strict=True))
+    except (OSError, ValueError) as exc:
+        raise ContractError(code, f"typed result path is outside the project or unreadable: {source}") from exc
+    if (
+        not path.is_file()
+        or row.get("sha256") != _sha(path)
+        or row.get("byte_length") != path.stat().st_size
+    ):
+        raise ContractError(code, f"typed result binding is stale: {path}")
     return path
 
 
@@ -520,14 +657,59 @@ def _verify_current_semantic_transaction(
     }
 
 
-def verify(args: argparse.Namespace) -> dict[str, Any]:
+def verify(
+    args: argparse.Namespace,
+    *,
+    _test_authority_adapter: Any | None = None,
+) -> dict[str, Any]:
     contract_path = Path(args.contract).resolve(strict=True)
     receipt_path = Path(args.receipt).resolve(strict=True)
     artifact_path = Path(args.artifact).resolve(strict=True)
     contract = _load(contract_path, "DRAFT-POLICY-CONTRACT")
     receipt = _load(receipt_path, "DRAFT-POLICY-RECEIPT")
+    project = Path(str(contract.get("project_root", ""))).resolve(strict=True)
+    try:
+        artifact_rel = artifact_path.relative_to(project).as_posix()
+        contract_rel = contract_path.relative_to(project).as_posix()
+    except ValueError as exc:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            "artifact and resolved contract must remain below the bound project root",
+        ) from exc
+    current_policy = _load(POLICY_PATH, "DRAFT-POLICY-CONTRACT")
+    registry, adapters = _resolved_obligation_registry(current_policy)
+    policy_binding = contract.get("policy")
+    if (
+        not isinstance(policy_binding, dict)
+        or policy_binding.get("path") != str(POLICY_PATH)
+        or policy_binding.get("sha256") != _sha(POLICY_PATH)
+        or policy_binding.get("policy_id") != current_policy.get("policy_id")
+    ):
+        raise ContractError("DRAFT-POLICY-CONTRACT-STALE", "bound draft-governance policy is stale")
+    registry_binding = contract.get("obligation_registry")
+    if (
+        not isinstance(registry_binding, dict)
+        or set(registry_binding) != {"path", "sha256", "byte_length", "registry_id"}
+        or registry_binding.get("path") != str(OBLIGATION_REGISTRY_PATH)
+        or registry_binding.get("sha256") != _sha(OBLIGATION_REGISTRY_PATH)
+        or registry_binding.get("byte_length") != OBLIGATION_REGISTRY_PATH.stat().st_size
+        or registry_binding.get("registry_id") != registry.get("registry_id")
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            "bound obligation registry is stale",
+        )
     if contract.get("status") != "binding_resolved" or contract.get("phase") != args.phase:
         raise ContractError("DRAFT-POLICY-CONTRACT", "contract phase or status is invalid")
+    centroid_contract = contract.get("centroid")
+    centroid_required = isinstance(centroid_contract, dict) and centroid_contract.get("required") is True
+    if contract.get("obligations") != _effective_obligations(
+        current_policy, adapters, args.phase, centroid_required=centroid_required,
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            "contract obligation set or adapter bindings differ from current policy bytes",
+        )
     if contract.get("required_role") != args.role or PHASE_ROLE.get(args.phase) != args.role:
         raise ContractError("DRAFT-POLICY-ROLE", "role does not satisfy the contract")
     contract_artifact = contract.get("artifact")
@@ -562,7 +744,12 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     rows = receipt.get("obligations")
     if not isinstance(rows, list):
         raise ContractError("DRAFT-POLICY-RECEIPT", "obligations must be an array")
-    by_id = {row.get("id"): row for row in rows if isinstance(row, dict)}
+    if any(not isinstance(row, dict) or not isinstance(row.get("id"), str) for row in rows):
+        raise ContractError("DRAFT-POLICY-RECEIPT", "every obligation row needs one string id")
+    row_ids = [row["id"] for row in rows]
+    if len(set(row_ids)) != len(row_ids):
+        raise ContractError("DRAFT-POLICY-RECEIPT", "duplicate obligation result id")
+    by_id = {row["id"]: row for row in rows}
     required = {
         row["id"]: row for row in contract.get("obligations", [])
         if isinstance(row, dict) and args.phase in row.get("phases", [])
@@ -573,9 +760,89 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "DRAFT-POLICY-OBLIGATION-MISSING",
             "receipt omits: " + ", ".join(missing),
         )
+    extra = sorted(set(by_id) - set(required))
+    if extra:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-UNKNOWN",
+            "receipt includes obligations outside the phase contract: " + ", ".join(extra),
+        )
     centroid_evidence_paths: list[Path] = []
+    typed_obligation_ids: list[str] = []
+    lifecycle_clearing_obligation_ids: list[str] = []
+    diagnostic_obligation_ids: list[str] = []
     for obligation_id, contract_row in required.items():
         row = by_id[obligation_id]
+        adapter = adapters.get(obligation_id)
+        if adapter is None:
+            raise ContractError(
+                "DRAFT-POLICY-OBLIGATION-UNKNOWN",
+                f"obligation is absent from current registry: {obligation_id}",
+            )
+        if contract_row.get("typed_result_required") is True:
+            if set(row) != {"id", "result"}:
+                raise ContractError(
+                    "DRAFT-POLICY-OBLIGATION-SCHEMA",
+                    f"governed obligation requires one typed result binding: {obligation_id}",
+                )
+            result_path = _typed_result_binding(row.get("result"), project)
+            result = _load(result_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+            if result.get("obligation_id") != obligation_id:
+                raise ContractError(
+                    "DRAFT-POLICY-OBLIGATION-UNKNOWN",
+                    f"typed result identity differs from receipt row: {obligation_id}",
+                )
+            result_artifact = result.get("artifact")
+            result_policy = result.get("policy")
+            if (
+                not isinstance(result_artifact, dict)
+                or result_artifact.get("path") != artifact_rel
+                or result_artifact.get("sha256") != artifact_sha
+                or result_artifact.get("byte_length") != artifact_path.stat().st_size
+                or not isinstance(result_policy, dict)
+                or result_policy.get("path") != contract_rel
+                or result_policy.get("sha256") != _sha(contract_path)
+                or result_policy.get("byte_length") != contract_path.stat().st_size
+            ):
+                raise ContractError(
+                    "DRAFT-POLICY-OBLIGATION-STALE",
+                    f"typed result does not bind the receipt artifact and resolved contract: {obligation_id}",
+                )
+            try:
+                verified_result = verify_obligation_result(
+                    result,
+                    registry,
+                    root=project,
+                    _test_authority_adapter=_test_authority_adapter,
+                )
+            except ObligationResultRefusal as exc:
+                raise ContractError(exc.code, exc.detail) from exc
+            if adapter.get("diagnostic_only") is True:
+                if verified_result.get("lifecycle_eligible") is not False:
+                    raise ContractError(
+                        "DRAFT-POLICY-OBLIGATION-SCHEMA",
+                        f"diagnostic adapter claimed lifecycle clearance: {obligation_id}",
+                    )
+                diagnostic_obligation_ids.append(obligation_id)
+            elif verified_result.get("lifecycle_eligible") is not True:
+                raise ContractError(
+                    "DRAFT-POLICY-OBLIGATION-BLOCKING-OUTCOME",
+                    f"typed result is diagnostic-only or non-clearing: {obligation_id}",
+                )
+            else:
+                lifecycle_clearing_obligation_ids.append(obligation_id)
+            typed_obligation_ids.append(obligation_id)
+            if obligation_id == f"centroid-{args.phase}":
+                legacy = result.get("legacy_execution_evidence")
+                evidence = legacy.get("evidence") if isinstance(legacy, dict) else None
+                if not isinstance(evidence, list) or not evidence:
+                    raise ContractError(
+                        "DRAFT-POLICY-OBLIGATION-SCHEMA",
+                        f"centroid typed result lacks semantic execution evidence: {obligation_id}",
+                    )
+                centroid_evidence_paths = [
+                    _typed_result_binding(binding, project) for binding in evidence
+                ]
+            continue
         if set(row) != {"id", "status", "evidence", "rationale"}:
             raise ContractError("DRAFT-POLICY-RECEIPT", f"invalid obligation row: {obligation_id}")
         status = row.get("status")
@@ -597,6 +864,23 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if obligation_id == f"centroid-{args.phase}":
             centroid_evidence_paths = bound_paths
+    if not centroid_required:
+        return {
+            "schema_version": "1.0.0",
+            "status": "verified",
+            "phase": args.phase,
+            "role": args.role,
+            "target": contract.get("target"),
+            "contract_sha256": _sha(contract_path),
+            "artifact_sha256": artifact_sha,
+            "centroid": centroid_contract,
+            "obligation_ids": sorted(required),
+            "typed_obligation_result_ids": sorted(typed_obligation_ids),
+            "lifecycle_clearing_obligation_result_ids": sorted(lifecycle_clearing_obligation_ids),
+            "diagnostic_obligation_result_ids": sorted(diagnostic_obligation_ids),
+            "semantic_usage": "not_invoked",
+            "graph_capability": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+        }
     semantic_path, semantic_value = _load_semantic_receipt(centroid_evidence_paths)
     semantic = (
         _verify_current_semantic_transaction(
@@ -628,11 +912,20 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         "artifact_sha256": artifact_sha,
         "centroid": contract.get("centroid"),
         "obligation_ids": sorted(required),
+        "typed_obligation_result_ids": sorted(typed_obligation_ids),
+        "lifecycle_clearing_obligation_result_ids": sorted(
+            lifecycle_clearing_obligation_ids
+        ),
+        "diagnostic_obligation_result_ids": sorted(diagnostic_obligation_ids),
         **semantic,
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    _test_authority_adapter: Any | None = None,
+) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     prepare_parser = sub.add_parser("prepare")
@@ -662,7 +955,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        result = prepare(args) if args.command == "prepare" else verify(args)
+        result = (
+            prepare(args)
+            if args.command == "prepare"
+            else verify(args, _test_authority_adapter=_test_authority_adapter)
+        )
     except (ContractError, OSError) as exc:
         code = exc.code if isinstance(exc, ContractError) else "DRAFT-POLICY-IO"
         detail = exc.detail if isinstance(exc, ContractError) else str(exc)

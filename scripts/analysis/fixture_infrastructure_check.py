@@ -80,19 +80,27 @@ def _load(path: Path, name: str, repo: Path | None = None):
     module keeps its own references.
     """
     saved_path = list(sys.path)
-    shared = ("package_enumeration", "worktree_paths", "code_census",
+    shared = ("package_enumeration", "worktree_paths", "code_census", "fixture_cache",
               "resolve_includes")
     saved_mods = {k: sys.modules.pop(k, None) for k in shared}
+    saved_named = sys.modules.get(name)
     try:
         if repo is not None:
             sys.path.insert(0, str(repo / "scripts" / "analysis"))
             sys.path.insert(0, str(repo / "scripts"))
         spec = importlib.util.spec_from_file_location(name, path)
         mod = importlib.util.module_from_spec(spec)
+        # Dataclass resolution and exact-path imports legitimately consult
+        # sys.modules while the module body executes.
+        sys.modules[name] = mod
         spec.loader.exec_module(mod)
         return mod
     finally:
         sys.path[:] = saved_path
+        if saved_named is not None:
+            sys.modules[name] = saved_named
+        else:
+            sys.modules.pop(name, None)
         for k, v in saved_mods.items():
             if v is not None:
                 sys.modules[k] = v
@@ -141,6 +149,7 @@ def _make_clone(base: Path) -> Path:
     # construction, so this cannot dirty any digest).
     (repo / "scripts" / "analysis").mkdir(exist_ok=True)
     for rel in ("scripts/analysis/code_census.py",
+                "scripts/analysis/fixture_cache.py",
                 "scripts/analysis/fixture_runner.py",
                 "scripts/worktree_paths.py"):
         shutil.copy2(HARNESS / rel, repo / rel)
@@ -303,6 +312,77 @@ def case_checkout_digest_portability(repo: Path) -> None:
     target.write_bytes(original)
 
 
+def _cache_basis(seed: str) -> dict:
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+    return {
+        "runner_sha256": hashlib.sha256((seed + "runner").encode()).hexdigest(),
+        "census_sha256": hashlib.sha256((seed + "census").encode()).hexdigest(),
+        "cache_helper_sha256": hashlib.sha256((seed + "cache").encode()).hexdigest(),
+        "suite_sha256": hashlib.sha256((seed + "suite").encode()).hexdigest(),
+        "invocation_contract": {"fixture_file": f"scripts/{seed}.py", "case_id": "default"},
+        "tested_inputs": {"sha256": digest, "raw_sha256": digest},
+        "environment": {"host": "synthetic"},
+    }
+
+
+def case_cache_contract() -> None:
+    cache = _load(HARNESS / "scripts" / "analysis" / "fixture_cache.py",
+                  "fixture_cache_contract", repo=HARNESS)
+    with tempfile.TemporaryDirectory(prefix="fixture-cache-contract-") as td:
+        root = Path(td).resolve() / "cache"
+        basis = _cache_basis("alpha")
+        check("absent exact cache key is MISS", cache.lookup(root, basis) is cache.MISS)
+        staged = cache.stage_entry(
+            root,
+            basis=basis,
+            observed_exit=0,
+            stdout_sha256=hashlib.sha256(b"stdout").hexdigest(),
+            stderr_sha256=hashlib.sha256(b"stderr").hexdigest(),
+            source_run_id="synthetic-run",
+        )
+        check("staged entry is not yet visible", cache.lookup(root, basis) is cache.MISS)
+        published = cache.publish_staged([staged])
+        check("green final-call publishes exactly one entry", published == [staged.final_path])
+        hit = cache.lookup(root, basis)
+        check("published exact basis is a validated hit",
+              hit is not cache.MISS and hit["result"]["observed_exit"] == 0)
+
+        changed = json.loads(json.dumps(basis))
+        changed["invocation_contract"]["case_id"] = "changed"
+        check("basis mutation is MISS, never an adjacent hit",
+              cache.lookup(root, changed) is cache.MISS)
+
+        # A malformed object at the exact key is VOID, not MISS.
+        staged.final_path.write_bytes(b"{}\n")
+        refused = False
+        try:
+            cache.lookup(root, basis)
+        except cache.CacheError as exc:
+            refused = exc.code == cache.FIXTURE_CACHE_INVALID
+        check("malformed exact-key entry is FIXTURE-CACHE-INVALID", refused)
+
+    with tempfile.TemporaryDirectory(prefix="fixture-cache-atomic-") as td:
+        root = Path(td).resolve() / "cache"
+        first = cache.stage_entry(
+            root, basis=_cache_basis("first"), observed_exit=0,
+            stdout_sha256=hashlib.sha256(b"1").hexdigest(),
+            stderr_sha256=hashlib.sha256(b"").hexdigest(), source_run_id="r1")
+        second = cache.stage_entry(
+            root, basis=_cache_basis("second"), observed_exit=0,
+            stdout_sha256=hashlib.sha256(b"2").hexdigest(),
+            stderr_sha256=hashlib.sha256(b"").hexdigest(), source_run_id="r1")
+        second.final_path.write_bytes(b"conflict")
+        refused = False
+        try:
+            cache.publish_staged([first, second])
+        except cache.CacheError as exc:
+            refused = exc.code == cache.FIXTURE_CACHE_PUBLICATION
+        check("set publication refuses a conflicting later key", refused)
+        check("publication conflict exposes no earlier key", not first.final_path.exists())
+        check("publication conflict removes every staged entry",
+              not first.staged_path.exists() and not second.staged_path.exists())
+
+
 # --------------------------------------------------------------------------
 # R3: runner concurrency + void semantics (disposable clone)
 # --------------------------------------------------------------------------
@@ -333,16 +413,30 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
           dummy.is_file() and "must-survive-loser" in dummy.read_text(encoding="utf-8"))
     runner._release_lock(lock)
 
+    # Public callers cannot turn a focused registry into canonical evidence.
+    before = dummy.read_bytes()
+    rc = runner.run(registry, universe)
+    check("partial public run is refused (exit 2)", rc == 2, f"rc={rc}")
+    check("partial refusal leaves canonical evidence untouched", dummy.read_bytes() == before)
+
     # Upfront void: a RED mini run must (a) void the prior manifest at start,
     # (b) return 1, (c) write nothing new.
     bad_registry = {FAST_SUITE: [dict(runner._default_case(), expected_exit=1)]}
-    rc = runner.run(bad_registry, universe)
+    rc = runner.run(
+        bad_registry,
+        universe,
+        _test_only_allow_noncanonical_write=True,
+    )
     check("red run returns 1", rc == 1, f"rc={rc}")
     check("red run leaves NO manifest (old green evidence voided)",
           not dummy.is_file())
 
     # Green mini run writes evidence again.
-    rc = runner.run(registry, universe)
+    rc = runner.run(
+        registry,
+        universe,
+        _test_only_allow_noncanonical_write=True,
+    )
     check("green mini run returns 0", rc == 0, f"rc={rc}")
     check("green mini run wrote a manifest", dummy.is_file())
     man = json.loads(dummy.read_text(encoding="utf-8"))
@@ -352,10 +446,18 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
           not list(dummy.parent.glob("fixture_manifest.*.tmp")))
 
     before = dummy.read_bytes()
+    cache_root = runner._cache_root()
+    cache_before = sorted(cache_root.glob("*")) if cache_root.is_dir() else []
     rc = runner.run(registry, universe, write_manifest=False)
     check("green --no-write mini run returns 0", rc == 0, f"rc={rc}")
     check("--no-write preserves committed evidence byte-for-byte",
           dummy.read_bytes() == before)
+    cache_after = sorted(cache_root.glob("*")) if cache_root.is_dir() else []
+    check("cache-off run reads and writes no cache entries", cache_after == cache_before)
+
+    rc = runner.run(registry, universe, write_manifest=False, cache_mode="use")
+    check("cache-assisted partial run is refused (exit 2)", rc == 2, f"rc={rc}")
+    check("cache-assisted partial refusal preserves evidence", dummy.read_bytes() == before)
 
     rc = runner.run(bad_registry, universe, write_manifest=False)
     check("red --no-write mini run returns 1", rc == 1, f"rc={rc}")
@@ -379,7 +481,11 @@ def case_commit_stability(repo: Path) -> None:
     registry, universe = _mini_registry(runner)
     report = {"suite_universe": universe}
 
-    rc = runner.run(registry, universe)
+    rc = runner.run(
+        registry,
+        universe,
+        _test_only_allow_noncanonical_write=True,
+    )
     check("initial mini run in clone returns 0", rc == 0, f"rc={rc}")
 
     # TRACK the manifest, then regenerate. Without the exact-path exclusion
@@ -389,7 +495,11 @@ def case_commit_stability(repo: Path) -> None:
     _run_git(repo, "add", "docs/analysis/generated/fixture_manifest.json")
     _run_git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
              "commit", "--quiet", "-m", "test: track fixture manifest")
-    rc = runner.run(registry, universe)
+    rc = runner.run(
+        registry,
+        universe,
+        _test_only_allow_noncanonical_write=True,
+    )
     check("regeneration succeeds with manifest TRACKED", rc == 0, f"rc={rc}")
     ok, detail = census._check_suite_bound_manifest_consistency(report)
     check("evidence remains CURRENT after tracked regeneration",
@@ -418,7 +528,11 @@ def case_commit_stability(repo: Path) -> None:
     _run_git(repo, "add", "docs/analysis/generated/fixture_manifest.json.backup")
     _run_git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
              "commit", "--quiet", "-m", "test: track a near-name manifest sibling")
-    rc = runner.run(registry, universe)
+    rc = runner.run(
+        registry,
+        universe,
+        _test_only_allow_noncanonical_write=True,
+    )
     check("regeneration succeeds with a tracked near-name sibling", rc == 0, f"rc={rc}")
     baseline_ok, baseline_detail = census._check_suite_bound_manifest_consistency(report)
     check("evidence CURRENT with near-name sibling tracked", baseline_ok,
@@ -533,6 +647,7 @@ def case_cross_worktree_lock(repo: Path, base: Path) -> None:
         # predates these repairs; only the tooling under test is current).
         (wt / "scripts" / "analysis").mkdir(parents=True, exist_ok=True)
         for rel in ("scripts/analysis/code_census.py",
+                    "scripts/analysis/fixture_cache.py",
                     "scripts/analysis/fixture_runner.py",
                     "scripts/worktree_paths.py"):
             shutil.copy2(HARNESS / rel, wt / rel)
@@ -588,6 +703,9 @@ def main() -> int:
     print()
     print("case_census_writer_binding:")
     case_census_writer_binding()
+    print()
+    print("case_cache_contract:")
+    case_cache_contract()
     print()
     # Clone base derived repo-globally, like every other sandbox (F1): under
     # `.worktrees/` the old `HARNESS.parent` base put clones inside the repo.

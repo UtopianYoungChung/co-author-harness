@@ -134,7 +134,7 @@ The verified enforcement wiring is:
 
 | Hop | Current owner | Target contract |
 |---|---|---|
-| Dispatch | `agents/evaluator.md` runs Check 8 at Ph2-Ph4; Evaluator is dormant at Ph1. | Resolve the policy/profile hash before dispatch. |
+| Dispatch | `agents/evaluator.md` runs Check 8 at the scope selected by `references/policies/phase_engagement.v1.json`, including the bounded Ph1 pass. | Resolve the policy/profile hash before dispatch. |
 | Candidate probes | `DETERMINISTIC_CHECKS.md` defines A/D/E, G, and H prefilters; `check8_g_prefilter.py` and `check8_h_prefilter.py` are separate scripts. The canonical `scripts/audit/run_all.py` does not currently dispatch those G/H scripts, and H describes itself as a reference implementation. | Canonical runner dispatches every applicable probe through one loader; a missing probe produces an explicit outcome, never silent fallback. |
 | Judgment | `skills/accessibility-overlay` adjudicates local A–F, cumulative G, and register H findings; the safeguard layer separately mentions advisory J. | Overlay reads the same resolved profile, records its hash, and cannot silently omit a profile-listed Sub-check. |
 | Aggregate | Overlay computes CLEAN, BORDERLINE for one MAJOR, MAJOR for two or more MAJOR findings, and BLOCKER for any live BLOCKER, subject to recorded transitional flags. | Aggregate algorithm is profile-defined and contract-tested. |
@@ -426,7 +426,7 @@ Malformed state must produce controlled findings. No validator or phase gate may
 
 ## 14. Phase integration
 
-- **Within Ph1:** M1, M2, and M3 have separate handoff gates even though Evaluator remains dormant. Planner records user/advisor feedback honestly; Planner checklist evidence is never labeled Evaluator feedback.
+- **Within Ph1:** M1, M2, and M3 have separate handoff gates, and each Generator publication receives the bounded independent Evaluator pass required by `references/policies/phase_engagement.v1.json`. Planner records user/advisor feedback honestly; Planner checklist evidence is never labeled Evaluator feedback.
 - **Ph1→Ph2:** requires M1-M3 outcomes in `{READY, LEGACY_READY, NOT_APPLICABLE}` and consumed chain continuity.
 - **Ph2/Ph3:** M4 is the manuscript deliverable at review-ready depth. Section review continues through the existing phase ledger.
 - **Accessibility path:** Evaluator dispatches Check 8; the deterministic runner emits candidate probes from the resolved profile; the overlay adjudicates A–F locally, G cumulatively, and H by passage/register; the aggregate feeds the Planner terminal gate; Reflector-full audits recurrence without re-adjudicating findings. Ph2 runs A–F plus the H passage subset and defers G; Ph3/Ph4 run A–H at their applicable scope and severity.

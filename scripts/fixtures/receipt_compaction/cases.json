@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "receipt-compaction-heterogeneous-repeated-inventory-v1",
+  "provenance": {
+    "origin": "self-authored synthetic",
+    "author_role": "Evidence Builder",
+    "external_sources": []
+  },
+  "compacted_at": "2026-07-27T00:00:00Z",
+  "inventory_templates": {
+    "release-inventory": {
+      "entry_count": 70,
+      "path_prefix": "synthetic/release/component-",
+      "purpose": "Repeated synthetic source/cache/archive file facts for lossless compaction evaluation."
+    },
+    "runtime-inventory": {
+      "entry_count": 45,
+      "path_prefix": "synthetic/runtime/component-",
+      "purpose": "Repeated synthetic runtime qualification file facts with no authority effect."
+    }
+  },
+  "receipts": [
+    {
+      "relative_path": "source/source-receipt.json",
+      "inventory_template": "release-inventory",
+      "document": {
+        "schema_version": "7.0.0",
+        "receipt_id": "synthetic-source-r001",
+        "receipt_kind": "source",
+        "fixture_provenance": "self-authored synthetic",
+        "verdict": "PASS",
+        "check_counts": {"checks": 18, "failures": 0, "warnings": 1},
+        "warnings": ["Synthetic source warning."],
+        "recovery_commands": ["python synthetic_recover.py --lane source"],
+        "artifact_hashes": {"source_sha256": "1111111111111111111111111111111111111111111111111111111111111111"},
+        "nested_assurance": {
+          "outcome": "PASS",
+          "metrics": {"checked": 18, "failed": 0},
+          "alerts": ["Synthetic nested alert."],
+          "commands": ["python synthetic_nested_recover.py"],
+          "digests": {"nested_sha256": "7777777777777777777777777777777777777777777777777777777777777777"},
+          "canonical_aliases": {
+            "verdict": "PASS",
+            "status": "ready",
+            "state": "closed",
+            "disposition": "retained",
+            "counts": {"items": 18},
+            "totals": {"items": 18},
+            "statistics": {"items": 18},
+            "warnings": [],
+            "caveats": ["Synthetic caveat."],
+            "recovery": "synthetic recovery",
+            "remediation": ["synthetic remediation"],
+            "actions": ["synthetic action"],
+            "hashes": {"one": "8888888888888888888888888888888888888888888888888888888888888888"},
+            "checksums": {"two": "9999999999999999999999999999999999999999999999999999999999999999"}
+          },
+          "unclassified_detail": "Preserved only through exact detail reconstruction."
+        }
+      }
+    },
+    {
+      "relative_path": "cache/cache-receipt.json",
+      "inventory_template": "release-inventory",
+      "document": {
+        "cache_format": "synthetic-v2",
+        "receipt_id": "synthetic-cache-r002",
+        "fixture_provenance": "self-authored synthetic",
+        "cache_verdict": "WARN",
+        "cache_counts": {"hits": 17, "misses": 1},
+        "cache_warnings": ["Synthetic cache miss."],
+        "cache_recovery_command": "python synthetic_recover.py --lane cache",
+        "cache_hashes": {"cache_sha256": "2222222222222222222222222222222222222222222222222222222222222222"}
+      }
+    },
+    {
+      "relative_path": "archive/archive-receipt.json",
+      "inventory_template": "release-inventory",
+      "document": {
+        "archive_contract": "synthetic",
+        "receipt_id": "synthetic-archive-r003",
+        "fixture_provenance": "self-authored synthetic",
+        "archive_verdict": "FAIL",
+        "archive_entry_count": 70,
+        "archive_warnings": [],
+        "archive_recovery_commands": ["python synthetic_recover.py --lane archive", "python synthetic_verify.py --lane archive"],
+        "archive_hashes": {"zip_sha256": "3333333333333333333333333333333333333333333333333333333333333333"}
+      }
+    },
+    {
+      "relative_path": "release/release-receipt.json",
+      "inventory_template": "release-inventory",
+      "document": {
+        "release_version": "0.0.0-synthetic",
+        "receipt_id": "synthetic-release-r004",
+        "fixture_provenance": "self-authored synthetic",
+        "release_verdict": "PASS",
+        "release_counts": {"files": 70, "gates": 21},
+        "release_warnings": [],
+        "release_recovery_commands": ["python synthetic_recover.py --lane release"],
+        "release_hashes": {"package_sha256": "4444444444444444444444444444444444444444444444444444444444444444"}
+      }
+    },
+    {
+      "relative_path": "runtime/runtime-receipt-a.json",
+      "inventory_template": "runtime-inventory",
+      "document": {
+        "runtime_plane": "synthetic-host-a",
+        "receipt_id": "synthetic-runtime-r005",
+        "fixture_provenance": "self-authored synthetic",
+        "runtime_verdict": "BLOCKED",
+        "runtime_counts": {"probes": 12, "failures": 1},
+        "runtime_warnings": ["Synthetic host unavailable."],
+        "runtime_recovery_command": "python synthetic_recover.py --lane runtime-a",
+        "runtime_hashes": {"environment_sha256": "5555555555555555555555555555555555555555555555555555555555555555"}
+      }
+    },
+    {
+      "relative_path": "runtime/runtime-receipt-b.json",
+      "inventory_template": "runtime-inventory",
+      "document": {
+        "runtime_plane": "synthetic-host-b",
+        "receipt_id": "synthetic-runtime-r006",
+        "fixture_provenance": "self-authored synthetic",
+        "runtime_verdict": "PASS",
+        "runtime_counts": {"probes": 12, "failures": 0},
+        "runtime_warnings": [],
+        "runtime_recovery_command": "python synthetic_recover.py --lane runtime-b",
+        "runtime_hashes": {"environment_sha256": "6666666666666666666666666666666666666666666666666666666666666666"}
+      }
+    }
+  ]
+}

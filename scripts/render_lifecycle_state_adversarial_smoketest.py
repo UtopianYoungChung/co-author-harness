@@ -20,7 +20,7 @@ FIXED_TIME = "2026-07-13T18:00:00Z"
 
 def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-I", "-S", str(script), *args],
+        [sys.executable, str(script), *args],
         cwd=ROOT,
         text=True, encoding="utf-8", errors="replace",
         capture_output=True,
@@ -100,7 +100,7 @@ def main() -> int:
         import milestone_framework_smoketest as mf  # type: ignore
         accepted = parent / "accepted-chain"
         accepted.mkdir()
-        ledger = mf._materialize_native_project(accepted)
+        ledger = mf._materialize_native_project(accepted, include_scholarly=True)
         phase_document = mf._phase_document(ledger)
         accepted_source = accepted / "reviews" / "phase_state.json"
         accepted_source.parent.mkdir(parents=True, exist_ok=True)

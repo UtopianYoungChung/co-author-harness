@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "policy_id": "all-drafts-centroid-and-governing-style-v1",
-  "authority_note": "Every academic draft or revision governed by the harness is centroid-conditioned and independently evaluated against the complete applicable policy bundle. Artifact presence never satisfies or waives an obligation.",
+  "authority_note": "Every academic draft or revision governed by the harness is independently evaluated against the complete capability-applicable policy bundle. Centroid conditioning is required only when the authoritative reader binding enables governed semantic use; reader-profile v2 with semantic_usage not_invoked omits that unavailable graph obligation without waiving non-graph controls. Artifact presence never satisfies or waives an obligation.",
   "targets": {
     "M1": {"centroid_generation_required": true, "centroid_evaluation_required": true},
     "M2": {"centroid_generation_required": true, "centroid_evaluation_required": true},

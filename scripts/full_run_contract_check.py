@@ -1427,6 +1427,32 @@ def _structured_terminal_signoff_findings(project_root: Path, state: dict) -> li
     return findings
 
 
+def _full_lifecycle_na_findings(state: dict) -> list[dict]:
+    """Return the terminal-only refusal for every authorized N/A milestone."""
+
+    milestones = ((state.get("milestone_framework") or {}).get("milestones")
+                  if isinstance(state.get("milestone_framework"), dict) else None)
+    findings: list[dict] = []
+    if not isinstance(milestones, dict):
+        return findings
+    for key in ("M1", "M2", "M3", "M4", "M5"):
+        record = milestones.get(key)
+        if not isinstance(record, dict) or record.get("applicability") != "not_applicable":
+            continue
+        findings.append(_u(
+            "full_lifecycle", FRC_LOCAL["na_milestone"],
+            f"milestone_framework.milestones.{key}.applicability",
+            f"{key} is authorized not_applicable. That waiver is legal for "
+            "milestone-local and ad hoc validation, and it cannot satisfy a "
+            "full_lifecycle terminal claim: the user asked for the whole "
+            "ladder, so every milestone is required because they asked. A "
+            "waiver that turns 'ladder complete' from false to true is not "
+            "applicability -- it is the failure this contract exists to "
+            "prevent, in the vocabulary of a feature.",
+        ))
+    return findings
+
+
 def check_terminal(project_root: Path, state_override: dict | None = None) -> list[dict]:
     """The fifteen requirements. Absence of the project is itself requirement 0.
 
@@ -1464,15 +1490,35 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
     # `mfv.GATE_BOUNDARIES` is iterated directly: it is the sole authority for
     # which boundaries exist. A full_lifecycle terminal claim may not skip M4 or
     # M5 on an applicability declaration; see the note at the top of this file.
+    try:
+        gate_session = mfv._prepare_gate_validation_session(project_root, state)
+    except Exception as exc:  # noqa: BLE001
+        gate_session = None
+        gate_session_error: Exception | None = exc
+    else:
+        gate_session_error = None
     for boundary in mfv.GATE_BOUNDARIES:
+        if gate_session_error is not None:
+            unmet.append(_u(
+                boundary, FRC_LOCAL["raised"], "",
+                f"milestone validation raised {type(gate_session_error).__name__}: "
+                f"{gate_session_error}",
+            ))
+            continue
         try:
-            result = mfv.validate_gate(project_root, state, boundary)
+            result = mfv.validate_gate(
+                project_root, state, boundary, _session=gate_session,
+            )
         except Exception as exc:  # noqa: BLE001
             unmet.append(_u(boundary, FRC_LOCAL["raised"], "",
                             f"milestone validation raised {type(exc).__name__}: {exc}"))
             continue
         for finding in result.findings:
-            unmet.append(_u(boundary, finding.code, finding.path, finding.message))
+            code = {
+                "AMC-SCHOLARLY-EVALUATION-MISSING": "FRC-SCHOLARLY-EVALUATION-MISSING",
+                "AMC-SCHOLARLY-EVALUATION-STALE": "FRC-SCHOLARLY-EVALUATION-STALE",
+            }.get(finding.code, finding.code)
+            unmet.append(_u(boundary, code, finding.path, finding.message))
 
     # DIRECT refusal of any N/A milestone. Running every boundary is NOT enough:
     # the delegated validator legitimately SKIPS `not_applicable` records -- that
@@ -1484,20 +1530,7 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
     milestones = ((state.get("milestone_framework") or {}).get("milestones")
                   if isinstance(state.get("milestone_framework"), dict) else None)
     if isinstance(milestones, dict):
-        for key in ("M1", "M2", "M3", "M4", "M5"):
-            record = milestones.get(key)
-            if isinstance(record, dict) and \
-                    record.get("applicability") == "not_applicable":
-                unmet.append(_u(
-                    "full_lifecycle", FRC_LOCAL["na_milestone"],
-                    f"milestone_framework.milestones.{key}.applicability",
-                    f"{key} is authorized not_applicable. That waiver is legal for "
-                    "milestone-local and ad hoc validation, and it cannot satisfy a "
-                    "full_lifecycle terminal claim: the user asked for the whole "
-                    "ladder, so every milestone is required because they asked. A "
-                    "waiver that turns 'ladder complete' from false to true is not "
-                    "applicability -- it is the failure this contract exists to "
-                    "prevent, in the vocabulary of a feature."))
+        unmet.extend(_full_lifecycle_na_findings(state))
 
         # Every terminal deliverable must retain the same committed verifier
         # transactions accepted by the milestone transaction kernel.
@@ -1642,6 +1675,25 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                         "phase_state.terminal_phase_reached", "is not true"))
 
     if unmet:
+        # Preserve the terminal aggregate while also surfacing the frozen C7
+        # refusal vocabulary at top level.  Callers must not have to parse the
+        # aggregate's nested prose to distinguish absent from stale scholarly
+        # authority.
+        promoted: set[str] = set()
+        for row in unmet:
+            code = row.get("code")
+            if code not in {
+                "FRC-SCHOLARLY-EVALUATION-MISSING",
+                "FRC-SCHOLARLY-EVALUATION-STALE",
+            } or code in promoted:
+                continue
+            promoted.add(code)
+            findings.append(_f(
+                code,
+                row.get("message", "scholarly evaluation authority is invalid"),
+                path=row.get("path"),
+                boundary=row.get("boundary"),
+            ))
         findings.append(_f(
             "FRC-TERMINAL-UNPROVEN",
             f"{len(unmet)} of the FULL_RUN_CONTRACT §4 requirements are unmet; a "

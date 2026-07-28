@@ -36,6 +36,7 @@ jobs:
             output_economy_check.py \
             version-planes-check.py \
             commitment-interactions-check.py \
+            phase_engagement_check.py \
             retirement-sweep-check.py
           do
             echo "::group::$script"

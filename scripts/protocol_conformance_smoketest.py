@@ -39,7 +39,7 @@ def main() -> int:
             "dispatch_claims": 10,
             "dispatch_consumptions": 10,
             "verifier_transactions": 10,
-            "mutation_rows": 6,
+            "mutation_rows": 11,
         }
         assert report["tamper_results"] == {
             "candidate_text": "ADJUDICATION-STALE",

@@ -13,6 +13,9 @@
     "interpreter",
     "tool_versions",
     "identity",
+    "cleared_zip",
+    "normalization_policy",
+    "cache_state",
     "exact_files",
     "crlf_only",
     "semantic_differences",
@@ -76,6 +79,26 @@
         "canonical_archive_claim": {"type": "boolean"}
       }
     },
+    "cleared_zip": {
+      "anyOf": [
+        {"$ref": "#/$defs/clearedZip"},
+        {"type": "null"}
+      ]
+    },
+    "normalization_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "crlf_mode", "semantic_differences_block", "blocking_extras_block"],
+      "properties": {
+        "policy_id": {"const": "runtime-plane-normalization-v1"},
+        "crlf_mode": {"enum": ["forbid", "allow_utf8_crlf_only"]},
+        "semantic_differences_block": {"const": true},
+        "blocking_extras_block": {"const": true}
+      }
+    },
+    "cache_state": {
+      "enum": ["CACHE_PROVENANCE_MISSING", "CACHE_PROVENANCE_CONTAMINATED", "CODEX_CACHE_QUALIFIED"]
+    },
     "exact_files": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
     "crlf_only": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
     "semantic_differences": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
@@ -98,6 +121,18 @@
   },
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "clearedZip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byte_length", "source_commit", "provenance_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_length": {"type": "integer", "minimum": 1},
+        "source_commit": {"$ref": "#/$defs/gitCommit"},
+        "provenance_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
     "manifest": {
       "type": "object",
       "additionalProperties": false,
@@ -210,7 +245,7 @@
       "additionalProperties": false,
       "required": ["code", "severity", "message"],
       "properties": {
-        "code": {"type": "string", "pattern": "^RUNTIME-PLANE-[A-Z0-9-]+$"},
+        "code": {"type": "string", "pattern": "^(?:RUNTIME-PLANE-[A-Z0-9-]+|CACHE-PROVENANCE-(?:MISSING|CONTAMINATED))$"},
         "severity": {"enum": ["BLOCKER", "WARNING"]},
         "path": {"type": "string", "minLength": 1},
         "message": {"type": "string", "minLength": 1}

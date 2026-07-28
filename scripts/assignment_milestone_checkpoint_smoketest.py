@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
-import stat
 import subprocess
 import sys
 import tempfile
@@ -17,6 +15,9 @@ import draft_evidence_verifier as verifier
 from assignment_fixture_support import write_valid_contract
 from c2_evidence_fixture_support import build_activation_fixture
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
+from scholarly_assurance_fixture_support import (
+    build_qualified_scholarly_from_authorities,
+)
 from assignment_milestone_transaction import (
     MilestoneTransactionError, accept as accept_transaction,
     record as record_transaction,
@@ -31,6 +32,7 @@ WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
 CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
+SEMANTICS = ROOT / "references" / "semantics_manifest.v1.json"
 PATHS = {
     "M1": "milestones/M1_project_memo.md",
     "M2": "milestones/M2_annotated_references.md",
@@ -42,15 +44,6 @@ PATHS = {
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def is_read_only(path: Path) -> bool:
-    current = path.stat()
-    attributes = getattr(current, "st_file_attributes", 0)
-    read_only_flag = getattr(stat, "FILE_ATTRIBUTE_READONLY", 0x0001)
-    if attributes:
-        return bool(attributes & read_only_flag)
-    return not bool(current.st_mode & stat.S_IWUSR)
 
 
 def run(*args: object, expected: int = 0) -> subprocess.CompletedProcess[str]:
@@ -78,11 +71,25 @@ def _root_binding(project: Path, path: Path, root: str) -> dict[str, str]:
     }
 
 
+def _wiki_binding(project: Path, wiki_root: Path) -> dict[str, str]:
+    resolved = wiki_root.resolve()
+    if resolved.is_relative_to(project.resolve()):
+        root, base = "project", project.resolve()
+    else:
+        root, base = "harness", ROOT.resolve()
+    return {
+        "root": root,
+        "path": resolved.relative_to(base).as_posix(),
+        "manifest_sha256": sha(wiki_root / "manifest.json"),
+    }
+
+
 def _lifecycle_locator(
     project: Path, *, milestone: str, label: str, phase: str,
     receipt_id: str, paths: dict, claim: Path, consumption: Path,
     semantic_receipt: Path, wiki_root: Path,
     generation_transaction_id: str | None,
+    semantics_manifest: Path = ROOT / "references" / "semantics_manifest.v1.json",
 ) -> dict[str, str]:
     transaction = paths["transaction"]
     locator = (
@@ -104,13 +111,9 @@ def _lifecycle_locator(
         ),
         "commit_marker": _root_binding(project, paths["commit_marker"], "project"),
         "semantic_receipt": _root_binding(project, semantic_receipt, "project"),
-        "wiki_root": {
-            "root": "harness",
-            "path": wiki_root.resolve().relative_to(ROOT).as_posix(),
-            "manifest_sha256": sha(wiki_root / "manifest.json"),
-        },
+        "wiki_root": _wiki_binding(project, wiki_root),
         "semantics_manifest": _root_binding(
-            project, ROOT / "references" / "semantics_manifest.v1.json", "harness"
+            project, semantics_manifest, "harness"
         ),
         "dispatch_claim": _root_binding(project, claim, "project"),
         "dispatch_consumption": _root_binding(project, consumption, "project"),
@@ -229,14 +232,19 @@ def m4_acceptance_policy_input(project: Path) -> Path:
     document = state(project)
     framework = document["milestone_framework"]
     binding = framework["policy_bindings"]["reader_accessibility"]
-    manuscript = project / PATHS["M4"]
+    deliverable = next(
+        row for row in framework["milestones"]["M4"]["artifacts"]
+        if row.get("role") == "deliverable"
+    )
+    manuscript_relative = deliverable["path"]
+    manuscript = project / manuscript_relative
     transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}
     check8 = project / "reviews" / "check8_m4_converged.json"
     write_json(check8, {
-        "schema_version": "check8_evidence.v1", "cycle_id": "m4-converged-001",
+        "schema_version": "check8_evidence.v2", "cycle_id": "m4-converged-001",
         "profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"],
-        "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"],
-        "manuscript_path": PATHS["M4"], "manuscript_sha256": sha(manuscript), "phase": "Ph3",
+        "semantic_usage": "not_invoked",
+        "manuscript_path": manuscript_relative, "manuscript_sha256": sha(manuscript), "phase": "Ph3",
         "transition_snapshot": transition_snapshot,
         "subchecks": {letter: {"findings": []} for letter in "ABCDEFGH"},
         "subcheck_verdicts": {letter: "CLEAN" for letter in "ABCDEFGH"},
@@ -254,15 +262,28 @@ def m4_acceptance_policy_input(project: Path) -> Path:
 
 
 def publish(
-    project: Path, milestone: str, content: bytes, *, label: str = "initial"
-) -> tuple[Path, dict]:
+    project: Path, milestone: str, content: bytes, *, label: str = "initial",
+    include_dstyle: bool = False,
+    ) -> tuple[Path, dict]:
     activation = build_activation_fixture(
         project,
         artifact_relative=PATHS[milestone],
         evidence_relative=f"reviews/.harness/fixtures/{milestone.lower()}-{label}",
     )
     suffix = content.decode("utf-8", errors="strict").strip()
-    activation.mutate_artifact(lambda text: f"{text}\n\n{suffix}\n")
+    claim_text = (
+        "This paper argues a bounded claim because evidence supports the warrant "
+        "and explains the stakes. However, a limitation defines the scope and an "
+        "alternative explanation. AI-assisted work is disclosed."
+        if include_dstyle
+        else f"A bounded synthetic {milestone} claim remains qualified."
+    )
+    activation.mutate_artifact(
+        lambda text: (
+            f"{text}\n\n{suffix}\n\n# Synthetic analysis\n\n"
+            f"{claim_text}\n"
+        )
+    )
     project_manifest = project / "project_manifest.json"
     if not project_manifest.is_file():
         write_json(project_manifest, {
@@ -313,6 +334,7 @@ def publish(
         project / "reviews" / ".harness" / "verifier"
         / f"{milestone.lower()}-{label}"
     )
+    semantics = SEMANTICS
     generation_paths = verifier.publish_verifier_transaction(
         artifact=activation.artifact,
         semantic_receipt=activation.receipt,
@@ -320,7 +342,7 @@ def publish(
         project_root=project,
         wiki_root=activation.wiki_root,
         harness_root=ROOT,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        semantics_manifest=semantics,
         out_dir=verifier_root / "generation",
         requested_independence_level="none",
     )
@@ -334,38 +356,34 @@ def publish(
         generation_commit_marker=generation_paths["commit_marker"],
         generation_semantic_receipt=activation.receipt,
         wiki_root=activation.wiki_root,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        semantics_manifest=semantics,
         nonce=hashlib.sha256(f"{milestone}:{label}:evaluation".encode()).hexdigest()[:32],
         issuer_transaction_id=f"assignment-evaluation-{milestone}",
         issued_at="2026-07-19T00:00:02Z",
     )
-    evaluation_consumption, evaluation_consumption_path, _ = (
-        dispatch_claims.consume_dispatch_claim(
-            project,
-            evaluation_claim_path,
-            role="evaluator",
-            consumer_transaction_id=f"evaluation-{milestone}",
-            target_paths=[PATHS[milestone]],
-            consumed_at="2026-07-19T00:00:03Z",
-        )
+    scholarly = build_qualified_scholarly_from_authorities(
+        project,
+        authorities={
+            "artifact": activation.artifact,
+            "artifact_relative": PATHS[milestone],
+            "receipt_id": record["receipt_id"],
+            "reservation_id": record["reservation_id"],
+            "activation": activation,
+            "semantics": semantics,
+            "generation": generation_claim,
+            "generation_path": generation_claim_path,
+            "generation_consumption": generation_consumption_path,
+            "generation_paths": generation_paths,
+            "evaluator": evaluation_claim,
+            "evaluator_path": evaluation_claim_path,
+        },
+        label=f"{milestone.lower()}-{label}",
+        claim_text=claim_text,
+        include_dstyle=include_dstyle,
     )
-    evaluation_semantic = verifier_root / "evaluation-semantic.json"
-    evaluation_value = json.loads(activation.receipt.read_text(encoding="utf-8"))
-    evaluation_value["phase"] = "evaluation"
-    evaluation_value["role"] = "evaluator"
-    evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
-    evaluation_semantic.write_bytes(verifier.canonical_bytes(evaluation_value))
-    evaluation_paths = verifier.publish_verifier_transaction(
-        artifact=activation.artifact,
-        semantic_receipt=evaluation_semantic,
-        phase="evaluation",
-        project_root=project,
-        wiki_root=activation.wiki_root,
-        harness_root=ROOT,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
-        out_dir=verifier_root / "evaluation",
-        requested_independence_level="none",
-    )
+    evaluation_consumption_path = scholarly.evaluation_consumption
+    evaluation_semantic = scholarly.evaluation_semantic_receipt
+    evaluation_paths = scholarly.evaluation_verifier
     generation_id = json.loads(
         generation_paths["transaction"].read_text(encoding="utf-8")
     )["transaction_id"]
@@ -376,6 +394,7 @@ def publish(
             claim=generation_claim_path, consumption=generation_consumption_path,
             semantic_receipt=activation.receipt, wiki_root=activation.wiki_root,
             generation_transaction_id=None,
+            semantics_manifest=semantics,
         ),
         "draft_evaluation": _lifecycle_locator(
             project, milestone=milestone, label=label, phase="evaluation",
@@ -383,12 +402,13 @@ def publish(
             claim=evaluation_claim_path, consumption=evaluation_consumption_path,
             semantic_receipt=evaluation_semantic, wiki_root=activation.wiki_root,
             generation_transaction_id=generation_id,
+            semantics_manifest=semantics,
         ),
+        "scholarly_evaluation": scholarly.binding,
     }
     assert generation_claim["receipt_id"] == record["receipt_id"]
     assert generation_consumption["claim_id"] == generation_claim["claim_id"]
     assert evaluation_claim["receipt_id"] == record["receipt_id"]
-    assert evaluation_consumption["claim_id"] == evaluation_claim["claim_id"]
     return consumed_receipt, policy
 
 
@@ -423,12 +443,12 @@ def main() -> int:
             run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             run(VALIDATOR, "--project-root", project)
 
-        # The re-pin producer publishes a request; only this Planner command
-        # may refresh the phase binding and archive that request. M3 acceptance
-        # leaves no round open, so exercise both fail-closed request validation
-        # and the positive state-last path at the authorized boundary.
+        # Reader-profile v2 does not consume semantic re-pin requests. The
+        # command remains fail-closed and byte-preserving; legacy semantic-v1
+        # request handling is covered by the dedicated re-pin regressions.
         initial = state(project)
         initial_binding = initial["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+        assert initial_binding["binding_version"] == "2.0.0"
         request_path = project / "reviews" / "repin_rebind_request.json"
         write_json(request_path, {"status": "pending"})
         before_open_round_refusal = (project / "reviews" / "phase_state.json").read_bytes()
@@ -452,72 +472,7 @@ def main() -> int:
         refused = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project, expected=4)
         assert "AMC-REPIN-REQUEST" in refused.stdout
         assert (project / "reviews" / "phase_state.json").read_bytes() == before_invalid_rebind
-        repin_rows = [
-            json.loads(line) for line in
-            (ROOT / "references" / "policies" / "repin_log.jsonl").read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        epoch = initial_binding["pin_epoch"]
-        repin_row = next(row for row in repin_rows if row.get("epoch") == epoch)
-        write_json(request_path, {
-            "request_id": "synthetic-inert-rebind",
-            "pin_epoch": epoch,
-            "profile_sha256": initial_binding["profile_sha256"],
-            "attestation_view_pin": "f" * 64,
-            "exemplar_view_pin": initial_binding["exemplar_view_pin"],
-            "delta_class": repin_row["delta_class"],
-            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
-            "status": "pending",
-        })
-        inert_sha = sha(request_path)
-        before_inert_archive = (project / "reviews" / "phase_state.json").read_bytes()
-        refused = run(
-            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
-            "--archive-stale-request", "--expected-request-sha256", "0" * 64,
-            expected=4,
-        )
-        assert "AMC-REPIN-REQUEST-HASH" in refused.stdout
-        assert request_path.is_file()
-        run(
-            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
-            "--archive-stale-request", "--expected-request-sha256", inert_sha,
-        )
-        stale_archives = list((project / "reviews").glob(f"repin_rebind_request.{epoch}.*.stale.json"))
-        assert len(stale_archives) == 1 and not request_path.exists()
-        stale = json.loads(stale_archives[0].read_text(encoding="utf-8"))
-        assert stale["status"] == "archived_stale" and stale["request_sha256"] == inert_sha
-        assert stale["request"]["request_id"] == "synthetic-inert-rebind"
-        assert (project / "reviews" / "phase_state.json").read_bytes() == before_inert_archive
-        write_json(request_path, {
-            "request_id": "synthetic-planner-rebind",
-            "pin_epoch": epoch,
-            "profile_sha256": initial_binding["profile_sha256"],
-            "attestation_view_pin": initial_binding["attestation_view_pin"],
-            "exemplar_view_pin": initial_binding["exemplar_view_pin"],
-            "delta_class": repin_row["delta_class"],
-            "repin_log_ref": f"references/policies/repin_log.jsonl#epoch-{epoch}",
-            "status": "pending",
-        })
-        current_request_sha = sha(request_path)
-        refused = run(
-            CHECKPOINT, "rebind-reader-policy", "--project-root", project,
-            "--archive-stale-request", "--expected-request-sha256", current_request_sha,
-            expected=4,
-        )
-        assert "AMC-REPIN-REQUEST-CURRENT" in refused.stdout and request_path.is_file()
-        state_path = project / "reviews" / "phase_state.json"
-        os.chmod(state_path, stat.S_IREAD)
-        try:
-            run(CHECKPOINT, "rebind-reader-policy", "--project-root", project)
-            assert is_read_only(state_path), "Planner rebind must preserve the read-only state attribute"
-        finally:
-            os.chmod(state_path, stat.S_IREAD | stat.S_IWRITE)
-        archive = project / "reviews" / f"repin_rebind_request.{epoch}.applied.json"
-        applied = json.loads(archive.read_text(encoding="utf-8"))
-        rebound = state(project)["milestone_framework"]["policy_bindings"]["reader_accessibility"]
-        assert not request_path.exists() and applied["status"] == "applied"
-        assert applied["applied_by"] == "planner" and rebound["pin_epoch"] == epoch
-        assert rebound["transitions"] == initial_binding["transitions"]
+        request_path.unlink()
         run(VALIDATOR, "--project-root", project)
 
         before_wrong_begin = (project / "reviews" / "phase_state.json").read_bytes()
@@ -527,7 +482,7 @@ def main() -> int:
         print("walk/M4-started", flush=True)
         before = state(project)["milestone_framework"]["milestones"]["M4"]
         assert before["status"] == "in_progress" and not before["artifacts"]
-        assert set(before["policy_evidence"]) == {"profile_path", "profile_sha256", "resolved_sha256", "attestation_view_pin", "exemplar_view_pin"}
+        assert set(before["policy_evidence"]) == {"profile_path", "profile_sha256", "resolved_sha256", "semantic_usage"}
         run(VALIDATOR, "--project-root", project)
 
         consumed, draft_policy = publish(

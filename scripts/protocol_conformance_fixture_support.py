@@ -424,7 +424,7 @@ def build_protocol_conformance(base: Path) -> ProtocolConformanceFixture:
             "dispatch_claims": 10,
             "dispatch_consumptions": 10,
             "verifier_transactions": 10,
-            "mutation_rows": 6,
+            "mutation_rows": 11,
         }:
             raise AssertionError(f"unexpected production counts: {production_counts}")
         tampers = _tamper_results(project, candidate)

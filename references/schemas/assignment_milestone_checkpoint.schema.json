@@ -27,10 +27,11 @@
     "policy_evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["draft_generation", "draft_evaluation"],
+      "required": ["draft_generation", "draft_evaluation", "scholarly_evaluation"],
       "properties": {
         "draft_generation": {"$ref": "#/$defs/evidence_binding"},
         "draft_evaluation": {"$ref": "#/$defs/evidence_binding"},
+        "scholarly_evaluation": {"$ref": "#/$defs/evidence_binding"},
         "wiki_grounding": {
           "type": "object", "additionalProperties": false,
           "required": ["evidence_path", "evidence_sha256"],

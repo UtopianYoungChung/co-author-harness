@@ -24,7 +24,7 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 
 ## Features
 
-* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives centroid-conditioned Generator work and an independent current-byte Evaluator policy pass, including at Ph1; the full revision-maturity review begins at Ph2. Model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
+* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives centroid-conditioned Generator work and an independent current-byte Evaluator policy pass, including at Ph1; the full revision-maturity review begins at Ph2. Role engagement is governed by [`references/policies/phase_engagement.v1.json`](references/policies/phase_engagement.v1.json); model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **Artifact presence is not compliance.** [`references/policies/draft_governance.v1.json`](references/policies/draft_governance.v1.json) binds centroid, D-STYLE, retained grammar/style rules, grounding, deterministic checks, SAFEGUARD, and applicable overlays before generation and after evaluation. Milestone record and terminal close require exact-byte evidence from both roles.
 * **Two orthogonal axes.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). Assignment-derived deliverables describe the *project* arc; the phase ladder governs *review and revision*. The backward-compatible M5 machine slot may represent a final paper that the assignment treats separately from its named milestones.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
@@ -47,7 +47,7 @@ See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the
 | [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
 | [`references/CLAUDE.md`](references/CLAUDE.md) | **Package-level** invocation rules and component map. |
 
-**New project?** [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md) seeds the standard directories (`manuscript/`, `reviews/`, `research_notes/`). **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
+**New project?** Use `scripts/native_project_bootstrap.py` exactly as specified in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md); it atomically seeds the standard directories and the mandatory graph-independent reader-profile v2 binding. Hand-built native ledgers are not supported. **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
 
 ---
 
@@ -126,6 +126,7 @@ python scripts/snippet-check.py
 python scripts/output_economy_check.py
 python scripts/version-planes-check.py
 python scripts/commitment-interactions-check.py
+python scripts/phase_engagement_check.py
 python scripts/retirement-sweep-check.py
 python scripts/analysis/fixture_infrastructure_check.py
 python scripts/analysis/fixture_runner.py --no-write

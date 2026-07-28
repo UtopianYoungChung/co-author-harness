@@ -132,7 +132,7 @@ Milestones and phases are orthogonal. Milestones name project deliverables and a
 
 - [x] **Step 3: Reconcile historical M1-M3 instructions**
 
-Update `M1_M2_M3_PLANNING_PHASE_README.md` so Planner/user feedback is not mislabeled Evaluator feedback while Evaluator remains dormant at Ph1.
+Update `M1_M2_M3_PLANNING_PHASE_README.md` so Planner/user feedback is not mislabeled Evaluator feedback; the bounded independent Ph1 Evaluator pass remains a distinct evidence source under `references/policies/phase_engagement.v1.json`.
 
 - [x] **Step 4: Route the protocol through MANIFEST**
 

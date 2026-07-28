@@ -18,7 +18,8 @@ import re
 import site
 import subprocess
 import sys
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
@@ -120,6 +121,53 @@ def _baseline_members(root: Path, commit: str | None) -> list[str] | None:
     return sorted(name.replace("\\", "/") for name in names if not name.lower().endswith((".zip", ".plugin")))
 
 
+def _commit_inventory(root: Path, commit: str) -> dict[str, dict[str, Any]]:
+    """Read baseline bytes from the named Git tree, never from a dirty worktree."""
+
+    try:
+        tree = subprocess.run(
+            ["git", "-C", str(root), "ls-tree", "-r", "-z", commit],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise ProbeRefusal("RUNTIME-PLANE-SOURCE-COMMIT", f"cannot inspect source commit: {exc}") from exc
+    if tree.returncode != 0:
+        raise ProbeRefusal("RUNTIME-PLANE-SOURCE-COMMIT", "cannot enumerate the exact source commit")
+    inventory: dict[str, dict[str, Any]] = {}
+    for entry in filter(None, tree.stdout.split(b"\0")):
+        try:
+            header, raw_name = entry.split(b"\t", 1)
+            mode, object_type, object_id = header.decode("ascii").split()
+            rel = raw_name.decode("utf-8", errors="strict").replace("\\", "/")
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ProbeRefusal(
+                "RUNTIME-PLANE-SOURCE-COMMIT", "source commit contains an undecodable tree entry"
+            ) from exc
+        if rel.lower().endswith((".zip", ".plugin")):
+            continue
+        if object_type != "blob":
+            raise ProbeRefusal(
+                "RUNTIME-PLANE-SOURCE-COMMIT", f"unsupported non-blob package member: {rel}"
+            )
+        blob = subprocess.run(
+            ["git", "-C", str(root), "cat-file", "blob", object_id],
+            capture_output=True,
+            check=False,
+        )
+        if blob.returncode != 0:
+            raise ProbeRefusal(
+                "RUNTIME-PLANE-SOURCE-COMMIT", f"cannot read source-commit blob: {rel}"
+            )
+        inventory[rel] = {
+            "path": rel,
+            "kind": "symlink" if mode == "120000" else "file",
+            "sha256": _sha(blob.stdout),
+            "_bytes": blob.stdout,
+        }
+    return dict(sorted(inventory.items()))
+
+
 def _entry(path: Path, rel: str) -> dict[str, Any]:
     if path.is_symlink():
         data = os.readlink(path).encode("utf-8", errors="surrogatepass")
@@ -203,7 +251,155 @@ def _is_crlf_only(baseline: Mapping[str, Any], local: Mapping[str, Any]) -> bool
         local_text = local["_bytes"].decode("utf-8", errors="strict")
     except UnicodeDecodeError:
         return False
-    return baseline_text.replace("\r\n", "\n") == local_text.replace("\r\n", "\n")
+    baseline_lf = baseline_text.replace("\r\n", "\n")
+    local_lf = local_text.replace("\r\n", "\n")
+    return (
+        "\r" not in baseline_lf
+        and "\r" not in local_lf
+        and baseline_lf == local_lf
+    )
+
+
+def _safe_archive_name(name: str) -> bool:
+    """Accept only one portable, relative file spelling per ZIP member."""
+
+    if not name or "\\" in name or name.startswith(("/", "\\")):
+        return False
+    if re.match(r"^[A-Za-z]:", name):
+        return False
+    parts = PurePosixPath(name).parts
+    return (
+        not name.endswith("/")
+        and bool(parts)
+        and all(part not in {"", ".", ".."} for part in parts)
+        and PurePosixPath(name).as_posix() == name
+    )
+
+
+def _archive_inventory(path: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Read a ZIP without extraction and report every unsafe/ambiguous member."""
+
+    inventory: dict[str, dict[str, Any]] = {}
+    errors: list[str] = []
+    seen_portable: set[str] = set()
+    try:
+        with zipfile.ZipFile(path, "r") as archive:
+            for info in archive.infolist():
+                name = info.filename
+                portable = name.casefold()
+                if not _safe_archive_name(name):
+                    errors.append(f"unsafe archive member: {name!r}")
+                    continue
+                if portable in seen_portable:
+                    errors.append(f"duplicate archive member: {name!r}")
+                    continue
+                seen_portable.add(portable)
+                mode = (info.external_attr >> 16) & 0o170000
+                if mode == 0o120000:
+                    errors.append(f"archive symlink is forbidden: {name!r}")
+                    continue
+                try:
+                    data = archive.read(info)
+                except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+                    errors.append(f"unreadable archive member {name!r}: {exc}")
+                    continue
+                inventory[name] = {
+                    "path": name,
+                    "kind": "file",
+                    "sha256": _sha(data),
+                    "_bytes": data,
+                }
+    except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+        errors.append(f"cleared ZIP is unreadable: {exc}")
+    return dict(sorted(inventory.items())), errors
+
+
+def _archive_provenance(
+    inventory: Mapping[str, Mapping[str, Any]],
+) -> tuple[dict[str, Any], bool]:
+    """Validate the builder provenance against the archive it actually inhabits."""
+
+    record = inventory.get(PROVENANCE_REL)
+    result: dict[str, Any] = {
+        "kind": "embedded_archive",
+        "path": PROVENANCE_REL,
+        "status": "missing",
+        "schema": None,
+        "commit": None,
+        "sha256": None,
+    }
+    if record is None:
+        return result, False
+    raw = record["_bytes"]
+    result["sha256"] = record["sha256"]
+    try:
+        value = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        result["status"] = "invalid"
+        return result, False
+    schema = value.get("schema") if isinstance(value, dict) else None
+    commit = value.get("commit") if isinstance(value, dict) else None
+    result["schema"] = schema if isinstance(schema, str) else None
+    result["commit"] = (
+        commit.lower()
+        if isinstance(commit, str) and COMMIT_RE.fullmatch(commit.lower())
+        else None
+    )
+    package_members = {key: row for key, row in inventory.items() if key != PROVENANCE_REL}
+    valid = (
+        isinstance(value, dict)
+        and schema == "coauthor-build-provenance/v1"
+        and result["commit"] is not None
+        and value.get("enumerator")
+        == "scripts/package_enumeration.py::enumerate_package_files"
+        and value.get("package_member_count") == len(package_members)
+        and not isinstance(value.get("package_member_count"), bool)
+        and value.get("archive_member_count") == len(inventory)
+        and not isinstance(value.get("archive_member_count"), bool)
+        and value.get("toolchain_is_commit") is True
+        and isinstance(value.get("toolchain"), dict)
+        and isinstance(value.get("runtime"), dict)
+        and set(value.get("runtime", {}))
+        == {"python", "python_full", "zlib", "compression", "note"}
+        and all(isinstance(item, str) and item for item in value.get("runtime", {}).values())
+        and value.get("runtime", {}).get("compression") == "ZIP_DEFLATED"
+        and isinstance(value.get("zip_date_time_stored"), list)
+        and len(value.get("zip_date_time_stored")) == 6
+        and all(
+            isinstance(item, int) and not isinstance(item, bool)
+            for item in value.get("zip_date_time_stored", [])
+        )
+        and isinstance(value.get("zip_date_time_commit"), list)
+        and len(value.get("zip_date_time_commit")) == 6
+        and all(
+            isinstance(item, int) and not isinstance(item, bool)
+            for item in value.get("zip_date_time_commit", [])
+        )
+    )
+    if valid:
+        for rel, expected_sha in value["toolchain"].items():
+            if (
+                not isinstance(rel, str)
+                or not isinstance(expected_sha, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", expected_sha)
+                or rel not in package_members
+                or package_members[rel]["sha256"] != expected_sha
+            ):
+                valid = False
+                break
+    result["status"] = "valid" if valid else "invalid"
+    return result, valid
+
+
+def _inventories_equal(
+    left: Mapping[str, Mapping[str, Any]],
+    right: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    return set(left) == set(right) and all(
+        left[rel]["kind"] == right[rel]["kind"]
+        and left[rel]["sha256"] == right[rel]["sha256"]
+        for rel in left
+    )
 
 
 def _foreign_reason(rel: str, kind: str) -> tuple[bool, str]:
@@ -469,6 +665,9 @@ def probe_plane(
     local_root: Path,
     baseline_root: Path,
     out_path: Path | None,
+    cleared_zip_path: Path | None = None,
+    source_commit: str | None = None,
+    crlf_mode: str = "forbid",
     suites: Iterable[Mapping[str, str]] = DEFAULT_SUITES,
 ) -> dict[str, Any]:
     if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
@@ -480,6 +679,18 @@ def probe_plane(
     baseline_root = baseline_root.resolve(strict=True)
     if not local_root.is_dir() or not baseline_root.is_dir():
         raise ProbeRefusal("RUNTIME-PLANE-ROOT", "local and baseline roots must be directories")
+    if crlf_mode not in {"forbid", "allow_utf8_crlf_only"}:
+        raise ProbeRefusal("RUNTIME-PLANE-NORMALIZATION", f"unsupported CRLF mode: {crlf_mode}")
+    if source_commit is not None:
+        source_commit = source_commit.lower()
+        if not COMMIT_RE.fullmatch(source_commit):
+            raise ProbeRefusal("RUNTIME-PLANE-SOURCE-COMMIT", "source commit must be a full Git object id")
+    resolved_zip: Path | None = None
+    if cleared_zip_path is not None:
+        try:
+            resolved_zip = cleared_zip_path.resolve(strict=True)
+        except FileNotFoundError:
+            resolved_zip = cleared_zip_path.resolve()
     if out_path is not None:
         out_path = out_path.resolve()
         authorized_evidence_root = (baseline_root / "releases" / "verification").resolve()
@@ -505,16 +716,51 @@ def probe_plane(
             if _inside(candidate, local_root):
                 local_excluded.add(candidate.relative_to(local_root).as_posix())
 
-    source_commit = _source_commit(baseline_root)
-    baseline_members = _baseline_members(baseline_root, source_commit)
-    baseline_inventory = _walk_inventory(baseline_root, baseline_members, baseline_excluded)
+    actual_source_commit = _source_commit(baseline_root)
+    baseline_inventory = (
+        _commit_inventory(baseline_root, actual_source_commit)
+        if actual_source_commit is not None
+        else _walk_inventory(baseline_root, excluded=baseline_excluded)
+    )
     local_pre = _walk_inventory(local_root, excluded=local_excluded)
+
+    archive_inventory: dict[str, dict[str, Any]] = {}
+    archive_errors: list[str] = []
+    if resolved_zip is not None:
+        if resolved_zip.is_file():
+            archive_inventory, archive_errors = _archive_inventory(resolved_zip)
+        else:
+            archive_errors.append("cleared ZIP path does not name a file")
+    archive_provenance, archive_provenance_valid = _archive_provenance(archive_inventory)
+    archive_package = {
+        rel: row for rel, row in archive_inventory.items() if rel != PROVENANCE_REL
+    }
+    source_archive_equal = bool(archive_inventory) and _inventories_equal(
+        baseline_inventory, archive_package,
+    )
+    comparison_inventory = archive_inventory or baseline_inventory
+
+    cleared_zip: dict[str, Any] | None = None
+    if (
+        resolved_zip is not None
+        and resolved_zip.is_file()
+        and source_commit is not None
+        and archive_provenance.get("sha256") is not None
+    ):
+        zip_bytes = resolved_zip.read_bytes()
+        cleared_zip = {
+            "path": str(resolved_zip),
+            "sha256": _sha(zip_bytes),
+            "byte_length": len(zip_bytes),
+            "source_commit": source_commit,
+            "provenance_sha256": archive_provenance["sha256"],
+        }
 
     exact_files: list[dict[str, Any]] = []
     crlf_only: list[dict[str, Any]] = []
     semantic_differences: list[dict[str, Any]] = []
     missing_files: list[dict[str, Any]] = []
-    for rel, baseline in baseline_inventory.items():
+    for rel, baseline in comparison_inventory.items():
         local = local_pre.get(rel)
         if local is None:
             missing_files.append(_public_file(baseline))
@@ -526,16 +772,16 @@ def probe_plane(
             semantic_differences.append(_comparison(baseline, local))
 
     foreign_extras: list[dict[str, Any]] = []
-    for rel in sorted(set(local_pre) - set(baseline_inventory)):
+    for rel in sorted(set(local_pre) - set(comparison_inventory)):
         local = local_pre[rel]
         blocking, reason = _foreign_reason(rel, local["kind"])
         foreign_extras.append({**_public_file(local), "blocking": blocking, "reason": reason})
 
     source_manifest = _manifest(baseline_root)
     local_manifest = _manifest(local_root)
-    source_provenance = _source_provenance(baseline_root, source_commit)
+    source_provenance = _source_provenance(baseline_root, actual_source_commit)
     embedded_provenance = _embedded_provenance(
-        local_root, local_pre, len(baseline_inventory)
+        local_root, local_pre, len(archive_package) if archive_inventory else len(baseline_inventory)
     )
     version_match: bool | None = None
     exact_version_match: bool | None = None
@@ -548,35 +794,31 @@ def probe_plane(
             source_manifest["name"] == local_manifest["name"]
             and source_manifest["version"] == local_manifest["version"]
         )
-    allowed_host_suffix = _allowed_host_suffix(
-        baseline_root, local_root, source_manifest, local_manifest
-    )
     for difference in semantic_differences:
-        if difference["path"] == MANIFEST_REL and allowed_host_suffix:
-            difference.update(blocking=False, reason="host_version_suffix_only")
-        else:
-            difference.update(blocking=True, reason="semantic_or_file_kind_difference")
+        difference.update(blocking=True, reason="semantic_or_file_kind_difference")
     provenance_match: bool | None = None
     if source_provenance["status"] == "valid" and embedded_provenance["status"] == "valid":
         provenance_match = source_provenance["commit"] == embedded_provenance["commit"]
 
     suites = tuple(dict(suite) for suite in suites)
-    if not suites or any(
-        suite.get("kind") not in {"governed_product_gate_self_check", "portable_core"}
-        or not suite.get("name") or not suite.get("script")
-        for suite in suites
-    ):
-        raise ProbeRefusal("RUNTIME-PLANE-SUITES", "suite definitions are empty or invalid")
+    suite_signature = tuple(
+        (suite.get("name"), suite.get("kind"), suite.get("script")) for suite in suites
+    )
+    required_signature = tuple(
+        (suite["name"], suite["kind"], suite["script"]) for suite in DEFAULT_SUITES
+    )
+    if suite_signature != required_signature:
+        raise ProbeRefusal(
+            "RUNTIME-PLANE-SUITES",
+            "the runtime qualification must run all four frozen core suites exactly once",
+        )
     dependency_paths = _dependency_paths()
     suite_results = _run_suites(local_root, suites, dependency_paths)
     local_post = _walk_inventory(local_root, excluded=local_excluded)
 
-    baseline_digest = _digest(baseline_inventory)
-    governed_members = set(baseline_inventory)
-    if PROVENANCE_REL in local_pre or PROVENANCE_REL in local_post:
-        governed_members.add(PROVENANCE_REL)
-    pre_digest = _digest({rel: local_pre[rel] for rel in governed_members if rel in local_pre})
-    post_digest = _digest({rel: local_post[rel] for rel in governed_members if rel in local_post})
+    baseline_digest = _digest(comparison_inventory)
+    pre_digest = _digest(local_pre)
+    post_digest = _digest(local_post)
     stable = pre_digest == post_digest
 
     findings: list[dict[str, str]] = []
@@ -593,21 +835,51 @@ def probe_plane(
             "RUNTIME-PLANE-VERSION-MISMATCH", "BLOCKER",
             "local manifest name/version differs from the explicit source baseline", MANIFEST_REL,
         ))
-    elif exact_version_match is False and allowed_host_suffix:
+    if source_commit is None or resolved_zip is None or archive_provenance["status"] == "missing":
         findings.append(_finding(
-            "RUNTIME-PLANE-VERSION-SUFFIX", "WARNING",
-            "local manifest preserves the source base version and carries a separately reported host suffix",
-            MANIFEST_REL,
+            "CACHE-PROVENANCE-MISSING", "BLOCKER",
+            "an exact cleared ZIP, explicit source commit, and embedded PROVENANCE.json are required",
+            PROVENANCE_REL,
         ))
     if source_provenance["status"] == "missing":
         findings.append(_finding(
-            "RUNTIME-PLANE-SOURCE-PROVENANCE-MISSING", "WARNING",
-            "the baseline has no resolvable root Git commit; archive provenance cannot be verified",
+            "RUNTIME-PLANE-SOURCE-PROVENANCE-MISSING", "BLOCKER",
+            "the baseline has no resolvable root Git commit",
+        ))
+    elif source_commit is not None and actual_source_commit != source_commit:
+        findings.append(_finding(
+            "RUNTIME-PLANE-SOURCE-COMMIT-MISMATCH", "BLOCKER",
+            "the explicit cleared source commit differs from the baseline HEAD",
+        ))
+    for archive_error in archive_errors:
+        findings.append(_finding(
+            "RUNTIME-PLANE-ARCHIVE-UNSAFE", "BLOCKER", archive_error,
+        ))
+    if archive_provenance["status"] == "invalid":
+        findings.append(_finding(
+            "RUNTIME-PLANE-ARCHIVE-PROVENANCE-INVALID", "BLOCKER",
+            "PROVENANCE.json does not describe the exact cleared ZIP members",
+            PROVENANCE_REL,
+        ))
+    elif (
+        archive_provenance["status"] == "valid"
+        and source_commit is not None
+        and archive_provenance["commit"] != source_commit
+    ):
+        findings.append(_finding(
+            "RUNTIME-PLANE-ARCHIVE-COMMIT-MISMATCH", "BLOCKER",
+            "the cleared ZIP provenance commit differs from the explicit source commit",
+            PROVENANCE_REL,
+        ))
+    if archive_inventory and not source_archive_equal:
+        findings.append(_finding(
+            "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE", "BLOCKER",
+            "the cleared ZIP package members are not byte-identical to the exact source commit checkout",
         ))
     if embedded_provenance["status"] == "missing":
         findings.append(_finding(
-            "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING", "WARNING",
-            "the local plane has no embedded provenance and is not a canonical archive extraction",
+            "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING", "BLOCKER",
+            "the local plane has no embedded provenance from the cleared ZIP",
             PROVENANCE_REL,
         ))
     elif embedded_provenance["status"] == "invalid":
@@ -628,20 +900,15 @@ def probe_plane(
         ))
     if crlf_only:
         findings.append(_finding(
-            "RUNTIME-PLANE-CRLF-ONLY", "WARNING",
-            f"{len(crlf_only)} file(s) differ only by CRLF/LF transformation",
+            "RUNTIME-PLANE-CRLF-ONLY",
+            "WARNING" if crlf_mode == "allow_utf8_crlf_only" else "BLOCKER",
+            f"{len(crlf_only)} UTF-8 file(s) differ only by CRLF/LF transformation; policy={crlf_mode}",
         ))
     blocking_differences = [entry for entry in semantic_differences if entry["blocking"]]
-    nonblocking_differences = [entry for entry in semantic_differences if not entry["blocking"]]
     if blocking_differences:
         findings.append(_finding(
             "RUNTIME-PLANE-SEMANTIC-DIFFERENCE", "BLOCKER",
             f"{len(blocking_differences)} file(s) differ semantically or by file kind",
-        ))
-    if nonblocking_differences and not allowed_host_suffix:
-        findings.append(_finding(
-            "RUNTIME-PLANE-SEMANTIC-DIFFERENCE-NONBLOCKING", "WARNING",
-            f"{len(nonblocking_differences)} classified semantic difference(s) are explicitly nonblocking",
         ))
     if missing_files:
         findings.append(_finding(
@@ -677,11 +944,35 @@ def probe_plane(
             "the local package digest changed while its self-check suites ran",
         ))
 
+    provenance_missing = (
+        source_commit is None
+        or resolved_zip is None
+        or not resolved_zip.is_file()
+        or archive_provenance["status"] == "missing"
+        or source_provenance["status"] == "missing"
+    )
     has_blocker = any(finding["severity"] == "BLOCKER" for finding in findings)
+    if provenance_missing:
+        cache_state = "CACHE_PROVENANCE_MISSING"
+    elif has_blocker:
+        cache_state = "CACHE_PROVENANCE_CONTAMINATED"
+        findings.append(_finding(
+            "CACHE-PROVENANCE-CONTAMINATED", "BLOCKER",
+            "cleared-ZIP/source/cache equality or a required stability/core-suite predicate failed",
+        ))
+    else:
+        cache_state = "CODEX_CACHE_QUALIFIED"
     has_warning = any(finding["severity"] == "WARNING" for finding in findings)
-    verdict = "blocked" if has_blocker else "qualified_with_caveats" if has_warning else "qualified"
+    verdict = (
+        "blocked" if cache_state != "CODEX_CACHE_QUALIFIED"
+        else "qualified_with_caveats" if has_warning
+        else "qualified"
+    )
     canonical_archive_claim = (
         verdict == "qualified"
+        and cache_state == "CODEX_CACHE_QUALIFIED"
+        and archive_provenance_valid
+        and source_archive_equal
         and embedded_provenance["status"] == "valid"
         and provenance_match is True
         and version_match is True
@@ -689,7 +980,7 @@ def probe_plane(
         and not crlf_only
         and not semantic_differences
         and not missing_files
-        and all(entry["path"] == PROVENANCE_REL for entry in foreign_extras)
+        and not foreign_extras
         and stable
     )
 
@@ -720,6 +1011,14 @@ def probe_plane(
             "provenance_match": provenance_match,
             "canonical_archive_claim": canonical_archive_claim,
         },
+        "cleared_zip": cleared_zip,
+        "normalization_policy": {
+            "policy_id": "runtime-plane-normalization-v1",
+            "crlf_mode": crlf_mode,
+            "semantic_differences_block": True,
+            "blocking_extras_block": True,
+        },
+        "cache_state": cache_state,
         "exact_files": exact_files,
         "crlf_only": crlf_only,
         "semantic_differences": semantic_differences,
@@ -748,6 +1047,13 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--local-root", type=Path, required=True)
     parser.add_argument("--baseline-root", type=Path, required=True)
+    parser.add_argument("--cleared-zip", type=Path)
+    parser.add_argument("--source-commit")
+    parser.add_argument(
+        "--crlf-mode",
+        choices=("forbid", "allow_utf8_crlf_only"),
+        default="forbid",
+    )
     destination = parser.add_mutually_exclusive_group(required=True)
     destination.add_argument("--out", type=Path)
     destination.add_argument("--stdout", action="store_true")
@@ -761,6 +1067,9 @@ def main(argv: list[str] | None = None) -> int:
             local_root=args.local_root,
             baseline_root=args.baseline_root,
             out_path=args.out,
+            cleared_zip_path=args.cleared_zip,
+            source_commit=args.source_commit,
+            crlf_mode=args.crlf_mode,
         )
     except (ProbeRefusal, OSError, UnicodeError, json.JSONDecodeError) as exc:
         code = exc.code if isinstance(exc, ProbeRefusal) else "RUNTIME-PLANE-IO"

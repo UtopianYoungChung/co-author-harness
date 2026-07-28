@@ -366,28 +366,42 @@ def _transaction_claim(project: Path):
     An unclean termination may leave the claim. There is deliberately no TTL:
     the explicit recovery command must inspect state before clearing residue.
     """
-    root = _ensure_control_tree(project)
-    claim = root / "claims" / "transaction.lock"
+    # The control-plane transition owns the authority epoch from prepare until
+    # marker-last commit.  Acquire its shared OS barrier before the receipt
+    # kernel creates any directory, claim, ready receipt, dispatch claim, or
+    # state transition; a one-shot presence check would leave a prepare/write
+    # race.  Lazy import keeps this kernel independent at module-load time.
+    from control_plane_transition import (
+        ControlPlaneRefusal,
+        authority_issuance_guard,
+    )
+
     try:
-        with claim.open("xb") as handle:
-            handle.write(json.dumps({
-                "pid": os.getpid(),
-                "host": platform.node(),
-                "started_at": datetime.now(timezone.utc).isoformat(),
-            }).encode("utf-8"))
-            handle.flush()
-            os.fsync(handle.fileno())
-    except FileExistsError as exc:
-        raise ReceiptTransactionError(
-            "APG-RECEIPT-IN-USE", "another receipt transition is already in progress"
-        ) from exc
-    try:
-        yield
-    finally:
-        try:
-            claim.unlink()
-        except FileNotFoundError:
-            pass
+        with authority_issuance_guard(project):
+            root = _ensure_control_tree(project)
+            claim = root / "claims" / "transaction.lock"
+            try:
+                with claim.open("xb") as handle:
+                    handle.write(json.dumps({
+                        "pid": os.getpid(),
+                        "host": platform.node(),
+                        "started_at": datetime.now(timezone.utc).isoformat(),
+                    }).encode("utf-8"))
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            except FileExistsError as exc:
+                raise ReceiptTransactionError(
+                    "APG-RECEIPT-IN-USE", "another receipt transition is already in progress"
+                ) from exc
+            try:
+                yield
+            finally:
+                try:
+                    claim.unlink()
+                except FileNotFoundError:
+                    pass
+    except ControlPlaneRefusal as exc:
+        raise ReceiptTransactionError(exc.code, exc.message) from exc
 
 
 def _issue_dispatch_kernel_authorization(
@@ -694,6 +708,11 @@ def reserve_receipt(
 ) -> tuple[dict[str, Any], Path]:
     project = project.resolve()
     guard_project_root(project)
+    # Read-only refusal preflight: invalid or missing caller input must not
+    # create control-plane/assignment directories merely to discover that no
+    # transaction can begin. Repeat under the authority barrier below to bind
+    # the actual mutation decision and close the preflight/prepare race.
+    _require_state_path(project, receipt, "ready")
     with _transaction_claim(project):
         ready = _require_state_path(project, receipt, "ready")
         record = _verify_live(project, ready)

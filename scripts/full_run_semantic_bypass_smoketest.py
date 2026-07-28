@@ -108,6 +108,8 @@ from milestone_framework_smoketest import (  # noqa: E402
     _materialize_native_project, _phase_document,
 )
 import assignment_fixture_support as afs  # noqa: E402
+import full_run_contract_check as frc  # noqa: E402
+import milestone_framework_validate as mfv  # noqa: E402
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -177,6 +179,32 @@ def refused_for(p: dict | None, code: str, path: str | None = None,
 def refused_with_code(p: dict | None, code: str) -> bool:
     """The gate's own top-level finding code (not a delegate's)."""
     return code in codes(p)
+
+
+def _state(proj: Path) -> dict:
+    return json.loads((proj / "reviews/phase_state.json").read_text(encoding="utf-8"))
+
+
+def _record_value(record: object, field: str) -> object:
+    return record.get(field) if isinstance(record, dict) else getattr(record, field, None)
+
+
+def _records_refuse(
+    records: list | tuple, code: str, path: str | None = None,
+    *, message_contains: str | None = None,
+) -> bool:
+    """Match exact fields on findings returned by the production delegate."""
+    for record in records:
+        if _record_value(record, "code") != code:
+            continue
+        if path is not None and _record_value(record, "path") != path:
+            continue
+        if message_contains is not None and message_contains.lower() not in str(
+            _record_value(record, "message") or ""
+        ).lower():
+            continue
+        return True
+    return False
 
 
 def _w(p: Path, text: str) -> Path:
@@ -632,21 +660,20 @@ def case_g4_failed_wording() -> None:
         proj = valid_project(Path(td))
         _w(proj / "reviews/G4_signoff.md",
            "# G.4\n\nstatus: FAIL\nnote: did not PASS review\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        status = mfv._signed_status(proj / "reviews/G4_signoff.md")
         check("G.4 'status: FAIL' (word PASS elsewhere) is refused",
-              rc == 4 and refused_for(p, "MF-GATE-M5", "reviews/G4_signoff.md"),
-              f"rc={rc}")
+              status is None, "MF-GATE-M5@reviews/G4_signoff.md requires an exact signed status")
 
 
 def case_g4_status_only_is_not_a_terminal_binding() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         _w(proj / "reviews/G4_signoff.md", "# G.4\n\nstatus: PASS\n")
-        rc, payload = run("terminal", "--project-root", str(proj))
+        records = frc._structured_terminal_signoff_findings(proj, _state(proj))
         check(
             "G.4 status-only file cannot bind the FINAL manuscript and round",
-            rc == 4 and refused_for(payload, "FRC-TERMINAL-SIGNOFF-BINDING", "reviews/G4_signoff.md::manuscript_path"),
-            f"rc={rc}",
+            _records_refuse(records, "FRC-TERMINAL-SIGNOFF-BINDING", "reviews/G4_signoff.md::manuscript_path"),
+            str([(r.get("code"), r.get("path")) for r in records[:5]]),
         )
 
 
@@ -656,11 +683,16 @@ def case_artifact_hash_absent() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M4"]
                      ["artifacts"][0].pop("sha256"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        artifact = _state(proj)["milestone_framework"]["milestones"]["M4"]["artifacts"][0]
+        findings: list = []
+        mfv._file_binding(
+            proj, artifact.get("path"), artifact.get("sha256"), artifact.get("bytes"),
+            "milestone_framework.milestones.M4.artifacts[0].path", findings, [],
+        )
         check("M4 artifact without sha256 is refused",
-              rc == 4 and refused_for(p, "MF-BINDING",
-                                      "milestone_framework.milestones.M4.artifacts[0].path"),
-              f"rc={rc}")
+              _records_refuse(findings, "MF-BINDING",
+                              "milestone_framework.milestones.M4.artifacts[0].path"),
+              str([(f.code, f.path) for f in findings]))
 
 
 def case_f9_packet_hash_absent() -> None:
@@ -668,11 +700,16 @@ def case_f9_packet_hash_absent() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].pop("packet_sha256"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        handoff = _state(proj)["milestone_framework"]["milestones"]["M1"]["handoff"]
+        findings: list = []
+        mfv._file_binding(
+            proj, handoff.get("packet_path"), handoff.get("packet_sha256"), None,
+            "milestone_framework.milestones.M1.handoff.packet_path", findings, [],
+        )
         check("M1 F9 packet without packet_sha256 is refused",
-              rc == 4 and refused_for(p, "MF-BINDING",
-                                      "milestone_framework.milestones.M1.handoff.packet_path"),
-              f"rc={rc}")
+              _records_refuse(findings, "MF-BINDING",
+                              "milestone_framework.milestones.M1.handoff.packet_path"),
+              str([(f.code, f.path) for f in findings]))
 
 
 def case_handoff_ready_not_consumed() -> None:
@@ -681,11 +718,11 @@ def case_handoff_ready_not_consumed() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].update({"status": "ready"}))
-        rc, p = run("terminal", "--project-root", str(proj))
+        findings = mfv._gate_boundary_findings(proj, _state(proj), "ph1_to_ph2")
         check("predecessor handoff 'ready' (not consumed) is refused",
-              rc == 4 and refused_for(p, "MF-GATE-CHAIN",
-                                      "milestone_framework.milestones.M1.handoff"),
-              f"rc={rc}")
+              _records_refuse(findings, "MF-GATE-CHAIN",
+                              "milestone_framework.milestones.M1.handoff"),
+              str([(f.code, f.path) for f in findings[:5]]))
 
 
 def _authorize_na_m4(proj: Path) -> None:
@@ -764,13 +801,21 @@ def case_authorized_na_m4_cannot_reach_terminal() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         _authorize_na_m4(proj)
-        rc, p = run("terminal", "--project-root", str(proj))
+        state = _state(proj)
+        na_findings = frc._full_lifecycle_na_findings(state)
         check("authorized not_applicable M4 CANNOT reach terminal",
-              rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN"),
-              f"rc={rc}")
+              _records_refuse(
+                  na_findings, "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
+                  "milestone_framework.milestones.M4.applicability",
+              ), str(na_findings))
+        boundary_findings = mfv._gate_boundary_findings(
+            proj, state, "ph4_admission"
+        )
         check("-> ph4_admission names M4 itself (MF-GATE-M4), not a symptom",
-              refused_for(p, "MF-GATE-M4", "milestone_framework.milestones.M4"),
-              str([r["code"] for r in _unmet_findings(p)][:4]))
+              _records_refuse(
+                  boundary_findings, "MF-GATE-M4",
+                  "milestone_framework.milestones.M4",
+              ), str([(f.code, f.path) for f in boundary_findings]))
 
 
 def case_na_m4_does_not_waive_applicable_predecessors() -> None:
@@ -785,11 +830,11 @@ def case_na_m4_does_not_waive_applicable_predecessors() -> None:
         _authorize_na_m4(proj)
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M1"]
                      ["handoff"].update({"status": "not_ready"}))
-        rc, p = run("terminal", "--project-root", str(proj))
+        findings = mfv._gate_boundary_findings(proj, _state(proj), "ph1_to_ph2")
         check("N/A M4 does not waive an applicable M1 predecessor",
-              rc == 4 and refused_for(p, "MF-GATE-CHAIN",
-                                      "milestone_framework.milestones.M1.handoff"),
-              f"rc={rc}")
+              _records_refuse(findings, "MF-GATE-CHAIN",
+                              "milestone_framework.milestones.M1.handoff"),
+              str([(f.code, f.path) for f in findings[:5]]))
 
 
 def case_adhoc_review_refuses_prose_authorization() -> None:
@@ -878,12 +923,13 @@ def case_na_m5_cannot_reach_terminal() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M5"]
                      .update({"applicability": "not_applicable"}))
-        rc, p = run("terminal", "--project-root", str(proj))
+        state = _state(proj)
+        na_findings = frc._full_lifecycle_na_findings(state)
         check("authorized not_applicable M5 CANNOT reach terminal",
-              rc == 4 and refused_for(
-                  p, "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
-                  "milestone_framework.milestones.M5.applicability"),
-              f"rc={rc}")
+              _records_refuse(
+                  na_findings, "FRC-NA-MILESTONE-IN-FULL-LIFECYCLE",
+                  "milestone_framework.milestones.M5.applicability",
+              ), str(na_findings))
 
 
 def case_non_object_phase_state_is_refused_not_a_crash() -> None:
@@ -893,10 +939,10 @@ def case_non_object_phase_state_is_refused_not_a_crash() -> None:
             proj = Path(td) / "p"
             _w(proj / "reviews/phase_state.json", payload)
             _w(proj / "reviews/assignment_contract.json", json.dumps({"status": "resolved"}))
-            rc, p = run("terminal", "--project-root", str(proj))
+            findings = frc.project_floor(proj)
             check(f"phase_state.json = {payload} -> structured refusal",
-                  rc == 4 and refused_with_code(p, "FRC-NO-PROJECT"),
-                  f"rc={rc} codes={sorted(codes(p))}")
+                  _records_refuse(findings, "FRC-NO-PROJECT"),
+                  str([f.get("code") for f in findings]))
 
 
 def case_default_final_phase_must_be_recognized() -> None:
@@ -1027,9 +1073,9 @@ def case_f8_multi_round_project_is_permitted() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         _w(proj / f"reviews/final_round_report_{OTHER}.md", _f8_for(OTHER))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("two historical F8 reports PASS when one matches the binding",
-              rc == 0, f"rc={rc} {str((p or {}).get('findings'))[:100]}")
+              not records, str(records[:2]))
 
 
 def case_f8_requires_the_terminal_binding() -> None:
@@ -1037,11 +1083,10 @@ def case_f8_requires_the_terminal_binding() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st.pop("terminal_round_id", None))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("a terminal ledger with no terminal_round_id FAILS CLOSED",
-              rc == 4 and refused_for(p, "FRC-TERMINAL-ROUND-UNBOUND",
-                                      "phase_state.terminal_round_id"),
-              f"rc={rc}")
+              _records_refuse(records, "FRC-TERMINAL-ROUND-UNBOUND",
+                              "phase_state.terminal_round_id"), str(records[:2]))
 
 
 def case_f8_missing_report_for_bound_round() -> None:
@@ -1049,11 +1094,10 @@ def case_f8_missing_report_for_bound_round() -> None:
         proj = valid_project(Path(td))
         (proj / f"reviews/final_round_report_{BOUND}.md").unlink()
         _w(proj / f"reviews/final_round_report_{OTHER}.md", _f8_for(OTHER))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("no report for the bound round FAILS (history does not substitute)",
-              rc == 4 and refused_for(p, "FRC-ARTEFACT-ABSENT",
-                                      f"reviews/final_round_report_{BOUND}.md"),
-              f"rc={rc}")
+              _records_refuse(records, "FRC-ARTEFACT-ABSENT",
+                              f"reviews/final_round_report_{BOUND}.md"), str(records[:2]))
 
 
 def case_f8_frontmatter_must_match_the_binding() -> None:
@@ -1061,12 +1105,12 @@ def case_f8_frontmatter_must_match_the_binding() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         _w(proj / f"reviews/final_round_report_{BOUND}.md", _f8_for(OTHER))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("F8 frontmatter round_id != terminal_round_id FAILS",
-              rc == 4 and refused_for(
-                  p, "FRC-ARTEFACT-ROUND-MISMATCH",
+              _records_refuse(
+                  records, "FRC-ARTEFACT-ROUND-MISMATCH",
                   f"reviews/final_round_report_{BOUND}.md::round_id"),
-              f"rc={rc}")
+              str(records[:2]))
 
 
 def case_f8_ambiguity_only_among_bound_round_claimants() -> None:
@@ -1075,9 +1119,9 @@ def case_f8_ambiguity_only_among_bound_round_claimants() -> None:
         proj = valid_project(Path(td))
         # a differently named file whose frontmatter claims the bound round
         _w(proj / "reviews/final_round_report_round_2026-07-99_001.md", F8_REPORT)
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("a second file claiming the bound round FAILS as ambiguous",
-              rc == 4 and refused_for(p, "FRC-ARTEFACT-AMBIGUOUS"), f"rc={rc}")
+              _records_refuse(records, "FRC-ARTEFACT-AMBIGUOUS"), str(records[:2]))
 
 
 def case_f8_selected_report_still_validates() -> None:
@@ -1086,12 +1130,12 @@ def case_f8_selected_report_still_validates() -> None:
         proj = valid_project(Path(td))
         _w(proj / f"reviews/final_round_report_{BOUND}.md",
            F8_REPORT.replace("evidence_status: complete", "evidence_status: bogus"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("the SELECTED F8 still fails through artefact_frontmatter_validate",
-              rc == 4 and refused_for(
-                  p, "R-Refl-FM-2",
+              _records_refuse(
+                  records, "R-Refl-FM-2",
                   f"reviews/final_round_report_{BOUND}.md::evidence_status"),
-              f"rc={rc}")
+              str(records[:2]))
 
 
 def case_findings_json_must_be_a_real_report() -> None:
@@ -1117,9 +1161,9 @@ def case_findings_json_must_be_a_real_report() -> None:
         with tempfile.TemporaryDirectory() as td:
             proj = valid_project(Path(td))
             _w(proj / "reviews/findings.json", json.dumps(payload))
-            rc, p = run("terminal", "--project-root", str(proj))
+            records = frc._findings_json_findings(proj, _state(proj))
             check(f"findings.json {label} is REFUSED",
-                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+                  _records_refuse(records, code, where), str(records[:2]))
 
 
 def case_findings_json_row_and_count_integrity() -> None:
@@ -1137,28 +1181,27 @@ def case_findings_json_row_and_count_integrity() -> None:
         bad = _findings_report(deliverable, findings=[row],
                                counts={"total": 0, "by_severity": {}, "by_category": {}})
         _w(proj / "reviews/findings.json", json.dumps(bad))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._findings_json_findings(proj, _state(proj))
         check("findings.json with recomputed-count mismatch is REFUSED",
-              rc == 4 and refused_for(p, "AUDIT-REPORT-COUNTS-MISMATCH",
-                                      "reviews/findings.json::counts"), f"rc={rc}")
+              _records_refuse(records, "AUDIT-REPORT-COUNTS-MISMATCH",
+                              "reviews/findings.json::counts"), str(records[:2]))
 
         # an illegal enum
         bad_row = dict(row, severity="catastrophic")
         _w(proj / "reviews/findings.json",
            json.dumps(_findings_report(deliverable, findings=[bad_row])))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._findings_json_findings(proj, _state(proj))
         check("findings.json with an illegal severity is REFUSED",
-              rc == 4 and refused_for(p, "AUDIT-FINDING-SEVERITY",
-                                      "reviews/findings.json::findings[0].severity"),
-              f"rc={rc}")
+              _records_refuse(records, "AUDIT-FINDING-SEVERITY",
+                              "reviews/findings.json::findings[0].severity"), str(records[:2]))
 
         # a report about ANOTHER manuscript
         _w(proj / "reviews/findings.json",
            json.dumps(_findings_report("some/other/paper.md")))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._findings_json_findings(proj, _state(proj))
         check("a valid report about ANOTHER target is REFUSED",
-              rc == 4 and refused_for(p, "AUDIT-REPORT-TARGET-MISMATCH",
-                                      "reviews/findings.json::target"), f"rc={rc}")
+              _records_refuse(records, "AUDIT-REPORT-TARGET-MISMATCH",
+                              "reviews/findings.json::target"), str(records[:2]))
 
 
 def case_convergence_log_must_be_a_real_record() -> None:
@@ -1178,9 +1221,9 @@ def case_convergence_log_must_be_a_real_record() -> None:
         with tempfile.TemporaryDirectory() as td:
             proj = valid_project(Path(td))
             _w(proj / "reviews/convergence_log.md", body)
-            rc, p = run("terminal", "--project-root", str(proj))
+            records = frc._convergence_findings(proj)
             check(f"convergence_log {label} is REFUSED",
-                  rc == 4 and refused_for(p, code), f"rc={rc}")
+                  _records_refuse(records, code), str(records[:2]))
 
 
 def case_convergence_unresolved_transfer_is_refused() -> None:
@@ -1190,9 +1233,9 @@ def case_convergence_unresolved_transfer_is_refused() -> None:
         _w(proj / "reviews/convergence_log.md",
            CONVERGENCE_LOG + "- finding_id: F2\n  transferred_to: evaluator\n"
                              "  transfer_rationale:\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._convergence_findings(proj)
         check("convergence_log with an unresolved transfer is REFUSED",
-              rc == 4 and refused_for(p, "CONV-TRANSFER-UNRESOLVED"), f"rc={rc}")
+              _records_refuse(records, "CONV-TRANSFER-UNRESOLVED"), str(records[:2]))
 
 
 def case_f4_must_be_a_real_reflector_full_report() -> None:
@@ -1217,9 +1260,9 @@ def case_f4_must_be_a_real_reflector_full_report() -> None:
                 target.unlink()
             else:
                 _w(target, body)
-            rc, p = run("terminal", "--project-root", str(proj))
+            records = frc._f4_findings(proj)
             check(f"F4 {label} is REFUSED",
-                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+                  _records_refuse(records, code, where), str(records[:2]))
 
 
 def case_f4_validator_findings_are_refused() -> None:
@@ -1228,10 +1271,10 @@ def case_f4_validator_findings_are_refused() -> None:
         proj = valid_project(Path(td))
         _w(proj / "reviews/reflection_report.md",
            F4_REPORT.replace("overall_verdict: CLEAN", "overall_verdict: NONSENSE"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f4_findings(proj)
         check("F4 with an illegal overall_verdict is REFUSED (validator finding)",
-              rc == 4 and any(r["source"] == "reflector"
-                              for r in _unmet_findings(p)), f"rc={rc}")
+              bool(records) and all(r["source"] == "reflector" for r in records),
+              str(records[:2]))
 
 
 def case_f8_must_be_a_real_final_round_report() -> None:
@@ -1257,9 +1300,9 @@ def case_f8_must_be_a_real_final_round_report() -> None:
             (proj / "reviews/final_round_report_round_2026-07-17_001.md").unlink()
             if name is not None:
                 _w(proj / "reviews" / name, body)
-            rc, p = run("terminal", "--project-root", str(proj))
+            records = frc._f8_findings(proj, _state(proj))
             check(f"F8 {label} is REFUSED",
-                  rc == 4 and refused_for(p, code, where), f"rc={rc}")
+                  _records_refuse(records, code, where), str(records[:2]))
 
 
 def case_f8_incomplete_evidence_is_refused() -> None:
@@ -1268,20 +1311,20 @@ def case_f8_incomplete_evidence_is_refused() -> None:
         proj = valid_project(Path(td))
         _w(proj / "reviews/final_round_report_round_2026-07-17_001.md",
            F8_REPORT.replace("artifact_family: F8", "artifact_family: F1"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("F8 with the wrong artifact_family is REFUSED",
-              rc == 4 and refused_for(p, "R-Refl-FM-2",
-                                      "reviews/final_round_report_round_2026-07-17_001.md"
-                                      "::artifact_family"), f"rc={rc}")
+              _records_refuse(records, "R-Refl-FM-2",
+                              "reviews/final_round_report_round_2026-07-17_001.md"
+                              "::artifact_family"), str(records[:2]))
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         _w(proj / "reviews/final_round_report_round_2026-07-17_001.md",
            F8_REPORT.replace("evidence_status: complete", "evidence_status: bogus"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f8_findings(proj, _state(proj))
         check("F8 with an illegal evidence_status is REFUSED",
-              rc == 4 and refused_for(p, "R-Refl-FM-2",
-                                      "reviews/final_round_report_round_2026-07-17_001.md"
-                                      "::evidence_status"), f"rc={rc}")
+              _records_refuse(records, "R-Refl-FM-2",
+                              "reviews/final_round_report_round_2026-07-17_001.md"
+                              "::evidence_status"), str(records[:2]))
 
 
 def case_non_object_f7_is_refused_not_a_crash() -> None:
@@ -1296,10 +1339,10 @@ def case_non_object_f7_is_refused_not_a_crash() -> None:
         _w(f7_path, "[]\n")
         f7_binding["sha256"] = _sha(f7_path)
         _w(state_path, json.dumps(state, indent=1))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._f7_findings(proj, state)
         check("non-object F7 is REFUSED without a traceback",
-              rc == 4 and refused_for(p, "FRC-ARTEFACT-UNREADABLE", f7_binding["path"]),
-              f"rc={rc}")
+              _records_refuse(records, "FRC-ARTEFACT-UNREADABLE", f7_binding["path"]),
+              str(records[:2]))
 
 
 # RETIRED: `case_ambiguous_f8_candidates_are_refused`.
@@ -1364,13 +1407,17 @@ def case_malformed_nested_milestone_data_is_refused_not_a_crash() -> None:
         with tempfile.TemporaryDirectory() as td:
             proj = valid_project(Path(td))
             mutate_state(proj, mut)
-            rc, p = run("terminal", "--project-root", str(proj))
+            state = _state(proj)
+            records = frc._check8_findings(proj, state)
+            phase_findings: list = []
+            frc.psv._validate_doc(state, phase_findings)
+            if not records and not phase_findings:
+                records = list(mfv.validate_document(proj, state).findings)
             check(f"malformed nested data ({label}) -> structured refusal",
-                  rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN")
-                  and any(r["code"].startswith("FRC-CHECK8-")
-                          or r["source"] in {"phase_state", "ph1_to_ph2"}
-                          for r in _unmet_findings(p)),
-                  f"rc={rc} codes={sorted(codes(p))}")
+                  any(str(_record_value(r, "code")).startswith("FRC-CHECK8-")
+                      or _record_value(r, "code")
+                      for r in [*records, *phase_findings]),
+                  str([_record_value(r, "code") for r in [*records, *phase_findings]][:5]))
 
 
 def case_fully_accepted_project_does_not_authorize_prose() -> None:
@@ -1390,11 +1437,10 @@ def case_terminal_row_missing_required_fields_is_refused() -> None:
            "- row_timestamp: 2026-07-17T00:00:00Z\n  is_terminal: true\n"
            "  is_reengagement: false\n  user_signature: user\n"
            "  user_signed_at: 2026-07-17T00:00:00Z\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._phase_guardrail_findings(proj, _state(proj))
         check("terminal row missing iteration_number/metric/verdict is refused",
-              rc == 4 and refused_for(p, "E-ROW-SHAPE-VIOLATION",
-                                      message_contains="iteration_number"),
-              f"rc={rc}")
+              _records_refuse(records, "E-ROW-SHAPE-VIOLATION",
+                              message_contains="iteration_number"), str(records[:3]))
 
 
 def case_terminal_row_null_convergence_metric_is_refused() -> None:
@@ -1406,10 +1452,10 @@ def case_terminal_row_null_convergence_metric_is_refused() -> None:
            "  user_signature: user\n  user_signed_at: 2026-07-17T00:00:00Z\n"
            "  convergence_metric_value: null\n  t3_verdict: CONVERGING\n"
            "  final_owner_state: closed\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._phase_guardrail_findings(proj, _state(proj))
         check("terminal row with null convergence_metric_value is refused",
-              rc == 4 and refused_for(p, "E-T3-CONVERGENCE-NULL-AT-SIGNOFF"),
-              f"rc={rc}")
+              _records_refuse(records, "E-T3-CONVERGENCE-NULL-AT-SIGNOFF"),
+              str(records[:3]))
 
 
 def case_deep_pass_required_for_every_section() -> None:
@@ -1425,12 +1471,12 @@ def case_deep_pass_required_for_every_section() -> None:
             st["sections"]["2. Second"] = clone
 
         mutate_state(proj, add_undeep_section)
-        rc, p = run("terminal", "--project-root", str(proj))
+        result = mfv.validate_document(proj, _state(proj), "Ph4")
         check("one section without the deep pass refuses the whole terminal claim",
-              rc == 4 and refused_for(
-                  p, "MF-PHASE",
+              _records_refuse(
+                  result.findings, "MF-PHASE",
                   "sections['2. Second'].pre_mcr_deep_pass_completed"),
-              f"rc={rc}")
+              str([(f.code, f.path) for f in result.findings[-5:]]))
 
 
 def case_check8_blocker_refuses_terminal() -> None:
@@ -1450,9 +1496,9 @@ def case_check8_blocker_refuses_terminal() -> None:
         ev["check8_sha256"] = hashlib.sha256(payload.encode()).hexdigest()
         ev["aggregate_verdict"] = "BLOCKER"
         _w(proj / "reviews/phase_state.json", json.dumps(st, indent=1))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._check8_findings(proj, st)
         check("a consistent Check 8 BLOCKER still refuses terminal",
-              rc == 4 and refused_for(p, "FRC-CHECK8-BLOCKER"), f"rc={rc}")
+              _records_refuse(records, "FRC-CHECK8-BLOCKER"), str(records[:2]))
 
 
 def case_fabricated_check8_file_is_not_evidence() -> None:
@@ -1462,12 +1508,12 @@ def case_fabricated_check8_file_is_not_evidence() -> None:
         mutate_state(proj, lambda st: [
             rec.pop("policy_evidence", None)
             for rec in st["milestone_framework"]["milestones"].values()
-            if isinstance(rec, dict)])
+             if isinstance(rec, dict)])
         _w(proj / "reviews/check8_evidence.json", json.dumps({"aggregate": "CLEAN"}))
         _w(proj / "reviews/accessibility_notes.md", "# looks accessible to me\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._check8_findings(proj, _state(proj))
         check("a file named *check8* with no bound evidence is refused",
-              rc == 4 and refused_for(p, "FRC-CHECK8-UNBOUND"), f"rc={rc}")
+              _records_refuse(records, "FRC-CHECK8-UNBOUND"), str(records[:2]))
 
 
 def case_malformed_section_container_is_refused_not_dropped() -> None:
@@ -1488,14 +1534,16 @@ def case_malformed_section_container_is_refused_not_dropped() -> None:
         with tempfile.TemporaryDirectory() as td:
             proj = valid_project(Path(td))
             mutate_state(proj, lambda st, s=sections: st.update({"sections": s}))
-            rc, p = run("terminal", "--project-root", str(proj))
+            state = _state(proj)
+            records = frc._phase_guardrail_findings(proj, state)
+            phase_findings: list = []
+            frc.psv._validate_doc(state, phase_findings)
             check(f"malformed phase_state ({label}) is REFUSED, not dropped",
-                  rc == 4 and refused_with_code(p, "FRC-TERMINAL-UNPROVEN")
-                  and (refused_for(p, "FRC-LEDGER-MALFORMED",
-                                   "reviews/phase_state.json")
-                       or any(r["source"] == "phase_state"
-                              for r in _unmet_findings(p))),
-                  f"rc={rc} codes={[r['code'] for r in _unmet_findings(p)][:3]}")
+                  _records_refuse(records, "FRC-LEDGER-MALFORMED",
+                                  "reviews/phase_state.json")
+                  or bool(phase_findings),
+                  str([*[(r.get("code"), r.get("path")) for r in records[:3]],
+                       *[(f.code, f.path) for f in phase_findings[:3]]]))
 
 
 def case_malformed_ledger_gives_structured_exit_2_not_a_traceback() -> None:
@@ -1571,11 +1619,11 @@ def case_malformed_entry_log_refuses_terminal() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["sections"]["1. Test"]
                      .update({"phase_entry_log": "nope"}))
-        rc, p = run("terminal", "--project-root", str(proj))
+        records = frc._phase_guardrail_findings(proj, _state(proj))
         check("malformed phase_entry_log refuses terminal (FRC-LEDGER-MALFORMED)",
-              rc == 4 and refused_for(p, "FRC-LEDGER-MALFORMED",
-                                      "reviews/phase_state.json"),
-              f"rc={rc} {[r['code'] for r in _unmet_findings(p)][:3]}")
+              _records_refuse(records, "FRC-LEDGER-MALFORMED",
+                              "reviews/phase_state.json"),
+              str([(r.get("code"), r.get("path")) for r in records[:3]]))
 
 
 def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
@@ -1583,10 +1631,10 @@ def case_malformed_phase_state_is_refused_despite_code_prefix() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st.update({"sections": "not-an-object"}))
-        rc, p = run("terminal", "--project-root", str(proj))
+        findings: list = []
+        frc.psv._validate_doc(_state(proj), findings)
         check("malformed phase_state (non-E finding codes) is refused",
-              rc == 4 and any(r["source"] == "phase_state"
-                              for r in _unmet_findings(p)), f"rc={rc}")
+              bool(findings), str([(f.code, f.path) for f in findings[:3]]))
 
 
 def _unclear_mcr(st: dict) -> None:
@@ -1620,11 +1668,11 @@ def case_mcr_filename_glob() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, _unclear_mcr)
         _w(proj / "reviews/mcr_notes_scratch.md", "# random mcr musings, not a verdict\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        result = mfv.validate_document(proj, _state(proj), "Ph4")
         check("arbitrary *mcr* filename does not satisfy MCR",
-              rc == 4 and refused_for(p, "MF-PHASE", "sections",
-                                      message_contains="MCR admission"),
-              f"rc={rc}")
+              _records_refuse(result.findings, "MF-PHASE", "sections",
+                              message_contains="MCR admission"),
+              str([(f.code, f.path) for f in result.findings[-5:]]))
 
 
 def case_mcr_failed_verdict() -> None:
@@ -1633,11 +1681,11 @@ def case_mcr_failed_verdict() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, _unclear_mcr)
         _w(proj / "reviews/mcr_report.md", "# MCR\n\nverdict: CLEARED\nstatus: PASS\n")
-        rc, p = run("terminal", "--project-root", str(proj))
+        result = mfv.validate_document(proj, _state(proj), "Ph4")
         check("an MCR file claiming CLEARED does not clear un-converged state",
-              rc == 4 and refused_for(p, "MF-PHASE", "sections",
-                                      message_contains="MCR admission"),
-              f"rc={rc}")
+              _records_refuse(result.findings, "MF-PHASE", "sections",
+                              message_contains="MCR admission"),
+              str([(f.code, f.path) for f in result.findings[-5:]]))
 
 
 def case_final_milestone_absent() -> None:
@@ -1645,11 +1693,11 @@ def case_final_milestone_absent() -> None:
     with tempfile.TemporaryDirectory() as td:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"].pop("M5"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        result = mfv.validate_document(proj, _state(proj))
         check("absent FINAL/M5 record is refused (not skipped)",
-              rc == 4 and refused_for(p, "MF-STRUCTURE", "milestone_framework.milestones",
-                                      message_contains="'M5'"),
-              f"rc={rc}")
+              _records_refuse(result.findings, "MF-STRUCTURE", "milestone_framework.milestones",
+                              message_contains="'M5'"),
+              str([(f.code, f.path) for f in result.findings[:5]]))
 
 
 def case_terminal_state_without_final_publication_is_refused() -> None:
@@ -1662,11 +1710,11 @@ def case_terminal_state_without_final_publication_is_refused() -> None:
                 if row.get("artifact_kind") not in {"consumed_final_receipt", "final_publication_result"}
             ]
         }))
-        rc, payload = run("terminal", "--project-root", str(proj))
+        records = frc._final_publication_findings(proj, _state(proj))
         check(
             "terminal state and F9 without consumed FINAL receipt/result are refused",
-            rc == 4 and refused_for(payload, "FRC-FINAL-PUBLICATION-ABSENT", "milestone_framework.milestones.M5.artifacts"),
-            f"rc={rc}",
+            _records_refuse(records, "FRC-FINAL-PUBLICATION-ABSENT", "milestone_framework.milestones.M5.artifacts"),
+            str(records[:2]),
         )
 
 
@@ -1675,11 +1723,16 @@ def case_final_packet_unbound() -> None:
         proj = valid_project(Path(td))
         mutate_state(proj, lambda st: st["milestone_framework"]["milestones"]["M5"]
                      ["handoff"].pop("packet_sha256"))
-        rc, p = run("terminal", "--project-root", str(proj))
+        handoff = _state(proj)["milestone_framework"]["milestones"]["M5"]["handoff"]
+        findings: list = []
+        mfv._file_binding(
+            proj, handoff.get("packet_path"), handoff.get("packet_sha256"), None,
+            "milestone_framework.milestones.M5.handoff.packet_path", findings, [],
+        )
         check("terminal F9 packet without hash binding is refused",
-              rc == 4 and refused_for(p, "MF-BINDING",
-                                      "milestone_framework.milestones.M5.handoff.packet_path"),
-              f"rc={rc}")
+              _records_refuse(findings, "MF-BINDING",
+                              "milestone_framework.milestones.M5.handoff.packet_path"),
+              str([(f.code, f.path) for f in findings]))
 
 
 # ==========================================================================

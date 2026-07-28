@@ -151,8 +151,9 @@ phase_transitions:
       ► Ph1 Plan & Draft opened on {section_heading_path} (cycle {cycle_id}).
       Ceiling for this section resolves to {section_ceiling} (manuscript default_final_phase = {default_final_phase}).
       At Ph1 the Planner authors the P-stage declaration; the Generator drafts prose;
-      the Reflector runs a lightweight grounding audit.
-      No Evaluator engagement at this stage.
+      the Evaluator runs the bounded independent current-byte pass required by
+      references/policies/phase_engagement.v1.json; and the Reflector runs a
+      lightweight grounding audit.
       Exit artefact: reviews/ph1_draft_completion.md (user-signed).
 
   # Trigger 12: ph1_draft_completion_signed
@@ -320,7 +321,8 @@ phase_transitions:
       ► {prev_phase} rejected on {section_heading_path}.
       Section stays at {prev_phase}; iteration_count_at_current_phase incremented to {iteration_count}.
       Generator will apply a corrected revision against the findings; the responsible agent re-passes at {prev_phase}
-      (Evaluator at Ph2 / Ph3 / Ph4; Reflector-lightweight only at Ph1).
+      under references/policies/phase_engagement.v1.json (bounded Evaluator plus
+      Reflector-lightweight at Ph1; progressively broader Evaluator passes thereafter).
 
   # Trigger 4: user_defer
   user_defer:

@@ -1,7 +1,7 @@
 ---
 name: run-phase-1
 user-invocable: false
-description: "Compatibility body for the public /run-draft stage. Ph1 bootstraps state, records P-stage, and requires centroid-conditioned Generator drafting plus a bounded independent Evaluator policy pass."
+description: "Compatibility body for the public /run-draft stage. Ph1 bootstraps state, records P-stage, and requires binding-derived Generator drafting plus a bounded independent Evaluator policy pass; centroid work is capability-triggered."
 trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "start the ladder," begins a new section, or when the Planner bootstraps section state for a fresh section
 version: 0.7.4
 ---
@@ -39,13 +39,13 @@ Milestone approval for M1, M2, or M3 advances only the assignment milestone chai
 | **Planner** | Bootstraps section state; records `ph1_pstage_declaration`; writes all `phase_entry_log` rows; runs the pre-advance check. **Dispatches SK-NEW-A `seed-snowball-discovery` at Step 4.5** as part of pre-draft setup when the section's `references_initialized` is `false` or absent and `references/REFERENCES.md` is missing (per architecture plan §5.2 Edit-1). | `ph1_draft_completion.md`; SK-NEW-A artefacts at Step 4.5 (see §6) |
 | **Generator** | Drafts prose under the declared P-stage register; applies the deterministic-check mandatory subset to the diff; produces the revision log entry. | `manuscript/*.md`, `manuscript/revision_log.md` |
 | **Reflector-lightweight** | Grounding audit subset only (no aggregated `Phase 2b`, no `lessons_learned.md` write, no skill-proposal emission). Integrity probe against the Ph1 deliverables. | `reviews/ph1_reflector_probe_<cycle_id>.md` (optional) |
-| **Evaluator** | Runs the bounded all-drafts centroid and governing-policy evaluation after every Generator publication. Full revision-maturity review begins at Ph2. | Current-byte evaluation envelope and findings |
+| **Evaluator** | Runs the bounded all-drafts governing-policy evaluation after every Generator publication, including centroid review only when enabled by the authoritative reader binding. Full revision-maturity review begins at Ph2. | Current-byte evaluation envelope and findings |
 
 ## 3. Dispatch sequence
 
 The Planner reservation boundary is `assignment_dispatch_preflight.py`; no Generator dispatch precedes its successful reservation.
 
-0. **Assignment-process receipt gate and executable checkpoint derivation.** Read `references/ASSIGNMENT_MILESTONE_PROCESS.md` and the controlling brief in full; require a resolved `reviews/assignment_contract.json`. Run `assignment_milestone_checkpoint.py derive` and obey its exact target/action. Emit the target receipt; centroid conditioning is mandatory for M1-M4 regardless of the compatibility flag. Prepare the generation policy contract, reserve the receipt, dispatch the Generator, publish through `assignment_writer_commit.py`, then prepare and complete the independent Evaluator contract over the exact bytes. Planner may call `record` only with both verified envelopes. Only project-local explicit approval permits `accept`. Any non-zero result halts. `APG-SEQUENCE-LEGACY` requires migration/acceptance work, never synthesized acceptance.
+0. **Assignment-process receipt gate and executable checkpoint derivation.** Read `references/ASSIGNMENT_MILESTONE_PROCESS.md` and the controlling brief in full; require a resolved `reviews/assignment_contract.json`. Run `assignment_milestone_checkpoint.py derive` and obey its exact target/action. Emit the target receipt; the authoritative reader binding determines whether centroid conditioning applies. Reader-profile v2 with `semantic_usage: not_invoked` omits centroid work while retaining all non-graph obligations. Prepare the generation policy contract, reserve the receipt, dispatch the Generator, publish through `assignment_writer_commit.py`, then prepare and complete the independent Evaluator contract over the exact bytes. Planner may call `record` only with both verified envelopes. Only project-local explicit approval permits `accept`. Any non-zero result halts. `APG-SEQUENCE-LEGACY` requires migration/acceptance work, never synthesized acceptance.
 
 1. **Planner Phase 0 (preflight).** Read `reviews/phase_state.json`. If the target section's entry is missing, create it under `phase_state_schema.md §2` with the full 18-field invariant (`phase_state_schema.md §2`, 18 fields as of v0.10.0): `current_phase: "Ph1"`, `last_approved_phase: null`, `iteration_count_at_current_phase: 0`, empty `phase_entry_log`, `phase_goal_declared` and `phase_deliverable_path` populated from the `§2.1` lookup tables keyed by Ph1, `convergence_metric: null`, `ph1_pstage_declaration: null`, `ph3_last_activity_at: null`. Compute `applicable_ceiling`. If `applicable_ceiling == "Ph1"` the section will ceiling-lock on approval; the Planner notes this in the user template.
 2. **Planner: P-stage declaration.** Read `reviews/classification.md` for the P-stage (P0 / P1 / P2). Write the value to `sections[].ph1_pstage_declaration`. If the classification is missing, emit `W-PSTAGE-UNAVAILABLE` and leave the field null; the user must update the classification before Ph1 exit is signed.
@@ -83,7 +83,7 @@ The advance rule is canonically specified in `references/PHASE_PROTOCOL.md §4` 
 
 | Surface | Status | Notes |
 |---|---|---|
-| **Generator Self-Ph1 Verdict (Phase 3.5)** | **RETIRED** | The verdict block is no longer emitted. The Generator does not self-score at Ph1. The Evaluator joins at Ph2 and runs a full local pass on the prose as drafted. |
+| **Generator Self-Ph1 Verdict (Phase 3.5)** | **RETIRED** | The verdict block is no longer emitted. The Generator does not self-score at Ph1. The independent Evaluator runs the bounded Ph1 pass required by `references/policies/phase_engagement.v1.json`; a full local revision-maturity pass begins at Ph2. |
 | **Evaluator Confirmation Mode eligibility flag** | **RETIRED** | Confirmation Mode itself is retired (`PHASE_PROTOCOL.md §11 item 3`); no Ph1 output feeds a Ph2 shortcut. |
 | **`confirmation_failed` trigger** | **RETIRED (read-only)** | v0.6.0-migrated rows preserve the trigger for audit; no v0.7.0 write emits it. |
 | **EG-2 (self-Ph1 verdict mismatch at Ph2 entry)** | **RETIRED** | EG-2 is removed from the escalation-gate register at v0.7.0. EG-numbering preserves EG-1/3/4/5/6/7 for continuity. |
@@ -114,7 +114,7 @@ Legacy Markdown paths may still be written when SK-NEW-A, deterministic tooling,
 
 ## 7. What this stage does NOT do
 
-- **Bounded Evaluator engagement is mandatory.** Every Ph1 milestone draft receives independent centroid and complete applicable policy evaluation. The full Ph2 review remains distinct.
+- **Bounded Evaluator engagement is mandatory.** Every Ph1 milestone draft receives independent evaluation against the complete capability-applicable policy bundle; centroid review is included only when enabled by the authoritative reader binding. The full Ph2 review remains distinct.
 - **No full seven-step judgment pass.** That lives at Ph2 (Steps 1–3 + integrated checklist) and Ph3 (the full seven-step loop).
 - **No convergence metric.** `convergence_metric` is Ph3-only; at Ph1 it is `null`.
 - **No MCR.** The Manuscript Convergence Report is a Ph4-admission artefact.

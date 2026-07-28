@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/compact_receipt_index.schema.json",
+  "title": "Compact receipt index 1.0.0",
+  "$comment": "Frozen V40-06 per-receipt interface. Common sha256, safePath, timestamp, and fileBinding are reused; runtime adds stricter alias-safe canonical POSIX path checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "index_id",
+    "source_receipt",
+    "detail_blob",
+    "verdict",
+    "counts",
+    "warnings",
+    "recovery_commands",
+    "hashes",
+    "compression_measurement",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "index_id": {"type": "string", "pattern": "^receipt-[0-9a-f]{24}$"},
+    "source_receipt": {"$ref": "#/$defs/safeFileBinding"},
+    "detail_blob": {"$ref": "#/$defs/safeFileBinding"},
+    "verdict": {"type": "array", "items": {"$ref": "#/$defs/verdictFact"}},
+    "counts": {"type": "array", "items": {"$ref": "#/$defs/countFact"}},
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warningFact"}},
+    "recovery_commands": {"type": "array", "items": {"$ref": "#/$defs/recoveryFact"}},
+    "hashes": {"type": "array", "items": {"$ref": "#/$defs/hashFact"}},
+    "compression_measurement": {"$ref": "#/$defs/compressionMeasurement"},
+    "created_at": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/timestamp"}
+  },
+  "$defs": {
+    "safeFileBinding": {
+      "allOf": [
+        {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"},
+        {
+          "properties": {
+            "path": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/safePath"},
+            "byte_length": {"minimum": 1}
+          }
+        }
+      ]
+    },
+    "pointer": {"type": "string", "pattern": "^/(?:[^~/]|~0|~1)*(?:/(?:[^~/]|~0|~1)*)*$"},
+    "verdictFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer", "alias", "value", "value_sha256"],
+      "properties": {
+        "pointer": {"$ref": "#/$defs/pointer"},
+        "alias": {"enum": ["verdict", "outcome", "status", "state", "disposition"]},
+        "value": true,
+        "value_sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"}
+      }
+    },
+    "countFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer", "alias", "value", "value_sha256"],
+      "properties": {
+        "pointer": {"$ref": "#/$defs/pointer"},
+        "alias": {"enum": ["count", "counts", "total", "totals", "metrics", "statistics"]},
+        "value": true,
+        "value_sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"}
+      }
+    },
+    "warningFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer", "alias", "value", "value_sha256"],
+      "properties": {
+        "pointer": {"$ref": "#/$defs/pointer"},
+        "alias": {"enum": ["warning", "warnings", "alert", "alerts", "caveat", "caveats"]},
+        "value": true,
+        "value_sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"}
+      }
+    },
+    "recoveryFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer", "alias", "value", "value_sha256"],
+      "properties": {
+        "pointer": {"$ref": "#/$defs/pointer"},
+        "alias": {"enum": ["recovery", "remediation", "action", "actions", "command", "commands"]},
+        "value": true,
+        "value_sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"}
+      }
+    },
+    "hashFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer", "alias", "value", "value_sha256"],
+      "properties": {
+        "pointer": {"$ref": "#/$defs/pointer"},
+        "alias": {"enum": ["hash", "hashes", "digest", "digests", "checksum", "checksums", "sha256"]},
+        "value": true,
+        "value_sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"}
+      }
+    },
+    "compressionMeasurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope", "source_receipt_bytes", "archive_source_bytes", "archive_compact_bytes",
+        "archive_reduction_bytes", "archive_reduction_ratio", "receipt_count", "detail_blob_count"
+      ],
+      "properties": {
+        "scope": {"const": "archive_serialized_bytes"},
+        "source_receipt_bytes": {"type": "integer", "minimum": 1},
+        "archive_source_bytes": {"type": "integer", "minimum": 1},
+        "archive_compact_bytes": {"type": "integer", "minimum": 1},
+        "archive_reduction_bytes": {"type": "integer"},
+        "archive_reduction_ratio": {"type": "number"},
+        "receipt_count": {"type": "integer", "minimum": 1},
+        "detail_blob_count": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

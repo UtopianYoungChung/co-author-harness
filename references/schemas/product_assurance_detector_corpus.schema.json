@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/product_assurance_detector_corpus.schema.json",
+  "title": "Product assurance detector labeled corpus 1.0.0",
+  "$comment": "Common sha256 is reused exactly. Common safePath, fileBinding, timestamp, rootIdentity, and rootedBinding do not match a corpus field shape and are intentionally not applied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "corpus_id",
+    "split",
+    "candidate_only",
+    "label_authority",
+    "codes",
+    "items"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "corpus_id": {"$ref": "#/$defs/id"},
+    "split": {"enum": ["development", "held_out"]},
+    "candidate_only": {"const": true},
+    "label_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "method", "provenance", "judgment_truth_certified"],
+      "properties": {
+        "authority": {"const": "self-authored synthetic fixture labels"},
+        "method": {"const": "explicit per-code expected-candidate annotation"},
+        "provenance": {"const": "created solely for package detector evaluation; no research or external-source claims"},
+        "judgment_truth_certified": {"const": false}
+      }
+    },
+    "codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/code"}
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/item"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]*$"},
+    "textBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "sha256", "byte_length"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"},
+        "byte_length": {"type": "integer", "minimum": 1}
+      }
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "expected_candidate", "rationale", "semantics"],
+      "properties": {
+        "code": {"$ref": "#/$defs/code"},
+        "expected_candidate": {"type": "boolean"},
+        "rationale": {"type": "string", "minLength": 12},
+        "semantics": {"const": "candidate expectation only; not a factual or scholarly judgment"}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "provenance", "artifact", "corpus", "labels"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin", "author_role", "external_sources"],
+          "properties": {
+            "origin": {"const": "self-authored synthetic"},
+            "author_role": {"const": "Evidence Builder"},
+            "external_sources": {"type": "array", "maxItems": 0}
+          }
+        },
+        "artifact": {"$ref": "#/$defs/textBinding"},
+        "corpus": {"$ref": "#/$defs/textBinding"},
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/label"}
+        }
+      }
+    }
+  }
+}

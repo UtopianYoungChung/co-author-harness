@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -18,6 +18,10 @@ from c2_evidence_validation import canonical_bytes
 from destination_capability import assert_writable
 from draft_evidence_verifier import VerifierError, validate_verifier_transaction
 from product_assurance import DETECTOR_NAME, DETECTOR_VERSION
+from scholarly_evaluation_binding import (
+    ScholarlyBindingError,
+    validate_scholarly_binding,
+)
 from source_extract import SUPPORTED_PDF_EXTRACTOR
 
 
@@ -28,6 +32,15 @@ RUN_ALL = ROOT / "scripts" / "audit" / "run_all.py"
 CHECK_DETERMINISTIC = "deterministic-audit-suite"
 CHECK_SEMANTIC = "semantic-product-verifier"
 CHECK_VOCABULARY = frozenset({CHECK_DETERMINISTIC, CHECK_SEMANTIC})
+SCHOLARLY_REQUIRED = "PRODUCT-GATE-SCHOLARLY-EVIDENCE-REQUIRED"
+SCHOLARLY_CORE_FIELDS = frozenset({
+    "binding",
+    "artifact",
+    "evaluation_id",
+    "status",
+    "judgment_truth_certified",
+    "dependencies",
+})
 GOVERNED_INPUT_KINDS = frozenset({
     "governed_artifact",
     "semantic_receipt",
@@ -37,6 +50,7 @@ GOVERNED_INPUT_KINDS = frozenset({
     "semantics_manifest",
     "wiki_root_manifest",
     "project_root_manifest",
+    "scholarly_evaluation",
 })
 
 
@@ -60,6 +74,52 @@ def _validator() -> Draft202012Validator:
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema, format_checker=FormatChecker())
+
+
+def _scholarly_core(
+    project_root: Path,
+    artifact: Path,
+    scholarly_evaluation: Path | None,
+) -> dict[str, Any]:
+    """Replay C6 and retain only its JSON-native lifecycle contract."""
+
+    if scholarly_evaluation is None:
+        raise ProductGateError(
+            SCHOLARLY_REQUIRED,
+            "governed-product mode requires a separate C6 scholarly evaluation",
+        )
+    try:
+        evaluation_path = scholarly_evaluation.resolve(strict=True)
+        relative = evaluation_path.relative_to(project_root).as_posix()
+        binding = {
+            "evidence_path": relative,
+            "evidence_sha256": sha(evaluation_path),
+        }
+        verified = validate_scholarly_binding(
+            project_root=project_root,
+            artifact=artifact,
+            binding=binding,
+        )
+        core = {key: verified[key] for key in SCHOLARLY_CORE_FIELDS}
+    except (KeyError, OSError, TypeError, ValueError, ScholarlyBindingError) as exc:
+        raise ProductGateError(SCHOLARLY_REQUIRED, str(exc)) from exc
+    expected_artifact = {
+        "path": artifact.relative_to(project_root).as_posix(),
+        "sha256": sha(artifact),
+        "byte_length": artifact.stat().st_size,
+    }
+    if (
+        core.get("binding") != binding
+        or core.get("artifact") != expected_artifact
+        or core.get("status") != "qualified"
+        or core.get("judgment_truth_certified") is not False
+        or not isinstance(core.get("dependencies"), list)
+    ):
+        raise ProductGateError(
+            SCHOLARLY_REQUIRED,
+            "C6 scholarly evaluation is not qualified for the governed artifact",
+        )
+    return core
 
 
 def _validate_check_accounting(value: dict[str, Any]) -> None:
@@ -130,6 +190,7 @@ def _publish(
     *,
     recover: bool,
     stop_before_marker: bool,
+    before_marker: Callable[[], None] | None = None,
 ) -> dict[str, Path]:
     assert_writable(out_dir, "product-gate run publication")
     manifest_path = out_dir / "run-manifest.json"
@@ -163,6 +224,8 @@ def _publish(
         _write_exclusive(manifest_path, manifest_bytes)
         _write_exclusive(publication_path, publication_bytes)
     if not stop_before_marker:
+        if before_marker is not None:
+            before_marker()
         _write_exclusive(marker_path, marker_bytes)
     return {"manifest": manifest_path, "publication": publication_path, "marker": marker_path}
 
@@ -196,9 +259,11 @@ def run_gate(
     verifier_transaction: Path | None = None,
     verifier_publication_manifest: Path | None = None,
     verifier_commit_marker: Path | None = None,
+    scholarly_evaluation: Path | None = None,
     semantics_manifest: Path = SEMANTICS,
     recover: bool = False,
     _stop_before_marker: bool = False,
+    _before_marker: Callable[[], None] | None = None,
 ) -> dict[str, Path]:
     project_root = project_root.resolve(strict=True)
     artifact = artifact.resolve(strict=True)
@@ -243,6 +308,11 @@ def run_gate(
         lifecycle_eligible = False
         terminal_state = "diagnostic_complete"
     elif mode == "governed-product":
+        scholarly_value = _scholarly_core(
+            project_root,
+            artifact,
+            scholarly_evaluation,
+        )
         evidence = (
             wiki_root,
             semantic_receipt,
@@ -274,6 +344,7 @@ def run_gate(
                 "PRODUCT-GATE-EVIDENCE-REQUIRED", "verifier transaction is not product-qualified evaluation"
             )
         for path, kind in (
+            (scholarly_evaluation, "scholarly_evaluation"),
             (semantic_receipt, "semantic_receipt"),
             (verifier_transaction, "verifier_transaction"),
             (verifier_publication_manifest, "verifier_publication_manifest"),
@@ -338,6 +409,8 @@ def run_gate(
             str(verifier_publication_manifest.resolve()),
             "--verifier-commit-marker",
             str(verifier_commit_marker.resolve()),
+            "--scholarly-evaluation",
+            str(scholarly_evaluation.resolve()),
             "--semantics-manifest",
             str(semantics_manifest.resolve()),
         ])
@@ -346,6 +419,7 @@ def run_gate(
         "checks": checks,
         "inputs": inputs,
         "verifier": verifier_value,
+        "scholarly_evaluation": scholarly_value if mode == "governed-product" else None,
         "terminal_state": terminal_state,
     }
     manifest = {
@@ -358,6 +432,9 @@ def run_gate(
         "requested_checks": checks,
         "inputs": inputs,
         "verifier_transaction": verifier_value,
+        "scholarly_evaluation": (
+            scholarly_value if mode == "governed-product" else None
+        ),
         "runtime_versions": {
             "extractor": {
                 key: SUPPORTED_PDF_EXTRACTOR[key]
@@ -375,17 +452,94 @@ def run_gate(
     if errors:
         raise ProductGateError("PRODUCT-GATE-MODE-MISMATCH", errors[0].message)
     _validate_check_accounting(manifest)
+    def replay_before_marker() -> None:
+        if _before_marker is not None:
+            _before_marker()
+        if mode == "governed-product":
+            resolved: dict[str, Path] = {}
+            scholarly_paths = {
+                row.get("path")
+                for row in scholarly_value.get("dependencies", [])
+                if isinstance(row, dict)
+            }
+            for row in inputs:
+                kind = row["kind"]
+                try:
+                    current = Path(row["path"]).resolve(strict=True)
+                    if (
+                        str(current) != row["path"]
+                        or not current.is_file()
+                        or sha(current) != row["sha256"]
+                        or current.stat().st_size != row["size"]
+                    ):
+                        raise ValueError(f"captured input changed: {kind}")
+                    resolved[kind] = current
+                except (OSError, TypeError, ValueError) as exc:
+                    code = (
+                        SCHOLARLY_REQUIRED
+                        if (
+                            kind in {"governed_artifact", "scholarly_evaluation"}
+                            or row.get("path") in scholarly_paths
+                        )
+                        else "PRODUCT-GATE-EVIDENCE-STALE"
+                    )
+                    raise ProductGateError(code, str(exc)) from exc
+            replay = _scholarly_core(
+                project_root,
+                artifact,
+                scholarly_evaluation,
+            )
+            if replay != scholarly_value:
+                raise ProductGateError(
+                    SCHOLARLY_REQUIRED,
+                    "C6 scholarly evaluation changed before marker publication",
+                )
+            try:
+                verifier_replay = validate_verifier_transaction(
+                    transaction=resolved["verifier_transaction"],
+                    publication_manifest=resolved["verifier_publication_manifest"],
+                    commit_marker=resolved["verifier_commit_marker"],
+                    artifact=resolved["governed_artifact"],
+                    semantic_receipt=resolved["semantic_receipt"],
+                    project_root=resolved["project_root_manifest"].parent,
+                    wiki_root=resolved["wiki_root_manifest"].parent,
+                    harness_root=ROOT,
+                    semantics_manifest=resolved["semantics_manifest"],
+                )
+            except (KeyError, OSError, VerifierError) as exc:
+                raise ProductGateError("PRODUCT-GATE-EVIDENCE-STALE", str(exc)) from exc
+            if (
+                verifier_replay.get("phase") != "evaluation"
+                or verifier_replay.get("product_disposition") != "product_qualified"
+                or verifier_replay.get("transaction_id") != verifier_value["transaction_id"]
+                or sha(resolved["verifier_transaction"]) != verifier_value["transaction_sha256"]
+                or sha(resolved["verifier_publication_manifest"]) != verifier_value["publication_manifest_sha256"]
+                or sha(resolved["verifier_commit_marker"]) != verifier_value["commit_marker_sha256"]
+            ):
+                raise ProductGateError(
+                    "PRODUCT-GATE-EVIDENCE-STALE",
+                    "captured verifier evidence changed before marker publication",
+                )
+
     return _publish(
         out_dir,
         manifest,
         recover=recover,
         stop_before_marker=_stop_before_marker,
+        before_marker=replay_before_marker,
     )
 
 
 def validate_run_manifest(path: Path, *, require_lifecycle: bool = False) -> dict[str, Any]:
     path = path.resolve(strict=True)
     value = json.loads(path.read_text(encoding="utf-8"))
+    if value.get("mode") == "governed-product" and not isinstance(
+        value.get("scholarly_evaluation"), dict
+    ):
+        raise ProductGateError(
+            SCHOLARLY_REQUIRED,
+            "governed manifest lacks its C6 scholarly evaluation record",
+        )
     errors = sorted(_validator().iter_errors(value), key=lambda error: list(error.path))
     if errors:
         raise ProductGateError("PRODUCT-GATE-MODE-MISMATCH", errors[0].message)
@@ -410,8 +564,14 @@ def validate_run_manifest(path: Path, *, require_lifecycle: bool = False) -> dic
             "PRODUCT-GATE-MODE-MISMATCH", "mechanics manifest is not lifecycle product evidence"
         )
     resolved_inputs: dict[str, Path] = {}
-    try:
-        for row in value["inputs"]:
+    scholarly_recorded_paths = {
+        row.get("path")
+        for row in (value.get("scholarly_evaluation") or {}).get("dependencies", [])
+        if isinstance(row, dict)
+    }
+    for row in value["inputs"]:
+        kind = row.get("kind") if isinstance(row, dict) else None
+        try:
             kind = row["kind"]
             if kind in resolved_inputs:
                 raise ValueError(f"duplicate input kind: {kind}")
@@ -424,13 +584,36 @@ def validate_run_manifest(path: Path, *, require_lifecycle: bool = False) -> dic
             ):
                 raise ValueError(f"stale input: {kind}")
             resolved_inputs[kind] = current
-    except (KeyError, OSError, TypeError, ValueError) as exc:
-        raise ProductGateError("PRODUCT-GATE-EVIDENCE-STALE", str(exc)) from exc
+        except (KeyError, OSError, TypeError, ValueError) as exc:
+            code = (
+                SCHOLARLY_REQUIRED
+                if (
+                    kind in {"governed_artifact", "scholarly_evaluation"}
+                    or (isinstance(row, dict) and row.get("path") in scholarly_recorded_paths)
+                )
+                else "PRODUCT-GATE-EVIDENCE-STALE"
+            )
+            raise ProductGateError(code, str(exc)) from exc
     if value["lifecycle_eligible"]:
         if value.get("mode") != "governed-product" or set(resolved_inputs) != GOVERNED_INPUT_KINDS:
+            if "scholarly_evaluation" not in resolved_inputs:
+                raise ProductGateError(
+                    SCHOLARLY_REQUIRED,
+                    "governed manifest lacks the scholarly-evaluation input",
+                )
             raise ProductGateError(
                 "PRODUCT-GATE-EVIDENCE-STALE",
                 "governed manifest does not bind the exact required input set",
+            )
+        replay = _scholarly_core(
+            resolved_inputs["project_root_manifest"].parent,
+            resolved_inputs["governed_artifact"],
+            resolved_inputs["scholarly_evaluation"],
+        )
+        if replay != value.get("scholarly_evaluation"):
+            raise ProductGateError(
+                SCHOLARLY_REQUIRED,
+                "governed scholarly evaluation replay differs from the committed manifest",
             )
         try:
             transaction = validate_verifier_transaction(
@@ -474,6 +657,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--verifier-transaction", type=Path)
     parser.add_argument("--verifier-publication-manifest", type=Path)
     parser.add_argument("--verifier-commit-marker", type=Path)
+    parser.add_argument("--scholarly-evaluation", type=Path)
     parser.add_argument("--semantics-manifest", type=Path, default=SEMANTICS)
     parser.add_argument("--recover", action="store_true")
     return parser
@@ -495,6 +679,7 @@ def main(argv: list[str] | None = None) -> int:
             verifier_transaction=args.verifier_transaction,
             verifier_publication_manifest=args.verifier_publication_manifest,
             verifier_commit_marker=args.verifier_commit_marker,
+            scholarly_evaluation=args.scholarly_evaluation,
             semantics_manifest=args.semantics_manifest,
             recover=args.recover,
         )

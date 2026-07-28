@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable
 
+from jsonschema import Draft202012Validator, FormatChecker
+
 import assignment_dispatch_claim as claims
 import draft_evidence_verifier as verifier
 from assignment_c4_fixture_support import (
@@ -38,6 +40,15 @@ GATE = ROOT / "scripts" / "assignment_process_gate.py"
 SEMANTICS = ROOT / "references" / "semantics_manifest.v1.json"
 TARGET = "milestones/M1_project_memo.md"
 FIXED_AT = "2026-07-25T12:00:00Z"
+CLAIM_SCHEMA = (
+    ROOT / "references" / "schemas" / "assignment_dispatch_claim.schema.json"
+)
+ISSUANCE_SCHEMA = (
+    ROOT / "references" / "schemas" / "assignment_dispatch_issuance.schema.json"
+)
+COMMON_SCHEMA = (
+    ROOT / "references" / "schemas" / "common_scholarly_primitives.schema.json"
+)
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -68,6 +79,7 @@ def write_fixture_semantics_manifest(path: Path) -> None:
         )
     )
     refreshed = {
+        "references/schemas/assignment_dispatch_claim.schema.json",
         "references/schemas/assignment_dispatch_issuance.schema.json",
         "scripts/assignment_dispatch_claim.py",
         "scripts/assignment_receipt_transaction.py",
@@ -567,6 +579,79 @@ def expect_future_refusal(
         )
 
 
+def pre_refactor_schema(path: Path) -> dict[str, Any]:
+    """Reconstruct the exact local primitives replaced by the common schema."""
+
+    schema = json.loads(path.read_text(encoding="utf-8"))
+    old_sha = {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    old_timestamp = {
+        "type": "string",
+        "pattern": (
+            "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:"
+            "[0-9]{2}(\\.[0-9]+)?Z$"
+        ),
+    }
+    old_safe_path = {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$",
+    }
+    old_root = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["kind", "identity", "discovery", "manifest_sha256"],
+        "properties": {
+            "kind": {"enum": ["project", "harness", "wiki"]},
+            "identity": {"type": "string", "minLength": 1},
+            "discovery": {"type": "string", "minLength": 1},
+            "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        },
+    }
+    old_binding = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["root", "path", "sha256", "evidence_type"],
+        "properties": {
+            "root": {"$ref": "#/$defs/root"},
+            "path": {"$ref": "#/$defs/safePath"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "evidence_type": {"type": "string", "minLength": 1},
+        },
+    }
+    schema["$defs"].update(
+        {
+            "sha256": old_sha,
+            "timestamp": old_timestamp,
+            "safePath": old_safe_path,
+            "root": old_root,
+            "binding": old_binding,
+        }
+    )
+    if path == CLAIM_SCHEMA:
+        schema["$defs"]["generationVerifier"].pop("allOf")
+    else:
+        schema.pop("allOf")
+        schema["properties"]["sequence"] = {"type": "integer", "minimum": 1}
+        schema["properties"]["prior_row_sha256"] = {
+            "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        }
+        schema["properties"]["row_sha256"] = {"$ref": "#/$defs/sha256"}
+    return schema
+
+
+def schema_accepts(validator: Draft202012Validator, value: dict[str, Any]) -> bool:
+    return not any(validator.iter_errors(value))
+
+
+def expect_schema_refusal(code: str, call: Callable[[], Any]) -> None:
+    try:
+        call()
+    except ReceiptTransactionError as exc:
+        assert exc.code == code, exc
+    else:
+        raise AssertionError(f"expected {code}")
+
+
 def main() -> int:
     global SEMANTICS
     with tempfile.TemporaryDirectory(
@@ -595,6 +680,154 @@ def main() -> int:
             authorization_path = control / row["kernel_authorization"]["path"]
             assert authorization_path.is_file()
             assert sha(authorization_path) == row["kernel_authorization"]["sha256"]
+
+        old_claim_validator = Draft202012Validator(
+            pre_refactor_schema(CLAIM_SCHEMA), format_checker=FormatChecker()
+        )
+        old_issuance_validator = Draft202012Validator(
+            pre_refactor_schema(ISSUANCE_SCHEMA), format_checker=FormatChecker()
+        )
+        new_claim_validator = claims._validator(
+            CLAIM_SCHEMA, "APG-DISPATCH-CLAIM-INVALID"
+        )
+        new_issuance_validator = claims._validator(
+            ISSUANCE_SCHEMA, "APG-DISPATCH-CLAIM-AUTHORITY"
+        )
+        invalid_timestamp = copy.deepcopy(facts["generation_claim_value"])
+        invalid_timestamp["issued_at"] = "not-a-timestamp"
+        legacy_shape_timestamp = copy.deepcopy(facts["generation_claim_value"])
+        legacy_shape_timestamp["issued_at"] = "2026-99-99T99:99:99Z"
+        invalid_sha = copy.deepcopy(facts["generation_claim_value"])
+        invalid_sha["corpus_digest"] = "0" * 63
+        invalid_path = copy.deepcopy(facts["generation_claim_value"])
+        invalid_path["target_path"] = "C:forbidden.md"
+        invalid_root = copy.deepcopy(facts["generation_claim_value"])
+        invalid_root["assignment_receipt"]["root"]["kind"] = "consumer"
+        invalid_extra = copy.deepcopy(facts["generation_claim_value"])
+        invalid_extra["unexpected"] = True
+        incomplete_chain = copy.deepcopy(facts["evaluation_claim_value"])
+        del incomplete_chain["generation_verifier"]["publication_manifest"]
+        claim_vectors = [
+            facts["generation_claim_value"],
+            facts["evaluation_claim_value"],
+            invalid_timestamp,
+            legacy_shape_timestamp,
+            invalid_sha,
+            invalid_path,
+            invalid_root,
+            invalid_extra,
+            incomplete_chain,
+        ]
+        invalid_sequence = copy.deepcopy(issuance_rows[0])
+        invalid_sequence["sequence"] = 0
+        invalid_prior = copy.deepcopy(issuance_rows[1])
+        invalid_prior["prior_row_sha256"] = "0" * 63
+        invalid_row_hash = copy.deepcopy(issuance_rows[0])
+        invalid_row_hash["row_sha256"] = "A" * 64
+        invalid_binding_path = copy.deepcopy(issuance_rows[0])
+        invalid_binding_path["claim"]["path"] = "C:forbidden.json"
+        invalid_binding_root = copy.deepcopy(issuance_rows[0])
+        invalid_binding_root["claim"]["root"]["kind"] = "consumer"
+        invalid_issuance_extra = copy.deepcopy(issuance_rows[0])
+        invalid_issuance_extra["unexpected"] = True
+        issuance_vectors = issuance_rows + [
+            invalid_sequence,
+            invalid_prior,
+            invalid_row_hash,
+            invalid_binding_path,
+            invalid_binding_root,
+            invalid_issuance_extra,
+        ]
+        for label, old_validator, new_validator, vectors in (
+            ("claim", old_claim_validator, new_claim_validator, claim_vectors),
+            (
+                "issuance",
+                old_issuance_validator,
+                new_issuance_validator,
+                issuance_vectors,
+            ),
+        ):
+            for index, vector in enumerate(vectors):
+                before = canonical_bytes(vector)
+                old_accepts = schema_accepts(old_validator, vector)
+                new_accepts = schema_accepts(new_validator, vector)
+                assert old_accepts == new_accepts, (
+                    label,
+                    index,
+                    old_accepts,
+                    new_accepts,
+                )
+                if old_accepts:
+                    assert canonical_bytes(vector) == before
+
+        schema_attacks = base / "schema-attacks"
+        common_value = json.loads(COMMON_SCHEMA.read_text(encoding="utf-8"))
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-INVALID",
+            lambda: claims._validator(
+                CLAIM_SCHEMA,
+                "APG-DISPATCH-CLAIM-INVALID",
+                common_schema_path=schema_attacks / "missing-common.json",
+            ),
+        )
+        invalid_common = schema_attacks / "invalid-common.json"
+        invalid_common.parent.mkdir(parents=True, exist_ok=True)
+        invalid_common.write_bytes(b"{")
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-INVALID",
+            lambda: claims._validator(
+                CLAIM_SCHEMA,
+                "APG-DISPATCH-CLAIM-INVALID",
+                common_schema_path=invalid_common,
+            ),
+        )
+        wrong_id = copy.deepcopy(common_value)
+        wrong_id["$id"] = "https://example.invalid/common.json"
+        wrong_id_path = schema_attacks / "wrong-id.json"
+        write_json(wrong_id_path, wrong_id)
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims._validator(
+                ISSUANCE_SCHEMA,
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                common_schema_path=wrong_id_path,
+            ),
+        )
+        same_id_different_bytes = copy.deepcopy(common_value)
+        same_id_different_bytes["$comment"] = "same id, synthetic foreign bytes"
+        wrong_hash_path = schema_attacks / "same-id-different-bytes.json"
+        write_json(wrong_hash_path, same_id_different_bytes)
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-INVALID",
+            lambda: claims._validator(
+                CLAIM_SCHEMA,
+                "APG-DISPATCH-CLAIM-INVALID",
+                common_schema_path=wrong_hash_path,
+            ),
+        )
+        invalid_dispatch_schema = schema_attacks / "invalid-dispatch.schema.json"
+        write_json(invalid_dispatch_schema, {"type": 7})
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-AUTHORITY",
+            lambda: claims._validator(
+                invalid_dispatch_schema, "APG-DISPATCH-CLAIM-AUTHORITY"
+            ),
+        )
+        unresolved = json.loads(CLAIM_SCHEMA.read_text(encoding="utf-8"))
+        unresolved_text = json.dumps(unresolved).replace(
+            claims.COMMON_SCHEMA_ID,
+            "https://co-author-harness.local/schemas/missing-common.json",
+        )
+        unresolved_path = schema_attacks / "unresolved-claim.schema.json"
+        write_json(unresolved_path, json.loads(unresolved_text))
+        expect_schema_refusal(
+            "APG-DISPATCH-CLAIM-INVALID",
+            lambda: claims._validate_schema(
+                facts["generation_claim_value"],
+                unresolved_path,
+                "APG-DISPATCH-CLAIM-INVALID",
+            ),
+        )
 
         def claim_case(name: str, *, evaluation: bool = False) -> tuple[Path, Path]:
             project = clone_control(control, base / "cases", name)

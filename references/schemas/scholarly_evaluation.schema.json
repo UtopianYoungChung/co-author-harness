@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/scholarly_evaluation.schema.json",
+  "title": "Scholarly evaluation transaction 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "artifact",
+    "generator_envelope",
+    "evaluation_dispatch",
+    "claim_register",
+    "milestone_criteria",
+    "scholarly_profile",
+    "findings",
+    "omitted_checks",
+    "obligation_results",
+    "dispatch_separation",
+    "verdict",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "evaluation_id": {"$ref": "#/$defs/id"},
+    "artifact": {"$ref": "#/$defs/binding"},
+    "generator_envelope": {"$ref": "#/$defs/binding"},
+    "evaluation_dispatch": {"$ref": "#/$defs/evaluationDispatch"},
+    "claim_register": {"$ref": "#/$defs/binding"},
+    "milestone_criteria": {"$ref": "#/$defs/binding"},
+    "scholarly_profile": {"$ref": "#/$defs/binding"},
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    },
+    "omitted_checks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/omittedCheck"}
+    },
+    "obligation_results": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/obligationResult"}
+    },
+    "dispatch_separation": {"$ref": "#/$defs/dispatchSeparation"},
+    "verdict": {"$ref": "#/$defs/verdict"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byte_length"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_length": {"type": "integer", "minimum": 0}
+      }
+    },
+    "evaluationDispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "consumer_transaction_id"],
+      "properties": {
+        "claim": {"$ref": "#/$defs/binding"},
+        "consumer_transaction_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "sha256", "byte_start", "byte_end", "locator"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_start": {"type": "integer", "minimum": 0},
+        "byte_end": {"type": "integer", "minimum": 1},
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["section", "line"],
+          "properties": {
+            "section": {"type": "string", "minLength": 1},
+            "line": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "code",
+        "severity",
+        "claim_id",
+        "span",
+        "evidence",
+        "reasoning",
+        "required_disposition",
+        "disposition",
+        "current_fingerprint"
+      ],
+      "properties": {
+        "finding_id": {"$ref": "#/$defs/id"},
+        "code": {"$ref": "#/$defs/id"},
+        "severity": {"enum": ["BLOCKER", "MAJOR", "MINOR", "ADVISORY"]},
+        "claim_id": {"$ref": "#/$defs/id"},
+        "span": {"$ref": "#/$defs/span"},
+        "evidence": {"type": "string", "minLength": 1},
+        "reasoning": {"type": "string", "minLength": 1},
+        "required_disposition": {"type": "string", "minLength": 1},
+        "disposition": {
+          "enum": ["open", "resolved", "acknowledged", "escalated", "refused"]
+        },
+        "current_fingerprint": {"$ref": "#/$defs/sha256"},
+        "resolution": {"$ref": "#/$defs/binding"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"disposition": {"const": "resolved"}},
+            "required": ["disposition"]
+          },
+          "then": {"required": ["resolution"]},
+          "else": {"not": {"required": ["resolution"]}}
+        }
+      ]
+    },
+    "omittedCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "omission_code", "rationale", "evidence"],
+      "properties": {
+        "check_id": {"$ref": "#/$defs/id"},
+        "omission_code": {
+          "enum": ["not_applicable", "capability_unavailable", "source_unavailable"]
+        },
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/binding"}
+        }
+      }
+    },
+    "adjudicationIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adjudication_id", "canonical_sha256", "canonical_byte_length"],
+      "properties": {
+        "adjudication_id": {"$ref": "#/$defs/id"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_byte_length": {"type": "integer", "minimum": 0}
+      }
+    },
+    "obligationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "adjudications"],
+      "properties": {
+        "result": {"$ref": "#/$defs/binding"},
+        "adjudications": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/adjudicationIdentity"}
+        }
+      }
+    },
+    "dispatchSeparation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator_claim_id",
+        "evaluator_claim_id",
+        "separate",
+        "independence_level"
+      ],
+      "properties": {
+        "generator_claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
+        "evaluator_claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
+        "separate": {"const": true},
+        "independence_level": {
+          "enum": ["dispatch_separation", "host_attested_independence"]
+        },
+        "host_attestations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/binding"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "independence_level": {"const": "host_attested_independence"}
+            },
+            "required": ["independence_level"]
+          },
+          "then": {"required": ["host_attestations"]},
+          "else": {"not": {"required": ["host_attestations"]}}
+        }
+      ]
+    },
+    "checkResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "status", "evidence", "reasoning"],
+      "properties": {
+        "check_id": {"$ref": "#/$defs/id"},
+        "status": {"const": "pass"},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/binding"}
+        },
+        "reasoning": {"type": "string", "minLength": 1}
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "check_results"],
+      "properties": {
+        "status": {"enum": ["qualified", "blocked"]},
+        "check_results": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/checkResult"}
+        }
+      }
+    }
+  }
+}

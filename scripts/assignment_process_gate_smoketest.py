@@ -40,6 +40,7 @@ def run_gate(
     exemplar_conditioning: bool = False,
     emit_receipt: Path | None = None,
     verify_receipt: Path | None = None,
+    control_transition_id: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     command = [sys.executable, str(GATE), "--project-root", str(project)]
     if stage is not None:
@@ -52,6 +53,8 @@ def run_gate(
         command.extend(["--emit-receipt", str(emit_receipt)])
     if verify_receipt is not None:
         command.extend(["--verify-receipt", str(verify_receipt)])
+    if control_transition_id is not None:
+        command.extend(["--control-transition-id", control_transition_id])
     return subprocess.run(
         command,
         text=True, encoding="utf-8", errors="replace",
@@ -141,7 +144,8 @@ def main() -> int:
         assert m1.returncode == 0 and "target=M1" in m1.stdout, m1.stdout + m1.stderr
         assert receipt.is_file(), "READY gate must emit the requested receipt"
         receipt_record = json.loads(receipt.read_text(encoding="utf-8"))
-        assert receipt_record["schema_version"] == "2.1.0"
+        assert receipt_record["schema_version"] == "2.2.0"
+        assert receipt_record["control_transition"] is None
         assert "status" not in receipt_record
         assert "consumed_at" not in receipt_record
         assert receipt_record["stage"] == "draft"
@@ -405,6 +409,72 @@ def main() -> int:
         )
         boundary = run_gate(root, "draft", "M1")
         assert boundary.returncode == 4 and "APG-PROFESSOR-COPY-AUTHORITY" in boundary.stdout, boundary.stdout + boundary.stderr
+
+    # C7 coupling: once C2 has rebound the active Generator target, an unbound
+    # receipt cannot survive, while a receipt naming the exact marker-committed
+    # transition remains replayable through the public gate.
+    with tempfile.TemporaryDirectory(prefix="assignment-gate-control-", dir=ROOT) as temp:
+        import control_plane_transition as control
+        from control_plane_transition_smoketest import _project_fixture
+
+        project = Path(temp)
+        reviews = project / "reviews"
+        reviews.mkdir()
+        write_valid_contract(project)
+        phase_state = {
+            "milestone_framework": {
+                "mode": "native",
+                "milestones": {
+                    key: {"status": "not_started"}
+                    for key in ("M1", "M2", "M3", "M4", "M5")
+                },
+            }
+        }
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+        plan, _ = _project_fixture(project)
+        active = next(row for row in plan["members"] if row["member"] == "active_target")
+        old_target = project / active["path"]
+        new_target = project / "milestones" / "M1_project_memo.md"
+        new_target.parent.mkdir(parents=True, exist_ok=True)
+        new_target.write_bytes(old_target.read_bytes())
+        active["path"] = "milestones/M1_project_memo.md"
+        transition_id = "assignment-gate-rebind"
+        control.prepare(project, plan, transition_id)
+        control.publish(project, transition_id)
+        ready = Path(
+            "reviews/.harness/assignment/ready/"
+            "gate_receipt_M1_20260726T000000Z.json"
+        )
+        unbound = run_gate(project, "draft", "M1", emit_receipt=ready)
+        assert unbound.returncode == 4 and "CPT-LIVE-RECEIPT" in unbound.stdout, unbound.stdout + unbound.stderr
+        from full_run_contract_check import authorize
+        assert any(
+            row.get("code") == "FRC-CONTRACT-MISSING"
+            for row in authorize(project)
+        ), "full-run authorize must not recover authority from an unbound rebind"
+        bound = run_gate(
+            project, "draft", "M1", emit_receipt=ready,
+            control_transition_id=transition_id,
+        )
+        assert bound.returncode == 0, bound.stdout + bound.stderr
+        receipt_value = json.loads((project / ready).read_text(encoding="utf-8"))
+        assert receipt_value["control_transition"]["transition_id"] == transition_id
+        verified = run_gate(project, verify_receipt=ready)
+        assert verified.returncode == 0, verified.stdout + verified.stderr
+        assert authorize(project) == []
+        marker = project / receipt_value["control_transition"]["commit_marker"]["path"]
+        marker_bytes = marker.read_bytes()
+        marker.write_bytes(marker_bytes + b" ")
+        stale_authorize = authorize(project)
+        assert any(
+            row.get("code") == "FRC-CONTRACT-MISSING"
+            and "CPT-PUBLICATION-INCOMPLETE" in row.get("message", "")
+            for row in stale_authorize
+        ), stale_authorize
+        marker.write_bytes(marker_bytes)
+        assert authorize(project) == []
 
     print("OK assignment_process_gate_smoketest")
     return 0

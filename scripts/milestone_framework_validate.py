@@ -24,7 +24,14 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-from reader_accessibility_policy import PolicyError, recompute_check8, resolve_policy, validate_check8_evidence
+from reader_accessibility_policy import (
+    PolicyError,
+    recompute_check8,
+    resolve_reader_profile,
+    resolve_policy,
+    resolve_unavailable_policy,
+    validate_check8_evidence,
+)
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
@@ -124,6 +131,14 @@ class GateValidationResult:
         return not self.findings
 
 
+@dataclass(frozen=True)
+class _GateValidationSession:
+    project_root: Path
+    document_sha256: str
+    continuing: ValidationResult
+    opening: ValidationResult
+
+
 def _signed_status(path: Path) -> str | None:
     """Return one explicit positive signoff status, rejecting ambiguity/negation."""
     try:
@@ -140,31 +155,30 @@ def _signed_status(path: Path) -> str | None:
     return statuses[0]
 
 
-def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValidationResult:
-    """Validate a pre-transition milestone boundary using canonical semantics."""
+_GATE_TARGETS = {
+    "ph1_to_ph2": ("M1", "M2", "M3"),
+    "ph4_admission": ("M4",),
+    "ph4_terminal_close": ("M5",),
+}
+
+
+def _gate_boundary_findings(
+    project_root: Path, document: Any, boundary: str,
+) -> list[Finding]:
+    """Evaluate only the transition-specific portion of one canonical gate."""
+
     if boundary not in GATE_BOUNDARIES:
         raise ValueError(f"unknown milestone gate boundary: {boundary}")
-    target_map = {
-        "ph1_to_ph2": ("M1", "M2", "M3"),
-        "ph4_admission": ("M4",),
-        "ph4_terminal_close": ("M5",),
-    }
-    base = validate_document(project_root, document)
-    findings = list(base.findings)
-    outcomes: dict[str, str] = {}
-    for milestone in target_map[boundary]:
-        target_result = validate_document(project_root, document, milestone, opening_new_cycle=True)
-        outcomes[milestone] = target_result.outcome.value
-        findings.extend(target_result.findings)
     if not isinstance(document, dict):
-        return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
+        return []
     framework = document.get("milestone_framework")
     milestones = framework.get("milestones") if isinstance(framework, dict) else None
     if not isinstance(milestones, dict):
-        return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
+        return []
 
+    findings: list[Finding] = []
     if boundary == "ph1_to_ph2":
-        for milestone in target_map[boundary]:
+        for milestone in _GATE_TARGETS[boundary]:
             record = milestones.get(milestone)
             if not isinstance(record, dict) or record.get("applicability") == "not_applicable":
                 continue
@@ -233,11 +247,111 @@ def validate_gate(project_root: Path, document: Any, boundary: str) -> GateValid
                     "MF-GATE-M5", relative,
                     f"terminal close requires exactly one explicit `status: PASS|APPROVED|SIGNED` at {relative}",
                 ))
+    return findings
+
+
+def _gate_document_sha256(document: Any) -> str:
+    payload = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _prepare_gate_validation_session(
+    project_root: Path, document: Any,
+) -> _GateValidationSession:
+    """Build the two exact policy views shared by one gate invocation."""
+
+    root = project_root.resolve()
+    return _GateValidationSession(
+        project_root=root,
+        document_sha256=_gate_document_sha256(document),
+        continuing=validate_document(root, document, opening_new_cycle=False),
+        opening=validate_document(root, document, opening_new_cycle=True),
+    )
+
+
+def validate_gate(
+    project_root: Path, document: Any, boundary: str,
+    *, _session: _GateValidationSession | None = None,
+) -> GateValidationResult:
+    """Validate a pre-transition milestone boundary using canonical semantics."""
+    if boundary not in GATE_BOUNDARIES:
+        raise ValueError(f"unknown milestone gate boundary: {boundary}")
+    root = project_root.resolve()
+    session = _session or _prepare_gate_validation_session(root, document)
+    if (
+        session.project_root != root
+        or session.document_sha256 != _gate_document_sha256(document)
+    ):
+        raise ValueError("gate validation session does not bind the supplied project and document")
+    findings = list(session.continuing.findings)
+    outcomes: dict[str, str] = {}
+    framework = document.get("milestone_framework") if isinstance(document, dict) else None
+    ledger = framework if isinstance(framework, dict) else None
+    for milestone in _GATE_TARGETS[boundary]:
+        target_findings = list(session.opening.findings)
+        if ledger is not None:
+            target_findings.extend(_milestone_target_findings(ledger, milestone))
+        target_result = _result(
+            milestone,
+            ledger,
+            target_findings,
+            list(session.opening.evidence_bindings),
+            list(session.opening.skipped_checks),
+        )
+        outcomes[milestone] = target_result.outcome.value
+        findings.extend(target_result.findings)
+    findings.extend(_gate_boundary_findings(root, document, boundary))
     return GateValidationResult(boundary, outcomes, tuple(dict.fromkeys(findings)))
 
 
 def _finding(code: str, path: str, message: str, severity: Severity = Severity.BLOCKER) -> Finding:
     return Finding(code=code, severity=severity, path=path, message=message)
+
+
+def _milestone_target_findings(
+    ledger: dict[str, Any], target: str | None,
+) -> list[Finding]:
+    """Return only the target-specific readiness findings for one milestone."""
+
+    if target not in MILESTONES:
+        return []
+    milestones = ledger.get("milestones")
+    if not isinstance(milestones, dict):
+        return []
+    target_record = milestones.get(target)
+    target_is_not_applicable = (
+        isinstance(target_record, dict)
+        and target_record.get("applicability") == "not_applicable"
+    )
+    completed_through = None
+    if ledger.get("mode") == "legacy" and isinstance(ledger.get("migration_boundary"), dict):
+        completed_through = ledger["migration_boundary"].get("completed_through")
+    legacy_boundary_covers_target = (
+        completed_through in MILESTONES
+        and MILESTONES.index(target) <= MILESTONES.index(completed_through)
+    )
+    if target_is_not_applicable or legacy_boundary_covers_target:
+        return []
+    approval = target_record.get("approval") if isinstance(target_record, dict) else None
+    handoff = target_record.get("handoff") if isinstance(target_record, dict) else None
+    if (
+        isinstance(target_record, dict)
+        and target_record.get("status") == "accepted"
+        and target_record.get("dependency_state") == "current"
+        and isinstance(approval, dict)
+        and approval.get("status") == "approved"
+        and isinstance(handoff, dict)
+        and handoff.get("status") in {"ready", "consumed"}
+    ):
+        return []
+    return [_finding(
+        "MF-HANDOFF", f"milestone_framework.milestones.{target}",
+        f"{target} readiness requires accepted status, current dependency, "
+        "approved evidence, and a ready or consumed F9 handoff; legacy coverage "
+        f"ends at {completed_through or 'none'}",
+    )]
 
 
 def _trusted_path_migrations(
@@ -945,6 +1059,220 @@ def _validate_artifacts(
     return deliverable
 
 
+def validate_scholarly_authority_chain(
+    project_root: Path,
+    draft_results: dict[str, dict[str, Any]],
+    scholarly: dict[str, Any],
+    expected_receipt_id: str,
+) -> None:
+    """Cross-bind C6 to the exact consumed assignment and draft authorities."""
+
+    generation = draft_results["draft_generation"]
+    evaluation = draft_results["draft_evaluation"]
+    generation_locator = generation["locator"]
+    evaluation_locator = evaluation["locator"]
+    receipt_ids = {
+        generation_locator.get("receipt_id"),
+        evaluation_locator.get("receipt_id"),
+        expected_receipt_id,
+    }
+    if len(receipt_ids) != 1 or None in receipt_ids:
+        raise ValueError(
+            "draft and scholarly authority do not share the consumed assignment receipt"
+        )
+    generation_id = generation["transaction"].get("transaction_id")
+    if (
+        not isinstance(generation_id, str)
+        or evaluation_locator.get("generation_verifier_transaction_id") != generation_id
+    ):
+        raise ValueError(
+            "evaluation authority does not bind the qualified generation transaction"
+        )
+    try:
+        evaluation_value = json.loads(
+            Path(scholarly["evaluation_path"]).read_text(encoding="utf-8")
+        )
+        c6_evaluator_claim = evaluation_value["evaluation_dispatch"]["claim"]
+    except (KeyError, TypeError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"qualified scholarly evaluation does not expose its evaluator claim: {exc}"
+        ) from exc
+    selected_evaluator_claim = evaluation_locator.get("dispatch_claim")
+    if (
+        not isinstance(c6_evaluator_claim, dict)
+        or set(c6_evaluator_claim) != {"path", "sha256", "byte_length"}
+        or not isinstance(selected_evaluator_claim, dict)
+        or selected_evaluator_claim.get("root") != "project"
+        or selected_evaluator_claim.get("path") != c6_evaluator_claim.get("path")
+        or selected_evaluator_claim.get("sha256") != c6_evaluator_claim.get("sha256")
+    ):
+        raise ValueError(
+            "draft_evaluation selects another Evaluator claim than the C6 evaluation transaction"
+        )
+    selected_claim_path = _canonical_path(
+        project_root, selected_evaluator_claim.get("path")
+    )
+    if (
+        selected_claim_path is None
+        or not selected_claim_path.is_file()
+        or selected_claim_path.stat().st_size != c6_evaluator_claim.get("byte_length")
+    ):
+        raise ValueError("the exact C6 evaluator claim binding is unavailable or stale")
+    dependency_inventory = {
+        str(Path(row["path"]).resolve()): (row["sha256"], row["byte_length"])
+        for row in scholarly["dependencies"]
+    }
+    for key, result in draft_results.items():
+        binding = result["locator"].get("dispatch_claim")
+        if not isinstance(binding, dict) or binding.get("root") != "project":
+            raise ValueError(f"{key} dispatch claim has no exact project binding")
+        claim = _canonical_path(project_root, binding.get("path"))
+        if claim is None or not claim.is_file():
+            raise ValueError(f"{key} dispatch claim is unavailable")
+        expected = (binding.get("sha256"), claim.stat().st_size)
+        if dependency_inventory.get(str(claim.resolve())) != expected:
+            raise ValueError(
+                f"scholarly evaluation does not reuse the exact {key} dispatch claim"
+            )
+
+
+def _validate_scholarly_policy(
+    project_root: Path,
+    milestone: str,
+    record: dict[str, Any],
+    deliverable: dict[str, Any] | None,
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Replay the sole C6 predicate and cross-bind immutable ledger snapshots."""
+
+    if milestone not in {"M1", "M2", "M3", "M4"}:
+        return None
+    if deliverable is None or record.get("status") in {
+        "not_started", "not_applicable", "legacy_unverified",
+    }:
+        return None
+    base = f"milestone_framework.milestones.{milestone}.policy_evidence.scholarly_evaluation"
+    policy = record.get("policy_evidence")
+    binding = policy.get("scholarly_evaluation") if isinstance(policy, dict) else None
+    if binding is None:
+        findings.append(_finding(
+            "AMC-SCHOLARLY-EVALUATION-MISSING", base,
+            "recorded milestone lacks a current independent scholarly evaluation",
+        ))
+        return None
+    # The native bootstrap deliberately runs this validator under ``-I -S``.
+    # Keep the jsonschema-backed scholarly verifier off that blank-project path;
+    # recorded lifecycle evidence still loads and executes the sole C6 API.
+    from scholarly_evaluation_binding import (
+        ScholarlyBindingError,
+        validate_scholarly_binding,
+    )
+    try:
+        if not isinstance(binding, dict):
+            raise ValueError("binding is not an object")
+        evaluation_path = _canonical_path(project_root, binding.get("evidence_path"))
+        if evaluation_path is None or not evaluation_path.is_file():
+            raise ValueError("evaluation path is absent or outside the project")
+        value = json.loads(evaluation_path.read_text(encoding="utf-8"))
+        artifact_binding = value.get("artifact") if isinstance(value, dict) else None
+        artifact_path = _canonical_path(
+            project_root,
+            artifact_binding.get("path") if isinstance(artifact_binding, dict) else None,
+        )
+        if artifact_path is None:
+            raise ValueError("evaluation artifact path is absent or outside the project")
+        scholarly = validate_scholarly_binding(
+            project_root=project_root,
+            artifact=artifact_path,
+            binding=binding,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError, ScholarlyBindingError) as exc:
+        detail = exc.message if isinstance(exc, ScholarlyBindingError) else str(exc)
+        cause = (
+            f"{exc.cause_code}: "
+            if isinstance(exc, ScholarlyBindingError) and exc.cause_code
+            else ""
+        )
+        findings.append(_finding(
+            "AMC-SCHOLARLY-EVALUATION-STALE", base, f"{cause}{detail}",
+        ))
+        return None
+    if (
+        deliverable.get("sha256") != scholarly["artifact"]["sha256"]
+        or deliverable.get("bytes") != scholarly["artifact"]["byte_length"]
+    ):
+        findings.append(_finding(
+            "AMC-SCHOLARLY-EVALUATION-STALE", base,
+            "qualified scholarly artifact bytes differ from the ledger deliverable",
+        ))
+        return None
+    try:
+        from draft_evidence_verifier import (
+            VerifierError,
+            validate_lifecycle_verifier_binding,
+        )
+
+        assignment = policy.get("assignment_receipt") if isinstance(policy, dict) else None
+        if (
+            not isinstance(assignment, dict)
+            or set(assignment) != {"receipt_id", "evidence_path", "evidence_sha256"}
+            or not isinstance(assignment.get("receipt_id"), str)
+            or not assignment["receipt_id"]
+        ):
+            raise ValueError("recorded assignment-receipt binding is absent or malformed")
+        receipt_path = _canonical_path(project_root, assignment.get("evidence_path"))
+        if receipt_path is None or not receipt_path.is_file() or receipt_path.parent.name != "consumed":
+            raise ValueError("recorded assignment receipt is unavailable outside the consumed lane")
+        receipt_payload = receipt_path.read_bytes()
+        if hashlib.sha256(receipt_payload).hexdigest() != assignment.get("evidence_sha256"):
+            raise ValueError("recorded assignment receipt hash is stale")
+        receipt_value = json.loads(receipt_payload)
+        if not isinstance(receipt_value, dict) or receipt_value.get("receipt_id") != assignment["receipt_id"]:
+            raise ValueError("recorded assignment receipt identity is stale")
+        draft_results: dict[str, dict[str, Any]] = {}
+        for key, phase_name, disposition in (
+            ("draft_generation", "generation", "evaluation_ready"),
+            ("draft_evaluation", "evaluation", "product_qualified"),
+        ):
+            locator_binding = policy.get(key) if isinstance(policy, dict) else None
+            if (
+                not isinstance(locator_binding, dict)
+                or set(locator_binding) != {"evidence_path", "evidence_sha256"}
+            ):
+                raise ValueError(f"{key} binding is absent or malformed")
+            locator = _canonical_path(project_root, locator_binding.get("evidence_path"))
+            if locator is None or not locator.is_file():
+                raise ValueError(f"{key} locator is unavailable")
+            if hashlib.sha256(locator.read_bytes()).hexdigest() != locator_binding.get("evidence_sha256"):
+                raise ValueError(f"{key} locator hash is stale")
+            draft_results[key] = validate_lifecycle_verifier_binding(
+                locator=locator,
+                artifact=scholarly["artifact_path"],
+                project_root=project_root,
+                harness_root=ROOT,
+                expected_phase=phase_name,
+                expected_disposition=disposition,
+            )
+        validate_scholarly_authority_chain(
+            project_root, draft_results, scholarly, assignment["receipt_id"],
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError, VerifierError) as exc:
+        findings.append(_finding(
+            "AMC-SCHOLARLY-EVALUATION-STALE", base,
+            f"scholarly lifecycle authority is stale: {exc}",
+        ))
+        return None
+    for row in scholarly["dependencies"]:
+        evidence.append({
+            "kind": "scholarly_evaluation_dependency",
+            "path": row["path"],
+            "sha256": row["sha256"],
+            "bytes": row["byte_length"],
+        })
+    return scholarly
+
+
 def _validate_packet(
     project_root: Path,
     milestone: str,
@@ -956,6 +1284,7 @@ def _validate_packet(
     f9_schema: dict[str, Any],
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    scholarly: dict[str, Any] | None,
 ) -> dict[str, str] | None:
     handoff = record.get("handoff")
     if not isinstance(handoff, dict) or handoff.get("status") not in {"ready", "consumed"}:
@@ -1068,6 +1397,286 @@ def policy_epoch_findings(binding: dict[str, Any], profile_epoch: int, request: 
     return ["MF-POLICY-PIN-EPOCH-STALE"] if opening_new_cycle and (stale or pending) else []
 
 
+def _validate_unavailable_reader_accessibility(
+    project_root: Path,
+    binding: dict[str, Any],
+    milestones: dict[str, Any],
+    deliverables: dict[str, dict[str, Any] | None],
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+    skipped_checks: list[dict[str, str]],
+) -> None:
+    """Validate an M1-only, fail-closed binding to a structural base graph."""
+    base = "milestone_framework.policy_bindings.reader_accessibility"
+    try:
+        resolve_policy(project_root)
+    except PolicyError as exc:
+        reason = str(exc)
+        if not reason.startswith("GRAPH-SEMANTIC-INELIGIBLE:"):
+            findings.append(_finding(
+                "MF-POLICY", base,
+                f"cannot re-derive unavailable reader policy: {exc}",
+            ))
+            return
+        try:
+            expected = resolve_unavailable_policy(project_root, reason)
+        except PolicyError as unavailable_exc:
+            findings.append(_finding(
+                "MF-POLICY", base,
+                f"cannot bind the structural graph observation: {unavailable_exc}",
+            ))
+            return
+    else:
+        findings.append(_finding(
+            "MF-POLICY-REBIND-REQUIRED", base,
+            "the semantic graph is eligible again; Planner must apply a governed reader-policy rebind",
+        ))
+        return
+
+    skipped_checks.append({
+        "check": "reader_accessibility_policy_semantic_rederivation",
+        "mode": "m1-only-structural-fallback",
+        "reason": reason,
+        "status": f"SKIPPED({reason})",
+    })
+    resolved_bytes = _file_binding(
+        project_root,
+        binding.get("resolved_path"),
+        binding.get("resolved_sha256"),
+        None,
+        f"{base}.resolved_path",
+        findings,
+        evidence,
+        "MF-POLICY",
+    )
+    try:
+        recorded = json.loads(resolved_bytes) if resolved_bytes is not None else None
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        findings.append(_finding(
+            "MF-POLICY", f"{base}.resolved_path",
+            f"unavailable policy artifact must be valid JSON: {exc}",
+        ))
+        return
+    if recorded != expected:
+        findings.append(_finding(
+            "MF-POLICY", f"{base}.resolved_path",
+            "unavailable policy artifact differs from the current structural graph and policy inputs",
+        ))
+    expected_binding = {
+        "availability": "semantic_graph_unavailable",
+        "profile_path": expected["profile_path"],
+        "profile_sha256": expected["profile_sha256"],
+        "resolved_path": binding.get("resolved_path"),
+        "resolved_sha256": binding.get("resolved_sha256"),
+        "source_bindings": expected["source_bindings"],
+        "project_identity": expected.get("project_identity"),
+        "blocker": expected["blocker"],
+        "transitions": {
+            key: {"state": "active", "observed_count": 0, "last_event_sequence": None, "events": []}
+            for key in ("G", "H", "VE")
+        },
+    }
+    if binding != expected_binding:
+        findings.append(_finding(
+            "MF-POLICY", base,
+            "unavailable binding does not exactly project the current policy and graph observation",
+        ))
+
+    m1 = milestones.get("M1")
+    m1_policy = m1.get("policy_evidence") if isinstance(m1, dict) else None
+    if not isinstance(m1_policy, dict) or m1_policy.get("reader_model") != expected["resolved_profile"]["domain_native_register"]["reader_model"]:
+        findings.append(_finding(
+            "MF-POLICY", "milestone_framework.milestones.M1.policy_evidence",
+            "M1 must retain the canonical reader model while graph semantics are unavailable",
+        ))
+    if isinstance(m1, dict) and (
+        m1.get("status") != "in_progress"
+        or m1.get("approval", {}).get("status") != "pending"
+        or m1.get("handoff", {}).get("status") != "not_ready"
+    ):
+        findings.append(_finding(
+            "MF-POLICY-SEMANTIC-UNAVAILABLE", "milestone_framework.milestones.M1",
+            "M1 may be planned and researched, but cannot be accepted or handed off until semantic reader policy is rebound",
+        ))
+    for milestone in ("M2", "M3", "M4", "M5"):
+        record = milestones.get(milestone)
+        if isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable"}:
+            findings.append(_finding(
+                "MF-POLICY-SEMANTIC-UNAVAILABLE",
+                f"milestone_framework.milestones.{milestone}",
+                f"{milestone} cannot start while the semantic reader-policy binding is unavailable",
+            ))
+
+
+def _validate_reader_profile_binding(
+    project_root: Path,
+    ledger: dict[str, Any],
+    binding: dict[str, Any],
+    milestones: dict[str, Any],
+    deliverables: dict[str, dict[str, Any] | None],
+    findings: list[Finding],
+    evidence: list[dict[str, Any]],
+) -> None:
+    """Validate graph-independent reader policy without invoking Graphify."""
+    base = "milestone_framework.policy_bindings.reader_accessibility"
+    try:
+        expected = resolve_reader_profile(project_root)
+    except PolicyError as exc:
+        findings.append(_finding("MF-POLICY", base, f"cannot re-derive reader profile: {exc}"))
+        return
+    resolved_bytes = _file_binding(
+        project_root, binding.get("resolved_path"), binding.get("resolved_sha256"), None,
+        f"{base}.resolved_path", findings, evidence, "MF-POLICY",
+    )
+    try:
+        recorded = json.loads(resolved_bytes) if resolved_bytes is not None else None
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        findings.append(_finding("MF-POLICY", f"{base}.resolved_path", f"reader-profile artifact must be valid JSON: {exc}"))
+        return
+    if recorded != expected:
+        findings.append(_finding(
+            "MF-POLICY", f"{base}.resolved_path",
+            "reader-profile artifact differs from current package/project policy sources",
+        ))
+    projected = {
+        "binding_version": "2.0.0",
+        "binding_kind": "reader_profile",
+        "semantic_usage": "not_invoked",
+        "profile_path": expected["profile_path"],
+        "profile_sha256": expected["profile_sha256"],
+        "resolved_path": binding.get("resolved_path"),
+        "resolved_sha256": binding.get("resolved_sha256"),
+        "source_bindings": expected["source_bindings"],
+        "project_identity": expected.get("project_identity"),
+        "transitions": binding.get("transitions"),
+    }
+    if binding != projected:
+        findings.append(_finding("MF-POLICY", base, "v2 reader-profile binding is stale or malformed"))
+    for index, source in enumerate(binding.get("source_bindings", [])):
+        if not isinstance(source, dict):
+            continue
+        owner = ROOT if source.get("scope") == "package" else project_root
+        candidate = (owner / str(source.get("path"))).resolve()
+        try:
+            candidate.relative_to(owner.resolve())
+        except ValueError:
+            findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "source binding escapes declared root"))
+            continue
+        if not candidate.is_file() or hashlib.sha256(candidate.read_bytes()).hexdigest() != source.get("sha256"):
+            findings.append(_finding("MF-POLICY", f"{base}.source_bindings[{index}]", "reader-profile source is missing or stale"))
+
+    def started(name: str) -> bool:
+        record = milestones.get(name)
+        return isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable", "legacy_unverified"}
+
+    reader_model = expected["resolved_profile"]["domain_native_register"]["reader_model"]
+    m1_policy = milestones.get("M1", {}).get("policy_evidence") if isinstance(milestones.get("M1"), dict) else None
+    if started("M1") and (
+        not isinstance(m1_policy, dict)
+        or (ledger.get("mode") == "native" and m1_policy.get("reader_model") != reader_model)
+    ):
+        findings.append(_finding("MF-POLICY", "milestone_framework.milestones.M1.policy_evidence", "native M1 must record the canonical domain-native reader_model"))
+
+    stable = {
+        "profile_path": binding.get("resolved_path"),
+        "profile_sha256": binding.get("profile_sha256"),
+        "resolved_sha256": binding.get("resolved_sha256"),
+        "semantic_usage": "not_invoked",
+    }
+    for milestone in ("M3", "M4", "M5"):
+        if not started(milestone):
+            continue
+        policy = milestones[milestone].get("policy_evidence")
+        if not isinstance(policy, dict) or any(policy.get(key) != value for key, value in stable.items()):
+            findings.append(_finding(
+                "MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence",
+                f"{milestone} must bind the current reader profile and declare semantic_usage not_invoked",
+            ))
+        if isinstance(policy, dict) and any(key in policy for key in ("attestation_view_pin", "exemplar_view_pin")):
+            findings.append(_finding(
+                "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+                f"milestone_framework.milestones.{milestone}.policy_evidence",
+                "semantic graph pins cannot be asserted by a graph-independent reader-profile binding",
+            ))
+        if milestone not in {"M4", "M5"} or not isinstance(policy, dict):
+            continue
+        record = milestones[milestone]
+        deliverable = deliverables.get(milestone)
+        accepted = record.get("status") in {"accepted", "superseded"} or record.get("handoff", {}).get("status") in {"ready", "consumed"}
+        required = list(stable)
+        if isinstance(deliverable, dict):
+            required.extend(("manuscript_sha256", "phase", "cycle_id"))
+        if accepted:
+            required.extend(("check8_path", "check8_sha256", "aggregate_verdict"))
+        if any(policy.get(key) is None for key in required):
+            findings.append(_finding(
+                "MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence",
+                f"{milestone} reader-profile evidence is incomplete for its current lifecycle state",
+            ))
+            continue
+        if not accepted:
+            continue
+        check8_bytes = _file_binding(
+            project_root, policy.get("check8_path"), policy.get("check8_sha256"), None,
+            f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path",
+            findings, evidence, "MF-POLICY",
+        )
+        try:
+            check8 = json.loads(check8_bytes) if check8_bytes is not None else None
+            if not isinstance(check8, dict):
+                raise PolicyError("Check 8 evidence must be an object")
+            validate_check8_evidence(check8)
+        except (UnicodeDecodeError, json.JSONDecodeError, PolicyError) as exc:
+            findings.append(_finding(
+                "MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path",
+                f"invalid graph-independent Check 8 evidence: {exc}",
+            ))
+            continue
+        expected_phase = "Ph3" if milestone == "M4" else "Ph4"
+        transition_snapshot = {
+            key: binding.get("transitions", {}).get(key, {}).get("state")
+            for key in ("G", "H", "VE")
+        }
+        expected_check8 = {
+            "schema_version": "check8_evidence.v2",
+            "semantic_usage": "not_invoked",
+            "profile_path": binding.get("resolved_path"),
+            "profile_sha256": binding.get("profile_sha256"),
+            "manuscript_sha256": deliverable.get("sha256") if isinstance(deliverable, dict) else None,
+            "phase": expected_phase,
+            "cycle_id": policy.get("cycle_id"),
+            "transition_snapshot": transition_snapshot,
+        }
+        mismatched_check8 = [
+            key for key, value in expected_check8.items() if check8.get(key) != value
+        ]
+        if mismatched_check8:
+            findings.append(_finding(
+                "MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path",
+                "Check 8 v2 does not bind the current reader profile, manuscript, phase, cycle, and transitions; "
+                f"mismatched fields: {mismatched_check8}",
+            ))
+        _file_binding(
+            project_root, check8.get("manuscript_path"), check8.get("manuscript_sha256"), None,
+            f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path.manuscript_path",
+            findings, evidence, "MF-POLICY",
+        )
+        try:
+            recomputed = recompute_check8(check8, binding.get("transitions", {}))
+        except PolicyError as exc:
+            findings.append(_finding("MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path", str(exc)))
+            continue
+        if (
+            check8.get("subcheck_verdicts") != recomputed["subcheck_verdicts"]
+            or check8.get("aggregate_verdict") != recomputed["aggregate_verdict"]
+            or policy.get("aggregate_verdict") != recomputed["aggregate_verdict"]
+        ):
+            findings.append(_finding(
+                "MF-POLICY", f"milestone_framework.milestones.{milestone}.policy_evidence.check8_path",
+                "Check 8 v2 verdicts do not match deterministic recomputation",
+            ))
+
+
 def _validate_reader_accessibility_policy(
     project_root: Path,
     ledger: dict[str, Any],
@@ -1087,6 +1696,16 @@ def _validate_reader_accessibility_policy(
     base = "milestone_framework.policy_bindings.reader_accessibility"
     if not isinstance(binding, dict):
         findings.append(_finding("MF-POLICY", base, "reader-accessibility policy binding must be an object"))
+        return
+    if binding.get("binding_version") == "2.0.0":
+        _validate_reader_profile_binding(
+            project_root, ledger, binding, milestones, deliverables, findings, evidence,
+        )
+        return
+    if binding.get("availability") == "semantic_graph_unavailable":
+        _validate_unavailable_reader_accessibility(
+            project_root, binding, milestones, deliverables, findings, evidence, skipped_checks,
+        )
         return
     resolved_bytes: bytes | None = None
     resolved_payload: Any = None
@@ -1892,6 +2511,9 @@ def validate_document(
             continue
         deliverable = _validate_artifacts(project_root, milestone, record, primary_lineage, findings, evidence)
         deliverables[milestone] = deliverable
+        scholarly = _validate_scholarly_policy(
+            project_root, milestone, record, deliverable, findings, evidence,
+        )
         _validate_feedback(project_root, milestone, record, primary_lineage, findings, evidence)
         approval = record.get("approval")
         if (
@@ -1910,7 +2532,7 @@ def validate_document(
                 findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}.approval.evidence_path", "approval evidence path must exist inside the project"))
         packet = _validate_packet(
             project_root, milestone, record, deliverable, primary_lineage, predecessor,
-            project_identity, f9_schema, findings, evidence,
+            project_identity, f9_schema, findings, evidence, scholarly,
         )
         if packet is not None:
             predecessor = packet
@@ -2005,35 +2627,7 @@ def validate_document(
                         "released export source binding must match the accepted manuscript path and SHA-256",
                     ))
 
-    if target in MILESTONES:
-        target_record = milestones.get(target)
-        target_is_not_applicable = (
-            isinstance(target_record, dict)
-            and target_record.get("applicability") == "not_applicable"
-        )
-        completed_through = None
-        if ledger.get("mode") == "legacy" and isinstance(ledger.get("migration_boundary"), dict):
-            completed_through = ledger["migration_boundary"].get("completed_through")
-        legacy_boundary_covers_target = (
-            completed_through in MILESTONES
-            and MILESTONES.index(target) <= MILESTONES.index(completed_through)
-        )
-        if not target_is_not_applicable and not legacy_boundary_covers_target:
-            approval = target_record.get("approval") if isinstance(target_record, dict) else None
-            handoff = target_record.get("handoff") if isinstance(target_record, dict) else None
-            if (
-                not isinstance(target_record, dict)
-                or target_record.get("status") != "accepted"
-                or target_record.get("dependency_state") != "current"
-                or not isinstance(approval, dict)
-                or approval.get("status") != "approved"
-                or not isinstance(handoff, dict)
-                or handoff.get("status") not in {"ready", "consumed"}
-            ):
-                findings.append(_finding(
-                    "MF-HANDOFF", f"milestone_framework.milestones.{target}",
-                    f"{target} readiness requires accepted status, current dependency, approved evidence, and a ready or consumed F9 handoff; legacy coverage ends at {completed_through or 'none'}",
-                ))
+    findings.extend(_milestone_target_findings(ledger, target))
 
     if target in {"Ph2", "Ph4"}:
         sections = document.get("sections")

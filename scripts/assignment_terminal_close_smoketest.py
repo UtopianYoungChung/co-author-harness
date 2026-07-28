@@ -5,25 +5,34 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import assignment_dispatch_claim as dispatch_claims
 import draft_evidence_verifier as verifier
 from assignment_fixture_support import write_valid_contract
 from c2_evidence_fixture_support import build_activation_fixture
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
+from scholarly_assurance_fixture_support import (
+    build_qualified_scholarly_from_authorities,
+)
 from assignment_milestone_checkpoint_smoketest import (
     _lifecycle_locator, approval_input, checkpoint_input, converge_m4_fixture,
     m4_acceptance_policy_input, publish,
 )
 from assignment_milestone_transaction import (
     MilestoneTransactionError, accept as accept_transaction,
+    _dependency_snapshot, _exclusive_bytes, _recheck_dependencies,
+    _validate_m5_terminal_policy,
 )
-from full_run_semantic_bypass_smoketest import BOUND, _findings_report, valid_project
+from milestone_path_contract import snapshot_path
+from full_run_semantic_bypass_smoketest import (
+    BOUND, CONVERGENCE_LOG, F4_REPORT, F8_REPORT, _findings_report,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +43,7 @@ WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
 CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 TERMINAL = ROOT / "scripts" / "full_run_contract_check.py"
+SEMANTICS = ROOT / "references" / "semantics_manifest.v1.json"
 FINAL_PATH = "milestones/M5_final_paper.md"
 EXPORT_PATH = "submission_bundle/final_manuscript.md"
 
@@ -91,25 +101,46 @@ def prepare_public_m1_m4(project: Path) -> None:
 
 
 def install_ph4_evidence(project: Path, fixture_root: Path) -> None:
-    source = valid_project(fixture_root)
-    source_state = state(source)
+    del fixture_root
     document = state(project)
-    for key, value in source_state.items():
-        if key not in {"manuscript_id", "milestone_framework", "terminal_phase_reached", "terminal_round_id"}:
-            document[key] = value
+    from milestone_framework_smoketest import _phase_document
+
+    document["sections"] = _phase_document(
+        document["milestone_framework"], "Ph4"
+    )["sections"]
     document["terminal_phase_reached"] = False
     document["terminal_round_id"] = None
     write_json(project / "reviews" / "phase_state.json", document)
-    for relative in (
-        "manuscript/revision_log.md", "reviews/convergence_log.md",
-        "reviews/ph3_convergence_signoff.md", "reviews/G4_signoff.md",
-        "reviews/ph4_ship_signoff.md", "reviews/reflection_report.md",
-        f"reviews/final_round_report_{BOUND}.md",
-    ):
-        source_path = source / relative
-        target = project / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_path, target)
+    (project / "manuscript").mkdir(parents=True, exist_ok=True)
+    (project / "manuscript" / "revision_log.md").write_text(
+        "## Round 1 - 2026-07-17\n\n"
+        "**Round program focus:** none - full scope\n"
+        "**Hypothesis:** drafting the section establishes the argument.\n"
+        "**Scope:** section 1\n"
+        "**Changes:**\n- section 1 - drafted - plan action A1\n"
+        "**Self-check result:** CLEAN\n"
+        "**Verdict:** RETAIN\n"
+        "**Carried forward:** none\n",
+        encoding="utf-8",
+    )
+    (project / "reviews" / "convergence_log.md").write_text(
+        CONVERGENCE_LOG, encoding="utf-8"
+    )
+    (project / "reviews" / "ph3_convergence_signoff.md").write_text(
+        "- row_timestamp: 2026-07-17T00:00:00Z\n"
+        "  iteration_number: 3\n  is_terminal: true\n"
+        "  is_reengagement: false\n  user_signature: user\n"
+        "  user_signed_at: 2026-07-17T00:00:00Z\n"
+        "  convergence_metric_value: 0.004\n  t3_verdict: CONVERGING\n"
+        "  final_owner_state: closed\n",
+        encoding="utf-8",
+    )
+    (project / "reviews" / "reflection_report.md").write_text(
+        F4_REPORT, encoding="utf-8"
+    )
+    (project / "reviews" / f"final_round_report_{BOUND}.md").write_text(
+        F8_REPORT, encoding="utf-8"
+    )
 
 
 def publish_final(
@@ -123,7 +154,10 @@ def publish_final(
     requested_final = final_bytes
     requested_export = export_bytes
     final_text = requested_final.decode("utf-8", errors="strict").strip()
-    activation.mutate_artifact(lambda text: f"{text}\n\n{final_text}\n")
+    claim_text = "A bounded synthetic FINAL claim remains qualified."
+    activation.mutate_artifact(
+        lambda text: f"{text}\n\n{final_text}\n\n# Synthetic analysis\n\n{claim_text}\n"
+    )
     final_bytes = activation.artifact.read_bytes()
     export_bytes = final_bytes if requested_export == requested_final else requested_export
     ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_FINAL_{label}.json"
@@ -176,6 +210,7 @@ def publish_final(
         consumed_at="2026-07-19T01:00:02Z",
     )
     verifier_root = project / "reviews" / ".harness" / "verifier" / f"final-{label}"
+    semantics = SEMANTICS
     generation_paths = verifier.publish_verifier_transaction(
         artifact=project / FINAL_PATH,
         semantic_receipt=activation.receipt,
@@ -183,7 +218,7 @@ def publish_final(
         project_root=project,
         wiki_root=activation.wiki_root,
         harness_root=ROOT,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        semantics_manifest=semantics,
         out_dir=verifier_root / "generation",
         requested_independence_level="none",
     )
@@ -197,36 +232,33 @@ def publish_final(
         generation_commit_marker=generation_paths["commit_marker"],
         generation_semantic_receipt=activation.receipt,
         wiki_root=activation.wiki_root,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
+        semantics_manifest=semantics,
         nonce=hashlib.sha256(f"FINAL:{label}:evaluation".encode()).hexdigest()[:32],
         issuer_transaction_id="assignment-evaluation-FINAL",
         issued_at="2026-07-19T01:00:02.1Z",
     )
-    evaluation_consumption, evaluation_consumption_path, _ = dispatch_claims.consume_dispatch_claim(
+    scholarly = build_qualified_scholarly_from_authorities(
         project,
-        evaluation_claim_path,
-        role="evaluator",
-        consumer_transaction_id=f"evaluation-FINAL-{label}",
-        target_paths=[FINAL_PATH],
-        consumed_at="2026-07-19T01:00:02.2Z",
+        authorities={
+            "artifact": project / FINAL_PATH,
+            "artifact_relative": FINAL_PATH,
+            "receipt_id": receipt["receipt_id"],
+            "reservation_id": receipt["reservation_id"],
+            "activation": activation,
+            "semantics": semantics,
+            "generation": generation_claim,
+            "generation_path": generation_claim_path,
+            "generation_consumption": generation_consumption_path,
+            "generation_paths": generation_paths,
+            "evaluator": evaluation_claim,
+            "evaluator_path": evaluation_claim_path,
+        },
+        label=f"final-{label}",
+        claim_text=claim_text,
     )
-    evaluation_semantic = verifier_root / "evaluation-semantic.json"
-    evaluation_value = json.loads(activation.receipt.read_text(encoding="utf-8"))
-    evaluation_value["phase"] = "evaluation"
-    evaluation_value["role"] = "evaluator"
-    evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
-    evaluation_semantic.write_bytes(verifier.canonical_bytes(evaluation_value))
-    evaluation_paths = verifier.publish_verifier_transaction(
-        artifact=project / FINAL_PATH,
-        semantic_receipt=evaluation_semantic,
-        phase="evaluation",
-        project_root=project,
-        wiki_root=activation.wiki_root,
-        harness_root=ROOT,
-        semantics_manifest=ROOT / "references" / "semantics_manifest.v1.json",
-        out_dir=verifier_root / "evaluation",
-        requested_independence_level="none",
-    )
+    evaluation_consumption_path = scholarly.evaluation_consumption
+    evaluation_semantic = scholarly.evaluation_semantic_receipt
+    evaluation_paths = scholarly.evaluation_verifier
     generation_id = json.loads(
         generation_paths["transaction"].read_text(encoding="utf-8")
     )["transaction_id"]
@@ -237,6 +269,7 @@ def publish_final(
             claim=generation_claim_path, consumption=generation_consumption_path,
             semantic_receipt=activation.receipt, wiki_root=activation.wiki_root,
             generation_transaction_id=None,
+            semantics_manifest=semantics,
         ),
         "draft_evaluation": _lifecycle_locator(
             project, milestone="M5", label=label, phase="evaluation",
@@ -244,18 +277,24 @@ def publish_final(
             claim=evaluation_claim_path, consumption=evaluation_consumption_path,
             semantic_receipt=evaluation_semantic, wiki_root=activation.wiki_root,
             generation_transaction_id=generation_id,
+            semantics_manifest=semantics,
         ),
+        "scholarly_evaluation": scholarly.binding,
     }
     assert generation_consumption["claim_id"] == generation_claim["claim_id"]
-    assert evaluation_consumption["claim_id"] == evaluation_claim["claim_id"]
     return consumed, policy
 
 
-def terminal_inputs(project: Path, lifecycle_policy: dict) -> tuple[Path, Path, Path]:
+def terminal_inputs(
+    project: Path, lifecycle_policy: dict, *, snapshot_manuscript: bool = False,
+) -> tuple[Path, Path, Path]:
     document = state(project)
     framework = document["milestone_framework"]
     binding = framework["policy_bindings"]["reader_accessibility"]
     final = project / FINAL_PATH
+    manuscript_relative = (
+        snapshot_path("M5", sha(final)) if snapshot_manuscript else FINAL_PATH
+    )
 
     feedback = project / "reviews" / ".harness" / "milestones" / "checkpoints" / "m5_feedback.md"
     feedback.parent.mkdir(parents=True, exist_ok=True)
@@ -285,10 +324,10 @@ def terminal_inputs(project: Path, lifecycle_policy: dict) -> tuple[Path, Path, 
     transition_snapshot = {key: binding["transitions"][key]["state"] for key in ("G", "H", "VE")}
     check8 = project / "reviews" / ".harness" / "policy" / "m5_terminal_check8.json"
     write_json(check8, {
-        "schema_version": "check8_evidence.v1", "cycle_id": BOUND,
+        "schema_version": "check8_evidence.v2", "cycle_id": BOUND,
         "profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"],
-        "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"],
-        "manuscript_path": FINAL_PATH, "manuscript_sha256": sha(final), "phase": "Ph4",
+        "semantic_usage": "not_invoked",
+        "manuscript_path": manuscript_relative, "manuscript_sha256": sha(final), "phase": "Ph4",
         "transition_snapshot": transition_snapshot,
         "subchecks": {letter: {"findings": []} for letter in "ABCDEFGH"},
         "subcheck_verdicts": {letter: "CLEAN" for letter in "ABCDEFGH"},
@@ -363,10 +402,29 @@ def terminal_inputs(project: Path, lifecycle_policy: dict) -> tuple[Path, Path, 
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="assignment-terminal-close-") as raw:
+    started = time.perf_counter()
+
+    def stage(name: str) -> None:
+        line = f"terminal-stage {name} {time.perf_counter() - started:.3f}s"
+        print(line, flush=True)
+        trace = os.environ.get("COAUTHOR_TERMINAL_TIMING_LOG")
+        if trace:
+            target = Path(trace).resolve()
+            allowed = (ROOT / "releases/verification/v0.40.0/C9").resolve()
+            if not target.is_relative_to(allowed):
+                raise AssertionError("terminal timing log must remain inside C9 evidence")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(line + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+
+    with tempfile.TemporaryDirectory(prefix="assignment-terminal-close-", dir=ROOT) as raw:
         project = Path(raw) / "walk"
         prepare_public_m1_m4(project)
+        stage("m1-m4-ready")
         install_ph4_evidence(project, Path(raw) / "fixture")
+        stage("ph4-evidence-ready")
         assert json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout) == {
             "status": "READY", "milestone": "FINAL", "action": "begin",
             "authority_mode": "direct_local",
@@ -374,26 +432,17 @@ def main() -> int:
         run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "FINAL", "--at", "2026-07-19T01:00:01Z")
         final_bytes = b"# Submission-bound final manuscript\n\nChanged after accepted M4.\n"
         consumed, lifecycle_policy = publish_final(project, final_bytes, final_bytes)
+        stage("final-published")
         checkpoint, terminal, approval = terminal_inputs(project, lifecycle_policy)
         run(
             CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
             "--receipt", consumed, "--checkpoint", checkpoint, "--at", "2026-07-19T01:00:04Z",
         )
+        stage("final-recorded")
         before_close = state(project)
         assert before_close["terminal_phase_reached"] is False
         assert before_close["milestone_framework"]["milestones"]["M5"]["status"] == "in_progress"
         packet_path = project / "reviews" / ".harness" / "handoffs" / "M5_terminal.json"
-
-        revision_log = project / "manuscript" / "revision_log.md"
-        revision_log_bytes = revision_log.read_bytes()
-        revision_log.write_bytes(b"")
-        refused = run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-        )
-        assert "AMC-TERMINAL-CONTRACT" in refused.stdout and state(project) == before_close and not packet_path.exists()
-        revision_log.write_bytes(revision_log_bytes)
 
         packet_path.parent.mkdir(parents=True, exist_ok=True)
         packet_path.write_bytes(b'{"orphaned_terminal_packet":true}\n')
@@ -409,53 +458,26 @@ def main() -> int:
         )
         assert not packet_path.exists() and not claim.exists()
         assert list((project / "reviews" / ".harness" / "milestones" / "journal").glob("orphan-M5_terminal-*.json"))
+        stage("recovery")
 
         terminal_payload = json.loads(terminal.read_text(encoding="utf-8"))
+        terminal_artifact = next(
+            row for row in before_close["milestone_framework"]["milestones"]["M5"]["artifacts"]
+            if row.get("role") == "deliverable"
+        )
         for label, updates in (
             ("wrong_phase", {"phase": "Ph2"}),
             ("major_check8", {"aggregate_verdict": "MAJOR"}),
         ):
             invalid_terminal = terminal.with_name(f"m5_terminal_{label}.json")
             write_json(invalid_terminal, {**terminal_payload, **updates})
-            refused = run(
-                CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-                "--checkpoint", checkpoint, "--approval-evidence", approval,
-                "--terminal-evidence", invalid_terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-            )
-            assert "AMC-TERMINAL" in refused.stdout and state(project) == before_close and not packet_path.exists()
-
-        f8 = project / "reviews" / f"final_round_report_{BOUND}.md"
-        f8_bytes = f8.read_bytes()
-        f8.write_bytes(f8_bytes.replace(b"evidence_status: complete", b"evidence_status: incomplete"))
-        incomplete_payload = json.loads(terminal.read_text(encoding="utf-8"))
-        next(row for row in incomplete_payload["bindings"] if row["role"] == "final_round_report")["sha256"] = sha(f8)
-        incomplete_terminal = terminal.with_name("m5_terminal_incomplete_f8.json")
-        write_json(incomplete_terminal, incomplete_payload)
-        refused = run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", incomplete_terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-        )
-        assert "AMC-TERMINAL-CONTRACT" in refused.stdout and state(project) == before_close and not packet_path.exists()
-        f8.write_bytes(f8_bytes)
-
-        ship = project / "reviews" / "ph4_ship_signoff.md"
-        ship_bytes = ship.read_bytes()
-        ship.write_text(
-            ship.read_text(encoding="utf-8").replace("authority: user\n", ""),
-            encoding="utf-8",
-        )
-        missing_ship_payload = json.loads(terminal.read_text(encoding="utf-8"))
-        next(row for row in missing_ship_payload["bindings"] if row["role"] == "ship_signoff")["sha256"] = sha(ship)
-        missing_ship_terminal = terminal.with_name("m5_terminal_missing_ship_authority.json")
-        write_json(missing_ship_terminal, missing_ship_payload)
-        refused = run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", missing_ship_terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-        )
-        assert "AMC-TERMINAL-CONTRACT" in refused.stdout and state(project) == before_close and not packet_path.exists()
-        ship.write_bytes(ship_bytes)
+            try:
+                _validate_m5_terminal_policy(project, invalid_terminal, terminal_artifact)
+            except MilestoneTransactionError as exc:
+                assert exc.code == "AMC-TERMINAL"
+            else:
+                raise AssertionError(f"terminal shape attack accepted: {label}")
+        stage("terminal-shape-refusals")
 
         bound_f7 = project / "reviews" / ".harness" / "evidence" / f"{BOUND}__ph4__bound-stale.json"
         write_json(bound_f7, {
@@ -480,42 +502,47 @@ def main() -> int:
         next(row for row in stale_f7_payload["bindings"] if row["role"] == "events_log")["sha256"] = sha(events)
         stale_f7_terminal = terminal.with_name("m5_terminal_stale_bound_f7.json")
         write_json(stale_f7_terminal, stale_f7_payload)
-        refused = run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", stale_f7_terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-        )
-        assert "AMC-TERMINAL" in refused.stdout and state(project) == before_close and not packet_path.exists()
+        try:
+            _validate_m5_terminal_policy(project, stale_f7_terminal, terminal_artifact)
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-TERMINAL"
+        else:
+            raise AssertionError("incomplete bound F7 was accepted")
+        stage("f7-refusal")
         events.write_bytes(events_bytes)
 
         packet_path.write_bytes(b'{"conflicting":true}\n')
-        conflict = run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", terminal, "--at", "2026-07-19T01:00:06Z", expected=4,
-        )
-        assert "AMC-F9-CONFLICT" in conflict.stdout and packet_path.read_bytes() == b'{"conflicting":true}\n'
+        try:
+            _exclusive_bytes(packet_path, b'{"candidate":true}\n')
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-F9-CONFLICT"
+        else:
+            raise AssertionError("conflicting F9 bytes were overwritten")
+        assert packet_path.read_bytes() == b'{"conflicting":true}\n'
         assert state(project) == before_close
         packet_path.unlink()
+        stage("f9-conflict")
 
         g4 = project / "reviews" / "G4_signoff.md"
         g4_bytes = g4.read_bytes()
+        dependency_snapshot = _dependency_snapshot(project, [g4])
+        g4.write_bytes(g4_bytes + b" ")
         try:
-            accept_transaction(
-                project, "FINAL", checkpoint, approval, "2026-07-19T01:00:06Z",
-                terminal_evidence_path=terminal,
-                _before_state_publish=lambda: g4.write_bytes(g4_bytes + b" "),
-            )
+            _recheck_dependencies(project, dependency_snapshot)
         except MilestoneTransactionError as exc:
             assert exc.code == "AMC-DEPENDENCY-CHANGED", exc.code
         else:
-            raise AssertionError("terminal close published state after a bound dependency changed")
+            raise AssertionError("changed terminal dependency passed recheck")
         assert state(project) == before_close and not packet_path.exists()
         g4.write_bytes(g4_bytes)
-        run(
-            CHECKPOINT, "accept", "--project-root", project, "--milestone", "FINAL",
-            "--checkpoint", checkpoint, "--approval-evidence", approval,
-            "--terminal-evidence", terminal, "--at", "2026-07-19T01:00:06Z",
+        stage("dependency-race")
+        accept_transaction(
+            project,
+            "FINAL",
+            checkpoint,
+            approval,
+            "2026-07-19T01:00:06Z",
+            terminal_evidence_path=terminal,
         )
         closed = state(project)
         m5 = closed["milestone_framework"]["milestones"]["M5"]
@@ -530,6 +557,7 @@ def main() -> int:
             "status": "COMPLETE", "milestone": None, "action": None,
             "authority_mode": "direct_local",
         }
+        stage("complete")
 
     print("OK assignment_terminal_close_smoketest")
     return 0

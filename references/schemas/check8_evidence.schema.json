@@ -2,12 +2,13 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"check8_evidence.schema.json",
   "type":"object","additionalProperties":false,
-  "required":["schema_version","cycle_id","profile_path","profile_sha256","attestation_view_pin","exemplar_view_pin","manuscript_path","manuscript_sha256","phase","transition_snapshot","subchecks","subcheck_verdicts","ve","aggregate_verdict"],
+  "required":["schema_version","cycle_id","profile_path","profile_sha256","manuscript_path","manuscript_sha256","phase","transition_snapshot","subchecks","subcheck_verdicts","ve","aggregate_verdict"],
   "properties":{
-    "schema_version":{"const":"check8_evidence.v1"},
+    "schema_version":{"enum":["check8_evidence.v1","check8_evidence.v2"]},
     "cycle_id":{"type":"string","minLength":1},
     "profile_path":{"type":"string","minLength":1},"profile_sha256":{"$ref":"#/$defs/sha"},
     "attestation_view_pin":{"$ref":"#/$defs/sha"},"exemplar_view_pin":{"$ref":"#/$defs/sha"},
+    "semantic_usage":{"const":"not_invoked"},
     "manuscript_path":{"type":"string","minLength":1},"manuscript_sha256":{"$ref":"#/$defs/sha"},
     "phase":{"enum":["Ph2","Ph3","Ph4"]},
     "transition_snapshot":{"type":"object","additionalProperties":false,"required":["G","H","VE"],"properties":{"G":{"$ref":"#/$defs/state"},"H":{"$ref":"#/$defs/state"},"VE":{"$ref":"#/$defs/state"}}},
@@ -16,6 +17,10 @@
     "ve":{"type":"object","additionalProperties":false,"required":["aggregate_member","gate_contribution","findings"],"properties":{"aggregate_member":{"const":false},"gate_contribution":{"const":"none"},"findings":{"type":"array","items":{"$ref":"#/$defs/finding"}}}},
     "aggregate_verdict":{"enum":["CLEAN","BORDERLINE","MAJOR","BLOCKER"]}
   },
+  "allOf":[
+    {"if":{"properties":{"schema_version":{"const":"check8_evidence.v1"}}},"then":{"required":["attestation_view_pin","exemplar_view_pin"]}},
+    {"if":{"properties":{"schema_version":{"const":"check8_evidence.v2"}}},"then":{"required":["semantic_usage"],"not":{"anyOf":[{"required":["attestation_view_pin"]},{"required":["exemplar_view_pin"]}]}}}
+  ],
   "$defs":{
     "sha":{"type":"string","pattern":"^[0-9a-f]{64}$"},"state":{"enum":["active","retired"]},
     "severity":{"enum":["CLEAN","MINOR","MAJOR","BLOCKER"]},

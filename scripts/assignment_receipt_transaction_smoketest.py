@@ -217,7 +217,8 @@ def emitted_project(base: Path, name: str) -> tuple[Path, Path, dict]:
     result = emit(project, ready)
     assert result.returncode == 0, result.stdout + result.stderr
     record = json.loads(ready.read_text(encoding="utf-8"))
-    assert record["schema_version"] == "2.1.0"
+    assert record["schema_version"] == "2.2.0"
+    assert record["control_transition"] is None
     assert record["authorized_role"] == "generator"
     assert record["primary_deliverable_path"] == M1_PATH
     assert record["authorized_paths"] == [

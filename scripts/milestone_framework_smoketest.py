@@ -8,6 +8,7 @@ the two real schemas created in Task 2.
 
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import importlib.util
@@ -165,6 +166,10 @@ REAL_CASES = {
     "policy_accepted_m4_phase_ph1": ("MISCONFIGURED", 4, None, "MF-POLICY"),
     "policy_accepted_m4_major": ("MISCONFIGURED", 4, None, "MF-POLICY"),
 }
+
+_SCHOLARLY_PRISTINE: Path | None = None
+_SCHOLARLY_WORKING: Path | None = None
+_SCHOLARLY_LEDGER: dict[str, Any] | None = None
 
 
 class SchemaError(ValueError):
@@ -500,13 +505,30 @@ def _assert_synthetic_fixture(project: Path, sandbox: Path) -> None:
         raise AssertionError(f"fixture escaped its temporary sandbox: {project_root}")
 
 
-def _bind_re_manuscript_chain(project: Path, ledger: dict[str, Any]) -> None:
+def _bind_re_manuscript_chain(
+    project: Path, ledger: dict[str, Any], *, include_scholarly: bool = False,
+) -> None:
     """Model the observed RE correction without copying project prose or live files."""
     milestones = ledger["milestones"]
     manuscript_path = "manuscript/First-Principles_RE_Essay.md"
     manuscript_hash, manuscript_bytes = _write_bound_file(
         project, manuscript_path, "Synthetic manuscript used by both M4 and M5.\n"
     )
+    if include_scholarly:
+        from c5_lifecycle_fixture_support import build_existing_artifact_pair
+
+        pair = build_existing_artifact_pair(
+            project,
+            artifact_relative=manuscript_path,
+            public_milestone="M4",
+            label="milestone-framework-re-shared-manuscript",
+        )
+        manuscript_hash = pair["artifact_sha256"]
+        manuscript_bytes = pair["artifact_bytes"]
+        for milestone in ("M4", "M5"):
+            ledger["milestones"][milestone].setdefault("policy_evidence", {}).update(
+                pair["policy_evidence"]
+            )
     manuscript = {
         "role": "deliverable", "artifact_kind": "manuscript", "path": manuscript_path,
         "sha256": manuscript_hash, "bytes": manuscript_bytes,
@@ -652,8 +674,16 @@ def _phase_document(ledger: dict[str, Any], current_phase: str = "Ph4") -> dict[
     }
 
 
-def _materialize_native_project(project: Path) -> dict[str, Any]:
+def _materialize_native_project(
+    project: Path, *, include_scholarly: bool = False,
+    scholarly_milestones: frozenset[str] | None = None,
+) -> dict[str, Any]:
     ledger = _valid_ledger()
+    qualified_milestones = (
+        scholarly_milestones
+        if scholarly_milestones is not None
+        else frozenset({"M1", "M2", "M3", "M4"})
+    )
     previous_packet: dict[str, str] | None = None
     for index, milestone in enumerate(("M1", "M2", "M3", "M4", "M5")):
         record = ledger["milestones"][milestone]
@@ -661,6 +691,18 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
         artifact_hash, artifact_bytes = _write_bound_file(
             project, artifact["path"], f"{milestone} canonical deliverable\n"
         )
+        if include_scholarly and milestone in qualified_milestones:
+            from c5_lifecycle_fixture_support import build_existing_artifact_pair
+
+            pair = build_existing_artifact_pair(
+                project,
+                artifact_relative=artifact["path"],
+                public_milestone="FINAL" if milestone == "M5" else milestone,
+                label=f"milestone-framework-{milestone.lower()}",
+            )
+            artifact_hash = pair["artifact_sha256"]
+            artifact_bytes = pair["artifact_bytes"]
+            record.setdefault("policy_evidence", {}).update(pair["policy_evidence"])
         artifact["sha256"] = artifact_hash
         artifact["bytes"] = artifact_bytes
 
@@ -716,6 +758,7 @@ def _materialize_native_project(project: Path) -> dict[str, Any]:
                 "evidence_path": record["approval"]["evidence_path"],
                 "approved_at": record["approval"]["approved_at"],
             },
+            "policy_evidence": record.get("policy_evidence"),
         }
         packet_path = f"reviews/.harness/handoffs/{milestone}_packet.json"
         packet_hash, _ = _write_bound_file(
@@ -789,8 +832,8 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
     binding = policy.phase_state_binding(resolved, resolved_path, project)
     ledger["policy_bindings"] = {"reader_accessibility": binding}
     milestones = ledger["milestones"]
-    milestones["M1"]["policy_evidence"] = {"reader_model": resolved["resolved_profile"]["domain_native_register"]["reader_model"]}
-    milestones["M3"]["policy_evidence"] = {"profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"], "resolved_sha256": binding["resolved_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"]}
+    milestones["M1"].setdefault("policy_evidence", {}).update({"reader_model": resolved["resolved_profile"]["domain_native_register"]["reader_model"]})
+    milestones["M3"].setdefault("policy_evidence", {}).update({"profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"], "resolved_sha256": binding["resolved_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"]})
     for milestone, phase in (("M4", "Ph3"), ("M5", "Ph4")):
         manuscript = milestones[milestone]["artifacts"][0]
         subchecks = {key: {"findings": []} for key in "ABCDEFGH"}
@@ -808,7 +851,7 @@ def _install_reader_accessibility_policy(project: Path, ledger: dict[str, Any]) 
         check_path = f"reviews/.harness/policy/{milestone.lower()}_check8.json"
         check_hash, _ = _write_bound_file(project, check_path, json.dumps(sidecar, indent=2) + "\n")
         evidence = {"profile_path": binding["resolved_path"], "profile_sha256": binding["profile_sha256"], "resolved_sha256": binding["resolved_sha256"], "attestation_view_pin": binding["attestation_view_pin"], "exemplar_view_pin": binding["exemplar_view_pin"], "manuscript_sha256": manuscript["sha256"], "cycle_id": sidecar["cycle_id"], "check8_path": check_path, "check8_sha256": check_hash, "aggregate_verdict": "CLEAN", "phase": phase}
-        milestones[milestone]["policy_evidence"] = evidence
+        milestones[milestone].setdefault("policy_evidence", {}).update(evidence)
     predecessor = None
     for milestone in ("M1", "M2", "M3", "M4", "M5"):
         evidence = milestones[milestone].get("policy_evidence")
@@ -870,12 +913,42 @@ def _append_deliverable_recorded(
     })
 
 
-def _write_real_case(case: str, project: Path) -> None:
-    ledger = _materialize_native_project(project)
+def _materialize_real_case_base(
+    project: Path, *, include_scholarly: bool, reuse_scholarly: bool,
+) -> dict[str, Any]:
+    """Reuse one exact-path scholarly base inside this synthetic suite only."""
+
+    global _SCHOLARLY_PRISTINE, _SCHOLARLY_WORKING, _SCHOLARLY_LEDGER
+    if not include_scholarly or not reuse_scholarly:
+        return _materialize_native_project(project, include_scholarly=include_scholarly)
+    resolved = project.resolve()
+    if _SCHOLARLY_PRISTINE is None:
+        ledger = _materialize_native_project(project, include_scholarly=True)
+        _SCHOLARLY_WORKING = resolved
+        _SCHOLARLY_LEDGER = copy.deepcopy(ledger)
+        _SCHOLARLY_PRISTINE = project.parent / ".milestone-scholarly-pristine"
+        shutil.copytree(project, _SCHOLARLY_PRISTINE)
+        return ledger
+    if _SCHOLARLY_WORKING != resolved or _SCHOLARLY_LEDGER is None:
+        raise AssertionError("scholarly fixture reuse must retain one exact working path")
+    shutil.rmtree(project)
+    shutil.copytree(_SCHOLARLY_PRISTINE, project)
+    return copy.deepcopy(_SCHOLARLY_LEDGER)
+
+
+def _write_real_case(
+    case: str, project: Path, *, reuse_scholarly: bool = False,
+) -> None:
+    include_scholarly = REAL_CASES.get(case, (None, 4, None, None))[1] == 0
+    ledger = _materialize_real_case_base(
+        project,
+        include_scholarly=include_scholarly,
+        reuse_scholarly=reuse_scholarly,
+    )
     milestones = ledger["milestones"]
 
     if case.startswith("re_"):
-        _bind_re_manuscript_chain(project, ledger)
+        _bind_re_manuscript_chain(project, ledger, include_scholarly=include_scholarly)
 
     document_phase = "Ph4"
     if case == "valid_ph2_target":
@@ -1554,8 +1627,24 @@ def _rebind_legacy_registry(project: Path, registry: Path) -> None:
     registry.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
-def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
+def _run_exemplar_cases(
+    directory: Path, failures: list[str], *, segment: str = "all",
+) -> None:
+    claim_cases = {
+        "absent_claim_without_registration",
+        "ledger_analytical_scalar",
+        "agents_self_declaration",
+        "lifecycle_self_declaration",
+        "ledger_self_declaration",
+        "inf_prose_self_declaration",
+    }
+
     def run(name: str, project: Path, registry: Path, expected_exit: int, expected_code: str | None = None) -> dict[str, Any]:
+        is_claim_case = name in claim_cases or name.startswith("claim_")
+        if segment == "claims" and not is_claim_case:
+            return {}
+        if segment == "evidence" and is_claim_case:
+            return {}
         actual_exit, payload, stderr = _run_real_validator(project, None, registry)
         codes = {row.get("code") for row in payload.get("findings", [])}
         print(f"exemplar/{name}: expected={expected_exit}/{expected_code or '-'} actual={actual_exit}/{sorted(code for code in codes if code)}")
@@ -1633,6 +1722,9 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     claimed.mkdir(); _write_real_case("valid_native_chain", claimed)
     (claimed / "CLAUDE.md").write_text("# Project status\n\nThis project is the portfolio exemplar.\n", encoding="utf-8")
     run("inf_prose_self_declaration", claimed, empty, 4, "MF-EXEMPLAR")
+
+    if segment == "claims":
+        return
 
     clean = directory / "exemplar-clean"
     clean.mkdir(); _write_real_case("valid_native_chain", clean)
@@ -1717,6 +1809,13 @@ def _run_exemplar_cases(directory: Path, failures: list[str]) -> None:
     malformed.write_text('{"schema_version":"1.0.0","entries":"wrong"}\n', encoding="utf-8")
     run("malformed_registry", ordinary, malformed, 4, "MF-EXEMPLAR")
 
+    # The lifecycle fixture builders may leave a helper-imported policy module in
+    # ``sys.modules`` before its late declarations have been reached.  The race
+    # probe imports the production validator in-process, so reload the canonical
+    # policy module at this explicit isolation boundary.
+    sys.modules.pop("reader_accessibility_policy", None)
+    canonical_policy = __import__("reader_accessibility_policy")
+    assert hasattr(canonical_policy, "resolve_unavailable_policy")
     spec = importlib.util.spec_from_file_location("milestone_framework_validate_exemplar_race_test", VALIDATOR)
     assert spec is not None and spec.loader is not None
     validator_module = importlib.util.module_from_spec(spec)
@@ -1931,6 +2030,11 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
 
     residual = [(finding.code, finding.severity.value, finding.path) for finding in result.findings]
     expected_dispositions = [
+        (
+            "AMC-SCHOLARLY-EVALUATION-MISSING",
+            "milestones.M2.policy_evidence.scholarly_evaluation",
+            "FINDING",
+        ),
         ("MF-CANON", "events[1].bindings[0]", "PASS"),
         ("MF-CANON", "events[4].bindings[0]", "PASS"),
         ("MF-CANON", "events[5].bindings[0]", "PASS"),
@@ -1947,12 +2051,20 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
         ("MF-POLICY", "policy_bindings.reader_accessibility", "SKIPPED"),
     ]
     expected_residual = [
+        (
+            "AMC-SCHOLARLY-EVALUATION-MISSING",
+            "BLOCKER",
+            "milestone_framework.milestones.M2.policy_evidence.scholarly_evaluation",
+        ),
         ("MF-FEEDBACK", "BLOCKER", "milestone_framework.milestones.M2.feedback_records[0].source_path"),
         ("MF-FEEDBACK", "BLOCKER", "milestone_framework.milestones.M2.feedback_records[0].contemporaneity_evidence_path"),
     ]
-    print(f"path_v2/regression_14_to_2: actual={residual}")
+    print(f"path_v2/regression_15_to_3: actual={residual}")
     if residual != expected_residual:
-        failures.append(f"path-v2 regression expected only unchanged MF-FEEDBACK blockers, got {residual}")
+        failures.append(
+            "path-v2 regression expected the v0.40 scholarly blocker and only the "
+            f"two unchanged MF-FEEDBACK blockers, got {residual}"
+        )
     skipped = getattr(result, "skipped_checks", ())
     if not any(row.get("status", "").startswith("SKIPPED(") for row in skipped):
         failures.append("path-v2 structural policy fallback was not reported visibly as SKIPPED(reason)")
@@ -1964,8 +2076,8 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
     phase_rows = json.loads(phase_validator._render_json([], list(skipped)))
     if not any(row.get("severity") == "SKIPPED" and row.get("message", "").startswith("SKIPPED(") for row in phase_rows):
         failures.append("phase-state wrapper silently dropped the structural policy fallback")
-    if len(expected_dispositions) != 14:
-        failures.append("path-v2 baseline disposition table no longer covers all 14 findings")
+    if len(expected_dispositions) != 15:
+        failures.append("path-v2 baseline disposition table no longer covers all 15 findings")
     for code, locator, disposition in expected_dispositions:
         matches = [
             finding for finding in result.findings
@@ -2347,7 +2459,22 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
             failures.append("sk20/backup_cleanup_injection must produce complete new or exact old state")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--segment",
+        choices=(
+            "all", "schema-real", "extended", "exemplar-path", "exemplar",
+            "exemplar-claims", "exemplar-evidence", "path", "integration-sk20",
+        ),
+        default="all",
+        help="Run the complete suite or one authoritative bounded registry segment.",
+    )
+    args = parser.parse_args(argv)
+    global _SCHOLARLY_PRISTINE, _SCHOLARLY_WORKING, _SCHOLARLY_LEDGER
+    _SCHOLARLY_PRISTINE = None
+    _SCHOLARLY_WORKING = None
+    _SCHOLARLY_LEDGER = None
     required_files = (MILESTONE_SCHEMA, F9_SCHEMA, F9_TEMPLATE, EVENT_TEMPLATE)
     missing = [str(path.relative_to(ROOT)) for path in required_files if not path.is_file()]
     if missing:
@@ -2367,7 +2494,10 @@ def main() -> int:
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="milestone-framework-") as temp_dir:
         directory = Path(temp_dir)
-        for name, ledger in _case_ledgers().items():
+        schema_cases = (
+            _case_ledgers().items() if args.segment in {"all", "schema-real"} else ()
+        )
+        for name, ledger in schema_cases:
             ledger_path = directory / f"{name}.json"
             ledger_path.write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
             loaded = json.loads(ledger_path.read_text(encoding="utf-8"))
@@ -2381,11 +2511,19 @@ def main() -> int:
             if actual != expected:
                 failures.append(f"{name} expected {expected}, got {actual}")
 
-        for name, (expected_outcome, expected_exit, target, expected_code) in REAL_CASES.items():
-            project = directory / f"real-{name}"
+        real_cases = (
+            REAL_CASES.items() if args.segment in {"all", "schema-real"} else ()
+        )
+        for name, (expected_outcome, expected_exit, target, expected_code) in real_cases:
+            reuse_scholarly = expected_exit == 0 and name != "re_manuscript_bound_chain"
+            project = directory / (
+                "real-scholarly-working" if reuse_scholarly else f"real-{name}"
+            )
             _assert_synthetic_fixture(project, directory)
+            if project.exists():
+                shutil.rmtree(project)
             project.mkdir()
-            _write_real_case(name, project)
+            _write_real_case(name, project, reuse_scholarly=reuse_scholarly)
             if name.startswith("re_"):
                 _assert_re_chain_contract(project)
             fixture_document = json.loads((project / "reviews/phase_state.json").read_text(encoding="utf-8"))
@@ -2453,8 +2591,33 @@ def main() -> int:
             if "Traceback" in stderr:
                 failures.append(f"real/{name} emitted a traceback")
 
-        _run_exemplar_cases(directory, failures)
-        _run_path_v2_regressions(directory, failures)
+        if args.segment == "schema-real":
+            if failures:
+                print("FAIL: " + "; ".join(failures))
+                return 1
+            print("OK milestone_framework_smoketest segment=schema-real")
+            return 0
+
+        if args.segment in {
+            "all", "extended", "exemplar-path", "exemplar",
+            "exemplar-claims", "exemplar-evidence",
+        }:
+            exemplar_segment = {
+                "exemplar-claims": "claims",
+                "exemplar-evidence": "evidence",
+            }.get(args.segment, "all")
+            _run_exemplar_cases(directory, failures, segment=exemplar_segment)
+        if args.segment in {"all", "extended", "exemplar-path", "path"}:
+            _run_path_v2_regressions(directory, failures)
+
+        if args.segment in {
+            "exemplar-path", "exemplar", "exemplar-claims", "exemplar-evidence", "path",
+        }:
+            if failures:
+                print("FAIL: " + "; ".join(failures))
+                return 1
+            print(f"OK milestone_framework_smoketest segment={args.segment}")
+            return 0
 
         integration_project = directory / "phase-integration"
         integration_project.mkdir()
@@ -2511,9 +2674,30 @@ def main() -> int:
         if parse_failure.returncode != 2:
             failures.append(f"JSON parse error expected 2, got {parse_failure.returncode}")
 
+        isolation_project = directory / "stdlib-isolation-bootstrap"
+        isolation_project.mkdir()
+        isolation_ledger = _materialize_native_project(isolation_project)
+        m1_reader_model = copy.deepcopy(
+            isolation_ledger["milestones"]["M1"]["policy_evidence"]["reader_model"]
+        )
+        for milestone in ("M1", "M2", "M3", "M4", "M5"):
+            _reset_milestone(
+                isolation_ledger["milestones"][milestone],
+                "in_progress" if milestone == "M1" else "not_started",
+            )
+        isolation_ledger["milestones"]["M1"]["policy_evidence"] = {
+            "reader_model": m1_reader_model,
+        }
+        isolation_ledger["events"] = [_event(1, "milestone_started", "M1")]
+        isolation_document = _phase_document(isolation_ledger, "Ph1")
+        isolation_document["manuscript_id"] = "synthetic-stdlib-isolation-bootstrap"
+        (isolation_project / "reviews" / "phase_state.json").write_text(
+            json.dumps(isolation_document, indent=2) + "\n", encoding="utf-8"
+        )
+
         for isolated_script in (VALIDATOR, PHASE_VALIDATOR):
             isolated = subprocess.run(
-                [sys.executable, "-I", "-S", str(isolated_script), "--project-root", str(integration_project), "--json"],
+                [sys.executable, "-I", "-S", str(isolated_script), "--project-root", str(isolation_project), "--json"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"stdlib_isolation/{isolated_script.name}: expected=0 actual={isolated.returncode}")

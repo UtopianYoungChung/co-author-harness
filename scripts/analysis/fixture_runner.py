@@ -103,6 +103,7 @@ import io
 import json
 import hashlib
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -154,6 +155,13 @@ assert Path(code_census.__file__).resolve() == _CENSUS_PATH.resolve()
 compute_tested_inputs = code_census.compute_tested_inputs
 discover_suite_universe = code_census.discover_suite_universe
 
+_CACHE_HELPER_PATH = PLUGIN_ROOT / "scripts" / "analysis" / "fixture_cache.py"
+_cache_spec = importlib.util.spec_from_file_location("fixture_cache", _CACHE_HELPER_PATH)
+fixture_cache = importlib.util.module_from_spec(_cache_spec)
+sys.modules[_cache_spec.name] = fixture_cache
+_cache_spec.loader.exec_module(fixture_cache)
+assert Path(fixture_cache.__file__).resolve() == _CACHE_HELPER_PATH.resolve()
+
 
 def _default_case() -> dict:
     """The suite-level invocation contract: bare run, exit 0, EXIT-ONLY.
@@ -197,6 +205,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/draft_evidence_verifier_smoketest.py": [_default_case()],
     "scripts/concept_introduction_contract_smoketest.py": [_default_case()],
     "scripts/contract_kernel_coherence_smoketest.py": [_default_case()],
+    "scripts/control_plane_transition_smoketest.py": [_default_case()],
     "scripts/corpus_root_portability_smoketest.py": [_default_case()],
     "scripts/d_style_profile_smoketest.py": [_default_case()],
     "scripts/destination_capability_smoketest.py": [_default_case()],
@@ -208,6 +217,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/full_run_semantic_bypass_smoketest.py": [_default_case()],
     "scripts/fixture_authority_smoketest.py": [_default_case()],
     "scripts/graph_authority_gate_smoketest.py": [_default_case()],
+    "scripts/host_qualification_transaction_smoketest.py": [_default_case()],
     "scripts/lifecycle_contract_smoketest.py": [_default_case()],
     "scripts/lifecycle_verifier_binding_smoketest.py": [_default_case()],
     "scripts/loader_compat_portability_smoketest.py": [_default_case()],
@@ -215,22 +225,68 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],
     "scripts/migrate_v0150pre_stage_profile_smoketest.py": [_default_case()],
-    "scripts/milestone_framework_smoketest.py": [_default_case()],
+    "scripts/milestone_framework_smoketest.py": [
+        {
+            "case_id": "schema-real",
+            "argv": ["--segment", "schema-real"],
+            "expected_exit": 0,
+            "expected_code": None,
+            "outcome_contract": "EXIT-ONLY",
+            "expected_outcome": None,
+        },
+        {
+            "case_id": "exemplar-claims",
+            "argv": ["--segment", "exemplar-claims"],
+            "expected_exit": 0,
+            "expected_code": None,
+            "outcome_contract": "EXIT-ONLY",
+            "expected_outcome": None,
+        },
+        {
+            "case_id": "exemplar-evidence",
+            "argv": ["--segment", "exemplar-evidence"],
+            "expected_exit": 0,
+            "expected_code": None,
+            "outcome_contract": "EXIT-ONLY",
+            "expected_outcome": None,
+        },
+        {
+            "case_id": "path",
+            "argv": ["--segment", "path"],
+            "expected_exit": 0,
+            "expected_code": None,
+            "outcome_contract": "EXIT-ONLY",
+            "expected_outcome": None,
+        },
+        {
+            "case_id": "integration-sk20",
+            "argv": ["--segment", "integration-sk20"],
+            "expected_exit": 0,
+            "expected_code": None,
+            "outcome_contract": "EXIT-ONLY",
+            "expected_outcome": None,
+        },
+    ],
     "scripts/milestone_path_contract_smoketest.py": [_default_case()],
     "scripts/native_project_bootstrap_adversarial_smoketest.py": [_default_case()],
     "scripts/native_project_bootstrap_smoketest.py": [_default_case()],
+    "scripts/obligation_result_smoketest.py": [_default_case()],
     "scripts/output_economy_smoketest.py": [_default_case()],
     "scripts/paragraph_hash_map_smoketest.py": [_default_case()],
     "scripts/product_assurance_smoketest.py": [_default_case()],
+    "scripts/product_assurance_detector_evaluation_smoketest.py": [_default_case()],
     "scripts/protocol_conformance_smoketest.py": [_default_case()],
     "scripts/run_product_gate_smoketest.py": [_default_case()],
     "scripts/runtime_plane_probe_smoketest.py": [_default_case()],
+    "scripts/phase_engagement_smoketest.py": [_default_case()],
     "scripts/phase_notifications_smoketest.py": [_default_case()],
     "scripts/phase_state_validator_smoketest.py": [_default_case()],
     "scripts/pre_phase_advance_phase_state_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
+    "scripts/reader_profile_v2_global_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_semantics_smoketest.py": [_default_case()],
+    "scripts/receipt_compaction_smoketest.py": [_default_case()],
     "scripts/release_evidence_index_smoketest.py": [_default_case()],
     "scripts/release_source_parity_smoketest.py": [_default_case()],
     "scripts/reflector_split_parity_smoketest.py": [_default_case()],
@@ -240,6 +296,11 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/retirement_sweep_smoketest.py": [_default_case()],
     "scripts/routing_role_coherence_smoketest.py": [_default_case()],
     "scripts/schema_runtime_plane_smoketest.py": [_default_case()],
+    "scripts/scholarly_authority_chain_smoketest.py": [_default_case()],
+    "scripts/scholarly_claim_register_smoketest.py": [_default_case()],
+    "scripts/scholarly_evaluation_binding_smoketest.py": [_default_case()],
+    "scripts/scholarly_evaluation_smoketest.py": [_default_case()],
+    "scripts/scholarly_lifecycle_integration_smoketest.py": [_default_case()],
     "scripts/semantic_predication_contract_smoketest.py": [_default_case()],
     "scripts/shipment_manifest_smoketest.py": [_default_case()],
     "scripts/staging_authority_mode_smoketest.py": [_default_case()],
@@ -251,6 +312,71 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/token_budget_smoketest.py": [_default_case()],
     "scripts/version_policy_smoketest.py": [_default_case()],
 }
+
+# Deliberately enumerated: adding a suite to REGISTRY does not make its result
+# reusable. These are synthetic/local fixture programs whose prior runtime or
+# cross-contract breadth justifies cache assistance. Every entry still binds
+# the exact tree, executable, invocation, interpreter, safe environment, and
+# cache implementation bytes.
+CACHEABLE_SUITES = frozenset({
+    "scripts/artefact_frontmatter_smoketest.py",
+    "scripts/assignment_dispatch_preflight_smoketest.py",
+    "scripts/assignment_milestone_checkpoint_smoketest.py",
+    "scripts/assignment_process_gate_smoketest.py",
+    "scripts/assignment_receipt_transaction_smoketest.py",
+    "scripts/assignment_terminal_close_smoketest.py",
+    "scripts/audit/test_citations.py",
+    "scripts/build_plugin_provenance_smoketest.py",
+    "scripts/capability_contract_smoketest.py",
+    "scripts/centroid_service_smoketest.py",
+    "scripts/control_plane_transition_smoketest.py",
+    "scripts/destination_capability_smoketest.py",
+    "scripts/distribution_rights_smoketest.py",
+    "scripts/domain_native_register_smoketest.py",
+    "scripts/draft_governance_smoketest.py",
+    "scripts/end_to_end_smoketest.py",
+    "scripts/full_run_contract_smoketest.py",
+    "scripts/full_run_enforcement_surfaces_smoketest.py",
+    "scripts/full_run_semantic_bypass_smoketest.py",
+    "scripts/host_qualification_transaction_smoketest.py",
+    "scripts/migrate_legacy_milestones_adversarial_smoketest.py",
+    "scripts/migrate_legacy_milestones_smoketest.py",
+    "scripts/milestone_framework_smoketest.py",
+    "scripts/native_project_bootstrap_adversarial_smoketest.py",
+    "scripts/native_project_bootstrap_smoketest.py",
+    "scripts/obligation_result_smoketest.py",
+    "scripts/phase_engagement_smoketest.py",
+    "scripts/pre_phase_advance_phase_state_smoketest.py",
+    "scripts/product_assurance_detector_evaluation_smoketest.py",
+    "scripts/product_assurance_smoketest.py",
+    "scripts/protocol_conformance_smoketest.py",
+    "scripts/reader_accessibility_adversarial_smoketest.py",
+    "scripts/reader_accessibility_contract_smoketest.py",
+    "scripts/reader_accessibility_semantics_smoketest.py",
+    "scripts/receipt_compaction_smoketest.py",
+    "scripts/render_lifecycle_state_adversarial_smoketest.py",
+    "scripts/render_lifecycle_state_smoketest.py",
+    "scripts/repin_register_smoketest.py",
+    "scripts/scholarly_authority_chain_smoketest.py",
+    "scripts/scholarly_claim_register_smoketest.py",
+    "scripts/scholarly_evaluation_binding_smoketest.py",
+    "scripts/scholarly_evaluation_smoketest.py",
+    "scripts/scholarly_lifecycle_integration_smoketest.py",
+    "scripts/staging_authority_mode_smoketest.py",
+    "scripts/subprocess_text_policy_smoketest.py",
+    "scripts/token_budget_smoketest.py",
+    "scripts/version_policy_smoketest.py",
+})
+
+QUICK_SUITES = (
+    "scripts/contract_kernel_coherence_smoketest.py",
+    "scripts/control_plane_transition_smoketest.py",
+    "scripts/obligation_result_smoketest.py",
+    "scripts/product_assurance_detector_evaluation_smoketest.py",
+    "scripts/receipt_compaction_smoketest.py",
+    "scripts/schema_runtime_plane_smoketest.py",
+    "scripts/scholarly_lifecycle_integration_smoketest.py",
+)
 
 
 def _void_stale_manifest(reason: str) -> None:
@@ -311,9 +437,65 @@ def _release_lock(fh) -> None:
         fh.close()
 
 
+def _cache_root() -> Path:
+    from worktree_paths import git_common_dir
+    return git_common_dir(PLUGIN_ROOT) / "coauthor-fixture-cache" / "v1"
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _safe_environment() -> dict[str, object]:
+    names = ("CI", "GITHUB_ACTIONS", "LANG", "LC_ALL", "PYTHONHASHSEED", "TZ")
+    return {
+        "schema": "coauthor-fixture-environment/v1",
+        "os_name": os.name,
+        "platform_system": platform.system(),
+        "platform_release": platform.release(),
+        "python_implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "python_executable": str(Path(sys.executable).resolve()),
+        "selected_environment": {name: os.environ.get(name) for name in names},
+    }
+
+
+def _cache_basis(rel: str, case: dict, tested_inputs: dict) -> dict:
+    return {
+        "runner_sha256": _sha256(Path(__file__).resolve()),
+        "census_sha256": _sha256(_CENSUS_PATH),
+        "cache_helper_sha256": _sha256(_CACHE_HELPER_PATH),
+        "suite_sha256": _sha256(PLUGIN_ROOT / rel),
+        "invocation_contract": {
+            "fixture_file": rel,
+            "case_id": case["case_id"],
+            "argv": list(case["argv"]),
+            "expected_exit": case["expected_exit"],
+            "expected_code": case["expected_code"],
+            "outcome_contract": case["outcome_contract"],
+            "expected_outcome": case["expected_outcome"],
+            "cwd": "PLUGIN_ROOT",
+            "timeout_s": SUITE_TIMEOUT_S,
+        },
+        "tested_inputs": {
+            "mode": tested_inputs["mode"],
+            "sha256": tested_inputs["sha256"],
+            "raw_mode": tested_inputs["raw_mode"],
+            "raw_sha256": tested_inputs["raw_sha256"],
+            "file_count": tested_inputs["file_count"],
+            "exclude_dirs": list(tested_inputs["exclude_dirs"]),
+            "exclude_files": list(tested_inputs["exclude_files"]),
+        },
+        "environment": _safe_environment(),
+    }
+
+
 def run(registry: dict[str, list[dict]],
         universe: list[str] | None = None,
-        *, write_manifest: bool = True) -> int:
+        *, write_manifest: bool = True,
+        cache_mode: str = "off",
+        tier: str = "full",
+        _test_only_allow_noncanonical_write: bool = False) -> int:
     """Execute the registry; write the manifest only on a fully green run.
 
     `universe` exists for focused tests ONLY (they exercise the runner with
@@ -322,6 +504,25 @@ def run(registry: dict[str, list[dict]],
     """
     if not registry:
         print("ERROR: empty registry; nothing to execute is not evidence",
+              file=sys.stderr)
+        return 2
+    if cache_mode not in {"off", "use", "refresh"}:
+        print(f"ERROR: unknown cache mode {cache_mode!r}", file=sys.stderr)
+        return 2
+    if tier not in {"full", "quick"}:
+        print(f"ERROR: unknown fixture tier {tier!r}", file=sys.stderr)
+        return 2
+    canonical_full = registry is REGISTRY and universe is None and tier == "full"
+    if write_manifest and not canonical_full and not _test_only_allow_noncanonical_write:
+        print("ERROR: NON_AUTHORITATIVE_PARTIAL may not write or void the canonical "
+              "fixture manifest", file=sys.stderr)
+        return 2
+    if cache_mode != "off" and (write_manifest or not canonical_full):
+        print("ERROR: cache assistance is allowed only for the full authoritative "
+              "selection in --no-write mode", file=sys.stderr)
+        return 2
+    if tier == "quick" and write_manifest:
+        print("ERROR: quick tier is NON_AUTHORITATIVE_PARTIAL and requires --no-write",
               file=sys.stderr)
         return 2
 
@@ -338,14 +539,22 @@ def run(registry: dict[str, list[dict]],
               "evidence untouched.", file=sys.stderr)
         return 2
     try:
-        return _run_locked(registry, universe, write_manifest=write_manifest)
+        return _run_locked(
+            registry,
+            universe,
+            write_manifest=write_manifest,
+            cache_mode=cache_mode,
+            tier=tier,
+        )
     finally:
         _release_lock(lock)
 
 
 def _run_locked(registry: dict[str, list[dict]],
                 universe_arg: list[str] | None,
-                *, write_manifest: bool) -> int:
+                *, write_manifest: bool,
+                cache_mode: str,
+                tier: str) -> int:
     universe = set(universe_arg if universe_arg is not None
                    else discover_suite_universe())
     registered = set(registry)
@@ -360,8 +569,15 @@ def _run_locked(registry: dict[str, list[dict]],
             _void_stale_manifest("registry/universe mismatch")
         return 2
 
+    canonical_selection = tier == "full" and universe_arg is None and registry is REGISTRY
+    authority = (
+        "AUTHORITATIVE_FULL"
+        if canonical_selection
+        else "NON_AUTHORITATIVE_PARTIAL"
+    )
     print(f"fixture_runner: {len(universe)} suites, "
-          f"{sum(len(v) for v in registry.values())} registered case(s)")
+          f"{sum(len(v) for v in registry.values())} registered case(s); "
+          f"tier={tier} authority={authority} cache={cache_mode}")
 
     # VOID PRIOR EVIDENCE NOW -- after the lock, before the first suite. From
     # this point there is no green manifest until THIS run earns one, so a
@@ -379,30 +595,92 @@ def _run_locked(registry: dict[str, list[dict]],
     cases_out: list[dict] = []
     suites_out: list[dict] = []
     failures: list[str] = []
+    staged: list[fixture_cache.StagedEntry] = []
+    cache_hits = 0
+    cache_misses = 0
+    executed = 0
+    run_started_ns = time.perf_counter_ns()
 
     for rel in sorted(registry):
         suite_path = PLUGIN_ROOT / rel
         for case in registry[rel]:
-            argv = [sys.executable, str(suite_path), *case["argv"]]
-            t0 = time.time()
-            try:
-                proc = subprocess.run(argv, cwd=str(PLUGIN_ROOT), capture_output=True,
-                                      text=True, encoding="utf-8", errors="replace",
-                                      timeout=SUITE_TIMEOUT_S)
-            except (OSError, subprocess.TimeoutExpired) as exc:
-                print(f"ERROR: {rel}::{case['case_id']}: {type(exc).__name__}: {exc}",
-                      file=sys.stderr)
-                # Prior evidence was already voided at run start; nothing to
-                # clean up -- the run simply ends with no manifest.
-                return 2
-            secs = round(time.time() - t0, 1)
-            ok = proc.returncode == case["expected_exit"]
-            print(f"  {'PASS' if ok else 'FAIL'}  exit {proc.returncode} "
+            cacheable = cache_mode != "off" and rel in CACHEABLE_SUITES
+            basis = _cache_basis(rel, case, pre) if cacheable else None
+            proc = None
+            cached_source_run_id = None
+            if cacheable and cache_mode == "use":
+                try:
+                    cached = fixture_cache.lookup(_cache_root(), basis)
+                except fixture_cache.CacheError as exc:
+                    try:
+                        fixture_cache.discard_staged(staged)
+                    except fixture_cache.CacheError:
+                        pass
+                    print(f"ERROR: {exc.code}: {exc}", file=sys.stderr)
+                    return 2
+                if cached is not fixture_cache.MISS:
+                    observed_exit = cached["result"]["observed_exit"]
+                    if observed_exit != case["expected_exit"]:
+                        try:
+                            fixture_cache.discard_staged(staged)
+                        except fixture_cache.CacheError:
+                            pass
+                        print("ERROR: FIXTURE-CACHE-INVALID: cached result does not "
+                              "satisfy the current expected exit", file=sys.stderr)
+                        return 2
+                    cache_hits += 1
+                    secs = 0.0
+                    cached_source_run_id = cached["result"]["source_run_id"]
+                else:
+                    cache_misses += 1
+                    observed_exit = None
+            else:
+                observed_exit = None
+
+            if observed_exit is None:
+                argv = [sys.executable, str(suite_path), *case["argv"]]
+                t0 = time.perf_counter_ns()
+                try:
+                    proc = subprocess.run(argv, cwd=str(PLUGIN_ROOT), capture_output=True,
+                                          text=True, encoding="utf-8", errors="replace",
+                                          timeout=SUITE_TIMEOUT_S)
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    try:
+                        fixture_cache.discard_staged(staged)
+                    except fixture_cache.CacheError:
+                        pass
+                    print(f"ERROR: {rel}::{case['case_id']}: {type(exc).__name__}: {exc}",
+                          file=sys.stderr)
+                    return 2
+                executed += 1
+                observed_exit = proc.returncode
+                secs = round((time.perf_counter_ns() - t0) / 1_000_000_000, 3)
+                if cacheable and observed_exit == case["expected_exit"]:
+                    try:
+                        staged.append(fixture_cache.stage_entry(
+                            _cache_root(),
+                            basis=basis,
+                            observed_exit=observed_exit,
+                            stdout_sha256=hashlib.sha256(proc.stdout.encode("utf-8")).hexdigest(),
+                            stderr_sha256=hashlib.sha256(proc.stderr.encode("utf-8")).hexdigest(),
+                            source_run_id=run_id,
+                        ))
+                    except fixture_cache.CacheError as exc:
+                        try:
+                            fixture_cache.discard_staged(staged)
+                        except fixture_cache.CacheError:
+                            pass
+                        print(f"ERROR: {exc.code}: {exc}", file=sys.stderr)
+                        return 2
+
+            ok = observed_exit == case["expected_exit"]
+            source = "CACHE" if cached_source_run_id else "EXEC"
+            print(f"  {'PASS' if ok else 'FAIL'}  {source} exit {observed_exit} "
                   f"(want {case['expected_exit']})  {secs:>7}s  {rel}::{case['case_id']}")
             if not ok:
-                tail = (proc.stdout + proc.stderr).strip().splitlines()[-2:]
+                tail = (proc.stdout + proc.stderr).strip().splitlines()[-2:] if proc else []
                 failures.append(f"{rel}::{case['case_id']}: exit "
-                                f"{proc.returncode} != {case['expected_exit']} | {tail}")
+                                f"{observed_exit} != {case['expected_exit']} | {tail}")
             cases_out.append({
                 "fixture_file": rel,
                 "case_id": case["case_id"],
@@ -411,8 +689,10 @@ def _run_locked(registry: dict[str, list[dict]],
                 "outcome_contract": case["outcome_contract"],
                 "expected_outcome": case["expected_outcome"],
                 # Observed evidence (extra fields; census ignores them).
-                "observed_exit": proc.returncode,
+                "observed_exit": observed_exit,
                 "duration_s": secs,
+                "execution_source": source,
+                "cached_source_run_id": cached_source_run_id,
             })
         suites_out.append({
             "fixture_file": rel,
@@ -428,11 +708,20 @@ def _run_locked(registry: dict[str, list[dict]],
           "(checkout-local)")
     if ((pre["sha256"], pre["raw_sha256"], pre["file_count"])
             != (post["sha256"], post["raw_sha256"], post["file_count"])):
+        try:
+            fixture_cache.discard_staged(staged)
+        except fixture_cache.CacheError as exc:
+            print(f"ERROR: {exc.code}: {exc}", file=sys.stderr)
         print("ERROR: code under test changed DURING the run; results describe "
               "no single tree", file=sys.stderr)
         return 2
 
     if failures:
+        try:
+            fixture_cache.discard_staged(staged)
+        except fixture_cache.CacheError as exc:
+            print(f"ERROR: {exc.code}: {exc}", file=sys.stderr)
+            return 2
         print(f"\nFAIL: {len(failures)} case(s):")
         for f in failures:
             print(f"  {f}")
@@ -441,6 +730,17 @@ def _run_locked(registry: dict[str, list[dict]],
             if write_manifest else "--no-write preserved prior evidence"
         ))
         return 1
+
+    if staged:
+        try:
+            fixture_cache.publish_staged(staged)
+        except fixture_cache.CacheError as exc:
+            print(f"ERROR: {exc.code}: {exc}", file=sys.stderr)
+            return 2
+
+    elapsed_s = round((time.perf_counter_ns() - run_started_ns) / 1_000_000_000, 3)
+    print(f"  runtime: {elapsed_s}s; executed={executed}; cache_hits={cache_hits}; "
+          f"cache_misses={cache_misses}; cache_mode={cache_mode}")
 
     if not write_manifest:
         print(f"\nPASS: {len(suites_out)} suites, {len(cases_out)} cases; "
@@ -498,6 +798,18 @@ def main() -> int:
         action="store_true",
         help="run the authoritative registry without rewriting or voiding the manifest",
     )
+    ap.add_argument(
+        "--tier",
+        choices=("full", "quick"),
+        default="full",
+        help="full authoritative selection, or diagnostic NON_AUTHORITATIVE_PARTIAL quick tier",
+    )
+    ap.add_argument(
+        "--cache-mode",
+        choices=("off", "use", "refresh"),
+        default="off",
+        help="explicit full/no-write cache assistance; release qualification uses off",
+    )
     args = ap.parse_args()
     if args.list:
         for rel in sorted(REGISTRY):
@@ -505,7 +817,21 @@ def main() -> int:
                 print(f"{rel}::{c['case_id']}  argv={c['argv']}  "
                       f"expect exit {c['expected_exit']}  {c['outcome_contract']}")
         return 0
-    return run(REGISTRY, write_manifest=not args.no_write)
+    if args.tier == "quick":
+        selected = {rel: REGISTRY[rel] for rel in QUICK_SUITES}
+        return run(
+            selected,
+            list(QUICK_SUITES),
+            write_manifest=not args.no_write,
+            cache_mode=args.cache_mode,
+            tier="quick",
+        )
+    return run(
+        REGISTRY,
+        write_manifest=not args.no_write,
+        cache_mode=args.cache_mode,
+        tier="full",
+    )
 
 
 if __name__ == "__main__":

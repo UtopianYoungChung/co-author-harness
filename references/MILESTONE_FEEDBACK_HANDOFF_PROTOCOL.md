@@ -63,7 +63,7 @@ The normal contracts are:
 
 `FINAL` is the public assignment-gate and checkpoint target; `M5` is its ledger key. The bridge is exact and one-way at the interface boundary: users and dispatch receipts say `FINAL`, while phase state, approval/checkpoint evidence, and F9 say `M5`. FINAL never aliases M4 and never rewrites accepted M4 bytes. The public close transaction consumes the M4 F9, records the scoped FINAL publication, accepts M5, writes `reviews/.harness/handoffs/M5_terminal.json` with `to_milestone: null`, and atomically sets `terminal_phase_reached` plus `terminal_round_id` only after the full terminal candidate passes.
 
-Plans, revision plans, gates, checklists, reviews, reports, and derived views may control or evidence progress but cannot satisfy a milestone deliverable slot. M4 and M5 may use the same canonical manuscript path at different maturity depths; each accepted state binds the exact current manuscript path, SHA-256, byte count, and verification time. Changed bytes make the prior approval historical and the current binding stale.
+Plans, revision plans, gates, checklists, reviews, reports, and derived views may control or evidence progress but cannot satisfy a milestone deliverable slot. Every recorded or accepted applicable deliverable also binds a qualified C6 scholarly evaluation that reuses the same consumed assignment receipt and exact Generator/Evaluator chain. The verifier replays the evaluation and its complete transitive dependency set; plausible Markdown, file presence, a clean deterministic report, or the older semantic verifier cannot substitute. M4 and M5 may use the same canonical manuscript path at different maturity depths; each accepted state binds the exact current manuscript path, SHA-256, byte count, and verification time. Changed bytes make the prior approval historical and the current binding stale.
 
 ## 5. Artifact roles and lineages
 
@@ -99,7 +99,7 @@ Every blocking record must be adjudicated before its handoff can become ready. D
 
 F9 is a machine-readable JSON evidence family stored under `reviews/.harness/handoffs/`, normally as `M1_to_M2.json`, `M2_to_M3.json`, `M3_to_M4.json`, `M4_to_M5.json`, and a terminal M5 packet. F9 is evidence, not lifecycle state. `reviews/phase_state.json` binds each packet path and SHA-256.
 
-An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A handoff cannot become `ready` without approval evidence. The successor must record consumption before dependent work can claim a ready chain.
+An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, the exact draft and scholarly policy bindings, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A qualified scholarly evaluation is necessary but never supplies user approval. A handoff cannot become `ready` without separate current approval evidence, and the successor must record consumption before dependent work can claim a ready chain.
 
 An F9 Markdown rendering, if produced, is a `derived_view`; it carries its source binding, generation time, and a do-not-edit marker.
 
@@ -176,6 +176,8 @@ For a registered clean exemplar, the lifecycle-view evidence hash is also the ex
 | `MF-ROLE` | M4/M5 primary deliverables are manuscripts, never plans, checklists, or gates. | BLOCKER |
 | `MF-CANON` | Canonical paths exist and obey project canonical-source rules. | BLOCKER |
 | `MF-BINDING` | Accepted artifact and packet hashes and byte counts match current bytes. | BLOCKER |
+| `AMC-SCHOLARLY-EVALUATION-MISSING` | An applicable recorded milestone carries no scholarly-evaluation binding. | BLOCKER |
+| `AMC-SCHOLARLY-EVALUATION-STALE` | C6 evidence, its authority chain, artifact binding, or a transitive dependency is stale or unqualified. | BLOCKER |
 | `MF-HANDOFF` | Successor work consumes an approved or authorized predecessor handoff. | BLOCKER |
 | `MF-FEEDBACK` | Feedback is typed, attributable, hash-bound, and blocking items are adjudicated. | BLOCKER |
 | `MF-LINEAGE` | Active candidates have distinct lineages and exactly one primary lineage. | BLOCKER |

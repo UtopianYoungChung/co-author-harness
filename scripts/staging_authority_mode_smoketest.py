@@ -190,13 +190,17 @@ def case_shipment_only_walk(raw: Path) -> None:
         install_ph4_evidence(project, raw / "fixture")
         run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "FINAL", "--at", "2026-07-19T01:00:01Z")
         consumed_final, lifecycle_final = publish_final(project, b"# FINAL staging v1\n", b"# FINAL export v1\n")
-        checkpoint_final, _terminal, _approval = terminal_inputs(project, lifecycle_final)
+        checkpoint_final, _terminal, _approval = terminal_inputs(
+            project, lifecycle_final, snapshot_manuscript=True,
+        )
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
             "--receipt", consumed_final, "--checkpoint", checkpoint_final, "--at", "2026-07-19T01:00:02Z")
         check("F: derived M5 action is close after first record",
               derive(project).get("action") == "close", str(derive(project)))
         consumed_final2, lifecycle_final2 = publish_final(project, b"# FINAL staging v2 (post-record edit)\n", b"# FINAL export v2\n", label="rev2")
-        checkpoint_final2, _terminal2, _approval2 = terminal_inputs(project, lifecycle_final2)
+        checkpoint_final2, _terminal2, _approval2 = terminal_inputs(
+            project, lifecycle_final2, snapshot_manuscript=True,
+        )
         rerecord_final = run(CHECKPOINT, "record", "--project-root", project, "--milestone", "FINAL",
                              "--receipt", consumed_final2, "--checkpoint", checkpoint_final2,
                              "--at", "2026-07-19T01:00:04Z", expected=0)
@@ -237,6 +241,9 @@ def case_direct_local_unchanged(raw: Path) -> None:
 
 def main() -> int:
     print("staging_authority_mode_smoketest")
+    # The synthetic governed root must be outside the package root. A staging
+    # lookalike nested under the harness is package state and is correctly
+    # classified as direct_local/package before additive governed roots.
     with tempfile.TemporaryDirectory(prefix="staging-authority-") as raw:
         for fn, arg in ((case_shipment_only_walk, Path(raw)),
                         (case_direct_local_unchanged, Path(raw))):
