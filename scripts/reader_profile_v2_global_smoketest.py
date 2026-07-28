@@ -40,15 +40,36 @@ def _check_operational_routes() -> None:
         _assert(not missing, f"global reader-profile route is incomplete in {relative}: {missing}")
 
     operational = (
+        "README.md",
+        "agents/evaluator.md",
         "agents/generator.md",
+        "references/AGENT_ORCHESTRATION.md",
         "references/ASSIGNMENT_MILESTONE_PROCESS.md",
         "references/MANIFEST.md",
+        "references/PHASE_PROTOCOL.md",
+        "references/REVIEW_ORCHESTRATION.md",
+        "references/ROUTING_SPINE.md",
+        "references/SKILL_REGISTRY.md",
+        "skills/centroid-pass/SKILL.md",
         "skills/plugin-commands/SKILL.md",
     )
     forbidden = (
         "Universal centroid scope",
         "all assignment drafts require centroid/exemplar conditioning",
         "Every M1-M4 and FINAL dispatch requires centroid-conditioned generation",
+        "Every M1-M4/FINAL draft receives centroid-conditioned",
+        "under the centroid and complete applicable",
+        "bounded centroid and complete applicable governing-policy pass",
+        "mandatory centroid conditioning",
+        "independently executes the centroid and applicable policy bundle",
+        "bounded current-byte centroid and complete applicable policy pass",
+        "independent centroid/style/grammar/grounding evaluation",
+        "one bounded centroid and complete applicable policy evaluation",
+        "bounded all-drafts centroid and governing-policy evaluation",
+        "bounded all-drafts centroid/policy pass",
+        "This pass is mandatory for every academic deliverable and revision, including\nM1-M3. An existing",
+        "Status:** Active; mandatory within academic draft generation, evaluation, and revision orchestration.",
+        "Trigger:** Every M1-M4/FINAL draft or revision, or explicit `/centroid-pass`.",
     )
     for relative in operational:
         text = (ROOT / relative).read_text(encoding="utf-8")
@@ -121,12 +142,30 @@ def main() -> int:
             "v2 draft governance retained the centroid generation obligation",
         )
 
+        evaluation = draft_governance.prepare(SimpleNamespace(
+            project_root=str(project), target="M1", phase="evaluation", role="evaluator", artifact=None,
+        ))
+        _assert(evaluation["centroid"].get("required") is False, "v2 evaluation still requires centroid execution")
+        _assert(evaluation["centroid"].get("semantic_usage") == "not_invoked", "v2 evaluation lost semantic usage")
+        _assert(
+            all(row.get("id") != "centroid-evaluation" for row in evaluation["obligations"]),
+            "v2 draft governance retained the centroid evaluation obligation",
+        )
+
         bypass = copy.deepcopy(state)
         bypass["milestone_framework"]["policy_bindings"].pop("reader_accessibility")
         findings = validate_document(project, bypass).findings
         _assert(
             any(item.code == "MF-POLICY" and "reader-accessibility" in item.message for item in findings),
             "a hand-built native ledger bypassed the mandatory reader-profile binding",
+        )
+
+        malformed = copy.deepcopy(state)
+        malformed["milestone_framework"]["policy_bindings"]["reader_accessibility"]["attestation_view_pin"] = "c" * 64
+        findings = validate_document(project, malformed).findings
+        _assert(
+            any("reader_accessibility" in item.path for item in findings),
+            "a malformed present reader-profile binding bypassed validation",
         )
 
     print("reader_profile_v2_global_smoketest: PASS")

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import io
 import json
 import os
 import platform
@@ -276,14 +277,14 @@ def _safe_archive_name(name: str) -> bool:
     )
 
 
-def _archive_inventory(path: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def _archive_inventory(snapshot: bytes) -> tuple[dict[str, dict[str, Any]], list[str]]:
     """Read a ZIP without extraction and report every unsafe/ambiguous member."""
 
     inventory: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     seen_portable: set[str] = set()
     try:
-        with zipfile.ZipFile(path, "r") as archive:
+        with zipfile.ZipFile(io.BytesIO(snapshot), "r") as archive:
             for info in archive.infolist():
                 name = info.filename
                 portable = name.casefold()
@@ -726,9 +727,15 @@ def probe_plane(
 
     archive_inventory: dict[str, dict[str, Any]] = {}
     archive_errors: list[str] = []
+    archive_snapshot: bytes | None = None
     if resolved_zip is not None:
         if resolved_zip.is_file():
-            archive_inventory, archive_errors = _archive_inventory(resolved_zip)
+            try:
+                archive_snapshot = resolved_zip.read_bytes()
+            except OSError as exc:
+                archive_errors.append(f"cleared ZIP is unreadable: {exc}")
+            else:
+                archive_inventory, archive_errors = _archive_inventory(archive_snapshot)
         else:
             archive_errors.append("cleared ZIP path does not name a file")
     archive_provenance, archive_provenance_valid = _archive_provenance(archive_inventory)
@@ -738,20 +745,27 @@ def probe_plane(
     source_archive_equal = bool(archive_inventory) and _inventories_equal(
         baseline_inventory, archive_package,
     )
-    comparison_inventory = archive_inventory or baseline_inventory
+    local_embeds_provenance = PROVENANCE_REL in local_pre
+    comparison_inventory = (
+        archive_inventory
+        if archive_inventory and local_embeds_provenance
+        else archive_package
+        if archive_inventory
+        else baseline_inventory
+    )
 
     cleared_zip: dict[str, Any] | None = None
     if (
         resolved_zip is not None
         and resolved_zip.is_file()
+        and archive_snapshot is not None
         and source_commit is not None
         and archive_provenance.get("sha256") is not None
     ):
-        zip_bytes = resolved_zip.read_bytes()
         cleared_zip = {
             "path": str(resolved_zip),
-            "sha256": _sha(zip_bytes),
-            "byte_length": len(zip_bytes),
+            "sha256": _sha(archive_snapshot),
+            "byte_length": len(archive_snapshot),
             "source_commit": source_commit,
             "provenance_sha256": archive_provenance["sha256"],
         }
@@ -797,8 +811,13 @@ def probe_plane(
     for difference in semantic_differences:
         difference.update(blocking=True, reason="semantic_or_file_kind_difference")
     provenance_match: bool | None = None
-    if source_provenance["status"] == "valid" and embedded_provenance["status"] == "valid":
-        provenance_match = source_provenance["commit"] == embedded_provenance["commit"]
+    provenance_binding = (
+        embedded_provenance
+        if embedded_provenance["status"] != "missing"
+        else archive_provenance
+    )
+    if source_provenance["status"] == "valid" and provenance_binding["status"] == "valid":
+        provenance_match = source_provenance["commit"] == provenance_binding["commit"]
 
     suites = tuple(dict(suite) for suite in suites)
     suite_signature = tuple(
@@ -815,6 +834,12 @@ def probe_plane(
     dependency_paths = _dependency_paths()
     suite_results = _run_suites(local_root, suites, dependency_paths)
     local_post = _walk_inventory(local_root, excluded=local_excluded)
+    archive_changed = False
+    if resolved_zip is not None and archive_snapshot is not None:
+        try:
+            archive_changed = resolved_zip.read_bytes() != archive_snapshot
+        except OSError:
+            archive_changed = True
 
     baseline_digest = _digest(comparison_inventory)
     pre_digest = _digest(local_pre)
@@ -855,6 +880,11 @@ def probe_plane(
         findings.append(_finding(
             "RUNTIME-PLANE-ARCHIVE-UNSAFE", "BLOCKER", archive_error,
         ))
+    if archive_changed:
+        findings.append(_finding(
+            "RUNTIME-PLANE-ARCHIVE-CHANGED", "BLOCKER",
+            "the cleared ZIP path changed after its immutable qualification snapshot was captured",
+        ))
     if archive_provenance["status"] == "invalid":
         findings.append(_finding(
             "RUNTIME-PLANE-ARCHIVE-PROVENANCE-INVALID", "BLOCKER",
@@ -876,10 +906,24 @@ def probe_plane(
             "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE", "BLOCKER",
             "the cleared ZIP package members are not byte-identical to the exact source commit checkout",
         ))
+    externally_bound_without_local_provenance = (
+        embedded_provenance["status"] == "missing"
+        and archive_provenance_valid
+        and source_archive_equal
+        and source_commit is not None
+        and actual_source_commit == source_commit
+        and provenance_match is True
+    )
     if embedded_provenance["status"] == "missing":
         findings.append(_finding(
-            "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING", "BLOCKER",
-            "the local plane has no embedded provenance from the cleared ZIP",
+            "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING",
+            "WARNING" if externally_bound_without_local_provenance else "BLOCKER",
+            (
+                "the source-installed local plane omits archive-only provenance; "
+                "the receipt remains externally bound to the validated cleared ZIP"
+                if externally_bound_without_local_provenance
+                else "the local plane has no embedded provenance from the cleared ZIP"
+            ),
             PROVENANCE_REL,
         ))
     elif embedded_provenance["status"] == "invalid":

@@ -24,7 +24,7 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 
 ## Features
 
-* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives centroid-conditioned Generator work and an independent current-byte Evaluator policy pass, including at Ph1; the full revision-maturity review begins at Ph2. Role engagement is governed by [`references/policies/phase_engagement.v1.json`](references/policies/phase_engagement.v1.json); model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
+* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives Generator work under the obligations derived from its authoritative reader binding and an independent current-byte Evaluator policy pass, including at Ph1; centroid work applies only when that binding enables governed semantic use, and the full revision-maturity review begins at Ph2. Role engagement is governed by [`references/policies/phase_engagement.v1.json`](references/policies/phase_engagement.v1.json); model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **Artifact presence is not compliance.** [`references/policies/draft_governance.v1.json`](references/policies/draft_governance.v1.json) binds centroid, D-STYLE, retained grammar/style rules, grounding, deterministic checks, SAFEGUARD, and applicable overlays before generation and after evaluation. Milestone record and terminal close require exact-byte evidence from both roles.
 * **Two orthogonal axes.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). Assignment-derived deliverables describe the *project* arc; the phase ladder governs *review and revision*. The backward-compatible M5 machine slot may represent a final paper that the assignment treats separately from its named milestones.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
@@ -105,6 +105,7 @@ Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](
 | [`references/`](references/) | Orchestration, protocols, style packages, templates, registries |
 | [`scripts/`](scripts/) | Validators, migration utilities, `release-gate.sh`, `build-plugin.py`, `build-release-zip.sh` |
 | [`docs/agent-instructions/`](docs/agent-instructions/) | Architecture, governance, discovery, reference index |
+| [`docs/architecture/`](docs/architecture/) | Component and capability-boundary designs, including [reader-policy and semantic-graph decoupling](docs/architecture/reader-policy-decoupling-c4.md) |
 | [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Published plugin `name` / `version` / `description` |
@@ -119,6 +120,7 @@ From the repo root, with **Python 3**, **PyYAML**, and **jsonschema** installed:
 python scripts/skill-check.py
 python scripts/schema_runtime_check.py
 python scripts/version-check.py
+python scripts/distribution-rights-check.py
 python scripts/catalog-check.py
 python scripts/command_surface_check.py
 python scripts/path-hygiene-check.py
@@ -128,6 +130,7 @@ python scripts/version-planes-check.py
 python scripts/commitment-interactions-check.py
 python scripts/phase_engagement_check.py
 python scripts/retirement-sweep-check.py
+python scripts/destination-coverage-check.py
 python scripts/analysis/fixture_infrastructure_check.py
 python scripts/analysis/fixture_runner.py --no-write
 ```
@@ -146,6 +149,7 @@ The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin
 
 | Release | Highlights |
 | --- | --- |
+| **0.40.0** | Adds transaction-issued control-plane transitions, typed scholarly obligations and claim/evaluation receipts, exact lifecycle integration, detector freeze/held-out scoring, reader-profile and Check 8 v2 without implicit graph authority, phase-engagement enforcement, compact receipt indices, and archive-bound host qualification. Package-cleared, shipped, installed-cache-qualified, and host-qualified remain distinct. |
 | **0.39.0** | Closes assurance-provenance gaps with kernel-issued one-time dispatch authority, shared current-byte verifier transactions across milestone and terminal consumers, a recorded synthetic M1-to-FINAL qualification, governed product-gate and runtime-plane probes, safe archive extraction, canonical checksums, and immutable package/release evidence indices. Package-cleared, shipped, and host-qualified remain distinct. |
 | **0.38.0** | Introduces the product-assurance kernel: `binding_resolved` replaces ambiguous centroid `ready`; canonical `pdftotext` evidence and v2 passage receipts gate quotes and same-year citation identity; corpus-relative coinage/register, insider-negation, and empirical-claim candidates require independent adjudication; assignment writes form a terminally verified mutation hash-chain; routine rebinds return the exact Planner command. |
 | **0.37.5** | Requires passage-level centroid semantic receipts, exact write/review derivations, current-byte generation/evaluation envelopes, and independent Evaluator identity before milestone or terminal acceptance. |

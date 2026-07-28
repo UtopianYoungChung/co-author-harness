@@ -6,6 +6,35 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.40.0 — 2026-07-28
+
+### Scholarly assurance closure and reader-policy decoupling
+
+**Control-plane authority.** Replaced mutable role and lifecycle assertions
+with transaction-issued control-plane transitions, single-use dispatch claims,
+typed obligation results, compact receipt indices, and current-byte milestone
+and terminal verification. Phase engagement is now a registered structural
+gate, and draft governance distinguishes revisable private shipment work from
+protected consumer state without treating a harness verdict as acceptance.
+
+**Scholarly assurance.** Added a canonical claim register, schema-bound
+scholarly evaluation, exact generation/evaluation binding, authority-chain
+checks, and a recorded lifecycle integration fixture. Product-assurance
+detectors now carry development, frozen, and held-out corpora with explicit
+scoring; heuristic findings remain candidates until independently adjudicated.
+
+**Reader policy and host evidence.** Native projects use reader-profile binding
+v2 and Check 8 v2 without inferring semantic authority from a structural graph;
+legacy migration is receipted and rollback-safe, while graph-dependent behavior
+continues to fail closed. Canonical bootstrap installs the binding, validation
+refuses omissions and hand-built substitutes, and the public draft and role
+routes derive centroid obligations from that authority. Host qualification is a separate transaction bound to
+the cleared archive and installed bytes. Archive qualification propagates the
+exact cleared ZIP and source commit into its isolated runtime probe, while a
+source-installed cache may qualify only through exact package-member equality
+with that externally validated archive. Package clearance, repository shipment,
+installed-cache qualification, and live host qualification remain distinct.
+
 ## v0.39.0 — 2026-07-25
 
 ### Assurance provenance closure and release qualification

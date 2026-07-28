@@ -85,14 +85,17 @@ disabled:
 
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE='1'
-python scripts/runtime_plane_probe.py --local-root "<plane-root>" --baseline-root "<source-root>" --out "<source-root>/releases/verification/<release>/runtime-plane.json"
+python scripts/runtime_plane_probe.py --local-root "<plane-root>" --baseline-root "<source-root>" --cleared-zip "<cleared-zip>" --source-commit "<full-commit>" --out "<source-root>/releases/verification/<release>/runtime-plane.json"
 ```
 
 The receipt keeps exact files, CRLF-only transformations, semantic differences,
 missing files, and foreign extras separate. Import- or policy-participating
-extras block. Missing embedded provenance remains visible and cannot support a
-canonical-archive claim. A source or cache plane passing its suites is runtime
-evidence only; it does not establish archive identity or host attestation.
+extras block. Missing local provenance remains visible and cannot support a
+canonical-archive claim. A source-installed cache may qualify with that typed
+caveat only when its package members match both the exact source commit and a
+separately validated cleared ZIP whose archive-only provenance binds that same
+commit. A source or cache plane passing its suites is runtime evidence only; it
+does not establish host attestation.
 
 ## 0c. Release archive and evidence publication
 

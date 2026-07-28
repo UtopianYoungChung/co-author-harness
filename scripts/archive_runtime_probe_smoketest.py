@@ -41,10 +41,14 @@ from pathlib import Path
 parser=argparse.ArgumentParser()
 parser.add_argument("--local-root",type=Path,required=True)
 parser.add_argument("--baseline-root",type=Path,required=True)
+parser.add_argument("--cleared-zip",type=Path,required=True)
+parser.add_argument("--source-commit",required=True)
 parser.add_argument("--stdout",action="store_true",required=True)
 args=parser.parse_args()
 if "-I" not in sys.orig_argv or os.environ.get("PYTHONPATH") != "" or os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
     raise SystemExit(9)
+if not args.cleared_zip.is_file() or len(args.source_commit) not in (40,64):
+    raise SystemExit(10)
 print(json.dumps({"verdict":"qualified","isolated":True},sort_keys=True))
 '''
 
@@ -94,6 +98,18 @@ def _validate(value: dict) -> None:
     assert not errors, "; ".join(f"{list(error.path)}: {error.message}" for error in errors)
 
 
+def _source_commit() -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        check=True,
+    )
+    return completed.stdout.strip()
+
+
 def _expect_refusal(
     archive: Path,
     out_root: Path,
@@ -105,6 +121,7 @@ def _expect_refusal(
         probe.probe_archive(
             archive=archive,
             source_root=ROOT,
+            source_commit=_source_commit(),
             archive_receipt_path=archive_receipt,
             unpacked_runtime_path=runtime_receipt,
         )
@@ -133,6 +150,7 @@ def main() -> int:
         archive_receipt, runtime_receipt = probe.probe_archive(
             archive=safe_archive,
             source_root=ROOT,
+            source_commit=_source_commit(),
             archive_receipt_path=archive_out,
             unpacked_runtime_path=runtime_out,
         )
@@ -145,6 +163,12 @@ def main() -> int:
         assert archive_receipt["central_directory"]["inspected_before_write"] is True
         assert archive_receipt["member_digests"]["stable"] is True
         assert runtime_receipt["runtime_execution"]["argv"][1:3] == ["-I", "-B"]
+        assert runtime_receipt["runtime_execution"]["argv"][-5] == "--cleared-zip"
+        assert Path(runtime_receipt["runtime_execution"]["argv"][-4]).name == "cleared.zip"
+        assert not Path(runtime_receipt["runtime_execution"]["argv"][-4]).exists()
+        assert runtime_receipt["runtime_execution"]["argv"][-3:-1] == [
+            "--source-commit", _source_commit()
+        ]
         assert runtime_receipt["runtime_execution"]["environment"]["PYTHONPATH"] == ""
         assert runtime_receipt["runtime_execution"]["environment"]["dependency_paths"]
         assert runtime_receipt["source_isolation"]["source_root_absent_from_sys_path"] is True
@@ -159,6 +183,57 @@ def main() -> int:
         assert not Path(runtime_receipt["extraction"]["temporary_root"]).exists()
         assert not Path(runtime_receipt["runtime_execution"]["cwd"]).exists()
         assert archive_receipt["unpacked_runtime_receipt"]["sha256"] == probe._sha_path(runtime_out)
+
+        builder_archive = base / "builder-shaped.zip"
+        builder_members = [
+            (member, content)
+            for member, content in _safe_members()
+            if not isinstance(member, zipfile.ZipInfo) or not member.is_dir()
+        ]
+        _write_archive(builder_archive, builder_members)
+        builder_archive_out = outputs / "builder-shaped-archive.json"
+        builder_runtime_out = outputs / "builder-shaped-runtime.json"
+        builder_receipt, builder_runtime = probe.probe_archive(
+            archive=builder_archive,
+            source_root=ROOT,
+            source_commit=_source_commit(),
+            archive_receipt_path=builder_archive_out,
+            unpacked_runtime_path=builder_runtime_out,
+        )
+        assert builder_receipt["verdict"] == "qualified"
+        assert builder_runtime["verdict"] == "qualified"
+
+        substitution_archive = base / "substitution.zip"
+        substitution_replacement = base / "substitution-replacement.zip"
+        _write_archive(substitution_archive, _safe_members())
+        replacement_members = _safe_members()
+        replacement_members[-1] = (_info("payload.txt"), b"replacement payload\n")
+        _write_archive(substitution_replacement, replacement_members)
+        substitution_archive_out = outputs / "substitution-archive.json"
+        substitution_runtime_out = outputs / "substitution-runtime.json"
+        original_extract = probe._extract_members
+
+        def substitute_then_extract(archive_snapshot, selected, root):
+            substitution_archive.write_bytes(substitution_replacement.read_bytes())
+            return original_extract(archive_snapshot, selected, root)
+
+        probe._extract_members = substitute_then_extract
+        try:
+            substituted_archive, substituted_runtime = probe.probe_archive(
+                archive=substitution_archive,
+                source_root=ROOT,
+                source_commit=_source_commit(),
+                archive_receipt_path=substitution_archive_out,
+                unpacked_runtime_path=substitution_runtime_out,
+            )
+        finally:
+            probe._extract_members = original_extract
+        assert substituted_archive["verdict"] == "blocked"
+        assert substituted_runtime["verdict"] == "blocked"
+        assert any(
+            row["code"] == "ARCHIVE-CHANGED-DURING-PROBE"
+            for row in substituted_archive["findings"]
+        )
 
         cases: list[tuple[str, list[tuple[zipfile.ZipInfo | str, bytes]], str]] = [
             ("exact-duplicate", [(_info("same.txt"), b"a"), (_info("same.txt"), b"b")], "ARCHIVE-MEMBER-DUPLICATE"),
@@ -184,6 +259,7 @@ def main() -> int:
         blocked_archive, blocked_runtime = probe.probe_archive(
             archive=mutating_archive,
             source_root=ROOT,
+            source_commit=_source_commit(),
             archive_receipt_path=mutating_archive_out,
             unpacked_runtime_path=mutating_runtime_out,
         )

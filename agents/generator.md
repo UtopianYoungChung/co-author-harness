@@ -211,7 +211,7 @@ Report to the Planner. The completion signal is a single message containing:
 - **Recommended next step** — your read on what the Planner should do next: dispatch Evaluator, advance to user approval, or pause for clarification.
 
 The Planner then decides the next move:
-- **At Ph1:** the Generator's signal goes to the mandatory bounded Evaluator draft-policy pass before user approval. This is independent centroid/style/grammar/grounding evaluation, not the full Ph2 revision-maturity pass.
+- **At Ph1:** the Generator's signal goes to the mandatory bounded Evaluator draft-policy pass before user approval. This is an independent binding-derived policy evaluation—centroid only when enabled, plus every applicable style, grammar, grounding, and accessibility control—not the full Ph2 revision-maturity pass.
 - **At Ph2/Ph3:** the Planner dispatches the Evaluator for a re-check or a full local pass.
 - **At Ph4:** the Planner dispatches the Evaluator for the terminal pass with G.4 sign-off mandatory.
 

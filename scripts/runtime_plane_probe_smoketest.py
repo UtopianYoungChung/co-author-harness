@@ -257,6 +257,77 @@ def main() -> int:
         assert len(clean["suites"]) == 4 and all(row["status"] == "passed" for row in clean["suites"])
         cases.append("clean_qualification")
 
+        source, local, archive, commit = fixture(base, "source-installed-cache")
+        (local / PROVENANCE).unlink()
+        source_installed = probe_case(probe, source, local, archive, commit)
+        assert source_installed["cache_state"] == "CODEX_CACHE_QUALIFIED"
+        assert source_installed["verdict"] == "qualified_with_caveats"
+        assert source_installed["identity"]["canonical_archive_claim"] is False
+        assert source_installed["identity"]["embedded"]["provenance"]["status"] == "missing"
+        assert any(
+            row["code"] == "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING"
+            and row["severity"] == "WARNING"
+            for row in source_installed["findings"]
+        )
+        cases.append("source_installed_cache_without_archive_only_provenance")
+
+        source, local, archive, commit = fixture(base, "source-install-wrong-zip")
+        (local / PROVENANCE).unlink()
+        wrong_archive = archive.with_name("source-install-wrong-zip-tampered.zip")
+        build_zip(source, wrong_archive, commit, overrides={"README.md": b"wrong archive bytes\n"})
+        wrong_source_install = probe_case(probe, source, local, wrong_archive, commit)
+        contaminated(wrong_source_install)
+        assert any(
+            row["code"] == "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE"
+            for row in wrong_source_install["findings"]
+        )
+        cases.append("source_installed_cache_wrong_archive_members")
+
+        source, local, archive, commit = fixture(base, "source-install-wrong-provenance")
+        (local / PROVENANCE).unlink()
+        wrong_provenance_archive = archive.with_name("source-install-wrong-provenance-tampered.zip")
+        build_zip(source, wrong_provenance_archive, commit, provenance_commit="0" * 40)
+        wrong_source_provenance = probe_case(
+            probe, source, local, wrong_provenance_archive, commit
+        )
+        contaminated(wrong_source_provenance)
+        assert any(
+            row["code"] == "RUNTIME-PLANE-ARCHIVE-COMMIT-MISMATCH"
+            for row in wrong_source_provenance["findings"]
+        )
+        cases.append("source_installed_cache_wrong_archive_provenance")
+
+        source, local, archive, commit = fixture(base, "source-install-wrong-commit")
+        (local / PROVENANCE).unlink()
+        wrong_source_commit = probe_case(probe, source, local, archive, "0" * 40)
+        contaminated(wrong_source_commit)
+        assert any(
+            row["code"] == "RUNTIME-PLANE-SOURCE-COMMIT-MISMATCH"
+            for row in wrong_source_commit["findings"]
+        )
+        cases.append("source_installed_cache_wrong_explicit_commit")
+
+        source, local, archive, commit = fixture(base, "archive-substitution")
+        replacement = archive.with_name("archive-substitution-replacement.zip")
+        build_zip(source, replacement, commit, overrides={"README.md": b"replacement archive bytes\n"})
+        original_run_suites = probe._run_suites
+
+        def substitute_then_run(*args, **kwargs):
+            archive.write_bytes(replacement.read_bytes())
+            return original_run_suites(*args, **kwargs)
+
+        probe._run_suites = substitute_then_run
+        try:
+            substituted = probe_case(probe, source, local, archive, commit)
+        finally:
+            probe._run_suites = original_run_suites
+        contaminated(substituted)
+        assert any(
+            row["code"] == "RUNTIME-PLANE-ARCHIVE-CHANGED"
+            for row in substituted["findings"]
+        )
+        cases.append("archive_substitution_during_probe")
+
         source, local, archive, commit = fixture(base, "provenance-missing")
         shutil.rmtree(local)
         shutil.copytree(source, local, ignore=shutil.ignore_patterns(".git"))

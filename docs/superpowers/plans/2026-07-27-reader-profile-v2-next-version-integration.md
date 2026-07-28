@@ -1,6 +1,6 @@
 # Reader-profile v2 next-version integration note
 
-Status: implementation complete in the active next-version worktree; release integration pending.
+Status: included in the v0.40.0 release candidate; package qualification pending.
 
 ## Decision
 
@@ -18,15 +18,32 @@ Do not bump `.claude-plugin/plugin.json` independently while the next version is
 - Direct graph-dependent behavior remains fail-closed with `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`.
 - Legacy `semantic_graph_unavailable` projects migrate only through the receipted, rollback-safe Planner transaction.
 
+## Global-trigger coverage
+
+The implementation is complete at source level. Future projects are covered
+through these shared authorities rather than project-local convention:
+
+- Canonical native bootstrap automatically installs reader-profile v2.
+- Validation refuses native projects that omit or hand-build the required binding.
+- Public `/run-draft`, Planner, Generator, and Evaluator routes derive centroid obligations from that binding.
+- Legacy projects require the explicit receipted migration.
+- The global regression runs through the shared fixture registry used by both CI and `release-gate.sh`.
+- Migration ID `reader-profile-v2-decoupling` is registered on the seven affected contract-kernel components: phase state, assignment process, reader accessibility, assignment-process gate, assignment-milestone transaction, milestone-framework validator, and milestone-framework schema.
+
 ## Release integration checklist
 
-- [ ] Reconcile this bundle with all other uncommitted next-version work; preserve pre-existing changes.
+This checklist is component-scoped. The complete version, committed-HEAD ZIP,
+checksum readback, source/archive/unpacked/cache qualification, evidence-index,
+rendered-report, reinstall, and independent-review gates are governed by
+[C11 of the v0.40 execution charter](../../../releases/V0.40.0_SCHOLARLY_ASSURANCE_REPAIR_AND_VERSION_UP_PLAN.md#c11---version-documentation-and-package-evidence).
+
+- [x] Reconcile this bundle with all other next-version work; preserve pre-existing changes.
 - [x] Register `scripts/reader_profile_v2_global_smoketest.py` in the common fixture registry used by both CI and `release-gate.sh`; direct execution and fixture-infrastructure validation pass.
 - [x] Remove stale operational claims that centroid conditioning is universal from public skills, agent contracts, lifecycle protocols, and the draft-governance policy.
-- [x] Register the migration identifier `reader-profile-v2-decoupling` on affected contract-kernel components; retain their old hashes until the coordinated next-version freeze.
-- [ ] Refresh contract-kernel and verifier-semantics hashes only after all next-version source files are frozen.
-- [ ] Add the bundle to the next version's release notes and compatibility/migration section.
-- [ ] Perform the single version bump for the complete pending release.
+- [x] Register the migration identifier `reader-profile-v2-decoupling` on seven affected contract-kernel components.
+- [x] Refresh contract-kernel and verifier-semantics hashes only after all next-version source files are frozen.
+- [x] Add the bundle to the v0.40 CHANGELOG release history; this note is its compatibility/migration record.
+- [x] Perform the single version bump for the complete pending release.
 - [ ] Verify clean-worktree release gate, built archive membership, packaged-source parity, and installed-plugin-cache parity.
 
 ## Evidence already obtained
@@ -36,5 +53,11 @@ Do not bump `.claude-plugin/plugin.json` independently while the next version is
 - Assignment process and draft-governance suites: PASS.
 - Public M1 to M4 transaction walk, including M4 Check 8 v2 acceptance and exact-byte rollback: PASS.
 - Milestone/phase-state integration and structural graph-authority boundary: PASS.
+- Global routing regression, fixture infrastructure, and scoped diff checks: PASS.
 
-This note is release-planning evidence, not a release receipt. No version, tag, archive, installed cache, or remote state was changed by the implementation session.
+This note is release-planning evidence, not a release receipt. The original
+source implementation session changed no version, tag, archive, installed
+cache, or remote state. The coordinated release slice has since advanced the
+source manifests to the v0.40 release candidate; committed-HEAD archive,
+installed-cache, independent-clearance, and remote-shipment evidence remain
+separate gates until their receipts exist.

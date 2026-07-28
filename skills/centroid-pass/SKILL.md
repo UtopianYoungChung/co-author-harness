@@ -11,7 +11,10 @@ version: 3.0
 ## Contract
 
 This pass is mandatory for every academic deliverable and revision, including
-M1-M3. An existing milestone artefact is neither a prerequisite nor a waiver.
+M1-M3, only when the authoritative reader binding enables governed semantic
+use. Reader-profile v2 with `semantic_usage: not_invoked` does not invoke this
+pass. Once the binding enables it, an existing milestone artefact is neither a
+prerequisite nor a waiver.
 Use `write` before generation, `review` after generation, and `revise` before a
 finding-driven rewrite. The pass is read-only: the Generator remains the sole
 academic-prose writer and the Evaluator remains the independent reviewer.
@@ -101,7 +104,7 @@ Generator or Evaluator must perform and document the semantic judgment; empty
 
 ## Prohibitions
 
-- Do not skip the pass because an M1-M3 artefact exists, is missing, or was
+- When the authoritative binding enables the pass, do not skip it because an M1-M3 artefact exists, is missing, or was
   migrated from an older run.
 - Do not treat centroid conformity as citation grounding, grammatical
   correctness, D-STYLE compliance, or user acceptance; each has separate

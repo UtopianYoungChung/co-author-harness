@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
@@ -29,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "references" / "schemas" / "archive_runtime_receipt.schema.json"
 RUNTIME_PROBE = "scripts/runtime_plane_probe.py"
 DIGEST_ALGORITHM = "sha256(path-NUL-kind-NUL-content-sha256-LF)"
+COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 NESTED_ARCHIVE_SUFFIXES = (
     ".zip", ".plugin", ".whl", ".jar", ".tar", ".tgz", ".tar.gz",
     ".tar.bz2", ".tar.xz", ".gz", ".bz2", ".xz", ".7z", ".rar",
@@ -128,7 +130,7 @@ def _safe_member_name(info: zipfile.ZipInfo) -> tuple[str, str]:
 
 
 def _inspect_archive(
-    archive: Path,
+    archive_snapshot: bytes,
 ) -> tuple[list[dict[str, Any]], dict[str, tuple[zipfile.ZipInfo, str]]]:
     """Inspect and decompress every member before any filesystem extraction."""
     records: list[dict[str, Any]] = []
@@ -137,7 +139,7 @@ def _inspect_archive(
     folded: dict[str, str] = {}
     kinds: dict[str, str] = {}
     try:
-        with zipfile.ZipFile(archive, "r") as package:
+        with zipfile.ZipFile(io.BytesIO(archive_snapshot), "r") as package:
             infos = package.infolist()
             if not infos:
                 raise ArchiveProbeRefusal("ARCHIVE-EMPTY", "archive contains no members")
@@ -195,11 +197,11 @@ def _inspect_archive(
 
 
 def _extract_members(
-    archive: Path,
+    archive_snapshot: bytes,
     selected: Mapping[str, tuple[zipfile.ZipInfo, str]],
     root: Path,
 ) -> None:
-    with zipfile.ZipFile(archive, "r") as package:
+    with zipfile.ZipFile(io.BytesIO(archive_snapshot), "r") as package:
         for logical in sorted(selected, key=lambda item: (len(PurePosixPath(item).parts), item.casefold(), item)):
             info, kind = selected[logical]
             target = root.joinpath(*PurePosixPath(logical).parts)
@@ -273,6 +275,7 @@ def probe_archive(
     *,
     archive: Path,
     source_root: Path,
+    source_commit: str,
     archive_receipt_path: Path,
     unpacked_runtime_path: Path,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -280,10 +283,19 @@ def probe_archive(
         raise ArchiveProbeRefusal("ARCHIVE-RUNTIME-ENV", "PYTHONDONTWRITEBYTECODE=1 is required")
     archive = archive.resolve(strict=True)
     source_root = source_root.resolve(strict=True)
+    source_commit = source_commit.lower()
+    if not COMMIT_RE.fullmatch(source_commit):
+        raise ArchiveProbeRefusal(
+            "ARCHIVE-SOURCE-COMMIT", "source commit must be a full Git object id"
+        )
     archive_receipt_path = archive_receipt_path.resolve()
     unpacked_runtime_path = unpacked_runtime_path.resolve()
     if not archive.is_file() or not source_root.is_dir():
         raise ArchiveProbeRefusal("ARCHIVE-INPUT", "archive and source root must exist")
+    archive_snapshot = archive.read_bytes()
+    if not archive_snapshot:
+        raise ArchiveProbeRefusal("ARCHIVE-EMPTY", "archive contains no bytes")
+    archive_snapshot_sha256 = _sha_bytes(archive_snapshot)
     if archive_receipt_path == unpacked_runtime_path or archive_receipt_path.exists() or unpacked_runtime_path.exists():
         raise ArchiveProbeRefusal("ARCHIVE-OUTPUT", "receipt paths must be distinct and absent")
     evidence_root = (source_root / "releases" / "verification").resolve()
@@ -295,8 +307,15 @@ def probe_archive(
         except destinations.DestinationRefused as exc:
             raise ArchiveProbeRefusal(exc.code, str(exc)) from exc
 
-    member_records, selected = _inspect_archive(archive)
-    extraction_root = Path(tempfile.mkdtemp(prefix="coauthor-archive-runtime-")).resolve()
+    member_records, selected = _inspect_archive(archive_snapshot)
+    transaction_root = Path(tempfile.mkdtemp(prefix="coauthor-archive-runtime-")).resolve()
+    extraction_root = transaction_root / "unpacked"
+    extraction_root.mkdir()
+    snapshot_path = transaction_root / "cleared.zip"
+    with snapshot_path.open("xb") as handle:
+        handle.write(archive_snapshot)
+        handle.flush()
+        os.fsync(handle.fileno())
     pre_digest: dict[str, Any] | None = None
     post_digest: dict[str, Any] | None = None
     runtime_payload: dict[str, Any] | None = None
@@ -305,9 +324,25 @@ def probe_archive(
     sys_path_observed = False
     findings: list[dict[str, str]] = []
     try:
-        _extract_members(archive, selected, extraction_root)
+        _extract_members(archive_snapshot, selected, extraction_root)
         pre_inventory = _tree_inventory(extraction_root)
         pre_digest = _digest(pre_inventory)
+        inspected_inventory: dict[str, dict[str, str]] = {}
+        for row in member_records:
+            parts = PurePosixPath(row["path"]).parts
+            for index in range(1, len(parts)):
+                parent = "/".join(parts[:index])
+                inspected_inventory.setdefault(
+                    parent, {"kind": "directory", "sha256": _sha_bytes(b"")}
+                )
+            inspected_inventory[row["path"]] = {
+                "kind": row["kind"], "sha256": row["sha256"]
+            }
+        if inspected_inventory != pre_inventory:
+            findings.append(_finding(
+                "ARCHIVE-EXTRACTED-INVENTORY-MISMATCH",
+                "the extracted member inventory differs from the inspected immutable ZIP snapshot",
+            ))
         runtime_script = extraction_root / RUNTIME_PROBE
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
@@ -345,6 +380,8 @@ def probe_archive(
             sys.executable, "-I", "-B", "-c", isolated_runner,
             "--local-root", str(extraction_root),
             "--baseline-root", str(source_root),
+            "--cleared-zip", str(snapshot_path),
+            "--source-commit", source_commit,
             "--stdout",
         ]
         if runtime_script.is_file():
@@ -371,6 +408,15 @@ def probe_archive(
         post_digest = _digest(post_inventory)
         if pre_digest != post_digest:
             findings.append(_finding("ARCHIVE-RUNTIME-MUTATED", "extracted member tree changed during the runtime probe"))
+        try:
+            archive_changed = archive.read_bytes() != archive_snapshot
+        except OSError:
+            archive_changed = True
+        if archive_changed:
+            findings.append(_finding(
+                "ARCHIVE-CHANGED-DURING-PROBE",
+                "the public archive path changed after its immutable qualification snapshot was captured",
+            ))
 
         source_in_sys_path = any(_inside(Path(item), source_root) for item in sys_path if item)
         source_isolation = {
@@ -421,7 +467,7 @@ def probe_archive(
             "retained": False,
         }
     finally:
-        shutil.rmtree(extraction_root, ignore_errors=False)
+        shutil.rmtree(transaction_root, ignore_errors=False)
 
     cleanup = {
         "temporary_root_removed": not extraction_root.exists(),
@@ -435,8 +481,8 @@ def probe_archive(
     verdict = "blocked" if findings else "qualified"
     archive_binding = {
         "path": str(archive),
-        "sha256": _sha_path(archive),
-        "size": archive.stat().st_size,
+        "sha256": archive_snapshot_sha256,
+        "size": len(archive_snapshot),
         "member_count": len(member_records),
     }
     digests = {"algorithm": DIGEST_ALGORITHM, "pre": pre_digest, "post": post_digest, "stable": pre_digest == post_digest}
@@ -500,6 +546,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, required=True)
+    parser.add_argument("--source-commit", required=True)
     parser.add_argument("--archive-receipt", type=Path, required=True)
     parser.add_argument("--unpacked-runtime", type=Path, required=True)
     return parser
@@ -511,6 +558,7 @@ def main(argv: list[str] | None = None) -> int:
         archive_receipt, _ = probe_archive(
             archive=args.archive,
             source_root=args.source_root,
+            source_commit=args.source_commit,
             archive_receipt_path=args.archive_receipt,
             unpacked_runtime_path=args.unpacked_runtime,
         )

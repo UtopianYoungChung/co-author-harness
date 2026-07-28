@@ -712,7 +712,7 @@ This section specifies their normal coordination and phase-conditioned agent dis
 | **M2 — Annotated References** | `milestones/M2_annotated_references.md` | **Ph1 Plan & Draft** | Binding-governed Generator draft; independent current-byte policy evaluation; user approval |
 | **M3 — Structured Outline** | `milestones/M3_argument_evidence_outline.md` | **Ph1 Plan & Draft** | Generator writes a binding-governed structured outline only; centroid conditioning applies only when enabled by the authoritative reader binding. Evaluator performs independent current-byte policy evaluation; prose stubs belong to M4. |
 | **M4 — Paper Draft** | `milestones/M4_complete_paper_draft.md` | **Ph1 initial assembly → Ph2 Review & Revise → Ph3 Iterate & Converge** | Generator performs binding-governed initial assembly; centroid conditioning applies only when enabled by the authoritative reader binding. Evaluator performs bounded evaluation in Ph1; full review begins in Ph2; Ph3 converges. |
-| **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | Generator writes FINAL under the centroid/policy bundle; Evaluator independently evaluates and certifies; G.4 and Reflector-full close-out remain mandatory. |
+| **M5 — Final Paper** (public target `FINAL`) | `milestones/M5_final_paper.md` plus released export `submission_bundle/final_manuscript.md` | **Ph4 Finalize & Close** | Generator writes FINAL under the binding-derived policy bundle, including centroid obligations only when enabled; Evaluator independently evaluates and certifies; G.4 and Reflector-full close-out remain mandatory. |
 
 The mapping coordinates two contracts rather than collapsing them. M1-M3 retain separate deliverable and handoff gates inside Ph1, where each approval advances only the milestone chain and does not exit Ph1. The Generator writes the exact M1-M4 and public FINAL/M5 deliverable bytes; the Planner records user/advisor feedback, approval, state, and F9 handoffs. M4 remains the manuscript deliverable from Ph1 initial assembly through Ph2-Ph3 review and convergence. Public FINAL records M5 and certifies the exact `milestones/M5_final_paper.md` plus released export bytes at Ph4. Machine-readable authority: `role_output_contract.json`.
 
@@ -720,9 +720,9 @@ The mapping coordinates two contracts rather than collapsing them. M1-M3 retain 
 
 For the native `course-essay-four-milestones-v1` profile, `/run-draft` runs `assignment_milestone_checkpoint.py derive` and obeys its executable first-non-accepted target/action result. The Planner dispatches one deliverable at a time through a single-use receipt:
 
-1. M1-M4 and FINAL: run the target gate with mandatory centroid conditioning and `--emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. Artifact absence at this point is valid and does not waive policy resolution.
+1. M1-M4 and FINAL: run the target gate with mandatory binding-derived policy resolution and `--emit-receipt reviews/.harness/assignment/ready/gate_receipt_<target>_<utc>.json`. Centroid conditioning is mandatory only when enabled by that binding. Artifact absence at this point is valid and does not waive policy resolution.
 2. Planner runs `python scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <ready-path> --expected-target <T> --consumer planner --write-path <primary-deliverable> [--write-path manuscript/revision_log.md]`. Exit 0 atomically reserves the receipt. Put the returned reserved path in `assignment_gate_receipt: <reserved-path>` and the target in `assignment_gate_target: <T>`; a non-zero result emits `APG-DISPATCH-REFUSED` and forbids dispatch.
-3. Generator authors only receipt-scoped staged bytes, then invokes `assignment_writer_commit.py`. Evaluator independently executes the centroid and applicable policy bundle over the exact published bytes. Planner runs `record` only when the checkpoint binds both current-byte verified envelopes, then stops at user approval.
+3. Generator authors only receipt-scoped staged bytes, then invokes `assignment_writer_commit.py`. Evaluator independently executes the binding-derived applicable policy bundle over the exact published bytes, including centroid review only when enabled. Planner runs `record` only when the checkpoint binds both current-byte verified envelopes, then stops at user approval.
 4. After explicit current-byte approval only: Planner runs `assignment_milestone_checkpoint.py accept`, which publishes the exact F9 first and atomically publishes `phase_state.json` last. The next invocation runs `derive`, then `begin` to consume the predecessor F9 and start the successor before emitting its receipt.
 5. At M3→M4: before F9 finalization, write `reviews/.harness/assignment/wiki_grounding_<round>.json` after the wiki-first pass and bind its exact path/hash in M3 `policy_evidence`, or bind an explicit user/advisor/instructor opt-out.
 6. M4: require accepted M1-M3 plus current wiki evidence; the same Yu-surface/Dennett-argument-only split already used at M1-M3 remains binding.
@@ -792,7 +792,7 @@ Planner (Ph1 — orchestrates outline sub-phase)
 ```
 Planner (requires accepted M1-M3 and a preflighted M4 receipt)
   → Generator (assembles the binding-governed complete manuscript; centroid conditioning only when enabled)
-  → Evaluator (bounded current-byte centroid and complete applicable policy pass)
+  → Evaluator (bounded current-byte applicable policy pass; centroid only when enabled)
   → Planner (verifies both envelopes; presents M4 draft checkpoint)
 ```
 
