@@ -29,6 +29,7 @@ from milestone_path_contract import (
     canonical_deliverable,
     validate_project_path_surface,
 )
+from milestone_handoff_policy import resolve_handoff_policy
 
 
 UTC_SHAPE = re.compile(
@@ -79,6 +80,7 @@ def _framework(
     created_at: str,
     policy_binding: dict[str, Any],
     reader_model: dict[str, Any],
+    handoff_policy: str,
 ) -> dict[str, Any]:
     milestones = {
         "M1": _pending_record(
@@ -130,7 +132,8 @@ def _framework(
         ),
     }
     return {
-        "contract_version": "1.0.0",
+        "contract_version": "1.1.0",
+        "handoff_policy": handoff_policy,
         "path_contract_version": PATH_CONTRACT_VERSION,
         "mode": "native",
         "migration_boundary": None,
@@ -273,6 +276,7 @@ def bootstrap(
     intended_readers: list[str],
     created_at: str,
     *,
+    handoff_policy: str = "derived",
     validator_runner: ValidatorRunner = _run_validator,
 ) -> None:
     requested_root = project_root.expanduser().absolute()
@@ -292,6 +296,8 @@ def bootstrap(
         raise ValueError("at least one non-empty intended reader is required")
     if not _valid_utc_timestamp(created_at):
         raise ValueError("created-at must be a real strict ISO-8601 UTC timestamp ending in Z")
+    if handoff_policy not in {"derived", "audited"}:
+        raise ValueError("handoff-policy must be derived or audited")
 
     staging = Path(tempfile.mkdtemp(prefix=f".{project_root.name}.bootstrap-", dir=parent))
     try:
@@ -319,8 +325,14 @@ def bootstrap(
         binding = reader_profile_phase_state_binding(resolved, policy_path, staging)
         reader_model = resolved["resolved_profile"]["domain_native_register"]["reader_model"]
         framework = _framework(
-            project_name, intended_readers, created_at, binding, reader_model
+            project_name,
+            intended_readers,
+            created_at,
+            binding,
+            reader_model,
+            handoff_policy,
         )
+        resolve_handoff_policy(framework)
 
         _write(
             staging,
@@ -385,6 +397,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", required=True)
     parser.add_argument("--intended-reader", action="append", required=True)
     parser.add_argument(
+        "--handoff-policy",
+        choices=("derived", "audited"),
+        default="derived",
+        help="persistent milestone handoff policy for the new 1.1.0 ledger",
+    )
+    parser.add_argument(
         "--created-at",
         default=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
     )
@@ -401,6 +419,7 @@ def main(argv: list[str] | None = None) -> int:
             args.title,
             list(dict.fromkeys(args.intended_reader)),
             args.created_at,
+            handoff_policy=args.handoff_policy,
         )
     except (OSError, ValueError) as exc:
         parser.exit(2, f"error: {exc}\n")

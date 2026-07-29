@@ -24,7 +24,7 @@ REQUIRED_COMPONENT_IDS = {
     "assignment-receipt-transaction", "assignment-writer-commit",
     "assignment-receipt-invalidate", "assignment-receipt-recover",
     "milestone-path-resolver", "milestone-path-migrator",
-    "milestone-framework-schema",
+    "milestone-framework-schema", "milestone-handoff-policy",
 }
 
 

@@ -334,6 +334,18 @@ def main() -> int:
     v11_audited.update({"contract_version": "1.1.0", "handoff_policy": "audited"})
     v11_legacy = copy.deepcopy(v11_derived)
     v11_legacy["mode"] = "legacy"
+    # Canonical legacy boundary shape from milestone_framework_smoketest's
+    # valid_approved_legacy_migration fixture.  This schema-only row uses
+    # syntactically valid digests because no project filesystem is consulted.
+    v11_legacy["migration_boundary"] = {
+        "authority": "user",
+        "evidence_path": "reviews/migration_approval.md",
+        "evidence_sha256": "0" * 64,
+        "approved_at": "2026-07-13T18:00:00Z",
+        "completed_through": "M5",
+        "report_path": "reviews/migration_report.md",
+        "report_sha256": "1" * 64,
+    }
 
     matrix.case("schema preserves untouched 1.0.0 without policy", lambda: _assert_schema(v1, True))
     matrix.case(

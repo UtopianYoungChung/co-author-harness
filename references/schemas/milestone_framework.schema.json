@@ -13,7 +13,16 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.0.0"
+      "enum": [
+        "1.0.0",
+        "1.1.0"
+      ]
+    },
+    "handoff_policy": {
+      "enum": [
+        "derived",
+        "audited"
+      ]
     },
     "path_contract_version": {
       "const": "2.0.0"
@@ -79,6 +88,30 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "required": [
+          "contract_version"
+        ],
+        "properties": {
+          "contract_version": {
+            "const": "1.1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "handoff_policy"
+        ]
+      },
+      "else": {
+        "properties": {
+          "handoff_policy": {
+            "enum": []
+          }
+        }
+      }
+    },
     {
       "if": {
         "required": [

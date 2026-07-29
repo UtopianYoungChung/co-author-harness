@@ -32,6 +32,10 @@ from reader_accessibility_policy import (
     resolve_unavailable_policy,
     validate_check8_evidence,
 )
+from milestone_handoff_policy import (
+    HandoffPolicyResolutionError,
+    resolve_handoff_policy,
+)
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
@@ -2471,6 +2475,10 @@ def validate_document(
     findings.extend(_schema_findings(ledger, milestone_schema, "milestone_framework"))
     if not isinstance(ledger, dict):
         return _result(target, None, findings, evidence)
+    try:
+        resolve_handoff_policy(ledger)
+    except HandoffPolicyResolutionError as error:
+        findings.append(_finding(error.code, error.path, error.message))
     milestones = ledger.get("milestones")
     if not isinstance(milestones, dict):
         return _result(target, ledger, findings, evidence)
