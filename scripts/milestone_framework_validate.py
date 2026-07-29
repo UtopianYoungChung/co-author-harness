@@ -2599,7 +2599,7 @@ def validate_document(
                 current_chain_ready = (
                     approval_ready
                     and isinstance(previous_handoff, dict)
-                    and previous_handoff.get("status") in {"not_applicable", "ready"}
+                    and previous_handoff.get("status") in {"not_applicable", "ready", "consumed"}
                 )
             else:
                 current_chain_ready = (

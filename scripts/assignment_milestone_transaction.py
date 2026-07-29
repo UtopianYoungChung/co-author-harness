@@ -942,12 +942,12 @@ def begin(project: Path, milestone: str, at: str | None = None) -> None:
             binding = {"binding_type": "handoff_packet", "path": prior["handoff"]["packet_path"], "sha256": prior["handoff"]["packet_sha256"]}
             _append_event(framework, "handoff_consumed", predecessor, at, f"Planner consumed {predecessor} F9 to begin {milestone}.", bindings=[binding])
         elif handoff_policy == DERIVED_POLICY:
-            if handoff_status not in {"not_applicable", "ready"}:
+            if handoff_status not in {"not_applicable", "ready", "consumed"}:
                 raise MilestoneTransactionError(
                     "AMC-HANDOFF",
-                    f"{predecessor} derived handoff must be not_applicable or ready evidence",
+                    f"{predecessor} derived handoff must be not_applicable or retained exact evidence",
                 )
-            if handoff_status == "ready":
+            if handoff_status in {"ready", "consumed"}:
                 current_validation = validate_document(project, state)
                 if not current_validation.exit_permitted:
                     first = next(
