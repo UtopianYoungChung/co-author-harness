@@ -31,12 +31,17 @@ Whole-lifecycle or academic-deliverable requests first resolve the project and
 assignment contract under `FULL_RUN_CONTRACT.md`. They are never decomposed into
 an informal seven-step lifecycle.
 
+Transient proposal work declares `lab_iteration` and remains inside its
+resolved governed staging/private-shipment destination. It cannot mutate the
+lifecycle, create F9 authority, promote, claim terminal, or disseminate.
+
 ## 3. Milestone and phase discipline
 
 - M1, M2, and M3 are separately presented and explicitly approved while the
   project remains in Ph1. Approval advances the milestone chain, not the phase.
 - The Generator writes the exact M1–M4 deliverable bytes. The Planner dispatches,
-  records approval, writes F9 handoffs, and mutates lifecycle state; it does not
+  records approval, writes policy-correct handoff representations (including
+  F9 only when required or explicitly requested), and mutates lifecycle state; it does not
   co-author the deliverable.
 - The Evaluator performs the bounded all-drafts binding-derived applicable-policy pass for M1–M4 in Ph1, including centroid review only when the authoritative reader binding enables it. Full revision-maturity review first engages in Ph2
   to independently review M4.

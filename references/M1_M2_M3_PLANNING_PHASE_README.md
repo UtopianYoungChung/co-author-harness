@@ -149,7 +149,7 @@ A: M1 typically 1–2 sessions (memo + feedback loop). M2 typically 1–2 sessio
 1. **Read** `AGENT_ORCHESTRATION.md` §10 to see what the Planner checks and how milestone handoffs coordinate with Ph1.
 2. **Read** `.paper-package/research_notes/lessons_learned.md` (L-P1, L-P2, L-P3) to understand *why*.
 3. **Use** `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` as your playbook for each milestone.
-4. **Complete** the Planner-owned feedback gate and accepted F9 handoff at the end of each milestone; preserve the real source of user/advisor feedback.
+4. **Complete** the Planner-owned feedback gate, explicit approval, and policy-correct handoff representation at the end of each milestone; effective `audited` requires F9, while effective `derived` accepts without F9 by default and treats any explicitly requested packet as optional non-consumed evidence. Preserve the real source of user/advisor feedback.
 
 ---
 

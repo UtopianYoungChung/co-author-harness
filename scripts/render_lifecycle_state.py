@@ -173,6 +173,11 @@ def render_bytes(project_root: Path, generated_at: str) -> bytes:
     framework = document["milestone_framework"]
     handoff_policy = resolve_handoff_policy(framework)
     declared_handoff_policy = handoff_policy["declared_policy"] or "implicit"
+    handoff_resolution = (
+        "implicit audited (1.0.0 compatibility)"
+        if handoff_policy["contract_version"] == "1.0.0"
+        else f"explicit {handoff_policy['effective_policy']}"
+    )
     packets = _accepted_packets(project_root, framework)
     sections = document.get("sections", {})
     source_hash = hashlib.sha256(source_payload).hexdigest()
@@ -193,6 +198,7 @@ def render_bytes(project_root: Path, generated_at: str) -> bytes:
         f"- Contract: `{framework['contract_version']}`",
         f"- Declared handoff policy: `{declared_handoff_policy}`",
         f"- Effective handoff policy: `{handoff_policy['effective_policy']}`",
+        f"- Handoff policy resolution: `{handoff_resolution}`",
         f"- Mode: `{framework['mode']}`",
         f"- Primary lineage: `{framework['primary_lineage']}`",
         "",

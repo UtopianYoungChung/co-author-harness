@@ -57,6 +57,7 @@ not inferred.
 | Scope | Meaning | May write prose? | May advance lifecycle? | May claim terminal? |
 |---|---|---|---|---|
 | `full_lifecycle` | The canonical draft lifecycle: milestones, state, evidence, handoffs | Yes — via Generator, once authorized (§2) | Yes | Yes — only via §4 |
+| `lab_iteration` | Transient proposal work in a resolved governed staging/private-shipment destination | Proposal bytes only | **No** | **No** |
 | `adhoc_review` | A one-off read/critique the user explicitly asked for | **No** | **No** | **No** |
 
 ### 1.1 Scope is DECLARED, never sniffed
@@ -64,9 +65,11 @@ not inferred.
 **The mechanism is the declaration, not the phrasing.** A request whose intent
 is to produce or advance an academic deliverable is `full_lifecycle`, and
 `full_lifecycle` is the **default** for any prose-producing request.
-`adhoc_review` must be **explicitly** declared. Ambiguity resolves to
+`adhoc_review` and `lab_iteration` must be **explicitly** declared. Ambiguity resolves to
 `full_lifecycle`: guessing `adhoc_review` silently skips the lifecycle, while
 guessing `full_lifecycle` costs one bootstrap prompt the user can decline.
+`lab_iteration` is never inferred from a request for a draft or full run; it is
+an explicit proposal-only laboratory scope with its own governed destination.
 
 Phrases like "Harness full run", "draft the whole paper", or "run the ladder"
 are **recognition aids only**. They are not the contract, and no gate keys off
@@ -87,15 +90,22 @@ This is why the repair generalises past the one sentence that triggered it: the
 enforcement surface is the declaration and the project state, both of which are
 structural facts, not turns of phrase.
 
-### 1.2 Scope is inherited, and a child may only narrow what does not matter
+### 1.2 Scope is inherited exactly
+
+The exact diagnostic order is `adhoc_review < lab_iteration < full_lifecycle`.
+A child declaration different from its parent is always refused: movement down
+is `FRC-SCOPE-DOWNGRADE`, movement up is `FRC-SCOPE-ESCALATION`, and omission is
+`FRC-SCOPE-UNDECLARED`. The order selects the diagnostic only; it never grants
+conversion authority.
 
 A parent dispatch **must** state its scope. A child dispatch **must carry its
 own `run_scope:` declaration**, and it must match the parent's. Two independent
 rules apply, in this order:
 
-1. **Structural (primary).** `run_scope: adhoc_review` under a `full_lifecycle`
-   parent is `FRC-SCOPE-DOWNGRADE` — regardless of how politely the rest of the
-   brief is worded. A brief with no declaration at all is
+1. **Structural (primary).** Any child scope below its parent in the diagnostic
+   order is `FRC-SCOPE-DOWNGRADE`; any child scope above its parent is
+   `FRC-SCOPE-ESCALATION`, regardless of how politely the rest of the brief is
+   worded. A brief with no declaration at all is
    `FRC-SCOPE-UNDECLARED`: a dispatch whose scope must be guessed is refused.
 2. **Textual (secondary net).** A brief that declares `full_lifecycle` and then
    contradicts itself — `lightweight`, `response-only`, `no-artifacts`,
@@ -144,6 +154,12 @@ python scripts/native_project_bootstrap.py --project-root <path> \
     --project-name <name> --title "<title>" --intended-reader "<readers>"
 ```
 
+This creates a `1.1.0` native milestone framework with explicit
+`handoff_policy: derived`. Use `--handoff-policy audited` only when the new
+project explicitly requires mandatory F9 compatibility behavior. Existing
+`1.0.0` projects remain implicit audited and are never rewritten by bootstrap
+or validation.
+
 then resolve `reviews/assignment_contract.json` from the controlling source
 (`references/ASSIGNMENT_MILESTONE_PROCESS.md`). Ask for the project root if it
 is genuinely ambiguous. **Asking one question is always cheaper than an
@@ -155,6 +171,22 @@ M4 (deliverable) requires M1, M2, M3 `accepted` with real approval evidence.
 "Draft the whole paper" does not collapse them. **File presence never implies
 acceptance**: a `project_memo.md` on disk is not an accepted M1. Acceptance
 lives in `milestone_framework.milestones.M<n>.approval` and nowhere else.
+
+### 2.3 Laboratory proposal authorization
+
+`lab_iteration` does not use the lifecycle prose authorization above. It
+requires an existing exact governed `research/60_Workbench/<work-id>` project,
+a resolved assignment contract, and `--output-root` matching either that
+work-id's governed staging run or its exact private shipment lane. Successful
+authorization returns `result: PROPOSAL_ONLY` with
+`lifecycle_authority: false`, `f9_authority: false`, and
+`terminal_authority: false`; it does not return lifecycle `OK`.
+
+The scope writes no authoritative research, lifecycle, approval, F9,
+promotion, final-deliverable, release, or dissemination state. Direct write
+hooks permit only destination-classified staging/private-shipment paths.
+`DEST-MISROUTED`, `DEST-PROTECTED`, and `DEST-UNGOVERNED` remain independent
+destination blockers.
 
 ---
 
@@ -209,8 +241,7 @@ That gate requires **all fifteen, unconditionally**:
 | 2 | M1–M4 `accepted` with approval authority + evidence |
 | 3 | exact-byte deliverable bindings (recorded sha256 == file on disk) |
 | 4 | current-byte Generator and independent Evaluator draft-governance envelopes plus a separate qualified C6 scholarly evaluation for every M1-M4 and FINAL artifact; the C6 evidence reuses the consumed receipt/dispatch chain, binds the complete claim/criteria/profile/obligation read set, and has no unresolved `BLOCKER` or `MAJOR` |
-| 5 | consumed predecessor handoffs (F9 packets, `status: consumed`) |
-| 5 | valid F9 packets with `packet_sha256` matching bytes |
+| 5 | handoff-policy-correct predecessor state: effective `audited` requires exact ready/consumed F9 packets and the consumed predecessor chain; effective `derived` requires `not_applicable` by default and validates any optional exact F9 packet as non-gating, non-consumed evidence |
 | 6 | F7 evidence packets and recorded events |
 | 7 | `manuscript/revision_log.md` |
 | 8 | deterministic-check evidence and Check 8 accessibility evidence |
@@ -220,11 +251,17 @@ That gate requires **all fifteen, unconditionally**:
 | 12 | valid `reviews/G4_signoff.md` |
 | 13 | Reflector-full close-out |
 | 14 | F8 final-round report |
-| 15 | accepted FINAL/M5 publication transaction: consumed immutable FINAL receipt + result, exact final/export bindings, complete structured terminal-evidence bindings, terminal state (`terminal_phase_reached`), and final F9 packet |
+| 15 | accepted FINAL/M5 publication transaction: consumed immutable FINAL receipt + result, exact final/export bindings, complete structured terminal-evidence bindings, terminal state (`terminal_phase_reached`), and the policy-correct terminal handoff representation (mandatory exact F9 only under effective `audited`; optional, non-gating exact F9 or `not_applicable` under effective `derived`) |
 
 An `adhoc_review` run **can never** satisfy this and must never imply it. Its
 response is not evidence: it cannot stand in for F7, F8, or F9, and it cannot
 be converted into one later by writing it into a file afterwards.
+
+A `lab_iteration` also can never satisfy this. Its proposals and optional
+analysis remain private scratch evidence and cannot be converted into
+acceptance, promotion, terminal state, shipment, or dissemination. A terminal
+gate proves lifecycle closure only; actual dissemination remains an external,
+separately authorized action.
 
 ### 4.1 The two-file state is not a completed run
 
@@ -242,8 +279,15 @@ this contract exists to make unsayable.
 | `FRC-NO-PROJECT` | prose-producing intent with no native project root |
 | `FRC-CONTRACT-MISSING` | no resolved `reviews/assignment_contract.json` |
 | `FRC-SCOPE-UNDECLARED` | dispatch carries no run scope |
-| `FRC-SCOPE-DOWNGRADE` | child dispatch narrows a `full_lifecycle` parent to lightweight/response-only/no-artifacts/no-state |
-| `FRC-SCOPE-ESCALATION` | child dispatch widens an `adhoc_review` parent to `full_lifecycle` — a child may not confer on itself authority its parent does not hold |
+| `FRC-SCOPE-DOWNGRADE` | child declares a lower scope than its parent, or contradicts a `full_lifecycle` declaration with lightweight/response-only/no-artifacts/no-state instructions |
+| `FRC-LAB-PROJECT-REQUIRED` | no exact governed Workbench project is resolved for `lab_iteration` |
+| `FRC-LAB-CONTRACT-REQUIRED` | the laboratory project's assignment contract or its live bindings are unresolved |
+| `FRC-LAB-DESTINATION-REQUIRED` | no laboratory proposal output root was supplied |
+| `FRC-LAB-DESTINATION-MISMATCH` | output root does not match the project's governed staging work-id or exact private shipment lane |
+| `FRC-LAB-LIFECYCLE-FORBIDDEN` | laboratory brief or write attempts lifecycle/authoritative-state mutation |
+| `FRC-LAB-F9-FORBIDDEN` | laboratory brief requests F9 authority |
+| `FRC-LAB-TERMINAL-FORBIDDEN` | laboratory brief or response claims terminal, shipment, or lifecycle completion |
+| `FRC-SCOPE-ESCALATION` | child declares a higher scope than its parent; a child may not confer on itself authority its parent does not hold |
 | `FRC-NO-ACTIVE-MILESTONE` | `authorize` on a project whose applicable milestones are all `accepted`: no target exists to author against. Validate a finished run with `terminal`; to continue, reopen or derive a milestone first |
 | `FRC-PROSE-FORBIDDEN` | `authorize --run-scope adhoc_review`: prose is forbidden, so prose authorization is REFUSED. The ad hoc review itself is legal — validate its dispatch with `scope`, and never read an authorization exit code out of it |
 | `FRC-TERMINAL-ROUND-UNBOUND` | a terminal claim whose `phase_state.terminal_round_id` is absent, null or malformed. No authoritative terminal round means no F8 can be selected — and selecting one anyway (newest, last, only) is the heuristic the binding abolishes. Fails closed BEFORE any selection is attempted |

@@ -24,7 +24,7 @@ claim consumption, or non-evaluation verifier as a blocking evidence failure.
 
 ## 1. Planner Contract
 
-**Milestone transaction invariant.** `reviews/phase_state.json` is the sole phase-and-milestone lifecycle authority and the Planner is its sole writer. The required transaction is `read/cache key → mtime/hash check → feedback classification → proposed F9 → explicit approval → finalized F9 + hash → concurrency recheck → assemble .tmp with last_updated + event + artifact hashes + F9 binding → one atomic rename → cache update → shared validator → derived view`. No state mutation follows the rename. Generator, Evaluator, and Reflector remain read-only on milestone state. Reopening propagates stale dependencies and blocks advancement without automatic phase demotion.
+**Milestone transaction invariant.** `reviews/phase_state.json` is the sole phase-and-milestone lifecycle authority and the Planner is its sole writer. The required transaction is `read/cache key → mtime/hash check → feedback classification → proposed policy-correct handoff → explicit approval → audited/explicit-optional F9 finalization or derived not_applicable representation → concurrency recheck → assemble .tmp with last_updated + event + artifact hashes + handoff binding → one atomic rename → cache update → shared validator → derived view`. No state mutation follows the rename. Generator, Evaluator, and Reflector remain read-only on milestone state. Reopening propagates stale dependencies and blocks advancement without automatic phase demotion.
 
 **Role metaphor.** Session quarterback and phase-dispatcher. Does not write prose. Does not evaluate prose. Decides *what happens next* and *who does it*.
 
@@ -152,17 +152,17 @@ claim consumption, or non-evaluation verifier as a blocking evidence failure.
 
 ## 3. Generator Contract
 
-The Generator consumes the predecessor F9 packet and writes deliverable/revision-log artifacts only. It does not approve, accept, consume, reopen, supersede, or otherwise mutate milestone state.
+The Generator reads the Planner's policy-correct predecessor context and writes deliverable/revision-log artifacts only. Under effective `audited`, that context includes the consumed predecessor F9 packet. Under effective `derived`, authoritative accepted/approved/current predecessor state is sufficient; any optional exact F9 remains non-gating and non-consumed. The Generator does not approve, accept, consume, reopen, supersede, or otherwise mutate milestone state.
 
 **Role metaphor.** Academic-deliverable writer and sole author of M1–M4 plus public FINAL/M5 deliverable bytes. Exact paths and timing are machine-bound by `role_output_contract.json`. Operates against a Planner dispatch it did not approve and does not self-evaluate at the conceptual level.
 
 **Preconditions for invocation.**
-- Planner preflight has atomically reserved an immutable assignment receipt for the active target and exact intended paths; the predecessor F9 preflight also passes where applicable.
+- Planner preflight has atomically reserved an immutable assignment receipt for the active target and exact intended paths; the canonical handoff-policy preflight also passes where applicable.
 - For M1–M3, the Planner dispatch names the exact target and requires the bounded current-byte Evaluator policy artifact before milestone record.
 - For M4 at Ph2+, `reviews/revision_plan.md` exists and the Evaluator's findings have been merged into the plan by the Planner.
 
 **Inputs (read).**
-- The Planner dispatch and consumed predecessor F9 packet.
+- The Planner dispatch and policy-correct predecessor context: consumed exact F9 for effective `audited`; accepted/approved/current state plus any validated optional non-consumed F9 for effective `derived`.
 - `reviews/revision_plan.md` and `reviews/consolidated_findings_report.md` when M4 is in Ph2 or Ph3.
 - The relevant rule files cited by the plan (e.g., `bacon_2009_well_crafted_sentence_guidelines.md` for line-edits, `Sexton_Fiction_to_Academic_Writing_Guide.md` for structural openings).
 - `STYLE_COMMITMENTS.md` to know which commitments (C-1…C-4) are in force.

@@ -26,6 +26,14 @@ For native course essays, this public entrypoint invokes the M1→M2→M3→M4 a
 
 **Three-scope router.** Route exactly `adhoc_review`, `lab_iteration`, or `full_lifecycle`, and put `run_scope:` matching the parent in every Planner, Generator, and Evaluator brief. `lab_iteration` is proposal-only: it requires an existing governed project, resolved assignment contract, and resolved staging/private-shipment output, with no lifecycle and no F9 authority. It never accepts milestones, consumes handoffs, writes authoritative research/final paths, or claims terminal completion.
 
+**Handoff policy.** New native bootstrap creates contract `1.1.0` with explicit
+`derived` policy unless `--handoff-policy audited` is requested. Valid `1.0.0`
+projects remain implicit audited without rewrite. `/run-draft` always resolves
+the effective policy mechanically: audited requires exact F9 publication and
+consumption; derived acceptance is authoritative without F9, and any
+explicitly requested optional packet remains exact, non-gating, and
+non-consumed.
+
 ## Vocabulary mapping
 
 | Compatibility name | Public stage name | Stage | Profile |

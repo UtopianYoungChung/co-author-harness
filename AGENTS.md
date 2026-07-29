@@ -94,6 +94,14 @@ The agent **must** read the package component files and follow the orchestration
 
 **No project, no prose (binding).** A prose-producing request with no project root or no resolved `reviews/assignment_contract.json` **fails closed**: do not write academic prose (not in the project, not outside it, not as a "quick draft"), do not substitute a task checklist for milestone state, and do not treat a missing scaffold as licence to proceed informally. Respond with the bootstrap instruction. A full-lifecycle run may never be downgraded to a lightweight/response-only subpass, and terminal language ("Ph4," "G.4," "terminal PASS," "ladder complete," "converged," "shipped") requires `python scripts/full_run_contract_check.py terminal --project-root <p>` to exit 0. Rules and error codes: `references/FULL_RUN_CONTRACT.md` — normative there, not restated here.
 
+**Run scope (binding).** Declare exactly `adhoc_review`, `lab_iteration`, or
+`full_lifecycle`; every child inherits the declaration exactly. A
+`lab_iteration` is transient proposal-only work at a resolved governed
+staging/private-shipment destination. It has no lifecycle, F9, terminal,
+promotion, release, or dissemination authority and never writes authoritative
+research. Mechanical authority and stable diagnostics live in
+`references/FULL_RUN_CONTRACT.md` and `scripts/invocation_scope.py`.
+
 **Formal ontology trigger:** For the BFO-aligned ontology trigger, read `references/BFO_ONTOLOGY_DESIGN.md`. Its trigger boundary is binding: do not apply formal BFO construction rules merely because prose uses philosophical ontology, conceptual analysis, modeling vocabulary, or metaphor.
 
 ---

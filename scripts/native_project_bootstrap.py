@@ -400,7 +400,10 @@ def main(argv: list[str] | None = None) -> int:
         "--handoff-policy",
         choices=("derived", "audited"),
         default="derived",
-        help="persistent milestone handoff policy for the new 1.1.0 ledger",
+        help=(
+            "persistent milestone handoff policy for the new 1.1.0 ledger; "
+            "derived is the explicit default, audited preserves mandatory F9"
+        ),
     )
     parser.add_argument(
         "--created-at",

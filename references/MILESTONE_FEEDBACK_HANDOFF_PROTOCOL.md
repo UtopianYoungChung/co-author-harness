@@ -45,6 +45,13 @@ Each M1-M5 record requires `purpose`, `status`, `applicability`, `required_input
 
 Framework mode is `native | legacy`. Applicability is `applicable | not_applicable`.
 
+Handoff policy is a separate persistent axis. Valid `1.0.0` ledgers omit
+`handoff_policy` and resolve mechanically to effective `audited` without
+rewrite. Valid `1.1.0` ledgers declare exactly `handoff_policy: derived|audited`.
+New native bootstrap defaults explicitly to `derived`; explicit `audited`
+remains available. Existing projects change policy only through the receipted
+`lab-iteration-derived-handoff-v1` migration.
+
 Milestone status is one of:
 
 `not_started | in_progress | feedback_pending | revision_required | accepted | reopened | superseded | not_applicable | legacy_unverified`
@@ -61,7 +68,17 @@ The normal contracts are:
 | M4 Paper Draft | Present the complete argument for feedback at review-ready depth, while allowing provisional claims and wording. | M4-to-M5 packet binding the full draft and honestly adjudicated feedback state. |
 | M5 framework slot / public FINAL | Elaborate and revise the full argument after M1-M4 and the feedback stage; publish `milestones/M5_final_paper.md` plus `submission_bundle/final_manuscript.md`; certify current manuscript identity. | Terminal packet binding explicit approval, consumed FINAL receipt/result, manuscript identity, released-export provenance, complete closure evidence, and residual risks. |
 
-`FINAL` is the public assignment-gate and checkpoint target; `M5` is its ledger key. The bridge is exact and one-way at the interface boundary: users and dispatch receipts say `FINAL`, while phase state, approval/checkpoint evidence, and F9 say `M5`. FINAL never aliases M4 and never rewrites accepted M4 bytes. The public close transaction consumes the M4 F9, records the scoped FINAL publication, accepts M5, writes `reviews/.harness/handoffs/M5_terminal.json` with `to_milestone: null`, and atomically sets `terminal_phase_reached` plus `terminal_round_id` only after the full terminal candidate passes.
+The handoff-output column describes the exact F9 representation when effective
+policy is `audited`, or when `--emit-f9` explicitly requests optional evidence
+under `derived`. Under effective `derived`, the default authoritative handoff
+projection is `not_applicable` and milestone acceptance remains complete
+without a packet.
+
+`FINAL` is the public assignment-gate and checkpoint target; `M5` is its ledger key. The bridge is exact and one-way at the interface boundary: users and dispatch receipts say `FINAL`, while phase state and approval/checkpoint evidence say `M5`; any F9 packet does too. FINAL never aliases M4 and never rewrites accepted M4 bytes. The public close transaction follows the effective handoff policy, records the scoped FINAL publication, accepts M5, optionally writes the exact `reviews/.harness/handoffs/M5_terminal.json` evidence, and atomically sets `terminal_phase_reached` plus `terminal_round_id` only after the full terminal candidate passes.
+
+Here, publication means the guarded project-local FINAL transaction. External
+submission, upload, delivery, or dissemination is outside harness authority and
+requires a separate user-authorized action.
 
 Plans, revision plans, gates, checklists, reviews, reports, and derived views may control or evidence progress but cannot satisfy a milestone deliverable slot. Every recorded or accepted applicable deliverable also binds a qualified C6 scholarly evaluation that reuses the same consumed assignment receipt and exact Generator/Evaluator chain. The verifier replays the evaluation and its complete transitive dependency set; plausible Markdown, file presence, a clean deterministic report, or the older semantic verifier cannot substitute. M4 and M5 may use the same canonical manuscript path at different maturity depths; each accepted state binds the exact current manuscript path, SHA-256, byte count, and verification time. Changed bytes make the prior approval historical and the current binding stale.
 
@@ -99,7 +116,15 @@ Every blocking record must be adjudicated before its handoff can become ready. D
 
 F9 is a machine-readable JSON evidence family stored under `reviews/.harness/handoffs/`, normally as `M1_to_M2.json`, `M2_to_M3.json`, `M3_to_M4.json`, `M4_to_M5.json`, and a terminal M5 packet. F9 is evidence, not lifecycle state. `reviews/phase_state.json` binds each packet path and SHA-256.
 
-An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, the exact draft and scholarly policy bindings, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A qualified scholarly evaluation is necessary but never supplies user approval. A handoff cannot become `ready` without separate current approval evidence, and the successor must record consumption before dependent work can claim a ready chain.
+Under effective `audited`, acceptance requires the exact packet and successor
+begin consumes it. Under effective `derived`, acceptance is authoritative with
+the exact handoff representation `{status: not_applicable, packet_path: null,
+packet_sha256: null}`. `accept --emit-f9` may publish the same exact F9 bytes as
+audited mode, but the packet remains optional, non-gating, and non-consumed;
+successor begin validates it without rewriting its ready state or emitting a
+`handoff_consumed` event.
+
+An F9 packet records `artifact_family: F9`, contract version, project, lineage, from/to milestone, predecessor packet binding except at M1, deliverable path/hash/bytes/role, inputs consumed, decisions frozen, feedback dispositions, open debts, next-milestone instructions, the exact draft and scholarly policy bindings, and approval authority/evidence/time. Adjacent packets use `to_milestone: M2 | M3 | M4 | M5`; the terminal M5 packet uses `to_milestone: null`. A qualified scholarly evaluation is necessary but never supplies user approval. A packet cannot become `ready` without separate current approval evidence. Only effective `audited` gives the ready packet consumption authority; effective `derived` never does.
 
 An F9 Markdown rendering, if produced, is a `derived_view`; it carries its source binding, generation time, and a do-not-edit marker.
 
@@ -136,7 +161,7 @@ Usage errors exit 1. I/O or parse failures exit 2. Authorized N/A and no-op outc
 
 ## 10. Native projects
 
-A project bootstrapped under this contract uses `mode: native`, declares exactly M1-M5, begins M1 as `in_progress`, and begins M2-M5 as `not_started`. File presence never implies acceptance. Each milestone becomes accepted only after its deliverable, feedback gate, adjudication, approval, exact-byte binding, and F9 handoff satisfy this protocol.
+A project bootstrapped under this contract uses `mode: native`, contract `1.1.0`, and explicit handoff policy (default `derived`); it declares exactly M1-M5, begins M1 as `in_progress`, and begins M2-M5 as `not_started`. File presence never implies acceptance. Each milestone becomes accepted only after its deliverable, feedback gate, adjudication, approval, exact-byte binding, and policy-correct handoff representation satisfy this protocol.
 
 The native milestone namespace lives only inside `reviews/phase_state.json`. Project `AGENTS.md`, status notes, and lifecycle summaries link to the authority or a generated view; they do not maintain parallel status.
 
@@ -148,7 +173,7 @@ Migration preserves raw artifacts and archives the prior ledger with exact hashe
 
 ## 12. Derived views
 
-Human lifecycle summaries are deterministic views of `reviews/phase_state.json` and accepted F9 evidence. A lifecycle view records `generated: true`, `derived_from`, `source_sha256`, and `generated_at`; its body begins `DO NOT EDIT: generated lifecycle view`.
+Human lifecycle summaries are deterministic views of `reviews/phase_state.json` and any policy-correct F9 evidence. A lifecycle view records `generated: true`, `derived_from`, `source_sha256`, and `generated_at`; its body begins `DO NOT EDIT: generated lifecycle view` and labels declared and effective handoff policy. A `1.0.0` compatibility view explicitly reports `implicit audited`; a `1.1.0` view reports its explicit declared policy.
 
 Derived views never satisfy deliverable slots, own lifecycle status, or override source state. Source-hash mismatch is drift and requires regeneration after the authoritative state is corrected.
 
@@ -160,7 +185,7 @@ Each registry entry is strict and closed. It records one canonical absolute `pro
 
 All registered evidence paths are project-relative, contained, current-byte hash-bound, regular non-reparse files. The registry and each evidence object are acquired as one stable binary snapshot: raw path components are checked before opening; the open descriptor is bound to the pre-open path identity; descriptor size, identity, and modification time must remain stable through the read; and the path must still name the same non-reparse file afterward. Registry and evidence UTF-8/JSON failures or path replacement races produce controlled `MF-EXEMPLAR` findings. A custom registry may be injected by the validator CLI for maintenance and tests and may live outside the project or package, but the explicit registry path is subject to the same regular-file, non-reparse, stable-snapshot rule.
 
-`clean_lifecycle_exemplar` requires `mode: native`; accepted, approved, dependency-current M1-M5 records; consumed M1-M4 handoffs; a ready or consumed terminal M5 packet; current milestone- and phase-validator evidence; a generated lifecycle view whose source hash is the current ledger; a full release-gate pass; and an independent replay. `legacy_migration_exemplar` requires `mode: legacy`, an approved migration boundary, current milestone and phase validation with `LEGACY_READY`, and separately hash-bound migration approval, report, commit, manifest, and rollback-verification evidence. The migration boundary authority must itself be on the permitted exemplar/migration authority ladder. The migration report must record an approved adjudication by that boundary authority, and the migration approval evidence must explicitly say `APPROVED` and name the same authority. Rehashing a chain attributed to `nobody` or another unrecognized actor cannot grant the class.
+`clean_lifecycle_exemplar` requires `mode: native`; accepted, approved, dependency-current M1-M5 records; the effective-policy-correct M1-M5 handoff representations (consumed/ready exact packets for `audited`, or canonical `not_applicable` with any optional packets valid and non-consumed for `derived`); current milestone- and phase-validator evidence; a generated lifecycle view whose source hash is the current ledger; a full release-gate pass; and an independent replay. `legacy_migration_exemplar` requires `mode: legacy`, an approved migration boundary, current milestone and phase validation with `LEGACY_READY`, and separately hash-bound migration approval, report, commit, manifest, and rollback-verification evidence. The migration boundary authority must itself be on the permitted exemplar/migration authority ladder. The migration report must record an approved adjudication by that boundary authority, and the migration approval evidence must explicitly say `APPROVED` and name the same authority. Rehashing a chain attributed to `nobody` or another unrecognized actor cannot grant the class.
 
 These are two separate approval layers. The migration-boundary authority approves the historical migration; the registry `approval_authority` approves granting exemplar status. Both must be independently permitted and supported by their own evidence, but they need not be the same actor. Registration records these decisions; it does not collapse them, rewrite ledger outcome, or alter historical provenance.
 
@@ -178,7 +203,7 @@ For a registered clean exemplar, the lifecycle-view evidence hash is also the ex
 | `MF-BINDING` | Accepted artifact and packet hashes and byte counts match current bytes. | BLOCKER |
 | `AMC-SCHOLARLY-EVALUATION-MISSING` | An applicable recorded milestone carries no scholarly-evaluation binding. | BLOCKER |
 | `AMC-SCHOLARLY-EVALUATION-STALE` | C6 evidence, its authority chain, artifact binding, or a transitive dependency is stale or unqualified. | BLOCKER |
-| `MF-HANDOFF` | Successor work consumes an approved or authorized predecessor handoff. | BLOCKER |
+| `MF-HANDOFF` | Successor work satisfies the effective handoff policy: audited consumption, or derived accepted/current state with optional F9 validated but never consumed. | BLOCKER |
 | `MF-FEEDBACK` | Feedback is typed, attributable, hash-bound, and blocking items are adjudicated. | BLOCKER |
 | `MF-LINEAGE` | Active candidates have distinct lineages and exactly one primary lineage. | BLOCKER |
 | `MF-REOPEN` | Drift or reopening creates append-only history and downstream staleness. | BLOCKER |

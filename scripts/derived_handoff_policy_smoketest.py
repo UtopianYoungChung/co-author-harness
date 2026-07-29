@@ -27,6 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 SCHEMA = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 BOOTSTRAP = SCRIPTS / "native_project_bootstrap.py"
+GENERATOR = ROOT / "agents" / "generator.md"
+ASSIGNMENT_PROCESS = ROOT / "references" / "ASSIGNMENT_MILESTONE_PROCESS.md"
+HANDOFF_PROTOCOL = ROOT / "references" / "MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md"
+FULL_RUN_CONTRACT = ROOT / "references" / "FULL_RUN_CONTRACT.md"
 PYTHON_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}
 
 sys.path.insert(0, str(SCRIPTS))
@@ -243,6 +247,58 @@ def _assert_bootstrap(project: Path, policy: str, *extra: str) -> None:
         raise AssertionError("handoff policy changed milestone_framework.mode")
 
 
+def _assert_bootstrap_help_discloses_policy() -> None:
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", str(BOOTSTRAP), "--help"],
+        cwd=ROOT,
+        env=PYTHON_ENV,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"bootstrap help exit={result.returncode}: {(result.stdout + result.stderr)[:500]}"
+        )
+    help_text = " ".join((result.stdout + result.stderr).split())
+    required = (
+        "--handoff-policy {derived,audited}",
+        "derived is the explicit default, audited preserves mandatory F9",
+    )
+    missing = [fact for fact in required if fact not in help_text]
+    if missing:
+        raise AssertionError(f"bootstrap help omits policy disclosure: {missing}")
+
+
+def _assert_core_surfaces_are_policy_correct() -> None:
+    required = {
+        GENERATOR: (
+            "accepted/approved/current state plus any validated optional non-consumed F9 "
+            "under effective `derived`"
+        ),
+        ASSIGNMENT_PROCESS: (
+            "Under effective `derived`, acceptance is authoritative without F9 and records "
+            "`not_applicable`"
+        ),
+        HANDOFF_PROTOCOL: (
+            "Under effective `derived`, the default authoritative handoff projection is "
+            "`not_applicable` and milestone acceptance remains complete without a packet."
+        ),
+        FULL_RUN_CONTRACT: (
+            "mandatory exact F9 only under effective `audited`; optional, non-gating exact F9 "
+            "or `not_applicable` under effective `derived`"
+        ),
+    }
+    missing: list[str] = []
+    for path, fact in required.items():
+        text = " ".join(path.read_text(encoding="utf-8").split())
+        normalized_fact = " ".join(fact.split())
+        if normalized_fact not in text:
+            missing.append(f"{path.relative_to(ROOT).as_posix()}: {normalized_fact}")
+    if missing:
+        raise AssertionError(f"core surface requires policy-correct F9 language: {missing}")
+
+
 def _prepare_m1_acceptance(project: Path) -> tuple[Path, Path]:
     """Build a real recorded M1 using the public synthetic transaction walk."""
     checkpoint_fixture.run(
@@ -387,6 +443,14 @@ def main() -> int:
             raise AssertionError("accept must expose keyword-only emit_f9=False")
 
     matrix.case("accept exposes explicit optional F9 request with default off", accept_exposes_optional_f9)
+    matrix.case(
+        "native bootstrap help discloses derived default and audited compatibility",
+        _assert_bootstrap_help_discloses_policy,
+    )
+    matrix.case(
+        "core Generator assignment handoff and full-run surfaces do not universally require F9 under derived",
+        _assert_core_surfaces_are_policy_correct,
+    )
 
     with tempfile.TemporaryDirectory(prefix="v041-derived-policy-", dir=ROOT) as raw, semantic_graph_fixture_environment():
         sandbox = Path(raw)
@@ -405,8 +469,16 @@ def main() -> int:
             ledger = fixture._materialize_native_project(project, include_scholarly=True)
             _write_json(project / "reviews" / "phase_state.json", fixture._phase_document(ledger))
             text = renderer.render_bytes(project, "2026-07-29T15:00:00Z").decode("utf-8")
-            if "Declared handoff policy: `implicit`" not in text or "Effective handoff policy: `audited`" not in text:
-                raise AssertionError("renderer does not label 1.0.0 implicit audited compatibility")
+            required = (
+                "Declared handoff policy: `implicit`",
+                "Effective handoff policy: `audited`",
+                "Handoff policy resolution: `implicit audited (1.0.0 compatibility)`",
+            )
+            missing = [fact for fact in required if fact not in text]
+            if missing:
+                raise AssertionError(
+                    f"renderer does not expose all 1.0.0 compatibility facts: {missing}"
+                )
 
         matrix.case("renderer shows declared/effective implicit audited compatibility", render_implicit_audited)
 

@@ -162,7 +162,8 @@ None yet.
 **Status:** Not started
 
 <!-- File presence is not milestone completion or acceptance. Replace this
-     scaffold only after the accepted M3 handoff is consumed. -->
+     scaffold only after the accepted M3 predecessor passes the effective
+     handoff policy (audited consumption or derived accepted/current state). -->
 
 ## 1. Introduction
 
@@ -291,13 +292,13 @@ Reflector may add entries. No agent may remove entries.
 
 ### 2.5b reviews/phase_state.json and F9 directory
 
-`reviews/phase_state.json` is the **only writable authority** for both the phase ledger and the `milestone_framework` namespace. Generate its native seed with `scripts/native_project_bootstrap.py`; do not copy status claims out of the Markdown files. The seed records M1 as `in_progress`, M2–M5 as `not_started`, empty artifact and feedback arrays, pending approvals, and not-ready handoffs. It also records only the evidence-free `milestone_started` event for M1.
+`reviews/phase_state.json` is the **only writable authority** for both the phase ledger and the `milestone_framework` namespace. Generate its native seed with `scripts/native_project_bootstrap.py`; do not copy status claims out of the Markdown files. The seed uses milestone contract `1.1.0` with explicit `handoff_policy: derived` by default, records M1 as `in_progress`, M2-M5 as `not_started`, empty artifact and feedback arrays, pending approvals, and not-ready handoffs. `--handoff-policy audited` is the explicit new-project compatibility option. The seed also records only the evidence-free `milestone_started` event for M1.
 
 Every new native project receives reader-profile binding v2 from that command: `binding_version: 2.0.0`, `binding_kind: reader_profile`, and `semantic_usage: not_invoked`. Do not hand-author, copy, or downgrade this binding. Canonical validation rejects a native project that omits it. A legacy project uses the explicit migration transaction; it is never repaired by running bootstrap over an existing directory.
 
 The native seed has a fresh-target contract: the requested project root must not exist, and its parent must already exist. The generator builds the entire milestone seed in a newly created sibling staging directory, resolves every output path against that staging root, and runs both canonical validators there. Only a fully valid seed is atomically renamed to the requested root. Failure removes staging and never merges with, overwrites, or repairs an existing project. Existing projects use the migration workflow instead.
 
-`reviews/.harness/handoffs/` and `reviews/.harness/snapshots/` start empty. An F9 packet or content-addressed M4 snapshot is created only by its state-last transaction; file presence never changes milestone state.
+`reviews/.harness/handoffs/` and `reviews/.harness/snapshots/` start empty. An F9 packet is created only when effective policy is audited or `--emit-f9` explicitly requests optional derived evidence; a content-addressed M4 snapshot is created only by its state-last transaction. File presence never changes milestone state.
 
 ### 2.5c Course-essay assignment contract and first-write gate
 
@@ -337,11 +338,11 @@ python <package-root>/scripts/assignment_process_gate.py --project-root <project
 python <package-root>/scripts/assignment_dispatch_preflight.py --project-root <project-root> --receipt <project-root>/reviews/.harness/assignment/ready/gate_receipt_M1_<utc>.json --expected-target M1 --consumer planner --write-path milestones/M1_project_memo.md
 ```
 
-Only both exit-0 results authorize M1 staging. The safe first-run chain is: empty assignment configuration under `reviews/` → resolved contract bound to real bytes → immutable M1 READY receipt → Planner reservation → Generator stages **memo only** beneath the receipt-scoped staging directory → `assignment_writer_commit.py` consumes and publishes `milestones/M1_project_memo.md`. It does not authorize `milestones/M4_complete_paper_draft.md`, M2, M3, or a complete essay. Cancellation invokes `assignment_receipt_invalidate.py`; a later M2 invocation still requires explicit M1 acceptance plus the normal F9 transaction.
+Only both exit-0 results authorize M1 staging. The safe first-run chain is: empty assignment configuration under `reviews/` → resolved contract bound to real bytes → immutable M1 READY receipt → Planner reservation → Generator stages **memo only** beneath the receipt-scoped staging directory → `assignment_writer_commit.py` consumes and publishes `milestones/M1_project_memo.md`. It does not authorize `milestones/M4_complete_paper_draft.md`, M2, M3, or a complete essay. Cancellation invokes `assignment_receipt_invalidate.py`; a later M2 invocation still requires explicit M1 acceptance plus the effective handoff-policy transaction (audited F9 consumption, or derived accepted/approved/current state without F9 consumption).
 
 #### Operator recovery for `2026-07-14_first-principles-RE-essay-fresh` (documentation only)
 
-Do not repair, rewrite, or silently normalize that live project as part of harness installation. On an explicit operator rerun: locate and read the real controlling assignment; compute its current hash and the current package-profile hash; create the resolved contract above; leave M1-M3 `reopened` and M4 `revision_required` until real feedback and approval change them; derive M1; emit and reserve a new M1 receipt; and dispatch the Generator to stage `milestones/M1_project_memo.md` only for scoped commit. Do not reuse the existing complete essay as evidence that M1-M3 were accepted, and do not write another full-essay `ph1_draft_completion.md`. Present the memo and adjudicated feedback to the user, then perform the existing F9/acceptance transaction only after explicit approval.
+Do not repair, rewrite, or silently normalize that live project as part of harness installation. On an explicit operator rerun: locate and read the real controlling assignment; compute its current hash and the current package-profile hash; create the resolved contract above; leave M1-M3 `reopened` and M4 `revision_required` until real feedback and approval change them; derive M1; emit and reserve a new M1 receipt; and dispatch the Generator to stage `milestones/M1_project_memo.md` only for scoped commit. Do not reuse the existing complete essay as evidence that M1-M3 were accepted, and do not write another full-essay `ph1_draft_completion.md`. Present the memo and adjudicated feedback to the user, then perform the policy-correct acceptance transaction only after explicit approval.
 
 ### 2.6 milestones/M1_project_memo.md
 
@@ -595,6 +596,10 @@ python <package-root>/scripts/native_project_bootstrap.py `
   --title <working-title> `
   --intended-reader "<reader description>"
 ```
+
+The default is explicit derived handoff policy. Add
+`--handoff-policy audited` only for a new project that intentionally requires
+mandatory F9 compatibility behavior.
 
 The command accepts only a project identifier matching `[A-Za-z0-9][A-Za-z0-9._-]*`, a non-empty single-line printable title, and a real UTC `--created-at` timestamp (when supplied). The identifier grammar is deliberately narrower than Markdown, YAML, and filesystem grammars: whitespace, CR/LF, colon, `#`, controls, and leading punctuation are rejected before staging, so interpolated project metadata cannot add directive keys or alter `register_class`. The full validated identifier is recorded as `project_id` and must equal the resolved policy binding's `project_identity`.
 
