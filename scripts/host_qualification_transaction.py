@@ -35,6 +35,12 @@ TRANSACTION_NAME = "host-qualification.json"
 PUBLICATION_NAME = "publication-manifest.json"
 MARKER_NAME = "commit-marker.json"
 PACKAGE_STATES = {"NOT_EVALUATED", "PACKAGE_CLEARED", "PACKAGE_NOT_CLEARED"}
+EXPECTED_RUNTIME_SUITES = (
+    ("governed_product_gate_self_check", "governed_product_gate_self_check", "scripts/run_product_gate_smoketest.py"),
+    ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
+    ("version_check", "portable_core", "scripts/version-check.py"),
+    ("skill_check", "portable_core", "scripts/skill-check.py"),
+)
 
 
 class HostQualificationError(RuntimeError):
@@ -150,7 +156,29 @@ def _validate(
 
 def _valid_runtime_receipt(receipt: Mapping[str, Any]) -> bool:
     schema = json.loads(RUNTIME_SCHEMA.read_text(encoding="utf-8"))
-    return not any(Draft202012Validator(schema).iter_errors(receipt))
+    if any(Draft202012Validator(schema).iter_errors(receipt)):
+        return False
+    environment = receipt.get("environment", {})
+    dependencies = environment.get("dependency_paths", []) if isinstance(environment, Mapping) else None
+    suites = receipt.get("suites", [])
+    observed_suites = [
+        (row.get("name"), row.get("kind"), row.get("script"))
+        for row in suites
+        if isinstance(row, Mapping)
+    ] if isinstance(suites, list) else []
+    return (
+        isinstance(environment, Mapping)
+        and isinstance(dependencies, list)
+        and all(isinstance(path, str) for path in dependencies)
+        and environment.get("suite_pythonpath") == os.pathsep.join(dependencies)
+        and observed_suites == list(EXPECTED_RUNTIME_SUITES)
+        and all(
+            isinstance(row, Mapping)
+            and row.get("status") == "passed"
+            and row.get("returncode") == 0
+            for row in suites
+        )
+    )
 
 
 def _failure(code: str, message: str) -> dict[str, str]:

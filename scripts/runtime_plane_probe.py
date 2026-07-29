@@ -598,9 +598,22 @@ def _run_suites(
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     dependencies = tuple(dependency_paths if dependency_paths is not None else _dependency_paths())
-    child_env = dict(os.environ)
+    child_env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.upper().startswith("PYTHON")
+    }
     child_env["PYTHONDONTWRITEBYTECODE"] = "1"
-    child_env["PYTHONPATH"] = ""
+    child_env["PYTHONNOUSERSITE"] = "1"
+    child_env.pop("PYTHONHOME", None)
+    # The suite interpreter remains isolated by ``-I`` and receives these
+    # directories explicitly through ``site.addsitedir`` below.  A governed
+    # suite can itself launch ``sys.executable`` without ``-I`` (the product
+    # gate smoke test does this); that nested interpreter must inherit the
+    # same qualified dependency set or it cannot import jsonschema/PyYAML.
+    # Do not inherit an ambient PYTHONPATH: expose only the paths already
+    # resolved and recorded by this probe.
+    child_env["PYTHONPATH"] = os.pathsep.join(dependencies)
     for suite in suites:
         script = local_root / suite["script"]
         isolated_runner = (
@@ -654,10 +667,24 @@ def _finding(code: str, severity: str, message: str, path: str | None = None) ->
 def _validate(receipt: Mapping[str, Any]) -> None:
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     errors = sorted(Draft202012Validator(schema).iter_errors(receipt), key=lambda error: list(error.path))
+    environment = receipt.get("environment", {})
+    dependencies = environment.get("dependency_paths", []) if isinstance(environment, Mapping) else None
+    if (
+        isinstance(environment, Mapping)
+        and isinstance(dependencies, list)
+        and all(isinstance(path, str) for path in dependencies)
+        and environment.get("suite_pythonpath") != os.pathsep.join(dependencies)
+    ):
+        errors.append("environment.suite_pythonpath does not equal the recorded dependency-path join")
     if errors:
         raise ProbeRefusal(
             "RUNTIME-PLANE-SCHEMA",
-            "; ".join(f"{list(error.path)}: {error.message}" for error in errors),
+            "; ".join(
+                error
+                if isinstance(error, str)
+                else f"{list(error.path)}: {error.message}"
+                for error in errors
+            ),
         )
 
 
@@ -671,7 +698,28 @@ def probe_plane(
     crlf_mode: str = "forbid",
     suites: Iterable[Mapping[str, str]] = DEFAULT_SUITES,
 ) -> dict[str, Any]:
-    if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
+    ambient_python = {
+        key.upper(): value
+        for key, value in os.environ.items()
+        if key.upper().startswith("PYTHON")
+    }
+    permitted_ambient = {
+        "PYTHONDONTWRITEBYTECODE": {"1"},
+        "PYTHONPATH": {""},
+        "PYTHONHOME": {""},
+        "PYTHONNOUSERSITE": {"1"},
+    }
+    unexpected_python = sorted(
+        key
+        for key, value in ambient_python.items()
+        if key not in permitted_ambient or value not in permitted_ambient[key]
+    )
+    if unexpected_python:
+        raise ProbeRefusal(
+            "RUNTIME-PLANE-ENV",
+            "ambient Python controls are forbidden: " + ", ".join(unexpected_python),
+        )
+    if ambient_python.get("PYTHONDONTWRITEBYTECODE") != "1":
         raise ProbeRefusal(
             "RUNTIME-PLANE-ENV",
             "PYTHONDONTWRITEBYTECODE=1 is required for a stable runtime-plane probe",
@@ -1029,14 +1077,18 @@ def probe_plane(
     )
 
     receipt: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "receipt_type": "runtime_plane_probe",
         "baseline_root": str(baseline_root),
         "local_root": str(local_root),
         "environment": {
             "pythondontwritebytecode": "1",
             "isolated_python": True,
-            "pythonpath": "",
+            "python_environment_policy": "scrub-all-restore-three-v1",
+            "ambient_pythonpath": "",
+            "suite_pythonpath": os.pathsep.join(dependency_paths),
+            "suite_pythonno_usersite": "1",
+            "suite_pythonhome": None,
             "dependency_paths": list(dependency_paths),
         },
         "interpreter": {

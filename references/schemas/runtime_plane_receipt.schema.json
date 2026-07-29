@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://co-author-harness.local/schemas/runtime_plane_receipt.schema.json",
-  "title": "Runtime plane probe receipt 1.0.0",
+  "title": "Runtime plane probe receipt 1.1.0",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,18 +27,22 @@
     "verdict"
   ],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "receipt_type": {"const": "runtime_plane_probe"},
     "baseline_root": {"type": "string", "minLength": 1},
     "local_root": {"type": "string", "minLength": 1},
     "environment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["pythondontwritebytecode", "isolated_python", "pythonpath", "dependency_paths"],
+      "required": ["pythondontwritebytecode", "isolated_python", "python_environment_policy", "ambient_pythonpath", "suite_pythonpath", "suite_pythonno_usersite", "suite_pythonhome", "dependency_paths"],
       "properties": {
         "pythondontwritebytecode": {"const": "1"},
         "isolated_python": {"const": true},
-        "pythonpath": {"const": ""},
+        "python_environment_policy": {"const": "scrub-all-restore-three-v1"},
+        "ambient_pythonpath": {"const": ""},
+        "suite_pythonpath": {"type": "string"},
+        "suite_pythonno_usersite": {"const": "1"},
+        "suite_pythonhome": {"type": "null"},
         "dependency_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
       }
     },

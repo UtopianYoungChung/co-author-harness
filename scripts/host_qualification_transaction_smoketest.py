@@ -94,26 +94,39 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
     suites = [
         {
             "name": name,
-            "kind": "governed_product_gate_self_check" if index == 0 else "portable_core",
-            "script": f"scripts/{name}.py",
-            "argv": ["python", f"scripts/{name}.py"],
+            "kind": kind,
+            "script": script,
+            "argv": ["python", script],
             "cwd": str(root),
             "returncode": 0,
             "status": "passed",
             "stdout_sha256": sha(b""),
             "stderr_sha256": sha(b""),
         }
-        for index, name in enumerate(("product_gate", "schema", "version", "skill"))
+        for name, kind, script in (
+            (
+                "governed_product_gate_self_check",
+                "governed_product_gate_self_check",
+                "scripts/run_product_gate_smoketest.py",
+            ),
+            ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
+            ("version_check", "portable_core", "scripts/version-check.py"),
+            ("skill_check", "portable_core", "scripts/skill-check.py"),
+        )
     ]
     write(cache, {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "receipt_type": "runtime_plane_probe",
         "baseline_root": str(root),
         "local_root": str(root),
         "environment": {
             "pythondontwritebytecode": "1",
             "isolated_python": True,
-            "pythonpath": "",
+            "python_environment_policy": "scrub-all-restore-three-v1",
+            "ambient_pythonpath": "",
+            "suite_pythonpath": "",
+            "suite_pythonno_usersite": "1",
+            "suite_pythonhome": None,
             "dependency_paths": [],
         },
         "interpreter": {
@@ -333,6 +346,49 @@ def main() -> int:
         assert failed["state"] == "HOST_QUALIFICATION_FAILED"
         assert failed["failure"]["code"] == "HOST-CORE-PROBE-FAILED"
         cases.append("typed_core_failure")
+
+        paths = evidence(base, "runtime-env-mismatch")
+        mismatched_cache = json.loads(paths["cache"].read_text(encoding="utf-8"))
+        mismatched_cache["environment"]["suite_pythonpath"] = "unrecorded-route"
+        write(paths["cache"], mismatched_cache)
+        mismatched = publish(
+            module,
+            paths,
+            paths["authority"] / "releases/verification/runtime-env-mismatch",
+        )
+        validate(mismatched)
+        assert mismatched["state"] == "HOST_QUALIFICATION_FAILED"
+        assert mismatched["failure"]["code"] == "HOST-CACHE-COMPARISON-MISSING"
+        cases.append("runtime_environment_semantic_mismatch_refused")
+
+        paths = evidence(base, "runtime-env-wrong-type")
+        wrong_type_cache = json.loads(paths["cache"].read_text(encoding="utf-8"))
+        wrong_type_cache["environment"] = []
+        write(paths["cache"], wrong_type_cache)
+        wrong_type = publish(
+            module,
+            paths,
+            paths["authority"] / "releases/verification/runtime-env-wrong-type",
+        )
+        validate(wrong_type)
+        assert wrong_type["state"] == "HOST_QUALIFICATION_FAILED"
+        assert wrong_type["failure"]["code"] == "HOST-CACHE-COMPARISON-MISSING"
+        cases.append("runtime_environment_wrong_type_refused")
+
+        paths = evidence(base, "runtime-suite-universe")
+        wrong_suites = json.loads(paths["cache"].read_text(encoding="utf-8"))
+        wrong_suites["suites"] = [dict(wrong_suites["suites"][0]) for _ in range(4)]
+        wrong_suites["suites"][0]["returncode"] = 1
+        write(paths["cache"], wrong_suites)
+        suite_refusal = publish(
+            module,
+            paths,
+            paths["authority"] / "releases/verification/runtime-suite-universe",
+        )
+        validate(suite_refusal)
+        assert suite_refusal["state"] == "HOST_QUALIFICATION_FAILED"
+        assert suite_refusal["failure"]["code"] == "HOST-CACHE-COMPARISON-MISSING"
+        cases.append("runtime_suite_universe_and_returncode_refused")
 
         paths = evidence(base, "qualified")
         write_order: list[str] = []

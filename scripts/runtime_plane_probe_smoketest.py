@@ -249,13 +249,100 @@ def main() -> int:
     with RetryingTemporaryDirectory(prefix="runtime-plane-v40-", dir=ROOT) as td:
         base = Path(td)
 
+        nested_root = base / "nested-dependency"
+        package(nested_root)
+        dependency_root = base / "qualified-dependency"
+        write(
+            dependency_root / "runtime_probe_nested_dependency.py",
+            b"VALUE = 'qualified-dependency'\n",
+        )
+        write(
+            nested_root / "scripts" / "run_product_gate_smoketest.py",
+            (
+                "import subprocess, sys\n"
+                "completed = subprocess.run(\n"
+                " [sys.executable, '-c', "
+                "'import os; import runtime_probe_nested_dependency as d; "
+                "bad=[k for k in (\"PYTHONOPTIMIZE\",\"PYTHONPLATLIBDIR\",\"PYTHONWARNINGS\",\"PYTHONHOME\") if os.environ.get(k)]; "
+                "bad and (_ for _ in ()).throw(RuntimeError(str(bad))); "
+                "os.environ.get(\"PYTHONNOUSERSITE\") == \"1\" or (_ for _ in ()).throw(RuntimeError(\"no-usersite\")); "
+                "d.VALUE == \\\"qualified-dependency\\\" or (_ for _ in ()).throw(RuntimeError(\"dependency\"))'],\n"
+                " capture_output=True, text=True, encoding='utf-8', errors='replace',\n"
+                ")\n"
+                "if completed.returncode != 0:\n"
+                " raise AssertionError(completed.stdout + completed.stderr)\n"
+            ).encode("utf-8"),
+        )
+        poison = {
+            "PYTHONOPTIMIZE": "2",
+            "PYTHONPLATLIBDIR": "ambient-platlib",
+            "PYTHONWARNINGS": "error",
+            "PYTHONHOME": str(base / "ambient-home"),
+            "PYTHONNOUSERSITE": "0",
+        }
+        previous_poison = {key: os.environ.get(key) for key in poison}
+        os.environ.update(poison)
+        try:
+            nested_results = probe._run_suites(
+                nested_root,
+                probe.DEFAULT_SUITES,
+                [str(dependency_root)],
+            )
+        finally:
+            for key, previous in previous_poison.items():
+                if previous is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = previous
+        assert len(nested_results) == 4
+        assert all(row["status"] == "passed" for row in nested_results)
+        assert os.environ.get("PYTHONPATH", "") != str(dependency_root)
+        cases.append("nested_subprocess_receives_only_qualified_dependencies")
+
         source, local, archive, commit = fixture(base, "clean")
         clean = probe_case(probe, source, local, archive, commit)
         assert clean["cache_state"] == "CODEX_CACHE_QUALIFIED"
         assert clean["verdict"] == "qualified"
         assert clean["identity"]["canonical_archive_claim"] is True
+        assert clean["environment"]["ambient_pythonpath"] == ""
+        assert clean["environment"]["python_environment_policy"] == "scrub-all-restore-three-v1"
+        assert clean["environment"]["suite_pythonpath"].split(os.pathsep) == clean["environment"]["dependency_paths"]
+        assert clean["environment"]["suite_pythonno_usersite"] == "1"
+        assert clean["environment"]["suite_pythonhome"] is None
         assert len(clean["suites"]) == 4 and all(row["status"] == "passed" for row in clean["suites"])
         cases.append("clean_qualification")
+
+        wrong_type = json.loads(json.dumps(clean))
+        wrong_type["environment"] = []
+        try:
+            probe._validate(wrong_type)
+        except probe.ProbeRefusal as exc:
+            assert exc.code == "RUNTIME-PLANE-SCHEMA"
+        else:
+            raise AssertionError("wrong-type runtime environment was accepted")
+        cases.append("runtime_environment_wrong_type_refused")
+
+        for key, value in (
+            ("PYTHONPATH", str(base / "ambient-route")),
+            ("PYTHONOPTIMIZE", "2"),
+            ("PYTHONPLATLIBDIR", "ambient-platlib"),
+            ("PYTHONWARNINGS", "error"),
+        ):
+            previous = os.environ.get(key)
+            os.environ[key] = value
+            try:
+                try:
+                    probe_case(probe, source, local, archive, commit)
+                except probe.ProbeRefusal as exc:
+                    assert exc.code == "RUNTIME-PLANE-ENV"
+                else:
+                    raise AssertionError(f"ambient {key} was accepted")
+            finally:
+                if previous is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = previous
+        cases.append("ambient_python_controls_refused")
 
         source, local, archive, commit = fixture(base, "source-installed-cache")
         (local / PROVENANCE).unlink()

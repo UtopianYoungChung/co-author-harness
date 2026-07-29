@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import io
 import json
@@ -28,6 +29,13 @@ import destination_capability as destinations
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "references" / "schemas" / "archive_runtime_receipt.schema.json"
+RUNTIME_SCHEMA_REL = Path("references/schemas/runtime_plane_receipt.schema.json")
+EXPECTED_RUNTIME_SUITES = (
+    ("governed_product_gate_self_check", "governed_product_gate_self_check", "scripts/run_product_gate_smoketest.py"),
+    ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
+    ("version_check", "portable_core", "scripts/version-check.py"),
+    ("skill_check", "portable_core", "scripts/skill-check.py"),
+)
 RUNTIME_PROBE = "scripts/runtime_plane_probe.py"
 DIGEST_ALGORITHM = "sha256(path-NUL-kind-NUL-content-sha256-LF)"
 COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
@@ -258,6 +266,105 @@ def _validate(receipt: Mapping[str, Any]) -> None:
         )
 
 
+def _runtime_schema_errors(
+    payload: Mapping[str, Any], source_root: Path
+) -> list[str]:
+    try:
+        schema = json.loads((source_root / RUNTIME_SCHEMA_REL).read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        errors = [
+            f"{list(error.path)}: {error.message}"
+            for error in sorted(
+                Draft202012Validator(schema).iter_errors(payload),
+                key=lambda error: list(error.path),
+            )
+        ]
+        return errors
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return [f"runtime receipt schema could not be loaded: {exc}"]
+
+
+def _runtime_binding_errors(
+    payload: Mapping[str, Any],
+    *,
+    source_root: Path,
+    extraction_root: Path,
+    snapshot_path: Path,
+    archive_sha256: str,
+    archive_size: int,
+    provenance_sha256: str | None,
+    source_commit: str,
+) -> list[str]:
+    errors: list[str] = []
+
+    def same_path(value: Any, expected: Path) -> bool:
+        try:
+            return isinstance(value, str) and Path(value).resolve() == expected.resolve()
+        except OSError:
+            return False
+
+    environment = payload.get("environment", {})
+    dependencies = environment.get("dependency_paths", []) if isinstance(environment, Mapping) else None
+    if not (
+        isinstance(environment, Mapping)
+        and isinstance(dependencies, list)
+        and all(isinstance(path, str) for path in dependencies)
+        and environment.get("suite_pythonpath") == os.pathsep.join(dependencies)
+    ):
+        errors.append("suite PYTHONPATH does not equal the recorded dependency-path join")
+    if not same_path(payload.get("baseline_root"), source_root):
+        errors.append("baseline_root is not the exact source root")
+    if not same_path(payload.get("local_root"), extraction_root):
+        errors.append("local_root is not the exact extracted archive root")
+
+    cleared = payload.get("cleared_zip", {})
+    if not isinstance(cleared, Mapping):
+        errors.append("cleared_zip is absent")
+    else:
+        expected_values = {
+            "sha256": archive_sha256,
+            "byte_length": archive_size,
+            "source_commit": source_commit,
+            "provenance_sha256": provenance_sha256,
+        }
+        if not same_path(cleared.get("path"), snapshot_path):
+            errors.append("cleared_zip.path is not the immutable archive snapshot")
+        for key, expected in expected_values.items():
+            if cleared.get(key) != expected:
+                errors.append(f"cleared_zip.{key} differs from the outer archive binding")
+
+    suites = payload.get("suites", [])
+    observed_suites = [
+        (row.get("name"), row.get("kind"), row.get("script"))
+        for row in suites
+        if isinstance(row, Mapping)
+    ] if isinstance(suites, list) else []
+    if observed_suites != list(EXPECTED_RUNTIME_SUITES):
+        errors.append("runtime suite universe/order differs from the four required suites")
+    verdict = payload.get("verdict")
+    if verdict in {"qualified", "qualified_with_caveats"} and (
+        not isinstance(suites, list)
+        or any(
+            not isinstance(row, Mapping)
+            or row.get("status") != "passed"
+            or row.get("returncode") != 0
+            for row in suites
+        )
+    ):
+        errors.append("a non-blocked runtime receipt has a missing or failed required suite")
+    if verdict == "qualified":
+        if payload.get("cache_state") != "CODEX_CACHE_QUALIFIED":
+            errors.append("qualified receipt lacks CODEX_CACHE_QUALIFIED state")
+        if payload.get("identity", {}).get("canonical_archive_claim") is not True:
+            errors.append("qualified receipt lacks the canonical archive claim")
+        if payload.get("package_digests", {}).get("stable") is not True:
+            errors.append("qualified receipt lacks a stable package digest")
+        for key in ("crlf_only", "semantic_differences", "missing_files", "foreign_extras", "findings"):
+            if payload.get(key) != []:
+                errors.append(f"qualified receipt has nonempty {key}")
+    return errors
+
+
 def _write_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f".{uuid.uuid4().hex}.tmp")
@@ -320,6 +427,8 @@ def probe_archive(
     post_digest: dict[str, Any] | None = None
     runtime_payload: dict[str, Any] | None = None
     completed: subprocess.CompletedProcess[bytes] | None = None
+    runtime_result_accepted = False
+    runtime_payload_valid = False
     sys_path: list[str] = []
     sys_path_observed = False
     findings: list[dict[str, str]] = []
@@ -346,7 +455,11 @@ def probe_archive(
         runtime_script = extraction_root / RUNTIME_PROBE
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
-        child_env = dict(os.environ)
+        child_env = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.upper().startswith("PYTHON")
+        }
         child_env["PYTHONPATH"] = ""
         child_env["PYTHONDONTWRITEBYTECODE"] = "1"
         child_env["PYTHONNOUSERSITE"] = "1"
@@ -392,18 +505,71 @@ def probe_archive(
                     runtime_payload = loaded
             except (UnicodeError, json.JSONDecodeError):
                 runtime_payload = None
-        if completed is None or completed.returncode != 0 or runtime_payload is None:
-            findings.append(_finding("ARCHIVE-RUNTIME-PROBE-FAILED", "isolated runtime-plane probe did not produce a successful JSON receipt"))
-        elif runtime_payload.get("verdict") == "blocked":
+        runtime_verdict = (
+            runtime_payload.get("verdict")
+            if runtime_payload is not None
+            else None
+        )
+        if completed is None or runtime_payload is None:
+            findings.append(_finding(
+                "ARCHIVE-RUNTIME-PROBE-FAILED",
+                "isolated runtime-plane probe did not produce a valid JSON receipt",
+            ))
+        else:
+            runtime_schema_errors = _runtime_schema_errors(runtime_payload, source_root)
+            provenance_sha256 = next(
+                (
+                    row["sha256"]
+                    for row in member_records
+                    if row["path"] == "PROVENANCE.json" and row["kind"] == "file"
+                ),
+                None,
+            )
+            if runtime_schema_errors:
+                findings.append(_finding(
+                    "ARCHIVE-RUNTIME-RECEIPT-SCHEMA",
+                    "isolated runtime-plane receipt failed schema validation: "
+                    + "; ".join(runtime_schema_errors),
+                ))
+            else:
+                runtime_binding_errors = _runtime_binding_errors(
+                    runtime_payload,
+                    source_root=source_root,
+                    extraction_root=extraction_root,
+                    snapshot_path=snapshot_path,
+                    archive_sha256=archive_snapshot_sha256,
+                    archive_size=len(archive_snapshot),
+                    provenance_sha256=provenance_sha256,
+                    source_commit=source_commit,
+                )
+                if runtime_binding_errors:
+                    findings.append(_finding(
+                        "ARCHIVE-RUNTIME-RECEIPT-BINDING",
+                        "isolated runtime-plane receipt failed outer binding checks: "
+                        + "; ".join(runtime_binding_errors),
+                    ))
+                else:
+                    runtime_payload_valid = True
+        if runtime_payload_valid and completed.returncode == 0 and runtime_verdict == "qualified":
+            runtime_result_accepted = True
+        elif runtime_payload_valid and completed.returncode == 0 and runtime_verdict == "qualified_with_caveats":
+            findings.append(_finding(
+                "ARCHIVE-RUNTIME-PLANE-CAVEATED",
+                "isolated runtime-plane receipt is qualified only with caveats",
+            ))
+        elif runtime_payload_valid and completed.returncode == 2 and runtime_verdict == "blocked":
             findings.append(_finding("ARCHIVE-RUNTIME-PLANE-BLOCKED", "isolated runtime-plane receipt is blocked"))
+        elif runtime_payload_valid:
+            findings.append(_finding(
+                "ARCHIVE-RUNTIME-PROBE-FAILED",
+                "isolated runtime-plane probe returned an inconsistent "
+                f"return-code/verdict pair: {completed.returncode}/{runtime_verdict!r}",
+            ))
         if not sys_path_observed:
             findings.append(_finding("ARCHIVE-RUNTIME-ISOLATION-PROBE", "isolated interpreter sys.path could not be observed"))
 
-        runtime_receipt_sha = (
-            _sha_bytes(completed.stdout)
-            if completed is not None and runtime_payload is not None
-            else None
-        )
+        runtime_stdout = completed.stdout if completed is not None else b""
+        runtime_receipt_sha = _sha_bytes(runtime_stdout)
         post_inventory = _tree_inventory(extraction_root)
         post_digest = _digest(post_inventory)
         if pre_digest != post_digest:
@@ -444,6 +610,7 @@ def probe_archive(
             "argv": argv,
             "cwd": str(extraction_root),
             "environment": {
+                "python_environment_policy": "scrub-all-restore-three-v1",
                 "PYTHONPATH": "",
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONNOUSERSITE": "1",
@@ -453,8 +620,7 @@ def probe_archive(
             "returncode": completed.returncode if completed is not None else None,
             "status": (
                 "passed"
-                if completed is not None and completed.returncode == 0 and runtime_payload is not None
-                and runtime_payload.get("verdict") != "blocked"
+                if runtime_result_accepted
                 else "failed"
             ),
             "stdout_sha256": _sha_bytes(completed.stdout if completed is not None else b""),
@@ -464,7 +630,9 @@ def probe_archive(
             "path": "stdout",
             "sha256": runtime_receipt_sha,
             "verdict": runtime_payload.get("verdict") if runtime_payload is not None else None,
-            "retained": False,
+            "retained": True,
+            "stdout_base64": base64.b64encode(runtime_stdout).decode("ascii"),
+            "payload": runtime_payload,
         }
     finally:
         shutil.rmtree(transaction_root, ignore_errors=False)
@@ -474,7 +642,7 @@ def probe_archive(
         "cwd_removed": not extraction_root.exists(),
         "temporary_root_exists_after": extraction_root.exists(),
         "cwd_exists_after": extraction_root.exists(),
-        "runtime_plane_receipt_retained": False,
+        "runtime_plane_receipt_retained": True,
     }
     if not cleanup["temporary_root_removed"] or not cleanup["cwd_removed"]:
         findings.append(_finding("ARCHIVE-RUNTIME-CLEANUP", "temporary runtime roots were not removed"))
@@ -494,7 +662,7 @@ def probe_archive(
         "extracted_member_count": len(member_records),
     }
     unpacked: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "receipt_type": "unpacked_zip_runtime",
         "archive": archive_binding,
         "extraction": extraction,
@@ -509,7 +677,7 @@ def probe_archive(
     _validate(unpacked)
     unpacked_bytes = _canonical(unpacked)
     archive_receipt: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "receipt_type": "archive_runtime_probe",
         "archive": archive_binding,
         "central_directory": {
