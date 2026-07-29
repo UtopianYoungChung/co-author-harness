@@ -243,11 +243,17 @@ def _fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def _publish_exact(path: Path, payload: bytes, project: Path) -> None:
+def _publish_exact(
+    path: Path,
+    payload: bytes,
+    project: Path,
+    *,
+    code: str = RECEIPT_TAMPERED,
+) -> None:
     _ensure_directory(path.parent, project)
     if path.exists() or path.is_symlink():
         if not path.is_file() or _is_reparse(path) or path.read_bytes() != payload:
-            raise MigrationError(RECEIPT_TAMPERED, f"existing transaction evidence conflicts: {path}")
+            raise MigrationError(code, f"existing transaction evidence conflicts: {path}")
         return
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     try:
@@ -259,13 +265,25 @@ def _publish_exact(path: Path, payload: bytes, project: Path) -> None:
             os.link(temporary, path)
         except FileExistsError:
             if not path.is_file() or _is_reparse(path) or path.read_bytes() != payload:
-                raise MigrationError(RECEIPT_TAMPERED, f"concurrent transaction evidence conflicts: {path}")
+                raise MigrationError(code, f"concurrent transaction evidence conflicts: {path}")
         _fsync_directory(path.parent)
     finally:
         try:
             temporary.unlink()
         except FileNotFoundError:
             pass
+
+
+def _assert_publishable_exact(path: Path, payload: bytes, project: Path, *, code: str) -> None:
+    try:
+        path.resolve(strict=False).relative_to(project)
+    except (OSError, ValueError) as exc:
+        raise MigrationError(code, f"transaction evidence target escapes project: {path}") from exc
+    if _is_reparse(path.parent) or not path.parent.is_dir():
+        raise MigrationError(code, f"transaction evidence parent is not a plain directory: {path.parent}")
+    if path.exists() or path.is_symlink():
+        if not path.is_file() or _is_reparse(path) or path.read_bytes() != payload:
+            raise MigrationError(code, f"existing transaction evidence conflicts: {path}")
 
 
 def _replace_state(path: Path, payload: bytes) -> None:
@@ -698,68 +716,115 @@ def _assert_no_other_transaction_claims(project: Path) -> None:
             raise MigrationError(IN_USE, f"assignment or milestone transaction claim appeared: {relative}")
 
 
-def _evidence_path(project: Path, binding: Any, label: str) -> tuple[Path, dict[str, Any], bytes]:
+def _evidence_path(
+    project: Path,
+    binding: Any,
+    label: str,
+    *,
+    code: str = RECEIPT_TAMPERED,
+) -> tuple[Path, dict[str, Any], bytes]:
     if not isinstance(binding, dict) or set(binding) != {"path", "sha256"}:
-        raise MigrationError(RECEIPT_TAMPERED, f"{label} binding is malformed")
+        raise MigrationError(code, f"{label} binding is malformed")
     path = _safe_path(project, binding.get("path"))
-    value, payload = _read_object(path, RECEIPT_TAMPERED, label)
+    value, payload = _read_object(path, code, label)
     if binding.get("sha256") != _sha_bytes(payload):
-        raise MigrationError(RECEIPT_TAMPERED, f"{label} binding hash differs from current bytes")
+        raise MigrationError(code, f"{label} binding hash differs from current bytes")
     return path, value, payload
 
 
-def _load_apply_evidence(
+def _validate_apply_evidence_graph(
     project: Path,
+    *,
     apply_path: Path,
+    receipt: dict[str, Any],
+    receipt_bytes: bytes,
+    claim_path: Path,
+    claim: dict[str, Any],
+    claim_bytes: bytes,
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    manifest_bytes: bytes,
     authority_binding: dict[str, str],
+    code: str,
+    active_claim: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    receipt, receipt_bytes = _read_object(apply_path, RECEIPT_TAMPERED, "apply receipt")
-    _validate_schema("receipt", receipt, RECEIPT_TAMPERED)
+    _validate_schema("receipt", receipt, code)
+    _validate_schema("claim", claim, code)
+    _validate_schema("rollback_manifest", manifest, code)
     if receipt.get("operation") != "apply" or receipt.get("outcome") != "APPLIED":
-        raise MigrationError(RECEIPT_TAMPERED, "committed apply receipt must record APPLIED")
+        raise MigrationError(code, "apply evidence must record the exact APPLIED transaction")
     transaction_id = receipt.get("transaction_id")
     if not isinstance(transaction_id, str):
-        raise MigrationError(RECEIPT_TAMPERED, "apply receipt transaction_id is invalid")
-    expected = _safe_path(project, f"{LANE_REL}/transactions/{transaction_id}/apply.json")
-    if apply_path != expected:
-        raise MigrationError(RECEIPT_TAMPERED, "apply receipt is outside its canonical transaction path")
-    if receipt.get("authority_receipt") != authority_binding:
-        raise MigrationError(RECEIPT_TAMPERED, "apply receipt authority binding differs")
-    claim_path, claim, claim_bytes = _evidence_path(project, receipt.get("claim"), "consumed claim")
-    manifest_path, manifest, manifest_bytes = _evidence_path(project, receipt.get("rollback_manifest"), "rollback manifest")
-    _validate_schema("claim", claim, RECEIPT_TAMPERED)
-    _validate_schema("rollback_manifest", manifest, RECEIPT_TAMPERED)
+        raise MigrationError(code, "apply receipt transaction_id is invalid")
+    expected_apply = _safe_path(project, f"{LANE_REL}/transactions/{transaction_id}/apply.json")
     expected_claim = _safe_path(project, f"{LANE_REL}/transactions/{transaction_id}/claim.consumed.json")
     expected_manifest = _safe_path(project, f"{LANE_REL}/transactions/{transaction_id}/rollback_manifest.json")
-    if claim_path != expected_claim or manifest_path != expected_manifest:
-        raise MigrationError(RECEIPT_TAMPERED, "apply evidence is outside canonical transaction paths")
+    if apply_path != expected_apply or claim_path != expected_claim or manifest_path != expected_manifest:
+        raise MigrationError(code, "apply evidence is outside its canonical transaction paths")
+    claim_binding = {
+        "path": claim_path.relative_to(project).as_posix(),
+        "sha256": _sha_bytes(claim_bytes),
+    }
+    manifest_binding = {
+        "path": manifest_path.relative_to(project).as_posix(),
+        "sha256": _sha_bytes(manifest_bytes),
+    }
+    if receipt.get("claim") != claim_binding or receipt.get("rollback_manifest") != manifest_binding:
+        raise MigrationError(code, "apply receipt bindings do not reproduce exact claim/manifest bytes")
+    if receipt.get("authority_receipt") != authority_binding:
+        raise MigrationError(code, "apply receipt authority binding differs")
+    _, authority, _ = _evidence_path(
+        project, authority_binding, "migration authority receipt", code=code,
+    )
+    _validate_schema("authority", authority, code)
+    project_id = receipt.get("project_id")
+    if authority.get("project_id") != project_id:
+        raise MigrationError(code, "apply receipt project identity differs from immutable authority")
     if (
         claim.get("state") != "consumed"
         or claim.get("operation") != "apply"
         or claim.get("transaction_id") != transaction_id
+        or claim.get("project_id") != project_id
         or claim.get("authority_receipt") != authority_binding
+        or claim.get("ledger_preimage_sha256") != receipt.get("preimage", {}).get("sha256")
         or claim.get("created_at") != receipt.get("started_at")
         or claim.get("completed_at") != receipt.get("completed_at")
+        or claim.get("recovery") is not None
     ):
-        raise MigrationError(RECEIPT_TAMPERED, "consumed claim does not reproduce apply receipt authority/time")
+        raise MigrationError(code, "consumed claim does not reproduce apply identity, authority, time, and state")
+    if active_claim is not None:
+        expected_consumed = copy.deepcopy(active_claim)
+        expected_consumed["state"] = "consumed"
+        expected_consumed["completed_at"] = receipt.get("completed_at")
+        if claim != expected_consumed:
+            raise MigrationError(code, "prepared consumed claim is not the exact disposition of the live claim")
     if (
         manifest.get("transaction_id") != transaction_id
-        or manifest.get("project_id") != receipt.get("project_id")
+        or manifest.get("project_id") != project_id
         or manifest.get("authority_receipt") != authority_binding
         or manifest.get("apply_receipt") != {"path": apply_path.relative_to(project).as_posix()}
         or manifest.get("created_at") != receipt.get("completed_at")
     ):
-        raise MigrationError(RECEIPT_TAMPERED, "rollback manifest does not reproduce apply transaction identity")
+        raise MigrationError(code, "rollback manifest does not reproduce apply identity, authority, and time")
     try:
         pre_bytes = base64.b64decode(manifest.get("preimage_bytes_base64", ""), validate=True)
         pre_document = json.loads(pre_bytes.decode("utf-8"))
     except (ValueError, UnicodeError, json.JSONDecodeError) as exc:
-        raise MigrationError(RECEIPT_TAMPERED, f"rollback preimage is invalid: {exc}") from exc
+        raise MigrationError(code, f"rollback preimage is invalid: {exc}") from exc
     if not isinstance(pre_document, dict) or manifest.get("preimage") != _image(pre_bytes):
-        raise MigrationError(RECEIPT_TAMPERED, "rollback manifest preimage bytes do not reproduce its image")
+        raise MigrationError(code, "rollback manifest preimage bytes do not reproduce its image")
+    if authority.get("preimage") != _image(pre_bytes):
+        raise MigrationError(code, "immutable authority does not bind the rollback preimage bytes")
     post_document, post_bytes = _proposed(pre_document)
+    try:
+        source_policy = _validate_ledger(project, pre_document)
+        target_policy = _validate_ledger(project, post_document, target=True)
+    except MigrationError as exc:
+        raise MigrationError(code, f"apply evidence ledger replay failed: {exc.code}: {exc.message}") from exc
+    if source_policy != IMPLICIT_AUDITED_COMPATIBILITY or target_policy != "EXPLICIT_DERIVED":
+        raise MigrationError(code, "apply evidence does not reproduce audited-to-derived policy resolution")
     if manifest.get("applied_postimage") != _image(post_bytes):
-        raise MigrationError(RECEIPT_TAMPERED, "rollback manifest postimage is not derived from its exact preimage")
+        raise MigrationError(code, "rollback manifest postimage is not derived from its exact preimage")
     preserved = _preserved(pre_document, post_document)
     inventory = manifest.get("external_surface_inventory")
     if (
@@ -775,7 +840,7 @@ def _load_apply_evidence(
         or receipt.get("state_last") != STATE_LAST
         or receipt.get("blockers") != []
     ):
-        raise MigrationError(RECEIPT_TAMPERED, "apply receipt proof fields do not reproduce exact migration evidence")
+        raise MigrationError(code, "apply receipt proof fields do not reproduce exact migration evidence")
     return {
         "receipt": receipt,
         "receipt_bytes": receipt_bytes,
@@ -791,6 +856,36 @@ def _load_apply_evidence(
         "post_bytes": post_bytes,
         "post_document": post_document,
     }
+
+
+def _load_apply_evidence(
+    project: Path,
+    apply_path: Path,
+    authority_binding: dict[str, str],
+    *,
+    code: str = RECEIPT_TAMPERED,
+) -> dict[str, Any]:
+    receipt, receipt_bytes = _read_object(apply_path, code, "apply receipt")
+    claim_path, claim, claim_bytes = _evidence_path(
+        project, receipt.get("claim"), "consumed claim", code=code,
+    )
+    manifest_path, manifest, manifest_bytes = _evidence_path(
+        project, receipt.get("rollback_manifest"), "rollback manifest", code=code,
+    )
+    return _validate_apply_evidence_graph(
+        project,
+        apply_path=apply_path,
+        receipt=receipt,
+        receipt_bytes=receipt_bytes,
+        claim_path=claim_path,
+        claim=claim,
+        claim_bytes=claim_bytes,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        manifest_bytes=manifest_bytes,
+        authority_binding=authority_binding,
+        code=code,
+    )
 
 
 def _find_committed_apply(project: Path, authority_binding: dict[str, str], ledger_bytes: bytes) -> dict[str, Any]:
@@ -891,25 +986,115 @@ def _rollback_receipt(
     }
 
 
+def _validate_rollback_evidence_graph(
+    project: Path,
+    *,
+    evidence: dict[str, Any],
+    receipt_path: Path,
+    receipt: dict[str, Any],
+    receipt_bytes: bytes,
+    claim_path: Path,
+    claim: dict[str, Any],
+    claim_bytes: bytes,
+    authority: dict[str, str],
+    current_bytes: bytes,
+    code: str,
+    state_code: str,
+    active_claim: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    expected_path = _safe_path(
+        project,
+        f"{LANE_REL}/transactions/{evidence['receipt']['transaction_id']}/rollback.json",
+    )
+    if receipt_path != expected_path:
+        raise MigrationError(code, "rollback receipt is outside the canonical apply transaction path")
+    _validate_schema("rollback_receipt", receipt, code)
+    transaction_id = evidence["receipt"]["transaction_id"]
+    rollback_transaction_id = receipt.get("rollback_transaction_id")
+    apply_binding = {
+        "path": evidence["receipt_path"].relative_to(project).as_posix(),
+        "sha256": _sha_bytes(evidence["receipt_bytes"]),
+    }
+    manifest_binding = {
+        "path": evidence["manifest_path"].relative_to(project).as_posix(),
+        "sha256": _sha_bytes(evidence["manifest_bytes"]),
+    }
+    if (
+        receipt.get("operation") != "rollback"
+        or receipt.get("outcome") != "ROLLED_BACK"
+        or receipt.get("transaction_id") != transaction_id
+        or not isinstance(rollback_transaction_id, str)
+        or rollback_transaction_id == transaction_id
+        or receipt.get("project_id") != evidence["receipt"]["project_id"]
+        or receipt.get("ledger_path") != LEDGER_REL
+        or receipt.get("authority_receipt") != authority
+        or receipt.get("apply_receipt") != apply_binding
+        or receipt.get("rollback_manifest") != manifest_binding
+        or receipt.get("current_applied_postimage") != _image(evidence["post_bytes"])
+        or receipt.get("restored_preimage") != _image(evidence["pre_bytes"])
+        or receipt.get("state_last") != STATE_LAST
+        or receipt.get("blockers") != []
+    ):
+        raise MigrationError(code, "rollback receipt does not reproduce the complete apply/rollback transaction graph")
+    if current_bytes != evidence["pre_bytes"]:
+        raise MigrationError(state_code, "current ledger does not reproduce completed rollback")
+    expected_inventory = evidence["receipt"]["external_surface_inventory"]["post"]
+    receipt_inventory = receipt.get("external_surface_inventory")
+    if receipt_inventory != {"pre": expected_inventory, "post": expected_inventory}:
+        raise MigrationError(code, "rollback receipt inventory does not reproduce apply evidence")
+    if _inventory(project) != expected_inventory:
+        raise MigrationError(state_code, "external project bytes differ from completed rollback proof")
+    _validate_schema("claim", claim, code)
+    expected_claim_path = _safe_path(
+        project, f"{LANE_REL}/transactions/{rollback_transaction_id}/claim.consumed.json",
+    )
+    exact_claim_binding = {
+        "path": expected_claim_path.relative_to(project).as_posix(),
+        "sha256": _sha_bytes(claim_bytes),
+    }
+    if (
+        claim_path != expected_claim_path
+        or receipt.get("claim") != exact_claim_binding
+        or claim.get("state") != "consumed"
+        or claim.get("operation") != "rollback"
+        or claim.get("transaction_id") != rollback_transaction_id
+        or claim.get("project_id") != receipt.get("project_id")
+        or claim.get("ledger_preimage_sha256") != evidence["receipt"]["postimage"]["sha256"]
+        or claim.get("authority_receipt") != authority
+        or claim.get("created_at") != receipt.get("started_at")
+        or claim.get("completed_at") != receipt.get("completed_at")
+        or claim.get("recovery") is not None
+    ):
+        raise MigrationError(code, "rollback claim does not reproduce transaction identity, authority, time, and state")
+    if active_claim is not None:
+        expected_consumed = copy.deepcopy(active_claim)
+        expected_consumed["state"] = "consumed"
+        expected_consumed["completed_at"] = receipt.get("completed_at")
+        if claim != expected_consumed:
+            raise MigrationError(code, "prepared rollback claim is not the exact disposition of the live claim")
+    return receipt
+
+
 def _load_rollback_receipt(project: Path, evidence: dict[str, Any], authority: dict[str, str], current_bytes: bytes) -> dict[str, Any]:
     path = evidence["receipt_path"].parent / "rollback.json"
-    receipt, _ = _read_object(path, ROLLBACK_STATE_MISMATCH, "rollback receipt")
-    _validate_schema("rollback_receipt", receipt, RECEIPT_TAMPERED)
-    if receipt.get("outcome") != "ROLLED_BACK" or receipt.get("authority_receipt") != authority:
-        raise MigrationError(RECEIPT_TAMPERED, "existing rollback receipt is not the exact completed transaction")
-    if current_bytes != evidence["pre_bytes"] or receipt.get("restored_preimage") != _image(current_bytes):
-        raise MigrationError(ROLLBACK_STATE_MISMATCH, "current ledger does not reproduce completed rollback")
-    claim_path, claim, _ = _evidence_path(project, receipt.get("claim"), "rollback consumed claim")
-    _validate_schema("claim", claim, RECEIPT_TAMPERED)
-    if (
-        claim.get("state") != "consumed"
-        or claim.get("operation") != "rollback"
-        or claim.get("transaction_id") != receipt.get("rollback_transaction_id")
-        or claim.get("authority_receipt") != authority
-        or claim_path.relative_to(project).as_posix() != receipt["claim"]["path"]
-    ):
-        raise MigrationError(RECEIPT_TAMPERED, "existing rollback claim binding is inconsistent")
-    return receipt
+    receipt, receipt_bytes = _read_object(path, RECEIPT_TAMPERED, "rollback receipt")
+    claim_path, claim, claim_bytes = _evidence_path(
+        project, receipt.get("claim"), "rollback consumed claim",
+    )
+    return _validate_rollback_evidence_graph(
+        project,
+        evidence=evidence,
+        receipt_path=path,
+        receipt=receipt,
+        receipt_bytes=receipt_bytes,
+        claim_path=claim_path,
+        claim=claim,
+        claim_bytes=claim_bytes,
+        authority=authority,
+        current_bytes=current_bytes,
+        code=RECEIPT_TAMPERED,
+        state_code=ROLLBACK_STATE_MISMATCH,
+    )
 
 
 def rollback_migration(
@@ -919,6 +1104,7 @@ def rollback_migration(
     rollback_manifest: Path,
     *,
     at: str | None = None,
+    _after_state_publish: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     project = _project(project)
     at = _timestamp(at)
@@ -950,6 +1136,10 @@ def rollback_migration(
     consumed_path = rollback_root / "claim.consumed.json"
     rollback_path = evidence["receipt_path"].parent / "rollback.json"
     active = _claim_record("rollback", rollback_transaction_id, evidence["receipt"]["project_id"], _sha_bytes(current_bytes), authority_binding, at)
+    if _after_state_publish is not None:
+        # The private interruption seam models process death immediately after
+        # exact rollback restoration, so recovery must observe a dead owner.
+        active["pid"] = 2147483647
     live_path, live_bytes = _begin_claim(project, active)
     state_published = False
     try:
@@ -980,6 +1170,8 @@ def rollback_migration(
             raise MigrationError(ROLLBACK_RESTORE_FAILED, "rollback did not reproduce exact preimage bytes")
         if _inventory(project) != external_pre:
             raise MigrationError(ROLLBACK_RESTORE_FAILED, "external project surface changed across rollback")
+        if _after_state_publish is not None:
+            _after_state_publish()
         _publish_exact(consumed_path, (prepared / "claim.consumed.json").read_bytes(), project)
         _publish_exact(rollback_path, (prepared / "rollback.json").read_bytes(), project)
         _release_owned_claim(live_path, live_bytes)
@@ -1031,7 +1223,9 @@ def recover_migration_claim(
     if acknowledgement != "inspected-migration-state-and-receipts":
         raise MigrationError(RECOVERY_ACK, "exact recovery acknowledgement is required")
     ledger_path, document, ledger_bytes = _load_ledger(project)
-    _, _, _, authority_binding = _load_authority(project, authority_receipt, document)
+    authority_path, _, authority_bytes, authority_binding = _load_authority(
+        project, authority_receipt, document,
+    )
     live_path = _safe_path(project, LIVE_CLAIM_REL)
     claim, live_bytes = _read_object(live_path, ACTIVE_CLAIM, "live migration claim")
     _validate_schema("claim", claim, ACTIVE_CLAIM)
@@ -1052,15 +1246,50 @@ def recover_migration_claim(
         disposition = "preimage_unchanged"
     elif claim.get("operation") == "apply" and paths["prepared_apply"].is_file():
         receipt, receipt_bytes = _read_object(paths["prepared_apply"], RECOVERY_STATE_MISMATCH, "prepared apply receipt")
-        _validate_schema("receipt", receipt, RECOVERY_STATE_MISMATCH)
-        if receipt.get("postimage") != _image(ledger_bytes):
+        prepared_manifest, manifest_bytes = _read_object(
+            paths["prepared_manifest"], RECOVERY_STATE_MISMATCH, "prepared rollback manifest",
+        )
+        prepared_claim, claim_bytes = _read_object(
+            paths["prepared_claim"], RECOVERY_STATE_MISMATCH, "prepared consumed claim",
+        )
+        evidence = _validate_apply_evidence_graph(
+            project,
+            apply_path=paths["apply"],
+            receipt=receipt,
+            receipt_bytes=receipt_bytes,
+            claim_path=paths["claim"],
+            claim=prepared_claim,
+            claim_bytes=claim_bytes,
+            manifest_path=paths["manifest"],
+            manifest=prepared_manifest,
+            manifest_bytes=manifest_bytes,
+            authority_binding=authority_binding,
+            code=RECOVERY_STATE_MISMATCH,
+            active_claim=claim,
+        )
+        if evidence["post_bytes"] != ledger_bytes or receipt.get("postimage") != _image(ledger_bytes):
             raise MigrationError(RECOVERY_STATE_MISMATCH, "ledger does not match prepared apply postimage")
-        for final, prepared_path in (
-            (paths["manifest"], paths["prepared_manifest"]),
-            (paths["claim"], paths["prepared_claim"]),
-            (paths["apply"], paths["prepared_apply"]),
+        if _inventory(project) != receipt["external_surface_inventory"]["post"]:
+            raise MigrationError(RECOVERY_STATE_MISMATCH, "external project bytes differ from prepared apply proof")
+        publications = (
+            (paths["manifest"], manifest_bytes),
+            (paths["claim"], claim_bytes),
+            (paths["apply"], receipt_bytes),
+        )
+        for final, payload in publications:
+            _assert_publishable_exact(final, payload, project, code=RECOVERY_STATE_MISMATCH)
+        _plain_file(live_path, CONCURRENT_CHANGE, "live migration claim")
+        _plain_file(ledger_path, CONCURRENT_CHANGE, "authoritative ledger")
+        _plain_file(authority_path, CONCURRENT_CHANGE, "migration authority receipt")
+        if (
+            live_path.read_bytes() != live_bytes
+            or ledger_path.read_bytes() != ledger_bytes
+            or authority_path.read_bytes() != authority_bytes
+            or _inventory(project) != receipt["external_surface_inventory"]["post"]
         ):
-            _publish_exact(final, prepared_path.read_bytes(), project)
+            raise MigrationError(CONCURRENT_CHANGE, "recovery dependency changed before evidence publication")
+        for final, payload in publications:
+            _publish_exact(final, payload, project, code=RECOVERY_STATE_MISMATCH)
         disposition = "postimage_committed"
     elif claim.get("operation") == "rollback":
         rollback_root = _safe_path(project, f"{LANE_REL}/transactions/{transaction_id}")
@@ -1068,12 +1297,58 @@ def recover_migration_claim(
         prepared_claim = rollback_root / ".prepared" / "claim.consumed.json"
         receipt, receipt_bytes = _read_object(prepared_receipt, RECOVERY_STATE_MISMATCH, "prepared rollback receipt")
         _validate_schema("rollback_receipt", receipt, RECOVERY_STATE_MISMATCH)
-        if receipt.get("restored_preimage") != _image(ledger_bytes):
-            raise MigrationError(RECOVERY_STATE_MISMATCH, "ledger does not match prepared rollback preimage")
-        consumed_path = _safe_path(project, receipt["claim"]["path"])
-        rollback_path = _safe_path(project, receipt["apply_receipt"]["path"]).parent / "rollback.json"
-        _publish_exact(consumed_path, prepared_claim.read_bytes(), project)
-        _publish_exact(rollback_path, receipt_bytes, project)
+        apply_path, _, _ = _evidence_path(
+            project, receipt.get("apply_receipt"), "rollback-bound apply receipt",
+            code=RECOVERY_STATE_MISMATCH,
+        )
+        evidence = _load_apply_evidence(
+            project, apply_path, authority_binding, code=RECOVERY_STATE_MISMATCH,
+        )
+        evidence["project"] = project
+        rollback_path = evidence["receipt_path"].parent / "rollback.json"
+        prepared_claim_value, prepared_claim_bytes = _read_object(
+            prepared_claim, RECOVERY_STATE_MISMATCH, "prepared rollback consumed claim",
+        )
+        claim_binding = receipt.get("claim")
+        if not isinstance(claim_binding, dict) or set(claim_binding) != {"path", "sha256"}:
+            raise MigrationError(RECOVERY_STATE_MISMATCH, "prepared rollback claim binding is malformed")
+        consumed_path = _safe_path(project, claim_binding.get("path"))
+        if claim_binding.get("sha256") != _sha_bytes(prepared_claim_bytes):
+            raise MigrationError(RECOVERY_STATE_MISMATCH, "prepared rollback receipt does not bind exact claim bytes")
+        _validate_rollback_evidence_graph(
+            project,
+            evidence=evidence,
+            receipt_path=rollback_path,
+            receipt=receipt,
+            receipt_bytes=receipt_bytes,
+            claim_path=consumed_path,
+            claim=prepared_claim_value,
+            claim_bytes=prepared_claim_bytes,
+            authority=authority_binding,
+            current_bytes=ledger_bytes,
+            code=RECOVERY_STATE_MISMATCH,
+            state_code=RECOVERY_STATE_MISMATCH,
+            active_claim=claim,
+        )
+        expected_inventory = evidence["receipt"]["external_surface_inventory"]["post"]
+        publications = (
+            (consumed_path, prepared_claim_bytes),
+            (rollback_path, receipt_bytes),
+        )
+        for final, payload in publications:
+            _assert_publishable_exact(final, payload, project, code=RECOVERY_STATE_MISMATCH)
+        _plain_file(live_path, CONCURRENT_CHANGE, "live migration claim")
+        _plain_file(ledger_path, CONCURRENT_CHANGE, "authoritative ledger")
+        _plain_file(authority_path, CONCURRENT_CHANGE, "migration authority receipt")
+        if (
+            live_path.read_bytes() != live_bytes
+            or ledger_path.read_bytes() != ledger_bytes
+            or authority_path.read_bytes() != authority_bytes
+            or _inventory(project) != expected_inventory
+        ):
+            raise MigrationError(CONCURRENT_CHANGE, "rollback recovery dependency changed before evidence publication")
+        for final, payload in publications:
+            _publish_exact(final, payload, project, code=RECOVERY_STATE_MISMATCH)
         disposition = "rollback_restored"
     else:
         raise MigrationError(RECOVERY_STATE_MISMATCH, "authoritative ledger bytes match no recoverable prepared state")

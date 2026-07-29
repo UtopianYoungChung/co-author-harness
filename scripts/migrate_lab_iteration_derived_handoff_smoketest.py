@@ -390,6 +390,92 @@ def _apply(project: Path, authority: Path) -> tuple[dict[str, Any], Path, Path]:
     return receipt, apply_path, rollback_manifest
 
 
+def _interrupt_apply_after_state_publish(project: Path, authority: Path) -> tuple[Path, Path]:
+    try:
+        module = importlib.import_module("migrate_lab_iteration_derived_handoff")
+    except ModuleNotFoundError as exc:
+        raise AssertionError("dedicated v0.41 migration implementation is absent") from exc
+    apply_migration = getattr(module, "apply_migration", None)
+    if not callable(apply_migration):
+        raise AssertionError("migration lacks apply_migration interruption test seam")
+
+    class SyntheticInterruption(BaseException):
+        pass
+
+    def interrupt_after_state_publish() -> None:
+        raise SyntheticInterruption("synthetic crash after state-last replacement")
+
+    try:
+        apply_migration(
+            project,
+            authority,
+            at="2026-07-29T15:00:02Z",
+            _after_state_publish=interrupt_after_state_publish,
+        )
+    except SyntheticInterruption:
+        pass
+    else:
+        raise AssertionError("post-state-publish interruption seam did not interrupt apply")
+
+    live_claim = project / LANE / "transaction.lock"
+    if not live_claim.is_file():
+        raise AssertionError("interrupted state-last apply did not retain its live claim")
+    claim = json.loads(live_claim.read_text(encoding="utf-8"))
+    transaction_id = claim.get("transaction_id")
+    if claim.get("state") != "active" or not isinstance(transaction_id, str) or not transaction_id:
+        raise AssertionError("interrupted state-last apply retained a malformed claim")
+    return live_claim, project / LANE / "transactions" / transaction_id
+
+
+def _interrupt_rollback_after_state_publish(
+    project: Path,
+    authority: Path,
+    apply_receipt: Path,
+    rollback_manifest: Path,
+) -> tuple[Path, Path]:
+    try:
+        module = importlib.import_module("migrate_lab_iteration_derived_handoff")
+    except ModuleNotFoundError as exc:
+        raise AssertionError("dedicated v0.41 migration implementation is absent") from exc
+    rollback_migration = getattr(module, "rollback_migration", None)
+    if not callable(rollback_migration):
+        raise AssertionError("migration lacks rollback_migration interruption test seam")
+
+    class SyntheticInterruption(BaseException):
+        pass
+
+    def interrupt_after_state_publish() -> None:
+        raise SyntheticInterruption("synthetic crash after rollback state restoration")
+
+    try:
+        rollback_migration(
+            project,
+            authority,
+            apply_receipt,
+            rollback_manifest,
+            at="2026-07-29T15:00:03Z",
+            _after_state_publish=interrupt_after_state_publish,
+        )
+    except SyntheticInterruption:
+        pass
+    else:
+        raise AssertionError("post-state-publish interruption seam did not interrupt rollback")
+
+    live_claim = project / LANE / "transaction.lock"
+    if not live_claim.is_file():
+        raise AssertionError("interrupted rollback did not retain its live claim")
+    claim = json.loads(live_claim.read_text(encoding="utf-8"))
+    transaction_id = claim.get("transaction_id")
+    if (
+        claim.get("state") != "active"
+        or claim.get("operation") != "rollback"
+        or not isinstance(transaction_id, str)
+        or not transaction_id
+    ):
+        raise AssertionError("interrupted rollback retained a malformed claim")
+    return live_claim, project / LANE / "transactions" / transaction_id
+
+
 def main() -> int:
     matrix = Matrix()
     with tempfile.TemporaryDirectory(prefix="v041-migrate-derived-", dir=ROOT) as raw, semantic_graph_fixture_environment():
@@ -675,6 +761,62 @@ def main() -> int:
             rollback_restores_exact_preimage,
         )
 
+        def tampered_committed_rollback_receipt_never_idempotently_passes() -> None:
+            project, preimage = _project(sandbox, "rollback-receipt-tamper")
+            authority = _authority(project, preimage, suffix="rollback-receipt-tamper")
+            _, apply_path, manifest_path = _apply(project, authority)
+            _expect(
+                _run(
+                    "rollback", project, "--authority-receipt", authority,
+                    "--apply-receipt", apply_path, "--rollback-manifest", manifest_path,
+                    "--at", "2026-07-29T15:00:03Z",
+                ),
+                0,
+                "ROLLED_BACK",
+            )
+            if (project / LEDGER).read_bytes() != preimage:
+                raise AssertionError("tamper fixture did not begin from an exact successful rollback")
+            rollback_path = apply_path.with_name("rollback.json")
+            original = rollback_path.read_bytes()
+
+            def mutate_binding(value: dict[str, Any], field: str) -> None:
+                value[field]["sha256"] = "0" * 64
+
+            variants: tuple[tuple[str, Callable[[dict[str, Any]], None]], ...] = (
+                ("apply_receipt.sha256", lambda value: mutate_binding(value, "apply_receipt")),
+                ("rollback_manifest.sha256", lambda value: mutate_binding(value, "rollback_manifest")),
+                ("restored_preimage.sha256", lambda value: value["restored_preimage"].update({"sha256": "0" * 64})),
+                (
+                    "external_surface_inventory.pre.digest",
+                    lambda value: value["external_surface_inventory"]["pre"].update({"digest": "0" * 64}),
+                ),
+                ("transaction_id", lambda value: value.update({"transaction_id": "tampered-transaction-id"})),
+            )
+            for index, (label, mutate) in enumerate(variants, 1):
+                value = json.loads(original)
+                mutate(value)
+                _write_json(rollback_path, value)
+                before = _snapshot(project)
+                receipt = _expect(
+                    _run(
+                        "rollback", project, "--authority-receipt", authority,
+                        "--apply-receipt", apply_path, "--rollback-manifest", manifest_path,
+                        "--at", f"2026-07-29T15:00:{3 + index:02d}Z",
+                    ),
+                    4,
+                    "REFUSED",
+                    "MHD-MIGRATION-RECEIPT-TAMPERED",
+                )
+                if receipt.get("outcome") == "ALREADY_ROLLED_BACK":
+                    raise AssertionError(f"tampered {label} was treated as idempotent rollback")
+                if _snapshot(project) != before:
+                    raise AssertionError(f"tampered {label} refusal changed project bytes")
+
+        matrix.case(
+            "tampered committed rollback proof never returns ALREADY_ROLLED_BACK",
+            tampered_committed_rollback_receipt_never_idempotently_passes,
+        )
+
         def rollback_refuses_changed_postimage() -> None:
             project, preimage = _project(sandbox, "rollback-mismatch")
             authority = _authority(project, preimage)
@@ -857,6 +999,222 @@ def main() -> int:
         matrix.case(
             "interrupted state-last apply recovers exact prepared postimage evidence",
             interrupted_apply_recovers_exact_prepared_evidence,
+        )
+
+        def tampered_prepared_evidence_blocks_interrupted_recovery() -> None:
+            project, preimage = _project(sandbox, "interrupted-prepared-tamper")
+            authority = _authority(project, preimage, suffix="interrupted-prepared-tamper")
+            live_claim, transaction_root = _interrupt_apply_after_state_publish(project, authority)
+            postimage = (project / LEDGER).read_bytes()
+            _assert_only_two_semantic_changes(preimage, postimage)
+            records = _json_records(transaction_root)
+            prepared_manifest_path, prepared_manifest, _ = _one_record(
+                records,
+                schema="co-author-harness/milestone-handoff-policy-migration-rollback-manifest/v1",
+            )
+            prepared_manifest["created_at"] = "2026-07-29T15:59:59Z"
+            _write_json(prepared_manifest_path, prepared_manifest)
+            live_claim_bytes = live_claim.read_bytes()
+            final_paths = (
+                transaction_root / "apply.json",
+                transaction_root / "rollback_manifest.json",
+                transaction_root / "claim.consumed.json",
+                transaction_root / "claim.recovered.json",
+            )
+            if any(path.exists() for path in final_paths):
+                raise AssertionError("tamper fixture unexpectedly began with final evidence")
+            before_recovery = _snapshot(project)
+            receipt = _expect(
+                _run(
+                    "recover", project, "--authority-receipt", authority,
+                    "--acknowledgement", "inspected-migration-state-and-receipts",
+                    "--at", "2026-07-29T15:00:03Z",
+                ),
+                4,
+                "REFUSED",
+            )
+            permitted_codes = {
+                "MHD-MIGRATION-RECEIPT-TAMPERED",
+                "MHD-MIGRATION-RECOVERY-STATE-MISMATCH",
+            }
+            observed_codes = _codes(receipt)
+            if not observed_codes.intersection(permitted_codes):
+                raise AssertionError(
+                    f"tampered prepared recovery emitted wrong codes: {sorted(observed_codes)}"
+                )
+            if _snapshot(project) != before_recovery:
+                raise AssertionError("tampered prepared-evidence recovery was not read-only")
+            if not live_claim.is_file() or live_claim.read_bytes() != live_claim_bytes:
+                raise AssertionError("tampered prepared-evidence recovery removed/changed live claim")
+            if any(path.exists() for path in final_paths):
+                raise AssertionError("tampered prepared-evidence recovery published final evidence")
+
+        matrix.case(
+            "tampered prepared evidence blocks interrupted recovery without releasing claim",
+            tampered_prepared_evidence_blocks_interrupted_recovery,
+        )
+
+        def interrupted_rollback_recovers_exact_prepared_evidence() -> None:
+            project, preimage = _project(sandbox, "interrupted-rollback")
+            authority = _authority(project, preimage, suffix="interrupted-rollback")
+            external_before = _external_snapshot(project)
+            _, apply_path, manifest_path = _apply(project, authority)
+            postimage = (project / LEDGER).read_bytes()
+            live_claim, transaction_root = _interrupt_rollback_after_state_publish(
+                project, authority, apply_path, manifest_path
+            )
+            if (project / LEDGER).read_bytes() != preimage:
+                raise AssertionError("interrupted rollback did not restore exact preimage before crash")
+            if _external_snapshot(project) != external_before:
+                raise AssertionError("interrupted rollback changed an external project byte")
+
+            records = _json_records(transaction_root)
+            prepared_receipt_path, prepared_receipt, prepared_receipt_bytes = _one_record(
+                records,
+                schema="co-author-harness/milestone-handoff-policy-migration-rollback-receipt/v1",
+                operation="rollback",
+                outcome="ROLLED_BACK",
+            )
+            prepared_claim_path, prepared_claim, prepared_claim_bytes = _one_record(
+                records,
+                schema="co-author-harness/milestone-handoff-policy-migration-claim/v1",
+                state="consumed",
+                operation="rollback",
+            )
+            if prepared_receipt_path.parent.name != ".prepared" or prepared_claim_path.parent.name != ".prepared":
+                raise AssertionError("interrupted rollback evidence is not confined to prepared staging")
+            if prepared_receipt.get("current_applied_postimage") != {
+                "sha256": _sha_bytes(postimage), "bytes": len(postimage)
+            }:
+                raise AssertionError("prepared rollback receipt does not bind exact applied postimage")
+            if prepared_receipt.get("restored_preimage") != {
+                "sha256": _sha_bytes(preimage), "bytes": len(preimage)
+            }:
+                raise AssertionError("prepared rollback receipt does not bind exact restored preimage")
+            if prepared_receipt.get("apply_receipt") != _binding(project, apply_path):
+                raise AssertionError("prepared rollback receipt does not bind exact apply receipt")
+            if prepared_receipt.get("rollback_manifest") != _binding(project, manifest_path):
+                raise AssertionError("prepared rollback receipt does not bind exact manifest")
+            final_claim = project / prepared_receipt["claim"]["path"]
+            final_rollback = apply_path.with_name("rollback.json")
+            recovered_path = transaction_root / "claim.recovered.json"
+            if prepared_receipt.get("claim") != {
+                "path": final_claim.relative_to(project).as_posix(),
+                "sha256": _sha_bytes(prepared_claim_bytes),
+            }:
+                raise AssertionError("prepared rollback receipt does not bind exact consumed claim")
+            if any(path.exists() for path in (final_claim, final_rollback, recovered_path)):
+                raise AssertionError("interrupted rollback published final evidence before recovery")
+
+            recovered = _expect(
+                _run(
+                    "recover", project, "--authority-receipt", authority,
+                    "--acknowledgement", "inspected-migration-state-and-receipts",
+                    "--at", "2026-07-29T15:00:04Z",
+                ),
+                0,
+                "RECOVERED",
+            )
+            if recovered.get("disposition") != "rollback_restored":
+                raise AssertionError(f"wrong interrupted rollback disposition: {recovered}")
+            if live_claim.exists() or not recovered_path.is_file():
+                raise AssertionError("valid rollback recovery did not archive/release the live claim")
+            archived = json.loads(recovered_path.read_text(encoding="utf-8"))
+            recovery = archived.get("recovery", {})
+            if (
+                archived.get("state") != "recovered"
+                or recovery.get("disposition") != "rollback_restored"
+                or recovery.get("observed_ledger_sha256") != _sha_bytes(preimage)
+            ):
+                raise AssertionError("archived rollback recovery claim does not bind restored state")
+            if final_claim.read_bytes() != prepared_claim_bytes:
+                raise AssertionError("rollback recovery did not publish prepared claim bytes exactly")
+            if final_rollback.read_bytes() != prepared_receipt_bytes:
+                raise AssertionError("rollback recovery did not publish prepared receipt bytes exactly")
+            if (project / LEDGER).read_bytes() != preimage or _external_snapshot(project) != external_before:
+                raise AssertionError("valid rollback recovery changed restored/external bytes")
+
+        matrix.case(
+            "interrupted rollback recovery publishes exact prepared evidence and releases claim",
+            interrupted_rollback_recovers_exact_prepared_evidence,
+        )
+
+        def tampered_prepared_rollback_evidence_blocks_recovery() -> None:
+            project, preimage = _project(sandbox, "interrupted-rollback-tamper")
+            authority = _authority(project, preimage, suffix="interrupted-rollback-tamper")
+            _, apply_path, manifest_path = _apply(project, authority)
+            live_claim, transaction_root = _interrupt_rollback_after_state_publish(
+                project, authority, apply_path, manifest_path
+            )
+            if (project / LEDGER).read_bytes() != preimage:
+                raise AssertionError("tampered rollback fixture did not restore exact preimage")
+            records = _json_records(transaction_root)
+            prepared_receipt_path, _, prepared_receipt_bytes = _one_record(
+                records,
+                schema="co-author-harness/milestone-handoff-policy-migration-rollback-receipt/v1",
+                operation="rollback",
+                outcome="ROLLED_BACK",
+            )
+            prepared_claim_path, _, prepared_claim_bytes = _one_record(
+                records,
+                schema="co-author-harness/milestone-handoff-policy-migration-claim/v1",
+                state="consumed",
+                operation="rollback",
+            )
+            original_live_claim = live_claim.read_bytes()
+            prepared_receipt = json.loads(prepared_receipt_bytes)
+            final_claim = project / prepared_receipt["claim"]["path"]
+            final_rollback = apply_path.with_name("rollback.json")
+            recovered_path = transaction_root / "claim.recovered.json"
+            final_paths = (final_claim, final_rollback, recovered_path)
+
+            def tamper_claim() -> None:
+                value = json.loads(prepared_claim_bytes)
+                value["completed_at"] = "2026-07-29T15:59:59Z"
+                _write_json(prepared_claim_path, value)
+
+            def tamper_receipt_binding() -> None:
+                value = json.loads(prepared_receipt_bytes)
+                value["apply_receipt"]["sha256"] = "0" * 64
+                _write_json(prepared_receipt_path, value)
+
+            variants = (
+                ("prepared rollback claim", tamper_claim),
+                ("prepared rollback receipt binding", tamper_receipt_binding),
+            )
+            for index, (label, tamper) in enumerate(variants, 1):
+                prepared_claim_path.write_bytes(prepared_claim_bytes)
+                prepared_receipt_path.write_bytes(prepared_receipt_bytes)
+                tamper()
+                if any(path.exists() for path in final_paths):
+                    raise AssertionError(f"{label} fixture unexpectedly began with final evidence")
+                before_recovery = _snapshot(project)
+                refused = _expect(
+                    _run(
+                        "recover", project, "--authority-receipt", authority,
+                        "--acknowledgement", "inspected-migration-state-and-receipts",
+                        "--at", f"2026-07-29T15:00:{4 + index:02d}Z",
+                    ),
+                    4,
+                    "REFUSED",
+                )
+                permitted_codes = {
+                    "MHD-MIGRATION-RECEIPT-TAMPERED",
+                    "MHD-MIGRATION-RECOVERY-STATE-MISMATCH",
+                }
+                observed_codes = _codes(refused)
+                if not observed_codes.intersection(permitted_codes):
+                    raise AssertionError(f"{label} emitted wrong codes: {sorted(observed_codes)}")
+                if _snapshot(project) != before_recovery:
+                    raise AssertionError(f"{label} recovery refusal changed project bytes")
+                if not live_claim.is_file() or live_claim.read_bytes() != original_live_claim:
+                    raise AssertionError(f"{label} recovery refusal changed/removed live claim")
+                if any(path.exists() for path in final_paths):
+                    raise AssertionError(f"{label} recovery refusal published final evidence")
+
+        matrix.case(
+            "tampered prepared rollback claim or receipt binding blocks recovery read-only",
+            tampered_prepared_rollback_evidence_blocks_recovery,
         )
 
         def dead_owner_preimage_recovery_is_exact() -> None:
