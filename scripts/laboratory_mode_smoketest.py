@@ -137,6 +137,20 @@ def _expect_destination_refusal(path: Path, code: str) -> None:
     raise AssertionError(f"destination unexpectedly writable: {path}")
 
 
+def _assert_proposal_only_payload(payload: dict[str, Any]) -> None:
+    required = {
+        "result": "PROPOSAL_ONLY",
+        "lifecycle_authority": False,
+        "f9_authority": False,
+        "terminal_authority": False,
+    }
+    for key, expected in required.items():
+        if payload.get(key) != expected:
+            raise AssertionError(
+                f"{key}={payload.get(key)!r}, expected {expected!r}"
+            )
+
+
 def _write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -371,15 +385,7 @@ def main() -> int:
                 "--run-scope", "lab_iteration", "--output-root", output,
             )
             payload = _expect(result, 0, "FRC-LAB-PROPOSAL-ONLY")
-            required = {
-                "result": "PROPOSAL_ONLY",
-                "lifecycle_authority": False,
-                "f9_authority": False,
-                "terminal_authority": False,
-            }
-            for key, expected in required.items():
-                if payload.get(key) != expected:
-                    raise AssertionError(f"{key}={payload.get(key)!r}, expected {expected!r}")
+            _assert_proposal_only_payload(payload)
             after = _tree_snapshot(workspace)
             if after != before:
                 raise AssertionError("lab authorization changed project/output/governance bytes")
@@ -470,6 +476,39 @@ def main() -> int:
             "exact private shipment lane is a positive lab destination capability",
             project,
             exact_private_shipment_is_writable,
+        )
+
+        def authorize_exact_private_shipment() -> None:
+            payload = _expect(
+                _run(
+                    "authorize",
+                    "--project-root", project,
+                    "--run-scope", "lab_iteration",
+                    "--output-root", private_shipment,
+                ),
+                0,
+                "FRC-LAB-PROPOSAL-ONLY",
+            )
+            _assert_proposal_only_payload(payload)
+
+        lab_case(
+            "lab authorizer grants proposal-only result for exact private shipment lane",
+            project,
+            authorize_exact_private_shipment,
+        )
+        lab_case(
+            "lab authorizer independently refuses exact governed protected output",
+            project,
+            lambda: _expect(
+                _run(
+                    "authorize",
+                    "--project-root", project,
+                    "--run-scope", "lab_iteration",
+                    "--output-root", project / "reviews" / "phase_state.json",
+                ),
+                4,
+                "DEST-PROTECTED",
+            ),
         )
 
         adhoc = _brief(sandbox, "adhoc", "run_scope: adhoc_review\n")
