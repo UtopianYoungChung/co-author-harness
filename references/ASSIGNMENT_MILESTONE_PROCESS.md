@@ -63,7 +63,7 @@ Missing `--target-milestone` at draft stage produces `APG-SEQUENCE-TARGET`. `rev
 
 ### 3.1 Wiki grounding before M4
 
-M4 and FINAL additionally require current wiki-first grounding evidence. After SK-33 `seed-snowball-discovery`, SK-36 inheritance, or an equivalent wiki-first pass, the Planner writes `reviews/.harness/assignment/wiki_grounding_<round>.json` and binds its project-relative path and exact SHA-256 at `milestone_framework.milestones.M3.policy_evidence.wiki_grounding`. The finalized M3→M4 F9 packet carries the same `policy_evidence`; this extends the existing F9 handoff and does not create a second ledger.
+M4 and FINAL additionally require current wiki-first grounding evidence. After SK-33 `seed-snowball-discovery`, SK-36 inheritance, or an equivalent wiki-first pass, the Planner writes `reviews/.harness/assignment/wiki_grounding_<round>.json` and binds its project-relative path and exact SHA-256 at `milestone_framework.milestones.M3.policy_evidence.wiki_grounding`. Any audited or explicitly requested optional derived M3→M4 F9 packet carries the same `policy_evidence`; this is exact handoff evidence and does not create a second ledger.
 
 The evidence object records `schema_version: 1.0.0`, active `lineage_id`, RFC3339 `produced_at`, `wiki_path`, `wiki_first_resources: true`, non-empty `skills_invoked`, `references_path` plus exact hash, `graph_path` plus provenance hash, at least one exact-byte `sources_consulted` binding, `authority: planner`, and non-empty notes. The gate re-hashes the evidence file and every declared file at M4 and FINAL. Missing evidence emits `APG-WIKI-GROUNDING-MISSING`; path, lineage, schema, or hash drift emits `APG-WIKI-GROUNDING-STALE`.
 
