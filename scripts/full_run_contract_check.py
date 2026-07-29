@@ -196,25 +196,6 @@ LAB = invocation.LAB_ITERATION
 FULL = invocation.FULL_LIFECYCLE
 SCOPES = invocation.SCOPES
 
-# Contract-only findings from the assignment-process authority.  Laboratory
-# authorization needs a genuinely resolved controlling contract, but it must
-# not ask whether a lifecycle milestone is ready or reserve a writer receipt.
-LAB_CONTRACT_FINDING_CODES = frozenset({
-    "APG-CONTRACT-MISSING",
-    "APG-CONTRACT-UNRESOLVED",
-    "APG-PROFILE-MISSING",
-    "APG-PROFILE-ID",
-    "APG-PROFILE-PATH",
-    "APG-PROFILE-HASH",
-    "APG-PROFILE-FUNCTIONS",
-    "APG-SOURCE-AUTHORITY",
-    "APG-SOURCE-MISSING",
-    "APG-SOURCE-HASH",
-    "APG-SEQUENCE",
-    "APG-MAPPING",
-    "APG-PROFESSOR-COPY-AUTHORITY",
-})
-
 # --------------------------------------------------------------------------
 # ADVISORY ONLY -- phrase lists are NOT the enforcement mechanism.
 #
@@ -625,11 +606,9 @@ def _lab_project_context(project_root: Path | None) -> tuple[dict | None, list[d
             contract_findings[0].get("message", "assignment contract is unresolved"),
             project_root=str(project),
         )]
-    process_findings = apg.validate(project, "draft", target_milestone="M1")
     contract_only = [
         {"code": code, "message": message}
-        for code, message in process_findings
-        if code in LAB_CONTRACT_FINDING_CODES
+        for code, message in apg.validate_resolved_contract(project)
     ]
     if contract_only:
         return None, [_f(

@@ -671,6 +671,67 @@ def _print_findings(findings: list[tuple[str, str]]) -> None:
         print(f"[BLOCKER] {code}: {message}")
 
 
+def _validate_resolved_contract_payload(
+    project: Path,
+    contract: dict[str, Any],
+    findings: list[tuple[str, str]],
+) -> None:
+    """Append only controlling-contract findings; inspect no lifecycle state."""
+
+    if contract.get("contract_version") != "1.0.0" or contract.get("status") != "resolved":
+        findings.append(("APG-CONTRACT-UNRESOLVED", "assignment contract must be version 1.0.0 with status resolved"))
+
+    profile_path = ROOT / PROFILE_REL
+    profile = _load_json(profile_path, "APG-PROFILE-MISSING", findings)
+    if isinstance(profile, dict):
+        if contract.get("profile_id") != profile.get("profile_id"):
+            findings.append(("APG-PROFILE-ID", "project profile_id does not match the package profile"))
+        if contract.get("profile_path") != PROFILE_REL.as_posix():
+            findings.append(("APG-PROFILE-PATH", f"profile_path must be {PROFILE_REL.as_posix()}"))
+        if contract.get("profile_sha256") != _sha256(profile_path):
+            findings.append(("APG-PROFILE-HASH", "package milestone profile hash is missing or stale"))
+        deliverables = profile.get("deliverables")
+        if not isinstance(deliverables, dict) or set(deliverables.keys()) != set(EXPECTED_SEQUENCE):
+            findings.append(("APG-PROFILE-FUNCTIONS", "profile must define M1-M4 followed by a separate FINAL deliverable"))
+
+    source = contract.get("assignment_source")
+    if not isinstance(source, dict) or source.get("authority") not in {"user", "advisor", "instructor", "committee", "venue"}:
+        findings.append(("APG-SOURCE-AUTHORITY", "assignment source requires a recognized higher authority"))
+    else:
+        raw_path = source.get("path")
+        source_path = Path(raw_path) if isinstance(raw_path, str) and raw_path else None
+        if source_path is not None and not source_path.is_absolute():
+            source_path = project / source_path
+        if source_path is None or not source_path.is_file():
+            findings.append(("APG-SOURCE-MISSING", "the controlling assignment source does not exist"))
+        elif source.get("sha256") != _sha256(source_path):
+            findings.append(("APG-SOURCE-HASH", "the controlling assignment source hash is missing or stale"))
+
+    if contract.get("assigned_sequence") != EXPECTED_SEQUENCE:
+        findings.append(("APG-SEQUENCE", "assigned_sequence must preserve M1, M2, M3, M4, then FINAL"))
+    if contract.get("framework_mapping") != EXPECTED_MAPPING:
+        findings.append(("APG-MAPPING", "framework mapping must keep FINAL separate while binding it to terminal slot M5"))
+    if contract.get("professor_copy_policy") != COPY_POLICY:
+        findings.append(("APG-PROFESSOR-COPY-AUTHORITY", "professor-copy production remains author-controlled unless explicitly requested"))
+
+
+def validate_resolved_contract(project: Path) -> list[tuple[str, str]]:
+    """Validate only the controlling assignment contract and its live bindings."""
+
+    findings: list[tuple[str, str]] = []
+    contract = _load_json(
+        project / "reviews" / "assignment_contract.json",
+        "APG-CONTRACT-MISSING",
+        findings,
+    )
+    if not isinstance(contract, dict):
+        if not findings:
+            findings.append(("APG-CONTRACT-UNRESOLVED", "assignment contract must be a JSON object"))
+        return findings
+    _validate_resolved_contract_payload(project, contract, findings)
+    return findings
+
+
 def validate(
     project: Path,
     stage: str,
@@ -709,41 +770,7 @@ def validate(
     except ValueError as exc:
         findings.append(("APG-MILESTONE-PATH-CONTRACT", str(exc)))
         return findings
-    if contract.get("contract_version") != "1.0.0" or contract.get("status") != "resolved":
-        findings.append(("APG-CONTRACT-UNRESOLVED", "assignment contract must be version 1.0.0 with status resolved"))
-
-    profile_path = ROOT / PROFILE_REL
-    profile = _load_json(profile_path, "APG-PROFILE-MISSING", findings)
-    if isinstance(profile, dict):
-        if contract.get("profile_id") != profile.get("profile_id"):
-            findings.append(("APG-PROFILE-ID", "project profile_id does not match the package profile"))
-        if contract.get("profile_path") != PROFILE_REL.as_posix():
-            findings.append(("APG-PROFILE-PATH", f"profile_path must be {PROFILE_REL.as_posix()}"))
-        if contract.get("profile_sha256") != _sha256(profile_path):
-            findings.append(("APG-PROFILE-HASH", "package milestone profile hash is missing or stale"))
-        deliverables = profile.get("deliverables")
-        if not isinstance(deliverables, dict) or set(deliverables.keys()) != set(EXPECTED_SEQUENCE):
-            findings.append(("APG-PROFILE-FUNCTIONS", "profile must define M1-M4 followed by a separate FINAL deliverable"))
-
-    source = contract.get("assignment_source")
-    if not isinstance(source, dict) or source.get("authority") not in {"user", "advisor", "instructor", "committee", "venue"}:
-        findings.append(("APG-SOURCE-AUTHORITY", "assignment source requires a recognized higher authority"))
-    else:
-        raw_path = source.get("path")
-        source_path = Path(raw_path) if isinstance(raw_path, str) and raw_path else None
-        if source_path is not None and not source_path.is_absolute():
-            source_path = project / source_path
-        if source_path is None or not source_path.is_file():
-            findings.append(("APG-SOURCE-MISSING", "the controlling assignment source does not exist"))
-        elif source.get("sha256") != _sha256(source_path):
-            findings.append(("APG-SOURCE-HASH", "the controlling assignment source hash is missing or stale"))
-
-    if contract.get("assigned_sequence") != EXPECTED_SEQUENCE:
-        findings.append(("APG-SEQUENCE", "assigned_sequence must preserve M1, M2, M3, M4, then FINAL"))
-    if contract.get("framework_mapping") != EXPECTED_MAPPING:
-        findings.append(("APG-MAPPING", "framework mapping must keep FINAL separate while binding it to terminal slot M5"))
-    if contract.get("professor_copy_policy") != COPY_POLICY:
-        findings.append(("APG-PROFESSOR-COPY-AUTHORITY", "professor-copy production remains author-controlled unless explicitly requested"))
+    _validate_resolved_contract_payload(project, contract, findings)
 
     target = "FINAL" if stage == "final" else target_milestone
     if stage != "final" and target == "FINAL":

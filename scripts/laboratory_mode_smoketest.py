@@ -26,6 +26,7 @@ import destination_capability as destination
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "scripts" / "full_run_contract_check.py"
 DESTINATION = ROOT / "scripts" / "destination_capability.py"
+HOOK = ROOT / "scripts" / "hooks" / "full_run_pretooluse_gate.py"
 PYTHON_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}
 
 
@@ -151,6 +152,85 @@ def _assert_proposal_only_payload(payload: dict[str, Any]) -> None:
             )
 
 
+def _expect_corrupt_contract_refusal(result: subprocess.CompletedProcess[str]) -> None:
+    payload = _expect(result, 4, "FRC-LAB-CONTRACT-REQUIRED")
+    findings = [
+        row
+        for finding in payload.get("findings", [])
+        if isinstance(finding, dict)
+        for row in finding.get("assignment_findings", [])
+        if isinstance(row, dict)
+    ]
+    codes = {row.get("code") for row in findings}
+    required = {"APG-PROFILE-HASH", "APG-SOURCE-HASH"}
+    if not required.issubset(codes):
+        raise AssertionError(
+            "corrupt resolved contract was masked before both live hash checks: "
+            f"codes={sorted(code for code in codes if isinstance(code, str))}"
+        )
+
+
+def _run_hook(project: Path, tool: str, path: Path) -> subprocess.CompletedProcess[str]:
+    tool_input: dict[str, Any] = {"file_path": str(path)}
+    if tool == "Write":
+        tool_input["content"] = "synthetic proposal bytes\n"
+    else:
+        tool_input.update({"old_string": "before", "new_string": "after"})
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": tool,
+        "tool_input": tool_input,
+        "cwd": str(project),
+    }
+    env = {
+        **PYTHON_ENV,
+        "FRC_PARENT_SCOPE": "lab_iteration",
+        "CLAUDE_PLUGIN_ROOT": str(ROOT),
+    }
+    return subprocess.run(
+        [sys.executable, str(HOOK)],
+        cwd=ROOT,
+        env=env,
+        input=json.dumps(payload),
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+    )
+
+
+def _expect_hook_denied(project: Path, path: Path) -> None:
+    for tool in ("Write", "Edit"):
+        result = _run_hook(project, tool, path)
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise AssertionError(
+                f"active lab hook allowed {tool} to authoritative path {path}: "
+                f"exit={result.returncode} output={(result.stdout + result.stderr).strip()[:300]}"
+            ) from exc
+        decision = payload.get("hookSpecificOutput", {})
+        if (
+            result.returncode != 0
+            or decision.get("permissionDecision") != "deny"
+            or "FRC-LAB-LIFECYCLE-FORBIDDEN" not in decision.get("permissionDecisionReason", "")
+        ):
+            raise AssertionError(
+                f"active lab hook did not deny {tool} to authoritative path {path}: {payload}"
+            )
+
+
+def _expect_hook_allowed(project: Path, path: Path) -> None:
+    for tool in ("Write", "Edit"):
+        result = _run_hook(project, tool, path)
+        if result.returncode != 0 or result.stdout.strip():
+            raise AssertionError(
+                f"active lab hook did not permit {tool} to proposal destination {path}: "
+                f"exit={result.returncode} output={(result.stdout + result.stderr).strip()[:300]}"
+            )
+
+
 def _write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -239,6 +319,7 @@ def _lab_surface_snapshot(project: Path) -> dict[str, Any]:
             "manuscript_tree": _path_snapshot(project / "manuscript"),
             "export_tree": _path_snapshot(project / "exports"),
             "milestone_m5": _path_snapshot(project / "milestones" / "M5_final_paper.md"),
+            "submission_tree": _path_snapshot(project / "submission"),
         },
     }
 
@@ -508,6 +589,90 @@ def main() -> int:
                 ),
                 4,
                 "DEST-PROTECTED",
+            ),
+        )
+
+        corrupt_workspace, corrupt_project, corrupt_output = _synthetic_workspace(
+            sandbox / "corrupt-contract"
+        )
+        corrupt_contract_path = corrupt_project / "reviews" / "assignment_contract.json"
+        corrupt_contract = json.loads(corrupt_contract_path.read_text(encoding="utf-8"))
+        corrupt_contract["profile_sha256"] = "0" * 64
+        corrupt_contract["assignment_source"]["sha256"] = "f" * 64
+        _write_json(corrupt_contract_path, corrupt_contract)
+        legacy_alias = corrupt_project / "manuscript" / "main.md"
+        legacy_alias.write_text("Synthetic retired milestone-path alias.\n", encoding="utf-8")
+
+        def corrupted_contract_is_not_masked_by_legacy_alias() -> None:
+            before = _tree_snapshot(corrupt_workspace)
+            _expect_corrupt_contract_refusal(
+                _run(
+                    "authorize",
+                    "--project-root", corrupt_project,
+                    "--run-scope", "lab_iteration",
+                    "--output-root", corrupt_output,
+                )
+            )
+            if _tree_snapshot(corrupt_workspace) != before:
+                raise AssertionError("corrupt-contract refusal changed synthetic workspace bytes")
+
+        lab_case(
+            "legacy milestone-path alias cannot mask corrupt resolved contract hashes",
+            corrupt_project,
+            corrupted_contract_is_not_masked_by_legacy_alias,
+        )
+
+        hook_targets = (
+            (
+                "active lab hook denies authoritative phase_state Write/Edit",
+                project / "reviews" / "phase_state.json",
+            ),
+            (
+                "active lab hook denies F9 handoff Write/Edit",
+                project / "reviews" / ".harness" / "handoffs" / "M1_to_M2.json",
+            ),
+            (
+                "active lab hook denies M5 final Write/Edit",
+                project / "milestones" / "M5_final_paper.md",
+            ),
+            (
+                "active lab hook denies promotion receipt Write/Edit",
+                project / "reviews" / "promotion_receipt.json",
+            ),
+            (
+                "active lab hook denies submission bundle Write/Edit",
+                project / "submission" / "final-submission.zip",
+            ),
+            (
+                "active lab hook denies authoritative manuscript Write/Edit",
+                project / "manuscript" / "draft.md",
+            ),
+        )
+        for case_name, target_path in hook_targets:
+            lab_case(
+                case_name,
+                project,
+                lambda target_path=target_path: _expect_hook_denied(
+                    project, target_path
+                ),
+            )
+
+        def hook_allows_proposal_destination(path: Path) -> None:
+            before = _tree_snapshot(workspace)
+            _expect_hook_allowed(project, path)
+            if _tree_snapshot(workspace) != before:
+                raise AssertionError("lab hook proposal decision changed workspace bytes")
+
+        lab_case(
+            "active lab hook permits governed staging proposal Write/Edit",
+            project,
+            lambda: hook_allows_proposal_destination(output / "proposal.md"),
+        )
+        lab_case(
+            "active lab hook permits exact private-shipment proposal Write/Edit",
+            project,
+            lambda: hook_allows_proposal_destination(
+                private_shipment / "proposal.md"
             ),
         )
 

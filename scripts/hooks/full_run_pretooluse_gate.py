@@ -65,6 +65,7 @@ from pathlib import Path
 _SCRIPTS = Path(__file__).resolve().parents[1]
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
+import destination_capability as destination  # noqa: E402
 import invocation_scope as invocation  # noqa: E402
 
 # Resolve the authoritative gate: prefer the plugin root the host injects.
@@ -153,14 +154,21 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None) -> int:
     path_str = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
     if not path_str:
         return _allow()
+    p = _path_from_input(path_str, cwd)
+    if scope == invocation.LAB_ITERATION:
+        try:
+            destination_kind = destination.classify(p)
+        except (OSError, RuntimeError, ValueError):
+            destination_kind = "unresolved"
+        if destination_kind in {"staging", "shipment"}:
+            return _allow()
+        return _deny(
+            "[FRC-LAB-LIFECYCLE-FORBIDDEN] lab_iteration is proposal-only; "
+            "direct writes are permitted only in governed staging or an exact "
+            "private shipment lane"
+        )
     if not _is_manuscript_path(path_str):
         return _allow()  # ordinary code/config writes are out of scope
-    if scope == invocation.LAB_ITERATION:
-        return _deny(
-            "[FRC-LAB-LIFECYCLE-FORBIDDEN] lab_iteration is proposal-only and "
-            "cannot write authoritative manuscript or lifecycle paths"
-        )
-    p = _path_from_input(path_str, cwd)
     root = _find_project_root(p.parent if p.parent != p else p)
     if root is None:
         # manuscript prose with no enclosing project -> the canonical failure
@@ -237,7 +245,7 @@ def main() -> int:
             return _handle_stop(payload)
         tool = payload.get("tool_name", "")
         tool_input = payload.get("tool_input", {}) or {}
-        if tool in ("Write", "Edit", "MultiEdit"):
+        if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
             return _handle_write(tool_input, cwd=payload.get("cwd"))
         if tool in ("Task", "Agent"):
             return _handle_agent(tool_input)
