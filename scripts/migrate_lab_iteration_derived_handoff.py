@@ -1431,6 +1431,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--acknowledgement")
     parser.add_argument("--at")
     args = parser.parse_args(argv)
+    from destination_capability import DestinationRefused, guard_project_root
+    try:
+        guard_project_root(args.project_root)
+    except DestinationRefused as exc:
+        parser.exit(4, f"[BLOCKER] {exc}\n")
     operation = args.operation
     try:
         if operation == "dry-run":

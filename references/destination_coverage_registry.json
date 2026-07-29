@@ -28,7 +28,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "22dfe4c00d4845a2153434d73dc665c911b71035602a33c4c147f8fd8d7795a2"
+      "sha256": "12d4caaf71e7c3868c3910535a2d0b1f041f9fd8fd13640340b7631600a224d9"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -192,13 +192,17 @@
     "scripts/hooks/full_run_pretooluse_gate.py": {
       "class": "excluded",
       "reason": "only write is a NamedTemporaryFile in the OS temp directory, unlinked in a finally block; no destination input exists",
-      "sha256": "f65aa350396c1130c22ed8e26e177987afa507fef984435a8776a0143e1b7fdb"
+      "sha256": "a182f21b317e277890415629132be67ed3d16361595706128bcce924d52ead92"
     },
     "scripts/install_preflight_assets.py": {
       "class": "guarded",
       "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
     },
     "scripts/migrate_legacy_milestones.py": {
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
+    },
+    "scripts/migrate_lab_iteration_derived_handoff.py": {
       "class": "guarded",
       "regression": "scripts/destination_capability_smoketest.py::case_mutator_wiring"
     },
