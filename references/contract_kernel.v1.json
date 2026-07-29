@@ -29,6 +29,7 @@
     {"id": "milestone-handoff", "path": "references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md", "revision_kind": "sha256", "sha256": "2c49a0c82314afddae4ebef1ae206cec5d235c2df42739ad6ed165eb680108b2", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "agent-contracts", "path": "references/AGENT_CONTRACTS.md", "revision_kind": "sha256", "sha256": "4352f798146569713238250de540ce7feab838ecf65ab9ca1a77ffa9c3438d0f", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "full-run-contract", "path": "references/FULL_RUN_CONTRACT.md", "revision_kind": "sha256", "sha256": "b9c62d3ce73d07fe7992d0d746c4649ec31d44ed40a23f80f1b6170fcef17434", "migration_ids": []},
+    {"id": "invocation-scope", "path": "scripts/invocation_scope.py", "revision_kind": "sha256", "sha256": "be9fb6f4d6ac1291b3cc1e1b850ba1fdf351967299a83739349133c813811097", "migration_ids": []},
     {"id": "grounding-protocol", "path": "references/GROUNDING_PROTOCOL.md", "revision_kind": "sha256", "sha256": "248dc4226145ed52d246f3674a4b80754627a480e5f775305d8d76dce715fe32", "migration_ids": []},
     {"id": "artefact-schema", "path": "references/ARTEFACT_FRONTMATTER_SCHEMA.md", "revision_kind": "sha256", "sha256": "8323018b15c93d67f3366cbe55e25fb609197aa3e77fa086d73bceccd1d0d391", "migration_ids": ["milestone-path-contract-v2"]},
     {"id": "course-essay-milestones", "path": "references/policies/course_essay_milestones.v1.json", "revision_kind": "sha256", "sha256": "134c7d6fd3dd3d07a8e130c6404e1a47cd18dadb4e0ee68c4d5d27651c0c20fe", "migration_ids": []},

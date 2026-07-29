@@ -114,6 +114,8 @@ if str(SCRIPTS) not in sys.path:
 # if the real validator cannot be loaded we have no verdict, and "I could not
 # check" must never read as "it is fine".
 import assignment_process_gate as apg              # noqa: E402
+import destination_capability as destination       # noqa: E402
+import invocation_scope as invocation              # noqa: E402
 import milestone_framework_validate as mfv         # noqa: E402
 import phase_state_validate as psv                 # noqa: E402
 from draft_evidence_verifier import (              # noqa: E402
@@ -189,8 +191,29 @@ LEDGER_KEY = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 # --------------------------------------------------------------------------
 # Run scope vocabulary (FULL_RUN_CONTRACT.md §1)
 # --------------------------------------------------------------------------
-FULL, ADHOC = "full_lifecycle", "adhoc_review"
-SCOPES = (FULL, ADHOC)
+ADHOC = invocation.ADHOC_REVIEW
+LAB = invocation.LAB_ITERATION
+FULL = invocation.FULL_LIFECYCLE
+SCOPES = invocation.SCOPES
+
+# Contract-only findings from the assignment-process authority.  Laboratory
+# authorization needs a genuinely resolved controlling contract, but it must
+# not ask whether a lifecycle milestone is ready or reserve a writer receipt.
+LAB_CONTRACT_FINDING_CODES = frozenset({
+    "APG-CONTRACT-MISSING",
+    "APG-CONTRACT-UNRESOLVED",
+    "APG-PROFILE-MISSING",
+    "APG-PROFILE-ID",
+    "APG-PROFILE-PATH",
+    "APG-PROFILE-HASH",
+    "APG-PROFILE-FUNCTIONS",
+    "APG-SOURCE-AUTHORITY",
+    "APG-SOURCE-MISSING",
+    "APG-SOURCE-HASH",
+    "APG-SEQUENCE",
+    "APG-MAPPING",
+    "APG-PROFESSOR-COPY-AUTHORITY",
+})
 
 # --------------------------------------------------------------------------
 # ADVISORY ONLY -- phrase lists are NOT the enforcement mechanism.
@@ -222,7 +245,7 @@ ADHOC_PHRASES = (
 )
 
 # A declared scope line in a dispatch brief: `run_scope: full_lifecycle`.
-RUN_SCOPE_RE = re.compile(r"(?mi)^\s*run_scope\s*:\s*([A-Za-z_]+)\s*$")
+RUN_SCOPE_RE = invocation.RUN_SCOPE_DECLARATION_RE
 
 # Child-dispatch instructions that narrow a full-lifecycle parent. These are the
 # literal shapes observed at audit :112 / :185 / :278.
@@ -244,6 +267,16 @@ TERMINAL_MARKERS = (
 def _emit(code_findings: list[dict], status: str) -> None:
     print(json.dumps({"status": status, "findings": code_findings},
                      ensure_ascii=False, indent=1))
+
+
+def _emit_lab_proposal(message: str) -> None:
+    authority = invocation.proposal_only_authority()
+    finding = _f(authority["code"], message, run_scope=LAB)
+    print(json.dumps({
+        "status": authority["result"],
+        "findings": [finding],
+        **authority,
+    }, ensure_ascii=False, indent=1))
 
 
 # ---------------------------------------------------------------------------
@@ -539,6 +572,144 @@ def authorize(project_root: Path | None) -> list[dict]:
     return findings
 
 
+def _lab_project_context(project_root: Path | None) -> tuple[dict | None, list[dict]]:
+    """Resolve the read-only governed project identity required by a lab run."""
+
+    if project_root is None or not project_root.is_dir():
+        return None, [_f(
+            invocation.FRC_LAB_PROJECT_REQUIRED,
+            "lab_iteration requires an existing governed project root",
+            project_root=str(project_root) if project_root else None,
+        )]
+    project = project_root.resolve()
+    workspace = destination.discovered_destination_workspace_root(project)
+    if workspace is None or destination.classify(project) != "protected":
+        return None, [_f(
+            invocation.FRC_LAB_PROJECT_REQUIRED,
+            "lab_iteration project must resolve inside a governed workspace",
+            project_root=str(project),
+        )]
+    try:
+        relative = project.relative_to(workspace.resolve())
+    except ValueError:
+        return None, [_f(
+            invocation.FRC_LAB_PROJECT_REQUIRED,
+            "lab_iteration project does not belong to its discovered governed workspace",
+            project_root=str(project),
+        )]
+    parts = relative.parts
+    if (
+        len(parts) != 3
+        or parts[0].casefold() != "research"
+        or parts[1].casefold() != "60_workbench"
+        or not parts[2]
+    ):
+        return None, [_f(
+            invocation.FRC_LAB_PROJECT_REQUIRED,
+            "lab_iteration project must be one exact research/60_Workbench/<work-id> root",
+            project_root=str(project),
+        )]
+
+    floor = project_floor(project)
+    project_findings = [row for row in floor if row.get("code") == "FRC-NO-PROJECT"]
+    if project_findings:
+        return None, [_f(
+            invocation.FRC_LAB_PROJECT_REQUIRED,
+            project_findings[0].get("message", "native project state is unresolved"),
+            project_root=str(project),
+        )]
+    contract_findings = [row for row in floor if row.get("code") == "FRC-CONTRACT-MISSING"]
+    if contract_findings:
+        return None, [_f(
+            invocation.FRC_LAB_CONTRACT_REQUIRED,
+            contract_findings[0].get("message", "assignment contract is unresolved"),
+            project_root=str(project),
+        )]
+    process_findings = apg.validate(project, "draft", target_milestone="M1")
+    contract_only = [
+        {"code": code, "message": message}
+        for code, message in process_findings
+        if code in LAB_CONTRACT_FINDING_CODES
+    ]
+    if contract_only:
+        return None, [_f(
+            invocation.FRC_LAB_CONTRACT_REQUIRED,
+            "assignment contract failed contract-only resolution checks",
+            project_root=str(project),
+            assignment_findings=contract_only,
+        )]
+    return {
+        "project": project,
+        "workspace": workspace.resolve(),
+        "work_id": parts[2],
+    }, []
+
+
+def _lab_destination_findings(context: dict, output_root: Path | None) -> list[dict]:
+    """Validate one proposal destination without creating or changing it."""
+
+    if output_root is None:
+        return [_f(
+            invocation.FRC_LAB_DESTINATION_REQUIRED,
+            "lab_iteration requires --output-root in governed staging or the exact private shipment lane",
+        )]
+    output = output_root.resolve()
+    try:
+        kind = destination.assert_writable(output, purpose="laboratory proposal")
+    except destination.DestinationRefused as exc:
+        return [_f(exc.code, str(exc), output_root=str(output))]
+
+    if (
+        kind == "external"
+        and destination.discovered_destination_workspace_root(output) is None
+    ):
+        return [_f(
+            destination.DEST_UNGOVERNED,
+            "laboratory proposal destination has no discoverable workspace governance",
+            output_root=str(output),
+        )]
+
+    project = context["project"]
+    workspace = context["workspace"]
+    work_id = context["work_id"]
+    if kind == "staging":
+        try:
+            relative = output.relative_to(workspace)
+        except ValueError:
+            relative = Path()
+        parts = relative.parts
+        valid = (
+            len(parts) == 5
+            and parts[0].casefold() == "outputs"
+            and parts[1].casefold() == "co-author-harness"
+            and parts[2].casefold() == "staging"
+            and parts[3].casefold() == str(work_id).casefold()
+            and bool(parts[4])
+        )
+    elif kind == "shipment":
+        try:
+            parts = output.relative_to(project).parts
+        except ValueError:
+            parts = ()
+        valid = (
+            len(parts) == 4
+            and parts[0].casefold() == "reviews"
+            and parts[1].casefold() == ".harness"
+            and parts[2].casefold() == "shipments"
+            and bool(parts[3])
+        )
+    else:
+        valid = False
+
+    if not valid:
+        return [_f(
+            invocation.FRC_LAB_DESTINATION_MISMATCH,
+            "lab_iteration output does not match the project's governed staging work-id or exact private shipment lane",
+            project_root=str(project), output_root=str(output), classification=kind,
+        )]
+    return []
+
+
 def cmd_authorize(args) -> int:
     """May academic prose be written here?
 
@@ -548,10 +719,11 @@ def cmd_authorize(args) -> int:
     unanticipated wording of "just look at this" would have silently authorized
     an ad hoc path. Permissions key off declarations; phrase lists only advise.
     """
-    scope = (args.run_scope or FULL).strip().lower()
-    if scope not in SCOPES:
+    scope_record = invocation.resolve_top_level_scope(args.run_scope)
+    scope = scope_record["declared_scope"]
+    if scope_record["result"] != "DECLARED" or scope is None:
         _emit([_f("FRC-SCOPE-UNDECLARED",
-                  f"--run-scope {scope!r} is not one of {SCOPES}")], "REFUSED")
+                  scope_record["message"])], "REFUSED")
         return REFUSED
 
     if scope == ADHOC:
@@ -578,6 +750,19 @@ def cmd_authorize(args) -> int:
                   "an authorization exit code out of it.",
                   run_scope=ADHOC)], "REFUSED")
         return REFUSED
+
+    if scope == LAB:
+        context, findings = _lab_project_context(args.project_root)
+        if not findings and context is not None:
+            findings = _lab_destination_findings(context, args.output_root)
+        if findings:
+            _emit(findings, "REFUSED")
+            return REFUSED
+        _emit_lab_proposal(
+            "lab_iteration may produce proposal bytes only at the resolved destination; "
+            "it has no lifecycle, F9, or terminal authority"
+        )
+        return OK
 
     findings = authorize(args.project_root)
     if findings:
@@ -611,40 +796,24 @@ def check_scope(parent_scope: str, brief: str) -> list[dict]:
     one, so the enforcement floor never depends on a phrase list.
     """
     findings: list[dict] = []
-    if parent_scope not in SCOPES:
-        findings.append(_f("FRC-SCOPE-UNDECLARED",
-                           f"parent scope {parent_scope!r} is not one of {SCOPES}. "
-                           "Every dispatch declares its scope; it is never inferred."))
-        return findings
+    comparison = invocation.evaluate_scope_inheritance(parent_scope, brief)
+    if not comparison["exact"]:
+        findings.append(_f(
+            comparison["code"], comparison["message"],
+            parent_scope=comparison["parent_scope"],
+            child_scope=comparison["child_scope"],
+            direction=comparison["direction"],
+        ))
+        # Keep the legacy contradiction net additive.  A missing or mismatched
+        # declaration is already a structural refusal, but callers and audit
+        # evidence also rely on the independently applicable lifecycle marker
+        # finding.  Only an invalid parent prevents that secondary check.
+        if comparison["parent_scope"] is None:
+            return findings
 
-    # --- primary: the child's DECLARED scope -------------------------------
-    m = RUN_SCOPE_RE.search(brief)
-    child_scope = m.group(1).strip().lower() if m else None
-    if child_scope is not None and child_scope not in SCOPES:
-        findings.append(_f("FRC-SCOPE-UNDECLARED",
-                           f"child declares run_scope: {child_scope!r}, not one of {SCOPES}"))
-        return findings
-    if child_scope is None:
-        findings.append(_f(
-            "FRC-SCOPE-UNDECLARED",
-            "child dispatch carries no `run_scope:` declaration. A dispatch whose "
-            "scope must be guessed is refused: inheritance is explicit, not "
-            "assumed. Add `run_scope: " + parent_scope + "` if that is what is "
-            "intended."))
-    elif child_scope != parent_scope:
-        code = ("FRC-SCOPE-DOWNGRADE" if parent_scope == FULL
-                else "FRC-SCOPE-ESCALATION")
-        detail = ("A child may not narrow the run: under a full lifecycle it must "
-                  "write its artefacts and state."
-                  if parent_scope == FULL else
-                  "A child may not widen the run: an ad hoc parent cannot confer "
-                  "authority to write prose, advance the ladder, or claim terminal, "
-                  "because it does not hold that authority itself.")
-        findings.append(_f(
-            code,
-            f"child declares run_scope: {child_scope} under a {parent_scope} parent; "
-            f"scope must be inherited exactly. {detail}",
-            parent_scope=parent_scope, child_scope=child_scope))
+    child_scope = comparison["child_scope"]
+    if comparison["exact"] and comparison["parent_scope"] == LAB:
+        findings.extend(dict(row) for row in invocation.lab_brief_findings(brief))
 
     # --- secondary: a brief that contradicts its own declaration -----------
     low = " ".join(brief.lower().split())
@@ -682,6 +851,11 @@ def cmd_scope(args) -> int:
     if findings:
         _emit(findings, "REFUSED")
         return REFUSED
+    if invocation.canonical_scope(args.parent_scope) == LAB:
+        _emit_lab_proposal(
+            "child inherits lab_iteration exactly and remains proposal-only with no lifecycle, F9, or terminal authority"
+        )
+        return OK
     _emit([], "OK")
     return OK
 
@@ -1741,6 +1915,10 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"declared scope, one of {SCOPES}. Omitted resolves to "
                         f"{FULL} (§1.1: only adhoc_review must be explicit). "
                         "Never inferred from request text.")
+    a.add_argument(
+        "--output-root", type=Path,
+        help="required only for lab_iteration; governed staging run or exact private shipment lane",
+    )
     a.set_defaults(fn=cmd_authorize)
 
     s = sub.add_parser("scope", help="is this child dispatch legal under its parent?")

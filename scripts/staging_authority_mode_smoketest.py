@@ -82,7 +82,9 @@ def drive_to_m4_recorded_converged(project: Path) -> Path:
         checkpoint = checkpoint_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z", label="staging", policy=lifecycle_policy)
         run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
         approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
-        run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+        run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone,
+            "--checkpoint", checkpoint, "--approval-evidence", approval,
+            "--emit-f9", "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
     run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M4", "--at", "2026-07-19T00:00:20Z")
     consumed, lifecycle_policy = publish(project, "M4", b"# M4 staging manuscript v1\n", label="staging")
     checkpoint = checkpoint_input(project, "M4", "2026-07-19T00:00:21Z", label="staging", phase="Ph1", cycle_id="m4-staging-001", policy=lifecycle_policy)
@@ -177,9 +179,10 @@ def case_shipment_only_walk(raw: Path) -> None:
         approval = approval_input(project, "M4", "2026-07-19T00:00:33Z")
         run(CHECKPOINT, "accept", "--project-root", project, "--milestone", "M4",
             "--checkpoint", checkpoint2, "--approval-evidence", approval,
-            "--policy-evidence", policy, "--at", "2026-07-19T00:00:34Z")
+            "--policy-evidence", policy, "--emit-f9",
+            "--at", "2026-07-19T00:00:34Z")
 
-        # --- E: F9 handoff carries effect_scope ---
+        # --- E: explicitly requested optional F9 carries effect_scope ---
         handoffs = sorted((project / "reviews" / ".harness" / "handoffs").glob("*.json"))
         check("E: F9 handoffs exist", bool(handoffs))
         f9 = json.loads(handoffs[-1].read_text(encoding="utf-8"))

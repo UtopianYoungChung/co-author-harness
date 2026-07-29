@@ -24,6 +24,8 @@ For native course essays, this public entrypoint invokes the M1→M2→M3→M4 a
 
 **Whole-lifecycle intent routes here.** "Harness full run," "full harness run," "draft me an essay," "draft the whole paper," "run the ladder" are `full_lifecycle` requests and enter this canonical lifecycle — they are not answered ad hoc. With **no project at all**, fail closed into the canonical bootstrap instruction rather than writing prose anywhere: `python scripts/full_run_contract_check.py authorize --project-root <p>` is the mechanical check, and a new native root is created only by `python scripts/native_project_bootstrap.py ...`, which must install reader-profile binding v2. Run scope, the child-dispatch prohibition, and the terminal gate are normative in `references/FULL_RUN_CONTRACT.md`; this router does not restate them.
 
+**Three-scope router.** Route exactly `adhoc_review`, `lab_iteration`, or `full_lifecycle`, and put `run_scope:` matching the parent in every Planner, Generator, and Evaluator brief. `lab_iteration` is proposal-only: it requires an existing governed project, resolved assignment contract, and resolved staging/private-shipment output, with no lifecycle and no F9 authority. It never accepts milestones, consumes handoffs, writes authoritative research/final paths, or claims terminal completion.
+
 ## Vocabulary mapping
 
 | Compatibility name | Public stage name | Stage | Profile |

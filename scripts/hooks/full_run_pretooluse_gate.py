@@ -62,6 +62,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+_SCRIPTS = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+import invocation_scope as invocation  # noqa: E402
+
 # Resolve the authoritative gate: prefer the plugin root the host injects.
 _PLUGIN_ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT")
 if _PLUGIN_ROOT:
@@ -70,7 +75,7 @@ else:
     GATE = Path(__file__).resolve().parents[1] / "full_run_contract_check.py"
 
 ACTIVE_SCOPE_ENV = "FRC_PARENT_SCOPE"
-SCOPES = {"full_lifecycle", "adhoc_review"}
+SCOPES = set(invocation.SCOPES)
 MANUSCRIPT_DIR = "manuscript"
 TERMINAL_MARKERS = (
     "ladder complete", "terminal pass", "lifecycle complete",
@@ -150,6 +155,11 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None) -> int:
         return _allow()
     if not _is_manuscript_path(path_str):
         return _allow()  # ordinary code/config writes are out of scope
+    if scope == invocation.LAB_ITERATION:
+        return _deny(
+            "[FRC-LAB-LIFECYCLE-FORBIDDEN] lab_iteration is proposal-only and "
+            "cannot write authoritative manuscript or lifecycle paths"
+        )
     p = _path_from_input(path_str, cwd)
     root = _find_project_root(p.parent if p.parent != p else p)
     if root is None:
@@ -193,6 +203,11 @@ def _handle_stop(payload: dict) -> int:
     low = " ".join(message.casefold().split())
     if not any(marker in low for marker in TERMINAL_MARKERS):
         return _allow()
+    if scope == invocation.LAB_ITERATION:
+        return _block_stop(
+            "[FRC-LAB-TERMINAL-FORBIDDEN] lab_iteration cannot make a terminal, "
+            "shipment, convergence, or lifecycle-complete claim"
+        )
     cwd = payload.get("cwd") or os.getcwd()
     root = _find_project_root(Path(cwd)) or Path(cwd)
     rc, out = _run_gate("terminal", "--project-root", str(root))
