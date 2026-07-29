@@ -171,6 +171,32 @@ Legacy migration is discovery-first and dry-run-first. It inventories ledgers, c
 
 Migration preserves raw artifacts and archives the prior ledger with exact hashes. It must be idempotent and produce a rollback manifest. Divergent archive/live candidates never auto-merge. Missing historical feedback is recorded as `not captured under prior contract`; feedback, approvals, lineage, or completion are never fabricated. Already-crossed work receives `LEGACY_READY` only through an explicit approved migration record.
 
+### 11.1 Policy-only 1.0.0 to derived migration
+
+An existing valid `1.0.0` ledger changes to explicit derived policy only through
+`scripts/migrate_lab_iteration_derived_handoff.py` and migration ID
+`lab-iteration-derived-handoff-v1`. The operator supplies a separate immutable,
+exact-preimage authority receipt. The required sequence is `dry-run`, `apply`,
+and read-only `verify`; `rollback` restores the original ledger bytes exactly.
+There is no validator, bootstrap, or ordinary-laboratory rewrite path.
+
+The transaction may change only `/milestone_framework/contract_version` from
+`1.0.0` to `1.1.0` and add `/milestone_framework/handoff_policy: derived`.
+Historical ready/consumed F9 records, events, approvals, active milestone state,
+assignment state, artifacts, promotion surfaces, protected bytes, and final
+deliverables remain byte-identical. Dry-run and verify write nothing. Apply and
+rollback use an exclusive no-TTL claim, exact concurrent-hash rechecks, and an
+atomic ledger replacement as their last authoritative-state write.
+
+The five closed schemas are
+`schemas/milestone_handoff_policy_migration_{authority,claim,receipt,rollback_manifest,rollback_receipt}.schema.json`.
+To avoid an impossible reciprocal hash cycle, `apply.json` hash-binds the
+rollback manifest; the manifest contains only a closed project-relative locator
+back to `apply.json`. A rollback receipt independently hash-binds both current
+files. Recovery never guesses from TTL or PID reuse and requires the exact
+`inspected-migration-state-and-receipts` acknowledgement plus a proven-dead
+same-host owner and recognized ledger bytes.
+
 ## 12. Derived views
 
 Human lifecycle summaries are deterministic views of `reviews/phase_state.json` and any policy-correct F9 evidence. A lifecycle view records `generated: true`, `derived_from`, `source_sha256`, and `generated_at`; its body begins `DO NOT EDIT: generated lifecycle view` and labels declared and effective handoff policy. A `1.0.0` compatibility view explicitly reports `implicit audited`; a `1.1.0` view reports its explicit declared policy.

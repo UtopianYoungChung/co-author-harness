@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/milestone_handoff_policy_migration_rollback_manifest.schema.json",
+  "title": "Milestone handoff policy migration rollback manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "migration_id",
+    "transaction_id",
+    "project_id",
+    "ledger_path",
+    "authority_receipt",
+    "apply_receipt",
+    "preimage_bytes_base64",
+    "preimage",
+    "applied_postimage",
+    "preserved_phase_state",
+    "external_surface_inventory",
+    "created_at"
+  ],
+  "properties": {
+    "schema": {"const": "co-author-harness/milestone-handoff-policy-migration-rollback-manifest/v1"},
+    "migration_id": {"const": "lab-iteration-derived-handoff-v1"},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "ledger_path": {"const": "reviews/phase_state.json"},
+    "authority_receipt": {"$ref": "#/$defs/binding"},
+    "apply_receipt": {"$ref": "#/$defs/locator"},
+    "preimage_bytes_base64": {"type": "string", "minLength": 1, "contentEncoding": "base64"},
+    "preimage": {"$ref": "#/$defs/image"},
+    "applied_postimage": {"$ref": "#/$defs/image"},
+    "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+    "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "locator": {
+      "description": "Directed locator only: apply.json hash-binds this manifest, avoiding an impossible reciprocal hash cycle.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {"path": {"$ref": "#/$defs/safePath"}}
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes"],
+      "properties": {"sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 0}}
+    },
+    "preserved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre_sha256", "post_sha256"],
+      "properties": {"pre_sha256": {"$ref": "#/$defs/sha256"}, "post_sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "inventoryRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "excluded_paths", "file_count", "byte_count", "digest"],
+      "properties": {
+        "mode": {"const": "project-tree-raw-bytes-v1"},
+        "excluded_paths": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "reviews/phase_state.json"},
+            {"const": "reviews/.harness/migrations/lab-iteration-derived-handoff-v1/**"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "file_count": {"type": "integer", "minimum": 0},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "post"],
+      "properties": {"pre": {"$ref": "#/$defs/inventoryRecord"}, "post": {"$ref": "#/$defs/inventoryRecord"}}
+    }
+  }
+}

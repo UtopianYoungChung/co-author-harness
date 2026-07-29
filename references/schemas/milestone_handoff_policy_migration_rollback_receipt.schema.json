@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/milestone_handoff_policy_migration_rollback_receipt.schema.json",
+  "title": "Milestone handoff policy migration rollback receipt v1",
+  "oneOf": [
+    {"$ref": "#/$defs/rolledBack"},
+    {"$ref": "#/$defs/alreadyRolledBack"},
+    {"$ref": "#/$defs/refused"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes"],
+      "properties": {"sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 0}}
+    },
+    "inventoryRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "excluded_paths", "file_count", "byte_count", "digest"],
+      "properties": {
+        "mode": {"const": "project-tree-raw-bytes-v1"},
+        "excluded_paths": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "reviews/phase_state.json"},
+            {"const": "reviews/.harness/migrations/lab-iteration-derived-handoff-v1/**"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "file_count": {"type": "integer", "minimum": 0},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "post"],
+      "properties": {"pre": {"$ref": "#/$defs/inventoryRecord"}, "post": {"$ref": "#/$defs/inventoryRecord"}}
+    },
+    "stateLast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atomic_replace", "dependencies_rechecked", "concurrent_hash_rechecked"],
+      "properties": {
+        "atomic_replace": {"const": true},
+        "dependencies_rechecked": {"const": true},
+        "concurrent_hash_rechecked": {"const": true}
+      }
+    },
+    "blocker": {
+      "enum": [
+        "MHD-MIGRATION-AUTHORITY-REQUIRED",
+        "MHD-MIGRATION-AUTHORITY-INVALID",
+        "MHD-MIGRATION-PREIMAGE-MISMATCH",
+        "MHD-MIGRATION-LEDGER-INVALID",
+        "MHD-MIGRATION-ACTIVE-CLAIM",
+        "MHD-MIGRATION-IN-USE",
+        "MHD-MIGRATION-RECOVERY-ACK",
+        "MHD-MIGRATION-RECOVERY-FOREIGN",
+        "MHD-MIGRATION-RECOVERY-LIVE",
+        "MHD-MIGRATION-RECOVERY-LIVENESS",
+        "MHD-MIGRATION-RECOVERY-STATE-MISMATCH",
+        "MHD-MIGRATION-CONCURRENT-CHANGE",
+        "MHD-MIGRATION-POSTIMAGE-INVALID",
+        "MHD-MIGRATION-RECEIPT-TAMPERED",
+        "MHD-MIGRATION-VERIFY-FAILED",
+        "MHD-MIGRATION-ROLLBACK-STATE-MISMATCH",
+        "MHD-MIGRATION-ROLLBACK-RESTORE-FAILED"
+      ]
+    },
+    "blockers": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/blocker"}},
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "migration_id",
+        "transaction_id",
+        "rollback_transaction_id",
+        "operation",
+        "outcome",
+        "project_id",
+        "ledger_path",
+        "authority_receipt",
+        "apply_receipt",
+        "rollback_manifest",
+        "claim",
+        "current_applied_postimage",
+        "restored_preimage",
+        "external_surface_inventory",
+        "started_at",
+        "completed_at",
+        "state_last",
+        "blockers"
+      ],
+      "properties": {
+        "schema": {"const": "co-author-harness/milestone-handoff-policy-migration-rollback-receipt/v1"},
+        "migration_id": {"const": "lab-iteration-derived-handoff-v1"},
+        "transaction_id": {"type": "string", "minLength": 1},
+        "rollback_transaction_id": {"type": "string", "minLength": 1},
+        "operation": {"const": "rollback"},
+        "outcome": {"enum": ["ROLLED_BACK", "ALREADY_ROLLED_BACK", "REFUSED"]},
+        "project_id": {"type": "string", "minLength": 1},
+        "ledger_path": {"const": "reviews/phase_state.json"},
+        "authority_receipt": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "apply_receipt": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "rollback_manifest": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "claim": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "current_applied_postimage": {"oneOf": [{"$ref": "#/$defs/image"}, {"type": "null"}]},
+        "restored_preimage": {"oneOf": [{"$ref": "#/$defs/image"}, {"type": "null"}]},
+        "external_surface_inventory": {"oneOf": [{"$ref": "#/$defs/inventory"}, {"type": "null"}]},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "completed_at": {"$ref": "#/$defs/timestamp"},
+        "state_last": {"oneOf": [{"$ref": "#/$defs/stateLast"}, {"type": "null"}]},
+        "blockers": {"$ref": "#/$defs/blockers"}
+      }
+    },
+    "rolledBack": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "outcome": {"const": "ROLLED_BACK"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "apply_receipt": {"$ref": "#/$defs/binding"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "claim": {"$ref": "#/$defs/binding"},
+          "current_applied_postimage": {"$ref": "#/$defs/image"},
+          "restored_preimage": {"$ref": "#/$defs/image"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "state_last": {"$ref": "#/$defs/stateLast"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "alreadyRolledBack": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "outcome": {"const": "ALREADY_ROLLED_BACK"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "apply_receipt": {"$ref": "#/$defs/binding"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "claim": {"$ref": "#/$defs/binding"},
+          "current_applied_postimage": {"$ref": "#/$defs/image"},
+          "restored_preimage": {"$ref": "#/$defs/image"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "state_last": {"type": "null"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "refused": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "outcome": {"const": "REFUSED"},
+          "authority_receipt": {"type": "null"},
+          "apply_receipt": {"type": "null"},
+          "rollback_manifest": {"type": "null"},
+          "claim": {"type": "null"},
+          "current_applied_postimage": {"type": "null"},
+          "restored_preimage": {"type": "null"},
+          "external_surface_inventory": {"type": "null"},
+          "state_last": {"type": "null"},
+          "blockers": {"minItems": 1}
+        }}
+      ]
+    }
+  }
+}

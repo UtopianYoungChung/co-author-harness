@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/milestone_handoff_policy_migration_claim.schema.json",
+  "title": "Milestone handoff policy migration exclusive claim v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "claim_type",
+    "state",
+    "transaction_id",
+    "migration_id",
+    "operation",
+    "host",
+    "pid",
+    "created_at",
+    "completed_at",
+    "project_id",
+    "ledger_path",
+    "ledger_preimage_sha256",
+    "authority_receipt",
+    "recovery"
+  ],
+  "properties": {
+    "schema": {"const": "co-author-harness/milestone-handoff-policy-migration-claim/v1"},
+    "claim_type": {"const": "exclusive_no_ttl"},
+    "state": {"enum": ["active", "consumed", "recovered"]},
+    "transaction_id": {"type": "string", "minLength": 1},
+    "migration_id": {"const": "lab-iteration-derived-handoff-v1"},
+    "operation": {"enum": ["apply", "rollback"]},
+    "host": {"type": "string", "minLength": 1},
+    "pid": {"type": "integer", "minimum": 1},
+    "created_at": {"$ref": "#/$defs/timestamp"},
+    "completed_at": {"oneOf": [{"$ref": "#/$defs/timestamp"}, {"type": "null"}]},
+    "project_id": {"type": "string", "minLength": 1},
+    "ledger_path": {"const": "reviews/phase_state.json"},
+    "ledger_preimage_sha256": {"$ref": "#/$defs/sha256"},
+    "authority_receipt": {"$ref": "#/$defs/binding"},
+    "recovery": {"oneOf": [{"$ref": "#/$defs/recovery"}, {"type": "null"}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "active"}}, "required": ["state"]},
+      "then": {
+        "properties": {
+          "completed_at": {"type": "null"},
+          "recovery": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"state": {"const": "consumed"}}, "required": ["state"]},
+      "then": {
+        "properties": {
+          "completed_at": {"$ref": "#/$defs/timestamp"},
+          "recovery": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"state": {"const": "recovered"}}, "required": ["state"]},
+      "then": {
+        "properties": {
+          "completed_at": {"$ref": "#/$defs/timestamp"},
+          "recovery": {"$ref": "#/$defs/recovery"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acknowledgement", "recovered_at", "observed_ledger_sha256", "disposition"],
+      "properties": {
+        "acknowledgement": {"const": "inspected-migration-state-and-receipts"},
+        "recovered_at": {"$ref": "#/$defs/timestamp"},
+        "observed_ledger_sha256": {"$ref": "#/$defs/sha256"},
+        "disposition": {"enum": ["preimage_unchanged", "postimage_committed", "rollback_restored"]}
+      }
+    }
+  }
+}

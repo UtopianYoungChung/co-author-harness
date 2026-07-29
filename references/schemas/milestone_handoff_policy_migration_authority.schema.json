@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/milestone_handoff_policy_migration_authority.schema.json",
+  "title": "Milestone handoff policy migration authority v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "authority_receipt_id",
+    "migration_id",
+    "project_id",
+    "ledger_path",
+    "preimage",
+    "source_contract_version",
+    "source_effective_handoff_policy",
+    "target_contract_version",
+    "target_handoff_policy",
+    "authority",
+    "authorized_at",
+    "reason",
+    "nonce"
+  ],
+  "properties": {
+    "schema": {"const": "co-author-harness/milestone-handoff-policy-migration-authority/v1"},
+    "authority_receipt_id": {"type": "string", "minLength": 1},
+    "migration_id": {"const": "lab-iteration-derived-handoff-v1"},
+    "project_id": {"type": "string", "minLength": 1},
+    "ledger_path": {"const": "reviews/phase_state.json"},
+    "preimage": {"$ref": "#/$defs/image"},
+    "source_contract_version": {"const": "1.0.0"},
+    "source_effective_handoff_policy": {"const": "audited"},
+    "target_contract_version": {"const": "1.1.0"},
+    "target_handoff_policy": {"const": "derived"},
+    "authority": {"enum": ["user", "advisor", "instructor", "research_governance"]},
+    "authorized_at": {"$ref": "#/$defs/timestamp"},
+    "reason": {"type": "string", "minLength": 1},
+    "nonce": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

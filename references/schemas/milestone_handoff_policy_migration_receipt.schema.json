@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/milestone_handoff_policy_migration_receipt.schema.json",
+  "title": "Milestone handoff policy migration dry-run, apply, and verify receipt v1",
+  "oneOf": [
+    {"$ref": "#/$defs/dryRunWouldApply"},
+    {"$ref": "#/$defs/dryRunAlreadyDerived"},
+    {"$ref": "#/$defs/applyApplied"},
+    {"$ref": "#/$defs/applyAlreadyApplied"},
+    {"$ref": "#/$defs/verifyVerified"},
+    {"$ref": "#/$defs/verifyNotApplied"},
+    {"$ref": "#/$defs/refused"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*\\\\)(?!.*:).+$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "preserved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre_sha256", "post_sha256"],
+      "properties": {
+        "pre_sha256": {"$ref": "#/$defs/sha256"},
+        "post_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "inventoryRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "excluded_paths", "file_count", "byte_count", "digest"],
+      "properties": {
+        "mode": {"const": "project-tree-raw-bytes-v1"},
+        "excluded_paths": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "reviews/phase_state.json"},
+            {"const": "reviews/.harness/migrations/lab-iteration-derived-handoff-v1/**"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "file_count": {"type": "integer", "minimum": 0},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "post"],
+      "properties": {
+        "pre": {"$ref": "#/$defs/inventoryRecord"},
+        "post": {"$ref": "#/$defs/inventoryRecord"}
+      }
+    },
+    "changeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "from", "to"],
+      "properties": {
+        "path": {"const": "/milestone_framework/contract_version"},
+        "from": {"const": "1.0.0"},
+        "to": {"const": "1.1.0"}
+      }
+    },
+    "changePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "from", "to"],
+      "properties": {
+        "path": {"const": "/milestone_framework/handoff_policy"},
+        "from": {"type": "null"},
+        "to": {"const": "derived"}
+      }
+    },
+    "permittedChanges": {
+      "type": "array",
+      "prefixItems": [
+        {"$ref": "#/$defs/changeContract"},
+        {"$ref": "#/$defs/changePolicy"}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "emptyChanges": {"type": "array", "maxItems": 0},
+    "stateLast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atomic_replace", "dependencies_rechecked", "concurrent_hash_rechecked"],
+      "properties": {
+        "atomic_replace": {"const": true},
+        "dependencies_rechecked": {"const": true},
+        "concurrent_hash_rechecked": {"const": true}
+      }
+    },
+    "blocker": {
+      "enum": [
+        "MHD-MIGRATION-AUTHORITY-REQUIRED",
+        "MHD-MIGRATION-AUTHORITY-INVALID",
+        "MHD-MIGRATION-PREIMAGE-MISMATCH",
+        "MHD-MIGRATION-LEDGER-INVALID",
+        "MHD-MIGRATION-ACTIVE-CLAIM",
+        "MHD-MIGRATION-IN-USE",
+        "MHD-MIGRATION-RECOVERY-ACK",
+        "MHD-MIGRATION-RECOVERY-FOREIGN",
+        "MHD-MIGRATION-RECOVERY-LIVE",
+        "MHD-MIGRATION-RECOVERY-LIVENESS",
+        "MHD-MIGRATION-RECOVERY-STATE-MISMATCH",
+        "MHD-MIGRATION-CONCURRENT-CHANGE",
+        "MHD-MIGRATION-POSTIMAGE-INVALID",
+        "MHD-MIGRATION-RECEIPT-TAMPERED",
+        "MHD-MIGRATION-VERIFY-FAILED",
+        "MHD-MIGRATION-ROLLBACK-STATE-MISMATCH",
+        "MHD-MIGRATION-ROLLBACK-RESTORE-FAILED"
+      ]
+    },
+    "blockers": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/blocker"}},
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "migration_id",
+        "transaction_id",
+        "operation",
+        "outcome",
+        "project_id",
+        "ledger_path",
+        "authority_receipt",
+        "claim",
+        "preimage",
+        "postimage",
+        "permitted_changes",
+        "preserved_phase_state",
+        "external_surface_inventory",
+        "rollback_manifest",
+        "started_at",
+        "completed_at",
+        "state_last",
+        "blockers"
+      ],
+      "properties": {
+        "schema": {"const": "co-author-harness/milestone-handoff-policy-migration-receipt/v1"},
+        "migration_id": {"const": "lab-iteration-derived-handoff-v1"},
+        "transaction_id": {"type": "string", "minLength": 1},
+        "operation": {"enum": ["dry_run", "apply", "verify"]},
+        "outcome": {"enum": ["WOULD_APPLY", "ALREADY_DERIVED", "REFUSED", "APPLIED", "ALREADY_APPLIED", "VERIFIED", "NOT_APPLIED"]},
+        "project_id": {"type": "string", "minLength": 1},
+        "ledger_path": {"const": "reviews/phase_state.json"},
+        "authority_receipt": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "claim": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "preimage": {"oneOf": [{"$ref": "#/$defs/image"}, {"type": "null"}]},
+        "postimage": {"oneOf": [{"$ref": "#/$defs/image"}, {"type": "null"}]},
+        "permitted_changes": {"type": "array"},
+        "preserved_phase_state": {"oneOf": [{"$ref": "#/$defs/preserved"}, {"type": "null"}]},
+        "external_surface_inventory": {"oneOf": [{"$ref": "#/$defs/inventory"}, {"type": "null"}]},
+        "rollback_manifest": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "completed_at": {"$ref": "#/$defs/timestamp"},
+        "state_last": {"oneOf": [{"$ref": "#/$defs/stateLast"}, {"type": "null"}]},
+        "blockers": {"$ref": "#/$defs/blockers"}
+      }
+    },
+    "dryRunWouldApply": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "dry_run"},
+          "outcome": {"const": "WOULD_APPLY"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"type": "null"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/permittedChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"type": "null"},
+          "state_last": {"type": "null"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "dryRunAlreadyDerived": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "dry_run"},
+          "outcome": {"const": "ALREADY_DERIVED"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"type": "null"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/emptyChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"type": "null"},
+          "state_last": {"type": "null"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "applyApplied": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "apply"},
+          "outcome": {"const": "APPLIED"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"$ref": "#/$defs/binding"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/permittedChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "state_last": {"$ref": "#/$defs/stateLast"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "applyAlreadyApplied": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "apply"},
+          "outcome": {"const": "ALREADY_APPLIED"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"$ref": "#/$defs/binding"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/permittedChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "state_last": {"$ref": "#/$defs/stateLast"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "verifyVerified": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "verify"},
+          "outcome": {"const": "VERIFIED"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"type": "null"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/permittedChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "state_last": {"type": "null"},
+          "blockers": {"maxItems": 0}
+        }}
+      ]
+    },
+    "verifyNotApplied": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"const": "verify"},
+          "outcome": {"const": "NOT_APPLIED"},
+          "authority_receipt": {"$ref": "#/$defs/binding"},
+          "claim": {"type": "null"},
+          "preimage": {"$ref": "#/$defs/image"},
+          "postimage": {"$ref": "#/$defs/image"},
+          "permitted_changes": {"$ref": "#/$defs/permittedChanges"},
+          "preserved_phase_state": {"$ref": "#/$defs/preserved"},
+          "external_surface_inventory": {"$ref": "#/$defs/inventory"},
+          "rollback_manifest": {"$ref": "#/$defs/binding"},
+          "state_last": {"type": "null"},
+          "blockers": {"minItems": 1, "contains": {"const": "MHD-MIGRATION-VERIFY-FAILED"}}
+        }}
+      ]
+    },
+    "refused": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {"properties": {
+          "operation": {"enum": ["dry_run", "apply", "verify"]},
+          "outcome": {"const": "REFUSED"},
+          "authority_receipt": {"type": "null"},
+          "claim": {"type": "null"},
+          "preimage": {"type": "null"},
+          "postimage": {"type": "null"},
+          "permitted_changes": {"$ref": "#/$defs/emptyChanges"},
+          "preserved_phase_state": {"type": "null"},
+          "external_surface_inventory": {"type": "null"},
+          "rollback_manifest": {"type": "null"},
+          "state_last": {"type": "null"},
+          "blockers": {"minItems": 1}
+        }}
+      ]
+    }
+  }
+}
