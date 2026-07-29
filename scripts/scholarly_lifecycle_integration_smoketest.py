@@ -371,6 +371,12 @@ def main() -> int:
                 "--created-at",
                 "2026-07-26T00:00:00Z",
             )
+            bootstrapped_framework = state(project)["milestone_framework"]
+            if (
+                bootstrapped_framework.get("contract_version") != "1.1.0"
+                or bootstrapped_framework.get("handoff_policy") != "derived"
+            ):
+                raise AssertionError("native scholarly fixture did not retain the derived handoff default")
             write_valid_contract(project)
             old_authority, rebound_postimages = atomic_rebind(project)
             phase_after_rebind = (project / "reviews/phase_state.json").read_bytes()
@@ -737,7 +743,7 @@ def main() -> int:
                         "2026-07-26T00:04:00Z",
                     ),
                     "AMC-SCHOLARLY-EVALUATION-STALE",
-                    "F9 current-evidence replay",
+                    "acceptance current-evidence replay",
                 )
             finally:
                 resolved_fixture.evaluation.write_bytes(evaluation_bytes)
@@ -763,11 +769,25 @@ def main() -> int:
             accepted_state = state(project)["milestone_framework"]["milestones"]["M1"]
             if (
                 accepted_state.get("status") != "accepted"
-                or accepted_state.get("handoff", {}).get("status") != "ready"
+                or accepted_state.get("handoff")
+                != {
+                    "status": "not_applicable",
+                    "packet_path": None,
+                    "packet_sha256": None,
+                }
             ):
-                raise AssertionError("M1 acceptance did not publish a ready F9 handoff")
+                raise AssertionError(
+                    "derived M1 acceptance did not record the exact non-gating handoff projection"
+                )
             cases += 1
 
+            before_begin_state = state(project)["milestone_framework"]
+            before_begin_events = len(before_begin_state["events"])
+            handoff_root = project / "reviews" / ".harness" / "handoffs"
+            before_begin_packets = sorted(
+                path.relative_to(project).as_posix()
+                for path in handoff_root.glob("*.json")
+            )
             begun = public_checkpoint(
                 project,
                 "begin",
@@ -780,10 +800,26 @@ def main() -> int:
                 raise AssertionError(begun.stdout + begun.stderr)
             final_state = state(project)["milestone_framework"]["milestones"]
             if (
-                final_state["M1"]["handoff"]["status"] != "consumed"
+                final_state["M1"]["handoff"]
+                != {
+                    "status": "not_applicable",
+                    "packet_path": None,
+                    "packet_sha256": None,
+                }
                 or final_state["M2"]["status"] != "in_progress"
             ):
-                raise AssertionError("public M2 begin did not consume the exact M1 F9")
+                raise AssertionError(
+                    "public M2 begin did not preserve the derived non-gating handoff projection"
+                )
+            new_events = state(project)["milestone_framework"]["events"][before_begin_events:]
+            if any(event.get("event_type") == "handoff_consumed" for event in new_events):
+                raise AssertionError("derived M2 begin emitted a handoff-consumed event")
+            after_begin_packets = sorted(
+                path.relative_to(project).as_posix()
+                for path in handoff_root.glob("*.json")
+            )
+            if after_begin_packets != before_begin_packets:
+                raise AssertionError("derived M2 begin created or changed an F9 packet")
             cases += 1
 
     print(
