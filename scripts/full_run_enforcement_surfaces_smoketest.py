@@ -78,6 +78,7 @@ def case_current_agent_interface_and_scope_activation() -> None:
     check("observed Claude Code Task tool is matched", "Task" in tokens, matcher)
     check("Agent compatibility tool is matched", "Agent" in tokens, matcher)
     check("MultiEdit manuscript writes are matched", "MultiEdit" in tokens, matcher)
+    check("NotebookEdit writes are matched", "NotebookEdit" in tokens, matcher)
 
     hook = load_module(
         "full_run_pretooluse_gate",
