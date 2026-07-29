@@ -6,7 +6,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,6 +14,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 import evidence_publication
+import source_extract
 from c2_evidence_fixture_support import ASSET_ROOT, build_activation_fixture
 from c2_evidence_validation import validate_extract_receipt
 from evidence_publication import (
@@ -184,9 +184,12 @@ def main() -> int:
             activation.extract_receipt.read_text(encoding="utf-8")
         )
 
-        tool_value = shutil.which("pdftotext")
-        assert tool_value is not None, "C2 fixture host requires pinned pdftotext"
-        tool = Path(tool_value)
+        tool, resolution_error = source_extract.qualified_pdf_extractor()
+        assert resolution_error is None, (
+            "C2 fixture host requires pinned pdftotext: "
+            f"{resolution_error}"
+        )
+        assert tool is not None
         pinned = future_extract["extraction"]["executable"]
         assert tool.name.casefold() == pinned["name"].casefold()
         assert sha(tool) == pinned["sha256"]
@@ -426,6 +429,43 @@ def main() -> int:
         assert benign_text.read_bytes() == (
             ASSET_ROOT / "expected_pdftotext_raw.txt"
         ).read_bytes()
+
+        shadow_root = root / "shadow-tool"
+        shadow_root.mkdir()
+        shadow_tool = shadow_root / "pdftotext.exe"
+        shadow_tool.write_bytes(b"unqualified extractor shadow\n")
+        shadow_env = dict(os.environ)
+        shadow_env["PATH"] = os.pathsep.join((
+            str(shadow_root),
+            str(tool.parent),
+        ))
+        shadow_text = root / "shadow-qualified" / "extract.txt"
+        shadow_receipt = root / "shadow-qualified" / "receipt.json"
+        shadowed = run_extract(
+            ASSET_ROOT / "miniature.pdf",
+            shadow_text,
+            shadow_receipt,
+            env=shadow_env,
+        )
+        assert shadowed.returncode == 0, shadowed.stdout + shadowed.stderr
+        assert shadow_text.read_bytes() == (
+            ASSET_ROOT / "expected_pdftotext_raw.txt"
+        ).read_bytes()
+
+        only_shadow_text = root / "only-shadow" / "extract.txt"
+        only_shadow_receipt = root / "only-shadow" / "receipt.json"
+        only_shadow_before = tree_state(root / "only-shadow")
+        only_shadow_env = dict(os.environ)
+        only_shadow_env["PATH"] = str(shadow_root)
+        only_shadow = run_extract(
+            ASSET_ROOT / "miniature.pdf",
+            only_shadow_text,
+            only_shadow_receipt,
+            env=only_shadow_env,
+        )
+        assert only_shadow.returncode == 4
+        assert "EXTRACTOR-IDENTITY-MISMATCH" in only_shadow.stderr
+        assert tree_state(root / "only-shadow") == only_shadow_before
 
         attack_text = root / "unavailable" / "extract.txt"
         attack_receipt = root / "unavailable" / "receipt.json"

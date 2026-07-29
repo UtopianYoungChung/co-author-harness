@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -42,6 +43,61 @@ def _block(code: str, detail: str) -> int:
         file=sys.stderr,
     )
     return 4
+
+
+def qualified_pdf_extractor() -> tuple[Path | None, str | None]:
+    """Resolve the exact pinned extractor even when PATH contains a shadow binary."""
+    candidates: list[Path] = []
+    seen: set[str] = set()
+    for entry in os.get_exec_path():
+        path_entry = entry.strip().strip('"')
+        if not path_entry:
+            continue
+        candidate_value = shutil.which(
+            SUPPORTED_PDF_EXTRACTOR["name"], path=path_entry
+        )
+        if candidate_value is None:
+            continue
+        candidate = Path(candidate_value)
+        identity = str(candidate.resolve()).casefold()
+        if identity not in seen:
+            seen.add(identity)
+            candidates.append(candidate)
+
+    if not candidates:
+        return None, "EXTRACTOR-UNAVAILABLE"
+
+    identity_match_seen = False
+    for candidate in candidates:
+        try:
+            identity_matches = (
+                candidate.name.casefold()
+                == SUPPORTED_PDF_EXTRACTOR["name"].casefold()
+                and candidate.stat().st_size == SUPPORTED_PDF_EXTRACTOR["size"]
+                and sha(candidate) == SUPPORTED_PDF_EXTRACTOR["sha256"]
+            )
+        except OSError:
+            continue
+        if not identity_matches:
+            continue
+        identity_match_seen = True
+        try:
+            version_result = subprocess.run(
+                [str(candidate), "-v"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except OSError:
+            continue
+        version_text = version_result.stdout + version_result.stderr
+        if SUPPORTED_PDF_EXTRACTOR["version"] in version_text:
+            return candidate, None
+
+    if identity_match_seen:
+        return None, "EXTRACTOR-UNSUPPORTED"
+    return None, "EXTRACTOR-IDENTITY-MISMATCH"
 
 
 def _project_binding(
@@ -345,38 +401,37 @@ def main(argv: list[str] | None = None) -> int:
         return 4
     source = args.source.resolve(strict=True)
     if source.suffix.casefold() == ".pdf":
-        tool = shutil.which("pdftotext")
-        if tool is None:
-            return _block("EXTRACTOR-UNAVAILABLE", "pdftotext is required for PDF evidence")
-        version_result = subprocess.run(
-            [tool, "-v"],
+        tool_path, resolution_error = qualified_pdf_extractor()
+        if resolution_error == "EXTRACTOR-UNAVAILABLE":
+            return _block(
+                "EXTRACTOR-UNAVAILABLE",
+                "pdftotext is required for PDF evidence",
+            )
+        if resolution_error == "EXTRACTOR-UNSUPPORTED":
+            return _block(
+                "EXTRACTOR-UNSUPPORTED",
+                "pdftotext version is not qualified",
+            )
+        if resolution_error == "EXTRACTOR-IDENTITY-MISMATCH":
+            return _block(
+                "EXTRACTOR-IDENTITY-MISMATCH",
+                "pdftotext bytes are not qualified",
+            )
+        assert tool_path is not None
+        if args.project_root is not None:
+            return _future_pdf_extract(args, source, tool_path)
+        args.text_out.parent.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            [str(tool_path), "-enc", "UTF-8", str(source), str(args.text_out)],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
         )
-        version_text = version_result.stdout + version_result.stderr
-        if SUPPORTED_PDF_EXTRACTOR["version"] not in version_text:
-            return _block("EXTRACTOR-UNSUPPORTED", "pdftotext version is not qualified")
-        tool_path = Path(tool)
-        if (
-            tool_path.name.casefold() != SUPPORTED_PDF_EXTRACTOR["name"].casefold()
-            or tool_path.stat().st_size != SUPPORTED_PDF_EXTRACTOR["size"]
-            or sha(tool_path) != SUPPORTED_PDF_EXTRACTOR["sha256"]
-        ):
-            return _block(
-                "EXTRACTOR-IDENTITY-MISMATCH",
-                "pdftotext bytes are not qualified",
-            )
-        if args.project_root is not None:
-            return _future_pdf_extract(args, source, tool_path)
-        args.text_out.parent.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run([tool, "-enc", "UTF-8", str(source), str(args.text_out)],
-                                capture_output=True, text=True, encoding="utf-8", errors="replace")
         if result.returncode != 0 or not args.text_out.is_file():
             print(f"[BLOCKER] EXTRACTOR-FAILED: {result.stderr.strip()}", file=sys.stderr)
             return 4
-        method = "pdftotext"; tool_name = Path(tool).name
+        method = "pdftotext"; tool_name = tool_path.name
     else:
         try:
             text = source.read_text(encoding="utf-8", errors="strict")
