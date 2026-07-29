@@ -184,6 +184,75 @@ def case_scope_is_structural_not_phrasal() -> None:
           rc == 4 and "FRC-SCOPE-DOWNGRADE" in codes(p), f"rc={rc}")
 
 
+def case_three_scope_contract_matrix() -> None:
+    """C1 red boundary for the exact three-scope authority lattice."""
+    exact = {
+        "adhoc_review": "run_scope: adhoc_review\nReturn findings only.\n",
+        "lab_iteration": "run_scope: lab_iteration\nProduce a proposal in private staging only.\n",
+        "full_lifecycle": (
+            "run_scope: full_lifecycle\nRun the governed lifecycle and write its "
+            "required evidence. assignment_gate_receipt: reviews/r.json\n"
+        ),
+    }
+    for scope, brief in exact.items():
+        rc, p, _ = run(
+            "scope", "--parent-scope", scope, "--child-brief", "-", stdin=brief,
+        )
+        if scope == "lab_iteration":
+            check(
+                "exact lab child inherits lab scope with proposal-only result",
+                rc == 0
+                and p is not None
+                and p.get("status") == "PROPOSAL_ONLY"
+                and "FRC-LAB-PROPOSAL-ONLY" in codes(p),
+                f"rc={rc} payload={p}",
+            )
+        else:
+            check(f"exact {scope} child inherits its scope", rc == 0, f"rc={rc}")
+
+    transitions = (
+        ("lab_iteration", exact["adhoc_review"], "FRC-SCOPE-DOWNGRADE"),
+        ("lab_iteration", exact["full_lifecycle"], "FRC-SCOPE-ESCALATION"),
+        ("full_lifecycle", exact["lab_iteration"], "FRC-SCOPE-DOWNGRADE"),
+        ("adhoc_review", exact["lab_iteration"], "FRC-SCOPE-ESCALATION"),
+    )
+    for parent, brief, expected in transitions:
+        rc, p, _ = run(
+            "scope", "--parent-scope", parent, "--child-brief", "-", stdin=brief,
+        )
+        check(
+            f"{parent} transition emits {expected}",
+            rc == 4 and expected in codes(p),
+            f"rc={rc} payload={p}",
+        )
+
+    rc, p, _ = run(
+        "scope", "--parent-scope", "lab_iteration", "--child-brief", "-",
+        stdin="proposal_only: true\n",
+    )
+    omission = next(
+        (f for f in (p or {}).get("findings", [])
+         if f.get("code") == "FRC-SCOPE-UNDECLARED"),
+        {},
+    )
+    omission_message = str(omission.get("message", "")).casefold()
+    check(
+        "lab child omission is diagnosed as child omission, not unknown parent",
+        rc == 4 and "child" in omission_message and "run_scope" in omission_message,
+        f"rc={rc} finding={omission}",
+    )
+
+    rc, p, _ = run(
+        "scope", "--parent-scope", "lab_iteration", "--child-brief", "-",
+        stdin="run_scope: lab_iteration\nterminal_claim: shipped\n",
+    )
+    check(
+        "lab child terminal language is specifically refused",
+        rc == 4 and "FRC-LAB-TERMINAL-FORBIDDEN" in codes(p),
+        f"rc={rc} payload={p}",
+    )
+
+
 def case_intent_is_advisory_only() -> None:
     """`intent` must not be able to authorize anything."""
     rc, p, _ = run("intent", "--text", "just review this quickly, no artifacts")
@@ -456,6 +525,7 @@ def main() -> int:
     for fn in (case_full_run_intent_recognised,
                case_intent_is_advisory_only,
                case_scope_is_structural_not_phrasal,
+               case_three_scope_contract_matrix,
                case_missing_scaffold_blocks_before_prose,
                case_bootstrapped_but_no_contract_blocks,
                case_lightweight_child_blocks,

@@ -15,6 +15,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
@@ -30,8 +31,11 @@ PYTHON_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}
 
 sys.path.insert(0, str(SCRIPTS))
 import assignment_milestone_transaction as transaction  # noqa: E402
+import assignment_milestone_checkpoint_smoketest as checkpoint_fixture  # noqa: E402
 import milestone_framework_smoketest as fixture  # noqa: E402
 import render_lifecycle_state as renderer  # noqa: E402
+from assignment_fixture_support import write_valid_contract  # noqa: E402
+from milestone_path_contract import handoff_path  # noqa: E402
 from semantic_graph_fixture_support import semantic_graph_fixture_environment  # noqa: E402
 
 
@@ -239,6 +243,87 @@ def _assert_bootstrap(project: Path, policy: str, *extra: str) -> None:
         raise AssertionError("handoff policy changed milestone_framework.mode")
 
 
+def _prepare_m1_acceptance(project: Path) -> tuple[Path, Path]:
+    """Build a real recorded M1 using the public synthetic transaction walk."""
+    checkpoint_fixture.run(
+        checkpoint_fixture.BOOTSTRAP,
+        "--project-root", project,
+        "--project-name", project.name,
+        "--title", "Synthetic acceptance policy project",
+        "--intended-reader", "researcher",
+        "--created-at", "2026-07-29T16:00:00Z",
+    )
+    # The audited compatibility acceptance is deliberately prepared from exact
+    # historical 1.0.0 bytes even after new bootstraps default to 1.1.0.
+    document = _state(project)
+    document["milestone_framework"]["contract_version"] = "1.0.0"
+    document["milestone_framework"].pop("handoff_policy", None)
+    _write_json(project / "reviews" / "phase_state.json", document)
+    write_valid_contract(project)
+    consumed, draft_policy = checkpoint_fixture.publish(
+        project, "M1", b"# Synthetic M1 acceptance deliverable\n"
+    )
+    checkpoint = checkpoint_fixture.checkpoint_input(
+        project, "M1", "2026-07-29T16:00:03Z", policy=draft_policy,
+    )
+    checkpoint_fixture.run(
+        checkpoint_fixture.CHECKPOINT,
+        "record",
+        "--project-root", project,
+        "--milestone", "M1",
+        "--receipt", consumed,
+        "--checkpoint", checkpoint,
+        "--at", "2026-07-29T16:00:04Z",
+    )
+    approval = checkpoint_fixture.approval_input(
+        project, "M1", "2026-07-29T16:00:05Z"
+    )
+    return checkpoint, approval
+
+
+def _restore_project(project: Path, backup: Path, sandbox: Path) -> None:
+    project_root = project.resolve()
+    sandbox_root = sandbox.resolve()
+    if project_root.parent != sandbox_root or backup.resolve().parent != sandbox_root:
+        raise AssertionError("acceptance fixture restore escaped its temporary sandbox")
+    if project.exists():
+        shutil.rmtree(project)
+    shutil.copytree(backup, project)
+
+
+def _declare_derived(project: Path) -> None:
+    document = _state(project)
+    document["milestone_framework"]["contract_version"] = "1.1.0"
+    document["milestone_framework"]["handoff_policy"] = "derived"
+    _write_json(project / "reviews" / "phase_state.json", document)
+
+
+def _handoff_tree(project: Path) -> dict[str, tuple[int, str]]:
+    root = project / "reviews" / ".harness" / "handoffs"
+    rows: dict[str, tuple[int, str]] = {}
+    for path in sorted(root.rglob("*.json"), key=lambda item: item.as_posix()):
+        payload = path.read_bytes()
+        rows[path.relative_to(root).as_posix()] = (
+            len(payload), hashlib.sha256(payload).hexdigest()
+        )
+    return rows
+
+
+def _write_recovery_claim(project: Path, pid: int) -> Path:
+    claim = project / "reviews" / ".harness" / "milestones" / "claims" / "transaction.lock"
+    _write_json(
+        claim,
+        {
+            "schema_version": "1.0.0",
+            "pid": pid,
+            "host": platform.node(),
+            "operation": "accept:M1",
+            "started_at": "2026-07-29T16:00:06Z",
+        },
+    )
+    return claim
+
+
 def main() -> int:
     matrix = Matrix()
 
@@ -312,6 +397,176 @@ def main() -> int:
                 raise AssertionError("renderer does not label 1.0.0 implicit audited compatibility")
 
         matrix.case("renderer shows declared/effective implicit audited compatibility", render_implicit_audited)
+
+        accept_project = sandbox / "acceptance-transaction"
+        acceptance_checkpoint, acceptance_approval = _prepare_m1_acceptance(
+            accept_project
+        )
+        acceptance_backup = sandbox / "acceptance-preimage"
+        shutil.copytree(accept_project, acceptance_backup)
+
+        def audited_acceptance_is_byte_compatible() -> None:
+            _restore_project(accept_project, acceptance_backup, sandbox)
+            before = _state(accept_project)
+            before_events = len(before["milestone_framework"]["events"])
+            before_tree = _handoff_tree(accept_project)
+            transaction.accept(
+                accept_project,
+                "M1",
+                acceptance_checkpoint,
+                acceptance_approval,
+                "2026-07-29T16:00:06Z",
+            )
+            after = _state(accept_project)
+            handoff = after["milestone_framework"]["milestones"]["M1"]["handoff"]
+            if handoff.get("status") != "ready":
+                raise AssertionError("audited acceptance did not publish ready F9")
+            packet = accept_project / handoff["packet_path"]
+            packet_bytes = packet.read_bytes()
+            if hashlib.sha256(packet_bytes).hexdigest() != handoff.get("packet_sha256"):
+                raise AssertionError("audited acceptance ledger does not bind exact F9 bytes")
+            packet_record = json.loads(packet_bytes)
+            if packet_record.get("artifact_family") != "F9" or packet_record.get("from_milestone") != "M1":
+                raise AssertionError("audited acceptance changed the F9 contract shape")
+            new_types = [
+                event.get("event_type")
+                for event in after["milestone_framework"]["events"][before_events:]
+            ]
+            if new_types != ["milestone_accepted", "handoff_ready"]:
+                raise AssertionError(f"audited acceptance event order changed: {new_types}")
+            expected_relative = Path(handoff_path("M1")).relative_to(
+                "reviews/.harness/handoffs"
+            ).as_posix()
+            if before_tree or set(_handoff_tree(accept_project)) != {expected_relative}:
+                raise AssertionError("audited acceptance changed the one-packet F9 surface")
+
+        matrix.case(
+            "audited transaction.accept preserves exact ready-F9 byte/event behavior",
+            audited_acceptance_is_byte_compatible,
+        )
+
+        def derived_default_accepts_without_f9() -> None:
+            _restore_project(accept_project, acceptance_backup, sandbox)
+            _declare_derived(accept_project)
+            before = _state(accept_project)
+            before_events = len(before["milestone_framework"]["events"])
+            before_tree = _handoff_tree(accept_project)
+            transaction.accept(
+                accept_project,
+                "M1",
+                acceptance_checkpoint,
+                acceptance_approval,
+                "2026-07-29T16:00:06Z",
+            )
+            after = _state(accept_project)
+            expected = {
+                "status": "not_applicable",
+                "packet_path": None,
+                "packet_sha256": None,
+            }
+            if after["milestone_framework"]["milestones"]["M1"]["handoff"] != expected:
+                raise AssertionError("derived default acceptance did not write exact not_applicable handoff")
+            new_types = [
+                event.get("event_type")
+                for event in after["milestone_framework"]["events"][before_events:]
+            ]
+            if new_types != ["milestone_accepted"]:
+                raise AssertionError(f"derived default acceptance fabricated F9 events: {new_types}")
+            if _handoff_tree(accept_project) != before_tree:
+                raise AssertionError("derived default acceptance created F9 bytes")
+
+        matrix.case(
+            "derived transaction.accept defaults to exact not_applicable with no F9",
+            derived_default_accepts_without_f9,
+        )
+
+        def derived_emit_f9_is_exact_and_recovery_bound() -> None:
+            _restore_project(accept_project, acceptance_backup, sandbox)
+            _declare_derived(accept_project)
+            before = _state(accept_project)
+            before_events = len(before["milestone_framework"]["events"])
+            transaction.accept(
+                accept_project,
+                "M1",
+                acceptance_checkpoint,
+                acceptance_approval,
+                "2026-07-29T16:00:06Z",
+                emit_f9=True,
+            )
+            after = _state(accept_project)
+            handoff = after["milestone_framework"]["milestones"]["M1"]["handoff"]
+            if handoff.get("status") != "ready":
+                raise AssertionError("explicit derived --emit-f9 did not bind ready evidence")
+            packet = accept_project / handoff["packet_path"]
+            packet_before_recovery = packet.read_bytes()
+            if hashlib.sha256(packet_before_recovery).hexdigest() != handoff.get("packet_sha256"):
+                raise AssertionError("explicit derived F9 path/hash is not exact")
+            new_types = [
+                event.get("event_type")
+                for event in after["milestone_framework"]["events"][before_events:]
+            ]
+            if new_types != ["milestone_accepted", "handoff_ready"]:
+                raise AssertionError(f"explicit derived F9 event order is wrong: {new_types}")
+
+            claim = _write_recovery_claim(accept_project, 2147483647)
+            transaction.recover_claim(
+                accept_project, "inspected-milestone-state-and-journal"
+            )
+            if claim.exists() or packet.read_bytes() != packet_before_recovery:
+                raise AssertionError("recovery removed or changed state-bound optional F9")
+            journal = accept_project / "reviews" / ".harness" / "milestones" / "journal"
+            if list(journal.glob(f"orphan-{packet.stem}-*.json")):
+                raise AssertionError("state-bound optional F9 was misclassified as residue")
+
+        matrix.case(
+            "explicit derived emit_f9 is exact and bound evidence survives dead-owner recovery",
+            derived_emit_f9_is_exact_and_recovery_bound,
+        )
+
+        def dead_owner_archives_only_unbound_f9_residue() -> None:
+            _restore_project(accept_project, acceptance_backup, sandbox)
+            orphan = accept_project / handoff_path("M1")
+            _write_json(orphan, {"synthetic_unbound_residue": True})
+            orphan_bytes = orphan.read_bytes()
+            claim = _write_recovery_claim(accept_project, 2147483647)
+            transaction.recover_claim(
+                accept_project, "inspected-milestone-state-and-journal"
+            )
+            if claim.exists() or orphan.exists():
+                raise AssertionError("dead-owner recovery did not clear claim/unbound residue")
+            journal = accept_project / "reviews" / ".harness" / "milestones" / "journal"
+            archives = list(journal.glob(f"orphan-{orphan.stem}-*.json"))
+            if len(archives) != 1 or archives[0].read_bytes() != orphan_bytes:
+                raise AssertionError("unbound F9 residue was not archived byte-exactly")
+
+        matrix.case(
+            "dead-owner recovery archives byte-exact unbound F9 residue",
+            dead_owner_archives_only_unbound_f9_residue,
+        )
+
+        def live_owner_refuses_unbound_f9_recovery() -> None:
+            _restore_project(accept_project, acceptance_backup, sandbox)
+            orphan = accept_project / handoff_path("M1")
+            _write_json(orphan, {"synthetic_unbound_residue": True})
+            orphan_before = orphan.read_bytes()
+            claim = _write_recovery_claim(accept_project, os.getpid())
+            claim_before = claim.read_bytes()
+            try:
+                transaction.recover_claim(
+                    accept_project, "inspected-milestone-state-and-journal"
+                )
+            except transaction.MilestoneTransactionError as exc:
+                if exc.code != "AMC-RECOVERY-LIVE":
+                    raise AssertionError(f"wrong live-owner recovery code: {exc.code}") from exc
+            else:
+                raise AssertionError("live owner did not block F9-residue recovery")
+            if claim.read_bytes() != claim_before or orphan.read_bytes() != orphan_before:
+                raise AssertionError("live-owner refusal changed claim or unbound F9 bytes")
+
+        matrix.case(
+            "live owner refuses recovery and preserves claim/unbound F9 bytes",
+            live_owner_refuses_unbound_f9_recovery,
+        )
 
         def audited_begin_unchanged() -> None:
             project = _transaction_project(
@@ -388,7 +643,10 @@ def main() -> int:
                 _begin(project)
             except transaction.MilestoneTransactionError as exc:
                 if exc.code not in {"MF-HANDOFF", "MF-BINDING"}:
-                    raise AssertionError(f"tampered optional F9 refused for unrelated code {exc.code}") from exc
+                    raise AssertionError(
+                        "derived optional-F9 byte validation was not reached; "
+                        f"current refusal code is {exc.code}"
+                    ) from exc
             else:
                 raise AssertionError("tampered optional F9 was accepted")
             if state_path.read_bytes() != before:
@@ -407,7 +665,10 @@ def main() -> int:
                 _begin(project)
             except transaction.MilestoneTransactionError as exc:
                 if "approval" not in exc.message.lower():
-                    raise AssertionError(f"forged acceptance refused for unrelated reason: {exc.code} {exc.message}") from exc
+                    raise AssertionError(
+                        "derived approval guard was not reached; current refusal is "
+                        f"{exc.code} {exc.message}"
+                    ) from exc
             else:
                 raise AssertionError("derived begin admitted a predecessor without approved authority")
             if state_path.read_bytes() != before:

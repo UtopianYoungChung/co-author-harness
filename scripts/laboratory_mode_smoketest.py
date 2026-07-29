@@ -20,6 +20,7 @@ import tempfile
 from typing import Any, Callable
 
 from assignment_fixture_support import write_valid_contract
+import destination_capability as destination
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -104,6 +105,36 @@ def _expect(result: subprocess.CompletedProcess[str], exit_code: int, code: str)
     if code not in codes:
         raise AssertionError(f"expected {code}, got codes={sorted(codes)} payload={payload}")
     return payload
+
+
+def _expect_child_omission(result: subprocess.CompletedProcess[str]) -> None:
+    """Require the undeclared diagnostic to be caused by the child omission."""
+    payload = _expect(result, 4, "FRC-SCOPE-UNDECLARED")
+    messages = [
+        finding.get("message", "")
+        for finding in payload.get("findings", [])
+        if isinstance(finding, dict) and finding.get("code") == "FRC-SCOPE-UNDECLARED"
+    ]
+    if not any(
+        "child" in message.lower()
+        and ("no `run_scope:`" in message.lower() or "no run_scope" in message.lower() or "omission" in message.lower())
+        and "parent scope" not in message.lower()
+        for message in messages
+    ):
+        raise AssertionError(
+            "FRC-SCOPE-UNDECLARED did not identify the omitted child declaration: "
+            f"{messages}"
+        )
+
+
+def _expect_destination_refusal(path: Path, code: str) -> None:
+    try:
+        destination.assert_writable(path, purpose="synthetic lab output")
+    except destination.DestinationRefused as exc:
+        if exc.code != code:
+            raise AssertionError(f"expected {code}, got {exc.code}") from exc
+        return
+    raise AssertionError(f"destination unexpectedly writable: {path}")
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -313,7 +344,9 @@ def main() -> int:
         lab_case(
             "lab child omission fails closed",
             project,
-            lambda: _expect(_run("scope", "--parent-scope", "lab_iteration", "--child-brief", absent), 4, "FRC-SCOPE-UNDECLARED"),
+            lambda: _expect_child_omission(
+                _run("scope", "--parent-scope", "lab_iteration", "--child-brief", absent)
+            ),
         )
         lab_case(
             "lab brief cannot request lifecycle mutation",
@@ -410,6 +443,33 @@ def main() -> int:
                 4,
                 "DEST-UNGOVERNED",
             ),
+        )
+
+        lab_case(
+            "protected governed destination remains independently refused",
+            project,
+            lambda: _expect_destination_refusal(
+                project / "reviews" / "phase_state.json", "DEST-PROTECTED"
+            ),
+        )
+        private_shipment = (
+            project / "reviews" / ".harness" / "shipments" / "synthetic-shipment-001"
+        )
+
+        def exact_private_shipment_is_writable() -> None:
+            if destination.classify(private_shipment) != "shipment":
+                raise AssertionError(
+                    f"exact private shipment classified as {destination.classify(private_shipment)!r}"
+                )
+            if destination.assert_writable(
+                private_shipment, purpose="synthetic lab output"
+            ) != "shipment":
+                raise AssertionError("exact private shipment did not yield shipment capability")
+
+        lab_case(
+            "exact private shipment lane is a positive lab destination capability",
+            project,
+            exact_private_shipment_is_writable,
         )
 
         adhoc = _brief(sandbox, "adhoc", "run_scope: adhoc_review\n")
