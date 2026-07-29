@@ -32,6 +32,7 @@ def main() -> int:
             command.add_argument("--approval-evidence", type=Path, required=True)
             command.add_argument("--policy-evidence", type=Path)
             command.add_argument("--terminal-evidence", type=Path)
+            command.add_argument("--emit-f9", action="store_true")
         if name == "recover":
             command.add_argument("--acknowledgement", required=True)
         if name == "rebind-reader-policy":
@@ -50,6 +51,7 @@ def main() -> int:
                 args.project_root, args.milestone, args.checkpoint,
                 args.approval_evidence, args.at, args.policy_evidence,
                 args.terminal_evidence,
+                emit_f9=args.emit_f9,
             ); print(f"ACCEPTED {args.milestone}")
         elif args.command == "rebind-reader-policy":
             if args.archive_stale_request:

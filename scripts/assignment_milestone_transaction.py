@@ -34,6 +34,12 @@ from milestone_framework_validate import (
     validate_gate,
     validate_scholarly_authority_chain,
 )
+from milestone_handoff_policy import (
+    AUDITED_POLICY,
+    DERIVED_POLICY,
+    HandoffPolicyResolutionError,
+    resolve_handoff_policy,
+)
 from milestone_path_contract import handoff_path, snapshot_path
 from scholarly_evaluation_binding import (
     ScholarlyBindingError,
@@ -373,6 +379,17 @@ def _framework(state: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(framework, dict) or not isinstance(milestones, dict):
         raise MilestoneTransactionError("AMC-PHASE-STATE", "native milestone framework is missing")
     return framework
+
+
+def _effective_handoff_policy(framework: dict[str, Any]) -> str:
+    """Resolve the authoritative handoff policy without rewriting the ledger."""
+
+    try:
+        return resolve_handoff_policy(framework)["effective_policy"]
+    except HandoffPolicyResolutionError as exc:
+        raise MilestoneTransactionError(
+            exc.code, f"{exc.path}: {exc.message}"
+        ) from exc
 
 
 _ACTIVE_AUTHORITY_MODE = "direct_local"
@@ -910,13 +927,42 @@ def begin(project: Path, milestone: str, at: str | None = None) -> None:
         if (derived.get("status"), derived.get("milestone"), derived.get("action")) != ("READY", milestone, "begin"):
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived begin action")
         proposed = copy.deepcopy(state); framework = _framework(proposed)
+        handoff_policy = _effective_handoff_policy(framework)
         predecessor = PREDECESSOR[ledger_milestone]; prior = framework["milestones"][predecessor]
         target = framework["milestones"][ledger_milestone]
-        if prior.get("status") != "accepted" or prior.get("handoff", {}).get("status") != "ready":
-            raise MilestoneTransactionError("AMC-HANDOFF", f"{predecessor} must be accepted with a ready F9 handoff")
-        prior["handoff"]["status"] = "consumed"
-        binding = {"binding_type": "handoff_packet", "path": prior["handoff"]["packet_path"], "sha256": prior["handoff"]["packet_sha256"]}
-        _append_event(framework, "handoff_consumed", predecessor, at, f"Planner consumed {predecessor} F9 to begin {milestone}.", bindings=[binding])
+        if prior.get("status") != "accepted":
+            raise MilestoneTransactionError("AMC-HANDOFF", f"{predecessor} must be accepted before {milestone} can begin")
+        if prior.get("approval", {}).get("status") != "approved":
+            raise MilestoneTransactionError("AMC-HANDOFF", f"{predecessor} must retain approval authority before {milestone} can begin")
+        handoff_status = prior.get("handoff", {}).get("status")
+        if handoff_policy == AUDITED_POLICY:
+            if handoff_status != "ready":
+                raise MilestoneTransactionError("AMC-HANDOFF", f"{predecessor} must be accepted with a ready F9 handoff")
+            prior["handoff"]["status"] = "consumed"
+            binding = {"binding_type": "handoff_packet", "path": prior["handoff"]["packet_path"], "sha256": prior["handoff"]["packet_sha256"]}
+            _append_event(framework, "handoff_consumed", predecessor, at, f"Planner consumed {predecessor} F9 to begin {milestone}.", bindings=[binding])
+        elif handoff_policy == DERIVED_POLICY:
+            if handoff_status not in {"not_applicable", "ready"}:
+                raise MilestoneTransactionError(
+                    "AMC-HANDOFF",
+                    f"{predecessor} derived handoff must be not_applicable or ready evidence",
+                )
+            if handoff_status == "ready":
+                current_validation = validate_document(project, state)
+                if not current_validation.exit_permitted:
+                    first = next(
+                        (
+                            finding
+                            for finding in current_validation.findings
+                            if finding.code in {"MF-HANDOFF", "MF-BINDING"}
+                        ),
+                        current_validation.findings[0],
+                    )
+                    raise MilestoneTransactionError(
+                        first.code, f"{first.path}: {first.message}"
+                    )
+        else:  # pragma: no cover - the resolver is closed over known policies.
+            raise MilestoneTransactionError("AMC-HANDOFF", "unsupported effective handoff policy")
         target["status"] = "in_progress"
         if ledger_milestone in {"M3", "M4", "M5"}:
             target["policy_evidence"] = _stable_policy(framework)
@@ -1632,7 +1678,8 @@ def _handoff_packet(state: dict[str, Any], milestone: str, checkpoint: dict[str,
     predecessor = None
     if milestone != "M1":
         prior = framework["milestones"][MILESTONES[MILESTONES.index(milestone) - 1]]["handoff"]
-        predecessor = {"path": prior["packet_path"], "sha256": prior["packet_sha256"]}
+        if prior.get("status") in {"ready", "consumed"}:
+            predecessor = {"path": prior["packet_path"], "sha256": prior["packet_sha256"]}
     released_export = None
     inputs_consumed = list(checkpoint["inputs_consumed"])
     if milestone == "M5":
@@ -1670,7 +1717,8 @@ def accept(
     project: Path, milestone: str, checkpoint_path: Path, approval_path: Path,
     at: str | None = None, policy_path: Path | None = None,
     terminal_evidence_path: Path | None = None,
-    *, _before_state_publish: Callable[[], None] | None = None,
+    *, emit_f9: bool = False,
+    _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
     project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
@@ -1679,6 +1727,7 @@ def accept(
         raise MilestoneTransactionError("AMC-TARGET", "accept target must be M1-M4 or FINAL")
     with transaction_claim(project, f"accept:{public_milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
+        handoff_policy = _effective_handoff_policy(framework)
         derived = derive(project)
         permitted_actions = {"accept", "revise"} if milestone == "M4" else ({"close"} if milestone == "M5" else {"accept"})
         if derived.get("status") != "READY" or derived.get("milestone") != public_milestone or derived.get("action") not in permitted_actions:
@@ -1781,24 +1830,34 @@ def accept(
                 })
         target["status"] = "accepted"
         target["approval"] = {"status": "approved", "authority": approval["authority"], "evidence_path": approval_relative, "approved_at": approval["approved_at"]}
-        packet = _handoff_packet(proposed, milestone, checkpoint, approval, approval_relative)
-        if _ACTIVE_AUTHORITY_MODE == "shipment_only":
-            # Staging F9 is a proposed handoff, never an authoritative
-            # research-master handoff (HARNESS_SHIPMENT_BOUNDARY.md).
-            packet["effect_scope"] = "proposal_only"
-        packet_relative = handoff_path(LEDGER_TO_PUBLIC[milestone])
-        packet_path = project / Path(*PurePosixPath(packet_relative).parts)
-        packet_bytes = _json_bytes(packet); packet_sha = hashlib.sha256(packet_bytes).hexdigest()
-        target["handoff"] = {"status": "ready", "packet_path": packet_relative, "packet_sha256": packet_sha}
         artifact_binding = {"binding_type": "artifact", "path": artifact["path"], "sha256": artifact["sha256"]}
         approval_binding = {"binding_type": "approval", "path": approval_relative, "sha256": approval_sha}
         _append_event(proposed_framework, "milestone_accepted", milestone, at, f"Planner accepted {milestone} after explicit current-byte approval.", authority=approval["authority"], evidence_path=approval_relative, evidence_sha256=approval_sha, bindings=[artifact_binding, approval_binding])
-        handoff_binding = {"binding_type": "handoff_packet", "path": packet_relative, "sha256": packet_sha}
-        _append_event(proposed_framework, "handoff_ready", milestone, at, f"Planner finalized the accepted {milestone} F9 handoff.", authority=approval["authority"], evidence_path=approval_relative, evidence_sha256=approval_sha, bindings=[handoff_binding])
+        publish_f9 = handoff_policy == AUDITED_POLICY or emit_f9
+        packet_path: Path | None = None
+        packet_bytes: bytes | None = None
+        if publish_f9:
+            packet = _handoff_packet(proposed, milestone, checkpoint, approval, approval_relative)
+            if _ACTIVE_AUTHORITY_MODE == "shipment_only":
+                # Staging F9 is a proposed handoff, never an authoritative
+                # research-master handoff (HARNESS_SHIPMENT_BOUNDARY.md).
+                packet["effect_scope"] = "proposal_only"
+            packet_relative = handoff_path(LEDGER_TO_PUBLIC[milestone])
+            packet_path = project / Path(*PurePosixPath(packet_relative).parts)
+            packet_bytes = _json_bytes(packet); packet_sha = hashlib.sha256(packet_bytes).hexdigest()
+            target["handoff"] = {"status": "ready", "packet_path": packet_relative, "packet_sha256": packet_sha}
+            handoff_binding = {"binding_type": "handoff_packet", "path": packet_relative, "sha256": packet_sha}
+            _append_event(proposed_framework, "handoff_ready", milestone, at, f"Planner finalized the accepted {milestone} F9 handoff.", authority=approval["authority"], evidence_path=approval_relative, evidence_sha256=approval_sha, bindings=[handoff_binding])
+        else:
+            target["handoff"] = {
+                "status": "not_applicable",
+                "packet_path": None,
+                "packet_sha256": None,
+            }
         if milestone == "M5":
             proposed["terminal_phase_reached"] = True
             proposed["terminal_round_id"] = acceptance_policy["terminal_round_id"]
-        created = _exclusive_bytes(packet_path, packet_bytes)
+        created = bool(packet_path is not None and packet_bytes is not None and _exclusive_bytes(packet_path, packet_bytes))
         try:
             _validate_prospective(project, proposed)
             if milestone == "M5":
@@ -1824,7 +1883,7 @@ def accept(
             _recheck_dependencies(project, dependencies)
             _atomic_replace(state_path, proposed)
         except Exception:
-            if created:
+            if created and packet_path is not None:
                 try:
                     packet_path.unlink()
                 except OSError:

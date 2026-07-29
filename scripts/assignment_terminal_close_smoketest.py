@@ -78,7 +78,7 @@ def prepare_public_m1_m4(project: Path) -> None:
     run(
         BOOTSTRAP, "--project-root", project, "--project-name", "terminal-walk",
         "--title", "Synthetic Terminal Walk", "--intended-reader", "researcher",
-        "--created-at", "2026-07-19T00:00:00Z",
+        "--created-at", "2026-07-19T00:00:00Z", "--handoff-policy", "audited",
     )
     write_valid_contract(project)
     ticks = iter(range(1, 40))

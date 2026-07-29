@@ -419,7 +419,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(
             prefix="assignment-milestone-checkpoint-", dir=ROOT) as raw:
         project = Path(raw) / "walk"
-        run(BOOTSTRAP, "--project-root", project, "--project-name", "walk", "--title", "Synthetic Walk", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z")
+        run(BOOTSTRAP, "--project-root", project, "--project-name", "walk", "--title", "Synthetic Walk", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z", "--handoff-policy", "audited")
         write_valid_contract(project)
 
         # No state or F9 handoff is edited by this test: every lifecycle change

@@ -33,6 +33,7 @@ from reader_accessibility_policy import (
     validate_check8_evidence,
 )
 from milestone_handoff_policy import (
+    DERIVED_POLICY,
     HandoffPolicyResolutionError,
     resolve_handoff_policy,
 )
@@ -179,18 +180,33 @@ def _gate_boundary_findings(
     milestones = framework.get("milestones") if isinstance(framework, dict) else None
     if not isinstance(milestones, dict):
         return []
+    try:
+        effective_policy = resolve_handoff_policy(framework)["effective_policy"]
+    except HandoffPolicyResolutionError:
+        effective_policy = None
+    derived_handoff_statuses = {"not_applicable", "ready", "consumed"}
 
     findings: list[Finding] = []
     if boundary == "ph1_to_ph2":
+        permitted = (
+            derived_handoff_statuses
+            if effective_policy == DERIVED_POLICY
+            else {"consumed"}
+        )
         for milestone in _GATE_TARGETS[boundary]:
             record = milestones.get(milestone)
             if not isinstance(record, dict) or record.get("applicability") == "not_applicable":
                 continue
             handoff = record.get("handoff")
-            if not isinstance(handoff, dict) or handoff.get("status") != "consumed":
+            if not isinstance(handoff, dict) or handoff.get("status") not in permitted:
                 findings.append(_finding(
                     "MF-GATE-CHAIN", f"milestone_framework.milestones.{milestone}.handoff",
-                    "Ph1 to Ph2 requires each applicable M1-M3 predecessor packet to be consumed",
+                    (
+                        "Ph1 to Ph2 requires accepted current M1-M3 authority; "
+                        "derived handoffs may be not_applicable or retained exact evidence"
+                        if effective_policy == DERIVED_POLICY
+                        else "Ph1 to Ph2 requires each applicable M1-M3 predecessor packet to be consumed"
+                    ),
                 ))
     elif boundary == "ph4_admission":
         record = milestones.get("M4")
@@ -202,11 +218,19 @@ def _gate_boundary_findings(
             or not isinstance(approval, dict)
             or approval.get("status") != "approved"
             or not isinstance(handoff, dict)
-            or handoff.get("status") not in {"ready", "consumed"}
+            or handoff.get("status") not in (
+                derived_handoff_statuses
+                if effective_policy == DERIVED_POLICY
+                else {"ready", "consumed"}
+            )
         ):
             findings.append(_finding(
                 "MF-GATE-M4", "milestone_framework.milestones.M4",
-                "Ph4 admission requires accepted M4 and a ready or transaction-consumed F9 handoff",
+                (
+                    "Ph4 admission requires accepted M4 authority under the derived handoff policy"
+                    if effective_policy == DERIVED_POLICY
+                    else "Ph4 admission requires accepted M4 and a ready or transaction-consumed F9 handoff"
+                ),
             ))
         if not (project_root / "reviews" / "ph3_convergence_signoff.md").is_file():
             findings.append(_finding(
@@ -224,11 +248,19 @@ def _gate_boundary_findings(
             or not isinstance(approval, dict)
             or approval.get("status") != "approved"
             or not isinstance(handoff, dict)
-            or handoff.get("status") not in {"ready", "consumed"}
+            or handoff.get("status") not in (
+                derived_handoff_statuses
+                if effective_policy == DERIVED_POLICY
+                else {"ready", "consumed"}
+            )
         ):
             findings.append(_finding(
                 "MF-GATE-M5", "milestone_framework.milestones.M5",
-                "terminal close requires current-hash M5 approval, a ready F9 handoff, and no stale dependency",
+                (
+                    "terminal close requires current-hash M5 approval under the derived handoff policy and no stale dependency"
+                    if effective_policy == DERIVED_POLICY
+                    else "terminal close requires current-hash M5 approval, a ready F9 handoff, and no stale dependency"
+                ),
             ))
         for upstream in ("M1", "M2", "M3", "M4"):
             upstream_record = milestones.get(upstream)
@@ -340,6 +372,15 @@ def _milestone_target_findings(
         return []
     approval = target_record.get("approval") if isinstance(target_record, dict) else None
     handoff = target_record.get("handoff") if isinstance(target_record, dict) else None
+    try:
+        effective_policy = resolve_handoff_policy(ledger)["effective_policy"]
+    except HandoffPolicyResolutionError:
+        effective_policy = None
+    permitted_handoff_statuses = (
+        {"not_applicable", "ready", "consumed"}
+        if effective_policy == DERIVED_POLICY
+        else {"ready", "consumed"}
+    )
     if (
         isinstance(target_record, dict)
         and target_record.get("status") == "accepted"
@@ -347,13 +388,13 @@ def _milestone_target_findings(
         and isinstance(approval, dict)
         and approval.get("status") == "approved"
         and isinstance(handoff, dict)
-        and handoff.get("status") in {"ready", "consumed"}
+        and handoff.get("status") in permitted_handoff_statuses
     ):
         return []
     return [_finding(
         "MF-HANDOFF", f"milestone_framework.milestones.{target}",
         f"{target} readiness requires accepted status, current dependency, "
-        "approved evidence, and a ready or consumed F9 handoff; legacy coverage "
+        "approved evidence, and the effective-policy handoff state; legacy coverage "
         f"ends at {completed_through or 'none'}",
     )]
 
@@ -2475,8 +2516,9 @@ def validate_document(
     findings.extend(_schema_findings(ledger, milestone_schema, "milestone_framework"))
     if not isinstance(ledger, dict):
         return _result(target, None, findings, evidence)
+    handoff_policy: str | None = None
     try:
-        resolve_handoff_policy(ledger)
+        handoff_policy = resolve_handoff_policy(ledger)["effective_policy"]
     except HandoffPolicyResolutionError as error:
         findings.append(_finding(error.code, error.path, error.message))
     milestones = ledger.get("milestones")
@@ -2549,17 +2591,32 @@ def validate_document(
             previous = milestones.get(MILESTONES[index - 1], {})
             previous_approval = previous.get("approval") if isinstance(previous, dict) else None
             previous_handoff = previous.get("handoff") if isinstance(previous, dict) else None
-            current_chain_ready = (
+            approval_ready = (
                 isinstance(previous_approval, dict)
                 and previous_approval.get("status") == "approved"
-                and isinstance(previous_handoff, dict)
-                and previous_handoff.get("status") == "consumed"
             )
+            if handoff_policy == DERIVED_POLICY:
+                current_chain_ready = (
+                    approval_ready
+                    and isinstance(previous_handoff, dict)
+                    and previous_handoff.get("status") in {"not_applicable", "ready"}
+                )
+            else:
+                current_chain_ready = (
+                    approval_ready
+                    and isinstance(previous_handoff, dict)
+                    and previous_handoff.get("status") == "consumed"
+                )
             historically_ready = _historically_authorized_successor_start(
                 ledger, MILESTONES[index - 1], milestone,
             )
             if not current_chain_ready and not historically_ready:
-                findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}", "successor work started before predecessor approval and consumed handoff"))
+                requirement = (
+                    "predecessor approval and derived handoff state"
+                    if handoff_policy == DERIVED_POLICY
+                    else "predecessor approval and consumed handoff"
+                )
+                findings.append(_finding("MF-HANDOFF", f"milestone_framework.milestones.{milestone}", f"successor work started before {requirement}"))
 
     _validate_reader_accessibility_policy(
         project_root, ledger, milestones, deliverables, findings, evidence, skipped_checks,
