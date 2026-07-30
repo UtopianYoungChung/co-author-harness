@@ -8,6 +8,7 @@ Callers receive only the stable diagnostics frozen by the v0.42 C0 contract.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import unicodedata
@@ -21,6 +22,7 @@ from jsonschema import Draft202012Validator
 _DRIVE = re.compile(r"^[A-Za-z]:")
 _DEVICE_PREFIXES = ("//?/", "//./")
 _CLOSURE_STATES = frozenset({"emitted", "not_applicable", "suppressed"})
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 _DIAGNOSTIC_ORDER = (
     "CONTRACT-HASH-STALE",
@@ -46,7 +48,10 @@ def _add(diagnostics: set[str], code: str) -> None:
 
 def _ordered(diagnostics: Iterable[str]) -> list[str]:
     order = {code: index for index, code in enumerate(_DIAGNOSTIC_ORDER)}
-    return sorted(set(diagnostics), key=lambda code: (order.get(code, len(order)), code))
+    return sorted(
+        {code for code in diagnostics if code in order},
+        key=lambda code: order[code],
+    )
 
 
 def load_contract(contract_path: str | Path) -> dict[str, Any]:
@@ -55,6 +60,69 @@ def load_contract(contract_path: str | Path) -> dict[str, Any]:
     if not isinstance(document, dict):
         raise ValueError("role/output contract must be a JSON object")
     return document
+
+
+def normalized_file_sha256(path: str | Path) -> str:
+    """Hash exact bytes after the repository's governed CRLF-to-LF transform."""
+    payload = Path(path).read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _nfc(value: Any) -> Any:
+    """Recursively normalize every JSON string, including object keys."""
+    if isinstance(value, str):
+        return unicodedata.normalize("NFC", value)
+    if isinstance(value, list):
+        return [_nfc(item) for item in value]
+    if isinstance(value, tuple):
+        return [_nfc(item) for item in value]
+    if isinstance(value, Mapping):
+        normalized: dict[Any, Any] = {}
+        for key, item in value.items():
+            normalized_key = _nfc(key)
+            if normalized_key in normalized:
+                raise ValueError("Unicode normalization creates a duplicate JSON key")
+            normalized[normalized_key] = _nfc(item)
+        return normalized
+    return value
+
+
+def compute_occurrence_id(
+    *,
+    contract_id: str,
+    contract_version: str,
+    contract_sha256: str,
+    work_id: str,
+    invocation_scope: str,
+    class_id: str,
+    trigger_id: str,
+    context: Mapping[str, Any],
+    ordinal: int,
+    triggering_evidence_sha256: str,
+) -> str:
+    """Compute the C0-frozen typed-output occurrence identity."""
+    identity = {
+        "contract_id": contract_id,
+        "contract_version": contract_version,
+        "contract_sha256": contract_sha256,
+        "work_id": work_id,
+        "invocation_scope": invocation_scope,
+        "class_id": class_id,
+        "trigger_id": trigger_id,
+        "context": context,
+        "ordinal": ordinal,
+        "triggering_evidence_sha256": triggering_evidence_sha256,
+    }
+    canonical = (
+        json.dumps(
+            _nfc(identity),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _json_pointer(parts: Iterable[object]) -> str:
@@ -173,7 +241,16 @@ def validate_output_transaction(
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
         return ["CONTRACT-HASH-STALE"]
 
-    diagnostics.update(contract_schema_validation_errors(contract_path))
+    if contract_schema_validation_errors(contract_path):
+        _add(diagnostics, "CONTRACT-HASH-STALE")
+
+    try:
+        exact_contract_sha256 = normalized_file_sha256(contract_path)
+    except OSError:
+        exact_contract_sha256 = None
+    contract_sha256 = document.get("contract_sha256")
+    if exact_contract_sha256 is None or contract_sha256 != exact_contract_sha256:
+        _add(diagnostics, "CONTRACT-HASH-STALE")
 
     if (
         document.get("contract_id") != contract.get("contract_id")
@@ -212,6 +289,13 @@ def validate_output_transaction(
             closure_rows[row.get("occurrence_id")].append(row)
 
     scope = document.get("invocation_scope")
+    work_id = document.get("work_id")
+    if (
+        not isinstance(work_id, str)
+        or not work_id
+        or scope not in contract.get("invocation_scopes", ())
+    ):
+        _add(diagnostics, "CONTEXT-SCOPE-MISMATCH")
     seen_paths: dict[str, str] = {}
     class_counts: Counter[tuple[str, str | None]] = Counter()
     class_ordinals: dict[tuple[str, str | None], list[int]] = defaultdict(list)
@@ -252,6 +336,50 @@ def validate_output_transaction(
             ordinal = occurrence.get("ordinal")
             if isinstance(ordinal, int) and not isinstance(ordinal, bool):
                 class_ordinals[count_key].append(ordinal)
+
+        evidence_sha256 = occurrence.get("triggering_evidence_sha256")
+        context = occurrence.get("context", document.get("context"))
+        ordinal = occurrence.get("ordinal")
+        identity_fields_valid = (
+            isinstance(occurrence_id, str)
+            and bool(_SHA256.fullmatch(occurrence_id))
+            and isinstance(class_id, str)
+            and bool(class_id)
+            and isinstance(occurrence.get("trigger_id"), str)
+            and bool(occurrence.get("trigger_id"))
+            and isinstance(context, Mapping)
+            and isinstance(ordinal, int)
+            and not isinstance(ordinal, bool)
+            and ordinal >= 1
+            and isinstance(evidence_sha256, str)
+            and bool(_SHA256.fullmatch(evidence_sha256))
+            and isinstance(work_id, str)
+            and bool(work_id)
+            and isinstance(scope, str)
+            and bool(scope)
+            and isinstance(contract_sha256, str)
+            and bool(_SHA256.fullmatch(contract_sha256))
+        )
+        if identity_fields_valid:
+            try:
+                expected_occurrence_id = compute_occurrence_id(
+                    contract_id=str(document.get("contract_id")),
+                    contract_version=str(document.get("contract_version")),
+                    contract_sha256=contract_sha256,
+                    work_id=work_id,
+                    invocation_scope=scope,
+                    class_id=class_id,
+                    trigger_id=occurrence["trigger_id"],
+                    context=context,
+                    ordinal=ordinal,
+                    triggering_evidence_sha256=evidence_sha256,
+                )
+            except (TypeError, ValueError):
+                expected_occurrence_id = None
+            if occurrence_id != expected_occurrence_id:
+                _add(diagnostics, "OCCURRENCE-STATE-CONTRADICTORY")
+        else:
+            _add(diagnostics, "OCCURRENCE-STATE-CONTRADICTORY")
 
         matching_closures = closure_rows.get(occurrence_id, [])
         if not matching_closures:
@@ -328,9 +456,11 @@ def validate_output_transaction(
 
 
 __all__ = [
+    "compute_occurrence_id",
     "contract_schema_validation_errors",
     "load_contract",
     "normalize_windows_relative_path",
+    "normalized_file_sha256",
     "resolve_output_class",
     "validate_output_transaction",
 ]

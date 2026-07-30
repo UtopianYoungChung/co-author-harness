@@ -37,7 +37,7 @@
   },
   "occurrence_identity": {
     "algorithm": "sha256",
-    "canonicalization": "compact-key-sorted-utf8-json",
+    "canonicalization": "compact-key-sorted-utf8-json+nfc+terminal-lf",
     "fields": [
       "contract_id",
       "contract_version",

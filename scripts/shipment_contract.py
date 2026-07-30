@@ -18,7 +18,11 @@ from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
 
-from output_contract import normalize_windows_relative_path, validate_output_transaction
+from output_contract import (
+    normalize_windows_relative_path,
+    normalized_file_sha256,
+    validate_output_transaction,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +76,10 @@ _DIAGNOSTIC_ORDER = (
 
 def _ordered(diagnostics: Iterable[str]) -> list[str]:
     order = {code: index for index, code in enumerate(_DIAGNOSTIC_ORDER)}
-    return sorted(set(diagnostics), key=lambda code: (order.get(code, len(order)), code))
+    return sorted(
+        {code for code in diagnostics if code in order},
+        key=lambda code: order[code],
+    )
 
 
 def _sha256_file(path: Path) -> str:
@@ -81,10 +88,6 @@ def _sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
-
-
-def _sha256_bytes(payload: bytes) -> str:
-    return hashlib.sha256(payload).hexdigest()
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -189,20 +192,19 @@ def _validate_contract_identity(document: Mapping[str, Any], diagnostics: set[st
         diagnostics.add("CONTRACT-HASH-STALE")
         return
     try:
-        output_bytes = OUTPUT_CONTRACT_PATH.read_bytes()
-        output_document = json.loads(output_bytes.decode("utf-8"))
+        output_document = json.loads(OUTPUT_CONTRACT_PATH.read_text(encoding="utf-8"))
         if (
             binding.get("output_contract_id") != output_document.get("contract_id")
             or binding.get("output_contract_version") != output_document.get("schema_version")
-            or binding.get("output_contract_sha256") != _sha256_bytes(output_bytes)
+            or binding.get("output_contract_sha256")
+            != normalized_file_sha256(OUTPUT_CONTRACT_PATH)
         ):
             diagnostics.add("CONTRACT-HASH-STALE")
-        kernel_bytes = KERNEL_PATH.read_bytes()
-        kernel = json.loads(kernel_bytes.decode("utf-8"))
+        kernel = json.loads(KERNEL_PATH.read_text(encoding="utf-8"))
         kernel_version = kernel.get("schema_version", kernel.get("version"))
         if (
             binding.get("kernel_version") != kernel_version
-            or binding.get("kernel_sha256") != _sha256_bytes(kernel_bytes)
+            or binding.get("kernel_sha256") != normalized_file_sha256(KERNEL_PATH)
         ):
             diagnostics.add("CONTRACT-HASH-STALE")
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError):
@@ -410,6 +412,10 @@ def validate_manifest(
             "contract_version": document.get("contract", {}).get("output_contract_version")
             if isinstance(document.get("contract"), Mapping)
             else None,
+            "contract_sha256": document.get("contract", {}).get("output_contract_sha256")
+            if isinstance(document.get("contract"), Mapping)
+            else None,
+            "work_id": document.get("work_id"),
             "invocation_scope": document.get("invocation_scope"),
             "context": document.get("context"),
             "trigger_occurrences": document.get("trigger_occurrences", []),
@@ -424,10 +430,10 @@ def validate_manifest(
     else:
         diagnostics.add("OCCURRENCE-STATE-CONTRADICTORY")
 
-    # Execute the canonical schema on every v2 document.  Mapped semantic
-    # checks above return C0-frozen codes; unmapped details remain available
-    # through schema_validation_errors() until Root assigns a generic code.
-    diagnostics.update(schema_validation_errors(document))
+    # Execute the canonical schema on every v2 document.  Raw details stay in
+    # schema_validation_errors(); the public validator returns only C0 codes.
+    if schema_validation_errors(document):
+        diagnostics.add("OCCURRENCE-STATE-CONTRADICTORY")
     return _ordered(diagnostics)
 
 

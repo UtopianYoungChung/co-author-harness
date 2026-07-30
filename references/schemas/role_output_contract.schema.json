@@ -16,7 +16,16 @@
     "context_kinds": {"const": ["round", "milestone", "package"]},
     "suppression_reasons": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "path_rules": {"type": "object", "required": ["separator", "unicode_normalization", "comparison", "require_lexical_and_resolved_containment", "reject_absolute_drive_unc_device_traversal", "reject_links_junctions_reparse_points"]},
-    "occurrence_identity": {"type": "object", "required": ["algorithm", "canonicalization", "fields"]},
+    "occurrence_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "canonicalization", "fields"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "canonicalization": {"const": "compact-key-sorted-utf8-json+nfc+terminal-lf"},
+        "fields": {"const": ["contract_id", "contract_version", "contract_sha256", "work_id", "invocation_scope", "class_id", "trigger_id", "context", "ordinal", "triggering_evidence_sha256"]}
+      }
+    },
     "common_generator_outputs": {"type": "array"},
     "fixed_roles": {"type": "object", "minProperties": 6, "additionalProperties": {"$ref": "#/$defs/fixedRole"}},
     "triggered_output_classes": {"type": "object", "minProperties": 9, "maxProperties": 9, "additionalProperties": {"$ref": "#/$defs/triggeredClass"}},
