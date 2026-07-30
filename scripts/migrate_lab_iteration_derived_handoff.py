@@ -190,7 +190,7 @@ def _read_object(path: Path, code: str, label: str) -> tuple[dict[str, Any], byt
     _plain_file(path, code, label)
     payload = path.read_bytes()
     try:
-        value = json.loads(payload.decode("utf-8"))
+        value = json.loads(payload.decode("utf-8", errors="strict"))
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise MigrationError(code, f"{label} is not valid UTF-8 JSON: {exc}") from exc
     if not isinstance(value, dict):
@@ -808,7 +808,7 @@ def _validate_apply_evidence_graph(
         raise MigrationError(code, "rollback manifest does not reproduce apply identity, authority, and time")
     try:
         pre_bytes = base64.b64decode(manifest.get("preimage_bytes_base64", ""), validate=True)
-        pre_document = json.loads(pre_bytes.decode("utf-8"))
+        pre_document = json.loads(pre_bytes.decode("utf-8", errors="strict"))
     except (ValueError, UnicodeError, json.JSONDecodeError) as exc:
         raise MigrationError(code, f"rollback preimage is invalid: {exc}") from exc
     if not isinstance(pre_document, dict) or manifest.get("preimage") != _image(pre_bytes):
@@ -939,7 +939,7 @@ def verify_migration(
         )
     else:
         try:
-            current_document = json.loads(current_bytes.decode("utf-8"))
+            current_document = json.loads(current_bytes.decode("utf-8", errors="strict"))
             current_preserved = _preserved_hash(current_document) if isinstance(current_document, dict) else "0" * 64
         except (UnicodeError, json.JSONDecodeError, MigrationError):
             current_preserved = "0" * 64

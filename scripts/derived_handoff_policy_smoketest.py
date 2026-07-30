@@ -253,6 +253,8 @@ def _assert_bootstrap_help_discloses_policy() -> None:
         cwd=ROOT,
         env=PYTHON_ENV,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )
@@ -468,7 +470,7 @@ def main() -> int:
             project.mkdir()
             ledger = fixture._materialize_native_project(project, include_scholarly=True)
             _write_json(project / "reviews" / "phase_state.json", fixture._phase_document(ledger))
-            text = renderer.render_bytes(project, "2026-07-29T15:00:00Z").decode("utf-8")
+            text = renderer.render_bytes(project, "2026-07-29T15:00:00Z").decode("utf-8", errors="strict")
             required = (
                 "Declared handoff policy: `implicit`",
                 "Effective handoff policy: `audited`",
