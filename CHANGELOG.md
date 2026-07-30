@@ -6,6 +6,40 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.41.0 — 2026-07-30
+
+### Laboratory iteration and derived milestone handoff
+
+**Invocation authority.** Added an exact three-scope invocation contract:
+`adhoc_review`, `lab_iteration`, and `full_lifecycle`. Laboratory iteration is
+transient, private, proposal-only work in a governed staging or shipment lane;
+it cannot write lifecycle state, exercise F9 authority, publish a final
+deliverable, or claim terminal completion. Ad hoc review remains read-only,
+while full lifecycle retains the existing project, assignment, user-gate, and
+terminal-proof obligations.
+
+**Derived handoff policy.** Milestone framework 1.1.0 separates native/legacy
+mode from explicit `derived|audited` handoff policy. Valid 1.0.0 ledgers resolve
+mechanically to implicit audited behavior without byte rewrites. New native
+projects default explicitly to derived handoff; audited remains available.
+Derived acceptance authorizes the next milestone from accepted current state
+without requiring F9, while an explicitly requested optional F9 remains exact,
+non-gating, and non-consumed evidence.
+
+**Receipted migration and recovery.** Added the explicit
+`lab-iteration-derived-handoff-v1` migration with hash-bound claim, receipt,
+journal, verification, rollback, destination protection, concurrent-claim
+refusal, tamper detection, and interrupted-transaction recovery. Existing
+projects do not acquire derived policy through validation or inference; only
+the explicit migration may change their bytes.
+
+**Qualification boundary.** Synthetic source qualification covers legacy and
+native compatibility, laboratory non-effects, derived and audited transaction
+paths, optional-F9 preservation, migration recovery, protected destinations,
+and global orchestration routes. Package clearance, repository shipment,
+installed-cache observation, dissemination, and live host qualification remain
+separate later decisions and are not implied by this history entry.
+
 ## v0.40.0 — 2026-07-28
 
 ### Scholarly assurance closure and reader-policy decoupling

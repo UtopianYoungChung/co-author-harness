@@ -3,7 +3,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.143,
+   "duration_s": 0.101,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -15,7 +15,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 10.656,
+   "duration_s": 8.124,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -27,7 +27,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 1.789,
+   "duration_s": 1.251,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -39,7 +39,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 41.257,
+   "duration_s": 28.705,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -51,7 +51,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 4.121,
+   "duration_s": 3.032,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -63,7 +63,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 333.111,
+   "duration_s": 245.434,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -75,7 +75,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 5.76,
+   "duration_s": 3.975,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -87,7 +87,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 6.685,
+   "duration_s": 4.966,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -99,7 +99,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 28.32,
+   "duration_s": 19.479,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -111,7 +111,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 372.601,
+   "duration_s": 264.351,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -123,7 +123,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.663,
+   "duration_s": 0.508,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -135,7 +135,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.422,
+   "duration_s": 0.325,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -147,7 +147,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 140.112,
+   "duration_s": 101.104,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -159,7 +159,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 21.656,
+   "duration_s": 15.609,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -171,7 +171,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.963,
+   "duration_s": 0.803,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -183,7 +183,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 2.325,
+   "duration_s": 1.746,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -195,7 +195,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.29,
+   "duration_s": 0.199,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -207,7 +207,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.075,
+   "duration_s": 0.053,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -219,7 +219,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.64,
+   "duration_s": 0.528,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -231,7 +231,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 6.594,
+   "duration_s": 4.811,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -243,7 +243,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.472,
+   "duration_s": 0.378,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -255,7 +255,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 1.071,
+   "duration_s": 0.766,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -267,7 +267,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 96.463,
+   "duration_s": 68.733,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -279,7 +279,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 4.398,
+   "duration_s": 3.315,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -291,7 +291,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 4.122,
+   "duration_s": 2.936,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -303,7 +303,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 8.331,
+   "duration_s": 5.913,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -315,7 +315,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 6.856,
+   "duration_s": 5.053,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -327,7 +327,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 24.987,
+   "duration_s": 19.524,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -339,7 +339,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 1.73,
+   "duration_s": 1.389,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -351,7 +351,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.155,
+   "duration_s": 0.1,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -363,7 +363,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 155.415,
+   "duration_s": 109.605,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -375,7 +375,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 2.575,
+   "duration_s": 1.917,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -387,7 +387,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 535.895,
+   "duration_s": 373.334,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -399,7 +399,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.699,
+   "duration_s": 0.468,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -411,7 +411,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 2.021,
+   "duration_s": 1.26,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -423,7 +423,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 10.043,
+   "duration_s": 6.671,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -435,7 +435,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.202,
+   "duration_s": 0.107,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -447,7 +447,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 10.973,
+   "duration_s": 7.215,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -459,7 +459,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.394,
+   "duration_s": 0.285,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -471,7 +471,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.154,
+   "duration_s": 0.107,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -483,7 +483,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 968.992,
+   "duration_s": 682.773,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -495,7 +495,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 5.755,
+   "duration_s": 4.449,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -507,7 +507,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 13.193,
+   "duration_s": 9.195,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -519,7 +519,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.367,
+   "duration_s": 0.222,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -531,7 +531,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "schema-real",
-   "duration_s": 347.735,
+   "duration_s": 249.706,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -543,7 +543,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "exemplar-claims",
-   "duration_s": 350.457,
+   "duration_s": 247.109,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -555,7 +555,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "exemplar-evidence",
-   "duration_s": 536.413,
+   "duration_s": 382.945,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -567,7 +567,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "path",
-   "duration_s": 33.377,
+   "duration_s": 24.371,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -579,7 +579,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "integration-sk20",
-   "duration_s": 40.482,
+   "duration_s": 31.079,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -591,7 +591,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.112,
+   "duration_s": 0.096,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -603,7 +603,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 2.843,
+   "duration_s": 2.276,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -615,7 +615,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 2.693,
+   "duration_s": 2.079,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -627,7 +627,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 5.903,
+   "duration_s": 4.628,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -639,7 +639,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.25,
+   "duration_s": 0.203,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -651,7 +651,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.288,
+   "duration_s": 0.242,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -663,7 +663,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.403,
+   "duration_s": 0.306,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -675,7 +675,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.315,
+   "duration_s": 0.264,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -687,7 +687,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.371,
+   "duration_s": 0.306,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -699,12 +699,372 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 751.111,
+   "duration_s": 550.395,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
    "fixture_file": "scripts/pre_phase_advance_phase_state_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 1.466,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/product_assurance_detector_evaluation_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 24.609,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/product_assurance_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 301.682,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/protocol_conformance_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 1.749,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 13.114,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 4.15,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.638,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reader_profile_v2_global_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 7.804,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/receipt_compaction_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.311,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/reflector_split_parity_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.3,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/release_evidence_index_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.147,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/release_source_parity_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 68.032,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 1.463,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 21.955,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/repin_register_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.055,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/retirement_sweep_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.056,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/routing_role_coherence_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 24.51,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/run_product_gate_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 20.398,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/runtime_plane_probe_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.683,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/schema_runtime_plane_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.156,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/scholarly_authority_chain_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 23.003,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/scholarly_claim_register_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.188,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/scholarly_evaluation_binding_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 571.911,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/scholarly_evaluation_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 56.227,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/scholarly_lifecycle_integration_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.051,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.319,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/shipment_manifest_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 6.418,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/source_extract_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 371.777,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/staging_authority_mode_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 1.322,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
+   "observed_exit": 0,
+   "outcome_contract": "EXIT-ONLY"
+  },
+  {
+   "cached_source_run_id": null,
+   "case_id": "default",
+   "duration_s": 0.156,
+   "execution_source": "EXEC",
+   "expected_code": null,
+   "expected_exit": 0,
+   "expected_outcome": null,
+   "fixture_file": "scripts/tests/test_resolve_includes.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
   },
@@ -716,366 +1076,6 @@
    "expected_code": null,
    "expected_exit": 0,
    "expected_outcome": null,
-   "fixture_file": "scripts/product_assurance_detector_evaluation_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 33.548,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/product_assurance_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 426.689,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/protocol_conformance_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 2.343,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 18.253,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 5.761,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.904,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reader_profile_v2_global_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 10.872,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/receipt_compaction_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.459,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/reflector_split_parity_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.374,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/release_evidence_index_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.187,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/release_source_parity_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 94.049,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 1.958,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 30.61,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/repin_register_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.075,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/retirement_sweep_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.078,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/routing_role_coherence_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 36.772,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/run_product_gate_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 30.463,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/runtime_plane_probe_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.919,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/schema_runtime_plane_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.198,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/scholarly_authority_chain_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 32.505,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/scholarly_claim_register_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.265,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/scholarly_evaluation_binding_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 802.853,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/scholarly_evaluation_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 75.949,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/scholarly_lifecycle_integration_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.07,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.439,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/shipment_manifest_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 8.283,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/source_extract_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 512.784,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/staging_authority_mode_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 1.479,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 0.17,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
-   "fixture_file": "scripts/tests/test_resolve_includes.py",
-   "observed_exit": 0,
-   "outcome_contract": "EXIT-ONLY"
-  },
-  {
-   "cached_source_run_id": null,
-   "case_id": "default",
-   "duration_s": 2.159,
-   "execution_source": "EXEC",
-   "expected_code": null,
-   "expected_exit": 0,
-   "expected_outcome": null,
    "fixture_file": "scripts/token_budget_smoketest.py",
    "observed_exit": 0,
    "outcome_contract": "EXIT-ONLY"
@@ -1083,7 +1083,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.149,
+   "duration_s": 0.131,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -1095,7 +1095,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 6.631,
+   "duration_s": 5.65,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -1107,7 +1107,7 @@
   {
    "cached_source_run_id": null,
    "case_id": "default",
-   "duration_s": 0.682,
+   "duration_s": 0.552,
    "execution_source": "EXEC",
    "expected_code": null,
    "expected_exit": 0,
@@ -1118,542 +1118,542 @@
   }
  ],
  "granularity": "suite",
- "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+ "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
  "runner_sha256": "3097ce333b868e531b44cd54aa9cee2dd85880142c2556722f55fcee76acdf8f",
  "schema": "coauthor-fixture-manifest/v1",
  "suites": [
   {
    "case_count": 1,
    "fixture_file": "scripts/alias_parity_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "497d795176a6c49cb8efce5e1d4be5c32417401a79043f8b4111c540ce0a4e8f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/archive_runtime_probe_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "a2e7bd064dd05c71c002ce1b85537df2e6506ecdee6b201f826e8793e97b95e4"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/artefact_frontmatter_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "50d43d65155a750502f7001fa9253d7f030caa2392a69a2b3c370277efb17c94"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_dispatch_claim_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "082718ecc6e9f6ebd198d44c125b90f6bf2401ee05b9995c08d107c6f7dc8ca2"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_dispatch_preflight_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "fe643aa143fe0be59ec1f0c743606e8cf1ccf01ff41d2ca8c2428806de8b1da8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_milestone_checkpoint_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "7e633c593f2e4af443c13fb49c0f7a5da2b0de00212e45cf9512639ace021b67"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_mutation_anchor_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "13159331f7c595e9ef7ac291678469bbc61875e992d916face7f06f50d888857"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_process_gate_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "e34e432a8abf3a630dbba3c361b659089e220ffd14e308d96c3452521a31e837"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_receipt_transaction_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "bdae5b34b7b67169bcc395a53ae93e07e433489c94665236951e1d7b5541f7a6"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/assignment_terminal_close_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "7af3be9086641ea9c0656aa08b5de67ae413d7408df13f7e98c258ccb0f9a138"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/audit/test_audit.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "3c31323ecc0c79076153fe7a8530fdc7b7e5143f26e49b17353b608362ac9d1e"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/audit/test_citations.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "48eaaf87445df6b818a352cb5f90dc5b69b25f339669078ecb39f1fc7d2c1246"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/build_plugin_provenance_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "a07d9b534c28b7f9fba67f264e6a884ce37fe9eac4318a48a6be901bdac42f60"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/canonical_bibliography_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d76b78152f275c4f592c9b203628172ebe57891cc07ea2f718fec83b65ab1fb8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/capability_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "c81145b9127c57cf46311418d7a0d90685397ec3499dd10a8c45fa3733ac9869"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/centroid_service_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "b63901a3f531c50be6b9eae71ea2f4a0a458e6c336f84293d0c35f3398b73796"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/command_surface_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "5680e5888d4a029cecef7f22aa65ec08092b6140c435d62ae750f4853356f4c0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/concept_introduction_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "23e34c137ed2b456c92541c67c64a3619d8826c865ab17cb630d50f9a3940ac1"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/contract_kernel_coherence_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "10f4adbcd4b51e0c839dc9d2008fe522ed1dd8e97af23a8f5d23a35216783cf0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/control_plane_transition_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "ba9d292f81ccbcc3cec46eef35a8a21255848926482ef10d6d2977e7e967bc10"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/corpus_root_portability_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "a9270031c4a75bbf75ad140efc951817ce591760cfe853270c5f775cb089c2a8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/d_style_profile_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "5c9d388e056c68403e9acd0200309bde634518d4e931a8342b6399d00dc11542"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/derived_handoff_policy_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "1d5b7f6ffd7d1fa288b11f5989d470159badbe26b66395fa5be4eff1eba52cdd"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/destination_capability_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "a86e6d17504c8301cd4171b0ee51948678a2f539df44ea7a2e8765b770489be6"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/distribution_rights_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "e62f36542ffd5824f0b9b64d3e127940f4c1c1901dbd1224b7c75de1a323161c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/domain_native_register_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "11edd8d228db2a12dec6afa1b283d745a51cf69796af332e46321cec01ec3222"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/draft_evidence_verifier_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "80ed753c6be5e77a19ea2ee4f07a578396b4fe9f537cde65f6bd16f055afe23f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/draft_governance_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d7aba7b9d3cb7d5e8e469f5fd4907feb3535bd1782703e75f8568a41ad5e3c6b"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/end_to_end_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "1f39dd1474bc2c86bdaf1dedf0e03beee469617de74b45013509d39ad1dee3f8"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/fixture_authority_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "cc9087e207ff9e388ee0d06094c5c0d82141f283cc15d1811ae63417ae6fedad"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "838aae003253fa86c251ef74492be5c56d8fb5cd0ce541b282b0f905dfa9f55d"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_enforcement_surfaces_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "f7f72eee4e08c9d582c8a4d64e59e3ecbcd117c2c76afb26cb1656adedd357a4"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/full_run_semantic_bypass_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "147d43cf33f6ea44ef5591ce338d71297d9f1404c06730ec612c485adae8d38a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/graph_authority_gate_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "41e22fc51161eb32d2d2365aedb679ffa1faec59b19e01dde9576f75a903e489"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/host_qualification_transaction_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "172a574798e7dc8056ef58d43997939bfea1a03c60084b39976a19fe42568afa"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/laboratory_mode_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d3bd903c78aa3273567373c4db51cd992ba5163fdcea147d2b4afd3a1142486b"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/lifecycle_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "31869328307ed45f931dd759b0e5905e33fadde81c445abf016d298f69f09c88"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/lifecycle_verifier_binding_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "450e709c2314e89c6e67c77e496d8bca0594de2938a663e33fb069bf93721991"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/loader_compat_portability_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "b91dc95bb474c0908dffdd3028b128adf459caeaed9fc437c5b73d9d3a92e00f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/mcr_convergence_evidence_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "f1459133e80ff95d0c1a13e7e20422253dadd1cc290a7066f800bc30dd3056e5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_lab_iteration_derived_handoff_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "775fbc0c95fe19cc8ef9807dedf343115d6a275519fc9cc537ce7307baa66e26"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_legacy_milestones_adversarial_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "821996f1c9be50c59bf82919c8fe95e5280d794d9039ff0fbcf917f33f73c13c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_legacy_milestones_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d87036ae2e3a1abaee36fe76ea75139267f7513402bfeb07d6b7f4591e968a33"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/migrate_v0150pre_stage_profile_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "3e61270020f9279d3738c8fad8aabe91782433a8ec43be3dad3905a1fd91d94c"
   },
   {
    "case_count": 5,
    "fixture_file": "scripts/milestone_framework_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "47602995a239f7e81b04368155f1de0c3bab5fc3948e5e7bbbf1afd2ad4fefb9"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/milestone_path_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d1a4cd54348bdf4a1ea89440f08a5466036c24bab2e01cedab32e4bb6780fff1"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/native_project_bootstrap_adversarial_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "e7c41254283544579ccb302c07b6d883f9e50afb3a70661b4ee6eb78032c7fb0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/native_project_bootstrap_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "352345548760db6df04367f43e44ac4a0a6f4fd986cac1f4415cfff7dd1948e5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/obligation_result_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "7ff812e4c0f8841d5577f69cf6994cddd012f01850e88794d363869a6c951601"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/output_economy_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "cbc481b6814056599303b1b33e71c53f037d314e79ddfea62ea56e56e42ec3c5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/paragraph_hash_map_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "8bd733a1b9fffc0efc5175a5306c11898709b357c334787781558dd7fdc20f03"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/phase_engagement_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "632d327d5c124aa2239c443e8fa9cbd9008eba1ce16148b3c73548de9c31ba68"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/phase_notifications_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "2921c92fc3645f29464ff1ab25abf965c138a019a8f23535fd9d1bf4f5935122"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/phase_state_validator_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "ea91551fdf8a0ccd7cf8c13a1bfe53a5c6853a8423fc370ac9baa454c5e4168a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/pre_phase_advance_phase_state_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d9d984bdcfb009131f21d27a24e5a2e111de8210020f09c408219662ef76b485"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/product_assurance_detector_evaluation_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "f182a02374ec03353e0f43572a5e82efc280ea8c8ed4fae82667c03f07190c6d"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/product_assurance_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "0b87577c3b9af4810f2f3286ee0da13f146da81a69a566ec4c4c171d70f09037"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/protocol_conformance_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d2e56f4d94792aa2475a401aa1f400d81a008b3d60211c4d09ee256196ce45e0"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_adversarial_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "9f38fc2366ce7e9e83ba7f59731d64fa03d48957bb1c2e76b3a1023c242f5480"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "37bc81a1bc9ccb7099139b8b82a28ff9032590a36452c54e1d3f3b4fa8ad6a54"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_accessibility_semantics_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "78a3051fa81753ca298429a7063b98bcc43a9fd224271b2c15e9a38b5705c553"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reader_profile_v2_global_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "55d67698ad4ca4db295d2b7abc0d373103f16a07e8ee95f5c643e2fa01d7e44d"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/receipt_compaction_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "886e17eec053d40d78ea29c653f6554acdb78671e1cc291fa71bac949f5ed928"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/reflector_split_parity_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "05b6bc2e61b6d06b883d7b783a559e9326215c5cd0eddad1409429c1b2dc6b3c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/release_evidence_index_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "91fed2efd704d16d6596fdca73eb2c6e063df3f87196a3eb8fc4b9571e2207c9"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/release_source_parity_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "cd59079673e9ee4d7ad0a1c3dbbf20b41bac0a9d92fb68adb00320d723fb946f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/render_lifecycle_state_adversarial_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "584829dc63c83cbc78e94f5c66dbdc1f6088c4e3898ebe0bac6274ad5572b970"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/render_lifecycle_state_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "6258b9cd6b1bb513b2d9162f973c1667179e5d628dcf7b22506be2593df7927a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/repin_register_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "9c83a53fdf1620a67819204ef3fda8a40cc22aeadd58601e505800bdf429b8a9"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/retirement_sweep_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "8b0812fb7268e4e67097abb5797ce8877797d096ed721f68216d6fae92305581"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/routing_role_coherence_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "e63b65422be466eb7ebb784ebf3cfd329762d2e5b4a03c587eda398ce44b86e5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/run_product_gate_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "459213570c89ecf38b01ef84357ea862cdee87f24ff1672f9d55a2b2b16b6177"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/runtime_plane_probe_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "7fd2323b8d5a4e6655c18ad15f541fc658579188fc34ebfe490649cae0b8edda"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/schema_runtime_plane_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "c7aa1ea627d112646b574b8cea4c1e3ec78f1e6a098b90da3d9b0b54ec37d34a"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/scholarly_authority_chain_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "597448cb329e0a366696792eec0b82e665626c79847e222cc1b50858e29790af"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/scholarly_claim_register_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "10392025459710429bf6819877e73bfefd97ad4ac09ed0160e15f95a5b273df5"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/scholarly_evaluation_binding_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "5029091433d7a09bb252c3697a6fe044bc4d413a33fd04b5b84d2213c697c91c"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/scholarly_evaluation_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "ff48a748c075f33592e87fddca61ed43ab971067ee94893ab3565b0a4c5d66a1"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/scholarly_lifecycle_integration_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "61468d30b9bdea713bb1146b401a801130894b4f916e96df6a0e02de00dcf40f"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/semantic_predication_contract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "f72adbcd122393f57b3216c57d1da1393ea4d3a0d0332b48bcbe383acfbeeba7"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/shipment_manifest_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "b5e39fe354e60c12dac6cca408640dce21e39746c89cc93b381d1ea581bd3f19"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/source_extract_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "a2aef5a54bc17b68e870bfc31e4650d1d70320bac4990c7eb3552e1194e12623"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/staging_authority_mode_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "0421cb375f965920b5426a897891804d8aab79b7f06bb0e5c0289fdf0ea620b2"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/subprocess_text_policy_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "526599a5ab0f315a45ed01ea99481852baeb027629f02de546ad9d063f463229"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/tests/test_resolve_includes.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "b49795fe2a5c43351eae10d335d6a9e27fa12deab6483478904e780db658aabb"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/token_budget_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "f43db1e487efca3107d99381cc0dcb3bd79dd399502e40972fe8955d07780599"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/update_version_manifests_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "bbc0ebcb391da0ffe97606329372e804fb751b4041301f839d8e4acd9d5fb51b"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/version_policy_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "93a6a8f2f04522a2fa461854e005af724df12fd59a81ba56afa33f1f482407c3"
   },
   {
    "case_count": 1,
    "fixture_file": "scripts/write_release_checksum_smoketest.py",
-   "run_id": "f966735d-bbf8-41c4-81c6-71f456dbc354",
+   "run_id": "1bb4fe50-9bd6-47a3-a840-decfb058658b",
    "suite_sha256": "d72e642b1412a993e1b02c67e315bb3b82cd1566670c23f3d1828dfece9e7c02"
   }
  ],
@@ -1667,11 +1667,11 @@
   ],
   "file_count": 674,
   "mode": "packaging-authority-git-clean-filter-v1",
-  "post_sha256": "fce1eb5762f80a83c98d8cbd7fb92012a645db1b9036b52c2d9ad4c36bdd5c0e",
-  "pre_sha256": "fce1eb5762f80a83c98d8cbd7fb92012a645db1b9036b52c2d9ad4c36bdd5c0e",
+  "post_sha256": "2884453b5b0e17d87e9e6abac480ab4e448d5dcbd6151711d69edae97279f449",
+  "pre_sha256": "2884453b5b0e17d87e9e6abac480ab4e448d5dcbd6151711d69edae97279f449",
   "raw_mode": "checkout-raw-bytes-v1",
-  "raw_post_sha256": "46157c838537a836ae6905b86290c47a23f126f13abd8e9919bd8ea8fcf1817c",
-  "raw_pre_sha256": "46157c838537a836ae6905b86290c47a23f126f13abd8e9919bd8ea8fcf1817c"
+  "raw_post_sha256": "e092528ca91d5acd443a735da7af0291f8861dbac004b3b3e4ab0b5791a74921",
+  "raw_pre_sha256": "e092528ca91d5acd443a735da7af0291f8861dbac004b3b3e4ab0b5791a74921"
  },
  "written_by": "scripts/analysis/fixture_runner.py"
 }
