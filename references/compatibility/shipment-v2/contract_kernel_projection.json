@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "projection_id": "shipment-v2-contract-kernel-projection",
+  "kernel": {
+    "id": "co-author-harness-contract-kernel-v1",
+    "version": "1.0.0",
+    "sha256": "509cb0a8aa7a8800330f375591e086eade99e25a43e7235a5ee96edfe1209905"
+  },
+  "components": [
+    {"id": "role-output-machine-contract", "version": "3.0.0", "sha256": "2b4c306feba344e6703be3c6734951ae17f567bfe49e028483305d57c6a449d8", "migration_ids": ["milestone-path-contract-v2", "role-output-contract-v3"]},
+    {"id": "role-output-contract-schema", "version": "2020-12", "sha256": "94c94508944076dc5f3f362d9097f7f872fae1add47e09021eb680bfa2ba67ea", "migration_ids": ["role-output-contract-v3"]},
+    {"id": "shipment-manifest-v2-schema", "version": "2.0.0", "sha256": "c70c730a184586ae5573b6993a094abb49b0fd7db1facff5d26bc037a67c4c8d", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
+    {"id": "consumer-compatibility-profile-schema", "version": "1.0.0", "sha256": "f24110d48f51b2184ec4e5d5d526a131660bb04fda926abd15eef343006713d8", "migration_ids": ["consumer-compatibility-v1"]},
+    {"id": "consumer-observation-receipt-schema", "version": "1.0.0", "sha256": "04420cd95c42afedff4d6d0efd8571cc35e275cb2246306f0bb4b769e5307edb", "migration_ids": ["consumer-compatibility-v1"]},
+    {"id": "application-receipt-schema", "version": "1.0.0", "sha256": "5bc0cdc1e9d6ac875b9533277d10f744f98345ffff7fcc1d2246c613031f6f8e", "migration_ids": ["shipment-manifest-v2", "consumer-compatibility-v1"]},
+    {"id": "shipment-refusal-receipt-schema", "version": "1.0.0", "sha256": "e39f47583c29e1adb8a58f5d3be799346d474cf8280e4f1574396a723d1d3a5c", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
+    {"id": "shipment-recovery-receipt-schema", "version": "1.0.0", "sha256": "034a13425414186fccde6a97d1d6c8b3439d27dd45327bec30e07d8b160f8c34", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
+    {"id": "output-contract", "version": "3.0.0", "sha256": "a19e0e553a5858e41e19726e87c6dc536cf1717e1f7eef6ae04536c686db7860", "migration_ids": ["role-output-contract-v3", "typed-output-transaction-v1"]},
+    {"id": "shipment-contract", "version": "2.0.0", "sha256": "4ef5f0cbc939d9113eb59837b6dc1dd7add04b785b1ddd02152c2aee52506fc1", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1", "consumer-compatibility-v1"]},
+    {"id": "capability-registry", "version": "2.0.0", "sha256": "29d9e613862607387c07fceb45a243bc4b5fac0b651d828516d73ae15e4d2e07", "migration_ids": ["capability-closure-six-plane-v1"]}
+  ],
+  "authority": "projection-only-no-lifecycle-or-application-authority"
+}

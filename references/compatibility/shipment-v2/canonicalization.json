@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "canonicalization_id": "shipment-v2-canonicalization",
+  "json": {
+    "encoding": "utf-8",
+    "unicode_normalization": "NFC",
+    "object_keys": "lexicographic-code-point-order",
+    "separators": [",", ":"],
+    "ensure_ascii": false,
+    "terminal_newline": true
+  },
+  "paths": {
+    "separator": "/",
+    "unicode_normalization": "NFC",
+    "comparison": "windows-casefold",
+    "reject": [
+      "absolute",
+      "drive",
+      "UNC",
+      "device",
+      "empty-segment",
+      "dot-segment",
+      "dot-dot-segment",
+      "casefold-collision",
+      "unicode-normalization-collision",
+      "destination-escape",
+      "symlink",
+      "junction",
+      "reparse"
+    ]
+  },
+  "occurrence_identity": {
+    "algorithm": "sha256",
+    "input": "canonical-json",
+    "fields": [
+      "contract_id",
+      "contract_version",
+      "contract_sha256",
+      "work_id",
+      "invocation_scope",
+      "class_id",
+      "trigger_id",
+      "context",
+      "ordinal",
+      "triggering_evidence_sha256"
+    ],
+    "deduplication_key": "occurrence_id"
+  }
+}

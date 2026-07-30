@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "consumer_observation_receipt.schema.json",
+  "title": "Independent consumer validation and observation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "receipt_id", "observed_at", "author", "compatibility_profile", "compatibility_profile_sha256", "snapshot", "results", "diagnostic_map_sha256", "outcome"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "consumer_observation"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "author": {"type": "object", "additionalProperties": false, "required": ["governance", "actor_id"], "properties": {"governance": {"type": "string", "minLength": 1}, "actor_id": {"type": "string", "minLength": 1}}},
+    "compatibility_profile": {"allOf": [{"$ref": "consumer_compatibility_profile.schema.json"}, {"properties": {"binding_state": {"const": "resolved"}}, "required": ["binding_state"]}]},
+    "compatibility_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "snapshot": {"type": "object", "additionalProperties": false, "required": ["inventory_sha256", "state_sha256", "immutable"], "properties": {"inventory_sha256": {"$ref": "#/$defs/sha256"}, "state_sha256": {"$ref": "#/$defs/sha256"}, "immutable": {"const": true}}},
+    "results": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["fixture_id", "outcome", "diagnostic_code"], "properties": {"fixture_id": {"type": "string", "minLength": 1}, "outcome": {"enum": ["accepted", "refused"]}, "diagnostic_code": {"type": ["string", "null"]}}}},
+    "diagnostic_map_sha256": {"$ref": "#/$defs/sha256"},
+    "outcome": {"enum": ["CONSUMER_COMPATIBLE", "CONSUMER_COMPATIBILITY_PENDING"]}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

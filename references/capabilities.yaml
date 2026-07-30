@@ -1,5 +1,6 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 authority: references/capabilities.yaml
+capability_planes: [policy, contract, producer, consumer, runtime, evidence]
 status_contract:
   active: callable through the declared entrypoint with behavioral evidence
   degraded: callable, but behavioral assurance or integration is incomplete
@@ -16,49 +17,121 @@ exposures:
   - compatibility
   - internal
 
+closure_profiles:
+  prompt-degraded:
+    behavior_status: degraded
+    missing_planes: [evidence]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: prompt-mediated, entrypoint_from_policy: true}
+      consumer: {profile: human-governed-consumer}
+      runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids: [scripts/skill-check.py]}
+      evidence: {status: partial, fixture_paths_from_row: true}
+  prompt-external:
+    behavior_status: external-dependent
+    missing_planes: [consumer]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: prompt-mediated, entrypoint_from_policy: true}
+      consumer: {profile: external-provider-from-row}
+      runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids: [scripts/skill-check.py]}
+      evidence: {status: provider-dependent, fixture_paths_from_row: true}
+  deferred-unavailable:
+    behavior_status: unavailable
+    missing_planes: [producer, consumer, runtime]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {status: unavailable}
+      consumer: {status: unavailable}
+      runtime: {status: unavailable, members: ["skills/{capability}/SKILL.md"], probe_ids: [scripts/skill-check.py]}
+      evidence: {status: refusal-only, fixture_paths_from_row: true}
+  script-active:
+    behavior_status: active
+    missing_planes: []
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: script-backed, implementation_from_row: true}
+      consumer: {profile: local-callable-consumer}
+      runtime: {members_from_policy_and_implementation: true, probe_ids_from_evidence: true}
+      evidence: {status: registered, fixture_paths_from_row: true}
+  orchestration-active:
+    behavior_status: active
+    missing_planes: []
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: orchestration, implementation_from_row: true}
+      consumer: {profile: local-callable-consumer}
+      runtime: {members_from_policy_and_implementation: true, probe_ids_from_evidence: true}
+      evidence: {status: registered, fixture_paths_from_row: true}
+  orchestration-degraded:
+    behavior_status: degraded
+    missing_planes: [consumer]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: orchestration, entrypoint_from_policy: true}
+      consumer: {profile: independently-governed-consumer, status: pending}
+      runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids_from_evidence: true}
+      evidence: {status: partial, fixture_paths_from_row: true}
+  catalog-degraded:
+    behavior_status: degraded
+    missing_planes: [producer]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: catalog-only, status: descriptive}
+      consumer: {profile: catalog-reader}
+      runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids_from_evidence: true}
+      evidence: {status: partial, fixture_paths_from_row: true}
+
 # This registry describes the current checkout. Target architecture diagrams do
 # not promote a capability; only a deliberate registry edit plus evidence can.
 capabilities:
-  accessibility-overlay: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/reader_accessibility_contract_smoketest.py]}
-  advisor-escalation: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: advisor-mcp, evidence: [scripts/skill-check.py]}
-  analytic-move-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  centroid-pass: {availability: active, execution_mode: orchestration, exposure: public, implementation: scripts/centroid_service.py, evidence: [scripts/centroid_service_smoketest.py, scripts/draft_governance_smoketest.py]}
-  check-abstract-body: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  check-contradictions: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  citation-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_citations.py]}
-  claim-coverage-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  classify-manuscript: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  definition-derivation-check: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  dissolution-move-check: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  extend-snowball-incremental: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: source-verifiers, evidence: [scripts/skill-check.py]}
-  grammar-mechanics-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_audit.py]}
-  graph-grounding-overlay: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/graph_authority_gate_smoketest.py]}
-  grounding-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/grounding_anchors_check.py]}
-  ingest-m5-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  inherit-snowball-from-wiki: {availability: unavailable, execution_mode: deferred, exposure: public, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  IS-theory-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  narrative-structure-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  p-stage-checker: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  plugin-commands: {availability: degraded, execution_mode: catalog-only, exposure: public, evidence: [scripts/catalog-check.py]}
-  promote-lessons-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  public-interest-accountability-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  quick-deterministic: {availability: active, execution_mode: script-backed, exposure: public, implementation: scripts/audit/run_all.py, evidence: [scripts/audit/test_audit.py, scripts/audit/test_citations.py]}
-  repin-register: {availability: active, execution_mode: script-backed, exposure: internal, implementation: scripts/reader_accessibility_policy.py, evidence: [scripts/repin_register_smoketest.py]}
-  response-letter-review: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  retrofit-concept-grounding: {availability: unavailable, execution_mode: deferred, exposure: internal, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  run-draft: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
-  run-finalize: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/full_run_contract_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
-  run-generator-session: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
-  run-iterate: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/pre_phase_advance_phase_state_smoketest.py]}
-  run-phase-1: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
-  run-phase-2: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
-  run-phase-3: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
-  run-phase-3-stability: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py]}
-  run-phase-4: {availability: degraded, execution_mode: orchestration, exposure: compatibility, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
-  run-reflection: {availability: degraded, execution_mode: orchestration, exposure: public, evidence: [scripts/reflector_split_parity_smoketest.py]}
-  seed-snowball-discovery: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, provider: source-verifiers, evidence: [scripts/skill-check.py]}
-  sentence-level-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/audit/test_audit.py]}
-  suchman-register-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
-  tool-contract-roundtrip: {availability: degraded, execution_mode: prompt-mediated, exposure: internal, evidence: [scripts/skill-check.py]}
-  turabian-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, evidence: [scripts/skill-check.py]}
+  accessibility-overlay: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/reader_accessibility_contract_smoketest.py]}
+  advisor-escalation: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-external, provider: advisor-mcp, evidence: [scripts/skill-check.py]}
+  analytic-move-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  centroid-pass: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-active, implementation: scripts/centroid_service.py, evidence: [scripts/centroid_service_smoketest.py, scripts/draft_governance_smoketest.py]}
+  check-abstract-body: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  check-contradictions: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  citation-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/audit/test_citations.py]}
+  claim-coverage-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  classify-manuscript: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  definition-derivation-check: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  dissolution-move-check: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  extend-snowball-incremental: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-external, provider: source-verifiers, evidence: [scripts/skill-check.py]}
+  grammar-mechanics-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/audit/test_audit.py]}
+  graph-grounding-overlay: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/graph_authority_gate_smoketest.py]}
+  grounding-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/grounding_anchors_check.py]}
+  ingest-m5-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  inherit-snowball-from-wiki: {availability: unavailable, execution_mode: deferred, exposure: public, closure_profile: deferred-unavailable, reason_code: GRAPH_GOVERNED_GENERATION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  IS-theory-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  narrative-structure-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  p-stage-checker: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  plugin-commands: {availability: degraded, execution_mode: catalog-only, exposure: public, closure_profile: catalog-degraded, evidence: [scripts/catalog-check.py]}
+  promote-lessons-to-wiki: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  public-interest-accountability-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  quick-deterministic: {availability: active, execution_mode: script-backed, exposure: public, closure_profile: script-active, implementation: scripts/audit/run_all.py, evidence: [scripts/audit/test_audit.py, scripts/audit/test_citations.py]}
+  repin-register: {availability: active, execution_mode: script-backed, exposure: internal, closure_profile: script-active, implementation: scripts/reader_accessibility_policy.py, evidence: [scripts/repin_register_smoketest.py]}
+  response-letter-review: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  retrofit-concept-grounding: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
+  run-draft: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-degraded, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
+  run-finalize: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-degraded, evidence: [scripts/full_run_contract_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
+  run-generator-session: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-degraded, evidence: [scripts/assignment_dispatch_preflight_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
+  run-iterate: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-degraded, evidence: [scripts/pre_phase_advance_phase_state_smoketest.py]}
+  run-phase-1: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_milestone_checkpoint_smoketest.py]}
+  run-phase-2: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py]}
+  run-phase-3: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py]}
+  run-phase-3-stability: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py]}
+  run-phase-4: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
+  run-reflection: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-degraded, evidence: [scripts/reflector_split_parity_smoketest.py]}
+  seed-snowball-discovery: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-external, provider: source-verifiers, evidence: [scripts/skill-check.py]}
+  sentence-level-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/audit/test_audit.py]}
+  suchman-register-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  tool-contract-roundtrip: {availability: degraded, execution_mode: prompt-mediated, exposure: internal, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  turabian-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}

@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "shipment-v2-package-template",
+  "binding_state": "template",
+  "producer": {
+    "name": "co-author-harness",
+    "version": "0.41.0",
+    "commit": null,
+    "tree": null
+  },
+  "contract_kernel": {
+    "version": "1.0.0",
+    "sha256": "509cb0a8aa7a8800330f375591e086eade99e25a43e7235a5ee96edfe1209905"
+  },
+  "shipment_schema": {
+    "version": "2.0.0",
+    "sha256": "c70c730a184586ae5573b6993a094abb49b0fd7db1facff5d26bc037a67c4c8d"
+  },
+  "output_contract": {
+    "id": "role-output-contract",
+    "version": "3.0.0",
+    "sha256": "2b4c306feba344e6703be3c6734951ae17f567bfe49e028483305d57c6a449d8"
+  },
+  "compatibility_kit": {
+    "sha256": "42048b7b463a1a13276c87f37a732a76d20fd65d62baad024b2af4e08d362ef4"
+  },
+  "fixture_corpus": {
+    "sha256": "8f76f0096000fdb557db39da963d8d011a2aa79295d666ba060113c6fd3a66f5",
+    "fixture_ids": [
+      "cap-plane-policy-missing",
+      "cap-plane-contract-missing",
+      "cap-plane-producer-missing",
+      "cap-plane-consumer-missing",
+      "cap-plane-runtime-missing",
+      "cap-plane-evidence-missing",
+      "cap-status-behavior-contradiction",
+      "cap-kernel-stale",
+      "cap-runtime-stale",
+      "legacy-v1-not-v2",
+      "legacy-v1_1-not-v2",
+      "population-fixed-triggered-confusion",
+      "trigger-unknown",
+      "class-unknown",
+      "occurrence-duplicate",
+      "occurrence-closure-missing",
+      "occurrence-state-contradictory",
+      "context-scope-mismatch",
+      "cardinality-violation",
+      "order-violation",
+      "path-traversal",
+      "path-case-collision",
+      "path-unicode-collision",
+      "path-reparse",
+      "path-destination-escape",
+      "member-duplicate",
+      "member-unlisted",
+      "operation-inventory-mismatch",
+      "create-present-preimage",
+      "modify-stale-preimage",
+      "postimage-tampered",
+      "retry-conflict",
+      "concurrent-writer",
+      "interrupted-seal",
+      "recovery-required",
+      "rollback-exact",
+      "receipt-presence-not-applied",
+      "receipt-forged",
+      "runtime-archive-suite-missing",
+      "runtime-cache-suite-missing"
+    ]
+  },
+  "consumer": {
+    "name": "research-governance-qe-workspace-guard",
+    "guard": {"version": "v1.1-c0-snapshot", "sha256": "ff3e1630d23558b161a32c8d16e825bf091e2b6b9473129ade6433b5d30a3402"},
+    "policy": {"version": "v1.1-c0-snapshot", "sha256": "a321d1838fa88b32860ae1ea82abe12abe52b3fbeff883ffd749a569596734ce"},
+    "config": {"version": "v1.1-c0-snapshot", "sha256": "f2a8fec63104d73f871f45b18ad39c6a40f3302f5e6be17e2b81ea3752a857f3"},
+    "tests": {"version": "v1.1-c0-snapshot", "sha256": "a1c735c95112e64110d1866fcd0fdad0914dcd2cabc02e55280ee128c3499730"}
+  },
+  "external_snapshot": [
+    {"path": "B:/Agents/research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md", "bytes": 4448, "sha256": "a321d1838fa88b32860ae1ea82abe12abe52b3fbeff883ffd749a569596734ce"},
+    {"path": "B:/Agents/research/10_Governance/WORKBENCH_ARTIFACT_ECONOMY.md", "bytes": 12329, "sha256": "2f19e387bd24dc7e2136fe02a26e88cbd452954f48453fb0e607c5d5a6749fc1"},
+    {"path": "B:/Agents/research/99_System/tools/qe_workspace_guard.py", "bytes": 106173, "sha256": "ff3e1630d23558b161a32c8d16e825bf091e2b6b9473129ade6433b5d30a3402"},
+    {"path": "B:/Agents/research/99_System/tools/qe_workspace_guard_config.json", "bytes": 4358, "sha256": "f2a8fec63104d73f871f45b18ad39c6a40f3302f5e6be17e2b81ea3752a857f3"},
+    {"path": "B:/Agents/research/99_System/tools/tests/test_qe_workspace_guard.py", "bytes": 99890, "sha256": "a1c735c95112e64110d1866fcd0fdad0914dcd2cabc02e55280ee128c3499730"},
+    {"path": "B:/Agents/ROOT_ARCHITECTURE_INDEX.md", "bytes": 33359, "sha256": "934fbaf5f3651a727e66be1f143be6eb496dd82f07c5644668d8b502fce81242"},
+    {"path": "B:/Agents/governance/output-routing/OUTPUT_ROUTING_CONTRACT.md", "bytes": 8833, "sha256": "0cd7de994c872e044a0eb926dfc8d00cf80bd38f97415b7a8f20636fb2756b82"},
+    {"path": "B:/Agents/governance/output-routing/output_routing.yaml", "bytes": 7849, "sha256": "02b61c1825135b834d370aa5f86fd468e13e533f4e863d98288e2aea14ff6b80"}
+  ],
+  "scope_binding": {
+    "work_id": null,
+    "activation_baseline_sha256": null,
+    "canonical_role_registry_sha256": null,
+    "invocation_scope": null
+  },
+  "occurrence_rules": {
+    "canonicalization": "compact-key-sorted-utf8-json+nfc+windows-casefold-paths",
+    "deduplication_key": "occurrence_id"
+  },
+  "diagnostic_map_sha256": "03f2ec4e4cae3f073aa74eebcea576ebacddea9d9e7d5a2a8518abad2d8d332b"
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shipment_recovery_receipt.schema.json",
+  "title": "Interrupted shipment recovery or rollback receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "receipt_id", "created_at", "shipment_id", "journal_sha256", "interrupted_state", "action", "preimage_inventory_sha256", "restored_inventory_sha256", "outcome"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "shipment_recovery"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "shipment_id": {"type": "string", "minLength": 1},
+    "journal_sha256": {"$ref": "#/$defs/sha256"},
+    "interrupted_state": {"enum": ["allocated", "members_written", "verified", "manifest_sealed"]},
+    "action": {"enum": ["resume", "rollback"]},
+    "preimage_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "restored_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "outcome": {"enum": ["recovered", "rolled_back", "failed"]},
+    "diagnostic_code": {"type": "string"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

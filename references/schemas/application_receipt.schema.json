@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "application_receipt.schema.json",
+  "title": "Consumer-authored application transaction receipt",
+  "description": "This receipt may record an application already performed under current consumer authority. Its presence alone is never authority or proof of application.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "receipt_id", "consumer", "created_at", "user_authority", "work_id", "shipment_id", "manifest_sha256", "accepted_operations", "operation_count", "transaction_outcome"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "application"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "consumer": {"type": "object", "additionalProperties": false, "required": ["governance", "actor_id", "version", "sha256"], "properties": {"governance": {"type": "string", "minLength": 1}, "actor_id": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "created_at": {"type": "string", "format": "date-time"},
+    "user_authority": {"type": "object", "additionalProperties": false, "required": ["authority_id", "authority_sha256", "current"], "properties": {"authority_id": {"type": "string", "minLength": 1}, "authority_sha256": {"$ref": "#/$defs/sha256"}, "current": {"const": true}}},
+    "work_id": {"type": "string", "minLength": 1},
+    "shipment_id": {"type": "string", "pattern": "^shp-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"},
+    "manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "accepted_operations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["operation_id", "op", "destination", "preimage", "postimage_sha256", "outcome"], "properties": {"operation_id": {"type": "string", "minLength": 1}, "op": {"enum": ["create", "modify", "move", "rename", "delete"]}, "source": {"type": "string"}, "destination": {"type": "string", "minLength": 1}, "preimage": {"type": "object"}, "postimage_sha256": {"$ref": "#/$defs/sha256"}, "outcome": {"const": "applied"}}}},
+    "operation_count": {"type": "integer", "minimum": 0},
+    "transaction_outcome": {"const": "applied_success"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

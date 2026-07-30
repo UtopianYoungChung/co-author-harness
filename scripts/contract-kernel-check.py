@@ -25,6 +25,12 @@ REQUIRED_COMPONENT_IDS = {
     "assignment-receipt-invalidate", "assignment-receipt-recover",
     "milestone-path-resolver", "milestone-path-migrator",
     "milestone-framework-schema", "milestone-handoff-policy",
+    "capability-registry", "capability-contract-check",
+    "role-output-contract-schema", "shipment-manifest-v2-schema",
+    "consumer-compatibility-profile-schema", "consumer-observation-receipt-schema",
+    "application-receipt-schema", "shipment-refusal-receipt-schema",
+    "shipment-recovery-receipt-schema", "output-contract", "shipment-contract",
+    "schema-runtime-check", "runtime-plane-probe",
 }
 
 
@@ -145,11 +151,35 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def refresh_component_hashes(root: Path, data: dict[str, Any]) -> None:
+    """Refresh only enumerated component hashes after paths pass containment checks."""
+    components = data.get("components")
+    if not isinstance(components, list) or not components:
+        raise ValueError("components must be a non-empty list")
+    seen: set[str] = set()
+    for component in components:
+        if not isinstance(component, dict):
+            raise ValueError("component row must be an object")
+        cid = component.get("id")
+        if not isinstance(cid, str) or not cid or cid in seen:
+            raise ValueError(f"invalid or duplicate component id: {cid!r}")
+        seen.add(cid)
+        bound_path = _safe_file(root, component.get("path"))
+        if bound_path is None:
+            raise ValueError(f"{cid}: component path is missing or unsafe")
+        component["sha256"] = _sha256(bound_path)
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plugin-root", default=None)
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="deterministically refresh hashes for the already-enumerated components",
+    )
     args = parser.parse_args()
     root = (
         Path(args.plugin_root).resolve()
@@ -157,9 +187,15 @@ def main() -> int:
         else Path(__file__).resolve().parent.parent
     )
     try:
-        data = json.loads(
-            (root / "references" / "contract_kernel.v1.json").read_text(encoding="utf-8")
-        )
+        kernel_path = root / "references" / "contract_kernel.v1.json"
+        data = json.loads(kernel_path.read_text(encoding="utf-8"))
+        if args.refresh:
+            refresh_component_hashes(root, data)
+            kernel_path.write_text(
+                json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
         errors = validate(root, data)
     except Exception as exc:  # noqa: BLE001
         print(f"BLOCK: Contract Kernel could not be validated: {exc}")
