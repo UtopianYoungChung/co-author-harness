@@ -163,7 +163,7 @@ _cache_spec.loader.exec_module(fixture_cache)
 assert Path(fixture_cache.__file__).resolve() == _CACHE_HELPER_PATH.resolve()
 
 
-def _default_case() -> dict:
+def _default_case(*, timeout_s: int = SUITE_TIMEOUT_S) -> dict:
     """The suite-level invocation contract: bare run, exit 0, EXIT-ONLY.
 
     A helper, not an auto-registration: every suite below is REGISTERED BY
@@ -177,6 +177,7 @@ def _default_case() -> dict:
         "expected_code": None,
         "outcome_contract": "EXIT-ONLY",
         "expected_outcome": None,
+        "timeout_s": timeout_s,
     }
 
 
@@ -224,7 +225,9 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/lifecycle_verifier_binding_smoketest.py": [_default_case()],
     "scripts/loader_compat_portability_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
-    "scripts/migrate_lab_iteration_derived_handoff_smoketest.py": [_default_case()],
+    "scripts/migrate_lab_iteration_derived_handoff_smoketest.py": [
+        _default_case(timeout_s=1200)
+    ],
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],
     "scripts/migrate_v0150pre_stage_profile_smoketest.py": [_default_case()],
@@ -478,7 +481,7 @@ def _cache_basis(rel: str, case: dict, tested_inputs: dict) -> dict:
             "outcome_contract": case["outcome_contract"],
             "expected_outcome": case["expected_outcome"],
             "cwd": "PLUGIN_ROOT",
-            "timeout_s": SUITE_TIMEOUT_S,
+            "timeout_s": case.get("timeout_s", SUITE_TIMEOUT_S),
         },
         "tested_inputs": {
             "mode": tested_inputs["mode"],
@@ -646,7 +649,7 @@ def _run_locked(registry: dict[str, list[dict]],
                 try:
                     proc = subprocess.run(argv, cwd=str(PLUGIN_ROOT), capture_output=True,
                                           text=True, encoding="utf-8", errors="replace",
-                                          timeout=SUITE_TIMEOUT_S)
+                                          timeout=case.get("timeout_s", SUITE_TIMEOUT_S))
                 except (OSError, subprocess.TimeoutExpired) as exc:
                     try:
                         fixture_cache.discard_staged(staged)

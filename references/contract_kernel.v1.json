@@ -87,7 +87,7 @@
     {"id": "compact-receipt-index-schema", "path": "references/schemas/compact_receipt_index.schema.json", "revision_kind": "sha256", "sha256": "bcb86c73be3aff70ffd3729d2f501c6293a13069d5102c69ebb9306cd0e1c29a", "migration_ids": []},
     {"id": "receipt-compaction", "path": "scripts/receipt_compaction.py", "revision_kind": "sha256", "sha256": "b92f7f190d0cab1ede0e477be1b2795c3933f9ae49aed1096cb36d82f242ccfe", "migration_ids": []},
     {"id": "fixture-cache", "path": "scripts/analysis/fixture_cache.py", "revision_kind": "sha256", "sha256": "85259d3cf2a588ef72b0ac66609ebe8837f84c5d542a94addc57803ee41d747b", "migration_ids": []},
-    {"id": "fixture-runner", "path": "scripts/analysis/fixture_runner.py", "revision_kind": "sha256", "sha256": "12d4caaf71e7c3868c3910535a2d0b1f041f9fd8fd13640340b7631600a224d9", "migration_ids": ["lab-iteration-derived-handoff-v1"]},
+    {"id": "fixture-runner", "path": "scripts/analysis/fixture_runner.py", "revision_kind": "sha256", "sha256": "3097ce333b868e531b44cd54aa9cee2dd85880142c2556722f55fcee76acdf8f", "migration_ids": ["lab-iteration-derived-handoff-v1"]},
     {"id": "release-checksum-writer", "path": "scripts/write_release_checksum.py", "revision_kind": "sha256", "sha256": "9146ca47b827909bdbdb65bbec63dce58ca994f4555e90164a8324835095e342", "migration_ids": []}
   ]
 }
