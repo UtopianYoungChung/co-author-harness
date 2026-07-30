@@ -27,6 +27,9 @@ from output_contract import (
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = ROOT / "references" / "schemas" / "shipment_manifest.schema.json"
+APPLICATION_RECEIPT_SCHEMA_PATH = (
+    ROOT / "references" / "schemas" / "application_receipt.schema.json"
+)
 OUTPUT_CONTRACT_PATH = ROOT / "references" / "role_output_contract.json"
 KERNEL_PATH = ROOT / "references" / "contract_kernel.v1.json"
 
@@ -178,6 +181,12 @@ def _actual_members(run_dir: Path) -> tuple[set[str], bool]:
         if not base.exists():
             continue
         for candidate in base.rglob("*"):
+            if candidate.parent == run_dir / "shipment" and candidate.name in {
+                ".TRANSACTION.lock",
+                ".RECOVERY.lock",
+                ".MANIFEST.partial",
+            }:
+                continue
             if _is_reparse(candidate):
                 reparse = True
                 continue
@@ -292,10 +301,13 @@ def _validate_inventory(
             for spelling in actual
             if (key := _safe_key(spelling, diagnostics)) is not None
         }
-        # During pre-emission validation MANIFEST.json is declared but not yet
-        # present.  Every other declared member must match exact regular files.
-        comparable_declared = declared - {"shipment/manifest.json"}
-        comparable_actual = actual_keys - {"shipment/manifest.json"}
+        actual_controls = {key for key in actual_keys if key.startswith("shipment/")}
+        if any(control not in {item.casefold() for item in _SHIPMENT_CONTROL} for control in actual_controls):
+            diagnostics.add("MEMBER-UNLISTED")
+        # Regular producer members are exact. Shipment controls are a closed
+        # allowlist because consumer-authored receipts arrive after sealing.
+        comparable_declared = {key for key in declared if not key.startswith("shipment/")}
+        comparable_actual = {key for key in actual_keys if not key.startswith("shipment/")}
         if comparable_actual != comparable_declared:
             diagnostics.add("MEMBER-UNLISTED")
 
@@ -437,4 +449,86 @@ def validate_manifest(
     return _ordered(diagnostics)
 
 
-__all__ = ["schema_validation_errors", "validate_manifest"]
+def _operation_projection(operation: Mapping[str, Any]) -> dict[str, Any]:
+    projection = {
+        "operation_id": operation.get("operation_id"),
+        "op": operation.get("op"),
+        "destination": operation.get("destination"),
+        "preimage": operation.get("preimage"),
+        "postimage_sha256": operation.get("postimage_sha256"),
+    }
+    if "source" in operation:
+        projection["source"] = operation.get("source")
+    return projection
+
+
+def validate_application_receipt(
+    receipt: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    *,
+    manifest_sha256: str,
+    expected_consumer: Mapping[str, Any] | None = None,
+    expected_authority_sha256: str | None = None,
+) -> list[str]:
+    """Validate exact external consumer application evidence."""
+    if not isinstance(receipt, Mapping):
+        return ["RECEIPT-INVALID"]
+    try:
+        schema = _load_json(APPLICATION_RECEIPT_SCHEMA_PATH)
+        if any(Draft202012Validator(schema).iter_errors(receipt)):
+            return ["RECEIPT-INVALID"]
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return ["RECEIPT-INVALID"]
+
+    if (
+        manifest.get("schema_version") != "2.0.0"
+        or manifest.get("shipment_type") != "successful_shipment"
+        or receipt.get("work_id") != manifest.get("work_id")
+        or receipt.get("shipment_id") != manifest.get("shipment_id")
+        or receipt.get("manifest_sha256") != manifest_sha256
+        or receipt.get("transaction_outcome") != "applied_success"
+    ):
+        return ["RECEIPT-INVALID"]
+
+    consumer = receipt.get("consumer")
+    authority = receipt.get("user_authority")
+    if not isinstance(consumer, Mapping) or not isinstance(authority, Mapping):
+        return ["RECEIPT-INVALID"]
+    if consumer.get("governance") == "co-author-harness" or authority.get("current") is not True:
+        return ["RECEIPT-INVALID"]
+    if expected_consumer is not None and any(
+        consumer.get(key) != value for key, value in expected_consumer.items()
+    ):
+        return ["RECEIPT-INVALID"]
+    if (
+        expected_authority_sha256 is not None
+        and authority.get("authority_sha256") != expected_authority_sha256
+    ):
+        return ["RECEIPT-INVALID"]
+
+    proposed = manifest.get("proposed_operations")
+    accepted = receipt.get("accepted_operations")
+    if not isinstance(proposed, list) or not isinstance(accepted, list):
+        return ["RECEIPT-INVALID"]
+    proposed_projection = [
+        _operation_projection(row) for row in proposed if isinstance(row, Mapping)
+    ]
+    accepted_projection = [
+        _operation_projection(row) for row in accepted if isinstance(row, Mapping)
+    ]
+    if (
+        len(proposed_projection) != len(proposed)
+        or len(accepted_projection) != len(accepted)
+        or accepted_projection != proposed_projection
+        or receipt.get("operation_count") != len(proposed_projection)
+        or any(row.get("outcome") != "applied" for row in accepted)
+    ):
+        return ["RECEIPT-INVALID"]
+    return []
+
+
+__all__ = [
+    "schema_validation_errors",
+    "validate_application_receipt",
+    "validate_manifest",
+]

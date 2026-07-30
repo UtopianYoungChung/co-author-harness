@@ -30,6 +30,7 @@ REQUIRED_COMPONENT_IDS = {
     "consumer-compatibility-profile-schema", "consumer-observation-receipt-schema",
     "application-receipt-schema", "shipment-refusal-receipt-schema",
     "shipment-recovery-receipt-schema", "output-contract", "shipment-contract",
+    "staging-run",
     "schema-runtime-check", "runtime-plane-probe",
 }
 

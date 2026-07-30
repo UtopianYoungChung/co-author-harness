@@ -455,12 +455,171 @@ def validate_output_transaction(
     return _ordered(diagnostics)
 
 
+class OutputContractRefused(ValueError):
+    """Stable typed refusal from deterministic output allocation."""
+
+    def __init__(self, code: str, detail: str):
+        super().__init__(f"{code}: {detail}")
+        self.code = code
+        self.detail = detail
+
+
+def allocate_occurrence(
+    contract_path: str | Path,
+    *,
+    work_id: str,
+    invocation_scope: str,
+    class_id: str,
+    context: Mapping[str, Any],
+    ordinal: int,
+    triggering_evidence_sha256: str,
+) -> dict[str, Any]:
+    """Allocate one deterministic triggered-output occurrence."""
+    contract = load_contract(contract_path)
+    if contract_schema_validation_errors(contract_path):
+        raise OutputContractRefused("CONTRACT-HASH-STALE", "output registry is invalid")
+    row = resolve_output_class(contract, class_id)
+    if row is None:
+        raise OutputContractRefused("CLASS-UNKNOWN", f"unknown output class {class_id!r}")
+    kind = context.get("kind") if isinstance(context, Mapping) else None
+    if (
+        not work_id
+        or invocation_scope not in row.get("invocation_scopes", ())
+        or kind not in row.get("context_kinds", ())
+    ):
+        raise OutputContractRefused(
+            "CONTEXT-SCOPE-MISMATCH", "work, invocation scope, or context is not allowed"
+        )
+    if (
+        not isinstance(ordinal, int)
+        or isinstance(ordinal, bool)
+        or ordinal < 1
+        or not isinstance(triggering_evidence_sha256, str)
+        or not _SHA256.fullmatch(triggering_evidence_sha256)
+    ):
+        raise OutputContractRefused(
+            "OCCURRENCE-STATE-CONTRADICTORY", "ordinal or triggering evidence is malformed"
+        )
+    contract_sha256 = normalized_file_sha256(contract_path)
+    trigger_id = str(row["trigger_id"])
+    occurrence_id = compute_occurrence_id(
+        contract_id=str(contract["contract_id"]),
+        contract_version=str(contract["schema_version"]),
+        contract_sha256=contract_sha256,
+        work_id=work_id,
+        invocation_scope=invocation_scope,
+        class_id=class_id,
+        trigger_id=trigger_id,
+        context=context,
+        ordinal=ordinal,
+        triggering_evidence_sha256=triggering_evidence_sha256,
+    )
+    return {
+        "occurrence_id": occurrence_id,
+        "population": "triggered_class",
+        "class_id": class_id,
+        "trigger_id": trigger_id,
+        "ordinal": ordinal,
+        "triggering_evidence_sha256": triggering_evidence_sha256,
+    }
+
+
+def resolve_output_path(
+    contract_path: str | Path,
+    occurrence: Mapping[str, Any],
+    context: Mapping[str, Any],
+    *,
+    template_values: Mapping[str, Any] | None = None,
+) -> str:
+    """Resolve and safety-check the registered path template."""
+    contract = load_contract(contract_path)
+    row = resolve_output_class(contract, str(occurrence.get("class_id")))
+    if row is None:
+        raise OutputContractRefused("CLASS-UNKNOWN", "cannot resolve an unknown output class")
+    values = dict(context)
+    values.update(template_values or {})
+    values["occurrence_id"] = occurrence.get("occurrence_id")
+    values.setdefault(
+        "event_id",
+        context.get("milestone_event_id")
+        or context.get("package_event_id")
+        or context.get("round_id"),
+    )
+    try:
+        rendered = str(row["path_template"]).format_map(values)
+        normalize_windows_relative_path(rendered)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise OutputContractRefused("PATH-ESCAPE", f"path template did not resolve safely: {exc}")
+    return unicodedata.normalize("NFC", rendered.replace("\\", "/"))
+
+
+def close_occurrence(
+    contract_path: str | Path,
+    occurrence: Mapping[str, Any],
+    *,
+    state: str,
+    artifact: Mapping[str, Any] | None = None,
+    suppression_reason: str | None = None,
+    context: Mapping[str, Any] | None = None,
+    template_values: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Close one occurrence exactly once as emission or typed non-emission."""
+    contract = load_contract(contract_path)
+    row = resolve_output_class(contract, str(occurrence.get("class_id")))
+    if row is None:
+        raise OutputContractRefused("CLASS-UNKNOWN", "cannot close an unknown output class")
+    if state == "emitted":
+        if not isinstance(artifact, Mapping) or suppression_reason is not None:
+            raise OutputContractRefused(
+                "OCCURRENCE-STATE-CONTRADICTORY", "emission needs one artifact and no reason"
+            )
+        required = {"path", "payload_schema", "bytes", "sha256"}
+        if (
+            not required.issubset(artifact)
+            or not _SHA256.fullmatch(str(artifact.get("sha256")))
+            or not isinstance(artifact.get("bytes"), int)
+            or isinstance(artifact.get("bytes"), bool)
+            or artifact.get("bytes", -1) < 0
+            or artifact.get("payload_schema") != row.get("payload_schema")
+        ):
+            raise OutputContractRefused(
+                "OCCURRENCE-STATE-CONTRADICTORY", "emitted artifact binding is incomplete"
+            )
+        normalize_windows_relative_path(artifact["path"])
+        if context is not None and artifact["path"] != resolve_output_path(
+            contract_path, occurrence, context, template_values=template_values
+        ):
+            raise OutputContractRefused(
+                "PATH-ESCAPE", "emitted artifact path differs from its registered allocation"
+            )
+        return {
+            "occurrence_id": occurrence["occurrence_id"],
+            "state": "emitted",
+            "artifact": dict(artifact),
+        }
+    if state not in {"not_applicable", "suppressed"} or (
+        suppression_reason not in contract.get("suppression_reasons", ())
+    ) or artifact is not None:
+        raise OutputContractRefused(
+            "OCCURRENCE-STATE-CONTRADICTORY", "non-emission needs one registered reason"
+        )
+    return {
+        "occurrence_id": occurrence["occurrence_id"],
+        "state": state,
+        "suppression_reason": suppression_reason,
+    }
+
+
 __all__ = [
+    "OutputContractRefused",
+    "allocate_occurrence",
+    "close_occurrence",
     "compute_occurrence_id",
     "contract_schema_validation_errors",
     "load_contract",
     "normalize_windows_relative_path",
     "normalized_file_sha256",
     "resolve_output_class",
+    "resolve_output_path",
     "validate_output_transaction",
 ]
