@@ -8,6 +8,8 @@ version: 0.8.0
 
 # run-phase-4 — Ph4 Finalize & Close
 
+Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. Legacy readability does not supply shipment-v2 transaction, application, or terminal authority.
+
 **Compatibility surface.** New user-facing guidance and dispatch should use
 `/run-finalize`. This file remains the full Ph4 implementation body so legacy
 `/run-phase-4` invocations resolve without semantic drift.

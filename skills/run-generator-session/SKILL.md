@@ -7,6 +7,8 @@ version: 1.0
 
 # run-generator-session — Generator pass from session chat
 
+Output authority is `references/role_output_contract.json` 3.0.0. The Generator writes only its authorized fixed roles and operations through the scoped transaction. File presence, a readable legacy artifact, or chat instruction alone cannot prove shipment-v2 application or acceptance.
+
 **Grounding basis:** `agents/generator.md`; `references/GROUNDING_PROTOCOL.md`; `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md` (approved design).
 
 You run a **Generator-consistent** pass whose **requirements** come from **this session's chat** (agreed edits, critique, lists). You do **not** use chat as evidence for factual claims.

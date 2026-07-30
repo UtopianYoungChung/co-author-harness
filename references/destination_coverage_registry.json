@@ -28,7 +28,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "3097ce333b868e531b44cd54aa9cee2dd85880142c2556722f55fcee76acdf8f"
+      "sha256": "da4b4edef987653be9118f1ea249f257ee47bf9e00ea2c57386896bfabf02d0c"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -85,6 +85,11 @@
     "scripts/control_plane_transition.py": {
       "class": "guarded",
       "regression": "scripts/control_plane_transition_smoketest.py::destination capability, alias, marker-last, crash/replay, and recovery refusals"
+    },
+    "scripts/contract-kernel-check.py": {
+      "class": "package_confined",
+      "evidence": "writes only references/contract_kernel.v1.json (package constant) and only under explicit --refresh",
+      "sha256": "0ad69064b721ad8f9e59895edea626097806d2eccb993dea0d68a00c681d0346"
     },
     "scripts/product_assurance.py": {
       "class": "guarded",

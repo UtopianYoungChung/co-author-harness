@@ -98,6 +98,8 @@ def package(
         "schema_runtime_check.py": "raise SystemExit(0)\n",
         "version-check.py": "raise SystemExit(0)\n",
         "skill-check.py": "raise SystemExit(0)\n",
+        "shipment_manifest_smoketest.py": "raise SystemExit(0)\n",
+        "output_contract_smoketest.py": "raise SystemExit(0)\n",
     }
     for name, source in suites.items():
         if name == missing_suite:
@@ -294,7 +296,7 @@ def main() -> int:
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = previous
-        assert len(nested_results) == 4
+        assert len(nested_results) == 6
         assert all(row["status"] == "passed" for row in nested_results)
         assert os.environ.get("PYTHONPATH", "") != str(dependency_root)
         cases.append("nested_subprocess_receives_only_qualified_dependencies")
@@ -309,7 +311,7 @@ def main() -> int:
         assert clean["environment"]["suite_pythonpath"].split(os.pathsep) == clean["environment"]["dependency_paths"]
         assert clean["environment"]["suite_pythonno_usersite"] == "1"
         assert clean["environment"]["suite_pythonhome"] is None
-        assert len(clean["suites"]) == 4 and all(row["status"] == "passed" for row in clean["suites"])
+        assert len(clean["suites"]) == 6 and all(row["status"] == "passed" for row in clean["suites"])
         cases.append("clean_qualification")
 
         wrong_type = json.loads(json.dumps(clean))

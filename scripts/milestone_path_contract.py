@@ -13,6 +13,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTHORITY_PATH = ROOT / "references" / "role_output_contract.json"
+ROLE_OUTPUT_CONTRACT_VERSION = "3.0.0"
 PATH_CONTRACT_VERSION = "2.0.0"
 PUBLIC_TO_LEDGER = {"FINAL": "M5"}
 LEGACY_DELIVERABLE_PATHS = frozenset({
@@ -30,8 +31,10 @@ class CanonicalPathError(ValueError):
 
 def load_role_output_contract() -> dict[str, Any]:
     data = json.loads(AUTHORITY_PATH.read_text(encoding="utf-8"))
-    if data.get("schema_version") != PATH_CONTRACT_VERSION:
-        raise CanonicalPathError("ROLE-OUTPUT-CONTRACT-VERSION: expected 2.0.0")
+    if data.get("schema_version") != ROLE_OUTPUT_CONTRACT_VERSION:
+        raise CanonicalPathError(
+            f"ROLE-OUTPUT-CONTRACT-VERSION: expected {ROLE_OUTPUT_CONTRACT_VERSION}"
+        )
     if data.get("path_contract_version") != PATH_CONTRACT_VERSION:
         raise CanonicalPathError("MILESTONE-PATH-CONTRACT-VERSION: expected 2.0.0")
     milestones = data.get("milestones")

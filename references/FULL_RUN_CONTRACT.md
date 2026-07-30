@@ -1,5 +1,7 @@
 # FULL_RUN_CONTRACT.md — run scope, authorization to write prose, and terminal claims
 
+**Output and shipment authority.** `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes. This full-run contract governs scope and terminal claims; it does not convert a readable F7/F8, legacy event, or file-presence observation into shipment-v2 transaction evidence or proof of consumer application. Each observed trigger occurrence still requires its contract-defined closure and any terminal consumer must verify the separately pinned receipt chain.
+
 > **Canonical surface.** This file is the single normative home for: what a
 > whole-lifecycle request means, what authorizes writing academic prose, what a
 > child dispatch may be told, and what authorizes a terminal claim. Other files

@@ -32,6 +32,18 @@ REQUIRED_COMPONENT_IDS = {
     "shipment-recovery-receipt-schema", "output-contract", "shipment-contract",
     "staging-run",
     "schema-runtime-check", "runtime-plane-probe",
+    "output-economy-policy", "output-economy-check",
+    "destination-coverage-registry", "output-profile-snippet",
+    "package-invocation-rules", "agent-orchestration", "review-orchestration",
+    "operating-manual", "routing-spine", "phase-protocol",
+    "planner-agent", "evaluator-agent", "generator-agent", "reflector-router-agent",
+    "skill-run-draft", "skill-run-iterate", "skill-run-finalize",
+    "skill-run-generator-session", "skill-run-phase-4",
+    "skill-quick-deterministic", "skill-plugin-commands",
+    "archive-runtime-probe", "runtime-plane-probe-smoketest",
+    "archive-runtime-probe-smoketest", "shipment-manifest-v2-smoketest",
+    "output-contract-v3-smoketest", "package-completeness-smoketest",
+    "milestone-path-contract-smoketest", "schema-runtime-plane-smoketest",
 }
 
 

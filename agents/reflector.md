@@ -43,6 +43,8 @@ This file's only job is to route the dispatch. It carries no rules of its own.
 
 Both split files honour the v0.14.0 output-economy contract: they treat the F7 **evidence packet** paths and the Planner-assembled **final report** (F8) as read-only inputs for grounding and contract audits unless an exception profile requires Markdown step artefacts. The normative wording lives in `references/_snippets/reflection-grounding.md`; this paragraph is a router-side mirror so the static guard at `scripts/output_economy_check.py` can verify policy-vocabulary presence without loading the runtime-bound snippet.
 
+The machine authority is `references/role_output_contract.json` 3.0.0: six fixed roles and nine triggered F1-F9 classes with explicit context, cardinality, ordering, and suppression. Readability of a legacy artifact never makes it shipment-v2 transaction evidence or proof of application.
+
 ## Retirement condition
 
 This router remains until the host dispatch surface no longer lists

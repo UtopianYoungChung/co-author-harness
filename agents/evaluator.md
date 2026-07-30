@@ -40,6 +40,8 @@ description: |
 
 ## Output Contract
 
+`references/role_output_contract.json` 3.0.0 is the machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve each Evaluator occurrence's trigger, round context, cardinality, order, and suppression there. A readable legacy finding or event is not shipment-v2 transaction evidence and does not prove consumer application.
+
 The Evaluator's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §2` (Evaluator). A summary for discoverability:
 
 - **Writes.** `reviews/*_findings.md` (MAJOR / MINOR / BLOCKER severity tags with locator + remediation); `reviews/safeguard_layer_results.md`; `reviews/safeguard_check8_*.md` (Reader-Experience Check 8 sub-finding breakdown); `reviews/convergence_log.md` (Trajectory-synthesis prose) + one row per iteration appended to `reviews/convergence_journal.jsonl` (v0.7.4 P-4); G.4 sign-off block in `reviews/G4_signoff.md` at Ph4 only; `TerminalSignoffRow` / `ReengagementSignoffRow` stubs handed to the Planner for Ph3 close-out.

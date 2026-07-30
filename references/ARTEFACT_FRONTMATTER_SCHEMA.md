@@ -32,6 +32,8 @@ P-2's Ph3 stability sub-mode admits inheritance only when the prior round's fron
 
 This file is NORMATIVE. The validator at `scripts/artefact_frontmatter_validate.py` is the enforcement surface. Reflector Phase 2f extends to invoke the validator against each artefact it audits; a frontmatter-schema violation is an `R-Refl-FM-*` finding class (R-Refl-FM-1 missing-required-field; R-Refl-FM-2 type-mismatch or format violation on documented string shapes; R-Refl-FM-3 unknown-field-in-strict-family).
 
+This schema describes payload readability; it does not decide whether an output occurrence was authorized or closed. `references/role_output_contract.json` 3.0.0 is the machine authority for the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and suppression. A schema-valid F7, F8, legacy family, or historical event remains readable evidence under its owning contract but is not shipment-v2 transaction evidence or proof of consumer application.
+
 ## 1. Family taxonomy
 
 Every **Markdown** artefact that lives under `reviews/` and is read by any agent under v0.7.4+ belongs to exactly one of **six legacy** frontmatter families (F1–F6). The family is declared by the `document_type` frontmatter field, which is required on every such artefact.

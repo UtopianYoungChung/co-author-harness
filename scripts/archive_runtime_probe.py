@@ -35,6 +35,8 @@ EXPECTED_RUNTIME_SUITES = (
     ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
     ("version_check", "portable_core", "scripts/version-check.py"),
     ("skill_check", "portable_core", "scripts/skill-check.py"),
+    ("shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"),
+    ("output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"),
 )
 RUNTIME_PROBE = "scripts/runtime_plane_probe.py"
 DIGEST_ALGORITHM = "sha256(path-NUL-kind-NUL-content-sha256-LF)"
@@ -340,7 +342,7 @@ def _runtime_binding_errors(
         if isinstance(row, Mapping)
     ] if isinstance(suites, list) else []
     if observed_suites != list(EXPECTED_RUNTIME_SUITES):
-        errors.append("runtime suite universe/order differs from the four required suites")
+        errors.append("runtime suite universe/order differs from the six required suites")
     verdict = payload.get("verdict")
     if verdict in {"qualified", "qualified_with_caveats"} and (
         not isinstance(suites, list)

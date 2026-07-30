@@ -2,7 +2,7 @@
 
 **Purpose.** Keep the harness manuscript-first. Phase work should improve the paper, update minimal state, and preserve audit evidence without producing a report stack at every step.
 
-**Authority.** This file is normative for output profiles, evidence packets, events log, cache files, final round report assembly, and compatibility pointers. It extends the Lifecycle-Phase Ladder; it does not replace `PHASE_PROTOCOL.md` phase semantics.
+**Authority.** This file is normative for output profiles, evidence packets, events log, cache files, final round report assembly, and compatibility pointers. It extends the Lifecycle-Phase Ladder; it does not replace `PHASE_PROTOCOL.md` phase semantics. `references/role_output_contract.json` version 3.0.0 is the sole machine authority for output writers, fixed roles, triggered classes, contexts, cardinality, ordering, suppression, and paths.
 
 **Schema linkage.** Evidence packets are the **F7** artifact family. Final round reports are the **F8** artifact family. Both are validated by `scripts/artefact_frontmatter_validate.py` — F7 through the validator's **JSON lane**, F8 through **YAML frontmatter** on Markdown. F7/F8 do **not** use the legacy F1–F6 `COMMON_REQUIRED` field set (`cycle_id`, `model_used`, etc.).
 
@@ -11,6 +11,8 @@
 ---
 
 ## 1. Output Classes
+
+The output population is closed over two disjoint sets. The six fixed roles are M1, M2, M3, M4, M5, and `manuscript_revision_log`; they resolve to current mutable paths under their declared operations. The nine triggered classes are F1 through F9; each observed trigger occurrence closes exactly once as emitted, not applicable, or suppressed with a typed reason. A prompt or a file's existence never creates an occurrence, proves application, or grants acceptance authority.
 
 | Class | Human-facing by default | Purpose |
 |---|---:|---|
@@ -178,6 +180,8 @@ The Planner refuses to write if the chosen `round_id` or `event_id` already exis
 ## 9. Backward Compatibility
 
 Existing projects may still contain `reviews/consolidated_findings_report.md`, `reviews/safeguard_layer_results.md`, `reviews/ph2_findings_*.md`, and other pre-overhaul report paths. These remain readable inputs. New rounds default to evidence packets and final reports, but loaders must treat old report paths as legacy evidence sources.
+
+F7/F8 and legacy F1-F6/F9 event artifacts remain readable under their owning historical contracts. Recognition of an artifact family or legacy event is interpretation only: it is never shipment-v2 transaction evidence, never an application receipt, and never proof that a consumer applied a shipment. Shipment authority requires a schema-valid v2 manifest and the separately pinned receipt chain defined by the compatibility profile.
 
 When a project is mid-round and expects an old path, the Planner writes a **compatibility pointer** instead of silently dropping the artifact:
 

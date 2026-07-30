@@ -52,6 +52,8 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 ## Output Contract
 
+`references/role_output_contract.json` 3.0.0 is the machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve each occurrence's context, cardinality, ordering, path, and typed suppression there; do not infer an occurrence, application, or acceptance from file presence or a readable legacy artifact.
+
 The Planner's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §1` (Planner). A summary for discoverability:
 
 - **Writes (sole writer).** `reviews/phase_state.json` — the 18-field `SectionStateObject`, additive `milestone_framework` namespace, milestone events, artifact hashes, and policy-correct handoff bindings; all use the existing atomic/concurrency contract. Per-round and transition-control artefacts: `reviews/revision_plan.md`, `reviews/classification.md`, `reviews/dispatch_plan_<round>.md`, `reviews/ph1_draft_completion.md` / `ph2_review_completion.md` / `ph3_convergence_signoff.md`, mandatory audited or explicitly requested optional derived `reviews/.harness/handoffs/<M>_packet.json` F9 packets, hash-bound `reviews/.harness/assignment/wiki_grounding_<round>.json`, immutable single-use `reviews/.harness/assignment/{ready,reserved,consumed,invalidated}/gate_receipt_<target>_<utc>.json` receipts, `reviews/mcr_<round>.md`, and `reviews/plugin_update_proposals.md` entries. These are Planner transition-control records, not Evaluator findings.

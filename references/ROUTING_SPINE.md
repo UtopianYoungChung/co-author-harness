@@ -1,5 +1,7 @@
 # ROUTING_SPINE — Derived Intent Routing
 
+**Typed output boundary.** Routing resolves output ownership through `references/role_output_contract.json` 3.0.0: six fixed roles and nine triggered F1-F9 classes with explicit context, cardinality, ordering, and suppression. A readable legacy artifact or existing path never supplies shipment-v2 application or acceptance authority.
+
 **Purpose.** This file maps a user request to the canonical milestone and
 lifecycle contracts. It does not define a second phase system.
 

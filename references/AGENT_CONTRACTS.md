@@ -8,6 +8,8 @@
 
 **Precedence.** On any conflict between this file and an `agents/<role>.md` prompt, the contract wins on *obligations* (what must be done) and the prompt wins on *method* (how to do it).
 
+**Typed output authority.** `references/role_output_contract.json` 3.0.0 exclusively defines the six fixed roles and nine triggered F1-F9 classes. Agents resolve writer, path, context, cardinality, ordering, and typed suppression from that file; narrative lists here are discoverability aids. Every observed trigger occurrence closes once. File presence and legacy-family recognition grant neither application nor acceptance authority, and legacy artifacts never satisfy shipment-v2 transaction evidence by class alone.
+
 **C5 product-evidence invariant.** `scripts/audit/run_all.py` is diagnostic
 mechanics/compatibility only. No agent may use its exit code, findings report,
 or optional semantic compatibility report as milestone, terminal, or governed

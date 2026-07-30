@@ -1,5 +1,7 @@
 # REVIEW ORCHESTRATION — How to Run the Joint Review
 
+**Typed output boundary.** `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes. This review sequence may describe when outputs are useful, but authorization, occurrence closure, context, cardinality, ordering, and typed suppression resolve only through the machine contract. Legacy findings and event artifacts remain readable without becoming shipment-v2 transaction evidence.
+
 
 
 ## Wiki write deferral (Research Truth Phase 0/1)

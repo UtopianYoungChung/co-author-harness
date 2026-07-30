@@ -1,5 +1,7 @@
 # Assignment-Derived Milestone Process
 
+**Typed output boundary.** `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes. Assignment and milestone authority must be resolved before an output transaction; file presence, legacy readability, and a harness verdict do not prove application or acceptance.
+
 ## 0. Producer boundary (binding, 2026-07-22)
 
 Milestone transactions are production bookkeeping, never research authority.

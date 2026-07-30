@@ -1,5 +1,7 @@
 # AGENT ORCHESTRATION — Four-Agent Architecture
 
+**Typed output boundary.** The narrative role descriptions below defer to `references/role_output_contract.json` 3.0.0 for the six fixed roles and nine triggered F1-F9 classes, including trigger context, cardinality, ordering, paths, and suppression. Readable legacy artifacts remain inputs only and do not become shipment-v2 transaction or application evidence.
+
 ## Producer boundary (binding, 2026-07-22)
 
 Every agent in this system is a **producer, not a decision maker**. Outside

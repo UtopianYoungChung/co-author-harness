@@ -56,6 +56,16 @@ DEFAULT_SUITES: tuple[Mapping[str, str], ...] = (
         "kind": "portable_core",
         "script": "scripts/skill-check.py",
     },
+    {
+        "name": "shipment_manifest_v2_smoketest",
+        "kind": "portable_core",
+        "script": "scripts/shipment_manifest_smoketest.py",
+    },
+    {
+        "name": "output_contract_v3_smoketest",
+        "kind": "portable_core",
+        "script": "scripts/output_contract_smoketest.py",
+    },
 )
 
 
@@ -877,7 +887,7 @@ def probe_plane(
     if suite_signature != required_signature:
         raise ProbeRefusal(
             "RUNTIME-PLANE-SUITES",
-            "the runtime qualification must run all four frozen core suites exactly once",
+            "the runtime qualification must run all six frozen core suites exactly once",
         )
     dependency_paths = _dependency_paths()
     suite_results = _run_suites(local_root, suites, dependency_paths)

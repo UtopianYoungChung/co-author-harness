@@ -7,6 +7,8 @@ version: 0.15.0-pre
 
 # run-draft — public draft stage
 
+Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. A readable legacy artifact or file presence never proves shipment-v2 application or acceptance.
+
 `/run-draft` is the canonical public entrypoint for the draft stage. Legacy
 `/run-phase-1` remains a compatibility entrypoint and implementation body for
 the same workflow; behaviour is identical.

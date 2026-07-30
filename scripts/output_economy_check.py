@@ -40,6 +40,16 @@ AGENT_AND_CONTRACT_FILES = [
     "references/AGENT_CONTRACTS.md",
 ]
 
+TYPED_SKILL_FILES = [
+    "skills/run-draft/SKILL.md",
+    "skills/run-iterate/SKILL.md",
+    "skills/run-finalize/SKILL.md",
+    "skills/run-generator-session/SKILL.md",
+    "skills/run-phase-4/SKILL.md",
+    "skills/quick-deterministic/SKILL.md",
+    "skills/plugin-commands/SKILL.md",
+]
+
 PHASE_REQUIRED_PHRASES = [
     "Output Profile",
     "reviews/.harness/evidence/<event_id>.json",
@@ -56,12 +66,21 @@ PLANNER_REQUIRED_PHRASES = [
 AGENT_REQUIRED_PHRASES = [
     "evidence packet",
     "final report",
+    "role_output_contract.json",
+    "shipment-v2",
 ]
 
 CONTRACT_REQUIRED_PHRASES = [
     "Output Economy Contract",
     "evidence packet",
     "final report",
+    "role_output_contract.json",
+    "shipment-v2",
+]
+
+TYPED_SKILL_REQUIRED_PHRASES = [
+    "role_output_contract.json",
+    "shipment-v2",
 ]
 
 DISCOURAGED_DEFAULTS = [
@@ -77,6 +96,10 @@ PROTOCOL_REQUIRED_SUBSTRINGS = [
     "round_id",
     "event_id",
     "final_round_report_<round_id>.md",
+    "role_output_contract.json` version 3.0.0",
+    "six fixed roles",
+    "nine triggered classes",
+    "never shipment-v2 transaction evidence",
 ]
 
 
@@ -144,6 +167,14 @@ def main() -> int:
             errors.append(str(exc))
             continue
         errors.extend(check_file(rel, text, PHASE_REQUIRED_PHRASES, True))
+
+    for rel in TYPED_SKILL_FILES:
+        path = root / rel
+        if not path.is_file():
+            errors.append(f"missing file {rel}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        errors.extend(check_file(rel, text, TYPED_SKILL_REQUIRED_PHRASES, False))
 
     planner_path = root / "agents" / "planner.md"
     if planner_path.is_file():

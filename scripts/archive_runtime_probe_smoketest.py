@@ -83,6 +83,8 @@ payload={
   {"name":"schema_runtime_check","kind":"portable_core","script":"scripts/schema_runtime_check.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
   {"name":"version_check","kind":"portable_core","script":"scripts/version-check.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
   {"name":"skill_check","kind":"portable_core","script":"scripts/skill-check.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
+  {"name":"shipment_manifest_v2_smoketest","kind":"portable_core","script":"scripts/shipment_manifest_smoketest.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
+  {"name":"output_contract_v3_smoketest","kind":"portable_core","script":"scripts/output_contract_smoketest.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
  ],
  "findings":findings,"verdict":verdict,
 }

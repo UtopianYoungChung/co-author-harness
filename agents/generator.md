@@ -43,6 +43,8 @@ description: |
 
 ## Output Contract
 
+`references/role_output_contract.json` 3.0.0 is the machine authority for its six fixed roles and nine triggered F1-F9 classes. The Generator may write only the fixed roles and operations assigned to it through a valid transaction; file presence, a legacy artifact, or a harness verdict cannot authorize creation, shipment-v2 application, or acceptance.
+
 The Generator's full input / output / invariant contract lives in `references/AGENT_CONTRACTS.md §3` (Generator). A summary for discoverability:
 
 - **Writes (sole writer of academic deliverables).** The exact contract is `references/role_output_contract.json`: M1 `milestones/M1_project_memo.md`; M2 `milestones/M2_annotated_references.md`; M3 `milestones/M3_argument_evidence_outline.md` as a structured outline only; M4 `milestones/M4_complete_paper_draft.md` (or the explicitly specialized manuscript path). `manuscript/revision_log.md` is the append-only change log. M1–M3 are written and separately accepted in Ph1; M4 initial assembly is Ph1 and finding-driven review begins in Ph2.

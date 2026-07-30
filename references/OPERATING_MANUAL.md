@@ -1,5 +1,7 @@
 # OPERATING_MANUAL — Full Runbook for the Research and Academic Paper Writing Package
 
+**Typed output boundary.** Use `references/role_output_contract.json` 3.0.0 as the machine authority for the six fixed roles and nine triggered F1-F9 classes. The path lists in this manual are explanatory. File presence and legacy readability do not prove shipment-v2 application, acceptance, or terminal state.
+
 *For the reader who is inheriting the package cold, or who wants the complete operational picture. If you just need to start using it, read `QUICKSTART.md` first.*
 
 **Scope.** This manual describes how to run the package day-to-day: what to do before the first session, what to do on every session, how to invoke each of the seven phases, how to read the artifacts produced, how to recover when something goes wrong, and how to sustain the benefits over time. It is a *how* document — the *what* (rules, checks, agent prompts) lives in the component files and is referenced here rather than duplicated.

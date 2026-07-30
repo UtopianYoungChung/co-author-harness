@@ -192,11 +192,12 @@
       "id": "assignment-process",
       "path": "references/ASSIGNMENT_MILESTONE_PROCESS.md",
       "revision_kind": "sha256",
-      "sha256": "c13e522d8d69b6c40cbd42b85c911c9c5e138eae7f6ac6f04558b91405e2390d",
+      "sha256": "6dbe4ad2848bbeb49ae1287e0c2d970ec528730a87edf82b37aa4858f1496e40",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
-        "lab-iteration-derived-handoff-v1"
+        "lab-iteration-derived-handoff-v1",
+        "typed-output-policy-v1"
       ]
     },
     {
@@ -206,26 +207,29 @@
       "sha256": "fd37a981ce53c53a4a321a6c219c508cadc7267b3e07b032ec3a1637a4b92e4c",
       "migration_ids": [
         "milestone-path-contract-v2",
-        "lab-iteration-derived-handoff-v1"
+        "lab-iteration-derived-handoff-v1",
+        "typed-output-policy-v1"
       ]
     },
     {
       "id": "agent-contracts",
       "path": "references/AGENT_CONTRACTS.md",
       "revision_kind": "sha256",
-      "sha256": "12a04d7d9533c594b233586f48aba4df9f9d38671e5ce207258a7c6ffdd44b11",
+      "sha256": "0eefaddfeb4961e7fe88a45e350c0fa25990fb47c3a047dff2a0e1c24cf6747a",
       "migration_ids": [
         "milestone-path-contract-v2",
-        "lab-iteration-derived-handoff-v1"
+        "lab-iteration-derived-handoff-v1",
+        "typed-output-policy-v1"
       ]
     },
     {
       "id": "full-run-contract",
       "path": "references/FULL_RUN_CONTRACT.md",
       "revision_kind": "sha256",
-      "sha256": "2d76448ca074837587d363b39d5cea46889d0368e30a0335b0ffef469663820c",
+      "sha256": "1a547c3a563165c1ef409998b9d91d1b861e258987d98cf7dfbcaf33f6b05f61",
       "migration_ids": [
-        "lab-iteration-derived-handoff-v1"
+        "lab-iteration-derived-handoff-v1",
+        "typed-output-policy-v1"
       ]
     },
     {
@@ -248,9 +252,10 @@
       "id": "artefact-schema",
       "path": "references/ARTEFACT_FRONTMATTER_SCHEMA.md",
       "revision_kind": "sha256",
-      "sha256": "8323018b15c93d67f3366cbe55e25fb609197aa3e77fa086d73bceccd1d0d391",
+      "sha256": "a8216e30fb9f97ebaaedf638d4610bd7cadd2ed003bbef0722dedd7baa2060f8",
       "migration_ids": [
-        "milestone-path-contract-v2"
+        "milestone-path-contract-v2",
+        "typed-output-policy-v1"
       ]
     },
     {
@@ -494,9 +499,10 @@
       "id": "milestone-path-resolver",
       "path": "scripts/milestone_path_contract.py",
       "revision_kind": "sha256",
-      "sha256": "fb509f52eda47b95d41f34d0783d9eb6cb0ecd4617e18de1b41fe17f49f8bfa9",
+      "sha256": "aac77ffccf6a87f605f4e029fe748ca1892a88bd3e3db23448f1950c7d30cbad",
       "migration_ids": [
-        "milestone-path-contract-v2"
+        "milestone-path-contract-v2",
+        "role-output-contract-v3"
       ]
     },
     {
@@ -530,8 +536,10 @@
       "id": "runtime-plane-probe",
       "path": "scripts/runtime_plane_probe.py",
       "revision_kind": "sha256",
-      "sha256": "ec7ca6e05a608f38aa14eb15eca79218a45b89464727d088aa4ee0f00b2a37be",
-      "migration_ids": []
+      "sha256": "de053a9aeebc358e40a805cc22099c7ff1c258c500f72e5d4c0d9cda95a2c296",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
     },
     {
       "id": "host-qualification-schema",
@@ -684,9 +692,271 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "3097ce333b868e531b44cd54aa9cee2dd85880142c2556722f55fcee76acdf8f",
+      "sha256": "da4b4edef987653be9118f1ea249f257ee47bf9e00ea2c57386896bfabf02d0c",
       "migration_ids": [
-        "lab-iteration-derived-handoff-v1"
+        "lab-iteration-derived-handoff-v1",
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "output-economy-policy",
+      "path": "references/OUTPUT_ECONOMY_PROTOCOL.md",
+      "revision_kind": "sha256",
+      "sha256": "5ba8419d1d612f0d11a573ca14446d04f95d01afb575080aa34b4963308c82d1",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "output-economy-check",
+      "path": "scripts/output_economy_check.py",
+      "revision_kind": "sha256",
+      "sha256": "4c52af182adf12b6a5bcc24943642ae6f26181d777f7d565d5e86dad5307c5a5",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "destination-coverage-registry",
+      "path": "references/destination_coverage_registry.json",
+      "revision_kind": "sha256",
+      "sha256": "d5d8525ee1b9594f1184cf18f12f0f347b92a12abdef802270f579941ff83db2",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "output-profile-snippet",
+      "path": "references/_snippets/output-profile.md",
+      "revision_kind": "sha256",
+      "sha256": "b6bb50d8cb8e4cd961978778a9325183830e4e7fb4b959281004829b7b04b9a2",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "package-invocation-rules",
+      "path": "references/CLAUDE.md",
+      "revision_kind": "sha256",
+      "sha256": "83da631360a700fb317cf3575cc32f96e506f1a1ea4c23a5ae6b0f1f3dff5a9b",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "agent-orchestration",
+      "path": "references/AGENT_ORCHESTRATION.md",
+      "revision_kind": "sha256",
+      "sha256": "6747765a7f0846cb93f1ac656fa3348a8e80e517eca3dbb774b5bfdd8b67830d",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "review-orchestration",
+      "path": "references/REVIEW_ORCHESTRATION.md",
+      "revision_kind": "sha256",
+      "sha256": "9997007ab64d249974063b8241d08ed7d1684046cd5f05fb4ba9edc8ab353da0",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "operating-manual",
+      "path": "references/OPERATING_MANUAL.md",
+      "revision_kind": "sha256",
+      "sha256": "e27ae86282ce90c09fe9ddffae034fcf80d12351e4272b5975aa2b8839e2291d",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "routing-spine",
+      "path": "references/ROUTING_SPINE.md",
+      "revision_kind": "sha256",
+      "sha256": "63890a975e146622bd2e65a9b9842e02fe3a39214cad0da7b07215a7ff41362e",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "phase-protocol",
+      "path": "references/PHASE_PROTOCOL.md",
+      "revision_kind": "sha256",
+      "sha256": "216713c11d2893b3bf21333fdb5b360c6001da3f5b5d6b198c0d84251697330d",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "planner-agent",
+      "path": "agents/planner.md",
+      "revision_kind": "sha256",
+      "sha256": "2e08f885d28e7e1ab46ddc2457465d17902ae8befcd89a2a59bbfabde0d56cda",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "evaluator-agent",
+      "path": "agents/evaluator.md",
+      "revision_kind": "sha256",
+      "sha256": "28dbb7a250cee6db78fe4ee50d576e46a179bbb3f02c70fc960f1734eaf698ae",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "generator-agent",
+      "path": "agents/generator.md",
+      "revision_kind": "sha256",
+      "sha256": "58e5d02c597b3c3c3b9f3e12f167492143ca53663e07c3b300cf7774f2348877",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "reflector-router-agent",
+      "path": "agents/reflector.md",
+      "revision_kind": "sha256",
+      "sha256": "fdea65bd36e4d21d9a88ca9145cd503cda1b7a74afbabc628d66121d09f2dbd1",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-run-draft",
+      "path": "skills/run-draft/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "acbea9204676c37a3d53c93adbecf1d9faf6da3bad31621d54264b51a991c083",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-run-iterate",
+      "path": "skills/run-iterate/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "44fa77e9409afd8c9d314833edc24c9dfe1ad9844606e8086f781d7dbc1d95d1",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-run-finalize",
+      "path": "skills/run-finalize/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "60ec63058f6fcea1a9a6932d2bc01abfe97105b0247f078f20a6731c07373a18",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-run-generator-session",
+      "path": "skills/run-generator-session/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "871fa29b5461214bf37b4ccd50610efdec8d4fa19ae239f3371c8516d13ab6fa",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-run-phase-4",
+      "path": "skills/run-phase-4/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "0bb41ae2c9c296a4380aa9bf8a6f9d6e30510b63d1aca3d5c9b436f17f90ac51",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-quick-deterministic",
+      "path": "skills/quick-deterministic/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "1c62d3fb446660ea973a1b0352e7bb3c626cbf9b2dc3757c926e59e65d58df64",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "skill-plugin-commands",
+      "path": "skills/plugin-commands/SKILL.md",
+      "revision_kind": "sha256",
+      "sha256": "084db63ed5e7833d81155108eb6b6b91d27b8644316368ebf41c4b52c78902c6",
+      "migration_ids": [
+        "typed-output-policy-v1"
+      ]
+    },
+    {
+      "id": "archive-runtime-probe",
+      "path": "scripts/archive_runtime_probe.py",
+      "revision_kind": "sha256",
+      "sha256": "d0ab9b184bded3115b40b9944f71c6ad4f349ed2f740c6ab3ebcbd68da429498",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "runtime-plane-probe-smoketest",
+      "path": "scripts/runtime_plane_probe_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "921c0807557c0eb3403b53c11ec06a9d61a65ec3d39e1b00b25e8c227d04f301",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "archive-runtime-probe-smoketest",
+      "path": "scripts/archive_runtime_probe_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "c1f77bf695f04997cb5eb74ffa677abf7a76a6ac972b39055b123dea0de9bd49",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "shipment-manifest-v2-smoketest",
+      "path": "scripts/shipment_manifest_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "38850c2c6b5103d8103c2a960e14946c2ddcf46743534630e27873e8974a9686",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "output-contract-v3-smoketest",
+      "path": "scripts/output_contract_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "ea320d54e34303c7ca6fb20566d5d58aa074d86fb6769852e1d751032c87bc85",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "package-completeness-smoketest",
+      "path": "scripts/package_completeness_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "8c7e5edae2fc15b22dbc26383230a470452c4f84daee7cffcdbd48e077c62b37",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
+      ]
+    },
+    {
+      "id": "milestone-path-contract-smoketest",
+      "path": "scripts/milestone_path_contract_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "78b2e74cbb8ef012f78fc6bbf73394c4be6b83ac544c51a261346591c7be43bc",
+      "migration_ids": [
+        "role-output-contract-v3"
+      ]
+    },
+    {
+      "id": "schema-runtime-plane-smoketest",
+      "path": "scripts/schema_runtime_plane_smoketest.py",
+      "revision_kind": "sha256",
+      "sha256": "63161e6867e4fd1f2f3333bf255a6bdf1186a7a25b7398e898b069f51572cfc7",
+      "migration_ids": [
+        "runtime-shipment-capability-v1"
       ]
     },
     {

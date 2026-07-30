@@ -7,6 +7,8 @@ version: 0.15.1
 
 # run-iterate -- iterate stage router
 
+Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. A readable legacy artifact or file presence never proves shipment-v2 application or acceptance.
+
 **This skill began as an alias for `run-phase-3`.** After PR-3b.4 it is the
 public stage surface for all post-draft iteration profiles. The compatibility
 relationship is still explicit: `/run-phase-3` and `/run-iterate` resolve to

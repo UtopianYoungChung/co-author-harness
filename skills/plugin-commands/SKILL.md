@@ -7,6 +7,8 @@ version: 1.3
 
 # Plugin commands
 
+The command catalog does not grant output authority. `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes; readable legacy artifacts and file presence do not prove shipment-v2 application or acceptance.
+
 List only supported, user-facing commands. Native `skills/*/SKILL.md` files are
 the command implementations; the retired `commands/*.md` redirect layer is not
 an invocation surface.

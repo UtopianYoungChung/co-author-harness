@@ -1,5 +1,7 @@
 # Package CLAUDE.md — Invocation Rules
 
+**Typed output boundary.** `references/role_output_contract.json` 3.0.0 is the sole machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve trigger occurrence, context, cardinality, ordering, path, and typed suppression there. Legacy artifacts remain readable but never become shipment-v2 transaction evidence, application proof, or acceptance authority by presence.
+
 **Scope.** This file governs how Claude (or any agent) invokes the **Research and Academic Paper Writing Package** when asked to review, edit, or critique academic writing. It sits **inside** the package folder and describes how the package is used; the **content rules themselves** live in the component files indexed by `MANIFEST.md`.
 
 **Deployment.** Two common layouts: (1) **Embedded** — this content lives under `.paper-package/` (or equivalent) inside a Research tree; the Research-root `CLAUDE.md` delegates here. (2) **Plugin root** — this `references/` folder sits under the published plugin workspace (for example `co-author-harness/`); treat `${CLAUDE_PLUGIN_ROOT}` as that plugin root and resolve paths from there. Use the layout you actually opened; do not assume `.paper-package/` exists if you are already at the plugin root.

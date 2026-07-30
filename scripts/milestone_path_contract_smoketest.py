@@ -43,7 +43,7 @@ def _expect_block(project: Path) -> None:
 def main() -> int:
     authority_path = ROOT / "references" / "role_output_contract.json"
     authority = json.loads(authority_path.read_text(encoding="utf-8"))
-    assert authority["schema_version"] == "2.0.0"
+    assert authority["schema_version"] == "3.0.0"
     assert authority["contract_id"] == "role-output-contract"
     assert authority["path_contract_version"] == "2.0.0"
     assert {key: row["deliverable_path"] for key, row in authority["milestones"].items()} == EXPECTED
