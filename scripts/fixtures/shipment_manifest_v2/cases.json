@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Frozen C1 shipment-v2 negative corpus. These cases are expected to remain red until the v2 contract and transaction authority exist.",
+  "cases": [
+    {"id": "legacy-v1-not-v2", "family": "legacy", "mutation": "legacy_v1", "expected_code": "VERSION-LEGACY-NONAUTHORITATIVE"},
+    {"id": "legacy-v1_1-not-v2", "family": "legacy", "mutation": "legacy_v1_1", "expected_code": "VERSION-LEGACY-NONAUTHORITATIVE"},
+    {"id": "path-traversal", "family": "path", "mutation": "path_traversal", "expected_code": "PATH-TRAVERSAL"},
+    {"id": "path-case-collision", "family": "path", "mutation": "path_case_collision", "expected_code": "PATH-COLLISION"},
+    {"id": "path-unicode-collision", "family": "path", "mutation": "path_unicode_collision", "expected_code": "PATH-COLLISION"},
+    {"id": "path-reparse", "family": "path", "mutation": "path_reparse", "expected_code": "PATH-REPARSE"},
+    {"id": "path-destination-escape", "family": "path", "mutation": "path_destination_escape", "expected_code": "PATH-ESCAPE"},
+    {"id": "member-duplicate", "family": "membership", "mutation": "member_duplicate", "expected_code": "MEMBER-DUPLICATE"},
+    {"id": "member-unlisted", "family": "membership", "mutation": "member_unlisted", "expected_code": "MEMBER-UNLISTED"},
+    {"id": "operation-inventory-mismatch", "family": "membership", "mutation": "operation_inventory_mismatch", "expected_code": "OPERATION-INVENTORY-MISMATCH"},
+    {"id": "create-present-preimage", "family": "transaction", "mutation": "create_present_preimage", "expected_code": "PREIMAGE-PRESENT"},
+    {"id": "modify-stale-preimage", "family": "transaction", "mutation": "modify_stale_preimage", "expected_code": "PREIMAGE-STALE"},
+    {"id": "postimage-tampered", "family": "transaction", "mutation": "postimage_tampered", "expected_code": "POSTIMAGE-TAMPERED"},
+    {"id": "retry-conflict", "family": "transaction", "mutation": "retry_conflict", "expected_code": "TX-RETRY-CONFLICT"},
+    {"id": "concurrent-writer", "family": "transaction", "mutation": "concurrent_writer", "expected_code": "TX-CONCURRENT"},
+    {"id": "interrupted-seal", "family": "transaction", "mutation": "interrupted_seal", "expected_code": "TX-UNSEALED"},
+    {"id": "recovery-required", "family": "transaction", "mutation": "recovery_required", "expected_code": "TX-RECOVERY-REQUIRED"},
+    {"id": "rollback-exact", "family": "transaction", "mutation": "rollback_exact", "expected_code": "TX-ROLLBACK-FAILED"},
+    {"id": "receipt-presence-not-applied", "family": "receipt", "mutation": "receipt_presence", "expected_code": "APPLICATION-UNPROVEN"},
+    {"id": "receipt-forged", "family": "receipt", "mutation": "receipt_forged", "expected_code": "RECEIPT-INVALID"}
+  ],
+  "controls": [
+    {"id": "control-v1-roundtrip-readable", "family": "legacy"},
+    {"id": "control-contained-distinct-paths", "family": "path"},
+    {"id": "control-complete-unique-members", "family": "membership"},
+    {"id": "control-fresh-shipment-not-applied", "family": "receipt"}
+  ]
+}

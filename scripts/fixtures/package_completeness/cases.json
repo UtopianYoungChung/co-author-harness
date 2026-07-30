@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "result_vocabulary": "CAPABILITY_CLOSURE",
+  "purpose": "Frozen C1 six-plane capability and runtime-plane negative corpus.",
+  "cases": [
+    {"id": "cap-plane-policy-missing", "kind": "missing_plane", "plane": "policy", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-plane-contract-missing", "kind": "missing_plane", "plane": "contract", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-plane-producer-missing", "kind": "missing_plane", "plane": "producer", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-plane-consumer-missing", "kind": "missing_plane", "plane": "consumer", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-plane-runtime-missing", "kind": "missing_plane", "plane": "runtime", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-plane-evidence-missing", "kind": "missing_plane", "plane": "evidence", "expected_code": "CAP-PLANE-MISSING"},
+    {"id": "cap-status-behavior-contradiction", "kind": "status_contradiction", "expected_code": "CAP-STATUS-CONTRADICTION"},
+    {"id": "cap-kernel-stale", "kind": "stale_kernel", "expected_code": "CONTRACT-HASH-STALE"},
+    {"id": "cap-runtime-stale", "kind": "stale_runtime", "expected_code": "RUNTIME-PLANE-MISSING"},
+    {"id": "runtime-archive-suite-missing", "kind": "archive_suite", "expected_code": "RUNTIME-PLANE-MISSING"},
+    {"id": "runtime-cache-suite-missing", "kind": "cache_suite", "expected_code": "RUNTIME-PLANE-MISSING"}
+  ],
+  "controls": [
+    {"id": "control-current-capability-registry-valid"},
+    {"id": "control-current-runtime-suite-universe-self-consistent"},
+    {"id": "control-result-vocabulary-not-lifecycle-completeness"}
+  ],
+  "required_runtime_suites": [
+    ["shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"],
+    ["output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"]
+  ]
+}

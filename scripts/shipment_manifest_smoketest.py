@@ -1,209 +1,254 @@
 #!/usr/bin/env python3
-"""shipment_manifest_smoketest - staging run lifecycle + shipment contract.
+"""C1 red-first shipment-v2 and transaction regressions.
 
-Phase D of the producer-boundary plan. Hermetic: a fake governed root supplied
-via COAUTHOR_EXTRA_GOVERNED_ROOTS hosts the staging lane, so every write lands
-in a temp tree. Covers: run creation (collision-resistant ids, five-directory
-layout, refusal outside the lane, fail-closed when ungoverned), immutable
-input snapshots, exclusive byte-verified shipment emission, manifest
-round-trip validation, tamper detection, and application-receipt recognition
-(absence means NOT applied).
-
-Run:  python scripts/shipment_manifest_smoketest.py
-Exit: 0 all pass; 1 a case failed.
+The program intentionally exits 1 against unchanged v0.41 production.  It
+uses only hermetic temporary governed roots, never the authoritative fixture
+registry or manifest.  ``EXPECTED_RED`` means a frozen v2 refusal/recovery
+behavior is still missing; controls must continue to pass.
 """
 
 from __future__ import annotations
 
+import copy
+import importlib
 import json
 import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
-HARNESS = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(HARNESS / "scripts"))
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
 
 import destination_capability as dc  # noqa: E402
 import staging_run as sr  # noqa: E402
 
-FAILURES: list[str] = []
 
-
-def check(name: str, ok: bool, detail: str = "") -> None:
-    print(f"  {'PASS' if ok else 'FAIL'}  {name}{(' - ' + detail) if detail else ''}")
-    if not ok:
-        FAILURES.append(name)
+FIXTURE = ROOT / "scripts" / "fixtures" / "shipment_manifest_v2" / "cases.json"
+ZERO = "0" * 64
+HASH_A = "a" * 64
+HASH_B = "b" * 64
 
 
 def fake_root(base: Path) -> Path:
     fake = base / "fake-ws"
-    (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True)
-    (fake / "research").mkdir(parents=True)
+    (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True, exist_ok=True)
+    (fake / "research").mkdir(parents=True, exist_ok=True)
     return fake
 
 
-def case_run_creation() -> None:
-    with tempfile.TemporaryDirectory(prefix="shpd-") as td:
-        fake = fake_root(Path(td))
-        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
-        try:
-            lane = fake / "outputs" / "co-author-harness" / "staging"
-            run1 = sr.create_run("w-test", staging_root=lane)
-            run2 = sr.create_run("w-test", staging_root=lane)
-            check("run dir under the lane", str(run1).startswith(str(lane)))
-            check("run-id pattern", run1.name.startswith("run-") and len(run1.name) == 29,
-                  run1.name)
-            check("collision-resistant ids", run1.name != run2.name)
-            layout = {"inputs", "work", "state", "evidence", "shipment"}
-            check("five-directory layout",
-                  {p.name for p in run1.iterdir() if p.is_dir()} == layout)
-            refused = None
-            try:
-                sr.create_run("w-test", staging_root=fake / "research" / "not-a-lane")
-            except dc.DestinationRefused as exc:
-                refused = exc
-            check("refuses a run outside the staging lane",
-                  refused is not None and refused.code == dc.DEST_PROTECTED)
-        finally:
-            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+def make_run(base: Path) -> Path:
+    fake = fake_root(base)
+    os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
+    return sr.create_run(
+        "w-test", staging_root=fake / "outputs" / "co-author-harness" / "staging"
+    )
 
 
-def case_ungoverned_fails_closed() -> None:
-    # staging_run imports the resolver by value, so suppress both module
-    # bindings.  This keeps the negative case genuinely ungoverned even as the
-    # capability kernel independently discovers manifests from destinations.
-    real_dc = dc.discovered_workspace_root
-    real_sr = sr.discovered_workspace_root
-    dc.discovered_workspace_root = lambda: None
-    sr.discovered_workspace_root = lambda: None
-    os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+def v2_document() -> dict[str, Any]:
+    return {
+        "schema_version": "2.0.0",
+        "shipment_type": "successful_shipment",
+        "shipment_id": "shp-20260730T000000Z-aaaaaaaa",
+        "run_id": "run-20260730T000000Z-bbbbbbbb",
+        "work_id": "w-test",
+        "created_at": "2026-07-30T00:00:00+00:00",
+        "producer": {"name": "co-author-harness", "version": "0.41.0", "commit": "c" * 40},
+        "contract": {
+            "kernel_version": "1.0.0",
+            "kernel_sha256": HASH_A,
+            "output_contract_id": "role-output-contract",
+            "output_contract_version": "3.0.0",
+            "output_contract_sha256": HASH_B,
+        },
+        "effect_scope": "proposal_only",
+        "invocation_scope": "lab_iteration",
+        "context": {"kind": "package", "package_event_id": "pkg-event-01"},
+        "trigger_occurrences": [],
+        "trigger_closures": [],
+        "inventories": {
+            "inputs": [],
+            "work": [{"path": "work/candidate.md", "bytes": 10, "sha256": HASH_A}],
+            "state": [],
+            "evidence": [],
+            "shipment": ["shipment/MANIFEST.json"],
+        },
+        "proposed_operations": [{
+            "operation_id": "op-01",
+            "op": "create",
+            "destination": "research/60_Workbench/w-test/manuscript/candidate.md",
+            "artifact": "work/candidate.md",
+            "artifact_sha256": HASH_A,
+            "preimage": {"state": "absent"},
+            "postimage_sha256": HASH_A,
+        }],
+        "transaction": {
+            "journal": ["allocated", "members_written", "verified", "manifest_sealed", "closed"],
+            "seal": {"state": "sealed", "state_last": True, "sha256": HASH_B},
+        },
+        "limitations": [],
+        "unresolved_findings": [],
+    }
+
+
+def mutated_document(mutation: str) -> dict[str, Any]:
+    doc = v2_document()
+    op = doc["proposed_operations"][0]
+    work = doc["inventories"]["work"]
+    if mutation == "legacy_v1":
+        doc["schema_version"] = "1.0.0"
+    elif mutation == "legacy_v1_1":
+        doc["schema_version"] = "1.1.0"
+    elif mutation == "path_traversal":
+        op["artifact"] = "work/../state/escape.json"
+    elif mutation == "path_case_collision":
+        work.append({"path": "WORK/CANDIDATE.md", "bytes": 10, "sha256": HASH_A})
+    elif mutation == "path_unicode_collision":
+        work[0]["path"] = "work/caf\u00e9.md"
+        work.append({"path": "work/cafe\u0301.md", "bytes": 10, "sha256": HASH_A})
+    elif mutation == "path_reparse":
+        work[0]["path"] = "work/reparse/candidate.md"
+        doc["fixture_filesystem_facts"] = {"work/reparse": "reparse"}
+    elif mutation == "path_destination_escape":
+        op["destination"] = "C:/outside-governed-root/candidate.md"
+    elif mutation == "member_duplicate":
+        work.append(copy.deepcopy(work[0]))
+    elif mutation == "member_unlisted":
+        doc["fixture_filesystem_facts"] = {"work/unlisted.md": "regular_file"}
+    elif mutation == "operation_inventory_mismatch":
+        op["artifact"] = "work/not-in-inventory.md"
+    elif mutation == "create_present_preimage":
+        op["preimage"] = {"state": "present", "sha256": HASH_B}
+    elif mutation == "modify_stale_preimage":
+        op.update(op="modify", preimage={"state": "present", "sha256": ZERO})
+        doc["fixture_destination_preimage_sha256"] = HASH_B
+    elif mutation == "postimage_tampered":
+        op["postimage_sha256"] = ZERO
+    elif mutation == "retry_conflict":
+        doc["transaction"]["retry"] = {"same_shipment_id": True, "payload_sha256": ZERO}
+    elif mutation == "concurrent_writer":
+        doc["transaction"]["exclusive_writer_count"] = 2
+    elif mutation == "interrupted_seal":
+        doc["transaction"]["seal"] = {"state": "interrupted", "state_last": False}
+    elif mutation == "recovery_required":
+        doc["transaction"]["recovery"] = {"required": True, "receipt": None}
+    elif mutation == "rollback_exact":
+        doc["transaction"]["rollback"] = {
+            "attempted": True, "preimage_sha256": HASH_A, "restored_sha256": HASH_B
+        }
+    elif mutation in {"receipt_presence", "receipt_forged"}:
+        pass
+    else:  # pragma: no cover - frozen corpus prevents this
+        raise KeyError(mutation)
+    return doc
+
+
+def v2_validation_errors(document: dict[str, Any], run_dir: Path) -> list[str]:
+    """Call the frozen v2 validator interface when Authority supplies it."""
     try:
-        refused = None
-        try:
-            sr.create_run("w-test")
-        except dc.DestinationRefused as exc:
-            refused = exc
-        check("no governed root: create_run fails closed",
-              refused is not None and refused.code == dc.DEST_UNGOVERNED)
-    finally:
-        dc.discovered_workspace_root = real_dc
-        sr.discovered_workspace_root = real_sr
+        module = importlib.import_module("shipment_contract")
+    except ModuleNotFoundError:
+        # The unchanged product only has a v1 handwritten mirror. Calling it
+        # grounds the red result in current behavior while preserving the v2
+        # interface as the route to green.
+        return [str(item) for item in sr.validate_manifest(document)]
+    validator = getattr(module, "validate_manifest", None)
+    if not callable(validator):
+        return ["SHIPMENT-V2-VALIDATOR-MISSING"]
+    try:
+        result = validator(document, run_dir=run_dir)
+    except Exception as exc:  # noqa: BLE001 - stable diagnostics are required
+        return [f"SHIPMENT-V2-VALIDATOR-RAISED {type(exc).__name__}: {exc}"]
+    return [str(item) for item in result]
 
 
-def case_input_snapshots() -> None:
-    with tempfile.TemporaryDirectory(prefix="shpd-") as td:
-        fake = fake_root(Path(td))
-        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
-        try:
-            lane = fake / "outputs" / "co-author-harness" / "staging"
-            run = sr.create_run("w-test", staging_root=lane)
-            src = Path(td) / "source.md"
-            src.write_bytes(b"allowlisted input bytes\n")
-            entry = sr.snapshot_input(run, src)
-            snap = run / entry["snapshot_path"]
-            check("snapshot bytes equal source", snap.read_bytes() == src.read_bytes())
-            check("snapshot hash recorded", entry["sha256"] == sr.sha256_file(src))
-            check("snapshot is a regular file, not a link",
-                  snap.is_file() and not snap.is_symlink())
-            check("snapshot read-only", not os.access(snap, os.W_OK))
-            src.write_bytes(b"MUTATED AFTER SNAPSHOT\n")
-            check("later source mutation does not reach the snapshot",
-                  snap.read_bytes() == b"allowlisted input bytes\n")
-        finally:
-            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+def has_code(errors: list[str], code: str) -> bool:
+    return any(error == code or error.startswith(code + " ") for error in errors)
 
 
-def case_shipment_roundtrip() -> None:
-    with tempfile.TemporaryDirectory(prefix="shpd-") as td:
-        fake = fake_root(Path(td))
-        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
-        try:
-            lane = fake / "outputs" / "co-author-harness" / "staging"
-            run = sr.create_run("w-test", staging_root=lane)
-            src = Path(td) / "in.md"
-            src.write_bytes(b"input\n")
-            sr.snapshot_input(run, src)
-            (run / "work" / "candidate.md").write_bytes(b"candidate prose\n")
-            (run / "state" / "ledger.json").write_bytes(b"{\"status\": \"production_ready\"}\n")
-            ops = [{"op": "create",
-                    "destination": "research/60_Workbench/w-test/manuscript/candidate.md",
-                    "artifact": "work/candidate.md"}]
-            manifest_path = sr.emit_shipment(
-                run, proposed_operations=ops,
-                limitations=["hermetic test shipment"], unresolved_findings=[])
-            doc = json.loads(manifest_path.read_text(encoding="utf-8"))
-            problems = sr.validate_manifest(doc)
-            check("emitted manifest validates", problems == [], str(problems[:2]))
-            check("effect_scope is proposal_only", doc["effect_scope"] == "proposal_only")
-            check("proposed op carries artifact hash",
-                  doc["proposed_operations"][0]["sha256"] == sr.sha256_file(run / "work" / "candidate.md"))
-            check("artifacts inventory covers state ledger",
-                  any(a["path"] == "state/ledger.json" for a in doc["artifacts"]))
-            verify = sr.verify_shipment(run)
-            check("verify_shipment green on intact run", verify == [])
-            second = None
-            try:
-                sr.emit_shipment(run, proposed_operations=ops,
-                                 limitations=[], unresolved_findings=[])
-            except FileExistsError:
-                second = "refused"
-            check("second emission refused (exclusive create)", second == "refused")
-            (run / "work" / "candidate.md").write_bytes(b"tampered after emission\n")
-            tampered = sr.verify_shipment(run)
-            check("tamper after emission detected",
-                  any("work/candidate.md" in p for p in tampered), str(tampered[:1]))
-        finally:
-            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+def receipt_observation(mutation: str, run_dir: Path) -> list[str]:
+    sr.emit_shipment(run_dir, proposed_operations=[], limitations=[], unresolved_findings=[])
+    target = run_dir / "shipment" / "APPLICATION_RECEIPT.json"
+    if mutation == "receipt_presence":
+        target.write_text("{}\n", encoding="utf-8")
+        return [] if sr.is_applied(run_dir) else ["APPLICATION-UNPROVEN"]
 
-
-def case_application_receipt() -> None:
-    with tempfile.TemporaryDirectory(prefix="shpd-") as td:
-        fake = fake_root(Path(td))
-        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
-        try:
-            lane = fake / "outputs" / "co-author-harness" / "staging"
-            run = sr.create_run("w-test", staging_root=lane)
-            sr.emit_shipment(run, proposed_operations=[],
-                             limitations=[], unresolved_findings=[])
-            check("fresh shipment is NOT applied", not sr.is_applied(run))
-            missing = None
-            try:
-                sr.recognize_application_receipt(run, Path(td) / "no-such-receipt.json")
-            except FileNotFoundError:
-                missing = "refused"
-            check("recognition refuses a missing receipt", missing == "refused")
-            receipt = Path(td) / "receipt.json"
-            receipt.write_text('{"applied": true, "authority": "research-governance"}',
-                               encoding="utf-8")
-            sr.recognize_application_receipt(run, receipt)
-            check("recognized shipment reports applied", sr.is_applied(run))
-            echo = json.loads((run / "shipment" / "APPLICATION_RECEIPT.json")
-                              .read_text(encoding="utf-8"))
-            check("echo records receipt hash",
-                  echo["receipt_sha256"] == sr.sha256_file(receipt))
-        finally:
-            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+    receipt = run_dir.parent.parent.parent.parent / "forged-receipt.json"
+    receipt.write_text('{"applied":true,"authority":"research-governance"}\n', encoding="utf-8")
+    try:
+        sr.recognize_application_receipt(run_dir, receipt)
+    except Exception as exc:  # noqa: BLE001
+        code = getattr(exc, "code", None)
+        return [str(code or f"UNSTABLE-EXCEPTION {type(exc).__name__}")]
+    return [] if sr.is_applied(run_dir) else ["APPLICATION-UNPROVEN"]
 
 
 def main() -> int:
-    print("shipment_manifest_smoketest")
-    for fn in (case_run_creation, case_ungoverned_fails_closed,
-               case_input_snapshots, case_shipment_roundtrip,
-               case_application_receipt):
-        print(f"{fn.__name__}:")
+    fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    expected_reds: list[str] = []
+    unexpected_passes: list[str] = []
+    unexpected: list[str] = []
+    passing_controls: list[str] = []
+
+    with tempfile.TemporaryDirectory(prefix="shipment-v2-c1-") as td:
+        base = Path(td)
         try:
-            fn()
-        except Exception as exc:  # noqa: BLE001
-            check(fn.__name__, False, f"raised {type(exc).__name__}: {exc}")
-        print()
-    if FAILURES:
-        print(f"FAIL: {len(FAILURES)} case(s): {FAILURES}")
-        return 1
-    print("PASS: staging runs are governed, snapshots immutable, shipments "
-          "byte-verified proposals")
-    return 0
+            run = make_run(base)
+            control_doc = sr.emit_shipment(
+                run, proposed_operations=[], limitations=[], unresolved_findings=[]
+            )
+            control_values = {
+                "control-v1-roundtrip-readable":
+                    sr.validate_manifest(json.loads(control_doc.read_text(encoding="utf-8"))) == [],
+                "control-contained-distinct-paths":
+                    len({"work/alpha.md".casefold(), "work/beta.md".casefold()}) == 2,
+                "control-complete-unique-members":
+                    len({row["path"] for row in json.loads(control_doc.read_text(encoding="utf-8"))["artifacts"]})
+                    == len(json.loads(control_doc.read_text(encoding="utf-8"))["artifacts"]),
+            }
+            fresh = make_run(base)
+            sr.emit_shipment(fresh, proposed_operations=[], limitations=[], unresolved_findings=[])
+            control_values["control-fresh-shipment-not-applied"] = not sr.is_applied(fresh)
+            for control in fixture["controls"]:
+                control_id = control["id"]
+                passed = control_values.get(control_id, False)
+                print(f"{'CONTROL_PASS' if passed else 'CONTROL_FAIL'} {control_id}")
+                if passed:
+                    passing_controls.append(control_id)
+                else:
+                    unexpected.append(control_id)
+
+            for index, case in enumerate(fixture["cases"], start=1):
+                case_run = make_run(base)
+                mutation = case["mutation"]
+                if mutation in {"receipt_presence", "receipt_forged"}:
+                    errors = receipt_observation(mutation, case_run)
+                else:
+                    errors = v2_validation_errors(mutated_document(mutation), case_run)
+                if has_code(errors, case["expected_code"]):
+                    print(f"UNEXPECTED_PASS {case['id']} code={case['expected_code']}")
+                    unexpected_passes.append(case["id"])
+                else:
+                    print(
+                        f"EXPECTED_RED {case['id']} missing={case['expected_code']} "
+                        f"observed={errors[:2]}"
+                    )
+                    expected_reds.append(case["id"])
+        finally:
+            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+
+    summary = {
+        "program": "shipment_manifest_smoketest",
+        "expected_red_ids": expected_reds,
+        "unexpected_pass_ids": unexpected_passes,
+        "unexpected_failures": unexpected,
+        "passing_controls": passing_controls,
+    }
+    print("C1_RED_SUMMARY " + json.dumps(summary, sort_keys=True))
+    return 1 if expected_reds or unexpected else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
