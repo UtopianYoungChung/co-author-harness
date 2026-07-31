@@ -6,6 +6,35 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.42.0 — 2026-07-30
+
+### Capability closure and typed shipment v2
+
+**Six-plane capability truth.** Capability claims now bind policy, a versioned
+machine contract, producer implementation, independently governed consumer,
+packaged runtime, and qualification evidence to the same contract kernel. The
+kernel contains 109 components, and compatibility is evaluated against an
+immutable shipment-v2 kit rather than mutable checkout imports.
+
+**Typed output and shipment transactions.** Role/output contract 3.0.0 covers
+fixed and triggered F1-F9 outputs with explicit occurrence, scope, naming,
+deduplication, and diagnostic rules. Shipment schema 2.0.0 binds transaction
+state, preimage/postimage evidence, seals, retry identity, refusal diagnostics,
+recovery, and concurrency behavior. Producer qualification exercises both
+successful transactions and fail-closed adversarial paths.
+
+**Independent consumer boundary.** A separately governed research consumer
+vendors exact compatibility-kit bytes and replays the shared frozen 40-fixture
+corpus through its own guard, policy, configuration, and tests. Its receipt is
+external evidence: receipt presence does not apply a shipment, change research
+lifecycle state, authorize F9, promote an artifact, or imply acceptance.
+
+**Qualification boundary.** The source is a versioned candidate only until the
+exact final tree passes C10, package/archive/unpacked/installed-cache planes
+pass C11, and independent sequence reviews clear C12. This history entry does
+not claim `PACKAGE_CLEARED`, `SHIPPED`, `HOST_QUALIFIED`, research activation,
+push, tag, or upload.
+
 ## v0.41.0 — 2026-07-30
 
 ### Laboratory iteration and derived milestone handoff
