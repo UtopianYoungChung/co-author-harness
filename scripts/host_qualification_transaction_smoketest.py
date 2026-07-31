@@ -814,6 +814,17 @@ def main() -> int:
         assert not list(base.rglob("*.staged")), "exclusive publication left staged residue"
         assert not list(base.rglob("*.tmp")), "host transaction left shared-temp residue"
 
+    required_startup_contract = {
+        "startup_catalog_missing_refused", "startup_catalog_stale_refused",
+        "catalog_cli_cache_mismatch_refused", "installed_root_mismatch_refused",
+        "manifest_provenance_mismatch_refused", "loaded_path_mismatch_refused",
+        "fresh_task_mismatch_refused", "startup_toctou_refused",
+        "six_suite_runtime_receipt_supported",
+    }
+    advertised = set(getattr(module, "STARTUP_ATTESTATION_CONTRACT", ()))
+    assert required_startup_contract <= advertised, (
+        f"missing host startup contracts: {sorted(required_startup_contract-advertised)}"
+    )
     print(
         "host_qualification_transaction_smoketest: PASS "
         f"({len(cases)} cases; {len(equivalence_vectors)} equivalence vectors; 4 schema attacks)"

@@ -102,6 +102,18 @@ def test_breaches_carry_threshold_metadata() -> None:
             assert breach.tokens > breach.fail_threshold
 
 
+def test_ratchet_contract_is_present() -> None:
+    import token_budget_check as module
+    required = {
+        "immutable_baseline", "new_breach_refused", "existing_breach_growth_refused",
+        "always_loaded_floor_growth_refused", "unknown_policy_refused",
+        "encoder_load_graph_mismatch_refused", "expired_exception_refused",
+        "ownerless_exception_refused",
+    }
+    advertised = set(getattr(module, "RATCHET_CONTRACT", ()))
+    assert required <= advertised, f"missing ratchet contracts: {sorted(required-advertised)}"
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -113,6 +125,7 @@ def main() -> int:
         test_top10_is_sorted_descending,
         test_cli_always_exits_zero_warn_only,
         test_breaches_carry_threshold_metadata,
+        test_ratchet_contract_is_present,
     ]
     failures = []
     for t in tests:
