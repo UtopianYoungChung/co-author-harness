@@ -120,6 +120,21 @@ def _rmtree_force(path: Path, attempts: int = 6) -> None:
 
 
 _SHARED: dict[str, Path] = {}
+_EXTERNAL_OUTPUT_BASE = Path(tempfile.gettempdir()) / "coauthor-build-provenance-smoke"
+
+
+def _external_output_dir(repo: Path) -> Path:
+    """Stable per-sandbox output outside every governed workspace root."""
+    token = hashlib.sha256(str(repo.resolve()).encode("utf-8")).hexdigest()[:16]
+    return _EXTERNAL_OUTPUT_BASE / token
+
+
+def _cleanup_external_output(repo: Path) -> None:
+    out_dir = _external_output_dir(repo)
+    if out_dir.exists():
+        _rmtree_force(out_dir)
+    with contextlib.suppress(OSError):
+        _EXTERNAL_OUTPUT_BASE.rmdir()
 
 
 class SandboxEnvironmentError(RuntimeError):
@@ -187,7 +202,10 @@ def sandbox(destructive: bool = False):
         # bundle, so the next case starts from commit content exactly.
         if _reset_shared(repo):
             _overlay(repo)
-            yield repo
+            try:
+                yield repo
+            finally:
+                _cleanup_external_output(repo)
             return
         # Unrestorable fixture: discard it and fall through to the fresh-clone
         # path below. If even the discard fails, that is an environment fact
@@ -216,9 +234,15 @@ def sandbox(destructive: bool = False):
         if not destructive:
             _SHARED["repo"] = repo
             _SHARED["tmp"] = tmp
-            yield repo
+            try:
+                yield repo
+            finally:
+                _cleanup_external_output(repo)
             return  # teardown deferred to teardown_shared()
-        yield repo
+        try:
+            yield repo
+        finally:
+            _cleanup_external_output(repo)
     finally:
         if destructive or "repo" not in _SHARED:
             _rmtree_force(tmp)
@@ -304,14 +328,22 @@ def _overlay(repo: Path) -> None:
     """
     for rel in ("scripts/build-plugin.py",
                 "scripts/package_enumeration.py",
-                "scripts/resolve_includes.py"):
+                "scripts/resolve_includes.py",
+                "scripts/destination_capability.py",
+                "scripts/qualification_environment.py",
+                "scripts/qualification_plane_topology.py"):
         shutil.copy2(HARNESS / rel, repo / rel)
 
 
 def build(repo: Path) -> tuple[int, Path, str]:
-    r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py")],
+    out_dir = _external_output_dir(repo)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / "co-author-harness-claude.plugin"
+    out.unlink(missing_ok=True)
+    r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py"),
+                        "--out", str(out_dir)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
-    return r.returncode, repo / ".claude-plugin" / "co-author-harness-claude.plugin", (r.stdout + r.stderr)
+    return r.returncode, out, (r.stdout + r.stderr)
 
 
 def case_clean_build_equals_head() -> None:
@@ -361,6 +393,43 @@ def case_clean_build_equals_head() -> None:
                     bad.append(f"{n}:render-{type(exc).__name__}")
         check("clean: archive == HEAD modulo declared rendering", not bad,
               f"{len(bad)} unexplained: {bad[:3]}")
+
+
+def case_external_output_required() -> None:
+    with sandbox() as repo:
+        source_bundle = repo / ".claude-plugin" / "co-author-harness-claude.plugin"
+        source_bundle.unlink(missing_ok=True)
+        missing = subprocess.run(
+            [sys.executable, str(repo / "scripts" / "build-plugin.py")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        check("external output: omitted --out is refused", missing.returncode == 8,
+              f"rc={missing.returncode}")
+        inside = subprocess.run(
+            [sys.executable, str(repo / "scripts" / "build-plugin.py"),
+             "--out", str(repo / ".claude-plugin")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        check("external output: source-contained --out is refused", inside.returncode == 8,
+              f"rc={inside.returncode}")
+        with tempfile.TemporaryDirectory(prefix="coauthor-governed-destination-") as governed_td:
+            governed = Path(governed_td)
+            routing = governed / "governance" / "output-routing" / "output_routing.yaml"
+            routing.parent.mkdir(parents=True)
+            routing.write_text("schema_version: fixture\n", encoding="utf-8")
+            protected = governed / "research" / "protected-build-output"
+            refused = subprocess.run(
+                [sys.executable, str(repo / "scripts" / "build-plugin.py"),
+                 "--out", str(protected)],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+            refusal_log = refused.stdout + refused.stderr
+            check("external output: governed protected destination is refused",
+                  refused.returncode == 8 and "DEST-PROTECTED" in refusal_log,
+                  f"rc={refused.returncode}; log={refusal_log.strip()[-120:]}")
+            check("external output: protected refusal occurs before mkdir/write",
+                  not protected.exists())
+        check("external output: refusals leave no source artifact", not source_bundle.exists())
 
 
 def case_dirty_unstaged_ignored() -> None:
@@ -441,7 +510,9 @@ def case_git_failure_fails_closed() -> None:
     # destructive=True: its OWN clone. Deleting .git is not undoable by reset,
     # so it must never touch the shared fixture.
     with sandbox(destructive=True) as repo:
-        out = repo / ".claude-plugin" / "co-author-harness-claude.plugin"
+        out_dir = _external_output_dir(repo)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / "co-author-harness-claude.plugin"
         if out.exists():
             out.unlink()
         # Destroy the repository: every git call the builder makes now fails.
@@ -451,7 +522,8 @@ def case_git_failure_fails_closed() -> None:
         # <source text>` -- a presence check, inside the suite written to prove
         # execution over presence.)
         _rmtree_force(repo / ".git")
-        r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py")],
+        r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py"),
+                            "--out", str(out_dir)],
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
         check("git failure: builder aborts (nonzero)", r.returncode != 0, f"rc={r.returncode}")
         check("git failure: no bundle emitted", not out.exists())
@@ -613,7 +685,7 @@ def case_exact_output_handoff() -> None:
     of the build worktree survives -- neither the directory nor git's admin
     registration. Pins the exit-6 detection's positive complement."""
     with sandbox() as repo:
-        expected = repo / ".claude-plugin" / "co-author-harness-claude.plugin"
+        expected = _external_output_dir(repo) / "co-author-harness-claude.plugin"
         if expected.exists():
             expected.unlink()
         rc, out, _ = build(repo)
@@ -622,8 +694,8 @@ def case_exact_output_handoff() -> None:
             return
         check("handoff: bundle at the declared output path", expected.is_file())
         check("handoff: build() path and declared path agree", out == expected)
-        wt_base = repo / ".worktrees"
-        leftovers = sorted(p.name for p in wt_base.glob("build-*")) if wt_base.is_dir() else []
+        wt_base = Path(tempfile.gettempdir())
+        leftovers = sorted(p.name for p in wt_base.glob("coauthor-build-plane-*")) if wt_base.is_dir() else []
         check("handoff: no build worktree directory remains", not leftovers,
               f"{leftovers[:2]}")
         wt_list = _git(repo, "worktree", "list", "--porcelain").stdout
@@ -740,9 +812,13 @@ def case_cleanup_failure_exit7() -> None:
               "path still pinned by case_prune_failure_voids")
         return
     with sandbox(destructive=True) as repo:
-        wt_base = repo / ".worktrees"
+        wt_base = Path(tempfile.gettempdir())
+        before_worktrees = set(wt_base.glob("coauthor-build-plane-*"))
+        out_dir = _external_output_dir(repo)
+        out_dir.mkdir(parents=True, exist_ok=True)
         proc = subprocess.Popen(
-            [sys.executable, str(repo / "scripts" / "build-plugin.py")],
+            [sys.executable, str(repo / "scripts" / "build-plugin.py"),
+             "--out", str(out_dir)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, encoding="utf-8", errors="replace")
         handle = None
@@ -751,7 +827,7 @@ def case_cleanup_failure_exit7() -> None:
         try:
             while handle is None and proc.poll() is None and time.time() < deadline:
                 if wt_base.is_dir():
-                    for wt in wt_base.glob("build-*"):
+                    for wt in set(wt_base.glob("coauthor-build-plane-*")) - before_worktrees:
                         probe = wt / "README.md"
                         if probe.is_file():
                             try:
@@ -782,7 +858,7 @@ def case_cleanup_failure_exit7() -> None:
             handle.close()
         # Reconcile the SANDBOX we deliberately wounded (never the checkout).
         if wt_base.is_dir():
-            for wt in wt_base.glob("build-*"):
+            for wt in set(wt_base.glob("coauthor-build-plane-*")) - before_worktrees:
                 _git(repo, "worktree", "remove", "--force", str(wt), check_rc=False)
                 if wt.exists():
                     _rmtree_force(wt)
@@ -799,6 +875,7 @@ def main() -> int:
     print()
     for fn in (
         case_clean_build_equals_head,
+        case_external_output_required,
         case_dirty_unstaged_ignored,
         case_dirty_staged_ignored,
         case_staged_rename_ignored,

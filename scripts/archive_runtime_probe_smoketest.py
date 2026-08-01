@@ -10,7 +10,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import uuid
 import warnings
 import zipfile
 from pathlib import Path
@@ -44,6 +43,8 @@ parser.add_argument("--local-root",type=Path,required=True)
 parser.add_argument("--baseline-root",type=Path,required=True)
 parser.add_argument("--cleared-zip",type=Path,required=True)
 parser.add_argument("--source-commit",required=True)
+parser.add_argument("--plane-kind",choices=("unpacked","installed_cache"),required=True)
+parser.add_argument("--topology-receipt",type=Path,required=True)
 parser.add_argument("--stdout",action="store_true",required=True)
 args=parser.parse_args()
 allowed_python={"PYTHONPATH","PYTHONDONTWRITEBYTECODE","PYTHONNOUSERSITE"}
@@ -56,6 +57,7 @@ verdict="__VERDICT__"
 zero="0"*64
 archive_bytes=args.cleared_zip.read_bytes()
 archive_sha256=hashlib.sha256(archive_bytes).hexdigest()
+topology_sha256=hashlib.sha256(args.topology_receipt.read_bytes()).hexdigest()
 with zipfile.ZipFile(args.cleared_zip,"r") as package:
     provenance_sha256=hashlib.sha256(package.read("PROVENANCE.json")).hexdigest()
 manifest={"path":".claude-plugin/plugin.json","status":"valid","name":"fixture","version":"1.0.0","base_version":"1.0.0","host_suffix":None,"sha256":zero}
@@ -68,7 +70,7 @@ if verdict=="qualified_with_caveats":
 elif verdict=="blocked":
     findings=[{"code":"RUNTIME-PLANE-SEMANTIC-DIFFERENCE","severity":"BLOCKER","message":"synthetic blocker"}]
 payload={
- "schema_version":"1.1.0","receipt_type":"runtime_plane_probe","baseline_root":str(args.baseline_root),"local_root":str(args.local_root),
+ "schema_version":"1.1.0","receipt_type":"runtime_plane_probe","plane_kind":args.plane_kind,"topology_receipt":{"sha256":topology_sha256,"source_commit":args.source_commit,"plane_kind":args.plane_kind},"baseline_root":str(args.baseline_root),"local_root":str(args.local_root),
  "environment":{"pythondontwritebytecode":"1","isolated_python":True,"python_environment_policy":"scrub-all-restore-three-v1","ambient_pythonpath":"","suite_pythonpath":"","suite_pythonno_usersite":"1","suite_pythonhome":None,"dependency_paths":[]},
  "interpreter":{"executable":sys.executable,"implementation":"CPython","version":"3","version_info":[3,14,2],"platform":"test"},
  "tool_versions":{"python":"3","jsonschema":"test","referencing":"test","pyyaml":"test","git":"test"},
@@ -187,9 +189,9 @@ def _validate(value: dict) -> None:
     assert not errors, "; ".join(f"{list(error.path)}: {error.message}" for error in errors)
 
 
-def _source_commit() -> str:
+def _source_commit(root: Path) -> str:
     completed = subprocess.run(
-        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -199,20 +201,70 @@ def _source_commit() -> str:
     return completed.stdout.strip()
 
 
+def _clean_source_fixture(base: Path) -> Path:
+    source = base / "source"
+    schema = source / "references/schemas/runtime_plane_receipt.schema.json"
+    schema.parent.mkdir(parents=True)
+    schema.write_bytes((ROOT / "references/schemas/runtime_plane_receipt.schema.json").read_bytes())
+    subprocess.run(["git", "init", "--quiet", "-b", "main"], cwd=source, check=True)
+    subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=source, check=True)
+    subprocess.run(["git", "config", "user.name", "Fixture"], cwd=source, check=True)
+    subprocess.run(["git", "add", "."], cwd=source, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "source"], cwd=source, check=True)
+    return source
+
+
+def _topology_receipt(archive: Path, source_root: Path, source_commit: str) -> dict:
+    base = archive.parent / f"topology-{archive.stem}"
+    paths = {
+        "source": source_root,
+        "build": base / "build",
+        "archive": archive,
+        "unpacked": base / "unpacked",
+        "installed_cache": base / "installed-cache",
+    }
+    build = paths["build"]
+    subprocess.run(
+        ["git", "clone", "--quiet", "--no-local", str(source_root), str(build)], check=True,
+    )
+    subprocess.run(["git", "checkout", "--quiet", "--detach", source_commit], cwd=build, check=True)
+    for kind in ("unpacked", "installed_cache"):
+        paths[kind].mkdir(parents=True, exist_ok=True)
+    records = []
+    for kind in probe.topology.PLANE_KINDS:
+        records.append({
+            "plane_kind": kind,
+            "path": str(paths[kind].resolve()),
+            "path_kind": "file" if kind == "archive" else "directory",
+            "digest_sha256": probe.topology.plane_digest(kind, paths[kind]),
+            "git_commit": source_commit if kind in {"source", "build"} else None,
+            "git_state": "source_main" if kind == "source" else "detached_clean" if kind == "build" else "absent",
+            "provenance_commit": source_commit if kind in {"archive", "unpacked", "installed_cache"} else None,
+        })
+    return {
+        "schema_version": "1.0.0", "receipt_type": "qualification_plane_topology",
+        "source_commit": source_commit, "planes": records, "source_stable": True,
+        "findings": [], "verdict": "qualified",
+    }
+
+
 def _expect_refusal(
     archive: Path,
     out_root: Path,
     expected_code: str,
+    source_root: Path,
+    source_commit: str,
 ) -> None:
     archive_receipt = out_root / f"{archive.stem}-archive.json"
     runtime_receipt = out_root / f"{archive.stem}-runtime.json"
     try:
         probe.probe_archive(
             archive=archive,
-            source_root=ROOT,
-            source_commit=_source_commit(),
+            source_root=source_root,
+            source_commit=source_commit,
             archive_receipt_path=archive_receipt,
             unpacked_runtime_path=runtime_receipt,
+            topology_receipt=_topology_receipt(archive, source_root, source_commit),
         )
     except probe.ArchiveProbeRefusal as exc:
         assert exc.code == expected_code, (expected_code, exc.code, exc.message)
@@ -224,27 +276,37 @@ def _expect_refusal(
 
 def main() -> int:
     assert os.environ.get("PYTHONDONTWRITEBYTECODE") == "1"
-    os.environ["PYTHONOPTIMIZE"] = "2"
-    os.environ["PYTHONPLATLIBDIR"] = "ambient-platlib"
-    os.environ["PYTHONWARNINGS"] = "error"
-    evidence_parent = ROOT / "releases" / "verification"
-    evidence_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="archive-runtime-smoke-") as td, tempfile.TemporaryDirectory(
-        prefix=f".archive-runtime-smoke-{uuid.uuid4().hex}-", dir=evidence_parent
-    ) as evidence_td:
+    with tempfile.TemporaryDirectory(prefix="archive-runtime-smoke-") as td:
         base = Path(td)
-        outputs = Path(evidence_td)
+        source_root = _clean_source_fixture(base)
+        source_commit = _source_commit(source_root)
+        outputs = base / "outputs"
+        outputs.mkdir()
 
         safe_archive = base / "safe.zip"
         _write_archive(safe_archive, _safe_members())
+        try:
+            probe.probe_archive(
+                archive=safe_archive,
+                source_root=source_root,
+                source_commit=source_commit,
+                archive_receipt_path=outputs / "missing-topology-archive.json",
+                unpacked_runtime_path=outputs / "missing-topology-runtime.json",
+                topology_receipt=None,
+            )
+        except probe.ArchiveProbeRefusal as exc:
+            assert exc.code == "ARCHIVE-TOPOLOGY-MISSING", exc.code
+        else:
+            raise AssertionError("archive probe ran without a five-plane topology receipt")
         archive_out = outputs / "archive_receipt.json"
         runtime_out = outputs / "unpacked_zip_runtime.json"
         archive_receipt, runtime_receipt = probe.probe_archive(
             archive=safe_archive,
-            source_root=ROOT,
-            source_commit=_source_commit(),
+            source_root=source_root,
+            source_commit=source_commit,
             archive_receipt_path=archive_out,
             unpacked_runtime_path=runtime_out,
+            topology_receipt=_topology_receipt(safe_archive, source_root, source_commit),
         )
         _validate(archive_receipt)
         _validate(runtime_receipt)
@@ -255,12 +317,14 @@ def main() -> int:
         assert archive_receipt["central_directory"]["inspected_before_write"] is True
         assert archive_receipt["member_digests"]["stable"] is True
         assert runtime_receipt["runtime_execution"]["argv"][1:3] == ["-I", "-B"]
-        assert runtime_receipt["runtime_execution"]["argv"][-5] == "--cleared-zip"
-        assert Path(runtime_receipt["runtime_execution"]["argv"][-4]).name == "cleared.zip"
-        assert not Path(runtime_receipt["runtime_execution"]["argv"][-4]).exists()
-        assert runtime_receipt["runtime_execution"]["argv"][-3:-1] == [
-            "--source-commit", _source_commit()
-        ]
+        runtime_argv = runtime_receipt["runtime_execution"]["argv"]
+        zip_index = runtime_argv.index("--cleared-zip")
+        commit_index = runtime_argv.index("--source-commit")
+        kind_index = runtime_argv.index("--plane-kind")
+        assert Path(runtime_argv[zip_index + 1]).name == "cleared.zip"
+        assert not Path(runtime_argv[zip_index + 1]).exists()
+        assert runtime_argv[commit_index + 1] == source_commit
+        assert runtime_argv[kind_index + 1] == "unpacked"
         assert runtime_receipt["runtime_execution"]["environment"]["PYTHONPATH"] == ""
         assert runtime_receipt["runtime_execution"]["environment"]["python_environment_policy"] == "scrub-all-restore-three-v1"
         assert runtime_receipt["runtime_execution"]["environment"]["dependency_paths"]
@@ -279,6 +343,17 @@ def main() -> int:
         )
         assert probe._sha_bytes(retained_stdout) == runtime_receipt["runtime_plane_receipt"]["sha256"]
         assert json.loads(retained_stdout) == runtime_receipt["runtime_plane_receipt"]["payload"]
+        for outer in (archive_receipt, runtime_receipt):
+            retained_topology = outer["derived_topology_receipt"]
+            retained_topology_bytes = probe.topology.canonical_receipt_bytes(
+                retained_topology["payload"]
+            )
+            assert probe._sha_bytes(retained_topology_bytes) == retained_topology["sha256"]
+            assert (
+                runtime_receipt["runtime_plane_receipt"]["payload"]["topology_receipt"]["sha256"]
+                == retained_topology["sha256"]
+            )
+            assert retained_topology["payload"]["verdict"] == "qualified"
         assert not Path(runtime_receipt["extraction"]["temporary_root"]).exists()
         assert not Path(runtime_receipt["runtime_execution"]["cwd"]).exists()
         assert archive_receipt["unpacked_runtime_receipt"]["sha256"] == probe._sha_path(runtime_out)
@@ -294,10 +369,11 @@ def main() -> int:
         builder_runtime_out = outputs / "builder-shaped-runtime.json"
         builder_receipt, builder_runtime = probe.probe_archive(
             archive=builder_archive,
-            source_root=ROOT,
-            source_commit=_source_commit(),
+            source_root=source_root,
+            source_commit=source_commit,
             archive_receipt_path=builder_archive_out,
             unpacked_runtime_path=builder_runtime_out,
+            topology_receipt=_topology_receipt(builder_archive, source_root, source_commit),
         )
         assert builder_receipt["verdict"] == "qualified"
         assert builder_runtime["verdict"] == "qualified"
@@ -388,10 +464,11 @@ def main() -> int:
             runtime_receipt_out = outputs / f"{name}-runtime.json"
             case_archive, case_runtime = probe.probe_archive(
                 archive=runtime_archive,
-                source_root=ROOT,
-                source_commit=_source_commit(),
+                source_root=source_root,
+                source_commit=source_commit,
                 archive_receipt_path=runtime_archive_out,
                 unpacked_runtime_path=runtime_receipt_out,
+                topology_receipt=_topology_receipt(runtime_archive, source_root, source_commit),
             )
             _validate(case_archive)
             _validate(case_runtime)
@@ -432,10 +509,11 @@ def main() -> int:
         try:
             substituted_archive, substituted_runtime = probe.probe_archive(
                 archive=substitution_archive,
-                source_root=ROOT,
-                source_commit=_source_commit(),
+                source_root=source_root,
+                source_commit=source_commit,
                 archive_receipt_path=substitution_archive_out,
                 unpacked_runtime_path=substitution_runtime_out,
+                topology_receipt=_topology_receipt(substitution_archive, source_root, source_commit),
             )
         finally:
             probe._extract_members = original_extract
@@ -461,7 +539,7 @@ def main() -> int:
         for name, members, code in cases:
             archive = base / f"{name}.zip"
             _write_archive(archive, members)
-            _expect_refusal(archive, outputs, code)
+            _expect_refusal(archive, outputs, code, source_root, source_commit)
 
         mutating_archive = base / "mutating-runtime.zip"
         _write_archive(mutating_archive, _safe_members(MUTATING_RUNTIME_STUB))
@@ -469,10 +547,11 @@ def main() -> int:
         mutating_runtime_out = outputs / "mutating-runtime.json"
         blocked_archive, blocked_runtime = probe.probe_archive(
             archive=mutating_archive,
-            source_root=ROOT,
-            source_commit=_source_commit(),
+            source_root=source_root,
+            source_commit=source_commit,
             archive_receipt_path=mutating_archive_out,
             unpacked_runtime_path=mutating_runtime_out,
+            topology_receipt=_topology_receipt(mutating_archive, source_root, source_commit),
         )
         _validate(blocked_archive)
         _validate(blocked_runtime)

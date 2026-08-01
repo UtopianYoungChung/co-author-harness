@@ -52,6 +52,7 @@
 #   scripts/release-gate.sh                                           # probe-only, no build
 #   scripts/release-gate.sh --build                                   # probe + build zip
 #   scripts/release-gate.sh --build --outputs-dir /mnt/outputs        # full pipeline
+#   scripts/release-gate.sh --qualification-spec /external/five-plane-spec.json
 #   scripts/release-gate.sh --peer-root /sessions/.../mnt/.remote-plugins/
 #   scripts/release-gate.sh --ship-intent                             # block on any in-flight marker
 #                                                                     # (efficiency placeholder, -wip version)
@@ -75,11 +76,111 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PLUGIN_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
+CONTROLLED_CHILD=0
+if [[ "${1:-}" == "--coauthor-controller-child" ]]; then
+    if [[ -z "${COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR:-}" \
+       || -z "${COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN:-}" ]]; then
+        echo "CONTROLLER-CHILD-ATTESTATION: direct controlled-child marker invocation refused" >&2
+        exit 2
+    fi
+    if ! python3 "$SCRIPT_DIR/release_qualification_controller.py" verify-child \
+        --run-dir "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR" \
+        --token "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN"; then
+        echo "CONTROLLER-CHILD-ATTESTATION: controller attestation refused" >&2
+        exit 2
+    fi
+    unset COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR
+    unset COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN
+    CONTROLLED_CHILD=1
+    shift
+fi
+ORIGINAL_ARGS=("$@")
+CONTROLLER_INPUT_ARGS=()
+for (( ARG_I=0; ARG_I<${#ORIGINAL_ARGS[@]}; ARG_I++ )); do
+    if [[ "${ORIGINAL_ARGS[$ARG_I]}" == "--qualification-spec" ]]; then
+        if (( ARG_I + 1 >= ${#ORIGINAL_ARGS[@]} )); then
+            echo "ERROR: --qualification-spec requires a path" >&2
+            exit 2
+        fi
+        SPEC_INPUT="${ORIGINAL_ARGS[$((ARG_I + 1))]}"
+        if command -v cygpath >/dev/null 2>&1; then
+            SPEC_INPUT="$(cygpath -am "$SPEC_INPUT")"
+        else
+            SPEC_INPUT="$(python3 - "$SPEC_INPUT" <<'PY'
+import sys
+from pathlib import Path
+print(Path(sys.argv[1]).resolve())
+PY
+)"
+        fi
+        ORIGINAL_ARGS[$((ARG_I + 1))]="$SPEC_INPUT"
+        CONTROLLER_INPUT_ARGS+=(--input "$SPEC_INPUT")
+    fi
+done
+# A stale ambient marker from the pre-controller facade has no authority and
+# must not leak into either the controller or the controlled product child.
+unset COAUTHOR_RELEASE_GATE_CONTROLLED_CHILD
+
+# Compatibility facade: the durable Python controller owns the release-gate
+# child.  Recursion is broken by an explicit private argv marker, never by
+# forgeable or stale ambient state.
+if (( CONTROLLED_CHILD == 0 )); then
+    CONTROLLER="$PLUGIN_ROOT/scripts/release_qualification_controller.py"
+    if [[ ! -f "$CONTROLLER" ]]; then
+        echo "ERROR: durable release qualification controller is missing: $CONTROLLER" >&2
+        exit 2
+    fi
+    if [[ -n "${COAUTHOR_RELEASE_CONTROLLER_ROOT:-}" ]]; then
+        CONTROLLER_ROOT="$COAUTHOR_RELEASE_CONTROLLER_ROOT"
+    elif command -v cygpath >/dev/null 2>&1; then
+        CONTROLLER_ROOT="$(cygpath -w "${TMPDIR:-${TEMP:-/tmp}}")\\coauthor-release-controller"
+    else
+        CONTROLLER_ROOT="${TMPDIR:-${TEMP:-/tmp}}/coauthor-release-controller"
+    fi
+    if command -v cygpath >/dev/null 2>&1; then
+        BASH_NATIVE="$(cygpath -w "$BASH")"
+    else
+        BASH_NATIVE="$BASH"
+    fi
+    CONTROLLER_RUN_ID="${COAUTHOR_RELEASE_RUN_ID:-release-gate-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+    if command -v cygpath >/dev/null 2>&1; then
+        CONTROLLER_ROOT="$(cygpath -w "$CONTROLLER_ROOT")"
+        PRODUCT_ROOT="${CONTROLLER_ROOT}-products\\${CONTROLLER_RUN_ID}"
+        PRODUCT_ROOT_CHILD="$(cygpath -u "$PRODUCT_ROOT")"
+    else
+        PRODUCT_ROOT="${CONTROLLER_ROOT}-products/${CONTROLLER_RUN_ID}"
+        PRODUCT_ROOT_CHILD="$PRODUCT_ROOT"
+    fi
+    exec python3 "$CONTROLLER" run \
+        --run-root "$CONTROLLER_ROOT" \
+        --run-id "$CONTROLLER_RUN_ID" \
+        --cwd "$PLUGIN_ROOT" \
+        --input "$0" \
+        --input "$MANIFEST" \
+        --input "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" \
+        "${CONTROLLER_INPUT_ARGS[@]}" \
+        --input-root "$PLUGIN_ROOT" \
+        --watch-root "$PLUGIN_ROOT" \
+        --watch-root "$PRODUCT_ROOT" \
+        --ignored-output "$PLUGIN_ROOT/.git/coauthor-fixture-runner.lock" \
+        --allowed-output "$PRODUCT_ROOT" \
+        --allow-user-site \
+        --child-attestation \
+        --env "COAUTHOR_RELEASE_PRODUCT_ROOT=$PRODUCT_ROOT_CHILD" \
+        -- "$BASH_NATIVE" "$0" --coauthor-controller-child "${ORIGINAL_ARGS[@]}"
+fi
+
+if [[ -n "${COAUTHOR_RELEASE_PRODUCT_ROOT:-}" ]]; then
+    PRODUCT_OUTPUT_DIR="$COAUTHOR_RELEASE_PRODUCT_ROOT"
+else
+    PRODUCT_OUTPUT_DIR="$(mktemp -d "${TMPDIR:-${TEMP:-/tmp}}/coauthor-release-product.XXXXXX")"
+fi
 
 BUILD=0
 OUTPUTS_DIR=""
 PEER_ROOT=""
 SHIP_INTENT=0
+QUALIFICATION_SPEC=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -87,6 +188,7 @@ while [[ $# -gt 0 ]]; do
         --outputs-dir)  OUTPUTS_DIR="$2"; shift 2 ;;
         --peer-root)    PEER_ROOT="$2"; shift 2 ;;
         --ship-intent)  SHIP_INTENT=1; shift ;;
+        --qualification-spec) QUALIFICATION_SPEC="$2"; shift 2 ;;
         -h|--help)
             grep '^#' "$0" | sed 's/^# \{0,1\}//'
             exit 0 ;;
@@ -359,21 +461,24 @@ done
 
 # --- Phase 0.56: authoritative fixture infrastructure + corpus -------------
 
-echo "Fixture infrastructure preflight"
-if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_infrastructure_check.py"; then
-    echo "  [BLOCKER] fixture infrastructure preflight failed"
-    BLOCKERS=$((BLOCKERS + 1))
-else
-    echo "  [OK]      fixture infrastructure preflight passed"
-fi
-echo ""
+SOURCE_PREIMAGE="$PRODUCT_OUTPUT_DIR/source-plane-preimage.json"
+SOURCE_POST_BUILD="$PRODUCT_OUTPUT_DIR/source-plane-post-build.json"
+SOURCE_POST_PRODUCT="$PRODUCT_OUTPUT_DIR/source-plane-post-product.json"
+SOURCE_PREFLIGHT_TMP="${SOURCE_PREIMAGE}.tmp.$$"
+SOURCE_POST_BUILD_TMP="${SOURCE_POST_BUILD}.tmp.$$"
+SOURCE_POST_TMP="${SOURCE_POST_PRODUCT}.tmp.$$"
+SOURCE_PREFLIGHT_OK=0
 
-echo "Authoritative fixture registry"
-if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" --no-write; then
-    echo "  [BLOCKER] authoritative fixture registry failed"
-    BLOCKERS=$((BLOCKERS + 1))
+echo "Source-plane preflight before product corpus"
+if python3 "$PLUGIN_ROOT/scripts/qualification_plane_topology.py" snapshot-source \
+    --source-root "$PLUGIN_ROOT" > "$SOURCE_PREFLIGHT_TMP"; then
+    mv "$SOURCE_PREFLIGHT_TMP" "$SOURCE_PREIMAGE"
+    SOURCE_PREFLIGHT_OK=1
+    echo "  [OK]      clean saved-main source preimage captured atomically"
 else
-    echo "  [OK]      authoritative fixture registry passed"
+    rm -f "$SOURCE_PREFLIGHT_TMP"
+    echo "  [BLOCKER] PLANE-SOURCE-PREFLIGHT refused before product suites"
+    BLOCKERS=$((BLOCKERS + 1))
 fi
 echo ""
 
@@ -500,18 +605,20 @@ else
     echo ""
 fi
 
-# Token-budget measurement is WARN-ONLY at PR-4d per the v0.15.0
-# architecture (measurement-first; the Reflector split + later slims
-# will pull breaching files under the threshold). Breaches do NOT
-# increment BLOCKERS. The script always exits 0 in normal mode; we
-# treat any non-zero exit as an environment issue (tiktoken missing).
+# The immutable baseline permits known debt, but any policy/encoder drift or
+# new/growing debt is a release blocker. Existing non-growing breaches remain
+# visible as warnings until the ratchet retires them.
 if [[ -f "$PLUGIN_ROOT/scripts/token_budget_check.py" ]]; then
-    echo "Token-budget measurement (warn-only; PR-4d)"
-    TOKEN_BUDGET_REPORT="$PLUGIN_ROOT/reviews/token_budget_report.json"
-    if ! python3 "$PLUGIN_ROOT/scripts/token_budget_check.py" --quiet \
-            --out "$TOKEN_BUDGET_REPORT"; then
-        echo "  [WARN]    token-budget script could not run (tiktoken missing?)"
-        WARNINGS=$((WARNINGS + 1))
+    echo "Token-budget debt ratchet (tiktoken 0.12.0 / cl100k_base)"
+    TOKEN_BUDGET_REPORT="$PRODUCT_OUTPUT_DIR/token_budget_report.json"
+    set +e
+    python3 "$PLUGIN_ROOT/scripts/token_budget_check.py" --quiet \
+        --out "$TOKEN_BUDGET_REPORT"
+    TOKEN_BUDGET_RC=$?
+    set -e
+    if (( TOKEN_BUDGET_RC != 0 )); then
+        echo "  [BLOCKER] token-budget ratchet refused the tree (exit $TOKEN_BUDGET_RC)"
+        BLOCKERS=$((BLOCKERS + 1))
     else
         BREACH_COUNT=$(python3 - "$TOKEN_BUDGET_REPORT" <<'PY'
 import json
@@ -533,7 +640,7 @@ PY
             echo "  [WARN]    token-budget measurement found $BREACH_COUNT budget breach(es)"
             WARNINGS=$((WARNINGS + 1))
         fi
-        echo "            report: reviews/token_budget_report.json"
+        echo "            report: $TOKEN_BUDGET_REPORT"
     fi
     echo ""
 fi
@@ -797,7 +904,7 @@ if (( BUILD == 1 )); then
     HEAD_NAME=$( printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || true )
     HEAD_VERSION=$( printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || true )
     BUNDLE_NAME="${HEAD_NAME:-$CURRENT_NAME}-v${HEAD_VERSION:-$CURRENT_VERSION}.zip"
-    BUNDLE_PATH="/tmp/$BUNDLE_NAME"
+    BUNDLE_PATH="$PRODUCT_OUTPUT_DIR/$BUNDLE_NAME"
 
     # ONE POPULATION AUTHORITY. This phase used to run its own `zip -r` over
     # the WORKTREE with exclusion globs -- a second, independent package
@@ -815,10 +922,10 @@ if (( BUILD == 1 )); then
     echo "Building bundle via the committed builder: $BUNDLE_PATH"
     rm -f "$BUNDLE_PATH"
     set +e
-    ( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py )
+    ( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py --out "$( dirname "$BUNDLE_PATH" )" )
     BUILD_RC=$?
     set -e
-    PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${HEAD_NAME:-$CURRENT_NAME}.plugin"
+    PLUGIN_ARTIFACT="$( dirname "$BUNDLE_PATH" )/${HEAD_NAME:-$CURRENT_NAME}.plugin"
     if (( BUILD_RC != 0 )); then
         echo "  [BLOCKER] build-plugin.py exited $BUILD_RC (contract: 5 provenance"
         echo "            readback failed, 6 child produced no bundle, 7 worktree"
@@ -889,6 +996,184 @@ if (( BUILD == 1 )); then
     fi
     echo ""
 fi
+
+# --- Phase 1.4: post-build source stability --------------------------------
+
+POST_BUILD_SOURCE_OK=0
+echo "Post-build source-plane stability before product suites"
+if (( SOURCE_PREFLIGHT_OK != 1 )); then
+    echo "  [BLOCKER] PLANE-SOURCE-PREFLIGHT did not produce a bound preimage"
+elif python3 "$PLUGIN_ROOT/scripts/qualification_plane_topology.py" snapshot-source \
+    --source-root "$PLUGIN_ROOT" > "$SOURCE_POST_BUILD_TMP"; then
+    mv "$SOURCE_POST_BUILD_TMP" "$SOURCE_POST_BUILD"
+    if cmp -s "$SOURCE_PREIMAGE" "$SOURCE_POST_BUILD"; then
+        POST_BUILD_SOURCE_OK=1
+        echo "  [OK]      source preimage unchanged after build phase"
+    else
+        echo "  [BLOCKER] PLANE-SOURCE-RESIDUE: source bytes changed during build phase"
+        BLOCKERS=$((BLOCKERS + 1))
+    fi
+else
+    rm -f "$SOURCE_POST_BUILD_TMP"
+    echo "  [BLOCKER] PLANE-SOURCE-RESIDUE: post-build source preflight refused"
+    BLOCKERS=$((BLOCKERS + 1))
+fi
+echo ""
+
+# --- Phase 1.5: exact five-plane topology and runtime suites ---------------
+
+PLANE_QUALIFICATION_OK=0
+
+if [[ -n "$QUALIFICATION_SPEC" ]]; then
+    TOPOLOGY_RECEIPT="$PRODUCT_OUTPUT_DIR/five-plane-topology.json"
+    TOPOLOGY_TMP="${TOPOLOGY_RECEIPT}.tmp.$$"
+    echo "Five-plane qualification topology"
+    if [[ ! -f "$QUALIFICATION_SPEC" ]]; then
+        echo "  [BLOCKER] PLANE-TOPOLOGY-SPEC-MISSING: $QUALIFICATION_SPEC"
+        BLOCKERS=$((BLOCKERS + 1))
+    elif (( POST_BUILD_SOURCE_OK != 1 )); then
+        echo "  [BLOCKER] PLANE-SOURCE-RESIDUE prevented topology and runtime suites"
+        BLOCKERS=$((BLOCKERS + 1))
+    elif python3 "$PLUGIN_ROOT/scripts/qualification_plane_topology.py" validate \
+        --spec "$QUALIFICATION_SPEC" --source-preimage "$SOURCE_PREIMAGE" \
+        > "$TOPOLOGY_TMP"; then
+        mv "$TOPOLOGY_TMP" "$TOPOLOGY_RECEIPT"
+        echo "  [OK]      exact source/build/archive/unpacked/installed-cache topology qualified"
+
+        mapfile -t PLANE_VALUES < <(python3 - "$QUALIFICATION_SPEC" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+planes = {row["plane_kind"]: row["path"] for row in value["planes"]}
+print(value["source_commit"])
+for kind in ("source", "archive", "unpacked", "installed_cache"):
+    print(planes[kind])
+PY
+)
+        if (( ${#PLANE_VALUES[@]} != 5 )); then
+            echo "  [BLOCKER] PLANE-TOPOLOGY-SPEC could not be projected for runtime suites"
+            BLOCKERS=$((BLOCKERS + 1))
+        else
+            PLANE_COMMIT="${PLANE_VALUES[0]}"
+            PLANE_SOURCE="${PLANE_VALUES[1]}"
+            PLANE_ARCHIVE="${PLANE_VALUES[2]}"
+            PLANE_UNPACKED="${PLANE_VALUES[3]}"
+            PLANE_CACHE="${PLANE_VALUES[4]}"
+
+            PLANE_HEAD="$(git -C "$PLUGIN_ROOT" rev-parse HEAD 2>/dev/null || true)"
+            if [[ -z "$PLANE_HEAD" || "$PLANE_COMMIT" != "$PLANE_HEAD" ]] \
+                || ! python3 - "$PLANE_SOURCE" "$PLUGIN_ROOT" <<'PY'
+import sys
+from pathlib import Path
+raise SystemExit(0 if Path(sys.argv[1]).resolve() == Path(sys.argv[2]).resolve() else 1)
+PY
+            then
+                echo "  [BLOCKER] PLANE-SOURCE-BINDING differs from the controlled plugin root/HEAD"
+                BLOCKERS=$((BLOCKERS + 1))
+            elif (( BUILD == 1 )) && ! python3 - "$PLANE_ARCHIVE" "$BUNDLE_PATH" <<'PY'
+import sys
+from pathlib import Path
+raise SystemExit(0 if Path(sys.argv[1]).resolve() == Path(sys.argv[2]).resolve() else 1)
+PY
+            then
+                echo "  [BLOCKER] PLANE-ARCHIVE differs from the artifact built in this attempt"
+                BLOCKERS=$((BLOCKERS + 1))
+            else
+                PLANE_QUALIFICATION_OK=1
+                echo "Archive runtime plane"
+                if ! python3 "$PLUGIN_ROOT/scripts/archive_runtime_probe.py" \
+                    --archive "$PLANE_ARCHIVE" --source-root "$PLANE_SOURCE" \
+                    --source-commit "$PLANE_COMMIT" \
+                    --archive-receipt "$PRODUCT_OUTPUT_DIR/archive-runtime-receipt.json" \
+                    --unpacked-runtime "$PRODUCT_OUTPUT_DIR/archive-child-runtime-receipt.json" \
+                    --topology-receipt "$TOPOLOGY_RECEIPT"; then
+                    echo "  [BLOCKER] archive runtime plane refused"
+                    BLOCKERS=$((BLOCKERS + 1))
+                    PLANE_QUALIFICATION_OK=0
+                fi
+
+                echo "Unpacked runtime plane"
+                if ! python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py" \
+                    --local-root "$PLANE_UNPACKED" --baseline-root "$PLANE_SOURCE" \
+                    --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
+                    --plane-kind unpacked --topology-receipt "$TOPOLOGY_RECEIPT" \
+                    --out "$PRODUCT_OUTPUT_DIR/unpacked-runtime-receipt.json"; then
+                    echo "  [BLOCKER] unpacked runtime plane refused"
+                    BLOCKERS=$((BLOCKERS + 1))
+                    PLANE_QUALIFICATION_OK=0
+                fi
+
+                echo "Installed-cache runtime plane"
+                if ! python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py" \
+                    --local-root "$PLANE_CACHE" --baseline-root "$PLANE_SOURCE" \
+                    --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
+                    --plane-kind installed_cache --topology-receipt "$TOPOLOGY_RECEIPT" \
+                    --out "$PRODUCT_OUTPUT_DIR/installed-cache-runtime-receipt.json"; then
+                    echo "  [BLOCKER] installed-cache runtime plane refused"
+                    BLOCKERS=$((BLOCKERS + 1))
+                    PLANE_QUALIFICATION_OK=0
+                fi
+            fi
+        fi
+    else
+        rm -f "$TOPOLOGY_TMP"
+        echo "  [BLOCKER] PLANE-TOPOLOGY validation refused"
+        BLOCKERS=$((BLOCKERS + 1))
+    fi
+    echo ""
+else
+    echo "Five-plane qualification topology"
+    if (( SHIP_INTENT == 1 )); then
+        echo "  [BLOCKER] PLANE_TOPOLOGY_PENDING: --ship-intent requires --qualification-spec"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [PENDING] PLANE_TOPOLOGY_PENDING: no authorized installed-cache/spec transaction supplied"
+    fi
+    echo ""
+fi
+
+if (( PLANE_QUALIFICATION_OK == 1 )); then
+    echo "Fixture infrastructure preflight"
+    if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_infrastructure_check.py"; then
+        echo "  [BLOCKER] fixture infrastructure preflight failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      fixture infrastructure preflight passed"
+    fi
+    echo ""
+
+    echo "Authoritative fixture registry"
+    if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" --no-write; then
+        echo "  [BLOCKER] authoritative fixture registry failed"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      authoritative fixture registry passed"
+    fi
+    echo ""
+
+    echo "Post-product source-plane stability"
+    if python3 "$PLUGIN_ROOT/scripts/qualification_plane_topology.py" snapshot-source \
+        --source-root "$PLUGIN_ROOT" > "$SOURCE_POST_TMP"; then
+        mv "$SOURCE_POST_TMP" "$SOURCE_POST_PRODUCT"
+        if cmp -s "$SOURCE_PREIMAGE" "$SOURCE_POST_PRODUCT"; then
+            echo "  [OK]      source preimage unchanged after product corpus"
+        else
+            echo "  [BLOCKER] PLANE-SOURCE-RESIDUE: source bytes changed during product corpus"
+            BLOCKERS=$((BLOCKERS + 1))
+        fi
+    else
+        rm -f "$SOURCE_POST_TMP"
+        echo "  [BLOCKER] PLANE-SOURCE-RESIDUE: post-product source preflight refused"
+        BLOCKERS=$((BLOCKERS + 1))
+    fi
+else
+    echo "Fixture infrastructure and authoritative corpus"
+    echo "  [BLOCKER] not run because exact five-plane runtime qualification did not pass"
+    BLOCKERS=$((BLOCKERS + 1))
+fi
+echo ""
 
 # --- Phase 2: outputs-dir staleness check ---------------------------------
 

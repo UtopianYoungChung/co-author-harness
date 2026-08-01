@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://co-author-harness.local/schemas/host_qualification_transaction.schema.json",
-  "title": "Host qualification transaction 1.0.0",
+  "title": "Host qualification transaction 1.1.0",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,6 +14,7 @@
     "cache_comparison",
     "cleared_zip",
     "core_probe",
+    "startup_attestation",
     "package_clearance_state",
     "publication_manifest",
     "commit_marker",
@@ -23,7 +24,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
     "transaction_id": {
       "type": "string",
@@ -81,6 +82,16 @@
       ]
     },
     "core_probe": {
+      "anyOf": [
+        {
+          "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "startup_attestation": {
       "anyOf": [
         {
           "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
@@ -189,6 +200,9 @@
             "$ref": "#/$defs/zipBinding"
           },
           "core_probe": {
+            "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
+          },
+          "startup_attestation": {
             "$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/fileBinding"
           },
           "package_clearance_state": {
@@ -383,6 +397,14 @@
             "HOST-CACHE-COMPARISON-MISSING",
             "HOST-CLEARED-ZIP-UNBOUND",
             "HOST-CORE-PROBE-FAILED",
+            "HOST-STARTUP-CATALOG-MISSING",
+            "HOST-STARTUP-CATALOG-MISMATCH",
+            "HOST-CLI-REGISTRATION-MISSING",
+            "HOST-CLI-REGISTRATION-MISMATCH",
+            "HOST-INSTALLED-ROOT-MISMATCH",
+            "HOST-INSTALLED-PROVENANCE-MISMATCH",
+            "HOST-LOADED-PATH-MISMATCH",
+            "HOST-STARTUP-TASK-MISMATCH",
             "HOST-PUBLICATION-INCOMPLETE"
           ]
         },

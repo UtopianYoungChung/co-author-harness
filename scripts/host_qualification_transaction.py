@@ -40,7 +40,37 @@ EXPECTED_RUNTIME_SUITES = (
     ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
     ("version_check", "portable_core", "scripts/version-check.py"),
     ("skill_check", "portable_core", "scripts/skill-check.py"),
+    ("shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"),
+    ("output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"),
 )
+STARTUP_ATTESTATION_CONTRACT = (
+    "startup_catalog_missing_refused",
+    "startup_catalog_stale_refused",
+    "catalog_cli_cache_mismatch_refused",
+    "installed_root_mismatch_refused",
+    "manifest_provenance_mismatch_refused",
+    "loaded_path_mismatch_refused",
+    "fresh_task_mismatch_refused",
+    "startup_toctou_refused",
+    "six_suite_runtime_receipt_supported",
+    "installed_cache_runtime_plane_required",
+    "catalog_cli_distinct_paths_required",
+    "catalog_cli_typed_observations_required",
+)
+STARTUP_ATTESTATION_KEYS = {"schema_version", "observed_at", "host", "plugin"}
+STARTUP_PLUGIN_KEYS = {
+    "name",
+    "version",
+    "installed_root",
+    "startup_catalog",
+    "cli_registration",
+    "installed_provenance",
+    "cache_receipt",
+    "cleared_zip_sha256",
+    "loaded_paths",
+    "loaded_paths_complete",
+    "loaded_path_count",
+}
 
 
 class HostQualificationError(RuntimeError):
@@ -171,6 +201,9 @@ def _valid_runtime_receipt(receipt: Mapping[str, Any]) -> bool:
         and isinstance(dependencies, list)
         and all(isinstance(path, str) for path in dependencies)
         and environment.get("suite_pythonpath") == os.pathsep.join(dependencies)
+        and receipt.get("plane_kind") == "installed_cache"
+        and isinstance(receipt.get("topology_receipt"), Mapping)
+        and receipt["topology_receipt"].get("plane_kind") == "installed_cache"
         and observed_suites == list(EXPECTED_RUNTIME_SUITES)
         and all(
             isinstance(row, Mapping)
@@ -348,6 +381,7 @@ def _assert_committed_chain(
         "cache_comparison",
         "cleared_zip",
         "core_probe",
+        "startup_attestation",
     ):
         binding = transaction.get(key)
         if not isinstance(binding, dict):
@@ -372,6 +406,276 @@ def _host_matches_probe(host: Mapping[str, Any], probe: Mapping[str, Any]) -> bo
         and observed.get("fresh_task") is True
         and probe.get("status") == "passed"
     )
+
+
+def _resolved_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=True).relative_to(root.resolve(strict=True))
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def _attested_binding(
+    value: Any,
+    *,
+    root: Path | None = None,
+    code: str,
+    label: str,
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise HostQualificationError(code, f"{label} binding is missing")
+    try:
+        path = Path(str(value["path"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HostQualificationError(code, f"{label} path is invalid") from exc
+    if root is not None and not _resolved_within(path, root):
+        raise HostQualificationError(code, f"{label} is outside the installed root")
+    if not path.is_file():
+        raise HostQualificationError(code, f"{label} is missing: {path}")
+    binding = _binding(path)
+    if any(binding.get(key) != value.get(key) for key in ("path", "sha256", "byte_length")):
+        raise HostQualificationError(code, f"{label} bytes differ from the startup attestation")
+    return binding
+
+
+def _read_attested_json(
+    value: Any,
+    *,
+    root: Path | None = None,
+    code: str,
+    missing_code: str | None = None,
+    label: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Verify and parse one attested JSON file from the same byte read."""
+
+    missing_code = missing_code or code
+    if not isinstance(value, Mapping):
+        raise HostQualificationError(missing_code, f"{label} binding is missing")
+    try:
+        path = Path(str(value["path"]))
+        resolved = path.resolve(strict=True)
+        if root is not None:
+            resolved.relative_to(root.resolve(strict=True))
+        raw = resolved.read_bytes()
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        raise HostQualificationError(
+            missing_code, f"{label} is missing or outside its required root"
+        ) from exc
+    binding = {"path": str(resolved), "sha256": _sha(raw), "byte_length": len(raw)}
+    if any(binding.get(key) != value.get(key) for key in ("path", "sha256", "byte_length")):
+        raise HostQualificationError(code, f"{label} bytes differ from the startup attestation")
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HostQualificationError(code, f"{label} is not valid UTF-8 JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise HostQualificationError(code, f"{label} must be a JSON object")
+    return parsed, binding
+
+
+def _validate_startup_attestation(
+    *,
+    path: Path | None,
+    host: Mapping[str, Any],
+    installed_manifest_path: Path,
+    cache_comparison_path: Path,
+    cleared_zip_sha256: str,
+    cache: Mapping[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if path is None or not path.is_file():
+        raise HostQualificationError(
+            "HOST-STARTUP-CATALOG-MISSING", "fresh-host startup attestation is missing"
+        )
+    attestation, attestation_binding = _read_json(
+        path, "HOST-STARTUP-CATALOG-MISSING", "host startup attestation"
+    )
+    if attestation.get("schema_version") != "host-startup-attestation/1.0.0":
+        raise HostQualificationError(
+            "HOST-STARTUP-CATALOG-MISMATCH", "unknown host startup attestation policy"
+        )
+    attestation_keys = set(attestation)
+    if attestation_keys != STARTUP_ATTESTATION_KEYS:
+        if not {"host", "observed_at"} <= attestation_keys:
+            raise HostQualificationError(
+                "HOST-STARTUP-TASK-MISMATCH", "startup task observation is incomplete"
+            )
+        if "plugin" not in attestation_keys:
+            raise HostQualificationError(
+                "HOST-STARTUP-CATALOG-MISSING", "startup plugin observation is missing"
+            )
+        raise HostQualificationError(
+            "HOST-STARTUP-CATALOG-MISMATCH", "unknown host startup attestation fields"
+        )
+    observed_host = attestation.get("host")
+    if (
+        not isinstance(observed_host, Mapping)
+        or dict(observed_host) != dict(host)
+        or attestation.get("observed_at") != host.get("observed_at")
+        or host.get("fresh_task") is not True
+        or not host.get("task_id")
+    ):
+        raise HostQualificationError(
+            "HOST-STARTUP-TASK-MISMATCH", "startup observation does not bind the declared fresh task"
+        )
+    plugin = attestation.get("plugin")
+    if not isinstance(plugin, Mapping):
+        raise HostQualificationError("HOST-STARTUP-CATALOG-MISSING", "startup plugin observation is missing")
+    plugin_keys = set(plugin)
+    if plugin_keys != STARTUP_PLUGIN_KEYS:
+        missing = STARTUP_PLUGIN_KEYS - plugin_keys
+        if "startup_catalog" in missing:
+            code = "HOST-STARTUP-CATALOG-MISSING"
+        elif "cli_registration" in missing:
+            code = "HOST-CLI-REGISTRATION-MISSING"
+        elif "installed_root" in missing:
+            code = "HOST-INSTALLED-ROOT-MISMATCH"
+        elif "installed_provenance" in missing:
+            code = "HOST-INSTALLED-PROVENANCE-MISMATCH"
+        elif "cache_receipt" in missing:
+            code = "HOST-CACHE-COMPARISON-MISSING"
+        elif missing & {"loaded_paths", "loaded_paths_complete", "loaded_path_count"}:
+            code = "HOST-LOADED-PATH-MISMATCH"
+        else:
+            code = "HOST-STARTUP-CATALOG-MISMATCH"
+        raise HostQualificationError(code, "startup plugin observation has unknown or missing fields")
+    try:
+        installed_root = Path(str(plugin["installed_root"])).resolve(strict=True)
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        raise HostQualificationError("HOST-INSTALLED-ROOT-MISMATCH", "installed root is missing") from exc
+    if not installed_root.is_dir():
+        raise HostQualificationError("HOST-INSTALLED-ROOT-MISMATCH", "installed root is not a directory")
+    if Path(str(cache.get("local_root", ""))).resolve() != installed_root:
+        raise HostQualificationError(
+            "HOST-INSTALLED-ROOT-MISMATCH", "cache receipt and startup observation use different installed roots"
+        )
+
+    catalog_value, catalog_binding = _read_attested_json(
+        plugin.get("startup_catalog"),
+        code="HOST-STARTUP-CATALOG-MISMATCH",
+        missing_code="HOST-STARTUP-CATALOG-MISSING",
+        label="startup catalog observation",
+    )
+    cli_value, cli_binding = _read_attested_json(
+        plugin.get("cli_registration"),
+        code="HOST-CLI-REGISTRATION-MISMATCH",
+        missing_code="HOST-CLI-REGISTRATION-MISSING",
+        label="CLI registration observation",
+    )
+    if catalog_binding["path"] == cli_binding["path"]:
+        raise HostQualificationError(
+            "HOST-CLI-REGISTRATION-MISMATCH",
+            "startup catalog and CLI registration observations must be distinct files",
+        )
+    manifest, manifest_binding = _read_json(
+        installed_manifest_path,
+        "HOST-INSTALLED-MANIFEST-MISSING",
+        "installed plugin manifest",
+    )
+    if not _resolved_within(installed_manifest_path, installed_root):
+        raise HostQualificationError(
+            "HOST-INSTALLED-ROOT-MISMATCH", "installed manifest is outside the installed root"
+        )
+    provenance, provenance_binding = _read_attested_json(
+        plugin.get("installed_provenance"), root=installed_root,
+        code="HOST-INSTALLED-PROVENANCE-MISMATCH", label="installed provenance",
+    )
+    cache_binding = _binding(cache_comparison_path)
+    declared_cache = plugin.get("cache_receipt")
+    if not isinstance(declared_cache, Mapping) or any(
+        declared_cache.get(key) != cache_binding.get(key)
+        for key in ("path", "sha256", "byte_length")
+    ):
+        raise HostQualificationError(
+            "HOST-CACHE-COMPARISON-MISSING", "startup observation binds another cache receipt"
+        )
+    name = manifest.get("name")
+    version = manifest.get("version")
+    expected_root = str(installed_root)
+    for label, observed, observation_kind, code in (
+        (
+            "startup catalog", catalog_value, "startup_catalog",
+            "HOST-STARTUP-CATALOG-MISMATCH",
+        ),
+        (
+            "CLI registration", cli_value, "cli_registration",
+            "HOST-CLI-REGISTRATION-MISMATCH",
+        ),
+    ):
+        if (
+            observed.get("observation_kind") != observation_kind
+            or observed.get("name") != name
+            or observed.get("version") != version
+            or Path(str(observed.get("installed_root", ""))).resolve() != installed_root
+        ):
+            raise HostQualificationError(code, f"{label} does not identify {name}@{version} at {expected_root}")
+    cache_manifest = cache.get("identity", {}).get("embedded", {}).get("manifest", {})
+    cache_provenance = cache.get("identity", {}).get("embedded", {}).get("provenance", {})
+    if (
+        plugin.get("name") != name
+        or plugin.get("version") != version
+        or cache_manifest.get("name") != name
+        or cache_manifest.get("version") != version
+        or cache_manifest.get("sha256") != manifest_binding["sha256"]
+    ):
+        raise HostQualificationError(
+            "HOST-INSTALLED-MANIFEST-MISSING", "catalog, CLI, cache, and installed manifest disagree"
+        )
+    if (
+        provenance.get("schema") != "coauthor-build-provenance/v1"
+        or provenance.get("commit") != cache_provenance.get("commit")
+        or provenance_binding["sha256"] != cache_provenance.get("sha256")
+    ):
+        raise HostQualificationError(
+            "HOST-INSTALLED-PROVENANCE-MISMATCH", "installed provenance differs from the qualified cache receipt"
+        )
+    if plugin.get("cleared_zip_sha256") != cleared_zip_sha256:
+        raise HostQualificationError("HOST-CLEARED-ZIP-UNBOUND", "startup observation binds another cleared ZIP")
+
+    loaded = plugin.get("loaded_paths")
+    if (
+        not isinstance(loaded, list)
+        or not loaded
+        or plugin.get("loaded_paths_complete") is not True
+        or isinstance(plugin.get("loaded_path_count"), bool)
+        or plugin.get("loaded_path_count") != len(loaded)
+    ):
+        raise HostQualificationError("HOST-LOADED-PATH-MISMATCH", "actually loaded paths are missing")
+    loaded_bindings: list[dict[str, Any]] = []
+    kinds: set[str] = set()
+    resolved_loaded_paths: set[str] = set()
+    for row in loaded:
+        if not isinstance(row, Mapping) or row.get("kind") not in {"plugin", "skill"}:
+            raise HostQualificationError("HOST-LOADED-PATH-MISMATCH", "loaded path kind is invalid")
+        kind = str(row["kind"])
+        kinds.add(kind)
+        observed_binding = _attested_binding(
+            row, root=installed_root, code="HOST-LOADED-PATH-MISMATCH", label="loaded path"
+        )
+        if observed_binding["path"] in resolved_loaded_paths:
+            raise HostQualificationError("HOST-LOADED-PATH-MISMATCH", "loaded paths contain duplicates")
+        resolved_loaded_paths.add(observed_binding["path"])
+        loaded_path = Path(observed_binding["path"])
+        if kind == "plugin" and observed_binding != manifest_binding:
+            raise HostQualificationError(
+                "HOST-LOADED-PATH-MISMATCH", "loaded plugin path is not the installed manifest"
+            )
+        if kind == "skill" and (
+            loaded_path.name != "SKILL.md"
+            or not _resolved_within(loaded_path, installed_root / "skills")
+        ):
+            raise HostQualificationError(
+                "HOST-LOADED-PATH-MISMATCH", "loaded skill path is not skills/**/SKILL.md"
+            )
+        loaded_bindings.append(observed_binding)
+    if kinds != {"plugin", "skill"}:
+        raise HostQualificationError(
+            "HOST-LOADED-PATH-MISMATCH", "both plugin and skill loaded paths are required"
+        )
+    return attestation_binding, [
+        attestation_binding, catalog_binding, cli_binding, manifest_binding,
+        provenance_binding, cache_binding, *loaded_bindings,
+    ]
 
 
 def _classify(
@@ -450,7 +754,7 @@ def _classify(
         or cache.get("verdict") not in {"qualified", "qualified_with_caveats"}
         or not isinstance(zip_claim, dict)
         or cache.get("package_digests", {}).get("stable") is not True
-        or len(cache.get("suites", [])) != 4
+        or len(cache.get("suites", [])) != len(EXPECTED_RUNTIME_SUITES)
         or any(row.get("status") != "passed" for row in cache.get("suites", []))
         or any(row.get("severity") == "BLOCKER" for row in cache.get("findings", []))
     ):
@@ -570,6 +874,7 @@ def publish_host_qualification(
     cache_comparison_path: Path | None = None,
     cleared_zip_path: Path | None = None,
     core_probe_path: Path | None = None,
+    startup_attestation_path: Path | None = None,
     created_at: str | None = None,
     before_commit: Callable[[], None] | None = None,
     publication_hook: Callable[[str, Path], None] | None = None,
@@ -597,6 +902,34 @@ def publish_host_qualification(
         cleared_zip_path=cleared_zip_path,
         core_probe_path=core_probe_path,
     )
+    startup_binding: dict[str, Any] | None = None
+    if startup_attestation_path is not None and startup_attestation_path.is_file():
+        startup_binding = _binding(startup_attestation_path)
+        input_bindings.append(startup_binding)
+    if state == "HOST_QUALIFIED":
+        assert installed_manifest_path is not None
+        assert cache_comparison_path is not None
+        assert cleared_binding is not None
+        try:
+            validated_startup_binding, startup_inputs = _validate_startup_attestation(
+                path=startup_attestation_path,
+                host=host_value,
+                installed_manifest_path=installed_manifest_path,
+                cache_comparison_path=cache_comparison_path,
+                cleared_zip_sha256=cleared_binding["sha256"],
+                cache=_read_json(
+                    cache_comparison_path,
+                    "HOST-CACHE-COMPARISON-MISSING",
+                    "cache comparison receipt",
+                )[0],
+            )
+            startup_binding = validated_startup_binding
+            for binding in startup_inputs:
+                if binding not in input_bindings:
+                    input_bindings.append(binding)
+        except HostQualificationError as exc:
+            state = "HOST_QUALIFICATION_FAILED"
+            failure = _failure(exc.code, exc.message)
     identity_material = {
         "host": host_value,
         "package_clearance_state": package_clearance_state,
@@ -605,6 +938,7 @@ def publish_host_qualification(
         "cache_comparison": cache_binding,
         "cleared_zip": cleared_binding,
         "core_probe": core_binding,
+        "startup_attestation": startup_binding,
         "created_at": created_at,
     }
     transaction_id = "host-qualification:" + _sha(_canonical(identity_material))[:32]
@@ -628,6 +962,7 @@ def publish_host_qualification(
                 "cache_comparison": cache_binding,
                 "cleared_zip": cleared_binding,
                 "core_probe": core_binding,
+                "startup_attestation": startup_binding,
             },
         }
         publication_raw = _canonical(publication)
@@ -641,7 +976,7 @@ def publish_host_qualification(
         marker_binding = _binding_for_bytes(marker_path, marker_raw)
 
     transaction = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "transaction_id": transaction_id,
         "state": state,
         "host": host_value,
@@ -650,6 +985,7 @@ def publish_host_qualification(
         "cache_comparison": cache_binding,
         "cleared_zip": cleared_binding,
         "core_probe": core_binding,
+        "startup_attestation": startup_binding,
         "package_clearance_state": package_clearance_state,
         "publication_manifest": publication_binding,
         "commit_marker": marker_binding,
@@ -747,6 +1083,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-comparison", type=Path)
     parser.add_argument("--cleared-zip", type=Path)
     parser.add_argument("--core-probe", type=Path)
+    parser.add_argument("--startup-attestation", type=Path)
     parser.add_argument("--created-at")
     return parser
 
@@ -767,6 +1104,7 @@ def main(argv: list[str] | None = None) -> int:
             cache_comparison_path=args.cache_comparison,
             cleared_zip_path=args.cleared_zip,
             core_probe_path=args.core_probe,
+            startup_attestation_path=args.startup_attestation,
             created_at=args.created_at,
         )
     except (HostQualificationError, OSError, UnicodeError, json.JSONDecodeError) as exc:

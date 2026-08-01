@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/qualification_plane_topology_receipt.schema.json",
+  "title": "Release qualification five-plane topology receipt 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "source_commit", "planes", "source_stable", "findings", "verdict"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "qualification_plane_topology"},
+    "source_commit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "planes": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/plane"},
+      "allOf": [
+        {"contains": {"type": "object", "required": ["plane_kind"], "properties": {"plane_kind": {"const": "source"}}}},
+        {"contains": {"type": "object", "required": ["plane_kind"], "properties": {"plane_kind": {"const": "build"}}}},
+        {"contains": {"type": "object", "required": ["plane_kind"], "properties": {"plane_kind": {"const": "archive"}}}},
+        {"contains": {"type": "object", "required": ["plane_kind"], "properties": {"plane_kind": {"const": "unpacked"}}}},
+        {"contains": {"type": "object", "required": ["plane_kind"], "properties": {"plane_kind": {"const": "installed_cache"}}}}
+      ]
+    },
+    "source_stable": {"type": "boolean"},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "verdict": {"enum": ["qualified", "blocked"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "plane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plane_kind", "path", "path_kind", "digest_sha256", "git_commit", "git_state", "provenance_commit"],
+      "properties": {
+        "plane_kind": {"enum": ["source", "build", "archive", "unpacked", "installed_cache"]},
+        "path": {"type": "string", "minLength": 1},
+        "path_kind": {"enum": ["directory", "file"]},
+        "digest_sha256": {"$ref": "#/$defs/sha256"},
+        "git_commit": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}]},
+        "git_state": {"enum": ["source_main", "detached_clean", "absent"]},
+        "provenance_commit": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"plane_kind": {"const": "source"}}, "required": ["plane_kind"]},
+          "then": {"properties": {"path_kind": {"const": "directory"}, "git_commit": {"type": "string"}, "git_state": {"const": "source_main"}, "provenance_commit": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"plane_kind": {"const": "build"}}, "required": ["plane_kind"]},
+          "then": {"properties": {"path_kind": {"const": "directory"}, "git_commit": {"type": "string"}, "git_state": {"const": "detached_clean"}, "provenance_commit": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"plane_kind": {"const": "archive"}}, "required": ["plane_kind"]},
+          "then": {"properties": {"path_kind": {"const": "file"}, "git_commit": {"type": "null"}, "git_state": {"const": "absent"}, "provenance_commit": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"plane_kind": {"enum": ["unpacked", "installed_cache"]}}, "required": ["plane_kind"]},
+          "then": {"properties": {"path_kind": {"const": "directory"}, "git_commit": {"type": "null"}, "git_state": {"const": "absent"}, "provenance_commit": {"type": "string"}}}
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^PLANE-[A-Z0-9-]+$"},
+        "message": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

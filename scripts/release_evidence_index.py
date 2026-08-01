@@ -100,6 +100,160 @@ def _bindings(value: Any):
             yield from _bindings(child)
 
 
+def _bound_json(root: Path, binding: dict[str, str], *, label: str) -> dict[str, Any]:
+    try:
+        value = _load(_resolve(root, binding["path"]))
+    except IndexRefusal as exc:
+        raise IndexRefusal(
+            "RELEASE-INDEX-PLANE-RECEIPT",
+            f"{label} receipt is not a strict JSON object: {exc}",
+        ) from exc
+    return value
+
+
+def _topology_semantics(value: dict[str, Any], *, commit: str, plane_name: str) -> bool:
+    if not (
+        value.get("schema_version") == "1.0.0"
+        and value.get("receipt_type") == "qualification_plane_topology"
+        and value.get("source_commit") == commit
+        and value.get("source_stable") is True
+        and value.get("verdict") == "qualified"
+        and value.get("findings") == []
+    ):
+        return False
+    planes = value.get("planes")
+    if not isinstance(planes, list) or len(planes) != 5:
+        return False
+    records = {
+        row.get("plane_kind"): row
+        for row in planes
+        if isinstance(row, dict) and isinstance(row.get("plane_kind"), str)
+    }
+    if set(records) != {"source", "build", "archive", "unpacked", "installed_cache"}:
+        return False
+    record = records[plane_name]
+    expected_state = "source_main" if plane_name == "source" else "detached_clean"
+    return record.get("git_commit") == commit and record.get("git_state") == expected_state
+
+
+def _derived_topology_semantics(value: dict[str, Any], *, commit: str) -> bool:
+    retained = value.get("derived_topology_receipt")
+    if not isinstance(retained, dict) or not isinstance(retained.get("payload"), dict):
+        return False
+    payload = retained["payload"]
+    canonical = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != retained.get("sha256"):
+        return False
+    if not (
+        payload.get("receipt_type") == "qualification_plane_topology"
+        and payload.get("source_commit") == commit
+        and payload.get("source_stable") is True
+        and payload.get("verdict") == "qualified"
+        and payload.get("findings") == []
+    ):
+        return False
+    child = value.get("runtime_plane_receipt", {}).get("payload")
+    child_binding = child.get("topology_receipt", {}) if isinstance(child, dict) else {}
+    return child_binding.get("sha256") == retained.get("sha256")
+
+
+def _plane_semantics(value: dict[str, Any], *, name: str, status: str, commit: str) -> bool:
+    if name in {"source", "build"}:
+        return status == "qualified" and _topology_semantics(
+            value, commit=commit, plane_name=name,
+        )
+    expected_verdict = {
+        "qualified": "qualified",
+        "qualified_with_caveats": "qualified_with_caveats",
+        "failed": "blocked",
+    }.get(status)
+    if expected_verdict is None or value.get("verdict") != expected_verdict:
+        return False
+    topology_binding = value.get("topology_receipt")
+    if not isinstance(topology_binding, dict) or topology_binding.get("source_commit") != commit:
+        return False
+    if name in {"archive", "unpacked"}:
+        expected_type = "archive_runtime_probe" if name == "archive" else "unpacked_zip_runtime"
+        return (
+            value.get("receipt_type") == expected_type
+            and value.get("plane_kind") == name
+            and _derived_topology_semantics(value, commit=commit)
+            and (value.get("findings") == [] if status == "qualified" else True)
+        )
+    if name == "installed_cache":
+        suites = value.get("suites")
+        return (
+            value.get("receipt_type") == "runtime_plane_probe"
+            and value.get("plane_kind") == "installed_cache"
+            and value.get("cache_state") == (
+                "CODEX_CACHE_QUALIFIED" if status in {"qualified", "qualified_with_caveats"}
+                else "CACHE_PROVENANCE_CONTAMINATED"
+            )
+            and isinstance(suites, list)
+            and len(suites) == 6
+            and all(
+                isinstance(row, dict)
+                and row.get("status") == "passed"
+                and row.get("returncode") == 0
+                for row in suites
+            )
+            and (value.get("findings") == [] if status == "qualified" else True)
+        )
+    return False
+
+
+def _validate_plane_receipts(root: Path, value: dict[str, Any]) -> None:
+    commit = value["source"]["commit"]
+    for plane in value["planes"]:
+        name = plane["name"]
+        status = plane["status"]
+        binding = plane["receipt"]
+        if status in {"pending", "not_applicable"}:
+            if binding is not None:
+                raise IndexRefusal(
+                    "RELEASE-INDEX-PLANE-RECEIPT",
+                    f"{name} {status} status must not carry a qualifying receipt",
+                )
+            continue
+        if not isinstance(binding, dict):
+            raise IndexRefusal(
+                "RELEASE-INDEX-PLANE-RECEIPT", f"{name} {status} status lacks a receipt",
+            )
+        receipt = _bound_json(root, binding, label=name)
+        if not _plane_semantics(receipt, name=name, status=status, commit=commit):
+            raise IndexRefusal(
+                "RELEASE-INDEX-PLANE-RECEIPT",
+                f"{name} receipt type, plane kind, verdict, source, topology, or suites differ",
+            )
+
+    if value["status"] != "IMPLEMENTED" and any(
+        plane["status"] != "qualified" for plane in value["planes"]
+    ):
+        raise IndexRefusal(
+            "RELEASE-INDEX-GLOBAL-STATE",
+            f"{value['status']} requires all five planes to be exactly qualified",
+        )
+    if value["status"] in {"HOST_QUALIFIED", "HOST_QUALIFICATION_FAILED"}:
+        wanted = value["status"]
+        result = "QUALIFIED" if wanted == "HOST_QUALIFIED" else "NOT_QUALIFIED"
+        host_bound = False
+        for evidence in value["evidence"]:
+            if evidence.get("result") != result:
+                continue
+            try:
+                receipt = _bound_json(root, evidence, label="host qualification")
+            except IndexRefusal:
+                continue
+            if receipt.get("schema_version") == "1.1.0" and receipt.get("state") == wanted:
+                host_bound = True
+                break
+        if not host_bound:
+            raise IndexRefusal(
+                "RELEASE-INDEX-GLOBAL-STATE",
+                f"{wanted} requires a matching hash-bound host qualification transaction",
+            )
 def validate(root: Path, value: dict[str, Any]) -> None:
     try:
         Draft202012Validator(json.loads(SCHEMA.read_text(encoding="utf-8"))).validate(value)
@@ -117,6 +271,7 @@ def validate(root: Path, value: dict[str, Any]) -> None:
         path = _resolve(root, raw)
         if _sha(path) != binding["sha256"]:
             raise IndexRefusal("RELEASE-INDEX-STALE", f"digest mismatch: {raw}")
+    _validate_plane_receipts(root, value)
 
 
 def _write_exact(path: Path, data: bytes, *, purpose: str) -> None:
@@ -169,7 +324,7 @@ def render(index: Path, output: Path, root: Path) -> None:
         f"**Status:** `{value['status']}`  ",
         f"**Source commit:** `{value['source']['commit']}`",
         "",
-        "## Runtime planes",
+        "## Qualification planes",
         "",
     ]
     lines.extend(f"- `{row['name']}`: `{row['status']}`" for row in value["planes"])

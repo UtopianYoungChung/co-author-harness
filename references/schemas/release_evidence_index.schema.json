@@ -32,7 +32,20 @@
     "package_index": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
     "artifacts": {"type": "array", "items": {"$ref": "#/$defs/namedBinding"}, "uniqueItems": true},
     "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}, "uniqueItems": true},
-    "planes": {"type": "array", "items": {"$ref": "#/$defs/plane"}, "uniqueItems": true},
+    "planes": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/plane"},
+      "uniqueItems": true,
+      "allOf": [
+        {"contains": {"properties": {"name": {"const": "source"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "build"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "archive"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "unpacked"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "installed_cache"}}, "required": ["name"]}}
+      ]
+    },
     "warnings": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "omissions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "no_claims": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
@@ -47,6 +60,16 @@
     {
       "if": {"properties": {"index_type": {"const": "release"}}},
       "then": {"properties": {"package_index": {"$ref": "#/$defs/binding"}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["PACKAGE_CLEARED", "SHIPPED", "HOST_QUALIFICATION_PENDING", "HOST_QUALIFICATION_FAILED", "HOST_QUALIFIED"]}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "planes": {
+            "items": {"properties": {"status": {"const": "qualified"}}, "required": ["status"]}
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -77,10 +100,20 @@
       "type": "object", "additionalProperties": false,
       "required": ["name", "status", "receipt"],
       "properties": {
-        "name": {"enum": ["source", "archive", "unpacked_zip", "codex_cache", "cowork_cache"]},
+        "name": {"enum": ["source", "build", "archive", "unpacked", "installed_cache"]},
         "status": {"enum": ["qualified", "qualified_with_caveats", "pending", "failed", "not_applicable"]},
         "receipt": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]}
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["qualified", "qualified_with_caveats", "failed"]}}, "required": ["status"]},
+          "then": {"properties": {"receipt": {"$ref": "#/$defs/binding"}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["pending", "not_applicable"]}}, "required": ["status"]},
+          "then": {"properties": {"receipt": {"type": "null"}}}
+        }
+      ]
     },
     "reviewer": {
       "type": "object", "additionalProperties": false,

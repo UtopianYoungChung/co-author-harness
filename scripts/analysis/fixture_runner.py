@@ -187,6 +187,8 @@ def _default_case(*, timeout_s: int = SUITE_TIMEOUT_S) -> dict:
 REGISTRY: dict[str, list[dict]] = {
     "scripts/alias_parity_smoketest.py": [_default_case()],
     "scripts/archive_runtime_probe_smoketest.py": [_default_case()],
+    "scripts/qualification_plane_topology_smoketest.py": [_default_case()],
+    "scripts/release_qualification_controller_smoketest.py": [_default_case()],
     "scripts/command_surface_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_claim_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_preflight_smoketest.py": [_default_case()],
@@ -289,7 +291,9 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/phase_engagement_smoketest.py": [_default_case()],
     "scripts/phase_notifications_smoketest.py": [_default_case()],
     "scripts/phase_state_validator_smoketest.py": [_default_case()],
-    "scripts/pre_phase_advance_phase_state_smoketest.py": [_default_case()],
+    "scripts/pre_phase_advance_phase_state_smoketest.py": [
+        _default_case(timeout_s=1200)
+    ],
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
     "scripts/reader_profile_v2_global_smoketest.py": [_default_case()],
@@ -646,7 +650,10 @@ def _run_locked(registry: dict[str, list[dict]],
                 observed_exit = None
 
             if observed_exit is None:
-                argv = [sys.executable, str(suite_path), *case["argv"]]
+                # The registry owns subprocess launch policy.  Preserve source
+                # immutability even when a suite builds a custom child
+                # environment that drops PYTHONDONTWRITEBYTECODE.
+                argv = [sys.executable, "-B", str(suite_path), *case["argv"]]
                 t0 = time.perf_counter_ns()
                 try:
                     proc = subprocess.run(argv, cwd=str(PLUGIN_ROOT), capture_output=True,

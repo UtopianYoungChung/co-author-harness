@@ -19,12 +19,13 @@ even if `git ls-tree` returned them — protects against future `.gitignore`
 drift. A nested archive file inside a `.plugin` archive violates the
 Cowork loader contract.
 
-**Output.** `<harness>/.claude-plugin/<plugin-name>.plugin` (plugin name read
-from `.claude-plugin/plugin.json`).
+**Output.** The caller must provide `--out <external-directory>`. The bundle
+is written there using the name from `.claude-plugin/plugin.json`; package and
+governed consumer destinations are refused by the shared destination policy.
 
 **Usage.**
 
-    python scripts/build-plugin.py
+    python scripts/build-plugin.py --out <external-directory>
 
 Or with PYTHONUTF8=1 on Windows hosts where stdlib defaults to cp949 and the
 plugin tree carries §, →, em dashes, etc.:
@@ -44,6 +45,7 @@ plugin tree carries §, →, em dashes, etc.:
     6  the child builder produced no bundle -- that commit's toolchain likely
        predates --build-here
     7  the build worktree could not be cleaned up: the environment is VOID
+    8  environment, external-output, or post-build source-residue refusal
 
     (4 is retired: it belonged to the toolchain-drift check, which is gone --
      the builder now re-execs from a clean worktree, so drift is
@@ -80,7 +82,14 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import destination_capability as destinations
 from resolve_includes import resolve_includes_in_text
+from qualification_environment import (
+    QualificationEnvironmentRefusal,
+    assert_ambient_clean,
+    controlled_environment,
+)
+from qualification_plane_topology import capture_source_snapshot
 
 # Resolve harness root from this script's location: scripts/build-plugin.py.
 # No env override: COAUTHOR_BUILD_SOURCE_REPO was scaffolding for an abandoned
@@ -173,9 +182,7 @@ def commit_worktree(commit: str):
     main repo), so the child can resolve and enumerate normally. The worktree
     is also already the commit's content -- no tar, no second materialization.
     """
-    base = HARNESS / ".worktrees"
-    base.mkdir(exist_ok=True)
-    path = Path(tempfile.mkdtemp(prefix="build-", dir=str(base)))
+    path = Path(tempfile.mkdtemp(prefix="coauthor-build-plane-"))
     path.rmdir()  # git insists on creating it
     subprocess.run(
         [GIT, "-C", str(HARNESS), "worktree", "add", "--quiet", "--detach",
@@ -240,6 +247,32 @@ def commit_worktree(commit: str):
 
 
 def main() -> int:
+    try:
+        assert_ambient_clean()
+    except QualificationEnvironmentRefusal as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 8
+    try:
+        out_index = sys.argv.index("--out")
+        explicit_out = Path(sys.argv[out_index + 1]).resolve()
+    except (ValueError, IndexError):
+        print("[ERROR] --out <external-directory> is required; source-plane output is forbidden", file=sys.stderr)
+        return 8
+    try:
+        output_class = destinations.assert_writable(
+            explicit_out, purpose="isolated build-plane output",
+        )
+    except destinations.DestinationRefused as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 8
+    if output_class != "external":
+        print(
+            "[ERROR] BUILD-OUTPUT-CLASS: isolated build plane requires an "
+            f"external destination; got {output_class}",
+            file=sys.stderr,
+        )
+        return 8
+
     # ONE SHA governs every decision below: enumeration, materialization, the
     # manifest, and the reported provenance. Resolving HEAD more than once
     # reintroduces a check/act race at the COMMIT level -- membership from
@@ -297,31 +330,46 @@ def main() -> int:
     # directly -- no snapshot, no drift check, nothing to verify. Mismatch is
     # unrepresentable rather than detected.
     if "--build-here" in sys.argv:
-        out_dir = Path(sys.argv[sys.argv.index("--out") + 1])
-        return _build(head_sha, HARNESS, files, out_dir)
+        return _build(head_sha, HARNESS, files, explicit_out)
 
+    source_preimage = capture_source_snapshot(HARNESS)
+    child_rc = 0
     with commit_worktree(head_sha) as wt:
         print(f"Toolchain:     re-exec from a clean worktree at {head_sha[:12]}")
-        out_dir = HARNESS / ".claude-plugin"
+        out_dir = explicit_out
+        out_dir.mkdir(parents=True, exist_ok=True)
         before = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
+        # The detached child lives outside the governed workspace, so carry
+        # forward only the additive governed-root set that made the parent's
+        # destination classification possible. This preserves fail-closed
+        # classification in the child without granting a new writable lane.
+        governed_root_value = os.pathsep.join(
+            str(root) for root in destinations.governed_roots(explicit_out)
+        )
+        child_env, _ = controlled_environment(delta={
+            "COAUTHOR_EXTRA_GOVERNED_ROOTS": governed_root_value,
+        })
         proc = subprocess.run([
             sys.executable, str(wt / "scripts" / "build-plugin.py"),
             "--build-here", "--out", str(out_dir),
-        ])
+        ], env=child_env)
         if proc.returncode != 0:
-            return proc.returncode
+            child_rc = proc.returncode
         # The child MUST have written here. A commit whose builder predates
         # --build-here ignores the flag, builds into its own worktree, and exits
         # 0 -- the worktree is then deleted and the real bundle is silently
         # untouched. Observed exactly that during the transition. An exit code
         # is not evidence that the work happened.
         after = {p: p.stat().st_mtime_ns for p in out_dir.glob("*.plugin")}
-        if after == before:
+        if child_rc == 0 and after == before:
             print(f"[ERROR] child at {head_sha[:12]} produced no bundle in {out_dir}; "
                   "that commit's builder likely predates --build-here. Build from a "
                   "commit whose toolchain supports worktree re-exec.", file=sys.stderr)
-            return 6
-        return 0
+            child_rc = 6
+    if capture_source_snapshot(HARNESS) != source_preimage:
+        print("[ERROR] PLANE-SOURCE-RESIDUE: source changed during build before suite launch", file=sys.stderr)
+        return 8
+    return child_rc
 
 
 

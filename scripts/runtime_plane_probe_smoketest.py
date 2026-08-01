@@ -111,7 +111,7 @@ def package(
 
 def git_commit(root: Path) -> str:
     for argv in (
-        ["git", "init", "--quiet"],
+        ["git", "init", "--quiet", "-b", "main"],
         ["git", "config", "user.email", "fixture@example.invalid"],
         ["git", "config", "user.name", "Fixture"],
         ["git", "add", "."],
@@ -215,6 +215,46 @@ def fixture(
     return source, local, archive, commit
 
 
+def topology_receipt(probe, source: Path, local: Path, archive: Path | None, commit: str | None, plane_kind: str) -> dict:
+    bound_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=source, check=True,
+        capture_output=True, text=True, encoding="utf-8", errors="strict",
+    ).stdout.strip()
+    archive_path = archive or source.parent / "cleared.zip"
+    unpacked = local if plane_kind == "unpacked" else source.parent / "topology-unpacked"
+    installed = local if plane_kind == "installed_cache" else source.parent / "topology-installed-cache"
+    build = source.parent / "topology-build"
+    if not build.exists():
+        subprocess.run(
+            ["git", "clone", "--quiet", "--no-local", str(source), str(build)], check=True,
+        )
+        subprocess.run(
+            ["git", "checkout", "--quiet", "--detach", bound_commit], cwd=build, check=True,
+        )
+    for path in (unpacked, installed):
+        path.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "source": source, "build": build, "archive": archive_path,
+        "unpacked": unpacked, "installed_cache": installed,
+    }
+    records = []
+    for kind in probe.topology.PLANE_KINDS:
+        records.append({
+            "plane_kind": kind,
+            "path": str(paths[kind].resolve()),
+            "path_kind": "file" if kind == "archive" else "directory",
+            "digest_sha256": probe.topology.plane_digest(kind, paths[kind]),
+            "git_commit": bound_commit if kind in {"source", "build"} else None,
+            "git_state": "source_main" if kind == "source" else "detached_clean" if kind == "build" else "absent",
+            "provenance_commit": bound_commit if kind in {"archive", "unpacked", "installed_cache"} else None,
+        })
+    return {
+        "schema_version": "1.0.0", "receipt_type": "qualification_plane_topology",
+        "source_commit": bound_commit, "planes": records, "source_stable": True,
+        "findings": [], "verdict": "qualified",
+    }
+
+
 def probe_case(
     probe,
     source: Path,
@@ -223,6 +263,7 @@ def probe_case(
     commit: str | None,
     *,
     crlf_mode: str = "forbid",
+    plane_kind: str = "installed_cache",
 ) -> dict:
     out = source / "releases" / "verification" / "fixture" / "runtime-plane.json"
     receipt = probe.probe_plane(
@@ -232,6 +273,8 @@ def probe_case(
         source_commit=commit,
         crlf_mode=crlf_mode,
         out_path=out,
+        plane_kind=plane_kind,
+        topology_receipt=topology_receipt(probe, source, local, archive, commit, plane_kind),
     )
     assert json.loads(out.read_text(encoding="utf-8")) == receipt
     validate(receipt)
@@ -275,33 +318,41 @@ def main() -> int:
                 " raise AssertionError(completed.stdout + completed.stderr)\n"
             ).encode("utf-8"),
         )
-        poison = {
-            "PYTHONOPTIMIZE": "2",
-            "PYTHONPLATLIBDIR": "ambient-platlib",
-            "PYTHONWARNINGS": "error",
-            "PYTHONHOME": str(base / "ambient-home"),
-            "PYTHONNOUSERSITE": "0",
-        }
-        previous_poison = {key: os.environ.get(key) for key in poison}
-        os.environ.update(poison)
-        try:
-            nested_results = probe._run_suites(
-                nested_root,
-                probe.DEFAULT_SUITES,
-                [str(dependency_root)],
-            )
-        finally:
-            for key, previous in previous_poison.items():
-                if previous is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = previous
+        nested_results = probe._run_suites(
+            nested_root,
+            probe.DEFAULT_SUITES,
+            [str(dependency_root)],
+        )
         assert len(nested_results) == 6
         assert all(row["status"] == "passed" for row in nested_results)
         assert os.environ.get("PYTHONPATH", "") != str(dependency_root)
         cases.append("nested_subprocess_receives_only_qualified_dependencies")
 
         source, local, archive, commit = fixture(base, "clean")
+        for value, code in (
+            (None, "RUNTIME-PLANE-KIND-MISSING"),
+            ("source", "RUNTIME-PLANE-KIND-UNKNOWN"),
+        ):
+            try:
+                probe.probe_plane(
+                    local_root=local, baseline_root=source, cleared_zip_path=archive,
+                    source_commit=commit, out_path=None, plane_kind=value,
+                )
+            except probe.ProbeRefusal as exc:
+                assert exc.code == code, (code, exc.code)
+            else:
+                raise AssertionError(f"plane kind {value!r} was accepted")
+        cases.append("required_plane_kind_refusals")
+        try:
+            probe.probe_plane(
+                local_root=local, baseline_root=source, cleared_zip_path=archive,
+                source_commit=commit, out_path=None, plane_kind="installed_cache",
+            )
+        except probe.ProbeRefusal as exc:
+            assert exc.code == "RUNTIME-PLANE-TOPOLOGY-MISSING", exc.code
+        else:
+            raise AssertionError("runtime plane ran without a five-plane topology receipt")
+        cases.append("topology_receipt_required_before_suites")
         clean = probe_case(probe, source, local, archive, commit)
         assert clean["cache_state"] == "CODEX_CACHE_QUALIFIED"
         assert clean["verdict"] == "qualified"
@@ -327,8 +378,9 @@ def main() -> int:
         for key, value in (
             ("PYTHONPATH", str(base / "ambient-route")),
             ("PYTHONOPTIMIZE", "2"),
-            ("PYTHONPLATLIBDIR", "ambient-platlib"),
             ("PYTHONWARNINGS", "error"),
+            ("PYTHONHOME", str(base / "ambient-home")),
+            ("PYTHONUTF8", "1"),
         ):
             previous = os.environ.get(key)
             os.environ[key] = value
@@ -336,7 +388,7 @@ def main() -> int:
                 try:
                     probe_case(probe, source, local, archive, commit)
                 except probe.ProbeRefusal as exc:
-                    assert exc.code == "RUNTIME-PLANE-ENV"
+                    assert exc.code == "QUALIFICATION-ENV-AMBIENT"
                 else:
                     raise AssertionError(f"ambient {key} was accepted")
             finally:
@@ -388,12 +440,12 @@ def main() -> int:
 
         source, local, archive, commit = fixture(base, "source-install-wrong-commit")
         (local / PROVENANCE).unlink()
-        wrong_source_commit = probe_case(probe, source, local, archive, "0" * 40)
-        contaminated(wrong_source_commit)
-        assert any(
-            row["code"] == "RUNTIME-PLANE-SOURCE-COMMIT-MISMATCH"
-            for row in wrong_source_commit["findings"]
-        )
+        try:
+            probe_case(probe, source, local, archive, "0" * 40)
+        except probe.ProbeRefusal as exc:
+            assert exc.code == "RUNTIME-PLANE-TOPOLOGY-COMMIT", exc.code
+        else:
+            raise AssertionError("wrong explicit commit reached runtime comparison after topology")
         cases.append("source_installed_cache_wrong_explicit_commit")
 
         source, local, archive, commit = fixture(base, "archive-substitution")
@@ -440,12 +492,12 @@ def main() -> int:
         build_zip(source, dirty_archive, commit)
         shutil.rmtree(local)
         extract(dirty_archive, local)
-        dirty_same_head = probe_case(probe, source, local, dirty_archive, commit)
-        contaminated(dirty_same_head)
-        assert any(
-            row["code"] == "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE"
-            for row in dirty_same_head["findings"]
-        )
+        try:
+            probe_case(probe, source, local, dirty_archive, commit)
+        except probe.ProbeRefusal as exc:
+            assert exc.code == "RUNTIME-PLANE-SOURCE-DIRTY", exc.code
+        else:
+            raise AssertionError("dirty source reached runtime comparison after topology")
         cases.append("source_commit_uses_git_object_bytes")
 
         source, local, archive, commit = fixture(
@@ -457,9 +509,17 @@ def main() -> int:
 
         source, local, archive, commit = fixture(base, "semantic-edit")
         write(local / "README.md", b"different\n")
-        semantic = probe_case(probe, source, local, archive, commit)
+        original_run_suites = probe._run_suites
+        probe._run_suites = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("semantic contamination executed child suites")
+        )
+        try:
+            semantic = probe_case(probe, source, local, archive, commit)
+        finally:
+            probe._run_suites = original_run_suites
         contaminated(semantic)
         assert [row["path"] for row in semantic["semantic_differences"]] == ["README.md"]
+        assert all(row["status"] == "not_run_preflight" for row in semantic["suites"])
         cases.append("semantic_edit")
 
         source, local, archive, commit = fixture(base, "missing-file")
@@ -552,6 +612,7 @@ def main() -> int:
                 cleared_zip_path=archive,
                 source_commit=commit,
                 out_path=source / "reviews" / "runtime-plane.json",
+                plane_kind="installed_cache",
             )
         except probe.ProbeRefusal as exc:
             assert exc.code == "RUNTIME-PLANE-OUTPUT"

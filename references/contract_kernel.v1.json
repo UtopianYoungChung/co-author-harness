@@ -171,7 +171,7 @@
       "id": "schema-runtime-check",
       "path": "scripts/schema_runtime_check.py",
       "revision_kind": "sha256",
-      "sha256": "31e139b3d630b485e48eda2a4212379855c7a6da58abd89ca26cb76275584f83",
+      "sha256": "1cfaa4ab9310e2a3d941e91679bfe926d5c37b32b80529013d18f307ff97677f",
       "migration_ids": [
         "role-output-contract-v3",
         "shipment-manifest-v2",
@@ -529,14 +529,14 @@
       "id": "runtime-plane-receipt-schema",
       "path": "references/schemas/runtime_plane_receipt.schema.json",
       "revision_kind": "sha256",
-      "sha256": "c18a5817e6466ed876a52a65ff8e70bbdfd18f727a14df72ee53c106721ec5fb",
+      "sha256": "e5b4633a38001c9cb76df362ecf42a0f8ca96761306f68b4c71e4acebb2de73f",
       "migration_ids": []
     },
     {
       "id": "runtime-plane-probe",
       "path": "scripts/runtime_plane_probe.py",
       "revision_kind": "sha256",
-      "sha256": "de053a9aeebc358e40a805cc22099c7ff1c258c500f72e5d4c0d9cda95a2c296",
+      "sha256": "02ef70c7c6058270da429385cb08c89f65a75c0d7223ed03668bf397aa1a028b",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -545,15 +545,132 @@
       "id": "host-qualification-schema",
       "path": "references/schemas/host_qualification_transaction.schema.json",
       "revision_kind": "sha256",
-      "sha256": "a0f50b81749593105593b36eef9d5ac05f9fd03a25afaf4cf4a856ee40316b1c",
+      "sha256": "b4dd8b1272d2ffa94dabecc4ec0045d305b618798e5d353554b59c8e70876510",
       "migration_ids": []
     },
     {
       "id": "host-qualification-transaction",
       "path": "scripts/host_qualification_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "450ef89bec0aa3ef59403917275013f8634101e465728111e2e6e1d34ff7dba3",
+      "sha256": "2c481357f4fc30e873a6ec135bf8097b8ddc290a773449ff42d3fa63b34c7619",
       "migration_ids": []
+    },
+    {
+      "id": "qualification-environment",
+      "path": "scripts/qualification_environment.py",
+      "revision_kind": "sha256",
+      "sha256": "a9f20c3c9e41536b73a7687d69250dfbc74ef12142831a77c59aab7d19d4346d",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "release-qualification-controller-schema",
+      "path": "references/schemas/release_qualification_controller.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "71a1a0a213cd832aec529852658f20d809ffbb2937ad780833b607166f7c9b14",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "release-qualification-controller",
+      "path": "scripts/release_qualification_controller.py",
+      "revision_kind": "sha256",
+      "sha256": "6b896c8b432e01d771978f0fb08cdcea7d6da0143fe5e4513dee82f8d90d81dd",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "qualification-plane-topology-schema",
+      "path": "references/schemas/qualification_plane_topology_receipt.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "52ca852ce822f2e768bc5783d80c9acd192412344ee085be22ed459c6c376cb1",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "qualification-plane-topology",
+      "path": "scripts/qualification_plane_topology.py",
+      "revision_kind": "sha256",
+      "sha256": "37d49713e09a5dc52fe0bf83413d0ac0a1605d501a313a40372bc0adf7f30cc2",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "token-budget-policy-schema",
+      "path": "references/schemas/token_budget_policy.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "e5d7b35bb546c3ce9133df2b46d5b6c5916cb9144b33678d782805b6b4ce0cb9",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "token-budget-policy",
+      "path": "references/policies/token_budget.v1.json",
+      "revision_kind": "sha256",
+      "sha256": "1ed83e21242ddb214152ad9ba95c30e72cea382a88c3b088049cf6244c0c4a59",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "token-budget-check",
+      "path": "scripts/token_budget_check.py",
+      "revision_kind": "sha256",
+      "sha256": "1a041f28f232cdffcba37360b679496b3e0877282d9f0eb73a91e822999a5388",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "archive-runtime-receipt-schema",
+      "path": "references/schemas/archive_runtime_receipt.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "5e8a70861f7ed2051640ff1f44afaf99561d66a7a60f666a89808b728aa0854d",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "release-evidence-index-schema",
+      "path": "references/schemas/release_evidence_index.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "f6b08fa285f42be14b6bb3098162be476edeb0bca99a52aacbf69eecb7c8936a",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "release-evidence-index",
+      "path": "scripts/release_evidence_index.py",
+      "revision_kind": "sha256",
+      "sha256": "491b4cc621d3c99415ba8f950d13690e5b89a0d021d37d58a24e11a4b3787fc7",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "build-plugin",
+      "path": "scripts/build-plugin.py",
+      "revision_kind": "sha256",
+      "sha256": "f3b84e4ff5ac3d1167a8fad895c7039ac0a02f79ed8e3744dc973cae5461eb78",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
+    },
+    {
+      "id": "release-gate",
+      "path": "scripts/release-gate.sh",
+      "revision_kind": "sha256",
+      "sha256": "be5a51faade666fea0c905a7d285f7d164f323ebe2aa99a5cb526b4da5934fd5",
+      "migration_ids": [
+        "qualification-architecture-v1"
+      ]
     },
     {
       "id": "common-scholarly-primitives-schema",
@@ -692,7 +809,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "da4b4edef987653be9118f1ea249f257ee47bf9e00ea2c57386896bfabf02d0c",
+      "sha256": "113d2cc1265bf297810e896791fd5922a7c50b67469ef3c47edfb8d05e700526",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -720,7 +837,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "d5d8525ee1b9594f1184cf18f12f0f347b92a12abdef802270f579941ff83db2",
+      "sha256": "6179e140a11426d2ce1376303245a1c6605d7f01b7abe6e876d9b9e107f8d018",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -891,7 +1008,7 @@
       "id": "archive-runtime-probe",
       "path": "scripts/archive_runtime_probe.py",
       "revision_kind": "sha256",
-      "sha256": "d0ab9b184bded3115b40b9944f71c6ad4f349ed2f740c6ab3ebcbd68da429498",
+      "sha256": "f91310b20efcfc4dec336c1982ae7351422bfbcee3aab545e7e09f11f4ec8f7c",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -900,7 +1017,7 @@
       "id": "runtime-plane-probe-smoketest",
       "path": "scripts/runtime_plane_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "921c0807557c0eb3403b53c11ec06a9d61a65ec3d39e1b00b25e8c227d04f301",
+      "sha256": "8b8623c2afc99175ed4f31499503da2b8f88fb2f474d6d0e2a420ac2a6aef98c",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -909,7 +1026,7 @@
       "id": "archive-runtime-probe-smoketest",
       "path": "scripts/archive_runtime_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "c1f77bf695f04997cb5eb74ffa677abf7a76a6ac972b39055b123dea0de9bd49",
+      "sha256": "2e0fb671ede323b04de0a0aa29cd1a055eb7e22d98ff5ec9d58919398372ad87",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]

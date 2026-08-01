@@ -35,6 +35,63 @@ def refusal(fn, code: str) -> None:
         raise AssertionError(f"expected {code}")
 
 
+def topology_receipt(commit: str) -> dict:
+    records = []
+    for name in ("source", "build", "archive", "unpacked", "installed_cache"):
+        records.append({
+            "plane_kind": name,
+            "path": f"C:/fixture/{name}",
+            "path_kind": "file" if name == "archive" else "directory",
+            "digest_sha256": "a" * 64,
+            "git_commit": commit if name in {"source", "build"} else None,
+            "git_state": "source_main" if name == "source" else "detached_clean" if name == "build" else "absent",
+            "provenance_commit": commit if name not in {"source", "build"} else None,
+        })
+    return {
+        "schema_version": "1.0.0",
+        "receipt_type": "qualification_plane_topology",
+        "source_commit": commit,
+        "planes": records,
+        "source_stable": True,
+        "findings": [],
+        "verdict": "qualified",
+    }
+
+
+def archive_plane_receipt(commit: str, name: str, topology: dict) -> dict:
+    topology_sha = hashlib.sha256(
+        (json.dumps(topology, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    ).hexdigest()
+    return {
+        "schema_version": "1.2.0",
+        "receipt_type": "archive_runtime_probe" if name == "archive" else "unpacked_zip_runtime",
+        "plane_kind": name,
+        "topology_receipt": {"sha256": "b" * 64, "source_commit": commit},
+        "derived_topology_receipt": {"sha256": topology_sha, "payload": topology},
+        "runtime_plane_receipt": {
+            "payload": {"topology_receipt": {"sha256": topology_sha, "source_commit": commit, "plane_kind": "unpacked"}}
+        },
+        "findings": [],
+        "verdict": "qualified",
+    }
+
+
+def cache_plane_receipt(commit: str) -> dict:
+    return {
+        "schema_version": "1.1.0",
+        "receipt_type": "runtime_plane_probe",
+        "plane_kind": "installed_cache",
+        "topology_receipt": {"sha256": "c" * 64, "source_commit": commit, "plane_kind": "installed_cache"},
+        "cache_state": "CODEX_CACHE_QUALIFIED",
+        "suites": [
+            {"name": f"suite-{index}", "status": "passed", "returncode": 0}
+            for index in range(6)
+        ],
+        "findings": [],
+        "verdict": "qualified",
+    }
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="release-index-") as raw:
         root = Path(raw).resolve()
@@ -44,13 +101,32 @@ def main() -> int:
         for path, data in ((artifact, b"zip"), (checksum, b"sum"), (receipt, b"PASS\n")):
             write(path, data)
         source = {"commit": "1" * 40, "tree": "2" * 40, "branch": "main", "origin_main": "3" * 40, "remote_main": "3" * 40}
+        topology_path = root / "verification/topology.json"
+        archive_path = root / "verification/archive.json"
+        unpacked_path = root / "verification/unpacked.json"
+        cache_path = root / "verification/cache.json"
+        topology = topology_receipt(source["commit"])
+        dump(topology_path, topology)
+        dump(archive_path, archive_plane_receipt(source["commit"], "archive", topology))
+        dump(unpacked_path, archive_plane_receipt(source["commit"], "unpacked", topology))
+        dump(cache_path, cache_plane_receipt(source["commit"]))
+        plane_paths = {
+            "source": topology_path,
+            "build": topology_path,
+            "archive": archive_path,
+            "unpacked": unpacked_path,
+            "installed_cache": cache_path,
+        }
         package = {
             "schema_version": "1.0.0", "index_type": "package", "release_version": "0.39.0",
             "sequence": 1, "created_at": "2026-07-25T18:00:00Z", "prior_index": None,
             "source": source, "package_index": None,
             "artifacts": [{"id": "zip", "path": artifact.relative_to(root).as_posix(), "sha256": sha(artifact)}, {"id": "checksum", "path": checksum.relative_to(root).as_posix(), "sha256": sha(checksum)}],
             "evidence": [{"id": "gate", "path": receipt.relative_to(root).as_posix(), "sha256": sha(receipt), "result": "PASS"}],
-            "planes": [{"name": "source", "status": "qualified", "receipt": {"path": receipt.relative_to(root).as_posix(), "sha256": sha(receipt)}}],
+            "planes": [
+                {"name": name, "status": "qualified", "receipt": {"path": plane_paths[name].relative_to(root).as_posix(), "sha256": sha(plane_paths[name])}}
+                for name in ("source", "build", "archive", "unpacked", "installed_cache")
+            ],
             "warnings": [], "omissions": ["Cowork upload is a later host plane"],
             "no_claims": ["PACKAGE_CLEARED is not HOST_QUALIFIED"], "reviewer": None,
             "status": "IMPLEMENTED",
@@ -58,9 +134,39 @@ def main() -> int:
         spec = root / "package-spec.json"; dump(spec, package)
         out = root / "package-index.json"; indexer.build(spec, out, root)
         first = out.read_bytes(); indexer.build(spec, out, root); assert out.read_bytes() == first
+        forged_plane = copy.deepcopy(package)
+        forged_plane["planes"][4]["receipt"] = {
+            "path": receipt.relative_to(root).as_posix(), "sha256": sha(receipt),
+        }
+        forged_plane_spec = root / "forged-plane.json"; dump(forged_plane_spec, forged_plane)
+        refusal(
+            lambda: indexer.build(forged_plane_spec, root / "forged-plane-out.json", root),
+            "RELEASE-INDEX-PLANE-RECEIPT",
+        )
+        false_host = copy.deepcopy(package)
+        false_host["status"] = "HOST_QUALIFIED"
+        false_host_spec = root / "false-host.json"; dump(false_host_spec, false_host)
+        refusal(
+            lambda: indexer.build(false_host_spec, root / "false-host-out.json", root),
+            "RELEASE-INDEX-GLOBAL-STATE",
+        )
         stale = copy.deepcopy(package); stale["artifacts"][0]["sha256"] = "0" * 64
         stale_spec = root / "stale.json"; dump(stale_spec, stale)
         refusal(lambda: indexer.build(stale_spec, root / "stale-out.json", root), "RELEASE-INDEX-STALE")
+        unknown_plane = copy.deepcopy(package)
+        unknown_plane["planes"][4]["name"] = "cowork_cache"
+        unknown_plane_spec = root / "unknown-plane.json"; dump(unknown_plane_spec, unknown_plane)
+        refusal(
+            lambda: indexer.build(unknown_plane_spec, root / "unknown-plane-out.json", root),
+            "RELEASE-INDEX-SCHEMA",
+        )
+        unbound_qualified = copy.deepcopy(package)
+        unbound_qualified["planes"][4]["receipt"] = None
+        unbound_qualified_spec = root / "unbound-qualified-plane.json"; dump(unbound_qualified_spec, unbound_qualified)
+        refusal(
+            lambda: indexer.build(unbound_qualified_spec, root / "unbound-qualified-plane-out.json", root),
+            "RELEASE-INDEX-SCHEMA",
+        )
         changed = copy.deepcopy(package); changed["warnings"] = ["changed"]
         changed_spec = root / "changed.json"; dump(changed_spec, changed)
         refusal(lambda: indexer.build(changed_spec, out, root), "RELEASE-INDEX-IMMUTABLE")

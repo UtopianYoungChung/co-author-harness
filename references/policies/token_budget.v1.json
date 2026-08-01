@@ -1,0 +1,39 @@
+{
+  "schema_version": "token-budget-policy/1.0.0",
+  "owner": "co-author-harness integration maintainer",
+  "encoder": {
+    "package": "tiktoken",
+    "version": "0.12.0",
+    "encoding": "cl100k_base"
+  },
+  "load_graph": {
+    "graph_id": "package-invocation-v1",
+    "always_loaded": [
+      "references/GROUNDING_PROTOCOL.md",
+      "references/CLAUDE.md",
+      "references/MANIFEST.md"
+    ]
+  },
+  "classes": {
+    "agents": {"warn_tokens": 300, "fail_tokens": 700},
+    "references (non-snippet)": {"warn_tokens": 600, "fail_tokens": 1000},
+    "skills": {"warn_tokens": 120, "fail_tokens": 250},
+    "snippets": {"warn_tokens": 40, "fail_tokens": 60}
+  },
+  "ownership": [
+    {"prefix": "references/_snippets/", "owner": "package governance"},
+    {"prefix": "references/", "owner": "package governance"},
+    {"prefix": "agents/", "owner": "agent contract maintainers"},
+    {"prefix": "skills/", "owner": "skill owners"},
+    {"prefix": "__always_loaded_floor__", "owner": "package governance"}
+  ],
+  "baseline": {
+    "kind": "immutable_git_tree",
+    "commit": "a66f4f6ef12efbf2c946026c3c860e97c401ac0b",
+    "tree": "57484976eb34c1ce2c96a454077d54af81dcda12",
+    "total_files": 128,
+    "breaches": 120,
+    "always_loaded_floor_tokens": 15274
+  },
+  "exceptions": []
+}

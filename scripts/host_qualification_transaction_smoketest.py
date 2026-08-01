@@ -47,6 +47,11 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def binding(path: Path) -> dict[str, object]:
+    raw = path.read_bytes()
+    return {"path": str(path.resolve()), "sha256": sha(raw), "byte_length": len(raw)}
+
+
 def write(path: Path, value: object | bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(value if isinstance(value, bytes) else canonical(value))
@@ -65,10 +70,16 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
     cleared_zip = base / name / "cleared.zip"
     write(cleared_zip, zip_bytes)
     zip_sha = sha(zip_bytes)
-    manifest = root / "installed-manifest.json"
+    installed_root = root / "installed" / "fixture-plugin" / "0.40.0"
+    manifest = installed_root / ".claude-plugin" / "plugin.json"
     manifest_value = {"name": "fixture-plugin", "version": "0.40.0"}
     write(manifest, manifest_value)
     manifest_sha = sha(manifest.read_bytes())
+    provenance = installed_root / "PROVENANCE.json"
+    write(provenance, {"schema": "coauthor-build-provenance/v1", "commit": "a" * 40})
+    provenance_sha = sha(provenance.read_bytes())
+    loaded_skill = installed_root / "skills" / "fixture-skill" / "SKILL.md"
+    write(loaded_skill, b"---\nname: fixture-skill\n---\n")
     cache = root / "cache-receipt.json"
     manifest_identity = {
         "path": ".claude-plugin/plugin.json",
@@ -84,7 +95,7 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
         "sha256": zip_sha,
         "byte_length": len(zip_bytes),
         "source_commit": "a" * 40,
-        "provenance_sha256": "b" * 64,
+        "provenance_sha256": provenance_sha,
     }
     digest = {
         "algorithm": "sha256(path-NUL-kind-NUL-content-sha256-LF)",
@@ -112,13 +123,21 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
             ("schema_runtime_check", "portable_core", "scripts/schema_runtime_check.py"),
             ("version_check", "portable_core", "scripts/version-check.py"),
             ("skill_check", "portable_core", "scripts/skill-check.py"),
+            ("shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"),
+            ("output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"),
         )
     ]
     write(cache, {
         "schema_version": "1.1.0",
         "receipt_type": "runtime_plane_probe",
+        "plane_kind": "installed_cache",
+        "topology_receipt": {
+            "sha256": "d" * 64,
+            "source_commit": "a" * 40,
+            "plane_kind": "installed_cache",
+        },
         "baseline_root": str(root),
-        "local_root": str(root),
+        "local_root": str(installed_root),
         "environment": {
             "pythondontwritebytecode": "1",
             "isolated_python": True,
@@ -172,7 +191,7 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
                     "status": "valid",
                     "schema": "coauthor-build-provenance/v1",
                     "commit": "a" * 40,
-                    "sha256": "b" * 64,
+                    "sha256": provenance_sha,
                 },
             },
             "version_match": True,
@@ -212,6 +231,41 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
         },
         "cleared_zip_sha256": zip_sha,
     })
+    catalog = root / "startup-catalog.json"
+    cli = root / "cli-registration.json"
+    registration = {
+        "name": manifest_value["name"],
+        "version": manifest_value["version"],
+        "installed_root": str(installed_root.resolve()),
+    }
+    write(catalog, {**registration, "observation_kind": "startup_catalog"})
+    write(cli, {
+        **registration,
+        "observation_kind": "cli_registration",
+        "status": "installed, enabled",
+    })
+    startup = root / "startup-attestation.json"
+    write(startup, {
+        "schema_version": "host-startup-attestation/1.0.0",
+        "observed_at": NOW,
+        "host": HOST,
+        "plugin": {
+            "name": manifest_value["name"],
+            "version": manifest_value["version"],
+            "installed_root": str(installed_root.resolve()),
+            "startup_catalog": binding(catalog),
+            "cli_registration": binding(cli),
+            "installed_provenance": binding(provenance),
+            "cache_receipt": binding(cache),
+            "cleared_zip_sha256": zip_sha,
+            "loaded_paths_complete": True,
+            "loaded_path_count": 2,
+            "loaded_paths": [
+                {**binding(manifest), "kind": "plugin"},
+                {**binding(loaded_skill), "kind": "skill"},
+            ],
+        },
+    })
     return {
         "authority": root,
         "zip": cleared_zip,
@@ -219,6 +273,7 @@ def evidence(base: Path, name: str, *, zip_bytes: bytes = b"cleared-zip-A\n") ->
         "cache": cache,
         "registry": registry,
         "core": core,
+        "startup": startup,
     }
 
 
@@ -233,6 +288,7 @@ def publish(module, paths: dict[str, Path], out: Path, **overrides) -> dict:
         "cache_comparison_path": paths["cache"],
         "cleared_zip_path": paths["zip"],
         "core_probe_path": paths["core"],
+        "startup_attestation_path": paths["startup"],
         "created_at": NOW,
     }
     arguments.update(overrides)
@@ -410,6 +466,254 @@ def main() -> int:
         )
         assert replay == qualified
         cases.append("qualified_idempotent_replay")
+
+        paths = evidence(base, "unpacked-runtime-not-cache")
+        cache_value = json.loads(paths["cache"].read_text(encoding="utf-8"))
+        cache_value["plane_kind"] = "unpacked"
+        cache_value["topology_receipt"]["plane_kind"] = "unpacked"
+        write(paths["cache"], cache_value)
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["plugin"]["cache_receipt"] = binding(paths["cache"])
+        write(paths["startup"], startup_value)
+        wrong_plane = publish(
+            module, paths, paths["authority"] / "releases/verification/unpacked-runtime-not-cache"
+        )
+        validate(wrong_plane)
+        assert wrong_plane["state"] == "HOST_QUALIFICATION_FAILED"
+        assert wrong_plane["failure"]["code"] == "HOST-CACHE-COMPARISON-MISSING"
+        cases.append("installed_cache_runtime_plane_required")
+
+        paths = evidence(base, "catalog-cli-alias")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["plugin"]["cli_registration"] = dict(
+            startup_value["plugin"]["startup_catalog"]
+        )
+        write(paths["startup"], startup_value)
+        aliased_registration = publish(
+            module, paths, paths["authority"] / "releases/verification/catalog-cli-alias"
+        )
+        validate(aliased_registration)
+        assert aliased_registration["state"] == "HOST_QUALIFICATION_FAILED"
+        assert aliased_registration["failure"]["code"] == "HOST-CLI-REGISTRATION-MISMATCH"
+        cases.append("catalog_cli_distinct_paths_required")
+
+        paths = evidence(base, "catalog-observation-kind")
+        catalog = paths["authority"] / "startup-catalog.json"
+        catalog_value = json.loads(catalog.read_text(encoding="utf-8"))
+        catalog_value["observation_kind"] = "cli_registration"
+        write(catalog, catalog_value)
+        wrong_kind = publish(
+            module, paths, paths["authority"] / "releases/verification/catalog-observation-kind"
+        )
+        validate(wrong_kind)
+        assert wrong_kind["state"] == "HOST_QUALIFICATION_FAILED"
+        assert wrong_kind["failure"]["code"] == "HOST-STARTUP-CATALOG-MISMATCH"
+        cases.append("catalog_cli_typed_observations_required")
+
+        paths = evidence(base, "startup-missing")
+        missing_startup = publish(
+            module, paths, paths["authority"] / "releases/verification/startup-missing",
+            startup_attestation_path=None,
+        )
+        validate(missing_startup)
+        assert missing_startup["failure"]["code"] == "HOST-STARTUP-CATALOG-MISSING"
+        assert missing_startup["startup_attestation"] is None
+        cases.append("startup_catalog_missing_refused")
+
+        for case_name, field, expected in (
+            ("startup_catalog_binding_missing_refused", "startup_catalog", "HOST-STARTUP-CATALOG-MISSING"),
+            ("cli_registration_binding_missing_refused", "cli_registration", "HOST-CLI-REGISTRATION-MISSING"),
+        ):
+            paths = evidence(base, case_name)
+            startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+            del startup_value["plugin"][field]
+            write(paths["startup"], startup_value)
+            missing_binding = publish(
+                module, paths, paths["authority"] / f"releases/verification/{case_name}"
+            )
+            validate(missing_binding)
+            assert missing_binding["failure"]["code"] == expected
+            cases.append(case_name)
+
+        for case_name, target, field, value, expected in (
+            ("startup_catalog_stale_refused", "startup-catalog.json", "version", "0.39.0", "HOST-STARTUP-CATALOG-MISMATCH"),
+            ("cli_registration_mismatch_refused", "cli-registration.json", "version", "0.39.0", "HOST-CLI-REGISTRATION-MISMATCH"),
+        ):
+            paths = evidence(base, case_name)
+            target_path = paths["authority"] / target
+            observed = json.loads(target_path.read_text(encoding="utf-8"))
+            observed[field] = value
+            write(target_path, observed)
+            failed_startup = publish(
+                module, paths, paths["authority"] / f"releases/verification/{case_name}"
+            )
+            validate(failed_startup)
+            assert failed_startup["failure"]["code"] == expected
+            assert failed_startup["startup_attestation"] == binding(paths["startup"])
+            cases.append(case_name)
+
+        for case_name, target, expected in (
+            ("startup_catalog_same_identity_replacement_refused", "startup-catalog.json", "HOST-STARTUP-CATALOG-MISMATCH"),
+            ("cli_same_identity_replacement_refused", "cli-registration.json", "HOST-CLI-REGISTRATION-MISMATCH"),
+        ):
+            paths = evidence(base, case_name)
+            target_path = paths["authority"] / target
+            observed = json.loads(target_path.read_text(encoding="utf-8"))
+            observed["replacement_after_startup"] = True
+            write(target_path, observed)
+            replaced = publish(
+                module, paths, paths["authority"] / f"releases/verification/{case_name}"
+            )
+            validate(replaced)
+            assert replaced["state"] == "HOST_QUALIFICATION_FAILED"
+            assert replaced["failure"]["code"] == expected
+            cases.append(case_name)
+
+        paths = evidence(base, "installed-root-mismatch")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["plugin"]["installed_root"] = str(paths["authority"].resolve())
+        write(paths["startup"], startup_value)
+        root_mismatch = publish(
+            module, paths, paths["authority"] / "releases/verification/installed-root-mismatch"
+        )
+        validate(root_mismatch)
+        assert root_mismatch["failure"]["code"] == "HOST-INSTALLED-ROOT-MISMATCH"
+        cases.append("installed_root_mismatch_refused")
+
+        paths = evidence(base, "provenance-mismatch")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        provenance_path = Path(startup_value["plugin"]["installed_provenance"]["path"])
+        write(provenance_path, {"schema": "coauthor-build-provenance/v1", "commit": "f" * 40})
+        provenance_mismatch = publish(
+            module, paths, paths["authority"] / "releases/verification/provenance-mismatch"
+        )
+        validate(provenance_mismatch)
+        assert provenance_mismatch["failure"]["code"] == "HOST-INSTALLED-PROVENANCE-MISMATCH"
+        cases.append("manifest_provenance_mismatch_refused")
+
+        paths = evidence(base, "loaded-path-mismatch")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        loaded_path = Path(startup_value["plugin"]["loaded_paths"][1]["path"])
+        loaded_path.write_bytes(b"changed after startup observation\n")
+        loaded_mismatch = publish(
+            module, paths, paths["authority"] / "releases/verification/loaded-path-mismatch"
+        )
+        validate(loaded_mismatch)
+        assert loaded_mismatch["failure"]["code"] == "HOST-LOADED-PATH-MISMATCH"
+        assert loaded_mismatch["startup_attestation"] == binding(paths["startup"])
+        cases.append("loaded_path_mismatch_refused")
+
+        paths = evidence(base, "loaded-path-incomplete")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["plugin"]["loaded_paths_complete"] = True
+        startup_value["plugin"]["loaded_path_count"] = 3
+        write(paths["startup"], startup_value)
+        loaded_incomplete = publish(
+            module, paths, paths["authority"] / "releases/verification/loaded-path-incomplete"
+        )
+        validate(loaded_incomplete)
+        assert loaded_incomplete["state"] == "HOST_QUALIFICATION_FAILED"
+        assert loaded_incomplete["failure"]["code"] == "HOST-LOADED-PATH-MISMATCH"
+        cases.append("loaded_path_incomplete_refused")
+
+        for case_name, mutate in (
+            ("loaded_path_completeness_missing_refused",
+             lambda plugin: plugin.pop("loaded_paths_complete")),
+            ("loaded_path_completeness_false_refused",
+             lambda plugin: plugin.update(loaded_paths_complete=False)),
+            ("loaded_path_duplicate_refused",
+             lambda plugin: (
+                 plugin["loaded_paths"].append(dict(plugin["loaded_paths"][-1])),
+                 plugin.update(loaded_path_count=3),
+             )),
+        ):
+            paths = evidence(base, case_name)
+            startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+            mutate(startup_value["plugin"])
+            write(paths["startup"], startup_value)
+            refused = publish(
+                module, paths, paths["authority"] / f"releases/verification/{case_name}"
+            )
+            validate(refused)
+            assert refused["failure"]["code"] == "HOST-LOADED-PATH-MISMATCH"
+            cases.append(case_name)
+
+        paths = evidence(base, "loaded-plugin-substitution")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        provenance_path = Path(startup_value["plugin"]["installed_provenance"]["path"])
+        startup_value["plugin"]["loaded_paths"][0] = {
+            **binding(provenance_path), "kind": "plugin"
+        }
+        write(paths["startup"], startup_value)
+        plugin_substitution = publish(
+            module, paths, paths["authority"] / "releases/verification/loaded-plugin-substitution"
+        )
+        validate(plugin_substitution)
+        assert plugin_substitution["failure"]["code"] == "HOST-LOADED-PATH-MISMATCH"
+        assert plugin_substitution["startup_attestation"] == binding(paths["startup"])
+        cases.append("loaded_plugin_must_equal_manifest_binding")
+
+        paths = evidence(base, "loaded-skill-substitution")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        arbitrary = Path(startup_value["plugin"]["installed_root"]) / "README.md"
+        write(arbitrary, b"not a skill entrypoint\n")
+        startup_value["plugin"]["loaded_paths"][1] = {
+            **binding(arbitrary), "kind": "skill"
+        }
+        write(paths["startup"], startup_value)
+        skill_substitution = publish(
+            module, paths, paths["authority"] / "releases/verification/loaded-skill-substitution"
+        )
+        validate(skill_substitution)
+        assert skill_substitution["failure"]["code"] == "HOST-LOADED-PATH-MISMATCH"
+        assert skill_substitution["startup_attestation"] == binding(paths["startup"])
+        cases.append("loaded_skill_must_be_skill_entrypoint")
+
+        paths = evidence(base, "fresh-task-mismatch")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["host"]["task_id"] = "another-task"
+        write(paths["startup"], startup_value)
+        task_mismatch = publish(
+            module, paths, paths["authority"] / "releases/verification/fresh-task-mismatch"
+        )
+        validate(task_mismatch)
+        assert task_mismatch["failure"]["code"] == "HOST-STARTUP-TASK-MISMATCH"
+        cases.append("fresh_task_mismatch_refused")
+
+        paths = evidence(base, "fresh-task-observed-at-mismatch")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        startup_value["observed_at"] = "2026-07-29T00:00:00Z"
+        write(paths["startup"], startup_value)
+        observed_at_mismatch = publish(
+            module, paths, paths["authority"] / "releases/verification/fresh-task-observed-at-mismatch"
+        )
+        validate(observed_at_mismatch)
+        assert observed_at_mismatch["state"] == "HOST_QUALIFICATION_FAILED"
+        assert observed_at_mismatch["failure"]["code"] == "HOST-STARTUP-TASK-MISMATCH"
+        cases.append("fresh_task_observed_at_mismatch_refused")
+
+        paths = evidence(base, "fresh-task-observed-at-missing")
+        startup_value = json.loads(paths["startup"].read_text(encoding="utf-8"))
+        del startup_value["observed_at"]
+        write(paths["startup"], startup_value)
+        observed_at_missing = publish(
+            module, paths, paths["authority"] / "releases/verification/fresh-task-observed-at-missing"
+        )
+        validate(observed_at_missing)
+        assert observed_at_missing["failure"]["code"] == "HOST-STARTUP-TASK-MISMATCH"
+        cases.append("fresh_task_observed_at_missing_refused")
+
+        paths = evidence(base, "startup-toctou")
+        catalog_path = paths["authority"] / "startup-catalog.json"
+        expect_error(
+            module,
+            "HOST-PUBLICATION-INCOMPLETE",
+            lambda: publish(
+                module, paths, paths["authority"] / "releases/verification/startup-toctou",
+                before_commit=lambda: write(catalog_path, {"changed": True}),
+            ),
+        )
+        cases.append("startup_toctou_refused")
 
         paths = evidence(base, "concurrent-distinct")
         out = paths["authority"] / "releases/verification/concurrent-distinct"
@@ -820,6 +1124,9 @@ def main() -> int:
         "manifest_provenance_mismatch_refused", "loaded_path_mismatch_refused",
         "fresh_task_mismatch_refused", "startup_toctou_refused",
         "six_suite_runtime_receipt_supported",
+        "installed_cache_runtime_plane_required",
+        "catalog_cli_distinct_paths_required",
+        "catalog_cli_typed_observations_required",
     }
     advertised = set(getattr(module, "STARTUP_ATTESTATION_CONTRACT", ()))
     assert required_startup_contract <= advertised, (

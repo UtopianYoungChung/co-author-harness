@@ -1,13 +1,15 @@
 # TOKEN BUDGET PROTOCOL — Context Management for Long Manuscripts
 
-**Purpose.** This file defines how agents manage context-window and token-budget constraints when working on manuscripts that exceed comfortable single-pass capacity. It prescribes segmentation strategies, state-preservation conventions, and cross-session continuity rules.
-
-**When to use.** The agent reads this file when:
-- The manuscript exceeds 8,000 words (~12,000 tokens) — the threshold where a full review plus the package rules may approach context limits.
-- The Planner detects that the piece is a thesis chapter, monograph chapter, or multi-section paper that cannot be held in memory alongside all package rules.
-- Any agent encounters a context-window warning or truncation during a round.
+**Purpose and trigger.** Use this protocol for manuscripts over 8,000 words,
+multi-section work that does not fit beside its required rules, or any observed
+context warning. It governs segmentation, state preservation, and continuity.
 
 **Binding status.** Advisory. This protocol guides operational decisions; it does not override the Grounding Protocol or the Safeguard Layer. If a budget constraint forces a trade-off, the agent must declare the trade-off in the findings report — it must not silently skip checks.
+
+**Package-surface ratchet.** The owned machine policy
+`policies/token_budget.v1.json` pins the encoder, load graph, owners, and
+immutable baseline. It blocks new or growing debt, floor growth, policy drift,
+and invalid exceptions. Baseline debt remains unresolved.
 
 ---
 
@@ -138,4 +140,3 @@ When the Generator is editing a long manuscript:
 - After each segment edit, run a self-check (deterministic patterns) on that segment before moving to the next.
 - Log each segment's changes independently in `revision_log.md`.
 - If the Generator runs out of context mid-segment, it stops, logs what was completed, and signals the Planner to schedule a continuation.
-

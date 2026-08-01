@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import copy
 import hashlib
 import io
 import json
@@ -25,6 +26,12 @@ from typing import Any, Iterable, Mapping
 from jsonschema import Draft202012Validator
 
 import destination_capability as destinations
+from qualification_environment import (
+    QualificationEnvironmentRefusal,
+    assert_ambient_clean,
+    controlled_environment,
+)
+import qualification_plane_topology as topology
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -266,6 +273,25 @@ def _validate(receipt: Mapping[str, Any]) -> None:
             "ARCHIVE-RECEIPT-SCHEMA",
             "; ".join(f"{list(error.path)}: {error.message}" for error in errors),
         )
+    retained = receipt.get("derived_topology_receipt")
+    if not isinstance(retained, Mapping) or not isinstance(retained.get("payload"), Mapping):
+        raise ArchiveProbeRefusal(
+            "ARCHIVE-RECEIPT-TOPOLOGY",
+            "the exact derived child topology receipt is not retained",
+        )
+    retained_bytes = topology.canonical_receipt_bytes(retained["payload"])
+    if _sha_bytes(retained_bytes) != retained.get("sha256"):
+        raise ArchiveProbeRefusal(
+            "ARCHIVE-RECEIPT-TOPOLOGY",
+            "the retained derived topology payload does not match its digest",
+        )
+    child_payload = receipt.get("runtime_plane_receipt", {}).get("payload")
+    child_binding = child_payload.get("topology_receipt", {}) if isinstance(child_payload, Mapping) else {}
+    if receipt.get("verdict") == "qualified" and child_binding.get("sha256") != retained.get("sha256"):
+        raise ArchiveProbeRefusal(
+            "ARCHIVE-RECEIPT-TOPOLOGY",
+            "the retained child receipt does not bind the retained derived topology",
+        )
 
 
 def _runtime_schema_errors(
@@ -296,6 +322,7 @@ def _runtime_binding_errors(
     archive_size: int,
     provenance_sha256: str | None,
     source_commit: str,
+    topology_sha256: str,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -318,6 +345,13 @@ def _runtime_binding_errors(
         errors.append("baseline_root is not the exact source root")
     if not same_path(payload.get("local_root"), extraction_root):
         errors.append("local_root is not the exact extracted archive root")
+    topology_binding = payload.get("topology_receipt", {})
+    if not isinstance(topology_binding, Mapping) or (
+        topology_binding.get("sha256") != topology_sha256
+        or topology_binding.get("source_commit") != source_commit
+        or topology_binding.get("plane_kind") != "unpacked"
+    ):
+        errors.append("runtime topology binding differs from the derived exact unpacked-plane receipt")
 
     cleared = payload.get("cleared_zip", {})
     if not isinstance(cleared, Mapping):
@@ -387,9 +421,12 @@ def probe_archive(
     source_commit: str,
     archive_receipt_path: Path,
     unpacked_runtime_path: Path,
+    topology_receipt: Path | Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
-        raise ArchiveProbeRefusal("ARCHIVE-RUNTIME-ENV", "PYTHONDONTWRITEBYTECODE=1 is required")
+    try:
+        assert_ambient_clean()
+    except QualificationEnvironmentRefusal as exc:
+        raise ArchiveProbeRefusal(exc.code, exc.message) from exc
     archive = archive.resolve(strict=True)
     source_root = source_root.resolve(strict=True)
     source_commit = source_commit.lower()
@@ -405,16 +442,36 @@ def probe_archive(
     if not archive_snapshot:
         raise ArchiveProbeRefusal("ARCHIVE-EMPTY", "archive contains no bytes")
     archive_snapshot_sha256 = _sha_bytes(archive_snapshot)
+    try:
+        topology_value, topology_sha256 = topology.verify_topology_receipt_binding(
+            topology_receipt,
+            source_commit=source_commit,
+            bindings={"source": source_root, "archive": archive},
+        )
+    except topology.PlaneTopologyRefusal as exc:
+        code = exc.code.replace("PLANE-TOPOLOGY-", "ARCHIVE-TOPOLOGY-", 1)
+        if code == exc.code:
+            code = "ARCHIVE-TOPOLOGY-INVALID"
+        raise ArchiveProbeRefusal(code, exc.message) from exc
     if archive_receipt_path == unpacked_runtime_path or archive_receipt_path.exists() or unpacked_runtime_path.exists():
         raise ArchiveProbeRefusal("ARCHIVE-OUTPUT", "receipt paths must be distinct and absent")
-    evidence_root = (source_root / "releases" / "verification").resolve()
     for output in (archive_receipt_path, unpacked_runtime_path):
-        if output.suffix.casefold() != ".json" or not _inside(output, evidence_root):
-            raise ArchiveProbeRefusal("ARCHIVE-OUTPUT", "receipts must be JSON beneath source releases/verification")
+        if output.suffix.casefold() != ".json" or _inside(output, source_root):
+            raise ArchiveProbeRefusal(
+                "ARCHIVE-OUTPUT",
+                "receipts must be JSON in an external evidence plane, never beneath source",
+            )
         try:
-            destinations.assert_writable(output, purpose="archive runtime qualification receipt")
+            output_class = destinations.assert_writable(
+                output, purpose="archive runtime qualification receipt"
+            )
         except destinations.DestinationRefused as exc:
             raise ArchiveProbeRefusal(exc.code, str(exc)) from exc
+        if output_class != "external":
+            raise ArchiveProbeRefusal(
+                "ARCHIVE-OUTPUT",
+                f"archive runtime evidence requires an external destination; got {output_class}",
+            )
 
     member_records, selected = _inspect_archive(archive_snapshot)
     transaction_root = Path(tempfile.mkdtemp(prefix="coauthor-archive-runtime-")).resolve()
@@ -454,18 +511,27 @@ def probe_archive(
                 "ARCHIVE-EXTRACTED-INVENTORY-MISMATCH",
                 "the extracted member inventory differs from the inspected immutable ZIP snapshot",
             ))
+        derived_topology = copy.deepcopy(topology_value)
+        for row in derived_topology["planes"]:
+            if row["plane_kind"] == "archive":
+                row["path"] = str(snapshot_path)
+                row["digest_sha256"] = topology.plane_digest("archive", snapshot_path)
+            elif row["plane_kind"] == "unpacked":
+                row["path"] = str(extraction_root)
+                row["digest_sha256"] = topology.plane_digest("unpacked", extraction_root)
+        derived_topology_path = transaction_root / "qualification-plane-topology.json"
+        derived_topology_bytes = topology.canonical_receipt_bytes(derived_topology)
+        derived_topology_path.write_bytes(derived_topology_bytes)
+        derived_topology_sha256 = _sha_path(derived_topology_path)
+        derived_topology_evidence = {
+            "sha256": derived_topology_sha256,
+            "payload": derived_topology,
+        }
         runtime_script = extraction_root / RUNTIME_PROBE
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
-        child_env = {
-            key: value
-            for key, value in os.environ.items()
-            if not key.upper().startswith("PYTHON")
-        }
+        child_env, _ = controlled_environment()
         child_env["PYTHONPATH"] = ""
-        child_env["PYTHONDONTWRITEBYTECODE"] = "1"
-        child_env["PYTHONNOUSERSITE"] = "1"
-        child_env.pop("PYTHONHOME", None)
         inspect_argv = [
             sys.executable, "-I", "-B", "-c",
             "import json,sys;print(json.dumps(sys.path,separators=(',',':')))",
@@ -497,6 +563,8 @@ def probe_archive(
             "--baseline-root", str(source_root),
             "--cleared-zip", str(snapshot_path),
             "--source-commit", source_commit,
+            "--plane-kind", "unpacked",
+            "--topology-receipt", str(derived_topology_path),
             "--stdout",
         ]
         if runtime_script.is_file():
@@ -543,6 +611,7 @@ def probe_archive(
                     archive_size=len(archive_snapshot),
                     provenance_sha256=provenance_sha256,
                     source_commit=source_commit,
+                    topology_sha256=derived_topology_sha256,
                 )
                 if runtime_binding_errors:
                     findings.append(_finding(
@@ -664,8 +733,14 @@ def probe_archive(
         "extracted_member_count": len(member_records),
     }
     unpacked: dict[str, Any] = {
-        "schema_version": "1.1.0",
+        "schema_version": "1.2.0",
         "receipt_type": "unpacked_zip_runtime",
+        "plane_kind": "unpacked",
+        "topology_receipt": {
+            "sha256": topology_sha256,
+            "source_commit": source_commit,
+        },
+        "derived_topology_receipt": derived_topology_evidence,
         "archive": archive_binding,
         "extraction": extraction,
         "runtime_execution": runtime_execution,
@@ -679,8 +754,14 @@ def probe_archive(
     _validate(unpacked)
     unpacked_bytes = _canonical(unpacked)
     archive_receipt: dict[str, Any] = {
-        "schema_version": "1.1.0",
+        "schema_version": "1.2.0",
         "receipt_type": "archive_runtime_probe",
+        "plane_kind": "archive",
+        "topology_receipt": {
+            "sha256": topology_sha256,
+            "source_commit": source_commit,
+        },
+        "derived_topology_receipt": derived_topology_evidence,
         "archive": archive_binding,
         "central_directory": {
             "inspected_before_write": True,
@@ -719,6 +800,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--archive-receipt", type=Path, required=True)
     parser.add_argument("--unpacked-runtime", type=Path, required=True)
+    parser.add_argument("--topology-receipt", type=Path, required=True)
     return parser
 
 
@@ -731,6 +813,7 @@ def main(argv: list[str] | None = None) -> int:
             source_commit=args.source_commit,
             archive_receipt_path=args.archive_receipt,
             unpacked_runtime_path=args.unpacked_runtime,
+            topology_receipt=args.topology_receipt,
         )
     except (ArchiveProbeRefusal, OSError, UnicodeError, json.JSONDecodeError) as exc:
         code = getattr(exc, "code", "ARCHIVE-RUNTIME-ERROR")

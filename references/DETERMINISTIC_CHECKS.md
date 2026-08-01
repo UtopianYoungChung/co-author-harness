@@ -75,27 +75,28 @@ and candidate text, so an adjudication from an older detector remains stale.
 This preserves human adjudication for contestable synthesis without allowing
 silence to count as clearance.
 
-## 0b. Runtime-plane qualification
+## 0b. Qualification controller and planes
 
-`scripts/runtime_plane_probe.py` compares one explicit runtime plane with a
-source baseline, runs the governed product-gate self-check and portable core
-suites under isolated imports, and writes a typed receipt only beneath the
-baseline package's `releases/verification/` lane. Run it with bytecode writes
-disabled:
+The shared environment policy refuses ambient routing, warning, UTF-8, and
+optimization controls before spawn. The durable controller records intent,
+process identity, binary output, exit capsule, atomic journal, and terminal
+receipt; `status`, `wait`, `cancel`, and `recover` do not rerun the product.
+Topology preflight requires isolated `source`, `build`, `archive`, `unpacked`,
+and `installed_cache` planes before runtime suites. The controlled gate binds
+clean `main` before its corpus and refuses source drift afterward. Missing
+cache authority leaves topology pending.
 
 ```powershell
-$env:PYTHONDONTWRITEBYTECODE='1'
-python scripts/runtime_plane_probe.py --local-root "<plane-root>" --baseline-root "<source-root>" --cleared-zip "<cleared-zip>" --source-commit "<full-commit>" --out "<source-root>/releases/verification/<release>/runtime-plane.json"
+python scripts/release_qualification_controller_smoketest.py
+python scripts/qualification_plane_topology_smoketest.py
+python scripts/runtime_plane_probe_smoketest.py
+python scripts/archive_runtime_probe_smoketest.py
+python scripts/token_budget_smoketest.py
 ```
 
-The receipt keeps exact files, CRLF-only transformations, semantic differences,
-missing files, and foreign extras separate. Import- or policy-participating
-extras block. Missing local provenance remains visible and cannot support a
-canonical-archive claim. A source-installed cache may qualify with that typed
-caveat only when its package members match both the exact source commit and a
-separately validated cleared ZIP whose archive-only provenance binds that same
-commit. A source or cache plane passing its suites is runtime evidence only; it
-does not establish host attestation.
+Runtime receipts distinguish exact files, permitted CRLF transformations,
+semantic differences, missing files, and foreign extras. Cache equality is
+runtime evidence only, never startup or loaded-path attestation.
 
 ## 0c. Release archive and evidence publication
 
@@ -105,7 +106,6 @@ manual drift between the authoritative plugin manifest and packaged
 marketplace parity:
 
 ```powershell
-$env:PYTHONDONTWRITEBYTECODE='1'
 python scripts/archive_runtime_probe_smoketest.py
 python scripts/write_release_checksum_smoketest.py
 python scripts/release_evidence_index_smoketest.py

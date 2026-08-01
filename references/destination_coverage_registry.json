@@ -28,7 +28,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "da4b4edef987653be9118f1ea249f257ee47bf9e00ea2c57386896bfabf02d0c"
+      "sha256": "113d2cc1265bf297810e896791fd5922a7c50b67469ef3c47edfb8d05e700526"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -128,6 +128,10 @@
       "class": "guarded",
       "regression": "scripts/release_evidence_index_smoketest.py::protected destination, immutable index, and link-target refusals"
     },
+    "scripts/release_qualification_controller.py": {
+      "class": "guarded",
+      "regression": "scripts/release_qualification_controller_smoketest.py::output scope, protected destination topology, durable publication, and recovery refusals"
+    },
     "scripts/update_version_manifests.py": {
       "class": "guarded",
       "regression": "scripts/update_version_manifests_smoketest.py::protected destination and manifest-parity refusals"
@@ -150,9 +154,8 @@
       "regression": "scripts/source_extract_smoketest.py"
     },
     "scripts/build-plugin.py": {
-      "class": "package_confined",
-      "evidence": "no CLI arguments at all; every write path derives from the package root (bundle under .claude-plugin/, build worktree under .worktrees/)",
-      "sha256": "7c0471cb7d51301359cd0fce4cefbf5d5afe18598afc8cb6bff2fe348137cd85"
+      "class": "guarded",
+      "regression": "scripts/build_plugin_provenance_smoketest.py::external-only output plus protected, package, and ungoverned destination refusals"
     },
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",

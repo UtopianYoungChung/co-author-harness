@@ -18,6 +18,13 @@ REQUIRED_SCHEMAS = (
     "references/schemas/application_receipt.schema.json",
     "references/schemas/shipment_refusal_receipt.schema.json",
     "references/schemas/shipment_recovery_receipt.schema.json",
+    "references/schemas/runtime_plane_receipt.schema.json",
+    "references/schemas/archive_runtime_receipt.schema.json",
+    "references/schemas/qualification_plane_topology_receipt.schema.json",
+    "references/schemas/release_qualification_controller.schema.json",
+    "references/schemas/token_budget_policy.schema.json",
+    "references/schemas/host_qualification_transaction.schema.json",
+    "references/schemas/release_evidence_index.schema.json",
 )
 
 

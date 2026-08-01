@@ -25,6 +25,12 @@ from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
 import destination_capability as destinations
+from qualification_environment import (
+    QualificationEnvironmentRefusal,
+    assert_ambient_clean,
+    controlled_environment,
+)
+import qualification_plane_topology as topology
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -608,14 +614,7 @@ def _run_suites(
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     dependencies = tuple(dependency_paths if dependency_paths is not None else _dependency_paths())
-    child_env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.upper().startswith("PYTHON")
-    }
-    child_env["PYTHONDONTWRITEBYTECODE"] = "1"
-    child_env["PYTHONNOUSERSITE"] = "1"
-    child_env.pop("PYTHONHOME", None)
+    child_env, _ = controlled_environment()
     # The suite interpreter remains isolated by ``-I`` and receives these
     # directories explicitly through ``site.addsitedir`` below.  A governed
     # suite can itself launch ``sys.executable`` without ``-I`` (the product
@@ -667,6 +666,19 @@ def _run_suites(
     return results
 
 
+def _not_run_suites(local_root: Path, suites: Iterable[Mapping[str, str]]) -> list[dict[str, Any]]:
+    empty_sha = _sha(b"")
+    return [
+        {
+            "name": suite["name"], "kind": suite["kind"], "script": suite["script"],
+            "argv": [], "cwd": str(local_root), "returncode": None,
+            "status": "not_run_preflight", "stdout_sha256": empty_sha,
+            "stderr_sha256": empty_sha,
+        }
+        for suite in suites
+    ]
+
+
 def _finding(code: str, severity: str, message: str, path: str | None = None) -> dict[str, str]:
     value = {"code": code, "severity": severity, "message": message}
     if path:
@@ -707,33 +719,17 @@ def probe_plane(
     source_commit: str | None = None,
     crlf_mode: str = "forbid",
     suites: Iterable[Mapping[str, str]] = DEFAULT_SUITES,
+    plane_kind: str | None = None,
+    topology_receipt: Path | Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    ambient_python = {
-        key.upper(): value
-        for key, value in os.environ.items()
-        if key.upper().startswith("PYTHON")
-    }
-    permitted_ambient = {
-        "PYTHONDONTWRITEBYTECODE": {"1"},
-        "PYTHONPATH": {""},
-        "PYTHONHOME": {""},
-        "PYTHONNOUSERSITE": {"1"},
-    }
-    unexpected_python = sorted(
-        key
-        for key, value in ambient_python.items()
-        if key not in permitted_ambient or value not in permitted_ambient[key]
-    )
-    if unexpected_python:
-        raise ProbeRefusal(
-            "RUNTIME-PLANE-ENV",
-            "ambient Python controls are forbidden: " + ", ".join(unexpected_python),
-        )
-    if ambient_python.get("PYTHONDONTWRITEBYTECODE") != "1":
-        raise ProbeRefusal(
-            "RUNTIME-PLANE-ENV",
-            "PYTHONDONTWRITEBYTECODE=1 is required for a stable runtime-plane probe",
-        )
+    try:
+        assert_ambient_clean()
+    except QualificationEnvironmentRefusal as exc:
+        raise ProbeRefusal(exc.code, exc.message) from exc
+    if plane_kind is None:
+        raise ProbeRefusal("RUNTIME-PLANE-KIND-MISSING", "plane_kind is required")
+    if plane_kind not in {"unpacked", "installed_cache"}:
+        raise ProbeRefusal("RUNTIME-PLANE-KIND-UNKNOWN", f"unsupported plane_kind: {plane_kind}")
     local_root = local_root.resolve(strict=True)
     baseline_root = baseline_root.resolve(strict=True)
     if not local_root.is_dir() or not baseline_root.is_dir():
@@ -877,6 +873,20 @@ def probe_plane(
     if source_provenance["status"] == "valid" and provenance_binding["status"] == "valid":
         provenance_match = source_provenance["commit"] == provenance_binding["commit"]
 
+    binding_commit = source_commit or actual_source_commit or ""
+    topology_bindings = {"source": baseline_root, plane_kind: local_root}
+    if resolved_zip is not None:
+        topology_bindings["archive"] = resolved_zip
+    try:
+        topology_value, topology_sha256 = topology.verify_topology_receipt_binding(
+            topology_receipt,
+            source_commit=binding_commit,
+            bindings=topology_bindings,
+        )
+    except topology.PlaneTopologyRefusal as exc:
+        code = exc.code.replace("PLANE-", "RUNTIME-PLANE-", 1)
+        raise ProbeRefusal(code, exc.message) from exc
+
     suites = tuple(dict(suite) for suite in suites)
     suite_signature = tuple(
         (suite.get("name"), suite.get("kind"), suite.get("script")) for suite in suites
@@ -889,8 +899,42 @@ def probe_plane(
             "RUNTIME-PLANE-SUITES",
             "the runtime qualification must run all six frozen core suites exactly once",
         )
+    externally_bound_without_local_provenance = (
+        embedded_provenance["status"] == "missing"
+        and archive_provenance_valid
+        and source_archive_equal
+        and source_commit is not None
+        and actual_source_commit == source_commit
+        and provenance_match is True
+    )
+    blocking_extras = [entry for entry in foreign_extras if entry["blocking"]]
+    preflight_blocked = any((
+        source_manifest["status"] != "valid",
+        local_manifest["status"] != "valid",
+        version_match is False,
+        source_commit is None,
+        resolved_zip is None,
+        archive_provenance["status"] in {"missing", "invalid"},
+        source_provenance["status"] == "missing",
+        source_commit is not None and actual_source_commit != source_commit,
+        bool(archive_errors),
+        archive_provenance["status"] == "valid" and source_commit is not None
+        and archive_provenance["commit"] != source_commit,
+        bool(archive_inventory) and not source_archive_equal,
+        embedded_provenance["status"] == "missing" and not externally_bound_without_local_provenance,
+        embedded_provenance["status"] == "invalid",
+        provenance_match is False,
+        bool(crlf_only) and crlf_mode == "forbid",
+        bool(semantic_differences),
+        bool(missing_files),
+        bool(blocking_extras),
+    ))
     dependency_paths = _dependency_paths()
-    suite_results = _run_suites(local_root, suites, dependency_paths)
+    suite_results = (
+        _not_run_suites(local_root, suites)
+        if preflight_blocked
+        else _run_suites(local_root, suites, dependency_paths)
+    )
     local_post = _walk_inventory(local_root, excluded=local_excluded)
     archive_changed = False
     if resolved_zip is not None and archive_snapshot is not None:
@@ -964,14 +1008,6 @@ def probe_plane(
             "RUNTIME-PLANE-ARCHIVE-SOURCE-DIFFERENCE", "BLOCKER",
             "the cleared ZIP package members are not byte-identical to the exact source commit checkout",
         ))
-    externally_bound_without_local_provenance = (
-        embedded_provenance["status"] == "missing"
-        and archive_provenance_valid
-        and source_archive_equal
-        and source_commit is not None
-        and actual_source_commit == source_commit
-        and provenance_match is True
-    )
     if embedded_provenance["status"] == "missing":
         findings.append(_finding(
             "RUNTIME-PLANE-EMBEDDED-PROVENANCE-MISSING",
@@ -1017,7 +1053,6 @@ def probe_plane(
             "RUNTIME-PLANE-MISSING-FILE", "BLOCKER",
             f"{len(missing_files)} baseline file(s) are missing from the local plane",
         ))
-    blocking_extras = [entry for entry in foreign_extras if entry["blocking"]]
     benign_extras = [
         entry for entry in foreign_extras
         if not entry["blocking"] and entry["path"] != PROVENANCE_REL
@@ -1033,7 +1068,7 @@ def probe_plane(
             f"{len(benign_extras)} nonparticipating foreign file(s) remain visible",
         ))
     for result in suite_results:
-        if result["status"] != "passed":
+        if result["status"] not in {"passed", "not_run_preflight"}:
             findings.append(_finding(
                 "RUNTIME-PLANE-SUITE-" + result["status"].upper(),
                 "BLOCKER",
@@ -1089,6 +1124,12 @@ def probe_plane(
     receipt: dict[str, Any] = {
         "schema_version": "1.1.0",
         "receipt_type": "runtime_plane_probe",
+        "plane_kind": plane_kind,
+        "topology_receipt": {
+            "sha256": topology_sha256,
+            "source_commit": topology_value["source_commit"],
+            "plane_kind": plane_kind,
+        },
         "baseline_root": str(baseline_root),
         "local_root": str(local_root),
         "environment": {
@@ -1155,6 +1196,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--baseline-root", type=Path, required=True)
     parser.add_argument("--cleared-zip", type=Path)
     parser.add_argument("--source-commit")
+    parser.add_argument("--plane-kind", choices=("unpacked", "installed_cache"), required=True)
+    parser.add_argument("--topology-receipt", type=Path, required=True)
     parser.add_argument(
         "--crlf-mode",
         choices=("forbid", "allow_utf8_crlf_only"),
@@ -1176,6 +1219,8 @@ def main(argv: list[str] | None = None) -> int:
             cleared_zip_path=args.cleared_zip,
             source_commit=args.source_commit,
             crlf_mode=args.crlf_mode,
+            plane_kind=args.plane_kind,
+            topology_receipt=args.topology_receipt,
         )
     except (ProbeRefusal, OSError, UnicodeError, json.JSONDecodeError) as exc:
         code = exc.code if isinstance(exc, ProbeRefusal) else "RUNTIME-PLANE-IO"

@@ -1,47 +1,68 @@
 #!/usr/bin/env python3
-"""v0.15.0-pre PR-4d — token-budget measurement (warn-only).
+"""Measure package prompt surfaces and enforce the owned debt ratchet.
 
-Measures every file in `agents/`, `references/`, `skills/*/SKILL.md`, and
-`references/_snippets/` against per-class warn/fail thresholds using the
-cl100k_base encoding (tiktoken). At PR-4d the check is **strictly
-warn-only**: any threshold breach prints a WARN line to stdout but does
-not increment release-gate BLOCKERS. The aim is measurement-first
-evidence for the Reflector split (PR-4c) and any subsequent agent slim,
-not enforcement.
+The pinned policy measures `agents/`, `references/`, `skills/*/SKILL.md`,
+and `references/_snippets/` with tiktoken 0.12.0/cl100k_base.
 
 Per-class budgets (from the v0.15.0 architecture):
 
-    File class                  Warn      Fail (advisory)
+    File class                  Warn      Fail
     --------------------------  --------  -----------------
     agents/*.md                 > 300     > 700  tokens
     references/*.md             > 600     > 1000 tokens
     skills/*/SKILL.md           > 120     > 250  tokens
     references/_snippets/*.md   > 40      > 60   tokens
 
-The "fail" column is advisory only at PR-4d; a future PR (after the
-Reflector split) may promote breaches at the fail threshold to a real
-BLOCKER. For now both warn and fail are surfaced as WARN tier so writers
-get the signal without the work being blocked.
-
 Output
 ------
-Prints a per-class summary plus the **top-10 largest files across the
-package** so PR-4c has a measured target list. A machine-readable
-`reviews/token_budget_report.json` is also written when invoked with
-`--out`. Exit code is always 0 unless tiktoken is unavailable or a path
-read fails outright (in which case exit 2 — environment error).
+Prints per-class debt, the ten largest files, and ratchet blockers. `--out`
+writes JSON. Exit 0 means no debt growth, 1 means ratchet refusal, and 2 means
+the policy, baseline, encoder, load graph, exception, or environment failed.
 """
 
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+import importlib.metadata
 import json
+import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
 HARNESS = Path(__file__).resolve().parent.parent
+POLICY_PATH = HARNESS / "references" / "policies" / "token_budget.v1.json"
+POLICY_SCHEMA_PATH = HARNESS / "references" / "schemas" / "token_budget_policy.schema.json"
+PINNED_TIKTOKEN_VERSION = "0.12.0"
+PINNED_ENCODING = "cl100k_base"
+EXPECTED_LOAD_GRAPH = (
+    "references/GROUNDING_PROTOCOL.md",
+    "references/CLAUDE.md",
+    "references/MANIFEST.md",
+)
+EXPECTED_OWNERSHIP_PREFIXES = {
+    "references/_snippets/",
+    "references/",
+    "agents/",
+    "skills/",
+    "__always_loaded_floor__",
+}
+RATCHET_CONTRACT = (
+    "immutable_baseline",
+    "new_breach_refused",
+    "existing_breach_growth_refused",
+    "always_loaded_floor_growth_refused",
+    "unknown_policy_refused",
+    "encoder_load_graph_mismatch_refused",
+    "expired_exception_refused",
+    "ownerless_exception_refused",
+)
+
+
+class TokenBudgetError(RuntimeError):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +136,9 @@ class BudgetReport:
     breaches: List[FileReport] = field(default_factory=list)
     top10_largest: List[FileReport] = field(default_factory=list)
     always_loaded_floor_tokens: int = 0
+    files: List[FileReport] = field(default_factory=list)
+    ratchet_blockers: List[dict] = field(default_factory=list)
+    policy: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +154,13 @@ def _get_encoder():
             f"[BLOCKER] tiktoken is required for the token-budget check; "
             f"install via `pip install tiktoken`. ({exc})"
         )
-    return tiktoken.get_encoding("cl100k_base")
+    installed = importlib.metadata.version("tiktoken")
+    if installed != PINNED_TIKTOKEN_VERSION:
+        raise SystemExit(
+            f"[BLOCKER] TOKEN-BUDGET-ENCODER-MISMATCH: tiktoken {installed} "
+            f"!= pinned {PINNED_TIKTOKEN_VERSION}"
+        )
+    return tiktoken.get_encoding(PINNED_ENCODING)
 
 
 def count_tokens(path: Path, encoder) -> int:
@@ -169,7 +199,182 @@ def _exclude_snippets_from_references(path: Path) -> bool:
     return "_snippets" in rel.parts
 
 
+def _load_policy() -> dict:
+    try:
+        from jsonschema import Draft202012Validator
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        schema = json.loads(POLICY_SCHEMA_PATH.read_text(encoding="utf-8"))
+    except (ImportError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise TokenBudgetError(f"TOKEN-BUDGET-POLICY-UNKNOWN: {exc}") from exc
+    return _validate_policy_value(policy, schema, Draft202012Validator)
+
+
+def _validate_policy_value(policy: dict, schema: dict, validator_class=None) -> dict:
+    if policy.get("schema_version") != "token-budget-policy/1.0.0":
+        raise TokenBudgetError("TOKEN-BUDGET-POLICY-UNKNOWN: unsupported schema_version")
+    if validator_class is None:
+        from jsonschema import Draft202012Validator as validator_class
+    errors = sorted(validator_class(schema).iter_errors(policy), key=lambda e: list(e.path))
+    if errors:
+        raise TokenBudgetError(
+            "TOKEN-BUDGET-POLICY-UNKNOWN: "
+            + "; ".join(f"{list(e.path)}: {e.message}" for e in errors)
+        )
+    encoder = policy["encoder"]
+    if (
+        encoder["package"] != "tiktoken"
+        or encoder["version"] != PINNED_TIKTOKEN_VERSION
+        or encoder["encoding"] != PINNED_ENCODING
+    ):
+        raise TokenBudgetError("TOKEN-BUDGET-ENCODER-MISMATCH: policy encoder is not pinned")
+    if tuple(policy["load_graph"]["always_loaded"]) != EXPECTED_LOAD_GRAPH:
+        raise TokenBudgetError("TOKEN-BUDGET-LOAD-GRAPH-MISMATCH: always-loaded graph differs")
+    declared_classes = policy["classes"]
+    expected_classes = {cls.name for cls in FILE_CLASSES}
+    if set(declared_classes) != expected_classes:
+        raise TokenBudgetError("TOKEN-BUDGET-POLICY-UNKNOWN: class set differs")
+    for cls in FILE_CLASSES:
+        declared = declared_classes.get(cls.name)
+        if declared != {"warn_tokens": cls.warn_tokens, "fail_tokens": cls.fail_tokens}:
+            raise TokenBudgetError(f"TOKEN-BUDGET-POLICY-UNKNOWN: class drift for {cls.name}")
+    ownership_prefixes = [str(row["prefix"]) for row in policy["ownership"]]
+    if (
+        len(ownership_prefixes) != len(set(ownership_prefixes))
+        or set(ownership_prefixes) != EXPECTED_OWNERSHIP_PREFIXES
+    ):
+        raise TokenBudgetError("TOKEN-BUDGET-POLICY-UNKNOWN: ownership prefix set differs")
+    _validated_exceptions(policy)
+    return policy
+
+
+def _owner_for(path: str, policy: dict) -> str:
+    rows = sorted(policy["ownership"], key=lambda row: len(row["prefix"]), reverse=True)
+    for row in rows:
+        if path.startswith(row["prefix"]):
+            return str(row["owner"])
+    raise TokenBudgetError(f"TOKEN-BUDGET-OWNER-MISSING: no owner for {path}")
+
+
+def _validated_exceptions(policy: dict) -> dict[str, dict]:
+    now = datetime.now(timezone.utc)
+    result: dict[str, dict] = {}
+    for row in policy["exceptions"]:
+        path = str(row.get("path", ""))
+        owner = str(row.get("owner", "")).strip()
+        if not owner:
+            raise TokenBudgetError(f"TOKEN-BUDGET-EXCEPTION-OWNER-MISSING: {path}")
+        if owner != _owner_for(path, policy):
+            raise TokenBudgetError(f"TOKEN-BUDGET-EXCEPTION-OWNER-MISMATCH: {path}")
+        try:
+            expiry = datetime.fromisoformat(str(row["expires_at"]).replace("Z", "+00:00"))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise TokenBudgetError(f"TOKEN-BUDGET-EXCEPTION-EXPIRED: invalid expiry for {path}") from exc
+        if expiry.tzinfo is None or expiry <= now:
+            raise TokenBudgetError(f"TOKEN-BUDGET-EXCEPTION-EXPIRED: {path}")
+        if path in result:
+            raise TokenBudgetError(f"TOKEN-BUDGET-POLICY-UNKNOWN: duplicate exception for {path}")
+        result[path] = row
+    return result
+
+
+def _class_for_rel(path: str) -> FileClass | None:
+    if path.startswith("references/_snippets/") and path.endswith(".md"):
+        return FILE_CLASSES[3]
+    if path.startswith("references/") and path.endswith(".md"):
+        return FILE_CLASSES[1]
+    if path.startswith("agents/") and path.endswith(".md"):
+        return FILE_CLASSES[0]
+    if path.startswith("skills/") and path.endswith("/SKILL.md"):
+        return FILE_CLASSES[2]
+    return None
+
+
+def _git(*args: str) -> bytes:
+    proc = subprocess.run(
+        ["git", *args], cwd=HARNESS, capture_output=True, check=False
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+        raise TokenBudgetError(f"TOKEN-BUDGET-BASELINE-UNAVAILABLE: {detail}")
+    return proc.stdout
+
+
+def _baseline_reports(policy: dict, encoder) -> tuple[dict[str, FileReport], int]:
+    baseline = policy["baseline"]
+    commit = str(baseline["commit"])
+    tree = _git("rev-parse", f"{commit}^{{tree}}").decode("ascii").strip()
+    if tree != baseline["tree"]:
+        raise TokenBudgetError("TOKEN-BUDGET-BASELINE-DRIFT: pinned commit tree differs")
+    paths = _git("ls-tree", "-r", "--name-only", commit).decode(
+        "utf-8", errors="strict"
+    ).splitlines()
+    reports: dict[str, FileReport] = {}
+    for rel in paths:
+        cls = _class_for_rel(rel)
+        if cls is None:
+            continue
+        raw = _git("show", f"{commit}:{rel}")
+        try:
+            tokens = len(encoder.encode(raw.decode("utf-8", errors="strict")))
+        except UnicodeDecodeError as exc:
+            raise TokenBudgetError(f"TOKEN-BUDGET-BASELINE-UNAVAILABLE: {rel}: {exc}") from exc
+        reports[rel] = FileReport(
+            path=rel, cls=cls.name, tokens=tokens,
+            warn_threshold=cls.warn_tokens, fail_threshold=cls.fail_tokens,
+            status=classify(tokens, cls.warn_tokens, cls.fail_tokens),
+        )
+    floor = sum(
+        len(encoder.encode(
+            _git("show", f"{commit}:{rel}").decode("utf-8", errors="strict")
+        ))
+        for rel in EXPECTED_LOAD_GRAPH
+    )
+    breaches = sum(row.status != "ok" for row in reports.values())
+    if (
+        len(reports) != baseline["total_files"]
+        or breaches != baseline["breaches"]
+        or floor != baseline["always_loaded_floor_tokens"]
+    ):
+        raise TokenBudgetError("TOKEN-BUDGET-BASELINE-DRIFT: pinned metrics do not reproduce")
+    return reports, floor
+
+
+def _ratchet_blockers(report: BudgetReport, policy: dict, encoder) -> list[dict]:
+    baseline, baseline_floor = _baseline_reports(policy, encoder)
+    exceptions = _validated_exceptions(policy)
+    blockers: list[dict] = []
+    for observed in report.files:
+        _owner_for(observed.path, policy)
+        prior = baseline.get(observed.path)
+        code = None
+        if observed.status != "ok" and (prior is None or prior.status == "ok"):
+            code = "TOKEN-BUDGET-NEW-BREACH"
+        elif prior is not None and prior.status != "ok" and observed.tokens > prior.tokens:
+            code = "TOKEN-BUDGET-DEBT-GROWTH"
+        if code:
+            exception = exceptions.get(observed.path)
+            if exception is None or observed.tokens > int(exception["max_tokens"]):
+                blockers.append({
+                    "code": code, "path": observed.path,
+                    "owner": _owner_for(observed.path, policy),
+                    "baseline_tokens": prior.tokens if prior else None,
+                    "observed_tokens": observed.tokens,
+                })
+    if report.always_loaded_floor_tokens > baseline_floor:
+        path = "__always_loaded_floor__"
+        exception = exceptions.get(path)
+        if exception is None or report.always_loaded_floor_tokens > int(exception["max_tokens"]):
+            blockers.append({
+                "code": "TOKEN-BUDGET-FLOOR-GROWTH", "path": path,
+                "owner": _owner_for(path, policy),
+                "baseline_tokens": baseline_floor,
+                "observed_tokens": report.always_loaded_floor_tokens,
+            })
+    return blockers
+
+
 def build_report() -> BudgetReport:
+    policy = _load_policy()
     encoder = _get_encoder()
     report = BudgetReport()
 
@@ -214,6 +419,7 @@ def build_report() -> BudgetReport:
     report.top10_largest = sorted(
         all_files, key=lambda f: f.tokens, reverse=True
     )[:10]
+    report.files = all_files
 
     floor_total = 0
     for rel in ALWAYS_LOADED_FILES:
@@ -221,6 +427,14 @@ def build_report() -> BudgetReport:
         if p.is_file():
             floor_total += count_tokens(p, encoder)
     report.always_loaded_floor_tokens = floor_total
+    report.policy = {
+        "schema_version": policy["schema_version"],
+        "owner": policy["owner"],
+        "baseline_commit": policy["baseline"]["commit"],
+        "encoder": policy["encoder"],
+        "load_graph": policy["load_graph"],
+    }
+    report.ratchet_blockers = _ratchet_blockers(report, policy, encoder)
 
     return report
 
@@ -231,7 +445,7 @@ def build_report() -> BudgetReport:
 
 
 def _emit(report: BudgetReport, *, verbose: bool) -> None:
-    print(f"token_budget_check (warn-only, cl100k_base, PR-4d)")
+    print("token_budget_check (debt ratchet, tiktoken 0.12.0/cl100k_base)")
     print(f"  total files measured: {report.total_files}")
     print(f"  always-loaded prelude floor: "
           f"{report.always_loaded_floor_tokens} tokens "
@@ -266,7 +480,14 @@ def _emit(report: BudgetReport, *, verbose: bool) -> None:
         tag = fr.status.upper() if fr.status != "ok" else "ok  "
         print(f"  [{tag}] {fr.tokens:>5} tok  {fr.path}")
     print()
-    print("NOTE: warn-only at PR-4d. Breaches do not block release-gate.")
+    if report.ratchet_blockers:
+        print(f"Ratchet blockers ({len(report.ratchet_blockers)}):")
+        for finding in report.ratchet_blockers:
+            print(f"  [BLOCKER] {finding['code']} {finding['path']} "
+                  f"{finding['baseline_tokens']} -> {finding['observed_tokens']} "
+                  f"owner={finding['owner']}")
+    else:
+        print("Ratchet: PASS (no new debt, debt growth, or always-loaded-floor growth)")
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +513,11 @@ def main(argv: List[str] | None = None) -> int:
             print(f"[BLOCKER] {exc}", file=sys.stderr)
             return 4
 
-    report = build_report()
+    try:
+        report = build_report()
+    except TokenBudgetError as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 2
 
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -305,6 +530,8 @@ def main(argv: List[str] | None = None) -> int:
                     "by_class": report.by_class,
                     "breaches": [asdict(f) for f in report.breaches],
                     "top10_largest": [asdict(f) for f in report.top10_largest],
+                    "ratchet_blockers": report.ratchet_blockers,
+                    "policy": report.policy,
                 },
                 indent=2,
                 ensure_ascii=False,
@@ -315,9 +542,7 @@ def main(argv: List[str] | None = None) -> int:
     if not args.quiet:
         _emit(report, verbose=False)
 
-    # ALWAYS exit 0 at PR-4d (measurement-first; warn-only). A future PR may
-    # promote `fail`-tier breaches to a real exit-1 BLOCKER.
-    return 0
+    return 1 if report.ratchet_blockers else 0
 
 
 if __name__ == "__main__":

@@ -1,13 +1,43 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://co-author-harness.local/schemas/archive_runtime_receipt.schema.json",
-  "title": "Archive extraction and unpacked runtime receipts 1.1.0",
+  "title": "Archive extraction and unpacked runtime receipts 1.2.0",
   "oneOf": [
     {"$ref": "#/$defs/archiveReceipt"},
     {"$ref": "#/$defs/runtimeReceipt"}
   ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "topologyBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "source_commit"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "source_commit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}
+      }
+    },
+    "retainedTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "payload"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "payload": {
+          "type": "object",
+          "required": ["schema_version", "receipt_type", "source_commit", "planes", "source_stable", "findings", "verdict"],
+          "properties": {
+            "schema_version": {"const": "1.0.0"},
+            "receipt_type": {"const": "qualification_plane_topology"},
+            "source_commit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+            "planes": {"type": "array", "minItems": 5, "maxItems": 5},
+            "source_stable": {"const": true},
+            "findings": {"type": "array", "maxItems": 0},
+            "verdict": {"const": "qualified"}
+          }
+        }
+      }
+    },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
@@ -158,10 +188,13 @@
     },
     "common": {
       "type": "object",
-      "required": ["schema_version", "receipt_type", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
+      "required": ["schema_version", "receipt_type", "plane_kind", "topology_receipt", "derived_topology_receipt", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
       "properties": {
-        "schema_version": {"const": "1.1.0"},
+        "schema_version": {"const": "1.2.0"},
         "receipt_type": {"enum": ["archive_runtime_probe", "unpacked_zip_runtime"]},
+        "plane_kind": {"enum": ["archive", "unpacked"]},
+        "topology_receipt": {"$ref": "#/$defs/topologyBinding"},
+        "derived_topology_receipt": {"$ref": "#/$defs/retainedTopology"},
         "archive": {"$ref": "#/$defs/artifact"},
         "extraction": {"$ref": "#/$defs/extraction"},
         "runtime_execution": {"$ref": "#/$defs/runtimeExecution"},
@@ -179,10 +212,13 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["schema_version", "receipt_type", "archive", "central_directory", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "unpacked_runtime_receipt", "findings", "verdict"],
+          "required": ["schema_version", "receipt_type", "plane_kind", "topology_receipt", "derived_topology_receipt", "archive", "central_directory", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "unpacked_runtime_receipt", "findings", "verdict"],
           "properties": {
             "schema_version": true,
             "receipt_type": {"const": "archive_runtime_probe"},
+            "plane_kind": {"const": "archive"},
+            "topology_receipt": true,
+            "derived_topology_receipt": true,
             "archive": true,
             "central_directory": {"$ref": "#/$defs/centralDirectory"},
             "extraction": true,
@@ -209,10 +245,13 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["schema_version", "receipt_type", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
+          "required": ["schema_version", "receipt_type", "plane_kind", "topology_receipt", "derived_topology_receipt", "archive", "extraction", "runtime_execution", "runtime_plane_receipt", "member_digests", "source_isolation", "cleanup", "findings", "verdict"],
           "properties": {
             "schema_version": true,
             "receipt_type": {"const": "unpacked_zip_runtime"},
+            "plane_kind": {"const": "unpacked"},
+            "topology_receipt": true,
+            "derived_topology_receipt": true,
             "archive": true,
             "extraction": true,
             "runtime_execution": true,
