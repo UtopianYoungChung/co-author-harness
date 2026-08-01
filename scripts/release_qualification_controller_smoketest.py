@@ -496,6 +496,17 @@ c.start_run(
         receipt = ctl.recover_run(run_root=root / "runs", run_id="pre-owner-failure")
         assert receipt["state"] == "evidence_incomplete"
         assert receipt["worker"] is None and receipt["diagnostic"]["code"] == "EVIDENCE_INCOMPLETE"
+        # The terminal receipt must remain durable through every public reopen
+        # path, including an idempotent restart of the exact same intent.
+        assert ctl.status_run(
+            run_root=root / "runs", run_id="pre-owner-failure",
+        ) == receipt
+        assert ctl.wait_run(
+            run_root=root / "runs", run_id="pre-owner-failure", timeout_s=1,
+        ) == receipt
+        reopened = _start(ctl, root, "pre-owner-failure", "print('no')")
+        assert reopened["state"] == "evidence_incomplete"
+        assert reopened["worker"] is None and reopened["idempotent"] is True
         cases += 1
 
         # Cross-field validation may never accept a success claim with no exit
