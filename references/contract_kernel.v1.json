@@ -595,7 +595,7 @@
       "id": "qualification-plane-topology",
       "path": "scripts/qualification_plane_topology.py",
       "revision_kind": "sha256",
-      "sha256": "37d49713e09a5dc52fe0bf83413d0ac0a1605d501a313a40372bc0adf7f30cc2",
+      "sha256": "8b52cb3c4f0a1188e3cc486214441383bf451c123d32cd739b39b847250314b8",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -667,7 +667,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "be5a51faade666fea0c905a7d285f7d164f323ebe2aa99a5cb526b4da5934fd5",
+      "sha256": "0753642c86fce5f0a26f18c9577a44eb56204bade8ccae984029fada2454b1f3",
       "migration_ids": [
         "qualification-architecture-v1"
       ]

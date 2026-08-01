@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 import sys
 
-from jsonschema import Draft202012Validator
 from qualification_environment import QualificationEnvironmentRefusal, assert_ambient_clean
 
 
@@ -223,6 +222,11 @@ def validate_topology(
     planes: Iterable[Mapping[str, Any]], *, source_commit: str,
     source_preimage: Mapping[str, Mapping[str, Any]] | object = _MISSING,
 ) -> dict[str, Any]:
+    # The commit-bound package builder imports only capture_source_snapshot in
+    # a dependency-isolated clean worktree. Keep jsonschema out of that import
+    # plane; schema validation owns the dependency at its point of use.
+    from jsonschema import Draft202012Validator
+
     try:
         assert_ambient_clean()
     except QualificationEnvironmentRefusal as exc:
@@ -387,6 +391,8 @@ def verify_topology_receipt_binding(
     bindings: Mapping[str, Path],
 ) -> tuple[dict[str, Any], str]:
     """Verify a qualified receipt and exact live bindings before child execution."""
+    from jsonschema import Draft202012Validator
+
     if receipt_input is None:
         raise PlaneTopologyRefusal("PLANE-TOPOLOGY-MISSING", "a qualified five-plane topology receipt is required")
     receipt = _load_json_object(receipt_input) if isinstance(receipt_input, Path) else dict(receipt_input)

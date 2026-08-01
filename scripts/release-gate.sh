@@ -139,8 +139,18 @@ if (( CONTROLLED_CHILD == 0 )); then
     fi
     if command -v cygpath >/dev/null 2>&1; then
         BASH_NATIVE="$(cygpath -w "$BASH")"
+        PLUGIN_ROOT_NATIVE="$(cygpath -am "$PLUGIN_ROOT")"
+        CONTROLLER_NATIVE="$(cygpath -am "$CONTROLLER")"
+        GATE_NATIVE="$(cygpath -am "$0")"
+        MANIFEST_NATIVE="$(cygpath -am "$MANIFEST")"
+        FIXTURE_RUNNER_NATIVE="$(cygpath -am "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py")"
     else
         BASH_NATIVE="$BASH"
+        PLUGIN_ROOT_NATIVE="$PLUGIN_ROOT"
+        CONTROLLER_NATIVE="$CONTROLLER"
+        GATE_NATIVE="$0"
+        MANIFEST_NATIVE="$MANIFEST"
+        FIXTURE_RUNNER_NATIVE="$PLUGIN_ROOT/scripts/analysis/fixture_runner.py"
     fi
     CONTROLLER_RUN_ID="${COAUTHOR_RELEASE_RUN_ID:-release-gate-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
     if command -v cygpath >/dev/null 2>&1; then
@@ -151,23 +161,37 @@ if (( CONTROLLED_CHILD == 0 )); then
         PRODUCT_ROOT="${CONTROLLER_ROOT}-products/${CONTROLLER_RUN_ID}"
         PRODUCT_ROOT_CHILD="$PRODUCT_ROOT"
     fi
-    exec python3 "$CONTROLLER" run \
+    CONTROLLER_IGNORED_ARGS=()
+    # A primary checkout stores the persistent repository-global fixture lock
+    # below its .git directory, which is inside the watched source root and
+    # therefore needs an exact exclusion.  A linked worktree has a .git FILE;
+    # its shared lock lives outside this worktree and outside its watch root,
+    # so inventing <worktree>/.git/<lock> is both false and unwatchable.
+    if [[ -d "$PLUGIN_ROOT/.git" && -f "$PLUGIN_ROOT/.git/coauthor-fixture-runner.lock" ]]; then
+        if command -v cygpath >/dev/null 2>&1; then
+            FIXTURE_LOCK_NATIVE="$(cygpath -am "$PLUGIN_ROOT/.git/coauthor-fixture-runner.lock")"
+        else
+            FIXTURE_LOCK_NATIVE="$PLUGIN_ROOT/.git/coauthor-fixture-runner.lock"
+        fi
+        CONTROLLER_IGNORED_ARGS+=(--ignored-output "$FIXTURE_LOCK_NATIVE")
+    fi
+    exec python3 "$CONTROLLER_NATIVE" run \
         --run-root "$CONTROLLER_ROOT" \
         --run-id "$CONTROLLER_RUN_ID" \
-        --cwd "$PLUGIN_ROOT" \
-        --input "$0" \
-        --input "$MANIFEST" \
-        --input "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" \
+        --cwd "$PLUGIN_ROOT_NATIVE" \
+        --input "$GATE_NATIVE" \
+        --input "$MANIFEST_NATIVE" \
+        --input "$FIXTURE_RUNNER_NATIVE" \
         "${CONTROLLER_INPUT_ARGS[@]}" \
-        --input-root "$PLUGIN_ROOT" \
-        --watch-root "$PLUGIN_ROOT" \
+        --input-root "$PLUGIN_ROOT_NATIVE" \
+        --watch-root "$PLUGIN_ROOT_NATIVE" \
         --watch-root "$PRODUCT_ROOT" \
-        --ignored-output "$PLUGIN_ROOT/.git/coauthor-fixture-runner.lock" \
+        "${CONTROLLER_IGNORED_ARGS[@]}" \
         --allowed-output "$PRODUCT_ROOT" \
         --allow-user-site \
         --child-attestation \
         --env "COAUTHOR_RELEASE_PRODUCT_ROOT=$PRODUCT_ROOT_CHILD" \
-        -- "$BASH_NATIVE" "$0" --coauthor-controller-child "${ORIGINAL_ARGS[@]}"
+        -- "$BASH_NATIVE" "$GATE_NATIVE" --coauthor-controller-child "${ORIGINAL_ARGS[@]}"
 fi
 
 if [[ -n "${COAUTHOR_RELEASE_PRODUCT_ROOT:-}" ]]; then
