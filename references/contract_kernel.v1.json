@@ -577,7 +577,7 @@
       "id": "release-qualification-controller",
       "path": "scripts/release_qualification_controller.py",
       "revision_kind": "sha256",
-      "sha256": "6b896c8b432e01d771978f0fb08cdcea7d6da0143fe5e4513dee82f8d90d81dd",
+      "sha256": "63aebb54460b248094773336d4798f4ac39d80337d739cf57d450a7d9635234c",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -658,7 +658,7 @@
       "id": "build-plugin",
       "path": "scripts/build-plugin.py",
       "revision_kind": "sha256",
-      "sha256": "f3b84e4ff5ac3d1167a8fad895c7039ac0a02f79ed8e3744dc973cae5461eb78",
+      "sha256": "c09e26c2936d24204343db3897c2a218b54e04e40826140272281261befcd760",
       "migration_ids": [
         "qualification-architecture-v1"
       ]

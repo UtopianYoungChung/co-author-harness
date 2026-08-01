@@ -27,12 +27,11 @@ governed consumer destinations are refused by the shared destination policy.
 
     python scripts/build-plugin.py --out <external-directory>
 
-Or with PYTHONUTF8=1 on Windows hosts where stdlib defaults to cp949 and the
-plugin tree carries §, →, em dashes, etc.:
+Or with explicit interpreter UTF-8 mode on Windows hosts where stdlib defaults
+to cp949 and the plugin tree carries §, →, em dashes, etc.:
 
-    set PYTHONUTF8=1
     "C:\\Users\\<user>\\AppData\\Local\\Programs\\Python\\Launcher\\py.exe" \\
-        scripts\\build-plugin.py
+        -X utf8 scripts\\build-plugin.py --out <external-directory>
 
 **Exit codes.**
 

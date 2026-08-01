@@ -10,7 +10,7 @@
   },
   "contract_kernel": {
     "version": "1.0.0",
-    "sha256": "59b87a0b05f2843dfa590b9a5ed43d55ae6b3d54ee1ea033e3af68a9f061e311"
+    "sha256": "4f6ad0814f3fb4d374dee2f410f49554faf26bae1ec1f4303b5cd1d9ac5899a4"
   },
   "shipment_schema": {
     "version": "2.0.0",
@@ -22,7 +22,7 @@
     "sha256": "14e570572dd1aed67922e61ca2b95b98050f3461768740ef585a92d058217d8c"
   },
   "compatibility_kit": {
-    "sha256": "d3f0b55347c2800e29ff103c1f69b03e9b1beeb5b8073b8a0d62f2bf43e9f4d0"
+    "sha256": "00acc56e42629c25528a9bbfc3fc5a08ec232ac0f4413df2d3612f2a598f8993"
   },
   "fixture_corpus": {
     "sha256": "8f76f0096000fdb557db39da963d8d011a2aa79295d666ba060113c6fd3a66f5",

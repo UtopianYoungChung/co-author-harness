@@ -216,10 +216,11 @@ def _validate_terminal(paths: Mapping[str, Path], value: dict[str, Any]) -> dict
     ):
         raise ControllerRefusal("EVIDENCE_INCOMPLETE", "terminal intent binding is stale")
     owner = _read(paths["owner"]) if paths["owner"].is_file() else None
+    owner_started_at = owner.get("started_at") if owner is not None else None
     if (
         value.get("worker") != owner
         or value.get("timestamps", {}).get("controller_started_at") != intent.get("created_at")
-        or value.get("timestamps", {}).get("worker_started_at") != owner.get("started_at")
+        or value.get("timestamps", {}).get("worker_started_at") != owner_started_at
     ):
         raise ControllerRefusal("EVIDENCE_INCOMPLETE", "terminal owner/timestamp binding is stale")
     if value.get("exit_capsule") is not None:
