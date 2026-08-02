@@ -3,14 +3,14 @@
 
 Blocker-1 lesson (2026-07-22): a prose inventory listed coupling_health_report
 as a writer, the corpus was green, and the script still wrote two files into a
-protected governed root — coverage that only lives in prose is coverage that
+protected governed root -- coverage that only lives in prose is coverage that
 rots. This check makes the writer census and its classification machine-
 enforced:
 
-  1. CENSUS  — scan scripts/**/*.py for write-operation call sites (the same
+  1. CENSUS  -- scan scripts/**/*.py for write-operation call sites (the same
      pattern family the Phase A inventory used). Files whose name marks them
      as test material (*smoketest*, test_*, scripts/tests/) are pattern-exempt.
-  2. REGISTRY — references/destination_coverage_registry.json must classify
+  2. REGISTRY -- references/destination_coverage_registry.json must classify
      every remaining writer as exactly one of:
        guarded           destination checks live in the file; the named
                          negative regression exists; the file must textually

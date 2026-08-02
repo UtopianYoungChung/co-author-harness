@@ -809,7 +809,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "113d2cc1265bf297810e896791fd5922a7c50b67469ef3c47edfb8d05e700526",
+      "sha256": "c456f6fb028a82ba55dd2ee945a0858f591bd07f71fa802a08d305f17757acaa",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -837,7 +837,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "6179e140a11426d2ce1376303245a1c6605d7f01b7abe6e876d9b9e107f8d018",
+      "sha256": "c1a082f902d01975b34457adbebf5c7cac802f8d2109275b194a8737d38e7552",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

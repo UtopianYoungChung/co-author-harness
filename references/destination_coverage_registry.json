@@ -28,7 +28,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "113d2cc1265bf297810e896791fd5922a7c50b67469ef3c47edfb8d05e700526"
+      "sha256": "c456f6fb028a82ba55dd2ee945a0858f591bd07f71fa802a08d305f17757acaa"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -191,7 +191,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "b434ebce42806b532d857c2692b4062cf66f17193ecc79f218db176bcae9dc11"
+      "sha256": "d3260c58ac3c3299701614298ccf7eed343f8d7cbe3a0cd88ee64de76c948194"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",
