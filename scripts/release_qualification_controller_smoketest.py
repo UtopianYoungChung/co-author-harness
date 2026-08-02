@@ -344,6 +344,117 @@ def _run_lock_contract(ctl, root: Path) -> None:
             raise AssertionError("synthetic unlock failure was suppressed")
     finally:
         setattr(lock_module, primitive_name, original)
+
+    def second_thread_can_acquire() -> bool:
+        result: list[bool] = []
+
+        def probe() -> None:
+            acquired = ctl._ATOMIC_LOCK.acquire(timeout=.2)
+            result.append(acquired)
+            if acquired:
+                ctl._ATOMIC_LOCK.release()
+
+        thread = threading.Thread(target=probe)
+        thread.start()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        return result == [True]
+
+    class FakeParent:
+        @staticmethod
+        def mkdir(**_kwargs):
+            return None
+
+    class CompoundStream(FakeStream):
+        def __init__(self):
+            super().__init__()
+            self.close_count = 0
+
+        @staticmethod
+        def seek(*_args):
+            return 1
+
+        def close(self):
+            self.close_count += 1
+            raise OSError("cleanup-close")
+
+    class FakePath:
+        parent = FakeParent()
+
+        def __init__(self, fake_stream, *, open_error: Exception | None = None):
+            self.fake_stream, self.open_error = fake_stream, open_error
+
+        def open(self, _mode):
+            if self.open_error is not None:
+                raise self.open_error
+            return self.fake_stream
+
+    compound_stream = CompoundStream()
+    compound = ctl._RunLock(FakePath(compound_stream), timeout_s=0)
+    setattr(lock_module, primitive_name, failure)
+    try:
+        try:
+            compound.__enter__()
+        except Exception as exc:
+            assert isinstance(exc, ctl.ControllerRefusal)
+            assert exc.code == "RELEASE-CONTROLLER-IO"
+            assert "synthetic non-contention" in str(exc) and "cleanup-close" in str(exc)
+        else:
+            raise AssertionError("compound lock failure was suppressed")
+    finally:
+        setattr(lock_module, primitive_name, original)
+    assert compound.stream is None and compound_stream.close_count == 1
+    assert second_thread_can_acquire()
+
+    for stage in ("mkdir", "open", "write", "flush", "fsync"):
+        class InitParent:
+            def mkdir(self, **_kwargs):
+                if stage == "mkdir":
+                    raise OSError("mkdir-init")
+
+        class InitStream(FakeStream):
+            def __init__(self):
+                super().__init__()
+                self.close_count = 0
+
+            def write(self, _raw):
+                if stage == "write":
+                    raise OSError("write-init")
+                return 1
+
+            def flush(self):
+                if stage == "flush":
+                    raise OSError("flush-init")
+
+            def close(self):
+                self.close_count += 1
+                self.closed = True
+
+        class InitPath(FakePath):
+            parent = InitParent()
+
+        init_stream = InitStream()
+        init_path = InitPath(
+            init_stream,
+            open_error=OSError("open-init") if stage == "open" else None,
+        )
+        init_lock = ctl._RunLock(init_path, timeout_s=0)
+        original_fsync = ctl.os.fsync
+        if stage == "fsync":
+            ctl.os.fsync = lambda _fd: (_ for _ in ()).throw(OSError("fsync-init"))
+        try:
+            try:
+                init_lock.__enter__()
+            except Exception as exc:
+                assert isinstance(exc, ctl.ControllerRefusal)
+                assert exc.code == "RELEASE-CONTROLLER-IO" and f"{stage}-init" in str(exc)
+            else:
+                raise AssertionError(f"{stage} initialization failure was suppressed")
+        finally:
+            ctl.os.fsync = original_fsync
+        assert init_lock.stream is None
+        assert init_stream.close_count == (0 if stage in {"mkdir", "open"} else 1)
+        assert second_thread_can_acquire()
     assert stream.closed and lock.stream is None
 
     acquire = ctl._RunLock(root / "synthetic-acquire.lock", timeout_s=0)
@@ -1983,6 +2094,172 @@ time.sleep(60)
         else:
             platform_skips += 1
 
+        # Killing the exact supervisor after durable direct exit can never
+        # authorize success or stream bindings, even if an escaped descendant
+        # writes those inherited streams later.
+        if os.name != "nt":
+            loss_pids = root / "work" / "current-loss-pids.json"
+            loss_release = root / "work" / "current-loss-release"
+            loss_ack = root / "work" / "current-loss-ack"
+            loss_descendants: dict[int, str] = {}
+            loss_supervisor: dict[int, str] = {}
+            loss_receipt = None
+            loss_code = None
+            late_child = f"""import json, os, time
+from pathlib import Path
+p = Path({str(loss_pids)!r})
+t = p.with_name('.' + p.name + '.tmp')
+t.write_text(json.dumps([os.getpid()]), encoding='ascii')
+os.replace(t, p)
+release = Path({str(loss_release)!r})
+while not release.exists():
+    time.sleep(.01)
+os.write(1, b'late-current-stdout')
+os.fsync(1)
+os.write(2, b'late-current-stderr')
+os.fsync(2)
+Path({str(loss_ack)!r}).write_text('done', encoding='ascii')
+time.sleep(60)
+"""
+            late_product = (
+                "import subprocess,sys;"
+                f"subprocess.Popen([sys.executable,'-c',{late_child!r}],start_new_session=True)"
+            )
+            try:
+                _start(
+                    ctl, root, "current-supervisor-loss", late_product,
+                    allowed_output_roots=[root / "work"],
+                )
+                loss_descendants = _identities(ctl, _wait_for_pid_list(loss_pids))
+                run_dir = root / "runs" / "current-supervisor-loss"
+                _wait_for_path(run_dir / "direct-exit.json", timeout_s=20)
+                journal = json.loads((run_dir / "journal.json").read_text(encoding="ascii"))
+                spawned = next(
+                    row for row in journal["events"] if row.get("event") == "child_spawned"
+                )
+                loss_supervisor = {spawned["child_pid"]: spawned["process_token"]}
+                assert _terminate_identities(ctl, loss_supervisor) == set(
+                    loss_supervisor.items()
+                )
+                try:
+                    loss_receipt = _wait(ctl, root, "current-supervisor-loss")
+                except Exception as exc:
+                    loss_code = getattr(exc, "code", None)
+                loss_release.write_text("release", encoding="ascii")
+                _wait_for_path(loss_ack, timeout_s=10)
+            finally:
+                _cancel_finally(ctl, root, "current-supervisor-loss")
+                _terminate_identities(ctl, {**loss_supervisor, **loss_descendants})
+            if loss_receipt is not None:
+                assert loss_receipt["state"] == "evidence_incomplete"
+                assert loss_receipt["stdout"] is None and loss_receipt["stderr"] is None
+            else:
+                assert loss_code == "EVIDENCE_INCOMPLETE"
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # True double-fork+setsid ownership delays terminal evidence until the
+        # released late writer exits; the post-release mutation is then bound.
+        if os.name != "nt":
+            double_pids = root / "work" / "current-double-fork-pids.json"
+            double_release = root / "work" / "current-double-fork-release"
+            double_late = root / "work" / "current-double-fork-late.txt"
+            double_identities: dict[int, str] = {}
+            double_script = f"""import json, os, time
+from pathlib import Path
+first = os.fork()
+if first == 0:
+    second = os.fork()
+    if second == 0:
+        os.setsid()
+        p = Path({str(double_pids)!r})
+        t = p.with_name('.' + p.name + '.tmp')
+        t.write_text(json.dumps([os.getpid()]), encoding='ascii')
+        os.replace(t, p)
+        release = Path({str(double_release)!r})
+        while not release.exists():
+            time.sleep(.01)
+        Path({str(double_late)!r}).write_text('late', encoding='ascii')
+        os._exit(0)
+    os._exit(0)
+os.waitpid(first, 0)
+"""
+            try:
+                _start(
+                    ctl, root, "current-double-fork", f"exec({double_script!r})",
+                    allowed_output_roots=[root / "work"],
+                )
+                double_identities = _identities(ctl, _wait_for_pid_list(double_pids))
+                time.sleep(.2)
+                assert not (root / "runs" / "current-double-fork" / "receipt.json").exists()
+                assert not double_late.exists()
+                double_release.write_text("release", encoding="ascii")
+                _wait_for_path(double_late)
+                double_receipt = _wait(ctl, root, "current-double-fork")
+                assert double_receipt["state"] == "succeeded"
+            finally:
+                _cancel_finally(ctl, root, "current-double-fork")
+                _terminate_identities(ctl, double_identities)
+            assert not _alive_identities(ctl, double_identities)
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # Descendants forked by a SIGTERM handler are found by dynamic rescans
+        # and quiesced before cooperative cancellation becomes terminal.
+        if os.name != "nt":
+            term_ready = root / "work" / "current-term-ready.txt"
+            term_pids = root / "work" / "current-term-pids.json"
+            term_identities: dict[int, str] = {}
+            term_outcome: dict[str, object] = {}
+            term_child = (
+                "import json,os,signal,time;from pathlib import Path;"
+                "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                f"p=Path({str(term_pids)!r});t=p.with_name('.'+p.name+'.tmp');"
+                "t.write_text(json.dumps([os.getpid()]),encoding='ascii');os.replace(t,p);"
+                "time.sleep(60)"
+            )
+            term_product = f"""import signal, subprocess, sys, time
+from pathlib import Path
+def handle(_signum, _frame):
+    subprocess.Popen([sys.executable, '-c', {term_child!r}], start_new_session=True)
+signal.signal(signal.SIGTERM, handle)
+Path({str(term_ready)!r}).write_text('ready', encoding='ascii')
+while True:
+    time.sleep(.05)
+"""
+            try:
+                _start(
+                    ctl, root, "current-term-fork", f"exec({term_product!r})",
+                    allowed_output_roots=[root / "work"],
+                )
+                _wait_for_path(term_ready)
+
+                def cancel_term_fork() -> None:
+                    try:
+                        term_outcome["receipt"] = ctl.cancel_run(
+                            run_root=root / "runs", run_id="current-term-fork", timeout_s=30,
+                        )
+                    except Exception as exc:
+                        term_outcome["error"] = exc
+
+                cancel_thread = threading.Thread(target=cancel_term_fork)
+                cancel_thread.start()
+                term_identities = _identities(
+                    ctl, _wait_for_pid_list(term_pids, timeout_s=5),
+                )
+                cancel_thread.join(timeout=40)
+                assert not cancel_thread.is_alive() and "error" not in term_outcome
+                assert term_outcome["receipt"]["state"] == "cancelled"
+            finally:
+                _cancel_finally(ctl, root, "current-term-fork")
+                _terminate_identities(ctl, term_identities)
+            assert not _alive_identities(ctl, term_identities)
+            cases += 1
+        else:
+            platform_skips += 1
+
         # A reused POSIX PID/PGID may never be signalled after its recorded
         # creation token changes.
         if os.name != "nt":
@@ -2527,8 +2804,12 @@ time.sleep(60)
         "posix_post_kill_session_quiescent",
         "posix_subreaper_descendant_closure",
         "posix_single_snapshot_identity",
+        "posix_supervisor_result_authority",
+        "posix_double_fork_setsid_quiescence",
+        "posix_term_spawn_dynamic_rescan",
         "windows_process_observation_typed",
         "run_lock_fail_closed",
+        "run_lock_initialization_fail_closed",
         "multiprocess_cancel_idempotent",
         "multiprocess_recovery_serialized",
         "input_drift_refused",
@@ -2555,8 +2836,8 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 46 if os.name != "nt" else 40
-    expected_skip_count = 0 if os.name != "nt" else 6
+    expected_case_count = 49 if os.name != "nt" else 40
+    expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
     assert not expected_failures, "expected red regressions:\n- " + "\n- ".join(expected_failures)

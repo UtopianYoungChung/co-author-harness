@@ -58,8 +58,12 @@ REGRESSION_CONTRACT = (
     "posix_post_kill_session_quiescent",
     "posix_subreaper_descendant_closure",
     "posix_single_snapshot_identity",
+    "posix_supervisor_result_authority",
+    "posix_double_fork_setsid_quiescence",
+    "posix_term_spawn_dynamic_rescan",
     "windows_process_observation_typed",
     "run_lock_fail_closed",
+    "run_lock_initialization_fail_closed",
     "multiprocess_cancel_idempotent",
     "multiprocess_recovery_serialized",
     "input_drift_refused",
@@ -208,12 +212,29 @@ class _RunLock:
                             raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "run lock timed out")
                         time.sleep(.01)
             return self
-        except Exception:
-            if self.stream is not None:
-                self.stream.close()
-                self.stream = None
-            _ATOMIC_LOCK.release()
-            raise
+        except Exception as primary:
+            stream, self.stream = self.stream, None
+            cleanup_error: Exception | None = None
+            try:
+                if stream is not None:
+                    stream.close()
+            except Exception as exc:
+                cleanup_error = exc
+            finally:
+                _ATOMIC_LOCK.release()
+            if isinstance(primary, ControllerRefusal) and cleanup_error is None:
+                raise
+            code = (
+                primary.code if isinstance(primary, ControllerRefusal)
+                else "RELEASE-CONTROLLER-IO"
+            )
+            detail = (
+                primary.message if isinstance(primary, ControllerRefusal)
+                else f"run lock initialization failed: {primary}"
+            )
+            if cleanup_error is not None:
+                detail += f"; cleanup close failed: {cleanup_error}"
+            raise ControllerRefusal(code, detail) from primary
 
     def __exit__(self, _exc_type, _exc, _traceback):
         stream, self.stream = self.stream, None
@@ -360,6 +381,10 @@ def _validate_terminal(paths: Mapping[str, Path], value: dict[str, Any]) -> dict
             or value.get("process") != capsule.get("process")
             or value.get("stdout") != capsule.get("stdout")
             or value.get("stderr") != capsule.get("stderr")
+            or capsule.get("supervisor_result") != (
+                _binding(paths["supervisor_result"])
+                if paths["supervisor_result"].is_file() else None
+            )
             or value.get("timestamps", {}).get("child_started_at")
                 != capsule.get("timestamps", {}).get("child_started_at")
             or value.get("timestamps", {}).get("child_exited_at")
@@ -599,6 +624,13 @@ def _descendant_members(ancestor: int, *, exclude: Iterable[int] = ()) -> dict[i
         if pid not in excluded and pid in snapshot
         and snapshot[pid]["state"] not in {"Z", "X", "x"}
     }
+
+
+def _descendant_processes(ancestor: int) -> set[int]:
+    if os.name == "nt":
+        return set()
+    _, snapshot = _proc_snapshot()
+    return _descendant_ids(ancestor, snapshot)
 
 
 def _signal_posix_identity(
@@ -1066,7 +1098,7 @@ def _paths(run_root: str | Path, run_id: str) -> dict[str, Path]:
         "receipt": "receipt.json", "cancel": "cancel.request.json",
         "prechild": "prechild-refusal.json", "attestation": "child-attestation.json",
         "lock": ".controller.lock", "direct_exit": "direct-exit.json",
-        "product_started": "product-started.json",
+        "product_started": "product-started.json", "supervisor_result": "supervisor-result.json",
         "test_preflight_gate": ".test-preflight-gate",
         "worker_stdout": "worker-stdout.bin", "worker_stderr": "worker-stderr.bin",
     }.items()} | {"root": root}
@@ -1197,7 +1229,7 @@ def _terminate_descendants(ancestor: int, *, timeout_s: float = 30.0) -> None:
     grace = time.monotonic() + .2
     while time.monotonic() < grace:
         _reap_children()
-        if not _descendant_members(ancestor):
+        if not _descendant_processes(ancestor):
             break
         time.sleep(.01)
     deadline = time.monotonic() + timeout_s
@@ -1205,12 +1237,13 @@ def _terminate_descendants(ancestor: int, *, timeout_s: float = 30.0) -> None:
     while empty_scans < 2:
         _reap_children()
         members = _descendant_members(ancestor)
-        if not members:
+        if not _descendant_processes(ancestor):
             empty_scans += 1
             time.sleep(.01)
             continue
         empty_scans = 0
-        _signal_descendants(ancestor, members, signal.SIGKILL)
+        if members:
+            _signal_descendants(ancestor, members, signal.SIGKILL)
         if time.monotonic() >= deadline:
             raise ControllerRefusal(
                 "RELEASE-CONTROLLER-LIVE", "owned POSIX descendants did not disappear",
@@ -1490,6 +1523,10 @@ def _finish(
         and exit_value.get("intent_sha256") == intent.get("intent_sha256")
         and exit_value.get("stdout") == (_binding(paths["stdout"]) if paths["stdout"].is_file() else None)
         and exit_value.get("stderr") == (_binding(paths["stderr"]) if paths["stderr"].is_file() else None)
+        and exit_value.get("supervisor_result") == (
+            _binding(paths["supervisor_result"])
+            if paths["supervisor_result"].is_file() else None
+        )
     )
     if prechild_value is not None:
         if (
@@ -1559,8 +1596,8 @@ def _finish(
         "exit_capsule": _binding(paths["exit"]) if paths["exit"].is_file() else None,
         "prechild_refusal": _binding(paths["prechild"]) if paths["prechild"].is_file() else None,
         "child_attestation": _binding(paths["attestation"]) if paths["attestation"].is_file() else None,
-        "stdout": _binding(paths["stdout"]) if paths["stdout"].is_file() else None,
-        "stderr": _binding(paths["stderr"]) if paths["stderr"].is_file() else None,
+        "stdout": exit_value.get("stdout") if capsule_exact else None,
+        "stderr": exit_value.get("stderr") if capsule_exact else None,
         "journal": _binding(paths["journal"]), "diagnostic": diagnostic, "recovered": recovery,
     }
     _validate_receipt(receipt)
@@ -1670,6 +1707,50 @@ def _reap_children() -> None:
             return
 
 
+def _terminate_supervised_descendants(
+    ancestor: int, product: subprocess.Popen[Any], *, timeout_s: float = 30.0,
+) -> int:
+    members = _descendant_members(ancestor)
+    if members:
+        _signal_descendants(ancestor, members, signal.SIGTERM)
+    grace = time.monotonic() + .2
+    direct_returncode = product.poll()
+    while time.monotonic() < grace:
+        direct_returncode = (
+            product.poll() if direct_returncode is None else direct_returncode
+        )
+        if not _descendant_members(ancestor):
+            break
+        time.sleep(.01)
+    deadline = time.monotonic() + timeout_s
+    empty_scans = 0
+    while empty_scans < 2:
+        direct_returncode = (
+            product.poll() if direct_returncode is None else direct_returncode
+        )
+        members = _descendant_members(ancestor)
+        if members:
+            _signal_descendants(ancestor, members, signal.SIGKILL)
+        if direct_returncode is not None:
+            _reap_children()
+            if not _descendant_processes(ancestor):
+                empty_scans += 1
+                time.sleep(.01)
+                continue
+        empty_scans = 0
+        if time.monotonic() >= deadline:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-LIVE",
+                "supervised POSIX descendants did not become quiescent",
+            )
+        time.sleep(.01)
+    if direct_returncode is None:
+        raise ControllerRefusal(
+            "EVIDENCE_INCOMPLETE", "direct product exit status is unavailable",
+        )
+    return direct_returncode
+
+
 def _posix_supervisor(run_dir: Path, control_fd: int) -> int:
     import select
 
@@ -1679,6 +1760,10 @@ def _posix_supervisor(run_dir: Path, control_fd: int) -> int:
     if os.read(control_fd, 1) != b"G":
         os.close(control_fd)
         return 74
+    supervisor_token = _process_token(os.getpid())
+    if supervisor_token is None:
+        os.close(control_fd)
+        return 76
     product_env = {
         key: value for key, value in os.environ.items()
         if key != _SUPERVISOR_JOB_ENV
@@ -1691,37 +1776,93 @@ def _posix_supervisor(run_dir: Path, control_fd: int) -> int:
     if product_token is None:
         product.terminate()
         product.wait(timeout=10)
-        return 75
+        os.close(control_fd)
+        return 76
     _atomic(paths["product_started"], _canonical({
         "intent_sha256": intent["intent_sha256"], "pid": product.pid,
         "process_token": product_token, "started_at": _now(),
     }))
+
+    def control_message(timeout_s: float = .05) -> bytes | None:
+        readable, _, _ = select.select([control_fd], [], [], timeout_s)
+        return os.read(control_fd, 1) if readable else None
+
+    def commit_direct_exit(returncode: int) -> None:
+        if not paths["direct_exit"].is_file():
+            _atomic(paths["direct_exit"], _canonical({
+                "intent_sha256": intent["intent_sha256"], "pid": product.pid,
+                "process_token": product_token, "returncode": returncode,
+                "exited_at": _now(),
+            }))
+
+    def commit_supervisor_result(mode: str, returncode: int) -> None:
+        expected_supervisor_returncode = 0 if mode == "normal" else 75
+        cancellation = (
+            _binding(paths["cancel"]) if mode == "cancelled" and paths["cancel"].is_file()
+            else None
+        )
+        if mode == "cancelled" and cancellation is None:
+            raise ControllerRefusal(
+                "EVIDENCE_INCOMPLETE", "durable cancellation binding is absent",
+            )
+        _atomic(paths["supervisor_result"], _canonical({
+            "schema_version": "1.0.0", "intent_sha256": intent["intent_sha256"],
+            "mode": mode,
+            "expected_supervisor_returncode": expected_supervisor_returncode,
+            "supervisor": {"pid": os.getpid(), "process_token": supervisor_token},
+            "product": {
+                "pid": product.pid, "process_token": product_token,
+                "returncode": returncode,
+            },
+            "product_started": _binding(paths["product_started"]),
+            "direct_exit": _binding(paths["direct_exit"]),
+            "cancellation": cancellation,
+            "descendants_quiescent": True, "empty_scans": 2,
+            "completed_at": _now(),
+        }))
+
+    def owner_lost() -> int:
+        try:
+            returncode = _terminate_supervised_descendants(os.getpid(), product)
+            commit_direct_exit(returncode)
+        finally:
+            os.close(control_fd)
+        return 76
+
+    def cancel_and_finish() -> int:
+        returncode = _terminate_supervised_descendants(os.getpid(), product)
+        commit_direct_exit(returncode)
+        commit_supervisor_result("cancelled", returncode)
+        os.close(control_fd)
+        return 75
+
     direct_returncode = None
     while direct_returncode is None:
         direct_returncode = product.poll()
-        readable, _, _ = select.select([control_fd], [], [], .05)
-        if readable and os.read(control_fd, 1) == b"":
-            _terminate_descendants(os.getpid())
-            os.close(control_fd)
-            return 75
-    direct_returncode = product.wait()
-    _atomic(paths["direct_exit"], _canonical({
-        "intent_sha256": intent["intent_sha256"], "pid": product.pid,
-        "process_token": product_token, "returncode": direct_returncode,
-        "exited_at": _now(),
-    }))
+        message = control_message()
+        if message == b"C":
+            return cancel_and_finish()
+        if message == b"":
+            return owner_lost()
+        if message is not None:
+            return owner_lost()
+    direct_returncode = product.wait() if product.returncode is None else product.returncode
+    commit_direct_exit(direct_returncode)
     empty_scans = 0
     while empty_scans < 2:
         _reap_children()
-        if not _descendant_members(os.getpid()):
+        if not _descendant_processes(os.getpid()):
             empty_scans += 1
         else:
             empty_scans = 0
-        readable, _, _ = select.select([control_fd], [], [], .05)
-        if readable and os.read(control_fd, 1) == b"":
-            _terminate_descendants(os.getpid())
-            os.close(control_fd)
-            return 75
+        message = control_message()
+        if message == b"C":
+            return cancel_and_finish()
+        if message == b"":
+            return owner_lost()
+        if message is not None:
+            return owner_lost()
+    commit_supervisor_result("normal", direct_returncode)
     os.close(control_fd)
     _reap_children()
     return 0
@@ -1827,6 +1968,7 @@ def _worker(run_dir: Path) -> int:
         return 2
     started = _now()
     cancelled = False
+    cancel_sent = False
     child = None
     product_job = None
     control_fd = None
@@ -1867,20 +2009,22 @@ def _worker(run_dir: Path) -> int:
                 )
                 if paths["cancel"].is_file():
                     cancelled = True
-                    if tree_alive:
-                        if os.name != "nt" and control_fd is not None:
-                            os.close(control_fd)
-                            control_fd = None
-                            try:
-                                child.wait(timeout=10)
-                            except subprocess.TimeoutExpired:
-                                _terminate_owned(
-                                    child, process_token=child_token,
-                                    process_group=group,
-                                )
-                        else:
+                    if os.name != "nt" and control_fd is not None and not cancel_sent:
+                        os.write(control_fd, b"C")
+                        cancel_sent = True
+                    if tree_alive and os.name == "nt":
+                        _terminate_owned(
+                            child, job=product_job, process_token=child_token,
+                            process_group=group,
+                        )
+                        direct_returncode = child.poll()
+                        tree_alive = False
+                    elif tree_alive and cancel_sent:
+                        try:
+                            child.wait(timeout=30)
+                        except subprocess.TimeoutExpired:
                             _terminate_owned(
-                                child, job=product_job, process_token=child_token,
+                                child, process_token=child_token,
                                 process_group=group,
                             )
                         direct_returncode = child.poll()
@@ -1890,25 +2034,67 @@ def _worker(run_dir: Path) -> int:
                 time.sleep(.01)
             if os.name == "nt":
                 returncode, product_pid = direct_returncode, child.pid
-            elif cancelled and not paths["direct_exit"].is_file():
-                returncode = direct_returncode
-                product_pid = (
-                    _read(paths["product_started"]).get("pid")
-                    if paths["product_started"].is_file() else child.pid
-                )
             else:
+                if not paths["supervisor_result"].is_file():
+                    raise ControllerRefusal(
+                        "EVIDENCE_INCOMPLETE", "durable POSIX supervisor result is absent",
+                    )
+                supervisor_result = _read(paths["supervisor_result"])
                 direct_exit = _read(paths["direct_exit"])
                 product_started = _read(paths["product_started"])
+                mode = supervisor_result.get("mode")
+                expected_supervisor_returncode = 0 if mode == "normal" else (
+                    75 if mode == "cancelled" else None
+                )
+                cancellation_binding = (
+                    _binding(paths["cancel"]) if paths["cancel"].is_file() else None
+                )
                 if (
                     direct_exit.get("intent_sha256") != intent["intent_sha256"]
                     or product_started.get("intent_sha256") != intent["intent_sha256"]
                     or direct_exit.get("pid") != product_started.get("pid")
                     or direct_exit.get("process_token") != product_started.get("process_token")
                     or not isinstance(direct_exit.get("returncode"), int)
+                    or supervisor_result.get("intent_sha256") != intent["intent_sha256"]
+                    or supervisor_result.get("supervisor") != {
+                        "pid": child.pid, "process_token": child_token,
+                    }
+                    or supervisor_result.get("product") != {
+                        "pid": product_started.get("pid"),
+                        "process_token": product_started.get("process_token"),
+                        "returncode": direct_exit.get("returncode"),
+                    }
+                    or supervisor_result.get("product_started") != _binding(
+                        paths["product_started"]
+                    )
+                    or supervisor_result.get("direct_exit") != _binding(paths["direct_exit"])
+                    or supervisor_result.get("descendants_quiescent") is not True
+                    or supervisor_result.get("empty_scans") != 2
+                    or expected_supervisor_returncode is None
+                    or supervisor_result.get("expected_supervisor_returncode")
+                        != expected_supervisor_returncode
+                    or direct_returncode != expected_supervisor_returncode
+                    or bool(_session_members(group))
                 ):
                     raise ControllerRefusal(
-                        "EVIDENCE_INCOMPLETE", "POSIX direct-product exit binding is absent or stale",
+                        "EVIDENCE_INCOMPLETE",
+                        "POSIX supervisor/direct-product/quiescence binding is absent or stale",
                     )
+                if mode == "normal" and (
+                    cancelled or paths["cancel"].is_file()
+                    or supervisor_result.get("cancellation") is not None
+                ):
+                    raise ControllerRefusal(
+                        "EVIDENCE_INCOMPLETE", "normal supervisor result overlaps cancellation",
+                    )
+                if mode == "cancelled" and (
+                    not cancelled or not cancel_sent or cancellation_binding is None
+                    or supervisor_result.get("cancellation") != cancellation_binding
+                ):
+                    raise ControllerRefusal(
+                        "EVIDENCE_INCOMPLETE", "cancelled supervisor result is unbound",
+                    )
+                cancelled = mode == "cancelled"
                 returncode, product_pid = direct_exit["returncode"], product_started["pid"]
         except Exception as exc:
             _event(
@@ -1942,6 +2128,10 @@ def _worker(run_dir: Path) -> int:
         "cancelled": cancelled, "process": {"pid": product_pid, "process_group": group},
         "timestamps": {"child_started_at": started, "child_exited_at": ended},
         "stdout": _binding(paths["stdout"]), "stderr": _binding(paths["stderr"]),
+        "supervisor_result": (
+            _binding(paths["supervisor_result"])
+            if paths["supervisor_result"].is_file() else None
+        ),
     }
     _atomic(paths["exit"], _canonical(capsule))
     _event(paths, "exited", "exit_capsule_committed", returncode=returncode)
