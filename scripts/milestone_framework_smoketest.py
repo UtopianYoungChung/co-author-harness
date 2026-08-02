@@ -2185,7 +2185,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         project = directory / f"sk20-{name}"
         _write_sk20_project(project, claude_fields, directive_fields, graph=graph)
         result = subprocess.run(
-            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit", *extra_args],
+            [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(project), "--date", "2026-07-13", "--strict-exit", *extra_args],
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         try:
@@ -2235,7 +2235,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         invalid_date_project = directory / f"sk20-{label}"
         _write_sk20_project(invalid_date_project, base)
         invalid_date = subprocess.run(
-            [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(invalid_date_project), "--date", invalid_value, "--strict-exit"],
+            [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(invalid_date_project), "--date", invalid_value, "--strict-exit"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         print(f"sk20/{label}: expected=1 actual={invalid_date.returncode}")
@@ -2247,7 +2247,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     file_root = directory / "sk20-file-root"
     file_root.write_text("not a directory", encoding="utf-8")
     file_root_result = subprocess.run(
-        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(file_root), "--date", "2026-07-13", "--strict-exit"],
+        [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(file_root), "--date", "2026-07-13", "--strict-exit"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/file_root: expected=2 actual={file_root_result.returncode}")
@@ -2255,7 +2255,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         failures.append("sk20/file_root must be a controlled I/O failure")
 
     missing_root_result = subprocess.run(
-        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(directory / "missing-root"), "--date", "2026-07-13", "--strict-exit"],
+        [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(directory / "missing-root"), "--date", "2026-07-13", "--strict-exit"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/missing_root: expected=2 actual={missing_root_result.returncode}")
@@ -2266,7 +2266,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     _write_sk20_project(malformed_project, base)
     (malformed_project / "CLAUDE.md").write_bytes(b"\xff\xfe\x00")
     malformed = subprocess.run(
-        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(malformed_project), "--date", "2026-07-13", "--strict-exit"],
+        [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(malformed_project), "--date", "2026-07-13", "--strict-exit"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/malformed_config: expected=2 actual={malformed.returncode}")
@@ -2279,7 +2279,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     readiness.write_text("SENTINEL", encoding="utf-8")
     (atomic_project / "reviews" / "sk20_noop_2026-07-13.json").mkdir()
     atomic = subprocess.run(
-        [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(atomic_project), "--date", "2026-07-13", "--strict-exit"],
+        [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(atomic_project), "--date", "2026-07-13", "--strict-exit"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
     )
     print(f"sk20/atomic_preservation: expected=2 actual={atomic.returncode}")
@@ -2298,7 +2298,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         )
         if link.returncode == 0:
             junction = subprocess.run(
-                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(junction_project), "--date", "2026-07-13", "--strict-exit"],
+                [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(junction_project), "--date", "2026-07-13", "--strict-exit"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"sk20/reviews_junction: expected=2 actual={junction.returncode}")
@@ -2317,7 +2317,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         )
         if evidence_link.returncode == 0:
             evidence_result = subprocess.run(
-                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(evidence_project), "--date", "2026-07-13", "--strict-exit"],
+                [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(evidence_project), "--date", "2026-07-13", "--strict-exit"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             try:
@@ -2339,7 +2339,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         )
         if output_link.returncode == 0:
             output_result = subprocess.run(
-                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(output_project), "--date", "2026-07-13", "--strict-exit"],
+                [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(output_project), "--date", "2026-07-13", "--strict-exit"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"sk20/output_symlink: expected=2 actual={output_result.returncode}")
@@ -2358,7 +2358,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         )
         if internal_link.returncode == 0:
             internal_result = subprocess.run(
-                [sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(internal_evidence_project), "--date", "2026-07-13", "--strict-exit"],
+                [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(internal_evidence_project), "--date", "2026-07-13", "--strict-exit"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             try:
@@ -2382,7 +2382,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     external_before = {path: path.read_bytes() for path in external_inputs.iterdir()}
     external_result = subprocess.run(
         [
-            sys.executable, "-I", "-S", str(SK20_GATE), "--project-root", str(external_project),
+            sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(external_project),
             "--date", "2026-07-13", "--strict-exit",
             "--manuscript-path", str(external_manuscript),
             "--references-path", str(external_references),
@@ -2697,7 +2697,7 @@ def main(argv: list[str] | None = None) -> int:
 
         for isolated_script in (VALIDATOR, PHASE_VALIDATOR):
             isolated = subprocess.run(
-                [sys.executable, "-I", "-S", str(isolated_script), "--project-root", str(isolation_project), "--json"],
+                [sys.executable, "-I", "-S", "-B", str(isolated_script), "--project-root", str(isolation_project), "--json"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             print(f"stdlib_isolation/{isolated_script.name}: expected=0 actual={isolated.returncode}")

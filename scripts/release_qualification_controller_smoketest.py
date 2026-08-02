@@ -523,6 +523,7 @@ def _reopened_red_against_committed() -> int:
     observed_commit = subprocess.run(
         ["git", "rev-parse", "7712e60^{commit}"], cwd=ROOT,
         stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+        encoding="utf-8", errors="strict",
     ).stdout.strip()
     assert observed_commit == expected_commit, (observed_commit, expected_commit)
 
@@ -635,6 +636,7 @@ def _third_reopened_red() -> int:
     observed_commit = subprocess.run(
         ["git", "rev-parse", f"{expected_commit}^{{commit}}"], cwd=ROOT,
         stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+        encoding="utf-8", errors="strict",
     ).stdout.strip()
     assert observed_commit == expected_commit, (observed_commit, expected_commit)
     failures: list[str] = []
@@ -966,6 +968,7 @@ def _fourth_reopened_red() -> int:
         observed_commit = subprocess.run(
             ["git", "rev-parse", f"{expected_commit}^{{commit}}"], cwd=ROOT,
             stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+            encoding="utf-8", errors="strict",
         ).stdout.strip()
         assert observed_commit == expected_commit, (observed_commit, expected_commit)
     failures: list[str] = []
