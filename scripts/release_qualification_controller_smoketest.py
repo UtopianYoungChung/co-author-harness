@@ -118,8 +118,9 @@ def _alive_identities(ctl, identities: dict[int, str]) -> list[int]:
     return [pid for pid, token in identities.items() if ctl._process_token(pid) == token]
 
 
-def _terminate_identities(ctl, identities: dict[int, str]) -> None:
+def _terminate_identities(ctl, identities: dict[int, str]) -> set[tuple[int, str]]:
     """Bounded test-only fallback using an exact process handle, never a PID kill."""
+    signalled: set[tuple[int, str]] = set()
     if os.name == "nt":
         import ctypes
         from ctypes import wintypes
@@ -169,6 +170,7 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> None:
                     continue
                 assert wait == 258, f"post-read WaitForSingleObject failed for {pid}: {wait}"
                 assert kernel32.TerminateProcess(handle, 1223), f"TerminateProcess failed for {pid}"
+                signalled.add((pid, identities[pid]))
                 retained.append((int(handle), pid))
                 keep_handle = True
             finally:
@@ -182,7 +184,7 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> None:
         finally:
             for handle, pid in retained:
                 assert kernel32.CloseHandle(handle), f"CloseHandle failed for {pid}"
-        return
+        return signalled
 
     import select
 
@@ -197,6 +199,7 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> None:
             if ctl._process_token(pid) != identities[pid]:
                 continue
             signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+            signalled.add((pid, identities[pid]))
             retained_pidfds.append((descriptor, pid))
             keep_descriptor = True
         finally:
@@ -209,24 +212,152 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> None:
     finally:
         for descriptor, _pid in retained_pidfds:
             os.close(descriptor)
+    return signalled
 
 
 def _reap_frontends(processes: list[subprocess.Popen[bytes]]) -> None:
     for process in processes:
         try:
             process.communicate(timeout=10)
-        except subprocess.TimeoutExpired:
-            # Exact-token termination is performed by the caller before this
-            # reaping pass; a remaining live process is asserted separately.
-            pass
+        except subprocess.TimeoutExpired as exc:
+            raise AssertionError(
+                f"frontend {getattr(process, 'pid', 'unknown')} was not reaped"
+            ) from exc
 
 
 def _capture_identity(ctl, identities: dict[int, str], pid: object) -> None:
     if not isinstance(pid, int) or pid <= 0:
-        return
+        raise AssertionError(f"invalid frontend PID for identity capture: {pid!r}")
     token = ctl._process_token(pid)
-    if isinstance(token, str) and token and token != "unavailable":
-        identities.setdefault(pid, token)
+    if not isinstance(token, str) or not token or token == "unavailable":
+        raise AssertionError(f"frontend creation token is unavailable: {pid}")
+    identities.setdefault(pid, token)
+
+
+def _windows_observation_contract(ctl) -> tuple[int, list[str]]:
+    def windows_error(code: int, message: str) -> OSError:
+        error = OSError(message)
+        error.winerror = code
+        return error
+
+    rows = [
+        {"name": "signaled-dead", "waits": ["signaled"], "expected": None},
+        {"name": "absent-pid-dead", "open_error": windows_error(87, "absent"), "expected": None},
+        {"name": "access-refused", "open_error": windows_error(5, "access"), "expected": "refusal"},
+        {"name": "wait-api-refused", "waits": [windows_error(6, "wait")], "expected": "refusal"},
+        {"name": "times-refused", "waits": ["timeout"], "read_error": windows_error(6, "times"), "expected": "refusal"},
+        {"name": "timeout-read-signaled-dead", "waits": ["timeout", "signaled"], "token": "creation-1", "expected": None},
+        {"name": "timeout-read-timeout-live", "waits": ["timeout", "timeout"], "token": "creation-2", "expected": "creation-2"},
+        {"name": "close-refused", "waits": ["signaled"], "close_error": windows_error(6, "close"), "expected": "refusal"},
+    ]
+
+    class FakeWindowsApi:
+        def __init__(self, row):
+            self.row = row
+            self.waits = list(row.get("waits", []))
+            self.opened = self.closed = 0
+
+        def open_process(self, _pid):
+            error = self.row.get("open_error")
+            if error is not None:
+                raise error
+            self.opened += 1
+            return object()
+
+        def wait(self, _handle):
+            value = self.waits.pop(0)
+            if isinstance(value, Exception):
+                raise value
+            return value
+
+        def creation_token(self, _handle):
+            error = self.row.get("read_error")
+            if error is not None:
+                raise error
+            return self.row.get("token", "unused-token")
+
+        def close(self, _handle):
+            self.closed += 1
+            error = self.row.get("close_error")
+            if error is not None:
+                raise error
+
+    observer = getattr(ctl, "_observe_windows_process", None)
+    failures: list[str] = []
+    if callable(observer):
+        for row in rows:
+            api = FakeWindowsApi(row)
+            try:
+                value = observer(4242, api=api)
+            except Exception as exc:
+                value = "refusal" if isinstance(exc, ctl.ControllerRefusal) else f"raw:{exc!r}"
+            if value != row["expected"]:
+                failures.append(
+                    f"{row['name']} expected {row['expected']!r}, got {value!r}"
+                )
+            if api.opened and api.closed != 1:
+                failures.append(
+                    f"{row['name']} closed {api.closed} times after {api.opened} open"
+                )
+    else:
+        failures.append("injectable observer API is absent")
+    return len(rows), failures
+
+
+def _run_lock_contract(ctl, root: Path) -> None:
+    class FakeStream:
+        def __init__(self):
+            self.closed = False
+
+        @staticmethod
+        def fileno():
+            return 12345
+
+        @staticmethod
+        def seek(*_args):
+            return 0
+
+        def close(self):
+            self.closed = True
+
+    if os.name == "nt":
+        import msvcrt as lock_module
+        primitive_name = "locking"
+    else:
+        import fcntl as lock_module
+        primitive_name = "flock"
+    original = getattr(lock_module, primitive_name)
+    failure = lambda *_args: (_ for _ in ()).throw(OSError("synthetic non-contention"))
+
+    stream = FakeStream()
+    lock = ctl._RunLock(root / "synthetic-release.lock")
+    lock.stream = stream
+    ctl._ATOMIC_LOCK.acquire()
+    setattr(lock_module, primitive_name, failure)
+    try:
+        try:
+            lock.__exit__(None, None, None)
+        except Exception as exc:
+            assert isinstance(exc, ctl.ControllerRefusal)
+            assert exc.code == "RELEASE-CONTROLLER-IO"
+        else:
+            raise AssertionError("synthetic unlock failure was suppressed")
+    finally:
+        setattr(lock_module, primitive_name, original)
+    assert stream.closed and lock.stream is None
+
+    acquire = ctl._RunLock(root / "synthetic-acquire.lock", timeout_s=0)
+    setattr(lock_module, primitive_name, failure)
+    try:
+        try:
+            acquire.__enter__()
+        except Exception as exc:
+            assert isinstance(exc, ctl.ControllerRefusal)
+            assert exc.code == "RELEASE-CONTROLLER-IO"
+        else:
+            raise AssertionError("synthetic non-contention lock error was retried")
+    finally:
+        setattr(lock_module, primitive_name, original)
 
 
 def _capture_run_identities(
@@ -235,14 +366,28 @@ def _capture_run_identities(
     run_dir = (run_root if run_root is not None else root / "runs") / run_id
     try:
         owner = json.loads((run_dir / "owner.json").read_text(encoding="ascii"))
-        _capture_identity(ctl, identities, owner.get("pid"))
+        owner_pid, owner_token = owner.get("pid"), owner.get("process_token")
+        if (
+            not isinstance(owner_pid, int) or owner_pid <= 0
+            or not isinstance(owner_token, str) or not owner_token
+            or owner_token == "unavailable"
+        ):
+            raise AssertionError("recorded owner identity is unavailable")
+        identities.setdefault(owner_pid, owner_token)
     except (OSError, UnicodeError, json.JSONDecodeError):
         pass
     try:
         journal = json.loads((run_dir / "journal.json").read_text(encoding="ascii"))
         for row in journal.get("events", []):
             if row.get("event") == "child_spawned":
-                _capture_identity(ctl, identities, row.get("child_pid"))
+                child_pid, child_token = row.get("child_pid"), row.get("process_token")
+                if (
+                    not isinstance(child_pid, int) or child_pid <= 0
+                    or not isinstance(child_token, str) or not child_token
+                    or child_token == "unavailable"
+                ):
+                    raise AssertionError("recorded child identity is unavailable")
+                identities.setdefault(child_pid, child_token)
     except (OSError, UnicodeError, json.JSONDecodeError):
         pass
 
@@ -368,8 +513,9 @@ def _reopened_red_against_committed() -> int:
 
 def _third_reopened_red() -> int:
     """Prove third-review defects against the self-contained baseline commit."""
-    expected_commit = "3a1602625bea5c34a05aaa3f1eb1c4b8d10b6bc0"
+    expected_commit = "7d36c734b470748ee0b292b8bdaeca72e90d5d83"
     frozen_files = {
+        "scripts/release_qualification_controller_smoketest.py": "07f3c1b2ebd3e669966ba03c5e6052b4334bf051864d5863fd13cfe1856a716c",
         "scripts/release_qualification_controller.py": "63aebb54460b248094773336d4798f4ac39d80337d739cf57d450a7d9635234c",
         "scripts/destination_capability.py": "35b8ec81ac0fd06a4e8d1808c78126e7123f92c52de53fa2ee9b02e7e07c4a11",
         "scripts/qualification_environment.py": "a9f20c3c9e41536b73a7687d69250dfbc74ef12142831a77c59aab7d19d4346d",
@@ -408,6 +554,10 @@ def _third_reopened_red() -> int:
             ctl = _load(
                 scripts / "release_qualification_controller.py",
                 "release_qualification_controller_third_red",
+            )
+            baseline_smoke = _load(
+                scripts / "release_qualification_controller_smoketest.py",
+                "release_qualification_controller_smoketest_third_red",
             )
         finally:
             sys.path.remove(str(scripts))
@@ -548,11 +698,11 @@ def _third_reopened_red() -> int:
 
         capture_error = reap_error = None
         try:
-            _capture_identity(NoTokenController(), {}, NeverReaped.pid)
+            baseline_smoke._capture_identity(NoTokenController(), {}, NeverReaped.pid)
         except Exception as exc:
             capture_error = exc
         try:
-            _reap_frontends([NeverReaped()])
+            baseline_smoke._reap_frontends([NeverReaped()])
         except Exception as exc:
             reap_error = exc
         require(
@@ -644,74 +794,11 @@ def _third_reopened_red() -> int:
 
         # Pure/injectable Windows observation table: only confirmed absence or
         # a signaled handle means dead; all observation errors are typed.
-        def windows_error(code: int, message: str) -> OSError:
-            error = OSError(message)
-            error.winerror = code
-            return error
-
-        observation_table = [
-            {"name": "signaled-dead", "waits": ["signaled"], "expected": None},
-            {"name": "absent-pid-dead", "open_error": windows_error(87, "absent"), "expected": None},
-            {"name": "access-refused", "open_error": windows_error(5, "access"), "expected": "refusal"},
-            {"name": "wait-api-refused", "waits": [windows_error(6, "wait")], "expected": "refusal"},
-            {"name": "times-refused", "waits": ["timeout"], "read_error": windows_error(6, "times"), "expected": "refusal"},
-            {"name": "timeout-read-signaled-dead", "waits": ["timeout", "signaled"], "token": "creation-1", "expected": None},
-            {"name": "timeout-read-timeout-live", "waits": ["timeout", "timeout"], "token": "creation-2", "expected": "creation-2"},
-            {"name": "close-refused", "waits": ["signaled"], "close_error": windows_error(6, "close"), "expected": "refusal"},
-        ]
-
-        class FakeWindowsApi:
-            def __init__(self, row):
-                self.row = row
-                self.waits = list(row.get("waits", []))
-                self.opened = self.closed = 0
-
-            def open_process(self, _pid):
-                error = self.row.get("open_error")
-                if error is not None:
-                    raise error
-                self.opened += 1
-                return object()
-
-            def wait(self, _handle):
-                value = self.waits.pop(0)
-                if isinstance(value, Exception):
-                    raise value
-                return value
-
-            def creation_token(self, _handle):
-                error = self.row.get("read_error")
-                if error is not None:
-                    raise error
-                return self.row.get("token", "unused-token")
-
-            def close(self, _handle):
-                self.closed += 1
-                error = self.row.get("close_error")
-                if error is not None:
-                    raise error
-
-        observer = getattr(ctl, "_observe_windows_process", None)
-        observation_failures: list[str] = []
-        if callable(observer):
-            for row in observation_table:
-                api = FakeWindowsApi(row)
-                try:
-                    value = observer(4242, api=api)
-                except Exception as exc:
-                    value = "refusal" if isinstance(exc, ctl.ControllerRefusal) else f"raw:{exc!r}"
-                if value != row["expected"]:
-                    observation_failures.append(
-                        f"{row['name']} expected {row['expected']!r}, got {value!r}"
-                    )
-                if api.opened and api.closed != 1:
-                    observation_failures.append(
-                        f"{row['name']} closed {api.closed} times after {api.opened} open"
-                    )
+        observation_rows, observation_failures = _windows_observation_contract(ctl)
         require(
             "WINDOWS-PROCESS-OBSERVATION-TYPED",
-            callable(observer) and not observation_failures,
-            "injectable observer API is absent" if not callable(observer) else "; ".join(observation_failures),
+            not observation_failures,
+            "; ".join(observation_failures),
         )
 
         # Preserve red evidence for the committed unsafe cleanup while the
@@ -738,7 +825,7 @@ def _third_reopened_red() -> int:
             f"{relative}={digest}" for relative, digest in frozen_files.items()
         )
     )
-    print(f"windows_observation_table_rows={len(observation_table)}")
+    print(f"windows_observation_table_rows={observation_rows}")
     print(f"cleanup_probe={cleanup_probe}")
     print(
         f"platform: os.name={os.name}; behavioral_cases={cases}; "
@@ -750,7 +837,497 @@ def _third_reopened_red() -> int:
     raise AssertionError("expected third-review red regressions:\n- " + "\n- ".join(failures))
 
 
+def _fourth_reopened_red() -> int:
+    """Prove fourth-review defects against immutable committed source planes."""
+    baseline_commit = "7d36c734b470748ee0b292b8bdaeca72e90d5d83"
+    candidate_commit = "8aaa13beb5ff08944f6a9ce30b8a02b8b9128db8"
+    baseline_files = {
+        "scripts/release_qualification_controller.py": "63aebb54460b248094773336d4798f4ac39d80337d739cf57d450a7d9635234c",
+        "scripts/destination_capability.py": "35b8ec81ac0fd06a4e8d1808c78126e7123f92c52de53fa2ee9b02e7e07c4a11",
+        "scripts/qualification_environment.py": "a9f20c3c9e41536b73a7687d69250dfbc74ef12142831a77c59aab7d19d4346d",
+        "references/schemas/release_qualification_controller.schema.json": "71a1a0a213cd832aec529852658f20d809ffbb2937ad780833b607166f7c9b14",
+    }
+    candidate_files = {
+        **baseline_files,
+        "scripts/release_qualification_controller.py": "54a6b03ecaad4ee0bb2b83e27faf6bec55781ca06f9daf0c36d6dabf855eba00",
+    }
+    for expected_commit in (baseline_commit, candidate_commit):
+        observed_commit = subprocess.run(
+            ["git", "rev-parse", f"{expected_commit}^{{commit}}"], cwd=ROOT,
+            stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+        ).stdout.strip()
+        assert observed_commit == expected_commit, (observed_commit, expected_commit)
+    failures: list[str] = []
+    cases = 0
+    platform_skips = 0
+
+    def require(case: str, condition: bool, detail: str) -> None:
+        nonlocal cases
+        cases += 1
+        if not condition:
+            failures.append(f"{case}: {detail}")
+
+    def load_isolated(root: Path, name: str):
+        scripts = root / "scripts"
+        saved = {
+            module_name: sys.modules.pop(module_name, None)
+            for module_name in ("destination_capability", "qualification_environment")
+        }
+        sys.path.insert(0, str(scripts))
+        try:
+            return _load(scripts / "release_qualification_controller.py", name)
+        finally:
+            sys.path.remove(str(scripts))
+            for module_name in saved:
+                sys.modules.pop(module_name, None)
+            for module_name, module in saved.items():
+                if module is not None:
+                    sys.modules[module_name] = module
+
+    def second_thread_can_acquire(lock) -> bool:
+        result: list[bool] = []
+
+        def probe() -> None:
+            acquired = lock.acquire(timeout=.2)
+            result.append(acquired)
+            if acquired:
+                lock.release()
+
+        thread = threading.Thread(target=probe)
+        thread.start()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        return result == [True]
+
+    def exception_text(exc: Exception | None) -> str:
+        rows: list[str] = []
+        seen: set[int] = set()
+        while exc is not None and id(exc) not in seen:
+            seen.add(id(exc))
+            rows.append(f"{type(exc).__name__}: {exc}")
+            exc = exc.__cause__ if exc.__cause__ is not None else exc.__context__
+        return " | ".join(rows)
+
+    with tempfile.TemporaryDirectory(prefix="release-controller-fourth-red-") as raw:
+        transaction_root = Path(raw)
+        baseline_root = transaction_root / "committed-root"
+        candidate_root = transaction_root / "candidate-commit-root"
+        for relative, expected_sha256 in baseline_files.items():
+            content = subprocess.run(
+                ["git", "show", f"{baseline_commit}:{relative}"], cwd=ROOT,
+                stdin=subprocess.DEVNULL, capture_output=True, check=True,
+            ).stdout
+            assert hashlib.sha256(content).hexdigest() == expected_sha256
+            destination = baseline_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        for relative, expected_sha256 in candidate_files.items():
+            content = subprocess.run(
+                ["git", "show", f"{candidate_commit}:{relative}"], cwd=ROOT,
+                stdin=subprocess.DEVNULL, capture_output=True, check=True,
+            ).stdout
+            assert hashlib.sha256(content).hexdigest() == expected_sha256
+            destination = candidate_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        baseline_ctl = load_isolated(
+            baseline_root, "release_qualification_controller_fourth_baseline",
+        )
+        candidate_ctl = load_isolated(
+            candidate_root, "release_qualification_controller_fourth_candidate",
+        )
+
+        if os.name != "nt":
+            # A durable direct exit is not a durable supervisor success.  Kill
+            # the exact supervisor after direct-exit publication while an
+            # escaped child remains and prove the current worker accepts it.
+            root = candidate_root / "supervisor-exit-red"
+            root.mkdir(parents=True)
+            escaped_pids = root / "work" / "escaped-pids.json"
+            escaped_release = root / "work" / "release-late-stdio"
+            escaped_ack = root / "work" / "late-stdio-complete"
+            escaped: dict[int, str] = {}
+            supervisor: dict[int, str] = {}
+            receipt = None
+            refusal_code = None
+            stale_stdout = stale_stderr = False
+            escaped_child = f"""import json, os, time
+from pathlib import Path
+p = Path({str(escaped_pids)!r})
+t = p.with_name('.' + p.name + '.tmp')
+t.write_text(json.dumps([os.getpid()]), encoding='ascii')
+os.replace(t, p)
+release = Path({str(escaped_release)!r})
+ack = Path({str(escaped_ack)!r})
+while not release.exists():
+    time.sleep(.01)
+os.write(1, b'late-stdout-after-receipt')
+os.fsync(1)
+os.write(2, b'late-stderr-after-receipt')
+os.fsync(2)
+ack.write_text('done', encoding='ascii')
+time.sleep(60)
+"""
+            product = (
+                "import subprocess,sys;"
+                f"subprocess.Popen([sys.executable,'-c',{escaped_child!r}],start_new_session=True)"
+            )
+            try:
+                _start(
+                    candidate_ctl, root, "supervisor-exit", product,
+                    allowed_output_roots=[root / "work"],
+                )
+                escaped = _identities(candidate_ctl, _wait_for_pid_list(escaped_pids))
+                _wait_for_path(
+                    root / "runs" / "supervisor-exit" / "direct-exit.json",
+                    timeout_s=20,
+                )
+                journal = json.loads(
+                    (root / "runs" / "supervisor-exit" / "journal.json").read_text(
+                        encoding="ascii",
+                    )
+                )
+                spawned = next(
+                    row for row in journal["events"] if row.get("event") == "child_spawned"
+                )
+                supervisor = {spawned["child_pid"]: spawned["process_token"]}
+                signalled_supervisor = _terminate_identities(candidate_ctl, supervisor)
+                assert signalled_supervisor == set(supervisor.items()), (
+                    signalled_supervisor, supervisor,
+                )
+                try:
+                    receipt = candidate_ctl.wait_run(
+                        run_root=root / "runs", run_id="supervisor-exit", timeout_s=20,
+                    )
+                except Exception as exc:
+                    refusal_code = getattr(exc, "code", None)
+                assert not escaped_release.exists() and not escaped_ack.exists()
+                assert receipt is not None and receipt.get("state") == "succeeded"
+                stdout_path = Path(receipt["stdout"]["path"])
+                stderr_path = Path(receipt["stderr"]["path"])
+                assert hashlib.sha256(stdout_path.read_bytes()).hexdigest() == receipt[
+                    "stdout"
+                ]["sha256"]
+                assert hashlib.sha256(stderr_path.read_bytes()).hexdigest() == receipt[
+                    "stderr"
+                ]["sha256"]
+                escaped_release.write_text("release", encoding="ascii")
+                _wait_for_path(escaped_ack, timeout_s=10)
+                stale_stdout = (
+                    hashlib.sha256(stdout_path.read_bytes()).hexdigest()
+                    != receipt["stdout"]["sha256"]
+                )
+                stale_stderr = (
+                    hashlib.sha256(stderr_path.read_bytes()).hexdigest()
+                    != receipt["stderr"]["sha256"]
+                )
+                assert stale_stdout and stale_stderr
+            finally:
+                _cancel_finally(candidate_ctl, root, "supervisor-exit")
+                _terminate_identities(candidate_ctl, {**supervisor, **escaped})
+            journal_state = json.loads(
+                (root / "runs" / "supervisor-exit" / "journal.json").read_text(
+                    encoding="ascii",
+                )
+            ).get("state")
+            safe_failure = (
+                receipt is None and refusal_code == "EVIDENCE_INCOMPLETE"
+                and journal_state == "recovery_required"
+                and not (root / "runs" / "supervisor-exit" / "receipt.json").exists()
+            )
+            receipt_summary = None if receipt is None else {
+                "state": receipt.get("state"),
+                "exit": receipt.get("exit"),
+                "stdout_bound": receipt.get("stdout") is not None,
+                "stderr_bound": receipt.get("stderr") is not None,
+                "stdout_digest_stale": stale_stdout,
+                "stderr_digest_stale": stale_stderr,
+            }
+            require(
+                "SUPERVISOR-NONZERO-AFTER-DIRECT-EXIT-INCOMPLETE",
+                safe_failure,
+                f"worker accepted or bound stale terminal output: receipt={receipt_summary!r}, "
+                f"refusal={refusal_code!r}, journal_state={journal_state!r}",
+            )
+
+            # The immutable baseline must not publish terminal evidence while a
+            # true double-forked, setsid descendant can still write later.
+            root = baseline_root / "double-fork-red"
+            root.mkdir(parents=True)
+            descendant_pids = root / "work" / "double-fork-pids.json"
+            late_output = root / "work" / "late-output.txt"
+            late_release = root / "work" / "release-late-output"
+            descendants: dict[int, str] = {}
+            alive_at_terminal: list[int] = []
+            late_after_terminal = False
+            double_fork = f"""import json, os, time
+from pathlib import Path
+first = os.fork()
+if first == 0:
+    second = os.fork()
+    if second == 0:
+        os.setsid()
+        p = Path({str(descendant_pids)!r})
+        t = p.with_name('.' + p.name + '.tmp')
+        t.write_text(json.dumps([os.getpid()]), encoding='ascii')
+        os.replace(t, p)
+        release = Path({str(late_release)!r})
+        while not release.exists():
+            time.sleep(.01)
+        Path({str(late_output)!r}).write_text('late', encoding='ascii')
+        time.sleep(60)
+    os._exit(0)
+os.waitpid(first, 0)
+"""
+            try:
+                _start(
+                    baseline_ctl, root, "double-fork", f"exec({double_fork!r})",
+                    allowed_output_roots=[root / "work"],
+                )
+                descendants = _identities(
+                    baseline_ctl, _wait_for_pid_list(descendant_pids),
+                )
+                _wait(baseline_ctl, root, "double-fork")
+                alive_at_terminal = _alive_identities(baseline_ctl, descendants)
+                assert not late_release.exists() and not late_output.exists()
+                late_release.write_text("release", encoding="ascii")
+                _wait_for_path(late_output, timeout_s=5)
+                late_after_terminal = late_output.is_file()
+            finally:
+                _cancel_finally(baseline_ctl, root, "double-fork")
+                _terminate_identities(baseline_ctl, descendants)
+            require(
+                "POSIX-DOUBLE-FORK-SETSID-LATE-WRITER-OWNED",
+                not alive_at_terminal and not late_after_terminal,
+                f"terminal preceded owned late writer: alive={alive_at_terminal}, "
+                f"late_after_terminal={late_after_terminal}",
+            )
+
+            # A TERM handler can fork a new setsid child while cleanup is in
+            # progress.  Immutable baseline cleanup never rescans that escape.
+            root = baseline_root / "term-fork-red"
+            root.mkdir(parents=True)
+            ready = root / "work" / "term-ready.txt"
+            term_pids = root / "work" / "term-fork-pids.json"
+            term_descendants: dict[int, str] = {}
+            alive_after_cancel: list[int] = []
+            handler_child = (
+                "import json,os,time;from pathlib import Path;"
+                f"p=Path({str(term_pids)!r});t=p.with_name('.'+p.name+'.tmp');"
+                "t.write_text(json.dumps([os.getpid()]),encoding='ascii');os.replace(t,p);"
+                "time.sleep(60)"
+            )
+            handler_product = f"""import signal, subprocess, sys, time
+from pathlib import Path
+def handle(_signum, _frame):
+    subprocess.Popen([sys.executable, '-c', {handler_child!r}], start_new_session=True)
+signal.signal(signal.SIGTERM, handle)
+Path({str(ready)!r}).write_text('ready', encoding='ascii')
+while True:
+    time.sleep(.05)
+"""
+            try:
+                _start(
+                    baseline_ctl, root, "term-fork", f"exec({handler_product!r})",
+                    allowed_output_roots=[root / "work"],
+                )
+                _wait_for_path(ready)
+                baseline_ctl.cancel_run(
+                    run_root=root / "runs", run_id="term-fork", timeout_s=30,
+                )
+                term_descendants = _identities(
+                    baseline_ctl, _wait_for_pid_list(term_pids, timeout_s=5),
+                )
+                alive_after_cancel = _alive_identities(baseline_ctl, term_descendants)
+            finally:
+                _cancel_finally(baseline_ctl, root, "term-fork")
+                _terminate_identities(baseline_ctl, term_descendants)
+            require(
+                "POSIX-TERM-FORK-DYNAMIC-RESCAN",
+                not alive_after_cancel,
+                f"TERM-created setsid descendants survived cancellation: {alive_after_cancel}",
+            )
+        else:
+            platform_skips += 3
+
+        # Acquisition and cleanup can fail together.  The primary and cleanup
+        # failures must remain typed/preserved while stream and local RLock are
+        # unconditionally released.
+        class CompoundParent:
+            @staticmethod
+            def mkdir(**_kwargs):
+                return None
+
+        class CompoundStream:
+            def __init__(self):
+                self.close_count = 0
+
+            @staticmethod
+            def seek(*_args):
+                return 1
+
+            @staticmethod
+            def fileno():
+                return 12345
+
+            def close(self):
+                self.close_count += 1
+                raise OSError("cleanup-close")
+
+        class CompoundPath:
+            parent = CompoundParent()
+
+            def __init__(self, stream):
+                self.stream = stream
+
+            def open(self, _mode):
+                return self.stream
+
+        if os.name == "nt":
+            import msvcrt as lock_module
+            primitive_name = "locking"
+        else:
+            import fcntl as lock_module
+            primitive_name = "flock"
+        original_primitive = getattr(lock_module, primitive_name)
+        compound_stream = CompoundStream()
+        compound_lock = candidate_ctl._RunLock(CompoundPath(compound_stream), timeout_s=0)
+        compound_error = None
+        setattr(
+            lock_module, primitive_name,
+            lambda *_args: (_ for _ in ()).throw(OSError("primary-acquire")),
+        )
+        try:
+            compound_lock.__enter__()
+        except Exception as exc:
+            compound_error = exc
+        finally:
+            setattr(lock_module, primitive_name, original_primitive)
+        atomic_released = second_thread_can_acquire(candidate_ctl._ATOMIC_LOCK)
+        if not atomic_released:
+            candidate_ctl._ATOMIC_LOCK.release()
+        compound_text = exception_text(compound_error)
+        require(
+            "RUNLOCK-ACQUIRE-AND-CLOSE-FAIL-PRESERVED",
+            isinstance(compound_error, candidate_ctl.ControllerRefusal)
+            and getattr(compound_error, "code", None) == "RELEASE-CONTROLLER-IO"
+            and "primary-acquire" in compound_text and "cleanup-close" in compound_text
+            and compound_lock.stream is None and compound_stream.close_count == 1
+            and atomic_released,
+            f"compound failure lost cleanup/state/lock: error={compound_text!r}, "
+            f"stream_cleared={compound_lock.stream is None}, "
+            f"close_count={compound_stream.close_count}, atomic_released={atomic_released}",
+        )
+
+        # Every lock-file initialization stage is typed IO and releases both
+        # stream and local lock.  Fake objects keep this deterministic.
+        initialization_failures: list[str] = []
+        for stage in ("mkdir", "open", "write", "flush", "fsync"):
+            class InitParent:
+                def mkdir(self, **_kwargs):
+                    if stage == "mkdir":
+                        raise OSError("mkdir-init")
+
+            class InitStream:
+                def __init__(self):
+                    self.close_count = 0
+
+                @staticmethod
+                def seek(*_args):
+                    return 0
+
+                def write(self, _raw):
+                    if stage == "write":
+                        raise OSError("write-init")
+                    return 1
+
+                def flush(self):
+                    if stage == "flush":
+                        raise OSError("flush-init")
+
+                @staticmethod
+                def fileno():
+                    return 12345
+
+                def close(self):
+                    self.close_count += 1
+
+            class InitPath:
+                parent = InitParent()
+
+                def __init__(self, stream):
+                    self.stream = stream
+
+                def open(self, _mode):
+                    if stage == "open":
+                        raise OSError("open-init")
+                    return self.stream
+
+            stream = InitStream()
+            lock = candidate_ctl._RunLock(InitPath(stream), timeout_s=0)
+            original_fsync = candidate_ctl.os.fsync
+            if stage == "fsync":
+                candidate_ctl.os.fsync = lambda _fd: (_ for _ in ()).throw(
+                    OSError("fsync-init")
+                )
+            error = None
+            try:
+                lock.__enter__()
+            except Exception as exc:
+                error = exc
+            finally:
+                candidate_ctl.os.fsync = original_fsync
+            released = second_thread_can_acquire(candidate_ctl._ATOMIC_LOCK)
+            if not released:
+                candidate_ctl._ATOMIC_LOCK.release()
+            expected_close = 0 if stage in {"mkdir", "open"} else 1
+            if not (
+                isinstance(error, candidate_ctl.ControllerRefusal)
+                and getattr(error, "code", None) == "RELEASE-CONTROLLER-IO"
+                and lock.stream is None and stream.close_count == expected_close
+                and released
+            ):
+                initialization_failures.append(
+                    f"{stage}: error={exception_text(error)!r}, "
+                    f"stream_cleared={lock.stream is None}, close_count={stream.close_count}, "
+                    f"released={released}"
+                )
+        require(
+            "RUNLOCK-INITIALIZATION-FAILURES-TYPED",
+            not initialization_failures,
+            "; ".join(initialization_failures),
+        )
+
+    expected_cases = 5 if os.name != "nt" else 2
+    expected_skips = 0 if os.name != "nt" else 3
+    assert cases == expected_cases, (cases, expected_cases)
+    assert platform_skips == expected_skips, (platform_skips, expected_skips)
+    assert len(failures) == expected_cases, failures
+    print(f"fourth-red baseline_commit={baseline_commit}")
+    print(
+        "baseline inputs: " + ", ".join(
+            f"{relative}={digest}" for relative, digest in baseline_files.items()
+        )
+    )
+    print(
+        f"candidate inputs ({candidate_commit}): " + ", ".join(
+            f"{relative}={digest}" for relative, digest in candidate_files.items()
+        )
+    )
+    print(
+        f"platform: os.name={os.name}; behavioral_cases={cases}; "
+        f"platform_skips={platform_skips}; posix_evidence="
+        f"{'executed' if os.name != 'nt' else 'not-run'}"
+    )
+    for failure in failures:
+        print(f"RED {failure}")
+    print("cleanup: exact handles/pidfds quiescent; disposable fourth-red roots removed")
+    raise AssertionError("expected fourth-review red regressions:\n- " + "\n- ".join(failures))
+
+
 def main() -> int:
+    if os.environ.get("COAUTHOR_CONTROLLER_FOURTH_REOPENED_RED") == "1":
+        return _fourth_reopened_red()
     if os.environ.get("COAUTHOR_CONTROLLER_THIRD_REOPENED_RED") == "1":
         return _third_reopened_red()
     if os.environ.get("COAUTHOR_CONTROLLER_REOPENED_RED") == "1":
@@ -762,6 +1339,38 @@ def main() -> int:
     expected_failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="release-controller-smoke-") as raw:
         root = Path(raw)
+
+        observation_rows, observation_failures = _windows_observation_contract(ctl)
+        assert observation_rows == 8 and not observation_failures, observation_failures
+        cases += 1
+        _run_lock_contract(ctl, root)
+        cases += 1
+
+        class NoTokenController:
+            @staticmethod
+            def _process_token(_pid):
+                return None
+
+        class NeverReaped:
+            pid = 919191
+
+            @staticmethod
+            def communicate(timeout):
+                raise subprocess.TimeoutExpired(["synthetic-frontend"], timeout)
+
+        try:
+            _capture_identity(NoTokenController(), {}, NeverReaped.pid)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("unavailable frontend identity was suppressed")
+        try:
+            _reap_frontends([NeverReaped()])
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("unreaped frontend was suppressed")
+        cases += 1
 
         # Refusal happens before the sentinel child or run directory exists.
         sentinel = root / "ambient-sentinel"
@@ -1278,16 +1887,98 @@ time.sleep(60)
             expected_failures.append(f"concurrent cancel left temp files: {cancel_temps!r}")
         cases += 1
 
-        # Linux stat parsing must tolerate spaces and ')' inside comm, while
-        # refusing zombie/dead identities before returning starttime.
+        # Linux stat parsing must tolerate spaces and ')' inside comm.  Zombie
+        # rows retain PPID ancestry for descendant closure, but callers keep
+        # them non-live and non-signalable.
         if os.name != "nt":
             tail = ["S", "1", "17", "17", *map(str, range(4, 20))]
             parsed = ctl._parse_proc_stat("321 (odd ) process name) " + " ".join(tail))
             assert parsed is not None
+            assert parsed["pid"] == 321 and parsed["ppid"] == 1
             assert parsed["pgrp"] == 17 and parsed["session"] == 17
             assert parsed["starttime"] == "19"
             tail[0] = "Z"
-            assert ctl._parse_proc_stat("321 (odd ) process name) " + " ".join(tail)) is None
+            zombie = ctl._parse_proc_stat("321 (odd ) process name) " + " ".join(tail))
+            assert zombie is not None and zombie["state"] == "Z" and zombie["ppid"] == 1
+            stat_reads = 0
+
+            class FakeStat:
+                def read_text(self, **_kwargs):
+                    nonlocal stat_reads
+                    stat_reads += 1
+                    return "4242 (member) S 1 17 17 " + " ".join(map(str, range(4, 20)))
+
+            class FakeEntry:
+                name = "4242"
+
+                def __truediv__(self, _name):
+                    return FakeStat()
+
+            class FakeProc:
+                def iterdir(self):
+                    return [FakeEntry()]
+
+            class FakeBoot:
+                @staticmethod
+                def read_text(**_kwargs):
+                    return "boot-one\n"
+
+            original_path = ctl.Path
+            original_token = ctl._process_token
+            ctl.Path = lambda raw_path: (
+                FakeProc() if os.fspath(raw_path) == "/proc" else (
+                    FakeBoot() if os.fspath(raw_path) == "/proc/sys/kernel/random/boot_id"
+                    else original_path(raw_path)
+                )
+            )
+            ctl._process_token = lambda _pid: (_ for _ in ()).throw(
+                AssertionError("second stat/token observation")
+            )
+            try:
+                assert ctl._session_members(17) == {4242: "linux:boot-one:19"}
+            finally:
+                ctl.Path = original_path
+                ctl._process_token = original_token
+            assert stat_reads == 1
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # A descendant that leaves the product session with setsid remains
+        # owned by the subreaper-rooted PPID closure.  Terminal evidence waits
+        # until that exact descendant exits.
+        if os.name != "nt":
+            escaped_pids = root / "work" / "live-escaped-session-pids.json"
+            escaped_identities: dict[int, str] = {}
+            escaped_child = (
+                "import json,os,time;from pathlib import Path;"
+                f"p=Path({str(escaped_pids)!r});t=p.with_name('.'+p.name+'.tmp');"
+                "t.write_text(json.dumps([os.getpid()]),encoding='ascii');os.replace(t,p);"
+                "time.sleep(2)"
+            )
+            escaping_product = (
+                "import subprocess,sys;"
+                f"subprocess.Popen([sys.executable,'-c',{escaped_child!r}],start_new_session=True)"
+            )
+            try:
+                _start(
+                    ctl, root, "live-setsid-escape", escaping_product,
+                    allowed_output_roots=[root / "work"],
+                )
+                escaped_identities = _identities(
+                    ctl, _wait_for_pid_list(escaped_pids),
+                )
+                time.sleep(.2)
+                assert _alive_identities(ctl, escaped_identities)
+                assert not (
+                    root / "runs" / "live-setsid-escape" / "receipt.json"
+                ).is_file()
+                escaped_receipt = _wait(ctl, root, "live-setsid-escape")
+                assert escaped_receipt["state"] == "succeeded"
+            finally:
+                _cancel_finally(ctl, root, "live-setsid-escape")
+                _terminate_identities(ctl, escaped_identities)
+            assert not _alive_identities(ctl, escaped_identities)
             cases += 1
         else:
             platform_skips += 1
@@ -1834,6 +2525,10 @@ time.sleep(60)
         "posix_prejournal_gate_fail_closed",
         "posix_readiness_refusal_tree_cleaned",
         "posix_post_kill_session_quiescent",
+        "posix_subreaper_descendant_closure",
+        "posix_single_snapshot_identity",
+        "windows_process_observation_typed",
+        "run_lock_fail_closed",
         "multiprocess_cancel_idempotent",
         "multiprocess_recovery_serialized",
         "input_drift_refused",
@@ -1860,8 +2555,8 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 42 if os.name != "nt" else 37
-    expected_skip_count = 0 if os.name != "nt" else 5
+    expected_case_count = 46 if os.name != "nt" else 40
+    expected_skip_count = 0 if os.name != "nt" else 6
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
     assert not expected_failures, "expected red regressions:\n- " + "\n- ".join(expected_failures)
