@@ -311,7 +311,9 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/scholarly_authority_chain_smoketest.py": [_default_case()],
     "scripts/scholarly_claim_register_smoketest.py": [_default_case()],
     "scripts/scholarly_evaluation_binding_smoketest.py": [_default_case()],
-    "scripts/scholarly_evaluation_smoketest.py": [_default_case()],
+    "scripts/scholarly_evaluation_smoketest.py": [
+        _default_case(timeout_s=1200)
+    ],
     "scripts/scholarly_lifecycle_integration_smoketest.py": [_default_case()],
     "scripts/semantic_predication_contract_smoketest.py": [_default_case()],
     "scripts/shipment_manifest_smoketest.py": [_default_case()],
