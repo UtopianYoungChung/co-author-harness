@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -15,6 +16,7 @@ import site
 import stat
 import subprocess
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -44,6 +46,22 @@ REGRESSION_CONTRACT = (
     "same_intent_idempotent",
     "different_intent_refused",
     "owned_process_tree_cancelled_unrelated_survives",
+    "partial_pid_handoff_cleanup_finally",
+    "owned_process_tree_quiescent_before_terminal",
+    "worker_crash_owned_tree_recovered",
+    "worker_readiness_failure_tree_cleaned",
+    "concurrent_cancel_atomic_publication",
+    "posix_stat_identity_robust",
+    "posix_reused_session_refused",
+    "posix_prejournal_gate_fail_closed",
+    "posix_readiness_refusal_tree_cleaned",
+    "posix_post_kill_session_quiescent",
+    "posix_subreaper_descendant_closure",
+    "posix_single_snapshot_identity",
+    "windows_process_observation_typed",
+    "run_lock_fail_closed",
+    "multiprocess_cancel_idempotent",
+    "multiprocess_recovery_serialized",
     "input_drift_refused",
     "output_scope_refused",
     "null_process_token_not_alive",
@@ -74,6 +92,8 @@ _ATTESTATION_ENV = (
     "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR",
     "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN",
 )
+_SUPERVISOR_JOB_ENV = "COAUTHOR_RELEASE_CONTROLLER_SUPERVISOR_JOB_HANDLE"
+_ATOMIC_LOCK = threading.RLock()
 
 
 class ControllerRefusal(RuntimeError):
@@ -103,22 +123,131 @@ def _sha_file(path: Path) -> str:
 
 
 def _atomic(path: Path, raw: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    with temporary.open("xb") as stream:
-        stream.write(raw)
-        stream.flush()
-        os.fsync(stream.fileno())
-    for attempt in range(50):
+    with _ATOMIC_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(
+            f".{path.name}.{os.getpid()}.{secrets.token_hex(16)}.tmp"
+        )
         try:
-            os.replace(temporary, path)
-            break
-        except PermissionError:
-            if attempt == 49:
-                raise
-            time.sleep(0.01)
-    if path.read_bytes() != raw:
-        raise ControllerRefusal("RELEASE-CONTROLLER-IO", f"atomic readback failed: {path}")
+            with temporary.open("xb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            for attempt in range(50):
+                try:
+                    os.replace(temporary, path)
+                    break
+                except PermissionError:
+                    if attempt == 49:
+                        raise
+                    time.sleep(0.01)
+            if path.read_bytes() != raw:
+                raise ControllerRefusal("RELEASE-CONTROLLER-IO", f"atomic readback failed: {path}")
+        finally:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+class _RunLock:
+    def __init__(self, path: Path, timeout_s: float = 30.0):
+        self.path, self.timeout_s, self.stream = path, timeout_s, None
+
+    def __enter__(self):
+        _ATOMIC_LOCK.acquire()
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.stream = self.path.open("a+b")
+            if self.stream.seek(0, os.SEEK_END) == 0:
+                self.stream.write(b"\0")
+                self.stream.flush()
+                os.fsync(self.stream.fileno())
+            deadline = time.monotonic() + self.timeout_s
+            if os.name == "nt":
+                import msvcrt
+
+                while True:
+                    try:
+                        self.stream.seek(0)
+                        msvcrt.locking(self.stream.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError as exc:
+                        if (
+                            getattr(exc, "winerror", None) not in {33, 36}
+                            and getattr(exc, "errno", None) not in {
+                                errno.EACCES, errno.EAGAIN, errno.EDEADLK,
+                            }
+                        ):
+                            raise ControllerRefusal(
+                                "RELEASE-CONTROLLER-IO",
+                                f"run lock acquisition failed: {exc}",
+                            ) from exc
+                        if time.monotonic() >= deadline:
+                            raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "run lock timed out")
+                        time.sleep(.01)
+            else:
+                import fcntl
+
+                while True:
+                    try:
+                        fcntl.flock(self.stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except OSError as exc:
+                        if (
+                            not isinstance(exc, BlockingIOError)
+                            and getattr(exc, "errno", None) not in {
+                                errno.EACCES, errno.EAGAIN, errno.EDEADLK,
+                            }
+                        ):
+                            raise ControllerRefusal(
+                                "RELEASE-CONTROLLER-IO",
+                                f"run lock acquisition failed: {exc}",
+                            ) from exc
+                        if time.monotonic() >= deadline:
+                            raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "run lock timed out")
+                        time.sleep(.01)
+            return self
+        except Exception:
+            if self.stream is not None:
+                self.stream.close()
+                self.stream = None
+            _ATOMIC_LOCK.release()
+            raise
+
+    def __exit__(self, _exc_type, _exc, _traceback):
+        stream, self.stream = self.stream, None
+        unlock_error: Exception | None = None
+        close_error: Exception | None = None
+        try:
+            if stream is not None:
+                if os.name == "nt":
+                    import msvcrt
+
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        except Exception as exc:
+            unlock_error = exc
+        finally:
+            try:
+                if stream is not None:
+                    stream.close()
+            except Exception as exc:
+                close_error = exc
+            finally:
+                _ATOMIC_LOCK.release()
+        if unlock_error is not None:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-IO", f"run lock release failed: {unlock_error}",
+            ) from unlock_error
+        if close_error is not None:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-IO", f"run lock close failed: {close_error}",
+            ) from close_error
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -240,45 +369,296 @@ def _validate_terminal(paths: Mapping[str, Path], value: dict[str, Any]) -> dict
     return value
 
 
+class _WindowsProcessObservationApi:
+    """Small injectable boundary for exact Windows process observation."""
+
+    def __init__(self):
+        import ctypes
+        from ctypes import wintypes
+
+        class FILETIME(ctypes.Structure):
+            _fields_ = (("low", wintypes.DWORD), ("high", wintypes.DWORD))
+
+        self.ctypes = ctypes
+        self.FILETIME = FILETIME
+        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.kernel32.OpenProcess.argtypes = (
+            wintypes.DWORD, wintypes.BOOL, wintypes.DWORD,
+        )
+        self.kernel32.OpenProcess.restype = wintypes.HANDLE
+        self.kernel32.GetProcessTimes.argtypes = (
+            wintypes.HANDLE, ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
+            ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
+        )
+        self.kernel32.GetProcessTimes.restype = wintypes.BOOL
+        self.kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        self.kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        self.kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        self.kernel32.CloseHandle.restype = wintypes.BOOL
+
+    def open_process(self, pid: int) -> Any:
+        self.ctypes.set_last_error(0)
+        handle = self.kernel32.OpenProcess(0x100000 | 0x1000, False, pid)
+        if not handle:
+            raise self.ctypes.WinError(self.ctypes.get_last_error())
+        return handle
+
+    def wait(self, handle: Any) -> str:
+        self.ctypes.set_last_error(0)
+        result = self.kernel32.WaitForSingleObject(handle, 0)
+        if result == 0:
+            return "signaled"
+        if result == 258:
+            return "timeout"
+        raise self.ctypes.WinError(self.ctypes.get_last_error())
+
+    def creation_token(self, handle: Any) -> str:
+        created = self.FILETIME()
+        exited, kernel, user = self.FILETIME(), self.FILETIME(), self.FILETIME()
+        self.ctypes.set_last_error(0)
+        if not self.kernel32.GetProcessTimes(
+            handle, self.ctypes.byref(created), self.ctypes.byref(exited),
+            self.ctypes.byref(kernel), self.ctypes.byref(user),
+        ):
+            raise self.ctypes.WinError(self.ctypes.get_last_error())
+        return str((created.high << 32) | created.low)
+
+    def close(self, handle: Any) -> None:
+        self.ctypes.set_last_error(0)
+        if not self.kernel32.CloseHandle(handle):
+            raise self.ctypes.WinError(self.ctypes.get_last_error())
+
+
+def _windows_observation_refusal(operation: str, exc: Exception) -> ControllerRefusal:
+    code = getattr(exc, "winerror", None)
+    suffix = f"winerror={code}" if code is not None else str(exc)
+    return ControllerRefusal(
+        "RELEASE-CONTROLLER-PROCESS", f"Windows process {operation} failed: {suffix}",
+    )
+
+
+def _observe_windows_process(
+    pid: int, *, api: Any | None = None,
+) -> str | None:
+    """Return the live creation token; only confirmed absence/signaling is dead."""
+    try:
+        boundary = api if api is not None else _WindowsProcessObservationApi()
+    except Exception as exc:
+        raise _windows_observation_refusal("API initialization", exc) from exc
+    try:
+        handle = boundary.open_process(pid)
+    except Exception as exc:
+        if getattr(exc, "winerror", None) == 87:  # ERROR_INVALID_PARAMETER
+            return None
+        raise _windows_observation_refusal("open", exc) from exc
+    try:
+        try:
+            first_wait = boundary.wait(handle)
+        except Exception as exc:
+            raise _windows_observation_refusal("initial wait", exc) from exc
+        if first_wait == "signaled":
+            return None
+        if first_wait != "timeout":
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"Windows process initial wait returned {first_wait!r}",
+            )
+        try:
+            token = boundary.creation_token(handle)
+        except Exception as exc:
+            raise _windows_observation_refusal("creation-time read", exc) from exc
+        if not isinstance(token, str) or not token:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS", "Windows process creation token is invalid",
+            )
+        try:
+            second_wait = boundary.wait(handle)
+        except Exception as exc:
+            raise _windows_observation_refusal("post-read wait", exc) from exc
+        if second_wait == "signaled":
+            return None
+        if second_wait != "timeout":
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"Windows process post-read wait returned {second_wait!r}",
+            )
+        return token
+    finally:
+        try:
+            boundary.close(handle)
+        except Exception as exc:
+            raise _windows_observation_refusal("handle close", exc) from exc
+
+
 def _process_token(pid: int) -> str | None:
     if pid <= 0:
         return None
     if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            class FILETIME(ctypes.Structure):
-                _fields_ = (("low", wintypes.DWORD), ("high", wintypes.DWORD))
-
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
-            kernel32.OpenProcess.restype = wintypes.HANDLE
-            kernel32.GetProcessTimes.argtypes = (
-                wintypes.HANDLE, ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
-                ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
-            )
-            kernel32.GetProcessTimes.restype = wintypes.BOOL
-            kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
-            handle = kernel32.OpenProcess(0x1000, False, pid)
-            if not handle:
-                return None
-            created, exited, kernel, user = FILETIME(), FILETIME(), FILETIME(), FILETIME()
-            ok = kernel32.GetProcessTimes(
-                handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)
-            )
-            kernel32.CloseHandle(handle)
-            return str((created.high << 32) | created.low) if ok else None
-        except Exception:
-            return None
+        return _observe_windows_process(pid)
     try:
-        return Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()[21]
-    except (OSError, IndexError):
+        stat_row = _parse_proc_stat(Path(f"/proc/{pid}/stat").read_text(encoding="ascii"))
+        boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+    if (
+        stat_row is None or stat_row["pid"] != pid
+        or stat_row["state"] in {"Z", "X", "x"} or not boot_id
+    ):
+        return None
+    return _proc_token(stat_row, boot_id)
+
+
+def _parse_proc_stat(raw: str) -> dict[str, int | str] | None:
+    opening = raw.find("(")
+    closing = raw.rfind(")")
+    if opening < 1 or closing <= opening:
+        return None
+    fields = raw[closing + 1:].strip().split()
+    if len(fields) < 20:
+        return None
+    try:
+        return {
+            "pid": int(raw[:opening].strip()), "state": fields[0],
+            "ppid": int(fields[1]), "pgrp": int(fields[2]),
+            "session": int(fields[3]), "starttime": fields[19],
+        }
+    except ValueError:
+        return None
+
+
+def _proc_token(stat_row: Mapping[str, int | str], boot_id: str) -> str:
+    return f"linux:{boot_id}:{stat_row['starttime']}"
+
+
+def _proc_snapshot() -> tuple[str, dict[int, dict[str, int | str]]]:
+    try:
+        boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
+            encoding="ascii",
+        ).strip()
+        entries = list(Path("/proc").iterdir())
+    except OSError as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-PROCESS", f"cannot observe /proc: {exc}",
+        ) from exc
+    if not boot_id:
+        raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", "Linux boot identity is empty")
+    rows: dict[int, dict[str, int | str]] = {}
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        pid = int(entry.name)
         try:
-            os.kill(pid, 0)
-            return "alive-no-token"
-        except OSError:
-            return None
+            stat_row = _parse_proc_stat((entry / "stat").read_text(encoding="ascii"))
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS", f"cannot observe /proc/{pid}/stat: {exc}",
+            ) from exc
+        if stat_row is not None and stat_row["pid"] == pid:
+            stat_row["token"] = _proc_token(stat_row, boot_id)
+            rows[pid] = stat_row
+    return boot_id, rows
+
+
+def _session_members(session: int, *, exclude: Iterable[int] = ()) -> dict[int, str]:
+    if os.name == "nt":
+        return {}
+    excluded = set(exclude)
+    _, snapshot = _proc_snapshot()
+    return {
+        pid: str(row["token"]) for pid, row in snapshot.items()
+        if pid not in excluded and row["session"] == session
+        and row["state"] not in {"Z", "X", "x"}
+    }
+
+
+def _descendant_ids(
+    ancestor: int, snapshot: Mapping[int, Mapping[str, int | str]],
+) -> set[int]:
+    owned = {ancestor}
+    changed = True
+    while changed:
+        changed = False
+        for pid, row in snapshot.items():
+            if pid not in owned and row["ppid"] in owned:
+                owned.add(pid)
+                changed = True
+    owned.discard(ancestor)
+    return owned
+
+
+def _descendant_members(ancestor: int, *, exclude: Iterable[int] = ()) -> dict[int, str]:
+    if os.name == "nt":
+        return {}
+    excluded = set(exclude)
+    _, snapshot = _proc_snapshot()
+    owned = _descendant_ids(ancestor, snapshot)
+    return {
+        pid: str(snapshot[pid]["token"]) for pid in owned
+        if pid not in excluded and pid in snapshot
+        and snapshot[pid]["state"] not in {"Z", "X", "x"}
+    }
+
+
+def _signal_posix_identity(
+    pid: int, token: str, signum: int, *, session_id: int | None = None,
+    ancestor: int | None = None,
+) -> None:
+    try:
+        descriptor = os.pidfd_open(pid)
+    except ProcessLookupError:
+        return
+    except (AttributeError, OSError) as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-PROCESS", f"pidfd_open failed for {pid}: {exc}",
+    ) from exc
+    try:
+        _, snapshot = _proc_snapshot()
+        row = snapshot.get(pid)
+        membership_valid = (
+            session_id is not None and row is not None and row["session"] == session_id
+        ) or (
+            ancestor is not None and pid in _descendant_ids(ancestor, snapshot)
+        )
+        if row is None or row["state"] in {"Z", "X", "x"}:
+            return
+        if (
+            str(row["token"]) != token or not membership_valid
+        ):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"POSIX process {pid} changed identity or membership before signal",
+            )
+        try:
+            signal.pidfd_send_signal(descriptor, signum)
+        except ProcessLookupError:
+            pass
+        except (AttributeError, OSError) as exc:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS", f"pidfd signal failed for {pid}: {exc}",
+            ) from exc
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS", f"pidfd close failed for {pid}: {exc}",
+            ) from exc
+
+
+def _signal_session(
+    session: int, identities: Mapping[int, str], signum: int,
+) -> None:
+    for pid, token in identities.items():
+        _signal_posix_identity(pid, token, signum, session_id=session)
+
+
+def _signal_descendants(
+    ancestor: int, identities: Mapping[int, str], signum: int,
+) -> None:
+    for pid, token in identities.items():
+        _signal_posix_identity(pid, token, signum, ancestor=ancestor)
 
 
 def _alive(owner: Mapping[str, Any]) -> bool:
@@ -289,6 +669,271 @@ def _alive(owner: Mapping[str, Any]) -> bool:
         return False
     observed = _process_token(owner["pid"])
     return observed is not None and observed == token
+
+
+_WINDOWS_JOB_API: tuple[Any, Any, Any] | None = None
+
+
+def _windows_job_api() -> tuple[Any, Any, Any]:
+    global _WINDOWS_JOB_API
+    if os.name != "nt":
+        raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", "Windows Job API requested off Windows")
+    if _WINDOWS_JOB_API is not None:
+        return _WINDOWS_JOB_API
+    import ctypes
+    from ctypes import wintypes
+
+    class BasicLimit(ctypes.Structure):
+        _fields_ = (
+            ("PerProcessUserTimeLimit", ctypes.c_longlong),
+            ("PerJobUserTimeLimit", ctypes.c_longlong),
+            ("LimitFlags", wintypes.DWORD),
+            ("MinimumWorkingSetSize", ctypes.c_size_t),
+            ("MaximumWorkingSetSize", ctypes.c_size_t),
+            ("ActiveProcessLimit", wintypes.DWORD),
+            ("Affinity", ctypes.c_size_t),
+            ("PriorityClass", wintypes.DWORD),
+            ("SchedulingClass", wintypes.DWORD),
+        )
+
+    class IoCounters(ctypes.Structure):
+        _fields_ = tuple(
+            (name, ctypes.c_ulonglong) for name in (
+                "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+                "ReadTransferCount", "WriteTransferCount", "OtherTransferCount",
+            )
+        )
+
+    class ExtendedLimit(ctypes.Structure):
+        _fields_ = (
+            ("BasicLimitInformation", BasicLimit),
+            ("IoInfo", IoCounters),
+            ("ProcessMemoryLimit", ctypes.c_size_t),
+            ("JobMemoryLimit", ctypes.c_size_t),
+            ("PeakProcessMemoryUsed", ctypes.c_size_t),
+            ("PeakJobMemoryUsed", ctypes.c_size_t),
+        )
+
+    class BasicAccounting(ctypes.Structure):
+        _fields_ = (
+            ("TotalUserTime", ctypes.c_longlong),
+            ("TotalKernelTime", ctypes.c_longlong),
+            ("ThisPeriodTotalUserTime", ctypes.c_longlong),
+            ("ThisPeriodTotalKernelTime", ctypes.c_longlong),
+            ("TotalPageFaultCount", wintypes.DWORD),
+            ("TotalProcesses", wintypes.DWORD),
+            ("ActiveProcesses", wintypes.DWORD),
+            ("TotalTerminatedProcesses", wintypes.DWORD),
+        )
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+    kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel32.SetInformationJobObject.argtypes = (
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+    )
+    kernel32.SetInformationJobObject.restype = wintypes.BOOL
+    kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+    kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+    kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel32.TerminateJobObject.restype = wintypes.BOOL
+    kernel32.QueryInformationJobObject.argtypes = (
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    kernel32.QueryInformationJobObject.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.ResumeThread.argtypes = (wintypes.HANDLE,)
+    kernel32.ResumeThread.restype = wintypes.DWORD
+    _WINDOWS_JOB_API = kernel32, ExtendedLimit, BasicAccounting
+    return _WINDOWS_JOB_API
+
+
+class _WindowsJob:
+    def __init__(self, handle: int | None = None):
+        import ctypes
+
+        kernel32, ExtendedLimit, _ = _windows_job_api()
+        self.handle = int(handle or 0)
+        if self.handle:
+            return
+        created = kernel32.CreateJobObjectW(None, None)
+        if not created:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS", f"CreateJobObjectW failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+        self.handle = int(created)
+        limits = ExtendedLimit()
+        limits.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not kernel32.SetInformationJobObject(
+            self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits),
+        ):
+            error = ctypes.WinError(ctypes.get_last_error())
+            self.close()
+            raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", f"SetInformationJobObject failed: {error}")
+
+    def duplicate_inheritable(self) -> int:
+        import _winapi
+
+        current = _winapi.GetCurrentProcess()
+        return int(_winapi.DuplicateHandle(
+            current, self.handle, current, 0, True, _winapi.DUPLICATE_SAME_ACCESS,
+        ))
+
+    def assign(self, process_handle: int) -> None:
+        import ctypes
+
+        kernel32, _, _ = _windows_job_api()
+        if not kernel32.AssignProcessToJobObject(self.handle, process_handle):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"AssignProcessToJobObject failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+
+    def active_processes(self) -> int:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32, _, BasicAccounting = _windows_job_api()
+        accounting = BasicAccounting()
+        returned = wintypes.DWORD()
+        if not kernel32.QueryInformationJobObject(
+            self.handle, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), ctypes.byref(returned),
+        ):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"QueryInformationJobObject failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+        return int(accounting.ActiveProcesses)
+
+    def terminate(self, exit_code: int = 1223) -> None:
+        import ctypes
+
+        kernel32, _, _ = _windows_job_api()
+        if self.active_processes() and not kernel32.TerminateJobObject(self.handle, exit_code):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"TerminateJobObject failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+
+    def wait_empty(self, timeout_s: float = 30.0) -> None:
+        deadline = time.monotonic() + timeout_s
+        while self.active_processes():
+            if time.monotonic() >= deadline:
+                raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "Windows Job did not become empty")
+            time.sleep(.01)
+
+    def close(self) -> None:
+        if not self.handle:
+            return
+        import ctypes
+
+        kernel32, _, _ = _windows_job_api()
+        if not kernel32.CloseHandle(self.handle):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"CloseHandle(Job) failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+        self.handle = 0
+
+
+class _WindowsProcess:
+    def __init__(self, handle: int, pid: int):
+        self._handle = int(handle)
+        self.pid = int(pid)
+        self.returncode: int | None = None
+
+    def poll(self) -> int | None:
+        if self.returncode is not None:
+            return self.returncode
+        import _winapi
+
+        wait = _winapi.WaitForSingleObject(self._handle, 0)
+        if wait == 0xFFFFFFFF:
+            raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", "WaitForSingleObject failed")
+        if wait != _winapi.WAIT_OBJECT_0:
+            return None
+        self.returncode = int(_winapi.GetExitCodeProcess(self._handle))
+        self.close()
+        return self.returncode
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self.returncode is not None:
+            return self.returncode
+        import _winapi
+
+        milliseconds = _winapi.INFINITE if timeout is None else max(0, int(timeout * 1000))
+        wait = _winapi.WaitForSingleObject(self._handle, milliseconds)
+        if wait == 0xFFFFFFFF:
+            raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", "WaitForSingleObject failed")
+        if wait != _winapi.WAIT_OBJECT_0:
+            raise subprocess.TimeoutExpired(["owned-process"], timeout)
+        self.returncode = int(_winapi.GetExitCodeProcess(self._handle))
+        self.close()
+        return self.returncode
+
+    def close(self) -> None:
+        if not self._handle:
+            return
+        import _winapi
+
+        handle, self._handle = self._handle, 0
+        _winapi.CloseHandle(handle)
+
+
+def _spawn_windows_job_process(
+    argv: list[str], *, cwd: str | Path, environment: Mapping[str, str],
+    stdin: Any, stdout: Any, stderr: Any, job: _WindowsJob,
+    extra_inherited_handles: Iterable[int] = (),
+) -> _WindowsProcess:
+    import _winapi
+    import ctypes
+    import msvcrt
+
+    current = _winapi.GetCurrentProcess()
+    duplicates: list[int] = []
+    try:
+        for stream in (stdin, stdout, stderr):
+            duplicates.append(int(_winapi.DuplicateHandle(
+                current, msvcrt.get_osfhandle(stream.fileno()), current, 0, True,
+                _winapi.DUPLICATE_SAME_ACCESS,
+            )))
+    except Exception:
+        for handle in duplicates:
+            _winapi.CloseHandle(handle)
+        raise
+    startup = subprocess.STARTUPINFO()
+    startup.dwFlags |= _winapi.STARTF_USESTDHANDLES
+    startup.hStdInput, startup.hStdOutput, startup.hStdError = duplicates
+    inherited = [*duplicates, *map(int, extra_inherited_handles)]
+    startup.lpAttributeList = {"handle_list": inherited}
+    process_handle = thread_handle = None
+    try:
+        process_handle, thread_handle, pid, _ = _winapi.CreateProcess(
+            None, subprocess.list2cmdline(argv), None, None, True,
+            0x4 | 0x200 | 0x400, dict(environment), str(Path(cwd).resolve()), startup,
+        )
+        try:
+            job.assign(int(process_handle))
+            kernel32, _, _ = _windows_job_api()
+            if kernel32.ResumeThread(int(thread_handle)) == 0xFFFFFFFF:
+                raise ControllerRefusal(
+                    "RELEASE-CONTROLLER-PROCESS",
+                    f"ResumeThread failed: {ctypes.WinError(ctypes.get_last_error())}",
+                )
+        except Exception:
+            _winapi.TerminateProcess(process_handle, 1223)
+            _winapi.WaitForSingleObject(process_handle, _winapi.INFINITE)
+            _winapi.CloseHandle(process_handle)
+            process_handle = None
+            raise
+        return _WindowsProcess(int(process_handle), int(pid))
+    finally:
+        if thread_handle is not None:
+            _winapi.CloseHandle(thread_handle)
+        for handle in duplicates:
+            _winapi.CloseHandle(handle)
 
 
 def _inside(path: str | Path, root: str | Path) -> bool:
@@ -420,6 +1065,9 @@ def _paths(run_root: str | Path, run_id: str) -> dict[str, Path]:
         "stdout": "stdout.bin", "stderr": "stderr.bin", "exit": "exit.json",
         "receipt": "receipt.json", "cancel": "cancel.request.json",
         "prechild": "prechild-refusal.json", "attestation": "child-attestation.json",
+        "lock": ".controller.lock", "direct_exit": "direct-exit.json",
+        "product_started": "product-started.json",
+        "test_preflight_gate": ".test-preflight-gate",
         "worker_stdout": "worker-stdout.bin", "worker_stderr": "worker-stderr.bin",
     }.items()} | {"root": root}
 
@@ -437,6 +1085,179 @@ def _check_argv(argv: list[str]) -> None:
         raise ControllerRefusal("RELEASE-CONTROLLER-ARGV", "argv must contain nonempty text entries")
     if any(item in {"-O", "-OO"} for item in argv[1:]):
         raise ControllerRefusal("RELEASE-CONTROLLER-ENV", "Python optimization flags are forbidden")
+
+
+def _spawn_worker_process(
+    paths: Mapping[str, Path], worker_env: Mapping[str, str],
+    worker_stdout: Any, worker_stderr: Any, *, detached: bool,
+) -> tuple[Any, _WindowsJob | None]:
+    argv = [sys.executable, str(Path(__file__).resolve()), "_worker", "--run-dir", str(paths["root"])]
+    if os.name != "nt":
+        return subprocess.Popen(
+            argv, stdin=subprocess.DEVNULL, stdout=worker_stdout, stderr=worker_stderr,
+            close_fds=True, env=dict(worker_env), start_new_session=detached,
+        ), None
+    import _winapi
+
+    supervisor = _WindowsJob()
+    inherited = supervisor.duplicate_inheritable()
+    exact_env = dict(worker_env)
+    exact_env[_SUPERVISOR_JOB_ENV] = str(inherited)
+    try:
+        with open(os.devnull, "rb") as devnull:
+            worker = _spawn_windows_job_process(
+                argv, cwd=Path.cwd(), environment=exact_env,
+                stdin=devnull, stdout=worker_stdout, stderr=worker_stderr,
+                job=supervisor, extra_inherited_handles=[inherited],
+            )
+    except Exception:
+        supervisor.close()
+        raise
+    finally:
+        _winapi.CloseHandle(inherited)
+    return worker, supervisor
+
+
+def _spawn_product_process(
+    argv: list[str], *, cwd: str | Path, environment: Mapping[str, str],
+    stdout: Any, stderr: Any, run_dir: Path,
+) -> tuple[Any, _WindowsJob | None, int | None]:
+    if os.name != "nt":
+        read_fd, write_fd = os.pipe()
+        os.set_inheritable(read_fd, True)
+        try:
+            supervisor = subprocess.Popen(
+                [
+                    sys.executable, str(Path(__file__).resolve()), "_posix_supervisor",
+                    "--run-dir", str(run_dir), "--control-fd", str(read_fd),
+                ],
+                cwd=cwd, env=dict(environment), stdin=subprocess.DEVNULL,
+                stdout=stdout, stderr=stderr, close_fds=True,
+                pass_fds=(read_fd,), start_new_session=True,
+            )
+        except Exception:
+            os.close(write_fd)
+            raise
+        finally:
+            os.close(read_fd)
+        return supervisor, None, write_fd
+    product_job = _WindowsJob()
+    try:
+        with open(os.devnull, "rb") as devnull:
+            child = _spawn_windows_job_process(
+                argv, cwd=cwd, environment=environment,
+                stdin=devnull, stdout=stdout, stderr=stderr, job=product_job,
+            )
+    except Exception:
+        product_job.close()
+        raise
+    return child, product_job, None
+
+
+def _terminate_posix_session(
+    session: int, *, leader_pid: int, leader_token: str, timeout_s: float = 30.0,
+) -> None:
+    if os.name == "nt":
+        raise ControllerRefusal("RELEASE-CONTROLLER-PROCESS", "POSIX session requested on Windows")
+    members = _session_members(session)
+    if _process_token(leader_pid) != leader_token:
+        if members:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                "recorded POSIX leader token changed while its session remains active",
+            )
+        return
+    _terminate_session_members(session, timeout_s=timeout_s)
+
+
+def _terminate_session_members(
+    session: int, *, exclude: Iterable[int] = (), timeout_s: float = 30.0,
+) -> None:
+    excluded = set(exclude)
+    members = _session_members(session, exclude=excluded)
+    _signal_session(session, members, signal.SIGTERM)
+    grace = time.monotonic() + .2
+    while _session_members(session, exclude=excluded) and time.monotonic() < grace:
+        time.sleep(.01)
+    deadline = time.monotonic() + timeout_s
+    while True:
+        members = _session_members(session, exclude=excluded)
+        if not members:
+            return
+        _signal_session(session, members, signal.SIGKILL)
+        if time.monotonic() >= deadline:
+            raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "POSIX session members did not disappear")
+        time.sleep(.01)
+
+
+def _terminate_descendants(ancestor: int, *, timeout_s: float = 30.0) -> None:
+    members = _descendant_members(ancestor)
+    if members:
+        _signal_descendants(ancestor, members, signal.SIGTERM)
+    grace = time.monotonic() + .2
+    while time.monotonic() < grace:
+        _reap_children()
+        if not _descendant_members(ancestor):
+            break
+        time.sleep(.01)
+    deadline = time.monotonic() + timeout_s
+    empty_scans = 0
+    while empty_scans < 2:
+        _reap_children()
+        members = _descendant_members(ancestor)
+        if not members:
+            empty_scans += 1
+            time.sleep(.01)
+            continue
+        empty_scans = 0
+        _signal_descendants(ancestor, members, signal.SIGKILL)
+        if time.monotonic() >= deadline:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-LIVE", "owned POSIX descendants did not disappear",
+            )
+        time.sleep(.01)
+
+
+def _recorded_child(paths: Mapping[str, Path]) -> dict[str, Any] | None:
+    if not paths["journal"].is_file():
+        return None
+    journal = _read(paths["journal"])
+    for row in reversed(journal.get("events", [])):
+        if row.get("event") != "child_spawned":
+            continue
+        if (
+            isinstance(row.get("child_pid"), int)
+            and isinstance(row.get("process_group"), int)
+            and isinstance(row.get("process_token"), str)
+        ):
+            return row
+        return None
+    return None
+
+
+def _quiesce_recorded_child(paths: Mapping[str, Path], timeout_s: float = 30.0) -> None:
+    recorded = _recorded_child(paths)
+    if recorded is None:
+        return
+    pid, token, group = (
+        recorded["child_pid"], recorded["process_token"], recorded["process_group"],
+    )
+    deadline = time.monotonic() + timeout_s
+    if os.name == "nt":
+        # Closing the worker's last supervisor-Job handle is the primary crash
+        # shield.  Wait for that asynchronous kill, then use the exact creation
+        # token only as a bounded recovery fallback.
+        while _process_token(pid) == token and time.monotonic() < deadline:
+            time.sleep(.01)
+        if _process_token(pid) == token:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-LIVE",
+                "recorded Windows product tree remains active after supervisor Job closure",
+            )
+        return
+    _terminate_posix_session(
+        group, leader_pid=pid, leader_token=token, timeout_s=timeout_s,
+    )
 
 
 def start_run(
@@ -563,33 +1384,60 @@ def start_run(
     worker_env, _ = controlled_environment(
         delta={"COAUTHOR_RELEASE_CONTROLLER_WORKER": "1"}, dependency_paths=dependencies
     )
-    flags = 0
-    kwargs: dict[str, Any] = {"stdin": subprocess.DEVNULL, "close_fds": True, "env": worker_env}
-    if os.name == "nt":
-        flags = getattr(subprocess, "DETACHED_PROCESS", 0x8) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
-        kwargs["creationflags"] = flags
-    else:
-        kwargs["start_new_session"] = detached
+    worker = None
+    supervisor_job = None
     with paths["worker_stdout"].open("xb") as worker_stdout, paths["worker_stderr"].open("xb") as worker_stderr:
-        worker = subprocess.Popen(
-            [sys.executable, str(Path(__file__).resolve()), "_worker", "--run-dir", str(paths["root"])],
-            stdout=worker_stdout, stderr=worker_stderr, **kwargs,
+        worker, supervisor_job = _spawn_worker_process(
+            paths, worker_env, worker_stdout, worker_stderr, detached=detached,
+        )
+    worker_token = _process_token(worker.pid)
+    if worker_token is None:
+        try:
+            _terminate_owned(worker, job=supervisor_job)
+        finally:
+            if supervisor_job is not None:
+                supervisor_job.close()
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-WORKER-START", "worker creation token is unavailable",
         )
     owner: dict[str, Any] = {}
-    for _ in range(500):
-        journal = _read(paths["journal"])
-        if paths["owner"].is_file():
-            owner = _read(paths["owner"])
-        if owner and any(row.get("event") == "worker_ready" for row in journal["events"]):
-            break
-        if worker.poll() is not None:
-            detail = paths["worker_stderr"].read_bytes().decode("utf-8", errors="replace")
-            raise ControllerRefusal("RELEASE-CONTROLLER-WORKER-START", detail or f"worker exited {worker.returncode}")
-        time.sleep(0.01)
-    else:
-        raise ControllerRefusal("RELEASE-CONTROLLER-WORKER-START", "worker readiness handshake timed out")
-    if owner.get("pid") != worker.pid or not isinstance(owner.get("process_token"), str):
-        raise ControllerRefusal("RELEASE-CONTROLLER-WORKER-START", "worker self-ownership binding is invalid")
+    try:
+        for _ in range(500):
+            journal = _read(paths["journal"])
+            if paths["owner"].is_file():
+                owner = _read(paths["owner"])
+            if owner and any(row.get("event") == "worker_ready" for row in journal["events"]):
+                break
+            if worker.poll() is not None:
+                detail = paths["worker_stderr"].read_bytes().decode("utf-8", errors="replace")
+                raise ControllerRefusal(
+                    "RELEASE-CONTROLLER-WORKER-START", detail or f"worker exited {worker.returncode}",
+                )
+            time.sleep(0.01)
+        else:
+            raise ControllerRefusal("RELEASE-CONTROLLER-WORKER-START", "worker readiness handshake timed out")
+        if owner.get("pid") != worker.pid or owner.get("process_token") != worker_token:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-WORKER-START", "worker self-ownership binding is invalid",
+            )
+    except Exception:
+        try:
+            _terminate_owned(
+                worker, job=supervisor_job, process_token=worker_token,
+                process_group=worker.pid,
+            )
+            if os.name != "nt":
+                _quiesce_recorded_child(paths)
+        finally:
+            if supervisor_job is not None:
+                supervisor_job.close()
+        raise
+    if supervisor_job is not None:
+        # The worker inherited the only remaining supervisor handle.  Its
+        # process exit therefore kills any setup-window or product residue.
+        supervisor_job.close()
+    if isinstance(worker, _WindowsProcess):
+        worker.close()
     return {"run_id": run_id, "request_sha256": request_sha, "intent_sha256": intent_sha,
             "state": "running", "worker": owner, "idempotent": False}
 
@@ -624,8 +1472,13 @@ def _changed_outputs(intent: Mapping[str, Any], run_dir: Path) -> tuple[list[str
     return changed, _reparse_rows(post)
 
 
-def _finish(run_dir: Path, *, recovery: bool) -> dict[str, Any]:
+def _finish(
+    run_dir: Path, *, recovery: bool, _lock_held: bool = False,
+) -> dict[str, Any]:
     paths = _paths(run_dir.parent, run_dir.name)
+    if not _lock_held:
+        with _RunLock(paths["lock"]):
+            return _finish(run_dir, recovery=recovery, _lock_held=True)
     if paths["receipt"].is_file():
         return _validate_terminal(paths, _read(paths["receipt"]))
     intent, journal = _validated_intent(paths["intent"]), _read(paths["journal"])
@@ -717,10 +1570,12 @@ def _finish(run_dir: Path, *, recovery: bool) -> dict[str, Any]:
 
 def recover_run(*, run_root: str | Path, run_id: str) -> dict[str, Any]:
     paths = _paths(run_root, run_id)
-    status = status_run(run_root=run_root, run_id=run_id)
-    if status.get("worker_alive"):
-        raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "owned worker is still active")
-    return _finish(paths["root"], recovery=True)
+    with _RunLock(paths["lock"]):
+        status = status_run(run_root=run_root, run_id=run_id)
+        if status.get("worker_alive"):
+            raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "owned worker is still active")
+        _quiesce_recorded_child(paths)
+        return _finish(paths["root"], recovery=True, _lock_held=True)
 
 
 def wait_run(*, run_root: str | Path, run_id: str, timeout_s: float | None = None) -> dict[str, Any]:
@@ -731,9 +1586,6 @@ def wait_run(*, run_root: str | Path, run_id: str, timeout_s: float | None = Non
             paths = _paths(run_root, run_id)
             owner = _read(paths["owner"]) if paths["owner"].is_file() else {}
             if not _alive(owner):
-                # Windows may report the process object gone a few scheduler
-                # ticks before inherited spool handles become deletable.
-                time.sleep(0.25)
                 return status
         if not status.get("worker_alive", False):
             return recover_run(run_root=run_root, run_id=run_id)
@@ -744,29 +1596,135 @@ def wait_run(*, run_root: str | Path, run_id: str, timeout_s: float | None = Non
 
 def cancel_run(*, run_root: str | Path, run_id: str, timeout_s: float = 30.0) -> dict[str, Any]:
     paths = _paths(run_root, run_id)
-    status = status_run(run_root=run_root, run_id=run_id)
-    if status.get("state") in {"succeeded", "child_failed", "cancelled", "refused", "evidence_incomplete"}:
-        return status
-    if not status.get("worker_alive"):
+    recover = False
+    with _RunLock(paths["lock"]):
+        status = status_run(run_root=run_root, run_id=run_id)
+        if status.get("state") in {"succeeded", "child_failed", "cancelled", "refused", "evidence_incomplete"}:
+            return status
+        if not status.get("worker_alive"):
+            recover = True
+        elif not paths["cancel"].is_file():
+            _atomic(paths["cancel"], _canonical({
+                "intent_sha256": status["intent_sha256"], "requested_at": _now(),
+            }))
+    if recover:
         return recover_run(run_root=run_root, run_id=run_id)
-    _atomic(paths["cancel"], _canonical({"intent_sha256": status["intent_sha256"], "requested_at": _now()}))
     return wait_run(run_root=run_root, run_id=run_id, timeout_s=timeout_s)
 
 
-def _terminate_owned(child: subprocess.Popen[bytes]) -> None:
-    if child.poll() is not None:
+def _terminate_owned(
+    child: Any, *, job: _WindowsJob | None = None,
+    process_token: str | None = None, process_group: int | None = None,
+) -> None:
+    if job is not None:
+        job.terminate()
+        job.wait_empty()
+        try:
+            child.wait(timeout=10)
+        except subprocess.TimeoutExpired as exc:
+            raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "owned worker did not exit") from exc
+        if isinstance(child, _WindowsProcess):
+            child.close()
         return
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(child.pid), "/T", "/F"], stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    else:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-PROCESS",
+            "Windows owned-tree termination requires its preassigned Job handle",
+        )
+    group = process_group or child.pid
+    if process_token is None:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-PROCESS", "POSIX termination requires a creation token",
+        )
+    _terminate_posix_session(
+        group, leader_pid=child.pid, leader_token=process_token, timeout_s=10,
+    )
+    try:
+        child.wait(timeout=10)
+    except subprocess.TimeoutExpired as exc:
+        raise ControllerRefusal("RELEASE-CONTROLLER-LIVE", "owned session leader did not exit") from exc
+
+
+def _set_child_subreaper() -> None:
+    if os.name == "nt":
+        return
+    import ctypes
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-PROCESS",
+            f"PR_SET_CHILD_SUBREAPER failed with errno {ctypes.get_errno()}",
+        )
+
+
+def _reap_children() -> None:
+    if os.name == "nt":
+        return
+    while True:
         try:
-            os.killpg(child.pid, signal.SIGTERM)
-            time.sleep(0.2)
-            if child.poll() is None:
-                os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return
+        if pid == 0:
+            return
+
+
+def _posix_supervisor(run_dir: Path, control_fd: int) -> int:
+    import select
+
+    paths = _paths(run_dir.parent, run_dir.name)
+    intent = _validated_intent(paths["intent"])
+    _set_child_subreaper()
+    if os.read(control_fd, 1) != b"G":
+        os.close(control_fd)
+        return 74
+    product_env = {
+        key: value for key, value in os.environ.items()
+        if key != _SUPERVISOR_JOB_ENV
+    }
+    product = subprocess.Popen(
+        intent["argv"], cwd=intent["cwd"], env=product_env,
+        stdin=subprocess.DEVNULL, close_fds=True,
+    )
+    product_token = _process_token(product.pid)
+    if product_token is None:
+        product.terminate()
+        product.wait(timeout=10)
+        return 75
+    _atomic(paths["product_started"], _canonical({
+        "intent_sha256": intent["intent_sha256"], "pid": product.pid,
+        "process_token": product_token, "started_at": _now(),
+    }))
+    direct_returncode = None
+    while direct_returncode is None:
+        direct_returncode = product.poll()
+        readable, _, _ = select.select([control_fd], [], [], .05)
+        if readable and os.read(control_fd, 1) == b"":
+            _terminate_descendants(os.getpid())
+            os.close(control_fd)
+            return 75
+    direct_returncode = product.wait()
+    _atomic(paths["direct_exit"], _canonical({
+        "intent_sha256": intent["intent_sha256"], "pid": product.pid,
+        "process_token": product_token, "returncode": direct_returncode,
+        "exited_at": _now(),
+    }))
+    empty_scans = 0
+    while empty_scans < 2:
+        _reap_children()
+        if not _descendant_members(os.getpid()):
+            empty_scans += 1
+        else:
+            empty_scans = 0
+        readable, _, _ = select.select([control_fd], [], [], .05)
+        if readable and os.read(control_fd, 1) == b"":
+            _terminate_descendants(os.getpid())
+            os.close(control_fd)
+            return 75
+    os.close(control_fd)
+    _reap_children()
+    return 0
 
 
 def _input_drift(intent: Mapping[str, Any]) -> list[str]:
@@ -808,6 +1766,15 @@ def verify_child_attestation(*, run_dir: str | Path, token: str) -> None:
 
 def _worker(run_dir: Path) -> int:
     paths = _paths(run_dir.parent, run_dir.name)
+    supervisor_job = None
+    if os.name == "nt":
+        inherited = os.environ.get(_SUPERVISOR_JOB_ENV, "")
+        if not inherited.isdigit() or int(inherited) <= 0:
+            return 74
+        os.set_handle_inheritable(int(inherited), False)
+        supervisor_job = _WindowsJob(handle=int(inherited))
+        if supervisor_job.active_processes() < 1:
+            return 74
     token = _process_token(os.getpid())
     owner = {
         "host": platform.node(), "pid": os.getpid(),
@@ -820,6 +1787,13 @@ def _worker(run_dir: Path) -> int:
         return 74
     intent = _validated_intent(paths["intent"])
     _event(paths, "running", "worker_ready", worker_pid=os.getpid())
+    if intent.get("test_fault") == "pause_before_input_drift":
+        _event(paths, "running", "test_preflight_paused")
+        while not paths["test_preflight_gate"].is_file():
+            if paths["cancel"].is_file():
+                _event(paths, "recovery_required", "test_preflight_cancelled")
+                return 70
+            time.sleep(.01)
     drift = _input_drift(intent)
     if drift:
         _atomic(paths["prechild"], _canonical({
@@ -836,7 +1810,7 @@ def _worker(run_dir: Path) -> int:
             key: value for key, value in os.environ.items()
             if key.upper() not in {
                 "PYTHONUTF8", "PYTHONPATH", "PYTHONHOME", "PYTHONWARNINGS", "PYTHONOPTIMIZE",
-                "COAUTHOR_RELEASE_CONTROLLER_WORKER",
+                "COAUTHOR_RELEASE_CONTROLLER_WORKER", _SUPERVISOR_JOB_ENV,
             }
         }
         child_env, _ = controlled_environment(
@@ -853,31 +1827,119 @@ def _worker(run_dir: Path) -> int:
         return 2
     started = _now()
     cancelled = False
+    child = None
+    product_job = None
+    control_fd = None
+    group = 0
+    child_token = None
+    product_pid = None
+    returncode = None
     with paths["stdout"].open("xb") as stdout, paths["stderr"].open("xb") as stderr:
-        kwargs: dict[str, Any] = {"cwd": intent["cwd"], "env": child_env, "stdin": subprocess.DEVNULL,
-                                  "stdout": stdout, "stderr": stderr, "close_fds": True}
-        if os.name == "nt":
-            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
-        else:
-            kwargs["start_new_session"] = True
-        child = subprocess.Popen(intent["argv"], **kwargs)
-        group = child.pid
-        _event(paths, "running", "child_spawned", child_pid=child.pid, process_group=group)
-        while child.poll() is None:
-            if paths["cancel"].is_file():
-                cancelled = True
-                _terminate_owned(child)
-            time.sleep(0.05)
-        returncode = child.wait()
+        try:
+            child, product_job, control_fd = _spawn_product_process(
+                intent["argv"], cwd=intent["cwd"], environment=child_env,
+                stdout=stdout, stderr=stderr, run_dir=run_dir,
+            )
+            group = child.pid
+            child_token = _process_token(child.pid)
+            if child_token is None:
+                raise ControllerRefusal(
+                    "RELEASE-CONTROLLER-PROCESS", "product creation token is unavailable",
+                )
+            if (
+                os.name != "nt"
+                and intent.get("test_fault") == "crash_after_supervisor_spawn_before_journal"
+            ):
+                os._exit(72)
+            _event(
+                paths, "running", "child_spawned", child_pid=child.pid,
+                process_group=group, process_token=child_token,
+            )
+            if control_fd is not None:
+                os.write(control_fd, b"G")
+            if intent.get("test_fault") == "crash_after_child_spawn":
+                os._exit(72)
+            while True:
+                direct_returncode = child.poll()
+                tree_alive = (
+                    product_job.active_processes()
+                    if product_job is not None else bool(_session_members(group))
+                )
+                if paths["cancel"].is_file():
+                    cancelled = True
+                    if tree_alive:
+                        if os.name != "nt" and control_fd is not None:
+                            os.close(control_fd)
+                            control_fd = None
+                            try:
+                                child.wait(timeout=10)
+                            except subprocess.TimeoutExpired:
+                                _terminate_owned(
+                                    child, process_token=child_token,
+                                    process_group=group,
+                                )
+                        else:
+                            _terminate_owned(
+                                child, job=product_job, process_token=child_token,
+                                process_group=group,
+                            )
+                        direct_returncode = child.poll()
+                        tree_alive = False
+                if direct_returncode is not None and not tree_alive:
+                    break
+                time.sleep(.01)
+            if os.name == "nt":
+                returncode, product_pid = direct_returncode, child.pid
+            elif cancelled and not paths["direct_exit"].is_file():
+                returncode = direct_returncode
+                product_pid = (
+                    _read(paths["product_started"]).get("pid")
+                    if paths["product_started"].is_file() else child.pid
+                )
+            else:
+                direct_exit = _read(paths["direct_exit"])
+                product_started = _read(paths["product_started"])
+                if (
+                    direct_exit.get("intent_sha256") != intent["intent_sha256"]
+                    or product_started.get("intent_sha256") != intent["intent_sha256"]
+                    or direct_exit.get("pid") != product_started.get("pid")
+                    or direct_exit.get("process_token") != product_started.get("process_token")
+                    or not isinstance(direct_exit.get("returncode"), int)
+                ):
+                    raise ControllerRefusal(
+                        "EVIDENCE_INCOMPLETE", "POSIX direct-product exit binding is absent or stale",
+                    )
+                returncode, product_pid = direct_exit["returncode"], product_started["pid"]
+        except Exception as exc:
+            _event(
+                paths, "recovery_required", "owned_tree_supervision_failed",
+                code=getattr(exc, "code", "RELEASE-CONTROLLER-PROCESS"),
+            )
+            return 76
+        finally:
+            if control_fd is not None:
+                os.close(control_fd)
+            if product_job is not None:
+                try:
+                    if product_job.active_processes():
+                        product_job.terminate()
+                        product_job.wait_empty()
+                finally:
+                    product_job.close()
+            if isinstance(child, _WindowsProcess):
+                child.close()
         stdout.flush(); os.fsync(stdout.fileno())
         stderr.flush(); os.fsync(stderr.fileno())
     ended = _now()
+    if returncode is None or child is None or product_pid is None:
+        _event(paths, "recovery_required", "owned_tree_exit_status_unavailable")
+        return 76
     if intent.get("test_fault") in {"lost_exit_status", "after_child_exit_before_exit_capsule"}:
         _event(paths, "recovery_required", "exit_status_lost")
         return 70
     capsule = {
         "schema_version": "1.0.0", "intent_sha256": intent["intent_sha256"], "returncode": returncode,
-        "cancelled": cancelled, "process": {"pid": child.pid, "process_group": group},
+        "cancelled": cancelled, "process": {"pid": product_pid, "process_group": group},
         "timestamps": {"child_started_at": started, "child_exited_at": ended},
         "stdout": _binding(paths["stdout"]), "stderr": _binding(paths["stderr"]),
     }
@@ -908,6 +1970,9 @@ def _parser() -> argparse.ArgumentParser:
         sub = commands.add_parser(name); sub.add_argument("--run-root", required=True); sub.add_argument("--run-id", required=True)
         if name in {"wait", "cancel"}: sub.add_argument("--timeout", type=float, default=None)
     worker = commands.add_parser("_worker"); worker.add_argument("--run-dir", required=True)
+    supervisor = commands.add_parser("_posix_supervisor")
+    supervisor.add_argument("--run-dir", required=True)
+    supervisor.add_argument("--control-fd", required=True, type=int)
     verify = commands.add_parser("verify-child")
     verify.add_argument("--run-dir", required=True); verify.add_argument("--token", required=True)
     return parser
@@ -915,6 +1980,13 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "_posix_supervisor":
+        if os.name == "nt":
+            return 74
+        try:
+            return _posix_supervisor(Path(args.run_dir), args.control_fd)
+        except Exception:
+            return 72
     if args.command == "_worker":
         run_dir = Path(args.run_dir)
         try:
