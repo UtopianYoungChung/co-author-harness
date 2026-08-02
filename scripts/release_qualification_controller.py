@@ -62,6 +62,7 @@ REGRESSION_CONTRACT = (
     "posix_double_fork_setsid_quiescence",
     "posix_term_spawn_dynamic_rescan",
     "windows_process_observation_typed",
+    "windows_detached_worker_job_escape_proven",
     "run_lock_fail_closed",
     "run_lock_initialization_fail_closed",
     "multiprocess_cancel_idempotent",
@@ -104,6 +105,11 @@ class ControllerRefusal(RuntimeError):
     def __init__(self, code: str, message: str):
         super().__init__(f"{code}: {message}")
         self.code, self.message = code, message
+
+
+class _WindowsDurabilityRefusal(ControllerRefusal):
+    def __init__(self, message: str):
+        super().__init__("RELEASE-CONTROLLER-PROCESS", message)
 
 
 def _now() -> str:
@@ -767,6 +773,10 @@ def _windows_job_api() -> tuple[Any, Any, Any]:
     kernel32.SetInformationJobObject.restype = wintypes.BOOL
     kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
     kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+    kernel32.IsProcessInJob.argtypes = (
+        wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.BOOL),
+    )
+    kernel32.IsProcessInJob.restype = wintypes.BOOL
     kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
     kernel32.TerminateJobObject.restype = wintypes.BOOL
     kernel32.QueryInformationJobObject.argtypes = (
@@ -782,8 +792,63 @@ def _windows_job_api() -> tuple[Any, Any, Any]:
     return _WINDOWS_JOB_API
 
 
+def _windows_process_in_any_job(process_handle: int) -> bool:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32, _, _ = _windows_job_api()
+    result = wintypes.BOOL()
+    ctypes.set_last_error(0)
+    if not kernel32.IsProcessInJob(
+        wintypes.HANDLE(process_handle), None, ctypes.byref(result),
+    ):
+        raise _WindowsDurabilityRefusal(
+            f"IsProcessInJob failed: {ctypes.WinError(ctypes.get_last_error())}",
+        )
+    return bool(result.value)
+
+
+def _windows_escape_creation_flag(in_job: bool, limit_flags: int | None) -> int:
+    if not in_job:
+        return 0
+    if limit_flags is None:
+        raise _WindowsDurabilityRefusal(
+            "detached Windows worker cannot inspect its enclosing Job limits",
+        )
+    if limit_flags & 0x1000:  # JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
+        return 0
+    if limit_flags & 0x0800:  # JOB_OBJECT_LIMIT_BREAKAWAY_OK
+        return 0x01000000  # CREATE_BREAKAWAY_FROM_JOB
+    raise _WindowsDurabilityRefusal(
+        "detached Windows worker cannot escape the enclosing Job",
+    )
+
+
+def _windows_worker_creation_flag() -> int:
+    import _winapi
+    import ctypes
+    from ctypes import wintypes
+
+    if not _windows_process_in_any_job(int(_winapi.GetCurrentProcess())):
+        return 0
+    kernel32, ExtendedLimit, _ = _windows_job_api()
+    limits = ExtendedLimit()
+    returned = wintypes.DWORD()
+    ctypes.set_last_error(0)
+    if not kernel32.QueryInformationJobObject(
+        None, 9, ctypes.byref(limits), ctypes.sizeof(limits), ctypes.byref(returned),
+    ):
+        raise _WindowsDurabilityRefusal(
+            f"cannot inspect enclosing Windows Job: "
+            f"{ctypes.WinError(ctypes.get_last_error())}",
+        )
+    return _windows_escape_creation_flag(
+        True, int(limits.BasicLimitInformation.LimitFlags),
+    )
+
+
 class _WindowsJob:
-    def __init__(self, handle: int | None = None):
+    def __init__(self, handle: int | None = None, *, limit_flags: int = 0x2000):
         import ctypes
 
         kernel32, ExtendedLimit, _ = _windows_job_api()
@@ -797,7 +862,7 @@ class _WindowsJob:
             )
         self.handle = int(created)
         limits = ExtendedLimit()
-        limits.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        limits.BasicLimitInformation.LimitFlags = limit_flags
         if not kernel32.SetInformationJobObject(
             self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits),
         ):
@@ -917,7 +982,8 @@ class _WindowsProcess:
 def _spawn_windows_job_process(
     argv: list[str], *, cwd: str | Path, environment: Mapping[str, str],
     stdin: Any, stdout: Any, stderr: Any, job: _WindowsJob,
-    extra_inherited_handles: Iterable[int] = (),
+    extra_inherited_handles: Iterable[int] = (), creation_flags: int = 0,
+    require_no_enclosing_job: bool = False,
 ) -> _WindowsProcess:
     import _winapi
     import ctypes
@@ -944,9 +1010,16 @@ def _spawn_windows_job_process(
     try:
         process_handle, thread_handle, pid, _ = _winapi.CreateProcess(
             None, subprocess.list2cmdline(argv), None, None, True,
-            0x4 | 0x200 | 0x400, dict(environment), str(Path(cwd).resolve()), startup,
+            0x4 | 0x200 | 0x400 | creation_flags,
+            dict(environment), str(Path(cwd).resolve()), startup,
         )
         try:
+            if require_no_enclosing_job and _windows_process_in_any_job(
+                int(process_handle),
+            ):
+                raise _WindowsDurabilityRefusal(
+                    "detached Windows worker remains in an enclosing Job",
+                )
             job.assign(int(process_handle))
             kernel32, _, _ = _windows_job_api()
             if kernel32.ResumeThread(int(thread_handle)) == 0xFFFFFFFF:
@@ -1131,6 +1204,7 @@ def _spawn_worker_process(
         ), None
     import _winapi
 
+    creation_flags = _windows_worker_creation_flag() if detached else 0
     supervisor = _WindowsJob()
     inherited = supervisor.duplicate_inheritable()
     exact_env = dict(worker_env)
@@ -1141,6 +1215,8 @@ def _spawn_worker_process(
                 argv, cwd=Path.cwd(), environment=exact_env,
                 stdin=devnull, stdout=worker_stdout, stderr=worker_stderr,
                 job=supervisor, extra_inherited_handles=[inherited],
+                creation_flags=creation_flags,
+                require_no_enclosing_job=detached,
             )
     except Exception:
         supervisor.close()
@@ -1419,10 +1495,23 @@ def start_run(
     )
     worker = None
     supervisor_job = None
-    with paths["worker_stdout"].open("xb") as worker_stdout, paths["worker_stderr"].open("xb") as worker_stderr:
-        worker, supervisor_job = _spawn_worker_process(
-            paths, worker_env, worker_stdout, worker_stderr, detached=detached,
+    try:
+        with paths["worker_stdout"].open("xb") as worker_stdout, paths["worker_stderr"].open("xb") as worker_stderr:
+            worker, supervisor_job = _spawn_worker_process(
+                paths, worker_env, worker_stdout, worker_stderr, detached=detached,
+            )
+    except _WindowsDurabilityRefusal as exc:
+        _atomic(paths["prechild"], _canonical({
+            "schema_version": "1.0.0", "intent_sha256": intent_sha,
+            "refused_at": _now(), "diagnostic": {
+                "code": exc.code, "detail": exc.message,
+            },
+        }))
+        _event(
+            paths, "prechild_refused", "windows_durability_refused_before_worker",
+            code=exc.code,
         )
+        return _finish(paths["root"], recovery=False)
     worker_token = _process_token(worker.pid)
     if worker_token is None:
         try:

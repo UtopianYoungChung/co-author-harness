@@ -1771,6 +1771,191 @@ c.start_run(
         assert receipt["state"] == "succeeded" and crash_counter.read_text() == "once"
         cases += 1
 
+        if os.name == "nt":
+            # Detached-worker launch planning is explicit and fail-closed.
+            assert ctl._windows_escape_creation_flag(False, None) == 0
+            assert ctl._windows_escape_creation_flag(True, 0x1000) == 0
+            assert ctl._windows_escape_creation_flag(True, 0x0800) == 0x01000000
+            _expect(
+                "RELEASE-CONTROLLER-PROCESS",
+                lambda: ctl._windows_escape_creation_flag(True, 0),
+            )
+            _expect(
+                "RELEASE-CONTROLLER-PROCESS",
+                lambda: ctl._windows_escape_creation_flag(True, None),
+            )
+            cases += 1
+
+            # A suspended worker that remains in any enclosing Job is killed
+            # before its primary thread can execute, then refused.
+            inherited_sentinel = root / "work" / "inherited-worker-ran.txt"
+            inherited_job = ctl._WindowsJob()
+            original_in_job = ctl._windows_process_in_any_job
+            captured_inherited: dict[str, object] = {}
+            import ctypes as _ctypes
+            from ctypes import wintypes as _wintypes
+            inherited_kernel32 = _ctypes.WinDLL("kernel32", use_last_error=True)
+            inherited_kernel32.GetProcessId.argtypes = (_wintypes.HANDLE,)
+            inherited_kernel32.GetProcessId.restype = _wintypes.DWORD
+            inherited_kernel32.WaitForSingleObject.argtypes = (
+                _wintypes.HANDLE, _wintypes.DWORD,
+            )
+            inherited_kernel32.WaitForSingleObject.restype = _wintypes.DWORD
+            def capture_inherited(handle):
+                pid = int(inherited_kernel32.GetProcessId(_wintypes.HANDLE(handle)))
+                assert pid > 0
+                token = ctl._process_token(pid)
+                assert isinstance(token, str) and token
+                captured_inherited.update(handle=int(handle), pid=pid, token=token)
+                return True
+            ctl._windows_process_in_any_job = capture_inherited
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    _expect(
+                        "RELEASE-CONTROLLER-PROCESS",
+                        lambda: ctl._spawn_windows_job_process(
+                            [
+                                sys.executable, "-c",
+                                f"from pathlib import Path;Path({str(inherited_sentinel)!r}).write_text('ran')",
+                            ],
+                            cwd=root / "work", environment=dict(launcher_env),
+                            stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                            job=inherited_job, require_no_enclosing_job=True,
+                        ),
+                    )
+                assert inherited_job.active_processes() == 0
+                assert captured_inherited.keys() == {"handle", "pid", "token"}
+                assert not _alive_identities(
+                    ctl, {captured_inherited["pid"]: captured_inherited["token"]},
+                )
+                _ctypes.set_last_error(0)
+                assert inherited_kernel32.WaitForSingleObject(
+                    _wintypes.HANDLE(captured_inherited["handle"]), 0,
+                ) == 0xFFFFFFFF
+                assert _ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+                assert not inherited_sentinel.exists()
+            finally:
+                ctl._windows_process_in_any_job = original_in_job
+                if {"pid", "token"} <= captured_inherited.keys():
+                    _terminate_identities(
+                        ctl,
+                        {captured_inherited["pid"]: captured_inherited["token"]},
+                    )
+                inherited_job.close()
+            cases += 1
+
+            # A launcher in an explicit-breakaway outer Job may die with that
+            # outer Job while its proven-jobless detached worker completes.
+            outer_ready = root / "work" / "outer-breakaway.ready"
+            outer_counter = root / "work" / "outer-breakaway.counter"
+            outer_done = root / "work" / "outer-breakaway.launcher-done"
+            outer_launcher = f"""
+import json, site, sys, time
+from pathlib import Path
+[site.addsitedir(p) for p in {ctl._dependency_paths()!r}]
+sys.path.insert(0, {str(MODULE.parent)!r})
+import release_qualification_controller as c
+value = c.start_run(
+    run_root={str(root / 'runs')!r}, run_id='outer-breakaway',
+    argv=[sys.executable, '-c', {f"import time;time.sleep(2);from pathlib import Path;Path({str(outer_counter)!r}).write_text('once')"!r}],
+    cwd={str(root / 'work')!r},
+    allowed_output_roots=[{str(root / 'work')!r}],
+    output_watch_roots=[{str(root / 'work')!r}],
+)
+Path({str(outer_ready)!r}).write_text(json.dumps(value), encoding='ascii')
+time.sleep(60)
+Path({str(outer_done)!r}).write_text('done', encoding='ascii')
+"""
+            outer_job = ctl._WindowsJob(limit_flags=0x2000 | 0x0800)
+            outer_process = None
+            outer_worker: dict[int, str] = {}
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    outer_process = ctl._spawn_windows_job_process(
+                        [sys.executable, "-c", outer_launcher],
+                        cwd=root / "work", environment=dict(launcher_env),
+                        stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                        job=outer_job,
+                    )
+                _wait_for_path(outer_ready)
+                owner = json.loads(
+                    (root / "runs" / "outer-breakaway" / "owner.json").read_text(
+                        encoding="ascii",
+                    )
+                )
+                outer_worker = {owner["pid"]: owner["process_token"]}
+                assert _alive_identities(ctl, outer_worker) == list(outer_worker)
+                outer_job.close()
+                outer_process.wait(timeout=10)
+                assert not outer_done.exists()
+                assert _alive_identities(ctl, outer_worker) == list(outer_worker)
+                receipt = _wait(ctl, root, "outer-breakaway")
+                assert receipt["state"] == "succeeded"
+                assert outer_counter.read_text() == "once"
+                assert not _alive_identities(ctl, outer_worker)
+            finally:
+                if outer_job.handle:
+                    outer_job.close()
+                if outer_process is not None:
+                    outer_process.close()
+                if outer_worker:
+                    _terminate_identities(ctl, outer_worker)
+            cases += 1
+
+            # A non-permissive outer Job yields a bound pre-child refusal;
+            # neither a worker event nor the product sentinel may exist.
+            denied_result = root / "work" / "outer-denied.result"
+            denied_sentinel = root / "work" / "outer-denied.ran"
+            denied_launcher = f"""
+import json, site, sys
+from pathlib import Path
+[site.addsitedir(p) for p in {ctl._dependency_paths()!r}]
+sys.path.insert(0, {str(MODULE.parent)!r})
+import release_qualification_controller as c
+value = c.start_run(
+    run_root={str(root / 'runs')!r}, run_id='outer-denied',
+    argv=[sys.executable, '-c', {f"from pathlib import Path;Path({str(denied_sentinel)!r}).write_text('ran')"!r}],
+    cwd={str(root / 'work')!r},
+    allowed_output_roots=[{str(root / 'work')!r}],
+    output_watch_roots=[{str(root / 'work')!r}],
+)
+Path({str(denied_result)!r}).write_text(json.dumps(value), encoding='ascii')
+"""
+            denied_job = ctl._WindowsJob(limit_flags=0x2000)
+            denied_process = None
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    denied_process = ctl._spawn_windows_job_process(
+                        [sys.executable, "-c", denied_launcher],
+                        cwd=root / "work", environment=dict(launcher_env),
+                        stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                        job=denied_job,
+                    )
+                assert denied_process.wait(timeout=10) == 0
+                _wait_for_path(denied_result)
+                denied = ctl.status_run(run_root=root / "runs", run_id="outer-denied")
+                assert denied["state"] == "refused"
+                assert denied["diagnostic"]["code"] == "RELEASE-CONTROLLER-PROCESS"
+                assert denied["worker"] is None and denied["prechild_refusal"] is not None
+                assert all(
+                    denied[key] is None for key in (
+                        "process", "exit", "exit_capsule", "stdout", "stderr",
+                    )
+                )
+                denied_prechild = json.loads(
+                    Path(denied["prechild_refusal"]["path"]).read_text(encoding="ascii")
+                )
+                assert denied_prechild["intent_sha256"] == denied["intent_sha256"]
+                assert denied_prechild["diagnostic"] == denied["diagnostic"]
+                assert "worker_spawned" not in _event_names(root, "outer-denied")
+                assert "child_spawned" not in _event_names(root, "outer-denied")
+                assert not denied_sentinel.exists()
+            finally:
+                denied_job.close()
+                if denied_process is not None:
+                    denied_process.close()
+            cases += 1
+
         idem_output = root / "work" / "idem.out"
         idem_code = f"from pathlib import Path;Path({str(idem_output)!r}).write_text('one')"
         first = _start(ctl, root, "idem", idem_code, allowed_output_roots=[root / "work"])
@@ -2949,6 +3134,7 @@ time.sleep(60)
         "posix_double_fork_setsid_quiescence",
         "posix_term_spawn_dynamic_rescan",
         "windows_process_observation_typed",
+        "windows_detached_worker_job_escape_proven",
         "run_lock_fail_closed",
         "run_lock_initialization_fail_closed",
         "multiprocess_cancel_idempotent",
@@ -2977,7 +3163,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 49 if os.name != "nt" else 40
+    expected_case_count = 49 if os.name != "nt" else 44
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
