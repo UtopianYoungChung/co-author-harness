@@ -119,24 +119,96 @@ def _alive_identities(ctl, identities: dict[int, str]) -> list[int]:
 
 
 def _terminate_identities(ctl, identities: dict[int, str]) -> None:
-    """Bounded test-only fallback; never terminate a reused PID."""
-    for pid in reversed(list(identities)):
-        if ctl._process_token(pid) != identities[pid]:
-            continue
-        if os.name == "nt":
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/T", "/F"],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL, check=False,
-            )
-        else:
+    """Bounded test-only fallback using an exact process handle, never a PID kill."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        class FILETIME(ctypes.Structure):
+            _fields_ = (("low", wintypes.DWORD), ("high", wintypes.DWORD))
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetProcessTimes.argtypes = (
+            wintypes.HANDLE, ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
+            ctypes.POINTER(FILETIME), ctypes.POINTER(FILETIME),
+        )
+        kernel32.GetProcessTimes.restype = wintypes.BOOL
+        kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+        kernel32.TerminateProcess.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        retained: list[tuple[int, int]] = []
+        for pid in reversed(list(identities)):
+            ctypes.set_last_error(0)
+            handle = kernel32.OpenProcess(0x1 | 0x1000 | 0x100000, False, pid)
+            if not handle:
+                error = ctypes.get_last_error()
+                if error == 87:  # ERROR_INVALID_PARAMETER: PID does not exist.
+                    continue
+                raise AssertionError(f"OpenProcess failed for {pid}: winerror={error}")
+            keep_handle = False
             try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-    deadline = time.monotonic() + 10.0
-    while _alive_identities(ctl, identities) and time.monotonic() < deadline:
-        time.sleep(.05)
+                wait = kernel32.WaitForSingleObject(handle, 0)
+                if wait == 0:
+                    continue
+                assert wait == 258, f"WaitForSingleObject failed for {pid}: {wait}"
+                created, exited, kernel, user = FILETIME(), FILETIME(), FILETIME(), FILETIME()
+                assert kernel32.GetProcessTimes(
+                    handle, ctypes.byref(created), ctypes.byref(exited),
+                    ctypes.byref(kernel), ctypes.byref(user),
+                ), f"GetProcessTimes failed for {pid}: winerror={ctypes.get_last_error()}"
+                token = str((created.high << 32) | created.low)
+                if token != identities[pid]:
+                    continue
+                wait = kernel32.WaitForSingleObject(handle, 0)
+                if wait == 0:
+                    continue
+                assert wait == 258, f"post-read WaitForSingleObject failed for {pid}: {wait}"
+                assert kernel32.TerminateProcess(handle, 1223), f"TerminateProcess failed for {pid}"
+                retained.append((int(handle), pid))
+                keep_handle = True
+            finally:
+                if not keep_handle:
+                    assert kernel32.CloseHandle(handle), f"CloseHandle failed for {pid}"
+        try:
+            for handle, pid in retained:
+                assert kernel32.WaitForSingleObject(handle, 10000) == 0, (
+                    f"exact Windows handle did not become signaled: {pid}"
+                )
+        finally:
+            for handle, pid in retained:
+                assert kernel32.CloseHandle(handle), f"CloseHandle failed for {pid}"
+        return
+
+    import select
+
+    retained_pidfds: list[tuple[int, int]] = []
+    for pid in reversed(list(identities)):
+        try:
+            descriptor = os.pidfd_open(pid)
+        except ProcessLookupError:
+            continue
+        keep_descriptor = False
+        try:
+            if ctl._process_token(pid) != identities[pid]:
+                continue
+            signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+            retained_pidfds.append((descriptor, pid))
+            keep_descriptor = True
+        finally:
+            if not keep_descriptor:
+                os.close(descriptor)
+    try:
+        for descriptor, pid in retained_pidfds:
+            readable, _, _ = select.select([descriptor], [], [], 10)
+            assert readable, f"exact pidfd did not become readable: {pid}"
+    finally:
+        for descriptor, _pid in retained_pidfds:
+            os.close(descriptor)
 
 
 def _reap_frontends(processes: list[subprocess.Popen[bytes]]) -> None:
@@ -157,8 +229,10 @@ def _capture_identity(ctl, identities: dict[int, str], pid: object) -> None:
         identities.setdefault(pid, token)
 
 
-def _capture_run_identities(ctl, root: Path, run_id: str, identities: dict[int, str]) -> None:
-    run_dir = root / "runs" / run_id
+def _capture_run_identities(
+    ctl, root: Path, run_id: str, identities: dict[int, str], *, run_root: Path | None = None,
+) -> None:
+    run_dir = (run_root if run_root is not None else root / "runs") / run_id
     try:
         owner = json.loads((run_dir / "owner.json").read_text(encoding="ascii"))
         _capture_identity(ctl, identities, owner.get("pid"))
@@ -173,9 +247,14 @@ def _capture_run_identities(ctl, root: Path, run_id: str, identities: dict[int, 
         pass
 
 
-def _cancel_finally(ctl, root: Path, run_id: str) -> None:
+def _cancel_finally(
+    ctl, root: Path, run_id: str, *, run_root: Path | None = None,
+) -> None:
     try:
-        ctl.cancel_run(run_root=root / "runs", run_id=run_id, timeout_s=30)
+        ctl.cancel_run(
+            run_root=run_root if run_root is not None else root / "runs",
+            run_id=run_id, timeout_s=30,
+        )
     except Exception:
         # The exact-token fallback owned by each regression is responsible for
         # preserving cleanup if the controller itself is the behavior at fault.
@@ -287,7 +366,393 @@ def _reopened_red_against_committed() -> int:
     raise AssertionError("expected reopened red regressions:\n- " + "\n- ".join(failures))
 
 
+def _third_reopened_red() -> int:
+    """Prove third-review defects against the self-contained baseline commit."""
+    expected_commit = "3a1602625bea5c34a05aaa3f1eb1c4b8d10b6bc0"
+    frozen_files = {
+        "scripts/release_qualification_controller.py": "63aebb54460b248094773336d4798f4ac39d80337d739cf57d450a7d9635234c",
+        "scripts/destination_capability.py": "35b8ec81ac0fd06a4e8d1808c78126e7123f92c52de53fa2ee9b02e7e07c4a11",
+        "scripts/qualification_environment.py": "a9f20c3c9e41536b73a7687d69250dfbc74ef12142831a77c59aab7d19d4346d",
+        "references/schemas/release_qualification_controller.schema.json": "71a1a0a213cd832aec529852658f20d809ffbb2937ad780833b607166f7c9b14",
+    }
+    observed_commit = subprocess.run(
+        ["git", "rev-parse", f"{expected_commit}^{{commit}}"], cwd=ROOT,
+        stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+    ).stdout.strip()
+    assert observed_commit == expected_commit, (observed_commit, expected_commit)
+    failures: list[str] = []
+    cases = 0
+    platform_skips = 0
+
+    def require(case: str, condition: bool, detail: str) -> None:
+        nonlocal cases
+        cases += 1
+        if not condition:
+            failures.append(f"{case}: {detail}")
+
+    with tempfile.TemporaryDirectory(prefix="release-controller-third-red-") as raw:
+        isolated_root = Path(raw) / "committed-root"
+        for relative, expected_sha256 in frozen_files.items():
+            raw_file = subprocess.run(
+                ["git", "show", f"{expected_commit}:{relative}"], cwd=ROOT,
+                stdin=subprocess.DEVNULL, capture_output=True, check=True,
+            ).stdout
+            observed_sha256 = hashlib.sha256(raw_file).hexdigest()
+            assert observed_sha256 == expected_sha256, (relative, observed_sha256, expected_sha256)
+            destination = isolated_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(raw_file)
+        scripts = isolated_root / "scripts"
+        sys.path.insert(0, str(scripts))
+        try:
+            ctl = _load(
+                scripts / "release_qualification_controller.py",
+                "release_qualification_controller_third_red",
+            )
+        finally:
+            sys.path.remove(str(scripts))
+        assert Path(sys.modules["destination_capability"].__file__).resolve() == (
+            scripts / "destination_capability.py"
+        ).resolve()
+        assert Path(sys.modules["qualification_environment"].__file__).resolve() == (
+            scripts / "qualification_environment.py"
+        ).resolve()
+        root = isolated_root / "smoke"
+        root.mkdir(parents=True)
+        cleanup_probe = "pidfd exercised by setsid regression"
+        if os.name == "nt":
+            probe = subprocess.Popen(
+                [sys.executable, "-c", "import time;time.sleep(60)"],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            probe_token = ctl._process_token(probe.pid)
+            assert isinstance(probe_token, str) and probe_token
+            try:
+                _terminate_identities(ctl, {probe.pid: probe_token})
+                assert probe.wait(timeout=1) is not None
+            finally:
+                if probe.poll() is None:
+                    # Popen retains the exact process handle; this never targets
+                    # a later process by its reused numeric PID.
+                    probe.kill()
+                    probe.wait(timeout=10)
+            cleanup_probe = "exact Windows process handle exercised"
+
+        if os.name != "nt":
+            # A descendant that calls setsid remains an owned/reparented child
+            # of the subreaper and must not outlive terminal evidence.
+            escape_pids = root / "work" / "escaped-session-pids.json"
+            escape_identities: dict[int, str] = {}
+            receipt = None
+            alive_at_terminal: list[int] = []
+            escaped_child = (
+                "import json,os,time;from pathlib import Path;"
+                f"p=Path({str(escape_pids)!r});t=p.with_name('.'+p.name+'.tmp');"
+                "t.write_text(json.dumps([os.getpid()]),encoding='ascii');os.replace(t,p);"
+                "time.sleep(60)"
+            )
+            product = (
+                "import subprocess,sys;"
+                f"subprocess.Popen([sys.executable,'-c',{escaped_child!r}],start_new_session=True)"
+            )
+            try:
+                _start(
+                    ctl, root, "setsid-escape", product,
+                    allowed_output_roots=[root / "work"],
+                )
+                escape_identities = _identities(ctl, _wait_for_pid_list(escape_pids))
+                receipt_path = root / "runs" / "setsid-escape" / "receipt.json"
+                _wait_for_path(receipt_path, timeout_s=20)
+                receipt = json.loads(receipt_path.read_text(encoding="ascii"))
+                alive_at_terminal = _alive_identities(ctl, escape_identities)
+            finally:
+                if escape_pids.is_file() and not escape_identities:
+                    try:
+                        escape_identities = _identities(
+                            ctl, _wait_for_pid_list(escape_pids, timeout_s=1),
+                        )
+                    except AssertionError:
+                        pass
+                _cancel_finally(ctl, root, "setsid-escape")
+                _terminate_identities(ctl, escape_identities)
+            require(
+                "POSIX-SETSID-DESCENDANT-OWNED",
+                receipt is not None and not alive_at_terminal,
+                f"terminal receipt was published while escaped owned identities remained: {alive_at_terminal}",
+            )
+
+            # Membership and creation identity must derive from one /proc stat
+            # observation.  A second read may already describe a reused PID.
+            members: dict[int, str] = {}
+            signalled: list[int] = []
+
+            class FakeStat:
+                def read_text(self, **_kwargs):
+                    return "4242 (old member) S 1 17 17 " + " ".join(map(str, range(4, 20)))
+
+            class FakeEntry:
+                name = "4242"
+
+                def __truediv__(self, _name):
+                    return FakeStat()
+
+            class FakeProc:
+                def iterdir(self):
+                    return [FakeEntry()]
+
+            membership_api = all(
+                callable(getattr(ctl, name, None))
+                for name in ("_session_members", "_signal_session")
+            )
+            if membership_api:
+                original_path = ctl.Path
+                original_token = ctl._process_token
+                original_kill = ctl.os.kill
+                ctl.Path = lambda raw_path: (
+                    FakeProc() if os.fspath(raw_path) == "/proc" else original_path(raw_path)
+                )
+                ctl._process_token = lambda _pid: "new-process-token"
+                ctl.os.kill = lambda pid, _signal: signalled.append(pid)
+                try:
+                    members = ctl._session_members(17)
+                    ctl._signal_session(17, members, signal.SIGTERM)
+                finally:
+                    ctl.Path = original_path
+                    ctl._process_token = original_token
+                    ctl.os.kill = original_kill
+            require(
+                "POSIX-SESSION-MEMBERSHIP-SINGLE-OBSERVATION",
+                membership_api and not members and not signalled,
+                "single-observation membership API is absent"
+                if not membership_api else (
+                    f"a reused PID was admitted and signalled: members={members}, signalled={signalled}"
+                ),
+            )
+        else:
+            platform_skips += 2
+
+        # Missing creation tokens and a second reap timeout must be explicit
+        # failures; cleanup may never silently omit an owned frontend.
+        class NoTokenController:
+            @staticmethod
+            def _process_token(_pid):
+                return None
+
+        class NeverReaped:
+            pid = 919191
+
+            @staticmethod
+            def communicate(timeout):
+                raise subprocess.TimeoutExpired(["synthetic-frontend"], timeout)
+
+        capture_error = reap_error = None
+        try:
+            _capture_identity(NoTokenController(), {}, NeverReaped.pid)
+        except Exception as exc:
+            capture_error = exc
+        try:
+            _reap_frontends([NeverReaped()])
+        except Exception as exc:
+            reap_error = exc
+        require(
+            "SMOKE-FRONTEND-UNAVAILABLE-TOKEN-EXPLICIT",
+            capture_error is not None,
+            "token-unavailable capture was silently omitted",
+        )
+        require(
+            "SMOKE-FRONTEND-SECOND-REAP-TIMEOUT-EXPLICIT",
+            reap_error is not None,
+            "second reap timeout was silently suppressed",
+        )
+
+        # Unlock errors must be typed, but the stream must always be closed and
+        # cleared even when the platform unlock primitive fails.
+        class FakeStream:
+            def __init__(self):
+                self.closed = False
+
+            @staticmethod
+            def fileno():
+                return 12345
+
+            @staticmethod
+            def seek(*_args):
+                return 0
+
+            def close(self):
+                self.closed = True
+
+        stream = FakeStream()
+        unlock_error = None
+        lock = None
+        lock_api = hasattr(ctl, "_RunLock") and hasattr(ctl, "_ATOMIC_LOCK")
+        if lock_api:
+            lock = ctl._RunLock(root / "synthetic-release.lock")
+            lock.stream = stream
+            ctl._ATOMIC_LOCK.acquire()
+            if os.name == "nt":
+                import msvcrt as lock_module
+                primitive_name = "locking"
+            else:
+                import fcntl as lock_module
+                primitive_name = "flock"
+            original_unlock = getattr(lock_module, primitive_name)
+            setattr(
+                lock_module, primitive_name,
+                lambda *_args: (_ for _ in ()).throw(OSError("synthetic unlock")),
+            )
+            try:
+                lock.__exit__(None, None, None)
+            except Exception as exc:
+                unlock_error = exc
+            finally:
+                setattr(lock_module, primitive_name, original_unlock)
+        require(
+            "RUNLOCK-UNLOCK-FAILURE-CLOSES-AND-TYPES",
+            lock_api and stream.closed and lock.stream is None
+            and isinstance(unlock_error, ctl.ControllerRefusal),
+            "run-lock API is absent" if not lock_api else (
+                f"unlock failure retained the stream or surfaced untyped: {unlock_error!r}"
+            ),
+        )
+
+        # Acquisition must retry only recognized contention.  Synthetic
+        # non-contention OS errors require an immediate typed lock refusal.
+        acquire_error = None
+        if lock_api:
+            acquire_lock = ctl._RunLock(root / "synthetic-acquire.lock", timeout_s=0)
+            original_acquire = getattr(lock_module, primitive_name)
+            setattr(
+                lock_module, primitive_name,
+                lambda *_args: (_ for _ in ()).throw(OSError("synthetic non-contention")),
+            )
+            try:
+                acquire_lock.__enter__()
+            except Exception as exc:
+                acquire_error = exc
+            finally:
+                setattr(lock_module, primitive_name, original_acquire)
+        require(
+            "RUNLOCK-NONCONTENTION-ERROR-TYPED",
+            lock_api and isinstance(acquire_error, ctl.ControllerRefusal)
+            and getattr(acquire_error, "code", None) != "RELEASE-CONTROLLER-LIVE",
+            "run-lock API is absent" if not lock_api else (
+                f"non-contention acquisition error was raw or misclassified: {acquire_error!r}"
+            ),
+        )
+
+        # Pure/injectable Windows observation table: only confirmed absence or
+        # a signaled handle means dead; all observation errors are typed.
+        def windows_error(code: int, message: str) -> OSError:
+            error = OSError(message)
+            error.winerror = code
+            return error
+
+        observation_table = [
+            {"name": "signaled-dead", "waits": ["signaled"], "expected": None},
+            {"name": "absent-pid-dead", "open_error": windows_error(87, "absent"), "expected": None},
+            {"name": "access-refused", "open_error": windows_error(5, "access"), "expected": "refusal"},
+            {"name": "wait-api-refused", "waits": [windows_error(6, "wait")], "expected": "refusal"},
+            {"name": "times-refused", "waits": ["timeout"], "read_error": windows_error(6, "times"), "expected": "refusal"},
+            {"name": "timeout-read-signaled-dead", "waits": ["timeout", "signaled"], "token": "creation-1", "expected": None},
+            {"name": "timeout-read-timeout-live", "waits": ["timeout", "timeout"], "token": "creation-2", "expected": "creation-2"},
+            {"name": "close-refused", "waits": ["signaled"], "close_error": windows_error(6, "close"), "expected": "refusal"},
+        ]
+
+        class FakeWindowsApi:
+            def __init__(self, row):
+                self.row = row
+                self.waits = list(row.get("waits", []))
+                self.opened = self.closed = 0
+
+            def open_process(self, _pid):
+                error = self.row.get("open_error")
+                if error is not None:
+                    raise error
+                self.opened += 1
+                return object()
+
+            def wait(self, _handle):
+                value = self.waits.pop(0)
+                if isinstance(value, Exception):
+                    raise value
+                return value
+
+            def creation_token(self, _handle):
+                error = self.row.get("read_error")
+                if error is not None:
+                    raise error
+                return self.row.get("token", "unused-token")
+
+            def close(self, _handle):
+                self.closed += 1
+                error = self.row.get("close_error")
+                if error is not None:
+                    raise error
+
+        observer = getattr(ctl, "_observe_windows_process", None)
+        observation_failures: list[str] = []
+        if callable(observer):
+            for row in observation_table:
+                api = FakeWindowsApi(row)
+                try:
+                    value = observer(4242, api=api)
+                except Exception as exc:
+                    value = "refusal" if isinstance(exc, ctl.ControllerRefusal) else f"raw:{exc!r}"
+                if value != row["expected"]:
+                    observation_failures.append(
+                        f"{row['name']} expected {row['expected']!r}, got {value!r}"
+                    )
+                if api.opened and api.closed != 1:
+                    observation_failures.append(
+                        f"{row['name']} closed {api.closed} times after {api.opened} open"
+                    )
+        require(
+            "WINDOWS-PROCESS-OBSERVATION-TYPED",
+            callable(observer) and not observation_failures,
+            "injectable observer API is absent" if not callable(observer) else "; ".join(observation_failures),
+        )
+
+        # Preserve red evidence for the committed unsafe cleanup while the
+        # active smoke helper is guarded by exact handles/pidfds.
+        committed_smoke = subprocess.run(
+            ["git", "show", "3a1602625bea5c34a05aaa3f1eb1c4b8d10b6bc0:scripts/release_qualification_controller_smoketest.py"],
+            cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True, check=True,
+        ).stdout.decode("utf-8", errors="strict")
+        committed_cleanup = committed_smoke.split("def _terminate_identities", 1)[1].split("\ndef ", 1)[0]
+        active_cleanup = inspect.getsource(_terminate_identities)
+        assert "taskkill" not in active_cleanup and "TerminateProcess" in active_cleanup
+        require(
+            "SMOKE-WINDOWS-CLEANUP-EXACT-HANDLE",
+            "taskkill" not in committed_cleanup,
+            "committed cleanup performs token-check then bare taskkill /PID",
+        )
+
+    expected_failures = 8 if os.name != "nt" else 6
+    assert cases == expected_failures, (cases, expected_failures)
+    assert len(failures) == expected_failures, failures
+    print(f"third-red commit={expected_commit}")
+    print(
+        "frozen inputs: " + ", ".join(
+            f"{relative}={digest}" for relative, digest in frozen_files.items()
+        )
+    )
+    print(f"windows_observation_table_rows={len(observation_table)}")
+    print(f"cleanup_probe={cleanup_probe}")
+    print(
+        f"platform: os.name={os.name}; behavioral_cases={cases}; "
+        f"platform_skips={platform_skips}; posix_evidence={'executed' if os.name != 'nt' else 'not-run'}"
+    )
+    for failure in failures:
+        print(f"RED {failure}")
+    print("cleanup: exact handles/pidfds quiescent; disposable third-red root removed")
+    raise AssertionError("expected third-review red regressions:\n- " + "\n- ".join(failures))
+
+
 def main() -> int:
+    if os.environ.get("COAUTHOR_CONTROLLER_THIRD_REOPENED_RED") == "1":
+        return _third_reopened_red()
     if os.environ.get("COAUTHOR_CONTROLLER_REOPENED_RED") == "1":
         return _reopened_red_against_committed()
     env = _load(ENVIRONMENT, "qualification_environment")
@@ -716,17 +1181,24 @@ time.sleep(60)
 """
         stalled_identities: dict[int, str] = {}
         def spawn_stalled_worker(_paths, worker_env, worker_stdout, worker_stderr, *, detached):
+            if os.name == "nt":
+                job = ctl._WindowsJob()
+                try:
+                    with open(os.devnull, "rb") as devnull:
+                        process = ctl._spawn_windows_job_process(
+                            [sys.executable, "-c", stalled_code], cwd=Path.cwd(),
+                            environment=dict(worker_env), stdin=devnull,
+                            stdout=worker_stdout, stderr=worker_stderr, job=job,
+                        )
+                except Exception:
+                    job.close()
+                    raise
+                return process, job
             kwargs = {
                 "stdin": subprocess.DEVNULL, "stdout": worker_stdout,
                 "stderr": worker_stderr, "close_fds": True, "env": dict(worker_env),
             }
-            if os.name == "nt":
-                kwargs["creationflags"] = (
-                    getattr(subprocess, "DETACHED_PROCESS", 0x8)
-                    | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
-                )
-            else:
-                kwargs["start_new_session"] = detached
+            kwargs["start_new_session"] = detached
             return subprocess.Popen([sys.executable, "-c", stalled_code], **kwargs), None
         original_spawn = ctl._spawn_worker_process
         ctl._spawn_worker_process = spawn_stalled_worker
@@ -763,15 +1235,21 @@ time.sleep(60)
         # name, surface raw FileExistsError, or leave a stale temp behind.
         _start(ctl, root, "concurrent-cancel", "import time;time.sleep(60)")
         original_atomic = ctl._atomic
-        atomic_barrier = threading.Barrier(2)
+        cancel_publications = 0
+        publication_guard = threading.Lock()
         def synchronized_cancel_atomic(path, raw):
+            nonlocal cancel_publications
             if path.name == "cancel.request.json":
-                atomic_barrier.wait(timeout=10)
+                with publication_guard:
+                    cancel_publications += 1
+                time.sleep(.1)
             return original_atomic(path, raw)
         ctl._atomic = synchronized_cancel_atomic
         outcomes: list[object] = []
+        cancel_start = threading.Barrier(2)
         def competing_cancel():
             try:
+                cancel_start.wait(timeout=10)
                 outcomes.append(ctl.cancel_run(
                     run_root=root / "runs", run_id="concurrent-cancel", timeout_s=30,
                 ))
@@ -790,6 +1268,8 @@ time.sleep(60)
             isinstance(item, dict) and item.get("state") == "cancelled" for item in outcomes
         ):
             expected_failures.append(f"concurrent cancel surfaced a non-idempotent outcome: {outcomes!r}")
+        if cancel_publications != 1:
+            expected_failures.append(f"concurrent cancel published {cancel_publications} requests")
         cancel_temps = [
             *list((root / "runs" / "concurrent-cancel").glob("*.tmp")),
             *list((root / "runs" / "concurrent-cancel").glob(".*.tmp")),
@@ -1106,12 +1586,19 @@ time.sleep(60)
         input_root = root / "input-root"; input_root.mkdir()
         (input_root / "nested").mkdir(); (input_root / "nested" / "bound.txt").write_text("before")
         input_sentinel = root / "work" / "input-root-child.txt"
-        _start(
-            ctl, root, "input-root-drift",
-            "from pathlib import Path;" + f"Path({str(input_sentinel)!r}).write_text('ran')",
-            input_roots=[input_root], allowed_output_roots=[root / "work"],
-        )
-        (input_root / "nested" / "bound.txt").write_text("after")
+        preflight_gate = root / "runs" / "input-root-drift" / ".test-preflight-gate"
+        try:
+            _start(
+                ctl, root, "input-root-drift",
+                "from pathlib import Path;" + f"Path({str(input_sentinel)!r}).write_text('ran')",
+                input_roots=[input_root], allowed_output_roots=[root / "work"],
+                _test_fault="pause_before_input_drift",
+            )
+            _wait_for_event(root, "input-root-drift", "test_preflight_paused")
+            (input_root / "nested" / "bound.txt").write_text("after")
+        finally:
+            if preflight_gate.parent.is_dir():
+                preflight_gate.write_text("continue", encoding="ascii")
         receipt = _wait(ctl, root, "input-root-drift")
         assert receipt["state"] == "refused"
         assert receipt["diagnostic"]["code"] == "RELEASE-CONTROLLER-INPUT-DRIFT-BEFORE-CHILD"
@@ -1238,13 +1725,36 @@ time.sleep(60)
             "COAUTHOR_RELEASE_CONTROLLER_ROOT": str(facade_root),
             "COAUTHOR_RELEASE_RUN_ID": "ambient-marker",
         })
-        facade = subprocess.run(
+        facade_process = subprocess.Popen(
             [str(bash), str(gate), "--help"], env=facade_env,
-            # The facade inventories the complete checkout before its child;
-            # allow the same slow-host envelope as the registered suite.
-            stdin=subprocess.DEVNULL, capture_output=True, check=False, timeout=120,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
-        assert facade.returncode == 0, facade.stderr
+        facade_frontend: dict[int, str] = {}
+        facade_owned: dict[int, str] = {}
+        _capture_identity(ctl, facade_frontend, facade_process.pid)
+        facade_output: tuple[bytes, bytes] | None = None
+        try:
+            # WSL/NTFS inventories the complete checkout through p9; retain a
+            # bounded slow-host envelope without abandoning the durable worker.
+            facade_output = facade_process.communicate(timeout=300)
+        finally:
+            _terminate_identities(ctl, facade_frontend)
+            _reap_frontends([facade_process])
+            _capture_run_identities(
+                ctl, root, "ambient-marker", facade_owned, run_root=facade_root,
+            )
+            if (facade_root / "ambient-marker" / "intent.json").is_file():
+                _cancel_finally(
+                    ctl, root, "ambient-marker", run_root=facade_root,
+                )
+            _capture_run_identities(
+                ctl, root, "ambient-marker", facade_owned, run_root=facade_root,
+            )
+            _terminate_identities(ctl, facade_owned)
+        assert not _alive_identities(ctl, facade_frontend)
+        assert not _alive_identities(ctl, facade_owned)
+        assert facade_output is not None
+        assert facade_process.returncode == 0, facade_output[1]
         assert (facade_root / "ambient-marker" / "receipt.json").is_file()
         cases += 1
 
