@@ -211,7 +211,7 @@ def main() -> int:
     # non-gating) lives ONLY in domain_native_register_smoketest.py — invoked
     # here; not re-stated in semantics/adversarial accessibility suites.
     for isolated in (False, True):
-        command = [sys.executable] + (["-I", "-S"] if isolated else []) + [str(dnr)]
+        command = [sys.executable, "-B"] + (["-I", "-S"] if isolated else []) + [str(dnr)]
         proc = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
         check(proc.returncode == 0 and "OK domain_native_register_smoketest" in proc.stdout, "malformed_input_is_controlled", f"domain-native register suite failed (isolated={isolated}): {proc.stdout}{proc.stderr}")
     print(f"OK reader_accessibility_contract_smoketest ({len(ACCESSIBILITY_CASES)} cases)")

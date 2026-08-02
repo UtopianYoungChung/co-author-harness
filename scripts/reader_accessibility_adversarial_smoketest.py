@@ -39,7 +39,7 @@ def run_runner(project: Path, text: str, *extra: str) -> subprocess.CompletedPro
     manuscript = project / "manuscript.md"
     manuscript.write_text(text, encoding="utf-8")
     return subprocess.run(
-        [sys.executable, "-I", "-S", str(ROOT / "scripts/audit/run_all.py"), str(manuscript),
+        [sys.executable, "-I", "-S", "-B", str(ROOT / "scripts/audit/run_all.py"), str(manuscript),
          "--project-root", str(project), "--skip-d-style-profile", "--phase", "Ph2",
          "--cycle-id", "adversarial", "--out", str(project / "reviews/findings.json"), *extra],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -123,7 +123,7 @@ def main() -> int:
         assert any("triadic_enumerator" in item["markers"] for item in probe_artifact["sub_checks"]["F"]["candidates"])
         tex_manuscript=project/"manuscript.tex"; tex_manuscript.write_text("\\section{First}\nA bare opening without either signpost.\n\\subsection{Second}\nHaving established the baseline, this section shows the result.\n",encoding="utf-8")
         tex_out=project/"reviews/reader_accessibility_candidates_tex.json"
-        tex_proc=subprocess.run([sys.executable,"-I","-S",str(ROOT/"scripts/audit/run_all.py"),str(tex_manuscript),"--project-root",str(project),"--skip-d-style-profile","--phase","Ph2","--cycle-id","tex","--accessibility-out",str(tex_out),"--out",str(project/"reviews/tex_findings.json")],capture_output=True,text=True,encoding="utf-8",errors="replace")
+        tex_proc=subprocess.run([sys.executable,"-I","-S","-B",str(ROOT/"scripts/audit/run_all.py"),str(tex_manuscript),"--project-root",str(project),"--skip-d-style-profile","--phase","Ph2","--cycle-id","tex","--accessibility-out",str(tex_out),"--out",str(project/"reviews/tex_findings.json")],capture_output=True,text=True,encoding="utf-8",errors="replace")
         assert tex_proc.returncode == 0, tex_proc.stdout+tex_proc.stderr
         tex_artifact=json.loads(tex_out.read_text(encoding="utf-8"))
         assert any(item["heading"] == "First" for item in tex_artifact["sub_checks"]["D"]["candidates"]), "compact TeX First opening borrowed Second cues"

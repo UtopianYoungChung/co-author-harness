@@ -641,7 +641,7 @@ def _framework(project: Path, matrix: dict[str, Any], adjudication: dict[str, An
 
 def _run_validator(script: str, project: Path) -> None:
     result = subprocess.run(
-        [sys.executable, "-I", "-S", str(SCRIPT_DIR / script), "--project-root", str(project)],
+        [sys.executable, "-I", "-S", "-B", str(SCRIPT_DIR / script), "--project-root", str(project)],
         cwd=PACKAGE_ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
     )
     if result.returncode != 0:

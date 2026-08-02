@@ -40,7 +40,7 @@ def sha(payload: bytes) -> str:
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-I", "-S", str(MIGRATOR), *args],
+        [sys.executable, "-I", "-S", "-B", str(MIGRATOR), *args],
         cwd=ROOT,
         text=True, encoding="utf-8", errors="replace",
         capture_output=True,

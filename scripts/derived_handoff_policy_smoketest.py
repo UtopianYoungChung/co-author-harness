@@ -215,7 +215,7 @@ def _state(project: Path) -> dict[str, Any]:
 def _run_bootstrap(project: Path, *extra: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            sys.executable, "-I", "-S", str(BOOTSTRAP),
+            sys.executable, "-I", "-S", "-B", str(BOOTSTRAP),
             "--project-root", str(project),
             "--project-name", project.name,
             "--title", "Synthetic policy project",
@@ -249,7 +249,7 @@ def _assert_bootstrap(project: Path, policy: str, *extra: str) -> None:
 
 def _assert_bootstrap_help_discloses_policy() -> None:
     result = subprocess.run(
-        [sys.executable, "-I", "-S", str(BOOTSTRAP), "--help"],
+        [sys.executable, "-I", "-S", "-B", str(BOOTSTRAP), "--help"],
         cwd=ROOT,
         env=PYTHON_ENV,
         text=True,

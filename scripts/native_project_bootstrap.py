@@ -246,6 +246,7 @@ def _validate_staging(staging_root: Path, validator_runner: ValidatorRunner) -> 
             sys.executable,
             "-I",
             "-S",
+            "-B",
             str(SCRIPT_DIR / "milestone_framework_validate.py"),
             "--project-root",
             str(staging_root),
@@ -254,6 +255,7 @@ def _validate_staging(staging_root: Path, validator_runner: ValidatorRunner) -> 
             sys.executable,
             "-I",
             "-S",
+            "-B",
             str(SCRIPT_DIR / "phase_state_validate.py"),
             "--project-root",
             str(staging_root),
@@ -264,7 +266,7 @@ def _validate_staging(staging_root: Path, validator_runner: ValidatorRunner) -> 
         if result.returncode != 0:
             detail = (result.stdout + result.stderr).strip()
             raise ValueError(
-                f"canonical bootstrap validation failed ({Path(command[3]).name}, exit {result.returncode})"
+                f"canonical bootstrap validation failed ({Path(command[4]).name}, exit {result.returncode})"
                 + (f": {detail}" if detail else "")
             )
 

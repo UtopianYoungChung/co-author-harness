@@ -26,7 +26,7 @@ PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-I", "-S", *args],
+        [sys.executable, "-I", "-S", "-B", *args],
         cwd=ROOT,
         text=True, encoding="utf-8", errors="replace",
         capture_output=True,

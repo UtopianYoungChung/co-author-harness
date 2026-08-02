@@ -37,6 +37,7 @@ def _run(
             sys.executable,
             "-I",
             "-S",
+            "-B",
             str(BOOTSTRAP),
             "--project-root",
             str(project),

@@ -18,7 +18,7 @@ FIXED_TIME = "2026-07-13T18:00:00Z"
 
 def _run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-I", "-S", str(script), *args],
+        [sys.executable, "-I", "-S", "-B", str(script), *args],
         cwd=ROOT,
         text=True, encoding="utf-8", errors="replace",
         capture_output=True,
