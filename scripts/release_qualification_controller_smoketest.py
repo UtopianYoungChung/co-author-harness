@@ -118,7 +118,9 @@ def _alive_identities(ctl, identities: dict[int, str]) -> list[int]:
     return [pid for pid, token in identities.items() if ctl._process_token(pid) == token]
 
 
-def _terminate_identities(ctl, identities: dict[int, str]) -> set[tuple[int, str]]:
+def _terminate_identities(
+    ctl, identities: dict[int, str], *, before_terminate=None,
+) -> set[tuple[int, str]]:
     """Bounded test-only fallback using an exact process handle, never a PID kill."""
     signalled: set[tuple[int, str]] = set()
     if os.name == "nt":
@@ -143,40 +145,51 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> set[tuple[int, str
         kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
         kernel32.CloseHandle.restype = wintypes.BOOL
         retained: list[tuple[int, int]] = []
-        for pid in reversed(list(identities)):
-            ctypes.set_last_error(0)
-            handle = kernel32.OpenProcess(0x1 | 0x1000 | 0x100000, False, pid)
-            if not handle:
-                error = ctypes.get_last_error()
-                if error == 87:  # ERROR_INVALID_PARAMETER: PID does not exist.
-                    continue
-                raise AssertionError(f"OpenProcess failed for {pid}: winerror={error}")
-            keep_handle = False
-            try:
-                wait = kernel32.WaitForSingleObject(handle, 0)
-                if wait == 0:
-                    continue
-                assert wait == 258, f"WaitForSingleObject failed for {pid}: {wait}"
-                created, exited, kernel, user = FILETIME(), FILETIME(), FILETIME(), FILETIME()
-                assert kernel32.GetProcessTimes(
-                    handle, ctypes.byref(created), ctypes.byref(exited),
-                    ctypes.byref(kernel), ctypes.byref(user),
-                ), f"GetProcessTimes failed for {pid}: winerror={ctypes.get_last_error()}"
-                token = str((created.high << 32) | created.low)
-                if token != identities[pid]:
-                    continue
-                wait = kernel32.WaitForSingleObject(handle, 0)
-                if wait == 0:
-                    continue
-                assert wait == 258, f"post-read WaitForSingleObject failed for {pid}: {wait}"
-                assert kernel32.TerminateProcess(handle, 1223), f"TerminateProcess failed for {pid}"
-                signalled.add((pid, identities[pid]))
-                retained.append((int(handle), pid))
-                keep_handle = True
-            finally:
-                if not keep_handle:
-                    assert kernel32.CloseHandle(handle), f"CloseHandle failed for {pid}"
         try:
+            for pid in reversed(list(identities)):
+                ctypes.set_last_error(0)
+                handle = kernel32.OpenProcess(0x1 | 0x1000 | 0x100000, False, pid)
+                if not handle:
+                    error = ctypes.get_last_error()
+                    if error == 87:  # ERROR_INVALID_PARAMETER: PID does not exist.
+                        continue
+                    raise AssertionError(f"OpenProcess failed for {pid}: winerror={error}")
+                keep_handle = False
+                try:
+                    wait = kernel32.WaitForSingleObject(handle, 0)
+                    if wait == 0:
+                        continue
+                    assert wait == 258, f"WaitForSingleObject failed for {pid}: {wait}"
+                    created, exited, kernel, user = FILETIME(), FILETIME(), FILETIME(), FILETIME()
+                    assert kernel32.GetProcessTimes(
+                        handle, ctypes.byref(created), ctypes.byref(exited),
+                        ctypes.byref(kernel), ctypes.byref(user),
+                    ), f"GetProcessTimes failed for {pid}: winerror={ctypes.get_last_error()}"
+                    token = str((created.high << 32) | created.low)
+                    if token != identities[pid]:
+                        continue
+                    wait = kernel32.WaitForSingleObject(handle, 0)
+                    if wait == 0:
+                        continue
+                    assert wait == 258, f"post-read WaitForSingleObject failed for {pid}: {wait}"
+                    if before_terminate is not None:
+                        before_terminate(pid, int(handle))
+                    ctypes.set_last_error(0)
+                    if not kernel32.TerminateProcess(handle, 1223):
+                        error = ctypes.get_last_error()
+                        settled = kernel32.WaitForSingleObject(handle, 1000)
+                        if settled == 0:
+                            continue
+                        raise AssertionError(
+                            f"TerminateProcess failed for {pid}: winerror={error}; "
+                            f"same_handle_wait={settled}"
+                        )
+                    signalled.add((pid, identities[pid]))
+                    retained.append((int(handle), pid))
+                    keep_handle = True
+                finally:
+                    if not keep_handle:
+                        assert kernel32.CloseHandle(handle), f"CloseHandle failed for {pid}"
             for handle, pid in retained:
                 assert kernel32.WaitForSingleObject(handle, 10000) == 0, (
                     f"exact Windows handle did not become signaled: {pid}"
@@ -213,6 +226,130 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> set[tuple[int, str
         for descriptor, _pid in retained_pidfds:
             os.close(descriptor)
     return signalled
+
+
+def _windows_terminate_race_contract(ctl) -> None:
+    """Force natural-exit timing on the same exact retained Windows handle."""
+    if os.name != "nt":
+        return
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel32.TerminateProcess.restype = wintypes.BOOL
+    kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
+
+    def assert_helper_handle_closed(handle: int) -> None:
+        ctypes.set_last_error(0)
+        closed_wait = kernel32.WaitForSingleObject(handle, 0)
+        closed_error = ctypes.get_last_error()
+        assert closed_wait == 0xFFFFFFFF and closed_error == 6, (
+            f"exact helper handle was not closed: wait={closed_wait}; winerror={closed_error}"
+        )
+
+    process = subprocess.Popen(
+        [sys.executable, "-B", "-c", "import time;time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    token = ctl._process_token(process.pid)
+    assert isinstance(token, str) and token
+    observed_handle: list[int] = []
+
+    def exit_on_exact_handle(pid: int, handle: int) -> None:
+        assert pid == process.pid
+        observed_handle.append(handle)
+        assert kernel32.TerminateProcess(handle, 1224), (
+            f"race fixture could not terminate exact handle: winerror={ctypes.get_last_error()}"
+        )
+        assert kernel32.WaitForSingleObject(handle, 10000) == 0, (
+            "race fixture exact handle did not signal"
+        )
+
+    try:
+        signalled = _terminate_identities(
+            ctl, {process.pid: token}, before_terminate=exit_on_exact_handle,
+        )
+        assert signalled == set(), signalled
+        assert len(observed_handle) == 1, observed_handle
+        assert process.wait(timeout=10) == 1224
+        assert_helper_handle_closed(observed_handle[0])
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
+
+    forced = subprocess.Popen(
+        [sys.executable, "-B", "-c", "import time;time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    forced_token = ctl._process_token(forced.pid)
+    assert isinstance(forced_token, str) and forced_token
+    try:
+        forced_signalled = _terminate_identities(ctl, {forced.pid: forced_token})
+        assert forced_signalled == {(forced.pid, forced_token)}, forced_signalled
+        assert forced.wait(timeout=10) == 1223
+    finally:
+        if forced.poll() is None:
+            forced.kill()
+            forced.wait(timeout=10)
+
+    partial_success = subprocess.Popen(
+        [sys.executable, "-B", "-c", "import time;time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    partial_failure = subprocess.Popen(
+        [sys.executable, "-B", "-c", "import time;time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    partial_success_token = ctl._process_token(partial_success.pid)
+    partial_failure_token = ctl._process_token(partial_failure.pid)
+    assert isinstance(partial_success_token, str) and partial_success_token
+    assert isinstance(partial_failure_token, str) and partial_failure_token
+    partial_handles: dict[int, int] = {}
+
+    def fail_second_identity(pid: int, handle: int) -> None:
+        partial_handles[pid] = handle
+        if pid == partial_failure.pid:
+            raise RuntimeError("forced-partial-identity-failure")
+
+    try:
+        try:
+            _terminate_identities(
+                ctl,
+                {
+                    partial_failure.pid: partial_failure_token,
+                    partial_success.pid: partial_success_token,
+                },
+                before_terminate=fail_second_identity,
+            )
+        except RuntimeError as exc:
+            assert str(exc) == "forced-partial-identity-failure", repr(exc)
+        else:
+            raise AssertionError("partial multi-identity failure was suppressed")
+        assert partial_success.wait(timeout=10) == 1223
+        assert partial_failure.poll() is None
+        assert set(partial_handles) == {partial_success.pid, partial_failure.pid}, partial_handles
+        assert_helper_handle_closed(partial_handles[partial_success.pid])
+        assert_helper_handle_closed(partial_handles[partial_failure.pid])
+    finally:
+        for partial in (partial_success, partial_failure):
+            if partial.poll() is None:
+                partial.kill()
+                partial.wait(timeout=10)
 
 
 def _reap_frontends(processes: list[subprocess.Popen[bytes]]) -> None:
@@ -1456,6 +1593,7 @@ def main() -> int:
 
         observation_rows, observation_failures = _windows_observation_contract(ctl)
         assert observation_rows == 8 and not observation_failures, observation_failures
+        _windows_terminate_race_contract(ctl)
         cases += 1
         _run_lock_contract(ctl, root)
         cases += 1
