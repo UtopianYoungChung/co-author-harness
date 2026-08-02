@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
+import hashlib
 import json
 import os
 import signal
@@ -137,6 +139,40 @@ def _terminate_identities(ctl, identities: dict[int, str]) -> None:
         time.sleep(.05)
 
 
+def _reap_frontends(processes: list[subprocess.Popen[bytes]]) -> None:
+    for process in processes:
+        try:
+            process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            # Exact-token termination is performed by the caller before this
+            # reaping pass; a remaining live process is asserted separately.
+            pass
+
+
+def _capture_identity(ctl, identities: dict[int, str], pid: object) -> None:
+    if not isinstance(pid, int) or pid <= 0:
+        return
+    token = ctl._process_token(pid)
+    if isinstance(token, str) and token and token != "unavailable":
+        identities.setdefault(pid, token)
+
+
+def _capture_run_identities(ctl, root: Path, run_id: str, identities: dict[int, str]) -> None:
+    run_dir = root / "runs" / run_id
+    try:
+        owner = json.loads((run_dir / "owner.json").read_text(encoding="ascii"))
+        _capture_identity(ctl, identities, owner.get("pid"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        pass
+    try:
+        journal = json.loads((run_dir / "journal.json").read_text(encoding="ascii"))
+        for row in journal.get("events", []):
+            if row.get("event") == "child_spawned":
+                _capture_identity(ctl, identities, row.get("child_pid"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        pass
+
+
 def _cancel_finally(ctl, root: Path, run_id: str) -> None:
     try:
         ctl.cancel_run(run_root=root / "runs", run_id=run_id, timeout_s=30)
@@ -146,10 +182,118 @@ def _cancel_finally(ctl, root: Path, run_id: str) -> None:
         pass
 
 
+def _reopened_red_against_committed() -> int:
+    """Prove the reopened defects against the frozen 7712e60 controller."""
+    expected_commit = "7712e600aef5ba6974e65f296ef1d9b85b7a3e6b"
+    observed_commit = subprocess.run(
+        ["git", "rev-parse", "7712e60^{commit}"], cwd=ROOT,
+        stdin=subprocess.DEVNULL, capture_output=True, check=True, text=True,
+    ).stdout.strip()
+    assert observed_commit == expected_commit, (observed_commit, expected_commit)
+
+    frozen_files = {
+        "scripts/release_qualification_controller.py": "63aebb54460b248094773336d4798f4ac39d80337d739cf57d450a7d9635234c",
+        "scripts/destination_capability.py": "35b8ec81ac0fd06a4e8d1808c78126e7123f92c52de53fa2ee9b02e7e07c4a11",
+        "scripts/qualification_environment.py": "a9f20c3c9e41536b73a7687d69250dfbc74ef12142831a77c59aab7d19d4346d",
+        "references/schemas/release_qualification_controller.schema.json": "71a1a0a213cd832aec529852658f20d809ffbb2937ad780833b607166f7c9b14",
+    }
+    failures: list[str] = []
+    platform_skips = 0
+    with tempfile.TemporaryDirectory(prefix="release-controller-reopened-red-") as raw:
+        isolated_root = Path(raw) / "committed-root"
+        for relative, expected_sha256 in frozen_files.items():
+            raw_file = subprocess.run(
+                ["git", "show", f"{expected_commit}:{relative}"], cwd=ROOT,
+                stdin=subprocess.DEVNULL, capture_output=True, check=True,
+            ).stdout
+            observed_sha256 = hashlib.sha256(raw_file).hexdigest()
+            assert observed_sha256 == expected_sha256, (relative, observed_sha256, expected_sha256)
+            destination = isolated_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(raw_file)
+
+        scripts = isolated_root / "scripts"
+        committed_path = scripts / "release_qualification_controller.py"
+
+        sys.path.insert(0, str(scripts))
+        try:
+            ctl = _load(committed_path, "release_qualification_controller_reopened_red")
+        finally:
+            sys.path.remove(str(scripts))
+        assert Path(sys.modules["destination_capability"].__file__).resolve() == (
+            scripts / "destination_capability.py"
+        ).resolve()
+        assert Path(sys.modules["qualification_environment"].__file__).resolve() == (
+            scripts / "qualification_environment.py"
+        ).resolve()
+
+        def require(case: str, condition: bool, detail: str) -> None:
+            if not condition:
+                failures.append(f"{case}: {detail}")
+
+        if os.name != "nt":
+            require(
+                "POSIX-STAT-IDENTITY-ROBUST",
+                callable(getattr(ctl, "_parse_proc_stat", None)),
+                "final-paren /proc stat parser and zombie/dead rejection are absent",
+            )
+            terminate_parameters = inspect.signature(ctl._terminate_owned).parameters
+            require(
+                "POSIX-REUSED-SESSION-REFUSED",
+                "leader_token" in terminate_parameters,
+                "termination accepts no recorded creation token and can signal a reused PID/PGID",
+            )
+            worker_source = inspect.getsource(ctl._worker)
+            require(
+                "POSIX-PREJOURNAL-GATE-FAIL-CLOSED",
+                callable(getattr(ctl, "_spawn_product_process", None))
+                and "crash_after_supervisor_spawn_before_journal" in worker_source,
+                "no recorded wrapper/pipe gate prevents product execution before child_spawned durability",
+            )
+            start_source = inspect.getsource(ctl.start_run)
+            invalid_binding = start_source.find("worker self-ownership binding is invalid")
+            require(
+                "POSIX-READINESS-REFUSAL-TREE-CLEANED",
+                invalid_binding >= 0 and "_terminate_owned(worker" in start_source[invalid_binding:],
+                "parent readiness refusal raises without terminating the already spawned worker/product tree",
+            )
+            require(
+                "POSIX-POST-KILL-SESSION-QUIESCENT",
+                callable(getattr(ctl, "_session_members", None))
+                and callable(getattr(ctl, "_terminate_posix_session", None)),
+                "SIGKILL path neither enumerates the recorded session nor proves descendant quiescence",
+            )
+        else:
+            platform_skips += 5
+        require(
+            "MULTIPROCESS-CANCEL-IDEMPOTENT",
+            "_RunLock" in inspect.getsource(ctl.cancel_run),
+            "cancel publication/finalization has no interprocess run lock",
+        )
+        require(
+            "MULTIPROCESS-RECOVERY-SERIALIZED",
+            "_RunLock" in inspect.getsource(ctl.recover_run),
+            "recovery journal/receipt finalization has no interprocess run lock",
+        )
+
+    expected_failures = 7 if os.name != "nt" else 2
+    assert len(failures) == expected_failures, failures
+    print(f"reopened-red target: {expected_commit}")
+    print(f"frozen inputs: {len(frozen_files)} exact-commit files SHA-256 bound")
+    print(f"platform: os.name={os.name}; posix_evidence={'executed' if os.name != 'nt' else 'not-run'}; platform_skips={platform_skips}")
+    for failure in failures:
+        print(f"RED {failure}")
+    print("cleanup: disposable committed mini-root removed; no product process was spawned")
+    raise AssertionError("expected reopened red regressions:\n- " + "\n- ".join(failures))
+
+
 def main() -> int:
+    if os.environ.get("COAUTHOR_CONTROLLER_REOPENED_RED") == "1":
+        return _reopened_red_against_committed()
     env = _load(ENVIRONMENT, "qualification_environment")
     ctl = _load(MODULE, "release_qualification_controller")
     cases = 0
+    platform_skips = 0
     expected_failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="release-controller-smoke-") as raw:
         root = Path(raw)
@@ -278,11 +422,11 @@ import os, site, sys
 [site.addsitedir(p) for p in {ctl._dependency_paths()!r}]
 sys.path.insert(0, {str(MODULE.parent)!r})
 import release_qualification_controller as c
-original_popen = c.subprocess.Popen
+original_spawn = c._spawn_worker_process
 def spawn_then_die(*args, **kwargs):
-    original_popen(*args, **kwargs)
+    original_spawn(*args, **kwargs)
     os._exit(73)
-c.subprocess.Popen = spawn_then_die
+c._spawn_worker_process = spawn_then_die
 c.start_run(
     run_root={str(root / 'runs')!r}, run_id='launcher-crash',
     argv=[sys.executable, '-c', {f"from pathlib import Path;Path({str(crash_counter)!r}).write_text('once')"!r}],
@@ -414,7 +558,14 @@ with temporary.open('w', encoding='ascii') as stream:
     json.dump([os.getpid(), p.pid], stream)
     stream.flush()
     os.fsync(stream.fileno())
-os.replace(temporary, path)
+for attempt in range(100):
+    try:
+        os.replace(temporary, path)
+        break
+    except PermissionError:
+        if attempt == 99:
+            raise
+        time.sleep(.01)
 time.sleep(60)
 """
             owned_identities: dict[int, str] = {}
@@ -458,7 +609,8 @@ time.sleep(60)
             f"ready=Path({str(late_ready)!r});release=Path({str(late_release)!r});"
             "ready.write_text('ready',encoding='ascii');"
             "\nwhile not release.is_file(): time.sleep(.01)\n"
-            f"Path({str(late_marker)!r}).write_text('late',encoding='ascii')"
+            f"Path({str(late_marker)!r}).write_text('late',encoding='ascii');"
+            "print('late-spool',flush=True)"
         )
         late_code = f"""
 import json, os, subprocess, sys
@@ -498,6 +650,8 @@ Path({str(parent_done)!r}).write_text('done', encoding='ascii')
             expected_failures.append("late descendant was still blocked when terminal receipt appeared")
         if late_receipt is None or late_receipt.get("state") != "succeeded":
             expected_failures.append("late descendant run did not finish with terminal success")
+        elif b"late-spool" not in Path(late_receipt["stdout"]["path"]).read_bytes():
+            expected_failures.append("late descendant spool bytes were absent from terminal evidence")
         if not late_marker.is_file():
             expected_failures.append("late descendant output was absent from the completed run")
         if _alive_identities(ctl, late_identities):
@@ -561,10 +715,21 @@ os.replace(temporary, path)
 time.sleep(60)
 """
         stalled_identities: dict[int, str] = {}
-        original_popen = ctl.subprocess.Popen
-        def spawn_stalled_worker(_argv, **kwargs):
-            return original_popen([sys.executable, "-c", stalled_code], **kwargs)
-        ctl.subprocess.Popen = spawn_stalled_worker
+        def spawn_stalled_worker(_paths, worker_env, worker_stdout, worker_stderr, *, detached):
+            kwargs = {
+                "stdin": subprocess.DEVNULL, "stdout": worker_stdout,
+                "stderr": worker_stderr, "close_fds": True, "env": dict(worker_env),
+            }
+            if os.name == "nt":
+                kwargs["creationflags"] = (
+                    getattr(subprocess, "DETACHED_PROCESS", 0x8)
+                    | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
+                )
+            else:
+                kwargs["start_new_session"] = detached
+            return subprocess.Popen([sys.executable, "-c", stalled_code], **kwargs), None
+        original_spawn = ctl._spawn_worker_process
+        ctl._spawn_worker_process = spawn_stalled_worker
         stalled_outcomes: list[object] = []
         def launch_stalled():
             try:
@@ -581,7 +746,7 @@ time.sleep(60)
             stalled_thread.join(timeout=15)
             alive_after_refusal = _alive_identities(ctl, stalled_identities)
         finally:
-            ctl.subprocess.Popen = original_popen
+            ctl._spawn_worker_process = original_spawn
             _terminate_identities(ctl, stalled_identities)
             stalled_thread.join(timeout=10)
         if stalled_thread.is_alive():
@@ -597,36 +762,15 @@ time.sleep(60)
         # Simultaneous cancellation writers must not share a PID-only temp
         # name, surface raw FileExistsError, or leave a stale temp behind.
         _start(ctl, root, "concurrent-cancel", "import time;time.sleep(60)")
-        original_path_open = Path.open
-        first_opened = threading.Event()
-        release_first = threading.Event()
-        first_temporary: list[Path] = []
-        open_guard = threading.Lock()
-        def synchronized_temp_open(path, *args, **kwargs):
-            is_cancel_temp = path.name.startswith(".cancel.request.json.") and "x" in str(args[0] if args else kwargs.get("mode", "r"))
-            if not is_cancel_temp:
-                return original_path_open(path, *args, **kwargs)
-            with open_guard:
-                if not first_temporary:
-                    first_temporary.append(path)
-                    first = True
-                else:
-                    first = False
-            if first:
-                stream = original_path_open(path, *args, **kwargs)
-                first_opened.set()
-                assert release_first.wait(timeout=10)
-                return stream
-            assert first_opened.wait(timeout=10)
-            try:
-                return original_path_open(path, *args, **kwargs)
-            finally:
-                release_first.set()
-        Path.open = synchronized_temp_open
+        original_atomic = ctl._atomic
+        atomic_barrier = threading.Barrier(2)
+        def synchronized_cancel_atomic(path, raw):
+            if path.name == "cancel.request.json":
+                atomic_barrier.wait(timeout=10)
+            return original_atomic(path, raw)
+        ctl._atomic = synchronized_cancel_atomic
         outcomes: list[object] = []
-        barrier = threading.Barrier(2)
         def competing_cancel():
-            barrier.wait()
             try:
                 outcomes.append(ctl.cancel_run(
                     run_root=root / "runs", run_id="concurrent-cancel", timeout_s=30,
@@ -638,8 +782,7 @@ time.sleep(60)
             for thread in cancel_threads: thread.start()
             for thread in cancel_threads: thread.join(timeout=40)
         finally:
-            Path.open = original_path_open
-            release_first.set()
+            ctl._atomic = original_atomic
             _cancel_finally(ctl, root, "concurrent-cancel")
         if any(thread.is_alive() for thread in cancel_threads):
             expected_failures.append("concurrent cancel threads did not finish")
@@ -653,6 +796,258 @@ time.sleep(60)
         ]
         if cancel_temps:
             expected_failures.append(f"concurrent cancel left temp files: {cancel_temps!r}")
+        cases += 1
+
+        # Linux stat parsing must tolerate spaces and ')' inside comm, while
+        # refusing zombie/dead identities before returning starttime.
+        if os.name != "nt":
+            tail = ["S", "1", "17", "17", *map(str, range(4, 20))]
+            parsed = ctl._parse_proc_stat("321 (odd ) process name) " + " ".join(tail))
+            assert parsed is not None
+            assert parsed["pgrp"] == 17 and parsed["session"] == 17
+            assert parsed["starttime"] == "19"
+            tail[0] = "Z"
+            assert ctl._parse_proc_stat("321 (odd ) process name) " + " ".join(tail)) is None
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # A reused POSIX PID/PGID may never be signalled after its recorded
+        # creation token changes.
+        if os.name != "nt":
+            original_token = ctl._process_token
+            original_members = ctl._session_members
+            original_signal = ctl._signal_session
+            signalled: list[int] = []
+            ctl._process_token = lambda _pid: "new-token"
+            ctl._session_members = lambda _sid, **_kwargs: {44444: "new-token"}
+            ctl._signal_session = lambda _sid, rows, _signal: signalled.extend(rows)
+            try:
+                _expect("RELEASE-CONTROLLER-PROCESS", lambda: ctl._terminate_posix_session(
+                    44444, leader_pid=44444, leader_token="old-token", timeout_s=.1,
+                ))
+            finally:
+                ctl._process_token = original_token
+                ctl._session_members = original_members
+                ctl._signal_session = original_signal
+            assert not signalled
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # The POSIX session leader is blocked before product execution.  A
+        # worker crash before its durable child_spawned event closes the gate;
+        # the product sentinel must never run.
+        if os.name != "nt":
+            prejournal_sentinel = root / "work" / "prejournal-sentinel.txt"
+            prejournal_pids = root / "work" / "prejournal-pids.json"
+            prejournal_identities: dict[int, str] = {}
+            receipt = None
+            prejournal_code = (
+                "import json,os,time;from pathlib import Path;"
+                f"p=Path({str(prejournal_pids)!r});t=p.with_name('.'+p.name+'.tmp');"
+                "t.write_text(json.dumps([os.getpid()]),encoding='ascii');os.replace(t,p);"
+                f"Path({str(prejournal_sentinel)!r}).write_text('ran');time.sleep(60)"
+            )
+            try:
+                started = _start(
+                    ctl, root, "prejournal-crash", prejournal_code,
+                    _test_fault="crash_after_supervisor_spawn_before_journal",
+                    allowed_output_roots=[root / "work"],
+                )
+                _capture_identity(ctl, prejournal_identities, started.get("worker", {}).get("pid"))
+                receipt = _wait(ctl, root, "prejournal-crash")
+            finally:
+                if prejournal_pids.is_file():
+                    try:
+                        handed_off = _wait_for_pid_list(prejournal_pids, timeout_s=1)
+                    except AssertionError:
+                        handed_off = []
+                    for pid in handed_off:
+                        _capture_identity(ctl, prejournal_identities, pid)
+                _capture_run_identities(ctl, root, "prejournal-crash", prejournal_identities)
+                _cancel_finally(ctl, root, "prejournal-crash")
+                _terminate_identities(ctl, prejournal_identities)
+            assert not _alive_identities(ctl, prejournal_identities)
+            assert receipt is not None
+            assert receipt["state"] == "evidence_incomplete"
+            assert not prejournal_sentinel.exists()
+            assert "child_spawned" not in _event_names(root, "prejournal-crash")
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # Parent-side readiness refusal happens after a separately-sessioned
+        # product tree is live.  Cleanup must cover both worker and product.
+        if os.name != "nt":
+            refusal_pids = root / "work" / "parent-refusal-pids.json"
+            refusal_code = f"""
+import json, os, subprocess, sys, time
+from pathlib import Path
+p = subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(60)'])
+Path({str(refusal_pids)!r}).write_text(json.dumps([os.getpid(), p.pid]), encoding='ascii')
+time.sleep(60)
+"""
+            refusal_identities: dict[int, str] = {}
+            alive_after_refusal: list[int] = []
+            original_read = ctl._read
+            def invalid_owner(path):
+                value = original_read(path)
+                if path.name == "owner.json":
+                    pids = _wait_for_pid_list(refusal_pids)
+                    refusal_identities.update(_identities(ctl, pids))
+                    value = dict(value); value["pid"] += 1000000
+                return value
+            ctl._read = invalid_owner
+            try:
+                _expect("RELEASE-CONTROLLER-WORKER-START", lambda: _start(
+                    ctl, root, "parent-refusal", refusal_code,
+                    allowed_output_roots=[root / "work"],
+                ))
+                alive_after_refusal = _alive_identities(ctl, refusal_identities)
+            finally:
+                ctl._read = original_read
+                _terminate_identities(ctl, refusal_identities)
+            assert not alive_after_refusal
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # Cancellation is not terminal until a stubborn POSIX session is
+        # empty after the SIGKILL path.
+        if os.name != "nt":
+            stubborn_pids = root / "work" / "stubborn-session-pids.json"
+            stubborn_code = f"""
+import json, os, signal, subprocess, sys, time
+from pathlib import Path
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+p = subprocess.Popen([sys.executable, '-c', 'import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(60)'])
+target = Path({str(stubborn_pids)!r})
+temporary = target.with_name('.' + target.name + '.tmp')
+temporary.write_text(json.dumps([os.getpid(), p.pid]), encoding='ascii')
+os.replace(temporary, target)
+time.sleep(60)
+"""
+            stubborn_identities: dict[int, str] = {}
+            receipt = None
+            child_event = None
+            try:
+                started = _start(
+                    ctl, root, "post-kill-quiescence", stubborn_code,
+                    allowed_output_roots=[root / "work"],
+                )
+                _capture_identity(ctl, stubborn_identities, started.get("worker", {}).get("pid"))
+                for pid in _wait_for_pid_list(stubborn_pids):
+                    _capture_identity(ctl, stubborn_identities, pid)
+                child_event = next(
+                    row for row in json.loads(
+                        (root / "runs" / "post-kill-quiescence" / "journal.json").read_text(encoding="ascii")
+                    )["events"] if row["event"] == "child_spawned"
+                )
+                receipt = ctl.cancel_run(
+                    run_root=root / "runs", run_id="post-kill-quiescence", timeout_s=30,
+                )
+            finally:
+                _capture_run_identities(ctl, root, "post-kill-quiescence", stubborn_identities)
+                _cancel_finally(ctl, root, "post-kill-quiescence")
+                _terminate_identities(ctl, stubborn_identities)
+            assert not _alive_identities(ctl, stubborn_identities)
+            assert receipt is not None and child_event is not None
+            assert receipt["state"] == "cancelled"
+            assert not ctl._session_members(child_event["process_group"])
+            cases += 1
+        else:
+            platform_skips += 1
+
+        # True separate frontends must converge on one cancellation request
+        # and one final receipt without raw publication or RMW failures.
+        cancel_command = [
+            sys.executable, str(MODULE), "cancel", "--run-root", str(root / "runs"),
+            "--run-id", "multiprocess-cancel", "--timeout", "30",
+        ]
+        cancelers: list[subprocess.Popen[bytes]] = []
+        cancel_results: list[tuple[bytes, bytes]] = []
+        cancel_run_identities: dict[int, str] = {}
+        cancel_frontend_identities: dict[int, str] = {}
+        cancel_outputs: list[dict[str, object]] = []
+        cancel_disk_receipt: dict[str, object] | None = None
+        try:
+            started = _start(ctl, root, "multiprocess-cancel", "import time;time.sleep(60)")
+            _capture_identity(ctl, cancel_run_identities, started.get("worker", {}).get("pid"))
+            _capture_run_identities(ctl, root, "multiprocess-cancel", cancel_run_identities)
+            cancelers = [subprocess.Popen(
+                cancel_command, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            ) for _ in range(2)]
+            for process in cancelers:
+                _capture_identity(ctl, cancel_frontend_identities, process.pid)
+            cancel_results = [process.communicate(timeout=40) for process in cancelers]
+            cancel_outputs = [json.loads(stdout) for stdout, _ in cancel_results]
+            cancel_disk_receipt = json.loads(
+                (root / "runs" / "multiprocess-cancel" / "receipt.json").read_text(encoding="ascii")
+            )
+        finally:
+            _terminate_identities(ctl, cancel_frontend_identities)
+            _reap_frontends(cancelers)
+            _capture_run_identities(ctl, root, "multiprocess-cancel", cancel_run_identities)
+            _cancel_finally(ctl, root, "multiprocess-cancel")
+            _terminate_identities(ctl, cancel_run_identities)
+        assert not _alive_identities(ctl, cancel_frontend_identities)
+        assert not _alive_identities(ctl, cancel_run_identities)
+        assert all(process.returncode == 0 for process in cancelers), cancel_results
+        assert len(cancel_outputs) == 2 and cancel_disk_receipt is not None
+        assert cancel_outputs[0] == cancel_outputs[1] == cancel_disk_receipt
+        assert cancel_disk_receipt["state"] == "cancelled"
+        cases += 1
+
+        # Two independent recovery frontends serialize journal/receipt
+        # finalization and both return the same immutable terminal receipt.
+        recover_command = [
+            sys.executable, str(MODULE), "recover", "--run-root", str(root / "runs"),
+            "--run-id", "multiprocess-recover",
+        ]
+        recoverers: list[subprocess.Popen[bytes]] = []
+        recover_results: list[tuple[bytes, bytes]] = []
+        recover_run_identities: dict[int, str] = {}
+        recover_frontend_identities: dict[int, str] = {}
+        recovered: list[dict[str, object]] = []
+        recover_disk_receipt: dict[str, object] | None = None
+        try:
+            started = _start(
+                ctl, root, "multiprocess-recover", "print('recover')",
+                _test_fault="crash_after_exit",
+            )
+            _capture_identity(ctl, recover_run_identities, started.get("worker", {}).get("pid"))
+            owner_path = root / "runs" / "multiprocess-recover" / "owner.json"
+            _wait_for_path(owner_path)
+            owner = json.loads(owner_path.read_text(encoding="ascii"))
+            _capture_identity(ctl, recover_run_identities, owner.get("pid"))
+            deadline = time.monotonic() + 20
+            while ctl._process_token(owner["pid"]) == owner["process_token"] and time.monotonic() < deadline:
+                time.sleep(.01)
+            recoverers = [subprocess.Popen(
+                recover_command, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            ) for _ in range(2)]
+            for process in recoverers:
+                _capture_identity(ctl, recover_frontend_identities, process.pid)
+            recover_results = [process.communicate(timeout=40) for process in recoverers]
+            recovered = [json.loads(stdout) for stdout, _ in recover_results]
+            recover_disk_receipt = json.loads(
+                (root / "runs" / "multiprocess-recover" / "receipt.json").read_text(encoding="ascii")
+            )
+        finally:
+            _terminate_identities(ctl, recover_frontend_identities)
+            _reap_frontends(recoverers)
+            _capture_run_identities(ctl, root, "multiprocess-recover", recover_run_identities)
+            _cancel_finally(ctl, root, "multiprocess-recover")
+            _terminate_identities(ctl, recover_run_identities)
+        assert not _alive_identities(ctl, recover_frontend_identities)
+        assert not _alive_identities(ctl, recover_run_identities)
+        assert all(process.returncode == 0 for process in recoverers), recover_results
+        assert len(recovered) == 2 and recover_disk_receipt is not None
+        assert recovered[0] == recovered[1] == recover_disk_receipt
+        assert recovered[0]["state"] == "succeeded" and recovered[0]["recovered"] is True
         cases += 1
 
         bound = root / "bound.txt"; bound.write_text("before")
@@ -786,10 +1181,10 @@ time.sleep(60)
         # A launcher/spawn failure before owner.json exists must still recover
         # to typed terminal incomplete evidence, never an unrecoverable schema
         # exception or product rerun.
-        original_popen = ctl.subprocess.Popen
+        original_spawn = ctl._spawn_worker_process
         def refuse_worker_spawn(*_args, **_kwargs):
             raise OSError("synthetic worker spawn refusal")
-        ctl.subprocess.Popen = refuse_worker_spawn
+        ctl._spawn_worker_process = refuse_worker_spawn
         try:
             try:
                 _start(ctl, root, "pre-owner-failure", "print('no')")
@@ -798,7 +1193,7 @@ time.sleep(60)
             else:
                 raise AssertionError("worker spawn fault did not surface")
         finally:
-            ctl.subprocess.Popen = original_popen
+            ctl._spawn_worker_process = original_spawn
         receipt = ctl.recover_run(run_root=root / "runs", run_id="pre-owner-failure")
         assert receipt["state"] == "evidence_incomplete"
         assert receipt["worker"] is None and receipt["diagnostic"]["code"] == "EVIDENCE_INCOMPLETE"
@@ -924,6 +1319,13 @@ time.sleep(60)
         "worker_crash_owned_tree_recovered",
         "worker_readiness_failure_tree_cleaned",
         "concurrent_cancel_atomic_publication",
+        "posix_stat_identity_robust",
+        "posix_reused_session_refused",
+        "posix_prejournal_gate_fail_closed",
+        "posix_readiness_refusal_tree_cleaned",
+        "posix_post_kill_session_quiescent",
+        "multiprocess_cancel_idempotent",
+        "multiprocess_recovery_serialized",
         "input_drift_refused",
         "output_scope_refused",
         "null_process_token_not_alive",
@@ -948,9 +1350,16 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    assert cases == 35, cases
+    expected_case_count = 42 if os.name != "nt" else 37
+    expected_skip_count = 0 if os.name != "nt" else 5
+    assert cases == expected_case_count, (cases, expected_case_count)
+    assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
     assert not expected_failures, "expected red regressions:\n- " + "\n- ".join(expected_failures)
-    print(f"release_qualification_controller_smoketest: PASS ({cases} behavioral cases)")
+    print(
+        "release_qualification_controller_smoketest: PASS "
+        f"({cases} behavioral cases; {platform_skips} platform skips; "
+        f"posix_evidence={'executed' if os.name != 'nt' else 'not-run'})"
+    )
     return 0
 
 
