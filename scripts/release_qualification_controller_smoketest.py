@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MODULE = ROOT / "scripts" / "release_qualification_controller.py"
 ENVIRONMENT = ROOT / "scripts" / "qualification_environment.py"
+_FIXTURE_OWNER_MODE = False
 
 
 def _package_bytecode_inventory() -> tuple[tuple[str, ...], dict[str, tuple[int, str]]]:
@@ -76,6 +77,8 @@ def _start(ctl, root: Path, run_id: str, code: str, **extra):
     work = root / "work"
     work.mkdir(exist_ok=True)
     extra.setdefault("output_watch_roots", [work])
+    if os.name == "nt" and _FIXTURE_OWNER_MODE:
+        extra.setdefault("detached", False)
     cwd = extra.pop("cwd", work)
     return ctl.start_run(
         run_root=root / "runs", run_id=run_id,
@@ -85,6 +88,78 @@ def _start(ctl, root: Path, run_id: str, code: str, **extra):
 
 def _wait(ctl, root: Path, run_id: str):
     return ctl.wait_run(run_root=root / "runs", run_id=run_id, timeout_s=60)
+
+
+def _execution_mode() -> bool:
+    """Return explicit fixture-owner mode; refuse every unknown argument."""
+    args = sys.argv[1:]
+    if not args:
+        return False
+    if args == ["--fixture-owner"]:
+        return True
+    raise SystemExit(f"unsupported controller-smoketest arguments: {args!r}")
+
+
+def _windows_fixture_owner_contract(ctl, root: Path) -> None:
+    """Prove the outer owner and preserve the impossible-detach refusal."""
+    if os.name != "nt":
+        return
+    import _winapi
+    import ctypes
+    from ctypes import wintypes
+
+    process_handle = int(_winapi.GetCurrentProcess())
+    assert ctl._windows_process_in_any_job(process_handle)
+    kernel32, ExtendedLimit, _ = ctl._windows_job_api()
+    limits = ExtendedLimit()
+    returned = wintypes.DWORD()
+    ctypes.set_last_error(0)
+    assert kernel32.QueryInformationJobObject(
+        None, 9, ctypes.byref(limits), ctypes.sizeof(limits), ctypes.byref(returned),
+    ), ctypes.WinError(ctypes.get_last_error())
+    flags = int(limits.BasicLimitInformation.LimitFlags)
+    assert returned.value == ctypes.sizeof(limits), (
+        returned.value, ctypes.sizeof(limits),
+    )
+    assert flags == 0x2000, hex(flags)  # exact KILL_ON_JOB_CLOSE owner contract
+    _expect("RELEASE-CONTROLLER-PROCESS", ctl._windows_worker_creation_flag)
+
+    (root / "work").mkdir(exist_ok=True)
+    sentinel = root / "work" / "fixture-owner-default-detach.ran"
+    spawn_modes: list[bool] = []
+    original_spawn = ctl._spawn_worker_process
+
+    def capture_spawn(*args, **kwargs):
+        spawn_modes.append(kwargs["detached"])
+        return original_spawn(*args, **kwargs)
+
+    ctl._spawn_worker_process = capture_spawn
+    try:
+        value = ctl.start_run(
+            run_root=root / "runs", run_id="fixture-owner-default-detach",
+            argv=[
+                sys.executable, "-c",
+                f"from pathlib import Path;Path({str(sentinel)!r}).write_text('ran')",
+            ],
+            cwd=root / "work", output_watch_roots=[root / "work"],
+        )
+    finally:
+        ctl._spawn_worker_process = original_spawn
+    assert value["state"] == "refused"
+    assert spawn_modes == [True]  # no automatic nested-mode retry
+    refused = ctl.status_run(
+        run_root=root / "runs", run_id="fixture-owner-default-detach",
+    )
+    assert refused["diagnostic"]["code"] == "RELEASE-CONTROLLER-PROCESS"
+    assert refused["worker"] is None and refused["prechild_refusal"] is not None
+    assert all(
+        refused[key] is None for key in (
+            "process", "exit", "exit_capsule", "stdout", "stderr",
+        )
+    )
+    assert "worker_spawned" not in _event_names(root, "fixture-owner-default-detach")
+    assert "child_spawned" not in _event_names(root, "fixture-owner-default-detach")
+    assert not sentinel.exists()
 
 
 def _event_names(root: Path, run_id: str) -> list[str]:
@@ -128,6 +203,43 @@ def _wait_for_pid_list(path: Path, timeout_s: float = 10.0) -> list[int]:
             error = exc
             time.sleep(.01)
     raise AssertionError(f"PID handoff did not become readable: {path}: {error}")
+
+
+def _wait_for_positive_pid(path: Path, timeout_s: float = 10.0) -> int:
+    """Read one atomically published canonical positive base-10 ASCII PID."""
+    deadline = time.monotonic() + timeout_s
+    missing: FileNotFoundError | None = None
+    first_observation = True
+    while first_observation or time.monotonic() < deadline:
+        first_observation = False
+        try:
+            raw = path.read_bytes()
+        except FileNotFoundError as exc:
+            missing = exc
+            time.sleep(.01)
+            continue
+        except OSError as exc:
+            raise AssertionError(f"PID handoff read failed: {path}: {exc!r}") from exc
+        try:
+            value = raw.decode("ascii", errors="strict")
+        except UnicodeError as exc:
+            raise AssertionError(f"PID handoff is not ASCII: {path}: raw={raw!r}") from exc
+        if (
+            not value
+            or len(value) > 10
+            or value[0] == "0"
+            or any(character < "0" or character > "9" for character in value)
+        ):
+            raise AssertionError(
+                f"PID handoff is not canonical positive base-10 ASCII: {path}: raw={raw!r}"
+            )
+        pid = int(value, 10)
+        if pid <= 0 or pid > 0xFFFFFFFF or str(pid) != value:
+            raise AssertionError(
+                f"PID handoff is not canonical positive base-10 ASCII: {path}: raw={raw!r}"
+            )
+        return pid
+    raise AssertionError(f"PID handoff remained absent: {path}: last={missing!r}")
 
 
 def _identities(ctl, pids: list[int]) -> dict[int, str]:
@@ -1611,21 +1723,60 @@ while True:
 
 
 def main() -> int:
+    global _FIXTURE_OWNER_MODE
+    fixture_owner_mode = _execution_mode()
     if os.environ.get("COAUTHOR_CONTROLLER_FOURTH_REOPENED_RED") == "1":
         return _fourth_reopened_red()
     if os.environ.get("COAUTHOR_CONTROLLER_THIRD_REOPENED_RED") == "1":
         return _third_reopened_red()
     if os.environ.get("COAUTHOR_CONTROLLER_REOPENED_RED") == "1":
         return _reopened_red_against_committed()
+    _FIXTURE_OWNER_MODE = fixture_owner_mode
     env = _load(ENVIRONMENT, "qualification_environment")
     ctl = _load(MODULE, "release_qualification_controller")
     cases = 0
     platform_skips = 0
     expected_failures: list[str] = []
     _assert_release_gate_bytecode_argv()
+    unknown_env, _ = env.controlled_environment(
+        delta={"COAUTHOR_CONTROLLER_REOPENED_RED": "1"}, allow_user_site=True,
+    )
+    unknown = subprocess.run(
+        [sys.executable, "-B", str(Path(__file__).resolve()), "--unknown-mode"],
+        env=unknown_env, stdin=subprocess.DEVNULL, capture_output=True, check=False,
+    )
+    assert unknown.returncode != 0
+    assert b"unsupported controller-smoketest arguments: ['--unknown-mode']" in unknown.stderr
+    assert b"reopened-red target:" not in unknown.stdout
     cases += 1
     with tempfile.TemporaryDirectory(prefix="release-controller-smoke-") as raw:
         root = Path(raw)
+
+        handoff_probe = root / "positive-pid-handoff.probe"
+        try:
+            _wait_for_positive_pid(handoff_probe, timeout_s=.001)
+        except AssertionError as exc:
+            assert "PID handoff remained absent" in str(exc)
+            assert "FileNotFoundError" in str(exc)
+        else:
+            raise AssertionError("missing PID handoff was accepted")
+        for invalid in (
+            b"", b"0", b"-1", b"+1", b" 1", b"1 ", b"01", b"1.0", b"\xff",
+            b"4294967296", b"1" * 5000,
+        ):
+            handoff_probe.write_bytes(invalid)
+            try:
+                _wait_for_positive_pid(handoff_probe, timeout_s=.001)
+            except AssertionError as exc:
+                assert repr(invalid) in str(exc)
+            else:
+                raise AssertionError(f"invalid PID handoff accepted: {invalid!r}")
+        handoff_probe.write_bytes(b"123")
+        assert _wait_for_positive_pid(handoff_probe) == 123
+        handoff_probe.unlink()
+
+        if _FIXTURE_OWNER_MODE:
+            _windows_fixture_owner_contract(ctl, root)
 
         observation_rows, observation_failures = _windows_observation_contract(ctl)
         assert observation_rows == 8 and not observation_failures, observation_failures
@@ -1755,14 +1906,16 @@ def main() -> int:
         assert receipt["diagnostic"]["code"] == "EVIDENCE_INCOMPLETE" and counter.read_text() == "once"
         cases += 1
 
-        # The short-lived launcher exits; the detached worker still completes.
+        # The short-lived launcher exits; the detached bare-host worker or
+        # fixture-owned nested worker still completes.
         launcher_code = (
             "import site,sys;from pathlib import Path;"
             f"[site.addsitedir(p) for p in {ctl._dependency_paths()!r}];"
             f"sys.path.insert(0,{str(MODULE.parent)!r});import release_qualification_controller as c;"
             f"c.start_run(run_root={str(root / 'runs')!r},run_id='disconnect',"
             f"argv=[sys.executable,'-c','import time;time.sleep(.4);print(99)'],cwd={str(root / 'work')!r},"
-            f"output_watch_roots=[{str(root / 'work')!r}])"
+            f"output_watch_roots=[{str(root / 'work')!r}],"
+            f"detached={not (os.name == 'nt' and _FIXTURE_OWNER_MODE)!r})"
         )
         launcher_env, _ = env.controlled_environment()
         launched = subprocess.run([sys.executable, "-c", launcher_code], env=launcher_env,
@@ -1775,9 +1928,10 @@ def main() -> int:
         cases += 1
 
 
-        # Kill the launcher immediately after it spawns the detached worker,
-        # before the launcher can write owner.json.  The worker must establish
-        # its own durable identity and complete exactly once.
+        # Kill the launcher immediately after it spawns the detached bare-host
+        # worker or fixture-owned nested worker, before the launcher can write
+        # owner.json.  The worker must establish its own durable identity and
+        # complete exactly once.
         crash_counter = root / "work" / "launcher-crash.counter"
         crash_launcher = f"""
 import os, site, sys
@@ -1795,6 +1949,7 @@ c.start_run(
     cwd={str(root / 'work')!r},
     allowed_output_roots=[{str(root / 'work')!r}],
     output_watch_roots=[{str(root / 'work')!r}],
+    detached={not (os.name == 'nt' and _FIXTURE_OWNER_MODE)!r},
 )
 """
         crashed = subprocess.run(
@@ -2002,18 +2157,15 @@ c.start_run(
             post_resume_code = (
                 "import subprocess,sys,time;from pathlib import Path;"
                 f"p=subprocess.Popen([sys.executable,'-B','-c',{post_resume_descendant_code!r}]);"
-                f"Path({str(post_resume_ready)!r}).write_text(str(p.pid));"
+                f"r=Path({str(post_resume_ready)!r});t=r.with_name(r.name+'.tmp');"
+                "t.write_text(str(p.pid),encoding='ascii');t.replace(r);"
                 "time.sleep(30)"
             )
             def abort_process_wrapper(handle, pid):
                 token = ctl._process_token(int(pid))
                 assert isinstance(token, str) and token
                 post_resume_process.update(handle=int(handle), pid=int(pid), token=token)
-                ready_deadline = time.monotonic() + 5
-                while not post_resume_ready.is_file() and time.monotonic() < ready_deadline:
-                    time.sleep(.01)
-                assert post_resume_ready.is_file()
-                descendant_pid = int(post_resume_ready.read_text(encoding="ascii"))
+                descendant_pid = _wait_for_positive_pid(post_resume_ready, timeout_s=5)
                 descendant_token = ctl._process_token(descendant_pid)
                 assert isinstance(descendant_token, str) and descendant_token
                 post_resume_descendant.update(
@@ -2099,7 +2251,8 @@ c.start_run(
             close_product_code = (
                 "import subprocess,sys,time;from pathlib import Path;"
                 f"p=subprocess.Popen([sys.executable,'-B','-c',{close_descendant_code!r}]);"
-                f"Path({str(close_ready)!r}).write_text(str(p.pid));"
+                f"r=Path({str(close_ready)!r});t=r.with_name(r.name+'.tmp');"
+                "t.write_text(str(p.pid),encoding='ascii');t.replace(r);"
                 "time.sleep(30)"
             )
             def capture_for_close_failure(handle):
@@ -2122,11 +2275,7 @@ c.start_run(
                 targets = {*duplicated_handles, *created_thread_handle}
                 if exact in targets and exact not in refused_close_handles:
                     if created_thread_handle and exact == created_thread_handle[0]:
-                        ready_deadline = time.monotonic() + 5
-                        while not close_ready.is_file() and time.monotonic() < ready_deadline:
-                            time.sleep(.01)
-                        assert close_ready.is_file()
-                        descendant_pid = int(close_ready.read_text(encoding="ascii"))
+                        descendant_pid = _wait_for_positive_pid(close_ready, timeout_s=5)
                         descendant_token = ctl._process_token(descendant_pid)
                         assert isinstance(descendant_token, str) and descendant_token
                         close_descendant.update(
@@ -2463,7 +2612,8 @@ value = c.start_run(
     output_watch_roots=[{str(root / 'work')!r}],
 )
 Path({str(outer_ready)!r}).write_text(json.dumps(value), encoding='ascii')
-time.sleep(60)
+if {not _FIXTURE_OWNER_MODE!r}:
+    time.sleep(60)
 Path({str(outer_done)!r}).write_text('done', encoding='ascii')
 """
             outer_job = ctl._WindowsJob(limit_flags=0x2000 | 0x0800)
@@ -2478,21 +2628,42 @@ Path({str(outer_done)!r}).write_text('done', encoding='ascii')
                         job=outer_job,
                     )
                 _wait_for_path(outer_ready)
-                owner = json.loads(
-                    (root / "runs" / "outer-breakaway" / "owner.json").read_text(
-                        encoding="ascii",
+                if _FIXTURE_OWNER_MODE:
+                    assert outer_process.wait(timeout=10) == 0
+                    nested = ctl.status_run(
+                        run_root=root / "runs", run_id="outer-breakaway",
                     )
-                )
-                outer_worker = {owner["pid"]: owner["process_token"]}
-                assert _alive_identities(ctl, outer_worker) == list(outer_worker)
-                outer_job.close()
-                outer_process.wait(timeout=10)
-                assert not outer_done.exists()
-                assert _alive_identities(ctl, outer_worker) == list(outer_worker)
-                receipt = _wait(ctl, root, "outer-breakaway")
-                assert receipt["state"] == "succeeded"
-                assert outer_counter.read_text() == "once"
-                assert not _alive_identities(ctl, outer_worker)
+                    assert nested["state"] == "refused"
+                    assert nested["diagnostic"] == {
+                        "code": "RELEASE-CONTROLLER-PROCESS",
+                        "detail": "detached Windows worker remains in an enclosing Job",
+                    }
+                    assert nested["worker"] is None and nested["prechild_refusal"] is not None
+                    nested_prechild = json.loads(
+                        Path(nested["prechild_refusal"]["path"]).read_text(encoding="ascii")
+                    )
+                    assert nested_prechild["diagnostic"] == nested["diagnostic"]
+                    assert nested_prechild["intent_sha256"] == nested["intent_sha256"]
+                    assert "worker_spawned" not in _event_names(root, "outer-breakaway")
+                    assert "child_spawned" not in _event_names(root, "outer-breakaway")
+                    assert not outer_counter.exists() and outer_done.read_text() == "done"
+                    outer_job.close()
+                else:
+                    owner = json.loads(
+                        (root / "runs" / "outer-breakaway" / "owner.json").read_text(
+                            encoding="ascii",
+                        )
+                    )
+                    outer_worker = {owner["pid"]: owner["process_token"]}
+                    assert _alive_identities(ctl, outer_worker) == list(outer_worker)
+                    outer_job.close()
+                    outer_process.wait(timeout=10)
+                    assert not outer_done.exists()
+                    assert _alive_identities(ctl, outer_worker) == list(outer_worker)
+                    receipt = _wait(ctl, root, "outer-breakaway")
+                    assert receipt["state"] == "succeeded"
+                    assert outer_counter.read_text() == "once"
+                    assert not _alive_identities(ctl, outer_worker)
             finally:
                 if outer_job.handle:
                     outer_job.close()
@@ -4022,7 +4193,8 @@ time.sleep(60)
     print(
         "release_qualification_controller_smoketest: PASS "
         f"({cases} behavioral cases; {platform_skips} platform skips; "
-        f"posix_evidence={'executed' if os.name != 'nt' else 'not-run'})"
+        f"posix_evidence={'executed' if os.name != 'nt' else 'not-run'}; "
+        f"mode={'fixture-owner' if _FIXTURE_OWNER_MODE else 'bare-host'})"
     )
     return 0
 

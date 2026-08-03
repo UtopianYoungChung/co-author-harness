@@ -202,7 +202,11 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/alias_parity_smoketest.py": [_default_case()],
     "scripts/archive_runtime_probe_smoketest.py": [_default_case()],
     "scripts/qualification_plane_topology_smoketest.py": [_default_case()],
-    "scripts/release_qualification_controller_smoketest.py": [_default_case()],
+    "scripts/release_qualification_controller_smoketest.py": [{
+        **_default_case(),
+        "case_id": "fixture-owner",
+        "argv": ["--fixture-owner"],
+    }],
     "scripts/command_surface_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_claim_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_preflight_smoketest.py": [_default_case()],
