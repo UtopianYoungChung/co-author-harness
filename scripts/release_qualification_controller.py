@@ -64,6 +64,8 @@ REGRESSION_CONTRACT = (
     "posix_term_spawn_dynamic_rescan",
     "windows_process_observation_typed",
     "windows_detached_worker_job_escape_proven",
+    "windows_concrete_executable_identity_enforced",
+    "windows_created_image_identity_enforced",
     "run_lock_fail_closed",
     "run_lock_initialization_fail_closed",
     "multiprocess_cancel_idempotent",
@@ -463,7 +465,7 @@ class _WindowsProcessObservationApi:
             raise self.ctypes.WinError(self.ctypes.get_last_error())
 
 
-def _windows_observation_refusal(operation: str, exc: Exception) -> ControllerRefusal:
+def _windows_observation_refusal(operation: str, exc: BaseException) -> ControllerRefusal:
     code = getattr(exc, "winerror", None)
     suffix = f"winerror={code}" if code is not None else str(exc)
     return ControllerRefusal(
@@ -520,7 +522,7 @@ def _observe_windows_process(
     finally:
         try:
             boundary.close(handle)
-        except Exception as exc:
+        except BaseException as exc:
             raise _windows_observation_refusal("handle close", exc) from exc
 
 
@@ -780,6 +782,11 @@ def _windows_job_api() -> tuple[Any, Any, Any]:
         wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.BOOL),
     )
     kernel32.IsProcessInJob.restype = wintypes.BOOL
+    kernel32.QueryFullProcessImageNameW.argtypes = (
+        wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
     kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
     kernel32.TerminateJobObject.restype = wintypes.BOOL
     kernel32.QueryInformationJobObject.argtypes = (
@@ -811,6 +818,46 @@ def _windows_process_in_any_job(process_handle: int) -> bool:
     return bool(result.value)
 
 
+def _windows_process_image_path(process_handle: int) -> str:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32, _, _ = _windows_job_api()
+    buffer = ctypes.create_unicode_buffer(32768)
+    length = wintypes.DWORD(len(buffer))
+    ctypes.set_last_error(0)
+    if not kernel32.QueryFullProcessImageNameW(
+        wintypes.HANDLE(process_handle), 0, buffer, ctypes.byref(length),
+    ):
+        raise _WindowsDurabilityRefusal(
+            "cannot inspect created Windows process image: "
+            f"{ctypes.WinError(ctypes.get_last_error())}",
+        )
+    return os.path.normcase(os.path.realpath(buffer.value))
+
+
+def _windows_concrete_executable(argv0: str) -> str:
+    candidate = Path(argv0)
+    try:
+        if (
+            not candidate.is_absolute()
+            or not candidate.is_file()
+            or _is_reparse(candidate)
+        ):
+            raise _WindowsDurabilityRefusal(
+                "Windows product executable must be one absolute existing "
+                f"regular non-reparse file: {candidate}",
+            )
+        resolved = candidate.resolve(strict=True)
+    except ControllerRefusal:
+        raise
+    except OSError as exc:
+        raise _WindowsDurabilityRefusal(
+            f"cannot resolve Windows product executable {candidate}: {exc}",
+        ) from exc
+    return os.path.normcase(os.path.realpath(resolved))
+
+
 def _windows_escape_creation_flag(in_job: bool, limit_flags: int | None) -> int:
     if not in_job:
         return 0
@@ -825,6 +872,48 @@ def _windows_escape_creation_flag(in_job: bool, limit_flags: int | None) -> int:
     raise _WindowsDurabilityRefusal(
         "detached Windows worker cannot escape the enclosing Job",
     )
+
+
+def _windows_cleanup_call(
+    failures: list[tuple[str, BaseException]], label: str, action: Any,
+) -> None:
+    """Attempt one Windows cleanup action without skipping later actions."""
+    try:
+        action()
+    except BaseException as exc:
+        failures.append((label, exc))
+
+
+def _windows_cleanup_refusal(
+    context: str, failures: Iterable[tuple[str, BaseException]],
+) -> _WindowsDurabilityRefusal:
+    rows = list(failures)
+    detail = "; ".join(
+        f"{label}={type(exc).__name__}: {exc}" for label, exc in rows
+    )
+    return _WindowsDurabilityRefusal(f"{context}: {detail}")
+
+
+def _windows_close_handle_failures(
+    handles: Iterable[tuple[str, int]],
+) -> list[tuple[str, BaseException]]:
+    import _winapi
+
+    failures: list[tuple[str, BaseException]] = []
+    for label, handle in handles:
+        if handle:
+            _windows_cleanup_call(
+                failures, label, lambda exact=int(handle): _winapi.CloseHandle(exact),
+            )
+    return failures
+
+
+def _windows_close_handles(
+    handles: Iterable[tuple[str, int]], *, context: str,
+) -> None:
+    failures = _windows_close_handle_failures(handles)
+    if failures:
+        raise _windows_cleanup_refusal(context, failures)
 
 
 def _windows_worker_creation_flag() -> int:
@@ -881,6 +970,24 @@ class _WindowsJob:
             current, self.handle, current, 0, True, _winapi.DUPLICATE_SAME_ACCESS,
         ))
 
+    def contains(self, process_handle: int) -> bool:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32, _, _ = _windows_job_api()
+        result = wintypes.BOOL()
+        ctypes.set_last_error(0)
+        if not kernel32.IsProcessInJob(
+            wintypes.HANDLE(process_handle), wintypes.HANDLE(self.handle),
+            ctypes.byref(result),
+        ):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"Windows Job membership query failed: "
+                f"{ctypes.WinError(ctypes.get_last_error())}",
+            )
+        return bool(result.value)
+
     def assign(self, process_handle: int) -> None:
         import ctypes
 
@@ -889,6 +996,11 @@ class _WindowsJob:
             raise ControllerRefusal(
                 "RELEASE-CONTROLLER-PROCESS",
                 f"AssignProcessToJobObject failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
+        if not self.contains(process_handle):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                "created Windows process is absent from its controller Job",
             )
 
     def active_processes(self) -> int:
@@ -930,7 +1042,13 @@ class _WindowsJob:
         import ctypes
 
         kernel32, _, _ = _windows_job_api()
-        if not kernel32.CloseHandle(self.handle):
+        try:
+            closed = kernel32.CloseHandle(self.handle)
+        except BaseException as exc:
+            raise _WindowsDurabilityRefusal(
+                f"cannot close Windows Job handle: {type(exc).__name__}: {exc}",
+            ) from exc
+        if not closed:
             raise ControllerRefusal(
                 "RELEASE-CONTROLLER-PROCESS",
                 f"CloseHandle(Job) failed: {ctypes.WinError(ctypes.get_last_error())}",
@@ -976,10 +1094,69 @@ class _WindowsProcess:
     def close(self) -> None:
         if not self._handle:
             return
-        import _winapi
+        handle = self._handle
+        _windows_close_handles(
+            [("process handle", handle)], context="cannot close owned Windows process",
+        )
+        self._handle = 0
 
-        handle, self._handle = self._handle, 0
-        _winapi.CloseHandle(handle)
+
+def _terminate_suspended_windows_process(
+    process_handle: int, *, job: _WindowsJob, timeout_ms: int = 10_000,
+) -> None:
+    """Contain an ambiguous launch failure and always close its exact handle."""
+    import _winapi
+
+    initial_wait = None
+    direct_error: BaseException | None = None
+    failures: list[tuple[str, BaseException]] = []
+    try:
+        _winapi.TerminateProcess(process_handle, 1223)
+    except BaseException as exc:  # pragma: no cover - fault-injection surface
+        direct_error = exc
+    try:
+        initial_wait = _winapi.WaitForSingleObject(process_handle, timeout_ms)
+    except BaseException as exc:  # pragma: no cover - fault-injection surface
+        direct_error = exc
+    if initial_wait != _winapi.WAIT_OBJECT_0:
+        try:
+            if not job.contains(process_handle):
+                job.assign(process_handle)
+        except BaseException as exc:
+            failures.append(("failed-process Job assignment", exc))
+    # ResumeThread may have succeeded immediately before an asynchronous
+    # BaseException.  The direct process can therefore have created children
+    # even when TerminateProcess and the first wait both succeed.  This private
+    # Job is the independent tree boundary and is always terminated and drained.
+    _windows_cleanup_call(
+        failures, "failed-process Job termination", job.terminate,
+    )
+    _windows_cleanup_call(
+        failures, "failed-process Job drain",
+        lambda: job.wait_empty(timeout_s=max(1.0, timeout_ms / 1000)),
+    )
+
+    final_wait = None
+    try:
+        final_wait = _winapi.WaitForSingleObject(process_handle, timeout_ms)
+    except BaseException as exc:  # pragma: no cover - fault-injection surface
+        failures.append(("failed-process final wait", exc))
+    if final_wait != _winapi.WAIT_OBJECT_0:
+        failures.append((
+            "failed-process final wait",
+            _WindowsDurabilityRefusal(
+                "Windows launch failure did not terminate within "
+                f"{timeout_ms} ms (initial_wait={initial_wait}, "
+                f"final_wait={final_wait}, direct={direct_error!r})",
+            ),
+        ))
+    failures.extend(_windows_close_handle_failures([
+        ("refused process handle", process_handle),
+    ]))
+    if failures:
+        raise _windows_cleanup_refusal(
+            "cannot contain failed Windows launch", failures,
+        )
 
 
 def _spawn_windows_job_process(
@@ -992,6 +1169,7 @@ def _spawn_windows_job_process(
     import ctypes
     import msvcrt
 
+    expected_executable = _windows_concrete_executable(argv[0])
     current = _winapi.GetCurrentProcess()
     duplicates: list[int] = []
     try:
@@ -1000,9 +1178,12 @@ def _spawn_windows_job_process(
                 current, msvcrt.get_osfhandle(stream.fileno()), current, 0, True,
                 _winapi.DUPLICATE_SAME_ACCESS,
             )))
-    except Exception:
-        for handle in duplicates:
-            _winapi.CloseHandle(handle)
+    except BaseException:
+        _windows_close_handles(
+            [(f"duplicated standard handle {index}", handle)
+             for index, handle in enumerate(duplicates)],
+            context="cannot close partially duplicated Windows standard handles",
+        )
         raise
     startup = subprocess.STARTUPINFO()
     startup.dwFlags |= _winapi.STARTF_USESTDHANDLES
@@ -1016,32 +1197,67 @@ def _spawn_windows_job_process(
             0x4 | 0x200 | 0x400 | creation_flags,
             dict(environment), str(Path(cwd).resolve()), startup,
         )
-        try:
-            if require_no_enclosing_job and _windows_process_in_any_job(
-                int(process_handle),
-            ):
-                raise _WindowsDurabilityRefusal(
-                    "detached Windows worker remains in an enclosing Job",
-                )
-            job.assign(int(process_handle))
-            kernel32, _, _ = _windows_job_api()
-            if kernel32.ResumeThread(int(thread_handle)) == 0xFFFFFFFF:
-                raise ControllerRefusal(
-                    "RELEASE-CONTROLLER-PROCESS",
-                    f"ResumeThread failed: {ctypes.WinError(ctypes.get_last_error())}",
-                )
-        except Exception:
-            _winapi.TerminateProcess(process_handle, 1223)
-            _winapi.WaitForSingleObject(process_handle, _winapi.INFINITE)
-            _winapi.CloseHandle(process_handle)
-            process_handle = None
-            raise
+        created_executable = _windows_process_image_path(int(process_handle))
+        if created_executable != expected_executable:
+            raise _WindowsDurabilityRefusal(
+                "created Windows process image differs from requested "
+                f"executable: requested={expected_executable}, "
+                f"created={created_executable}",
+            )
+        if require_no_enclosing_job and _windows_process_in_any_job(
+            int(process_handle),
+        ):
+            raise _WindowsDurabilityRefusal(
+                "detached Windows worker remains in an enclosing Job",
+            )
+        job.assign(int(process_handle))
+        kernel32, _, _ = _windows_job_api()
+        if kernel32.ResumeThread(int(thread_handle)) == 0xFFFFFFFF:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-PROCESS",
+                f"ResumeThread failed: {ctypes.WinError(ctypes.get_last_error())}",
+            )
         return _WindowsProcess(int(process_handle), int(pid))
+    except BaseException:
+        if process_handle is not None:
+            failed_handle, process_handle = int(process_handle), None
+            _terminate_suspended_windows_process(failed_handle, job=job)
+        raise
     finally:
+        handles = []
         if thread_handle is not None:
-            _winapi.CloseHandle(thread_handle)
-        for handle in duplicates:
-            _winapi.CloseHandle(handle)
+            handles.append(("primary thread handle", int(thread_handle)))
+        handles.extend(
+            (f"duplicated standard handle {index}", handle)
+            for index, handle in enumerate(duplicates)
+        )
+        close_failures = _windows_close_handle_failures(handles)
+        if close_failures and process_handle is not None:
+            _windows_cleanup_call(
+                close_failures, "spawned process Job termination", job.terminate,
+            )
+            _windows_cleanup_call(
+                close_failures, "spawned process Job drain", job.wait_empty,
+            )
+            def wait_spawned_process() -> None:
+                waited = _winapi.WaitForSingleObject(int(process_handle), 10_000)
+                if waited != _winapi.WAIT_OBJECT_0:
+                    raise _WindowsDurabilityRefusal(
+                        f"spawned Windows process did not signal during handle cleanup: {waited}",
+                    )
+            _windows_cleanup_call(
+                close_failures, "spawned process signaling", wait_spawned_process,
+            )
+            process_close_failures = _windows_close_handle_failures([
+                ("spawned process handle", int(process_handle)),
+            ])
+            close_failures.extend(process_close_failures)
+            if not process_close_failures:
+                process_handle = None
+        if close_failures:
+            raise _windows_cleanup_refusal(
+                "cannot close Windows launch handles", close_failures,
+            )
 
 
 def _inside(path: str | Path, root: str | Path) -> bool:
@@ -1305,6 +1521,8 @@ def _check_argv(argv: list[str]) -> None:
         raise ControllerRefusal("RELEASE-CONTROLLER-ARGV", "argv must contain nonempty text entries")
     if any(item in {"-O", "-OO"} for item in argv[1:]):
         raise ControllerRefusal("RELEASE-CONTROLLER-ENV", "Python optimization flags are forbidden")
+    if os.name == "nt":
+        _windows_concrete_executable(argv[0])
 
 
 def _spawn_worker_process(
@@ -1317,11 +1535,21 @@ def _spawn_worker_process(
             argv, stdin=subprocess.DEVNULL, stdout=worker_stdout, stderr=worker_stderr,
             close_fds=True, env=dict(worker_env), start_new_session=detached,
         ), None
-    import _winapi
-
     creation_flags = _windows_worker_creation_flag() if detached else 0
     supervisor = _WindowsJob()
-    inherited = supervisor.duplicate_inheritable()
+    try:
+        inherited = supervisor.duplicate_inheritable()
+    except BaseException as duplicate_exc:
+        cleanup_failures: list[tuple[str, BaseException]] = []
+        _windows_cleanup_call(
+            cleanup_failures, "supervisor Job handle", supervisor.close,
+        )
+        if cleanup_failures:
+            raise _windows_cleanup_refusal(
+                "cannot clean failed Windows supervisor-handle duplication",
+                cleanup_failures,
+            ) from duplicate_exc
+        raise
     exact_env = dict(worker_env)
     exact_env[_SUPERVISOR_JOB_ENV] = str(inherited)
     try:
@@ -1333,11 +1561,64 @@ def _spawn_worker_process(
                 creation_flags=creation_flags,
                 require_no_enclosing_job=detached,
             )
-    except Exception:
-        supervisor.close()
+    except BaseException as spawn_exc:
+        inherited_failures = _windows_close_handle_failures([
+            ("inherited supervisor Job handle", inherited),
+        ])
+        supervisor_failures: list[tuple[str, BaseException]] = []
+        _windows_cleanup_call(
+            supervisor_failures, "supervisor Job handle", supervisor.close,
+        )
+        retry_failures: list[tuple[str, BaseException]] = []
+        if inherited_failures:
+            _windows_cleanup_call(
+                retry_failures, "inherited supervisor Job handle retry",
+                lambda: _windows_close_handles(
+                    [("inherited supervisor Job handle", inherited)],
+                    context="cannot close inherited supervisor Job handle on retry",
+                ),
+            )
+        cleanup_failures = [
+            *inherited_failures, *supervisor_failures, *retry_failures,
+        ]
+        if cleanup_failures:
+            raise _windows_cleanup_refusal(
+                "cannot clean failed Windows worker launch", cleanup_failures,
+            ) from spawn_exc
         raise
-    finally:
-        _winapi.CloseHandle(inherited)
+    inherited_failures = _windows_close_handle_failures([
+        ("inherited supervisor Job handle", inherited),
+    ])
+    if inherited_failures:
+        cleanup_failures = list(inherited_failures)
+        _windows_cleanup_call(
+            cleanup_failures, "spawned worker Job termination", supervisor.terminate,
+        )
+        _windows_cleanup_call(
+            cleanup_failures, "spawned worker Job drain", supervisor.wait_empty,
+        )
+        _windows_cleanup_call(
+            cleanup_failures, "spawned worker wait",
+            lambda: worker.wait(timeout=10),
+        )
+        retry_failures: list[tuple[str, BaseException]] = []
+        _windows_cleanup_call(
+            retry_failures, "inherited supervisor Job handle retry",
+            lambda: _windows_close_handles(
+                [("inherited supervisor Job handle", inherited)],
+                context="cannot close inherited supervisor Job handle on retry",
+            ),
+        )
+        _windows_cleanup_call(
+            cleanup_failures, "supervisor Job handle", supervisor.close,
+        )
+        _windows_cleanup_call(
+            cleanup_failures, "spawned worker process handle", worker.close,
+        )
+        cleanup_failures.extend(retry_failures)
+        raise _windows_cleanup_refusal(
+            "cannot close inherited Windows worker handle", cleanup_failures,
+        )
     return worker, supervisor
 
 
@@ -1371,8 +1652,14 @@ def _spawn_product_process(
                 argv, cwd=cwd, environment=environment,
                 stdin=devnull, stdout=stdout, stderr=stderr, job=product_job,
             )
-    except Exception:
-        product_job.close()
+    except BaseException as spawn_exc:
+        try:
+            product_job.close()
+        except BaseException as close_exc:
+            raise _windows_cleanup_refusal(
+                "cannot clean failed Windows product launch",
+                [("product Job handle", close_exc)],
+            ) from spawn_exc
         raise
     return child, product_job, None
 
@@ -2364,17 +2651,28 @@ def _worker(run_dir: Path) -> int:
             )
             return 76
         finally:
+            cleanup_failures: list[tuple[str, BaseException]] = []
             if control_fd is not None:
                 os.close(control_fd)
             if product_job is not None:
-                try:
+                def close_product_tree() -> None:
                     if product_job.active_processes():
                         product_job.terminate()
                         product_job.wait_empty()
-                finally:
-                    product_job.close()
+                _windows_cleanup_call(
+                    cleanup_failures, "product Job termination", close_product_tree,
+                )
+                _windows_cleanup_call(
+                    cleanup_failures, "product Job handle", product_job.close,
+                )
             if isinstance(child, _WindowsProcess):
-                child.close()
+                _windows_cleanup_call(
+                    cleanup_failures, "product process handle", child.close,
+                )
+            if cleanup_failures:
+                raise _windows_cleanup_refusal(
+                    "Windows worker cleanup failed", cleanup_failures,
+                )
         stdout.flush(); os.fsync(stdout.fileno())
         stderr.flush(); os.fsync(stderr.fileno())
     ended = _now()

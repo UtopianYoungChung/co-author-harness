@@ -46,6 +46,7 @@ REGISTRY = ROOT / "references" / "destination_coverage_registry.json"
 
 WRITE_PATTERN = re.compile(
     r"write_text|write_bytes|open\([^)]*[\"']w|open\([^)]*[\"']x"
+    r"|tempfile\.(?:TemporaryFile|NamedTemporaryFile)\(|os\.write\("
     r"|os\.replace|shutil\.(?:move|copy|rmtree)|\.rename\(|\.unlink\(|\.mkdir\("
     r"|publish_committed\(|_atomic_json\("
 )
@@ -72,6 +73,20 @@ def census() -> list[str]:
     return writers
 
 
+def writer_pattern_findings() -> list[str]:
+    """Keep every supported writer spelling mechanically live in the census."""
+    canaries = {
+        "temporary-file": "tempfile.TemporaryFile()",
+        "named-temporary-file": "tempfile.NamedTemporaryFile()",
+        "descriptor-write": "os.write(fd, b'x')",
+    }
+    return [
+        f"[CENSUS-PATTERN-REGRESSION] {name}: writer spelling is not detected"
+        for name, source in canaries.items()
+        if not WRITE_PATTERN.search(source)
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pin", action="store_true",
@@ -88,7 +103,7 @@ def main() -> int:
         print(f"FATAL: registry unreadable: {exc}")
         return 2
 
-    findings: list[str] = []
+    findings: list[str] = writer_pattern_findings()
     writers = census()
 
     for rel in writers:
@@ -135,8 +150,17 @@ def main() -> int:
                 "list python scripts/destination-coverage-check.py")
 
     if args.pin:
-        REGISTRY.write_text(json.dumps(doc, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+        # Byte-oriented publication keeps the governed pin portable across
+        # Windows and POSIX checkouts under the repository's enforced LF rule.
+        REGISTRY.write_bytes(
+            (json.dumps(doc, indent=2, sort_keys=False) + "\n").encode("utf-8")
+        )
         print(f"pins refreshed for pinned classes ({len(writers)} writers in census)")
+
+    if b"\r\n" in REGISTRY.read_bytes():
+        findings.append(
+            "[REGISTRY-NEWLINE-DRIFT] registry must use LF bytes for checkout-portable pins"
+        )
 
     if findings:
         print(f"DESTINATION COVERAGE: {len(findings)} finding(s)")

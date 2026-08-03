@@ -15,6 +15,9 @@ Covers the 2026-07-16 repair round:
   R4 portability        canonical evidence follows Git-clean content across
                         LF/CRLF checkouts while raw pre/post still observes
                         the exact bytes exercised in one run
+  R5 tree ownership     every suite starts inside an owned process boundary;
+                        direct exit, timeout, teardown races, and owner loss
+                        leave no descendant, delayed mutation, or evidence
 
 DELIBERATELY NOT IN THE SUITE UNIVERSE: the filename carries no fixture
 marker, so the runner never executes this file -- it exercises the runner
@@ -31,12 +34,14 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import importlib.util
+import inspect
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -80,8 +85,10 @@ def _load(path: Path, name: str, repo: Path | None = None):
     module keeps its own references.
     """
     saved_path = list(sys.path)
-    shared = ("package_enumeration", "worktree_paths", "code_census", "fixture_cache",
-              "resolve_includes")
+    shared = (
+        "package_enumeration", "worktree_paths", "code_census", "fixture_cache",
+        "fixture_process_supervisor", "resolve_includes",
+    )
     saved_mods = {k: sys.modules.pop(k, None) for k in shared}
     saved_named = sys.modules.get(name)
     try:
@@ -150,6 +157,7 @@ def _make_clone(base: Path) -> Path:
     (repo / "scripts" / "analysis").mkdir(exist_ok=True)
     for rel in ("scripts/analysis/code_census.py",
                 "scripts/analysis/fixture_cache.py",
+                "scripts/analysis/fixture_process_supervisor.py",
                 "scripts/analysis/fixture_runner.py",
                 "scripts/worktree_paths.py"):
         shutil.copy2(HARNESS / rel, repo / rel)
@@ -470,6 +478,1213 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
 
 
 # --------------------------------------------------------------------------
+# R5: runner-owned per-suite process trees (no Git or corpus required)
+# --------------------------------------------------------------------------
+
+def _stable_tested_inputs() -> dict[str, object]:
+    digest = hashlib.sha256(b"fixture-process-tree-focused-inputs").hexdigest()
+    return {
+        "mode": "focused-synthetic",
+        "enumerator": "fixture_infrastructure_check",
+        "exclude_dirs": [],
+        "exclude_files": [],
+        "file_count": 1,
+        "sha256": digest,
+        "raw_mode": "focused-synthetic-raw",
+        "raw_sha256": digest,
+    }
+
+
+def _write_process_suite(root: Path, source: str) -> str:
+    rel = "scripts/process_tree_focused_suite.py"
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8", newline="\n")
+    return rel
+
+
+def case_suite_process_tree_ownership() -> None:
+    """R5: the direct suite exit is never mistaken for whole-tree closure."""
+    with tempfile.TemporaryDirectory(prefix="fixture-process-tree-") as td:
+        root = Path(td).resolve()
+        runner = _load(
+            HARNESS / "scripts" / "analysis" / "fixture_runner.py",
+            "fr_process_tree",
+            repo=HARNESS,
+        )
+        runner.PLUGIN_ROOT = root
+        runner.MANIFEST_PATH = root / "docs" / "analysis" / "generated" / "fixture_manifest.json"
+        runner.compute_tested_inputs = _stable_tested_inputs
+
+        unsupported_sentinel = root / "unsupported-platform-ran.txt"
+        unsupported_code = (
+            "from pathlib import Path;"
+            f"Path({str(unsupported_sentinel)!r}).write_text('ran',encoding='ascii')"
+        )
+        unsupported_refused = False
+        try:
+            runner.fixture_process_supervisor.run_owned(
+                [sys.executable, "-I", "-B", "-c", unsupported_code],
+                cwd=root, timeout_s=2, _test_platform=("posix", "darwin"),
+            )
+        except runner.fixture_process_supervisor.FixtureProcessError as exc:
+            unsupported_refused = exc.code == "FIXTURE-PROCESS-UNSUPPORTED"
+        check("unsupported process-tree platform mechanically refuses", unsupported_refused)
+        check("unsupported-host refusal executes no suite bytes", not unsupported_sentinel.exists())
+        if os.name != "nt" and not sys.platform.startswith("linux"):
+            return
+
+        lock_state = {"held": False, "acquired": 0, "released": 0}
+        lock_token = object()
+
+        def acquire_lock():
+            if lock_state["held"]:
+                return None
+            lock_state["held"] = True
+            lock_state["acquired"] += 1
+            return lock_token
+
+        def release_lock(token):
+            assert token is lock_token and lock_state["held"]
+            lock_state["held"] = False
+            lock_state["released"] += 1
+
+        runner._acquire_lock = acquire_lock
+        runner._release_lock = release_lock
+        runner._lock_path = lambda: root / "fixture-runner.lock"
+
+        cache_calls = {"stage": 0, "publish": 0}
+        original_stage = runner.fixture_cache.stage_entry
+        original_publish = runner.fixture_cache.publish_staged
+
+        def counted_stage(*args, **kwargs):
+            cache_calls["stage"] += 1
+            return original_stage(*args, **kwargs)
+
+        def counted_publish(*args, **kwargs):
+            cache_calls["publish"] += 1
+            return original_publish(*args, **kwargs)
+
+        runner.fixture_cache.stage_entry = counted_stage
+        runner.fixture_cache.publish_staged = counted_publish
+
+        if os.name == "nt":
+            identity_sentinel = root / "windows-executable-identity-ran.txt"
+            identity_code = (
+                "from pathlib import Path;"
+                f"Path({str(identity_sentinel)!r}).write_text('ran',encoding='ascii')"
+            )
+            relative_refused = False
+            try:
+                runner.fixture_process_supervisor.run_owned(
+                    [Path(sys.executable).name, "-I", "-B", "-c", identity_code],
+                    cwd=root, timeout_s=2,
+                )
+            except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                relative_refused = exc.code == "FIXTURE-PROCESS-SPAWN"
+            check("relative Windows suite executable refuses", relative_refused)
+            check("executable preflight runs no suite bytes", not identity_sentinel.exists())
+
+            original_image_path = (
+                runner.fixture_process_supervisor._windows_process_image_path
+            )
+            runner.fixture_process_supervisor._windows_process_image_path = (
+                lambda _handle: os.path.normcase(str(root / "wrong-image.exe"))
+            )
+            image_refused = False
+            try:
+                runner.fixture_process_supervisor.run_owned(
+                    [sys.executable, "-I", "-B", "-c", identity_code],
+                    cwd=root, timeout_s=2,
+                )
+            except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                image_refused = exc.code == "FIXTURE-PROCESS-SPAWN"
+            finally:
+                runner.fixture_process_supervisor._windows_process_image_path = (
+                    original_image_path
+                )
+            check("mismatched suspended Windows suite image refuses", image_refused)
+            check("image mismatch runs no suite bytes", not identity_sentinel.exists())
+
+            close_errors = ""
+            original_close_handle = runner.fixture_process_supervisor._winapi.CloseHandle
+            try:
+                runner.fixture_process_supervisor._winapi.CloseHandle = (
+                    lambda handle: (_ for _ in ()).throw(OSError(f"close-{handle}"))
+                )
+                try:
+                    runner.fixture_process_supervisor._close_windows_handles(
+                        (("first", 101), ("second", 202)),
+                        prior=KeyboardInterrupt(),
+                    )
+                except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                    close_errors = exc.detail
+            finally:
+                runner.fixture_process_supervisor._winapi.CloseHandle = original_close_handle
+            check(
+                "multiple Windows handle-close failures are typed and aggregated",
+                "first=101" in close_errors
+                and "second=202" in close_errors
+                and "KeyboardInterrupt" in close_errors,
+            )
+
+        unrelated = subprocess.Popen(
+            [sys.executable, "-I", "-B", "-c", "import time;time.sleep(30)"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, close_fds=True,
+        )
+        try:
+            delayed = root / "delayed-direct-descendant.txt"
+            child = (
+                "import time;from pathlib import Path;time.sleep(0.8);"
+                f"Path({str(delayed)!r}).write_text('escaped',encoding='ascii')"
+            )
+            rel = _write_process_suite(root, f"""
+import subprocess, sys
+subprocess.Popen(
+    [sys.executable, '-I', '-B', '-c', {child!r}],
+    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL, close_fds=True,
+)
+""")
+            registry = {rel: [runner._default_case(timeout_s=2)]}
+            manifest = runner.MANIFEST_PATH
+            manifest.parent.mkdir(parents=True, exist_ok=True)
+            manifest.write_text('{"stale":true}', encoding="utf-8")
+            rc = runner.run(
+                registry, [rel], _test_only_allow_noncanonical_write=True,
+            )
+            check("direct exit with blocked descendant returns void exit 2", rc == 2, f"rc={rc}")
+            check("tree refusal leaves no manifest", not manifest.exists())
+            check("unrelated process survives owned-tree refusal", unrelated.poll() is None)
+            time.sleep(1.0)
+            check("blocked descendant cannot perform delayed mutation", not delayed.exists())
+
+            # Exercise the cacheable basis path itself (refresh bypasses lookup)
+            # and prove tree refusal occurs before staging or publication.
+            cached_manifest = b'{"preserve":"cache-assisted-refusal"}\n'
+            manifest.write_bytes(cached_manifest)
+            runner.CACHEABLE_SUITES = frozenset({rel})
+            runner._cache_root = lambda: root / "cache"
+            cache_rc = runner._run_locked(
+                registry, [rel], write_manifest=False, cache_mode="refresh", tier="full",
+            )
+            check("cache-assisted tree refusal returns void exit 2", cache_rc == 2, f"rc={cache_rc}")
+            check("cache-assisted refusal performs no cache staging", cache_calls["stage"] == 0)
+            check("cache-assisted refusal performs no cache publication", cache_calls["publish"] == 0)
+            check(
+                "cache-assisted refusal preserves prior evidence byte-for-byte",
+                manifest.read_bytes() == cached_manifest,
+            )
+            manifest.unlink()
+
+            grandchild_marker = root / "timeout-grandchild.txt"
+            grandchild = (
+                "import time;from pathlib import Path;time.sleep(0.9);"
+                f"Path({str(grandchild_marker)!r}).write_text('escaped',encoding='ascii')"
+            )
+            child = (
+                "import subprocess,sys,time;"
+                f"subprocess.Popen([sys.executable,'-I','-B','-c',{grandchild!r}],"
+                "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,"
+                "stderr=subprocess.DEVNULL,close_fds=True);time.sleep(30)"
+            )
+            _write_process_suite(root, f"""
+import subprocess, sys, time
+subprocess.Popen(
+    [sys.executable, '-I', '-B', '-c', {child!r}],
+    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL, close_fds=True,
+)
+time.sleep(30)
+""")
+            timeout_registry = {rel: [runner._default_case(timeout_s=0.8)]}
+            rc = runner.run(
+                timeout_registry, [rel], _test_only_allow_noncanonical_write=True,
+            )
+            check("timeout with child and grandchild returns void exit 2", rc == 2, f"rc={rc}")
+            time.sleep(1.1)
+            check("timeout grandchild cannot perform delayed mutation", not grandchild_marker.exists())
+
+            teardown_marker = root / "teardown-spawn.txt"
+            spawned = (
+                "import time;from pathlib import Path;time.sleep(1.0);"
+                f"Path({str(teardown_marker)!r}).write_text('escaped',encoding='ascii')"
+            )
+            _write_process_suite(root, f"""
+import subprocess, sys, time
+while True:
+    subprocess.Popen(
+        [sys.executable, '-I', '-B', '-c', {spawned!r}],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, close_fds=True,
+    )
+    time.sleep(0.04)
+""")
+            rc = runner.run(
+                {rel: [runner._default_case(timeout_s=0.8)]}, [rel],
+                _test_only_allow_noncanonical_write=True,
+            )
+            check("dynamic teardown-spawn tree returns void exit 2", rc == 2, f"rc={rc}")
+            time.sleep(1.2)
+            check("dynamic teardown rescan prevents delayed mutation", not teardown_marker.exists())
+            check("all refusal paths avoid cache staging", cache_calls["stage"] == 0)
+            check("all refusal paths avoid cache publication", cache_calls["publish"] == 0)
+            check("all refusal paths leave no manifest", not manifest.exists())
+
+            owner_ready = root / "owner-loss.ready"
+            owner_marker = root / "owner-loss-delayed.txt"
+            owner_suite = root / "scripts" / "owner_loss_suite.py"
+            owner_suite.write_text(
+                "from pathlib import Path\nimport time\n"
+                f"Path({str(owner_ready)!r}).write_text('ready',encoding='ascii')\n"
+                "time.sleep(1.2)\n"
+                f"Path({str(owner_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                encoding="utf-8", newline="\n",
+            )
+            driver = root / "owner_loss_driver.py"
+            helper_path = HARNESS / "scripts" / "analysis" / "fixture_process_supervisor.py"
+            driver.write_text(
+                "import importlib.util,sys\n"
+                f"spec=importlib.util.spec_from_file_location('fps_owner',{str(helper_path)!r})\n"
+                "module=importlib.util.module_from_spec(spec)\n"
+                "sys.modules[spec.name]=module\n"
+                "spec.loader.exec_module(module)\n"
+                f"module.run_owned([sys.executable,'-I','-B',{str(owner_suite)!r}],"
+                f"cwd={str(root)!r},timeout_s=10)\n",
+                encoding="utf-8", newline="\n",
+            )
+            owner = subprocess.Popen(
+                [sys.executable, "-I", "-B", str(driver)],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, close_fds=True,
+            )
+            try:
+                owner_deadline = time.monotonic() + 5
+                while not owner_ready.is_file() and time.monotonic() < owner_deadline:
+                    time.sleep(0.01)
+                check("owner-loss fixture reached supervised execution", owner_ready.is_file())
+                owner.terminate()
+                owner.wait(timeout=10)
+                time.sleep(1.4)
+                check("runner owner loss closes the complete suite tree", not owner_marker.exists())
+                check("unrelated process survives runner owner loss", unrelated.poll() is None)
+            finally:
+                if owner.poll() is None:
+                    owner.kill()
+                    owner.wait(timeout=10)
+
+            if sys.platform.startswith("linux"):
+                helper_source = inspect.getsource(
+                    runner.fixture_process_supervisor._run_posix
+                )
+                check(
+                    "POSIX product environment is absent from supervisor argv",
+                    '"environment": dict(environment)' in helper_source
+                    and "_write_all_before(client.stdin.fileno(), encoded" in helper_source
+                    and '"_systemd_anchor", unit, systemctl' in helper_source,
+                )
+
+                unsupported_suite_marker = root / "systemd-preflight-suite-ran.txt"
+                unsupported_suite = (
+                    "from pathlib import Path;"
+                    f"Path({str(unsupported_suite_marker)!r}).write_text('ran',encoding='ascii')"
+                )
+                for fault, label in (
+                    ("systemd_manager_missing", "missing systemd user manager"),
+                    ("non_cgroup_v2", "non-cgroup-v2 topology"),
+                    ("unproven_killmode", "unproven systemd KillMode"),
+                    ("nonnumeric_runtime_max", "nonnumeric systemd RuntimeMaxUSec"),
+                    ("wrong_runtime_max", "wrong finite systemd RuntimeMaxUSec"),
+                ):
+                    preflight_refused = False
+                    try:
+                        runner.fixture_process_supervisor.run_owned(
+                            [sys.executable, "-I", "-B", "-c", unsupported_suite],
+                            cwd=root, timeout_s=3, _test_fault=fault,
+                        )
+                    except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                        preflight_refused = exc.code == "FIXTURE-PROCESS-UNSUPPORTED"
+                    check(f"{label} refuses before suite bytes", preflight_refused)
+                    check(
+                        f"{label} leaves the suite sentinel absent",
+                        not unsupported_suite_marker.exists(),
+                    )
+
+                fps = runner.fixture_process_supervisor
+                original_systemd_run = fps.subprocess.run
+                show_stderr_invoked = False
+
+                def rc0_show_with_stderr(*args, **_kwargs):
+                    nonlocal show_stderr_invoked
+                    show_stderr_invoked = True
+                    return subprocess.CompletedProcess(
+                        args[0], 0, stdout=b"ActiveState=active\n",
+                        stderr=b"synthetic rc0 property-query stderr",
+                    )
+
+                fps.subprocess.run = rc0_show_with_stderr
+                show_stderr_refused = False
+                try:
+                    try:
+                        fps._systemd_show(
+                            "synthetic-systemctl", "synthetic.service", 1,
+                        )
+                    except fps.FixtureProcessError as exc:
+                        show_stderr_refused = (
+                            exc.code == "FIXTURE-PROCESS-UNSUPPORTED"
+                            and "synthetic rc0 property-query stderr" in exc.detail
+                        )
+                finally:
+                    fps.subprocess.run = original_systemd_run
+                check(
+                    "rc0 systemd property query with stderr refuses before START",
+                    show_stderr_invoked and show_stderr_refused
+                    and not unsupported_suite_marker.exists(),
+                )
+
+                fps = runner.fixture_process_supervisor
+                parser_cases = {
+                    "1s 500ms 250us": 1_500_250,
+                    "2min 3.5s": 123_500_000,
+                    "1h 2min 3s 4ms 5µs": 3_723_004_005,
+                }
+                check(
+                    "systemd composite duration parser preserves exact microseconds",
+                    all(
+                        fps._parse_systemd_runtime_usec(raw) == expected
+                        for raw, expected in parser_cases.items()
+                    ),
+                    repr(parser_cases),
+                )
+
+                bounded_values = {
+                    "ActiveState": "active",
+                    "CollectMode": "inactive-or-failed",
+                    "KillMode": "control-group",
+                    "KillSignal": "9",
+                    "SendSIGKILL": "yes",
+                    "MainPID": "4242",
+                    "ControlGroup": "/user.slice/synthetic.service",
+                    "ActiveEnterTimestampMonotonic": "1000000",
+                    "RuntimeMaxUSec": "499999us",
+                }
+                bounded_deadline_ok = False
+                try:
+                    bounded_deadline_ok = fps._prove_systemd_unit(
+                        bounded_values, pid=4242, runtime_max_usec=499_999,
+                        absolute_deadline_usec=1_500_000,
+                    ) == "/user.slice/synthetic.service"
+                except fps.FixtureProcessError:
+                    pass
+                check(
+                    "systemd activation plus runtime is bounded by the parent deadline",
+                    bounded_deadline_ok,
+                )
+                late_runtime_refused = False
+                try:
+                    fps._prove_systemd_unit(
+                        {**bounded_values, "RuntimeMaxUSec": "500001us"},
+                        pid=4242, runtime_max_usec=500_001,
+                        absolute_deadline_usec=1_500_000,
+                    )
+                except fps.FixtureProcessError as exc:
+                    late_runtime_refused = (
+                        exc.code == "FIXTURE-PROCESS-UNSUPPORTED"
+                        and "RuntimeDeadlineUSec" in exc.detail
+                    )
+                check(
+                    "systemd runtime extending past the parent deadline refuses",
+                    late_runtime_refused,
+                )
+
+                watchdog_marker = root / "watchdog-open-failure-suite-ran.txt"
+                watchdog_refused = False
+                try:
+                    fps = runner.fixture_process_supervisor
+                    fps.run_owned(
+                        [
+                            sys.executable, "-I", "-B", "-c",
+                            "from pathlib import Path;"
+                            f"Path({str(watchdog_marker)!r}).write_text('ran',encoding='ascii')",
+                        ],
+                        cwd=root, timeout_s=3,
+                        _test_fault="watchdog_pidfd_open_failure",
+                    )
+                except fps.FixtureProcessError as exc:
+                    watchdog_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "watchdog" in exc.detail
+                    )
+                check(
+                    "post-fork watchdog pidfd-open failure refuses",
+                    watchdog_refused,
+                )
+                check(
+                    "watchdog readiness failure reaches no suite bytes",
+                    not watchdog_marker.exists(),
+                )
+
+                fps = runner.fixture_process_supervisor
+                probe_read, probe_write = os.pipe()
+                opened_pidfds: list[int] = []
+                original_pidfd_open = fps.os.pidfd_open
+                original_linux_processes = fps._linux_processes
+                try:
+                    observations = iter((
+                        {4242: (1, "old-token")},
+                        {4242: (1, "new-token")},
+                    ))
+                    fps._linux_processes = lambda: next(observations)
+                    def fake_pidfd_open(_pid, _flags):
+                        opened_pidfds.append(os.dup(probe_read))
+                        return opened_pidfds[-1]
+                    fps.os.pidfd_open = fake_pidfd_open
+                    rollover = fps._open_pidfd_identity(4242, "old-token")
+                finally:
+                    fps.os.pidfd_open = original_pidfd_open
+                    fps._linux_processes = original_linux_processes
+                    os.close(probe_read)
+                    os.close(probe_write)
+                closed_rollover = False
+                try:
+                    os.fstat(opened_pidfds[0])
+                except OSError:
+                    closed_rollover = True
+                check("PID token rollover refuses the stale identity", rollover is None)
+                check("PID token rollover closes the stale pidfd", closed_rollover)
+
+                signal_calls: list[tuple[int, object]] = []
+                original_pidfd_signal = fps.signal.pidfd_send_signal
+                signal_read, signal_write = os.pipe()
+                try:
+                    fps.signal.pidfd_send_signal = (
+                        lambda fd, sig, _info, _flags: signal_calls.append((fd, sig))
+                    )
+                    fps._signal_identity(
+                        fps._PidfdIdentity(4242, "stable-token", signal_read),
+                        fps.signal.SIGSTOP,
+                    )
+                finally:
+                    fps.signal.pidfd_send_signal = original_pidfd_signal
+                    os.close(signal_read)
+                    os.close(signal_write)
+                check(
+                    "owned identity signaling uses pidfd_send_signal",
+                    signal_calls == [(signal_read, fps.signal.SIGSTOP)],
+                )
+
+                privacy_marker = root / "runtime-stdin-privacy.ready"
+                privacy_secret = "COAUTHOR_RUNTIME_CANARY_" + uuid.uuid4().hex
+                privacy_key = "COAUTHOR_FIXTURE_PRIVATE_CANARY"
+                privacy_result: list[object] = []
+                privacy_suite = (
+                    "import os,time;from pathlib import Path;"
+                    f"assert os.environ[{privacy_key!r}]=={privacy_secret!r};"
+                    f"Path({str(privacy_marker)!r}).write_text('received',encoding='ascii');"
+                    "time.sleep(1.0)"
+                )
+                def run_privacy_probe() -> None:
+                    try:
+                        privacy_result.append(fps.run_owned(
+                            [sys.executable, "-I", "-B", "-c", privacy_suite],
+                            cwd=root, timeout_s=3,
+                            environment=dict(os.environ) | {privacy_key: privacy_secret},
+                        ))
+                    except BaseException as exc:
+                        privacy_result.append(exc)
+                privacy_thread = threading.Thread(target=run_privacy_probe)
+                privacy_thread.start()
+                privacy_deadline = time.monotonic() + 2
+                while not privacy_marker.is_file() and time.monotonic() < privacy_deadline:
+                    time.sleep(0.01)
+                privacy_pids = (
+                    fps._LAST_SYSTEMD_CLIENT_PID, fps._LAST_SYSTEMD_ANCHOR_PID,
+                )
+                cmdlines: list[bytes] = []
+                for observed_pid in privacy_pids:
+                    if isinstance(observed_pid, int):
+                        try:
+                            cmdlines.append(Path(
+                                f"/proc/{observed_pid}/cmdline"
+                            ).read_bytes())
+                        except OSError:
+                            cmdlines.append(b"<unreadable>")
+                check(
+                    "runtime stdin canary reaches the controlled suite environment",
+                    privacy_marker.is_file(),
+                )
+                check(
+                    "runtime stdin canary is absent from systemd-run and anchor argv",
+                    len(cmdlines) == 2
+                    and all(privacy_secret.encode("ascii") not in row for row in cmdlines)
+                    and all(row != b"<unreadable>" for row in cmdlines),
+                    repr(cmdlines),
+                )
+                privacy_thread.join(timeout=3)
+                check(
+                    "runtime argv privacy probe completes under the original deadline",
+                    not privacy_thread.is_alive()
+                    and len(privacy_result) == 1
+                    and isinstance(privacy_result[0], fps.FixtureProcessResult),
+                    repr(privacy_result),
+                )
+
+                interrupt_marker = root / "parent-interrupt-delayed.txt"
+                interrupt_suite = root / "scripts" / "parent_interrupt_suite.py"
+                interrupt_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(1.0)\n"
+                    f"Path({str(interrupt_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                interrupted = False
+                try:
+                    runner.fixture_process_supervisor.run_owned(
+                        [sys.executable, "-I", "-B", str(interrupt_suite)],
+                        cwd=root, timeout_s=5,
+                        _test_fault="parent_keyboard_interrupt",
+                    )
+                except KeyboardInterrupt:
+                    interrupted = True
+                check("parent interruption is re-raised after POSIX cleanup", interrupted)
+                time.sleep(1.2)
+                check(
+                    "parent interruption joins cleanup before delayed mutation",
+                    not interrupt_marker.exists(),
+                )
+                check("unrelated process survives parent interruption", unrelated.poll() is None)
+
+                final_interrupt_marker = root / "final-cleanup-interrupt-delayed.txt"
+                final_interrupt_suite = root / "scripts" / "final_cleanup_interrupt_suite.py"
+                final_interrupt_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(1.0)\n"
+                    f"Path({str(final_interrupt_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                final_interrupted = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", str(final_interrupt_suite)],
+                        cwd=root, timeout_s=5,
+                        _test_fault="baseexception_during_final_cleanup",
+                    )
+                except KeyboardInterrupt:
+                    final_interrupted = True
+                check("BaseException during final cleanup is re-raised", final_interrupted)
+                time.sleep(1.2)
+                check(
+                    "final-cleanup BaseException is deferred until tree closure",
+                    not final_interrupt_marker.exists(),
+                )
+
+                pidfd_close_calls: list[int] = []
+                pidfd_close_injected = False
+                original_close_pidfd = fps._close_pidfd
+
+                def close_pidfd_then_fail_once(identity, **kwargs):
+                    nonlocal pidfd_close_injected
+                    original_close_pidfd(identity, **kwargs)
+                    pidfd_close_calls.append(identity.pid)
+                    if not pidfd_close_injected:
+                        pidfd_close_injected = True
+                        raise OSError("synthetic pidfd close failure after close")
+
+                fps._close_pidfd = close_pidfd_then_fail_once
+                pidfd_close_refused = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "pass"],
+                        cwd=root, timeout_s=2,
+                    )
+                except fps.FixtureProcessError as exc:
+                    pidfd_close_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "teardown was not proven" in exc.detail
+                    )
+                finally:
+                    fps._close_pidfd = original_close_pidfd
+                check(
+                    "pidfd close failure is typed after all identities are attempted",
+                    pidfd_close_refused
+                    and pidfd_close_injected
+                    and len(set(pidfd_close_calls)) >= 2,
+                    repr(pidfd_close_calls),
+                )
+
+                raw_pairs = [os.pipe(), os.pipe()]
+                raw_close_fds = [fd for pair in raw_pairs for fd in pair]
+                raw_close_failures: list[BaseException] = []
+                raw_fds_closed = False
+
+                def fd_is_closed(fd: int) -> bool:
+                    try:
+                        os.fstat(fd)
+                    except OSError:
+                        return True
+                    return False
+
+                try:
+                    raw_close_failures = fps._close_raw_fds(
+                        raw_close_fds, inject_after_first_close=True,
+                    )
+                    raw_fds_closed = all(
+                        fd_is_closed(fd) for fd in raw_close_fds
+                    )
+                finally:
+                    for fd in raw_close_fds:
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
+                check(
+                    "raw-pipe close failure does not skip remaining descriptors",
+                    len(raw_close_failures) == 1 and raw_fds_closed,
+                    repr(raw_close_failures),
+                )
+
+                raw_interrupt = SystemExit("synthetic raw-FD close interruption")
+                raw_interrupt_pairs = [os.pipe(), os.pipe()]
+                raw_interrupt_fds = [fd for pair in raw_interrupt_pairs for fd in pair]
+                raw_interrupt_identity = False
+                raw_interrupt_fds_closed = False
+                try:
+                    try:
+                        fps._close_raw_fds(
+                            raw_interrupt_fds,
+                            test_interrupt_after_first_close=raw_interrupt,
+                        )
+                    except BaseException as exc:
+                        raw_interrupt_identity = exc is raw_interrupt
+                    raw_interrupt_fds_closed = all(
+                        fd_is_closed(fd) for fd in raw_interrupt_fds
+                    )
+                finally:
+                    for fd in raw_interrupt_fds:
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
+                check(
+                    "raw-FD BaseException preserves identity after all closes",
+                    raw_interrupt_identity and raw_interrupt_fds_closed,
+                )
+                raw_pipe_close_refused = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "pass"],
+                        cwd=root, timeout_s=2,
+                        _test_fault="raw_pipe_close_failure",
+                    )
+                except fps.FixtureProcessError as exc:
+                    raw_pipe_close_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "deferred until closure" in exc.detail
+                    )
+                check(
+                    "anchor raw-pipe close failure is propagated after continuation",
+                    raw_pipe_close_refused,
+                )
+
+                cleanup_primitives = (
+                    ("stdin_close", KeyboardInterrupt("stdin close interrupt")),
+                    ("direct_kill", SystemExit("direct kill interrupt")),
+                    ("pidfd_signal", KeyboardInterrupt("pidfd signal interrupt")),
+                    ("pidfd_close", SystemExit("pidfd close interrupt")),
+                    ("raw_fd_close", KeyboardInterrupt("raw FD close interrupt")),
+                )
+                for primitive, cleanup_interrupt in cleanup_primitives:
+                    primitive_marker = root / f"{primitive}-interrupt-delayed.txt"
+                    primitive_suite = (
+                        "from pathlib import Path;import time;time.sleep(.7);"
+                        f"Path({str(primitive_marker)!r}).write_text('escaped',encoding='ascii')"
+                    )
+                    observed_interrupt = None
+                    closed_pidfd_identities: list[int] = []
+                    try:
+                        fps.run_owned(
+                            [sys.executable, "-I", "-B", "-c", primitive_suite],
+                            cwd=root, timeout_s=3,
+                            _test_fault=f"baseexception_in_{primitive}",
+                            _test_cleanup_interrupt=cleanup_interrupt,
+                            _test_closed_pidfd_identities=closed_pidfd_identities,
+                        )
+                    except BaseException as exc:
+                        observed_interrupt = exc
+                    cgroup_proved = unit_proved = False
+                    try:
+                        assert fps._LAST_SYSTEMD_CGROUP is not None
+                        fps._systemd_cgroup_empty(
+                            fps._LAST_SYSTEMD_CGROUP, time.monotonic() + 1,
+                        )
+                        cgroup_proved = True
+                    except (AssertionError, fps.FixtureProcessError):
+                        pass
+                    try:
+                        assert fps._LAST_SYSTEMD_UNIT is not None
+                        fps._systemd_unit_collected(
+                            "systemctl", fps._LAST_SYSTEMD_UNIT,
+                            time.monotonic() + 1,
+                        )
+                        unit_proved = True
+                    except (AssertionError, fps.FixtureProcessError):
+                        pass
+                    time.sleep(.8)
+                    check(
+                        f"{primitive} BaseException identity survives complete cleanup",
+                        observed_interrupt is cleanup_interrupt
+                        and cgroup_proved and unit_proved
+                        and (
+                            primitive != "pidfd_close"
+                            or len(set(closed_pidfd_identities)) >= 2
+                        )
+                        and not primitive_marker.exists()
+                        and unrelated.poll() is None,
+                        repr((observed_interrupt, closed_pidfd_identities)),
+                    )
+
+                abrupt_marker = root / "abrupt-supervisor-delayed.txt"
+                abrupt_suite = root / "scripts" / "abrupt_supervisor_suite.py"
+                abrupt_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(1.0)\n"
+                    f"Path({str(abrupt_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                caller_was_subreaper = fps._child_subreaper_state()
+                if not caller_was_subreaper:
+                    fps._set_child_subreaper()
+                try:
+                    turnover_marker = root / "unrelated-turnover-adopted.txt"
+                    turnover_child = (
+                        "import time;from pathlib import Path;time.sleep(0.8);"
+                        f"Path({str(turnover_marker)!r}).write_text('survived',encoding='ascii')"
+                    )
+                    turnover_parent = subprocess.Popen(
+                        [
+                            sys.executable, "-I", "-B", "-c",
+                            "import subprocess,sys;"
+                            f"subprocess.Popen([sys.executable,'-I','-B','-c',{turnover_child!r}],"
+                            "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,"
+                            "stderr=subprocess.DEVNULL,close_fds=True)",
+                        ],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, close_fds=True,
+                    )
+                    turnover_parent.wait(timeout=5)
+
+                    abrupt_refused = False
+                    try:
+                        runner.fixture_process_supervisor.run_owned(
+                            [sys.executable, "-I", "-B", str(abrupt_suite)],
+                            cwd=root, timeout_s=3,
+                            _test_fault="sigkill_supervisor_after_product",
+                        )
+                    except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                        abrupt_refused = exc.code == "FIXTURE-PROCESS-LIVE"
+                    check("SIGKILLed POSIX supervisor fails closed", abrupt_refused)
+                    time.sleep(1.2)
+                    check(
+                        "dedicated anchor kills product after worker-supervisor PID loss",
+                        not abrupt_marker.exists(),
+                    )
+                    check(
+                        "unrelated process survives abrupt supervisor death",
+                        unrelated.poll() is None,
+                    )
+                    check(
+                        "already-subreaper caller keeps unrelated adoption outside anchor scope",
+                        turnover_marker.exists(),
+                    )
+                finally:
+                    fps._reap_children()
+                    if not caller_was_subreaper:
+                        fps._set_child_subreaper(False)
+
+                anchor_death_marker = root / "anchor-death-delayed.txt"
+                anchor_death_suite = root / "scripts" / "anchor_death_suite.py"
+                anchor_death_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(0.8)\n"
+                    f"Path({str(anchor_death_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                anchor_death_refused = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", str(anchor_death_suite)],
+                        cwd=root, timeout_s=3,
+                        _test_fault="sigkill_anchor_after_product",
+                    )
+                except fps.FixtureProcessError as exc:
+                    anchor_death_refused = exc.code == "FIXTURE-PROCESS-LIVE"
+                check("SIGKILLed systemd main anchor fails closed", anchor_death_refused)
+                time.sleep(1.0)
+                check("anchor death prevents delayed mutation", not anchor_death_marker.exists())
+                check("unrelated process survives systemd anchor death", unrelated.poll() is None)
+                last_cgroup = fps._LAST_SYSTEMD_CGROUP
+                cgroup_empty = False
+                if last_cgroup:
+                    try:
+                        fps._systemd_cgroup_empty(last_cgroup, time.monotonic() + 1)
+                        cgroup_empty = True
+                    except fps.FixtureProcessError:
+                        pass
+                check(
+                    "anchor-death cgroup is absent or empty",
+                    cgroup_empty,
+                )
+                last_unit = fps._LAST_SYSTEMD_UNIT
+                collected_exact = False
+                try:
+                    fps._systemd_unit_collected(
+                        "systemctl", str(last_unit), time.monotonic() + 1,
+                    )
+                    collected_exact = True
+                except fps.FixtureProcessError:
+                    pass
+                check(
+                    "anchor-death transient unit is inactive and collected",
+                    collected_exact,
+                )
+
+                stalled_anchor_marker = root / "stalled-anchor-delayed.txt"
+                stalled_anchor_suite = root / "scripts" / "stalled_anchor_suite.py"
+                stalled_anchor_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(0.8)\n"
+                    f"Path({str(stalled_anchor_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                stalled_anchor_refused = False
+                stalled_anchor_started = time.monotonic()
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", str(stalled_anchor_suite)],
+                        cwd=root, timeout_s=0.5,
+                        _test_fault="stall_anchor_after_product",
+                    )
+                except fps.FixtureProcessError as exc:
+                    stalled_anchor_refused = exc.code == "FIXTURE-PROCESS-LIVE"
+                stalled_anchor_elapsed = time.monotonic() - stalled_anchor_started
+                check("stalled systemd main anchor fails closed", stalled_anchor_refused)
+                check(
+                    "deadline watchdog kills a stalled anchor at the original deadline",
+                    stalled_anchor_elapsed < 1.5 and not stalled_anchor_marker.exists(),
+                    f"elapsed={stalled_anchor_elapsed:.3f}s",
+                )
+                check("unrelated process survives stalled anchor", unrelated.poll() is None)
+
+                stopped_client_marker = root / "stopped-client-delayed.txt"
+                stopped_client_suite = (
+                    "from pathlib import Path;import time;time.sleep(.8);"
+                    f"Path({str(stopped_client_marker)!r}).write_text('escaped',encoding='ascii')"
+                )
+                stopped_client_refused = False
+                stopped_client_started = time.monotonic()
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", stopped_client_suite],
+                        cwd=root, timeout_s=0.8,
+                        _test_fault="stop_systemd_client_after_start",
+                    )
+                except fps.FixtureProcessError as exc:
+                    stopped_client_refused = exc.code == "FIXTURE-PROCESS-LIVE"
+                stopped_client_elapsed = time.monotonic() - stopped_client_started
+                time.sleep(0.9)
+                check("SIGSTOPped systemd-run client fails closed", stopped_client_refused)
+                check(
+                    "stopped systemd-run client is killed within the original deadline",
+                    stopped_client_elapsed < 1.2 and not stopped_client_marker.exists(),
+                    f"elapsed={stopped_client_elapsed:.3f}s",
+                )
+                stopped_cgroup_ok = False
+                stopped_unit_ok = False
+                try:
+                    assert fps._LAST_SYSTEMD_CGROUP is not None
+                    fps._systemd_cgroup_empty(
+                        fps._LAST_SYSTEMD_CGROUP, time.monotonic() + 1,
+                    )
+                    stopped_cgroup_ok = True
+                except (AssertionError, fps.FixtureProcessError):
+                    pass
+                try:
+                    assert fps._LAST_SYSTEMD_UNIT is not None
+                    fps._systemd_unit_collected(
+                        "systemctl", fps._LAST_SYSTEMD_UNIT, time.monotonic() + 1,
+                    )
+                    stopped_unit_ok = True
+                except (AssertionError, fps.FixtureProcessError):
+                    pass
+                check("stopped-client cgroup is absent or empty", stopped_cgroup_ok)
+                check("stopped-client transient unit is exactly collected", stopped_unit_ok)
+                check("unrelated process survives stopped systemd-run client", unrelated.poll() is None)
+
+                collection_failure = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "pass"],
+                        cwd=root, timeout_s=2,
+                        _test_fault="collection_query_failure",
+                    )
+                except fps.FixtureProcessError as exc:
+                    collection_failure = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "manager collection query failure" in exc.detail
+                    )
+                check(
+                    "systemd manager collection-query failure is distinct and fail-closed",
+                    collection_failure,
+                )
+
+                def direct_collection_failure(fake_run, expected: str) -> bool:
+                    original_run = fps.subprocess.run
+                    invoked = False
+
+                    def observed_run(*args, **kwargs):
+                        nonlocal invoked
+                        invoked = True
+                        return fake_run(*args, **kwargs)
+
+                    fps.subprocess.run = observed_run
+                    try:
+                        try:
+                            fps._systemd_unit_collected(
+                                "synthetic-systemctl", "synthetic.service",
+                                time.monotonic() + 1,
+                            )
+                        except fps.FixtureProcessError as exc:
+                            return (
+                                invoked and exc.code == "FIXTURE-PROCESS-LIVE"
+                                and expected in exc.detail
+                            )
+                        return False
+                    finally:
+                        fps.subprocess.run = original_run
+
+                check(
+                    "systemd collection-query OSError branch is exercised",
+                    direct_collection_failure(
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                            OSError("synthetic manager I/O failure")
+                        ),
+                        "synthetic manager I/O failure",
+                    ),
+                )
+                check(
+                    "systemd collection-query timeout branch is exercised",
+                    direct_collection_failure(
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                            subprocess.TimeoutExpired("synthetic-systemctl", 1)
+                        ),
+                        "timed out",
+                    ),
+                )
+                check(
+                    "systemd collection-query nonzero branch is exercised",
+                    direct_collection_failure(
+                        lambda *args, **_kwargs: subprocess.CompletedProcess(
+                            args[0], 7, stdout=b"", stderr=b"synthetic nonzero"
+                        ),
+                        "synthetic nonzero",
+                    ),
+                )
+                check(
+                    "systemd collection-query stderr-only branch is exercised",
+                    direct_collection_failure(
+                        lambda *args, **_kwargs: subprocess.CompletedProcess(
+                            args[0], 0, stdout=b"", stderr=b"synthetic stderr"
+                        ),
+                        "synthetic stderr",
+                    ),
+                )
+
+                protocol_stderr_refused = False
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "pass"],
+                        cwd=root, timeout_s=2,
+                        _test_fault="systemd_protocol_stderr",
+                    )
+                except fps.FixtureProcessError as exc:
+                    protocol_stderr_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "stderr diagnostics despite a valid result" in exc.detail
+                        and "injected systemd-run stderr diagnostic" in exc.detail
+                    )
+                check(
+                    "valid systemd protocol plus accumulated stderr refuses after closure proof",
+                    protocol_stderr_refused,
+                )
+
+                missing_procs_refused = False
+
+                class DisappearingCgroup:
+                    def __init__(self) -> None:
+                        self.exists_calls = 0
+                        self.read_calls = 0
+
+                    def exists(self) -> bool:
+                        self.exists_calls += 1
+                        return self.exists_calls == 1
+
+                    def __truediv__(self, name: str):
+                        assert name == "cgroup.procs"
+                        return self
+
+                    def read_text(self, **_kwargs):
+                        self.read_calls += 1
+                        raise FileNotFoundError("synthetic cgroup removal race")
+
+                disappearing_cgroup = DisappearingCgroup()
+                disappearing_race_accepted = True
+                try:
+                    fps._systemd_cgroup_empty(
+                        "/synthetic-disappearing-cgroup", time.monotonic() + 1,
+                        _test_path=disappearing_cgroup,
+                    )
+                except fps.FixtureProcessError:
+                    disappearing_race_accepted = False
+                check(
+                    "cgroup removal between exists and cgroup.procs read is accepted",
+                    disappearing_race_accepted
+                    and disappearing_cgroup.exists_calls == 2
+                    and disappearing_cgroup.read_calls == 1,
+                )
+
+                class ExistingCgroupMissingProcs:
+                    def __init__(self) -> None:
+                        self.exists_calls = 0
+                        self.read_calls = 0
+
+                    def exists(self) -> bool:
+                        self.exists_calls += 1
+                        return True
+
+                    def __truediv__(self, name: str):
+                        assert name == "cgroup.procs"
+                        return self
+
+                    def read_text(self, **_kwargs):
+                        self.read_calls += 1
+                        raise FileNotFoundError("synthetic missing cgroup.procs")
+
+                existing_missing = ExistingCgroupMissingProcs()
+                existing_missing_refused = False
+                try:
+                    fps._systemd_cgroup_empty(
+                        "/synthetic-existing-cgroup", time.monotonic() + 1,
+                        _test_path=existing_missing,
+                    )
+                except fps.FixtureProcessError as exc:
+                    existing_missing_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "without readable cgroup.procs" in exc.detail
+                    )
+                check(
+                    "existing cgroup plus FileNotFound cgroup.procs refuses",
+                    existing_missing_refused
+                    and existing_missing.exists_calls == 2
+                    and existing_missing.read_calls == 1,
+                )
+
+                try:
+                    fps.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "pass"],
+                        cwd=root, timeout_s=2,
+                        _test_fault="missing_cgroup_procs",
+                    )
+                except fps.FixtureProcessError as exc:
+                    missing_procs_refused = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "without readable cgroup.procs" in exc.detail
+                    )
+                check(
+                    "existing cgroup with missing cgroup.procs is not empty proof",
+                    missing_procs_refused,
+                )
+
+                cleanup_precedence = False
+                try:
+                    runner.fixture_process_supervisor.run_owned(
+                        [sys.executable, "-I", "-B", "-c", "import time;time.sleep(2)"],
+                        cwd=root, timeout_s=3,
+                        _test_fault="cleanup_failure_after_primary",
+                    )
+                except runner.fixture_process_supervisor.FixtureProcessError as exc:
+                    cleanup_precedence = (
+                        exc.code == "FIXTURE-PROCESS-LIVE"
+                        and "synthetic primary failure" in exc.detail
+                        and "synthetic cleanup failure" in exc.detail
+                    )
+                check("POSIX cleanup failure overrides the earlier diagnostic", cleanup_precedence)
+                check("unrelated process survives cleanup-precedence refusal", unrelated.poll() is None)
+
+                fallback_marker = root / "stalled-supervisor-delayed.txt"
+                fallback_suite = root / "scripts" / "stalled_supervisor_suite.py"
+                fallback_suite.write_text(
+                    "from pathlib import Path\nimport time\n"
+                    "time.sleep(0.8)\n"
+                    f"Path({str(fallback_marker)!r}).write_text('escaped',encoding='ascii')\n",
+                    encoding="utf-8", newline="\n",
+                )
+                fallback_refused = False
+                fallback_started = time.monotonic()
+                try:
+                    runner.fixture_process_supervisor.run_owned(
+                        [sys.executable, "-I", "-B", str(fallback_suite)],
+                        cwd=root, timeout_s=0.5,
+                        _test_fault="stall_before_cleanup",
+                    )
+                except runner.fixture_process_supervisor.FixtureProcessError:
+                    fallback_refused = True
+                fallback_elapsed = time.monotonic() - fallback_started
+                check("stalled POSIX supervisor fallback refuses", fallback_refused)
+                check(
+                    "stalled POSIX supervisor gets no second execution deadline",
+                    fallback_elapsed < 1.5,
+                    f"elapsed={fallback_elapsed:.3f}s",
+                )
+                time.sleep(1.2)
+                check(
+                    "stalled POSIX supervisor exact cleanup prevents delayed mutation",
+                    not fallback_marker.exists(),
+                )
+                check("unrelated process survives exact POSIX fallback", unrelated.poll() is None)
+            else:
+                check(
+                    "Windows uses Job-close owner-loss fallback",
+                    os.name == "nt" and not owner_marker.exists(),
+                )
+
+            _write_process_suite(root, "import os\nos.write(1,b'green\\xff')\nos.write(2,b'err\\xff')\n")
+            rc = runner.run(
+                {rel: [runner._default_case(timeout_s=2)]}, [rel],
+                _test_only_allow_noncanonical_write=True,
+            )
+            check("clean tree succeeds after refusals", rc == 0, f"rc={rc}")
+            check(
+                "runner lock is reusable after every refusal",
+                not lock_state["held"]
+                and lock_state["acquired"] == lock_state["released"] == 4,
+                repr(lock_state),
+            )
+            written = json.loads(manifest.read_text(encoding="utf-8"))
+            case_row = written["cases"][0]
+            check("manifest schema keeps direct observed exit", case_row["observed_exit"] == 0)
+            check(
+                "manifest schema adds no process-tree fields",
+                not any("tree" in key or "process" in key for key in case_row),
+                repr(sorted(case_row)),
+            )
+        finally:
+            if unrelated.poll() is None:
+                unrelated.terminate()
+            unrelated.wait(timeout=10)
+
+
+# --------------------------------------------------------------------------
 # R1: commit-stability (disposable clone; manifest TRACKED)
 # --------------------------------------------------------------------------
 
@@ -648,6 +1863,7 @@ def case_cross_worktree_lock(repo: Path, base: Path) -> None:
         (wt / "scripts" / "analysis").mkdir(parents=True, exist_ok=True)
         for rel in ("scripts/analysis/code_census.py",
                     "scripts/analysis/fixture_cache.py",
+                    "scripts/analysis/fixture_process_supervisor.py",
                     "scripts/analysis/fixture_runner.py",
                     "scripts/worktree_paths.py"):
             shutil.copy2(HARNESS / rel, wt / rel)
@@ -698,6 +1914,17 @@ def main() -> int:
     print("fixture_infrastructure_check (focused; never runs the corpus)")
     print(f"  harness: {HARNESS}")
     print()
+    if sys.argv[1:]:
+        if sys.argv[1:] != ["--process-tree-only"]:
+            print(f"ERROR: unsupported arguments: {sys.argv[1:]}", file=sys.stderr)
+            return 2
+        print("case_suite_process_tree_ownership:")
+        case_suite_process_tree_ownership()
+        if FAILURES:
+            print(f"\nFAIL: {len(FAILURES)}: {FAILURES}")
+            return 1
+        print("\nPASS: fixture suite process-tree ownership holds")
+        return 0
     print("case_repo_global_paths:")
     case_repo_global_paths()
     print()
@@ -718,6 +1945,9 @@ def main() -> int:
         print()
         print("case_runner_concurrency_and_void:")
         case_runner_concurrency_and_void(repo)
+        print()
+        print("case_suite_process_tree_ownership:")
+        case_suite_process_tree_ownership()
         print()
         print("case_cross_worktree_lock:")
         case_cross_worktree_lock(repo, base)

@@ -23,12 +23,17 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "0a08c1ff8e36e1a3e65351cb5417ecf8079dfe8cc3d969a7a8ffbdbccb14fa20"
+      "sha256": "13dd3f419e1f41314a58d872b3fa1aa132f1e9e77b65fb7b0f6a48335969eaca"
+    },
+    "scripts/analysis/fixture_process_supervisor.py": {
+      "class": "test_only",
+      "justification": "internal fixture-suite supervisor writes only anonymous OS temporary capture files and inherited pipe descriptors; it exposes no persistent destination argument",
+      "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1"
     },
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "c456f6fb028a82ba55dd2ee945a0858f591bd07f71fa802a08d305f17757acaa"
+      "sha256": "01378dcbe8872c72d65b32219c581fd5786be1416714fb61db6953c6a0a25f5f"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
@@ -191,7 +196,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "d3260c58ac3c3299701614298ccf7eed343f8d7cbe3a0cd88ee64de76c948194"
+      "sha256": "419c078bb78bcb8c921163283d11e467d26a45ce185634a31142a77c975eddda"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",

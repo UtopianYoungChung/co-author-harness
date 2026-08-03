@@ -162,6 +162,20 @@ sys.modules[_cache_spec.name] = fixture_cache
 _cache_spec.loader.exec_module(fixture_cache)
 assert Path(fixture_cache.__file__).resolve() == _CACHE_HELPER_PATH.resolve()
 
+_PROCESS_SUPERVISOR_PATH = (
+    PLUGIN_ROOT / "scripts" / "analysis" / "fixture_process_supervisor.py"
+)
+_supervisor_spec = importlib.util.spec_from_file_location(
+    "fixture_process_supervisor", _PROCESS_SUPERVISOR_PATH,
+)
+fixture_process_supervisor = importlib.util.module_from_spec(_supervisor_spec)
+sys.modules[_supervisor_spec.name] = fixture_process_supervisor
+_supervisor_spec.loader.exec_module(fixture_process_supervisor)
+assert (
+    Path(fixture_process_supervisor.__file__).resolve()
+    == _PROCESS_SUPERVISOR_PATH.resolve()
+)
+
 
 def _default_case(*, timeout_s: int = SUITE_TIMEOUT_S) -> dict:
     """The suite-level invocation contract: bare run, exit 0, EXIT-ONLY.
@@ -479,6 +493,7 @@ def _cache_basis(rel: str, case: dict, tested_inputs: dict) -> dict:
         "runner_sha256": _sha256(Path(__file__).resolve()),
         "census_sha256": _sha256(_CENSUS_PATH),
         "cache_helper_sha256": _sha256(_CACHE_HELPER_PATH),
+        "process_supervisor_sha256": _sha256(_PROCESS_SUPERVISOR_PATH),
         "suite_sha256": _sha256(PLUGIN_ROOT / rel),
         "invocation_contract": {
             "fixture_file": rel,
@@ -658,16 +673,30 @@ def _run_locked(registry: dict[str, list[dict]],
                 argv = [sys.executable, "-B", str(suite_path), *case["argv"]]
                 t0 = time.perf_counter_ns()
                 try:
-                    proc = subprocess.run(argv, cwd=str(PLUGIN_ROOT), capture_output=True,
-                                          text=True, encoding="utf-8", errors="replace",
-                                          timeout=case.get("timeout_s", SUITE_TIMEOUT_S))
-                except (OSError, subprocess.TimeoutExpired) as exc:
+                    owned = fixture_process_supervisor.run_owned(
+                        argv,
+                        cwd=PLUGIN_ROOT,
+                        timeout_s=case.get("timeout_s", SUITE_TIMEOUT_S),
+                    )
+                    proc = subprocess.CompletedProcess(
+                        argv,
+                        owned.returncode,
+                        owned.stdout.decode("utf-8", errors="replace"),
+                        owned.stderr.decode("utf-8", errors="replace"),
+                    )
+                except fixture_process_supervisor.FixtureProcessError as exc:
                     try:
                         fixture_cache.discard_staged(staged)
                     except fixture_cache.CacheError:
                         pass
-                    print(f"ERROR: {rel}::{case['case_id']}: {type(exc).__name__}: {exc}",
-                          file=sys.stderr)
+                    captured = (exc.stdout + exc.stderr).decode(
+                        "utf-8", errors="replace",
+                    ).strip().splitlines()[-2:]
+                    print(
+                        f"ERROR: {rel}::{case['case_id']}: {exc.code}: {exc}"
+                        f" | {captured}",
+                        file=sys.stderr,
+                    )
                     return 2
                 executed += 1
                 observed_exit = proc.returncode

@@ -140,6 +140,18 @@ def _alive_identities(ctl, identities: dict[int, str]) -> list[int]:
     return [pid for pid, token in identities.items() if ctl._process_token(pid) == token]
 
 
+def _wait_identities_dead(
+    ctl, identities: dict[int, str], *, timeout_s: float = 1.0,
+) -> list[int]:
+    """Wait for Windows Job accounting and exact process signaling to converge."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        alive = _alive_identities(ctl, identities)
+        if not alive or time.monotonic() >= deadline:
+            return alive
+        time.sleep(.01)
+
+
 def _terminate_identities(
     ctl, identities: dict[int, str], *, before_terminate=None,
 ) -> set[tuple[int, str]]:
@@ -1810,6 +1822,570 @@ c.start_run(
             )
             cases += 1
 
+            # Windows product launch is bound to one concrete absolute regular
+            # non-reparse executable before any run directory or child exists.
+            concrete_executable = Path(sys.executable)
+            expected_executable = os.path.normcase(os.path.realpath(concrete_executable))
+            assert concrete_executable.is_absolute() and concrete_executable.is_file()
+            assert not ctl._is_reparse(concrete_executable)
+            assert ctl._windows_concrete_executable(str(concrete_executable)) == expected_executable
+            executable_preflight_sentinel = root / "work" / "executable-preflight-ran.txt"
+            _expect(
+                "RELEASE-CONTROLLER-PROCESS",
+                lambda: ctl.start_run(
+                    run_root=root / "runs", run_id="relative-executable-refused",
+                    argv=[
+                        concrete_executable.name, "-B", "-c",
+                        "from pathlib import Path;"
+                        f"Path({str(executable_preflight_sentinel)!r}).write_text('ran')",
+                    ],
+                    cwd=root / "work", output_watch_roots=[root / "work"],
+                ),
+            )
+            assert not (root / "runs" / "relative-executable-refused").exists()
+            assert not executable_preflight_sentinel.exists()
+            original_is_reparse = ctl._is_reparse
+            ctl._is_reparse = lambda path: (
+                Path(path) == concrete_executable or original_is_reparse(path)
+            )
+            try:
+                _expect(
+                    "RELEASE-CONTROLLER-PROCESS",
+                    lambda: ctl._windows_concrete_executable(str(concrete_executable)),
+                )
+            finally:
+                ctl._is_reparse = original_is_reparse
+            cases += 1
+
+            # The created image is inspected while its primary thread remains
+            # suspended.  A mismatch kills and closes that exact process before
+            # the sentinel can execute, without leaving a member in the Job.
+            image_sentinel = root / "work" / "created-image-mismatch-ran.txt"
+            image_job = ctl._WindowsJob()
+            original_image_path = ctl._windows_process_image_path
+            captured_image_process: dict[str, object] = {}
+            direct_terminate_failures: list[tuple[int, int]] = []
+            import _winapi as _image_winapi
+            import ctypes as _image_ctypes
+            from ctypes import wintypes as _image_wintypes
+            original_terminate_process = _image_winapi.TerminateProcess
+            image_kernel32 = _image_ctypes.WinDLL("kernel32", use_last_error=True)
+            image_kernel32.GetProcessId.argtypes = (_image_wintypes.HANDLE,)
+            image_kernel32.GetProcessId.restype = _image_wintypes.DWORD
+            image_kernel32.WaitForSingleObject.argtypes = (
+                _image_wintypes.HANDLE, _image_wintypes.DWORD,
+            )
+            image_kernel32.WaitForSingleObject.restype = _image_wintypes.DWORD
+            def mismatch_created_image(handle):
+                pid = int(image_kernel32.GetProcessId(_image_wintypes.HANDLE(handle)))
+                assert pid > 0
+                token = ctl._process_token(pid)
+                assert isinstance(token, str) and token
+                captured_image_process.update(handle=int(handle), pid=pid, token=token)
+                return os.path.normcase(os.path.realpath(root / "not-the-created-image.exe"))
+            def refuse_direct_terminate(handle, exit_code):
+                direct_terminate_failures.append((int(handle), int(exit_code)))
+                raise OSError(5, "synthetic direct TerminateProcess refusal")
+            ctl._windows_process_image_path = mismatch_created_image
+            _image_winapi.TerminateProcess = refuse_direct_terminate
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    _expect(
+                        "RELEASE-CONTROLLER-PROCESS",
+                        lambda: ctl._spawn_windows_job_process(
+                            [
+                                str(concrete_executable), "-B", "-c",
+                                "from pathlib import Path;"
+                                f"Path({str(image_sentinel)!r}).write_text('ran')",
+                            ],
+                            cwd=root / "work", environment=dict(launcher_env),
+                            stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                            job=image_job,
+                        ),
+                    )
+                assert captured_image_process.keys() == {"handle", "pid", "token"}
+                assert direct_terminate_failures == [
+                    (captured_image_process["handle"], 1223),
+                ]
+                _image_ctypes.set_last_error(0)
+                assert image_kernel32.WaitForSingleObject(
+                    _image_wintypes.HANDLE(captured_image_process["handle"]), 0,
+                ) == 0xFFFFFFFF
+                assert _image_ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+                assert image_job.active_processes() == 0
+                assert not _alive_identities(
+                    ctl,
+                    {captured_image_process["pid"]: captured_image_process["token"]},
+                )
+                assert not image_sentinel.exists()
+            finally:
+                _image_winapi.TerminateProcess = original_terminate_process
+                ctl._windows_process_image_path = original_image_path
+                if {"pid", "token"} <= captured_image_process.keys():
+                    _terminate_identities(
+                        ctl,
+                        {captured_image_process["pid"]: captured_image_process["token"]},
+                    )
+                image_job.close()
+            cases += 1
+
+            # A non-Exception interruption after CreateProcess must be re-raised
+            # only after the exact suspended process is terminated and closed.
+            class SuspendedLaunchAbort(BaseException):
+                pass
+            abort_sentinel = root / "work" / "base-exception-ran.txt"
+            abort_job = ctl._WindowsJob()
+            abort_process: dict[str, object] = {}
+            abort_fault = SuspendedLaunchAbort("synthetic suspended-launch abort")
+            original_image_path = ctl._windows_process_image_path
+            def abort_created_image(handle):
+                pid = int(image_kernel32.GetProcessId(_image_wintypes.HANDLE(handle)))
+                assert pid > 0
+                token = ctl._process_token(pid)
+                assert isinstance(token, str) and token
+                abort_process.update(handle=int(handle), pid=pid, token=token)
+                raise abort_fault
+            ctl._windows_process_image_path = abort_created_image
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_windows_job_process(
+                            [
+                                str(concrete_executable), "-B", "-c",
+                                "from pathlib import Path;"
+                                f"Path({str(abort_sentinel)!r}).write_text('ran')",
+                            ],
+                            cwd=root / "work", environment=dict(launcher_env),
+                            stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                            job=abort_job,
+                        )
+                    except SuspendedLaunchAbort as exc:
+                        assert exc is abort_fault
+                    else:
+                        raise AssertionError("suspended BaseException was suppressed")
+                assert abort_process.keys() == {"handle", "pid", "token"}
+                _image_ctypes.set_last_error(0)
+                assert image_kernel32.WaitForSingleObject(
+                    _image_wintypes.HANDLE(abort_process["handle"]), 0,
+                ) == 0xFFFFFFFF
+                assert _image_ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+                assert abort_job.active_processes() == 0
+                assert not _alive_identities(
+                    ctl, {abort_process["pid"]: abort_process["token"]},
+                )
+                assert not abort_sentinel.exists()
+            finally:
+                ctl._windows_process_image_path = original_image_path
+                if {"pid", "token"} <= abort_process.keys():
+                    _terminate_identities(
+                        ctl, {abort_process["pid"]: abort_process["token"]},
+                    )
+                abort_job.close()
+            cases += 1
+
+            # A BaseException raised after ResumeThread (while ownership is
+            # being wrapped for return) still terminates, drains, and closes
+            # the exact resumed process before the original fault is re-raised.
+            class PostResumeAbort(BaseException):
+                pass
+            post_resume_marker = root / "work" / "post-resume-abort-ran.txt"
+            post_resume_ready = root / "work" / "post-resume-descendant.ready"
+            post_resume_job = ctl._WindowsJob()
+            post_resume_process: dict[str, object] = {}
+            post_resume_descendant: dict[str, object] = {}
+            post_resume_fault = PostResumeAbort("synthetic post-resume abort")
+            original_windows_process = ctl._WindowsProcess
+            post_resume_descendant_code = (
+                "import time;from pathlib import Path;time.sleep(.7);"
+                f"Path({str(post_resume_marker)!r}).write_text('ran')"
+            )
+            post_resume_code = (
+                "import subprocess,sys,time;from pathlib import Path;"
+                f"p=subprocess.Popen([sys.executable,'-B','-c',{post_resume_descendant_code!r}]);"
+                f"Path({str(post_resume_ready)!r}).write_text(str(p.pid));"
+                "time.sleep(30)"
+            )
+            def abort_process_wrapper(handle, pid):
+                token = ctl._process_token(int(pid))
+                assert isinstance(token, str) and token
+                post_resume_process.update(handle=int(handle), pid=int(pid), token=token)
+                ready_deadline = time.monotonic() + 5
+                while not post_resume_ready.is_file() and time.monotonic() < ready_deadline:
+                    time.sleep(.01)
+                assert post_resume_ready.is_file()
+                descendant_pid = int(post_resume_ready.read_text(encoding="ascii"))
+                descendant_token = ctl._process_token(descendant_pid)
+                assert isinstance(descendant_token, str) and descendant_token
+                post_resume_descendant.update(
+                    pid=descendant_pid, token=descendant_token,
+                )
+                raise post_resume_fault
+            ctl._WindowsProcess = abort_process_wrapper
+            post_resume_unrelated = subprocess.Popen(
+                [sys.executable, "-B", "-c", "import time;time.sleep(30)"],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, close_fds=True,
+            )
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_windows_job_process(
+                            [str(concrete_executable), "-B", "-c", post_resume_code],
+                            cwd=root / "work", environment=dict(launcher_env),
+                            stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                            job=post_resume_job,
+                        )
+                    except PostResumeAbort as exc:
+                        assert exc is post_resume_fault
+                    else:
+                        raise AssertionError("post-resume BaseException was suppressed")
+                assert post_resume_process.keys() == {"handle", "pid", "token"}
+                assert post_resume_descendant.keys() == {"pid", "token"}
+                _image_ctypes.set_last_error(0)
+                assert image_kernel32.WaitForSingleObject(
+                    _image_wintypes.HANDLE(post_resume_process["handle"]), 0,
+                ) == 0xFFFFFFFF
+                assert _image_ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+                assert post_resume_job.active_processes() == 0
+                assert not _wait_identities_dead(
+                    ctl,
+                    {
+                        post_resume_process["pid"]: post_resume_process["token"],
+                        post_resume_descendant["pid"]: post_resume_descendant["token"],
+                    },
+                )
+                time.sleep(.8)
+                assert not post_resume_marker.exists()
+                assert post_resume_unrelated.poll() is None
+            finally:
+                ctl._WindowsProcess = original_windows_process
+                remaining_identities = {}
+                if {"pid", "token"} <= post_resume_process.keys():
+                    remaining_identities[post_resume_process["pid"]] = post_resume_process["token"]
+                if {"pid", "token"} <= post_resume_descendant.keys():
+                    remaining_identities[post_resume_descendant["pid"]] = (
+                        post_resume_descendant["token"]
+                    )
+                if remaining_identities:
+                    _terminate_identities(
+                        ctl, remaining_identities,
+                    )
+                post_resume_job.close()
+                if post_resume_unrelated.poll() is None:
+                    post_resume_unrelated.terminate()
+                post_resume_unrelated.wait(timeout=10)
+            cases += 1
+
+            # Every thread/stdio handle close is attempted even when each close
+            # raises.  The failures are aggregated into one typed refusal, and
+            # a genuinely resumed process plus its descendant are drained by
+            # the process_handle-not-None Job-cleanup branch.
+            close_sentinel = root / "work" / "launch-close-failure-ran.txt"
+            close_ready = root / "work" / "launch-close-descendant.ready"
+            close_job = ctl._WindowsJob()
+            close_process: dict[str, object] = {}
+            close_descendant: dict[str, object] = {}
+            duplicated_handles: list[int] = []
+            created_thread_handle: list[int] = []
+            refused_close_handles: list[int] = []
+            original_image_path = ctl._windows_process_image_path
+            original_duplicate_handle = _image_winapi.DuplicateHandle
+            original_create_process = _image_winapi.CreateProcess
+            original_close_handle = _image_winapi.CloseHandle
+            close_descendant_code = (
+                "import time;from pathlib import Path;time.sleep(.7);"
+                f"Path({str(close_sentinel)!r}).write_text('ran')"
+            )
+            close_product_code = (
+                "import subprocess,sys,time;from pathlib import Path;"
+                f"p=subprocess.Popen([sys.executable,'-B','-c',{close_descendant_code!r}]);"
+                f"Path({str(close_ready)!r}).write_text(str(p.pid));"
+                "time.sleep(30)"
+            )
+            def capture_for_close_failure(handle):
+                pid = int(image_kernel32.GetProcessId(_image_wintypes.HANDLE(handle)))
+                assert pid > 0
+                token = ctl._process_token(pid)
+                assert isinstance(token, str) and token
+                close_process.update(handle=int(handle), pid=pid, token=token)
+                return original_image_path(handle)
+            def record_duplicate_handle(*args):
+                handle = int(original_duplicate_handle(*args))
+                duplicated_handles.append(handle)
+                return handle
+            def record_create_process(*args):
+                value = original_create_process(*args)
+                created_thread_handle.append(int(value[1]))
+                return value
+            def refuse_each_launch_close(handle):
+                exact = int(handle)
+                targets = {*duplicated_handles, *created_thread_handle}
+                if exact in targets and exact not in refused_close_handles:
+                    if created_thread_handle and exact == created_thread_handle[0]:
+                        ready_deadline = time.monotonic() + 5
+                        while not close_ready.is_file() and time.monotonic() < ready_deadline:
+                            time.sleep(.01)
+                        assert close_ready.is_file()
+                        descendant_pid = int(close_ready.read_text(encoding="ascii"))
+                        descendant_token = ctl._process_token(descendant_pid)
+                        assert isinstance(descendant_token, str) and descendant_token
+                        close_descendant.update(
+                            pid=descendant_pid, token=descendant_token,
+                        )
+                    refused_close_handles.append(exact)
+                    raise OSError(6, f"synthetic CloseHandle refusal for {exact}")
+                return original_close_handle(handle)
+            ctl._windows_process_image_path = capture_for_close_failure
+            _image_winapi.DuplicateHandle = record_duplicate_handle
+            _image_winapi.CreateProcess = record_create_process
+            _image_winapi.CloseHandle = refuse_each_launch_close
+            close_refusal = None
+            try:
+                with open(os.devnull, "rb") as devnull, open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_windows_job_process(
+                            [str(concrete_executable), "-B", "-c", close_product_code],
+                            cwd=root / "work", environment=dict(launcher_env),
+                            stdin=devnull, stdout=devnull_out, stderr=devnull_out,
+                            job=close_job,
+                        )
+                    except Exception as exc:
+                        close_refusal = exc
+                assert getattr(close_refusal, "code", None) == "RELEASE-CONTROLLER-PROCESS"
+                assert "cannot close Windows launch handles" in str(close_refusal)
+                assert "primary thread handle" in str(close_refusal)
+                assert all(
+                    f"duplicated standard handle {index}" in str(close_refusal)
+                    for index in range(3)
+                )
+                assert len(duplicated_handles) == 3
+                assert len(created_thread_handle) == 1
+                assert refused_close_handles == [
+                    created_thread_handle[0], *duplicated_handles,
+                ]
+                assert close_process.keys() == {"handle", "pid", "token"}
+                assert close_descendant.keys() == {"pid", "token"}
+                _image_ctypes.set_last_error(0)
+                assert image_kernel32.WaitForSingleObject(
+                    _image_wintypes.HANDLE(close_process["handle"]), 0,
+                ) == 0xFFFFFFFF
+                assert _image_ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+                assert close_job.active_processes() == 0
+                assert not _wait_identities_dead(
+                    ctl, {
+                        close_process["pid"]: close_process["token"],
+                        close_descendant["pid"]: close_descendant["token"],
+                    },
+                )
+                time.sleep(.8)
+                assert not close_sentinel.exists()
+            finally:
+                _image_winapi.CloseHandle = original_close_handle
+                _image_winapi.CreateProcess = original_create_process
+                _image_winapi.DuplicateHandle = original_duplicate_handle
+                ctl._windows_process_image_path = original_image_path
+                for handle in refused_close_handles:
+                    try:
+                        original_close_handle(handle)
+                    except OSError as exc:
+                        assert getattr(exc, "winerror", None) == 6, repr(exc)
+                remaining_identities = {}
+                if {"pid", "token"} <= close_process.keys():
+                    remaining_identities[close_process["pid"]] = close_process["token"]
+                if {"pid", "token"} <= close_descendant.keys():
+                    remaining_identities[close_descendant["pid"]] = close_descendant["token"]
+                if remaining_identities:
+                    _terminate_identities(
+                        ctl, remaining_identities,
+                    )
+                close_job.close()
+            current_process = _image_winapi.GetCurrentProcess()
+            owned_probe_handle = int(original_duplicate_handle(
+                current_process, current_process, current_process, 0, False,
+                _image_winapi.DUPLICATE_SAME_ACCESS,
+            ))
+            owned_probe = ctl._WindowsProcess(owned_probe_handle, os.getpid())
+            probe_close_calls = 0
+            def refuse_owned_probe_close(handle):
+                nonlocal probe_close_calls
+                if int(handle) == owned_probe_handle and probe_close_calls == 0:
+                    probe_close_calls += 1
+                    raise OSError(6, "synthetic owned-process CloseHandle refusal")
+                return original_close_handle(handle)
+            _image_winapi.CloseHandle = refuse_owned_probe_close
+            try:
+                _expect("RELEASE-CONTROLLER-PROCESS", owned_probe.close)
+                assert owned_probe._handle == owned_probe_handle
+            finally:
+                _image_winapi.CloseHandle = original_close_handle
+                owned_probe.close()
+            assert probe_close_calls == 1 and owned_probe._handle == 0
+            cases += 1
+
+            # A failure while duplicating the inherited supervisor handle is
+            # outside child creation but still owns the newly-created Job.
+            # The Job handle is closed before the exact BaseException returns.
+            class SupervisorDuplicateAbort(BaseException):
+                pass
+            duplicate_fault = SupervisorDuplicateAbort("synthetic supervisor duplicate abort")
+            duplicate_job: list[object] = []
+            duplicate_job_handle: list[int] = []
+            original_duplicate_inheritable = ctl._WindowsJob.duplicate_inheritable
+            def abort_supervisor_duplicate(self):
+                duplicate_job.append(self)
+                duplicate_job_handle.append(int(self.handle))
+                raise duplicate_fault
+            ctl._WindowsJob.duplicate_inheritable = abort_supervisor_duplicate
+            try:
+                with open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_worker_process(
+                            ctl._paths(root / "runs", "duplicate-abort"),
+                            launcher_env, devnull_out, devnull_out, detached=False,
+                        )
+                    except SupervisorDuplicateAbort as exc:
+                        assert exc is duplicate_fault
+                    else:
+                        raise AssertionError("supervisor duplicate BaseException was suppressed")
+                assert len(duplicate_job) == len(duplicate_job_handle) == 1
+                assert duplicate_job[0].handle == 0
+                _image_ctypes.set_last_error(0)
+                assert image_kernel32.WaitForSingleObject(
+                    _image_wintypes.HANDLE(duplicate_job_handle[0]), 0,
+                ) == 0xFFFFFFFF
+                assert _image_ctypes.get_last_error() == 6  # ERROR_INVALID_HANDLE
+            finally:
+                ctl._WindowsJob.duplicate_inheritable = original_duplicate_inheritable
+                if duplicate_job and duplicate_job[0].handle:
+                    duplicate_job[0].close()
+            cases += 1
+
+            # Worker cleanup tracks inherited and Job closes separately: a
+            # supervisor-only close failure cannot retry an already-closed
+            # inherited handle.  When inherited close itself fails, tree
+            # termination, drain, Job close, and process close are independent.
+            class WorkerSpawnAbort(BaseException):
+                pass
+            worker_spawn_fault = WorkerSpawnAbort("synthetic worker spawn abort")
+            first_job: list[object] = []
+            first_inherited: list[int] = []
+            first_inherited_closes: list[int] = []
+            first_job_close_calls = 0
+            original_spawn_windows_job_process = ctl._spawn_windows_job_process
+            original_job_close = ctl._WindowsJob.close
+            original_close_handle = _image_winapi.CloseHandle
+            def capture_first_inherited(self):
+                handle = int(original_duplicate_inheritable(self))
+                first_job.append(self)
+                first_inherited.append(handle)
+                return handle
+            def abort_worker_spawn(*_args, **_kwargs):
+                raise worker_spawn_fault
+            def refuse_first_job_close(self):
+                nonlocal first_job_close_calls
+                if first_job and self is first_job[0] and first_job_close_calls == 0:
+                    first_job_close_calls += 1
+                    raise OSError(6, "synthetic supervisor Job close refusal")
+                return original_job_close(self)
+            def count_first_inherited_close(handle):
+                if first_inherited and int(handle) == first_inherited[0]:
+                    first_inherited_closes.append(int(handle))
+                return original_close_handle(handle)
+            ctl._WindowsJob.duplicate_inheritable = capture_first_inherited
+            ctl._WindowsJob.close = refuse_first_job_close
+            ctl._spawn_windows_job_process = abort_worker_spawn
+            _image_winapi.CloseHandle = count_first_inherited_close
+            first_refusal = None
+            try:
+                with open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_worker_process(
+                            ctl._paths(root / "runs", "separate-close-state"),
+                            launcher_env, devnull_out, devnull_out, detached=False,
+                        )
+                    except Exception as exc:
+                        first_refusal = exc
+                assert getattr(first_refusal, "code", None) == "RELEASE-CONTROLLER-PROCESS"
+                assert first_inherited_closes == first_inherited
+                assert first_job_close_calls == 1
+            finally:
+                _image_winapi.CloseHandle = original_close_handle
+                ctl._spawn_windows_job_process = original_spawn_windows_job_process
+                ctl._WindowsJob.close = original_job_close
+                ctl._WindowsJob.duplicate_inheritable = original_duplicate_inheritable
+                if first_job and first_job[0].handle:
+                    first_job[0].close()
+
+            cleanup_job: list[object] = []
+            cleanup_inherited: list[int] = []
+            cleanup_close_attempts: list[int] = []
+            cleanup_events: list[str] = []
+            class FakeWorker:
+                pid = os.getpid()
+                def wait(self, timeout=None):
+                    cleanup_events.append("worker wait")
+                    raise OSError(5, "synthetic worker wait refusal")
+                def close(self):
+                    cleanup_events.append("worker process handle close")
+            fake_worker = FakeWorker()
+            def capture_cleanup_inherited(self):
+                handle = int(original_duplicate_inheritable(self))
+                cleanup_job.append(self)
+                cleanup_inherited.append(handle)
+                return handle
+            def return_fake_worker(*_args, **_kwargs):
+                return fake_worker
+            def fail_first_cleanup_close(handle):
+                exact = int(handle)
+                if cleanup_inherited and exact == cleanup_inherited[0]:
+                    cleanup_close_attempts.append(exact)
+                    if len(cleanup_close_attempts) == 1:
+                        raise OSError(6, "synthetic inherited handle close refusal")
+                return original_close_handle(handle)
+            original_job_terminate = ctl._WindowsJob.terminate
+            original_job_wait_empty = ctl._WindowsJob.wait_empty
+            def fail_cleanup_terminate(self, exit_code=1223):
+                cleanup_events.append("Job termination")
+                raise OSError(5, "synthetic Job termination refusal")
+            def fail_cleanup_drain(self, timeout_s=30.0):
+                cleanup_events.append("Job drain")
+                raise OSError(5, "synthetic Job drain refusal")
+            def record_cleanup_job_close(self):
+                cleanup_events.append("Job handle close")
+                return original_job_close(self)
+            ctl._WindowsJob.duplicate_inheritable = capture_cleanup_inherited
+            ctl._WindowsJob.terminate = fail_cleanup_terminate
+            ctl._WindowsJob.wait_empty = fail_cleanup_drain
+            ctl._WindowsJob.close = record_cleanup_job_close
+            ctl._spawn_windows_job_process = return_fake_worker
+            _image_winapi.CloseHandle = fail_first_cleanup_close
+            cleanup_refusal = None
+            try:
+                with open(os.devnull, "wb") as devnull_out:
+                    try:
+                        ctl._spawn_worker_process(
+                            ctl._paths(root / "runs", "independent-worker-cleanup"),
+                            launcher_env, devnull_out, devnull_out, detached=False,
+                        )
+                    except Exception as exc:
+                        cleanup_refusal = exc
+                assert getattr(cleanup_refusal, "code", None) == "RELEASE-CONTROLLER-PROCESS"
+                assert cleanup_close_attempts == [cleanup_inherited[0], cleanup_inherited[0]]
+                assert cleanup_events == [
+                    "Job termination", "Job drain", "worker wait",
+                    "Job handle close", "worker process handle close",
+                ]
+            finally:
+                _image_winapi.CloseHandle = original_close_handle
+                ctl._spawn_windows_job_process = original_spawn_windows_job_process
+                ctl._WindowsJob.close = original_job_close
+                ctl._WindowsJob.wait_empty = original_job_wait_empty
+                ctl._WindowsJob.terminate = original_job_terminate
+                ctl._WindowsJob.duplicate_inheritable = original_duplicate_inheritable
+                if cleanup_job and cleanup_job[0].handle:
+                    cleanup_job[0].close()
+            cases += 1
+
             # A suspended worker that remains in any enclosing Job is killed
             # before its primary thread can execute, then refused.
             inherited_sentinel = root / "work" / "inherited-worker-ran.txt"
@@ -2073,7 +2649,9 @@ Path({str(denied_result)!r}).write_text(json.dumps(value), encoding='ascii')
         cases += 1
 
         # Deliberately publish an empty PID handoff before atomically replacing
-        # it with complete JSON.  File existence alone is not readiness.
+        # it with complete JSON.  File existence alone is not readiness.  On
+        # Windows this deliberately uses the ordinary concrete interpreter for
+        # both the Job root and its inherited descendant.
         unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(60)"],
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
@@ -2115,6 +2693,9 @@ time.sleep(60)
                 assert pid_file.read_bytes() == b""
                 owned = _wait_for_pid_list(pid_file)
                 owned_identities = _identities(ctl, owned)
+                if os.name == "nt":
+                    concrete = ctl._windows_concrete_executable(sys.executable)
+                    assert concrete == os.path.normcase(os.path.realpath(sys.executable))
                 receipt = ctl.cancel_run(
                     run_root=root / "runs", run_id=run_id, timeout_s=30,
                 )
@@ -2122,6 +2703,7 @@ time.sleep(60)
                 _cancel_finally(ctl, root, run_id)
                 _terminate_identities(ctl, owned_identities)
             assert receipt is not None and receipt["state"] == "cancelled"
+            assert receipt["process"]["pid"] == owned[0]
             assert unrelated.poll() is None
             assert not _alive_identities(ctl, owned_identities)
         finally:
@@ -3401,6 +3983,8 @@ time.sleep(60)
         "posix_term_spawn_dynamic_rescan",
         "windows_process_observation_typed",
         "windows_detached_worker_job_escape_proven",
+        "windows_concrete_executable_identity_enforced",
+        "windows_created_image_identity_enforced",
         "run_lock_fail_closed",
         "run_lock_initialization_fail_closed",
         "multiprocess_cancel_idempotent",
@@ -3430,7 +4014,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 51 if os.name != "nt" else 46
+    expected_case_count = 51 if os.name != "nt" else 53
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
