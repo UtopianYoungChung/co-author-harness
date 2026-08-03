@@ -22,6 +22,28 @@ MODULE = ROOT / "scripts" / "release_qualification_controller.py"
 ENVIRONMENT = ROOT / "scripts" / "qualification_environment.py"
 
 
+def _package_bytecode_inventory() -> tuple[tuple[str, ...], dict[str, tuple[int, str]]]:
+    directories = tuple(sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("__pycache__") if path.is_dir()
+    ))
+    files = {
+        path.relative_to(ROOT).as_posix(): (
+            path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest(),
+        )
+        for path in sorted(ROOT.rglob("*.pyc")) if path.is_file()
+    }
+    return directories, files
+
+
+def _assert_release_gate_bytecode_argv() -> None:
+    gate_text = (ROOT / "scripts" / "release-gate.sh").read_text(
+        encoding="utf-8", errors="strict",
+    )
+    assert 'python3 -B "$SCRIPT_DIR/release_qualification_controller.py" verify-child' in gate_text
+    assert 'exec python3 -B "$CONTROLLER_NATIVE" run' in gate_text
+
+
 def _load(path: Path, name: str):
     assert path.is_file(), f"missing {path.relative_to(ROOT)}"
     spec = importlib.util.spec_from_file_location(name, path)
@@ -1588,6 +1610,8 @@ def main() -> int:
     cases = 0
     platform_skips = 0
     expected_failures: list[str] = []
+    _assert_release_gate_bytecode_argv()
+    cases += 1
     with tempfile.TemporaryDirectory(prefix="release-controller-smoke-") as raw:
         root = Path(raw)
 
@@ -3019,6 +3043,7 @@ time.sleep(60)
             "COAUTHOR_RELEASE_CONTROLLER_ROOT": str(facade_root),
             "COAUTHOR_RELEASE_RUN_ID": "ambient-marker",
         })
+        bytecode_before = _package_bytecode_inventory()
         facade_process = subprocess.Popen(
             [str(bash), str(gate), "--help"], env=facade_env,
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -3049,12 +3074,24 @@ time.sleep(60)
         assert not _alive_identities(ctl, facade_owned)
         assert facade_output is not None
         assert facade_process.returncode == 0, facade_output[1]
-        assert (facade_root / "ambient-marker" / "receipt.json").is_file()
+        facade_receipt_path = facade_root / "ambient-marker" / "receipt.json"
+        assert facade_receipt_path.is_file()
+        facade_receipt = ctl.status_run(
+            run_root=facade_root, run_id="ambient-marker",
+        )
+        assert facade_receipt["state"] == "succeeded"
+        assert facade_receipt["diagnostic"] is None
         cases += 1
 
         direct_marker = subprocess.run(
             [str(bash), str(gate), "--coauthor-controller-child", "--help"],
-            env=facade_env | {"COAUTHOR_RELEASE_RUN_ID": "must-not-exist"},
+            env=facade_env | {
+                "COAUTHOR_RELEASE_RUN_ID": "must-not-exist",
+                "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR": str(
+                    root / "missing-attestation-run"
+                ),
+                "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN": "0" * 64,
+            },
             stdin=subprocess.DEVNULL, capture_output=True, check=False, timeout=120,
         )
         assert direct_marker.returncode == 2
@@ -3072,6 +3109,7 @@ time.sleep(60)
         assert b"RELEASE-CONTROLLER-INPUT" in missing.stdout
         assert b"Authoritative fixture registry" not in missing.stdout
         assert not missing_spec.exists()
+        assert _package_bytecode_inventory() == bytecode_before
         cases += 1
 
         # The compatibility facade may run the product corpus only after a
@@ -3163,7 +3201,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 49 if os.name != "nt" else 44
+    expected_case_count = 50 if os.name != "nt" else 45
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)

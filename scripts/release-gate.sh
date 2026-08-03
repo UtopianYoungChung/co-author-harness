@@ -83,7 +83,7 @@ if [[ "${1:-}" == "--coauthor-controller-child" ]]; then
         echo "CONTROLLER-CHILD-ATTESTATION: direct controlled-child marker invocation refused" >&2
         exit 2
     fi
-    if ! python3 "$SCRIPT_DIR/release_qualification_controller.py" verify-child \
+    if ! python3 -B "$SCRIPT_DIR/release_qualification_controller.py" verify-child \
         --run-dir "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR" \
         --token "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN"; then
         echo "CONTROLLER-CHILD-ATTESTATION: controller attestation refused" >&2
@@ -175,7 +175,7 @@ if (( CONTROLLED_CHILD == 0 )); then
         fi
         CONTROLLER_IGNORED_ARGS+=(--ignored-output "$FIXTURE_LOCK_NATIVE")
     fi
-    exec python3 "$CONTROLLER_NATIVE" run \
+    exec python3 -B "$CONTROLLER_NATIVE" run \
         --run-root "$CONTROLLER_ROOT" \
         --run-id "$CONTROLLER_RUN_ID" \
         --cwd "$PLUGIN_ROOT_NATIVE" \

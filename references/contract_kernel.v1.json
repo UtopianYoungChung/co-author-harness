@@ -667,7 +667,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "0753642c86fce5f0a26f18c9577a44eb56204bade8ccae984029fada2454b1f3",
+      "sha256": "8db1fabc83babe454cb305e8321d5a02722fb4f9b8b4f84e9d7155c4eac66667",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
