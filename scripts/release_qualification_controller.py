@@ -25,12 +25,13 @@ from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
 
-from destination_capability import assert_writable
+from destination_capability import DEST_PROTECTED, DestinationRefused, assert_writable
 from qualification_environment import (
     QualificationEnvironmentRefusal,
     assert_ambient_clean,
     controlled_environment,
 )
+from worktree_paths import git_common_dir, registered_worktree_roots
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "references" / "schemas" / "release_qualification_controller.schema.json"
@@ -84,6 +85,7 @@ REGRESSION_CONTRACT = (
     "exact_ignored_output_excluded_from_input_root",
     "exact_ignored_output_file_only",
     "controller_created_output_roots_accounted",
+    "registered_worktree_observation_fail_closed",
     "pre_owner_failure_is_evidence_incomplete",
     "direct_release_gate_child_marker_refused",
     "five_plane_production_facade",
@@ -98,6 +100,7 @@ _ATTESTATION_ENV = (
     "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN",
 )
 _SUPERVISOR_JOB_ENV = "COAUTHOR_RELEASE_CONTROLLER_SUPERVISOR_JOB_HANDLE"
+_SHARED_RUNNER_LOCK = "coauthor-fixture-runner.lock"
 _ATOMIC_LOCK = threading.RLock()
 
 
@@ -1058,6 +1061,118 @@ def _is_reparse(path: Path) -> bool:
     return stat.S_ISLNK(details.st_mode) or bool(attributes & reparse_flag)
 
 
+def _is_registered_same_repository_worktree(path: str | Path) -> bool:
+    """Return whether *path* is one exact worktree of this Git repository.
+
+    This grants read-only inventory authority only.  Callers must first let the
+    destination capability decide whether the path is writable; a protected
+    watch root may use this predicate only to recover observation authority.
+    """
+    candidate = Path(path)
+    try:
+        if _is_reparse(candidate):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"watch root is a reparse point: {candidate}",
+            )
+        resolved = candidate.resolve(strict=True)
+        registered = [
+            root.resolve(strict=True) for root in registered_worktree_roots(ROOT)
+        ]
+        if registered.count(resolved) != 1:
+            return False
+        source_common = git_common_dir(ROOT).resolve(strict=True)
+        watched_common = git_common_dir(resolved).resolve(strict=True)
+    except ControllerRefusal:
+        raise
+    except Exception as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"cannot prove registered worktree observation authority for {candidate}: {exc}",
+        ) from exc
+    return watched_common == source_common
+
+
+def _validate_existing_watch_root(path: str | Path) -> None:
+    """Prove one existing root is writable or observation-only registered."""
+    candidate = Path(path)
+    if not candidate.is_dir() or _is_reparse(candidate):
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"watch root is not one existing non-reparse directory: {candidate}",
+        )
+    try:
+        assert_writable(candidate, purpose="release qualification watched output")
+    except DestinationRefused as exc:
+        if exc.code != DEST_PROTECTED:
+            raise ControllerRefusal(exc.code, str(exc)) from exc
+        if not _is_registered_same_repository_worktree(candidate):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"protected watch root is not one exact registered worktree "
+                f"of the controller repository: {candidate}",
+            ) from exc
+
+
+def _validate_existing_watch_roots(paths: Iterable[str | Path]) -> None:
+    for path in paths:
+        _validate_existing_watch_root(path)
+
+
+def _validate_ignored_output_path(
+    path: str | Path, watched_roots: Iterable[str | Path],
+) -> None:
+    """Validate one exact ignored file without masking protected worktree data."""
+    candidate = Path(path)
+    try:
+        containing = [
+            Path(root).resolve(strict=True) for root in watched_roots
+            if _inside(candidate, root)
+        ]
+    except OSError as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"cannot resolve ignored-output watch topology for {candidate}: {exc}",
+        ) from exc
+    try:
+        regular_file = candidate.is_file()
+        candidate_reparse = _is_reparse(candidate) if regular_file else False
+    except OSError as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"cannot inspect ignored-output identity for {candidate}: {exc}",
+        ) from exc
+    if not regular_file or candidate_reparse or not containing:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"ignored output must be one existing regular file inside a watch root: {candidate}",
+        )
+    try:
+        assert_writable(candidate, purpose="release qualification ignored output")
+    except DestinationRefused as exc:
+        if exc.code != DEST_PROTECTED:
+            raise ControllerRefusal(exc.code, str(exc)) from exc
+        root = max(containing, key=lambda item: len(item.parts))
+        if not _is_registered_same_repository_worktree(root):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"ignored output watch root lost registered-worktree authority: {root}",
+            ) from exc
+        try:
+            permitted = (git_common_dir(root) / _SHARED_RUNNER_LOCK).resolve(strict=True)
+            resolved = candidate.resolve(strict=True)
+        except Exception as discovery_exc:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"cannot bind protected ignored output {candidate}: {discovery_exc}",
+            ) from discovery_exc
+        if resolved != permitted:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"protected watch roots may ignore only the exact shared runner lock: {candidate}",
+            ) from exc
+
+
 def _inventory(
     roots: Iterable[str | Path], excluded: Path,
     *, ignored_paths: Iterable[str | Path] = (), exclude_root_git: bool = False,
@@ -1392,8 +1507,25 @@ def start_run(
         dependency_paths=None if allow_user_site else dependencies,
         allow_user_site=allow_user_site,
     )
-    allowed = sorted({str(Path(path).resolve()) for path in allowed_output_roots})
-    watched = sorted({str(Path(path).resolve()) for path in output_watch_roots})
+    allowed_candidates = [Path(path) for path in allowed_output_roots]
+    watched_candidates = [Path(path) for path in output_watch_roots]
+    for candidate in watched_candidates:
+        try:
+            os.lstat(candidate)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"cannot inspect watch-root topology for {candidate}: {exc}",
+            ) from exc
+        if _is_reparse(candidate):
+            raise ControllerRefusal(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                f"watch root is a reparse point: {candidate}",
+            )
+    allowed = sorted({str(path.resolve()) for path in allowed_candidates})
+    watched = sorted({str(path.resolve()) for path in watched_candidates})
     if any(not any(_inside(path, root) for root in watched) for path in allowed):
         raise ControllerRefusal(
             "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
@@ -1403,8 +1535,10 @@ def start_run(
         assert_writable(path, purpose="release qualification allowed output")
     created_watch_roots: list[str] = []
     for path in watched:
-        assert_writable(path, purpose="release qualification watched output")
-        if not Path(path).exists():
+        if Path(path).exists():
+            _validate_existing_watch_root(path)
+        else:
+            assert_writable(path, purpose="release qualification watched output")
             if not any(_inside(path, root) for root in allowed):
                 raise ControllerRefusal(
                     "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
@@ -1421,12 +1555,7 @@ def start_run(
         )
     ignored = sorted({str(Path(path).resolve(strict=True)) for path in ignored_output_paths})
     for path in ignored:
-        candidate = Path(path)
-        if not candidate.is_file() or _is_reparse(candidate) or not any(_inside(path, root) for root in watched):
-            raise ControllerRefusal(
-                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
-                f"ignored output must be one existing regular file inside a watch root: {path}",
-            )
+        _validate_ignored_output_path(path, watched)
     request_core = {
         "schema_version": "1.0.0", "run_id": run_id, "argv": command, "cwd": str(cwd_path),
         "environment_delta": recorded_delta, "inputs": _inputs(input_paths),
@@ -1577,18 +1706,22 @@ def status_run(*, run_root: str | Path, run_id: str) -> dict[str, Any]:
 
 
 def _changed_outputs(intent: Mapping[str, Any], run_dir: Path) -> tuple[list[str], list[str]]:
+    _validate_existing_watch_roots(intent["output_watch_roots"])
     for raw in intent["ignored_output_paths"]:
-        path = Path(raw)
-        if not path.is_file() or _is_reparse(path) or not any(
-            _inside(path, root) for root in intent["output_watch_roots"]
-        ):
-            raise ControllerRefusal(
-                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", f"ignored output identity changed: {path}",
-            )
-    post = _inventory(
-        intent["output_watch_roots"], run_dir,
-        ignored_paths=intent["ignored_output_paths"],
-    )
+        _validate_ignored_output_path(raw, intent["output_watch_roots"])
+    try:
+        post = _inventory(
+            intent["output_watch_roots"], run_dir,
+            ignored_paths=intent["ignored_output_paths"],
+        )
+    except OSError as exc:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+            f"cannot complete watched-output postimage: {exc}",
+        ) from exc
+    _validate_existing_watch_roots(intent["output_watch_roots"])
+    for raw in intent["ignored_output_paths"]:
+        _validate_ignored_output_path(raw, intent["output_watch_roots"])
     pre = intent["output_preimage"]
     changed = sorted(path for path in set(pre) | set(post) if pre.get(path) != post.get(path))
     return changed, _reparse_rows(post)
@@ -2024,6 +2157,21 @@ def _worker(run_dir: Path) -> int:
                 _event(paths, "recovery_required", "test_preflight_cancelled")
                 return 70
             time.sleep(.01)
+    try:
+        _validate_existing_watch_roots(intent["output_watch_roots"])
+    except ControllerRefusal as exc:
+        _atomic(paths["prechild"], _canonical({
+            "schema_version": "1.0.0", "intent_sha256": intent["intent_sha256"],
+            "refused_at": _now(), "diagnostic": {
+                "code": exc.code, "detail": exc.message,
+            },
+        }))
+        _event(
+            paths, "prechild_refused", "watch_root_authority_refused_before_child",
+            code=exc.code,
+        )
+        _finish(run_dir, recovery=False)
+        return 0
     drift = _input_drift(intent)
     if drift:
         _atomic(paths["prechild"], _canonical({
@@ -2067,6 +2215,30 @@ def _worker(run_dir: Path) -> int:
     returncode = None
     with paths["stdout"].open("xb") as stdout, paths["stderr"].open("xb") as stderr:
         try:
+            if intent.get("test_fault") == "pause_before_watch_spawn":
+                _event(paths, "running", "test_watch_spawn_paused")
+                while not paths["test_preflight_gate"].is_file():
+                    if paths["cancel"].is_file():
+                        _event(paths, "recovery_required", "test_watch_spawn_cancelled")
+                        return 70
+                    time.sleep(.01)
+            try:
+                _validate_existing_watch_roots(intent["output_watch_roots"])
+            except ControllerRefusal as exc:
+                _atomic(paths["prechild"], _canonical({
+                    "schema_version": "1.0.0", "intent_sha256": intent["intent_sha256"],
+                    "refused_at": _now(), "diagnostic": {
+                        "code": exc.code, "detail": exc.message,
+                    },
+                }))
+                _event(
+                    paths, "prechild_refused", "watch_root_authority_refused_at_spawn",
+                    code=exc.code,
+                )
+                stdout.close()
+                stderr.close()
+                _finish(run_dir, recovery=False)
+                return 0
             child, product_job, control_fd = _spawn_product_process(
                 intent["argv"], cwd=intent["cwd"], environment=child_env,
                 stdout=stdout, stderr=stderr, run_dir=run_dir,

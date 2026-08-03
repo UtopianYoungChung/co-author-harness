@@ -577,7 +577,7 @@
       "id": "release-qualification-controller",
       "path": "scripts/release_qualification_controller.py",
       "revision_kind": "sha256",
-      "sha256": "390988a9fe5ff645147bebe870a704b30726699304825fc5c1c3cb3f7e69a033",
+      "sha256": "c9aa44f7ec82f945b4e3aaedcc07cbad1a198579f1be9c58a039721b4f6d7cdc",
       "migration_ids": [
         "qualification-architecture-v1"
       ]

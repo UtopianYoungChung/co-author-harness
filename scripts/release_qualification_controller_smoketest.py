@@ -2896,6 +2896,11 @@ time.sleep(60)
             cwd=reparse_watch, allowed_output_roots=[reparse_watch],
             output_watch_roots=[reparse_watch],
         ))
+        _expect("RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", lambda: ctl.start_run(
+            run_root=root / "runs", run_id="output-reparse-root",
+            argv=[sys.executable, "-c", "raise AssertionError('child ran')"],
+            cwd=reparse_link, output_watch_roots=[reparse_link],
+        ))
         assert not escaped.exists()
         cases += 1
 
@@ -2981,6 +2986,229 @@ time.sleep(60)
             output_watch_roots=[root / "work", unallowed_watch],
         ))
         assert not unallowed_watch.exists()
+        cases += 1
+
+        # A protected sibling may be observed only when it is the exact root
+        # of a worktree registered to the controller's own Git common dir.
+        # This is observation authority, never allowed-output authority.
+        registered = root / "registered-worktree"; registered.mkdir()
+        registered_subdir = registered / "nested"; registered_subdir.mkdir()
+        unregistered = root / "unregistered-worktree"; unregistered.mkdir()
+        common = registered / ".git"; common.mkdir()
+        other_common = root / "other.git"; other_common.mkdir()
+        original_roots = ctl.registered_worktree_roots
+        original_common = ctl.git_common_dir
+        ctl.registered_worktree_roots = lambda _repo: [registered]
+        ctl.git_common_dir = lambda repo: (
+            common if Path(repo).resolve() in {ctl.ROOT.resolve(), registered.resolve()}
+            else other_common
+        )
+        try:
+            assert ctl._is_registered_same_repository_worktree(registered)
+            assert not ctl._is_registered_same_repository_worktree(registered_subdir)
+            ctl.git_common_dir = lambda repo: (
+                common if Path(repo).resolve() == ctl.ROOT.resolve() else other_common
+            )
+            assert not ctl._is_registered_same_repository_worktree(registered)
+            ctl.registered_worktree_roots = lambda _repo: (_ for _ in ()).throw(
+                OSError("synthetic worktree registry failure")
+            )
+            _expect(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                lambda: ctl._is_registered_same_repository_worktree(registered),
+            )
+        finally:
+            ctl.registered_worktree_roots = original_roots
+            ctl.git_common_dir = original_common
+
+        original_assert_writable = ctl.assert_writable
+        original_registered = ctl._is_registered_same_repository_worktree
+        misrouted_ignored = registered / "outputs" / "co-author-harness" / "hidden.txt"
+        misrouted_ignored.parent.mkdir(parents=True)
+        misrouted_ignored.write_text("misrouted")
+        protected = {
+            registered.resolve(), registered_subdir.resolve(), unregistered.resolve(),
+        }
+        def synthetic_destination_guard(path, purpose="write"):
+            resolved = Path(path).resolve()
+            if resolved == misrouted_ignored.resolve():
+                raise ctl.DestinationRefused("DEST-MISROUTED", "synthetic misrouted file")
+            if (
+                resolved in protected
+                or registered.resolve() in resolved.parents
+            ):
+                raise ctl.DestinationRefused("DEST-PROTECTED", "synthetic protected root")
+            return original_assert_writable(path, purpose=purpose)
+        ctl.assert_writable = synthetic_destination_guard
+        ctl._is_registered_same_repository_worktree = (
+            lambda path: Path(path).resolve() == registered.resolve()
+        )
+        ctl.git_common_dir = lambda _repo: common
+        try:
+            ctl._validate_existing_watch_root(registered)
+            _start(
+                ctl, root, "registered-watch", "print('observed')",
+                cwd=registered, output_watch_roots=[root / "work", registered],
+            )
+            assert _wait(ctl, root, "registered-watch")["state"] == "succeeded"
+            _expect("DEST-PROTECTED", lambda: _start(
+                ctl, root, "registered-allowed", "raise AssertionError('child ran')",
+                cwd=registered, allowed_output_roots=[registered],
+                output_watch_roots=[registered],
+            ))
+            _expect("RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", lambda: _start(
+                ctl, root, "unregistered-watch", "raise AssertionError('child ran')",
+                cwd=unregistered, output_watch_roots=[unregistered],
+            ))
+            _expect("RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", lambda: _start(
+                ctl, root, "registered-subdir-watch", "raise AssertionError('child ran')",
+                cwd=registered_subdir, output_watch_roots=[registered_subdir],
+            ))
+            arbitrary_ignored = registered / "arbitrary.txt"
+            arbitrary_ignored.write_text("protected")
+            shared_lock = common / "coauthor-fixture-runner.lock"
+            shared_lock.write_text("stable")
+            _expect("RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", lambda:
+                ctl._validate_ignored_output_path(arbitrary_ignored, [registered])
+            )
+            _expect("DEST-MISROUTED", lambda:
+                ctl._validate_ignored_output_path(misrouted_ignored, [registered])
+            )
+            ctl._validate_ignored_output_path(shared_lock, [registered])
+            ctl.assert_writable = lambda _path, purpose="write": (_ for _ in ()).throw(
+                ctl.DestinationRefused("DEST-UNGOVERNED", "synthetic ungoverned root")
+            )
+            _expect(
+                "DEST-UNGOVERNED",
+                lambda: ctl._validate_existing_watch_root(registered),
+            )
+            ctl.assert_writable = synthetic_destination_guard
+            ctl._is_registered_same_repository_worktree = lambda _path: False
+            _expect(
+                "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                lambda: ctl._validate_existing_watch_root(registered),
+            )
+            ctl._is_registered_same_repository_worktree = (
+                lambda path: Path(path).resolve() == registered.resolve()
+            )
+            ctl._is_registered_same_repository_worktree = lambda _path: (_ for _ in ()).throw(
+                ctl.ControllerRefusal(
+                    "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                    "synthetic registry discovery failure",
+                )
+            )
+            _expect("RELEASE-CONTROLLER-OUTPUT-TOPOLOGY", lambda: _start(
+                ctl, root, "registered-discovery-failure",
+                "raise AssertionError('child ran')", cwd=registered,
+                output_watch_roots=[registered],
+            ))
+            ctl._is_registered_same_repository_worktree = (
+                lambda path: Path(path).resolve() == registered.resolve()
+            )
+            for run_id, target in (
+                ("multi-watch-primary", root / "work" / "forbidden.txt"),
+                ("multi-watch-registered", registered / "forbidden.txt"),
+            ):
+                _start(
+                    ctl, root, run_id,
+                    f"from pathlib import Path;Path({str(target)!r}).write_text('bad')",
+                    cwd=registered, output_watch_roots=[root / "work", registered],
+                )
+                receipt = _wait(ctl, root, run_id)
+                assert receipt["state"] == "refused"
+                assert receipt["diagnostic"]["code"] == "RELEASE-CONTROLLER-OUTPUT-SCOPE"
+                assert str(target.resolve()) in receipt["diagnostic"]["paths"]
+
+            worker_source = inspect.getsource(ctl._worker)
+            spawn_at = worker_source.index("child, product_job, control_fd = _spawn_product_process")
+            assert worker_source.rfind(
+                '_validate_existing_watch_roots(intent["output_watch_roots"])', 0, spawn_at,
+            ) > worker_source.rfind("controlled_environment(", 0, spawn_at)
+
+            spawn_watch = root / "spawn-watch"; spawn_watch.mkdir()
+            spawn_target = root / "spawn-watch-target"
+            spawn_sentinel = root / "spawn-child-ran.txt"
+            _start(
+                ctl, root, "watch-authority-at-spawn",
+                f"from pathlib import Path;Path({str(spawn_sentinel)!r}).write_text('ran')",
+                cwd=spawn_watch, output_watch_roots=[spawn_watch],
+                _test_fault="pause_before_watch_spawn",
+            )
+            _wait_for_event(root, "watch-authority-at-spawn", "test_watch_spawn_paused")
+            gate = root / "runs" / "watch-authority-at-spawn" / ".test-preflight-gate"
+            try:
+                spawn_watch.rename(spawn_target)
+                if os.name == "nt":
+                    linked = subprocess.run(
+                        ["cmd", "/c", "mklink", "/J", str(spawn_watch), str(spawn_target)],
+                        stdin=subprocess.DEVNULL, capture_output=True, check=False,
+                    )
+                    assert linked.returncode == 0, linked.stderr
+                else:
+                    spawn_watch.symlink_to(spawn_target, target_is_directory=True)
+            finally:
+                gate.write_text("continue", encoding="ascii")
+            receipt = _wait(ctl, root, "watch-authority-at-spawn")
+            assert receipt["state"] == "refused"
+            assert receipt["diagnostic"]["code"] == "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY"
+            assert "watch_root_authority_refused_at_spawn" in _event_names(
+                root, "watch-authority-at-spawn",
+            )
+            assert not spawn_sentinel.exists()
+
+            bracket_root = root / "work"
+            bracket_ignored = bracket_root / "bracket-ignored.txt"
+            bracket_ignored.write_text("stable")
+            bracket_intent = {
+                "output_watch_roots": [str(bracket_root.resolve())],
+                "ignored_output_paths": [str(bracket_ignored.resolve())],
+                "output_preimage": ctl._inventory(
+                    [bracket_root], root / "not-a-run",
+                    ignored_paths=[bracket_ignored],
+                ),
+            }
+            original_validate_watch_roots = ctl._validate_existing_watch_roots
+            validation_calls = 0
+            def fail_second_validation(_paths):
+                nonlocal validation_calls
+                validation_calls += 1
+                if validation_calls == 2:
+                    raise ctl.ControllerRefusal(
+                        "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                        "synthetic postimage authority loss",
+                    )
+            ctl._validate_existing_watch_roots = fail_second_validation
+            try:
+                _expect(
+                    "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                    lambda: ctl._changed_outputs(bracket_intent, root / "not-a-run"),
+                )
+                assert validation_calls == 2
+            finally:
+                ctl._validate_existing_watch_roots = original_validate_watch_roots
+            original_validate_ignored = ctl._validate_ignored_output_path
+            ignored_validation_calls = 0
+            def fail_second_ignored_validation(_path, _roots):
+                nonlocal ignored_validation_calls
+                ignored_validation_calls += 1
+                if ignored_validation_calls == 2:
+                    raise ctl.ControllerRefusal(
+                        "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                        "synthetic ignored-output identity loss",
+                    )
+            ctl._validate_ignored_output_path = fail_second_ignored_validation
+            try:
+                _expect(
+                    "RELEASE-CONTROLLER-OUTPUT-TOPOLOGY",
+                    lambda: ctl._changed_outputs(bracket_intent, root / "not-a-run"),
+                )
+                assert ignored_validation_calls == 2
+            finally:
+                ctl._validate_ignored_output_path = original_validate_ignored
+        finally:
+            ctl.assert_writable = original_assert_writable
+            ctl._is_registered_same_repository_worktree = original_registered
+            ctl.git_common_dir = original_common
         cases += 1
 
         # A launcher/spawn failure before owner.json exists must still recover
@@ -3194,6 +3422,7 @@ time.sleep(60)
         "exact_ignored_output_excluded_from_input_root",
         "exact_ignored_output_file_only",
         "controller_created_output_roots_accounted",
+        "registered_worktree_observation_fail_closed",
         "pre_owner_failure_is_evidence_incomplete",
         "direct_release_gate_child_marker_refused",
         "five_plane_production_facade",
@@ -3201,7 +3430,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 50 if os.name != "nt" else 45
+    expected_case_count = 51 if os.name != "nt" else 46
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
