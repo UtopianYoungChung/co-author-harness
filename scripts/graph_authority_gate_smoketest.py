@@ -28,9 +28,13 @@ def digest_tree(root: Path) -> str:
     return digest.hexdigest()
 
 
+def script_argv(name: str, *args: str) -> list[str]:
+    return [sys.executable, "-B", str(ROOT / "scripts" / name), *args]
+
+
 def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / name), *args],
+        script_argv(name, *args),
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -41,6 +45,9 @@ def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
+    assert script_argv("probe.py")[:3] == [
+        sys.executable, "-B", str(ROOT / "scripts" / "probe.py"),
+    ]
     for structural in (None, False, True):
         result = gate.evaluate_graph_authority(structural_ok=structural)
         assert result["governed_available"] is False
