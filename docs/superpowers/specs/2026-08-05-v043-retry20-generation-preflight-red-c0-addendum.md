@@ -1,7 +1,10 @@
 # v0.43 retry-20 generation preflight RED - C0 successor addendum
 
-Status: proposed exact C0 authority; non-operative until exact-byte review and
-the isolated commit described below. Date: 2026-08-05 America/Toronto
+Status: proposed corrected exact C0 authority; non-operative until exact-byte
+review and the isolated correction commit described below. Its predecessor
+bytes remain preserved at commit `e936fc0c0f21fa10bb7f25b04c64860268e6dd05`,
+but the population inconsistency registered below stops execution under those
+bytes. Date: 2026-08-05 America/Toronto
 (`2026-08-06` UTC at the incident). Run scope: `full_lifecycle`, limited to
 v0.43 source qualification and its source-local evidence.
 
@@ -131,31 +134,29 @@ The sole persistent paths permitted to change, in the sequence below, are:
    `.git/logs/refs/heads/main`, primary index, and `.git/COMMIT_EDITMSG` for
    exactly this addendum-only commit and the later manifest-only commit;
 2. retry-20 worktree/admin removal through Git worktree management;
-3. the one local evidence duplicate
-   `releases/verification/v0.43.0/C2/C2_STRUCTURAL_CAPTURE_RETRY20_FAILED_PREIMAGE.ps1`;
-4. the ignored/local working candidate
+3. the ignored/local working candidate
    `releases/verification/v0.43.0/C2/C2_STRUCTURAL_CAPTURE.ps1`;
-5. fresh retry-22 and retry-23 worktree/admin paths, including only each admin
+4. fresh retry-22 and retry-23 worktree/admin paths, including only each admin
    `index` as an equality or stat-cache-only transition;
-6. the shared `.git/coauthor-fixture-runner.lock`, only at the exact deletion,
+5. the shared `.git/coauthor-fixture-runner.lock`, only at the exact deletion,
    creation/metadata, and final deletion points below;
-7. exact fresh attempt-037 and attempt-038 transaction directories;
-8. only retry-22's `docs/analysis/generated/fixture_manifest.json`, its exact
+6. exact fresh attempt-037 and attempt-038 transaction directories;
+7. only retry-22's `docs/analysis/generated/fixture_manifest.json`, its exact
    writer sibling
    `fixture_manifest.<attempt-037-manifest-run-id-UUID>.tmp`, and then the
    primary manifest through the manifest-only commit;
-9. exactly four fresh terminal C2 targets:
+8. exactly four fresh terminal C2 targets:
    `C2_STRUCTURAL_GENERATION_RETRY22_CAPSULE.json`,
    `C2_ATTEMPT_037_CAPSULE.json`,
    `C2_STRUCTURAL_REPLAY_RETRY23_CAPSULE.json`, and
    `C2_ATTEMPT_038_CAPSULE.json`;
-10. exactly four provisional publication preimages, one per fresh target,
+9. exactly four provisional publication preimages, one per fresh target,
     named by appending `.publication-preimage.json`, preserved on any RED and
     otherwise retained through all three pre-cleanup live-state reviews;
-11. retry-22/retry-23 worktree/admin removal, the four exact provisional
+10. retry-22/retry-23 worktree/admin removal, the four exact provisional
     publication-preimage deletions, and final shared-runner-lock deletion only
     after the live-state reviews approve; and
-12. only after cleanup postflight, the five existing C2 records
+11. only after cleanup postflight, the five existing C2 records
     `C2_SOURCE_QUALIFICATION.md`, `C2_STRUCTURAL_RESULTS.json`,
     `C2_REGISTRY_RESULTS.json`, `C2_DETACHED_REPLAY.json`, and
     `C2_READ_ONLY_REVIEW.md`.
@@ -207,15 +208,62 @@ other operation after it. A successful mode exits zero. For RED, both target
 and backup are preserved and the sequence stops. A failed replacement leaves
 all extant bytes untouched and stops.
 
-The prior candidate must first be duplicated byte-for-byte, through the local
-patch mechanism, as
+Under the `e936fc0c0f21fa10bb7f25b04c64860268e6dd05` predecessor authority,
+the failed candidate was already duplicated byte-for-byte through the local
+patch mechanism as
 `releases/verification/v0.43.0/C2/C2_STRUCTURAL_CAPTURE_RETRY20_FAILED_PREIMAGE.ps1`.
-The duplicate must be 196,535 bytes at SHA-256
+The live duplicate is 196,535 bytes at SHA-256
 `c57bfe601a4f24005139ab1b161cbdd15bf8af047eebba847171e0c37feec517`
-before the working candidate path may change. The RED capsule, both registered
-RED remnants, evidence duplicate, and all pre-existing C2 files remain
+and its creation is a completed historical fact, not prospective authority.
+It must be rebound read-only and byte-equal before the working candidate may
+change; recreation, replacement, or overwrite is forbidden. The RED capsule,
+both registered RED remnants, evidence duplicate, and all pre-existing C2 files remain
 ignored/local and must never be staged,
 force-added, or committed.
+
+## Rejected repaired candidate and population correction
+
+The first repaired working candidate was 207,598 bytes at SHA-256
+`2f345413b765740bc8bdb659226bd98cb28e325a9777d1bb693e2f0cbfb0fff3`.
+It parsed under Windows PowerShell 5.1 with zero errors but was rejected
+`B2/M0/m0` before execution. It was never run. Preserve that exact review fact;
+the working candidate may change under this corrected authority.
+
+Blocker one was publication control. The final RED branch performed fallible
+target verification after replacement, and the outer catch could call the
+replacement path again. The corrected working candidate must set a
+replacement-attempt guard immediately before `File.Replace`, call
+`File.Replace` exactly once, and return immediately after that call for both
+RED and PASS. The outer publication catch must never republish after initial
+publication or after replacement begins. A failed replacement records the
+console/error outcome in the invoking process, leaves all extant target,
+temporary, and sidecar bytes untouched, and stops.
+
+Blocker two was the tested-population count inherited from the parent C0. At
+commit `e936fc0c0f21fa10bb7f25b04c64860268e6dd05`, `git ls-tree -r HEAD
+--name-only` contains exactly 756 tracked paths. The governed clean-filter
+enumeration excludes zero `.plugin`/`.zip` paths, exactly six paths beneath
+`scripts/analysis/`, and exactly
+`docs/analysis/generated/fixture_manifest.json`, leaving exactly 749 included
+paths. Their Python-Unicode-sorted LF payload without terminal LF is 39,100
+bytes at SHA-256
+`2be399ca20c686a511a9cf4767cd572532fc948bd6c0a576bdbee2fcd5479474`.
+The path-plus-clean-filter-object canonical digest is
+`2262c6fc5b073fdca3c8a03b74d5ed867272f26064d8761dc06f25e8ff7bfafa`;
+the path-plus-checkout-raw-SHA-256 digest is
+`e42d83dd295c4dc4b8a30f808b1904e9125ce7fe59b5254ef7bb63009dc4d244`.
+All 749 `git hash-object --stdin-paths` rows were returned with zero stderr.
+
+This correction modifies the existing successor-C0 path rather than adding a
+new tracked path, so the correction commit must still contain exactly 756
+tracked paths and reproduce the same exclusion cardinalities and 749 included
+paths. Its C0 blob change will legitimately change the two content digests;
+the repaired capture script and eventual receipt must compute and bind those
+fresh digests rather than reuse the diagnostic digests above. The exact
+qualification population requirement is therefore 749, superseding every
+parent or predecessor reference to 748. Any other count is RED. No manifest,
+retry, attempt, C2, lock, package, or other plane may change in the correction
+commit.
 
 The repaired script stays at
 `releases/verification/v0.43.0/C2/C2_STRUCTURAL_CAPTURE.ps1`; it must bind this
@@ -257,11 +305,14 @@ execution. Any byte change invalidates all reviews.
 
 ## Authorized successor sequence
 
-1. Obtain three independent exact-byte B0/M0/m0 reviews of this addendum.
-   Repair and re-review any finding. Commit this addendum alone on clean main;
-   bind commit, tree, parent, file bytes, and SHA-256. No C2 file is committed.
-2. Create the exact failed-script evidence duplicate and prove byte equality. Repair only
-   the ignored/local working capture script as specified. Obtain three
+1. Obtain three independent exact-byte B0/M0/m0 reviews of this corrected
+   addendum. Repair and re-review any finding. Commit only this same addendum
+   path on clean main; bind commit, tree, parent, file bytes, SHA-256, exactly
+   756 tracked paths, the exact exclusion cardinalities, and 749 included
+   population paths. No C2 file is committed.
+2. Rebind the existing failed-script evidence duplicate read-only and prove its
+   exact byte equality. Repair only the rejected 207,598-byte ignored/local
+   working capture script as specified. Obtain three
    independent exact-byte B0/M0/m0 script reviews, including fresh closure of
    all 93 suites/97 cases, 17 retry routes, helpers, publication sidecars,
    watchers, process trace, label substitution, and preserved RED semantics.
