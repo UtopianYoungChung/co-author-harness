@@ -1,14 +1,14 @@
-# v0.43 retry-22 producer-copy truncation - C0 successor correction
+# v0.43 retry-22 producer assembly context mismatch - C0 successor correction
 
 Status: proposed successor correction; non-operative until three independent
 exact-byte B0/M0/m0 reviews and the isolated correction commit described
 below. Its immediately preceding operative bytes remain preserved at commit
-`b824463460fe23949070d6e317ecc0a9a1a7f37a`, 38,061 bytes, SHA-256
-`e405b9c5a2ff1eaa9b2d55a9280ae0a0dd387869c57df7bc1e3865a9264c0c71`.
-Those bytes authorized one exact producer copy, but the local patch transport
-created the incomplete evidence registered below. They authorize no deletion,
-overwrite, retry at the occupied path, working-script modification, or further
-prospective execution.
+`7f1fd639d89ca3d8ba8f2127b169519edd3cfbd7`, 45,668 bytes, SHA-256
+`c3e92dca84e0bc37130969a1d228a4ac960d4fd5b243fed2423acba27cd5d85f`.
+Those bytes authorized prefix assembly, but a nonunique patch context produced
+the mismatched evidence registered below. They authorize no deletion,
+overwrite, continuation at the mismatched path, working-script modification,
+or further prospective execution.
 Date: 2026-08-05 America/Toronto
 (`2026-08-06` UTC at the incident). Run scope: `full_lifecycle`, limited to
 v0.43 source qualification and its source-local evidence.
@@ -35,8 +35,8 @@ narrows, rather than replaces, the committed parent C0:
   `086b0769e70ef2015cf751d503c74ca11fefb16e7ebe96c79719f9b824d20deb`,
   committed alone as `c9379ce5f79ccd07ddac0d050d34bcebbf7f4201`.
 - this same successor path at its immediately preceding commit
-  `b824463460fe23949070d6e317ecc0a9a1a7f37a`, 38,061 bytes, SHA-256
-  `e405b9c5a2ff1eaa9b2d55a9280ae0a0dd387869c57df7bc1e3865a9264c0c71`.
+  `7f1fd639d89ca3d8ba8f2127b169519edd3cfbd7`, 45,668 bytes, SHA-256
+  `c3e92dca84e0bc37130969a1d228a4ac960d4fd5b243fed2423acba27cd5d85f`.
 
 The rejected Master Governance v1.0.10 candidate has no authority. If any
 binding above is absent, draft, ambiguous, inconsistent, superseded, or in
@@ -51,10 +51,10 @@ cache/provenance, loaded paths, consumer evidence, shipment, host
 qualification, research, and activation remain separate planes. This addendum
 authorizes no push, tag, install, cache/catalog mutation, research mutation,
 distributable/package archive creation, shipment, host qualification, or
-activation. The exact retry-20 failed-script evidence duplicate, the failed
-partial retry-22 copy, and the complete retry-22 producer duplicate registered
-or authorized below are the only non-distributable evidence-copy artifacts;
-none is a package or archive plane.
+activation. The exact retry-20 failed-script evidence duplicate, both failed
+retry-22 copy/assembly artifacts, and the complete retry-22 producer duplicate
+registered or authorized below are the only non-distributable evidence-copy
+artifacts; none is a package or archive plane.
 
 Gate 6 remains closed. No independently governed v0.43 consumer receipt is
 present, and this source task may neither author nor simulate one. Even a fully
@@ -722,6 +722,97 @@ capsules. All eighteen require three independent exact-byte B0/M0/m0 reviews.
 
 Any assembly or later failure stops and preserves every extant byte. No
 cleanup, alternate producer path, or label advancement by inference is
+authorized.
+
+## Failed context assembly and unique-sentinel authority
+
+This final, later-specific section supersedes the immediately preceding
+complete destination, prefix-state method, assembly sequence, and 14/18
+cardinalities. All failed artifacts and restrictions remain preserved.
+
+Under commit `7f1fd639d89ca3d8ba8f2127b169519edd3cfbd7`, tree
+`6aa1945263c15b33367eceece7ec6839fb00d0dc`, the source remained exact at
+207,437 bytes, 3,019 LF terminators, zero CRLF, terminal LF, and SHA-256
+`17ae786b6106145782b4035e7bae35c48a12f04e7014381bd67dc02247cc5656`.
+Chunks 1-6 reached their registered prefixes. Chunk 7 used a nonunique
+three-line context and produced a same-length wrong state. The occupied path
+`C2_STRUCTURAL_CAPTURE_RETRY22_FAILED_PREIMAGE_COMPLETE.ps1` is now exactly
+68,276 bytes, 1,400 LF terminators, terminal LF, SHA-256
+`722e285d9a7120c867deefb7b1737b11c7149ccf1c43f53a1fd3ae7ac0114b80`.
+It matches no registered prefix; its first source divergence is byte offset
+47,449 at source line 1,114. It is permanent failed-assembly evidence and may
+never be edited, deleted, overwritten, renamed, resumed, staged, force-added,
+committed, packaged, executed, or described as the producer preimage. The
+earlier 38,353-byte failed partial remains separately immutable. Tracked main
+remained clean, C2 became fourteen files, and no other plane changed.
+
+The sole complete producer destination is reassigned to the currently absent
+path
+`releases/verification/v0.43.0/C2/C2_STRUCTURAL_CAPTURE_RETRY22_FAILED_PREIMAGE_COMPLETE_V2.ps1`.
+The literal sentinel family
+`# C0-RETRY22-PRODUCER-ASSEMBLY-CHECKPOINT-NN` is absent from the exact source
+and both failed assembly artifacts before setup. Assembly uses these exact
+whole-file states:
+
+| Step | Source lines | Chunk bytes | Chunk SHA-256 | State bytes | State SHA-256 | Terminal sentinel |
+| ---: | ---: | ---: | --- | ---: | --- | --- |
+| 1 | 1-200 | 9,080 | `2359e2d51e2973b1dee044041eba01ea98c3aa3d7766d9a027034f32ad5b75cb` | 9,125 | `3508b6e3bf840b6091d45f329062bad6c17d02861fe750b353d54dd14fc65e9e` | `CHECKPOINT-01` |
+| 2 | 201-400 | 7,671 | `c364b53ce1cbb777fc1112075a4821c0bcb065d3c4d6a6916fb516c79cbbb35e` | 16,796 | `24f0407ade47a776a741a2a3c2c0bb3a43856a80e9e6e8b5d3ce2330f0d00b28` | `CHECKPOINT-02` |
+| 3 | 401-600 | 8,206 | `8cefc7c90232c4be817dd81a2519036a89cd73cfcd0ccb8672f841405c95cd60` | 25,002 | `0ba9699bf3386e359d3e3d27b39e07076db81dc56b0731fdc02c2df03bff1beb` | `CHECKPOINT-03` |
+| 4 | 601-800 | 9,183 | `681bc872be76a6b9336f0d308307bd06ce84c7a6e35a245fb9e0c705a85f8aa1` | 34,185 | `79fcb21c86ff1963f5198b5c574257a5335170b8d1ae5f7a5420fc0ec8890fcb` | `CHECKPOINT-04` |
+| 5 | 801-1000 | 8,049 | `c7b13d120084c5c514439c0472df18043cc252956fc1237c26dc54361b387bbc` | 42,234 | `a669b096cd4720a83602afc84cf36e6dad289404a05f031fb766e559776432d3` | `CHECKPOINT-05` |
+| 6 | 1001-1200 | 9,364 | `1353c2e24f91186714be8a4508d5c190931bf04150580703caa25523fbd058f9` | 51,598 | `5f7da0c4ade676ce9ead45068d61796b8e66c7dd24e2f54e26684f9f5eaccf9d` | `CHECKPOINT-06` |
+| 7 | 1201-1400 | 16,723 | `a4af16da54469e61afd6da816b726906feb27ad58424c0f7b6f36191b8ebcaf3` | 68,321 | `a6f4ffbffa4f5209a8e96829f7c4acf859bc5913970f424775fb14965ba4eaf1` | `CHECKPOINT-07` |
+| 8 | 1401-1600 | 14,931 | `1739fef9e446cf797a7f37f5ae0089be6e86d87a1a37ee2a79e8a9e58c0b1134` | 83,252 | `0e8338b2b9e440a86fb21ecc4744028c5d50a0484112cc1924e791eddcf5e681` | `CHECKPOINT-08` |
+| 9 | 1601-1800 | 20,184 | `d34450791bc1da4bb346dd9b02bb71f56af805f96f577bfb8a1ef962f1c30364` | 103,436 | `fd0678379e06ff1c90f440fd2955caf4b3be65976679c94205e3eaeefe6d6ec3` | `CHECKPOINT-09` |
+| 10 | 1801-2000 | 24,586 | `bc37ed105ce8fbf902f958349669384171650f34cdc880748f5f569780657b59` | 128,022 | `e38c40fdd94a38f61d7c1a95b616e3b8f8e9d8b24a29db866ea7ae3ea219ad74` | `CHECKPOINT-10` |
+| 11 | 2001-2200 | 21,361 | `99810ee45a34063a242b28c9001ee5dedc0ab007d42d7330bd0a95cc0110ab8a` | 149,383 | `51931d2f83f43b1894dcb79101212fd9e3a7273e730572115d4ce9fa0ce0156e` | `CHECKPOINT-11` |
+| 12 | 2201-2400 | 12,919 | `6f346ad536524b8162cc679fac10994d957b7041707a832aad7a745f247f711a` | 162,302 | `935312cdc65d50cb4beb060610c3e219815724b83af17b0bfe3526b89c50722d` | `CHECKPOINT-12` |
+| 13 | 2401-2600 | 11,881 | `909f5aeb397c6e0cbfe48d2d4380dda65563d9a6fa59e45379e12aea6d838d36` | 174,183 | `06052415c8a680667e79f6b781e03c3f832314f4646a416a14f042914c63f222` | `CHECKPOINT-13` |
+| 14 | 2601-2800 | 18,012 | `1a30d41d713336e613a626870683a7d094d40b62ad73406fd0c1f516752dfe75` | 192,195 | `d2bfbab0a527eaed895b3757bf0ebcea8fb19d8bd8587a5a4df068f4b2a96839` | `CHECKPOINT-14` |
+| 15 | 2801-3000 | 14,334 | `e5ffa77d5346ae6087103a6764d46358009668b36377d4f23b5c0dab379b67ac` | 206,529 | `7bb831ba1ef5e8dd4a48348ff89a6baf82d5a4eef0415e98016ff1b0aea0f187` | `CHECKPOINT-15` |
+| 16 | 3001-3019 | 953 | `a1c972a29c5d2d2693697cf1c773671742fb4bbe52eb9e8f5a4fe7234dd0ee63` | 207,437 | `17ae786b6106145782b4035e7bae35c48a12f04e7014381bd67dc02247cc5656` | none |
+
+Step 1 requires the V2 path absent and add-publishes exactly source lines
+1-200 followed by the full literal sentinel ending `CHECKPOINT-01`. For steps
+2-15, the complete current file must match the preceding state binding and
+contain exactly one sentinel-family line, equal to the preceding step's full
+sentinel. The patch must replace that unique sentinel line with only the
+registered source interval followed by the next full sentinel. Step 16 must
+replace the unique `CHECKPOINT-15` sentinel with source lines 3001-3019 and no
+sentinel. No ordinary or source-derived context line may be used as an anchor.
+
+Before every step, rebind the complete source, both failed artifacts, and the
+current V2 state. After every step, re-read the whole V2 file and require the
+row's exact state bytes/SHA, exact source-prefix bytes before the sentinel,
+exactly one correct terminal sentinel for steps 1-15, zero other sentinel
+occurrences, LF-only bytes, and terminal LF. At step 16 require full byte
+equality to source and zero sentinel occurrences. One patch retry remains
+permitted only after a reported patch failure and proof that V2 is still the
+exact prior state; any mismatch stops and preserves V2. Shell writers, copy or
+concatenation commands, ordinary-context appends, editing either failed
+artifact, and source modification remain forbidden.
+
+The V2 path and only its sixteen exact states are added to the writable ledger.
+On final equality it becomes immutable producer evidence. Working-script repair
+remains forbidden until that equality and all failed-artifact bindings are
+reproved. The repaired script must validate both exact producer duplicates,
+both failed retry-22 copy/assembly artifacts as failures only, and the
+retry-22 RED pair.
+
+After this correction receives three independent B0/M0/m0 reviews and is
+committed alone, sentinel assembly advances C2 from fourteen to fifteen files.
+The pre-execution rebind therefore covers all fifteen. After four fresh terminal
+capsules and green-only provisional-sidecar cleanup, final C2 is exactly
+nineteen files: five updated records plus fourteen retained evidence files.
+Those fourteen are the retry-20 and V2 retry-22 exact producer duplicates, the
+two failed retry-22 copy/assembly artifacts, the original RED capsule and two
+RED temporary remnants, the repaired working script, the retry-22 RED target
+and publication preimage, and four fresh terminal capsules. All nineteen
+require three independent exact-byte B0/M0/m0 reviews.
+
+Any failure stops and preserves every extant byte. No cleanup, path reuse,
+alternate assembly, label advancement, or downstream claim by inference is
 authorized.
 
 ## Downstream limit
