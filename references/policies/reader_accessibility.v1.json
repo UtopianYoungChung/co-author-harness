@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "profile_version": "1.0.6",
+  "profile_version": "1.0.7",
   "decision_status": "accepted",
   "decision_record": "ADR-ACCESS-01",
   "decision_approval": {
@@ -39,7 +39,7 @@
       },
       "graph": {
         "path": "knowledge/LLM wiki/graphify-out/graph.json",
-        "role": "index and provenance metadata only; never a gate target",
+        "role": "eligibility gate, validated corpus input, provenance source, and attestation-membership determinant; never research authority or semantic warrant by itself",
         "observed_sha256_at_review": "5fef2729c6974fc1f639755d01b994091cb35bae4e39c2148f6596c302529975",
         "semantic_eligibility": {
           "extraction_modes": [

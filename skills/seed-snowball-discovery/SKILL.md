@@ -43,22 +43,24 @@ reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE
 wiki_page_key: null
 ```
 
-Primary Research completion, approval, and release are **not** blocked.
+Research completion, approval, and release remain available.
 
 ## FAIL-CLOSED: Graph authority unavailable (external-verifier-only)
 
-Governed graph authority is **unavailable** (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`).
-While the gate reports `governed_available: false`:
+Governed graph authority is **unavailable**
+(`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`). Graph-independent reader-profile v2
+keeps the semantic centroid dormant; mechanical digests supply no warrant.
+While `governed_available: false`:
 
-1. **External-verifier-only iteration.** Do not perform graph-local auto-admission.
-2. Do not treat graph topology as authority for seed/snowball admits.
+1. **External-verifier-only iteration.** No graph-local auto-admission.
+2. Graph topology is not seed/snowball authority.
 3. Do **not** apply any “graph wins” disagreement rule against Class 1 verifiers.
 4. SK-36 pre-seed is a no-op under the same gate; do not load graph-derived `pre_seed.json` as authority.
 5. Read-only Wiki **page** consultation may continue; graph-as-authority must not.
 6. No graph edge—`EXTRACTED`, `INFERRED`, or `AMBIGUOUS`—may be surfaced as an admission candidate or admitted; ignore any legacy `admit_ambiguous_edges` setting.
 7. Record `graph_authority_reason: GRAPH_GOVERNED_GENERATION_UNAVAILABLE` in `reviews/snowball_log.md`.
 
-Primary Research completion and project-local REFERENCES / snowball / external-verification artifacts continue.
+Project-local research and external-verification artifacts continue.
 
 **Grounding basis:** `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §§4 (mechanised procedure), 5.1 (skill specification), 5.5.1 (graph substrate), 5.5.2 (deferred Wiki write-back (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`)), 5.5.6 (dual-path access)`; `references/GROUNDING_PROTOCOL.md §§Rule 4 (quote-before-attribute), Rule 6 (no gap-filling), Rule 7a (external verification)`; `references/EXTERNAL_VERIFIERS.md §§1.5 (wiki-first discovery ordering), 2 (Class 1/1.5/2/3 verifier registry), 3.1 (Scholar Gateway render contract)`; `skills/graph-grounding-overlay/SKILL.md` (SK-20; Coupling E.2 graph schema and graph-staleness precondition pattern); `skills/backfill-source-stubs-from-references/SKILL.md` (SK-15; the deferred Wiki write-back (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) inherits SK-15's stub template and atomic-rename pattern); Wohlin 2014 (`10.1145/2601248.2601268`; methodological anchor; PDF in Zotero `FXJ6M8ED`).
 

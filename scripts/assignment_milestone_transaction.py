@@ -611,6 +611,306 @@ def _activate_unavailable_reader_accessibility(
         raise
 
 
+def _refresh_reader_profile_v2(
+    project: Path,
+    state_path: Path,
+    state: dict[str, Any],
+    prehash: str,
+    framework: dict[str, Any],
+    old_binding: dict[str, Any],
+    at: str,
+    policy: Any,
+) -> Path:
+    """Refresh an already-v2 reader-profile binding whose bound sources moved.
+
+    A v2 binding records the exact bytes of every policy source it resolved
+    against. When one of those sources legitimately changes -- a package
+    contributor document is edited, or the profile is re-versioned -- the
+    binding goes stale and canonical validation refuses. Before this branch
+    existed the only rebind routes were the legacy `semantic_graph_unavailable`
+    migration and the semantic-v1 request-driven re-pin, so a correctly formed
+    v2 binding had NO route back to validity: the request path demands
+    `attestation_view_pin` and `exemplar_view_pin`, which a structural-only
+    corpus cannot produce. Recorded 2026-08-07.
+
+    This is a refresh, not a re-pin. No pin is read, computed, or written; the
+    semantic graph is never consulted; the re-pin ledger is not appended to.
+    `semantic_usage` stays `not_invoked` throughout, so the refreshed binding
+    asserts exactly as much semantic warrant as the one it replaces: none.
+
+    Round gating is the CALLER's responsibility and is deliberately not
+    duplicated here -- see `rebind_reader_accessibility`, which refuses an open
+    review round before dispatching. Accepted M3-M5 evidence is separately
+    immutable and refused before mutation below.
+    """
+    # COMPLETE shape validation before the first write. Two fields were missing
+    # from the first cut and both were reachable: a binding with no
+    # `profile_path` was accepted and committed, and a binding whose
+    # `transitions` carried an extra key `X` was accepted and carried `{G, H,
+    # VE, X}` forward. `transitions` is deep-copied into the refreshed binding
+    # verbatim, so an unvalidated key here is not a cosmetic defect -- it is a
+    # write of unvalidated structure into authoritative phase state. Recorded
+    # 2026-08-07 from executable probes during independent review.
+    transitions = old_binding.get("transitions")
+    if (
+        old_binding.get("binding_version") != "2.0.0"
+        or old_binding.get("binding_kind") != "reader_profile"
+        or old_binding.get("semantic_usage") != "not_invoked"
+        or not isinstance(old_binding.get("source_bindings"), list)
+        or not isinstance(old_binding.get("profile_path"), str)
+        or not old_binding.get("profile_path")
+        or not isinstance(old_binding.get("profile_sha256"), str)
+        or not isinstance(old_binding.get("resolved_sha256"), str)
+        or not isinstance(transitions, dict)
+        or set(transitions) != {"G", "H", "VE"}
+    ):
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "v2 reader-profile binding is malformed")
+    if any(
+        key in old_binding
+        for key in ("attestation_view_pin", "exemplar_view_pin", "graph_sha256_provenance", "pin_epoch")
+    ):
+        raise MilestoneTransactionError(
+            "AMC-REPIN-POLICY", "v2 reader-profile binding carries semantic pin fields",
+        )
+    resolved_relative = old_binding.get("resolved_path")
+    if not isinstance(resolved_relative, str):
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing resolved policy path is invalid")
+    resolved_path = (project / Path(*PurePosixPath(resolved_relative).parts)).resolve()
+    try:
+        resolved_path.relative_to(project)
+    except ValueError as exc:
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path escapes project root") from exc
+    if not resolved_path.is_file() or _is_link(resolved_path) or _is_link(resolved_path.parent):
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path is absent or linked")
+    old_resolved = resolved_path.read_bytes()
+    if hashlib.sha256(old_resolved).hexdigest() != old_binding.get("resolved_sha256"):
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "v2 resolver artifact hash is stale")
+    try:
+        old_payload = json.loads(old_resolved)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", f"v2 resolver artifact is invalid: {exc}") from exc
+    if (
+        not isinstance(old_payload, dict)
+        or old_payload.get("contract_version") != "2.0.0"
+        or old_payload.get("binding_kind") != "reader_profile"
+        or old_payload.get("semantic_usage") != "not_invoked"
+        or old_payload.get("source_bindings") != old_binding.get("source_bindings")
+    ):
+        raise MilestoneTransactionError("AMC-REPIN-POLICY", "v2 resolver artifact and binding disagree")
+
+    old_state_bytes = state_path.read_bytes()
+    if hashlib.sha256(old_state_bytes).hexdigest() != prehash:
+        raise MilestoneTransactionError(
+            "AMC-CONCURRENT-CHANGE", "phase state changed before reader-policy refresh resolution",
+        )
+
+    try:
+        fresh = policy.resolve_reader_profile(project)
+    except policy.PolicyError as exc:
+        raise MilestoneTransactionError(
+            "AMC-REPIN-POLICY", f"reader-profile refresh cannot resolve policy sources: {exc}",
+        ) from exc
+
+    # Fail closed on a no-op rather than writing a receipt for nothing. A
+    # refresh that changes no byte is not an event worth recording, and an
+    # empty receipt would dilute the audit trail it exists to carry.
+    fresh_bytes = _json_bytes(fresh)
+    if fresh == old_payload:
+        raise MilestoneTransactionError(
+            "AMC-REPIN-NO-DELTA",
+            "reader-profile binding already matches the current policy sources; no refresh applied",
+        )
+
+    # Accepted reader-policy evidence and its optional F9 projection are
+    # immutable historical evidence.  A source refresh may update live,
+    # unaccepted policy evidence, but it must never rewrite an accepted
+    # checkpoint (or its packet) to make history resemble the new profile.
+    # The active R5a consumer is at M1, so this guard preserves the authorized
+    # repair while failing closed on the separately-designed historical
+    # migration problem.
+    for milestone in ("M3", "M4", "M5"):
+        record = framework.get("milestones", {}).get(milestone)
+        if isinstance(record, dict) and record.get("status") in {"accepted", "superseded"}:
+            raise MilestoneTransactionError(
+                "AMC-REPIN-ACCEPTED-EVIDENCE",
+                f"{milestone} has immutable accepted reader-policy evidence; "
+                "a separately authorized historical-evidence migration is required",
+            )
+
+    prior_source_bindings_digest = hashlib.sha256(
+        _json_bytes({"source_bindings": old_binding["source_bindings"]})
+    ).hexdigest()
+    refresh_id = f"reader-policy-refresh-{uuid.uuid4()}"
+    receipt = project / "reviews" / f"{refresh_id}.applied.json"
+    receipt_created = False
+    receipt_bytes: bytes | None = None
+    resolved_write_attempted = False
+    resolved_written = False
+    state_write_attempted = False
+    state_written = False
+    state_post_bytes: bytes | None = None
+
+    # Rebind both mutable targets immediately before the first publication.
+    # The transaction claim coordinates compliant writers, but these exact
+    # byte checks also fail closed on an external writer that ignores it.
+    if state_path.read_bytes() != old_state_bytes or resolved_path.read_bytes() != old_resolved:
+        raise MilestoneTransactionError(
+            "AMC-CONCURRENT-CHANGE",
+            "phase state or resolved reader policy changed before refresh publication",
+        )
+    try:
+        # Publish the same deterministic sorted-key UTF-8 representation used
+        # by the transaction's other JSON artifacts. No-delta detection above
+        # compares semantic objects, so formatting alone cannot create a
+        # refresh receipt.
+        resolved_write_attempted = True
+        _restore_exact_bytes(resolved_path, fresh_bytes)
+        resolved_written = True
+        binding = policy.reader_profile_phase_state_binding(fresh, resolved_path, project)
+        current_source_bindings_digest = hashlib.sha256(
+            _json_bytes({"source_bindings": binding["source_bindings"]})
+        ).hexdigest()
+        # Transition history is carried, never reset: a source refresh is not a
+        # lifecycle event and must not silently discard G/H/VE observation counts.
+        binding["transitions"] = copy.deepcopy(old_binding["transitions"])
+        proposed = copy.deepcopy(state)
+        proposed_framework = _framework(proposed)
+        proposed_framework["policy_bindings"]["reader_accessibility"] = binding
+        refreshed_milestone_evidence: list[str] = []
+        stable_policy = {
+            "profile_path": binding["resolved_path"],
+            "profile_sha256": binding["profile_sha256"],
+            "resolved_sha256": binding["resolved_sha256"],
+            "semantic_usage": "not_invoked",
+        }
+        for milestone in ("M3", "M4", "M5"):
+            record = proposed_framework.get("milestones", {}).get(milestone)
+            if not isinstance(record, dict) or record.get("status") in {
+                "not_started", "not_applicable", "legacy_unverified",
+            }:
+                continue
+            evidence = record.get("policy_evidence")
+            if not isinstance(evidence, dict):
+                continue
+            evidence.update(stable_policy)
+            refreshed_milestone_evidence.append(milestone)
+        if state_path.read_bytes() != old_state_bytes or resolved_path.read_bytes() != fresh_bytes:
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE",
+                "phase state or resolved reader policy changed during refresh preparation",
+            )
+        validation = validate_document(project, proposed)
+        if validation.findings:
+            first = validation.findings[0]
+            raise MilestoneTransactionError(
+                "AMC-REPIN-VALIDATION",
+                f"refreshed reader policy failed canonical validation: {first.code} {first.path}: "
+                f"{first.message}",
+            )
+        posthash = hashlib.sha256(_json_bytes(proposed)).hexdigest()
+        refresh = {
+            "schema_version": "2.0.0",
+            "refresh_id": refresh_id,
+            "status": "applied",
+            "applied_at": at,
+            "applied_by": "planner",
+            "prior": {
+                "profile_sha256": old_binding["profile_sha256"],
+                "resolved_sha256": old_binding["resolved_sha256"],
+                "source_bindings_digest": prior_source_bindings_digest,
+                "source_bindings": copy.deepcopy(old_binding["source_bindings"]),
+            },
+            "current": {
+                "profile_sha256": binding["profile_sha256"],
+                "resolved_sha256": binding["resolved_sha256"],
+                "source_bindings_digest": current_source_bindings_digest,
+                "binding_version": binding["binding_version"],
+                "semantic_usage": binding["semantic_usage"],
+                "source_bindings": copy.deepcopy(binding["source_bindings"]),
+                "milestone_policy_evidence_refreshed": refreshed_milestone_evidence,
+            },
+            "phase_state": {"pre_sha256": prehash, "post_sha256": posthash},
+        }
+        state_post_bytes = _json_bytes(proposed)
+        # Rebind immediately beside the authoritative state publication.  The
+        # earlier preparation check cannot protect work written while canonical
+        # validation and receipt assembly run.
+        if state_path.read_bytes() != old_state_bytes or resolved_path.read_bytes() != fresh_bytes:
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE",
+                "phase state or resolved reader policy changed immediately before state publication",
+            )
+        state_write_attempted = True
+        _atomic_replace(state_path, proposed)
+        state_written = True
+        if _sha256(state_path) != posthash or _sha256(resolved_path) != binding["resolved_sha256"]:
+            raise MilestoneTransactionError("AMC-REPIN-READBACK", "reader-policy refresh read-back failed")
+        try:
+            post_resolved = policy.resolve_reader_profile(project)
+        except policy.PolicyError as exc:
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE",
+                f"reader-policy sources changed during refresh: {exc}",
+            ) from exc
+        post_source_bindings_digest = hashlib.sha256(
+            _json_bytes({"source_bindings": post_resolved["source_bindings"]})
+        ).hexdigest()
+        if (
+            state_post_bytes is None
+            or state_path.read_bytes() != state_post_bytes
+            or _json_bytes(post_resolved) != fresh_bytes
+            or resolved_path.read_bytes() != fresh_bytes
+            or post_source_bindings_digest != current_source_bindings_digest
+        ):
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE",
+                "reader-policy profile or contributor bytes changed during refresh",
+            )
+        receipt_bytes = _json_bytes(refresh)
+        receipt_created = _exclusive_bytes(receipt, receipt_bytes)
+        return receipt
+    except Exception as original_exc:
+        recovery_conflicts: list[str] = []
+        if receipt_created:
+            try:
+                if receipt_bytes is not None and receipt.is_file() and receipt.read_bytes() == receipt_bytes:
+                    receipt.unlink()
+                else:
+                    recovery_conflicts.append(str(receipt))
+            except OSError:
+                recovery_conflicts.append(str(receipt))
+
+        # Roll back only bytes that are still either our exact postimage or the
+        # untouched preimage. A third-party post-publication change is external
+        # work: preserve it and require explicit recovery instead of erasing it.
+        if state_write_attempted:
+            try:
+                live_state = state_path.read_bytes()
+                if state_post_bytes is not None and live_state == state_post_bytes:
+                    _restore_exact_bytes(state_path, old_state_bytes)
+                elif live_state != old_state_bytes:
+                    recovery_conflicts.append(str(state_path))
+            except OSError:
+                recovery_conflicts.append(str(state_path))
+        if resolved_write_attempted:
+            try:
+                live_resolved = resolved_path.read_bytes()
+                if live_resolved == fresh_bytes:
+                    _restore_exact_bytes(resolved_path, old_resolved)
+                elif live_resolved != old_resolved:
+                    recovery_conflicts.append(str(resolved_path))
+            except OSError:
+                recovery_conflicts.append(str(resolved_path))
+        if recovery_conflicts:
+            raise MilestoneTransactionError(
+                "AMC-REPIN-RECOVERY-CONFLICT",
+                "reader-policy refresh found external post-publication bytes; "
+                "preserved them and requires explicit recovery: "
+                + ", ".join(sorted(set(recovery_conflicts))),
+            ) from original_exc
+        raise
+
+
 def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
     """Apply a reader-policy migration or pending legacy rebind transaction.
 
@@ -641,6 +941,16 @@ def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
         if policy._open_project_round(project):
             raise MilestoneTransactionError(
                 "AMC-REPIN-ROUND", "reader-policy rebind requires no open review round"
+            )
+        # Dispatched AFTER the open-round refusal, not beside the legacy branch
+        # above, which returns at its own lifecycle gate and never reaches this
+        # check. A v2 refresh is refused while a review round is open; a
+        # mid-round refresh requires an explicit supersede-and-restart operation
+        # that this transaction does not provide. The callee separately protects
+        # immutable accepted M3-M5 evidence.
+        if old_binding.get("binding_version") == "2.0.0":
+            return _refresh_reader_profile_v2(
+                project, state_path, state, prehash, framework, old_binding, at, policy,
             )
         if not request_path.is_file() or _is_link(request_path):
             raise MilestoneTransactionError(

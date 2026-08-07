@@ -7,7 +7,7 @@
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "phase": "Ph3",
   "profile_path": "reviews/.harness/policy/reader_accessibility_resolved.json",
-  "profile_sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
+  "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
   "schema_version": "check8_evidence.v1",
   "subcheck_verdicts": {
     "A": "CLEAN",

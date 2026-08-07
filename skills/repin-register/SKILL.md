@@ -9,9 +9,9 @@ version: 1.0
 ---
 # Re-pin Domain-Native Register
 
-Run the accepted, deterministic re-pin workflow. The Python loader is the only
-compute authority. This skill orchestrates it; never calculate, edit, or infer
-either semantic hash in prose.
+Only the loader computes hashes. Graph-independent v2 keeps the centroid
+dormant and skips this skill. Mechanical digests are neither pins nor rebind
+authority. Semantic binding is required.
 
 ## Invocation
 

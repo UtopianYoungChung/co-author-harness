@@ -551,26 +551,41 @@ def validate_graph_semantic_eligibility(
     metadata = graph.get("graph")
     if not isinstance(metadata, dict):
         raise PolicyError(f"{failure_code}: graph metadata object is required")
+    # AGGREGATE, DO NOT SHORT-CIRCUIT. The first cut raised on the first
+    # mismatch, which made `extraction_mode` the only visible defect on a
+    # structural-only graph and hid the fact that the same graph also carries
+    # none of the thirteen required semantic-provenance keys. A caller reading
+    # that single reason could conclude that flipping the mode is a repair. It
+    # is not: it only relocates the refusal. Every independently checkable
+    # defect is collected and reported in one refusal so the true remaining
+    # distance to eligibility is legible from a single run. Recorded
+    # 2026-08-06. Single-defect messages stay byte-identical to the previous
+    # contract, so existing needle assertions are unaffected.
+    reasons: list[str] = []
     extraction_mode = metadata.get("extraction_mode")
-    if extraction_mode not in modes:
-        raise PolicyError(
-            f"{failure_code}: extraction_mode "
-            f"{extraction_mode!r} is not one of {sorted(modes)}"
+    mode_admitted = extraction_mode in modes
+    if not mode_admitted:
+        reasons.append(
+            f"extraction_mode {extraction_mode!r} is not one of {sorted(modes)}"
         )
     semantic_status = metadata.get("semantic_status")
-    if semantic_status not in statuses:
-        raise PolicyError(
-            f"{failure_code}: semantic_status "
-            f"{semantic_status!r} is not one of {sorted(statuses)}"
+    status_admitted = semantic_status in statuses
+    if not status_admitted:
+        reasons.append(
+            f"semantic_status {semantic_status!r} is not one of {sorted(statuses)}"
         )
-    if (extraction_mode, semantic_status) not in {
-        ("semantic", "complete"),
-        ("hybrid-structural-semantic", "validated"),
-    }:
-        raise PolicyError(f"{failure_code}: extraction mode/status pair is not admitted: {extraction_mode}/{semantic_status}")
+    if (
+        mode_admitted
+        and status_admitted
+        and (extraction_mode, semantic_status) not in {
+            ("semantic", "complete"),
+            ("hybrid-structural-semantic", "validated"),
+        }
+    ):
+        reasons.append(f"extraction mode/status pair is not admitted: {extraction_mode}/{semantic_status}")
     semantic_scope = metadata.get("semantic_scope") or metadata.get("semantic_scope_note")
     if not isinstance(semantic_scope, str) or not semantic_scope.strip():
-        raise PolicyError(f"{failure_code}: non-empty semantic_scope is required")
+        reasons.append("non-empty semantic_scope is required")
     required_metadata = (
         "semantic_manifest", "semantic_manifest_sha256", "semantic_audit",
         "semantic_audit_sha256", "semantic_outputs_sha256", "semantic_output_files",
@@ -580,36 +595,61 @@ def validate_graph_semantic_eligibility(
     )
     missing = [key for key in required_metadata if key not in metadata]
     if missing:
-        raise PolicyError(f"{failure_code}: required semantic provenance metadata missing: {missing}")
+        reasons.append(f"required semantic provenance metadata missing: {missing}")
     for key in ("semantic_manifest", "semantic_audit", "semantic_report", "semantic_receipt"):
-        if not isinstance(metadata[key], str) or not metadata[key].strip():
-            raise PolicyError(f"{failure_code}: {key} must be a non-empty relative path")
+        if key in metadata and (not isinstance(metadata[key], str) or not metadata[key].strip()):
+            reasons.append(f"{key} must be a non-empty relative path")
     for key in ("semantic_manifest_sha256", "semantic_audit_sha256", "semantic_outputs_sha256", "research_inventory_sha256"):
-        if not isinstance(metadata[key], str) or re.fullmatch(r"[0-9a-f]{64}", metadata[key]) is None:
-            raise PolicyError(f"{failure_code}: {key} must be a lowercase SHA-256")
-    output_files = metadata["semantic_output_files"]
-    if not isinstance(output_files, list) or not output_files:
-        raise PolicyError(f"{failure_code}: semantic_output_files must be a non-empty array")
-    seen_output_paths: set[str] = set()
-    for row in output_files:
-        if (
-            not isinstance(row, dict)
-            or set(row) != {"path", "sha256"}
-            or not isinstance(row.get("path"), str)
-            or not row["path"].strip()
-            or row["path"] in seen_output_paths
-            or not isinstance(row.get("sha256"), str)
-            or re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None
+        if key in metadata and (
+            not isinstance(metadata[key], str)
+            or re.fullmatch(r"[0-9a-f]{64}", metadata[key]) is None
         ):
-            raise PolicyError(f"{failure_code}: semantic_output_files contains an invalid or duplicate row")
-        seen_output_paths.add(row["path"])
-    if [row["path"] for row in output_files] != sorted((row["path"] for row in output_files), key=_utf8_key):
-        raise PolicyError(f"{failure_code}: semantic_output_files must be sorted by path")
+            reasons.append(f"{key} must be a lowercase SHA-256")
+    if "semantic_output_files" in metadata:
+        output_files = metadata["semantic_output_files"]
+        if not isinstance(output_files, list) or not output_files:
+            reasons.append("semantic_output_files must be a non-empty array")
+        else:
+            seen_output_paths: set[str] = set()
+            rows_valid = True
+            for row in output_files:
+                if (
+                    not isinstance(row, dict)
+                    or set(row) != {"path", "sha256"}
+                    or not isinstance(row.get("path"), str)
+                    or not row["path"].strip()
+                    or row["path"] in seen_output_paths
+                    or not isinstance(row.get("sha256"), str)
+                    or re.fullmatch(r"[0-9a-f]{64}", row["sha256"]) is None
+                ):
+                    rows_valid = False
+                    break
+                seen_output_paths.add(row["path"])
+            if not rows_valid:
+                reasons.append("semantic_output_files contains an invalid or duplicate row")
+            elif [row["path"] for row in output_files] != sorted(
+                (row["path"] for row in output_files), key=_utf8_key
+            ):
+                reasons.append("semantic_output_files must be sorted by path")
+    counts_valid: dict[str, bool] = {}
     for key in ("semantic_pages_expected", "semantic_pages_represented", "semantic_node_count", "semantic_edge_count"):
-        if not isinstance(metadata[key], int) or isinstance(metadata[key], bool) or metadata[key] < 1:
-            raise PolicyError(f"{failure_code}: {key} must be a positive integer")
-    if metadata["semantic_pages_expected"] != metadata["semantic_pages_represented"]:
-        raise PolicyError(f"{failure_code}: semantic_pages expected/represented mismatch")
+        valid = (
+            key in metadata
+            and isinstance(metadata[key], int)
+            and not isinstance(metadata[key], bool)
+            and metadata[key] >= 1
+        )
+        counts_valid[key] = valid
+        if key in metadata and not valid:
+            reasons.append(f"{key} must be a positive integer")
+    if (
+        counts_valid["semantic_pages_expected"]
+        and counts_valid["semantic_pages_represented"]
+        and metadata["semantic_pages_expected"] != metadata["semantic_pages_represented"]
+    ):
+        reasons.append("semantic_pages expected/represented mismatch")
+    if reasons:
+        raise PolicyError(f"{failure_code}: " + "; ".join(reasons))
     return {
         "extraction_mode": extraction_mode,
         "semantic_status": semantic_status,

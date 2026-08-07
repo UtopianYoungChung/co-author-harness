@@ -145,6 +145,16 @@ def _binding_provenance(project_root: Path | None, resolved: dict[str, Any]) -> 
     )
     if not isinstance(binding, dict):
         return "package-default"
+    if (
+        binding.get("binding_version") == "2.0.0"
+        and binding.get("binding_kind") == "reader_profile"
+        and binding.get("semantic_usage") == "not_invoked"
+    ):
+        raise Unavailable(
+            "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+            "reader-profile v2 declares semantic_usage not_invoked; "
+            "the semantic centroid remains dormant",
+        )
     expected = {
         "profile_sha256": resolved["profile_sha256"],
         "attestation_view_pin": resolved["attestation_view_pin"],
@@ -169,6 +179,34 @@ def _binding_provenance(project_root: Path | None, resolved: dict[str, Any]) -> 
             "project reader-accessibility binding differs for: " + ", ".join(mismatched),
         )
     return "project"
+
+
+def _reader_profile_v2_is_dormant(project_root: Path | None) -> bool:
+    """Recognize the graph-independent project binding without reading Graphify.
+
+    The semantic centroid remains unavailable for this binding kind.  This
+    deliberately returns False for absent or unreadable state so ordinary
+    semantic-policy diagnostics retain their existing behavior unless a valid
+    v2 declaration can be established.
+    """
+    if project_root is None:
+        return False
+    state_path = project_root / "reviews" / "phase_state.json"
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    binding = (
+        state.get("milestone_framework", {})
+        .get("policy_bindings", {})
+        .get("reader_accessibility")
+    )
+    return bool(
+        isinstance(binding, dict)
+        and binding.get("binding_version") == "2.0.0"
+        and binding.get("binding_kind") == "reader_profile"
+        and binding.get("semantic_usage") == "not_invoked"
+    )
 
 
 def _member_view(items: Any) -> list[dict[str, str]]:
@@ -201,6 +239,13 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
     prose = _prose_lines(scoped_text)
     if not prose:
         raise Unavailable("NO_PROSE", "resolved scope contains no prose")
+
+    if _reader_profile_v2_is_dormant(project_root):
+        raise Unavailable(
+            "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+            "reader-profile v2 declares semantic_usage not_invoked; "
+            "the semantic centroid remains dormant",
+        )
 
     try:
         resolved = policy.resolve_policy(

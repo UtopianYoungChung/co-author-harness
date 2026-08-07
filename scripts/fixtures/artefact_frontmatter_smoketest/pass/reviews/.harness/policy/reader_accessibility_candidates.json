@@ -5,18 +5,18 @@
   "manuscript_path": "manuscript/main.tex",
   "manuscript_sha256": "675e560225b973ac71a7a9b97846616a198f07dec7d2163b5a0e8fb14c24ee04",
   "profile_path": "references/policies/reader_accessibility.v1.json",
-  "profile_sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
+  "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
   "source_bindings": [
     {
       "scope": "package",
       "path": "references/policies/reader_accessibility.v1.json",
-      "sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
+      "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
       "role": "package_profile"
     },
     {
       "scope": "package",
       "path": "references/READER_ACCESSIBILITY.md",
-      "sha256": "ea9e7acb1f629051740837e1a9dd96a75d2557627532214511becf73927ee955",
+      "sha256": "2b1bb64a21662b8fa86b6d5f6ecdfc396885c0d2b11e019413de2574a379d2cc",
       "role": "package_contributor"
     },
     {

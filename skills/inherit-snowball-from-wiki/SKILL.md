@@ -9,10 +9,12 @@ version: 1.0
 
 ## FAIL-CLOSED: Graph authority unavailable
 
-Governed graph authority is **unavailable** (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`).
-`scripts/graph_authority_gate.py` returns `governed_available: false` unconditionally in this delta.
+Governed graph authority is **unavailable**
+(`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`); `scripts/graph_authority_gate.py`
+returns false. Graph-independent reader-profile v2 keeps the semantic centroid
+dormant; topology and mechanical digests supply no semantic warrant.
 
-**Immediate no-op.** Do not traverse `graph.json` communities, do not produce `pre_seed.json`, and do not extract community source membership for pre-seed while the gate reports unavailability. Write `reviews/sk36_noop_YYYY-MM-DD.json` with:
+**Immediate no-op.** Do not traverse communities or produce pre-seed evidence while unavailable. Write `reviews/sk36_noop_YYYY-MM-DD.json` with:
 
 ```json
 {

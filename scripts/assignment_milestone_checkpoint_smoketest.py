@@ -425,7 +425,7 @@ def main() -> int:
         # No state or F9 handoff is edited by this test: every lifecycle change
         # below goes through the public command under test.
         ticks = iter(range(1, 50))
-        for milestone in ("M1", "M2", "M3"):
+        for milestone in ("M1",):
             print(f"walk/{milestone}", flush=True)
             if milestone != "M1":
                 run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
@@ -443,14 +443,12 @@ def main() -> int:
             run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
             run(VALIDATOR, "--project-root", project)
 
-        # Reader-profile v2 does not consume semantic re-pin requests. The
-        # command remains fail-closed and byte-preserving; legacy semantic-v1
-        # request handling is covered by the dedicated re-pin regressions.
+        # Reader-profile v2 refresh is round-gated and never consumes semantic
+        # re-pin requests. Legacy semantic-v1 request handling is covered by
+        # the dedicated re-pin regressions.
         initial = state(project)
         initial_binding = initial["milestone_framework"]["policy_bindings"]["reader_accessibility"]
         assert initial_binding["binding_version"] == "2.0.0"
-        request_path = project / "reviews" / "repin_rebind_request.json"
-        write_json(request_path, {"status": "pending"})
         before_open_round_refusal = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project, expected=4)
         assert "AMC-REPIN-ROUND" in refused.stdout
@@ -468,12 +466,70 @@ def main() -> int:
                     "timestamp": "2026-07-19T00:00:00Z", "model_used": None,
                 })
         write_json(project / "reviews" / "phase_state.json", closed)
-        before_invalid_rebind = (project / "reviews" / "phase_state.json").read_bytes()
+        before_no_delta = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project, expected=4)
-        assert "AMC-REPIN-REQUEST" in refused.stdout
-        assert (project / "reviews" / "phase_state.json").read_bytes() == before_invalid_rebind
-        request_path.unlink()
+        assert "AMC-REPIN-NO-DELTA" in refused.stdout, refused.stdout
+        assert (project / "reviews" / "phase_state.json").read_bytes() == before_no_delta
+
+        # Build a self-consistent stale v2 snapshot without changing live
+        # package sources. The refresh must replace both artifacts, carry
+        # transitions, publish one distinct receipt, and record source-binding
+        # digests without introducing any semantic pin.
+        stale_state = state(project)
+        stale_binding = stale_state["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+        prior_transitions = json.loads(json.dumps(stale_binding["transitions"]))
+        resolved_path = project / stale_binding["resolved_path"]
+        stale_resolved = json.loads(resolved_path.read_text(encoding="utf-8"))
+        stale_resolved["profile_sha256"] = "0" * 64
+        stale_resolved["source_bindings"][0]["sha256"] = "0" * 64
+        write_json(resolved_path, stale_resolved)
+        stale_binding["profile_sha256"] = "0" * 64
+        stale_binding["source_bindings"] = json.loads(
+            json.dumps(stale_resolved["source_bindings"])
+        )
+        stale_binding["resolved_sha256"] = sha(resolved_path)
+        write_json(project / "reviews" / "phase_state.json", stale_state)
+
+        applied = run(CHECKPOINT, "rebind-reader-policy", "--project-root", project)
+        assert applied.stdout.startswith("REBOUND "), applied.stdout
+        receipt_path = Path(applied.stdout.strip().removeprefix("REBOUND "))
+        assert receipt_path.is_file()
+        refreshed = state(project)["milestone_framework"]["policy_bindings"]["reader_accessibility"]
+        assert refreshed["binding_version"] == "2.0.0"
+        assert refreshed["semantic_usage"] == "not_invoked"
+        assert refreshed["profile_sha256"] != "0" * 64
+        assert refreshed["transitions"] == prior_transitions
+        assert all(key not in refreshed for key in (
+            "attestation_view_pin", "exemplar_view_pin", "graph_sha256_provenance", "pin_epoch",
+        ))
+        assert sha(resolved_path) == refreshed["resolved_sha256"]
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        assert receipt["schema_version"] == "2.0.0"
+        assert len(receipt["prior"]["source_bindings_digest"]) == 64
+        assert len(receipt["current"]["source_bindings_digest"]) == 64
+        assert receipt["current"]["semantic_usage"] == "not_invoked"
+        assert receipt["current"]["milestone_policy_evidence_refreshed"] == []
         run(VALIDATOR, "--project-root", project)
+
+        # Continue the canonical walk only after the M1-bound refresh.  This
+        # is the active Paper2 lifecycle posture and does not rewrite accepted
+        # M3+ reader evidence or immutable F9 bytes.
+        for milestone in ("M2", "M3"):
+            print(f"walk/{milestone}", flush=True)
+            run(CHECKPOINT, "begin", "--project-root", project, "--milestone", milestone, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
+            assert derived == {"status": "READY", "milestone": milestone, "action": "draft", "authority_mode": "direct_local"}, derived
+            consumed, draft_policy = publish(
+                project, milestone, f"# {milestone} synthetic deliverable\n".encode()
+            )
+            checkpoint = checkpoint_input(
+                project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z",
+                policy=draft_policy,
+            )
+            run(CHECKPOINT, "record", "--project-root", project, "--milestone", milestone, "--receipt", consumed, "--checkpoint", checkpoint, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            approval = approval_input(project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z")
+            run(CHECKPOINT, "accept", "--project-root", project, "--milestone", milestone, "--checkpoint", checkpoint, "--approval-evidence", approval, "--at", f"2026-07-19T00:00:{next(ticks):02d}Z")
+            run(VALIDATOR, "--project-root", project)
 
         before_wrong_begin = (project / "reviews" / "phase_state.json").read_bytes()
         refused = run(CHECKPOINT, "begin", "--project-root", project, "--milestone", "M3", "--at", f"2026-07-19T00:00:{next(ticks):02d}Z", expected=4)

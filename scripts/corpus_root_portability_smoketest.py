@@ -48,6 +48,9 @@ Exit: 0 all pass; 1 a check failed.
 from __future__ import annotations
 
 import os
+import json
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -214,6 +217,112 @@ def case_absolute_harness_root_accepted() -> None:
               bool(resolved["attestation_view_pin"]))
 
 
+def case_run_all_forwards_harness_root() -> None:
+    """The public audit CLI must forward all three root overrides end to end."""
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td).resolve()
+        wiki, workspace = write_fixture(base / "corpus", all_members=True)
+        alternate = base / "alternate-harness"
+        shutil.copytree(ROOT / "references", alternate / "references")
+        project = base / "project"
+        manuscript = project / "manuscript.md"
+        manuscript.parent.mkdir(parents=True)
+        manuscript.write_text("# Portable\n\nThe trace remains explicit.\n", encoding="utf-8")
+        findings = project / "reviews" / "findings.json"
+        candidates = project / "reviews" / "reader-candidates.json"
+        command = [
+                sys.executable,
+                str(ROOT / "scripts" / "audit" / "run_all.py"),
+                str(manuscript),
+                "--project-root", str(project),
+                "--skip-d-style-profile",
+                "--wiki-root", str(wiki),
+                "--workspace-root", str(workspace),
+                "--harness-root", str(alternate),
+                "--accessibility-out", str(candidates),
+                "--out", str(findings),
+            ]
+        proc = subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        check("run_all accepts --harness-root", proc.returncode == 0,
+              (proc.stdout + proc.stderr)[-160:])
+        alternate_profile = (
+            alternate / "references" / "policies" / "reader_accessibility.v1.json"
+        )
+        alternate_profile.unlink()
+        refused = subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        detail = refused.stdout + refused.stderr
+        try:
+            refused_message = json.loads(refused.stdout)["message"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            refused_message = detail
+        check("run_all forwards the alternate harness root",
+              refused.returncode == 4 and str(alternate_profile) in refused_message,
+              detail[-180:])
+
+
+def case_semantic_eligibility_messages_are_exact_and_ordered() -> None:
+    """Single-defect compatibility and deterministic multi-defect aggregation."""
+    profile = policy.load_profile()
+    contract = profile["domain_native_register"]["corpus_binding"]["graph"]["semantic_eligibility"]
+    with tempfile.TemporaryDirectory() as td:
+        _wiki, workspace = write_fixture(Path(td), all_members=True)
+        graph_path = workspace / "knowledge" / "LLM wiki" / "graphify-out" / "graph.json"
+        valid = json.loads(graph_path.read_text(encoding="utf-8"))
+
+        single = json.loads(json.dumps(valid))
+        single["graph"]["extraction_mode"] = "structural-only"
+        expected_single = (
+            "GRAPH-SEMANTIC-INELIGIBLE: extraction_mode 'structural-only' "
+            "is not one of ['hybrid-structural-semantic', 'semantic']"
+        )
+        try:
+            policy.validate_graph_semantic_eligibility(single, contract)
+        except policy.PolicyError as exc:
+            check("single semantic defect message remains byte-identical",
+                  str(exc) == expected_single, str(exc))
+        else:
+            check("single semantic defect message remains byte-identical", False,
+                  "defect accepted")
+
+        multiple = json.loads(json.dumps(valid))
+        multiple["graph"]["extraction_mode"] = "structural-only"
+        multiple["graph"]["semantic_status"] = "pending"
+        multiple["graph"].pop("semantic_scope", None)
+        multiple["graph"].pop("semantic_scope_note", None)
+        multiple["graph"].pop("semantic_manifest")
+        expected_multiple = (
+            "GRAPH-SEMANTIC-INELIGIBLE: extraction_mode 'structural-only' "
+            "is not one of ['hybrid-structural-semantic', 'semantic']; "
+            "semantic_status 'pending' is not one of ['complete', 'validated']; "
+            "non-empty semantic_scope is required; required semantic provenance "
+            "metadata missing: ['semantic_manifest']"
+        )
+        try:
+            policy.validate_graph_semantic_eligibility(multiple, contract)
+        except policy.PolicyError as exc:
+            check("multi-defect semantic message is deterministically ordered",
+                  str(exc) == expected_multiple, str(exc))
+        else:
+            check("multi-defect semantic message is deterministically ordered", False,
+                  "defects accepted")
+
+
 def case_containment_preserved() -> None:
     """Portability did not buy an escape hatch."""
     with tempfile.TemporaryDirectory() as td:
@@ -239,6 +348,8 @@ def main() -> int:
     for fn in (case_platform_predicate, case_declared_roots_on_foreign_host,
                case_override_resolves_everywhere, case_relative_override_refused,
                case_relative_harness_root_refused, case_absolute_harness_root_accepted,
+               case_run_all_forwards_harness_root,
+               case_semantic_eligibility_messages_are_exact_and_ordered,
                case_containment_preserved):
         print(f"{fn.__name__}:")
         fn()

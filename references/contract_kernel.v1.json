@@ -192,7 +192,7 @@
       "id": "assignment-process",
       "path": "references/ASSIGNMENT_MILESTONE_PROCESS.md",
       "revision_kind": "sha256",
-      "sha256": "6dbe4ad2848bbeb49ae1287e0c2d970ec528730a87edf82b37aa4858f1496e40",
+      "sha256": "ce6f89683e56f1fbc5aef997d165b9a5d72b1e945b66832a25a607325c017325",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -269,7 +269,7 @@
       "id": "reader-accessibility",
       "path": "references/policies/reader_accessibility.v1.json",
       "revision_kind": "sha256",
-      "sha256": "f1b8aa48d3e00886d66dc500e746c61e95546cb33a753e17b63d252aeb87afb2",
+      "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
       "migration_ids": [
         "reader-profile-v2-decoupling"
       ]
@@ -377,7 +377,7 @@
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "fa006703c219ab6c438e3040f86dfad073cefd92184c1ff1dcee1d72af8b2d59",
+      "sha256": "183aba811cd21a5c54a56977afa888340d9cedc37a830a1b556b944dd6efe701",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -819,7 +819,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "e0a7e45eaa02cc622d8e9f1d2340cb19044a9bac1fc85c20d26dd4b3ac34a906",
+      "sha256": "638a014c4fe66b915274e6565b216b9d17ff00647f4578d7d54d55440cbf7f0b",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -991,7 +991,7 @@
       "id": "skill-run-phase-4",
       "path": "skills/run-phase-4/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "0bb41ae2c9c296a4380aa9bf8a6f9d6e30510b63d1aca3d5c9b436f17f90ac51",
+      "sha256": "2b4ddcd5e33c82f54e628933bca4bb96deb45362cdd695d90e9e765b2f721768",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

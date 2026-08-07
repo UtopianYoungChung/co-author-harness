@@ -24,10 +24,12 @@ version: 1.0
 
 ## FAIL-CLOSED: Graph authority unavailable
 
-Governed graph authority is **unavailable** (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`).
-Run / consult `scripts/graph_authority_gate.py` (unconditional for this delta): `governed_available: false`.
+Governed graph authority is **unavailable**
+(`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`); `scripts/graph_authority_gate.py`
+returns false. Reader-profile v2 is graph-independent, keeps the semantic
+centroid dormant, and treats mechanical digests as diagnostic.
 
-**Immediate no-op.** Do not produce overlay findings, do not treat `graph.json` as authoritative evidence, and do not continue into Phase 1–N of this skill while the gate reports unavailability. Prefer reason code:
+**Immediate no-op.** Produce no overlay findings, graph authority, or later phase while unavailable. Prefer reason code:
 
 ```json
 {

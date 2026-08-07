@@ -314,6 +314,7 @@ REGISTRY: dict[str, list[dict]] = {
     ],
     "scripts/reader_accessibility_adversarial_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_contract_smoketest.py": [_default_case()],
+    "scripts/reader_profile_refresh_smoketest.py": [_default_case()],
     "scripts/reader_profile_v2_global_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_semantics_smoketest.py": [_default_case()],
     "scripts/receipt_compaction_smoketest.py": [_default_case()],

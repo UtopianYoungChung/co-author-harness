@@ -4,24 +4,17 @@
 
 ## 0. Producer boundary (binding, 2026-07-22)
 
-Milestone transactions are production bookkeeping, never research authority.
-Every transaction verb (`begin`, `record`, `accept`, `rebind-reader-policy`,
-`recover`) resolves its mutable project root through
-`scripts/destination_capability.py` and refuses a protected consumer project
-with `DEST-PROTECTED`. Work whose consumer is the research tree normally runs
-in the governed staging lane
-(`<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`).
-The package-local lookalike `co-author-harness\outputs\co-author-harness\` is
-forbidden: project output cannot become package state or give one project
-governing authority over the harness.
-Report-only tools may read a protected project and write only to its exact
-private lane
-`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`;
-they must declare every output path, and no default loose report is permitted.
-Research governance adjudicates and applies any change beyond that lane under
-`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`. No milestone status,
-gate PASS, handoff, or shipment implies acceptance, registration, promotion,
-or permission to mutate authoritative consumer state.
+Milestone transactions are production bookkeeping, not research authority.
+Every verb resolves its mutable project root through
+`scripts/destination_capability.py`; protected consumers refuse with
+`DEST-PROTECTED`. Research work normally uses
+`<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`.
+Package-local `co-author-harness\outputs\co-author-harness\` is forbidden.
+Report-only tools may read a protected project but write solely to
+`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`,
+with every output declared. Research governance alone applies changes beyond
+that lane under `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; no
+harness status, PASS, handoff, or shipment grants consumer-state authority.
 
 ## 1. Binding rule
 
@@ -119,9 +112,15 @@ The same public command owns the lifecycle transaction:
 2. After `assignment_writer_commit.py` publishes the scoped Generator result, the Evaluator runs both the independent all-drafts policy pass and the C6 scholarly-evaluation transaction. `record --milestone <M1-M4|FINAL> --receipt <consumed-receipt> --checkpoint <structured-checkpoint>` requires current-byte `draft_generation`, `draft_evaluation`, and `scholarly_evaluation` bindings. The three evidence chains must reuse the exact consumed assignment receipt and Generator/Evaluator dispatches; unresolved `BLOCKER` or `MAJOR` findings or obligations refuse the record. The transaction replays the complete C6 dependency set immediately before its state-last write. Public FINAL requires both `milestones/M5_final_paper.md` and `submission_bundle/final_manuscript.md`; its checkpoint says ledger milestone `M5`. The checkpoint schema and authoring shape are `schemas/assignment_milestone_checkpoint.schema.json` and `templates/assignment_milestone_checkpoint.json`.
 3. `accept --milestone <M1-M4|FINAL> --checkpoint <same-checkpoint> --approval-evidence <structured-approval>` requires a current-byte, project-local explicit approval. M4 additionally requires `--policy-evidence <current-policy>` after convergence. FINAL instead requires `--terminal-evidence <structured-M5-evidence>` per `schemas/assignment_terminal_evidence.schema.json`; it binds the terminal round, Check 8, F7/F8, G.4, ship signoff, reflection, deterministic findings, convergence, consumed FINAL receipt/result, and export provenance. Under effective `audited`, the command publishes the exact F9 before publishing `phase_state.json` last. Under effective `derived`, acceptance is authoritative without F9 and records `not_applicable`; `--emit-f9` may publish the same exact packet as non-gating, non-consumed evidence. FINAL uses the policy-correct terminal representation and sets both terminal fields only after the prospective full-run terminal check passes. Authoring shapes are under `schemas/` and `templates/` with matching assignment names.
 
-M4 has one intentional timing distinction. `begin M4` records only `profile_path`, `profile_sha256`, `resolved_sha256`, `attestation_view_pin`, and `exemplar_view_pin`, because no scoped manuscript bytes exist yet. The first successful `record M4` transaction must add the deliverable and `manuscript_sha256`, `phase`, and `cycle_id` atomically. An initial assembly uses `phase: Ph1`; this does not authorize acceptance. `accept M4` remains blocked until every in-scope section is `Ph3_converged` and the retained Check 8/phase gates pass.
+After round closure, `rebind-reader-policy` refreshes graph-independent v2
+without Graphify or semantic pins, preserves G/H/VE history, writes state last,
+then emits an exclusive receipt. No delta, drift, or accepted M3-M5 evidence
+refuses before publication; drift restores preimages. It never writes the
+semantic re-pin ledger.
 
-At M1, M2, and M3, the Planner stops for explicit user approval after the record checkpoint. Only that approval permits acceptance; F9 behavior then follows the effective handoff policy. The invocation ends after the transaction; a later invocation derives and begins the next target. No file, elapsed time, user silence, or phase advancement counts as milestone acceptance.
+M4 has one intentional timing distinction. `begin M4` records only `profile_path`, `profile_sha256`, `resolved_sha256`, and `semantic_usage: not_invoked` for reader-profile v2, because no scoped manuscript bytes exist yet. Legacy semantic-v1 bindings retain their semantic pin fields. The first successful `record M4` transaction must add the deliverable and `manuscript_sha256`, `phase`, and `cycle_id` atomically. An initial assembly uses `phase: Ph1`; this does not authorize acceptance. `accept M4` remains blocked until every in-scope section is `Ph3_converged` and the retained Check 8/phase gates pass.
+
+At M1-M3, the Planner stops for explicit approval after recording. Only that approval permits acceptance; F9 follows the effective handoff policy. A later invocation begins the next target. Files, elapsed time, silence, and phase advancement never count as acceptance.
 
 Before the M3→M4 transaction, the Planner creates and binds current wiki-grounding evidence or records an authorized opt-out. M4 therefore becomes reachable only after three distinct acceptance checkpoints and the grounding gate. Legacy projects do not enter this walk until their migration boundary and acceptance evidence have been adjudicated.
 

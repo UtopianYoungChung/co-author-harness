@@ -2,19 +2,19 @@
 
 ## Purpose and authority
 
-Reader accessibility reduces extraneous prose load while preserving intrinsic difficulty and supporting the reader's model-building work. The package-local machine authority is `references/policies/reader_accessibility.v1.json`, resolved through `scripts/reader_accessibility_policy.py`. Its exact human-readable numeric projection is `references/generated/reader_accessibility_policy_view.md`.
+Reader accessibility reduces extraneous prose load without flattening intrinsic difficulty. Machine authority is `references/policies/reader_accessibility.v1.json`, resolved by `scripts/reader_accessibility_policy.py`; its numeric projection is `references/generated/reader_accessibility_policy_view.md`.
 
-This document owns the semantic purpose of the policy. It does not own threshold values, severity arithmetic, transition counts, recurrence counts, or runtime exceptions. Operational prose cites profile keys; only the generated view may display their numeric projection.
+This document owns purpose, not thresholds, arithmetic, transition or recurrence counts, or exceptions. Operational prose cites profile keys.
 
 The precedence ladder remains user → venue → project → package → root. A project may alter reader-accessibility behavior only through the profile's declared `override_contract`. Unregistered prose directives cannot rewrite package policy.
 
 ## Accessibility model
 
-Accessibility operates at local and cumulative temporal scales. The local scale covers prose processed within a reading turn. The cumulative scale covers constructs, positions, and tensions carried across the manuscript. A manuscript can pass local cadence, rhythm, definition, signposting, jargon, and example checks while still imposing a cumulative tax when later argument depends on material that was never consolidated.
+Accessibility operates locally within a reading turn and cumulatively across carried constructs, positions, and tensions. Local checks may pass while unconsolidated material still burdens later argument.
 
 Sweller's cognitive-load distinction supplies the telos. Intrinsic load is the irreducible difficulty of the material. Extraneous load is friction added by the prose. Germane load is the effort spent building the mental model. Accessibility reduces extraneous load without flattening intrinsic difficulty and helps germane effort remain productive.
 
-Register appropriateness is orthogonal to the local/cumulative distinction. The structural checks audit cadence, rhythm, definitions, signposting, jargon, worked examples, and consolidation. H audits register construction within structurally required passages. H is functional rather than a readability score and preserves the anti-dilution stance through positive construction, not mere absence of negative probes.
+Register is orthogonal to that distinction. Structural checks cover cadence, rhythm, definitions, signposting, jargon, examples, and consolidation; H functionally audits register construction without diluting necessary difficulty.
 
 ## 13.3 Operational criteria
 
@@ -90,6 +90,10 @@ Check 8 evidence binds the same cycle, manuscript, phase, and resolved profile. 
 Stability loads `runtime_modes.stability` plus bound transition state. It may govern workflow reuse but creates no independent member exclusion, severity rewrite, retirement authority, or escalation exception.
 
 Persistence keys on content hash and approved revision evidence. It may produce workflow escalation evidence while leaving recorded semantic severity unchanged. Recurrence routes through `recurrence`; it does not silently rewrite a finding's verdict.
+
+### Graph boundary
+
+The graph is an "eligibility gate, validated corpus input, provenance source, and attestation-membership determinant; never research authority or semantic warrant by itself." Reader-profile v2 records `semantic_usage: not_invoked` and refreshes without Graphify, semantic pins, or the re-pin ledger. Semantic operations validate eligibility and provenance or refuse with `GRAPH-SEMANTIC-INELIGIBLE`; v2 callers receive `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`. Digests prove neither path.
 
 ## Calibration status
 

@@ -186,6 +186,35 @@ def main() -> int:
                 "milestone_framework": {
                     "policy_bindings": {
                         "reader_accessibility": {
+                            "binding_version": "2.0.0",
+                            "binding_kind": "reader_profile",
+                            "semantic_usage": "not_invoked",
+                            "profile_sha256": packet["policy"]["profile_sha256"],
+                        }
+                    }
+                }
+            }),
+            encoding="utf-8",
+        )
+        # A graph-independent v2 binding must refuse before the semantic graph
+        # is read. Keep the fixture structurally ineligible here so an
+        # accidentally late v2 check cannot be masked by an eligible graph.
+        graph = json.loads(graph_bytes)
+        graph["graph"]["extraction_mode"] = "structural-only"
+        graph_path.write_text(json.dumps(graph), encoding="utf-8")
+        dormant = invoke(*common_args(project, manuscript, wiki, workspace))
+        assert dormant.returncode == 4
+        dormant_packet = json.loads(dormant.stdout)
+        validate_packet(dormant_packet, schema)
+        assert dormant_packet["reason_code"] == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE"
+        assert "semantic_usage not_invoked" in dormant_packet["detail"]
+        graph_path.write_bytes(graph_bytes)
+
+        (project / "reviews" / "phase_state.json").write_text(
+            json.dumps({
+                "milestone_framework": {
+                    "policy_bindings": {
+                        "reader_accessibility": {
                             "profile_sha256": "0" * 64,
                             "attestation_view_pin": "1" * 64,
                             "exemplar_view_pin": "2" * 64,

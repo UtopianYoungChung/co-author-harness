@@ -91,17 +91,25 @@ def run_accessibility_prefilters(
     profile_path: Path | None = None,
     wiki_root: Path | None = None,
     workspace_root: Path | None = None,
+    harness_root: Path | None = None,
 ) -> tuple[dict[str, object], Path]:
     """Emit a separate schema-defined candidate artifact; do not overload Finding."""
 
     # Root overrides are threaded through, not re-implemented: resolve_policy
     # already owns the seam (and records path_roots_mode=override in the
     # artifact). Passing None keeps the declared-profile behaviour exactly.
+    # All THREE roots are exposed here. The first cut passed wiki and workspace
+    # only, so an alternate package install could not be pointed at from this
+    # entry point even though resolve_policy and centroid_service both accept
+    # it — an asymmetry that forced callers to reach for a different command to
+    # do the same portable resolution. Recorded 2026-08-06.
     root_kwargs: dict[str, Path] = {}
     if wiki_root is not None:
         root_kwargs["wiki_root"] = wiki_root
     if workspace_root is not None:
         root_kwargs["workspace_root"] = workspace_root
+    if harness_root is not None:
+        root_kwargs["harness_root"] = harness_root
     resolved = (resolve_policy(project_root, profile_path=profile_path, **root_kwargs)
                 if profile_path is not None
                 else resolve_policy(project_root, **root_kwargs))
@@ -143,6 +151,13 @@ def main(argv: List[str] | None = None) -> int:
         type=Path,
         help="Override the domain-native corpus workspace root (testing/migration "
              "only); see --wiki-root. Recorded as path_roots_mode=override.",
+    )
+    parser.add_argument(
+        "--harness-root",
+        type=Path,
+        help="Override the running package root used for contained package "
+             "lookups (testing/migration only); see --wiki-root. Defaults to the "
+             "installed package. Recorded as path_roots_mode=override.",
     )
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
     parser.add_argument("--semantic-receipt", type=Path, help="compatibility-only semantic receipt; emits diagnostic product-assurance findings and never lifecycle evidence")
@@ -267,6 +282,7 @@ def main(argv: List[str] | None = None) -> int:
                 cycle_id=args.cycle_id, output=args.accessibility_out,
                 profile_path=args.accessibility_profile,
                 wiki_root=args.wiki_root, workspace_root=args.workspace_root,
+                harness_root=args.harness_root,
             )
         except (PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
             payload = {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}
