@@ -6,6 +6,28 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.43.0 — 2026-08-08
+
+### Graph-independent reader activation and release qualification closure
+
+**Graph-independent reader policy.** Reader-profile v2 now records
+`semantic_usage: not_invoked` when no governed semantic binding is available,
+so the package can route reader-accessibility obligations without treating a
+structural graph as semantic authority. The atomic refresh path preserves the
+existing fail-closed project-binding and lifecycle boundaries.
+
+**Qualification evidence.** Release qualification now uses a durable,
+receipt-authoritative controller transaction with explicit process ownership,
+environment admission, generation/replay continuity, source and manifest
+bindings, and stable residue checks. A `finalizing` journal is terminal only
+beside its independently validated immutable receipt.
+
+**Versioned boundary.** This history slice makes `0.43.0` the manifest version
+and refreshes the shipment-v2 compatibility projection. The slice itself is
+not source qualification, consumer compatibility, package clearance,
+shipment, installation, host loading, research acceptance, or activation;
+those remain distinct ordered gates.
+
 ## v0.42.0 — 2026-07-30
 
 ### Capability closure and typed shipment v2

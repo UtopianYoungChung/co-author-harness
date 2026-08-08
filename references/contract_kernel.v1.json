@@ -2,6 +2,15 @@
   "schema_version": "1.0.0",
   "kernel_id": "co-author-harness-contract-kernel-v1",
   "plugin_identity_source": ".claude-plugin/plugin.json",
+  "release_history": [
+    {
+      "version": "0.43.0",
+      "date": "2026-08-08",
+      "kind": "mechanical-version-and-history-integration",
+      "release_notes": "docs/release-notes/RELEASE_NOTES_v0.43.0.md",
+      "authority": "historical-only-no-qualification-clearance-shipment-host-or-lifecycle-authority"
+    }
+  ],
   "project_binding": {
     "status": "available-not-yet-project-required",
     "required_field": "contract_kernel",

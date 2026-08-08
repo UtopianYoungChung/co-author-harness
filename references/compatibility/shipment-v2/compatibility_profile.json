@@ -4,13 +4,13 @@
   "binding_state": "template",
   "producer": {
     "name": "co-author-harness",
-    "version": "0.42.0",
+    "version": "0.43.0",
     "commit": null,
     "tree": null
   },
   "contract_kernel": {
     "version": "1.0.0",
-    "sha256": "9bcbfe7f72170439be267eb40ca9c76c216c7adff0bd76eb9c1a28de3b421fb1"
+    "sha256": "582fe53d4d9153b43b8ff9f908a220ca2ac9b098654d7dad2e18d423bdd48ca7"
   },
   "shipment_schema": {
     "version": "2.0.0",
@@ -22,7 +22,7 @@
     "sha256": "14e570572dd1aed67922e61ca2b95b98050f3461768740ef585a92d058217d8c"
   },
   "compatibility_kit": {
-    "sha256": "b1d7bb22599e38f6564f9490e25a7741aca70c61988e3ca4e65fefc7128a1e5b"
+    "sha256": "e258b5bb5991749d6d8eb2659e6ebd013fcddb439490c7f3b425efa26325b5d2"
   },
   "fixture_corpus": {
     "sha256": "8f76f0096000fdb557db39da963d8d011a2aa79295d666ba060113c6fd3a66f5",
