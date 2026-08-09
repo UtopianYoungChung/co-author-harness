@@ -11,12 +11,9 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
-**Release-history integration (v0.43.0).** The version slice retains the full
-root structural suite, complete cache-off fixture registry, residue census, and
-clean detached generation/replay as separate required qualification evidence.
-This historical marker does not turn a check result into package clearance,
-shipment, installation, host loading, lifecycle authority, or research
-acceptance.
+**Release-history integration (v0.43.0).** Qualification keeps separate evidence
+for the full structural suite, cache-off registry, residue census, and clean
+detached generation/replay; it grants no downstream or research authority.
 
 ## 0. Mechanics pre-flight and governed product gate
 
