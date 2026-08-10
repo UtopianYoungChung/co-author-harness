@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import importlib.util
 import inspect
-import hashlib
 import json
 import os
 import signal
@@ -209,6 +210,7 @@ def _wait_for_positive_pid(path: Path, timeout_s: float = 10.0) -> int:
     """Read one atomically published canonical positive base-10 ASCII PID."""
     deadline = time.monotonic() + timeout_s
     missing: FileNotFoundError | None = None
+    access_denied: OSError | None = None
     first_observation = True
     while first_observation or time.monotonic() < deadline:
         first_observation = False
@@ -216,10 +218,20 @@ def _wait_for_positive_pid(path: Path, timeout_s: float = 10.0) -> int:
             raw = path.read_bytes()
         except FileNotFoundError as exc:
             missing = exc
-            time.sleep(.01)
+            access_denied = None
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(min(.01, remaining))
             continue
         except OSError as exc:
-            raise AssertionError(f"PID handoff read failed: {path}: {exc!r}") from exc
+            if not isinstance(exc, PermissionError) and exc.errno != errno.EACCES:
+                raise AssertionError(f"PID handoff read failed: {path}: {exc!r}") from exc
+            access_denied = exc
+            missing = None
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(min(.01, remaining))
+            continue
         try:
             value = raw.decode("ascii", errors="strict")
         except UnicodeError as exc:
@@ -239,6 +251,10 @@ def _wait_for_positive_pid(path: Path, timeout_s: float = 10.0) -> int:
                 f"PID handoff is not canonical positive base-10 ASCII: {path}: raw={raw!r}"
             )
         return pid
+    if access_denied is not None:
+        raise AssertionError(
+            f"PID handoff remained access-denied: {path}: last={access_denied!r}"
+        )
     raise AssertionError(f"PID handoff remained absent: {path}: last={missing!r}")
 
 
@@ -1774,6 +1790,61 @@ def main() -> int:
         handoff_probe.write_bytes(b"123")
         assert _wait_for_positive_pid(handoff_probe) == 123
         handoff_probe.unlink()
+
+        class ScriptedPidHandoff:
+            def __init__(self, outcomes, *, repeat_last: bool = False):
+                self.outcomes = list(outcomes)
+                self.repeat_last = repeat_last
+                self.read_count = 0
+
+            def read_bytes(self) -> bytes:
+                index = self.read_count
+                self.read_count += 1
+                if index >= len(self.outcomes):
+                    if not self.repeat_last:
+                        raise AssertionError("scripted PID handoff exhausted")
+                    index = len(self.outcomes) - 1
+                outcome = self.outcomes[index]
+                if isinstance(outcome, BaseException):
+                    raise outcome
+                return outcome
+
+            def __str__(self) -> str:
+                return "<scripted-pid-handoff>"
+
+        denial_then_success = ScriptedPidHandoff([
+            PermissionError(errno.EACCES, "synthetic access denial"), b"123",
+        ])
+        assert _wait_for_positive_pid(denial_then_success, timeout_s=.1) == 123
+        assert denial_then_success.read_count == 2
+        cases += 1
+
+        persistent_denial = ScriptedPidHandoff(
+            [PermissionError(errno.EACCES, "synthetic persistent access denial")],
+            repeat_last=True,
+        )
+        denial_started = time.monotonic()
+        try:
+            _wait_for_positive_pid(persistent_denial, timeout_s=.025)
+        except AssertionError as exc:
+            assert "PID handoff remained access-denied" in str(exc)
+            assert "PermissionError" in str(exc)
+        else:
+            raise AssertionError("persistent PID handoff access denial was accepted")
+        assert time.monotonic() - denial_started >= .02
+        assert persistent_denial.read_count >= 2
+        cases += 1
+
+        malformed_terminal = ScriptedPidHandoff([b"01", b"123"])
+        try:
+            _wait_for_positive_pid(malformed_terminal, timeout_s=.1)
+        except AssertionError as exc:
+            assert "not canonical positive base-10 ASCII" in str(exc)
+            assert "b'01'" in str(exc)
+        else:
+            raise AssertionError("malformed PID handoff was accepted")
+        assert malformed_terminal.read_count == 1
+        cases += 1
 
         if _FIXTURE_OWNER_MODE:
             _windows_fixture_owner_contract(ctl, root)
@@ -4185,7 +4256,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 51 if os.name != "nt" else 53
+    expected_case_count = 54 if os.name != "nt" else 56
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
