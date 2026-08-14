@@ -6,8 +6,8 @@
 
 **Authority precedence is unchanged** — see `CLAUDE.md §4`. The Grounding Protocol still wins over everything below user instruction. MANIFEST does not alter that ladder.
 
-**Release-history integration (v0.43.0).** The historical release narrative is
-`docs/release-notes/RELEASE_NOTES_v0.43.0.md`; current package identity remains
+**Release-history integration (v0.43.1).** The historical release narrative is
+`docs/release-notes/RELEASE_NOTES_v0.43.1.md`; current package identity remains
 owned solely by `.claude-plugin/plugin.json`. This routing marker grants no
 qualification, clearance, shipment, installation, host, lifecycle, or research
 authority.

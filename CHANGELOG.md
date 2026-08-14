@@ -6,6 +6,26 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.43.1 — 2026-08-14
+
+### Shipment-v2 membership repair and qualification-coverage closure
+
+**Shipment membership.** Shipment-v2 validation now treats `inputs/` as
+immutable preimage evidence while requiring operation bijection only across
+`work/`, `state/`, and `evidence/`. Supplied recoverable copies must be
+inventoried input members whose digest matches the declared preimage.
+
+**Qualification coverage.** The package-completeness controls now route their
+declared `RUNTIME-PLANE-MISSING` diagnostics, and the versioned qualification
+suite includes the static output-economy guard. The prior two-case carve-out
+and candidate-specific output-economy exception do not carry into v0.43.1.
+
+**Versioned boundary.** This slice records package identity, release history,
+compatibility bindings, and the ratcheted token-budget baseline. It is not
+source qualification, consumer compatibility, package clearance, shipment,
+installation, host loading, research acceptance, or activation; those remain
+distinct ordered gates.
+
 ## v0.43.0 — 2026-08-08
 
 ### Graph-independent reader activation and release qualification closure

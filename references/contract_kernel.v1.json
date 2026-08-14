@@ -4,6 +4,13 @@
   "plugin_identity_source": ".claude-plugin/plugin.json",
   "release_history": [
     {
+      "version": "0.43.1",
+      "date": "2026-08-14",
+      "kind": "shipment-v2-membership-repair-and-qualification-coverage-integration",
+      "release_notes": "docs/release-notes/RELEASE_NOTES_v0.43.1.md",
+      "authority": "historical-only-no-qualification-clearance-shipment-host-or-lifecycle-authority"
+    },
+    {
       "version": "0.43.0",
       "date": "2026-08-08",
       "kind": "mechanical-version-and-history-integration",
@@ -622,7 +629,7 @@
       "id": "token-budget-policy",
       "path": "references/policies/token_budget.v1.json",
       "revision_kind": "sha256",
-      "sha256": "1ed83e21242ddb214152ad9ba95c30e72cea382a88c3b088049cf6244c0c4a59",
+      "sha256": "9faa259a8c51a10747311961eeb4813396f3ca0f21abda1513140e55678a2a2a",
       "migration_ids": [
         "qualification-architecture-v1"
       ]

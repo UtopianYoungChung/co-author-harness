@@ -11,9 +11,9 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
-**Release-history integration (v0.43.0).** Qualification keeps separate evidence
-for the full structural suite, cache-off registry, residue census, and clean
-detached generation/replay; it grants no downstream or research authority.
+**Release-history integration (v0.43.1).** Qualification keeps separate evidence
+for shipment-v2 membership, completeness diagnostics, static output-economy,
+and versioned replay; it grants no downstream or research authority.
 
 ## 0. Mechanics pre-flight and governed product gate
 
