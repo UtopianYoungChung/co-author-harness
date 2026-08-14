@@ -33,7 +33,7 @@
     "scripts/analysis/fixture_runner.py": {
       "class": "package_confined",
       "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "e0a7e45eaa02cc622d8e9f1d2340cb19044a9bac1fc85c20d26dd4b3ac34a906"
+      "sha256": "638a014c4fe66b915274e6565b216b9d17ff00647f4578d7d54d55440cbf7f0b"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",

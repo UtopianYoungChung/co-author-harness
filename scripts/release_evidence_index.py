@@ -192,7 +192,7 @@ def _plane_semantics(value: dict[str, Any], *, name: str, status: str, commit: s
                 else "CACHE_PROVENANCE_CONTAMINATED"
             )
             and isinstance(suites, list)
-            and len(suites) == 6
+            and len(suites) == 7
             and all(
                 isinstance(row, dict)
                 and row.get("status") == "passed"

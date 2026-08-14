@@ -93,6 +93,86 @@ def v2_document() -> dict[str, Any]:
     }
 
 
+def reseal_v2_document(document: dict[str, Any]) -> None:
+    inventories = document["inventories"]
+    request = {
+        "shipment_id": document["shipment_id"],
+        "created_at": document["created_at"],
+        "invocation_scope": document["invocation_scope"],
+        "context": document["context"],
+        "trigger_occurrences": document["trigger_occurrences"],
+        "trigger_closures": document["trigger_closures"],
+        "proposed_operations": document["proposed_operations"],
+        "limitations": document["limitations"],
+        "unresolved_findings": document["unresolved_findings"],
+        "inventory": {
+            name: inventories[name] for name in ("inputs", "work", "state", "evidence")
+        },
+        "producer": document["producer"],
+        "contract": document["contract"],
+    }
+    document["transaction"]["seal"]["sha256"] = sr._sha256_json(request)
+
+
+def well_formed_v2_document() -> dict[str, Any]:
+    kernel = json.loads(sr._KERNEL.read_text(encoding="utf-8"))
+    document = {
+        "schema_version": "2.0.0",
+        "shipment_type": "successful_shipment",
+        "shipment_id": "shp-20260730T000000Z-aaaaaaaa",
+        "run_id": "run-20260730T000000Z-bbbbbbbb",
+        "work_id": "w-test",
+        "created_at": "2026-07-30T00:00:00+00:00",
+        "producer": {
+            "name": "co-author-harness",
+            "version": sr._plugin_version(),
+            "commit": sr._harness_commit(),
+        },
+        "contract": {
+            "kernel_version": kernel["schema_version"],
+            "kernel_sha256": sr.normalized_file_sha256(sr._KERNEL),
+            "output_contract_id": "role-output-contract",
+            "output_contract_version": "3.0.0",
+            "output_contract_sha256": sr.normalized_file_sha256(sr._OUTPUT_CONTRACT),
+        },
+        "effect_scope": "proposal_only",
+        "invocation_scope": "lab_iteration",
+        "context": {"kind": "package", "package_event_id": "pkg-event-01"},
+        "trigger_occurrences": [],
+        "trigger_closures": [],
+        "inventories": {
+            "inputs": [
+                {"path": "inputs/candidate.preimage.md", "bytes": 10, "sha256": HASH_B}
+            ],
+            "work": [{"path": "work/candidate.md", "bytes": 10, "sha256": HASH_A}],
+            "state": [],
+            "evidence": [],
+            "shipment": ["shipment/MANIFEST.json"],
+        },
+        "proposed_operations": [{
+            "operation_id": "op-01",
+            "op": "modify",
+            "destination": "research/60_Workbench/w-test/manuscript/candidate.md",
+            "artifact": "work/candidate.md",
+            "artifact_sha256": HASH_A,
+            "preimage": {
+                "state": "present",
+                "sha256": HASH_B,
+                "recoverable_copy": "inputs/candidate.preimage.md",
+            },
+            "postimage_sha256": HASH_A,
+        }],
+        "transaction": {
+            "journal": ["allocated", "members_written", "verified", "manifest_sealed", "closed"],
+            "seal": {"state": "sealed", "state_last": True, "sha256": HASH_B},
+        },
+        "limitations": [],
+        "unresolved_findings": [],
+    }
+    reseal_v2_document(document)
+    return document
+
+
 def mutated_document(mutation: str) -> dict[str, Any]:
     doc = v2_document()
     op = doc["proposed_operations"][0]
@@ -145,7 +225,7 @@ def mutated_document(mutation: str) -> dict[str, Any]:
     return doc
 
 
-def v2_validation_errors(document: dict[str, Any], run_dir: Path) -> list[str]:
+def v2_validation_errors(document: dict[str, Any], run_dir: Path | None) -> list[str]:
     """Call the frozen v2 validator interface when Authority supplies it."""
     try:
         module = importlib.import_module("shipment_contract")
@@ -185,12 +265,192 @@ def receipt_observation(mutation: str, run_dir: Path) -> list[str]:
     return [] if sr.is_applied(run_dir) else ["APPLICATION-UNPROVEN"]
 
 
+def emission_modify_observation(base: Path) -> list[str]:
+    run = make_run(base)
+    input_path = run / "inputs" / "candidate.preimage.md"
+    work_path = run / "work" / "candidate.md"
+    input_path.write_bytes(b"preimage\n")
+    work_path.write_bytes(b"postimage\n")
+    operation = {
+        "op": "modify",
+        "destination": "research/60_Workbench/w-test/manuscript/candidate.md",
+        "artifact": "work/candidate.md",
+        "preimage": {
+            "state": "present",
+            "sha256": sr.sha256_file(input_path),
+            "recoverable_copy": "inputs/candidate.preimage.md",
+        },
+    }
+    try:
+        sr.emit_shipment(
+            run,
+            proposed_operations=[operation],
+            limitations=[],
+            unresolved_findings=[],
+            invocation_scope="lab_iteration",
+            context={"kind": "package", "package_event_id": "pkg-event-emit"},
+        )
+    except Exception as exc:  # noqa: BLE001 - stable code is the observation
+        return [str(getattr(exc, "code", f"UNSTABLE-EXCEPTION {type(exc).__name__}"))]
+    return [str(item) for item in sr.verify_shipment(run)]
+
+
+def matrix_observations(
+    base: Path,
+) -> list[tuple[str, list[str], list[str] | None, list[str]]]:
+    observations: list[tuple[str, list[str], list[str] | None, list[str]]] = []
+
+    accepted = well_formed_v2_document()
+    observations.append(
+        ("matrix-input-work-modify-accepted", [], ["OPERATION-INVENTORY-MISMATCH"], v2_validation_errors(accepted, None))
+    )
+    observations.append(
+        ("matrix-emitted-modify-roundtrip", [], ["OPERATION-INVENTORY-MISMATCH"], emission_modify_observation(base))
+    )
+
+    additional_input = well_formed_v2_document()
+    additional_input["inventories"]["inputs"].append(
+        {"path": "inputs/context.json", "bytes": 2, "sha256": ZERO}
+    )
+    reseal_v2_document(additional_input)
+    observations.append(
+        ("matrix-additional-input-no-operation", [], ["OPERATION-INVENTORY-MISMATCH"], v2_validation_errors(additional_input, None))
+    )
+
+    input_artifact = well_formed_v2_document()
+    input_artifact["inventories"]["work"] = []
+    op = input_artifact["proposed_operations"][0]
+    op["artifact"] = "inputs/candidate.preimage.md"
+    op["artifact_sha256"] = HASH_B
+    op["postimage_sha256"] = HASH_B
+    reseal_v2_document(input_artifact)
+    observations.append(
+        (
+            "matrix-operation-artifact-input",
+            ["OCCURRENCE-STATE-CONTRADICTORY", "OPERATION-INVENTORY-MISMATCH"],
+            ["OCCURRENCE-STATE-CONTRADICTORY"],
+            v2_validation_errors(input_artifact, None),
+        )
+    )
+
+    extra_member = well_formed_v2_document()
+    extra_member["inventories"]["state"] = [
+        {"path": "state/extra.json", "bytes": 2, "sha256": ZERO}
+    ]
+    reseal_v2_document(extra_member)
+    observations.append(
+        ("matrix-extra-operation-root-member", ["OPERATION-INVENTORY-MISMATCH"], None, v2_validation_errors(extra_member, None))
+    )
+
+    missing_artifact = well_formed_v2_document()
+    missing_artifact["proposed_operations"][0]["artifact"] = "work/missing.md"
+    reseal_v2_document(missing_artifact)
+    observations.append(
+        ("matrix-operation-missing-artifact", ["OPERATION-INVENTORY-MISMATCH"], None, v2_validation_errors(missing_artifact, None))
+    )
+
+    recoverable_outside = well_formed_v2_document()
+    recoverable_outside["inventories"]["inputs"] = []
+    recoverable_outside["proposed_operations"][0]["preimage"]["recoverable_copy"] = "work/candidate.md"
+    recoverable_outside["proposed_operations"][0]["preimage"]["sha256"] = HASH_A
+    reseal_v2_document(recoverable_outside)
+    observations.append(
+        ("matrix-recoverable-copy-outside-inputs", ["PREIMAGE-STALE"], [], v2_validation_errors(recoverable_outside, None))
+    )
+
+    recoverable_missing = well_formed_v2_document()
+    recoverable_missing["inventories"]["inputs"] = []
+    recoverable_missing["proposed_operations"][0]["preimage"]["recoverable_copy"] = "inputs/missing.md"
+    reseal_v2_document(recoverable_missing)
+    observations.append(
+        ("matrix-recoverable-copy-not-inventoried", ["PREIMAGE-STALE"], [], v2_validation_errors(recoverable_missing, None))
+    )
+
+    recoverable_hash = well_formed_v2_document()
+    recoverable_hash["proposed_operations"][0]["preimage"]["sha256"] = ZERO
+    reseal_v2_document(recoverable_hash)
+    observations.append(
+        ("matrix-recoverable-copy-hash-mismatch", ["PREIMAGE-STALE"], ["OPERATION-INVENTORY-MISMATCH"], v2_validation_errors(recoverable_hash, None))
+    )
+
+    collision = well_formed_v2_document()
+    collision["inventories"]["inputs"] = []
+    collision["inventories"]["work"].append(
+        {"path": "WORK/CANDIDATE.md", "bytes": 10, "sha256": HASH_A}
+    )
+    collision["proposed_operations"][0].update(op="create", preimage={"state": "absent"})
+    reseal_v2_document(collision)
+    observations.append(
+        ("matrix-artifact-key-collision-rejected", ["PATH-COLLISION"], None, v2_validation_errors(collision, None))
+    )
+
+    create_control = well_formed_v2_document()
+    create_control["inventories"]["inputs"] = []
+    create_control["proposed_operations"][0].update(
+        op="create", preimage={"state": "absent"}
+    )
+    reseal_v2_document(create_control)
+    observations.append(
+        ("matrix-input-free-create-accepted", [], None, v2_validation_errors(create_control, None))
+    )
+
+    tampered_work = well_formed_v2_document()
+    tampered_work["proposed_operations"][0]["artifact_sha256"] = ZERO
+    reseal_v2_document(tampered_work)
+    observations.append(
+        (
+            "matrix-tampered-work-artifact",
+            ["POSTIMAGE-TAMPERED"],
+            ["OPERATION-INVENTORY-MISMATCH", "POSTIMAGE-TAMPERED"],
+            v2_validation_errors(tampered_work, None),
+        )
+    )
+
+    tampered_input_run = make_run(base)
+    input_path = tampered_input_run / "inputs" / "candidate.preimage.md"
+    work_path = tampered_input_run / "work" / "candidate.md"
+    input_path.write_bytes(b"preimage\n")
+    work_path.write_bytes(b"postimage\n")
+    tampered_input = well_formed_v2_document()
+    tampered_input["inventories"] = sr._inventory(tampered_input_run)
+    actual_input_hash = tampered_input["inventories"]["inputs"][0]["sha256"]
+    actual_work_hash = tampered_input["inventories"]["work"][0]["sha256"]
+    tampered_input["inventories"]["inputs"][0]["sha256"] = ZERO
+    tampered_input["proposed_operations"][0]["artifact_sha256"] = actual_work_hash
+    tampered_input["proposed_operations"][0]["postimage_sha256"] = actual_work_hash
+    tampered_input["proposed_operations"][0]["preimage"]["sha256"] = actual_input_hash
+    reseal_v2_document(tampered_input)
+    observations.append(
+        (
+            "matrix-tampered-input",
+            ["PREIMAGE-STALE", "POSTIMAGE-TAMPERED"],
+            ["OPERATION-INVENTORY-MISMATCH", "POSTIMAGE-TAMPERED"],
+            v2_validation_errors(tampered_input, tampered_input_run),
+        )
+    )
+
+    tampered_seal = well_formed_v2_document()
+    tampered_seal["transaction"]["seal"] = {"state": "interrupted", "state_last": False}
+    observations.append(
+        (
+            "matrix-tampered-seal",
+            ["TX-UNSEALED"],
+            ["OPERATION-INVENTORY-MISMATCH", "TX-UNSEALED"],
+            v2_validation_errors(tampered_seal, None),
+        )
+    )
+    return observations
+
+
 def main() -> int:
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
     expected_reds: list[str] = []
     unexpected_passes: list[str] = []
     unexpected: list[str] = []
     passing_controls: list[str] = []
+    matrix_expected_reds: list[str] = []
+    matrix_passes: list[str] = []
+    matrix_unexpected: list[dict[str, Any]] = []
 
     with tempfile.TemporaryDirectory(prefix="shipment-v2-c1-") as td:
         base = Path(td)
@@ -236,6 +496,35 @@ def main() -> int:
                         f"observed={errors[:2]}"
                     )
                     expected_reds.append(case["id"])
+
+            for case_id, green_codes, red_codes, errors in matrix_observations(base):
+                observed = set(errors)
+                green = set(green_codes)
+                red = set(red_codes) if red_codes is not None else None
+                if observed == green and len(errors) == len(green_codes):
+                    print(
+                        f"MATRIX_PASS {case_id} expected={green_codes} observed={errors}"
+                    )
+                    matrix_passes.append(case_id)
+                elif red is not None and observed == red and len(errors) == len(red_codes):
+                    print(
+                        f"MATRIX_EXPECTED_RED {case_id} expected_green={green_codes} "
+                        f"expected_red={red_codes} observed={errors}"
+                    )
+                    matrix_expected_reds.append(case_id)
+                else:
+                    print(
+                        f"MATRIX_UNEXPECTED {case_id} expected_green={green_codes} "
+                        f"expected_red={red_codes} observed={errors}"
+                    )
+                    matrix_unexpected.append(
+                        {
+                            "id": case_id,
+                            "expected_green": green_codes,
+                            "expected_red": red_codes,
+                            "observed": errors,
+                        }
+                    )
         finally:
             os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
 
@@ -245,9 +534,12 @@ def main() -> int:
         "unexpected_pass_ids": unexpected_passes,
         "unexpected_failures": unexpected,
         "passing_controls": passing_controls,
+        "matrix_expected_red_ids": matrix_expected_reds,
+        "matrix_pass_ids": matrix_passes,
+        "matrix_unexpected": matrix_unexpected,
     }
     print("C1_RED_SUMMARY " + json.dumps(summary, sort_keys=True))
-    return 1 if expected_reds or unexpected else 0
+    return 1 if expected_reds or unexpected or matrix_expected_reds or matrix_unexpected else 0
 
 
 if __name__ == "__main__":

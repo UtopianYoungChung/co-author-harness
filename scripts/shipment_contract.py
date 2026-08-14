@@ -322,6 +322,11 @@ def _validate_operations(
         diagnostics.add("OPERATION-INVENTORY-MISMATCH")
         return
 
+    operation_inventory = {
+        key: member
+        for key, member in inventory.items()
+        if key.startswith(("work/", "state/", "evidence/"))
+    }
     operation_keys: list[str] = []
     observed_preimage = document.get("fixture_destination_preimage_sha256")
     for operation in operations:
@@ -334,7 +339,7 @@ def _validate_operations(
             diagnostics.add("OPERATION-INVENTORY-MISMATCH")
             continue
         operation_keys.append(artifact_key)
-        member = inventory.get(artifact_key)
+        member = operation_inventory.get(artifact_key)
         if member is None:
             diagnostics.add("OPERATION-INVENTORY-MISMATCH")
         else:
@@ -358,12 +363,25 @@ def _validate_operations(
             expected = operation.get("observed_preimage_sha256", observed_preimage)
             if expected is not None and preimage.get("sha256") != expected:
                 diagnostics.add("PREIMAGE-STALE")
+            recoverable_copy = preimage.get("recoverable_copy")
+            if recoverable_copy is not None:
+                recoverable_key = _safe_key(recoverable_copy, diagnostics)
+                recoverable_member = (
+                    inventory.get(recoverable_key) if recoverable_key is not None else None
+                )
+                if (
+                    recoverable_key is None
+                    or not recoverable_key.startswith("inputs/")
+                    or recoverable_member is None
+                    or recoverable_member.get("sha256") != preimage.get("sha256")
+                ):
+                    diagnostics.add("PREIMAGE-STALE")
             if op in {"move", "rename", "delete"} and (
                 not operation.get("source") or not preimage.get("recoverable_copy")
             ):
                 diagnostics.add("PREIMAGE-STALE")
 
-    if Counter(operation_keys) != Counter(inventory.keys()):
+    if Counter(operation_keys) != Counter(operation_inventory.keys()):
         diagnostics.add("OPERATION-INVENTORY-MISMATCH")
 
 

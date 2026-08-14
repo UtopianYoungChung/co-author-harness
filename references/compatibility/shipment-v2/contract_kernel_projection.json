@@ -4,7 +4,7 @@
   "kernel": {
     "id": "co-author-harness-contract-kernel-v1",
     "version": "1.0.0",
-    "sha256": "582fe53d4d9153b43b8ff9f908a220ca2ac9b098654d7dad2e18d423bdd48ca7"
+    "sha256": "2e49a0c20ac19b93a30810d8eb05f9c29582145ae461c5c867e37086f62a1645"
   },
   "components": [
     {"id": "role-output-machine-contract", "version": "3.0.0", "sha256": "14e570572dd1aed67922e61ca2b95b98050f3461768740ef585a92d058217d8c", "migration_ids": ["milestone-path-contract-v2", "role-output-contract-v3"]},
@@ -16,7 +16,7 @@
     {"id": "shipment-refusal-receipt-schema", "version": "1.0.0", "sha256": "e39f47583c29e1adb8a58f5d3be799346d474cf8280e4f1574396a723d1d3a5c", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
     {"id": "shipment-recovery-receipt-schema", "version": "1.0.0", "sha256": "034a13425414186fccde6a97d1d6c8b3439d27dd45327bec30e07d8b160f8c34", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
     {"id": "output-contract", "version": "3.0.0", "sha256": "9a553c945a93a68688b9592b49535e104a4fbf8c968ddf05cff9aeafb0bcca8a", "migration_ids": ["role-output-contract-v3", "typed-output-transaction-v1"]},
-    {"id": "shipment-contract", "version": "2.0.0", "sha256": "54fd4b5f9a41e32ce592a608ad81de78dc39ab2e37da52ff89c39d566040df99", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1", "consumer-compatibility-v1"]},
+    {"id": "shipment-contract", "version": "2.0.0", "sha256": "66a417e110331e792034d44bdc62349098510fa69473d83689443e5e597754e3", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1", "consumer-compatibility-v1"]},
     {"id": "staging-run", "version": "typed-output-transaction-v1", "sha256": "a8dc474a75ece21d161f7b4b7c3ab652e58960452db58341f1debbbed71e35ab", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1", "consumer-compatibility-v1"]},
     {"id": "capability-registry", "version": "2.0.0", "sha256": "29d9e613862607387c07fceb45a243bc4b5fac0b651d828516d73ae15e4d2e07", "migration_ids": ["capability-closure-six-plane-v1"]}
   ],

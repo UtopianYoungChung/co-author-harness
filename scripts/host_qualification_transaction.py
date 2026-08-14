@@ -42,6 +42,7 @@ EXPECTED_RUNTIME_SUITES = (
     ("skill_check", "portable_core", "scripts/skill-check.py"),
     ("shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"),
     ("output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"),
+    ("output_economy_static_check", "portable_core", "scripts/output_economy_check.py"),
 )
 STARTUP_ATTESTATION_CONTRACT = (
     "startup_catalog_missing_refused",

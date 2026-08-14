@@ -85,7 +85,7 @@ def cache_plane_receipt(commit: str) -> dict:
         "cache_state": "CODEX_CACHE_QUALIFIED",
         "suites": [
             {"name": f"suite-{index}", "status": "passed", "returncode": 0}
-            for index in range(6)
+            for index in range(7)
         ],
         "findings": [],
         "verdict": "qualified",

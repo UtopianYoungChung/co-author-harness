@@ -87,6 +87,7 @@ payload={
   {"name":"skill_check","kind":"portable_core","script":"scripts/skill-check.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
   {"name":"shipment_manifest_v2_smoketest","kind":"portable_core","script":"scripts/shipment_manifest_smoketest.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
   {"name":"output_contract_v3_smoketest","kind":"portable_core","script":"scripts/output_contract_smoketest.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
+  {"name":"output_economy_static_check","kind":"portable_core","script":"scripts/output_economy_check.py","argv":[sys.executable,"-I"],"cwd":str(args.local_root),"returncode":0,"status":"passed","stdout_sha256":zero,"stderr_sha256":zero},
  ],
  "findings":findings,"verdict":verdict,
 }

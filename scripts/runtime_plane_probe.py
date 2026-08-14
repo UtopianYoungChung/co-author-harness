@@ -72,6 +72,11 @@ DEFAULT_SUITES: tuple[Mapping[str, str], ...] = (
         "kind": "portable_core",
         "script": "scripts/output_contract_smoketest.py",
     },
+    {
+        "name": "output_economy_static_check",
+        "kind": "portable_core",
+        "script": "scripts/output_economy_check.py",
+    },
 )
 
 
@@ -897,7 +902,7 @@ def probe_plane(
     if suite_signature != required_signature:
         raise ProbeRefusal(
             "RUNTIME-PLANE-SUITES",
-            "the runtime qualification must run all six frozen core suites exactly once",
+            "the runtime qualification must run all seven frozen core suites exactly once",
         )
     externally_bound_without_local_provenance = (
         embedded_provenance["status"] == "missing"

@@ -140,7 +140,7 @@
       "id": "shipment-contract",
       "path": "scripts/shipment_contract.py",
       "revision_kind": "sha256",
-      "sha256": "54fd4b5f9a41e32ce592a608ad81de78dc39ab2e37da52ff89c39d566040df99",
+      "sha256": "66a417e110331e792034d44bdc62349098510fa69473d83689443e5e597754e3",
       "migration_ids": [
         "shipment-manifest-v2",
         "typed-output-transaction-v1",
@@ -545,7 +545,7 @@
       "id": "runtime-plane-probe",
       "path": "scripts/runtime_plane_probe.py",
       "revision_kind": "sha256",
-      "sha256": "02ef70c7c6058270da429385cb08c89f65a75c0d7223ed03668bf397aa1a028b",
+      "sha256": "f4e44533e74e3b29755f30716874c952fa7a41523c7b9b811a72af66a9cc00a8",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -561,7 +561,7 @@
       "id": "host-qualification-transaction",
       "path": "scripts/host_qualification_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "2c481357f4fc30e873a6ec135bf8097b8ddc290a773449ff42d3fa63b34c7619",
+      "sha256": "2e8dc37287c696118047fb8be8ce0a22d92d5cb4ac17fb05ae3ae49a58f08fed",
       "migration_ids": []
     },
     {
@@ -658,7 +658,7 @@
       "id": "release-evidence-index",
       "path": "scripts/release_evidence_index.py",
       "revision_kind": "sha256",
-      "sha256": "491b4cc621d3c99415ba8f950d13690e5b89a0d021d37d58a24e11a4b3787fc7",
+      "sha256": "462544a879a18305e3902b7eb5f08fda28a94dc5a09725208ac3753c1ad5757b",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -856,7 +856,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "71b84331461b286a802587550c7fc470f237e47321eab276ea1b7e9b8a069825",
+      "sha256": "2a32e0b9eca525b2088953e2c5e9ed53556686cc12c1d16239e1bc925f9bee47",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1000,7 +1000,7 @@
       "id": "skill-run-phase-4",
       "path": "skills/run-phase-4/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "2b4ddcd5e33c82f54e628933bca4bb96deb45362cdd695d90e9e765b2f721768",
+      "sha256": "a3f527f53f0311ccb6a66fa71f3826be1bd07d9c99ccf340c77b51379708dc99",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1027,7 +1027,7 @@
       "id": "archive-runtime-probe",
       "path": "scripts/archive_runtime_probe.py",
       "revision_kind": "sha256",
-      "sha256": "f91310b20efcfc4dec336c1982ae7351422bfbcee3aab545e7e09f11f4ec8f7c",
+      "sha256": "c0c61dfb107d27a31d38314032fa0055a2a304e102692d511e2f42d5f5912c9d",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -1036,7 +1036,7 @@
       "id": "runtime-plane-probe-smoketest",
       "path": "scripts/runtime_plane_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "8b8623c2afc99175ed4f31499503da2b8f88fb2f474d6d0e2a420ac2a6aef98c",
+      "sha256": "6cb1015df8b8a631de3a22bac10aef23d14b7403b1558ceb646f85f9a48ac4bd",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -1045,7 +1045,7 @@
       "id": "archive-runtime-probe-smoketest",
       "path": "scripts/archive_runtime_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "2e0fb671ede323b04de0a0aa29cd1a055eb7e22d98ff5ec9d58919398372ad87",
+      "sha256": "09cc72fcc1094611871cc9cadc6da423f626a23accef1447a1d046df0e807e25",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -1054,7 +1054,7 @@
       "id": "shipment-manifest-v2-smoketest",
       "path": "scripts/shipment_manifest_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "38850c2c6b5103d8103c2a960e14946c2ddcf46743534630e27873e8974a9686",
+      "sha256": "68e268e24fba4c4a26c65943657c10e206e0bb99a400aae6374ec50cbd97e008",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -1072,7 +1072,7 @@
       "id": "package-completeness-smoketest",
       "path": "scripts/package_completeness_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "8c7e5edae2fc15b22dbc26383230a470452c4f84daee7cffcdbd48e077c62b37",
+      "sha256": "f37782c8968fb082c1c6ca8aac9e8a8aa8e54a952f9e582adfcdc73600aa76a5",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]

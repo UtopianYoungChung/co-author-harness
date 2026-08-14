@@ -12,8 +12,8 @@
     {"id": "cap-status-behavior-contradiction", "kind": "status_contradiction", "expected_code": "CAP-STATUS-CONTRADICTION"},
     {"id": "cap-kernel-stale", "kind": "stale_kernel", "expected_code": "CONTRACT-HASH-STALE"},
     {"id": "cap-runtime-stale", "kind": "stale_runtime", "expected_code": "RUNTIME-PLANE-MISSING"},
-    {"id": "runtime-archive-suite-missing", "kind": "archive_suite", "expected_code": "RUNTIME-PLANE-MISSING"},
-    {"id": "runtime-cache-suite-missing", "kind": "cache_suite", "expected_code": "RUNTIME-PLANE-MISSING"}
+    {"id": "runtime-archive-suite-missing", "kind": "archive_suite", "suite": ["output_economy_static_check", "portable_core", "scripts/output_economy_check.py"], "expected_code": "RUNTIME-PLANE-MISSING"},
+    {"id": "runtime-cache-suite-missing", "kind": "cache_suite", "suite": ["output_economy_static_check", "portable_core", "scripts/output_economy_check.py"], "expected_code": "RUNTIME-PLANE-MISSING"}
   ],
   "controls": [
     {"id": "control-current-capability-registry-valid"},
@@ -22,6 +22,7 @@
   ],
   "required_runtime_suites": [
     ["shipment_manifest_v2_smoketest", "portable_core", "scripts/shipment_manifest_smoketest.py"],
-    ["output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"]
+    ["output_contract_v3_smoketest", "portable_core", "scripts/output_contract_smoketest.py"],
+    ["output_economy_static_check", "portable_core", "scripts/output_economy_check.py"]
   ]
 }

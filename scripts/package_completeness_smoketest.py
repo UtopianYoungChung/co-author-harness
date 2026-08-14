@@ -109,14 +109,25 @@ def main() -> int:
         case_id = case["id"]
         kind = case["kind"]
         if kind == "archive_suite":
-            passed = required_suites.issubset(archive_suites)
+            observed_suites = archive_suites - {tuple(case["suite"])}
+            errors = [
+                f"RUNTIME-PLANE-MISSING {case_id}: {row[0]}"
+                for row in sorted(required_suites - observed_suites)
+            ]
         elif kind == "cache_suite":
-            passed = required_suites.issubset(runtime_suites)
+            observed_suites = runtime_suites - {tuple(case["suite"])}
+            errors = [
+                f"RUNTIME-PLANE-MISSING {case_id}: {row[0]}"
+                for row in sorted(required_suites - observed_suites)
+            ]
         else:
             errors = checker.validate(ROOT, synthetic_registry(current, case))
-            passed = has_code(errors, case["expected_code"])
+        passed = has_code(errors, case["expected_code"])
         if passed:
-            print(f"UNEXPECTED_PASS {case_id} code={case['expected_code']}")
+            print(
+                f"UNEXPECTED_PASS {case_id} code={case['expected_code']} "
+                f"observed={errors[:2]}"
+            )
             unexpected_passes.append(case_id)
         else:
             print(f"EXPECTED_RED {case_id} missing={case['expected_code']}")
