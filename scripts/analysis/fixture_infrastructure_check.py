@@ -429,15 +429,60 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
 
     # Upfront void: a RED mini run must (a) void the prior manifest at start,
     # (b) return 1, (c) write nothing new.
+    transcript_suite = "scripts/failure_transcript_probe_smoketest.py"
+    transcript_stdout = (
+        "stdout-first\nstdout-second\nstdout-third\nstdout-last\n"
+        .replace("\n", os.linesep).encode("utf-8")
+    )
+    transcript_stderr = (
+        "stderr-first\nstderr-second\nstderr-last\n"
+        .replace("\n", os.linesep).encode("utf-8")
+    )
+    (repo / transcript_suite).write_text(
+        "import sys\n"
+        "sys.stdout.write('stdout-first\\nstdout-second\\nstdout-third\\nstdout-last\\n')\n"
+        "sys.stderr.write('stderr-first\\nstderr-second\\nstderr-last\\n')\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     bad_registry = {FAST_SUITE: [dict(runner._default_case(), expected_exit=1)]}
+    transcript_registry = {
+        transcript_suite: [dict(runner._default_case(), expected_exit=1)]
+    }
+    transcript_root = Path(tempfile.mkdtemp(prefix="fixture-failure-transcripts-"))
     rc = runner.run(
-        bad_registry,
-        universe,
+        transcript_registry,
+        [transcript_suite],
+        failure_transcript_root=transcript_root,
         _test_only_allow_noncanonical_write=True,
     )
     check("red run returns 1", rc == 1, f"rc={rc}")
     check("red run leaves NO manifest (old green evidence voided)",
           not dummy.is_file())
+    transcript_index = transcript_root / "failure-transcripts.json"
+    check("red run writes a failure transcript index", transcript_index.is_file())
+    if transcript_index.is_file():
+        transcript = json.loads(transcript_index.read_text(encoding="utf-8"))
+        failures = transcript.get("failures", [])
+        check("transcript index retains one failed case", len(failures) == 1)
+        if len(failures) == 1:
+            failure = failures[0]
+            check("transcript retains suite identity",
+                  failure.get("fixture_file") == transcript_suite)
+            check("transcript retains case identity",
+                  failure.get("case_id") == "default")
+            for stream, expected in (
+                ("stdout", transcript_stdout), ("stderr", transcript_stderr),
+            ):
+                stream_binding = failure.get(stream, {})
+                stream_path = transcript_root / stream_binding.get("path", "missing")
+                observed = stream_path.read_bytes() if stream_path.is_file() else None
+                check(f"{stream} transcript preserves complete bytes", observed == expected)
+                check(f"{stream} transcript byte count is bound",
+                      stream_binding.get("byte_length") == len(expected))
+                check(f"{stream} transcript SHA-256 is bound",
+                      stream_binding.get("sha256") == hashlib.sha256(expected).hexdigest())
+    shutil.rmtree(transcript_root)
 
     # Green mini run writes evidence again.
     rc = runner.run(
@@ -567,6 +612,59 @@ def case_suite_process_tree_ownership() -> None:
 
         runner.fixture_cache.stage_entry = counted_stage
         runner.fixture_cache.publish_staged = counted_publish
+
+        infrastructure_stdout = b"infrastructure-stdout\n"
+        infrastructure_stderr = b"infrastructure-stderr\n"
+        infrastructure_suite = _write_process_suite(
+            root,
+            "import os,time\n"
+            f"os.write(1,{infrastructure_stdout!r})\n"
+            f"os.write(2,{infrastructure_stderr!r})\n"
+            "time.sleep(5)\n",
+        )
+        transcript_root = root / "infrastructure-error-transcripts"
+        transcript_root.mkdir()
+        rc = runner.run(
+            {infrastructure_suite: [runner._default_case(timeout_s=0.25)]},
+            [infrastructure_suite],
+            failure_transcript_root=transcript_root,
+            _test_only_allow_noncanonical_write=True,
+        )
+        check("infrastructure error run returns 2", rc == 2, f"rc={rc}")
+        transcript_index = transcript_root / "failure-transcripts.json"
+        check("infrastructure error writes a transcript index", transcript_index.is_file())
+        if transcript_index.is_file():
+            transcript = json.loads(transcript_index.read_text(encoding="utf-8"))
+            failures = transcript.get("failures", [])
+            check("infrastructure transcript retains one error case", len(failures) == 1)
+            if len(failures) == 1:
+                failure = failures[0]
+                check("infrastructure transcript retains suite identity",
+                      failure.get("fixture_file") == infrastructure_suite)
+                check("infrastructure transcript retains case identity",
+                      failure.get("case_id") == "default")
+                check("infrastructure transcript retains typed diagnostic",
+                      failure.get("diagnostic", {}).get("code") == "FIXTURE-PROCESS-TIMEOUT")
+                check("infrastructure transcript records no direct exit",
+                      failure.get("observed_exit") is None)
+                for stream, expected in (
+                    ("stdout", infrastructure_stdout),
+                    ("stderr", infrastructure_stderr),
+                ):
+                    stream_binding = failure.get(stream, {})
+                    relative_path = Path(stream_binding.get("path", "missing"))
+                    stream_path = transcript_root / relative_path
+                    check(f"infrastructure {stream} path is capture-root relative",
+                          not relative_path.is_absolute() and ".." not in relative_path.parts)
+                    observed = stream_path.read_bytes() if stream_path.is_file() else None
+                    check(f"infrastructure {stream} preserves complete bytes",
+                          observed == expected)
+                    check(f"infrastructure {stream} byte count is bound",
+                          stream_binding.get("byte_length") == len(expected))
+                    check(f"infrastructure {stream} SHA-256 is bound",
+                          stream_binding.get("sha256") == hashlib.sha256(expected).hexdigest())
+        check("infrastructure transcripts stay inside the capture root",
+              all(path.parent == transcript_root for path in transcript_root.iterdir()))
 
         if os.name == "nt":
             identity_sentinel = root / "windows-executable-identity-ran.txt"
@@ -1667,7 +1765,7 @@ while True:
             check(
                 "runner lock is reusable after every refusal",
                 not lock_state["held"]
-                and lock_state["acquired"] == lock_state["released"] == 4,
+                and lock_state["acquired"] == lock_state["released"] == 5,
                 repr(lock_state),
             )
             written = json.loads(manifest.read_text(encoding="utf-8"))

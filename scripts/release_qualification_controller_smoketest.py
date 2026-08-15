@@ -1768,6 +1768,63 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="release-controller-smoke-") as raw:
         root = Path(raw)
 
+        native_environment = root / "work" / "native-environment.json"
+        native_cli = ctl._parser().parse_args([
+            "run", "--run-root", str(root / "cli-runs"), "--run-id", "native-cli",
+            "--cwd", str(root), "--dependency-mode", "native", "--",
+            sys.executable, "-c", "print('native-cli')",
+        ])
+        assert native_cli.dependency_mode == "native"
+        _start(
+            ctl,
+            root,
+            "native-dependency-mode",
+            "import json,os;from pathlib import Path;"
+            f"Path({str(native_environment)!r}).write_text(json.dumps({{"
+            "'pythonpath_present':'PYTHONPATH' in os.environ,"
+            "'no_user_site':os.environ.get('PYTHONNOUSERSITE')},sort_keys=True),"
+            "encoding='ascii')",
+            dependency_mode="native",
+            allowed_output_roots=[root / "work"],
+        )
+        native_receipt = _wait(ctl, root, "native-dependency-mode")
+        native_intent = json.loads(
+            (root / "runs" / "native-dependency-mode" / "intent.json").read_text(
+                encoding="ascii"
+            )
+        )
+        assert native_receipt["state"] == "succeeded", native_receipt
+        assert native_receipt["dependency_mode"] == "native"
+        assert native_intent["dependency_mode"] == "native"
+        assert json.loads(native_environment.read_text(encoding="ascii")) == {
+            "no_user_site": "1",
+            "pythonpath_present": False,
+        }
+        cases += 1
+
+        # The terminal receipt must bind the resolved dependency mode in both
+        # directions; a schema-valid flip cannot change execution provenance.
+        for original_mode, flipped_mode in (
+            ("native", "enumerated"), ("enumerated", "native"),
+        ):
+            run_id = f"dependency-mode-tamper-{original_mode}"
+            _start(
+                ctl, root, run_id, "print('dependency-mode-bound')",
+                dependency_mode=original_mode,
+            )
+            _wait(ctl, root, run_id)
+            receipt_path = root / "runs" / run_id / "receipt.json"
+            receipt_value = json.loads(receipt_path.read_text(encoding="ascii"))
+            assert receipt_value["dependency_mode"] == original_mode
+            receipt_value["dependency_mode"] = flipped_mode
+            receipt_path.write_text(
+                json.dumps(receipt_value, sort_keys=True), encoding="ascii",
+            )
+            _expect("EVIDENCE_INCOMPLETE", lambda run_id=run_id: ctl.status_run(
+                run_root=root / "runs", run_id=run_id,
+            ))
+            cases += 1
+
         handoff_probe = root / "positive-pid-handoff.probe"
         try:
             _wait_for_positive_pid(handoff_probe, timeout_s=.001)
@@ -4256,7 +4313,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 54 if os.name != "nt" else 56
+    expected_case_count = 57 if os.name != "nt" else 59
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)

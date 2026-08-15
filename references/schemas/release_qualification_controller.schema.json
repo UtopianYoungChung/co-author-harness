@@ -4,7 +4,7 @@
   "title": "Release qualification controller terminal receipt",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "receipt_type", "run_id", "request_sha256", "intent_sha256", "intent", "state", "argv", "cwd", "environment_delta", "inputs", "input_roots", "ignored_output_paths", "controller_created_output_roots", "worker", "process", "timestamps", "exit", "exit_capsule", "prechild_refusal", "child_attestation", "stdout", "stderr", "journal", "diagnostic", "recovered"],
+  "required": ["schema_version", "receipt_type", "run_id", "request_sha256", "intent_sha256", "intent", "state", "argv", "cwd", "dependency_mode", "environment_delta", "inputs", "input_roots", "ignored_output_paths", "controller_created_output_roots", "worker", "process", "timestamps", "exit", "exit_capsule", "prechild_refusal", "child_attestation", "stdout", "stderr", "journal", "diagnostic", "recovered"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "receipt_type": {"const": "release_qualification_controller"},
@@ -15,6 +15,7 @@
     "state": {"enum": ["succeeded", "child_failed", "cancelled", "refused", "evidence_incomplete"]},
     "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "cwd": {"type": "string", "minLength": 1},
+    "dependency_mode": {"enum": ["enumerated", "native"]},
     "environment_delta": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
     "inputs": {"type": "array", "items": {"$ref": "#/$defs/binding"}},
     "input_roots": {

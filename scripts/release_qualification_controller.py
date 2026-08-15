@@ -95,8 +95,9 @@ REGRESSION_CONTRACT = (
 _REQUEST_IDENTITY_KEYS = (
     "schema_version", "run_id", "argv", "cwd", "environment_delta", "inputs",
     "input_roots", "allowed_output_roots", "output_watch_roots", "ignored_output_paths",
-    "allow_user_site", "child_attestation", "test_fault",
+    "dependency_mode", "allow_user_site", "child_attestation", "test_fault",
 )
+_DEPENDENCY_MODES = ("enumerated", "native")
 _ATTESTATION_ENV = (
     "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR",
     "COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN",
@@ -369,6 +370,7 @@ def _validate_terminal(paths: Mapping[str, Path], value: dict[str, Any]) -> dict
         value.get("intent_sha256") != intent.get("intent_sha256")
         or value.get("argv") != intent.get("argv")
         or value.get("cwd") != intent.get("cwd")
+        or value.get("dependency_mode") != intent.get("dependency_mode")
         or value.get("environment_delta") != intent.get("environment_delta")
         or value.get("inputs") != intent.get("inputs")
         or value.get("input_roots") != intent.get("input_roots")
@@ -1777,10 +1779,21 @@ def start_run(
     input_paths: Iterable[str | Path] = (), input_roots: Iterable[str | Path] = (),
     allowed_output_roots: Iterable[str | Path] = (), output_watch_roots: Iterable[str | Path] = (),
     ignored_output_paths: Iterable[str | Path] = (), detached: bool = True,
-    allow_user_site: bool = False, child_attestation: bool = False,
+    dependency_mode: str = "enumerated", allow_user_site: bool = False,
+    child_attestation: bool = False,
     _test_fault: str | None = None,
 ) -> dict[str, Any]:
     assert_ambient_clean()
+    if dependency_mode not in _DEPENDENCY_MODES:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-DEPENDENCY-MODE",
+            f"unsupported dependency mode: {dependency_mode!r}",
+        )
+    if dependency_mode == "native" and allow_user_site:
+        raise ControllerRefusal(
+            "RELEASE-CONTROLLER-DEPENDENCY-MODE",
+            "native dependency mode requires user-site isolation",
+        )
     command = list(argv)
     _check_argv(command)
     cwd_path = Path(cwd).resolve(strict=True)
@@ -1791,7 +1804,9 @@ def start_run(
     dependencies = _dependency_paths()
     _, recorded_delta = controlled_environment(
         delta=environment_delta,
-        dependency_paths=None if allow_user_site else dependencies,
+        dependency_paths=(
+            None if allow_user_site or dependency_mode == "native" else dependencies
+        ),
         allow_user_site=allow_user_site,
     )
     allowed_candidates = [Path(path) for path in allowed_output_roots]
@@ -1848,7 +1863,8 @@ def start_run(
         "environment_delta": recorded_delta, "inputs": _inputs(input_paths),
         "input_roots": _input_roots(input_roots, ignored_paths=ignored),
         "allowed_output_roots": allowed, "output_watch_roots": watched,
-        "ignored_output_paths": ignored, "allow_user_site": allow_user_site,
+        "ignored_output_paths": ignored, "dependency_mode": dependency_mode,
+        "allow_user_site": allow_user_site,
         "child_attestation": child_attestation, "test_fault": _test_fault,
     }
     request_sha = _sha_bytes(_canonical(request_core))
@@ -2089,7 +2105,9 @@ def _finish(
         "run_id": intent["run_id"], "request_sha256": intent["request_sha256"],
         "intent_sha256": intent["intent_sha256"], "state": state,
         "intent": _binding(paths["intent"]),
-        "argv": intent["argv"], "cwd": intent["cwd"], "environment_delta": intent["environment_delta"],
+        "argv": intent["argv"], "cwd": intent["cwd"],
+        "dependency_mode": intent["dependency_mode"],
+        "environment_delta": intent["environment_delta"],
         "inputs": intent["inputs"], "input_roots": intent["input_roots"],
         "ignored_output_paths": intent["ignored_output_paths"],
         "controller_created_output_roots": intent["controller_created_output_roots"],
@@ -2482,9 +2500,14 @@ def _worker(run_dir: Path) -> int:
             environment=worker_base,
             delta={key: value for key, value in intent["environment_delta"].items()
                    if not key.upper().startswith("PYTHON")},
-            dependency_paths=(None if intent.get("allow_user_site") else tuple(
-                filter(None, intent["environment_delta"].get("PYTHONPATH", "").split(os.pathsep))
-            )),
+            dependency_paths=(
+                None
+                if intent["dependency_mode"] == "native" or intent.get("allow_user_site")
+                else tuple(filter(
+                    None,
+                    intent["environment_delta"].get("PYTHONPATH", "").split(os.pathsep),
+                ))
+            ),
             allow_user_site=bool(intent.get("allow_user_site")),
         )
     except QualificationEnvironmentRefusal as exc:
@@ -2712,6 +2735,7 @@ def _parser() -> argparse.ArgumentParser:
         start.add_argument("--allowed-output", action="append", default=[]); start.add_argument("--watch-root", action="append", default=[])
         start.add_argument("--ignored-output", action="append", default=[])
         start.add_argument("--env", action="append", default=[]); start.add_argument("--timeout", type=float, default=None)
+        start.add_argument("--dependency-mode", choices=_DEPENDENCY_MODES, default="enumerated")
         start.add_argument("--allow-user-site", action="store_true")
         start.add_argument("--child-attestation", action="store_true")
         start.add_argument("argv", nargs=argparse.REMAINDER)
@@ -2764,6 +2788,7 @@ def main(argv: list[str] | None = None) -> int:
                               environment_delta=delta, input_paths=args.input, input_roots=args.input_root,
                               allowed_output_roots=args.allowed_output, output_watch_roots=args.watch_root,
                               ignored_output_paths=args.ignored_output,
+                              dependency_mode=args.dependency_mode,
                               allow_user_site=args.allow_user_site,
                               child_attestation=args.child_attestation)
             if args.command == "run":

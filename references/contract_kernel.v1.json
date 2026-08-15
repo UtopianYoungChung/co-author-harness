@@ -584,7 +584,7 @@
       "id": "release-qualification-controller-schema",
       "path": "references/schemas/release_qualification_controller.schema.json",
       "revision_kind": "sha256",
-      "sha256": "71a1a0a213cd832aec529852658f20d809ffbb2937ad780833b607166f7c9b14",
+      "sha256": "3e6b33adbd138e74900478d62db03af1804aba6752b71d71d873725e6be52f2f",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -593,7 +593,7 @@
       "id": "release-qualification-controller",
       "path": "scripts/release_qualification_controller.py",
       "revision_kind": "sha256",
-      "sha256": "89458f876beb086e476d22fa3d3a9bee4bc6530a68e049c7541e7623620f3701",
+      "sha256": "d9cbb6f9b90e097b08884c52dcd70b465bd7aa7384ee9cc2fd544318e042f1a9",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -835,7 +835,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "638a014c4fe66b915274e6565b216b9d17ff00647f4578d7d54d55440cbf7f0b",
+      "sha256": "6d671875e131e8c0a4c1f99d73034c2f2ec7dace06601ab274aaa8a2e493e478",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -863,7 +863,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "2a32e0b9eca525b2088953e2c5e9ed53556686cc12c1d16239e1bc925f9bee47",
+      "sha256": "8c31185515b9d04d65f60c622b47573dae40d3b2151ca36c2eaed42ec00919dd",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

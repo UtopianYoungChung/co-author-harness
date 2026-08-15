@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "13dd3f419e1f41314a58d872b3fa1aa132f1e9e77b65fb7b0f6a48335969eaca"
+      "sha256": "d359ebfc15523d427977e06ef9089506e30dd818eae22038acd3e58a612a20e4"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
@@ -31,9 +31,8 @@
       "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1"
     },
     "scripts/analysis/fixture_runner.py": {
-      "class": "package_confined",
-      "evidence": "manifest destination is a package constant (docs/analysis/generated/fixture_manifest.json); no CLI destination argument; --no-write suppresses the only write",
-      "sha256": "638a014c4fe66b915274e6565b216b9d17ff00647f4578d7d54d55440cbf7f0b"
+      "class": "guarded",
+      "regression": "scripts/analysis/fixture_infrastructure_check.py::failed-case and infrastructure-error transcript capture requires an explicit empty absolute writable root and binds complete stdout/stderr bytes"
     },
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",

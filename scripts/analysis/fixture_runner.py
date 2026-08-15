@@ -122,6 +122,15 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent.parent
 MANIFEST_PATH = PLUGIN_ROOT / "docs" / "analysis" / "generated" / "fixture_manifest.json"
 SUITE_TIMEOUT_S = 900
 
+_DESTINATION_PATH = PLUGIN_ROOT / "scripts" / "destination_capability.py"
+_destination_spec = importlib.util.spec_from_file_location(
+    "fixture_runner_destination_capability", _DESTINATION_PATH,
+)
+destination_capability = importlib.util.module_from_spec(_destination_spec)
+sys.modules[_destination_spec.name] = destination_capability
+_destination_spec.loader.exec_module(destination_capability)
+assert Path(destination_capability.__file__).resolve() == _DESTINATION_PATH.resolve()
+
 # THE LOCK IS REPOSITORY-GLOBAL, NOT PER-WORKTREE (2026-07-16, review F2).
 #
 # It was `PLUGIN_ROOT/docs/analysis/generated/.fixture_runner.lock` -- one lock
@@ -193,6 +202,60 @@ def _default_case(*, timeout_s: int = SUITE_TIMEOUT_S) -> dict:
         "expected_outcome": None,
         "timeout_s": timeout_s,
     }
+
+
+def _atomic_bytes(path: Path, content: bytes) -> None:
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_failure_transcript(
+    root: Path,
+    run_id: str,
+    records: list[dict],
+    fixture_file: str,
+    case: dict,
+    observed_exit: int | None,
+    stdout: bytes,
+    stderr: bytes,
+    *,
+    diagnostic: dict | None = None,
+) -> None:
+    identity = hashlib.sha256(
+        f"{fixture_file}\0{case['case_id']}".encode("utf-8")
+    ).hexdigest()
+    record = {
+        "fixture_file": fixture_file,
+        "case_id": case["case_id"],
+        "expected_exit": case["expected_exit"],
+        "observed_exit": observed_exit,
+        "diagnostic": diagnostic,
+    }
+    for stream_name, content in (("stdout", stdout), ("stderr", stderr)):
+        filename = f"case-{identity}.{stream_name}.bin"
+        _atomic_bytes(root / filename, content)
+        record[stream_name] = {
+            "path": filename,
+            "byte_length": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+        }
+    records.append(record)
+    index = {
+        "schema": "coauthor-fixture-failure-transcripts/v1",
+        "run_id": run_id,
+        "failures": records,
+    }
+    _atomic_bytes(
+        root / "failure-transcripts.json",
+        (json.dumps(index, indent=1, sort_keys=True) + "\n").encode("utf-8"),
+    )
 
 
 # fixture_file -> list of registered cases. Empirical basis: 2026-07-16 probe,
@@ -529,6 +592,7 @@ def run(registry: dict[str, list[dict]],
         *, write_manifest: bool = True,
         cache_mode: str = "off",
         tier: str = "full",
+        failure_transcript_root: str | Path | None = None,
         _test_only_allow_noncanonical_write: bool = False) -> int:
     """Execute the registry; write the manifest only on a fully green run.
 
@@ -559,6 +623,26 @@ def run(registry: dict[str, list[dict]],
         print("ERROR: quick tier is NON_AUTHORITATIVE_PARTIAL and requires --no-write",
               file=sys.stderr)
         return 2
+    transcript_root = None
+    if failure_transcript_root is not None:
+        candidate = Path(failure_transcript_root)
+        try:
+            transcript_root = candidate.resolve(strict=True)
+        except OSError as exc:
+            print(f"ERROR: failure transcript root is unavailable: {exc}", file=sys.stderr)
+            return 2
+        if (not candidate.is_absolute() or not transcript_root.is_dir()
+                or candidate.is_symlink() or any(transcript_root.iterdir())):
+            print("ERROR: failure transcript root must be an existing empty absolute "
+                  "non-symlink directory", file=sys.stderr)
+            return 2
+        try:
+            destination_capability.assert_writable(
+                transcript_root, purpose="fixture failed-case transcript capture",
+            )
+        except destination_capability.DestinationRefused as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
 
     lock = _acquire_lock()
     if lock is None:
@@ -579,6 +663,7 @@ def run(registry: dict[str, list[dict]],
             write_manifest=write_manifest,
             cache_mode=cache_mode,
             tier=tier,
+            failure_transcript_root=transcript_root,
         )
     finally:
         _release_lock(lock)
@@ -588,7 +673,8 @@ def _run_locked(registry: dict[str, list[dict]],
                 universe_arg: list[str] | None,
                 *, write_manifest: bool,
                 cache_mode: str,
-                tier: str) -> int:
+                tier: str,
+                failure_transcript_root: Path | None = None) -> int:
     universe = set(universe_arg if universe_arg is not None
                    else discover_suite_universe())
     registered = set(registry)
@@ -629,6 +715,7 @@ def _run_locked(registry: dict[str, list[dict]],
     cases_out: list[dict] = []
     suites_out: list[dict] = []
     failures: list[str] = []
+    failure_transcripts: list[dict] = []
     staged: list[fixture_cache.StagedEntry] = []
     cache_hits = 0
     cache_misses = 0
@@ -689,11 +776,19 @@ def _run_locked(registry: dict[str, list[dict]],
                         owned.stdout.decode("utf-8", errors="replace"),
                         owned.stderr.decode("utf-8", errors="replace"),
                     )
+                    stdout_bytes = owned.stdout
+                    stderr_bytes = owned.stderr
                 except fixture_process_supervisor.FixtureProcessError as exc:
                     try:
                         fixture_cache.discard_staged(staged)
                     except fixture_cache.CacheError:
                         pass
+                    if failure_transcript_root is not None:
+                        _write_failure_transcript(
+                            failure_transcript_root, run_id, failure_transcripts,
+                            rel, case, None, exc.stdout, exc.stderr,
+                            diagnostic={"code": exc.code, "detail": str(exc)},
+                        )
                     captured = (exc.stdout + exc.stderr).decode(
                         "utf-8", errors="replace",
                     ).strip().splitlines()[-2:]
@@ -729,6 +824,11 @@ def _run_locked(registry: dict[str, list[dict]],
             print(f"  {'PASS' if ok else 'FAIL'}  {source} exit {observed_exit} "
                   f"(want {case['expected_exit']})  {secs:>7}s  {rel}::{case['case_id']}")
             if not ok:
+                if failure_transcript_root is not None:
+                    _write_failure_transcript(
+                        failure_transcript_root, run_id, failure_transcripts,
+                        rel, case, observed_exit, stdout_bytes, stderr_bytes,
+                    )
                 tail = (proc.stdout + proc.stderr).strip().splitlines()[-2:] if proc else []
                 failures.append(f"{rel}::{case['case_id']}: exit "
                                 f"{observed_exit} != {case['expected_exit']} | {tail}")
@@ -845,6 +945,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="print the registry and exit")
     ap.add_argument(
+        "--failure-transcript-root",
+        type=Path,
+        help="existing empty absolute root authorized for full failed-case stdout/stderr capture",
+    )
+    ap.add_argument(
         "--no-write",
         action="store_true",
         help="run the authoritative registry without rewriting or voiding the manifest",
@@ -876,12 +981,14 @@ def main() -> int:
             write_manifest=not args.no_write,
             cache_mode=args.cache_mode,
             tier="quick",
+            failure_transcript_root=args.failure_transcript_root,
         )
     return run(
         REGISTRY,
         write_manifest=not args.no_write,
         cache_mode=args.cache_mode,
         tier="full",
+        failure_transcript_root=args.failure_transcript_root,
     )
 
 
