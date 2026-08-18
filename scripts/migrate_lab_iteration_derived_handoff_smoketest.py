@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Synthetic red tests for ``lab-iteration-derived-handoff-v1`` migration.
 
-All projects live in disposable package-local directories.  The suite invokes
-the dedicated migration directly; it never runs the fixture registry and never
-opens or mutates a research project.
+All projects live in disposable directories under the process temporary root
+(``tempfile.gettempdir()``, honouring ``TEMP``/``TMP``/``TMPDIR``).  The suite
+invokes the dedicated migration directly; it never runs the fixture registry
+and never opens or mutates a research project.  Sandboxes must not be created
+under the package checkout root so a hard kill cannot leave
+``v041-migrate-derived-*`` residue on a watched output root.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any, Callable
 
 
@@ -29,11 +33,167 @@ MIGRATOR = SCRIPTS / "migrate_lab_iteration_derived_handoff.py"
 MIGRATION_ID = "lab-iteration-derived-handoff-v1"
 LANE = Path("reviews/.harness/migrations") / MIGRATION_ID
 LEDGER = Path("reviews/phase_state.json")
+SANDBOX_TEMP_PREFIX = "v041-migrate-derived-"
 PYTHON_ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}
 
 sys.path.insert(0, str(SCRIPTS))
 import milestone_framework_smoketest as fixture  # noqa: E402
+import migrate_lab_iteration_derived_handoff as migrator  # noqa: E402
+import milestone_framework_validate as validator  # noqa: E402
 from semantic_graph_fixture_support import semantic_graph_fixture_environment  # noqa: E402
+
+
+def _sandbox_temporary_directory() -> tempfile.TemporaryDirectory[str]:
+    """Create the suite sandbox under the process temp root, never under ROOT."""
+    return tempfile.TemporaryDirectory(
+        prefix=SANDBOX_TEMP_PREFIX,
+        dir=tempfile.gettempdir(),
+    )
+
+
+def _assert_sandbox_outside_package_root(sandbox: Path) -> None:
+    package = ROOT.resolve()
+    resolved = sandbox.resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if resolved == package or resolved.is_relative_to(package):
+        raise AssertionError(
+            f"migrate sandbox must not live under package ROOT: {resolved} under {package}"
+        )
+    if not resolved.is_relative_to(temp_root):
+        raise AssertionError(
+            f"migrate sandbox must live under process temp root: {resolved} not under {temp_root}"
+        )
+
+
+def _package_migrate_temp_residue() -> list[Path]:
+    package = ROOT.resolve()
+    return sorted(
+        path for path in package.glob(f"{SANDBOX_TEMP_PREFIX}*")
+        if path.is_dir()
+    )
+
+
+def case_temp_placement_outside_package_root() -> None:
+    """Prove redirected TEMP hosts ``v041-migrate-derived-*`` outside package ROOT."""
+    # gettempdir() caches per process; probe in a child with TEMP set at launch.
+    with tempfile.TemporaryDirectory(prefix="v0431-migrate-temp-probe-") as outer:
+        isolated = Path(outer) / "isolated-temp"
+        isolated.mkdir()
+        env = {
+            **os.environ,
+            "TEMP": str(isolated),
+            "TMP": str(isolated),
+            "TMPDIR": str(isolated),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+            "V0431_MIGRATE_EXPECTED_TEMP": str(isolated.resolve()),
+        }
+        probe = (
+            "import os\n"
+            "import tempfile\n"
+            "from pathlib import Path\n"
+            "import migrate_lab_iteration_derived_handoff_smoketest as m\n"
+            "root = m.ROOT.resolve()\n"
+            "temp_root = Path(tempfile.gettempdir()).resolve()\n"
+            "expected = Path(os.environ['V0431_MIGRATE_EXPECTED_TEMP']).resolve()\n"
+            "assert temp_root == expected, (temp_root, expected)\n"
+            "with m._sandbox_temporary_directory() as raw:\n"
+            "    sandbox = Path(raw).resolve()\n"
+            "    m._assert_sandbox_outside_package_root(sandbox)\n"
+            "    assert sandbox.is_relative_to(temp_root), (sandbox, temp_root)\n"
+            "    assert not sandbox.is_relative_to(root), (sandbox, root)\n"
+            "print('TEMP_PLACEMENT_OK')\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", probe],
+            cwd=str(SCRIPTS),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode != 0 or "TEMP_PLACEMENT_OK" not in result.stdout:
+            raise AssertionError(
+                "temp-placement probe failed: "
+                f"exit={result.returncode} stdout={result.stdout!r} stderr={result.stderr!r}"
+            )
+        if _package_migrate_temp_residue():
+            raise AssertionError(
+                f"temp-placement probe left package residue: {_package_migrate_temp_residue()}"
+            )
+
+
+def case_timeout_leaves_no_package_migrate_residue() -> None:
+    """Hard-kill a held sandbox; require no ``v041-migrate-derived-*`` under ROOT."""
+    before = {path.resolve() for path in _package_migrate_temp_residue()}
+    with tempfile.TemporaryDirectory(prefix="v0431-migrate-timeout-probe-") as outer:
+        isolated = Path(outer) / "isolated-temp"
+        isolated.mkdir()
+        env = {
+            **os.environ,
+            "TEMP": str(isolated),
+            "TMP": str(isolated),
+            "TMPDIR": str(isolated),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+        }
+        holder = (
+            "import time\n"
+            "from pathlib import Path\n"
+            "import migrate_lab_iteration_derived_handoff_smoketest as m\n"
+            "td = m._sandbox_temporary_directory()\n"
+            "raw = td.__enter__()\n"
+            "Path(raw, 'held.marker').write_text('held', encoding='utf-8')\n"
+            "print('HELD', raw, flush=True)\n"
+            "time.sleep(3600)\n"
+        )
+        proc = subprocess.Popen(
+            [sys.executable, "-B", "-c", holder],
+            cwd=str(SCRIPTS),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        try:
+            assert proc.stdout is not None
+            deadline = time.monotonic() + 30
+            held_line = ""
+            while time.monotonic() < deadline:
+                line = proc.stdout.readline()
+                if line.startswith("HELD "):
+                    held_line = line.strip()
+                    break
+                if proc.poll() is not None:
+                    break
+            if not held_line:
+                stderr = proc.stderr.read() if proc.stderr is not None else ""
+                raise AssertionError(
+                    f"timeout probe did not publish held sandbox: "
+                    f"exit={proc.poll()} stderr={stderr!r}"
+                )
+            held_path = Path(held_line.split(" ", 1)[1]).resolve()
+            package = ROOT.resolve()
+            if held_path == package or held_path.is_relative_to(package):
+                raise AssertionError(
+                    f"held sandbox resolved under package ROOT: {held_path}"
+                )
+            proc.kill()
+            proc.wait(timeout=30)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=30)
+        after = {path.resolve() for path in _package_migrate_temp_residue()}
+        created = sorted(after - before)
+        if created:
+            raise AssertionError(
+                f"timeout/kill left package migrate residue: {created}"
+            )
 
 
 class Matrix:
@@ -478,8 +638,9 @@ def _interrupt_rollback_after_state_publish(
 
 def main() -> int:
     matrix = Matrix()
-    with tempfile.TemporaryDirectory(prefix="v041-migrate-derived-", dir=ROOT) as raw, semantic_graph_fixture_environment():
+    with _sandbox_temporary_directory() as raw, semantic_graph_fixture_environment():
         sandbox = Path(raw)
+        _assert_sandbox_outside_package_root(sandbox)
 
         def no_authority_refuses_without_writes() -> None:
             project, _ = _project(sandbox, "no-authority")
@@ -1279,5 +1440,477 @@ def main() -> int:
     return matrix.finish()
 
 
+def _capture_scholarly_memo() -> tuple[type, list[validator.ScholarlyValidationMemo]]:
+    created: list[validator.ScholarlyValidationMemo] = []
+    original = validator.ScholarlyValidationMemo
+
+    class CapturedMemo(original):  # type: ignore[valid-type,misc]
+        def __init__(self) -> None:
+            super().__init__()
+            created.append(self)
+
+    return original, created
+
+
+def _draft_only_paths(memo: validator.ScholarlyValidationMemo) -> set[str]:
+    scholarly_paths: set[str] = set()
+    for entry in memo._entries.values():
+        for row in entry.scholarly.get("dependencies", []):
+            if isinstance(row, dict) and isinstance(row.get("path"), str):
+                scholarly_paths.add(str(Path(row["path"]).resolve()))
+    implementation = {
+        str(path.resolve()) for path in validator._scholarly_implementation_paths()
+    }
+    return memo.stored_read_paths() - scholarly_paths - implementation
+
+
+def _result_signature(result: validator.ValidationResult) -> dict[str, Any]:
+    return {
+        "outcome": result.outcome.value,
+        "exit_permitted": result.exit_permitted,
+        "findings": [finding.json_value() for finding in result.findings],
+        "evidence": list(result.evidence_bindings),
+    }
+
+
+def _restore_bytes(path: Path, payload: bytes) -> None:
+    path.write_bytes(payload)
+
+
+def _install_package_write_guard() -> None:
+    package = ROOT.resolve()
+
+    def under_package(value: object) -> bool:
+        if not isinstance(value, (str, bytes, os.PathLike)):
+            return False
+        try:
+            return Path(value).resolve().is_relative_to(package)
+        except (OSError, TypeError, ValueError):
+            return False
+
+    def audit(event: str, args: tuple[object, ...]) -> None:
+        if event == "open" and args and under_package(args[0]):
+            mode = args[1] if len(args) > 1 else None
+            if isinstance(mode, str) and any(flag in mode for flag in "wax+"):
+                raise AssertionError(
+                    f"PACKAGE_SOURCE_WRITE_ATTEMPT: {event} {args[0]} mode={mode}"
+                )
+        if event in {"os.rename", "os.replace", "os.remove", "os.unlink"}:
+            if any(under_package(value) for value in args[:2]):
+                raise AssertionError(f"PACKAGE_SOURCE_WRITE_ATTEMPT: {event} {args[:2]}")
+
+    sys.addaudithook(audit)
+
+
+def run_validation_dedup_cases() -> int:
+    """Focused invocation-local scholarly memo regressions."""
+    _install_package_write_guard()
+    matrix = Matrix()
+    with _sandbox_temporary_directory() as raw, semantic_graph_fixture_environment():
+        sandbox = Path(raw)
+        _assert_sandbox_outside_package_root(sandbox)
+        project, preimage = _project(sandbox, "validation-dedup")
+        document = json.loads(preimage.decode("utf-8", errors="strict"))
+        proposed, _ = migrator._proposed(document)
+        package = ROOT.resolve()
+
+        uncached_source = validator.validate_document(project, document)
+        uncached_target = validator.validate_document(project, proposed)
+        if not uncached_source.exit_permitted or not uncached_target.exit_permitted:
+            raise AssertionError("dedup fixture ledgers must already be valid")
+
+        memo = validator.ScholarlyValidationMemo()
+        cached_source = validator.validate_document(
+            project, document, scholarly_memo=memo,
+        )
+        source_hits, source_misses, source_stores = memo.hits, memo.misses, memo.stores
+        cached_target = validator.validate_document(
+            project, proposed, scholarly_memo=memo,
+        )
+
+        def hits_on_unchanged_scholarly_inputs() -> None:
+            if source_misses < 1 or source_stores < 1:
+                raise AssertionError(
+                    f"source validation did not populate memo: misses={source_misses} stores={source_stores}"
+                )
+            if memo.hits < source_stores:
+                raise AssertionError(
+                    f"target validation did not hit stored scholarly results: hits={memo.hits} stores={memo.stores}"
+                )
+            if memo.validate_document_calls != 2:
+                raise AssertionError(
+                    f"expected two validate_document calls, got {memo.validate_document_calls}"
+                )
+
+        matrix.case(
+            "unchanged source/proposed scholarly inputs produce cache hits",
+            hits_on_unchanged_scholarly_inputs,
+        )
+
+        def both_document_validations_execute() -> None:
+            if memo.validate_document_calls != 2:
+                raise AssertionError("second validate_document was skipped")
+            if memo.schema_validations < 2:
+                raise AssertionError("target schema validation did not execute")
+            if memo.handoff_policy_resolves < 2:
+                raise AssertionError("target handoff-policy resolution did not execute")
+            if memo.successor_chain_checks < 2:
+                raise AssertionError("target successor-chain checks did not execute")
+
+        matrix.case(
+            "both validate_document calls still execute schema, policy, and chain checks",
+            both_document_validations_execute,
+        )
+
+        def cached_matches_uncached() -> None:
+            if _result_signature(cached_source) != _result_signature(uncached_source):
+                raise AssertionError("cached source validation differs from uncached source")
+            if _result_signature(cached_target) != _result_signature(uncached_target):
+                raise AssertionError("cached target validation differs from uncached target")
+
+        matrix.case(
+            "cached and uncached results are exactly equivalent",
+            cached_matches_uncached,
+        )
+
+        scholarly_dep_paths: set[str] = set()
+        for entry in memo._entries.values():
+            for row in entry.scholarly.get("dependencies", []):
+                if isinstance(row, dict) and isinstance(row.get("path"), str):
+                    scholarly_dep_paths.add(str(Path(row["path"]).resolve()))
+        draft_only = _draft_only_paths(memo)
+        implementation_paths = {
+            str(path.resolve()) for path in validator._scholarly_implementation_paths()
+        }
+        stored_paths = memo.stored_read_paths()
+        draft_verifier_only = stored_paths - scholarly_dep_paths
+        project_root = project.resolve()
+        project_draft_only = sorted(
+            path for path in draft_only
+            if Path(path).is_file() and Path(path).resolve().is_relative_to(project_root)
+        )
+        harness_draft_only = sorted(
+            path for path in draft_only
+            if Path(path).is_file() and Path(path).resolve().is_relative_to(package)
+        )
+        print(
+            "DEDUP_CLOSURE "
+            f"stored={len(stored_paths)} "
+            f"scholarly_deps={len(scholarly_dep_paths)} "
+            f"stored_minus_scholarly={len(draft_verifier_only)} "
+            f"implementation={len(implementation_paths & stored_paths)} "
+            f"draft_only_excluding_implementation={len(draft_only)} "
+            f"project_draft_only={len(project_draft_only)} "
+            f"harness_draft_only={len(harness_draft_only)} "
+            f"entries={len(memo._entries)}"
+        )
+        if not draft_only:
+            raise AssertionError(
+                "DEPENDENCY_CLOSURE_UNPROVEN: stored read set has no draft-only inputs"
+            )
+
+        def mutate_draft_only_misses() -> None:
+            if not project_draft_only:
+                raise AssertionError("no disposable project-local draft dependency available")
+            target = Path(project_draft_only[0])
+            original = target.read_bytes()
+            mutated_memo = validator.ScholarlyValidationMemo()
+            validator.validate_document(project, document, scholarly_memo=mutated_memo)
+            before_hits, before_misses = mutated_memo.hits, mutated_memo.misses
+            try:
+                target.write_bytes(original + b"\n")
+                refused = validator.validate_document(
+                    project, proposed, scholarly_memo=mutated_memo,
+                )
+            finally:
+                _restore_bytes(target, original)
+            if mutated_memo.hits != before_hits:
+                raise AssertionError("draft-only mutation still produced a scholarly cache hit")
+            if mutated_memo.misses <= before_misses:
+                raise AssertionError("draft-only mutation did not force a cache miss")
+            if refused.exit_permitted:
+                raise AssertionError("draft-only mutation did not produce fresh validation refusal")
+
+        matrix.case(
+            "mutating a draft-only dependency prevents the hit and refuses",
+            mutate_draft_only_misses,
+        )
+
+        def mutate_scholarly_dependency_misses() -> None:
+            candidate = None
+            for entry in memo._entries.values():
+                for row in entry.scholarly.get("dependencies", []):
+                    path = Path(row["path"])
+                    if path.is_file() and path.resolve().is_relative_to(project_root):
+                        candidate = path
+                        break
+                if candidate is not None:
+                    break
+            if candidate is None:
+                raise AssertionError("no project-local scholarly dependency available to mutate")
+            original = candidate.read_bytes()
+            mutated_memo = validator.ScholarlyValidationMemo()
+            validator.validate_document(project, document, scholarly_memo=mutated_memo)
+            before_hits = mutated_memo.hits
+            try:
+                candidate.write_bytes(original + b"\n")
+                validator.validate_document(project, proposed, scholarly_memo=mutated_memo)
+            finally:
+                _restore_bytes(candidate, original)
+            if mutated_memo.hits != before_hits:
+                raise AssertionError("scholarly dependency mutation still produced a cache hit")
+
+        matrix.case(
+            "mutating a scholarly dependency prevents the hit",
+            mutate_scholarly_dependency_misses,
+        )
+
+        def mutate_schema_or_identity_misses() -> None:
+            schema = ROOT / "references" / "schemas" / "scholarly_evaluation.schema.json"
+            if str(schema.resolve()) not in memo.stored_read_paths():
+                raise AssertionError("schema identity is absent from the stored scholarly read set")
+            identity = Path(validator.__file__).resolve()
+            if str(identity) not in memo.stored_read_paths():
+                raise AssertionError("implementation identity is absent from the stored read set")
+            for target in (schema, identity):
+                mutated_memo = validator.ScholarlyValidationMemo()
+                validator.validate_document(project, document, scholarly_memo=mutated_memo)
+                before_hits = mutated_memo.hits
+                original_reader = validator._file_read_identity
+                target_str = str(target.resolve())
+
+                def changed_identity(path: Path) -> tuple[str, str, int] | None:
+                    observed = original_reader(path)
+                    if observed is None or observed[0] != target_str:
+                        return observed
+                    replacement = "0" * 64 if observed[1] != "0" * 64 else "1" * 64
+                    return (observed[0], replacement, observed[2])
+
+                try:
+                    validator._file_read_identity = changed_identity
+                    validator.validate_document(
+                        project, proposed, scholarly_memo=mutated_memo,
+                    )
+                finally:
+                    validator._file_read_identity = original_reader
+                if mutated_memo.hits != before_hits:
+                    raise AssertionError(
+                        f"{target.name} identity change still produced a scholarly cache hit"
+                    )
+
+        matrix.case(
+            "mutating a schema or implementation identity prevents the hit",
+            mutate_schema_or_identity_misses,
+        )
+
+        def missing_unreadable_reparsed_misses() -> None:
+            if not project_draft_only:
+                raise AssertionError("no disposable project-local draft dependency available")
+            target = Path(project_draft_only[0])
+            original = target.read_bytes()
+            mutated_memo = validator.ScholarlyValidationMemo()
+            validator.validate_document(project, document, scholarly_memo=mutated_memo)
+            before_hits = mutated_memo.hits
+            hidden = target.with_name(target.name + ".hidden-dedup")
+            try:
+                target.replace(hidden)
+                validator.validate_document(project, proposed, scholarly_memo=mutated_memo)
+            finally:
+                if hidden.exists() and not target.exists():
+                    hidden.replace(target)
+                elif hidden.exists():
+                    hidden.unlink()
+                if target.exists() and target.read_bytes() != original:
+                    _restore_bytes(target, original)
+            if mutated_memo.hits != before_hits:
+                raise AssertionError("missing dependency still produced a scholarly cache hit")
+
+        matrix.case(
+            "missing or unreadable dependency prevents the hit",
+            missing_unreadable_reparsed_misses,
+        )
+
+        def project_root_and_milestone_do_not_collide() -> None:
+            keys = list(memo._entries)
+            milestones = {key[1] for key in keys}
+            roots = {key[0] for key in keys}
+            if len(milestones) < 2:
+                raise AssertionError("memo keys did not retain distinct milestones")
+            if len(roots) != 1:
+                raise AssertionError("single-project memo unexpectedly used multiple roots")
+            probe = validator.ScholarlyValidationMemo()
+            probe._entries = dict(memo._entries)
+            evidence: list[dict[str, Any]] = []
+            original_key = keys[0]
+            foreign_root = original_key[0] + "-other-root"
+            foreign_key = (foreign_root, original_key[1], original_key[2], original_key[3], original_key[4])
+            other_milestone = "M2" if original_key[1] != "M2" else "M3"
+            milestone_key = (original_key[0], other_milestone, original_key[2], original_key[3], original_key[4])
+            if validator._try_scholarly_memo_hit(probe, foreign_key, evidence) is not None:
+                raise AssertionError("distinct project roots collided in the scholarly memo")
+            if validator._try_scholarly_memo_hit(probe, milestone_key, evidence) is not None:
+                raise AssertionError("distinct milestones collided in the scholarly memo")
+            if probe.hits != 0:
+                raise AssertionError("foreign identity lookup produced a cache hit")
+            if validator._try_scholarly_memo_hit(probe, original_key, evidence) is None:
+                raise AssertionError("original scholarly memo key no longer hits")
+
+        matrix.case(
+            "project-root or milestone changes cannot collide",
+            project_root_and_milestone_do_not_collide,
+        )
+
+        def failures_and_exceptions_are_not_cached() -> None:
+            failing = copy.deepcopy(document)
+            for milestone in ("M1", "M2", "M3", "M4"):
+                policy = failing["milestone_framework"]["milestones"][milestone].get("policy_evidence")
+                if isinstance(policy, dict):
+                    policy["scholarly_evaluation"] = None
+            fail_memo = validator.ScholarlyValidationMemo()
+            failed = validator.validate_document(project, failing, scholarly_memo=fail_memo)
+            if failed.exit_permitted:
+                raise AssertionError("missing scholarly binding unexpectedly passed")
+            if fail_memo.stores != 0 or fail_memo.hits != 0:
+                raise AssertionError("failed scholarly validation was cached")
+
+            import scholarly_evaluation_binding as binding_mod
+            previous = binding_mod.validate_scholarly_binding
+
+            def boom(**_kwargs: Any) -> dict[str, Any]:
+                raise RuntimeError("injected scholarly exception")
+
+            binding_mod.validate_scholarly_binding = boom  # type: ignore[assignment]
+            exception_memo = validator.ScholarlyValidationMemo()
+            try:
+                raised = False
+                try:
+                    validator.validate_document(project, document, scholarly_memo=exception_memo)
+                except RuntimeError:
+                    raised = True
+                if not raised:
+                    raise AssertionError("injected scholarly exception did not propagate")
+                if exception_memo.stores != 0:
+                    raise AssertionError("exception path stored a scholarly memo entry")
+            finally:
+                binding_mod.validate_scholarly_binding = previous
+
+        matrix.case(
+            "failed validation and exceptions are never cached",
+            failures_and_exceptions_are_not_cached,
+        )
+
+        def lifetime_ends_with_invocation() -> None:
+            original = validator.ScholarlyValidationMemo
+            captured: list[validator.ScholarlyValidationMemo] = []
+
+            class Probe(original):  # type: ignore[valid-type,misc]
+                def __init__(self) -> None:
+                    super().__init__()
+                    captured.append(self)
+
+            validator.ScholarlyValidationMemo = Probe  # type: ignore[assignment]
+            try:
+                authority = _authority(project, preimage, suffix="dedup-lifetime")
+                migrator.dry_run_migration(project, authority)
+                first = captured[-1]
+                first_id = id(first)
+                migrator.dry_run_migration(project, authority)
+                second = captured[-1]
+            finally:
+                validator.ScholarlyValidationMemo = original  # type: ignore[assignment]
+            if first_id == id(second):
+                raise AssertionError("migrator reused a scholarly memo across invocations")
+            if getattr(validator, "_SCHOLARLY_MEMO", None) is not None:
+                raise AssertionError("validator module retained a scholarly memo")
+
+        matrix.case(
+            "cache lifetime ends with the migrator invocation",
+            lifetime_ends_with_invocation,
+        )
+
+        def containment_still_holds() -> None:
+            case_temp_placement_outside_package_root()
+            case_timeout_leaves_no_package_migrate_residue()
+
+        matrix.case(
+            "containment tests still prove external TEMP and zero package-root residue",
+            containment_still_holds,
+        )
+
+    return matrix.finish()
+
+
+def measure_representative_dry_run() -> dict[str, Any]:
+    """Time one in-process dry-run and report memo statistics."""
+    with _sandbox_temporary_directory() as raw, semantic_graph_fixture_environment():
+        sandbox = Path(raw)
+        _assert_sandbox_outside_package_root(sandbox)
+        project, preimage = _project(sandbox, "dedup-measure")
+        authority = _authority(project, preimage, suffix="dedup-measure")
+        original = validator.ScholarlyValidationMemo
+        captured: list[validator.ScholarlyValidationMemo] = []
+        source_s = 0.0
+        target_s = 0.0
+
+        class Probe(original):  # type: ignore[valid-type,misc]
+            def __init__(self) -> None:
+                super().__init__()
+                captured.append(self)
+
+        real_validate = validator.validate_document
+
+        def timed_validate(*args: Any, **kwargs: Any) -> validator.ValidationResult:
+            nonlocal source_s, target_s
+            started = time.perf_counter()
+            result = real_validate(*args, **kwargs)
+            elapsed = time.perf_counter() - started
+            if source_s == 0.0:
+                source_s = elapsed
+            else:
+                target_s = elapsed
+            return result
+
+        validator.ScholarlyValidationMemo = Probe  # type: ignore[assignment]
+        validator.validate_document = timed_validate  # type: ignore[assignment]
+        started = time.perf_counter()
+        try:
+            receipt = migrator.dry_run_migration(
+                project, authority, at="2026-07-29T15:00:02Z",
+            )
+        finally:
+            validator.ScholarlyValidationMemo = original  # type: ignore[assignment]
+            validator.validate_document = real_validate  # type: ignore[assignment]
+        wall = time.perf_counter() - started
+        memo = captured[-1]
+        stats = {
+            "outcome": receipt.get("outcome"),
+            "source_validation_s": round(source_s, 3),
+            "target_validation_s": round(target_s, 3),
+            "hits": memo.hits,
+            "misses": memo.misses,
+            "stores": memo.stores,
+            "rehash_s": round(memo.rehash_seconds, 4),
+            "validate_document_calls": memo.validate_document_calls,
+            "wall_s": round(wall, 3),
+            "stored_paths": len(memo.stored_read_paths()),
+            "draft_only": len(_draft_only_paths(memo)),
+        }
+        print("DEDUP_MEASURE " + json.dumps(stats, sort_keys=True))
+        return stats
+
+
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--temp-placement-only"]:
+        case_temp_placement_outside_package_root()
+        print("PASS: migrate sandbox temp placement stays outside package ROOT")
+        raise SystemExit(0)
+    if sys.argv[1:] == ["--timeout-residue-only"]:
+        case_timeout_leaves_no_package_migrate_residue()
+        print("PASS: hard-kill leaves no v041-migrate-derived-* under package ROOT")
+        raise SystemExit(0)
+    if sys.argv[1:] == ["--validation-dedup-only"]:
+        raise SystemExit(run_validation_dedup_cases())
+    if sys.argv[1:] == ["--validation-dedup-measure"]:
+        measure_representative_dry_run()
+        raise SystemExit(0)
     raise SystemExit(main())

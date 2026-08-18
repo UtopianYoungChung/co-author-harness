@@ -1886,6 +1886,62 @@ def _event(
     }
 
 
+def _run_current_content_supersession_regressions(
+    project: Path,
+    validator: Any,
+    failures: list[str],
+) -> None:
+    """Exercise the exact stale-binding waiver and its fail-closed boundaries."""
+    relative = "research_notes/current_content.md"
+    current = project / relative
+    current.parent.mkdir(parents=True, exist_ok=True)
+    current.write_bytes(b"later authorized content\n")
+    stale_sha = hashlib.sha256(b"event-time content\n").hexdigest()
+    binding = {
+        "binding_type": "current_content",
+        "path": relative,
+        "sha256": stale_sha,
+    }
+    cases = (
+        ("same_subject_reopened", "milestone_reopened", "M1", "main", True),
+        ("same_subject_superseded", "milestone_superseded", "M1", "main", True),
+        ("same_subject_override", "authorized_override", "M1", "main", True),
+        ("same_subject_downstream_stale", "downstream_stale", "M1", "main", True),
+        ("different_milestone", "milestone_reopened", "M2", "main", False),
+        ("different_lineage", "milestone_reopened", "M1", "alternate", False),
+        ("non_authorizing_event", "milestone_started", "M1", "main", False),
+        ("no_later_event", None, None, None, False),
+    )
+    for name, later_type, later_milestone, later_lineage, should_waive in cases:
+        event = _event(1, "feedback_adjudicated", "M1", bindings=[binding])
+        events = [event]
+        if later_type is not None and later_milestone is not None:
+            later = _event(2, later_type, later_milestone, authority="user")
+            later["lineage_id"] = later_lineage
+            events.append(later)
+        findings: list[Any] = []
+        evidence: list[dict[str, Any]] = []
+        validator._validate_event_binding(
+            project,
+            events,
+            0,
+            event,
+            binding,
+            "milestone_framework.events[0].bindings[0]",
+            {},
+            findings,
+            evidence,
+        )
+        blocked = any(finding.code == "MF-EVENT" for finding in findings)
+        actual = "WAIVED" if not blocked else "MF-EVENT"
+        expected = "WAIVED" if should_waive else "MF-EVENT"
+        print(f"current_content/{name}: expected={expected} actual={actual}")
+        if blocked == should_waive:
+            failures.append(
+                f"current_content/{name} expected {expected}, got {actual}"
+            )
+
+
 def _write_path_v2_regression_fixture(project: Path) -> dict[str, Any]:
     """Materialize the Paper-1 defect shape without copying project evidence."""
     ledger = _materialize_native_project(project)
@@ -1950,7 +2006,10 @@ def _write_path_v2_regression_fixture(project: Path) -> dict[str, Any]:
         _event(6, "handoff_ready", "M1", bindings=[{"binding_type": "handoff_packet", "path": old_handoff_path, "sha256": old_handoff_hash}]),
         _event(7, "handoff_consumed", "M1", bindings=[{"binding_type": "handoff_packet", "path": old_handoff_path, "sha256": old_handoff_hash}]),
         _event(8, "milestone_started", "M2"),
-        _event(9, "deliverable_recorded", "M2", bindings=[{"binding_type": "artifact", "path": "research_notes/annotated_references.md", "sha256": m2_old_hash}]),
+        _event(9, "deliverable_recorded", "M2", bindings=[
+            {"binding_type": "artifact", "path": "research_notes/annotated_references.md", "sha256": m2_old_hash},
+            {"binding_type": "current_content", "path": "research_notes/project_memo.md", "sha256": m1_old_hash},
+        ]),
         _event(10, "feedback_recorded", "M2", bindings=[{"binding_type": "feedback", "path": feedback["source_path"], "sha256": old_feedback_hash}]),
         _event(11, "feedback_adjudicated", "M2", bindings=[{"binding_type": "feedback", "path": feedback["source_path"], "sha256": old_feedback_hash}]),
         _event(12, "milestone_reopened", "M1", authority="user"),
@@ -2016,6 +2075,12 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
     sys.modules[spec.name] = validator
     spec.loader.exec_module(validator)
 
+    direct_project = directory / "current-content-supersession-regression"
+    direct_project.mkdir()
+    _run_current_content_supersession_regressions(
+        direct_project, validator, failures,
+    )
+
     project = directory / "path-v2-regression"
     project.mkdir()
     document = _write_path_v2_regression_fixture(project)
@@ -2040,6 +2105,7 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
         ("MF-CANON", "events[5].bindings[0]", "PASS"),
         ("MF-CANON", "events[6].bindings[0]", "PASS"),
         ("MF-CANON", "events[8].bindings[0]", "PASS"),
+        ("MF-EVENT", "events[8].bindings[1]", "PASS"),
         ("MF-EVENT", "events[9].bindings[0]", "PASS"),
         ("MF-EVENT", "events[10].bindings[0]", "PASS"),
         ("MF-EVENT", "latest lifecycle event", "PASS"),
@@ -2076,8 +2142,8 @@ def _run_path_v2_regressions(directory: Path, failures: list[str]) -> None:
     phase_rows = json.loads(phase_validator._render_json([], list(skipped)))
     if not any(row.get("severity") == "SKIPPED" and row.get("message", "").startswith("SKIPPED(") for row in phase_rows):
         failures.append("phase-state wrapper silently dropped the structural policy fallback")
-    if len(expected_dispositions) != 15:
-        failures.append("path-v2 baseline disposition table no longer covers all 15 findings")
+    if len(expected_dispositions) != 16:
+        failures.append("path-v2 baseline disposition table no longer covers all 16 findings")
     for code, locator, disposition in expected_dispositions:
         matches = [
             finding for finding in result.findings

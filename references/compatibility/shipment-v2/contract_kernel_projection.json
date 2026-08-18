@@ -4,13 +4,13 @@
   "kernel": {
     "id": "co-author-harness-contract-kernel-v1",
     "version": "1.0.0",
-    "sha256": "29ea41f8f918f2331d8d4d13618639133e6c6a78802c079b5095aee23519d5b3"
+    "sha256": "068268c395388838dfffca9a9765680144112a79c864f8bfa2347fc22f78dbfe"
   },
   "components": [
     {"id": "role-output-machine-contract", "version": "3.0.0", "sha256": "14e570572dd1aed67922e61ca2b95b98050f3461768740ef585a92d058217d8c", "migration_ids": ["milestone-path-contract-v2", "role-output-contract-v3"]},
     {"id": "role-output-contract-schema", "version": "2020-12", "sha256": "34c55db778fb7476ee8eafeb28495b1e2e2815f694a9eb83f04dedabc48a95d5", "migration_ids": ["role-output-contract-v3"]},
     {"id": "shipment-manifest-v2-schema", "version": "2.0.0", "sha256": "c70c730a184586ae5573b6993a094abb49b0fd7db1facff5d26bc037a67c4c8d", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},
-    {"id": "consumer-compatibility-profile-schema", "version": "1.0.0", "sha256": "f24110d48f51b2184ec4e5d5d526a131660bb04fda926abd15eef343006713d8", "migration_ids": ["consumer-compatibility-v1"]},
+    {"id": "consumer-compatibility-profile-schema", "version": "1.0.0", "sha256": "050e690912a27a1860dbcb53b74ea4cf6fa8dd550dc46adeb3a7af1e772574b9", "migration_ids": ["consumer-compatibility-v1"]},
     {"id": "consumer-observation-receipt-schema", "version": "1.0.0", "sha256": "04420cd95c42afedff4d6d0efd8571cc35e275cb2246306f0bb4b769e5307edb", "migration_ids": ["consumer-compatibility-v1"]},
     {"id": "application-receipt-schema", "version": "1.0.0", "sha256": "5bc0cdc1e9d6ac875b9533277d10f744f98345ffff7fcc1d2246c613031f6f8e", "migration_ids": ["shipment-manifest-v2", "consumer-compatibility-v1"]},
     {"id": "shipment-refusal-receipt-schema", "version": "1.0.0", "sha256": "e39f47583c29e1adb8a58f5d3be799346d474cf8280e4f1574396a723d1d3a5c", "migration_ids": ["shipment-manifest-v2", "typed-output-transaction-v1"]},

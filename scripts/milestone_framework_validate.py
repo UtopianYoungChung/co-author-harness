@@ -9,6 +9,7 @@ remain in one implementation.
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime
 import hashlib
 import json
@@ -16,6 +17,7 @@ import os
 import re
 import stat
 import sys
+import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
@@ -142,6 +144,198 @@ class _GateValidationSession:
     document_sha256: str
     continuing: ValidationResult
     opening: ValidationResult
+
+
+@dataclass(frozen=True)
+class _ScholarlyMemoEntry:
+    scholarly: dict[str, Any]
+    evidence_rows: tuple[dict[str, Any], ...]
+    reads: tuple[tuple[str, str, int], ...]
+
+
+class ScholarlyValidationMemo:
+    """Invocation-local PASS-only memo for dependency-identical scholarly policy.
+
+    Lifetime is one migrator call.  It is not a module-global, disk, or
+    cross-process cache.  Failed scholarly results and exceptions are never stored.
+    """
+
+    def __init__(self) -> None:
+        self._entries: dict[tuple[str, str, str, str, str], _ScholarlyMemoEntry] = {}
+        self.hits = 0
+        self.misses = 0
+        self.stores = 0
+        self.rehash_seconds = 0.0
+        self.validate_document_calls = 0
+        self.schema_validations = 0
+        self.handoff_policy_resolves = 0
+        self.successor_chain_checks = 0
+
+    def stored_read_paths(self) -> set[str]:
+        paths: set[str] = set()
+        for entry in self._entries.values():
+            for path, _digest, _length in entry.reads:
+                paths.add(path)
+        return paths
+
+
+def _canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def _file_read_identity(path: Path) -> tuple[str, str, int] | None:
+    try:
+        if _is_reparse(path):
+            return None
+        resolved = path.resolve()
+        if _is_reparse(resolved) or not resolved.is_file():
+            return None
+        payload = resolved.read_bytes()
+    except OSError:
+        return None
+    return (str(resolved), hashlib.sha256(payload).hexdigest(), len(payload))
+
+
+def _scholarly_implementation_paths() -> list[Path]:
+    scripts = Path(__file__).resolve().parent
+    root = scripts.parent
+    paths = [
+        Path(__file__).resolve(),
+        scripts / "scholarly_evaluation_binding.py",
+        scripts / "scholarly_evaluation.py",
+        scripts / "draft_evidence_verifier.py",
+        scripts / "assignment_dispatch_claim.py",
+        scripts / "scholarly_claim_register.py",
+        scripts / "assignment_receipt_transaction.py",
+        root / ".claude-plugin" / "plugin.json",
+    ]
+    import scholarly_evaluation as scholarly_evaluation_mod
+    paths.extend(Path(item).resolve() for item in scholarly_evaluation_mod.STATIC_DEPENDENCY_PATHS)
+    import draft_evidence_verifier as draft_verifier_mod
+    paths.extend(
+        (draft_verifier_mod.ROOT / relative).resolve()
+        for relative in draft_verifier_mod.REQUIRED_SEMANTICS_MEMBERS
+    )
+    import assignment_dispatch_claim as dispatch_mod
+    for attr in (
+        "CLAIM_SCHEMA",
+        "CONSUMPTION_SCHEMA",
+        "HOST_SCHEMA",
+        "ISSUANCE_SCHEMA",
+        "COMMON_SCHEMA",
+        "KERNEL_AUTHORIZATION_SCHEMA",
+    ):
+        value = getattr(dispatch_mod, attr)
+        if isinstance(value, Path):
+            paths.append(value.resolve())
+    return paths
+
+
+def _scholarly_memo_key(
+    project_root: Path,
+    milestone: str,
+    record: dict[str, Any],
+    deliverable: dict[str, Any] | None,
+    finding_context: str,
+) -> tuple[str, str, str, str, str]:
+    deliverable_hash = (
+        hashlib.sha256(_canonical_json_bytes(deliverable)).hexdigest()
+        if deliverable is not None
+        else "null"
+    )
+    return (
+        str(project_root.resolve()),
+        milestone,
+        hashlib.sha256(_canonical_json_bytes(record)).hexdigest(),
+        deliverable_hash,
+        finding_context,
+    )
+
+
+def _complete_scholarly_read_set(
+    project_root: Path,
+    scholarly: dict[str, Any],
+    draft_results: dict[str, dict[str, Any]],
+    extra_paths: list[Path],
+) -> tuple[tuple[str, str, int], ...] | None:
+    """Union every returned and locally observed scholarly-call input.
+
+    Returns None when the closure cannot be hashed, so the caller must not cache.
+    """
+    candidates: list[Path] = []
+    scholarly_rows = scholarly.get("dependencies")
+    if not isinstance(scholarly_rows, list):
+        return None
+    for row in scholarly_rows:
+        if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+            return None
+        candidates.append(Path(row["path"]))
+    for result in draft_results.values():
+        rows = result.get("dependencies")
+        if not isinstance(rows, list):
+            return None
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+                return None
+            candidates.append(Path(row["path"]))
+    for key in ("evaluation_path", "artifact_path"):
+        value = scholarly.get(key)
+        if isinstance(value, Path):
+            candidates.append(value)
+        elif isinstance(value, str) and value:
+            candidates.append(Path(value))
+        else:
+            return None
+    candidates.extend(extra_paths)
+    candidates.extend(_scholarly_implementation_paths())
+    unique: dict[str, tuple[str, str, int]] = {}
+    for candidate in candidates:
+        identity = _file_read_identity(candidate)
+        if identity is None:
+            return None
+        unique[identity[0]] = identity
+    return tuple(sorted(unique.values(), key=lambda item: item[0]))
+
+
+def _try_scholarly_memo_hit(
+    memo: ScholarlyValidationMemo,
+    key: tuple[str, str, str, str, str],
+    evidence: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    entry = memo._entries.get(key)
+    if entry is None:
+        memo.misses += 1
+        return None
+    started = time.perf_counter()
+    for path_str, digest, length in entry.reads:
+        identity = _file_read_identity(Path(path_str))
+        if identity != (path_str, digest, length):
+            memo.rehash_seconds += time.perf_counter() - started
+            memo.misses += 1
+            return None
+    memo.rehash_seconds += time.perf_counter() - started
+    memo.hits += 1
+    evidence.extend(copy.deepcopy(row) for row in entry.evidence_rows)
+    return copy.deepcopy(entry.scholarly)
+
+
+def _store_scholarly_memo(
+    memo: ScholarlyValidationMemo,
+    key: tuple[str, str, str, str, str],
+    scholarly: dict[str, Any],
+    evidence_rows: list[dict[str, Any]],
+    reads: tuple[tuple[str, str, int], ...],
+) -> None:
+    if not isinstance(scholarly, dict) or not reads:
+        return
+    memo._entries[key] = _ScholarlyMemoEntry(
+        scholarly=copy.deepcopy(scholarly),
+        evidence_rows=tuple(copy.deepcopy(row) for row in evidence_rows),
+        reads=reads,
+    )
+    memo.stores += 1
 
 
 def _signed_status(path: Path) -> str | None:
@@ -487,7 +681,7 @@ def _trusted_path_migrations(
 def _later_authorized_baseline(
     events: list[Any], index: int, event: dict[str, Any], binding_type: Any,
 ) -> bool:
-    if binding_type not in {"artifact", "feedback", "handoff_packet"}:
+    if binding_type not in {"artifact", "current_content", "feedback", "handoff_packet"}:
         return False
     milestone = event.get("milestone")
     lineage = event.get("lineage_id")
@@ -1188,6 +1382,7 @@ def _validate_scholarly_policy(
     deliverable: dict[str, Any] | None,
     findings: list[Finding],
     evidence: list[dict[str, Any]],
+    scholarly_memo: ScholarlyValidationMemo | None = None,
 ) -> dict[str, Any] | None:
     """Replay the sole C6 predicate and cross-bind immutable ledger snapshots."""
 
@@ -1198,6 +1393,11 @@ def _validate_scholarly_policy(
     }:
         return None
     base = f"milestone_framework.milestones.{milestone}.policy_evidence.scholarly_evaluation"
+    memo_key = _scholarly_memo_key(project_root, milestone, record, deliverable, base)
+    if scholarly_memo is not None:
+        cached = _try_scholarly_memo_hit(scholarly_memo, memo_key, evidence)
+        if cached is not None:
+            return cached
     policy = record.get("policy_evidence")
     binding = policy.get("scholarly_evaluation") if isinstance(policy, dict) else None
     if binding is None:
@@ -1213,12 +1413,14 @@ def _validate_scholarly_policy(
         ScholarlyBindingError,
         validate_scholarly_binding,
     )
+    extra_reads: list[Path] = []
     try:
         if not isinstance(binding, dict):
             raise ValueError("binding is not an object")
         evaluation_path = _canonical_path(project_root, binding.get("evidence_path"))
         if evaluation_path is None or not evaluation_path.is_file():
             raise ValueError("evaluation path is absent or outside the project")
+        extra_reads.append(evaluation_path)
         value = json.loads(evaluation_path.read_text(encoding="utf-8"))
         artifact_binding = value.get("artifact") if isinstance(value, dict) else None
         artifact_path = _canonical_path(
@@ -1227,6 +1429,7 @@ def _validate_scholarly_policy(
         )
         if artifact_path is None:
             raise ValueError("evaluation artifact path is absent or outside the project")
+        extra_reads.append(artifact_path)
         scholarly = validate_scholarly_binding(
             project_root=project_root,
             artifact=artifact_path,
@@ -1269,6 +1472,7 @@ def _validate_scholarly_policy(
         receipt_path = _canonical_path(project_root, assignment.get("evidence_path"))
         if receipt_path is None or not receipt_path.is_file() or receipt_path.parent.name != "consumed":
             raise ValueError("recorded assignment receipt is unavailable outside the consumed lane")
+        extra_reads.append(receipt_path)
         receipt_payload = receipt_path.read_bytes()
         if hashlib.sha256(receipt_payload).hexdigest() != assignment.get("evidence_sha256"):
             raise ValueError("recorded assignment receipt hash is stale")
@@ -1289,6 +1493,7 @@ def _validate_scholarly_policy(
             locator = _canonical_path(project_root, locator_binding.get("evidence_path"))
             if locator is None or not locator.is_file():
                 raise ValueError(f"{key} locator is unavailable")
+            extra_reads.append(locator)
             if hashlib.sha256(locator.read_bytes()).hexdigest() != locator_binding.get("evidence_sha256"):
                 raise ValueError(f"{key} locator hash is stale")
             draft_results[key] = validate_lifecycle_verifier_binding(
@@ -1302,19 +1507,39 @@ def _validate_scholarly_policy(
         validate_scholarly_authority_chain(
             project_root, draft_results, scholarly, assignment["receipt_id"],
         )
+        for result in draft_results.values():
+            locator_value = result.get("locator")
+            if not isinstance(locator_value, dict):
+                continue
+            for locator_key in ("dispatch_claim", "dispatch_consumption"):
+                binding_row = locator_value.get(locator_key)
+                if not isinstance(binding_row, dict) or binding_row.get("root") != "project":
+                    continue
+                claim_path = _canonical_path(project_root, binding_row.get("path"))
+                if claim_path is not None:
+                    extra_reads.append(claim_path)
     except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError, VerifierError) as exc:
         findings.append(_finding(
             "AMC-SCHOLARLY-EVALUATION-STALE", base,
             f"scholarly lifecycle authority is stale: {exc}",
         ))
         return None
+    evidence_rows: list[dict[str, Any]] = []
     for row in scholarly["dependencies"]:
-        evidence.append({
+        item = {
             "kind": "scholarly_evaluation_dependency",
             "path": row["path"],
             "sha256": row["sha256"],
             "bytes": row["byte_length"],
-        })
+        }
+        evidence.append(item)
+        evidence_rows.append(item)
+    if scholarly_memo is not None:
+        reads = _complete_scholarly_read_set(
+            project_root, scholarly, draft_results, extra_reads,
+        )
+        if reads is not None:
+            _store_scholarly_memo(scholarly_memo, memo_key, scholarly, evidence_rows, reads)
     return scholarly
 
 
@@ -2491,8 +2716,11 @@ def validate_document(
     exemplar_registry_path: Path | None = None,
     _exemplar_snapshot_hook: Callable[[str, str, Path], None] | None = None,
     opening_new_cycle: bool = False,
+    scholarly_memo: ScholarlyValidationMemo | None = None,
 ) -> ValidationResult:
     """Validate the additive namespace in an already-parsed phase document."""
+    if scholarly_memo is not None:
+        scholarly_memo.validate_document_calls += 1
     findings: list[Finding] = []
     evidence: list[dict[str, Any]] = []
     skipped_checks: list[dict[str, str]] = []
@@ -2514,11 +2742,15 @@ def validate_document(
     milestone_schema = _load_schema(MILESTONE_SCHEMA_PATH)
     f9_schema = _load_schema(F9_SCHEMA_PATH)
     findings.extend(_schema_findings(ledger, milestone_schema, "milestone_framework"))
+    if scholarly_memo is not None:
+        scholarly_memo.schema_validations += 1
     if not isinstance(ledger, dict):
         return _result(target, None, findings, evidence)
     handoff_policy: str | None = None
     try:
         handoff_policy = resolve_handoff_policy(ledger)["effective_policy"]
+        if scholarly_memo is not None:
+            scholarly_memo.handoff_policy_resolves += 1
     except HandoffPolicyResolutionError as error:
         findings.append(_finding(error.code, error.path, error.message))
     milestones = ledger.get("milestones")
@@ -2563,6 +2795,7 @@ def validate_document(
         deliverables[milestone] = deliverable
         scholarly = _validate_scholarly_policy(
             project_root, milestone, record, deliverable, findings, evidence,
+            scholarly_memo=scholarly_memo,
         )
         _validate_feedback(project_root, milestone, record, primary_lineage, findings, evidence)
         approval = record.get("approval")
@@ -2588,6 +2821,8 @@ def validate_document(
             predecessor = packet
 
         if index > 0 and record.get("status") not in {"not_started", "not_applicable"}:
+            if scholarly_memo is not None:
+                scholarly_memo.successor_chain_checks += 1
             previous = milestones.get(MILESTONES[index - 1], {})
             previous_approval = previous.get("approval") if isinstance(previous, dict) else None
             previous_handoff = previous.get("handoff") if isinstance(previous, dict) else None

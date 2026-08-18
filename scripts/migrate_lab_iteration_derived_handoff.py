@@ -334,14 +334,22 @@ def _framework(document: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _validate_ledger(project: Path, document: dict[str, Any], *, target: bool = False) -> str:
+def _validate_ledger(
+    project: Path,
+    document: dict[str, Any],
+    *,
+    target: bool = False,
+    scholarly_memo: Any | None = None,
+) -> str:
     code = POSTIMAGE_INVALID if target else LEDGER_INVALID
     try:
         resolution = resolve_handoff_policy(_framework(document))
     except HandoffPolicyResolutionError as exc:
         raise MigrationError(code, f"{exc.code}: {exc.message}") from exc
     try:
-        validation = milestone_validator.validate_document(project, document, target=None)
+        validation = milestone_validator.validate_document(
+            project, document, target=None, scholarly_memo=scholarly_memo,
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, milestone_validator.SchemaViolation) as exc:
         raise MigrationError(code, f"canonical ledger validation failed: {exc}") from exc
     if not validation.exit_permitted:
@@ -541,12 +549,13 @@ def dry_run_migration(project: Path, authority_receipt: Path | None, *, at: str 
     _assert_no_claims(project)
     _, document, ledger_bytes = _load_ledger(project)
     _, authority, _, authority_binding = _load_authority(project, authority_receipt, document)
-    result = _validate_ledger(project, document)
+    scholarly_memo = milestone_validator.ScholarlyValidationMemo()
+    result = _validate_ledger(project, document, scholarly_memo=scholarly_memo)
     inventory = _inventory(project)
     if result == IMPLICIT_AUDITED_COMPATIBILITY:
         _assert_source_authority(authority, ledger_bytes)
         proposed, post_bytes = _proposed(document)
-        _validate_ledger(project, proposed, target=True)
+        _validate_ledger(project, proposed, target=True, scholarly_memo=scholarly_memo)
         preserved = _preserved(document, proposed)
         if preserved["pre_sha256"] != preserved["post_sha256"]:
             raise MigrationError(POSTIMAGE_INVALID, "prospective migration changes more than the two permitted paths")
@@ -601,7 +610,8 @@ def apply_migration(
     _assert_no_claims(project)
     ledger_path, document, ledger_bytes = _load_ledger(project)
     authority_path, authority, authority_bytes, authority_binding = _load_authority(project, authority_receipt, document)
-    result = _validate_ledger(project, document)
+    scholarly_memo = milestone_validator.ScholarlyValidationMemo()
+    result = _validate_ledger(project, document, scholarly_memo=scholarly_memo)
     if result == "EXPLICIT_DERIVED":
         evidence = _find_committed_apply(project, authority_binding, ledger_bytes)
         repeated = copy.deepcopy(evidence["receipt"])
@@ -612,7 +622,7 @@ def apply_migration(
         raise MigrationError(LEDGER_INVALID, "apply requires a valid implicit-audited 1.0.0 ledger")
     _assert_source_authority(authority, ledger_bytes)
     proposed, post_bytes = _proposed(document)
-    _validate_ledger(project, proposed, target=True)
+    _validate_ledger(project, proposed, target=True, scholarly_memo=scholarly_memo)
     preserved = _preserved(document, proposed)
     if preserved["pre_sha256"] != preserved["post_sha256"]:
         raise MigrationError(POSTIMAGE_INVALID, "prospective migration changes more than the two permitted paths")
@@ -817,8 +827,11 @@ def _validate_apply_evidence_graph(
         raise MigrationError(code, "immutable authority does not bind the rollback preimage bytes")
     post_document, post_bytes = _proposed(pre_document)
     try:
-        source_policy = _validate_ledger(project, pre_document)
-        target_policy = _validate_ledger(project, post_document, target=True)
+        scholarly_memo = milestone_validator.ScholarlyValidationMemo()
+        source_policy = _validate_ledger(project, pre_document, scholarly_memo=scholarly_memo)
+        target_policy = _validate_ledger(
+            project, post_document, target=True, scholarly_memo=scholarly_memo,
+        )
     except MigrationError as exc:
         raise MigrationError(code, f"apply evidence ledger replay failed: {exc.code}: {exc.message}") from exc
     if source_policy != IMPLICIT_AUDITED_COMPATIBILITY or target_policy != "EXPLICIT_DERIVED":

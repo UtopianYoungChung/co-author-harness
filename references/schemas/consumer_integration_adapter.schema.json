@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "consumer_integration_adapter.schema.json",
+  "title": "Consumer-supplied integration adapter (integration input only)",
+  "description": "The versioned interface by which a separately governed integration project supplies workspace-specific paths and hashes to this package. The package defines the shape and validates it fail-closed; it never ships a populated instance, never resolves a declared path, and gains no authority from a valid instance. Producing or applying an instance requires its own authorized consumer-integration transaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "adapter_id", "integration_project", "core_identity", "consumer_identity", "bindings", "authority", "grants"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "integration_project": {"type": "object", "additionalProperties": false, "required": ["work_id", "governance", "authorized_by"], "properties": {"work_id": {"type": "string", "minLength": 1}, "governance": {"type": "string", "minLength": 1}, "authorized_by": {"type": "string", "minLength": 1}}},
+    "core_identity": {"type": "object", "additionalProperties": false, "required": ["name", "version", "contract_kernel_sha256", "compatibility_kit_sha256", "output_contract_sha256"], "properties": {"name": {"const": "co-author-harness"}, "version": {"type": "string", "minLength": 1}, "contract_kernel_sha256": {"$ref": "#/$defs/sha256"}, "compatibility_kit_sha256": {"$ref": "#/$defs/sha256"}, "output_contract_sha256": {"$ref": "#/$defs/sha256"}}},
+    "consumer_identity": {"type": "object", "additionalProperties": false, "required": ["name", "governance"], "properties": {"name": {"type": "string", "minLength": 1}, "governance": {"type": "string", "minLength": 1}}},
+    "bindings": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "object", "additionalProperties": false, "required": ["role", "path", "bytes", "sha256"], "properties": {"role": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1}, "bytes": {"type": "integer", "minimum": 0}, "sha256": {"$ref": "#/$defs/sha256"}}}},
+    "authority": {"const": "integration-input-only"},
+    "grants": {"type": "object", "additionalProperties": false, "required": ["project_lifecycle", "approval", "promotion", "delivery", "release", "installation", "activation", "core_source_mutation", "consumer_source_mutation"], "properties": {"project_lifecycle": {"const": false}, "approval": {"const": false}, "promotion": {"const": false}, "delivery": {"const": false}, "release": {"const": false}, "installation": {"const": false}, "activation": {"const": false}, "core_source_mutation": {"const": false}, "consumer_source_mutation": {"const": false}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

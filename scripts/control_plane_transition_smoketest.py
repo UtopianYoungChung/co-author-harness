@@ -9,10 +9,16 @@ exception must carry ``code``; an accepted twin must return a mapping whose
 
 All fixtures are short, self-authored, in-memory analogues.  They contain no
 live research path or byte.
+
+Transaction sandboxes live under the process temporary root
+(``tempfile.gettempdir()``, honouring ``TEMP``/``TMP``/``TMPDIR``), never under
+the package checkout root, so a hard kill cannot leave ``.v040-c2-control-*``
+residue on a watched output root.
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import copy
 import hashlib
 import importlib.util
@@ -21,13 +27,16 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from tempfile import TemporaryDirectory
-from typing import Any
+import tempfile
+import time
+from typing import Any, Iterator
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION = ROOT / "scripts" / "control_plane_transition.py"
+SCRIPTS = ROOT / "scripts"
 API = "validate_transition"
+SANDBOX_TEMP_PREFIX = ".v040-c2-control-"
 if str(ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -318,8 +327,181 @@ def _assert_postimages(root: Path, expected: dict[str, bytes]) -> None:
     assert authority["receipt_id"] == "synthetic-receipt-b17"
 
 
-def _package_root() -> TemporaryDirectory[str]:
-    return TemporaryDirectory(prefix=".v040-c2-control-", dir=ROOT)
+def _sandbox_temporary_directory() -> tempfile.TemporaryDirectory[str]:
+    """Create the suite sandbox under the process temp root, never under ROOT."""
+    return tempfile.TemporaryDirectory(
+        prefix=SANDBOX_TEMP_PREFIX,
+        dir=tempfile.gettempdir(),
+    )
+
+
+def _assert_sandbox_outside_package_root(sandbox: Path) -> None:
+    package = ROOT.resolve()
+    resolved = sandbox.resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if resolved == package or resolved.is_relative_to(package):
+        raise AssertionError(
+            f"control-plane sandbox must not live under package ROOT: {resolved} under {package}"
+        )
+    if not resolved.is_relative_to(temp_root):
+        raise AssertionError(
+            f"control-plane sandbox must live under process temp root: {resolved} not under {temp_root}"
+        )
+
+
+def _package_control_temp_residue() -> list[Path]:
+    package = ROOT.resolve()
+    return sorted(
+        path for path in package.glob(f"{SANDBOX_TEMP_PREFIX}*")
+        if path.is_dir()
+    )
+
+
+@contextmanager
+def _package_root(module: Any | None = None) -> Iterator[str]:
+    """Yield a temp sandbox.  When *module* is supplied, classify it as package.
+
+    Production ``_guard`` allows control publication only for package/staging/
+    shipment.  Relocating the fixture off the checkout would otherwise become
+    ``external`` and refuse publish.  Pointing ``destinations.HARNESS`` at the
+    sandbox preserves that fail-closed rule while keeping ``os.replace`` off
+    the watched package root.  The production module is not patched.
+    """
+    with _sandbox_temporary_directory() as raw:
+        sandbox = Path(raw)
+        _assert_sandbox_outside_package_root(sandbox)
+        if module is None:
+            yield raw
+            return
+        prior_harness = module.destinations.HARNESS
+        module.destinations.HARNESS = sandbox
+        try:
+            yield raw
+        finally:
+            module.destinations.HARNESS = prior_harness
+
+
+def case_temp_placement_outside_package_root() -> None:
+    """Prove redirected TEMP hosts ``.v040-c2-control-*`` outside package ROOT."""
+    # gettempdir() caches per process; probe in a child with TEMP set at launch.
+    with tempfile.TemporaryDirectory(prefix="v0431-control-temp-probe-") as outer:
+        isolated = Path(outer) / "isolated-temp"
+        isolated.mkdir()
+        env = {
+            **os.environ,
+            "TEMP": str(isolated),
+            "TMP": str(isolated),
+            "TMPDIR": str(isolated),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+            "V0431_CONTROL_EXPECTED_TEMP": str(isolated.resolve()),
+        }
+        probe = (
+            "import os\n"
+            "import tempfile\n"
+            "from pathlib import Path\n"
+            "import control_plane_transition_smoketest as m\n"
+            "root = m.ROOT.resolve()\n"
+            "temp_root = Path(tempfile.gettempdir()).resolve()\n"
+            "expected = Path(os.environ['V0431_CONTROL_EXPECTED_TEMP']).resolve()\n"
+            "assert temp_root == expected, (temp_root, expected)\n"
+            "with m._sandbox_temporary_directory() as raw:\n"
+            "    sandbox = Path(raw).resolve()\n"
+            "    m._assert_sandbox_outside_package_root(sandbox)\n"
+            "    assert sandbox.is_relative_to(temp_root), (sandbox, temp_root)\n"
+            "    assert not sandbox.is_relative_to(root), (sandbox, root)\n"
+            "print('TEMP_PLACEMENT_OK')\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", probe],
+            cwd=str(SCRIPTS),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode != 0 or "TEMP_PLACEMENT_OK" not in result.stdout:
+            raise AssertionError(
+                "temp-placement probe failed: "
+                f"exit={result.returncode} stdout={result.stdout!r} stderr={result.stderr!r}"
+            )
+        if _package_control_temp_residue():
+            raise AssertionError(
+                f"temp-placement probe left package residue: {_package_control_temp_residue()}"
+            )
+
+
+def case_timeout_leaves_no_package_control_residue() -> None:
+    """Hard-kill a held sandbox; require no ``.v040-c2-control-*`` under ROOT."""
+    before = {path.resolve() for path in _package_control_temp_residue()}
+    with tempfile.TemporaryDirectory(prefix="v0431-control-timeout-probe-") as outer:
+        isolated = Path(outer) / "isolated-temp"
+        isolated.mkdir()
+        env = {
+            **os.environ,
+            "TEMP": str(isolated),
+            "TMP": str(isolated),
+            "TMPDIR": str(isolated),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+        }
+        holder = (
+            "import time\n"
+            "from pathlib import Path\n"
+            "import control_plane_transition_smoketest as m\n"
+            "td = m._sandbox_temporary_directory()\n"
+            "raw = td.__enter__()\n"
+            "Path(raw, 'held.marker').write_text('held', encoding='utf-8')\n"
+            "print('HELD', raw, flush=True)\n"
+            "time.sleep(3600)\n"
+        )
+        proc = subprocess.Popen(
+            [sys.executable, "-B", "-c", holder],
+            cwd=str(SCRIPTS),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        try:
+            assert proc.stdout is not None
+            deadline = time.monotonic() + 30
+            held_line = ""
+            while time.monotonic() < deadline:
+                line = proc.stdout.readline()
+                if line.startswith("HELD "):
+                    held_line = line.strip()
+                    break
+                if proc.poll() is not None:
+                    break
+            if not held_line:
+                stderr = proc.stderr.read() if proc.stderr is not None else ""
+                raise AssertionError(
+                    f"timeout probe did not publish held sandbox: "
+                    f"exit={proc.poll()} stderr={stderr!r}"
+                )
+            held_path = Path(held_line.split(" ", 1)[1]).resolve()
+            package = ROOT.resolve()
+            if held_path == package or held_path.is_relative_to(package):
+                raise AssertionError(
+                    f"held sandbox resolved under package ROOT: {held_path}"
+                )
+            proc.kill()
+            proc.wait(timeout=30)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=30)
+        after = {path.resolve() for path in _package_control_temp_residue()}
+        created = sorted(after - before)
+        if created:
+            raise AssertionError(
+                f"timeout/kill left package control residue: {created}"
+            )
 
 
 def _run_direct_api_cases(module: Any, base: dict[str, Any]) -> list[str]:
@@ -483,7 +665,7 @@ def _run_direct_api_cases(module: Any, base: dict[str, Any]) -> list[str]:
 def _run_transaction_cases(module: Any) -> list[str]:
     completed: list[str] = []
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, expected = _project_fixture(project)
         transition_id = "atomic-publish"
@@ -522,7 +704,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert after_replay == before_replay, "committed replay changed bytes"
         completed.append("committed_replay_idempotent")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, expected = _project_fixture(project)
         transition_id = "partial-recover"
@@ -543,7 +725,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert module.verify_committed(project, transition_id)["findings"] == []
         completed.append("partial_crash_nonauthoritative_then_recover")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, expected = _project_fixture(project)
         transition_id = "marker-crash"
@@ -564,7 +746,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert module.verify_committed(project, transition_id)["findings"] == []
         completed.append("all_effects_crash_before_marker_then_recover")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, expected = _project_fixture(project)
         transition_id = "authority-move-crash"
@@ -585,7 +767,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert module.verify_committed(project, transition_id)["findings"] == []
         completed.append("authority_move_crash_recovery")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "stale-preimage"
@@ -596,7 +778,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not _transaction_path(project, transition_id, "commit_marker.json").exists()
         completed.append("stale_preimage_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "foreign-recovery"
@@ -619,7 +801,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not _transaction_path(project, transition_id, "commit_marker.json").exists()
         completed.append("foreign_partial_state_recovery_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         plan["superseded_authority"] = []
@@ -635,7 +817,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         ).exists()
         completed.append("omitted_live_authority_refused_before_effect")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "win32-invalid-prepare"
@@ -670,7 +852,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         ).exists()
         completed.append("win32_invalid_prepare_refused_before_durable_effect")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         sandbox = Path(temporary)
         fake_harness = sandbox / "synthetic-harness"
         fake_harness.mkdir()
@@ -706,7 +888,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
                 os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = prior_extra
         completed.append("protected_destination_no_effect")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "missing-invalidation"
@@ -722,7 +904,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not _transaction_path(project, transition_id, "commit_marker.json").exists()
         completed.append("missing_manifest_invalidation_refused_no_marker")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "substituted-invalidation"
@@ -738,7 +920,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not _transaction_path(project, transition_id, "commit_marker.json").exists()
         completed.append("substituted_manifest_invalidation_refused_no_marker")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "late-before-effects"
@@ -749,7 +931,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not (project / "controls/controlling_brief.json").exists()
         completed.append("late_receipt_pre_effect_epoch_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "late-before-marker"
@@ -768,7 +950,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not _transaction_path(project, transition_id, "commit_marker.json").exists()
         completed.append("late_receipt_pre_marker_epoch_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         module.prepare(project, plan, "claim-owner")
@@ -782,7 +964,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
             )
         completed.append("concurrent_prepare_and_publish_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "live-owner-recovery"
@@ -809,7 +991,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
             process.wait(timeout=5)
         completed.append("live_owner_recovery_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "parent-reparse"
@@ -831,7 +1013,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
         assert not (project / "controls/controlling_brief.json").exists()
         completed.append("parent_reparse_substitution_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "real-issuance-guard"
@@ -886,7 +1068,7 @@ def _run_transaction_cases(module: Any) -> list[str]:
             assert exc.code == "CPT-LIVE-RECEIPT", exc
         completed.append("real_process_gate_and_receipt_transition_refused")
 
-    with _package_root() as temporary:
+    with _package_root(module) as temporary:
         project = Path(temporary)
         plan, _ = _project_fixture(project)
         transition_id = "committed-invalidation-tamper"
@@ -968,4 +1150,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--temp-placement-only"]:
+        case_temp_placement_outside_package_root()
+        print("PASS: control-plane sandbox temp placement stays outside package ROOT")
+        raise SystemExit(0)
+    if sys.argv[1:] == ["--timeout-residue-only"]:
+        case_timeout_leaves_no_package_control_residue()
+        print("PASS: hard-kill leaves no .v040-c2-control-* under package ROOT")
+        raise SystemExit(0)
     raise SystemExit(main())

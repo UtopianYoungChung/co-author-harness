@@ -89,7 +89,7 @@
       "id": "consumer-compatibility-profile-schema",
       "path": "references/schemas/consumer_compatibility_profile.schema.json",
       "revision_kind": "sha256",
-      "sha256": "f24110d48f51b2184ec4e5d5d526a131660bb04fda926abd15eef343006713d8",
+      "sha256": "050e690912a27a1860dbcb53b74ea4cf6fa8dd550dc46adeb3a7af1e772574b9",
       "migration_ids": [
         "consumer-compatibility-v1"
       ]
@@ -101,6 +101,16 @@
       "sha256": "04420cd95c42afedff4d6d0efd8571cc35e275cb2246306f0bb4b769e5307edb",
       "migration_ids": [
         "consumer-compatibility-v1"
+      ]
+    },
+    {
+      "id": "consumer-integration-adapter-schema",
+      "path": "references/schemas/consumer_integration_adapter.schema.json",
+      "revision_kind": "sha256",
+      "sha256": "75f573dcddbbac629881308f3f167f8c7ab1d268424c81efc1ad9c2ed56025f2",
+      "migration_ids": [
+        "consumer-compatibility-v1",
+        "core-consumer-decoupling-v1"
       ]
     },
     {
@@ -411,7 +421,7 @@
       "id": "milestone-framework-validator",
       "path": "scripts/milestone_framework_validate.py",
       "revision_kind": "sha256",
-      "sha256": "670a836d1d00094d14ecdfdde7ea75e80936d49e678d943afb8b0aaaeb56612d",
+      "sha256": "0ea26106fc71cf0a9ccefaec6bbd4a2375483a537ff921c0eb11a159cb230e53",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -476,7 +486,7 @@
       "id": "handoff-policy-migrator",
       "path": "scripts/migrate_lab_iteration_derived_handoff.py",
       "revision_kind": "sha256",
-      "sha256": "497c912f767f0b09becb760a8c59b88dcc4fe78963e7ab764f4dbeb18c85a86b",
+      "sha256": "2d2432cdab76f4b68e4f3fffd11fa92e4d6c822681abf05c8ca3c55d56c86b20",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1"
       ]
