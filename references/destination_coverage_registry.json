@@ -93,7 +93,7 @@
     "scripts/contract-kernel-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/contract_kernel.v1.json (package constant) and only under explicit --refresh",
-      "sha256": "0ad69064b721ad8f9e59895edea626097806d2eccb993dea0d68a00c681d0346"
+      "sha256": "4507c7c0c804564baec1c4d770ff2dbe470b75a94d022cc501ff27def17c0b9a"
     },
     "scripts/product_assurance.py": {
       "class": "guarded",
@@ -204,7 +204,7 @@
     "scripts/hooks/full_run_pretooluse_gate.py": {
       "class": "excluded",
       "reason": "only write is a NamedTemporaryFile in the OS temp directory, unlinked in a finally block; no destination input exists",
-      "sha256": "a182f21b317e277890415629132be67ed3d16361595706128bcce924d52ead92"
+      "sha256": "57eb4c56f51d92ef4a61e0b58e624112dfa35d7de3f163d9d7d55590bb6d6411"
     },
     "scripts/install_preflight_assets.py": {
       "class": "guarded",
@@ -276,6 +276,14 @@
       "class": "test_only",
       "justification": "sandbox-base helper for hermetic smoketest clones (sibling of the primary worktree); production writers never route destinations through it",
       "sha256": "afdd5b4dc0dbfb138b81be041c72c4236c6c49adac4a84950c44f2f1ba1124d6"
+    },
+    "scripts/centroid_sentence_logic.py": {
+      "class": "guarded",
+      "regression": "scripts/centroid_sentence_logic_smoketest.py"
+    },
+    "scripts/draft_governance.py": {
+      "class": "guarded",
+      "regression": "scripts/draft_governance_smoketest.py"
     }
   }
 }

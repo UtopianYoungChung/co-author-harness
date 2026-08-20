@@ -580,13 +580,13 @@ A skill should be retired (moved to the Retired Skills section below) when **any
 
 ## Retired skills
 
-### SK-05. `run-full-review` — retired 2026-04-19 (v0.5.1)
+### SK-05. run-full-review — retired 2026-04-19 (v0.5.1)
 - **Criterion triggered:** R1 — Superseded. SK-26 `run-tier-standard` (T3) and SK-27 `run-tier-submission` (T4) together cover the same behaviour with explicit tier binding. SK-05's only role at v0.5.0 was a transitional alias that dispatched to SK-26 or SK-27 based on the classification record's `tier:` field.
 - **Original file:** `skills/run-full-review/SKILL.md` (removed from the v0.5.1 tree; deprecation preserved in v0.5.0's release artifact).
 - **Reason:** The old name was ambiguous across T3 and T4 once the six-tier Incremental Tier Protocol replaced the three-value `review_depth` vocabulary. Visible aliasing at v0.5.0 surfaced the deprecation on every invocation; v0.5.1 completes the rename by removing the alias.
 - **Migration path:** Use `run-tier-standard` for the T3 procedure and `run-tier-submission` for the T4 procedure. `classify-manuscript` writes the `tier:` field directly; no depth translation is required in new projects. Legacy `review_depth` values in archived v0.4.x classification records still read under the v0.5.0 transitional read-path; at v0.5.1 the read-path is also retired (see `TIER_PROTOCOL.md §10`).
 
-### SK-28. `eygp-framework-checker` — retired 2026-04-20 (v0.7.0)
+### SK-28. eygp-framework-checker — retired 2026-04-20 (v0.7.0)
 - **Criterion triggered:** R5 — User directive (release-gate WARN on 2026-04-20 flagged the skill for pruning during the v0.6.0 → v0.7.0 transition).
 - **Original file:** `skills/packaged/packaged/eygp-framework-checker.md` (plus the `.skill` sibling). Both stubs were **removed** at the v0.7.0 sweep, following the v0.5.2 precedent for retired packaged-only stubs (see the v0.5.2 README Version block where `skills/packaged/run-full-review.skill` was removed for the same reason — packaged-only stubs with no canonical-directory counterpart are pruned rather than moved, to keep the shipped bundle free of dead surfaces). The Retired-Skill Procedure's default move-to-`retired/` path applies to skills with a canonical `skills/<name>/` directory; packaged-only stubs are removed.
 - **Reason:** The EYgp six-axis cross-check coverage goal has not manifested as a recurring reviewer need across projects, and the skill's dependency on the non-distributed workbook (`references/EYgp_Research_process_and_artifacts.xlsx`) created a brittle contract that did not justify its maintenance cost. SK-10 `p-stage-checker` retains the P-axis coverage that projects actually invoke.

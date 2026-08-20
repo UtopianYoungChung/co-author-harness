@@ -873,7 +873,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "8c31185515b9d04d65f60c622b47573dae40d3b2151ca36c2eaed42ec00919dd",
+      "sha256": "63eea6fe5408198145805d2f1aa382ce4b1b14391aa0c342a46ead478d711c2c",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1008,7 +1008,7 @@
       "id": "skill-run-generator-session",
       "path": "skills/run-generator-session/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "7e2d70f5650d520f092eca13e791a08ce72612bdb88a77cc747486c6cb09c097",
+      "sha256": "5e1087693e36b97dc135dae69f10a885080fb898189024cd723ab2a366a790b7",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

@@ -9,6 +9,7 @@ version: 1.1
 # run-generator-session -- closed as a chat-to-manuscript bypass
 
 This skill is not a public write path. Chat is not authority. Classification plus phase_state.json presence is not enough.
+Closed output economy: this skill does not emit `role_output_contract.json` or shipment-v2 receipts. CLOSED_PUBLIC_BYPASS.
 
 Do not write manuscript files unless every hard stop below passes.
 
