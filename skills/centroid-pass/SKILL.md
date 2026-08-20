@@ -1,22 +1,17 @@
 ---
 name: centroid-pass
 user-invocable: true
-description: 'Unavailable for native reader-profile v2. Returns GRAPH_GOVERNED_GENERATION_UNAVAILABLE when semantic_usage is not_invoked; the deterministic packet is not a scholarly pass.'
+description: 'Bind and execute the package centroid for generation, review, or revision. The deterministic service resolves the live corpus policy and scope; the dispatched Generator or Evaluator performs the grounded semantic pass.'
 trigger: automatically for M1, M2, M3, M4, and FINAL only when the authoritative reader binding enables governed semantic use, and explicitly when the user invokes /centroid-pass. Reader-profile v2 with semantic_usage not_invoked does not auto-dispatch this skill.
 version: 3.0
 ---
 
 # centroid-pass
 
-## FAIL-CLOSED: semantic centroid unavailable on native v2
-
-Native reader-profile v2 records `semantic_usage: not_invoked`.
-`scripts/centroid_service.py` refuses with
-`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`. The capability row is
-`unavailable` / `deferred-unavailable`. This is R5 dormancy, not a
-skipped obligation. Ordinary generation continues under non-graph
-controls. Do not fabricate exemplar evidence or treat
-`binding_resolved` / empty `semantic_findings` as a pass.
+The script always runs. When reader-profile v2 sets `semantic_usage: not_invoked`,
+it still emits a general binding packet (scope, hashes, metrics) and marks
+`reason_code: SEMANTIC_USAGE_NOT_INVOKED`. That is not a graph-governed scholarly
+pass and not a fabricated finding set.
 
 ## Contract
 

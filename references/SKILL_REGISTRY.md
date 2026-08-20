@@ -519,7 +519,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Pattern:** Public, read-only orchestration. A deterministic packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass.
 - **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.
 - **Tier:** Package
-- **Status:** Unavailable on native reader-profile v2 (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`). Mandatory only when the authoritative reader binding enables governed semantic use.
+- **Status:** Active. The script always emits a binding packet; graph-governed scholarly use is claimed only when the reader binding enables it.
 - **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/policies/draft_governance.v1.json`, `scripts/centroid_service.py`, `scripts/draft_governance.py`, and `references/GROUNDING_PROTOCOL.md`.
 - **Trigger:** Every M1-M4/FINAL draft or revision whose authoritative reader binding enables governed semantic use, or explicit `/centroid-pass`; reader-profile v2 with `semantic_usage: not_invoked` does not auto-dispatch it.
 - **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).

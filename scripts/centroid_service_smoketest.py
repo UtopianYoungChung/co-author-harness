@@ -143,8 +143,11 @@ def main() -> int:
         graph["graph"]["extraction_mode"] = "structural-only"
         graph_path.write_text(json.dumps(graph), encoding="utf-8")
         ineligible = invoke(*common_args(project, manuscript, wiki, workspace))
-        assert ineligible.returncode == 4
-        assert json.loads(ineligible.stdout)["reason_code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+        assert ineligible.returncode == 0
+        ineligible_packet = json.loads(ineligible.stdout)
+        assert ineligible_packet["status"] == "binding_resolved"
+        assert ineligible_packet["reason_code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+        assert ineligible_packet["semantic_findings"] == []
         graph_path.write_bytes(graph_bytes)
 
         heading = invoke(
@@ -196,18 +199,16 @@ def main() -> int:
             }),
             encoding="utf-8",
         )
-        # A graph-independent v2 binding must refuse before the semantic graph
-        # is read. Keep the fixture structurally ineligible here so an
-        # accidentally late v2 check cannot be masked by an eligible graph.
-        graph = json.loads(graph_bytes)
-        graph["graph"]["extraction_mode"] = "structural-only"
-        graph_path.write_text(json.dumps(graph), encoding="utf-8")
+        # v2 not_invoked still runs a general binding packet after policy resolve.
+        graph_path.write_bytes(graph_bytes)
         dormant = invoke(*common_args(project, manuscript, wiki, workspace))
-        assert dormant.returncode == 4
+        assert dormant.returncode == 0
         dormant_packet = json.loads(dormant.stdout)
         validate_packet(dormant_packet, schema)
-        assert dormant_packet["reason_code"] == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE"
-        assert "semantic_usage not_invoked" in dormant_packet["detail"]
+        assert dormant_packet["status"] == "binding_resolved"
+        assert dormant_packet["reason_code"] is None
+        assert dormant_packet["semantic_findings"] == []
+        assert any("not_invoked" in item for item in dormant_packet["limitations"])
         graph_path.write_bytes(graph_bytes)
 
         (project / "reviews" / "phase_state.json").write_text(

@@ -34,7 +34,7 @@ LIFECYCLE_RENDERER = ROOT / "scripts" / "render_lifecycle_state.py"
 EXEMPLAR_REGISTRY = ROOT / "references" / "milestone_exemplars.json"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
 SK20_GATE = ROOT / "scripts" / "sk20_preflight_gate.py"
-PLUGIN_VERSION = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+PLUGIN_VERSION = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))["version"]
 
 CASES = {
     "valid_native_chain": 0,

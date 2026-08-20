@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prepare a deterministic, read-only centroid execution packet.
 
-The public ``/centroid-pass`` orchestration uses this script to bind the live
+The public centroid-pass skill uses this script to bind the live
 reader-accessibility profile, corpus members, warrants, manuscript scope, and
 hashes before a Generator or Evaluator performs the semantic pass.
 """
@@ -150,11 +150,8 @@ def _binding_provenance(project_root: Path | None, resolved: dict[str, Any]) -> 
         and binding.get("binding_kind") == "reader_profile"
         and binding.get("semantic_usage") == "not_invoked"
     ):
-        raise Unavailable(
-            "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
-            "reader-profile v2 declares semantic_usage not_invoked; "
-            "the semantic centroid remains dormant",
-        )
+        # General skill still binds; graph-governed semantic use is not claimed.
+        return "package-default"
     expected = {
         "profile_sha256": resolved["profile_sha256"],
         "attestation_view_pin": resolved["attestation_view_pin"],
@@ -224,6 +221,59 @@ def _member_view(items: Any) -> list[dict[str, str]]:
     return sorted(output, key=lambda item: item["source_key"].encode("utf-8"))
 
 
+
+def _general_packet(
+    *,
+    manuscript_path: Path,
+    manuscript_bytes: bytes,
+    scoped_text: str,
+    scope: dict[str, Any],
+    prose: list[str],
+    mode: str,
+    reason_code: str,
+    detail: str,
+) -> dict[str, Any]:
+    """Manuscript binding without graph-governed semantic corpus."""
+    scope_bytes = scoped_text.encode("utf-8")
+    words = WORD_RE.findall("\n".join(prose))
+    packet = _base("binding_resolved", reason_code)
+    packet.update({
+        "binding_provenance": "general",
+        "detail": detail,
+        "manuscript": {
+            "path": str(manuscript_path),
+            "sha256": _sha256(manuscript_bytes),
+            "scope": {**scope, "sha256": _sha256(scope_bytes)},
+        },
+        "policy": {
+            "profile_path": None,
+            "members": [],
+            "surface_member_keys": [],
+            "argument_member_keys": [],
+        },
+        "analysis_contract": {
+            "derivation": mode,
+            "exemplar_warrant": None,
+            "selected_member_keys": [],
+            "primary_member_keys": [],
+            "retrieval_order": [],
+        },
+        "scope_metrics": {
+            "utf8_bytes": len(scope_bytes),
+            "characters": len(scoped_text),
+            "words": len(words),
+            "prose_lines": len(prose),
+        },
+        "semantic_findings": [],
+        "limitations": [
+            "General binding packet: manuscript scope, hashes, and text metrics only.",
+            "Graph-governed semantic corpus was not used. Do not treat empty semantic_findings as a scholarly pass.",
+            "It performs no manuscript, lifecycle, review, graph, or Wiki write.",
+        ],
+    })
+    return packet
+
+
 def build_packet(args: argparse.Namespace) -> dict[str, Any]:
     project_root: Path | None = None
     if args.project_root is not None:
@@ -240,12 +290,7 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
     if not prose:
         raise Unavailable("NO_PROSE", "resolved scope contains no prose")
 
-    if _reader_profile_v2_is_dormant(project_root):
-        raise Unavailable(
-            "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
-            "reader-profile v2 declares semantic_usage not_invoked; "
-            "the semantic centroid remains dormant",
-        )
+    general_only = _reader_profile_v2_is_dormant(project_root)
 
     try:
         resolved = policy.resolve_policy(
@@ -255,7 +300,19 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
             harness_root=Path(args.harness_root) if args.harness_root else None,
         )
     except (policy.PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise Unavailable(_policy_reason(exc), str(exc)) from exc
+        reason = _policy_reason(exc)
+        if reason == "GRAPH-SEMANTIC-INELIGIBLE":
+            return _general_packet(
+                manuscript_path=manuscript_path,
+                manuscript_bytes=manuscript_bytes,
+                scoped_text=scoped_text,
+                scope=scope,
+                prose=prose,
+                mode=args.mode,
+                reason_code="GRAPH-SEMANTIC-INELIGIBLE",
+                detail=str(exc),
+            )
+        raise Unavailable(reason, str(exc)) from exc
 
     provenance = _binding_provenance(project_root, resolved)
     register = resolved["register_provenance"]
@@ -320,6 +377,10 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
             "It performs no manuscript, lifecycle, review, graph, or Wiki write.",
         ],
     })
+    if general_only:
+        packet["limitations"].append(
+            "reader-profile v2 semantic_usage is not_invoked; this is a general binding packet, not a graph-governed scholarly pass."
+        )
     return packet
 
 
