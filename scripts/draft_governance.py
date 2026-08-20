@@ -17,8 +17,14 @@ from draft_evidence_verifier import (
     report_payload_sha256,
     validate_verifier_transaction,
 )
+from datetime import datetime, timezone
+
+from destination_capability import DestinationRefused, assert_writable
 from obligation_result import (
     ObligationResultRefusal,
+    _dstyle_evidence_identity,
+    _dstyle_report_from_snapshots,
+    finding_fingerprint,
     validate_obligation_registry,
     verify_obligation_result,
 )
@@ -770,6 +776,7 @@ def verify(
     typed_obligation_ids: list[str] = []
     lifecycle_clearing_obligation_ids: list[str] = []
     diagnostic_obligation_ids: list[str] = []
+    deferred_obligation_ids: list[str] = []
     for obligation_id, contract_row in required.items():
         row = by_id[obligation_id]
         adapter = adapters.get(obligation_id)
@@ -807,6 +814,17 @@ def verify(
                     "DRAFT-POLICY-OBLIGATION-STALE",
                     f"typed result does not bind the receipt artifact and resolved contract: {obligation_id}",
                 )
+            if result.get("execution_status") == "not_run":
+                _accept_generation_not_run(
+                    result,
+                    obligation_id=obligation_id,
+                    adapter=adapter,
+                    phase=args.phase,
+                    project=project,
+                )
+                typed_obligation_ids.append(obligation_id)
+                deferred_obligation_ids.append(obligation_id)
+                continue
             try:
                 verified_result = verify_obligation_result(
                     result,
@@ -878,6 +896,7 @@ def verify(
             "typed_obligation_result_ids": sorted(typed_obligation_ids),
             "lifecycle_clearing_obligation_result_ids": sorted(lifecycle_clearing_obligation_ids),
             "diagnostic_obligation_result_ids": sorted(diagnostic_obligation_ids),
+            "deferred_obligation_result_ids": sorted(deferred_obligation_ids),
             "semantic_usage": "not_invoked",
             "graph_capability": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
         }
@@ -917,8 +936,331 @@ def verify(
             lifecycle_clearing_obligation_ids
         ),
         "diagnostic_obligation_result_ids": sorted(diagnostic_obligation_ids),
+        "deferred_obligation_result_ids": sorted(deferred_obligation_ids),
         **semantic,
     }
+
+
+DSTYLE_REPORT_SCHEMA_REL = "scripts/d_style_profile_check.py"
+
+
+def _exact_binding(path: Path, project: Path) -> dict[str, str | int]:
+    resolved = path.resolve(strict=True)
+    rel = resolved.relative_to(project.resolve(strict=True)).as_posix()
+    payload = resolved.read_bytes()
+    return {"path": rel, "sha256": _sha_bytes(payload), "byte_length": len(payload)}
+
+
+def _write_json(path: Path, value: dict[str, Any]) -> dict[str, str | int]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
+    path.write_text(payload, encoding="utf-8", newline="\n")
+    return {
+        "path": path.name,
+        "sha256": _sha_bytes(payload.encode("utf-8")),
+        "byte_length": path.stat().st_size,
+    }
+
+
+def _accept_generation_not_run(
+    result: dict[str, Any],
+    *,
+    obligation_id: str,
+    adapter: dict[str, Any],
+    phase: str,
+    project: Path,
+) -> None:
+    """Allow honest generation deferral. Never a scholarly clean."""
+    if phase != "generation":
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-BLOCKING-OUTCOME",
+            f"not_run is not allowed at evaluation: {obligation_id}",
+        )
+    if adapter.get("report_schema", {}).get("path") == DSTYLE_REPORT_SCHEMA_REL:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            "d-style-profile cannot be deferred; run the mechanical checker",
+        )
+    if (
+        result.get("execution_status") != "not_run"
+        or result.get("outcome") != "error"
+        or result.get("findings") != []
+        or result.get("verifier_receipt") is not None
+        or result.get("diagnostic_only") is not adapter.get("diagnostic_only")
+        or result.get("activation") != adapter.get("activation")
+        or result.get("adapter_version") != adapter.get("adapter_version")
+    ):
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            f"not_run result is not an honest deferral: {obligation_id}",
+        )
+    report_path = _typed_result_binding(result.get("report"), project)
+    report = _load(report_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+    expected = {
+        "schema_version": result.get("schema_version"),
+        "report_type": "obligation_adapter_report",
+        "adapter_id": adapter.get("adapter_id"),
+        "adapter_version": result.get("adapter_version"),
+        "obligation_id": obligation_id,
+        "artifact": result.get("artifact"),
+        "policy": result.get("policy"),
+        "activation": result.get("activation"),
+        "execution_status": "not_run",
+        "outcome": "error",
+        "findings": [],
+        "diagnostic_only": result.get("diagnostic_only"),
+        "created_at": result.get("created_at"),
+    }
+    if report != expected:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            f"not_run report does not mirror the typed result: {obligation_id}",
+        )
+
+
+def _scaffold_out_dir(args: argparse.Namespace, project: Path) -> Path:
+    if args.out_dir and args.shipment_id:
+        raise ContractError(
+            "DRAFT-POLICY-RECEIPT",
+            "pass --out-dir or --shipment-id, not both",
+        )
+    if args.shipment_id:
+        dest = (
+            project
+            / "reviews"
+            / ".harness"
+            / "shipments"
+            / args.shipment_id
+        )
+    elif args.out_dir:
+        dest = Path(args.out_dir)
+    else:
+        raise ContractError(
+            "DRAFT-POLICY-RECEIPT",
+            "scaffold-receipt needs --shipment-id (package shipment lane) or a dest-safe --out-dir",
+        )
+    dest = dest.resolve()
+    assert_writable(dest, purpose="draft-governance scaffold-receipt")
+    dest.mkdir(parents=True, exist_ok=True)
+    return dest
+
+
+def _build_dstyle_typed_result(
+    *,
+    project: Path,
+    artifact_path: Path,
+    contract_path: Path,
+    artifact_rel: str,
+    artifact_sha: str,
+    created_at: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    import d_style_profile_check as dstyle
+
+    directives_path = project / "research_notes" / "directives.md"
+    directives_exists = directives_path.is_file()
+    artifact_text = artifact_path.read_text(encoding="utf-8")
+    directives_text = (
+        directives_path.read_text(encoding="utf-8") if directives_exists else None
+    )
+    report = _dstyle_report_from_snapshots(
+        dstyle,
+        project,
+        directives_path,
+        directives_exists,
+        directives_text,
+        artifact_path,
+        artifact_text,
+    )
+    findings: list[dict[str, Any]] = []
+    for finding in report.get("findings", []):
+        severity = finding.get("severity")
+        if severity not in {"ADVISORY", "MINOR", "MAJOR", "BLOCKER"}:
+            continue
+        evidence_identity = _dstyle_evidence_identity(finding)
+        findings.append(
+            {
+                "code": finding.get("code"),
+                "severity": severity,
+                "evidence_identity": evidence_identity,
+                "fingerprint": finding_fingerprint(
+                    "d-style-profile",
+                    str(finding.get("code")),
+                    severity,
+                    evidence_identity,
+                    artifact_sha,
+                ),
+                "disposition": "open",
+            }
+        )
+    result = {
+        "schema_version": "1.0.0",
+        "obligation_id": "d-style-profile",
+        "adapter_version": "1.0.0",
+        "artifact": {
+            "path": artifact_rel,
+            "sha256": artifact_sha,
+            "byte_length": artifact_path.stat().st_size,
+        },
+        "policy": {
+            "path": contract_path.relative_to(project).as_posix()
+            if contract_path.is_relative_to(project)
+            else str(contract_path),
+            "sha256": _sha(contract_path),
+            "byte_length": contract_path.stat().st_size,
+        },
+        "activation": "always",
+        "execution_status": "completed",
+        "outcome": "findings" if findings else "clean",
+        "findings": findings,
+        "diagnostic_only": False,
+        "created_at": created_at,
+        "adjudications": [],
+    }
+    return result, report
+
+
+def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
+    """Emit dest-safe typed-result shells. Does not invent scholarly CLEAN."""
+    if PHASE_ROLE.get(args.phase) != args.role:
+        raise ContractError("DRAFT-POLICY-ROLE", "role does not satisfy the phase")
+    contract_path = Path(args.contract).resolve(strict=True)
+    artifact_path = Path(args.artifact).resolve(strict=True)
+    contract = _load(contract_path, "DRAFT-POLICY-CONTRACT")
+    project = Path(str(contract.get("project_root", ""))).resolve(strict=True)
+    out_dir = _scaffold_out_dir(args, project)
+    try:
+        out_dir.relative_to(project)
+    except ValueError as exc:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            "scaffold out-dir must stay under the bound project so verify can bind it; "
+            "use --shipment-id for the dest-allowed reviews/.harness/shipments/<id>/ lane",
+        ) from exc
+    current_policy = _load(POLICY_PATH, "DRAFT-POLICY-CONTRACT")
+    _, adapters = _resolved_obligation_registry(current_policy)
+    if contract.get("status") != "binding_resolved" or contract.get("phase") != args.phase:
+        raise ContractError("DRAFT-POLICY-CONTRACT", "contract phase or status is invalid")
+    if contract.get("required_role") != args.role:
+        raise ContractError("DRAFT-POLICY-ROLE", "role does not satisfy the contract")
+    artifact_rel = artifact_path.relative_to(project).as_posix()
+    artifact_sha = _sha(artifact_path)
+    created_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    required = [
+        row
+        for row in contract.get("obligations", [])
+        if isinstance(row, dict) and args.phase in row.get("phases", [])
+    ]
+    results_dir = out_dir / "obligation-results" / args.phase
+    reports_dir = out_dir / "obligation-reports" / args.phase
+    rows: list[dict[str, Any]] = []
+    deferred: list[str] = []
+    mechanical: list[str] = []
+    for row in required:
+        obligation_id = row["id"]
+        adapter = adapters[obligation_id]
+        if adapter.get("report_schema", {}).get("path") == DSTYLE_REPORT_SCHEMA_REL:
+            result, report = _build_dstyle_typed_result(
+                project=project,
+                artifact_path=artifact_path,
+                contract_path=contract_path,
+                artifact_rel=artifact_rel,
+                artifact_sha=artifact_sha,
+                created_at=created_at,
+            )
+            mechanical.append(obligation_id)
+        else:
+            result = {
+                "schema_version": "1.0.0",
+                "obligation_id": obligation_id,
+                "adapter_version": adapter["adapter_version"],
+                "artifact": {
+                    "path": artifact_rel,
+                    "sha256": artifact_sha,
+                    "byte_length": artifact_path.stat().st_size,
+                },
+                "policy": {
+                    "path": contract_path.relative_to(project).as_posix(),
+                    "sha256": _sha(contract_path),
+                    "byte_length": contract_path.stat().st_size,
+                },
+                "activation": adapter["activation"],
+                "execution_status": "not_run",
+                "outcome": "error",
+                "findings": [],
+                "diagnostic_only": adapter["diagnostic_only"],
+                "created_at": created_at,
+                "adjudications": [],
+            }
+            report = {
+                "schema_version": "1.0.0",
+                "report_type": "obligation_adapter_report",
+                "adapter_id": adapter["adapter_id"],
+                "adapter_version": adapter["adapter_version"],
+                "obligation_id": obligation_id,
+                "artifact": result["artifact"],
+                "policy": result["policy"],
+                "activation": result["activation"],
+                "execution_status": "not_run",
+                "outcome": "error",
+                "findings": [],
+                "diagnostic_only": result["diagnostic_only"],
+                "created_at": created_at,
+            }
+            deferred.append(obligation_id)
+        report_path = reports_dir / f"{obligation_id}.json"
+        result_path = results_dir / f"{obligation_id}.json"
+        result["report"] = None  # filled after report bytes land
+        _write_json(report_path, report)
+        result["report"] = _exact_binding(report_path, project)
+        _write_json(result_path, result)
+        rows.append({"id": obligation_id, "result": _exact_binding(result_path, project)})
+    receipt = {
+        "schema_version": "1.0.0",
+        "phase": args.phase,
+        "role": args.role,
+        "contract_sha256": _sha(contract_path),
+        "artifact": {"path": str(artifact_path), "sha256": artifact_sha},
+        "obligations": rows,
+    }
+    receipt_path = out_dir / f"draft_governance_receipt_{args.role}.json"
+    _write_json(receipt_path, receipt)
+    note = {
+        "schema_version": "1.0.0",
+        "status": "scaffolded",
+        "phase": args.phase,
+        "role": args.role,
+        "out_dir": str(out_dir),
+        "receipt_path": str(receipt_path),
+        "mechanical_obligation_ids": mechanical,
+        "deferred_obligation_ids": deferred,
+        "dest_protected_stays": True,
+        "who_writes": {
+            "harness": "reviews/.harness/shipments/<id>/ only",
+            "writer": "may copy into the package; must not invent scholarly CLEAN",
+            "joseph": "D-STYLE profile in research_notes/directives.md or MAJOR adjudications; evaluation-phase scholarly verifier_receipts as research-governance",
+        },
+        "next_verify": [
+            "python scripts/draft_governance.py",
+            "verify",
+            "--contract",
+            str(contract_path),
+            "--receipt",
+            str(receipt_path),
+            "--artifact",
+            str(artifact_path),
+            "--phase",
+            args.phase,
+            "--role",
+            args.role,
+        ],
+        "still_requires_joseph": [
+            "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
+            "evaluation-phase generic scholarly obligations still need independent-evaluator or research-governance verifier_receipts; generation not_run is an honest deferral, not a CLEAN",
+        ],
+    }
+    _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
+    return note
+
 
 
 def main(
@@ -953,13 +1295,26 @@ def main(
         choices=("none", "dispatch_separation", "host_attested_independence"),
         default="none",
     )
+    scaffold_parser = sub.add_parser("scaffold-receipt")
+    scaffold_parser.add_argument("--contract", required=True)
+    scaffold_parser.add_argument("--artifact", required=True)
+    scaffold_parser.add_argument("--phase", choices=sorted(PHASE_ROLE), required=True)
+    scaffold_parser.add_argument(
+        "--role", choices=sorted(set(PHASE_ROLE.values())), required=True
+    )
+    scaffold_parser.add_argument("--out-dir")
+    scaffold_parser.add_argument("--shipment-id")
     args = parser.parse_args(argv)
     try:
-        result = (
-            prepare(args)
-            if args.command == "prepare"
-            else verify(args, _test_authority_adapter=_test_authority_adapter)
-        )
+        if args.command == "prepare":
+            result = prepare(args)
+        elif args.command == "scaffold-receipt":
+            result = scaffold_receipt(args)
+        else:
+            result = verify(args, _test_authority_adapter=_test_authority_adapter)
+    except DestinationRefused as exc:
+        print(json.dumps({"status": "blocked", "reason_code": exc.code, "detail": str(exc)}, ensure_ascii=False))
+        return 4
     except (ContractError, OSError) as exc:
         code = exc.code if isinstance(exc, ContractError) else "DRAFT-POLICY-IO"
         detail = exc.detail if isinstance(exc, ContractError) else str(exc)
