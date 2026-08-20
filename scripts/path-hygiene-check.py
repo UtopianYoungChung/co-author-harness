@@ -74,7 +74,6 @@ def read_text(path: Path) -> str:
 def iter_target_files(plugin_root: Path) -> Iterable[Path]:
     yield plugin_root / "README.md"
     yield plugin_root / "CHANGELOG.md"
-    yield plugin_root / ".claude-plugin" / "plugin.json"
 
     for pattern in ("skills/*/SKILL.md", "agents/*.md", "scripts/*.py", "scripts/*.sh"):
         for path in sorted(plugin_root.glob(pattern)):
@@ -183,6 +182,40 @@ def check_captured_build_state(plugin_root: Path) -> List[str]:
     ]
 
 
+REQUIRED_PACK_IDENTITY = re.compile(
+    r"return\s+plugin_root\s*/\s*[\'\"]\.claude-plugin[\'\"]\s*/\s*[\'\"]plugin\.json[\'\"]"
+)
+IDENTITY_CHECK_SCRIPTS = (
+    "scripts/version-check.py",
+    "scripts/ssot-check.py",
+    "scripts/path-hygiene-check.py",
+)
+
+
+def check_required_pack_identity(plugin_root: Path) -> List[str]:
+    """Fail if cheap identity checks still treat the Claude pack as required."""
+    findings: List[str] = []
+    for rel in IDENTITY_CHECK_SCRIPTS:
+        path = plugin_root / rel
+        if not path.is_file():
+            continue
+        body = read_text(path)
+        if REQUIRED_PACK_IDENTITY.search(body):
+            findings.append(
+                f"{rel} treats .claude-plugin/plugin.json as an identity fallback "
+                "or required path; version.json is the sole identity authority"
+            )
+        if re.search(
+            r"SOLE authority for the CURRENT version",
+            body,
+            re.I,
+        ) and ".claude-plugin" in body.split("SOLE authority for the CURRENT version", 1)[0][-80:]:
+            findings.append(
+                f"{rel} still names .claude-plugin as the sole current-version authority"
+            )
+    return findings
+
+
 def check_repo_local_project_staging(plugin_root: Path) -> List[str]:
     forbidden = plugin_root / FORBIDDEN_PACKAGE_PROJECT_OUTPUT
     if not forbidden.exists():
@@ -217,6 +250,7 @@ def main() -> int:
     blockers.extend(check_untracked_in_guarded_dirs(plugin_root))
     blockers.extend(check_captured_build_state(plugin_root))
     blockers.extend(check_repo_local_project_staging(plugin_root))
+    blockers.extend(check_required_pack_identity(plugin_root))
 
     print("PATH HYGIENE CHECK")
     print(f"- Plugin root: {plugin_root}")

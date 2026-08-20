@@ -8,6 +8,8 @@ version: 1.1
 
 # centroid-sentence-logic
 
+**Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN.
+
 Own skill. Not the binder. `scripts/centroid_service.py` stays a binder.
 
 Joseph is the only R-plane actor. SK-32 stays CLOSED. DEST-PROTECTED stays.

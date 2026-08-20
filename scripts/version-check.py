@@ -4,7 +4,7 @@ co-author-harness — version-check.py
 
 THE MANIFEST IS THE SOLE AUTHORITY FOR THE CURRENT VERSION.
 
-`version.json` owns it (fallback: `.claude-plugin/plugin.json`). Everything else either mirrors it
+`version.json` owns it. `.claude-plugin` is not an identity fallback. Everything else either mirrors it
 mechanically (and is gated) or must not state it at all.
 
   HARD GATE   .claude-plugin/marketplace.json — self-referencing plugins[]
@@ -60,15 +60,19 @@ def read_text(path: Path) -> str:
 
 
 def manifest_path(plugin_root: Path) -> Path:
-    """General version.json is current-version authority.
+    """version.json is the sole current-version authority.
 
-    `.claude-plugin/plugin.json` remains a fallback so older fixtures still
-    resolve. Live trees should not restore the Claude pack just to read a version.
+    `.claude-plugin/plugin.json` is retired. It is not an identity fallback
+    and must not be restored as a required path, identity source, or
+    HEAD-clone fixture.
     """
     general = plugin_root / "version.json"
     if general.exists():
         return general
-    return plugin_root / ".claude-plugin" / "plugin.json"
+    raise FileNotFoundError(
+        "version.json is the sole current-version authority; "
+        ".claude-plugin is not an identity fallback"
+    )
 
 
 def extract_manifest_version(plugin_root: Path) -> str:
@@ -437,6 +441,12 @@ def main() -> int:
     # README must not assert a current version (AGENTS.md authority rule).
     blockers.extend(find_readme_version_assertions(plugin_root))
     blockers.extend(find_retired_host_manifests(plugin_root))
+    pack_identity = plugin_root / ".claude-plugin" / "plugin.json"
+    if pack_identity.exists():
+        blockers.append(
+            ".claude-plugin/plugin.json is retired and must not be an identity "
+            "source; version.json owns current package identity"
+        )
 
     # CHANGELOG: structure + release consistency; never the current-version authority.
     blockers.extend(find_malformed_release_headings(plugin_root))

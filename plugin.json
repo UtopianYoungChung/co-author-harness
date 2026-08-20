@@ -1,6 +1,6 @@
 {
   "name": "co-author-harness",
-  "version": "0.43.1",
+  "version": "0.5.0",
   "license": "MIT",
   "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector."
 }

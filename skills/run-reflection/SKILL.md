@@ -1,71 +1,68 @@
 ---
 name: run-reflection
-description: "Public reflection router with two explicit modes: lightweight integrity probing during Ph1-Ph3, or full close-out after Ph4/G.4. The mode must be declared; the router never guesses."
+description: 'Public 0.50 reflection coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector after a certified shipment. Mode must be declared (lightweight or full). Does not apply to the workbench.'
 trigger: 'when the user says "reflect," "run reflector," "check grounding," "what did we learn," or invokes "/run-reflection"'
-version: 1.1
+version: 0.5.0
 ---
 
-# Run Reflection — Public Mode Router
+# run-reflection — public reflection coordinator (staging)
 
-`/run-reflection` is the single public entrypoint for reflection. It selects
-exactly one internal implementation prompt; it does not duplicate either
-procedure.
+`/run-reflection` is a real public coordinator. It is not a degraded ad.
+It coordinates the four plugin hands **on staging** after a certified
+shipment. It does not accept milestones and does not apply to the workbench.
 
-> **File resolution.** Resolve package files beneath `${CLAUDE_PLUGIN_ROOT}`.
-> If that variable is unavailable, resolve `skills/run-reflection/SKILL.md`
-> from the workspace root the user opened. Never use a machine-pinned package
-> path.
+## Four hands
 
-## 1. Resolve the project
+| Hand | Does | Does not |
+|---|---|---|
+| Planner | Declare mode; bind the certified shipment (exact path, exact hash) | Edit manuscript |
+| Generator | No new publish unless a later coordinator run reserves a new READY | Chat-apply (SK-32); write the workbench |
+| Evaluator | Prior certification of shipment bytes remains the object of reflection | Re-mint scholarly CLEAN; edit prose |
+| Reflector | Probe (lightweight) or closeout (full) on the certified shipment | Accept milestones; apply to the workbench |
 
-Use the project root already established in the session. If no project root is
-established, halt and ask for it. Reflection reads and writes project evidence;
-it never substitutes the package root for the project root.
+**Outside** the plugin: Writer remains the only apply step. Reflection never
+applies.
 
-## 2. Require one mode
+## Require one mode
 
 The dispatch must declare exactly one of:
 
-| Declaration | Lifecycle use | Binding implementation |
+| Declaration | Use | Binding implementation |
 |---|---|---|
-| `mode: lightweight` | On-demand integrity probe during Ph1, Ph2, or Ph3 | `agents/reflector-probe.md` |
-| `mode: full` | Ph4 close-out after G.4 PASS | `agents/reflector-closeout.md` |
+| `mode: lightweight` | Integrity probe after a certified staging shipment | `agents/reflector-probe.md` |
+| `mode: full` | Close-out after a certified finalize shipment | `agents/reflector-closeout.md` |
 
-The Planner may derive the declaration from an unambiguous lifecycle dispatch:
-an optional Ph1-Ph3 probe means `mode: lightweight`; the mandatory Ph4
-close-out means `mode: full`. A bare `/run-reflection`, legacy `reflector`
-dispatch, or user request whose lifecycle position is ambiguous must **halt and
-ask** for the mode. Never guess and never run both modes.
+A bare `/run-reflection` or an ambiguous request must **halt and ask** for
+the mode. Never guess and never run both modes.
 
-## 3. Load one implementation in full
+## Staging bound
 
-- For `mode: lightweight`, read
-  `${CLAUDE_PLUGIN_ROOT}/agents/reflector-probe.md` in full and follow it as the
-  binding procedure. It may run the gated grounding and ledger-integrity audit;
-  it must not emit skill or plugin-update proposals.
-- For `mode: full`, read
-  `${CLAUDE_PLUGIN_ROOT}/agents/reflector-closeout.md` in full and follow it as
-  the binding procedure. It runs the Ph4 close-out envelope, including its
-  proposal-routing and self-audit rules.
+Resolve the project root already established in the session. Reflection
+reads project evidence; it never substitutes the package root for the
+project root. It may write dest-safe reflection receipts under
+`reviews/.harness/shipments/<id>/` and/or
+`outputs/co-author-harness/staging/<work-id>/<run-id>/`.
 
-The shared epistemic contract is included by those implementation prompts from
+**DEST-PROTECTED stays.** Do not write manuscript bytes onto
+`research/60_Workbench/<work-id>/`. Do not edit manuscript prose. Do not
+modify package files from a project reflection run. SK-32 stays closed.
+No scholarly CLEAN mint.
+
+Graph / centroid remain invoke-only / fail-closed. Citation / claim /
+derivation / similar checks stay invoke-able; Evaluator still fires them
+on shipment bytes. Do not fold them away here.
+
+## Load one implementation in full
+
+- For `mode: lightweight`, read `agents/reflector-probe.md` in full and
+  follow it. It must not emit skill or plugin-update proposals.
+- For `mode: full`, read `agents/reflector-closeout.md` in full and follow
+  it. Full mode may emit the reflection report, approved project memory
+  updates, and the proposal buffer described by the close-out procedure.
+
+The shared epistemic contract is
 `references/_snippets/reflection-grounding.md`. Do not separately inline or
 reinterpret it here.
 
-## Output contract
-
-F7 evidence packets and F8 final reports are read-only inputs to reflection;
-the Reflector does not create or amend them. Mode-specific reports and
-project-memory writes follow only the selected implementation's write boundary
-in `references/_snippets/reflection-grounding.md`. Lightweight mode emits its
-probe report only. Full mode may emit the reflection report, approved project
-memory updates, and proposal buffer described by the close-out procedure.
-
-## Boundaries
-
-- Do not edit manuscript prose.
-- Do not modify package files from a project reflection run.
-- Do not let lightweight mode emit close-out proposals.
-- Do not let full mode run before its Ph4/G.4 admission conditions.
-- Do not claim Wiki mutation success while the capability registry reports the
-  corresponding service unavailable.
+F7 evidence packets and F8 final reports are read-only inputs to
+reflection. Lightweight mode emits its probe report only.

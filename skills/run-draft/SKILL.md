@@ -1,58 +1,92 @@
 ---
 name: run-draft
-description: 'Public draft stage entrypoint under the v0.15.0-pre stage × profile vocabulary. Legacy /run-phase-1 remains a compatibility body for the same Ph1 Plan & Draft workflow. stage=draft.'
-trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft" — equivalent to "/run-phase-1"'
-version: 0.15.0-pre
+description: 'Public 0.50 draft coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Writer (outside the plugin) is the apply step. Parked paper-specific body: run-phase-1.'
+trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft"'
+version: 0.5.0
 ---
 
-# run-draft — public draft stage
+# run-draft — public draft coordinator (staging)
 
-Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. A readable legacy artifact or file presence never proves shipment-v2 application or acceptance.
+`/run-draft` is a real public coordinator. It is not a degraded ad and not a
+chat-to-manuscript bypass. It coordinates the four plugin hands **on staging**.
 
-`/run-draft` is the canonical public entrypoint for the draft stage. Legacy
-`/run-phase-1` remains a compatibility entrypoint and implementation body for
-the same workflow; behaviour is identical.
+Output authority is `references/role_output_contract.json` 3.0.0. A readable
+legacy artifact or file presence never proves shipment-v2 application or
+acceptance.
 
-## What you do
+## Four hands
 
-Live Generator bytes are published only through `assignment_writer_commit.py`; the independent evaluation follows that exact publication.
+| Hand | Does | Does not |
+|---|---|---|
+| Planner | One active target, assignment/phase bind, READY reserve | Edit manuscript |
+| Generator | Rewrite/fix-apply **on staging** via `assignment_writer_commit.py` only | Publish to `research/60_Workbench`; chat-apply (SK-32) |
+| Evaluator | Certify **shipment / staging bytes** (exact hash); fire citation / claim / derivation / similar checks | Edit prose; mint scholarly CLEAN |
+| Reflector | Probe / closeout after a certified shipment | Accept milestones; apply to the workbench |
 
-Read `skills/run-phase-1/SKILL.md` and follow it as the compatibility
-implementation body for this invocation. Treat its lifecycle gates, finding
-format, and exit conditions as binding. **Do not duplicate or reinterpret**
-that implementation body in this public router.
+**Outside** the plugin: Writer is the apply step onto
+`research/60_Workbench/<work-id>/` — exact path, exact hash. If Writer edits
+on apply, that is a **new draft**, not the certified shipment. Grok Writer,
+Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
 
-For native course essays, this public entrypoint invokes the M1→M2→M3→M4 auto-walk: resolve the assignment contract, derive one active target, bind the all-drafts policy while the artifact may still be absent, emit and reserve the READY receipt, run Generator publication under the obligations derived from the authoritative reader binding, then run the independent Evaluator governing-policy pass on the exact bytes. Reader-profile v2 with `semantic_usage: not_invoked` omits centroid work; a governed semantic binding retains its declared centroid obligations. Milestone record requires both verified envelopes. It dispatches one deliverable and stops at that milestone's user approval checkpoint. “Draft the whole paper” never skips open M1-M3 work, and file presence never supplies acceptance or policy evidence.
+## Staging loop
 
-**Whole-lifecycle intent routes here.** "Harness full run," "full harness run," "draft me an essay," "draft the whole paper," "run the ladder" are `full_lifecycle` requests and enter this canonical lifecycle — they are not answered ad hoc. With **no project at all**, fail closed into the canonical bootstrap instruction rather than writing prose anywhere: `python scripts/full_run_contract_check.py authorize --project-root <p>` is the mechanical check, and a new native root is created only by `python scripts/native_project_bootstrap.py ...`, which must install reader-profile binding v2. Run scope, the child-dispatch prohibition, and the terminal gate are normative in `references/FULL_RUN_CONTRACT.md`; this router does not restate them.
+1. Planner binds one active target and reserves READY. No manuscript write.
+2. Generator publishes staging bytes only through
+   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+   Staging roots are
+   `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`
+   and dest-safe receipts under
+   `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
+3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
+   claim, derivation, and similar checks stay invoke-able and still fire here.
+   Do not fold them away. Do not mint scholarly CLEAN.
+4. Reflector may probe after a certified shipment. It does not accept
+   milestones and does not apply to the workbench.
+5. Writer (outside the plugin) is the only apply step: exact path, exact hash.
 
-**Three-scope router.** Route exactly `adhoc_review`, `lab_iteration`, or `full_lifecycle`, and put `run_scope:` matching the parent in every Planner, Generator, and Evaluator brief. `lab_iteration` is proposal-only: it requires an existing governed project, resolved assignment contract, and resolved staging/private-shipment output, with no lifecycle and no F9 authority. It never accepts milestones, consumes handoffs, writes authoritative research/final paths, or claims terminal completion.
+**DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
+`research/60_Workbench/<work-id>/`. `scripts/destination_capability.py` is the
+write chokepoint. Derived handoff remains valid. No F9 invention. No CLEAN
+mint. SK-32 `/run-generator-session` stays `CLOSED_PUBLIC_BYPASS`.
 
-**Handoff policy.** New native bootstrap creates contract `1.1.0` with explicit
-`derived` policy unless `--handoff-policy audited` is requested. Valid `1.0.0`
-projects remain implicit audited without rewrite. `/run-draft` always resolves
-the effective policy mechanically: audited requires exact F9 publication and
-consumption; derived acceptance is authoritative without F9, and any
-explicitly requested optional packet remains exact, non-gating, and
-non-consumed.
+Graph / centroid remain invoke-only / fail-closed. Do not auto-dispatch
+`centroid-pass`, `centroid-sentence-logic`, `quick-deterministic`, or
+`classify-manuscript` as scholarly CLEAN. `GRAPH-SEMANTIC-INELIGIBLE` is
+fail-closed, not a fabricated retrieval.
 
-## Vocabulary mapping
+## Scope
 
-| Compatibility name | Public stage name | Stage | Profile |
-|---|---|---|---|
-| `/run-phase-1` | `/run-draft` | `draft` | — |
-| `/run-phase-2` | `/run-iterate --profile refine` | `iterate` | refine |
-| `/run-phase-3` | `/run-iterate` | `iterate` | refine / structural / deep |
-| `/run-phase-3-stability` | `/run-iterate --profile stability` | `iterate` | stability |
-| `/run-phase-4` | `/run-finalize` | `finalize` | — |
+Route exactly `adhoc_review`, `lab_iteration`, or `full_lifecycle`, and put
+`run_scope:` matching the parent in every Planner, Generator, and Evaluator
+brief. `lab_iteration` is proposal-only: existing governed project, resolved
+assignment contract, resolved staging/private-shipment output, no lifecycle
+and no F9 authority. It never accepts milestones, consumes handoffs, writes
+authoritative research/final paths, or claims terminal completion.
 
-`/run-phase-2` is now a legacy compatibility route to `/run-iterate --profile refine`; it is not a separate public stage.
+Whole-lifecycle intent ("harness full run," "draft the whole paper") enters
+this coordinator. With **no project at all**, fail closed into the canonical
+bootstrap instruction rather than writing prose anywhere:
+`python scripts/full_run_contract_check.py authorize --project-root <p>` is
+the mechanical check, and a new native root is created only by
+`python scripts/native_project_bootstrap.py ...`.
 
-## Compatibility policy
+**Handoff policy.** New native bootstrap creates contract `1.1.0` with
+explicit `derived` policy unless `--handoff-policy audited` is requested.
+Valid `1.0.0` projects remain implicit audited without rewrite. Audited
+requires exact F9 publication and consumption; derived acceptance is
+authoritative without F9.
 
-Old names remain supported as compatibility entry points. New user-facing guidance should teach the public ladder as draft -> iterate -> finalize. The `stage` and `profile` shadow fields on every `SectionStateObject` carry that vocabulary in the ledger.
+## Parked compatibility body
 
-## Where the compatibility body lives
+`skills/run-phase-1/SKILL.md` remains on disk as a **parked paper-specific
+compatibility body**. It is not a public 0.50 coordinator and is not the
+live implementation this coordinator follows. Keep it for old slash history
+and paper-specific automation. Do not advertise `/run-phase-1` as a public
+name.
 
-`skills/run-phase-1/SKILL.md` carries the full Ph1 implementation for backward
-compatibility. This file owns the public draft-stage name and mapping.
+| Parked name | Public coordinator | Stage |
+|---|---|---|
+| `run-phase-1` | `/run-draft` | `draft` |
+| `run-phase-2` | `/run-iterate --profile refine` | `iterate` |
+| `run-phase-3` | `/run-iterate` | `iterate` |
+| `run-phase-4` | `/run-finalize` | `finalize` |

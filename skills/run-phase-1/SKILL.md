@@ -1,12 +1,19 @@
 ---
 name: run-phase-1
 user-invocable: false
-description: "Compatibility body for the public /run-draft stage. Ph1 bootstraps state, records P-stage, and requires binding-derived Generator drafting plus a bounded independent Evaluator policy pass; centroid work is capability-triggered."
+description: "Parked paper-specific compatibility body for /run-draft. Not a public 0.50 coordinator. Kept on disk for old slash history."
 trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "start the ladder," begins a new section, or when the Planner bootstraps section state for a fresh section
 version: 0.7.4
 ---
 
 # run-phase-1 — Ph1 Plan & Draft
+
+
+**Parked 0.50 compatibility body.** This skill stays on disk as a
+paper-specific compatibility body. It is **not** a public 0.50 coordinator.
+Public names are `/run-draft`, `/run-iterate`, `/run-finalize`, and
+`/run-reflection`. Do not advertise this parked name as a live public command.
+
 
 **Compatibility surface.** New user-facing guidance and dispatch should use
 `/run-draft`. This file remains the full Ph1 implementation body so legacy

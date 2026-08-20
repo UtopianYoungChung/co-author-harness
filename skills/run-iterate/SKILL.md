@@ -1,114 +1,78 @@
 ---
 name: run-iterate
-description: 'Public iterate stage entrypoint under the v0.15.x stage x profile vocabulary. Legacy /run-phase-2, /run-phase-3, and /run-phase-3-stability remain compatibility routes.'
-trigger: 'when the user says "run iterate," "iterate," "stage = iterate," invokes "/run-iterate", or invokes a legacy review/stability command that routes to iterate'
-version: 0.15.1
+description: 'Public 0.50 iterate coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector for refine/structural/deep/stability. Generator publishes only via assignment_writer_commit.py to staging. Parked paper-specific bodies: run-phase-2, run-phase-3, run-phase-3-stability.'
+trigger: 'when the user says "run iterate," "iterate," "stage = iterate," or invokes "/run-iterate"'
+version: 0.5.0
 ---
 
-# run-iterate -- iterate stage router
+# run-iterate — public iterate coordinator (staging)
 
-Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. A readable legacy artifact or file presence never proves shipment-v2 application or acceptance.
+`/run-iterate` is a real public coordinator. It is not a degraded ad and not
+a chat-to-manuscript bypass. It coordinates the four plugin hands **on
+staging** after a draft exists.
 
-**This skill began as an alias for `run-phase-3`.** After PR-3b.4 it is the
-public stage surface for all post-draft iteration profiles. The compatibility
-relationship is still explicit: `/run-phase-3` and `/run-iterate` resolve to
-the same full iterate workflow, while legacy `/run-phase-2` and
-`/run-phase-3-stability` route here with fixed profiles.
+Output authority is `references/role_output_contract.json` 3.0.0. A readable
+legacy artifact or file presence never proves shipment-v2 application or
+acceptance.
 
-## Profile Router
+## Four hands
 
-| Invocation | Stage | Profile | Binding body |
-|---|---|---|---|
-| `/run-iterate --profile refine` | `iterate` | `refine` | first-pass review or diff-scoped tightening |
-| `/run-iterate --profile structural` | `iterate` | `structural` | structure, heading, boundary, and cross-section changes |
-| `/run-iterate --profile deep` | `iterate` | `deep` | full Ph3 parity and pre-MCR safety-net pass |
-| `/run-iterate --profile stability` | `iterate` | `stability` | byte-stable inheritance pass |
-| `/run-phase-2` | `iterate` | `refine` | legacy compatibility route |
-| `/run-phase-3` | `iterate` | F6-selected | legacy compatibility route |
-| `/run-phase-3-stability` | `iterate` | `stability` | legacy compatibility route |
+| Hand | Does | Does not |
+|---|---|---|
+| Planner | One active target, profile bind, READY reserve | Edit manuscript |
+| Generator | Rewrite/fix-apply **on staging** via `assignment_writer_commit.py` only | Publish to `research/60_Workbench`; chat-apply (SK-32) |
+| Evaluator | Certify **shipment / staging bytes** (exact hash); fire citation / claim / derivation / similar checks | Edit prose; mint scholarly CLEAN |
+| Reflector | Probe / closeout after a certified shipment | Accept milestones; apply to the workbench |
+
+**Outside** the plugin: Writer is the apply step — exact path, exact hash.
+If Writer edits on apply, that is a new draft.
+
+## Profiles
+
+| Invocation | Stage | Profile |
+|---|---|---|
+| `/run-iterate --profile refine` | `iterate` | `refine` |
+| `/run-iterate --profile structural` | `iterate` | `structural` |
+| `/run-iterate --profile deep` | `iterate` | `deep` |
+| `/run-iterate --profile stability` | `iterate` | `stability` |
 
 If no profile is supplied, read the project's F6 dispatch plan. If the F6 is
-absent and the invocation came from `/run-phase-2`, use `refine`. If the F6 is
-absent and the invocation came from `/run-phase-3-stability`, use `stability`.
-Otherwise use the `skills/run-phase-3/SKILL.md` safety default for absent F6
-profile fields.
+absent, default `refine` for ordinary revision. Stability cannot satisfy
+pre-MCR deep-pass or mint CLEAN.
 
-## Refine Profile
+## Staging loop
 
-The refine profile absorbs the former named Ph2 first-pass review. It is also
-used for ordinary diff-scoped iteration once a section is already in the iterate
-stage.
+1. Planner binds one active target and the selected profile. No manuscript write.
+2. Generator publishes staging bytes only through
+   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
+   claim, derivation, and similar checks stay invoke-able and still fire.
+4. Reflector may probe after a certified shipment.
+5. Writer (outside the plugin) applies exact path, exact hash.
 
-For a legacy project with `current_phase: "Ph2"`, do not block dispatch merely
-because the phase field is still old vocabulary. Treat it as:
+**DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
+`research/60_Workbench/<work-id>/`. Derived handoff remains valid. No CLEAN
+mint. SK-32 stays `CLOSED_PUBLIC_BYPASS`.
 
-```yaml
-stage: iterate
-profile: refine
-legacy_current_phase: Ph2
-```
+Graph / centroid remain invoke-only / fail-closed. Do not auto-dispatch
+`centroid-pass`, `centroid-sentence-logic`, `quick-deterministic`, or
+`classify-manuscript` as scholarly CLEAN.
 
-Run the first full revision-maturity Evaluator envelope as a refine-profile iterate
-round: claim-coverage and snowball checks may still run as discovery-layer
-preflight, the Evaluator performs the local findings pass, the Generator applies
-fixes, and the Planner writes F7 evidence packets. New ledger writes should add
-or preserve the shadow fields `stage: iterate` and `profile: refine` so future
-rounds no longer need to infer intent from `current_phase`.
+Dest-safe receipts may land under
+`reviews/.harness/shipments/<id>/` and/or
+`outputs/co-author-harness/staging/<work-id>/<run-id>/`.
+`scripts/draft_governance.py` stays dest-safe (`evaluation-lane`,
+`attach-verifier-receipt`; no CLEAN bind).
 
-## Structural And Deep Profiles
+## Parked compatibility bodies
 
-For `structural` and `deep`, read `skills/run-phase-3/SKILL.md` and follow its
-profile-selected envelope. That file remains the compatibility body for the full
-Ph3 semantics: convergence tracking, Check 8 terminal gating, pre-MCR deep-pass
-accounting, re-engagement rows, and escalation ownership.
+These remain on disk as **parked paper-specific compatibility bodies**. They
+are not public 0.50 coordinators and are not the live implementation this
+coordinator follows:
 
-## Stability Profile
+- `skills/run-phase-2/SKILL.md` — parked refine compatibility (`run-phase-2`)
+- `skills/run-phase-3/SKILL.md` — parked full-iterate compatibility (`run-phase-3`)
+- `skills/run-phase-3-stability/SKILL.md` — parked stability compatibility
 
-The stability profile absorbs the former `run-phase-3-stability` peer skill. It
-keeps the same reduced envelope:
-
-- S-0 byte-stability gate over the F1/F2/F3/F5 substrate.
-- Grounding audit over the inherited source basis.
-- Deterministic Check 8 counter comparison.
-- Trigger-30 escalation to a full iterate pass on any finding.
-- No TerminalSignoffRow and no pre-MCR deep-pass satisfaction from stability.
-
-Historical `stability_sub_mode_anticipated: true` F6 rows remain valid. New F6
-rows should also include:
-
-```yaml
-stage: iterate
-profile: stability
-```
-
-## Output Profile
-
-**Runtime binding.** Before acting, resolve
-`../../references/_snippets/output-profile.md` relative to this `SKILL.md`,
-read it in full, and treat it as part of this skill contract. Its canonical
-plugin-root identity is `references/_snippets/output-profile.md`. Do not rely
-on build-time include expansion.
-
-Every profile writes F7 evidence packets at
-`reviews/.harness/evidence/<event_id>.json` plus the matching `events.jsonl` row
-with `round_id` and `event_id`. Human-facing Markdown reports are exception
-surfaces, not the default output contract.
-
-## Vocabulary Mapping
-
-| Old name | Public stage name | Stage | Profile |
-|---|---|---|---|
-| `/run-phase-1` | `/run-draft` | `draft` | n/a |
-| `/run-phase-2` | `/run-iterate --profile refine` | `iterate` | `refine` |
-| `/run-phase-3` | `/run-iterate` | `iterate` | `refine` / `structural` / `deep` |
-| `/run-phase-3-stability` | `/run-iterate --profile stability` | `iterate` | `stability` |
-| `/run-phase-4` | `/run-finalize` | `finalize` | n/a |
-
-Old names remain valid compatibility entry points. New user-facing guidance
-should teach the three-stage ladder: draft -> iterate -> finalize.
-
-## Where the compatibility body lives
-
-`skills/run-phase-3/SKILL.md` remains the compatibility body for the full
-iterate workflow. This router owns the public stage/profile mapping and the
-legacy command absorption rules.
+Do not advertise `/run-phase-2`, `/run-phase-3`, or `/run-phase-4` as public
+names.

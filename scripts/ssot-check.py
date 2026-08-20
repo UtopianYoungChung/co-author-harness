@@ -114,7 +114,10 @@ def is_self_referencing_marketplace_entry(
     if not identity.exists():
         identity = plugin_root / "plugin.json"
     if not identity.exists():
-        identity = plugin_root / ".claude-plugin" / "plugin.json"
+        raise FileNotFoundError(
+            "version.json is the sole identity authority; "
+            ".claude-plugin is not an identity fallback"
+        )
     manifest = load_json(identity)
     return is_manifest_entry(entry, manifest)
 
@@ -285,30 +288,11 @@ def main() -> int:
     ssot_label = "version.json"
 
     if legacy_ssot.exists():
-        ssot_label = str(legacy_ssot.relative_to(plugin_root))
-        try:
-            registry = load_yaml(legacy_ssot)
-        except yaml.YAMLError as exc:
-            print(f"[BLOCKER] SSOT registry parse failed: {exc}")
-            return 1
-        facts = (registry or {}).get("facts", {})
-        if not isinstance(facts, dict):
-            print("[BLOCKER] SSOT registry: 'facts' must be a mapping")
-            return 1
-        marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
-        manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
-        if marketplace_path.exists() and manifest_path.exists():
-            try:
-                marketplace = load_json(marketplace_path)
-                manifest = load_json(manifest_path)
-                cardinality_error = manifest_entry_cardinality_error(
-                    marketplace.get("plugins", []), manifest
-                )
-                if cardinality_error:
-                    blockers.append(f"SSOT marketplace identity: {cardinality_error}")
-            except (OSError, json.JSONDecodeError) as exc:
-                blockers.append(f"SSOT marketplace identity could not be read: {exc}")
-    else:
+        blockers.append(
+            ".claude-plugin/ssot.yaml is retired and must not be an identity "
+            "source; version.json owns SSOT facts"
+        )
+    if True:
         if not version_path.exists():
             print(f"[BLOCKER] version.json not found: {version_path}")
             return 1

@@ -34,6 +34,7 @@
     "turabian-format-pass"
   ],
   "degraded": [
+    "IS-theory-pass",
     "accessibility-overlay",
     "analytic-move-audit",
     "check-abstract-body",
@@ -45,16 +46,11 @@
     "dissolution-move-check",
     "grammar-mechanics-pass",
     "grounding-audit",
-    "IS-theory-pass",
     "narrative-structure-pass",
     "p-stage-checker",
     "plugin-commands",
     "public-interest-accountability-pass",
     "response-letter-review",
-    "run-draft",
-    "run-finalize",
-    "run-iterate",
-    "run-reflection",
     "sentence-level-pass",
     "suchman-register-audit",
     "turabian-format-pass"

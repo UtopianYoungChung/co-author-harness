@@ -9,6 +9,8 @@ version: 2.0
 ---
 # Quick Deterministic Check (scripts-first)
 
+**Invoke-only / fail-closed.** Mechanical pre-flight only. Does not auto-dispatch as scholarly CLEAN and does not mint CLEAN.
+
 Results from this skill are evidence only. Output identity and closure resolve through `references/role_output_contract.json` 3.0.0; a generated or legacy artifact does not by presence become shipment-v2 transaction evidence, application proof, or acceptance authority.
 
 You are running a fast mechanical pre-flight on an academic manuscript. As of v0.15.0-pre, **you do not count anything**. The `scripts/audit/` suite counts; you read its output and adjudicate severity in context.

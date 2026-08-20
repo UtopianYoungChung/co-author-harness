@@ -126,11 +126,11 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-06. `run-reflection`
 - **File:** `skills/run-reflection/SKILL.md`
-- **Pattern:** Single-command entry point for the Reflector agent. The Reflector dispatches in two modes: (a) **lightweight** — evidence gathering, integrity probes, and memory-only learning during Ph1/Ph2/Ph3 rounds, with no skill proposals or plugin-update filings; (b) **full** — round-close evidence gathering, lesson extraction, grounding audit, memory update, skill development, convergence trajectory audit, `[Ph3-STALE]` / MCR volatility audit, and phase-row contract audit at Ph4 close-out. Skill proposals and plugin-update proposals (`reviews/plugin_update_proposals.md`) are **full-mode-only** and route through the Planner three-filter gate (evidence-adequacy / non-duplication / phase-appropriateness) before the user sees them.
+- **Pattern:** Public **reflection** coordinator on staging after a certified shipment. Two modes: (a) **lightweight** probe; (b) **full** close-out. Coordinates Planner/Generator/Evaluator/Reflector. Does not apply to the workbench. DEST-PROTECTED stays.
 - **Created:** 2026-04-11; mode-split rewritten 2026-04-20 for v0.7.0
 - **Source:** Early package skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Phase Ladder's unbounded Ph3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Active public staging coordinator
 - **Depends on:** `skills/run-reflection/SKILL.md` (public mode router), `agents/reflector-probe.md` (lightweight procedure), `agents/reflector-closeout.md` (full procedure), `references/PHASE_PROTOCOL.md §11`, and `agents/planner.md` (proposal gatekeeper)
 
 ### SK-07. `sentence-level-pass`
@@ -312,7 +312,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-19 (as `run-tier-reflex` under v0.4.19); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase B of the Incremental Tier Protocol (v0.4.19) seeded the skill; Phase 6 of the v0.6.0 rollout renamed and rewrote it to carry the staircase semantics; the v0.7.0 rewrite removes the Self-T1 Verdict, Confirmation Mode, and digest-exception couplings to align with the Lifecycle-Stage Ladder's full-file-read floor and tier-conditioned agent engagement.
 - **Tier:** Package
-- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-draft`)
+- **Status:** Parked paper-specific compatibility body (not a public 0.50 coordinator; keep on disk)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph1 Plan & Draft)`, `references/GROUNDING_PROTOCOL.md` (full-file reads at every rung — no digest exception at v0.7.0), the per-section ledger `reviews/phase_state.json` (18-field SectionStateObject including `ph1_pstage_declaration`), and the Planner's `phase_entry_log` seven-field row contract per `AGENT_ORCHESTRATION.md §8.2a` (`prev_phase`, `new_phase`, `trigger`, `actor`, `notes`, `timestamp`, `model_used`).
 - **Sibling:** SK-03 `quick-deterministic` (mechanical-only ancestor); SK-29 `run-phase-2` (Review & Revise — advance target on approval); SK-26 `run-phase-3` and SK-27 `run-phase-4` (further rungs); SK-04 `classify-manuscript` (writes the `tier:` field this skill dispatches on, legal values `{T1, T2, T3, T4}` at v0.7.0).
 
@@ -322,7 +322,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-19 (as `run-tier-standard` under v0.5.0); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase C of the Incremental Tier Protocol (v0.5.0) seeded the skill; Phase 6 of the v0.6.0 rollout renamed it for staircase-position clarity; the v0.7.0 rewrite reframes T3 from a single-pass Verify rung to an unbounded Iterate & Converge rung with explicit convergence-log and MCR semantics.
 - **Tier:** Package (Cowork-installable .skill file)
-- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-iterate`)
+- **Status:** Parked paper-specific compatibility body (not a public 0.50 coordinator; keep on disk)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph3 Iterate & Converge)` and `§6 (Manuscript Convergence Report)`, `references/REVIEW_ORCHESTRATION.md §3.3` (tier table), the full seven-step review references, the `reviews/phase_state.json` ledger (18-field SectionStateObject including `convergence_metric`, `ph3_last_activity_at`), `reviews/convergence_log.md`, and `reviews/classification.md` declaring `tier: T3` (or the section's `current_phase` reaching Ph3 through ladder advance).
 - **Sibling:** SK-25 `run-phase-1` (Plan & Draft — two rungs below); SK-29 `run-phase-2` (Review & Revise — one rung below, the ladder predecessor); SK-27 `run-phase-4` (Finalize & Close — one rung above, the MCR-gated advance target); SK-04 `classify-manuscript` (writes the `tier:` field). SK-05 `run-full-review` (retired at v0.5.1; see Retired Skills) was the v0.4.x entry point this skill replaced.
 
@@ -332,7 +332,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-21 (v0.7.4, P-2 substantive landing)
 - **Source:** v0.7.4 economic-efficiency package P-2 — the Ph3 round on a byte-stable manuscript is the paradigmatic cost-waste case (seven-step judgment pass produces no new signal because the signal substrate has not changed). Motivating observation: INF3006Y iter-7 stability pass produced ~80% of a full-round's cost with zero new findings (n=1 diagnostic; ship-on-iter-7-only deliberate user override per CHANGELOG caveat). P-2 closes the waste envelope without compromising audit integrity — the gate is *all-families-match-or-drop-through*, stricter than strictly necessary but defensible on provenance grounds. The sub-mode defers to full `run-phase-3` on any surfaced finding, treats escalation as bookkeeping rather than a findings event, and preserves the Ph4 admission contract intact.
 - **Tier:** Package
-- **Status:** Legacy compatibility router (active; public guidance should prefer `/run-iterate --profile stability`)
+- **Status:** Parked paper-specific compatibility body (not a public 0.50 coordinator; keep on disk)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3.3.2` (stability sub-mode normative spec), `§3.3.4` (convergence_journal.jsonl `manuscript_hash`), `§3.3.5` (P-7 exclusion note), `§6.3` (trigger 30 declaration); `references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a` (F6 `stability_sub_mode_anticipated` flag, F6-not-inherited rule); `references/AGENT_CONTRACTS.md §2` (I-Planner-10 round dispatch plan); `references/DETERMINISTIC_CHECKS.md §9b` (Check 8 pre-filter counters); `references/GROUNDING_PROTOCOL.md §Rule 1` (full-file read floor); `agents/planner.md` Phase 0.6 and Phase 5.5 Ph3 iteration boundary; `agents/evaluator.md §Step 8.5` (SAFEGUARD Check 8 sub-filter); `reviews/convergence_journal.jsonl` (per-iteration manuscript_hash ledger); `skills/run-phase-3/SKILL.md` (the full Ph3 envelope this sub-mode reduces from).
 - **Sibling:** SK-38 `run-iterate` (public stage/profile router); SK-26 `run-phase-3` (legacy full-iterate compatibility body); SK-30 `accessibility-overlay` (downstream-excluded under stability); SK-12 `grounding-audit`; SK-06 `run-reflection` lightweight-mode.
 - **Contract version gate:** v0.7.4+ — the stability sub-mode requires `manuscript_hash` on journal rows, which v0.7.4 `migrate_convergence_log_v074.py` backfills (P-4). Pre-v0.7.4 projects without backfilled hashes drop through to full `run-phase-3` on every invocation via S-0 clause `hash_missing_prior_iteration`; no retroactive harm.
@@ -344,7 +344,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-19 (as `run-tier-submission` under v0.5.0); renamed 2026-04-19 (v0.6.0); rewritten 2026-04-20 (v0.7.0).
 - **Source:** Phase C of the Incremental Tier Protocol (v0.5.0) seeded the skill; Phase 6 of the v0.6.0 rollout renamed it and wired in the Laggard Clearance Report precondition; the v0.7.0 rewrite replaces the LCR with the MCR, wires in the monotonicity-exempt EG-1 (T4→T3 demotion) and the net-new EG-7 (MCR re-admission after classification change), and couples T4 approval to the Reflector's full-mode five-phase close-out including audit phases 2d/2e/2f.
 - **Tier:** Package (Cowork-installable .skill file)
-- **Status:** Legacy compatibility body (active; public guidance should prefer `/run-finalize`)
+- **Status:** Parked paper-specific compatibility body (not a public 0.50 coordinator; keep on disk)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph4 Finalize & Close)` and `§6 (Manuscript Convergence Report)`, `references/REVIEW_ORCHESTRATION.md §3.3` and `§6` (G.4 sign-off template), all T3 dependencies, the per-section `reviews/phase_state.json` ledger (18-field SectionStateObject, `mcr_admission` flag), `reviews/convergence_log.md`, and `reviews/classification.md` declaring `tier: T4` (or the ladder having advanced every section to `T3_converged`).
 - **Sibling:** SK-25 `run-phase-1` (Plan & Draft — three rungs below); SK-29 `run-phase-2` (Review & Revise — two rungs below); SK-26 `run-phase-3` (Iterate & Converge — one rung below, the ladder predecessor); SK-04 `classify-manuscript` (auto-recommends T4 on the submission-bound triggers listed in its Step 2); SK-06 `run-reflection` (full-mode Reflector dispatch at T4 close-out); SK-17 `ingest-m5-to-wiki` (downstream handoff after G.4 sign-off closes). SK-05 `run-full-review` (retired at v0.5.1; see Retired Skills) dispatched here when classification was T4 during the v0.5.0 transitional window.
 
@@ -354,7 +354,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-19 (v0.6.0 Phase 6 skill build); rewritten 2026-04-20 (v0.7.0).
 - **Source:** The v0.5.5 T2 "local" tier had no standalone skill entry point — it was dispatched implicitly by the Planner from the `tier:` field. The v0.6.0 staircase promoted T2 to a first-class approval rung between Draft and Verify; the v0.7.0 Lifecycle-Stage Ladder (since renamed Lifecycle-Phase) retains T2 as a first-class rung but retires Confirmation Mode entirely and removes the Self-T1 Verdict coupling.
 - **Tier:** Package (Cowork-installable .skill file)
-- **Status:** Legacy compatibility router (active; public guidance should prefer `/run-iterate --profile refine`)
+- **Status:** Parked paper-specific compatibility body (not a public 0.50 coordinator; keep on disk)
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph2 Review & Revise)`, `references/REVIEW_ORCHESTRATION.md §3.3` (tier table), the per-section `reviews/phase_state.json` ledger (18-field SectionStateObject), `reviews/classification.md`, and `references/GROUNDING_PROTOCOL.md` (full-file reads at every rung — no digest exception at v0.7.0).
 - **Sibling:** SK-38 `run-iterate` (public stage/profile router); SK-25 `run-phase-1` / SK-37 `run-draft` (draft stage); SK-27 `run-phase-4` / SK-39 `run-finalize` (finalize stage); SK-04 `classify-manuscript`.
 
@@ -415,28 +415,28 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-37. `run-draft`
 - **File:** `skills/run-draft/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** Public **draft** stage entrypoint (`stage=draft`). It routes to SK-25 `run-phase-1`, retained as the compatibility implementation body so old project scripts and slash history continue to resolve without creating a second public name.
+- **Pattern:** Public **draft** coordinator on staging. Coordinates Planner/Generator/Evaluator/Reflector. Generator publishes only via `assignment_writer_commit.py` to staging. Evaluator certifies shipment bytes. Writer (outside the plugin) is the apply step. SK-25 `run-phase-1` is a parked paper-specific compatibility body, not the live implementation.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
-- **Status:** Active (public stage router)
+- **Status:** Active public staging coordinator
 - **Depends on:** `skills/run-phase-1/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2` (the `stage` / `profile` shadow fields).
 - **Sibling:** SK-25 `run-phase-1` (compatibility body); SK-38 `run-iterate`; SK-39 `run-finalize`. `/run-phase-2` is retained only as a compatibility route to `/run-iterate --profile refine`.
 
 ### SK-38. `run-iterate`
 - **File:** `skills/run-iterate/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** Public **iterate** stage/profile router. Profiles are `refine`, `structural`, `deep`, and `stability`; legacy `/run-phase-2` routes here with `profile=refine`, legacy `/run-phase-3` routes here for the full iterate body, and legacy `/run-phase-3-stability` routes here with `profile=stability`. `skills/run-phase-3/SKILL.md` remains the compatibility body for full iterate semantics.
+- **Pattern:** Public **iterate** coordinator on staging. Coordinates the four plugin hands for `refine` / `structural` / `deep` / `stability`. Generator publishes only via `assignment_writer_commit.py`. Parked bodies: SK-29 `run-phase-2`, SK-26 `run-phase-3`, SK-31 `run-phase-3-stability`.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
-- **Status:** Active (public stage/profile router)
+- **Status:** Active public staging coordinator
 - **Depends on:** `skills/run-phase-3/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 `W-MCR-CONVERGENCE-EVIDENCE` advisory reads the `profile:` field this vocabulary aligns with).
 - **Sibling:** SK-26 `run-phase-3` (legacy full-iterate compatibility body); SK-29 `run-phase-2` (legacy refine compatibility router); SK-31 `run-phase-3-stability` (legacy stability compatibility router); SK-37 `run-draft`; SK-39 `run-finalize`.
 
 ### SK-39. `run-finalize`
 - **File:** `skills/run-finalize/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** Public **finalize** stage entrypoint (`stage=finalize`). It routes to SK-27 `run-phase-4`, retained as the compatibility implementation body. MCR admission, G.4 sign-off, external-verifier requirements, and Reflector-full close-out remain binding.
+- **Pattern:** Public **finalize** coordinator on staging. Coordinates the four plugin hands. Evaluator certifies shipment bytes. Writer is the apply step. SK-27 `run-phase-4` is a parked paper-specific compatibility body, not the live implementation.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
-- **Status:** Active (public stage router)
+- **Status:** Active public staging coordinator
 - **Depends on:** `skills/run-phase-4/SKILL.md` (compatibility implementation body); `references/phase_state_schema.md §2.2`; `scripts/pre_phase_advance_check.py` (PR-3b.2 advisory at MCR boundary).
 - **Sibling:** SK-27 `run-phase-4` (compatibility body); SK-37 `run-draft`; SK-38 `run-iterate`.
 

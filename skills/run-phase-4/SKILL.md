@@ -1,12 +1,19 @@
 ---
 name: run-phase-4
 user-invocable: false
-description: "Compatibility body for the public /run-finalize stage. Ph4 Finalize & Close requires MCR admission, external verification, G.4, and Reflector-full close-out."
+description: "Parked paper-specific compatibility body for /run-finalize. Not a public 0.50 coordinator. Kept on disk for old slash history."
 trigger: when the user says "Ph4 finalize-and-close," "run phase 4," "ship this," "submission-bound pass," "G.4 sign-off," or when the Planner advances after MCR admission
 version: 0.8.0
 ---
 
 # run-phase-4 — Ph4 Finalize & Close
+
+
+**Parked 0.50 compatibility body.** This skill stays on disk as a
+paper-specific compatibility body. It is **not** a public 0.50 coordinator.
+Public names are `/run-draft`, `/run-iterate`, `/run-finalize`, and
+`/run-reflection`. Do not advertise this parked name as a live public command.
+
 
 Output authority is `references/role_output_contract.json` 3.0.0. Resolve its
 six fixed roles and nine triggered F1-F9 classes, including context,

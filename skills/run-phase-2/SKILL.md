@@ -1,12 +1,19 @@
 ---
 name: run-phase-2
 user-invocable: false
-description: "Legacy compatibility router for the former Ph2 Review & Revise rung. Route to /run-iterate with profile=refine; preserve old invocations without advertising Ph2 as a public stage."
+description: "Parked paper-specific compatibility body routing to /run-iterate --profile refine. Not a public 0.50 coordinator."
 trigger: when the user says "Ph2 review-and-revise," "run phase 2," "first evaluator pass," or when older project automation invokes /run-phase-2
 version: 0.15.1
 ---
 
 # run-phase-2 -- compatibility router to /run-iterate refine
+
+
+**Parked 0.50 compatibility body.** This skill stays on disk as a
+paper-specific compatibility body. It is **not** a public 0.50 coordinator.
+Public names are `/run-draft`, `/run-iterate`, `/run-finalize`, and
+`/run-reflection`. Do not advertise this parked name as a live public command.
+
 
 `/run-phase-2` is retained for backward compatibility with installed projects,
 old slash-command histories, and references that have not yet migrated. It is no

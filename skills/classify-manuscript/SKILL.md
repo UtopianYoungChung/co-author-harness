@@ -6,6 +6,8 @@ version: 1.0
 ---
 # Classify Manuscript
 
+**Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN and does not mint CLEAN.
+
 You are running the mandatory classification step for the Research and Academic Paper Writing Package. This implements `REVIEW_ORCHESTRATION.md §1` and `§3`. Classification must happen before any review step — it determines which files apply, which items to skip, and whether a G.4 sign-off is required.
 
 ## Step 1 — Locate and read the orchestration file

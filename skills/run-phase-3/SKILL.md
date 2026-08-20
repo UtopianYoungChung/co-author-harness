@@ -1,12 +1,19 @@
 ---
 name: run-phase-3
 user-invocable: false
-description: "Ph3 Iterate & Converge — unbounded loop. F6 check_profile routes Evaluator envelope (`refine`|`structural`|`deep`). Track convergence_metric; surface [CONVERGENCE-STABLE] on three stable rows, no Check 8 BLOCKER. Exit via TerminalSignoffRow. MCR: pre_mcr_deep_pass_completed=true. Trigger: \"Ph3,\" \"iterate,\" \"converge,\" or after Ph2."
+description: "Parked paper-specific compatibility body for /run-iterate. Not a public 0.50 coordinator. Kept on disk for old slash history."
 trigger: when the user says "Ph3 iterate-and-converge," "run phase 3," "another iteration," "converge this section," or when the Planner advances after Ph2 approval
 version: 0.8.0
 ---
 
 # run-phase-3 — Ph3 Iterate & Converge
+
+
+**Parked 0.50 compatibility body.** This skill stays on disk as a
+paper-specific compatibility body. It is **not** a public 0.50 coordinator.
+Public names are `/run-draft`, `/run-iterate`, `/run-finalize`, and
+`/run-reflection`. Do not advertise this parked name as a live public command.
+
 
 **Grounding basis:** `references/PHASE3_PHASE4_COMMON_ENVELOPE.md` (shared Ph3/Ph4 envelope — convergence metric, [CONVERGENCE-STABLE], [Ph3-STALE], SAFEGUARD invocation, Coupling E.2, Reflector dispatch, ESCALATED handling, renamed surfaces, agent composition, approval patterns); `references/PHASE_PROTOCOL.md §§3.3 (Ph3 charter), 3.3.0 (check_profile / halo_scope), 3.3.1a (P-12 vector), 3.3.3 (Check 8 gate), 3.3.4 (convergence_journal.jsonl), 5 (review pipeline), 7 (escalation gates), 9 (MCR; §3.4 pre-MCR deep pass)`; `references/REVIEW_ORCHESTRATION.md §§Steps 0a/0.2/0b/1–7/8/8.5`; `references/SAFEGUARD_LAYER.md`; `references/DETERMINISTIC_CHECKS.md` (authoritative halo_scope matrix for P-10); `references/ARTEFACT_FRONTMATTER_SCHEMA.md §7a (F6 check_profile)`; `references/phase_state_schema.md §§2, 2.1, 3.1, 3a.2, 3a.3, 4.3`; `agents/evaluator.md §Step 8.5`; `phase_notifications.yaml §§1, 3`; `migrate_convergence_journal_v075.py` (removed from the package tree at v0.7.5 RC; see `CHANGELOG.md`); `scripts/paragraph_hash_map.py`.
 

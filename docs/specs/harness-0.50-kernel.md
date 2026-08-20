@@ -1,6 +1,6 @@
 # Harness 0.50 kernel (spec only)
 
-**Status.** Accepted 2026-08-20 by Joseph as written. Implementation hold. Not implemented. Not promoted. Not a ready mint. `version.json` stays 0.43.1.
+**Status.** Accepted 2026-08-20 by Joseph as written. Implementation ordered 2026-08-20; in progress. Not a ready mint.
 **Accepted.** 2026-08-20. Lock as given in this file. Do not retarget.
 **Accepted-as.** sha256 `a31d3e5505e8d28197a073f29859e686e0ee9531a1e184cf03a93708d326d430` (bytes before this accept stamp).
 **Date.** 2026-08-20.

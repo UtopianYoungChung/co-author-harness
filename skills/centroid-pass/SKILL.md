@@ -2,11 +2,15 @@
 name: centroid-pass
 user-invocable: true
 description: 'Bind and execute the package centroid for generation, review, or revision. The deterministic service resolves the live corpus policy and scope; the dispatched Generator or Evaluator performs the grounded semantic pass.'
-trigger: automatically for M1, M2, M3, M4, and FINAL only when the authoritative reader binding enables governed semantic use, and explicitly when the user invokes /centroid-pass. Reader-profile v2 with semantic_usage not_invoked does not auto-dispatch this skill.
+trigger: invoke-only / fail-closed. Explicit /centroid-pass only. Do not auto-dispatch as scholarly CLEAN. Reader-profile v2 with semantic_usage not_invoked does not dispatch this skill. GRAPH-SEMANTIC-INELIGIBLE stays fail-closed.
 version: 3.0
 ---
 
 # centroid-pass
+
+**Invoke-only / fail-closed.** Not a scholarly CLEAN mint and not an
+auto-dispatch. Graph / centroid remain invoke-only. `GRAPH-SEMANTIC-INELIGIBLE`
+is fail-closed, not a fabricated retrieval.
 
 The script always runs. When reader-profile v2 sets `semantic_usage: not_invoked`,
 it still emits a general binding packet (scope, hashes, metrics) and marks
@@ -15,11 +19,9 @@ pass and not a fabricated finding set.
 
 ## Contract
 
-This pass is mandatory for every academic deliverable and revision, including
-M1-M3, only when the authoritative reader binding enables governed semantic
-use. Reader-profile v2 with `semantic_usage: not_invoked` does not invoke this
-pass. Once the binding enables it, an existing milestone artefact is neither a
-prerequisite nor a waiver.
+This pass is invoke-only. It is not mandatory auto-dispatch and does not mint
+scholarly CLEAN. Reader-profile v2 with `semantic_usage: not_invoked` does not
+invoke this pass. A missing governed semantic binding is fail-closed.
 Use `write` before generation, `review` after generation, and `revise` before a
 finding-driven rewrite. The pass is read-only: the Generator remains the sole
 academic-prose writer and the Evaluator remains the independent reviewer.

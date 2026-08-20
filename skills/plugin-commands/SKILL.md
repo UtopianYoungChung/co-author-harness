@@ -16,8 +16,8 @@ an invocation surface.
 Status is the public runtime label. It must match `references/capabilities.yaml`
 and `references/policies/command_surface.v1.json`:
 
-- `active` — a local script is the implementation and has been proven callable.
-- `degraded` — public prompt-mediated or incomplete orchestration; not a mechanical runner.
+- `active` — a local script is the implementation and has been proven callable, or a public staging coordinator that binds the four plugin hands with dest-safe publication.
+- `degraded` — public prompt-mediated or incomplete orchestration; not a mechanical runner or staging coordinator.
 - `external-dependent` — public only when the named provider is available.
 
 Do not advertise hidden compatibility bodies, maintainer operations, or
@@ -39,11 +39,14 @@ for internal routing, compatibility, and truthful failure behavior.
 | Inspect evidence integrity | `/grounding-audit` |
 | Learn from a round | `/run-reflection lightweight|full` |
 
-`/quick-deterministic` and `/centroid-pass` are the active mechanical adapters
+`/quick-deterministic` and `/centroid-pass` are active mechanical adapters
 (`scripts/audit/run_all.py`, `scripts/d_style_profile_check.py`,
-`scripts/draft_governance.py`, `scripts/centroid_service.py`). Stage routers
-(`/run-draft`, `/run-iterate`, `/run-finalize`, `/run-reflection`) remain
-degraded orchestration contracts.
+`scripts/draft_governance.py`, `scripts/centroid_service.py`) and stay
+invoke-only / fail-closed. `/run-draft`, `/run-iterate`, `/run-finalize`,
+and `/run-reflection` are active staging coordinators: they bind Planner,
+Generator, Evaluator, and Reflector on staging. Generator publishes only
+via `assignment_writer_commit.py`. Writer (outside the plugin) is the apply
+step. Parked `run-phase-*` names are not public.
 
 `/quick-deterministic` is mechanics-only. Governed product qualification is an
 Evaluator lifecycle operation, exposed from a source checkout as:
@@ -59,10 +62,10 @@ receipt for that governed evidence.
 |---|---|---|---|
 | `/plugin-commands` | degraded | Show the supported command catalog and routing. | Orientation or quick recall. |
 | `/classify-manuscript` | degraded | Establish paper type, P-stage, venue, and review requirements. | Before review or lifecycle work. |
-| `/run-draft` | degraded | Run the public draft-stage M1-M4 workflow. | Start or continue drafting. |
-| `/run-iterate` | degraded | Run post-draft review and revision with `refine`, `structural`, `deep`, or `stability` profile. | Improve an existing draft. |
-| `/run-finalize` | degraded | Run submission-bound verification and close-out. | After convergence and MCR admission. |
-| `/run-reflection` | degraded | Run lightweight integrity learning or full close-out reflection. | Round close or final close-out. |
+| `/run-draft` | active | Coordinate Planner/Generator/Evaluator/Reflector on staging for draft. | Start or continue drafting on staging. |
+| `/run-iterate` | active | Coordinate the four hands on staging for refine/structural/deep/stability. | Improve an existing draft on staging. |
+| `/run-finalize` | active | Coordinate the four hands on staging; Evaluator certifies shipment bytes. | After a certified draft, before Writer apply. |
+| `/run-reflection` | active | Coordinate reflection on a certified staging shipment (lightweight or full). | After a certified shipment. |
 | `/quick-deterministic` | active | Run the canonical mechanical pre-flight. | Before deep review. |
 | `/grounding-audit` | degraded | Audit citation, metric, path, and rule-citation integrity. | Evidence and hallucination checks. |
 | `/check-abstract-body` | degraded | Verify abstract and title promises are delivered in the body. | Before submission. |

@@ -1,45 +1,59 @@
 ---
 name: run-finalize
-description: 'Public finalize stage entrypoint under the v0.15.0-pre stage × profile vocabulary. Legacy /run-phase-4 remains a compatibility body for the same Ph4 Finalize & Close workflow. stage=finalize.'
-trigger: 'when the user says "run finalize," "finalize," "stage = finalize," "ship," or invokes "/run-finalize" — equivalent to "/run-phase-4"'
-version: 0.15.0-pre
+description: 'Public 0.50 finalize coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Evaluator certifies shipment bytes. Writer is the apply step. Parked paper-specific body: run-phase-4.'
+trigger: 'when the user says "run finalize," "finalize," "stage = finalize," "ship," or invokes "/run-finalize"'
+version: 0.5.0
 ---
 
-# run-finalize — public finalize stage
+# run-finalize — public finalize coordinator (staging)
 
-Output authority is `references/role_output_contract.json` 3.0.0. Resolve the six fixed roles and nine triggered F1-F9 classes, including context, cardinality, ordering, and typed suppression, from that contract. A readable legacy artifact or file presence never proves shipment-v2 application, terminal state, or acceptance.
+`/run-finalize` is a real public coordinator. It is not a degraded ad and not
+a mechanical generate+evaluate onto the live workbench. It coordinates the
+four plugin hands **on staging**.
 
-`/run-finalize` is the canonical public entrypoint for the finalize stage.
-Legacy `/run-phase-4` remains a compatibility entrypoint and implementation
-body for the same workflow; behaviour is identical.
+Output authority is `references/role_output_contract.json` 3.0.0. A readable
+legacy artifact or file presence never proves shipment-v2 application,
+terminal state, or acceptance.
 
-## What you do
+## Four hands
 
-Read `skills/run-phase-4/SKILL.md` and follow it as the compatibility
-implementation body for this invocation. Treat its MCR admission gates, G.4
-sign-off, external-verifier requirements, and exit conditions as binding.
-**Do not duplicate or reinterpret** that implementation body in this public
-router.
+| Hand | Does | Does not |
+|---|---|---|
+| Planner | One active FINAL/close target, READY reserve | Edit manuscript; accept the workbench |
+| Generator | Publish **on staging** via `assignment_writer_commit.py` only | Land M4 bytes on `research/60_Workbench` |
+| Evaluator | Certify **shipment / staging bytes** (exact hash); fire citation / claim / derivation / similar checks | Edit prose; mint scholarly CLEAN |
+| Reflector | Full closeout after a certified shipment | Apply to the workbench |
 
-For course essays, FINAL remains eligible for the M4-onward exemplar envelope: Yu may condition surface register; Dennett is argument-only when admitted. The canonical workflow begins public `FINAL` through `assignment_milestone_checkpoint.py`, emits a fresh FINAL receipt, reserves it once with `assignment_dispatch_preflight.py --expected-target FINAL --consumer planner --write-path milestones/M5_final_paper.md --write-path submission_bundle/final_manuscript.md`, then requires Generator staging and `assignment_writer_commit.py` publication. Planner records FINAL and closes it through the same checkpoint command with structured terminal evidence and explicit current-byte approval. The final gate requires accepted M1-M4, M5 in progress, all sections at Ph4, and current wiki-grounding evidence or an authorized opt-out.
+**Outside** the plugin: Writer is the apply step — exact path, exact hash.
+If Writer edits on apply, that is a new draft, not the certified shipment.
 
-## MCR convergence evidence
+## Staging loop
 
-If `reviews/convergence_log.md` carries the `profile:` field per iteration row, `scripts/pre_phase_advance_check.py` may emit the advisory `W-MCR-CONVERGENCE-EVIDENCE` at the MCR boundary (PR-3b.2). The advisory is evidence-only and does **not** authorize MCR admission — the `TerminalSignoffRow` in `ph3_convergence_signoff.md` remains the sole authority.
+1. Planner binds the finalize target and reserves READY.
+2. Generator publishes staging bytes only through
+   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
+   claim, derivation, and similar checks stay invoke-able and still fire.
+   Do not mint scholarly CLEAN.
+4. Reflector may run full closeout after a certified shipment.
+5. Writer (outside the plugin) applies exact path, exact hash.
 
-## Vocabulary mapping
+**DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
+`research/60_Workbench/<work-id>/`. Dest-safe receipts only under
+`reviews/.harness/shipments/<id>/` and/or
+`outputs/co-author-harness/staging/<work-id>/<run-id>/`.
+Derived handoff remains valid. No CLEAN mint. SK-32 stays closed.
 
-| Compatibility name | Public stage name | Stage | Profile |
-|---|---|---|---|
-| `/run-phase-1` | `/run-draft` | `draft` | — |
-| `/run-phase-2` | `/run-iterate --profile refine` | `iterate` | refine |
-| `/run-phase-3` | `/run-iterate` | `iterate` | refine / structural / deep |
-| `/run-phase-3-stability` | `/run-iterate --profile stability` | `iterate` | stability |
-| `/run-phase-4` | `/run-finalize` | `finalize` | — |
+Graph / centroid remain invoke-only / fail-closed. Do not auto-dispatch
+those skills as scholarly CLEAN.
 
-`/run-phase-2` is now a legacy compatibility route to `/run-iterate --profile refine`; it is not a separate public stage.
+This coordinator does not open M4 on the live workbench and does not lift
+DEST-PROTECTED. Finalize means certify a shipment on staging, then hand
+Writer the exact path and exact hash.
 
-## Where the compatibility body lives
+## Parked compatibility body
 
-`skills/run-phase-4/SKILL.md` carries the full Ph4 implementation for backward
-compatibility. This file owns the public finalize-stage name and mapping.
+`skills/run-phase-4/SKILL.md` remains on disk as a **parked paper-specific
+compatibility body**. It is not a public 0.50 coordinator and is not the
+live implementation this coordinator follows. Do not advertise
+`/run-phase-4` as a public name.
