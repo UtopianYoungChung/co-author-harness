@@ -151,7 +151,7 @@
     {
       "evidence_type": "shared_verifier",
       "path": "scripts/draft_evidence_verifier.py",
-      "sha256": "a8dda2e595a3e134fbc2b1cc077b0cf071bdf777ce0451020c3f5384619f04af"
+      "sha256": "c7c7bd5783e2e4994e69dceb9f6d546068bb871882406a980cb6825a4c9014e8"
     },
     {
       "evidence_type": "publication_recovery",
