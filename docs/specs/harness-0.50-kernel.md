@@ -1,13 +1,13 @@
 # Harness 0.50 kernel (spec only)
 
-**Status.** Accepted 2026-08-20 by Joseph as written. Implementation ordered 2026-08-20; in progress. Not a ready mint.
+**Status.** Accepted 2026-08-20 by Joseph as written. Implementation ordered 2026-08-20; landed as 0.5.0 @ 5f1eeb9. Host-after-pack locked Grok-only 2026-08-20. Not a ready mint.
 **Accepted.** 2026-08-20. Lock as given in this file. Do not retarget.
 **Accepted-as.** sha256 `a31d3e5505e8d28197a073f29859e686e0ee9531a1e184cf03a93708d326d430` (bytes before this accept stamp).
 **Date.** 2026-08-20.
 **Owner.** Harness (instrument). Joseph is the only R-plane actor.
 **Lane.** New docs lane. Do not treat this file as a rewrite of the live 0.43.1 tree.
 
-**Does not change until Joseph orders implementation.** `version.json`, live skills, DEST-PROTECTED, SK-32, role files, the dirty 0.43.1 audit tree, or any manuscript under `research/`. Closed until he orders them: 0.50 implementation, version bump, 0.43.1 snapshot commit, host-after-pack, Evaluator fold, `/run-reflection` coordinator.
+**Does not change until Joseph orders implementation.** `version.json`, live skills, DEST-PROTECTED, SK-32, role files, the dirty 0.43.1 audit tree, or any manuscript under `research/`. Closed until he orders them: Evaluator fold, `/run-reflection` coordinator. Host-after-pack locked Grok-only 2026-08-20.
 
 This is a **kernel cut of what already works**, not a from-zero rewrite.
 
@@ -169,7 +169,7 @@ These are recorded, not assumed:
 1. Accept or retarget this spec.
 2. When (if) to order 0.50 implementation, and whether `version.json` then becomes `0.50.0`.
 3. Commit / push of the 0.43.1 snapshot (dirty audit tree).
-4. Host after the pack: Cursor-only, Grok-only, or a new general host manifest.
+4. Host after the pack: **accepted 2026-08-20 Grok-only.** Identity stays `version.json` + root `plugin.json`. Do not install a Cursor or Claude marketplace pack. Coordinators stay Harness skill files + python CLI. Do not add a new host manifest. Do not implement `executor_claim.json`. Do not restore `.claude-plugin`. Do not reopen SK-32. Do not lift DEST-PROTECTED.
 5. Whether citation / claim / derivation checks are later **folded into** Evaluator (they fire either way; fold is optional).
 6. Whether `/run-reflection` stays a coordinator or becomes invoke-only after first implementation review.
 
