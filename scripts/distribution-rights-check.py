@@ -115,7 +115,12 @@ def validate(root: Path) -> tuple[list[str], dict[str, object]]:
         )
 
     try:
-        manifest = read_json(root / ".claude-plugin" / "plugin.json")
+        identity = root / "version.json"
+        if not identity.is_file():
+            identity = root / "plugin.json"
+        if not identity.is_file():
+            identity = root / ".claude-plugin" / "plugin.json"
+        manifest = read_json(identity)
         manifest_license = str(manifest.get("license", "")).strip()
     except Exception as exc:  # noqa: BLE001
         blockers.append(f"plugin manifest invalid: {exc}")

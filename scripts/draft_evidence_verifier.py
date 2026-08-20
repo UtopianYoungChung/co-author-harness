@@ -157,13 +157,24 @@ def _project_root_descriptor(
     return expected
 
 
+def _identity_manifest(harness_root: Path) -> Path:
+    general = harness_root / "version.json"
+    if general.is_file():
+        return general
+    host = harness_root / "plugin.json"
+    if host.is_file():
+        return host
+    return harness_root / ".claude-plugin" / "plugin.json"
+
+
 def _harness_root_descriptor(harness_root: Path) -> dict[str, Any]:
-    manifest = harness_root / ".claude-plugin" / "plugin.json"
+    manifest = _identity_manifest(harness_root)
     value = json.loads(manifest.read_text(encoding="utf-8"))
+    rel = manifest.relative_to(harness_root).as_posix()
     return {
         "kind": "harness",
         "identity": value["name"],
-        "discovery": "explicit:.claude-plugin/plugin.json",
+        "discovery": f"explicit:{rel}",
         "manifest_sha256": _sha(manifest),
     }
 
@@ -216,7 +227,7 @@ def _validate_semantics_manifest(
             "SEMANTICS-DIGEST-MISMATCH",
             "semantics manifest member inventory is incomplete or expanded",
         )
-    plugin_manifest = harness_root / ".claude-plugin" / "plugin.json"
+    plugin_manifest = _identity_manifest(harness_root)
     plugin = json.loads(plugin_manifest.read_text(encoding="utf-8"))
     if value.get("harness_identity") != plugin.get("name"):
         raise VerifierError("SEMANTICS-DIGEST-MISMATCH", "harness identity differs")
@@ -967,7 +978,7 @@ def validate_lifecycle_verifier_binding(
         dispatch_consumption.parent / "publication_manifest.json",
         dispatch_consumption.parent / "commit_marker.json",
         project_root / "project_manifest.json",
-        harness_root / ".claude-plugin" / "plugin.json",
+        _identity_manifest(harness_root),
         wiki_manifest,
     }
     for row in transaction_value.get("dependency_hashes", []):

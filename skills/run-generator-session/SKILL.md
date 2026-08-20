@@ -1,7 +1,7 @@
 ---
 name: run-generator-session
 user-invocable: false
-description: CLOSED public bypass. Do not write manuscript from chat without Evaluator findings and F6 approval.
+description: CLOSED public bypass (CLOSED_PUBLIC_BYPASS). Do not write manuscript from chat without Evaluator findings and F6 approval.
 trigger: refuse /run-generator-session and chat-apply requests unless Evaluator findings and F6 are on disk
 version: 1.1
 ---

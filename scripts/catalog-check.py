@@ -21,7 +21,7 @@ from typing import Dict, List, Set
 import yaml
 
 
-REGISTRY_SKILL_HEADING = re.compile(r"^###\s+SK-\d+\.\s+`([^`]+)`\s*$")
+REGISTRY_SKILL_HEADING = re.compile(r"^###\s+SK-\d+\.\s+`([^`]+)`")
 
 
 def read_text(path: Path) -> str:

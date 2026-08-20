@@ -285,6 +285,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/canonical_bibliography_smoketest.py": [_default_case()],
     "scripts/capability_contract_smoketest.py": [_default_case()],
     "scripts/centroid_service_smoketest.py": [_default_case()],
+    "scripts/centroid_sentence_logic_smoketest.py": [_default_case()],
     "scripts/draft_governance_smoketest.py": [_default_case()],
     "scripts/draft_evidence_verifier_smoketest.py": [_default_case()],
     "scripts/concept_introduction_contract_smoketest.py": [_default_case()],

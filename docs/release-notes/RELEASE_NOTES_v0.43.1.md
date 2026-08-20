@@ -42,5 +42,5 @@ round remains required against the eventual qualified candidate.
 This file does not claim source qualification, consumer compatibility,
 `PACKAGE_CLEARED`, `SHIPPED`, installed-cache provenance, `HOST_QUALIFIED`,
 research acceptance, activation, push, tag, or upload. Each remains a distinct
-ordered gate. `.claude-plugin/plugin.json` is the authoritative current-version
+ordered gate. `version.json` is the authoritative current-version
 plane; this release note is historical release metadata.

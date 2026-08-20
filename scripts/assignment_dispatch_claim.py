@@ -171,13 +171,24 @@ def _project_root_binding(project: Path) -> dict[str, Any]:
     }
 
 
+def _identity_manifest() -> Path:
+    general = ROOT / "version.json"
+    if general.is_file():
+        return general
+    host = ROOT / "plugin.json"
+    if host.is_file():
+        return host
+    return ROOT / ".claude-plugin" / "plugin.json"
+
+
 def _harness_root_binding() -> dict[str, Any]:
-    manifest = ROOT / ".claude-plugin" / "plugin.json"
+    manifest = _identity_manifest()
     value = _load_record(manifest, "APG-DISPATCH-CLAIM-INVALID")
+    rel = manifest.relative_to(ROOT).as_posix()
     return {
         "kind": "harness",
         "identity": value["name"],
-        "discovery": "explicit:.claude-plugin/plugin.json",
+        "discovery": f"explicit:{rel}",
         "manifest_sha256": _digest_path(manifest),
     }
 

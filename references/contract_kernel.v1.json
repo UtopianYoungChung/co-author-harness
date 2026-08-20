@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "kernel_id": "co-author-harness-contract-kernel-v1",
-  "plugin_identity_source": ".claude-plugin/plugin.json",
+  "plugin_identity_source": "version.json",
   "release_history": [
     {
       "version": "0.43.1",
@@ -168,7 +168,7 @@
       "id": "staging-run",
       "path": "scripts/staging_run.py",
       "revision_kind": "sha256",
-      "sha256": "a8dc474a75ece21d161f7b4b7c3ab652e58960452db58341f1debbbed71e35ab",
+      "sha256": "832f2afc50e1296c20c36821f7fbcb3b604c60994a3240c086316055e2ebc275",
       "migration_ids": [
         "shipment-manifest-v2",
         "typed-output-transaction-v1",
@@ -179,7 +179,7 @@
       "id": "capability-registry",
       "path": "references/capabilities.yaml",
       "revision_kind": "sha256",
-      "sha256": "29d9e613862607387c07fceb45a243bc4b5fac0b651d828516d73ae15e4d2e07",
+      "sha256": "61b87dd49a38cb875add7860e3bb8d65e50c8a68fcef31e24a97669aa76a1a06",
       "migration_ids": [
         "capability-closure-six-plane-v1"
       ]
@@ -845,7 +845,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "6d671875e131e8c0a4c1f99d73034c2f2ec7dace06601ab274aaa8a2e493e478",
+      "sha256": "3ed861867f46ae50fff833f0aa8aba269a33cd0ef1514277a2f7a90c839e798f",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -1008,7 +1008,7 @@
       "id": "skill-run-generator-session",
       "path": "skills/run-generator-session/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "871fa29b5461214bf37b4ccd50610efdec8d4fa19ae239f3371c8516d13ab6fa",
+      "sha256": "7e2d70f5650d520f092eca13e791a08ce72612bdb88a77cc747486c6cb09c097",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

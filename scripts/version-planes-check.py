@@ -3,7 +3,7 @@
 
 Introduced by docs/analysis/2026-07-06_systematic-improvement-plan.md §4 (WS-2).
 
-The package version plane is owned by .claude-plugin/plugin.json and validated
+The package version plane is owned by version.json and validated
 by scripts/version-check.py. This check covers the planes version-check.py does
 not: lifecycle_ladder, phase_state_schema, evaluator_envelope,
 stage_profile_vocabulary — as recorded in
@@ -17,7 +17,7 @@ Invariants:
      (fork-widening). Scanning is bounded to files named in the plane's
      assertions -> zero false positives on historical narrative elsewhere.
   C) Every registered file and every plane authority file exists.
-  D) The package plane delegates: plugin.json must parse and carry a version.
+  D) The package plane delegates: version.json must parse and carry a version.
 
 Exit 0 = clean; exit 1 = blockers found.
 """
@@ -43,13 +43,16 @@ def main() -> int:
     planes = registry.get("planes", {})
 
     # D) package delegation
-    manifest = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
+    manifest = PLUGIN_ROOT / "version.json"
+    if not manifest.is_file():
+        fallback = PLUGIN_ROOT / "plugin.json"
+        manifest = fallback if fallback.is_file() else PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
     try:
         version = json.loads(manifest.read_text(encoding="utf-8")).get("version")
         if not version:
-            blockers.append("package: plugin.json has no version field")
+            blockers.append("package: version.json has no version field")
     except (OSError, json.JSONDecodeError) as exc:
-        blockers.append(f"package: cannot read plugin.json ({exc})")
+        blockers.append(f"package: cannot read version.json ({exc})")
 
     for plane_name, plane in planes.items():
         if plane_name == "package":

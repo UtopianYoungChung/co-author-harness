@@ -8,7 +8,7 @@
 
 **Release-history integration (v0.43.1).** The historical release narrative is
 `docs/release-notes/RELEASE_NOTES_v0.43.1.md`; current package identity remains
-owned solely by `.claude-plugin/plugin.json`. This routing marker grants no
+owned solely by `version.json`. This routing marker grants no
 qualification, clearance, shipment, installation, host, lifecycle, or research
 authority.
 

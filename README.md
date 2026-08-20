@@ -92,7 +92,7 @@ Read references/ROUTING_SPINE.md, then tell me which milestone and lifecycle sta
 run under and which artefact you will touch first.
 ```
 
-Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json).
+Plugin identity and version are authoritative in [`version.json`](version.json).
 
 ---
 
@@ -108,7 +108,7 @@ Plugin identity and version are authoritative in [`.claude-plugin/plugin.json`](
 | [`docs/architecture/`](docs/architecture/) | Component and capability-boundary designs, including [reader-policy and semantic-graph decoupling](docs/architecture/reader-policy-decoupling-c4.md) |
 | [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
-| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Published plugin `name` / `version` / `description` |
+| [`version.json`](version.json) | Published plugin `name` / `version` / `license` |
 
 ---
 
@@ -145,7 +145,7 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-The current version is recorded in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), which is its sole authority. This section is release **history**; it does not restate the current version.
+The current version is recorded in [`version.json`](version.json), which is its sole authority. This section is release **history**; it does not restate the current version.
 
 | Release | Highlights |
 | --- | --- |

@@ -145,16 +145,22 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
 
     identity_path = _safe_file(root, data.get("plugin_identity_source"))
     if identity_path is None:
-        errors.append("plugin_identity_source is missing or unsafe")
-        identity_path = root / ".claude-plugin" / "plugin.json"
+        identity_path = _safe_file(root, "version.json") or _safe_file(root, "plugin.json")
+    if identity_path is None:
+        errors.append("plugin identity source missing (version.json)")
+        return errors
     plugin = json.loads(identity_path.read_text(encoding="utf-8"))
-    marketplace = json.loads((root / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
-    plugins = marketplace.get("plugins")
-    if not isinstance(plugins, list) or not plugins or not isinstance(plugins[0], dict):
-        errors.append("marketplace plugins[0] entry is required")
-        market_license = None
+    marketplace_path = root / ".claude-plugin" / "marketplace.json"
+    if marketplace_path.is_file():
+        marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
+        plugins = marketplace.get("plugins")
+        if not isinstance(plugins, list) or not plugins or not isinstance(plugins[0], dict):
+            errors.append("marketplace plugins[0] entry is required")
+            market_license = None
+        else:
+            market_license = plugins[0].get("license")
     else:
-        market_license = plugins[0].get("license")
+        market_license = plugin.get("license")
     readme = (root / "README.md").read_text(encoding="utf-8")
     license_text = (root / "LICENSE").read_text(encoding="utf-8")
     if plugin.get("license") != "MIT" or market_license != "MIT":

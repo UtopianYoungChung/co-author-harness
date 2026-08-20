@@ -191,8 +191,12 @@ def _harness_commit() -> str:
 
 
 def _plugin_version() -> str:
-    document = json.loads((HARNESS / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    return str(document["version"])
+    for rel in ("version.json", "plugin.json", ".claude-plugin/plugin.json"):
+        path = HARNESS / rel
+        if path.is_file():
+            document = json.loads(path.read_text(encoding="utf-8"))
+            return str(document["version"])
+    raise FileNotFoundError("package identity missing: version.json")
 
 
 def _inventory(run_dir: Path) -> dict[str, list[dict[str, Any]]]:
