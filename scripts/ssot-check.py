@@ -2,7 +2,8 @@
 """
 co-author-harness — ssot-check.py
 
-Reads .claude-plugin/ssot.yaml and verifies that each registered fact's
+Reads version.json as current-version authority (legacy .claude-plugin/ssot.yaml
+is still accepted when present for old fixtures) and verifies that each fact's
 consumers agree with the authoritative value (or, for `method: none`
 consumers, that the value is genuinely absent — the c2.6 inversion
 posture).
@@ -39,7 +40,7 @@ from marketplace_contract import is_manifest_entry, manifest_entry_cardinality_e
 try:
     import yaml  # type: ignore
 except ImportError:
-    print("[BLOCKER] PyYAML required to parse .claude-plugin/ssot.yaml")
+    print("[BLOCKER] PyYAML required to parse a legacy ssot.yaml fixture")
     sys.exit(1)
 
 
@@ -109,7 +110,10 @@ def is_self_referencing_marketplace_entry(
 ) -> bool:
     """True when the marketplace entry has the package manifest identity."""
     del marketplace_path  # identity must survive local -> remote source changes
-    manifest = load_json(plugin_root / ".claude-plugin" / "plugin.json")
+    identity = plugin_root / "version.json"
+    if not identity.exists():
+        identity = plugin_root / "plugin.json"
+    manifest = load_json(identity)
     return is_manifest_entry(entry, manifest)
 
 
@@ -271,37 +275,66 @@ def main() -> int:
         Path(args.plugin_root).resolve() if args.plugin_root else script_dir.parent
     )
 
-    ssot_path = plugin_root / ".claude-plugin" / "ssot.yaml"
-    if not ssot_path.exists():
-        print(f"[BLOCKER] SSOT registry not found: {ssot_path}")
-        return 1
-
-    try:
-        registry = load_yaml(ssot_path)
-    except yaml.YAMLError as exc:
-        print(f"[BLOCKER] SSOT registry parse failed: {exc}")
-        return 1
-
-    facts = (registry or {}).get("facts", {})
-    if not isinstance(facts, dict):
-        print(f"[BLOCKER] SSOT registry: 'facts' must be a mapping")
-        return 1
-
+    version_path = plugin_root / "version.json"
+    legacy_ssot = plugin_root / ".claude-plugin" / "ssot.yaml"
     blockers: List[str] = []
     fact_summary: List[str] = []
+    facts: Dict[str, Any] = {}
+    ssot_label = "version.json"
 
-    marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
-    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
-    try:
-        marketplace = load_json(marketplace_path)
-        manifest = load_json(manifest_path)
-        cardinality_error = manifest_entry_cardinality_error(
-            marketplace.get("plugins", []), manifest
-        )
-        if cardinality_error:
-            blockers.append(f"SSOT marketplace identity: {cardinality_error}")
-    except (OSError, json.JSONDecodeError) as exc:
-        blockers.append(f"SSOT marketplace identity could not be read: {exc}")
+    if legacy_ssot.exists():
+        ssot_label = str(legacy_ssot.relative_to(plugin_root))
+        try:
+            registry = load_yaml(legacy_ssot)
+        except yaml.YAMLError as exc:
+            print(f"[BLOCKER] SSOT registry parse failed: {exc}")
+            return 1
+        facts = (registry or {}).get("facts", {})
+        if not isinstance(facts, dict):
+            print("[BLOCKER] SSOT registry: 'facts' must be a mapping")
+            return 1
+        marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
+        manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+        if marketplace_path.exists() and manifest_path.exists():
+            try:
+                marketplace = load_json(marketplace_path)
+                manifest = load_json(manifest_path)
+                cardinality_error = manifest_entry_cardinality_error(
+                    marketplace.get("plugins", []), manifest
+                )
+                if cardinality_error:
+                    blockers.append(f"SSOT marketplace identity: {cardinality_error}")
+            except (OSError, json.JSONDecodeError) as exc:
+                blockers.append(f"SSOT marketplace identity could not be read: {exc}")
+    else:
+        if not version_path.exists():
+            print(f"[BLOCKER] version.json not found: {version_path}")
+            return 1
+        try:
+            identity = load_json(version_path)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[BLOCKER] version.json parse failed: {exc}")
+            return 1
+        if not isinstance(identity, dict):
+            print("[BLOCKER] version.json root must be an object")
+            return 1
+        facts = {
+            key: {
+                "authority": {
+                    "method": "json_field",
+                    "path": "version.json",
+                    "field": key,
+                },
+                "consumers": [
+                    {"path": "plugin.json", "method": "json_field", "field": key},
+                ],
+            }
+            for key in ("name", "version", "license")
+            if str(identity.get(key, "")).strip()
+        }
+        if len(facts) != 3:
+            print("[BLOCKER] version.json is missing name, version, or license")
+            return 1
 
     for fact_name, fact_spec in facts.items():
         if not isinstance(fact_spec, dict):
@@ -327,7 +360,7 @@ def main() -> int:
 
     print("SSOT REGISTRY CHECK")
     print(f"- Plugin root: {plugin_root}")
-    print(f"- Registry: {ssot_path.relative_to(plugin_root)}")
+    print(f"- Registry: {ssot_label}")
     print(f"- Facts checked: {len(facts)}")
     for line in fact_summary:
         print(f"  - {line}")

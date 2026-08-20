@@ -7,7 +7,7 @@ Static integrity checks for package skills and manifest contract:
 2) Verify /plugin-commands matches user-invocable shipped skill names.
 3) Verify SKILL_REGISTRY contains every shipped skill name.
 4) Report registry entries that do not correspond to shipped skills (warning).
-5) Validate plugin manifest contract (required keys and forbidden hooks field).
+5) Validate general version.json (and root plugin.json identity) contract.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import yaml
 
 
 REQUIRED_FRONTMATTER_KEYS = {"name", "description", "trigger", "version"}
-REGISTRY_SKILL_HEADING = re.compile(r"^###\s+SK-\d+\.\s+`([^`]+)`\s*$")
+REGISTRY_SKILL_HEADING = re.compile(r"^###\s+SK-\d+\.\s+`([^`]+)`")
 REQUIRED_MANIFEST_KEYS = {"name", "version", "description", "author", "license"}
 
 
@@ -104,42 +104,58 @@ def parse_registry_skill_names(plugin_root: Path) -> Set[str]:
 
 
 def validate_manifest(plugin_root: Path) -> Tuple[List[str], List[str]]:
+    """Identity comes from version.json. Root plugin.json may mirror it.
+
+    `.claude-plugin/plugin.json` is a retired host manifest. Its absence is
+    not a blocker. Presence is a leftover and is refused.
+    """
     blockers: List[str] = []
     warnings: List[str] = []
 
-    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
-    if not manifest_path.exists():
-        blockers.append(f"manifest missing: {manifest_path}")
-        return blockers, warnings
+    retired = plugin_root / ".claude-plugin" / "plugin.json"
+    if retired.exists():
+        blockers.append(
+            "retired host manifest present: .claude-plugin/plugin.json "
+            "(identity must come only from version.json)"
+        )
 
+    version_path = plugin_root / "version.json"
+    if not version_path.exists():
+        blockers.append(f"version.json missing: {version_path}")
+        return blockers, warnings
     try:
-        manifest = json.loads(read_text(manifest_path))
+        identity = json.loads(read_text(version_path))
     except Exception as exc:  # noqa: BLE001
-        blockers.append(f"manifest parse failed ({manifest_path}): {exc}")
+        blockers.append(f"version.json parse failed ({version_path}): {exc}")
+        return blockers, warnings
+    if not isinstance(identity, dict):
+        blockers.append("version.json root must be an object")
         return blockers, warnings
 
-    missing = sorted(REQUIRED_MANIFEST_KEYS - set(manifest.keys()))
-    if missing:
-        blockers.append(f"manifest missing required keys: {', '.join(missing)}")
+    for key in ("name", "version", "license"):
+        if not str(identity.get(key, "")).strip():
+            blockers.append(f"version.json '{key}' is missing or empty")
 
-    if "hooks" in manifest:
-        blockers.append("manifest must not define top-level 'hooks' field")
-
-    if not str(manifest.get("name", "")).strip():
-        blockers.append("manifest 'name' is empty")
-    if not str(manifest.get("version", "")).strip():
-        blockers.append("manifest 'version' is empty")
-    if not str(manifest.get("description", "")).strip():
-        blockers.append("manifest 'description' is empty")
-
-    author = manifest.get("author")
-    if isinstance(author, dict):
-        if not str(author.get("name", "")).strip():
-            blockers.append("manifest author.name is empty")
-        if not str(author.get("email", "")).strip():
-            warnings.append("manifest author.email is empty")
+    host = plugin_root / "plugin.json"
+    if host.exists():
+        try:
+            host_manifest = json.loads(read_text(host))
+        except Exception as exc:  # noqa: BLE001
+            blockers.append(f"plugin.json parse failed ({host}): {exc}")
+            return blockers, warnings
+        if "hooks" in host_manifest:
+            blockers.append("plugin.json must not define top-level 'hooks' field")
+        for key in ("name", "version", "license"):
+            left = str(host_manifest.get(key, "")).strip()
+            right = str(identity.get(key, "")).strip()
+            if left != right:
+                blockers.append(
+                    f"plugin.json {key} ({left}) != version.json {key} ({right})"
+                )
+        if not str(host_manifest.get("description", "")).strip():
+            warnings.append("plugin.json description is empty")
     else:
-        blockers.append("manifest 'author' must be an object")
+        warnings.append("root plugin.json is absent; version.json is the sole identity")
 
     return blockers, warnings
 
