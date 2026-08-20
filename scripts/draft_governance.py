@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -942,6 +943,9 @@ def verify(
 
 
 DSTYLE_REPORT_SCHEMA_REL = "scripts/d_style_profile_check.py"
+REASON_PROMPT_MEDIATED = "PROMPT-MEDIATED-NOT-DEST-SAFE"
+REASON_GRAPH_UNAVAILABLE = "GRAPH_GOVERNED_GENERATION_UNAVAILABLE"
+REASON_CENTROID_RECEIPT_ABSENT = "CENTROID-SEMANTIC-RECEIPT-ABSENT"
 
 
 def _exact_binding(path: Path, project: Path) -> dict[str, str | int]:
@@ -1119,6 +1123,180 @@ def _build_dstyle_typed_result(
     return result, report
 
 
+
+def _sanitize_finding_code(raw: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in "._:-" else "-" for ch in raw).strip("-")
+    if not cleaned or not cleaned[0].isalnum():
+        cleaned = "X" + cleaned
+    return cleaned[:80]
+
+
+def _fail_closed_pair(
+    *,
+    obligation_id: str,
+    adapter: dict[str, Any],
+    artifact_rel: str,
+    artifact_sha: str,
+    artifact_bytes: int,
+    contract_path: Path,
+    project: Path,
+    created_at: str,
+    reason_code: str,
+    reason_detail: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Honest evaluation fail-closed. Never a scholarly CLEAN."""
+    finding = {
+        "code": reason_code,
+        "severity": "MAJOR",
+        "evidence_identity": reason_detail,
+        "fingerprint": finding_fingerprint(
+            obligation_id,
+            reason_code,
+            "MAJOR",
+            reason_detail,
+            artifact_sha,
+        ),
+        "disposition": "open",
+    }
+    result = {
+        "schema_version": "1.0.0",
+        "obligation_id": obligation_id,
+        "adapter_version": adapter["adapter_version"],
+        "artifact": {
+            "path": artifact_rel,
+            "sha256": artifact_sha,
+            "byte_length": artifact_bytes,
+        },
+        "policy": {
+            "path": contract_path.relative_to(project).as_posix(),
+            "sha256": _sha(contract_path),
+            "byte_length": contract_path.stat().st_size,
+        },
+        "activation": adapter["activation"],
+        "execution_status": "failed",
+        "outcome": "error",
+        "findings": [finding],
+        "diagnostic_only": adapter["diagnostic_only"],
+        "created_at": created_at,
+        "adjudications": [],
+    }
+    report = {
+        "schema_version": "1.0.0",
+        "report_type": "obligation_adapter_report",
+        "adapter_id": adapter["adapter_id"],
+        "adapter_version": adapter["adapter_version"],
+        "obligation_id": obligation_id,
+        "artifact": result["artifact"],
+        "policy": result["policy"],
+        "activation": result["activation"],
+        "execution_status": "failed",
+        "outcome": "error",
+        "findings": [finding],
+        "diagnostic_only": result["diagnostic_only"],
+        "created_at": created_at,
+    }
+    return result, report
+
+
+def _build_audit_typed_result(
+    *,
+    artifact_path: Path,
+    contract_path: Path,
+    project: Path,
+    artifact_rel: str,
+    artifact_sha: str,
+    created_at: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run dest-safe deterministic-audit. Diagnostic-only; never scholarly CLEAN."""
+    audit_path = Path(__file__).resolve().parent / "audit" / "run_all.py"
+    spec = importlib.util.spec_from_file_location("draft_gov_run_all", audit_path)
+    if spec is None or spec.loader is None:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            "deterministic-audit instrument is missing",
+        )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    instrument = module.audit_target(artifact_path)
+    findings: list[dict[str, Any]] = []
+    for row in instrument.findings:
+        severity = "MAJOR" if getattr(row, "severity", "") == "inviolable" else "MINOR"
+        code = _sanitize_finding_code(f"AUDIT-{getattr(row, 'check_id', 'finding')}")
+        evidence_identity = f"{getattr(row, 'locator', '')}|{getattr(row, 'evidence', '')}"
+        findings.append(
+            {
+                "code": code,
+                "severity": severity,
+                "evidence_identity": evidence_identity,
+                "fingerprint": finding_fingerprint(
+                    "deterministic-audit",
+                    code,
+                    severity,
+                    evidence_identity,
+                    artifact_sha,
+                ),
+                "disposition": "open",
+            }
+        )
+    if not findings:
+        evidence_identity = "deterministic-audit ran dest-safe; no scholarly CLEAN"
+        findings.append(
+            {
+                "code": "DETERMINISTIC-AUDIT-COMPLETED",
+                "severity": "ADVISORY",
+                "evidence_identity": evidence_identity,
+                "fingerprint": finding_fingerprint(
+                    "deterministic-audit",
+                    "DETERMINISTIC-AUDIT-COMPLETED",
+                    "ADVISORY",
+                    evidence_identity,
+                    artifact_sha,
+                ),
+                "disposition": "open",
+            }
+        )
+    result = {
+        "schema_version": "1.0.0",
+        "obligation_id": "deterministic-audit",
+        "adapter_version": "1.0.0",
+        "artifact": {
+            "path": artifact_rel,
+            "sha256": artifact_sha,
+            "byte_length": artifact_path.stat().st_size,
+        },
+        "policy": {
+            "path": contract_path.relative_to(project).as_posix()
+            if contract_path.is_relative_to(project)
+            else str(contract_path),
+            "sha256": _sha(contract_path),
+            "byte_length": contract_path.stat().st_size,
+        },
+        "activation": "always",
+        "execution_status": "completed",
+        "outcome": "findings",
+        "findings": findings,
+        "diagnostic_only": True,
+        "created_at": created_at,
+        "adjudications": [],
+    }
+    report = {
+        "schema_version": "1.0.0",
+        "report_type": "obligation_adapter_report",
+        "adapter_id": "deterministic-audit-result",
+        "adapter_version": "1.0.0",
+        "obligation_id": "deterministic-audit",
+        "artifact": result["artifact"],
+        "policy": result["policy"],
+        "activation": result["activation"],
+        "execution_status": result["execution_status"],
+        "outcome": result["outcome"],
+        "findings": result["findings"],
+        "diagnostic_only": True,
+        "created_at": created_at,
+    }
+    return result, report
+
+
 def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
     """Emit dest-safe typed-result shells. Does not invent scholarly CLEAN."""
     if PHASE_ROLE.get(args.phase) != args.role:
@@ -1155,6 +1333,10 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     deferred: list[str] = []
     mechanical: list[str] = []
+    fail_closed: list[str] = []
+    fail_closed_reasons: dict[str, str] = {}
+    centroid = contract.get("centroid") if isinstance(contract.get("centroid"), dict) else {}
+    artifact_bytes = artifact_path.stat().st_size
     for row in required:
         obligation_id = row["id"]
         adapter = adapters[obligation_id]
@@ -1168,6 +1350,70 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                 created_at=created_at,
             )
             mechanical.append(obligation_id)
+        elif args.phase == "evaluation" and obligation_id == "deterministic-audit":
+            try:
+                result, report = _build_audit_typed_result(
+                    artifact_path=artifact_path,
+                    contract_path=contract_path,
+                    project=project,
+                    artifact_rel=artifact_rel,
+                    artifact_sha=artifact_sha,
+                    created_at=created_at,
+                )
+                mechanical.append(obligation_id)
+            except Exception as exc:
+                result, report = _fail_closed_pair(
+                    obligation_id=obligation_id,
+                    adapter=adapter,
+                    artifact_rel=artifact_rel,
+                    artifact_sha=artifact_sha,
+                    artifact_bytes=artifact_bytes,
+                    contract_path=contract_path,
+                    project=project,
+                    created_at=created_at,
+                    reason_code="DETERMINISTIC-AUDIT-INSTRUMENT-FAILED",
+                    reason_detail=f"dest-safe deterministic-audit failed closed: {exc}",
+                )
+                fail_closed.append(obligation_id)
+                fail_closed_reasons[obligation_id] = "DETERMINISTIC-AUDIT-INSTRUMENT-FAILED"
+        elif args.phase == "evaluation":
+            if obligation_id.startswith("centroid-") and (
+                centroid.get("semantic_usage") == "not_invoked"
+                or centroid.get("required") is not True
+            ):
+                reason_code = str(
+                    centroid.get("unavailable_code") or REASON_GRAPH_UNAVAILABLE
+                )
+                reason_detail = (
+                    "package semantic_usage=not_invoked; "
+                    "graph/centroid cannot run dest-safe"
+                )
+            elif obligation_id.startswith("centroid-"):
+                reason_code = REASON_CENTROID_RECEIPT_ABSENT
+                reason_detail = (
+                    "centroid semantic receipt is not dest-safe to invent; "
+                    "fail-closed rather than a silent not_run shell"
+                )
+            else:
+                reason_code = REASON_PROMPT_MEDIATED
+                reason_detail = (
+                    "prompt-mediated scholarly obligation cannot run dest-safe; "
+                    "Reviewer/Joseph attach assignment_dispatch via attach-verifier-receipt"
+                )
+            result, report = _fail_closed_pair(
+                obligation_id=obligation_id,
+                adapter=adapter,
+                artifact_rel=artifact_rel,
+                artifact_sha=artifact_sha,
+                artifact_bytes=artifact_bytes,
+                contract_path=contract_path,
+                project=project,
+                created_at=created_at,
+                reason_code=reason_code,
+                reason_detail=reason_detail,
+            )
+            fail_closed.append(obligation_id)
+            fail_closed_reasons[obligation_id] = reason_code
         else:
             result = {
                 "schema_version": "1.0.0",
@@ -1176,7 +1422,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                 "artifact": {
                     "path": artifact_rel,
                     "sha256": artifact_sha,
-                    "byte_length": artifact_path.stat().st_size,
+                    "byte_length": artifact_bytes,
                 },
                 "policy": {
                     "path": contract_path.relative_to(project).as_posix(),
@@ -1224,14 +1470,18 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
     }
     receipt_path = out_dir / f"draft_governance_receipt_{args.role}.json"
     _write_json(receipt_path, receipt)
+    evaluated = args.phase == "evaluation" and bool(mechanical or fail_closed)
     note = {
         "schema_version": "1.0.0",
-        "status": "scaffolded",
+        "status": "evaluated" if evaluated else "scaffolded",
         "phase": args.phase,
         "role": args.role,
         "out_dir": str(out_dir),
         "receipt_path": str(receipt_path),
         "mechanical_obligation_ids": mechanical,
+        "ran_obligation_ids": mechanical,
+        "fail_closed_obligation_ids": fail_closed,
+        "fail_closed_reasons": fail_closed_reasons,
         "deferred_obligation_ids": deferred,
         "dest_protected_stays": True,
         "who_writes": {
@@ -1317,7 +1567,7 @@ def attach_verifier_receipt(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
-    """Prepare + dest-safe evaluation scaffold. Not a verified CLEAN path."""
+    """Prepare + dest-safe evaluation run. Not a verified CLEAN path."""
     prepare_args = argparse.Namespace(
         project_root=args.project_root,
         artifact=args.artifact,
@@ -1346,10 +1596,23 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
     note = scaffold_receipt(scaffold_args)
     note["lane"] = "evaluation"
     note["contract_path"] = str(contract_path)
-    note["verify_is_not_complete"] = (
-        "evaluation not_run shells are a lane, not a verified CLEAN. "
-        "Reviewer fills reports; Joseph or Evaluator attach assignment_dispatch verifier_receipts via attach-verifier-receipt."
+    note["status"] = "evaluated"
+    note.pop("verify_is_not_complete", None)
+    note["verify_still_requires_reviewer_bind"] = (
+        "Runnable dest-safe obligations ran. Scholarly obligations fail-closed "
+        "with an explicit reason_code. attach-verifier-receipt is the only way a "
+        "Reviewer binds a receipt; the harness still refuses CLEAN bind."
     )
+    note["dest_protected_stays"] = True
+    centroid = contract.get("centroid") if isinstance(contract.get("centroid"), dict) else {}
+    if centroid.get("semantic_usage") == "not_invoked" or centroid.get("required") is not True:
+        note["centroid_graph"] = {
+            "status": "fail_closed",
+            "reason_code": centroid.get("unavailable_code") or REASON_GRAPH_UNAVAILABLE,
+            "semantic_usage": centroid.get("semantic_usage", "not_invoked"),
+            "required": centroid.get("required"),
+            "omitted_from_contract": True,
+        }
     _write_json(dest / "EVALUATION-LANE.json", note)
     return note
 

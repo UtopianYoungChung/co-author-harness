@@ -6,6 +6,14 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.5.0 — 2026-08-20 (kernel; not the April 2026 Incremental Tier Protocol)
+
+### 0.5.0 kernel cut after the 0.43.1 snapshot
+
+**Identity.** This heading is the 2026-08-20 kernel recorded in `version.json` as 0.5.0. It is not the April 2026 Incremental Tier Protocol release that historically used the same identifier (that record is demoted below so the identifiers do not collide).
+
+**Evaluation lane.** `evaluation-lane` now runs dest-safe obligations (`d-style-profile`, `deterministic-audit`) and fail-closes prompt-mediated scholarly rows with an explicit reason_code. Centroid/graph fail-closes when `semantic_usage=not_invoked`. The lane does not mint scholarly CLEAN. DEST-PROTECTED stays. SK-32 stays CLOSED. Grok-only host lock stays.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure
@@ -2758,7 +2766,7 @@ Seven warning categories the migrator may raise: `T0_DEFAULT_COERCED`, `HEADING_
 
 ---
 
-## v0.5.0 — 2026-04-19
+### Historical record — April 2026 Incremental Tier Protocol (then labeled v0.5.0; not the 2026-08-20 kernel)
 
 **Theme.** Phase C completion of the Incremental Tier Protocol. The v0.4.19 dispatch activation turns on four of the six tiers and five of the seven escalation gates; v0.5.0 completes the ladder. All six tiers (T0, T1, T2, T3, T3R, T4) dispatch, all seven gates (EG-1 through EG-7) are active, Reflector Phase 2b moves from stub to active precision/recall computation, Reflector Phase 3a (digest integrity) becomes a session-close requirement, and the legacy `review_depth` vocabulary retires in favour of an authoritative `tier:` field. Backward compatibility for one release is preserved via a transitional read-path that migrates `review_depth: quick|standard|submission-bound` in place. The v0.4.x single skill `run-full-review` is split into two tier-bound siblings — `run-tier-standard` (T3) and `run-tier-submission` (T4) — with the old name retained as a transitional alias that removes at v0.5.1.
 

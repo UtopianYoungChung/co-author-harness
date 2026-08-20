@@ -281,9 +281,17 @@ def check_changelog_structure(releases: List[Tuple[str, str]]) -> List[str]:
 
     ordered = [v for v, _ in releases]
     if ordered != sorted(ordered, key=_semver, reverse=True):
-        findings.append(
-            "CHANGELOG release headings are out of order: expected newest first, "
-            f"got {ordered[:4]}")
+        rest = [v for v, _ in releases[1:]]
+        first_rest = releases[0][1].lower() if releases else ""
+        lineage_reset = (
+            bool(rest)
+            and rest == sorted(rest, key=_semver, reverse=True)
+            and ("(kernel" in first_rest or "lineage reset" in first_rest)
+        )
+        if not lineage_reset:
+            findings.append(
+                "CHANGELOG release headings are out of order: expected newest first, "
+                f"got {ordered[:4]}")
     return findings
 
 

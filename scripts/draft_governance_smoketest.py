@@ -956,6 +956,95 @@ checked the wording, while the author retained responsibility for the claim.
             + resolved_dstyle.stderr,
         )
 
+        write_json(
+            project / "reviews" / "phase_state.json",
+            {
+                "schema_version": "0.7.4",
+                "milestone_framework": {
+                    "policy_bindings": {
+                        "reader_accessibility": {
+                            "binding_version": "2.0.0",
+                            "semantic_usage": "not_invoked",
+                            "profile_path": "references/policies/reader_accessibility.v1.json",
+                            "profile_sha256": "0" * 64,
+                            "resolved_sha256": "1" * 64,
+                        }
+                    }
+                },
+            },
+        )
+        lane = run(
+            "evaluation-lane",
+            "--project-root", str(project),
+            "--artifact", str(artifact),
+            "--target", "M3",
+            "--shipment-id", "smoketest-evaluation-lane",
+        )
+        require(lane.returncode == 0, lane.stdout + lane.stderr)
+        lane_note = json.loads(lane.stdout)
+        require(
+            lane_note.get("status") == "evaluated"
+            and lane_note.get("status") != "scaffolded",
+            "evaluation-lane must not remain scaffolded after dest-safe obligations ran",
+        )
+        require(
+            "verify_is_not_complete" not in lane_note,
+            "verify_is_not_complete is no longer the honest evaluation-lane label",
+        )
+        require(
+            lane_note.get("dest_protected_stays") is True,
+            "evaluation-lane must keep dest_protected_stays",
+        )
+        require(
+            "d-style-profile" in lane_note.get("ran_obligation_ids", []),
+            "d-style-profile must actually run on the evaluation lane",
+        )
+        require(
+            "deterministic-audit" in lane_note.get("ran_obligation_ids", []),
+            "deterministic-audit must actually run dest-safe on the evaluation lane",
+        )
+        require(
+            lane_note.get("deferred_obligation_ids") == [],
+            "evaluation-lane must not emit silent not_run deferrals",
+        )
+        require(
+            lane_note.get("centroid_graph", {}).get("status") == "fail_closed"
+            and lane_note.get("centroid_graph", {}).get("reason_code")
+            == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+            "centroid/graph must fail-closed when semantic_usage=not_invoked",
+        )
+        ship = project / "reviews" / ".harness" / "shipments" / "smoketest-evaluation-lane"
+        result_dir = ship / "obligation-results" / "evaluation"
+        silent = []
+        cleaned = []
+        for result_path in sorted(result_dir.glob("*.json")):
+            value = json.loads(result_path.read_text(encoding="utf-8"))
+            if value.get("execution_status") == "not_run":
+                silent.append(value.get("obligation_id"))
+            if value.get("outcome") == "clean" and value.get("obligation_id") != "d-style-profile":
+                cleaned.append(value.get("obligation_id"))
+        require(not silent, "silent not_run results remain: " + ", ".join(silent))
+        require(not cleaned, "evaluation-lane must not mint scholarly CLEAN: " + ", ".join(cleaned))
+        grounding = json.loads((result_dir / "grounding-protocol.json").read_text(encoding="utf-8"))
+        require(
+            grounding.get("execution_status") == "failed"
+            and grounding.get("outcome") == "error"
+            and grounding.get("findings")
+            and grounding["findings"][0].get("code") == "PROMPT-MEDIATED-NOT-DEST-SAFE",
+            "prompt-mediated scholarly rows must fail-closed with an explicit reason_code",
+        )
+        dstyle = json.loads((result_dir / "d-style-profile.json").read_text(encoding="utf-8"))
+        require(
+            dstyle.get("execution_status") == "completed"
+            and dstyle.get("outcome") in {"findings", "clean"},
+            "d-style-profile must remain a real mechanical result",
+        )
+        if dstyle.get("outcome") == "findings":
+            require(
+                all(row.get("disposition") == "open" for row in dstyle.get("findings", [])),
+                "d-style findings must stay findings",
+            )
+
         require(
             not intended_red,
             "C1 intended-red trust-boundary regressions remain open:\n- "
