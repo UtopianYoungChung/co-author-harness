@@ -1263,6 +1263,97 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
 
 
 
+def attach_verifier_receipt(args: argparse.Namespace) -> dict[str, Any]:
+    """Bind a Reviewer/Joseph envelope onto a dest-safe typed result.
+
+    Does not change outcome to CLEAN. fixture_hmac is refused in production.
+    """
+    project = _safe_root(args.project_root)
+    result_path = Path(args.result).resolve(strict=True)
+    envelope_path = Path(args.envelope).resolve(strict=True)
+    try:
+        result_path.relative_to(project)
+        envelope_path.relative_to(project)
+    except ValueError as exc:
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-STALE",
+            "result and envelope must stay under the bound project",
+        ) from exc
+    assert_writable(result_path, purpose="draft-governance attach-verifier-receipt")
+    result = _load(result_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+    envelope = _load(envelope_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+    if envelope.get("authority_mode") == "fixture_hmac":
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            "fixture_hmac is test-only; Reviewer/Joseph must use assignment_dispatch",
+        )
+    if envelope.get("authority_mode") != "assignment_dispatch":
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            "verifier_receipt must be assignment_dispatch from independent-evaluator or research-governance",
+        )
+    authority = envelope.get("authority")
+    if authority not in {"independent-evaluator", "research-governance"}:
+        raise ContractError(
+            "DRAFT-POLICY-ROLE",
+            f"envelope authority {authority!r} is not allowed to bind a scholarly receipt",
+        )
+    if result.get("outcome") == "clean":
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-SCHEMA",
+            "Harness will not bind a CLEAN outcome; Reviewer/Joseph fill the report first",
+        )
+    result["verifier_receipt"] = _exact_binding(envelope_path, project)
+    binding = _write_json(result_path, result)
+    return {
+        "schema_version": "1.0.0",
+        "status": "bound",
+        "obligation_id": result.get("obligation_id"),
+        "result": _exact_binding(result_path, project),
+        "authority": authority,
+        "outcome": result.get("outcome"),
+        "note": "envelope bound; outcome unchanged; evaluate verify still fail-closes without scholarly judgment",
+    }
+
+
+def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
+    """Prepare + dest-safe evaluation scaffold. Not a verified CLEAN path."""
+    prepare_args = argparse.Namespace(
+        project_root=args.project_root,
+        artifact=args.artifact,
+        target=args.target,
+        phase="evaluation",
+        role="evaluator",
+    )
+    contract = prepare(prepare_args)
+    project = Path(contract["project_root"]).resolve(strict=True)
+    dest = (
+        project / "reviews" / ".harness" / "shipments" / args.shipment_id
+    ).resolve()
+    assert_writable(dest, purpose="draft-governance evaluation-lane")
+    dest.mkdir(parents=True, exist_ok=True)
+    contract_path = dest / "draft_governance_prepare_evaluator.json"
+    _write_json(contract_path, contract)
+    artifact = Path(args.artifact or str(project / TARGET_PATHS[args.target])).resolve(strict=True)
+    scaffold_args = argparse.Namespace(
+        contract=str(contract_path),
+        artifact=str(artifact),
+        phase="evaluation",
+        role="evaluator",
+        out_dir=None,
+        shipment_id=args.shipment_id,
+    )
+    note = scaffold_receipt(scaffold_args)
+    note["lane"] = "evaluation"
+    note["contract_path"] = str(contract_path)
+    note["verify_is_not_complete"] = (
+        "evaluation not_run shells are a lane, not a verified CLEAN. "
+        "Reviewer fills reports; Joseph or Evaluator attach assignment_dispatch verifier_receipts via attach-verifier-receipt."
+    )
+    _write_json(dest / "EVALUATION-LANE.json", note)
+    return note
+
+
 def main(
     argv: list[str] | None = None,
     *,
@@ -1304,12 +1395,25 @@ def main(
     )
     scaffold_parser.add_argument("--out-dir")
     scaffold_parser.add_argument("--shipment-id")
+    eval_parser = sub.add_parser("evaluation-lane")
+    eval_parser.add_argument("--project-root", required=True)
+    eval_parser.add_argument("--artifact")
+    eval_parser.add_argument("--target", choices=sorted(TARGETS), required=True)
+    eval_parser.add_argument("--shipment-id", required=True)
+    attach_parser = sub.add_parser("attach-verifier-receipt")
+    attach_parser.add_argument("--project-root", required=True)
+    attach_parser.add_argument("--result", required=True)
+    attach_parser.add_argument("--envelope", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
             result = prepare(args)
         elif args.command == "scaffold-receipt":
             result = scaffold_receipt(args)
+        elif args.command == "evaluation-lane":
+            result = evaluation_lane(args)
+        elif args.command == "attach-verifier-receipt":
+            result = attach_verifier_receipt(args)
         else:
             result = verify(args, _test_authority_adapter=_test_authority_adapter)
     except DestinationRefused as exc:
