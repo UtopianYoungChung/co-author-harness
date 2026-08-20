@@ -2,7 +2,7 @@
 name: run-finalize
 description: 'Public 0.50 finalize coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Evaluator certifies shipment bytes. Writer is the apply step. Parked paper-specific body: run-phase-4.'
 trigger: 'when the user says "run finalize," "finalize," "stage = finalize," "ship," or invokes "/run-finalize"'
-version: 0.5.0
+version: 0.50.0
 ---
 
 # run-finalize — public finalize coordinator (staging)

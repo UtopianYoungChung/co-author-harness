@@ -21,13 +21,11 @@ Freeze what the plugin is allowed to be after the Claude-pack wipe and the 0.43.
 
 ---
 
-## 2. 0.43.1 freeze (snapshot lane)
+## 2. Historical 0.43.1 freeze (snapshot lane — superseded by 0.50.0)
 
-Live package identity today is **0.43.1** at HEAD `e8ed23b` (dirty, origin/main +9). That tree is a **snapshot lane**.
+**Status.** This section was accurate at the time the 0.50 kernel spec was accepted (2026-08-20). The 0.50 kernel has since been implemented and shipped as version 0.50.0 on 2026-08-20. Live package identity is now **0.50.0** at HEAD `d3b93b3` on origin/main.
 
-- Finish only in-flight 0.43.1 snapshot cleanup (packaging retarget off `.claude-plugin` to `version.json` + root `plugin.json`). That cleanup is not 0.50 implementation.
-- Do not chase 0.43.1 repair and 0.50 rewrite as one kitchen-sink.
-- After Joseph accepts this spec, 0.50 is implemented on a later order. `version.json` stays 0.43.1 until that order says otherwise.
+Original freeze note (historical): Live package identity at spec acceptance was **0.43.1** at HEAD `e8ed23b` (dirty, origin/main +9). That tree was a **snapshot lane**. The packaging retarget off `.claude-plugin` to `version.json` + root `plugin.json` was part of the 0.43.1 snapshot cleanup, not 0.50 implementation.
 
 ---
 

@@ -12,7 +12,7 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Version identity.** SemVer corrected from 0.5.0 to 0.50.0. The 0.5.0 identifier was semantically older than 0.43.0, preventing proper version ordering. 0.50.0 is monotonically newer than 0.43.0 and aligns with the intended 0.50 kernel identity.
 
-**Evaluation-lane restoration.** The evaluation-lane scholarly and governance obligations are restored to their pre-0.5.0 state. All ~22 obligations defined in `draft_governance.v1.json` now run during evaluation phase, not just `d-style-profile` and `deterministic-audit`. The dest-safe mechanical checks remain; prompt-mediated scholarly obligations are no longer fail-closed with `PROMPT-MEDIATED-NOT-DEST-SAFE`. Scholarly CLEAN is still not minted; DEST-PROTECTED remains enforced.
+**Evaluation-lane restoration.** The evaluation-lane behavior is restored from dest-safe-only fail-close. Mechanical dest-safe obligations (`d-style-profile`, `deterministic-audit`) run. Scholarly and governance obligations are deferred as `not_run` shells (honest deferral, not CLEAN). Centroid obligations fail-close when `semantic_usage=not_invoked` or receipt absent. Scholarly CLEAN is still not minted; DEST-PROTECTED remains enforced.
 
 **Grounding Protocol Rule 6 enforcement.** Rule 6 (no plausible fabrication) now has documented precedence over named-case pressure and "concrete detail" guidance. Generator must leave marked gaps (`[FACT NEEDED]`) rather than inventing plausible scenes when no vault/plan case exists. This binding is documented in `generator.md` and `run-draft/SKILL.md`.
 
@@ -21,16 +21,6 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 **run-phase-1 invocability.** The `run-phase-1` skill is marked `user-invocable: false` to prevent model invocation. It remains on disk as a parked paper-specific compatibility body per the 0.50 kernel spec.
 
 **Receipt metadata.** Evaluation transactions now bind host identity, prompt-package identity/hash, and input artifact paths+hashes. Evaluate operations refuse to proceed without these receipt fields. This closes the generation/evaluate transaction binding gap.
-
-## v0.5.0 — 2026-08-20 (superseded by 0.50.0; do not use)
-
-### 0.5.0 kernel cut after the 0.43.1 snapshot (SUPERSEDED)
-
-**Status.** This version identifier was superseded by 0.50.0 on 2026-08-20 due to SemVer ordering issues. Do not reference this version.
-
-**Identity.** This heading is the 2026-08-20 kernel initially recorded in `version.json` as 0.5.0. It is not the April 2026 Incremental Tier Protocol release that historically used the same identifier (that record is demoted below so the identifiers do not collide).
-
-**Evaluation lane.** `evaluation-lane` ran dest-safe obligations (`d-style-profile`, `deterministic-audit`) only and fail-closed prompt-mediated scholarly rows with an explicit reason_code. This was corrected in 0.50.0. Centroid/graph fail-closes when `semantic_usage=not_invoked`. The lane does not mint scholarly CLEAN. DEST-PROTECTED stays. SK-32 stays CLOSED. Grok-only host lock stays.
 
 ## v0.43.1 — 2026-08-14
 
@@ -2781,6 +2771,18 @@ Seven warning categories the migrator may raise: `T0_DEFAULT_COERCED`, `HEADING_
 
 - v0.5.1 is the first release to ship to the `releases/` folder since v0.4.18. The Phases B (v0.4.19) and C (v0.5.0) trees were built and gate-validated but intentionally not shipped, per the "ship only the final zip after all phases complete" directive from the user.
 - Follow-up candidates deferred beyond v0.5.1: user-specified expected firing-rate overrides for the gate tuner so project-specific norms can override the package defaults; a small render harness that converts `TIER_PROTOCOL_SR.mermaid` to a static SVG for venue submissions where Mermaid is not supported; a Phase D+ pass over the T3R artefact templates so response-letter-review outputs can be checked structurally rather than only semantically; a corresponding `concept_notifications.yaml` for grounding-protocol and graphify messages, applying the same rhetoric-versus-behaviour separation to the other agent surfaces.
+
+---
+
+## v0.5.0 — 2026-08-20 (history appendix — superseded by 0.50.0; do not use)
+
+### 0.5.0 kernel cut after the 0.43.1 snapshot (SUPERSEDED)
+
+**Status.** This version identifier was superseded by 0.50.0 on 2026-08-20 due to SemVer ordering issues. Do not reference this version.
+
+**Identity.** This heading is the 2026-08-20 kernel initially recorded in `version.json` as 0.5.0. It is not the April 2026 Incremental Tier Protocol release that historically used the same identifier (that record is below in the v0.5.1 historical subsection).
+
+**Evaluation lane.** `evaluation-lane` ran dest-safe obligations (`d-style-profile`, `deterministic-audit`) only and fail-closed prompt-mediated scholarly rows with an explicit reason_code. This was corrected in 0.50.0. Centroid/graph fail-closes when `semantic_usage=not_invoked`. The lane does not mint scholarly CLEAN. DEST-PROTECTED stays. SK-32 stays CLOSED. Grok-only host lock stays.
 
 ---
 

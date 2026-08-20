@@ -2,7 +2,7 @@
 name: run-reflection
 description: 'Public 0.50 reflection coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector after a certified shipment. Mode must be declared (lightweight or full). Does not apply to the workbench.'
 trigger: 'when the user says "reflect," "run reflector," "check grounding," "what did we learn," or invokes "/run-reflection"'
-version: 0.5.0
+version: 0.50.0
 ---
 
 # run-reflection — public reflection coordinator (staging)

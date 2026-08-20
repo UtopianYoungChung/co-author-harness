@@ -2,7 +2,7 @@
 name: run-iterate
 description: 'Public 0.50 iterate coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector for refine/structural/deep/stability. Generator publishes only via assignment_writer_commit.py to staging. Parked paper-specific bodies: run-phase-2, run-phase-3, run-phase-3-stability.'
 trigger: 'when the user says "run iterate," "iterate," "stage = iterate," or invokes "/run-iterate"'
-version: 0.5.0
+version: 0.50.0
 ---
 
 # run-iterate — public iterate coordinator (staging)

@@ -989,12 +989,9 @@ def _accept_generation_not_run(
     phase: str,
     project: Path,
 ) -> None:
-    """Allow honest generation deferral. Never a scholarly clean."""
-    if phase != "generation":
-        raise ContractError(
-            "DRAFT-POLICY-OBLIGATION-BLOCKING-OUTCOME",
-            f"not_run is not allowed at evaluation: {obligation_id}",
-        )
+    """Allow honest deferral at generation or evaluation (v0.50.0). Never a scholarly clean."""
+    # v0.50.0: Allow not_run at evaluation for deferred scholarly obligations
+    # d-style-profile must still run (mechanical, not deferred)
     if adapter.get("report_schema", {}).get("path") == DSTYLE_REPORT_SCHEMA_REL:
         raise ContractError(
             "DRAFT-POLICY-OBLIGATION-SCHEMA",
@@ -1479,10 +1476,16 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "path": str(package_version_path.relative_to(ROOT)),
         "sha256": _sha(package_version_path),
     }
-    # Host detection: check environment for Cursor/Claude/Grok markers
+    # Host detection: check environment for Cursor/Claude/Grok markers (v0.50.0)
     import os
-    host_marker = os.environ.get("CURSOR_AGENT_RUN_ID", os.environ.get("ANTHROPIC_API_KEY", ""))
-    host_identity = "cursor" if "CURSOR_AGENT_RUN_ID" in os.environ else "unknown"
+    if "CURSOR_AGENT_RUN_ID" in os.environ:
+        host_identity = "cursor"
+    elif "XAI_API_KEY" in os.environ or "GROK_API_KEY" in os.environ:
+        host_identity = "grok"
+    elif "ANTHROPIC_API_KEY" in os.environ:
+        host_identity = "claude"
+    else:
+        host_identity = "unknown"
     
     # Input paths: contract policy and registry that govern this receipt
     input_bindings = [
