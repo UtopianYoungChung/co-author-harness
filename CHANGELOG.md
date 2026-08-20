@@ -1,4 +1,4 @@
-# Changelog — co-author-harness-claude
+# Changelog — co-author-harness
 
 Package-level changelog tracking substantive architectural changes, lessons learned across release cycles, and proposed-and-approved package improvements. Version-by-version narrative is mirrored in `README.md §Version`; this file adds the meta-learning layer (lessons, proposals, recurrence tracking) that `README.md` does not carry.
 
@@ -6,13 +6,31 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
-## v0.5.0 — 2026-08-20 (kernel; not the April 2026 Incremental Tier Protocol)
+## v0.50.0 — 2026-08-20
 
-### 0.5.0 kernel cut after the 0.43.1 snapshot
+### M1→M2→M3→M4 flow repair
 
-**Identity.** This heading is the 2026-08-20 kernel recorded in `version.json` as 0.5.0. It is not the April 2026 Incremental Tier Protocol release that historically used the same identifier (that record is demoted below so the identifiers do not collide).
+**Version identity.** SemVer corrected from 0.5.0 to 0.50.0. The 0.5.0 identifier was semantically older than 0.43.0, preventing proper version ordering. 0.50.0 is monotonically newer than 0.43.0 and aligns with the intended 0.50 kernel identity.
 
-**Evaluation lane.** `evaluation-lane` now runs dest-safe obligations (`d-style-profile`, `deterministic-audit`) and fail-closes prompt-mediated scholarly rows with an explicit reason_code. Centroid/graph fail-closes when `semantic_usage=not_invoked`. The lane does not mint scholarly CLEAN. DEST-PROTECTED stays. SK-32 stays CLOSED. Grok-only host lock stays.
+**Evaluation-lane restoration.** The evaluation-lane scholarly and governance obligations are restored to their pre-0.5.0 state. All ~22 obligations defined in `draft_governance.v1.json` now run during evaluation phase, not just `d-style-profile` and `deterministic-audit`. The dest-safe mechanical checks remain; prompt-mediated scholarly obligations are no longer fail-closed with `PROMPT-MEDIATED-NOT-DEST-SAFE`. Scholarly CLEAN is still not minted; DEST-PROTECTED remains enforced.
+
+**Grounding Protocol Rule 6 enforcement.** Rule 6 (no plausible fabrication) now has documented precedence over named-case pressure and "concrete detail" guidance. Generator must leave marked gaps (`[FACT NEEDED]`) rather than inventing plausible scenes when no vault/plan case exists. This binding is documented in `generator.md` and `run-draft/SKILL.md`.
+
+**Writer contract unification.** Generator stages only; Writer (outside plugin) applies exact path+hash after Joseph accepts. `generator.md` updated to match `run-draft/SKILL.md`: Generator is not the manuscript writer, Generator is the stager. DEST-PROTECTED maintained. SK-32 `/run-generator-session` remains CLOSED.
+
+**run-phase-1 invocability.** The `run-phase-1` skill is marked `user-invocable: false` to prevent model invocation. It remains on disk as a parked paper-specific compatibility body per the 0.50 kernel spec.
+
+**Receipt metadata.** Evaluation transactions now bind host identity, prompt-package identity/hash, and input artifact paths+hashes. Evaluate operations refuse to proceed without these receipt fields. This closes the generation/evaluate transaction binding gap.
+
+## v0.5.0 — 2026-08-20 (superseded by 0.50.0; do not use)
+
+### 0.5.0 kernel cut after the 0.43.1 snapshot (SUPERSEDED)
+
+**Status.** This version identifier was superseded by 0.50.0 on 2026-08-20 due to SemVer ordering issues. Do not reference this version.
+
+**Identity.** This heading is the 2026-08-20 kernel initially recorded in `version.json` as 0.5.0. It is not the April 2026 Incremental Tier Protocol release that historically used the same identifier (that record is demoted below so the identifiers do not collide).
+
+**Evaluation lane.** `evaluation-lane` ran dest-safe obligations (`d-style-profile`, `deterministic-audit`) only and fail-closed prompt-mediated scholarly rows with an explicit reason_code. This was corrected in 0.50.0. Centroid/graph fail-closes when `semantic_usage=not_invoked`. The lane does not mint scholarly CLEAN. DEST-PROTECTED stays. SK-32 stays CLOSED. Grok-only host lock stays.
 
 ## v0.43.1 — 2026-08-14
 

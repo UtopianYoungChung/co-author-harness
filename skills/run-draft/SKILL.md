@@ -2,7 +2,7 @@
 name: run-draft
 description: 'Public 0.50 draft coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Writer (outside the plugin) is the apply step. Parked paper-specific body: run-phase-1.'
 trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft"'
-version: 0.5.0
+version: 0.50.0
 ---
 
 # run-draft — public draft coordinator (staging)
@@ -48,6 +48,14 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
 `research/60_Workbench/<work-id>/`. `scripts/destination_capability.py` is the
 write chokepoint. Derived handoff remains valid. No F9 invention. No CLEAN
 mint. SK-32 `/run-generator-session` stays `CLOSED_PUBLIC_BYPASS`.
+
+**Rule 6 enforcement (v0.50.0).** Generator must leave marked gaps
+(`[CONCRETE EXAMPLE NEEDED]`, `[FACT NEEDED]`) rather than inventing plausible
+scenes, named cases, or vivid details when no vault/plan case exists.
+Grounding Protocol Rule 6 beats all stylistic pressure to add concrete details
+(MASTER §I.2.3, Sexton, humanness guidance). No fabrication, even when it
+would improve prose texture. See `agents/generator.md` "Rule 6 precedence"
+binding constraint.
 
 Graph / centroid remain invoke-only / fail-closed. Do not auto-dispatch
 `centroid-pass`, `centroid-sentence-logic`, `quick-deterministic`, or

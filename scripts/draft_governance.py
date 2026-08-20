@@ -725,10 +725,25 @@ def verify(
     ).resolve(strict=False) != artifact_path:
         raise ContractError("DRAFT-POLICY-ARTIFACT", "contract artifact path is invalid")
     required_receipt = {
-        "schema_version", "phase", "role", "contract_sha256", "artifact", "obligations"
+        "schema_version", "phase", "role", "contract_sha256", "artifact", "obligations",
+        "host_identity", "package_identity", "input_bindings"
     }
     if set(receipt) != required_receipt or receipt.get("schema_version") != "1.0.0":
         raise ContractError("DRAFT-POLICY-RECEIPT", "receipt fields or version are invalid")
+    # v0.50.0: Verify transaction metadata is bound
+    if not isinstance(receipt.get("host_identity"), str) or not receipt["host_identity"]:
+        raise ContractError("DRAFT-POLICY-RECEIPT", "receipt lacks host_identity")
+    package_identity = receipt.get("package_identity")
+    if not isinstance(package_identity, dict) or not all(
+        isinstance(package_identity.get(k), str) for k in ("name", "version", "path", "sha256")
+    ):
+        raise ContractError("DRAFT-POLICY-RECEIPT", "receipt lacks valid package_identity")
+    input_bindings = receipt.get("input_bindings")
+    if not isinstance(input_bindings, list) or not all(
+        isinstance(b, dict) and isinstance(b.get("path"), str) and isinstance(b.get("sha256"), str)
+        for b in input_bindings
+    ):
+        raise ContractError("DRAFT-POLICY-RECEIPT", "receipt lacks valid input_bindings")
     if receipt.get("phase") != args.phase or receipt.get("role") != args.role:
         raise ContractError("DRAFT-POLICY-ROLE", "receipt phase or role is invalid")
     if receipt.get("contract_sha256") != _sha(contract_path):
@@ -1376,8 +1391,9 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                 )
                 fail_closed.append(obligation_id)
                 fail_closed_reasons[obligation_id] = "DETERMINISTIC-AUDIT-INSTRUMENT-FAILED"
-        elif args.phase == "evaluation":
-            if obligation_id.startswith("centroid-") and (
+        elif args.phase == "evaluation" and obligation_id.startswith("centroid-"):
+            # Centroid obligations fail-close when semantic_usage=not_invoked or when receipt is absent
+            if (
                 centroid.get("semantic_usage") == "not_invoked"
                 or centroid.get("required") is not True
             ):
@@ -1388,17 +1404,11 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                     "package semantic_usage=not_invoked; "
                     "graph/centroid cannot run dest-safe"
                 )
-            elif obligation_id.startswith("centroid-"):
+            else:
                 reason_code = REASON_CENTROID_RECEIPT_ABSENT
                 reason_detail = (
                     "centroid semantic receipt is not dest-safe to invent; "
                     "fail-closed rather than a silent not_run shell"
-                )
-            else:
-                reason_code = REASON_PROMPT_MEDIATED
-                reason_detail = (
-                    "prompt-mediated scholarly obligation cannot run dest-safe; "
-                    "Reviewer/Joseph attach assignment_dispatch via attach-verifier-receipt"
                 )
             result, report = _fail_closed_pair(
                 obligation_id=obligation_id,
@@ -1460,6 +1470,26 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         result["report"] = _exact_binding(report_path, project)
         _write_json(result_path, result)
         rows.append({"id": obligation_id, "result": _exact_binding(result_path, project)})
+    # v0.50.0: Bind host, package identity, and input paths for transaction traceability
+    package_version_path = ROOT / "version.json"
+    package_version_data = _load(package_version_path, "DRAFT-POLICY-RECEIPT")
+    package_identity = {
+        "name": package_version_data.get("name"),
+        "version": package_version_data.get("version"),
+        "path": str(package_version_path.relative_to(ROOT)),
+        "sha256": _sha(package_version_path),
+    }
+    # Host detection: check environment for Cursor/Claude/Grok markers
+    import os
+    host_marker = os.environ.get("CURSOR_AGENT_RUN_ID", os.environ.get("ANTHROPIC_API_KEY", ""))
+    host_identity = "cursor" if "CURSOR_AGENT_RUN_ID" in os.environ else "unknown"
+    
+    # Input paths: contract policy and registry that govern this receipt
+    input_bindings = [
+        {"path": str(POLICY_PATH.relative_to(ROOT)), "sha256": _sha(POLICY_PATH)},
+        {"path": str(OBLIGATION_REGISTRY_PATH.relative_to(ROOT)), "sha256": _sha(OBLIGATION_REGISTRY_PATH)},
+    ]
+    
     receipt = {
         "schema_version": "1.0.0",
         "phase": args.phase,
@@ -1467,6 +1497,9 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "contract_sha256": _sha(contract_path),
         "artifact": {"path": str(artifact_path), "sha256": artifact_sha},
         "obligations": rows,
+        "host_identity": host_identity,
+        "package_identity": package_identity,
+        "input_bindings": input_bindings,
     }
     receipt_path = out_dir / f"draft_governance_receipt_{args.role}.json"
     _write_json(receipt_path, receipt)
@@ -1505,7 +1538,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "still_requires_joseph": [
             "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
-            "evaluation-phase generic scholarly obligations still need independent-evaluator or research-governance verifier_receipts; generation not_run is an honest deferral, not a CLEAN",
+            "evaluation-phase scholarly and governance obligations are deferred (not_run) and must be supplied by Evaluator role with proper assignment dispatch receipts; deferred obligations are honest shells, not CLEAN",
         ],
     }
     _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
@@ -1599,9 +1632,10 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
     note["status"] = "evaluated"
     note.pop("verify_is_not_complete", None)
     note["verify_still_requires_reviewer_bind"] = (
-        "Runnable dest-safe obligations ran. Scholarly obligations fail-closed "
-        "with an explicit reason_code. attach-verifier-receipt is the only way a "
-        "Reviewer binds a receipt; the harness still refuses CLEAN bind."
+        "Runnable dest-safe obligations ran. Scholarly and governance obligations "
+        "are deferred (not_run) and must be supplied by Evaluator role with proper "
+        "assignment dispatch receipts. attach-verifier-receipt can bind external "
+        "evaluation receipts; the harness still refuses CLEAN bind."
     )
     note["dest_protected_stays"] = True
     centroid = contract.get("centroid") if isinstance(contract.get("centroid"), dict) else {}
