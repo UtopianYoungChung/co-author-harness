@@ -26,7 +26,6 @@
     "response-letter-review",
     "run-draft",
     "run-finalize",
-    "run-generator-session",
     "run-iterate",
     "run-reflection",
     "seed-snowball-discovery",
@@ -51,7 +50,8 @@
       "graph-grounding-overlay",
       "ingest-m5-to-wiki",
       "promote-lessons-to-wiki",
-      "retrofit-concept-grounding"
+      "retrofit-concept-grounding",
+      "run-generator-session"
     ]
   }
 }

@@ -26,7 +26,6 @@ for internal routing, compatibility, and truthful failure behavior.
 | Review and revise a draft | `/run-iterate --profile refine` |
 | Structural, deep, or byte-stable iteration | `/run-iterate --profile structural|deep|stability` |
 | Submission-bound close-out | `/run-finalize` |
-| Apply decisions from the current chat to manuscript files | `/run-generator-session` |
 | Fast mechanical pre-flight | `/quick-deterministic` |
 | Inspect evidence integrity | `/grounding-audit` |
 | Learn from a round | `/run-reflection lightweight|full` |
@@ -48,7 +47,6 @@ receipt for that governed evidence.
 | `/run-draft` | Run the public draft-stage M1→M4 workflow. | Start or continue drafting. |
 | `/run-iterate` | Run post-draft review and revision with `refine`, `structural`, `deep`, or `stability` profile. | Improve an existing draft. |
 | `/run-finalize` | Run submission-bound verification and close-out. | After convergence and MCR admission. |
-| `/run-generator-session` | Apply the current chat's agreed revisions under real project state. | Turn decisions into manuscript edits. |
 | `/run-reflection` | Run lightweight integrity learning or full close-out reflection. | Round close or final close-out. |
 | `/quick-deterministic` | Run the canonical mechanical pre-flight. | Before deep review. |
 | `/grounding-audit` | Audit citation, metric, path, and rule-citation integrity. | Evidence and hallucination checks. |

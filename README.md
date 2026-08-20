@@ -2,10 +2,10 @@
 
 # co-author-harness
 
-**A Claude Code plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
+**A research-writing plugin for PhD-level academic writing: four specialized agents, a climb-only phase ladder, and a rule stack that treats grounding as non-negotiable.**
 
-[![Version](https://img.shields.io/badge/Version-manifest-0366D6?logo=semver&logoColor=white)](.claude-plugin/plugin.json)
-[![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness--claude-8B5CF6)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/Version-manifest-0366D6?logo=semver&logoColor=white)](version.json)
+[![Plugin](https://img.shields.io/badge/Plugin%20ID-co--author--harness-8B5CF6)](version.json)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](#license)
 
 [Quick start](#quick-start) · [Documentation](#documentation) · [Repository layout](#repository-layout) · [Changelog](CHANGELOG.md)
@@ -28,7 +28,7 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 * **Artifact presence is not compliance.** [`references/policies/draft_governance.v1.json`](references/policies/draft_governance.v1.json) binds centroid, D-STYLE, retained grammar/style rules, grounding, deterministic checks, SAFEGUARD, and applicable overlays before generation and after evaluation. Milestone record and terminal close require exact-byte evidence from both roles.
 * **Two orthogonal axes.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). Assignment-derived deliverables describe the *project* arc; the phase ladder governs *review and revision*. The backward-compatible M5 machine slot may represent a final paper that the assignment treats separately from its named milestones.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
-* **Slash-style skills, documented as files.** Slash commands under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `run-generator-session`, `seed-snowball-discovery`, `claim-coverage-audit`, `extend-snowball-incremental`, `inherit-snowball-from-wiki`) with machine-checkable front matter—validated by the scripts below.
+* **Slash-style skills, documented as files.** Slash commands under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `seed-snowball-discovery`, `claim-coverage-audit`, `extend-snowball-incremental`, `inherit-snowball-from-wiki`) with machine-checkable front matter—validated by the scripts below.
 
 ### Skill catalog
 

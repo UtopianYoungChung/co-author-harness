@@ -183,7 +183,7 @@ Before Step 0a, run:
 
 If `should_run_sk20` is false, do not attempt SK-20 in pre-flight. Cite `reviews/sk20_noop_YYYY-MM-DD.json` in the consolidated report so the skip reason is auditable.
 
-At Ph4 only, this step is extended by the **graph-grounding overlay** (`co-author-harness-claude:graph-grounding-overlay`), which injects three finding families (graph-stub citations, section-location mismatches, missing-citation candidates) from the peer LLM wiki graphify layer. The overlay is mandatory at Ph4, optional at Ph3, and does not run at Ph1/Ph2.
+At Ph4 only, this step is extended by the **graph-grounding overlay** (`graph-grounding-overlay`), which injects three finding families (graph-stub citations, section-location mismatches, missing-citation candidates) from the peer LLM wiki graphify layer. The overlay is mandatory at Ph4, optional at Ph3, and does not run at Ph1/Ph2.
 
 ### Step 0a — Deterministic Pre-flight
 

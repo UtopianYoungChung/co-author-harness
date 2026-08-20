@@ -2,7 +2,7 @@
 
 > Deploy to: the harness root folder (`co-author-harness/AGENTS.md` in this workspace).
 
-**Scope.** This file governs all Codex (or any agent) activity under the `co-author-harness/` root folder. It is the root-level authority for every research project in this tree and the canonical home of the Research and Academic Paper Writing Package. It sets the rules for package invocation, project discovery, lifecycle management, and cross-project consistency.
+**Scope.** This file governs activity of the executing agent under this package root. It is the canonical home of the Research and Academic Paper Writing Package. It sets the rules for package invocation, project discovery, lifecycle management of instrument behaviour, and cross-project consistency of instrument behaviour. Role and authority: `references/ROLE_AND_AUTHORITY.md` (binding).
 
 **Single-branch policy (binding).** `main` is the repository's only permitted
 branch. Commit all past, present, and future project work directly to `main`; do
@@ -11,7 +11,7 @@ Clean-checkout verification may use a temporary **detached** worktree, which mus
 be removed after its receipts are copied back. Before deleting a legacy branch,
 first prove its tip is reachable from `main` so no committed history is lost.
 
-**Authoritative version.** `.claude-plugin/plugin.json` is the single source of truth for the plugin's **current** version, name, description, and keywords. Descriptive prose must not manually mirror the current version — point readers at the manifest instead. Two things are *not* violations of this rule, because neither claims to be the current version: **historical release identifiers** (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables — records of what shipped), and **mechanical manifest parity** (`.claude-plugin/marketplace.json`, gated by `scripts/version-check.py`, because both manifests ship inside the `.plugin` ZIP and the loader rejects the install when they disagree). Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`.
+**Authoritative version.** `version.json` is the single source of truth for the package's **current** version, name, and license. `.claude-plugin/plugin.json` is a retired Claude host manifest and is not required. Descriptive prose must not manually mirror the current version — point readers at the manifest instead. Two things are *not* violations of this rule, because neither claims to be the current version: **historical release identifiers** (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables — records of what shipped), and **mechanical manifest parity** (`.claude-plugin/marketplace.json`, gated by `scripts/version-check.py`, because both manifests ship inside the `.plugin` ZIP and the loader rejects the install when they disagree). Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
@@ -31,8 +31,6 @@ shipment lane above. Script writers resolve destinations through
 `scripts/destination_capability.py` (`DEST-MISROUTED` for package-local project
 output; `DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without
 discoverable workspace governance).
-Never infer authority from a harness verdict, phase label, terminal PASS, or
-artifact quality.
 The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
 body for the harness.
@@ -86,7 +84,7 @@ The agent **must** read the package component files and follow the orchestration
 | User asks to bootstrap a new research project                           | "Set up a new project for X," "Create the folder structure for Y"                                                                                            |
 | User asks to build, extend, formalize, or audit a BFO-aligned ontology  | "Build this BFO domain ontology," "Audit these ontology definitions," "Formalize this taxonomy"                                                             |
 | User invokes an agent role                                              | "Run the planner," "Evaluate the manuscript," "Reflect on this round"                                                                                        |
-| User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-draft`, `/run-iterate`, `/run-finalize`, `/run-reflection`, `/run-generator-session`, `/quick-deterministic`, `/check-contradictions` |
+| User invokes a skill (illustrative — full catalog at `/plugin-commands`) | `/run-draft`, `/run-iterate`, `/run-finalize`, `/run-reflection`, `/quick-deterministic`, `/check-contradictions` |
 | User asks about project lifecycle or milestones                         | "Where is this project?", "What milestone am I at?", "What's next?"                                                                                          |
 
 
@@ -119,6 +117,7 @@ Full ladder and cross-project rules: [docs/agent-instructions/harness-governance
 
 | Topic                                                 | File                                                                                     |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Role and authority (binding)                          | [ROLE_AND_AUTHORITY.md](references/ROLE_AND_AUTHORITY.md)                                |
 | Directory layout, ownership, unpacked snapshots       | [harness-architecture.md](docs/agent-instructions/harness-architecture.md)               |
 | Consolidation footnote / ancestry (historical)        | [harness-history.md](docs/agent-instructions/harness-history.md)                         |
 | Project discovery, phase ladder, bootstrap template   | [harness-discovery-lifecycle.md](docs/agent-instructions/harness-discovery-lifecycle.md) |

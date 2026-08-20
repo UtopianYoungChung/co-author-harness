@@ -358,13 +358,13 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Depends on:** `references/PHASE_PROTOCOL.md §3 (Ph2 Review & Revise)`, `references/REVIEW_ORCHESTRATION.md §3.3` (tier table), the per-section `reviews/phase_state.json` ledger (18-field SectionStateObject), `reviews/classification.md`, and `references/GROUNDING_PROTOCOL.md` (full-file reads at every rung — no digest exception at v0.7.0).
 - **Sibling:** SK-38 `run-iterate` (public stage/profile router); SK-25 `run-phase-1` / SK-37 `run-draft` (draft stage); SK-27 `run-phase-4` / SK-39 `run-finalize` (finalize stage); SK-04 `classify-manuscript`.
 
-### SK-32. `run-generator-session`
+### SK-32. `run-generator-session` (closed public bypass, 2026-08-19)
 - **File:** `skills/run-generator-session/SKILL.md`
 - **Pattern:** **Session-sourced Generator** pass — the current chat supplies revision *instructions*; `reviews/classification.md` and `reviews/phase_state.json` supply *authority* (phase, P-stage, ceiling). No new `reviews/` session artefacts in v1. Aligned with `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md` and `agents/generator.md` (manuscript + `manuscript/revision_log.md` only; no `reviews` writes by the Generator).
 - **Created:** 2026-04-25
 - **Source:** Brainstorming + approved design spec `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md`
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Closed — not a public write path. Manuscript writes require Evaluator findings and F6.
 - **Depends on:** `agents/generator.md`, `references/GROUNDING_PROTOCOL.md`, `reviews/classification.md`, `reviews/phase_state.json`, optional project-local style path via `CLAUDE.md` / `directives.md`
 - **Sibling:** SK-25 `run-phase-1` … SK-27 `run-phase-4` (full ladder entry points with Planner/Evaluator packaging); SK-23 `plugin-commands` (discovery); SK-07 `sentence-level-pass` / SK-08 `narrative-structure-pass` (craft overlays, not the Generator role file)
 - **Not a replacement for:** full `/run-phase-2+` with Evaluator when the project’s governance still requires that round; does not create Planner artefacts
@@ -519,7 +519,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Pattern:** Public, read-only orchestration. A deterministic packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass.
 - **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.
 - **Tier:** Package
-- **Status:** Active; mandatory within academic draft generation, evaluation, and revision orchestration only when the authoritative reader binding enables governed semantic use.
+- **Status:** Unavailable on native reader-profile v2 (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`). Mandatory only when the authoritative reader binding enables governed semantic use.
 - **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/policies/draft_governance.v1.json`, `scripts/centroid_service.py`, `scripts/draft_governance.py`, and `references/GROUNDING_PROTOCOL.md`.
 - **Trigger:** Every M1-M4/FINAL draft or revision whose authoritative reader binding enables governed semantic use, or explicit `/centroid-pass`; reader-profile v2 with `semantic_usage: not_invoked` does not auto-dispatch it.
 - **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).

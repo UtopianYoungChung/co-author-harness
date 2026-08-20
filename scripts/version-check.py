@@ -4,7 +4,7 @@ co-author-harness — version-check.py
 
 THE MANIFEST IS THE SOLE AUTHORITY FOR THE CURRENT VERSION.
 
-`.claude-plugin/plugin.json` owns it. Everything else either mirrors it
+`version.json` owns it (fallback: `.claude-plugin/plugin.json`). Everything else either mirrors it
 mechanically (and is gated) or must not state it at all.
 
   HARD GATE   .claude-plugin/marketplace.json — self-referencing plugins[]
@@ -17,7 +17,7 @@ mechanically (and is gated) or must not state it at all.
   REFUSED     README.md asserting a version — a shields.io badge or a
               standalone "## Version `X.Y.Z`" literal. This file used to
               REQUIRE both, which put it in direct contradiction with
-              AGENTS.md ("`.claude-plugin/plugin.json` is the single source of
+              AGENTS.md ("`version.json` is the single source of
               truth ... No prose document in this tree asserts a version
               number; consult the manifest"). The contradiction was invisible
               because the checker enforced the losing side. Duplicated
@@ -59,9 +59,20 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def manifest_path(plugin_root: Path) -> Path:
+    """General version.json is current-version authority.
+
+    `.claude-plugin/plugin.json` remains a fallback so older fixtures still
+    resolve. Live trees should not restore the Claude pack just to read a version.
+    """
+    general = plugin_root / "version.json"
+    if general.exists():
+        return general
+    return plugin_root / ".claude-plugin" / "plugin.json"
+
+
 def extract_manifest_version(plugin_root: Path) -> str:
-    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
-    manifest = json.loads(read_text(manifest_path))
+    manifest = json.loads(read_text(manifest_path(plugin_root)))
     version = str(manifest.get("version", "")).strip()
     if not version:
         raise ValueError("manifest version is empty")
@@ -69,8 +80,7 @@ def extract_manifest_version(plugin_root: Path) -> str:
 
 
 def extract_manifest_license(plugin_root: Path) -> str:
-    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
-    manifest = json.loads(read_text(manifest_path))
+    manifest = json.loads(read_text(manifest_path(plugin_root)))
     license_id = str(manifest.get("license", "")).strip()
     if not license_id:
         raise ValueError("manifest license is empty")
@@ -84,7 +94,7 @@ def find_retired_host_manifests(plugin_root: Path) -> List[str]:
         return [
             ".cursor-plugin/plugin.json is a retired unmanaged host manifest; "
             "Cursor uses the source checkout directly, and package identity/version "
-            "must come only from .claude-plugin/plugin.json"
+            "must come only from version.json"
         ]
     return []
 
@@ -100,7 +110,7 @@ def find_readme_version_assertions(plugin_root: Path) -> List[str]:
     two hand-maintained copies of one fact always eventually disagree. The
     remedy is not a third copy to check the other two; it is one copy.
 
-    A README may freely LINK to `.claude-plugin/plugin.json`, and may mention
+    A README may freely LINK to `version.json`, and may mention
     versions in historical narrative ("in v0.15.0 we ..."). What it may not do
     is state THE CURRENT VERSION as a bare fact.
 
@@ -135,13 +145,13 @@ _README_ASSERTION_PATTERNS = (
     (re.compile(r"!\[[^\]]*\]\(\s*https://img\.shields\.io/badge/"
                 r"[A-Za-z0-9._%+-]*?-v?(?P<v>" + _SEMVER + r")-", re.I),
      "shields.io badge asserts version {v}: the manifest is the sole "
-     "current-version authority; link to .claude-plugin/plugin.json "
+     "current-version authority; link to version.json "
      "(e.g. Version-manifest) instead of mirroring it"),
     # a version-ish heading followed by a bare / backticked / bolded literal
     (re.compile(r"^#{1,6}[ \t]+(?:current[ \t]+)?version\b[^\n]*\n+[ \t]*"
                 r"[`*_]{0,2}v?(?P<v>" + _SEMVER + r")[`*_]{0,2}[ \t]*$", re.I | re.M),
      "version heading asserts version {v}: point readers at "
-     ".claude-plugin/plugin.json instead of mirroring it; the section may keep "
+     "version.json instead of mirroring it; the section may keep "
      "its release-history table"),
     # an inline `Version: X.Y.Z` / `**Version:** X.Y.Z` claim. The colon may sit
     # INSIDE the emphasis markers (`**Version:**`) or outside them
@@ -150,7 +160,7 @@ _README_ASSERTION_PATTERNS = (
     (re.compile(r"^[ \t]*[`*_]{0,2}(?:current[ \t]+)?version[ \t]*:?[`*_]{0,2}[ \t]*:?[ \t]*"
                 r"[`*_]{0,2}v?(?P<v>" + _SEMVER + r")[`*_]{0,2}[ \t]*$", re.I | re.M),
      "asserts a current version inline ({v}): point readers at "
-     ".claude-plugin/plugin.json instead of mirroring it"),
+     "version.json instead of mirroring it"),
     # ORDINARY PROSE. The patterns above refuse headings, badges and
     # `Key: value` lines -- the SHAPES someone thought of -- while "The current
     # version is 0.29.1." walked straight through asserting exactly the same
@@ -168,7 +178,7 @@ _README_ASSERTION_PATTERNS = (
                 r"[ \t]+[`*_]{0,2}v?(?P<v>" + _SEMVER + r")\b", re.I),
      "asserts a current version in prose ({v}): the manifest is the sole "
      "current-version authority; describe it as recorded in "
-     ".claude-plugin/plugin.json rather than restating the number"),
+     "version.json rather than restating the number"),
     (re.compile(r"\b(?:ships|shipping|includes|bundles)\b[^.\n]{0,24}?\bversion\b"
                 r"[ \t]+[`*_]{0,2}v?(?P<v>" + _SEMVER + r")\b", re.I),
      "asserts a current version in prose ({v}): the manifest is the sole "
@@ -301,7 +311,7 @@ def extract_marketplace_self_referencing_metadata(
         return None
 
     marketplace = json.loads(read_text(marketplace_path))
-    manifest = json.loads(read_text(plugin_root / ".claude-plugin" / "plugin.json"))
+    manifest = json.loads(read_text(manifest_path(plugin_root)))
     plugins = marketplace.get("plugins", [])
     if not isinstance(plugins, list):
         return []
@@ -347,6 +357,8 @@ def extract_marketplace_self_referencing_metadata(
 # and `docs/historical/`. Every other prose surface should be version-free
 # so that documentation does not silently drift relative to the manifest.
 _VERSION_TRAILER_EXEMPT_PATHS = (
+    "version.json",
+    "plugin.json",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
     "CHANGELOG.md",
@@ -438,6 +450,31 @@ def main() -> int:
             "written up. The manifest is authoritative; this is a documentation "
             "gap, not a release blocker."
         )
+
+    # Root plugin.json is a generic host identity file, not a second authority.
+    root_plugin = plugin_root / "plugin.json"
+    if root_plugin.exists():
+        try:
+            root_manifest = json.loads(read_text(root_plugin))
+            for field in ("name", "version", "license"):
+                left = str(root_manifest.get(field, "")).strip()
+                right = str(json.loads(read_text(plugin_root / "version.json")).get(field, "")).strip() if (plugin_root / "version.json").exists() else {
+                    "version": manifest_version,
+                    "license": manifest_license,
+                    "name": "",
+                }.get(field, "")
+                if field == "version":
+                    right = manifest_version
+                elif field == "license":
+                    right = manifest_license
+                elif field == "name":
+                    right = str(json.loads(read_text(manifest_path(plugin_root))).get("name", "")).strip()
+                if left and right and left != right:
+                    blockers.append(
+                        f"plugin.json {field} ({left}) != version.json {field} ({right})"
+                    )
+        except Exception as exc:  # noqa: BLE001
+            blockers.append(f"plugin.json identity check failed: {exc}")
 
     marketplace_metadata = extract_marketplace_self_referencing_metadata(plugin_root)
 

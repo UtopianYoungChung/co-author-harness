@@ -1,6 +1,6 @@
 {
   "$schema": "https://plugin-calibrator.local/schemas/target-config-v1.json",
-  "description": "Per-target calibrator configuration for research-writing-harness-claude. Declares the runtime-artefact surfaces that consuming projects create at harness invocation time so the calibrator's md_dead_references and changelog_path_references_resolve rules treat them as intentional pointers rather than dead links. Consumed by plugin-calibrator v0.5.4+ via plugin_calibrator.quality._load_target_allow_list.",
+  "description": "Per-target calibrator configuration for co-author-harness. Declares the runtime-artefact surfaces that consuming projects create at harness invocation time so the calibrator's md_dead_references and changelog_path_references_resolve rules treat them as intentional pointers rather than dead links. Consumed by plugin-calibrator v0.5.4+ via plugin_calibrator.quality._load_target_allow_list.",
   "runtime_reference_prefixes": [
     "manuscript/",
     "reviews/",
