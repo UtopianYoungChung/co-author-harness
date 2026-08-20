@@ -182,9 +182,10 @@ def sandbox(destructive: bool = False):
 
     Non-destructive cases REUSE one clone and reset it between cases: cloning
     per case ran the suite in 139s, most of it `git clone`. `reset --hard` +
-    `clean -fdx` restores the fixture to HEAD, and the builder-under-test
-    overlay is re-applied afterwards (clean -fdx would otherwise delete it,
-    since it is untracked relative to the sandbox's HEAD).
+    `clean -fdx` restores the fixture to the sandbox HEAD (builder under
+    test, committed by _commit_builder_under_test). The overlay is
+    re-applied afterwards so the parent stays the working-tree tool; the
+    child remains the sandbox commit.
 
     `destructive=True` gets its OWN throwaway clone -- the git-failure case
     deletes .git, which no reset can undo.
@@ -230,7 +231,7 @@ def sandbox(destructive: bool = False):
         # Match the source HEAD exactly (clone follows the default branch).
         head = _git(HARNESS, "rev-parse", "HEAD").stdout.strip()
         _git(repo, "checkout", "--quiet", "--detach", head)
-        _overlay(repo)
+        _commit_builder_under_test(repo)
         if not destructive:
             _SHARED["repo"] = repo
             _SHARED["tmp"] = tmp
@@ -310,35 +311,57 @@ def _final_teardown() -> None:
         base.rmdir()
 
 
+OVERLAY_RELS = (
+    "scripts/build-plugin.py",
+    "scripts/package_enumeration.py",
+    "scripts/resolve_includes.py",
+    "scripts/destination_capability.py",
+    "scripts/qualification_environment.py",
+    "scripts/qualification_plane_topology.py",
+)
+
+
 def _overlay(repo: Path) -> None:
     """Copy the BUILDER UNDER TEST from the working tree into the sandbox.
 
-    Without this the sandbox runs HEAD's builder, so the suite tests the
-    committed code rather than the change under review -- and it reported
-    exactly that: every provenance case failed against e4a23c7, whose builder
-    still read worktree bytes. Correct results, wrong subject.
+    Without this the sandbox parent is HEAD's builder. Overlay alone is
+    uncommitted: the child is `git worktree add` of HEAD, and source HEAD's
+    builder still treats `.claude-plugin/plugin.json` as identity (exit 3).
+    A HEAD clone of this repo has version.json + root plugin.json and does
+    not have the retired pack -- fixtures must not plant a fake pack.
 
-    Deliberately narrow and listed, not globbed: these are the three modules
-    that decide provenance. Everything else stays at HEAD, so the fixtures the
-    builder reads are commit content -- only the tool is current.
+    Deliberately narrow and listed, not globbed. Everything else stays at
+    the sandbox commit, so package bytes are commit content.
 
-    The overlay makes the sandbox dirty by construction. That is the point: a
-    builder reading HEAD bytes is unaffected by it, which is what these cases
-    assert.
+    The overlay makes the parent dirty by construction. That is the point of
+    case_child_is_committed_builder: a child reading HEAD bytes is unaffected.
     """
-    for rel in ("scripts/build-plugin.py",
-                "scripts/package_enumeration.py",
-                "scripts/resolve_includes.py",
-                "scripts/destination_capability.py",
-                "scripts/qualification_environment.py",
-                "scripts/qualification_plane_topology.py"):
+    for rel in OVERLAY_RELS:
         shutil.copy2(HARNESS / rel, repo / rel)
+
+
+def _commit_builder_under_test(repo: Path) -> None:
+    """Commit the overlay so re-exec runs the builder under test.
+
+    Source HEAD still fail-closes on the missing pack. Peer/HEAD-clone
+    fixtures use version.json (authority) + root plugin.json (host
+    metadata) by making the retargeted builder the sandbox HEAD.
+    """
+    _overlay(repo)
+    for rel in OVERLAY_RELS:
+        _git(repo, "add", "--", rel)
+    staged = _git(repo, "diff", "--cached", "--name-only")
+    if not staged.stdout.strip():
+        return
+    _git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
+         "-c", "commit.gpgsign=false",
+         "commit", "--quiet", "-m", "sbx: builder under test")
 
 
 def build(repo: Path) -> tuple[int, Path, str]:
     out_dir = _external_output_dir(repo)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "co-author-harness-claude.plugin"
+    out = out_dir / "co-author-harness.plugin"
     out.unlink(missing_ok=True)
     r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py"),
                         "--out", str(out_dir)],
@@ -397,7 +420,7 @@ def case_clean_build_equals_head() -> None:
 
 def case_external_output_required() -> None:
     with sandbox() as repo:
-        source_bundle = repo / ".claude-plugin" / "co-author-harness-claude.plugin"
+        source_bundle = repo / ".claude-plugin" / "co-author-harness.plugin"
         source_bundle.unlink(missing_ok=True)
         missing = subprocess.run(
             [sys.executable, str(repo / "scripts" / "build-plugin.py")],
@@ -475,13 +498,13 @@ def case_staged_rename_ignored() -> None:
 
 
 def case_manifest_from_snapshot() -> None:
-    """A dirty plugin.json must not rename the output or misreport the version.
+    """A dirty version.json must not rename the output or misreport the version.
 
     It was parsed from the worktree before materialization -- worktree state
     leaking into a commit artifact through the one file that names it.
     """
     with sandbox() as repo:
-        rel = ".claude-plugin/plugin.json"
+        rel = "version.json"
         import json as _json
         manifest = _json.loads(_head_blob(repo, rel).decode("utf-8", errors="strict"))
         manifest["name"] = "HIJACKED-NAME"
@@ -492,7 +515,7 @@ def case_manifest_from_snapshot() -> None:
         if rc != 0:
             return
         check("dirty manifest: output name from HEAD, not worktree", out.is_file(),
-              "expected co-author-harness-claude.plugin")
+              "expected co-author-harness.plugin")
         check("dirty manifest: hijacked name not used",
               not (repo / ".claude-plugin" / "HIJACKED-NAME.plugin").exists())
         check("dirty manifest: hijacked version not reported", "99.99.99" not in log)
@@ -512,7 +535,7 @@ def case_git_failure_fails_closed() -> None:
     with sandbox(destructive=True) as repo:
         out_dir = _external_output_dir(repo)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / "co-author-harness-claude.plugin"
+        out = out_dir / "co-author-harness.plugin"
         if out.exists():
             out.unlink()
         # Destroy the repository: every git call the builder makes now fails.
@@ -685,7 +708,7 @@ def case_exact_output_handoff() -> None:
     of the build worktree survives -- neither the directory nor git's admin
     registration. Pins the exit-6 detection's positive complement."""
     with sandbox() as repo:
-        expected = _external_output_dir(repo) / "co-author-harness-claude.plugin"
+        expected = _external_output_dir(repo) / "co-author-harness.plugin"
         if expected.exists():
             expected.unlink()
         rc, out, _ = build(repo)
@@ -753,7 +776,8 @@ def case_committed_mutant_contracts() -> None:
     OVERLAY would test nothing (the child never executes worktree bytes --
     that is case_child_is_committed_builder's point).
 
-    Mutants, each committed from pristine HEAD text:
+    Mutants, each committed from the sandbox HEAD builder (retargeted
+    identity: version.json + root plugin.json), not source HEAD's pack path:
       missing-key   drop `enumerator` from the record        -> exit 5
       runtime-tamper poison rec.runtime.python only          -> exit 5
       compress-claim claim ZIP_STORED, write ZIP_DEFLATED    -> exit 5

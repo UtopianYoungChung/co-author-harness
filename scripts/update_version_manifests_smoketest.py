@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused checks for command-driven version-manifest parity updates."""
+"""Focused checks for command-driven package/host identity updates."""
 
 from __future__ import annotations
 
@@ -19,31 +19,31 @@ def dump(path: Path, value: dict) -> None:
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="version-manifests-") as raw:
         root = Path(raw)
-        plugin = root / ".claude-plugin/plugin.json"
-        market = root / ".claude-plugin/marketplace.json"
-        dump(plugin, {"name": "fixture", "version": "0.1.0"})
-        dump(market, {"name": "local", "plugins": [{"name": "fixture", "version": "0.1.0"}]})
+        version = root / "version.json"
+        plugin = root / "plugin.json"
+        dump(version, {"name": "fixture", "version": "0.1.0", "license": "MIT"})
+        dump(plugin, {"name": "fixture", "version": "0.1.0", "license": "MIT", "description": "fixture"})
         updater.update(root, "0.2.0")
+        assert json.loads(version.read_text())["version"] == "0.2.0"
         assert json.loads(plugin.read_text())["version"] == "0.2.0"
-        assert json.loads(market.read_text())["plugins"][0]["version"] == "0.2.0"
-        before = (plugin.read_bytes(), market.read_bytes())
+        before = (version.read_bytes(), plugin.read_bytes())
         updater.update(root, "0.2.0")
-        assert before == (plugin.read_bytes(), market.read_bytes())
+        assert before == (version.read_bytes(), plugin.read_bytes())
         try:
             updater.update(root, "v0.2.0")
         except updater.VersionUpdateRefusal:
             pass
         else:
             raise AssertionError("non-release semver accepted")
-        duplicate = json.loads(market.read_text())
-        duplicate["plugins"].append(dict(duplicate["plugins"][0]))
-        dump(market, duplicate)
+        mismatched = json.loads(plugin.read_text())
+        mismatched["name"] = "other"
+        dump(plugin, mismatched)
         try:
             updater.update(root, "0.3.0")
         except updater.VersionUpdateRefusal:
             pass
         else:
-            raise AssertionError("duplicate marketplace identity accepted")
+            raise AssertionError("mismatched host identity accepted")
         protected = Path(__file__).resolve().parents[2] / "protected-version-fixture"
         try:
             updater.update(protected, "0.3.0")

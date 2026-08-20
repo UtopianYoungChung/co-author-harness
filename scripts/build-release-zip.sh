@@ -14,7 +14,7 @@
 #
 # What this wrapper still owns:
 #   * the releases/ staging convention and <name>-v<version>.zip naming
-#   * fail-fast manifest checks (version arg match; 400-char description
+#   * fail-fast manifest checks (version arg match; 400-char host-description
 #     ceiling learned empirically at the v0.7.3 cut — the loader rejects
 #     overruns with a generic "Plugin validation failed")
 #   * independent post-build validation of the ARTIFACT (never trust the
@@ -24,7 +24,7 @@
 #   ./scripts/build-release-zip.sh <plugin-root> <version>
 #
 #   <plugin-root>  absolute path to the plugin source tree
-#                  (the directory containing .claude-plugin/plugin.json)
+#                  (the directory containing version.json and plugin.json)
 #   <version>      semver string, e.g. 0.7.4 (no leading 'v')
 #
 # Output:
@@ -59,9 +59,10 @@ if [[ ! -d "$PLUGIN_ROOT" ]]; then
   exit 2
 fi
 
-MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
-if [[ ! -f "$MANIFEST" ]]; then
-  printf 'error: .claude-plugin/plugin.json not found under %s\n' "$PLUGIN_ROOT" >&2
+VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
+HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
+if [[ ! -f "$VERSION_MANIFEST" || ! -f "$HOST_MANIFEST" ]]; then
+  printf 'error: version.json and root plugin.json are required under %s\n' "$PLUGIN_ROOT" >&2
   exit 2
 fi
 
@@ -72,8 +73,8 @@ fi
 # the worktree manifest here: a dirty version bump produced a zip NAMED for
 # the dirty version while its embedded manifest carried HEAD's. Filename and
 # content must come from one source.
-HEAD_MANIFEST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json)" || {
-  printf 'error: cannot read HEAD:.claude-plugin/plugin.json\n' >&2
+HEAD_MANIFEST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:version.json)" || {
+  printf 'error: cannot read HEAD:version.json\n' >&2
   exit 2
 }
 
@@ -99,7 +100,11 @@ if [[ "$HEAD_VERSION" != "$VERSION" ]]; then
 fi
 
 # Description ceiling, measured on HEAD's manifest (the one that ships).
-DESCRIPTION_LEN="$(printf '%s' "$HEAD_MANIFEST_JSON" | python3 -c '
+HEAD_HOST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:plugin.json)" || {
+  printf 'error: cannot read HEAD:plugin.json\n' >&2
+  exit 2
+}
+DESCRIPTION_LEN="$(printf '%s' "$HEAD_HOST_JSON" | python3 -c '
 import json, sys
 print(len(json.load(sys.stdin).get("description", "")))
 ')"
@@ -130,8 +135,10 @@ fi
 # ---------- build via the committed builder ----------
 
 printf 'building via scripts/build-plugin.py ...\n'
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
 set +e
-( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py )
+( cd "$PLUGIN_ROOT" && python3 scripts/build-plugin.py --out "$BUILD_DIR" )
 BUILD_RC=$?
 set -e
 if [[ "$BUILD_RC" -ne 0 ]]; then
@@ -139,7 +146,7 @@ if [[ "$BUILD_RC" -ne 0 ]]; then
   exit 5
 fi
 
-PLUGIN_ARTIFACT="$PLUGIN_ROOT/.claude-plugin/${HEAD_NAME}.plugin"
+PLUGIN_ARTIFACT="$BUILD_DIR/${HEAD_NAME}.plugin"
 if [[ ! -f "$PLUGIN_ARTIFACT" ]]; then
   printf 'error: builder exited 0 but no artifact at %s\n' "$PLUGIN_ARTIFACT" >&2
   exit 5
@@ -181,9 +188,10 @@ if [[ "$BAD_CLAUDE_STATE" -gt 0 ]]; then
   exit 6
 fi
 
-HAS_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^\.claude-plugin/plugin\.json$' || true)"
-if [[ "$HAS_MANIFEST" -lt 1 ]]; then
-  printf 'error: zip does not contain .claude-plugin/plugin.json\n' >&2
+HAS_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^version\.json$' || true)"
+HAS_HOST_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^plugin\.json$' || true)"
+if [[ "$HAS_MANIFEST" -ne 1 || "$HAS_HOST_MANIFEST" -ne 1 ]]; then
+  printf 'error: zip must contain exactly one version.json and root plugin.json\n' >&2
   exit 6
 fi
 

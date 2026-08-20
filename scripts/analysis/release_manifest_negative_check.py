@@ -13,9 +13,9 @@ in a disposable local clone so the user's checkout is never written:
   dirty-version-bump     worktree bumps version; requesting the bumped
                          version must FAIL (committed version differs)
   committed-vs-requested requesting a version HEAD does not carry must FAIL
-  tamper-same-length     archive manifest description mutated, SAME LENGTH
-                         (escapes any length check) -> verifier must FAIL
-  tamper-keyword-only    archive manifest keywords mutated -> verifier FAIL
+  tamper-same-length     archive authority name mutated, SAME LENGTH
+                        (escapes any length check) -> verifier must FAIL
+  tamper-license-only    archive authority license mutated -> verifier FAIL
   tamper-missing-member  archive without a manifest member -> verifier FAIL
   gate-dirty-manifest    release-gate --build on a dirty-manifest clone must
                          report BLOCKED and name the dirty-manifest blocker
@@ -42,7 +42,7 @@ import time
 import zipfile
 from pathlib import Path
 
-MANIFEST_REL = ".claude-plugin/plugin.json"
+MANIFEST_REL = "version.json"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -94,10 +94,27 @@ def _make_clone(base: Path, name: str) -> Path:
                    capture_output=True, check=True)
     head = _git(HARNESS, "rev-parse", "HEAD").stdout.strip()
     _git(repo, "checkout", "--quiet", "--detach", head)
-    # Overlay the tooling under test (uncommitted in the primary worktree).
-    for rel in ("scripts/build-release-zip.sh", "scripts/release-gate.sh",
-                "scripts/release_manifest_check.py", "scripts/worktree_paths.py"):
-        shutil.copy2(HARNESS / rel, repo / rel)
+    # Overlay the tooling under test, then commit it so re-exec runs the
+    # retargeted builder. Overlay alone leaves the child at source HEAD,
+    # which still fail-closes on missing .claude-plugin/plugin.json (rc=3)
+    # even when version.json exists. Do not plant a fake pack.
+    for rel in ("scripts/build-release-zip.sh", "scripts/build-plugin.py",
+                "scripts/release-gate.sh", "scripts/release_manifest_check.py",
+                "scripts/worktree_paths.py",
+                "scripts/package_enumeration.py",
+                "scripts/resolve_includes.py",
+                "scripts/destination_capability.py",
+                "scripts/qualification_environment.py",
+                "scripts/qualification_plane_topology.py"):
+        src = HARNESS / rel
+        if src.is_file():
+            shutil.copy2(src, repo / rel)
+            _git(repo, "add", "--", rel)
+    staged = _git(repo, "diff", "--cached", "--name-only")
+    if staged.stdout.strip():
+        _git(repo, "-c", "user.name=sbx", "-c", "user.email=sbx@localhost",
+             "-c", "commit.gpgsign=false",
+             "commit", "--quiet", "-m", "sbx: packaging tooling under test")
     return repo
 
 
@@ -117,7 +134,7 @@ def _wrapper(repo: Path, version: str, timeout: int = 240) -> subprocess.Complet
 
 
 def _head_version(repo: Path) -> str:
-    blob = _git(repo, "show", "HEAD:.claude-plugin/plugin.json").stdout
+    blob = _git(repo, "show", "HEAD:version.json").stdout
     return json.loads(blob)["version"]
 
 
@@ -129,13 +146,13 @@ def _verifier(repo: Path, archive: Path) -> subprocess.CompletedProcess:
         timeout=120)
 
 
-def _tamper(archive: Path, out: Path, mutate) -> None:
-    """Rebuild `archive` at `out` with .claude-plugin/plugin.json mutated
+def _tamper(archive: Path, out: Path, mutate, target: str = MANIFEST_REL) -> None:
+    """Rebuild `archive` at `out` with one identity manifest mutated
     (or dropped when mutate is None)."""
     with zipfile.ZipFile(archive) as zin, zipfile.ZipFile(out, "w") as zout:
         for info in zin.infolist():
             data = zin.read(info.filename)
-            if info.filename == ".claude-plugin/plugin.json":
+            if info.filename == target:
                 if mutate is None:
                     continue
                 data = mutate(data)
@@ -161,11 +178,11 @@ def main() -> int:
         r = _wrapper(repo, head_version)
         check("wrapper succeeds on clean committed clone", r.returncode == 0,
               f"rc={r.returncode} " + (r.stdout + r.stderr).strip().splitlines()[-1][:80])
-        zip_path = repo / "releases" / f"co-author-harness-claude-v{head_version}.zip"
+        zip_path = repo / "releases" / f"co-author-harness-v{head_version}.zip"
         check("zip named from COMMITTED version", zip_path.is_file(), zip_path.name)
 
         print("dirty-version-bump:")
-        manifest = repo / ".claude-plugin" / "plugin.json"
+        manifest = repo / "version.json"
         original = manifest.read_text(encoding="utf-8")
         bumped = json.loads(original)
         bumped["version"] = "0.99.0"
@@ -175,7 +192,7 @@ def main() -> int:
               f"rc={r.returncode}")
         check("failure names the committed manifest",
               "COMMITTED" in (r.stdout + r.stderr))
-        stray = repo / "releases" / "co-author-harness-claude-v0.99.0.zip"
+        stray = repo / "releases" / "co-author-harness-v0.99.0.zip"
         check("no v0.99.0-named zip produced", not stray.is_file())
         manifest.write_text(original, encoding="utf-8")
 
@@ -190,25 +207,32 @@ def main() -> int:
               f"rc={r.returncode}")
 
         man = json.loads(original)
-        desc = man["description"]
-        mutated_desc = ("X" + desc[1:]) if desc and desc[0] != "X" else ("Y" + desc[1:])
-        assert len(mutated_desc) == len(desc)
+        name = man["name"]
+        mutated_name = ("X" + name[1:]) if name[0] != "X" else ("Y" + name[1:])
+        assert len(mutated_name) == len(name)
 
         def same_length(data: bytes) -> bytes:
             d = json.loads(data)
-            d["description"] = mutated_desc
+            d["name"] = mutated_name
             return json.dumps(d, indent=2).encode("utf-8")
 
-        def keyword_only(data: bytes) -> bytes:
+        def license_only(data: bytes) -> bytes:
             d = json.loads(data)
-            d["keywords"] = list(d.get("keywords", [])) + ["tampered"]
+            d["license"] = "UNLICENSED"
             return json.dumps(d, indent=2).encode("utf-8")
 
-        for label, mutate in (("same-length description", same_length),
-                              ("keyword-only", keyword_only),
-                              ("missing manifest member", None)):
+        def host_description_only(data: bytes) -> bytes:
+            d = json.loads(data)
+            description = d["description"]
+            d["description"] = ("X" if description[0] != "X" else "Y") + description[1:]
+            return json.dumps(d, indent=2).encode("utf-8")
+
+        for label, mutate, target in (("same-length name", same_length, MANIFEST_REL),
+                                     ("license-only", license_only, MANIFEST_REL),
+                                     ("host-description-only", host_description_only, "plugin.json"),
+                                     ("missing manifest member", None, MANIFEST_REL)):
             tampered = base / f"tampered-{label.split()[0]}.zip"
-            _tamper(zip_path, tampered, mutate)
+            _tamper(zip_path, tampered, mutate, target)
             r = _verifier(repo, tampered)
             check(f"tamper [{label}] blocks", r.returncode == 1,
                   f"rc={r.returncode}")
@@ -221,7 +245,7 @@ def main() -> int:
         # still carried the malicious member -- membership is not identity.
         dup = base / "tampered-duplicate.zip"
         head_manifest = subprocess.run(
-            [GIT, "-C", str(repo), "show", "HEAD:.claude-plugin/plugin.json"],
+            [GIT, "-C", str(repo), "show", "HEAD:version.json"],
             capture_output=True, check=True).stdout
         malicious = json.loads(head_manifest)
         malicious["version"] = "6.6.6"
@@ -254,9 +278,11 @@ def main() -> int:
             print("gate-dirty-manifest: SKIPPED (--skip-gate)")
         else:
             print("gate-dirty-manifest (multi-minute):")
-            d = json.loads(original)
-            d["description"] = mutated_desc  # same length: escapes length checks
-            manifest.write_text(json.dumps(d, indent=2), encoding="utf-8")
+            host_manifest = repo / "plugin.json"
+            host_original = host_manifest.read_text(encoding="utf-8")
+            d = json.loads(host_original)
+            d["description"] = "X" + d["description"][1:]
+            host_manifest.write_text(json.dumps(d, indent=2), encoding="utf-8")
             r = subprocess.run(
                 [BASH, "-c",
                  f'cd "{_posix(repo)}" && scripts/release-gate.sh --build'],
@@ -268,7 +294,7 @@ def main() -> int:
             check("gate names the dirty-manifest blocker",
                   "worktree manifest differs from HEAD" in out)
             check("gate verdict is BLOCKED", "VERDICT: BLOCKED" in out)
-            manifest.write_text(original, encoding="utf-8")
+            host_manifest.write_text(host_original, encoding="utf-8")
     finally:
         _rmtree_force(base)
         # sandbox_base() creates the parent; remove it when empty so this

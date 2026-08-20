@@ -80,7 +80,7 @@ def package(
     missing_suite: str | None = None,
 ) -> None:
     write(
-        root / ".claude-plugin" / "plugin.json",
+        root / "version.json",
         json.dumps({"name": "fixture-plugin", "version": "1.2.3"}).encode(),
     )
     write(root / "README.md", b"alpha\nbeta\n")

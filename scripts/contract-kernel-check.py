@@ -143,7 +143,10 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
     if missing_components:
         errors.append(f"required components missing: {', '.join(missing_components)}")
 
-    identity_path = _safe_file(root, data.get("plugin_identity_source"))
+    identity_source = data.get("plugin_identity_source")
+    identity_path = _safe_file(root, identity_source)
+    if identity_source is not None and identity_path is None:
+        errors.append("plugin_identity_source is missing or unsafe")
     if identity_path is None:
         identity_path = _safe_file(root, "version.json") or _safe_file(root, "plugin.json")
     if identity_path is None:

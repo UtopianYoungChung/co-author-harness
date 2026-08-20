@@ -35,7 +35,7 @@ import qualification_plane_topology as topology
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "references" / "schemas" / "runtime_plane_receipt.schema.json"
-MANIFEST_REL = ".claude-plugin/plugin.json"
+MANIFEST_REL = "version.json"
 PROVENANCE_REL = "PROVENANCE.json"
 DIGEST_ALGORITHM = "sha256(path-NUL-kind-NUL-content-sha256-LF)"
 COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")

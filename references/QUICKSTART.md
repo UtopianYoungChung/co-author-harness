@@ -25,15 +25,32 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 ## The one rule
 
-**Always begin a session by asking Claude to read `ROUTING_SPINE.md` and name the phase it is dispatching into. Never let a round close without a Reflector pass.** These two habits exercise nearly all of the machinery.
+**Always begin with an explicit project root, read its live lifecycle files, and name the run scope before dispatch. Never let a round close without the required Reflector pass.** These habits exercise nearly all of the machinery without inventing a global project ledger.
 
 ---
 
 ## Session opening (every time)
 
-Open Claude inside the Research folder. If Claude does not volunteer it, prompt: *"Read `Research/CLAUDE.md`, then `.paper-package/CLAUDE.md`, then `ROUTING_SPINE.md`, then `Research/conductor.md`. Tell me which project we are on and what phase it is in."*
+Open the assistant at the governed workspace or the exact project root. The package itself is the plugin root at `<workspace-root>/platform/co-author-harness`; it is not copied into `Research/.paper-package/`. If the assistant does not volunteer its grounding, prompt: *"Read the workspace and project instructions, then the package `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/CLAUDE.md`, and `references/MANIFEST.md`. Read this project's `reviews/assignment_contract.json` and `reviews/phase_state.json`. Declare `adhoc_review`, `lab_iteration`, or `full_lifecycle`, then tell me the current project state and next authorized action."*
 
-If no `conductor.md` exists at the Research root, say *"Seed the conductor per `PARALLEL_CONDUCTOR.md §8`"* and approve the draft.
+Do not infer the active project or phase from a root `conductor.md`. Project identity comes from the explicit project path and assignment contract; lifecycle state comes from that project's `reviews/phase_state.json` and milestone records.
+
+### New-project bootstrap destination
+
+The harness cannot bootstrap directly into protected `research/60_Workbench/<work-id>`. Use the governed staging lane and create the exact run parent before invoking the native bootstrap:
+
+```powershell
+$packageRoot = Resolve-Path "<workspace-root>/platform/co-author-harness"
+$runRoot = "<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>"
+New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
+python "$packageRoot/scripts/native_project_bootstrap.py" `
+  --project-root "$runRoot/<project-id>" `
+  --project-name "<project-id>" `
+  --title "<working title>" `
+  --intended-reader "<reader description>"
+```
+
+`DEST-PROTECTED` is the expected refusal for a direct Workbench target. A successful staging bootstrap remains proposal-only; research governance must separately authorize any exact-path, exact-hash application beyond staging.
 
 ---
 
@@ -114,7 +131,7 @@ This emits deterministic coupling artifacts (`coupling_readiness_*.json`, option
 
 ## Multi-project rhythm
 
-One project per utterance. Name the project when you switch (*"Switching to RE2026…"*). The conductor records phase, round, and resume-note for each active project; Claude reads it on session entry and updates it at session close. Cross-project directive bleed is the most common avoidable error — if it happens once, it will happen again unless the conductor is kept current.
+One project per utterance. Name the exact project path when you switch (*"Switching to `<project-root>`…"*). Re-read that project's assignment contract, phase state, directives, and handoff records; do not carry state forward from the prior project. `PARALLEL_CONDUCTOR.md` remains an explicit concurrency protocol, not the default source of project truth.
 
 ---
 

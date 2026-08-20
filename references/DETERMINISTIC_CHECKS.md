@@ -102,6 +102,13 @@ Runtime receipts distinguish exact files, permitted CRLF transformations,
 semantic differences, missing files, and foreign extras. Cache equality is
 runtime evidence only, never startup or loaded-path attestation.
 
+The package-root behavioral corpus is still
+`python scripts/analysis/fixture_runner.py --no-write` (committed suite time
+about 111.5 minutes). A changed area may run a `REGISTRY` subset with
+`python scripts/analysis/fixture_runner.py --suite <key> --no-write`. `--suite`
+is not release qualification. Path-to-check routing:
+`docs/agent-instructions/change-to-check-map.md`.
+
 ## 0c. Release archive and evidence publication
 
 The release helpers fail closed on unsafe archive members, noncanonical
@@ -123,8 +130,8 @@ SHA-256, two spaces, the final ZIP basename, and LF, then re-reads both files.
 `release_evidence_index.py` binds repository-relative paths to live SHA-256
 bytes and writes immutable package and release indices; the human shipment
 report is rendered from the final index. `update_version_manifests.py` is the
-command-driven path for advancing `.claude-plugin/plugin.json` and its
-required packaged marketplace parity together.
+command-driven path for advancing authoritative `version.json` and the
+published root `plugin.json` identity mirror together.
 
 ## 0d. Synthetic protocol conformance
 

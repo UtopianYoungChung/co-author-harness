@@ -92,7 +92,11 @@ Usage
     python scripts/analysis/fixture_runner.py            # run + write
     python scripts/analysis/fixture_runner.py --no-write # run, preserve evidence
     python scripts/analysis/fixture_runner.py --list     # show registry
+    python scripts/analysis/fixture_runner.py --suite <REGISTRY-key> --no-write
 Exit: 0 pass; 1 corpus failure; 2 run void.
+--suite selects one or more REGISTRY keys (exact path, unique basename, or
+unique stem). It is NON_AUTHORITATIVE_PARTIAL and cannot write the committed
+manifest. The full --no-write corpus remains the release/qualification path.
 """
 
 from __future__ import annotations
@@ -608,7 +612,7 @@ def run(registry: dict[str, list[dict]],
     if cache_mode not in {"off", "use", "refresh"}:
         print(f"ERROR: unknown cache mode {cache_mode!r}", file=sys.stderr)
         return 2
-    if tier not in {"full", "quick"}:
+    if tier not in {"full", "quick", "suite"}:
         print(f"ERROR: unknown fixture tier {tier!r}", file=sys.stderr)
         return 2
     canonical_full = registry is REGISTRY and universe is None and tier == "full"
@@ -942,6 +946,45 @@ def _run_locked(registry: dict[str, list[dict]],
     return 0
 
 
+def resolve_suite_selectors(selectors: list[str]) -> dict[str, list[dict]]:
+    """Map --suite values onto exact REGISTRY keys.
+
+    Accepts an exact registry path, a unique basename, or a unique stem.
+    Unknown or ambiguous selectors fail closed.
+    """
+    selected: dict[str, list[dict]] = {}
+    for raw in selectors:
+        selector = raw.replace("\\", "/").strip()
+        if not selector:
+            raise ValueError(f"empty --suite selector {raw!r}")
+        if selector in REGISTRY:
+            selected[selector] = REGISTRY[selector]
+            continue
+        by_name = [key for key in REGISTRY if Path(key).name == Path(selector).name]
+        if len(by_name) == 1:
+            selected[by_name[0]] = REGISTRY[by_name[0]]
+            continue
+        if len(by_name) > 1:
+            raise ValueError(
+                f"--suite {raw!r} is ambiguous; matches {by_name}. "
+                "Pass an exact REGISTRY key from --list."
+            )
+        by_stem = [key for key in REGISTRY if Path(key).stem == Path(selector).stem]
+        if len(by_stem) == 1:
+            selected[by_stem[0]] = REGISTRY[by_stem[0]]
+            continue
+        if len(by_stem) > 1:
+            raise ValueError(
+                f"--suite {raw!r} is ambiguous; matches {by_stem}. "
+                "Pass an exact REGISTRY key from --list."
+            )
+        raise ValueError(
+            f"--suite {raw!r} is not a REGISTRY key. "
+            "Use python scripts/analysis/fixture_runner.py --list."
+        )
+    return selected
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="print the registry and exit")
@@ -962,6 +1005,14 @@ def main() -> int:
         help="full authoritative selection, or diagnostic NON_AUTHORITATIVE_PARTIAL quick tier",
     )
     ap.add_argument(
+        "--suite",
+        action="append",
+        default=[],
+        metavar="REGISTRY_KEY",
+        help="run one or more REGISTRY keys only (NON_AUTHORITATIVE_PARTIAL; "
+             "requires --no-write). Exact path, unique basename, or unique stem. Repeatable.",
+    )
+    ap.add_argument(
         "--cache-mode",
         choices=("off", "use", "refresh"),
         default="off",
@@ -974,6 +1025,27 @@ def main() -> int:
                 print(f"{rel}::{c['case_id']}  argv={c['argv']}  "
                       f"expect exit {c['expected_exit']}  {c['outcome_contract']}")
         return 0
+    if args.suite and args.tier != "full":
+        print("ERROR: --suite cannot be combined with --tier quick", file=sys.stderr)
+        return 2
+    if args.suite:
+        if not args.no_write:
+            print("ERROR: --suite is NON_AUTHORITATIVE_PARTIAL and requires --no-write",
+                  file=sys.stderr)
+            return 2
+        try:
+            selected = resolve_suite_selectors(args.suite)
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+        return run(
+            selected,
+            list(selected),
+            write_manifest=False,
+            cache_mode=args.cache_mode,
+            tier="suite",
+            failure_transcript_root=args.failure_transcript_root,
+        )
     if args.tier == "quick":
         selected = {rel: REGISTRY[rel] for rel in QUICK_SUITES}
         return run(

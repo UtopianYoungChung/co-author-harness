@@ -5,11 +5,11 @@
 # Implements SK-22 Phase 0 (manifest self-probe) as a shell helper.
 #
 # What it does:
-#   1. Resolves the plugin root (the directory containing .claude-plugin/plugin.json).
-#   2. Computes the empirical distribution of plugin.json.description length
+#   1. Resolves the package root (the directory containing version.json and plugin.json).
+#   2. Computes the empirical distribution of host-manifest description length
 #      across every installed peer plugin under the current Cowork session's
 #      /mnt/.remote-plugins/ (or the caller-supplied --peer-root).
-#   3. Measures the current plugin's plugin.json.description against that distribution
+#   3. Measures the current package's plugin.json description against that distribution
 #      and reports OK / WARN / BLOCKER.
 #   4. Measures every skills/*/SKILL.md frontmatter description against a 500-char
 #      safety margin and reports any overflow.
@@ -44,7 +44,7 @@
 #      (scripts/package_enumeration.py). The former worktree `zip -r` with
 #      exclusion globs is retired -- it was a second, independent package
 #      population and shipped unresolved include sentinels.
-#  12. Inspects the in-archive plugin.json and reports its version and description length.
+#  12. Inspects the in-archive version.json and reports its version.
 #  13. If an --outputs-dir is supplied, scans for stale deliverables under filenames
 #      other than the current bundle name.
 #
@@ -75,7 +75,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PLUGIN_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
-MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
+VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
+HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
 CONTROLLED_CHILD=0
 if [[ "${1:-}" == "--coauthor-controller-child" ]]; then
     if [[ -z "${COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR:-}" \
@@ -142,14 +143,16 @@ if (( CONTROLLED_CHILD == 0 )); then
         PLUGIN_ROOT_NATIVE="$(cygpath -am "$PLUGIN_ROOT")"
         CONTROLLER_NATIVE="$(cygpath -am "$CONTROLLER")"
         GATE_NATIVE="$(cygpath -am "$0")"
-        MANIFEST_NATIVE="$(cygpath -am "$MANIFEST")"
+        VERSION_MANIFEST_NATIVE="$(cygpath -am "$VERSION_MANIFEST")"
+        HOST_MANIFEST_NATIVE="$(cygpath -am "$HOST_MANIFEST")"
         FIXTURE_RUNNER_NATIVE="$(cygpath -am "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py")"
     else
         BASH_NATIVE="$BASH"
         PLUGIN_ROOT_NATIVE="$PLUGIN_ROOT"
         CONTROLLER_NATIVE="$CONTROLLER"
         GATE_NATIVE="$0"
-        MANIFEST_NATIVE="$MANIFEST"
+        VERSION_MANIFEST_NATIVE="$VERSION_MANIFEST"
+        HOST_MANIFEST_NATIVE="$HOST_MANIFEST"
         FIXTURE_RUNNER_NATIVE="$PLUGIN_ROOT/scripts/analysis/fixture_runner.py"
     fi
     CONTROLLER_RUN_ID="${COAUTHOR_RELEASE_RUN_ID:-release-gate-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
@@ -180,7 +183,8 @@ if (( CONTROLLED_CHILD == 0 )); then
         --run-id "$CONTROLLER_RUN_ID" \
         --cwd "$PLUGIN_ROOT_NATIVE" \
         --input "$GATE_NATIVE" \
-        --input "$MANIFEST_NATIVE" \
+        --input "$VERSION_MANIFEST_NATIVE" \
+        --input "$HOST_MANIFEST_NATIVE" \
         --input "$FIXTURE_RUNNER_NATIVE" \
         "${CONTROLLER_INPUT_ARGS[@]}" \
         --input-root "$PLUGIN_ROOT_NATIVE" \
@@ -220,8 +224,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ! -f "$MANIFEST" ]]; then
-    echo "ERROR: plugin.json not found at $MANIFEST" >&2
+if [[ ! -f "$VERSION_MANIFEST" ]]; then
+    echo "ERROR: version.json not found at $VERSION_MANIFEST" >&2
+    exit 2
+fi
+if [[ ! -f "$HOST_MANIFEST" ]]; then
+    echo "ERROR: root plugin.json not found at $HOST_MANIFEST" >&2
     exit 2
 fi
 
@@ -243,15 +251,16 @@ echo "============================================================"
 echo "co-author-harness — release-gate"
 echo "============================================================"
 echo "Plugin root:  $PLUGIN_ROOT"
-echo "Manifest:     $MANIFEST"
+echo "Version:      $VERSION_MANIFEST"
+echo "Host manifest: $HOST_MANIFEST"
 echo "Peer root:    ${PEER_ROOT:-<none found>}"
 echo ""
 
 # --- Phase 0.1: manifest self-probe ---------------------------------------
 
-CURRENT_NAME=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['name'])" "$MANIFEST" )
-CURRENT_VERSION=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['version'])" "$MANIFEST" )
-CURRENT_DESC_LEN=$( python3 -c "import json,sys; print(len(json.load(open(sys.argv[1], encoding='utf-8')).get('description','')))" "$MANIFEST" )
+CURRENT_NAME=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['name'])" "$VERSION_MANIFEST" )
+CURRENT_VERSION=$( python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['version'])" "$VERSION_MANIFEST" )
+CURRENT_DESC_LEN=$( python3 -c "import json,sys; print(len(json.load(open(sys.argv[1], encoding='utf-8')).get('description','')))" "$HOST_MANIFEST" )
 
 echo "Current plugin:           $CURRENT_NAME @ $CURRENT_VERSION"
 echo "Current description len:  $CURRENT_DESC_LEN chars"
@@ -269,7 +278,7 @@ fi
 if [[ -n "$PEER_ROOT" && -d "$PEER_ROOT" ]]; then
     # Compute peer distribution, excluding the current plugin by name.
     readarray -t PEER_LENS < <(
-        for p in "$PEER_ROOT"/*/.claude-plugin/plugin.json; do
+        for p in "$PEER_ROOT"/*/plugin.json; do
             [[ -f "$p" ]] || continue
             python3 -c "
 import json, sys
@@ -708,7 +717,7 @@ fi
 # --- Phase 0.63: SSOT registry check (v0.11.0 c9) -------------------------
 
 if [[ -f "$PLUGIN_ROOT/scripts/ssot-check.py" ]]; then
-    echo "SSOT registry checks (.claude-plugin/ssot.yaml fact-consumer parity)"
+    echo "SSOT registry checks (version.json / ssot-check.py fact-consumer parity)"
     if ! python3 "$PLUGIN_ROOT/scripts/ssot-check.py" --plugin-root "$PLUGIN_ROOT"; then
         echo "  [BLOCKER] scripts/ssot-check.py reported blocking issues"
         BLOCKERS=$((BLOCKERS + 1))
@@ -920,8 +929,8 @@ if (( BUILD == 1 )); then
     # packages HEAD bytes, so a worktree-derived filename could disagree with
     # the embedded manifest (verified: dirty v0.30.0 bump -> v0.30.0-named
     # zip carrying a v0.29.0 manifest). One source for both.
-    HEAD_MANIFEST_JSON=$( git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json 2>/dev/null ) || {
-        echo "  [BLOCKER] cannot read HEAD:.claude-plugin/plugin.json"
+    HEAD_MANIFEST_JSON=$( git -C "$PLUGIN_ROOT" show HEAD:version.json 2>/dev/null ) || {
+        echo "  [BLOCKER] cannot read HEAD:version.json"
         BLOCKERS=$((BLOCKERS + 1))
         HEAD_MANIFEST_JSON=""
     }
@@ -987,7 +996,7 @@ if (( BUILD == 1 )); then
         fi
         # Git is the authority on "modified" (raw byte hashes false-block
         # under CRLF normalization); porcelain output empty == committed.
-        MANIFEST_DIRTY=$( git -C "$PLUGIN_ROOT" status --porcelain -- .claude-plugin/plugin.json 2>/dev/null || echo "STATUS-FAILED" )
+        MANIFEST_DIRTY=$( git -C "$PLUGIN_ROOT" status --porcelain -- version.json plugin.json 2>/dev/null || echo "STATUS-FAILED" )
         if [[ -z "$MANIFEST_DIRTY" ]]; then
             echo "  [OK]      worktree manifest is committed (no dirty manifest)"
         else

@@ -562,7 +562,7 @@
       "id": "runtime-plane-probe",
       "path": "scripts/runtime_plane_probe.py",
       "revision_kind": "sha256",
-      "sha256": "f4e44533e74e3b29755f30716874c952fa7a41523c7b9b811a72af66a9cc00a8",
+      "sha256": "f81f63668a18dc66bb9071ab5963c57d8b024c0662357add9b8ae4ca786efbb2",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]
@@ -684,7 +684,7 @@
       "id": "build-plugin",
       "path": "scripts/build-plugin.py",
       "revision_kind": "sha256",
-      "sha256": "c09e26c2936d24204343db3897c2a218b54e04e40826140272281261befcd760",
+      "sha256": "e5edc9cdd5faafc0c5c4fdee4909045e5995155f49e58a5895b2fa9517c2ca0c",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -693,7 +693,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "8db1fabc83babe454cb305e8321d5a02722fb4f9b8b4f84e9d7155c4eac66667",
+      "sha256": "d2f94c447c7632439299e59998df3f49d553676b478211fcf430a564ab26ac73",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -845,7 +845,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "3ed861867f46ae50fff833f0aa8aba269a33cd0ef1514277a2f7a90c839e798f",
+      "sha256": "1a9712622ade50c1bb96e9f8b11bba84cae1e62f66acf72b3ec3fac8dde89990",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -873,7 +873,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "63eea6fe5408198145805d2f1aa382ce4b1b14391aa0c342a46ead478d711c2c",
+      "sha256": "d878a0dfb9a05f7c3e3e00398f7adf4b4f2f8dce4452dbd7b2aac476318bcbd6",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -918,7 +918,7 @@
       "id": "operating-manual",
       "path": "references/OPERATING_MANUAL.md",
       "revision_kind": "sha256",
-      "sha256": "e27ae86282ce90c09fe9ddffae034fcf80d12351e4272b5975aa2b8839e2291d",
+      "sha256": "3d821ed21fec0c561e9ca7bfd5651491e41518f7b535d87a3f5eb05b4b965bbd",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -954,7 +954,7 @@
       "id": "evaluator-agent",
       "path": "agents/evaluator.md",
       "revision_kind": "sha256",
-      "sha256": "28dbb7a250cee6db78fe4ee50d576e46a179bbb3f02c70fc960f1734eaf698ae",
+      "sha256": "6b679569f91cca060562f6615e08d8175e22f24b198420dbeb145486042616f3",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1035,7 +1035,7 @@
       "id": "skill-plugin-commands",
       "path": "skills/plugin-commands/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "084db63ed5e7833d81155108eb6b6b91d27b8644316368ebf41c4b52c78902c6",
+      "sha256": "537525d5a0f46a22e354c435fdd6da567f900e7289431b176eb96f8ef5971fa0",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1053,7 +1053,7 @@
       "id": "runtime-plane-probe-smoketest",
       "path": "scripts/runtime_plane_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "6cb1015df8b8a631de3a22bac10aef23d14b7403b1558ceb646f85f9a48ac4bd",
+      "sha256": "0edbb5e79f6443951cb7ff46338c8779cda52a73f19e7526e97805b787326616",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]

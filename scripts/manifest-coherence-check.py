@@ -5,8 +5,8 @@ co-author-harness — manifest-coherence-check.py
 Manifest coherence checks (introduced at v0.11.0 c8 per the
 definitive-architectural-plan §3.3):
 
-1) plugin.json description ≤ 300 characters (forensic §4 Gap 1).
-2) plugin.json keywords ≤ 12 entries; every keyword is a non-empty string.
+1) Root plugin.json description ≤ 300 characters (forensic §4 Gap 1).
+2) Root plugin.json keywords ≤ 12 entries; every keyword is a non-empty string.
 3) Every keyword resolves to a substrate token visible somewhere under the
    plugin root — discovered native SKILL names, the package's own
    name tokens, or one of an allow-list of governance/topic terms. The
@@ -18,7 +18,8 @@ definitive-architectural-plan §3.3):
    descriptions are NOT the source of truth for skill counts; the
    filesystem is. catalog-check.py inverts the same contract for the
    README; this validator inverts it for both manifests.
-5) plugin.json description == marketplace.json self-referencing entry's
+5) When a legacy marketplace.json is present, plugin.json description equals
+   its self-referencing entry's
    description (description parity — forensic §4 Gap 4). Closes the
    class of failure where the two manifests drift in the user-facing
    tagline. marketplace.json's absence or its lack of a self-referencing
@@ -35,7 +36,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from marketplace_contract import manifest_entries, manifest_entry_cardinality_error
 
@@ -81,6 +82,14 @@ def read_text(path: Path) -> str:
 
 def load_json(path: Path) -> dict:
     return json.loads(read_text(path))
+
+
+def host_manifest_path(plugin_root: Path) -> Path:
+    """Resolve the live generic host manifest, with legacy fixture fallback."""
+    current = plugin_root / "plugin.json"
+    if current.exists():
+        return current
+    return plugin_root / ".claude-plugin" / "plugin.json"
 
 
 def discover_skill_names(plugin_root: Path) -> Set[str]:
@@ -165,21 +174,21 @@ def find_asserted_skill_counts(description: str) -> List[str]:
 
 
 def extract_marketplace_self_description(
-    plugin_root: Path,
+    plugin_root: Path, manifest: dict,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Return (self-entry description, cardinality/parse error).
 
-    This package ships a marketplace, so zero or multiple manifest-identity
-    entries are parity failures rather than a reason to skip the check.
+    The live package no longer ships the retired Claude pack. When a legacy
+    marketplace is present, zero or multiple manifest-identity entries remain
+    parity failures rather than a reason to skip the check.
     """
     marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
     if not marketplace_path.exists():
-        return None, "marketplace.json is missing"
+        return None, None
     try:
         marketplace = load_json(marketplace_path)
-        manifest = load_json(plugin_root / ".claude-plugin" / "plugin.json")
     except (OSError, json.JSONDecodeError):
-        return None, "marketplace.json or plugin.json could not be parsed"
+        return None, "marketplace.json could not be parsed"
     plugins = marketplace.get("plugins", [])
     cardinality_error = manifest_entry_cardinality_error(plugins, manifest)
     if cardinality_error:
@@ -207,7 +216,7 @@ def main() -> int:
     blockers: List[str] = []
     warnings: List[str] = []
 
-    manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    manifest_path = host_manifest_path(plugin_root)
     if not manifest_path.exists():
         print(f"[BLOCKER] manifest not found: {manifest_path}")
         return 1
@@ -276,11 +285,13 @@ def main() -> int:
 
     # Check 5: description parity with marketplace.json self-reference
     marketplace_description, marketplace_error = extract_marketplace_self_description(
-        plugin_root
+        plugin_root, manifest
     )
     if marketplace_error:
         parity_summary = "INVALID"
         blockers.append(marketplace_error)
+    elif marketplace_description is None:
+        parity_summary = "SKIPPED (no legacy marketplace)"
     elif marketplace_description == description:
         parity_summary = "OK (identical)"
     else:
@@ -296,7 +307,8 @@ def main() -> int:
     print(f"- Description length: {len(description)} chars (budget {DESCRIPTION_MAX_CHARS})")
     print(f"- Keywords count: {len(keywords_list)} (budget {KEYWORDS_MAX_COUNT})")
     print(f"- Discovered skills: {len(skill_names)}")
-    print(f"- Description parity (plugin.json vs marketplace.json): {parity_summary}")
+    print(f"- Host manifest: {manifest_path.relative_to(plugin_root)}")
+    print(f"- Description parity (plugin.json vs legacy marketplace.json): {parity_summary}")
     print(f"- Blockers: {len(blockers)}")
     print(f"- Warnings: {len(warnings)}")
 

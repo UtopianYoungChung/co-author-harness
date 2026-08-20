@@ -1,6 +1,6 @@
 ---
 name: classify-manuscript
-description: Establish paper type, P-stage (P0/P1/P2), venue, and tier before any review. Apply gating tables to determine component applicability and required steps. Mandatory first step. Trigger proactively when user begins review, classifies, asks feedback on a draft, or says "classify this paper" or "what review does this need?"
+description: Establish paper type, P-stage (P0/P1/P2), venue, and default final lifecycle phase before review. Emit the machine-readable classification keys consumed by lifecycle and snowball skills. Mandatory first step.
 trigger: when the user asks to classify a manuscript, start a review, or determine review depth and gating before evaluation
 version: 1.0
 ---
@@ -14,7 +14,7 @@ Resolve the Research and Academic Paper Writing Package beneath
 `${CLAUDE_PLUGIN_ROOT}`. If that variable is unavailable, locate
 `references/REVIEW_ORCHESTRATION.md` from the workspace root the user opened.
 
-Read `references/REVIEW_ORCHESTRATION.md` §1 (the four classification inputs and their options), §3.1 (applicability by paper type), §3.2 (applicability by P-stage), and §3.3 (required steps by review depth) before proceeding. Do not rely on memory of these tables — they evolve.
+Read `references/REVIEW_ORCHESTRATION.md` §1 (the four classification inputs and their options), §3.1 (applicability by paper type), §3.2 (applicability by P-stage), and §3.3 (required steps by lifecycle phase) before proceeding. Do not rely on memory of these tables — they evolve.
 
 ## Step 2 — Gather the four classification inputs
 
@@ -25,10 +25,9 @@ If the user has not provided all four inputs, ask for them in a single question.
 | **Paper type** | `theory` · `empirical` · `conceptual/survey` · `essay/positioning` · `response-letter` · `other` |
 | **P-stage** | `P0` (phenomenon collection) · `P1` (characterization) · `P2` (research-problem definition) — stage definitions and the wider P/R/K/S/T/V vocabulary: `references/GROUND_TRUTH.md` (binding) |
 | **Venue** | journal or conference name, or `course essay`, `thesis chapter`, `cross-venue` |
-| **Review depth** | *(retired at v0.5.0 — dispatch reads `tier:` directly; v0.4.x records parse under the transitional mapping below)* |
-| **Tier** (default `T3`) | `T0` · `T1` · `T2` · `T3` · `T3R` · `T4` — full ladder active at v0.5.0 per `TIER_PROTOCOL.md §2`. Default `T3` unless the user requests otherwise. **Automatically recommend `T3R`** when `paper_type: response-letter`. **Automatically recommend `T4`** whenever a `submission-bound` trigger applies (see below). Legacy `review_depth` values in v0.4.x classification records are migrated on first read under the transitional mapping `quick↔T1, standard↔T3, submission-bound↔T4`; new classifications do not use `review_depth`. |
+| **Default final phase** (default `Ph3`) | `Ph1` · `Ph2` · `Ph3` · `Ph4`, per `PHASE_PROTOCOL.md`. Use `Ph3` for ordinary iterative work and `Ph4` when a submission-bound trigger applies. Response letters are a manuscript class within `Ph3`, not a separate tier. |
 
-**If the user declines to classify**, default to: `essay/positioning · P1 · cross-venue · T3`.
+**If the user declines to classify**, default to: `essay/positioning · P1 · cross-venue · Ph3`.
 
 **Apply `submission-bound` automatically** (and tell the user you did so and why) when the user describes: a final draft for journal/conference submission; a course paper marked *final*; a thesis chapter sent to committee or deposited; any resubmission after reviews; a response letter paired with a revised manuscript.
 
@@ -40,8 +39,8 @@ Using the four inputs and the tables you read in Step 1, determine for each comp
 
 1. **Applicability:** Y (fully apply) / Partial (apply named sub-sections only) / N/A (skip, note reason)
 2. **Active P-stage tags** for `project_writing_style_checklist.md` (which [P0]/[P1]/[P2] items are in scope, which are deferred, which should already be satisfied)
-3. **Required review steps** from the depth table in §3.3
-4. **G.4 sign-off required?** (yes for `submission-bound`)
+3. **Required review steps** from the phase table in §3.3
+4. **G.4 sign-off required?** (yes when `default_final_phase: Ph4`)
 5. **P-stage anti-patterns to watch** (from `project_writing_style_checklist.md` Part 0)
 
 ## Step 4 — Emit the classification record
@@ -49,6 +48,16 @@ Using the four inputs and the tables you read in Step 1, determine for each comp
 Produce the classification record using this exact template:
 
 ```markdown
+---
+paper_type: [theory | empirical | conceptual/survey | essay/positioning | response-letter | other]
+p_stage: [P0 | P1 | P2]
+venue: [venue]
+default_final_phase: [Ph1 | Ph2 | Ph3 | Ph4]
+claim_coverage_threshold: 0.8
+inherit_snowball: false
+pre_seed_cap: 10
+---
+
 # Classification Record
 
 **Piece:** [title or filename, or "untitled"]
@@ -56,10 +65,10 @@ Produce the classification record using this exact template:
 **Classified by:** Claude
 
 ## Inputs
-- Paper type: [type]
-- P-stage: [P0 / P1 / P2]
-- Venue: [venue]
-- Tier: [T0 / T1 / T2 / T3 / T3R / T4 — default T3; recommend T3R for `response-letter`, T4 on submission-bound trigger]
+- `paper_type`: [type]
+- `p_stage`: [P0 / P1 / P2]
+- `venue`: [venue]
+- `default_final_phase`: [Ph1 / Ph2 / Ph3 / Ph4]
 
 ## Component file applicability
 
@@ -73,7 +82,7 @@ Produce the classification record using this exact template:
 | project_writing_style_checklist.md | Y / Partial / N/A | [active P-stage tags: P0/P1/P2] |
 
 ## Required review steps
-[Steps required for this depth, from REVIEW_ORCHESTRATION.md §3.3. List each by step number and file.]
+[Steps required for this lifecycle phase, from REVIEW_ORCHESTRATION.md §3.3. List each by step number and file.]
 
 ## G.4 sign-off required?
 [Yes / No — and why]
@@ -90,14 +99,12 @@ Save this record to `reviews/classification.md` in the project folder if a proje
 ## Step 5 — Hand off to the review
 
 After the user confirms the classification, tell them which skill or step to run next (classification-bound dispatch; skill names phase-named at v0.7.4):
-- `run-phase-3` (formerly `run-tier-standard`) when the classification record declares `tier: T3` (the default)
-- `run-phase-4` (formerly `run-tier-submission`) when the classification record declares `tier: T4` (submission-bound)
-- `run-phase-1` (formerly `run-tier-reflex`) when the classification record declares `tier: T1` (diff-scoped reflex pass)
-- `response-letter-review` when the classification record declares `tier: T3R` (retired as an independent sibling at v0.24.0 — response-letter review is a manuscript-class within Ph3; legacy `tier: T3R` records still route here)
-- For `tier: T0` (state probe only): terminate at the Planner Phase 0 survey; no manuscript-touching skill is dispatched.
-- For `tier: T2` (local-scope): the Planner dispatches a scoped Evaluator pass directly; no separate skill entry point.
+- `run-draft` when the active section is entering `Ph1`.
+- `run-iterate --profile refine` for `Ph2` review/revision and ordinary `Ph3` convergence work.
+- `run-finalize` when `default_final_phase: Ph4` and the MCR admission requirements are satisfied.
+- `response-letter-review` when `paper_type: response-letter`; it runs as a manuscript class within `Ph3`.
 
-Archived v0.4.x classification records that carry `review_depth` without a `tier:` field are *not* silently migrated at v0.5.1+: the transitional read-path that mapped `quick ↔ T1`, `standard ↔ T3`, `submission-bound ↔ T4` was retired at v0.5.1. Re-run this skill on any such record to produce a fresh `tier:` field before dispatching. The legacy `/run-full-review` command was retired at v0.5.1.
+Records that carry only retired `review_depth`, `tier`, or display labels such as `Paper type:` / `P-stage:` do not satisfy the machine contract. Re-run this skill to emit the YAML frontmatter above; do not silently infer the missing keys.
 
 ## What you do NOT do
 

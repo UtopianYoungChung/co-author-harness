@@ -494,31 +494,14 @@ def case_malformed_release_heading_is_refused() -> None:
 
 
 def case_ssot_registry_agrees_with_the_ruling() -> None:
-    """Every version authority must agree, or the contradiction just moves.
-
-    version-check.py was not the only enforcer of the README literal:
-    `.claude-plugin/ssot.yaml` registered README as a `regex` consumer of
-    manifest_version, and `ssot-check.py` (reached via end_to_end_smoketest,
-    NOT via the ten root checks) BLOCKED on it. Fixing one checker and not the
-    other would have left the repository in exactly the state this round is
-    meant to end: two validators, one fact, opposite verdicts.
-
-    This asserts the registry itself, so the next reader cannot reintroduce the
-    consumer without a red test.
-    """
-    reg = ROOT / ".claude-plugin" / "ssot.yaml"
-    text = reg.read_text(encoding="utf-8")
-    block = text[text.index("manifest_version:"):text.index("manifest_description:")]
-    consumers = [ln.strip() for ln in block.splitlines()
-                 if ln.strip().startswith("- path:") or ln.strip().startswith("method:")]
-    joined = "\n".join(consumers)
-    check("ssot.yaml registers README as method:none for manifest_version",
-          "- path: README.md" in joined and any("method: none" in ln for ln in consumers),
-          "README is still a version-asserting consumer in the SSOT registry")
-    check("ssot.yaml does not register CHANGELOG as a manifest_version consumer",
-          "- path: CHANGELOG.md" not in block,
-          "CHANGELOG is registered as a consumer; it would BLOCK on a lag that "
-          "version-check.py deliberately WARNs on")
+    """The live version authority and generic host identity must agree."""
+    authority = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
+    host = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+    check(
+        "version.json agrees with root plugin.json on identity fields",
+        all(authority.get(key) == host.get(key) for key in ("name", "version", "license")),
+        "root plugin identity drifted from version.json",
+    )
 
     # timeout matches `run()`. Without it a hang in ssot-check.py hangs this
     # suite, and a suite that hangs takes CI with it -- an unbounded wait is not

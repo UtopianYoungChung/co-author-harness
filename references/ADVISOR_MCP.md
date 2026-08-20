@@ -11,7 +11,7 @@
 | Term | Meaning |
 |------|---------|
 | **Advisor MCP** | The connected **Model Context Protocol** server that exposes advisor tools (see `skills/advisor-escalation/SKILL.md` — canonical call: `mcp__advisor__consult_advisor`). |
-| **co-author-harness plugin** | The published package (this repo) whose manifest lives at `.claude-plugin/plugin.json`. It ships the **`/advisor-escalation`** skill so agents and users can invoke the bridge without ad hoc prompts. |
+| **co-author-harness plugin** | The published package (this repo), whose package identity is authoritative in `version.json` and mirrored in root `plugin.json` host metadata. It ships the **`/advisor-escalation`** skill so agents and users can invoke the bridge without ad hoc prompts. |
 | **Connection** | The **host** (e.g. Claude Code, Cursor) must install both the **plugin** and the **advisor** MCP server; the skill describes the tool invocation and post-processing. The plugin **does not** embed the MCP server — it **calls out** to whatever advisor MCP the host has configured. |
 | **External feedback** | Structured consultation output (strategic, positioning, or read-through questions) with **EXTERNAL** tag discipline and a filed artefact at `reviews/advisor_consultation_YYYY-MM-DD.md`. It is **not** a replacement for `EXTERNAL_VERIFIERS.md` Class 1–3 citation verification. |
 
@@ -60,4 +60,3 @@ The post-pass consult is **not** a substitute for EP-1 or EP-2; it is orthogonal
 - `skills/advisor-escalation/SKILL.md` — executable bridge (cost gate, `consult_advisor`, reclassification, artifact template, Category 7).
 - `references/EXTERNAL_VERIFIERS.md` — citation / claim **verification** (Rule 7a), orthogonal to advisor strategic feedback.
 - `references/GROUNDING_PROTOCOL.md` — binding rules; advisor output remains **Indirect** until verified for prose.
-

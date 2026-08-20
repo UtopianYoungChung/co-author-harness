@@ -113,6 +113,8 @@ def is_self_referencing_marketplace_entry(
     identity = plugin_root / "version.json"
     if not identity.exists():
         identity = plugin_root / "plugin.json"
+    if not identity.exists():
+        identity = plugin_root / ".claude-plugin" / "plugin.json"
     manifest = load_json(identity)
     return is_manifest_entry(entry, manifest)
 

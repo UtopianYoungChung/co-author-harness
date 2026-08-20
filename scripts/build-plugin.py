@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""Build the co-author-harness `.plugin` bundle for Cowork's file-upload install path.
+"""Build the co-author-harness commit-bound package bundle.
 
-A `.plugin` file is a ZIP archive with `.claude-plugin/plugin.json` at the
-archive root and the plugin's directory tree underneath. Cowork's plugin
-loader UI accepts file uploads with this extension; the bundle sidesteps the
-URL/marketplace install path (which requires the repo to be public + ship a
-marketplace.json).
+A `.plugin` file is a ZIP archive carrying the general `version.json`
+authority, the root `plugin.json` host identity, and the package tree. The
+retired Claude host pack is not synthesized during packaging.
 
 **Bundle definition.** `git ls-tree -r HEAD --name-only` on the harness root.
 Tracked files at the current HEAD go in; untracked session-scope content
 (`.claude/handoffs/`, `artifacts/efficiency/<timestamp>/`, runtime outputs)
 is excluded by definition. The `.gitignore` excludes `*.plugin` files, so
-the previously-built bundle (if present in `.claude-plugin/`) is invisible
+previously-built bundles are invisible
 to `git ls-tree` and won't recurse into the new bundle.
 
 **Defense-in-depth.** The script filters archive files from the bundle
@@ -20,7 +18,7 @@ drift. A nested archive file inside a `.plugin` archive violates the
 Cowork loader contract.
 
 **Output.** The caller must provide `--out <external-directory>`. The bundle
-is written there using the name from `.claude-plugin/plugin.json`; package and
+is written there using the name from `version.json`; package and
 governed consumer destinations are refused by the shared destination policy.
 
 **Usage.**
@@ -39,7 +37,7 @@ to cp949 and the plugin tree carries §, →, em dashes, etc.:
     1  required files missing from the tracked set, or a nested archive survived
     2  git failed (not a repo? HEAD missing?), or ls-tree and the worktree
        disagree on the population
-    3  plugin.json missing or unparseable at the commit
+    3  version.json missing or unparseable at the commit
     5  PROVENANCE.json does not describe the finished archive (readback failed)
     6  the child builder produced no bundle -- that commit's toolchain likely
        predates --build-here
@@ -115,7 +113,8 @@ GIT = find_git()
 
 # Sanity-check files: every bundle must include these or it's not a usable plugin
 REQUIRED_FILES = (
-    ".claude-plugin/plugin.json",
+    "version.json",
+    "plugin.json",
     "agents/planner.md",
     "skills/plugin-commands/SKILL.md",
     "README.md",
@@ -406,14 +405,14 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
     print(f"Built from:    {head_sha[:12]} (clean worktree; this process IS the "
           "commit's builder)")
 
-    # THE MANIFEST COMES FROM THE SNAPSHOT, NOT THE WORKTREE.
+    # THE VERSION AUTHORITY COMES FROM THE SNAPSHOT, NOT THE WORKTREE.
     # It was parsed from HARNESS before materialization, so a dirty
     # plugin.json could rename the output file, misreport the version, or make
     # a perfectly valid HEAD unbuildable -- worktree state leaking into an
     # artifact that claims commit provenance, through the one file that names it.
-    manifest_path = source_root / ".claude-plugin" / "plugin.json"
+    manifest_path = source_root / "version.json"
     if not manifest_path.is_file():
-        print(f"[ERROR] missing manifest at {head_sha[:12]}: .claude-plugin/plugin.json",
+        print(f"[ERROR] missing manifest at {head_sha[:12]}: version.json",
               file=sys.stderr)
         return 3
     try:

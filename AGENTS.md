@@ -11,7 +11,7 @@ Clean-checkout verification may use a temporary **detached** worktree, which mus
 be removed after its receipts are copied back. Before deleting a legacy branch,
 first prove its tip is reachable from `main` so no committed history is lost.
 
-**Authoritative version.** `version.json` is the single source of truth for the package's **current** version, name, and license. `.claude-plugin/plugin.json` is a retired Claude host manifest and is not required. Descriptive prose must not manually mirror the current version — point readers at the manifest instead. Two things are *not* violations of this rule, because neither claims to be the current version: **historical release identifiers** (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables — records of what shipped), and **mechanical manifest parity** (`.claude-plugin/marketplace.json`, gated by `scripts/version-check.py`, because both manifests ship inside the `.plugin` ZIP and the loader rejects the install when they disagree). Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`.
+**Authoritative version.** `version.json` is the single source of truth for the package's **current** version, name, and license. Root `plugin.json` is published host metadata and mechanically mirrors those identity fields. `.claude-plugin/plugin.json` is a retired Claude host manifest and is not required. Descriptive prose must not manually mirror the current version — point readers at `version.json` instead. Historical release identifiers (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables) are records of what shipped, not claims about the current version. Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
@@ -35,7 +35,7 @@ The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
 body for the harness.
 
-*Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../ROOT_ARCHITECTURE_INDEX.md`.
+*Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../../ROOT_ARCHITECTURE_INDEX.md`.
 
 ---
 
@@ -61,6 +61,13 @@ python scripts/destination-coverage-check.py
 python scripts/analysis/fixture_infrastructure_check.py
 python scripts/analysis/fixture_runner.py --no-write
 ```
+
+For ordinary scoped edits, use the focused validator and direct smoketest in
+[`docs/agent-instructions/change-to-check-map.md`](docs/agent-instructions/change-to-check-map.md).
+A changed area may run `python scripts/analysis/fixture_runner.py --suite <REGISTRY-key> --no-write`.
+The full registry remains mandatory at release/qualification gates and after
+fixture-runner, census, cache, or registry-membership changes; it is not the
+default feedback loop for an unrelated one-surface edit.
 
 The fixture registry is the single behavioral-test authority. Omit
 `--no-write` only when intentionally regenerating the committed fixture

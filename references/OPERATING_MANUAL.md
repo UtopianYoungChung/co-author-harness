@@ -22,23 +22,42 @@ The operational goal of this manual is to help you preserve all four properties 
 
 ### 2.1 Directory layout
 
-The package is deployed at `Research/.paper-package/`. The Research root folder contains: (a) `CLAUDE.md` — the root-level harness entry point (`RESEARCH_ROOT_CLAUDE.md` in this package is the canonical template); (b) `conductor.md` — the live ledger of active projects; (c) one subfolder per research project, each following the standard project structure defined in `PROJECT_BOOTSTRAP.md §7`.
+The package is deployed once at the plugin root `<workspace-root>/platform/co-author-harness`. `version.json` owns current package identity. Research projects remain separately governed; an active project's authority and state live in its own `reviews/assignment_contract.json`, `reviews/phase_state.json`, milestone records, and project instructions. There is no required `Research/.paper-package/` copy and no root `conductor.md` that may substitute for those project-local records. The current project skeleton and native bootstrap procedure are defined in `PROJECT_BOOTSTRAP.md §§2–3`.
 
 ### 2.2 First-session checklist
 
 Before your first real round, confirm:
 
-*The harness is wired.* `Research/CLAUDE.md` exists and delegates to `.paper-package/`. Open it; it should mention the package location in its §2 and precedence rules in §5. If not, copy `RESEARCH_ROOT_CLAUDE.md` to `Research/CLAUDE.md`.
+*The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/CLAUDE.md`, and `references/MANIFEST.md` are readable. Do not recreate the retired Claude pack to make discovery work.
 
-*The conductor is seeded.* `Research/conductor.md` exists. If not, ask Claude: *"Seed the conductor per `PARALLEL_CONDUCTOR.md §8`."* Claude will walk the tree, infer each project's current phase and round from its `reviews/` and `research_notes/` artifacts, draft the ledger, and present it for your approval. Do not edit the conductor by hand without telling Claude — it is Claude's primary means of knowing which project is in which phase at session start.
+*The project is explicit.* Supply the exact project root. Confirm that `reviews/assignment_contract.json` resolves when the request can produce academic prose, and read `reviews/phase_state.json` rather than inferring state from filenames or another project.
 
 *External verifiers are registered.* If you maintain a Zotero library and want submission-bound rounds to pass `GROUNDING_PROTOCOL.md` Rule 7a, confirm the Zotero MCP is operational. `EXTERNAL_VERIFIERS.md` declares it as the default Class 1 verifier in Joseph's deployment. Without a verifier, submission-bound rounds will block at G.4.
 
-*Skills are visible.* `.paper-package/skills/SKILL_REGISTRY.md` lists the skills available. The seed skills (`check-contradictions`, `check-abstract-body`, `quick-deterministic`, `suchman-register-audit`) should resolve. New skills created by the Reflector are appended here.
+*Skills are visible.* `references/SKILL_REGISTRY.md` and `references/policies/command_surface.v1.json` describe the package's registered and public command surfaces. The seed skills (`check-contradictions`, `check-abstract-body`, `quick-deterministic`, `suchman-register-audit`) should resolve.
+
+*The output lane is writable.* Harness bootstrap output belongs under `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`. Create that exact run parent before calling `native_project_bootstrap.py`; its absence is not created implicitly. A direct `research/60_Workbench/<work-id>` target is protected and must return `DEST-PROTECTED`.
 
 ### 2.3 Knowing which CLAUDE.md Claude is reading
 
-Three `CLAUDE.md` files sit in the chain. Ordered from outermost to innermost: the user's home-folder CLAUDE.md if any, the Research root CLAUDE.md, and each project's own CLAUDE.md. Claude should read them in that order and apply the precedence rules in `CLAUDE.md §4`. If you suspect Claude is using stale rules, the quickest reset is *"List which CLAUDE.md files you have read this session and in what order."*
+Instruction files form a scope chain: workspace instructions, package-root instructions, and the active project's instructions/directives. The closest project instructions win within that project, subject to the precedence rules in `references/CLAUDE.md §4` and the absolute Grounding Protocol. If you suspect stale rules, ask the assistant to list the instruction files it read and the exact project root each one governs.
+
+### 2.4 Bootstrap a proposal safely
+
+Do not pre-create the final project directory. Create only the governed staging run parent, then let the native bootstrap publish the fresh child atomically:
+
+```powershell
+$packageRoot = Resolve-Path "<workspace-root>/platform/co-author-harness"
+$runRoot = "<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>"
+New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
+python "$packageRoot/scripts/native_project_bootstrap.py" `
+  --project-root "$runRoot/<project-id>" `
+  --project-name "<project-id>" `
+  --title "<working title>" `
+  --intended-reader "<reader description>"
+```
+
+Run `milestone_framework_validate.py` and `phase_state_validate.py` against the staged project after bootstrap. Staged bytes are private proposal output; a successful bootstrap is not acceptance, registration, promotion, or authority to copy them into Workbench. Research governance alone may apply a separately authorized exact-path, exact-hash change beyond the staging lane.
 
 ---
 
@@ -46,11 +65,11 @@ Three `CLAUDE.md` files sit in the chain. Ordered from outermost to innermost: t
 
 Every session begins and ends the same way. The contract is short.
 
-**Opening.** Claude reads, in order: the Research root `CLAUDE.md`, the package `CLAUDE.md`, `ROUTING_SPINE.md`, `Research/conductor.md`, the project's own `CLAUDE.md`, and the project's `research_notes/directives.md`. Claude then confirms to you (a) which project the session concerns, (b) which phase it is in per the conductor, and (c) what it expects to do first. Nothing else happens until you acknowledge.
+**Opening.** The assistant resolves the exact project root, reads the applicable workspace/package/project instructions, the project's assignment contract, phase state, milestone records, and directives, then declares exactly one run scope: `adhoc_review`, `lab_iteration`, or `full_lifecycle`. It confirms the project identity, verified live state, writable output lane, and next authorized action. State from another project or an old session is not inherited.
 
 **Mid-session.** Every user utterance is classified into one phase by `ROUTING_SPINE.md §2`. The Planner dispatches one agent at a time with a prompt that names the phase, the entry artifact, and the exit gate. The agent operates under the contract in `AGENT_CONTRACTS.md §§1–4`. At every `► PRESENTS TO USER ◄` checkpoint in `AGENT_ORCHESTRATION.md §3`, you approve, modify, dispute, or reject. The round advances only on approval.
 
-**Closing.** Claude updates `conductor.md` with current phase, round number, and a one-sentence "resume here" note; checkpoints any in-progress artifacts; summarises in a single paragraph what was done and what is pending. If a round was completed, the Reflector has run and `reviews/reflection_report.md` exists.
+**Closing.** The assistant updates only the authorized project-local transaction/state surfaces, checkpoints in-progress artifacts in the permitted output lane, and summarizes what changed and what remains. It does not create or update a global conductor as a substitute for project state. If a round was completed, the required Reflector output must exist under the current output contract.
 
 If any of opening / mid / closing is skipped, the next session will cost you time to recover the state the skipped step was supposed to preserve.
 

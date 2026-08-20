@@ -135,6 +135,13 @@ python scripts/analysis/fixture_infrastructure_check.py
 python scripts/analysis/fixture_runner.py --no-write
 ```
 
+For a scoped edit, start with the focused validator and direct smoketest in the
+[change-to-check map](docs/agent-instructions/change-to-check-map.md). A changed
+area may run `python scripts/analysis/fixture_runner.py --suite <REGISTRY-key> --no-write`
+without paying the full corpus. The full corpus remains the release/qualification
+authority and is required for runner, census, cache, or registry-membership
+changes; it is not the default feedback loop for every local edit.
+
 The fixture registry is the single behavioral-test authority. Omit
 `--no-write` only to regenerate the committed manifest after the full corpus
 passes.

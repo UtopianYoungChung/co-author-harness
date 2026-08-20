@@ -2008,6 +2008,82 @@ def case_cross_worktree_lock(repo: Path, base: Path) -> None:
         _run_git(repo, "worktree", "prune", check_rc=False)
 
 
+
+def case_suite_selector_non_authoritative(repo: Path) -> None:
+    """--suite is NON_AUTHORITATIVE_PARTIAL: resolve, refuse write, fail closed.
+
+    Named leftover from the paused quality-audit close: CLI --suite lacked
+    destination-coverage regression. These probes resolve selectors in-process
+    or fail on the CLI before any suite executes, and they must not write or
+    void the clone's planted manifest.
+    """
+    runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py",
+                   "fr_suite_sel", repo=repo)
+    runner_path = repo / "scripts" / "analysis" / "fixture_runner.py"
+    exact = FAST_SUITE
+    basename = Path(exact).name
+    stem = Path(exact).stem
+
+    selected = runner.resolve_suite_selectors([exact])
+    check("exact REGISTRY path resolves",
+          list(selected) == [exact], str(list(selected)))
+    selected = runner.resolve_suite_selectors([basename])
+    check("unique basename resolves",
+          list(selected) == [exact], str(list(selected)))
+    selected = runner.resolve_suite_selectors([stem])
+    check("unique stem resolves",
+          list(selected) == [exact], str(list(selected)))
+
+    unknown_raised = False
+    try:
+        runner.resolve_suite_selectors(["not-a-registry-key-zz"])
+    except ValueError as exc:
+        unknown_raised = "not a REGISTRY key" in str(exc)
+    check("unknown key raises ValueError", unknown_raised)
+
+    dummy = runner.MANIFEST_PATH
+    dummy.parent.mkdir(parents=True, exist_ok=True)
+    dummy.write_text('{"sentinel": "suite-selector-must-survive"}', encoding="utf-8")
+    before = dummy.read_bytes()
+
+    def _cli(*extra: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(runner_path), *extra],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=str(repo), timeout=30)
+
+    proc = _cli("--suite", exact)
+    out = proc.stdout + proc.stderr
+    check("--suite without --no-write exits 2", proc.returncode == 2,
+          f"rc={proc.returncode}")
+    check("--suite without --no-write names the requirement",
+          "requires --no-write" in out)
+    check("--suite without --no-write leaves committed evidence untouched",
+          dummy.read_bytes() == before)
+
+    proc = _cli("--suite", "not-a-registry-key-zz", "--no-write")
+    out = proc.stdout + proc.stderr
+    check("unknown --suite key exits 2", proc.returncode == 2,
+          f"rc={proc.returncode}")
+    check("unknown --suite key is named", "not a REGISTRY key" in out)
+    check("unknown --suite key leaves committed evidence untouched",
+          dummy.read_bytes() == before)
+
+    proc = _cli("--suite", exact, "--tier", "quick", "--no-write")
+    out = proc.stdout + proc.stderr
+    check("--suite + --tier quick exits 2", proc.returncode == 2,
+          f"rc={proc.returncode}")
+    check("--suite + --tier quick names the refusal",
+          "cannot be combined with --tier quick" in out)
+    check("--suite + --tier quick leaves committed evidence untouched",
+          dummy.read_bytes() == before)
+
+    registry = {exact: runner.REGISTRY[exact]}
+    rc = runner.run(registry, [exact], write_manifest=True, tier="suite")
+    check("tier=suite write is refused (exit 2)", rc == 2, f"rc={rc}")
+    check("tier=suite cannot write or void the committed manifest",
+          dummy.is_file() and dummy.read_bytes() == before)
+
 def main() -> int:
     print("fixture_infrastructure_check (focused; never runs the corpus)")
     print(f"  harness: {HARNESS}")
@@ -2043,6 +2119,9 @@ def main() -> int:
         print()
         print("case_runner_concurrency_and_void:")
         case_runner_concurrency_and_void(repo)
+        print()
+        print("case_suite_selector_non_authoritative:")
+        case_suite_selector_non_authoritative(repo)
         print()
         print("case_suite_process_tree_ownership:")
         case_suite_process_tree_ownership()

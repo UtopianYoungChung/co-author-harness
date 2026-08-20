@@ -5,7 +5,7 @@
   "notes": "Snapshot-mode registry (plan 2026-07-06 §4, [AR-4/AR-5]). Records the OBSERVED per-file version assertions for each non-package plane, including known forks. scripts/version-planes-check.py verifies (1) every quoted assertion is still present in its file — silent drift is a blocker; (2) no NEW distinct value appears for a plane inside registered files — fork-widening is a blocker. Harmonization to a single current value per plane is a deferred cycle (plan §9). The package plane delegates to version-check.py; no static value is stored here.",
   "planes": {
     "package": {
-      "authority": ".claude-plugin/plugin.json",
+      "authority": "version.json",
       "delegated_to": "scripts/version-check.py",
       "assertions": []
     },

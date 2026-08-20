@@ -20,7 +20,8 @@ Entries below use paths **under this harness** unless noted. Rows that point to 
 |------|----------|------|
 | AI harness concept (workspace) | `docs/concepts/ai-harness.md` | Prompt vs harness engineering explainer; not part of the shipped plugin bundle |
 | Release notes (per version) | `docs/release-notes/RELEASE_NOTES_v*.md` | Point-in-time ship notes; lean release zips exclude historical files (see `scripts/build-release-zip.sh`) |
-| Plugin manifest | `.claude-plugin/plugin.json` | Authoritative version (see manifest `version` field) |
+| Package identity | `version.json` | Authoritative current name, version, and license |
+| Host metadata | `plugin.json` | Published metadata; identity fields mirror `version.json` |
 | Output economy protocol | `references/OUTPUT_ECONOMY_PROTOCOL.md` | F7/F8 artefacts, events log, final report assembly, compatibility pointers (v0.14.0+) |
 | AGENT_ORCHESTRATION.md | `references/AGENT_ORCHESTRATION.md` | Four-agent architecture + lifecycle dispatch |
 | REVIEW_ORCHESTRATION.md | `references/REVIEW_ORCHESTRATION.md` | Review pipeline runbook (Steps 0a–8.5) |

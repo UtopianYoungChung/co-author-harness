@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "d359ebfc15523d427977e06ef9089506e30dd818eae22038acd3e58a612a20e4"
+      "sha256": "47bd9b94b2cdf2a07476749e7f6b07d42a4b9354a3b9b522173a6df167dab41a"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
@@ -37,7 +37,7 @@
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
       "justification": "hermetic negative probes: mutates manifests only inside disposable clone sandboxes it creates and removes",
-      "sha256": "18e9e23036120b10ab05b02677be4f4256a67ff9713cdc70dc4377afe9f9252e"
+      "sha256": "7227230f5ab0e185df9f081d035eeb6db123d2ffca5ef91af178b15ba4069b4d"
     },
     "scripts/assignment_fixture_support.py": {
       "class": "test_only",
@@ -93,7 +93,7 @@
     "scripts/contract-kernel-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/contract_kernel.v1.json (package constant) and only under explicit --refresh",
-      "sha256": "4507c7c0c804564baec1c4d770ff2dbe470b75a94d022cc501ff27def17c0b9a"
+      "sha256": "0cc1bb055f6ea076224491084aee3bb00c3aa8412852b8d5f7192e29a9abf8a8"
     },
     "scripts/product_assurance.py": {
       "class": "guarded",
