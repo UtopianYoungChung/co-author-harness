@@ -53,7 +53,16 @@ def catalog_names(plugin_root: Path) -> set[str]:
     return names
 
 
-def load_policy(plugin_root: Path) -> tuple[set[str], dict[str, set[str]]]:
+def _string_list(payload: dict, key: str, path: Path) -> list[str] | None:
+    if key not in payload:
+        return None
+    value = payload[key]
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ValueError(f"{path}: {key} must be a list of strings")
+    return value
+
+
+def load_policy(plugin_root: Path) -> tuple[set[str], dict[str, set[str]], dict]:
     path = plugin_root / "references" / "policies" / "command_surface.v1.json"
     payload = json.loads(read_text(path))
     if payload.get("schema_version") != "1.0.0":
@@ -63,21 +72,29 @@ def load_policy(plugin_root: Path) -> tuple[set[str], dict[str, set[str]]]:
     if not isinstance(hidden_raw, dict):
         raise ValueError(f"{path}: hidden must be an object")
     hidden = {category: set(names) for category, names in hidden_raw.items()}
-    return public, hidden
+    extras = {
+        "degraded": _string_list(payload, "degraded", path),
+        "external_dependent": _string_list(payload, "external_dependent", path),
+    }
+    return public, hidden, extras
 
 
-def capability_exposures(plugin_root: Path) -> dict[str, str]:
+def capability_records(plugin_root: Path) -> dict[str, dict]:
     path = plugin_root / "references" / "capabilities.yaml"
     payload = yaml.safe_load(read_text(path)) or {}
     capabilities = payload.get("capabilities")
     if not isinstance(capabilities, dict):
         raise ValueError(f"{path}: capabilities must be a mapping")
-    exposures: dict[str, str] = {}
+    records: dict[str, dict] = {}
     for name, record in capabilities.items():
         if not isinstance(record, dict) or not isinstance(record.get("exposure"), str):
             raise ValueError(f"{path}: capability {name} lacks a string exposure")
-        exposures[str(name)] = record["exposure"]
-    return exposures
+        records[str(name)] = record
+    return records
+
+
+def capability_exposures(plugin_root: Path) -> dict[str, str]:
+    return {name: record["exposure"] for name, record in capability_records(plugin_root).items()}
 
 
 def section(text: str, heading: str, next_heading: str) -> str:
@@ -113,9 +130,10 @@ def validate(plugin_root: Path) -> list[str]:
     blockers: list[str] = []
     try:
         skills = discover_skills(plugin_root)
-        public, hidden_by_category = load_policy(plugin_root)
+        public, hidden_by_category, extras = load_policy(plugin_root)
         catalog = catalog_names(plugin_root)
-        exposures = capability_exposures(plugin_root)
+        records = capability_records(plugin_root)
+        exposures = {name: record["exposure"] for name, record in records.items()}
     except (OSError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         return [str(exc)]
 
@@ -155,6 +173,64 @@ def validate(plugin_root: Path) -> list[str]:
             blockers.append(
                 f"capability registry exposure drift for {name}: "
                 f"{exposures[name]} != {expected_exposure[name]}"
+            )
+
+    public_unavailable = sorted(
+        name
+        for name in public
+        if records.get(name, {}).get("availability") == "unavailable"
+    )
+    if public_unavailable:
+        blockers.append(
+            "command policy lists unavailable capabilities as public: "
+            + ", ".join(public_unavailable)
+        )
+
+    public_degraded = {
+        name for name in public if records.get(name, {}).get("availability") == "degraded"
+    }
+    public_external = {
+        name
+        for name in public
+        if records.get(name, {}).get("availability") == "external-dependent"
+    }
+    if any(records.get(name, {}).get("availability") for name in public):
+        labeled_degraded = set(extras["degraded"] or [])
+        labeled_external = set(extras["external_dependent"] or [])
+        if extras["degraded"] is None:
+            blockers.append(
+                "command policy is missing a degraded list for public degraded capabilities"
+            )
+        elif labeled_degraded != public_degraded:
+            missing = ", ".join(sorted(public_degraded - labeled_degraded)) or "<none>"
+            extra = ", ".join(sorted(labeled_degraded - public_degraded)) or "<none>"
+            blockers.append(
+                "command policy degraded list does not match public degraded capabilities: "
+                f"missing={missing}; extra={extra}"
+            )
+        if extras["external_dependent"] is None:
+            blockers.append(
+                "command policy is missing an external_dependent list for public "
+                "external-dependent capabilities"
+            )
+        elif labeled_external != public_external:
+            missing = ", ".join(sorted(public_external - labeled_external)) or "<none>"
+            extra = ", ".join(sorted(labeled_external - public_external)) or "<none>"
+            blockers.append(
+                "command policy external_dependent list does not match public "
+                f"external-dependent capabilities: missing={missing}; extra={extra}"
+            )
+    for key, labeled in (
+        ("degraded", extras["degraded"]),
+        ("external_dependent", extras["external_dependent"]),
+    ):
+        if labeled is None:
+            continue
+        labeled_set = set(labeled)
+        outside = sorted(labeled_set - public)
+        if outside:
+            blockers.append(
+                f"command policy {key} list includes non-public names: " + ", ".join(outside)
             )
 
     command_files = sorted((plugin_root / "commands").glob("*.md"))

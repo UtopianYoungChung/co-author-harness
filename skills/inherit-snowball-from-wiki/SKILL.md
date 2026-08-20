@@ -1,7 +1,8 @@
 ---
 name: inherit-snowball-from-wiki
-description: "Pre-seed SK-33's seed_set from graphify communities adjacent to the current section — cross-project seed inheritance at Ph1 pre-seed time. Auto-invoked by SK-33 when wiki_linked:true, inherit_snowball:true, and graph.json is fresh. Outputs pre_seed.json (capped at pre_seed_cap, default 10); pre-seed is unioned with, not substitutive of, claim-derived seeds. No-ops cleanly when no adjacent communities exist."
-trigger: auto-invoked by seed-snowball-discovery (SK-33) as a pre-seed step when (a) wiki_linked:true in project CLAUDE.md, (b) inherit_snowball:true in reviews/classification.md, and (c) graphify-out/graph.json exists and is fresh per SK-20 Precondition 3. Also user-invokable via /inherit-snowball-from-wiki for inspection.
+user-invocable: false
+description: Hidden unavailable pre-seed inheritance. Returns GRAPH_GOVERNED_GENERATION_UNAVAILABLE; does not traverse communities or emit pre_seed authority.
+trigger: auto-invoked by seed-snowball-discovery (SK-33) as a pre-seed step when wiki_linked and inherit_snowball are set; immediately no-op with GRAPH_GOVERNED_GENERATION_UNAVAILABLE. Not a public command.
 version: 1.0
 ---
 
