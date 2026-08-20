@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "authority": "Native skills are the only command implementation surface. The public menu is the public list below; hidden skills remain model-invocable unless their own frontmatter states otherwise.",
+  "authority": "Native skills are the only command implementation surface. The public menu is the public list below; hidden skills remain model-invocable unless their own frontmatter states otherwise. Public names in degraded are prompt-mediated or otherwise not mechanically complete. Public names in external_dependent require the named provider in capabilities.yaml. Unavailable capabilities must not appear in public.",
   "public": [
     "accessibility-overlay",
     "advisor-escalation",
@@ -9,6 +9,7 @@
     "check-contradictions",
     "citation-format-pass",
     "centroid-pass",
+    "centroid-sentence-logic",
     "claim-coverage-audit",
     "classify-manuscript",
     "definition-derivation-check",
@@ -16,7 +17,6 @@
     "extend-snowball-incremental",
     "grammar-mechanics-pass",
     "grounding-audit",
-    "inherit-snowball-from-wiki",
     "IS-theory-pass",
     "narrative-structure-pass",
     "p-stage-checker",
@@ -32,6 +32,37 @@
     "sentence-level-pass",
     "suchman-register-audit",
     "turabian-format-pass"
+  ],
+  "degraded": [
+    "accessibility-overlay",
+    "analytic-move-audit",
+    "check-abstract-body",
+    "check-contradictions",
+    "citation-format-pass",
+    "claim-coverage-audit",
+    "classify-manuscript",
+    "definition-derivation-check",
+    "dissolution-move-check",
+    "grammar-mechanics-pass",
+    "grounding-audit",
+    "IS-theory-pass",
+    "narrative-structure-pass",
+    "p-stage-checker",
+    "plugin-commands",
+    "public-interest-accountability-pass",
+    "response-letter-review",
+    "run-draft",
+    "run-finalize",
+    "run-iterate",
+    "run-reflection",
+    "sentence-level-pass",
+    "suchman-register-audit",
+    "turabian-format-pass"
+  ],
+  "external_dependent": [
+    "advisor-escalation",
+    "extend-snowball-incremental",
+    "seed-snowball-discovery"
   ],
   "hidden": {
     "legacy": [
@@ -49,6 +80,7 @@
       "backfill-source-stubs-from-references",
       "graph-grounding-overlay",
       "ingest-m5-to-wiki",
+      "inherit-snowball-from-wiki",
       "promote-lessons-to-wiki",
       "retrofit-concept-grounding",
       "run-generator-session"

@@ -515,6 +515,11 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Sibling:** SK-20 `graph-grounding-overlay` (may surface corpus changes); SK-25/26/27 phase skills (consume Planner-applied bindings, never the pending request directly).
 
 ### SK-47. `centroid-pass`
+
+### SK-48. `centroid-sentence-logic`
+
+Own sentence-logic pass on top of a `binding_resolved` centroid binder packet. Invoke-only while `GRAPH-SEMANTIC-INELIGIBLE`. Admitted passages are Joseph pastes or hash-bound Yu 2011 pp. 3-10 / 11-52 PDF pages. Does not mint scholarly CLEAN. SK-32 stays CLOSED.
+
 - **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
 - **Pattern:** Public, read-only orchestration. A deterministic packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass.
 - **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.

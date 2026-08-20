@@ -48,7 +48,7 @@ Writer can run a real draft path (prepare + centroid bind + sentence-logic on ad
 
 - Persisted: 2026-08-19
 - A: closed 2026-08-19 — ssot-check and skill-check read version.json / general SKILL_REGISTRY; SK-32 stays CLOSED; no Claude pack restore
-- B: not started
-- C: not started
+- B: closed 2026-08-19 — public menu matches runtime; inherit-snowball-from-wiki hidden/internal/unavailable (GRAPH_GOVERNED_GENERATION_UNAVAILABLE); degraded/external_dependent labels added; centroid-pass and quick-deterministic remain the active mechanical adapters
+- C: closed 2026-08-19 — skills/centroid-sentence-logic + scripts/centroid_sentence_logic.py; smoketest PASS; invoke-only while GRAPH-SEMANTIC-INELIGIBLE; no CLEAN minted
 - D: not started
 - E: not started
