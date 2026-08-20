@@ -5,6 +5,9 @@ The binder stays a binder. This script does not emit a scholarly CLEAN
 verdict. It fail-closes without a binding_resolved packet, matching
 manuscript bytes, and admitted passages (Joseph paste or hash-bound PDF
 pages). Roles fill pair verdicts. SK-32 stays CLOSED.
+
+Join-cadence is a miss of its own: S_n+1 must show derivation from S_n,
+not only an attested hinge. Mechanical signals only. No CLEAN mint.
 """
 
 from __future__ import annotations
@@ -24,6 +27,26 @@ YU_2011 = "yu-et-al-2011-social-modeling"
 DENNETT = "dennett-1987-intentional-stance"
 YU_PAGES = set(range(3, 11)) | set(range(11, 53))
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“])")
+WORD_RE = re.compile(r"[A-Za-z0-9']+")
+VERDICT_OPEN = re.compile(r"^(thus|therefore|hence|so|accordingly|in short)\b", re.I)
+DERIVE_CUE = re.compile(
+    r"\b(which means|that dependency|the same actor|because|so that|in virtue of|from this|from that|this means|that means)\b",
+    re.I,
+)
+RETRACT_CUE = re.compile(r"\b(but|however|yet|instead|rather|although)\b", re.I)
+BACKTRACK_CUE = re.compile(
+    r"\b(return to|that earlier|as above|we still|still owe|the same (actor|goal|dependency)|back to)\b",
+    re.I,
+)
+SHORT_WORDS = 12
+STACK_MIN_SENTENCES = 3
+CONTENT_STOP = frozenset(
+    {
+        "that", "this", "with", "from", "they", "them", "their", "have", "been",
+        "were", "which", "into", "also", "only", "does", "than", "then", "thus",
+        "therefore", "hence", "such", "into", "over", "under",
+    }
+)
 MODES = ("write", "review", "revise")
 
 
@@ -144,11 +167,54 @@ def _sentences(text: str) -> list[str]:
     return parts if parts else [text.strip()] if text.strip() else []
 
 
+def _words(text: str) -> list[str]:
+    return WORD_RE.findall(text)
+
+
+def _content(text: str) -> set[str]:
+    return {word.lower() for word in _words(text) if len(word) >= 4 and word.lower() not in CONTENT_STOP}
+
+
+def _join_signals(left: str, right: str) -> dict[str, Any]:
+    right_words = _words(right)
+    short_right = len(right_words) <= SHORT_WORDS
+    derive = bool(DERIVE_CUE.search(right))
+    verdict = bool(VERDICT_OPEN.search(right.strip()))
+    retract = bool(RETRACT_CUE.search(right))
+    backtrack = bool(BACKTRACK_CUE.search(right))
+    shared = bool(_content(left) & _content(right))
+    if derive:
+        cadence = "derivation_shown"
+    elif short_right and verdict:
+        cadence = "unearned_verdict"
+    else:
+        cadence = None
+    if backtrack:
+        needed = "present"
+    elif retract and short_right and not shared:
+        needed = "missing"
+    else:
+        needed = "not_required"
+    return {
+        "join_cadence": cadence,
+        "needed_backtrack": needed,
+        "s_n_words": len(_words(left)),
+        "s_n1_words": len(right_words),
+    }
+
+
+def _all_short_stack(sentences: list[str]) -> bool:
+    if len(sentences) < STACK_MIN_SENTENCES:
+        return False
+    return all(len(_words(sentence)) <= SHORT_WORDS for sentence in sentences)
+
+
 def _pairs(sentences: list[str]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for index in range(len(sentences) - 1):
         left = sentences[index]
         right = sentences[index + 1]
+        signals = _join_signals(left, right)
         rows.append(
             {
                 "n": index + 1,
@@ -166,6 +232,12 @@ def _pairs(sentences: list[str]) -> list[dict[str, Any]]:
                     "scope": None,
                     "voice": None,
                     "role_split": None,
+                    "join_cadence": signals["join_cadence"],
+                    "needed_backtrack": signals["needed_backtrack"],
+                },
+                "word_counts": {
+                    "s_n": signals["s_n_words"],
+                    "s_n1": signals["s_n1_words"],
                 },
             }
         )
@@ -183,6 +255,9 @@ def _markdown_receipt(receipt: dict[str, Any]) -> str:
         f"- graph_state: `{receipt['graph_state']}`",
         f"- admitted_passages: {len(receipt['admitted_passages'])}",
         f"- pairs: {len(receipt['pairs'])} (verdicts not_run; roles fill CLEAN/ADVISORY/BLOCKER)",
+        f"- all_short_stack: `{receipt['summary'].get('all_short_stack')}`",
+        f"- join_cadence_misses: {receipt['summary'].get('join_cadence_misses')}",
+        f"- needed_backtrack_missing: {receipt['summary'].get('needed_backtrack_missing')}",
         f"- one BLOCKER pair fails the bound scope for qualification",
         "",
         "This is not a scholarly CLEAN. Empty binder semantic_findings is not a pass.",
@@ -237,10 +312,13 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     text = manuscript_bytes.decode("utf-8")
-    pairs = _pairs(_sentences(text))
+    sentences = _sentences(text)
+    pairs = _pairs(sentences)
+    cadence_misses = sum(1 for row in pairs if row["checks"]["join_cadence"] == "unearned_verdict")
+    backtrack_misses = sum(1 for row in pairs if row["checks"]["needed_backtrack"] == "missing")
     created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "pass": "centroid-sentence-logic",
         "status": "ready_for_role",
         "reason_code": None,
@@ -260,6 +338,9 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
             "ADVISORY": 0,
             "BLOCKER": 0,
             "qualification": "incomplete",
+            "all_short_stack": _all_short_stack(sentences),
+            "join_cadence_misses": cadence_misses,
+            "needed_backtrack_missing": backtrack_misses,
         },
         "c7": [],
         "actor": "Generator" if args.mode in {"write", "revise"} else "Evaluator",
@@ -271,6 +352,9 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
             "Roles fill CLEAN/ADVISORY/BLOCKER. This file is not a scholarly CLEAN.",
             "One BLOCKER pair fails the bound scope for qualification.",
             "Do not copy empty binder semantic_findings as a pass.",
+            "join_cadence and needed_backtrack are mechanical signals, not scholarly CLEAN.",
+            "A missing join-cadence is a miss even when an attested hinge is named.",
+            "Backtrack is not required on every pair.",
         ],
     }
 

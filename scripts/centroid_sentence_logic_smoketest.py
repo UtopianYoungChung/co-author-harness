@@ -96,8 +96,44 @@ def main() -> int:
         require(receipt["summary"]["CLEAN"] == 0, "must not mint CLEAN counts")
         require(len(receipt["pairs"]) == 1, "expected one sentence pair")
         require(receipt["pairs"][0]["verdict"] == "not_run", "roles fill verdicts")
+        require(receipt["pairs"][0]["checks"]["join_cadence"] == "derivation_shown", "that-dependency pair should show derivation")
+        require(receipt["pairs"][0]["checks"]["needed_backtrack"] == "not_required", "forward derivation must not require backtrack")
+        require(receipt["summary"]["all_short_stack"] is False, "two-sentence manuscript is not a stack")
         require((out / "centroid-sentence-logic_review.json").is_file(), "json receipt missing")
         require((out / "centroid-sentence-logic_review.md").is_file(), "md receipt missing")
+
+        short = "Actors depend. So they are strategic. Thus i-star applies.\n"
+        short_sha = sha(short)
+        short_packet = json.loads(json.dumps(packet))
+        short_packet["manuscript"]["sha256"] = short_sha
+        short_packet["manuscript"]["scope"]["sha256"] = short_sha
+        short_man = tmp / "short.md"
+        short_pkt = tmp / "short_packet.json"
+        short_man.write_text(short, encoding="utf-8", newline="\n")
+        short_pkt.write_text(json.dumps(short_packet), encoding="utf-8")
+        short_run = run(tmp, "--packet", str(short_pkt), "--manuscript", str(short_man), "--mode", "review", "--passages", str(pas))
+        require(short_run.returncode == 0, f"short stack should still run: {short_run.stdout}{short_run.stderr}")
+        short_receipt = json.loads(short_run.stdout)
+        require(short_receipt["summary"]["CLEAN"] == 0, "must not mint CLEAN on short stack")
+        require(short_receipt["pairs"][0]["verdict"] == "not_run", "roles still fill verdicts")
+        require(short_receipt["summary"]["all_short_stack"] is True, "three short sentences are an all-short stack")
+        require(short_receipt["summary"]["join_cadence_misses"] >= 1, "unearned so/thus verdicts are join-cadence misses")
+        require(short_receipt["pairs"][0]["checks"]["join_cadence"] == "unearned_verdict", "so-they-are-strategic is an unearned verdict")
+
+        retract = "Actors depend on one another. But theory is enough.\n"
+        retract_sha = sha(retract)
+        retract_packet = json.loads(json.dumps(packet))
+        retract_packet["manuscript"]["sha256"] = retract_sha
+        retract_packet["manuscript"]["scope"]["sha256"] = retract_sha
+        retract_man = tmp / "retract.md"
+        retract_pkt = tmp / "retract_packet.json"
+        retract_man.write_text(retract, encoding="utf-8", newline="\n")
+        retract_pkt.write_text(json.dumps(retract_packet), encoding="utf-8")
+        retract_run = run(tmp, "--packet", str(retract_pkt), "--manuscript", str(retract_man), "--mode", "review", "--passages", str(pas))
+        require(retract_run.returncode == 0, f"retract pair should run: {retract_run.stdout}{retract_run.stderr}")
+        retract_receipt = json.loads(retract_run.stdout)
+        require(retract_receipt["pairs"][0]["checks"]["needed_backtrack"] == "missing", "short retract without return is a needed-backtrack miss")
+        require(retract_receipt["pairs"][0]["verdict"] == "not_run", "backtrack miss is a signal, not a minted BLOCKER")
 
     print("centroid_sentence_logic_smoketest: PASS")
     return 0
