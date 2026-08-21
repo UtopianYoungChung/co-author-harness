@@ -28,6 +28,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Milestone-contract slice (2026-08-21).** Clarified R-plane authority and milestone acceptance contract. Joseph is the only R-plane actor; no agent promotes research artifacts. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. Any iteration may require revision of any of M1–M4. Updated kernel spec, planner, run-draft, and run-iterate to document this contract. DEST-PROTECTED and Writer-stages-only remain unchanged.
 
+**Scholarly-evaluation-lane slice (2026-08-21).** Evaluation-lane now fires scholarly obligations dest-safe (completed/findings), not parking them as `not_run` shells. Mechanical dest-safe obligations (`d-style-profile`, `deterministic-audit`) run as before. Scholarly obligations (grounding-protocol, citation-discipline, grammar-mechanics, contradictions, analytic-construction, etc.) are fired at evaluation with completed/findings status, indicating they require evaluator dispatch for full check. Centroid binder/join are invoked even when `semantic_usage=not_invoked`; graph retrieval still fail-closes in that case. Evaluate `verify()` refuses `not_run` at evaluation phase (generation may still defer). Public coordinators (`/run-draft`, `/run-iterate`, `/run-finalize`) are explicitly `user-invocable: true` and document their Evaluator fire tables. No scholarly CLEAN mint. DEST-PROTECTED, SK-32 CLOSED, and Writer-stages-only remain unchanged.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure

@@ -3,6 +3,7 @@ name: run-finalize
 description: 'Public 0.50 finalize coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Evaluator certifies shipment bytes. Writer is the apply step. Parked paper-specific body: run-phase-4.'
 trigger: 'when the user says "run finalize," "finalize," "stage = finalize," "ship," or invokes "/run-finalize"'
 version: 0.50.0
+user-invocable: true
 ---
 
 # run-finalize — public finalize coordinator (staging)
@@ -32,11 +33,13 @@ If Writer edits on apply, that is a new draft, not the certified shipment.
 1. Planner binds the finalize target and reserves READY.
 2. Generator publishes staging bytes only through
    `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
-3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
-   claim, derivation, and similar checks stay invoke-able and still fire.
-   Do not mint scholarly CLEAN.
+3. Evaluator certifies those exact shipment bytes (exact hash).
 4. Reflector may run full closeout after a certified shipment.
 5. Writer (outside the plugin) applies exact path, exact hash.
+
+### Evaluator fire table
+
+Evaluator fires these obligations dest-safe (completed/findings): grounding-protocol, citation-discipline, claim-coverage, derivation-check, grammar-mechanics, contradictions, analytic-construction, centroid-evaluation (binder/join invoked; graph fail-closes when semantic_usage=not_invoked). Mechanical: d-style-profile, deterministic-audit. No scholarly CLEAN.
 
 **DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
 `research/60_Workbench/<work-id>/`. Dest-safe receipts only under

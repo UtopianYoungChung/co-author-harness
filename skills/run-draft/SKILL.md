@@ -3,6 +3,7 @@ name: run-draft
 description: 'Public 0.50 draft coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Writer (outside the plugin) is the apply step. Parked paper-specific body: run-phase-1.'
 trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft"'
 version: 0.50.0
+user-invocable: true
 ---
 
 # run-draft — public draft coordinator (staging)
@@ -39,12 +40,24 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
    `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`
    and dest-safe receipts under
    `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
-3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
-   claim, derivation, and similar checks stay invoke-able and still fire here.
-   Do not fold them away. Do not mint scholarly CLEAN.
+3. Evaluator certifies those exact shipment bytes (exact hash).
 4. Reflector may probe after a certified shipment. It does not accept
-   milestones and does not apply to the workbench.
+   milestones and does not promote research artifacts.
 5. Writer (outside the plugin) is the only apply step: exact path, exact hash.
+
+### Evaluator fire table
+
+Evaluator fires these obligations dest-safe at evaluation (completed/findings):
+- **Grounding protocol** (grounding-protocol): Rule 4 quote-before-attribute, Rule 6 no-gap-filling
+- **Citation discipline** (citation-discipline): citation integrity, source traceback
+- **Claim coverage** (claim-coverage): evidence coverage for load-bearing claims
+- **Derivation check** (derivation-check): stipulated vs. derived terms
+- **Grammar mechanics** (grammar-mechanics): mechanical correctness
+- **Contradictions** (contradictions): SAFEGUARD Check 4 same-diff contradictions
+- **Analytic construction** (analytic-construction): Abbott 7-move audit when applicable
+- **Centroid bind/join** (centroid-evaluation): binder and join invoked; graph retrieval fail-closes when semantic_usage=not_invoked
+
+Mechanical dest-safe: d-style-profile, deterministic-audit. Do not mint scholarly CLEAN.
 
 **DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
 `research/60_Workbench/<work-id>/`. `scripts/destination_capability.py` is the

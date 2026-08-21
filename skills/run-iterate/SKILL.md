@@ -3,6 +3,7 @@ name: run-iterate
 description: 'Public 0.50 iterate coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector for refine/structural/deep/stability. Generator publishes only via assignment_writer_commit.py to staging. Parked paper-specific bodies: run-phase-2, run-phase-3, run-phase-3-stability.'
 trigger: 'when the user says "run iterate," "iterate," "stage = iterate," or invokes "/run-iterate"'
 version: 0.50.0
+user-invocable: true
 ---
 
 # run-iterate — public iterate coordinator (staging)
@@ -73,6 +74,10 @@ Dest-safe receipts may land under
 `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
 `scripts/draft_governance.py` stays dest-safe (`evaluation-lane`,
 `attach-verifier-receipt`; no CLEAN bind).
+
+### Evaluator fire table
+
+Evaluator fires these obligations dest-safe (completed/findings): grounding-protocol, citation-discipline, claim-coverage, derivation-check, grammar-mechanics, contradictions, analytic-construction, centroid-evaluation (binder/join invoked; graph fail-closes when semantic_usage=not_invoked). Mechanical: d-style-profile, deterministic-audit. No scholarly CLEAN.
 
 ## Parked compatibility bodies
 

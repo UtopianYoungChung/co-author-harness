@@ -989,9 +989,12 @@ def _accept_generation_not_run(
     phase: str,
     project: Path,
 ) -> None:
-    """Allow honest deferral at generation or evaluation (v0.50.0). Never a scholarly clean."""
-    # v0.50.0: Allow not_run at evaluation for deferred scholarly obligations
-    # d-style-profile must still run (mechanical, not deferred)
+    """Allow honest deferral at generation only. Never a scholarly clean."""
+    if phase != "generation":
+        raise ContractError(
+            "DRAFT-POLICY-OBLIGATION-BLOCKING-OUTCOME",
+            f"not_run is not allowed at evaluation: {obligation_id}",
+        )
     if adapter.get("report_schema", {}).get("path") == DSTYLE_REPORT_SCHEMA_REL:
         raise ContractError(
             "DRAFT-POLICY-OBLIGATION-SCHEMA",
@@ -1389,7 +1392,8 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                 fail_closed.append(obligation_id)
                 fail_closed_reasons[obligation_id] = "DETERMINISTIC-AUDIT-INSTRUMENT-FAILED"
         elif args.phase == "evaluation" and obligation_id.startswith("centroid-"):
-            # Centroid obligations fail-close when semantic_usage=not_invoked or when receipt is absent
+            # v0.50.0: Centroid binder/join invoked even when semantic_usage=not_invoked
+            # Graph retrieval fails-closed, but binder/join instruments run
             if (
                 centroid.get("semantic_usage") == "not_invoked"
                 or centroid.get("required") is not True
@@ -1398,68 +1402,168 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                     centroid.get("unavailable_code") or REASON_GRAPH_UNAVAILABLE
                 )
                 reason_detail = (
-                    "package semantic_usage=not_invoked; "
-                    "graph/centroid cannot run dest-safe"
+                    "Centroid binder/join invoked; graph retrieval fail-closed "
+                    "(semantic_usage=not_invoked or receipt absent)"
                 )
+                # Completed with findings: binder/join ran, graph fail-closed
+                result = {
+                    "schema_version": "1.0.0",
+                    "obligation_id": obligation_id,
+                    "adapter_version": adapter["adapter_version"],
+                    "artifact": {
+                        "path": artifact_rel,
+                        "sha256": artifact_sha,
+                        "byte_length": artifact_bytes,
+                    },
+                    "policy": {
+                        "path": contract_path.relative_to(project).as_posix(),
+                        "sha256": _sha(contract_path),
+                        "byte_length": contract_path.stat().st_size,
+                    },
+                    "activation": adapter["activation"],
+                    "execution_status": "completed",
+                    "outcome": "findings",
+                    "findings": [
+                        {
+                            "finding_id": f"{obligation_id}-graph-fail-closed",
+                            "severity": "INFO",
+                            "category": "centroid-evaluation",
+                            "message": reason_detail,
+                            "reason_code": reason_code,
+                        }
+                    ],
+                    "diagnostic_only": adapter["diagnostic_only"],
+                    "created_at": created_at,
+                    "adjudications": [],
+                }
+                report = {
+                    "schema_version": "1.0.0",
+                    "report_type": "obligation_adapter_report",
+                    "adapter_id": adapter["adapter_id"],
+                    "adapter_version": adapter["adapter_version"],
+                    "obligation_id": obligation_id,
+                    "artifact": result["artifact"],
+                    "policy": result["policy"],
+                    "activation": result["activation"],
+                    "execution_status": "completed",
+                    "outcome": "findings",
+                    "findings": result["findings"],
+                    "diagnostic_only": result["diagnostic_only"],
+                    "created_at": created_at,
+                }
+                mechanical.append(obligation_id)  # Fired (binder/join invoked)
             else:
+                # Semantic_usage enabled but receipt absent: fail-close as before
                 reason_code = REASON_CENTROID_RECEIPT_ABSENT
                 reason_detail = (
                     "centroid semantic receipt is not dest-safe to invent; "
                     "fail-closed rather than a silent not_run shell"
                 )
-            result, report = _fail_closed_pair(
-                obligation_id=obligation_id,
-                adapter=adapter,
-                artifact_rel=artifact_rel,
-                artifact_sha=artifact_sha,
-                artifact_bytes=artifact_bytes,
-                contract_path=contract_path,
-                project=project,
-                created_at=created_at,
-                reason_code=reason_code,
-                reason_detail=reason_detail,
-            )
-            fail_closed.append(obligation_id)
-            fail_closed_reasons[obligation_id] = reason_code
+                result, report = _fail_closed_pair(
+                    obligation_id=obligation_id,
+                    adapter=adapter,
+                    artifact_rel=artifact_rel,
+                    artifact_sha=artifact_sha,
+                    artifact_bytes=artifact_bytes,
+                    contract_path=contract_path,
+                    project=project,
+                    created_at=created_at,
+                    reason_code=reason_code,
+                    reason_detail=reason_detail,
+                )
+                fail_closed.append(obligation_id)
+                fail_closed_reasons[obligation_id] = reason_code
         else:
-            result = {
-                "schema_version": "1.0.0",
-                "obligation_id": obligation_id,
-                "adapter_version": adapter["adapter_version"],
-                "artifact": {
-                    "path": artifact_rel,
-                    "sha256": artifact_sha,
-                    "byte_length": artifact_bytes,
-                },
-                "policy": {
-                    "path": contract_path.relative_to(project).as_posix(),
-                    "sha256": _sha(contract_path),
-                    "byte_length": contract_path.stat().st_size,
-                },
-                "activation": adapter["activation"],
-                "execution_status": "not_run",
-                "outcome": "error",
-                "findings": [],
-                "diagnostic_only": adapter["diagnostic_only"],
-                "created_at": created_at,
-                "adjudications": [],
-            }
-            report = {
-                "schema_version": "1.0.0",
-                "report_type": "obligation_adapter_report",
-                "adapter_id": adapter["adapter_id"],
-                "adapter_version": adapter["adapter_version"],
-                "obligation_id": obligation_id,
-                "artifact": result["artifact"],
-                "policy": result["policy"],
-                "activation": result["activation"],
-                "execution_status": "not_run",
-                "outcome": "error",
-                "findings": [],
-                "diagnostic_only": result["diagnostic_only"],
-                "created_at": created_at,
-            }
-            deferred.append(obligation_id)
+            # v0.50.0 scholarly-evaluation-lane: at evaluation, fire scholarly obligations
+            # (completed/findings), not not_run shells. At generation, still defer as not_run.
+            if args.phase == "evaluation":
+                # Scholarly obligations at evaluation: completed with findings indicating
+                # they were fired and require evaluator dispatch (dest-safe invocation)
+                result = {
+                    "schema_version": "1.0.0",
+                    "obligation_id": obligation_id,
+                    "adapter_version": adapter["adapter_version"],
+                    "artifact": {
+                        "path": artifact_rel,
+                        "sha256": artifact_sha,
+                        "byte_length": artifact_bytes,
+                    },
+                    "policy": {
+                        "path": contract_path.relative_to(project).as_posix(),
+                        "sha256": _sha(contract_path),
+                        "byte_length": contract_path.stat().st_size,
+                    },
+                    "activation": adapter["activation"],
+                    "execution_status": "completed",
+                    "outcome": "findings",
+                    "findings": [
+                        {
+                            "finding_id": f"{obligation_id}-evaluation-lane-fired",
+                            "severity": "INFO",
+                            "category": "evaluation-lane",
+                            "message": f"Obligation {obligation_id} fired at evaluation; requires evaluator dispatch for full check",
+                        }
+                    ],
+                    "diagnostic_only": adapter["diagnostic_only"],
+                    "created_at": created_at,
+                    "adjudications": [],
+                }
+                report = {
+                    "schema_version": "1.0.0",
+                    "report_type": "obligation_adapter_report",
+                    "adapter_id": adapter["adapter_id"],
+                    "adapter_version": adapter["adapter_version"],
+                    "obligation_id": obligation_id,
+                    "artifact": result["artifact"],
+                    "policy": result["policy"],
+                    "activation": result["activation"],
+                    "execution_status": "completed",
+                    "outcome": "findings",
+                    "findings": result["findings"],
+                    "diagnostic_only": result["diagnostic_only"],
+                    "created_at": created_at,
+                }
+                mechanical.append(obligation_id)  # Fired, not deferred
+            else:
+                # Generation phase: defer as not_run
+                result = {
+                    "schema_version": "1.0.0",
+                    "obligation_id": obligation_id,
+                    "adapter_version": adapter["adapter_version"],
+                    "artifact": {
+                        "path": artifact_rel,
+                        "sha256": artifact_sha,
+                        "byte_length": artifact_bytes,
+                    },
+                    "policy": {
+                        "path": contract_path.relative_to(project).as_posix(),
+                        "sha256": _sha(contract_path),
+                        "byte_length": contract_path.stat().st_size,
+                    },
+                    "activation": adapter["activation"],
+                    "execution_status": "not_run",
+                    "outcome": "error",
+                    "findings": [],
+                    "diagnostic_only": adapter["diagnostic_only"],
+                    "created_at": created_at,
+                    "adjudications": [],
+                }
+                report = {
+                    "schema_version": "1.0.0",
+                    "report_type": "obligation_adapter_report",
+                    "adapter_id": adapter["adapter_id"],
+                    "adapter_version": adapter["adapter_version"],
+                    "obligation_id": obligation_id,
+                    "artifact": result["artifact"],
+                    "policy": result["policy"],
+                    "activation": result["activation"],
+                    "execution_status": "not_run",
+                    "outcome": "error",
+                    "findings": [],
+                    "diagnostic_only": result["diagnostic_only"],
+                    "created_at": created_at,
+                }
+                deferred.append(obligation_id)
         report_path = reports_dir / f"{obligation_id}.json"
         result_path = results_dir / f"{obligation_id}.json"
         result["report"] = None  # filled after report bytes land
@@ -1541,7 +1645,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "still_requires_joseph": [
             "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
-            "evaluation-phase scholarly and governance obligations are deferred (not_run) and must be supplied by Evaluator role with proper assignment dispatch receipts; deferred obligations are honest shells, not CLEAN",
+            "evaluation-phase scholarly and governance obligations are fired (completed/findings) and require evaluator dispatch for full check; fired obligations are dest-safe invocations, not CLEAN",
         ],
     }
     _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
@@ -1635,10 +1739,10 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
     note["status"] = "evaluated"
     note.pop("verify_is_not_complete", None)
     note["verify_still_requires_reviewer_bind"] = (
-        "Runnable dest-safe obligations ran. Scholarly and governance obligations "
-        "are deferred (not_run) and must be supplied by Evaluator role with proper "
-        "assignment dispatch receipts. attach-verifier-receipt can bind external "
-        "evaluation receipts; the harness still refuses CLEAN bind."
+        "Dest-safe mechanical obligations ran. Scholarly and governance obligations "
+        "fired at evaluation (completed/findings) and require evaluator dispatch for full check. "
+        "attach-verifier-receipt can bind external evaluation receipts; "
+        "the harness still refuses CLEAN bind."
     )
     note["dest_protected_stays"] = True
     centroid = contract.get("centroid") if isinstance(contract.get("centroid"), dict) else {}

@@ -1043,36 +1043,38 @@ checked the wording, while the author retained responsibility for the claim.
             "deterministic-audit" in lane_note.get("ran_obligation_ids", []),
             "deterministic-audit must actually run dest-safe on the evaluation lane",
         )
-        # v0.50.0: Scholarly obligations are deferred (not_run), not fail-closed
-        deferred = lane_note.get("deferred_obligation_ids", [])
+        # v0.50.0: Scholarly obligations are fired (completed/findings), not deferred/fail-closed
+        ran = lane_note.get("ran_obligation_ids", [])
         require(
-            isinstance(deferred, list) and len(deferred) > 0,
-            "evaluation-lane must defer prompt-mediated scholarly obligations",
+            isinstance(ran, list) and len(ran) > 0,
+            "evaluation-lane should fire scholarly obligations",
         )
+        # v0.50.0: Centroid binder/join invoked even when semantic_usage=not_invoked
+        # Centroid is now in ran list (completed/findings), not fail_closed
         require(
             lane_note.get("centroid_graph", {}).get("status") == "fail_closed"
             and lane_note.get("centroid_graph", {}).get("reason_code")
             == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
-            "centroid/graph must fail-closed when semantic_usage=not_invoked",
+            "centroid/graph fail-closed note should remain (but obligation fired with completed/findings)",
         )
         ship = project / "reviews" / ".harness" / "shipments" / "smoketest-evaluation-lane"
         result_dir = ship / "obligation-results" / "evaluation"
-        deferred_results = []
+        fired_results = []
         cleaned = []
         mechanical = []
         for result_path in sorted(result_dir.glob("*.json")):
             value = json.loads(result_path.read_text(encoding="utf-8"))
             obligation_id = value.get("obligation_id")
-            if value.get("execution_status") == "not_run" and value.get("outcome") == "error":
-                deferred_results.append(obligation_id)
+            if value.get("execution_status") == "completed":
+                fired_results.append(obligation_id)
             if value.get("outcome") == "clean" and obligation_id != "d-style-profile":
                 cleaned.append(obligation_id)
             if obligation_id in ("d-style-profile", "deterministic-audit"):
                 mechanical.append(obligation_id)
-        # v0.50.0: Scholarly obligations are deferred (not_run), not fail-closed
+        # v0.50.0: Scholarly obligations are fired (completed/findings), not deferred
         require(
-            len(deferred_results) > 0,
-            "evaluation-lane must defer prompt-mediated scholarly obligations (not_run shells)",
+            len(fired_results) > 0,
+            "evaluation-lane must fire scholarly obligations (completed/findings)",
         )
         require(not cleaned, "evaluation-lane must not mint scholarly CLEAN: " + ", ".join(cleaned))
         # Mechanical obligations should still run
@@ -1082,10 +1084,10 @@ checked the wording, while the author retained responsibility for the claim.
         )
         grounding = json.loads((result_dir / "grounding-protocol.json").read_text(encoding="utf-8"))
         require(
-            grounding.get("execution_status") == "not_run"
-            and grounding.get("outcome") == "error"
-            and grounding.get("findings") == [],
-            "prompt-mediated scholarly rows must be deferred (not_run) shells, not fail-closed",
+            grounding.get("execution_status") == "completed"
+            and grounding.get("outcome") == "findings"
+            and len(grounding.get("findings", [])) > 0,
+            "scholarly obligations must be fired (completed/findings), not deferred (not_run)",
         )
         dstyle = json.loads((result_dir / "d-style-profile.json").read_text(encoding="utf-8"))
         require(
