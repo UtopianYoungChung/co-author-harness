@@ -12,6 +12,10 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
                                                         cannot live in package)
   shipment   <governed-root>/research/60_Workbench/<work-id>/
              reviews/.harness/shipments/<shipment-id>/ -> writable (reports only)
+  instrument <governed-root>/research/60_Workbench/<work-id>/
+             reviews/.harness/<scratch>/...            -> writable (tool control
+             plane only: assignment, control-plane, scholarly-evaluations;
+             never manuscript or phase_state)
   protected  anywhere else under a governed root     -> REFUSE
   external   outside every governed root             -> writable (OS temp, test
              sandboxes; not governed space)
@@ -50,6 +54,7 @@ _STAGING_REL = Path("outputs") / "co-author-harness" / "staging"
 _PACKAGE_PROJECT_OUTPUT_REL = Path("outputs") / "co-author-harness"
 _SHIPMENT_PREFIX = tuple(os.path.normcase(p) for p in ("research", "60_Workbench"))
 _SHIPMENT_SUFFIX = tuple(os.path.normcase(p) for p in ("reviews", ".harness", "shipments"))
+_HARNESS_SCRATCH = tuple(os.path.normcase(p) for p in ("reviews", ".harness"))
 
 # Re-pin lane: the exact semantic-register re-pin transition-control artifacts a
 # Planner may write inside one Workbench work-id's reviews/ directory. Nothing
@@ -104,6 +109,29 @@ def _is_research_shipment(child_canon: str, root: Path) -> bool:
             and parts[3:6] == _SHIPMENT_SUFFIX
             and parts[2] not in {"", ".", ".."}
             and parts[6] not in {"", ".", ".."})
+
+
+def _is_harness_instrument_lane(child_canon: str, root: Path) -> bool:
+    """True for tool scratch under one Workbench work-id ``reviews/.harness/``.
+
+    The work-id and at least one child under ``.harness`` are required.
+    ``reviews/.harness`` itself stays protected. Manuscript, ``phase_state``,
+    and other paths outside ``.harness`` stay protected. The plugin remains a
+    tool: this lane is not acceptance, Writer apply, or a governing body.
+    """
+    parts = _work_id_rel_parts(child_canon, root)
+    if parts is None or len(parts) < 6:
+        return False
+    if (
+        parts[:2] != _SHIPMENT_PREFIX
+        or parts[2] in {"", ".", ".."}
+        or parts[3:5] != _HARNESS_SCRATCH
+        or parts[5] in {"", ".", ".."}
+    ):
+        return False
+    if parts[5] == os.path.normcase("shipments"):
+        return False
+    return True
 
 
 def _work_id_rel_parts(child_canon: str, root: Path) -> tuple[str, ...] | None:
@@ -223,6 +251,8 @@ def classify(destination: os.PathLike | str) -> str:
             return "shipment"
         if _is_repin_lane(dest, root):
             return "repin"
+        if _is_harness_instrument_lane(dest, root):
+            return "instrument"
     for root in roots:
         if _is_under(dest, root):
             return "protected"
@@ -259,6 +289,28 @@ def assert_writable(destination: os.PathLike | str, purpose: str = "write") -> s
 def guard_project_root(project_root: os.PathLike | str) -> str:
     """Writer entry-point guard: a mutable project root must be writable."""
     return assert_writable(project_root, purpose="project-root mutation")
+
+
+def guard_instrument_lane(project_root: os.PathLike | str) -> str:
+    """Permit tool scratch under a live work-id without unlocking the package.
+
+    Tries the work-id root first (staging/package/external). If that root is
+    DEST-PROTECTED, requires the dest-legal ``reviews/.harness/assignment/ready``
+    lane. Manuscript and ``phase_state`` stay protected.
+    """
+    try:
+        return guard_project_root(project_root)
+    except DestinationRefused as exc:
+        if exc.code != DEST_PROTECTED:
+            raise
+        dest = (
+            Path(project_root)
+            / "reviews"
+            / ".harness"
+            / "assignment"
+            / "ready"
+        )
+        return assert_writable(dest, purpose="assignment-control-plane")
 
 
 def guard_repin_project_root(project_root: os.PathLike | str) -> str:

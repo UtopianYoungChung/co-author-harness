@@ -195,7 +195,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "c3c0040e6c6a1d3205ff090a2c3d9cddc429c8684010d71cea5ce61ec2512932"
+      "sha256": "603d8018e8e2b438d3b5dc1fbd467d506805682b745fd427aeafb7be245273b8"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",
@@ -268,7 +268,6 @@
       "class": "guarded",
       "regression": "scripts/shipment_manifest_smoketest.py (refusal outside the lane; ungoverned fail-closed)"
     },
-
     "scripts/worktree_paths.py": {
       "class": "test_only",
       "justification": "sandbox-base helper for hermetic smoketest clones (sibling of the primary worktree); production writers never route destinations through it",

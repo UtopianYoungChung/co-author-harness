@@ -15,7 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from destination_capability import guard_project_root
+from destination_capability import (
+    DestinationRefused,
+    assert_writable,
+    guard_instrument_lane,
+)
 
 
 STATE_NAMES = ("ready", "reserved", "consumed", "invalidated")
@@ -415,7 +419,7 @@ def _issue_dispatch_kernel_authorization(
     stable prefix containing its reservation transition.
     """
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     root = _assignment_root(project)
     lock_path = root / "claims" / "transaction.lock"
     lock = _load_record(lock_path, "APG-DISPATCH-CLAIM-AUTHORITY")
@@ -707,7 +711,7 @@ def reserve_receipt(
     requested_paths: list[str],
 ) -> tuple[dict[str, Any], Path]:
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     # Read-only refusal preflight: invalid or missing caller input must not
     # create control-plane/assignment directories merely to discover that no
     # transaction can begin. Repeat under the authority barrier below to bind
@@ -960,6 +964,10 @@ def _prepare_journal(
 
 def _publish_one(project: Path, row: dict[str, Any]) -> None:
     target = _resolved_inside(project, _safe_relative(row["target_path"]))
+    try:
+        assert_writable(target, purpose="assignment-publish")
+    except DestinationRefused as exc:
+        raise ReceiptTransactionError(exc.code, str(exc)) from exc
     current = _target_snapshot(target)
     if current["exists"] and current["sha256"] == row["desired_sha256"]:
         return
@@ -1015,7 +1023,7 @@ def commit_receipt(
     fail_after_mutation_append: bool = False,
 ) -> tuple[Path, Path]:
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     with _transaction_claim(project):
         reserved = _require_state_path(project, receipt, "reserved")
         record = _verify_live(project, reserved)
@@ -1116,7 +1124,7 @@ def commit_receipt(
 
 def invalidate_receipt(project: Path, receipt: Path) -> Path:
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     with _transaction_claim(project):
         supplied = receipt.resolve()
         candidates = {

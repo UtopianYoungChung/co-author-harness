@@ -66,7 +66,7 @@ Harness may write:
 - `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`
 - `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/` (scratch receipts only; never acceptance)
 
-Harness must refuse a direct write of manuscript bytes onto `research/60_Workbench/<work-id>/` (`DEST-PROTECTED`).
+Harness must refuse a direct write of manuscript bytes onto `research/60_Workbench/<work-id>/` (`DEST-PROTECTED`). Tool scratch under that work-id's `reviews/.harness/` (assignment control-plane, shipments, control-plane lock) is dest-legal instrument space. The live package is a consumer, not a kill switch for the tool, and not a governing body for other work-ids.
 
 Writer is the apply step (exact path, exact hash). Evaluator certifies shipment bytes. If Writer edits on apply, that is a new draft.
 

@@ -385,7 +385,7 @@
       "id": "assignment-process-gate",
       "path": "scripts/assignment_process_gate.py",
       "revision_kind": "sha256",
-      "sha256": "b5dde7aa5ce0faa46d1dd0f6b07d90e0235ba1f1064c69853a708b30ab7d74f5",
+      "sha256": "165138db986d6061bcf4d4d967823b6c98e539c724375d54d10bb6e37168886c",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -403,7 +403,7 @@
       "id": "assignment-receipt-transaction",
       "path": "scripts/assignment_receipt_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "cbf912018f6005c6447261003295ae1a8c320eb093a841f8956908d8a34e03ca",
+      "sha256": "bc230b08a59e3433cc72672753dbf8aef27e8a6b95593874db942116487b6b64",
       "migration_ids": []
     },
     {
@@ -714,7 +714,7 @@
       "id": "control-plane-transition",
       "path": "scripts/control_plane_transition.py",
       "revision_kind": "sha256",
-      "sha256": "babe350bc47766bd6220981dcfe6a51915d5893e279df81b42e4a2cf21f64941",
+      "sha256": "7ea8e72b9ddedcc778268d6f0685b055a36a9e386ecb269b5c2e4e442c9a4031",
       "migration_ids": []
     },
     {
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "c35ae7ea669a57d1faab5b099906839ec870f15cf9c87f2bb5fc23e87763ca21",
+      "sha256": "123440447efe86598c831dba5c78842c03d7ed04a7abb47f4e4be616b44ffd75",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

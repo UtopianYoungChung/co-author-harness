@@ -213,14 +213,14 @@ def _guard_issuance(
         guard = (
             destinations.guard_repin_project_root
             if allow_repin_container
-            else destinations.guard_project_root
+            else destinations.guard_instrument_lane
         )
         kind = guard(project)
     except destinations.DestinationRefused as exc:
         raise ControlPlaneRefusal(
             "CPT-DESTINATION-PROTECTED", f"{exc.code}: {exc}"
         ) from exc
-    allowed = {"package", "staging", "shipment", "external"}
+    allowed = {"package", "staging", "shipment", "external", "instrument"}
     if allow_repin_container:
         allowed.add("repin_container")
     if kind not in allowed:

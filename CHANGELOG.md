@@ -32,6 +32,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Scholarly-evaluation-lane repair (2026-08-21).** Undo the c84b430 dest-safe completed/INFO scholarly stamp. Evaluation-lane runs mechanical dest-safe preflight only (`d-style-profile`, `deterministic-audit`). Scholarly rows fail closed with a blocking MAJOR finding (`EVALUATOR-FIRE-REQUIRED`: Evaluator must fire the skill on these bytes). Evaluate `verify` refuses dest-safe INFO/ADVISORY impersonation stamps and refuses completion without Evaluator `assignment_dispatch` receipts and `scripts/scholarly_evaluation.py` C6 (claim, derivation, warrant, citation). Generation may still defer scholarly rows as honest `not_run`. Public coordinators stay user-invocable; their fire tables are required, not decorative. This is not a full paper machine, not CLEAN, and not a host-sync claim. DEST-PROTECTED, SK-32 CLOSED, Writer-apply-only, and honest graph fail-closed remain.
 
+**Instrument independence (2026-08-21).** The harness is a tool, not a governing body. A live work-id root stays `DEST-PROTECTED` (manuscript, `phase_state`, acceptance). Tool scratch under `reviews/.harness/` (assignment ready/reserved/consumed, control-plane lock, scholarly-evaluations, shipments) is dest-legal `instrument` per work-id. Assignment gate and receipt transactions no longer require the whole live package to be writable. Two work-ids stay isolated. Package identity does not depend on any one paper. Manuscript publish onto the live workbench still refuses. Writer apply and Joseph R-plane unchanged.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure

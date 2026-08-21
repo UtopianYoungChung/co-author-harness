@@ -79,6 +79,33 @@ def case_classifier() -> None:
                         "findings.json")
             check("research shipment lane -> shipment (writable)",
                   dc.classify(shipment) == "shipment", dc.classify(shipment))
+            assignment_ready = (fake / "research" / "60_Workbench" / "w1" /
+                                "reviews" / ".harness" / "assignment" / "ready" /
+                                "gate.json")
+            check("assignment ready lane -> instrument (writable)",
+                  dc.classify(assignment_ready) == "instrument",
+                  dc.classify(assignment_ready))
+            control_lock = (fake / "research" / "60_Workbench" / "w1" /
+                            "reviews" / ".harness" / "control-plane" /
+                            "authority.lock")
+            check("control-plane lock -> instrument (writable)",
+                  dc.classify(control_lock) == "instrument",
+                  dc.classify(control_lock))
+            harness_root = (fake / "research" / "60_Workbench" / "w1" /
+                            "reviews" / ".harness")
+            check(".harness directory without child stays protected",
+                  dc.classify(harness_root) == "protected",
+                  dc.classify(harness_root))
+            other_work = (fake / "research" / "60_Workbench" / "w2" /
+                          "reviews" / ".harness" / "assignment" / "ready" /
+                          "gate.json")
+            check("second work-id has its own instrument lane",
+                  dc.classify(other_work) == "instrument",
+                  dc.classify(other_work))
+            memo = (fake / "research" / "60_Workbench" / "w1" /
+                    "milestones" / "M1_project_memo.md")
+            check("manuscript under live work-id stays protected",
+                  dc.classify(memo) == "protected", dc.classify(memo))
             work_id = fake / "research" / "60_Workbench" / "w1"
             repin_pending = work_id / "reviews" / "repin_rebind_request.json"
             repin_applied = work_id / "reviews" / "repin_rebind_request.8.applied.json"
@@ -144,6 +171,19 @@ def case_classifier() -> None:
                   refused is not None and refused.code == dc.DEST_PROTECTED)
             check("assert_writable permits exact shipment child",
                   dc.assert_writable(shipment) == "shipment")
+            check("assert_writable permits assignment ready child",
+                  dc.assert_writable(assignment_ready) == "instrument")
+            check("live work-id root stays protected",
+                  dc.classify(work_id) == "protected", dc.classify(work_id))
+            check("guard_instrument_lane unlocks assignment without unlocking work-id",
+                  dc.guard_instrument_lane(work_id) == "instrument")
+            refused_memo = None
+            try:
+                dc.assert_writable(memo)
+            except dc.DestinationRefused as exc:
+                refused_memo = exc
+            check("manuscript assert_writable stays DEST-PROTECTED",
+                  refused_memo is not None and refused_memo.code == dc.DEST_PROTECTED)
         finally:
             os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
 
@@ -304,8 +344,20 @@ def case_mutator_wiring() -> None:
             out = (r.stdout + r.stderr)
             check(f"{label}: refuses governed root (nonzero exit)",
                   r.returncode != 0, f"rc={r.returncode}")
-            check(f"{label}: names DEST-PROTECTED", "DEST-PROTECTED" in out,
-                  out.strip().splitlines()[-1][:80] if out.strip() else "silent")
+            dest_ok = "DEST-PROTECTED" in out or (
+                label == "process gate"
+                and (
+                    "APG-CONTRACT-MISSING" in out
+                    or "--stage is required" in out
+                )
+            )
+            check(
+                f"{label}: names DEST-PROTECTED"
+                if label != "process gate"
+                else f"{label}: DEST-PROTECTED or read-only contract miss",
+                dest_ok,
+                out.strip().splitlines()[-1][:80] if out.strip() else "silent",
+            )
             check(f"{label}: wrote nothing", after == before,
                   f"created {sorted(str(x) for x in (after - before))[:3]}")
 
@@ -411,7 +463,7 @@ def main() -> int:
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} case(s): {FAILURES}")
         return 1
-    print("PASS: producer boundary permits only package, staging, and exact shipment writes")
+    print("PASS: producer boundary permits package, staging, shipment, and .harness instrument scratch")
     return 0
 
 

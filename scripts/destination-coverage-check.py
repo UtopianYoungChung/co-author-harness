@@ -51,7 +51,7 @@ WRITE_PATTERN = re.compile(
     r"|publish_committed\(|_atomic_json\("
 )
 GUARD_PATTERN = re.compile(
-    r"guard_project_root\(|guard_repin_project_root\(|assert_writable\("
+    r"guard_project_root\(|guard_repin_project_root\(|guard_instrument_lane\(|assert_writable\("
 )
 CLASSES = {"guarded", "package_confined", "test_only", "excluded"}
 
