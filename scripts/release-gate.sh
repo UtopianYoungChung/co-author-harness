@@ -620,10 +620,10 @@ if [[ -f "$PLUGIN_ROOT/scripts/audit/audit_citations.py" ]]; then
     echo ""
 fi
 
-# --- Phase 0.60d3: MANIFEST.md link + CLAUDE.md preservation (v0.15.0-pre PR-4b) ---
+# --- Phase 0.60d3: MANIFEST.md link + references/AGENTS.md preservation (v0.15.0-pre PR-4b) ---
 
 if [[ -f "$PLUGIN_ROOT/scripts/manifest_links_check.py" ]]; then
-    echo "MANIFEST.md link + CLAUDE.md preservation (scripts/manifest_links_check.py)"
+    echo "MANIFEST.md link + references/AGENTS.md preservation (scripts/manifest_links_check.py)"
     if ! python3 "$PLUGIN_ROOT/scripts/manifest_links_check.py"; then
         echo "  [BLOCKER] manifest_links_check failed"
         BLOCKERS=$((BLOCKERS + 1))
@@ -638,45 +638,8 @@ else
     echo ""
 fi
 
-# The immutable baseline permits known debt, but any policy/encoder drift or
-# new/growing debt is a release blocker. Existing non-growing breaches remain
-# visible as warnings until the ratchet retires them.
-if [[ -f "$PLUGIN_ROOT/scripts/token_budget_check.py" ]]; then
-    echo "Token-budget debt ratchet (tiktoken 0.12.0 / cl100k_base)"
-    TOKEN_BUDGET_REPORT="$PRODUCT_OUTPUT_DIR/token_budget_report.json"
-    set +e
-    python3 "$PLUGIN_ROOT/scripts/token_budget_check.py" --quiet \
-        --out "$TOKEN_BUDGET_REPORT"
-    TOKEN_BUDGET_RC=$?
-    set -e
-    if (( TOKEN_BUDGET_RC != 0 )); then
-        echo "  [BLOCKER] token-budget ratchet refused the tree (exit $TOKEN_BUDGET_RC)"
-        BLOCKERS=$((BLOCKERS + 1))
-    else
-        BREACH_COUNT=$(python3 - "$TOKEN_BUDGET_REPORT" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-try:
-    data = json.loads(path.read_text(encoding="utf-8"))
-except Exception:
-    print("unknown")
-else:
-    print(len(data.get("breaches", [])))
-PY
-)
-        if [[ "$BREACH_COUNT" == "0" ]]; then
-            echo "  [OK]      token-budget measurement complete; no breaches"
-        else
-            echo "  [WARN]    token-budget measurement found $BREACH_COUNT budget breach(es)"
-            WARNINGS=$((WARNINGS + 1))
-        fi
-        echo "            report: $TOKEN_BUDGET_REPORT"
-    fi
-    echo ""
-fi
+# Token-budget debt ratchet retired. `scripts/token_budget_check.py` is
+# removed; manuscript context management remains in TOKEN_BUDGET_PROTOCOL.md.
 
 # --- Phase 0.61: output economy guard + smoketest (v0.14.0) ---------------
 

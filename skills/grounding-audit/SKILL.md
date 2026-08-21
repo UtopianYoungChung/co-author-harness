@@ -22,9 +22,9 @@ You are running a standalone grounding-integrity audit on review artifacts, revi
 
 1. **Read the artifact** the user specifies (or a review/revision log the user points at). Read the full file in every case.
 
-2. **Run every grounding rule across eight categories.** The category specs — what to check, how to verify, the severity levels — are in [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) under the **Grounding Audit** section.
+2. **Run every grounding rule across eight categories.** The category specs — what to check, how to verify, the severity levels — are in [`references/GROUNDING_PROTOCOL.md`](../../references/GROUNDING_PROTOCOL.md) under the **Grounding Audit** section.
 
-   **MANDATORY — READ ENTIRE FILE.** Before producing findings, you MUST read [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) completely from start to finish. That file carries the eight category rubrics (Citation audit / Metric audit / Path audit / Rule-citation audit / Gap-fill audit / Marker audit / Advisor-sourced claims / Graph-sourced claims), each with its verification procedure and severity table. **NEVER set any range limits when reading this file.** The rule-to-category mapping (Rule 1 → Category 4, Rule 2 → Category 2, Rule 3 → Category 3, Rule 4 → Category 1, Rule 5 → Category 6, Rule 6 → Category 5, Rule 7a → Category 7, etc.) is load-bearing — do not approximate.
+   **MANDATORY — READ ENTIRE FILE.** Before producing findings, you MUST read [`references/GROUNDING_PROTOCOL.md`](../../references/GROUNDING_PROTOCOL.md) completely from start to finish. That file carries the eight category rubrics (Citation audit / Metric audit / Path audit / Rule-citation audit / Gap-fill audit / Marker audit / Advisor-sourced claims / Graph-sourced claims), each with its verification procedure and severity table. **NEVER set any range limits when reading this file.** The rule-to-category mapping (Rule 1 → Category 4, Rule 2 → Category 2, Rule 3 → Category 3, Rule 4 → Category 1, Rule 5 → Category 6, Rule 6 → Category 5, Rule 7a → Category 7, etc.) is load-bearing — do not approximate.
 
    If you already read `GROUNDING_PROTOCOL.md` as the prerequisite, re-read the **Grounding Audit** section specifically rather than reloading the full file.
 

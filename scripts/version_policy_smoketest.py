@@ -3,9 +3,11 @@
 
 WRITTEN BEFORE THE IMPLEMENTATION, AND PROVEN TO FAIL AGAINST c945245.
 
-THE CONTRACT (AGENTS.md, clarified 2026-07-17)
+THE CONTRACT (AGENTS.md, version.json authority)
 ----------------------------------------------
-`.claude-plugin/plugin.json` is the SOLE authority for the CURRENT version.
+`version.json` is the SOLE authority for the CURRENT version. Root
+`plugin.json` must mechanically mirror name, version, and license.
+`.claude-plugin/plugin.json` is retired and must not be restored.
 
   * Descriptive prose must not manually mirror it. A README badge and a
     standalone "## Version `X.Y.Z`" literal are duplicated authority: they
@@ -19,9 +21,8 @@ THE CONTRACT (AGENTS.md, clarified 2026-07-17)
     the current version is. Deleting release headings would destroy history to
     satisfy a rule about authority. They are already exempt from the
     trailer-strip invariant (version-check.py `_VERSION_TRAILER_EXEMPT_PATHS`).
-  * manifest <-> marketplace.json parity stays a HARD gate: both files ship
-    inside the .plugin ZIP and the loader rejects the install when they
-    disagree (v0.10.0 RC shipped exactly that skew).
+  * Root `plugin.json` must mechanically mirror `version.json` name, version,
+    and license. Marketplace / `.claude-plugin` identity is retired.
 
 So: the changelog is validated for STRUCTURE and RELEASE CONSISTENCY, but is
 never treated as the authority for the current version.
@@ -44,12 +45,10 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECK = ROOT / "scripts" / "version-check.py"
-MANIFEST_COHERENCE_CHECK = ROOT / "scripts" / "manifest-coherence-check.py"
-SSOT_CHECK = ROOT / "scripts" / "ssot-check.py"
 FAILURES: list[str] = []
 
 BADGE = ("[![Version](https://img.shields.io/badge/Version-{v}-0366D6?logo=semver"
-         "&logoColor=white)](.claude-plugin/plugin.json)")
+         "&logoColor=white)](version.json)")
 
 
 def check(name: str, ok: bool, detail=None) -> None:
@@ -80,44 +79,24 @@ def _w(p: Path, t: str) -> Path:
     return p
 
 
-def fixture(base: Path, *, manifest="0.29.1", marketplace=None,
-            manifest_license="MIT", marketplace_license=None, readme=None,
-            changelog=None, marketplace_source=None) -> Path:
+def fixture(base: Path, *, manifest="0.29.1",
+            manifest_license="MIT", readme=None, changelog=None) -> Path:
     """A minimal plugin root. Defaults are the COMPLIANT shape."""
     root = base / "plug"
-    _w(root / ".claude-plugin/plugin.json",
-       json.dumps({"name": "co-author-harness-claude", "version": manifest,
-                   "description": "d", "keywords": [],
-                   "license": manifest_license}, indent=2) + "\n")
-    _w(root / ".claude-plugin/marketplace.json",
-       json.dumps({"name": "m", "plugins": [
-           {"name": "co-author-harness-claude", "source": (
-                marketplace_source if marketplace_source is not None else {
-                    "source": "url",
-                    "url": "https://github.com/UtopianYoungChung/co-author-harness.git",
-                }),
-             "repository": "https://github.com/UtopianYoungChung/co-author-harness",
-             "description": "d",
-             "version": marketplace if marketplace is not None else manifest,
-            "license": (marketplace_license if marketplace_license is not None
-                        else manifest_license)}]},
-           indent=2) + "\n")
-    _w(root / ".claude-plugin/ssot.yaml", (
-        "facts:\n"
-        "  manifest_version:\n"
-        "    authority:\n"
-        "      method: json_field\n"
-        "      path: .claude-plugin/plugin.json\n"
-        "      field: version\n"
-        "    consumers:\n"
-        "      - path: .claude-plugin/marketplace.json\n"
-        "        method: json_field\n"
-        "        field: plugins[*].version\n"
-    ))
+    identity = json.dumps(
+        {"name": "co-author-harness", "version": manifest, "license": manifest_license},
+        indent=2,
+    ) + "\n"
+    _w(root / "version.json", identity)
+    _w(root / "plugin.json", json.dumps(
+        {"name": "co-author-harness", "version": manifest, "license": manifest_license,
+         "description": "d"},
+        indent=2,
+    ) + "\n")
     _w(root / "README.md", readme if readme is not None else
-       "# co-author-harness\n\nSee `.claude-plugin/plugin.json` for the current "
+       "# co-author-harness\n\nSee `version.json` for the current "
        "version.\n\n## Version\n\nThe authoritative version is recorded in "
-       "`.claude-plugin/plugin.json`.\n")
+       "`version.json`.\n")
     _w(root / "CHANGELOG.md", changelog if changelog is not None else
        "# Changelog\n\n## v0.29.1 — 2026-07-17\n\nnotes\n\n"
        "## v0.29.0 — 2026-07-14\n\nnotes\n")
@@ -133,13 +112,6 @@ def run_check(check_path: Path, root: Path) -> tuple[int, str]:
                         capture_output=True, text=True, encoding="utf-8",
                         errors="replace", timeout=300)
     return r.returncode, r.stdout + r.stderr
-
-
-def rewrite_marketplace(root: Path, mutate) -> None:
-    path = root / ".claude-plugin/marketplace.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    mutate(data)
-    _w(path, json.dumps(data, indent=2) + "\n")
 
 
 # ==========================================================================
@@ -199,100 +171,6 @@ def case_readme_version_literal_is_refused() -> None:
         check("README standalone '## Version `X.Y.Z`' literal is REFUSED",
               rc == 1 and blocked_for(out, "README", "assert"),
               str(blockers(out)[:2]))
-
-
-def case_marketplace_parity_is_a_hard_gate() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td), manifest="0.29.1", marketplace="0.29.0")
-        rc, out = run(root)
-        check("manifest<->marketplace skew is a HARD BLOCKER",
-              rc == 1 and blocked_for(out, "marketplace", "0.29.0"),
-              str(blockers(out)[:2]))
-
-
-def case_marketplace_license_parity_is_a_hard_gate() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td), manifest_license="MIT",
-                       marketplace_license="UNLICENSED")
-        rc, out = run(root)
-        check("manifest<->marketplace license skew is a HARD BLOCKER",
-              rc == 1 and blocked_for(out, "marketplace", "license",
-                                      "UNLICENSED", "MIT"),
-              str(blockers(out)[:2]))
-
-
-def case_codex_root_relative_marketplace_source_is_refused() -> None:
-    """Claude accepts './' here; Codex cannot resolve a root plugin from it."""
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td), marketplace_source="./")
-        rc, out = run(root)
-        check("root-relative marketplace source is REFUSED for Codex compatibility",
-              rc == 1 and blocked_for(out, "marketplace", "Codex", "root"),
-              str(blockers(out)[:2]))
-
-
-def case_remote_url_source_remains_a_parity_consumer() -> None:
-    """Changing source shape must not make version parity silently disappear."""
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td), manifest="0.29.1", marketplace="0.29.0")
-        rc, out = run(root)
-        check("remote URL self-entry remains under manifest version parity",
-              rc == 1 and blocked_for(out, "marketplace", "0.29.0"),
-              str(blockers(out)[:2]))
-
-
-def case_remote_url_source_must_match_repository() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td), marketplace_source={
-            "source": "url", "url": "https://github.com/example/wrong.git"})
-        rc, out = run(root)
-        check("remote URL source must match repository metadata",
-              rc == 1 and blocked_for(out, "different repositories"),
-              str(blockers(out)[:2]))
-
-
-def case_manifest_entry_cardinality_fails_closed() -> None:
-    variants = {
-        "missing": lambda data: data.__setitem__("plugins", []),
-        "renamed": lambda data: data["plugins"][0].__setitem__("name", "other-plugin"),
-        "duplicate": lambda data: data["plugins"].append(dict(data["plugins"][0])),
-    }
-    checks = (CHECK, MANIFEST_COHERENCE_CHECK, SSOT_CHECK)
-    for variant, mutate in variants.items():
-        with tempfile.TemporaryDirectory() as td:
-            root = fixture(Path(td))
-            rewrite_marketplace(root, mutate)
-            for check_path in checks:
-                rc, out = run_check(check_path, root)
-                check(
-                    f"{check_path.name} refuses {variant} manifest entry",
-                    rc == 1 and "exactly one" in out.lower(),
-                    f"rc={rc} {out[-180:]}",
-                )
-
-
-def case_remote_url_source_requires_repository_and_no_path() -> None:
-    variants = {
-        "missing repository": lambda data: data["plugins"][0].pop("repository"),
-        "path-bearing URL": lambda data: data["plugins"][0]["source"].__setitem__(
-            "path", "./"
-        ),
-        "unsupported source type": lambda data: data["plugins"][0].__setitem__(
-            "source", {
-                "source": "git-subdir",
-                "url": "https://github.com/UtopianYoungChung/co-author-harness.git",
-                "path": ".",
-            }
-        ),
-    }
-    for variant, mutate in variants.items():
-        with tempfile.TemporaryDirectory() as td:
-            root = fixture(Path(td))
-            rewrite_marketplace(root, mutate)
-            rc, out = run(root)
-            check(f"marketplace source refuses {variant}",
-                  rc == 1 and blocked_for(out, "INVALID_SOURCE_FORMAT"),
-                  str(blockers(out)[:2]))
 
 
 def case_changelog_headings_are_permitted() -> None:
@@ -451,7 +329,7 @@ def case_legitimate_readme_prose_is_not_overmatched() -> None:
     for label, body in (
         ("manifest-link prose (no numeric mirror)",
          "# X\n\n## Version\n\nThe current version is recorded in "
-         "[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), which is "
+         "[`version.json`](version.json), which is "
          "its sole authority.\n"),
         ("release-history table",
          "# X\n\n## Version\n\n| Release | Date | Notes |\n|---|---|---|\n"
@@ -523,13 +401,6 @@ def main() -> int:
                case_readme_badge_is_refused,
                case_readme_badge_refused_even_when_matching,
                case_readme_version_literal_is_refused,
-               case_marketplace_parity_is_a_hard_gate,
-               case_marketplace_license_parity_is_a_hard_gate,
-               case_codex_root_relative_marketplace_source_is_refused,
-               case_remote_url_source_remains_a_parity_consumer,
-               case_remote_url_source_must_match_repository,
-               case_manifest_entry_cardinality_fails_closed,
-               case_remote_url_source_requires_repository_and_no_path,
                case_changelog_headings_are_permitted,
                case_changelog_is_not_current_version_authority,
                case_changelog_structure_is_still_validated,

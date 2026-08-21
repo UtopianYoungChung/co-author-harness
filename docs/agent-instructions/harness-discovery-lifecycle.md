@@ -10,7 +10,7 @@ Research projects live under the portfolio root (`Ph.D. Research/` in this works
 
 | Marker | Meaning |
 |--------|---------|
-| `CLAUDE.md` in the project folder | Project-specific configuration exists |
+| `AGENTS.md` in the project folder | Project-specific configuration exists |
 | `manuscript/` directory | A draft is in progress |
 | `reviews/` directory | A review round has been run |
 | `research_notes/` directory | Project memory exists |
@@ -56,7 +56,7 @@ When the user asks to start a new research project, the agent reads `references/
 
 ```
 <project-name>/
-├── CLAUDE.md                     # Project-specific config
+├── AGENTS.md                     # Project-specific config
 ├── manuscript/
 │   ├── main.md (or main.tex)     # The manuscript
 │   ├── outline.md                # Structural outline (M3)

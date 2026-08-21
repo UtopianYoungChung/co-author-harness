@@ -76,7 +76,12 @@ this coordinator. With **no project at all**, fail closed into the canonical
 bootstrap instruction rather than writing prose anywhere:
 `python scripts/full_run_contract_check.py authorize --project-root <p>` is
 the mechanical check, and a new native root is created only by
-`python scripts/native_project_bootstrap.py ...`.
+`python scripts/native_project_bootstrap.py ...`, which must install
+reader-profile binding v2. Resolve the live
+`milestone_framework.policy_bindings.reader_accessibility` binding
+(path, sha256, `semantic_usage`) before any centroid or reader-conditioned
+dispatch; do not treat the phrase "authoritative reader binding" as the
+binding.
 
 **Handoff policy.** New native bootstrap creates contract `1.1.0` with
 explicit `derived` policy unless `--handoff-policy audited` is requested.

@@ -14,7 +14,7 @@
 
 1. **Submission-bound work:** final draft for journal or conference submission; course paper marked **final**; thesis chapter sent to committee or deposited.
 2. **Major revision:** resubmission after reviews, or any rewrite that restructures argument, claims, or contributions.
-3. **Response letter + revised manuscript:** cross-check rebuttal text against the same sources (especially `research_paper_writing_guidelines.md` §8 and `CLAUDE.md`).
+3. **Response letter + revised manuscript:** cross-check rebuttal text against the same sources (especially `research_paper_writing_guidelines.md` §8 and `AGENTS.md`).
 4. **Maintaining this master:** whenever `MASTER_research_and_paper_guidelines.md` is edited, reconcile changes against the seven sources so the traceability matrix stays true.
 
 ### Prescribed order (do not skip files)
@@ -29,7 +29,7 @@ Work **top to bottom** within each file (every section, checklist item, and tabl
 | 3 | `baird_2021_writing_guidelines.md` | All sections applied where relevant to paper type (theory/empirical steps, lenses, tips table) |
 | 4 | `bacon_2009_well_crafted_sentence_guidelines.md` | All chapters §1–11 + **§10 checklist** executed on the prose (or N/A with reason) |
 | 5 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | §§1–10 (including **§10** table) applied to narrative/opening/climax |
-| 6 | `CLAUDE.md` | All bullets under Academic Writing Rules and project notes relevant to your task |
+| 6 | `AGENTS.md` | All bullets under Academic Writing Rules and project notes relevant to your task |
 | 7 | `project_writing_style_checklist.md` | **Part 0** (stage) + **Parts 1–4**: every applicable checkbox for your **P-stage** and paper type |
 
 **Note:** Step 7 is intentionally **last** so the integrated checklist catches overlaps from Sexton, Bacon, and Baird in one pass.
@@ -80,7 +80,7 @@ Use **Find in Files** / editor search on the **package folder** for keywords (e.
 | 4 | `general_research_project_guidelines.md` | Five-milestone project arc |
 | 5 | `project_writing_style_checklist.md` | P0/P1/P2 stages; **full** integrated checklist (Sexton+Bacon+Baird) |
 | 6 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Narrative arc, show/tell, cause–effect, openings |
-| 7 | `CLAUDE.md` | Condensed project rules (paths inside that file may point outside this folder; **substantive rules are inlined below**) |
+| 7 | `AGENTS.md` | Condensed project rules (paths inside that file may point outside this folder; **substantive rules are inlined below**) |
 | 8 | `SAFEGUARD_LAYER.md` | Post-review integrity checks: regression, drift, consistency, contradictions, traceability, voice |
 | 9 | `GROUNDING_PROTOCOL.md` | **Binding** no-hallucination rules; cannot be overridden; enforced by Reflector grounding audit every round |
 
@@ -95,11 +95,11 @@ Use this table to **follow** each block of the master back to the **section head
 | Master section | Primary source file(s) | Source location (heading / topic) |
 |----------------|------------------------|-------------------------------------|
 | **A.1** Reader, red thread, hourglass | `baird_2021_writing_guidelines.md`, `research_paper_writing_guidelines.md`, `project_writing_style_checklist.md` | Baird §1; Playbook §5.5; Checklist Part 4 §10 |
-| **A.2** Evidence, integrity loop | `research_paper_writing_guidelines.md`, `CLAUDE.md` | Playbook §6, §9; CLAUDE “Academic Writing Rules” |
+| **A.2** Evidence, integrity loop | `research_paper_writing_guidelines.md`, `AGENTS.md` | Playbook §6, §9; AGENTS “Academic Writing Rules” |
 | **A.2** Ethics / reporting stub | *General research norms; align to venue/IRB* | Not duplicated in a single package file—follow CfP, publisher, IRB |
 | **A.3** Tone, voice, diction | `research_paper_writing_guidelines.md`, `Sexton_Fiction_to_Academic_Writing_Guide.md`, `project_writing_style_checklist.md` | Playbook §1; Sexton §5–6; Checklist Part 3 §9 |
 | **A.4** Humanness (concept + voice) | *In-master addendum (2026-04 revision)*; Haslam, Loughnan & Holland (2013); Baumer et al. (2024) | A.4.1 substantive concept; A.4.2 anti-LLM-tic discipline |
-| **B.1–B.2** Claims, hedging, rebuttals | `research_paper_writing_guidelines.md`, `CLAUDE.md` | Playbook §2, §8; CLAUDE key principles |
+| **B.1–B.2** Claims, hedging, rebuttals | `research_paper_writing_guidelines.md`, `AGENTS.md` | Playbook §2, §8; AGENTS key principles |
 | **B.3** Scope, RQs | `research_paper_writing_guidelines.md`, `project_writing_style_checklist.md` | Playbook §2.7; Checklist Part 0, Part 1 §1 |
 | **B.4** Theory, constructs | `research_paper_writing_guidelines.md`, `baird_2021_writing_guidelines.md`, `project_writing_style_checklist.md` | Playbook §3; Baird §6 Step 6 / §5 table; Checklist Part 4 §§11–15 |
 | **B.5** Audience, vocabulary | `research_paper_writing_guidelines.md` | Playbook §4 |
@@ -422,7 +422,7 @@ Use this table to certify that **every component source** was worked through bef
 | 3 | `baird_2021_writing_guidelines.md` | | |
 | 4 | `bacon_2009_well_crafted_sentence_guidelines.md` | | |
 | 5 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | | |
-| 6 | `CLAUDE.md` | | |
+| 6 | `AGENTS.md` | | |
 | 7 | `project_writing_style_checklist.md` (Parts 0–4) | | |
 | 8.5 | `SAFEGUARD_LAYER.md` (Checks 1–6) | | |
 

@@ -62,6 +62,14 @@ python scripts/analysis/fixture_infrastructure_check.py
 python scripts/analysis/fixture_runner.py --no-write
 ```
 
+Workspace identity/governance (from the workspace root `B:\Agents`, host-side):
+
+```bash
+python governance/tools/workspace_preflight.py
+```
+
+That script is the canonical preflight. Do not copy or reimplement its Master Governance resolver inside this package.
+
 For ordinary scoped edits, use the focused validator and direct smoketest in
 [`docs/agent-instructions/change-to-check-map.md`](docs/agent-instructions/change-to-check-map.md).
 A changed area may run `python scripts/analysis/fixture_runner.py --suite <REGISTRY-key> --no-write`.
@@ -113,7 +121,7 @@ research. Mechanical authority and stable diagnostics live in
 
 ## Precedence (summary)
 
-Order: **user → venue/advisor → project `AGENTS.md` / `directives.md` → package files (`references/`, `agents/`, `skills/`) → package `references/CLAUDE.md` → this file.**  
+Order: **user → venue/advisor → project `AGENTS.md` / `directives.md` → package files (`references/`, `agents/`, `skills/`) → package `references/AGENTS.md` → this file.**  
 `references/GROUNDING_PROTOCOL.md` is **absolute** (no fabrication, no uncited numbers, no unverified citations).  
 Full ladder and cross-project rules: [docs/agent-instructions/harness-governance.md](docs/agent-instructions/harness-governance.md).
 
@@ -133,6 +141,6 @@ Full ladder and cross-project rules: [docs/agent-instructions/harness-governance
 | What this file is not + canonical file index          | [harness-reference-index.md](docs/agent-instructions/harness-reference-index.md)         |
 
 
-**Package invocation rules** inside the bundle: `references/CLAUDE.md`.
+**Package invocation rules** inside the bundle: `references/AGENTS.md`. There is no package `CLAUDE.md`; general agent instructions live in `AGENTS.md`.
 
 ## Imported Claude Cowork project instructions

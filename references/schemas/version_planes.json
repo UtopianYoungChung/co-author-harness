@@ -1,7 +1,7 @@
 {
   "schema": "version-planes/v1",
   "mode": "snapshot",
-  "snapshot_date": "2026-07-07",
+  "snapshot_date": "2026-08-20",
   "notes": "Snapshot-mode registry (plan 2026-07-06 §4, [AR-4/AR-5]). Records the OBSERVED per-file version assertions for each non-package plane, including known forks. scripts/version-planes-check.py verifies (1) every quoted assertion is still present in its file — silent drift is a blocker; (2) no NEW distinct value appears for a plane inside registered files — fork-widening is a blocker. Harmonization to a single current value per plane is a deferred cycle (plan §9). The package plane delegates to version-check.py; no static value is stored here.",
   "planes": {
     "package": {
@@ -92,36 +92,36 @@
       "authority": "skills/run-draft/SKILL.md",
       "known_fork": true,
       "widening_patterns": [
-        "v(\\d+\\.\\d+\\.\\d+-pre) stage × profile vocabulary",
-        "v(\\d+\\.\\d+\\.\\d+-pre) PR-4c"
+        "v(\\d+\\.\\d+\\.\\d+-pre) PR-4c",
+        "version: (\\d+\\.\\d+\\.\\d+)"
       ],
       "allowed_values": [
-        "0.15.0-pre",
-        "0.15.1"
+        "0.50.0",
+        "0.15.0-pre"
       ],
       "assertions": [
         {
           "file": "skills/run-draft/SKILL.md",
-          "assertion": "v0.15.0-pre stage × profile vocabulary",
-          "value": "0.15.0-pre"
+          "assertion": "version: 0.50.0",
+          "value": "0.50.0"
         },
         {
           "file": "skills/run-finalize/SKILL.md",
-          "assertion": "v0.15.0-pre stage × profile vocabulary",
-          "value": "0.15.0-pre"
+          "assertion": "version: 0.50.0",
+          "value": "0.50.0"
+        },
+        {
+          "file": "skills/run-iterate/SKILL.md",
+          "assertion": "version: 0.50.0",
+          "value": "0.50.0"
         },
         {
           "file": "agents/reflector.md",
           "assertion": "v0.15.0-pre PR-4c",
           "value": "0.15.0-pre"
-        },
-        {
-          "file": "skills/run-iterate/SKILL.md",
-          "assertion": "v0.15.x stage x profile vocabulary",
-          "value": "0.15.1"
         }
       ],
-      "fork_note": "run-draft/run-finalize assert v0.15.0-pre; run-iterate and the legacy routers moved to 0.15.1 (frontmatter version + 'v0.15.x' prose). Recorded 2026-07-07 coherence audit; harmonization deferred with the ladder sweep."
+      "fork_note": "Public coordinators declare frontmatter 0.50.0. Reflector router still records the v0.15.0-pre PR-4c split. Harmonization of the router stamp is deferred."
     },
     "section_state_field_count": {
       "authority": "references/phase_state_schema.md",

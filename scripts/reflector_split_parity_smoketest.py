@@ -10,8 +10,9 @@ Asserts:
       and explicitly identifies itself as a router.
   (4) No Planner / Evaluator / Generator file was modified — the PR-4c
       scope was strictly the Reflector.
-  (5) Token-budget reduction landed: each split file is comfortably under
-      the original 20,113-token measurement, and the router is small.
+  (5) Split-size reduction landed: each split file is under the original
+      20,113-token measurement, and the router is small. Does not invoke
+      the retired token_budget_check.
 """
 
 from __future__ import annotations
@@ -140,7 +141,17 @@ def test_public_skill_uses_plugin_relative_paths_and_preserves_output_ownership(
     assert r"B:\Agents\Paper\Package" not in text, (
         "run-reflection must not name the retired package path"
     )
-    assert "${CLAUDE_PLUGIN_ROOT}" in text
+    assert "${CLAUDE_PLUGIN_ROOT}" not in text
+    package_root = HARNESS.resolve()
+    for name, path in SPLIT_FILES.items():
+        resolved = path.resolve()
+        assert resolved.is_file(), f"missing reflector member under package root: {name}"
+        assert package_root in resolved.parents, (
+            f"{name} resolves outside package root: {resolved}"
+        )
+        assert f"agents/{path.name}" in text, (
+            f"run-reflection must name agents/{path.name} under the package root"
+        )
     assert "F7 evidence packets and F8 final reports are read-only inputs" in text
     assert "reviews/.harness/evidence/<event_id>.json" not in text
     assert "_snippets/output-profile.md" not in text
@@ -173,13 +184,17 @@ def test_token_budget_reduction_landed() -> None:
     original. Per-file ceilings are deliberately loose (closeout is full Ph4
     spec; probe is the lightweight subset); the smoketest pins only that
     each half is under the original total, and that the router is small."""
-    from token_budget_check import count_tokens, _get_encoder
-    enc = _get_encoder()
+    import tiktoken
 
-    probe_tokens = count_tokens(SPLIT_FILES["reflector-probe"], enc)
-    closeout_tokens = count_tokens(SPLIT_FILES["reflector-closeout"], enc)
-    router_tokens = count_tokens(ROUTER, enc)
-    snippet_tokens = count_tokens(SNIPPET, enc)
+    enc = tiktoken.get_encoding("cl100k_base")
+
+    def _count(path: Path) -> int:
+        return len(enc.encode(path.read_text(encoding="utf-8")))
+
+    probe_tokens = _count(SPLIT_FILES["reflector-probe"])
+    closeout_tokens = _count(SPLIT_FILES["reflector-closeout"])
+    router_tokens = _count(ROUTER)
+    snippet_tokens = _count(SNIPPET)
 
     # Acceptance: each split is < the original; router stays thin; snippet
     # stays small. Numbers come from the v0.15.0-pre PR-4d baseline (20,113).

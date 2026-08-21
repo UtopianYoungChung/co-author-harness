@@ -11,10 +11,10 @@ When sources disagree, this hierarchy applies (most authoritative first):
 1. **User's explicit instruction in the current conversation.**
 2. **Venue author guide / call for papers / publisher template.**
 3. **Advisor or instructor instruction.**
-4. **Project-specific CLAUDE.md or `research_notes/directives.md`** — wins within that project over the package's cross-venue rules.
+4. **Project-specific AGENTS.md or `research_notes/directives.md`** — wins within that project over the package's cross-venue rules.
 5. **Package component files** (`references/*.md`, `agents/*.md`, `skills/*/SKILL.md`) — win over any high-level summary until reconciled.
-6. **Package references/CLAUDE.md or equivalent roll-up** — wins over this root file when a package rule is in dispute.
-7. **Harness root `CLAUDE.md`** — wins over default behaviour but loses to everything above.
+6. **Package `references/AGENTS.md` or equivalent roll-up** — wins over this root file when a package rule is in dispute.
+7. **Harness root `AGENTS.md`** — wins over default behaviour but loses to everything above.
 
 This hierarchy is identical to the portfolio-root `Ph.D. Research/CLAUDE.md §5` with one addition: the harness root file explicitly positions itself at level 7.
 

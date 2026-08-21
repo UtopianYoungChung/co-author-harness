@@ -195,7 +195,7 @@ destination blockers.
 ## 3. Who may write what
 
 Restated **by reference**, not re-legislated — the agent files remain
-authoritative: `agents/generator.md` (sole writer of manuscript prose),
+authoritative: `agents/generator.md` (sole writer of academic deliverables within the plugin; stages via `assignment_writer_commit.py`; Writer outside applies),
 `agents/planner.md` (coordinates; writes lifecycle state; never manuscript),
 `agents/evaluator.md` and the Reflector files (read-only for manuscript).
 
@@ -309,7 +309,7 @@ this contract exists to make unsayable.
 | Surface | Points here for |
 |---|---|
 | `AGENTS.md` | whole-lifecycle intent trigger; unbootstrapped fail-closed |
-| `references/CLAUDE.md` | package invocation on prose-producing intent |
+| `references/AGENTS.md` | package invocation on prose-producing intent |
 | `skills/run-draft/SKILL.md`, `skills/run-phase-1/SKILL.md` | run scope + §2 authorization |
 | `skills/run-finalize/SKILL.md`, `skills/run-phase-4/SKILL.md` | §4 terminal gate |
 | `agents/planner.md` | scope declaration + child-dispatch refusal |

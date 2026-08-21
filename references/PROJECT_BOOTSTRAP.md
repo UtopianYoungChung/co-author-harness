@@ -64,7 +64,7 @@ Every research project gets this structure. Files marked `[seed]` are created at
 ```
 <project-name>/
 │
-├── CLAUDE.md                              [seed]   Project-specific configuration
+├── AGENTS.md                              [seed]   Project-specific configuration
 ├── round_program.md                       [seed]   User-authored round control file (see §2.10)
 │
 ├── manuscript/
@@ -107,10 +107,10 @@ Every research project gets this structure. Files marked `[seed]` are created at
 
 ## 2. Seed File Templates
 
-### 2.1 Project CLAUDE.md
+### 2.1 Project AGENTS.md
 
 ```markdown
-# CLAUDE.md — <PROJECT_NAME>
+# AGENTS.md — <PROJECT_NAME>
 
 **Project:** <project-name>
 **Created:** <date>
@@ -127,7 +127,7 @@ This project uses the Research and Academic Paper Writing Package at:
 `.paper-package/` (relative to Research root)
 
 All review, editing, and agent orchestration follows the package rules.
-Read `.paper-package/CLAUDE.md` for invocation rules.
+Read `.paper-package/references/AGENTS.md` for invocation rules.
 Read `.paper-package/AGENT_ORCHESTRATION.md` for the four-agent loop.
 Read `.paper-package/REVIEW_ORCHESTRATION.md` for the review pipeline.
 
@@ -409,7 +409,7 @@ This file records user overrides, advisor instructions, and venue-specific
 constraints that modify how the package rules apply to this project.
 
 Directives here override the package's cross-venue rules within this project
-(per precedence rule 4 in Package CLAUDE.md §4).
+(per precedence rule 4 in Package AGENTS.md §4).
 
 > **On session start.** Before beginning work on this project, read the global style authority `B:\Agents\reference\turabian-author-date-quickref.md` (Turabian Author-Date; see `D-STYLE` in `B:\Agents\AGENTS.md`). In-conversation user instructions and venue/template requirements still take precedence over it.
 
@@ -618,7 +618,7 @@ Both commands must exit 0. A newly created Markdown file must not be added to `a
 
 If the project is assignment-bound, follow §2.5c before the first `/run-draft`: bind the actual assignment source path/hash and package profile pin in `reviews/assignment_contract.json`, derive M1 from the ledger, emit a fresh READY receipt, reserve it with `assignment_dispatch_preflight.py`, then stage and publish only through `assignment_writer_commit.py`. Halt on `APG-CONTRACT-MISSING` or any other blocker. This step creates no acceptance and authorizes only the receipt-bound deliverable. The hashes and explicit JSON contract keep authority and source selection visible to the operator.
 
-### Step 3: Write the project CLAUDE.md
+### Step 3: Write the project AGENTS.md
 
 Instantiate the template in §2.1 with the user's inputs. Record the delegation chain (Research root → Package → Project) explicitly.
 
@@ -633,10 +633,10 @@ Once the skeleton exists, run the Planner in classification mode (see `AGENT_ORC
 **Detection.**
 
 1. Check whether an `LLM wiki/` folder is reachable peer to the Research root (look for `LLM wiki/CLAUDE.md` or `LLM wiki/wiki/sources/`).
-2. If no wiki is reachable, record `wiki_linked: false`, `coupling_e_on_review: false`, and the complete `sk20_not_applicable_*` record below in the project CLAUDE.md (or in the higher-precedence project `research_notes/directives.md`), then skip wiki-key and concept-target registration.
+2. If no wiki is reachable, record `wiki_linked: false`, `coupling_e_on_review: false`, and the complete `sk20_not_applicable_*` record below in the project AGENTS.md (or in the higher-precedence project `research_notes/directives.md`), then skip wiki-key and concept-target registration.
 3. If a wiki is reachable, set `wiki_linked: true` and proceed.
 
-**What to record in project CLAUDE.md.** Add a `## Wiki linkage (Coupling D)` section to the project CLAUDE.md containing:
+**What to record in project AGENTS.md.** Add a `## Wiki linkage (Coupling D)` section to the project AGENTS.md containing:
 
 | Field | Value |
 |---|---|
@@ -653,7 +653,7 @@ Once the skeleton exists, run the Planner in classification mode (see `AGENT_ORC
 | `concept_targets` | Optional list of wiki concept pages that the paper will plausibly ground at M5, e.g. `[agency, delegation, governance]`. Helps the M5 ingestion agent choose wikilink targets. |
 | `wiki_first_resources` | `true` (default when `wiki_linked: true`) / `false` | When `true`, Planner and Generator follow `EXTERNAL_VERIFIERS.md` §1.5: consult peer `LLM wiki/` (sources, concepts, syntheses, `GRAPH_REPORT.md`, optional `/llm-wiki-query`) **before** adding new Zotero PDFs or using external discovery tools (e.g. Consensus). Set `false` only to bypass for a project or round with a documented reason. |
 
-**When Coupling D fires.** At M5 (submission-bound final paper) — *not* at bootstrap. The M5 drafting/revision loop should, as its closing action after G.4 sign-off, invoke **SK-17 `ingest-m5-to-wiki`** (`.paper-package/skills/ingest-m5-to-wiki.md`, formalized 2026-04-13). SK-17 must not create a Wiki source page while `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; record `status: deferred` and `wiki_page_key: null` (future governed ingestion may later write `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)-read`) (since the paper has been read directly by every agent in the loop), harvests wikilinks to grounded concepts/entities, and queues the concept-page follow-on batch for a subsequent SK-16 retrofit sweep. It also appends a closing line to this project CLAUDE.md's Wiki linkage section so the coupling fire is auditable.
+**When Coupling D fires.** At M5 (submission-bound final paper) — *not* at bootstrap. The M5 drafting/revision loop should, as its closing action after G.4 sign-off, invoke **SK-17 `ingest-m5-to-wiki`** (`.paper-package/skills/ingest-m5-to-wiki.md`, formalized 2026-04-13). SK-17 must not create a Wiki source page while `WIKI_WRITE_TRANSACTION_UNAVAILABLE`; record `status: deferred` and `wiki_page_key: null` (future governed ingestion may later write `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)-read`) (since the paper has been read directly by every agent in the loop), harvests wikilinks to grounded concepts/entities, and queues the concept-page follow-on batch for a subsequent SK-16 retrofit sweep. It also appends a closing line to this project AGENTS.md's Wiki linkage section so the coupling fire is auditable.
 
 **Authoritative asymmetry (reminder).** The project manuscript is the source of truth; the wiki source page is a searchable, cross-linkable view. If the manuscript is later revised (e.g. a camera-ready revision after conditional acceptance), re-fire Coupling D against the new version and update the wiki source page in place — do not create a second source entry unless the revision constitutes a distinct publication.
 
@@ -661,7 +661,7 @@ Once the skeleton exists, run the Planner in classification mode (see `AGENT_ORC
 
 **No-wiki fallback.** If `wiki_linked: false`, record the four `sk20_not_applicable_*` fields above. The project then proceeds normally under an auditable `NOT_APPLICABLE` result: none of the couplings fire and no SK-14/15/17/20 invocation occurs. A bare `wiki_linked: false` is incomplete configuration and exits 4. Later migration to a wiki-linked configuration can be done by flipping `wiki_linked: true`, setting `coupling_e_on_review: true`, retiring the N/A directive, requesting the currently deferred Coupling C/D services when they become governed and available, and supplying current graphify outputs before the next evaluator round.
 
-**Applicability precedence.** Command-line values supplied by the invoking user take precedence over `research_notes/directives.md`; recognized SK-20 fields in `research_notes/directives.md` take precedence over project `CLAUDE.md`; package defaults come last. Ordinary enabled configuration may inherit unset values down that ladder. An N/A authorization may not: the exact layer whose effective `wiki_linked` or `coupling_e_on_review` value disables SK-20 must contain all four authority, reason, scope, and substitute-evidence fields. A partial directive cannot borrow authorization from `CLAUDE.md`, and CLI `false` requires the complete CLI record through `--sk20-not-applicable-authority`, `--sk20-not-applicable-reason`, `--sk20-not-applicable-scope`, and `--sk20-not-applicable-substitute-evidence`. The readiness evidence records that exact authorization source. Boolean values are exactly `true` or `false`; strings such as `off`, `no`, and `0` are malformed rather than false-like aliases.
+**Applicability precedence.** Command-line values supplied by the invoking user take precedence over `research_notes/directives.md`; recognized SK-20 fields in `research_notes/directives.md` take precedence over project `AGENTS.md`; package defaults come last. Ordinary enabled configuration may inherit unset values down that ladder. An N/A authorization may not: the exact layer whose effective `wiki_linked` or `coupling_e_on_review` value disables SK-20 must contain all four authority, reason, scope, and substitute-evidence fields. A partial directive cannot borrow authorization from `AGENTS.md`, and CLI `false` requires the complete CLI record through `--sk20-not-applicable-authority`, `--sk20-not-applicable-reason`, `--sk20-not-applicable-scope`, and `--sk20-not-applicable-substitute-evidence`. The readiness evidence records that exact authorization source. Boolean values are exactly `true` or `false`; strings such as `off`, `no`, and `0` are malformed rather than false-like aliases.
 
 ### Step 6: Confirm bootstrap to user
 
@@ -696,4 +696,4 @@ Coupling E has two active sub-couplings at v0.11.0. (The originally roadmapped E
 | E.1 | Graphify → Planner (god-nodes, suggested questions, community hubs) | Ph1 seed-snowball | SK-33 `seed-snowball-discovery` graph-substrate iterate phase | **Active** — v0.10.0 |
 | E.2 | Graphify → Evaluator (graph-overlay findings A/B/C) | Evaluator pre-flight | SK-20 `graph-grounding-overlay` | **Active** |
 
-**Activation flag.** A project that wants Coupling E to fire must include `coupling_e_on_review: true` in its CLAUDE.md Wiki linkage section (see §3 Step 5). Without this flag, SK-20 no-ops even if `wiki_linked: true`. This is a deliberate opt-in because the graph overlay changes how the Evaluator's findings are weighted, and a project should declare the expectation rather than inherit it silently. Bootstrap-time default for new wiki-linked projects is `true`; retrofit for existing projects is manual.
+**Activation flag.** A project that wants Coupling E to fire must include `coupling_e_on_review: true` in its AGENTS.md Wiki linkage section (see §3 Step 5). Without this flag, SK-20 no-ops even if `wiki_linked: true`. This is a deliberate opt-in because the graph overlay changes how the Evaluator's findings are weighted, and a project should declare the expectation rather than inherit it silently. Bootstrap-time default for new wiki-linked projects is `true`; retrofit for existing projects is manual.

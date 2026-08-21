@@ -22,12 +22,12 @@ co-author-harness/
 ├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip`) and `scripts/build-plugin.py` (`.plugin`); gitignored — local artefacts only
 ├── CHANGELOG.md, README.md
 ├── docs/                        # agent-instructions/, concepts/, release-notes/RELEASE_NOTES_v*.md, …
-└── CLAUDE.md                    # harness root instructions (this repo)
+└── AGENTS.md                    # harness root instructions (this repo)
 ```
 
 (All paths are relative to this harness root. Any session mounted at `co-author-harness/` or any of its subfolders can reach the package substrate.)
 
-All academic writing rules, review orchestration, agent prompts, skills, safeguard checks, and grounding constraints live inside the four canonical top-level directories named above. The root `CLAUDE.md` does **not** duplicate them.
+All academic writing rules, review orchestration, agent prompts, skills, safeguard checks, and grounding constraints live inside the four canonical top-level directories named above. The root `AGENTS.md` does **not** duplicate them.
 
 **Canonical ownership note.** Under Option C″ (2026-04-21), `co-author-harness/` (v0.8.7+; formerly `research-writing-harness/`) is the canonical workspace-root harness. The former `paper-harness/` root has been retired; surviving material from that era is either in this tree or in git history. The legacy plugin-internal tree at `legacy/` (e.g., `research-writing-harness-v0.2.0/`) is retained for release-oracle reference and should be treated as a frozen mirror — never edit there unless a release task explicitly targets it.
 

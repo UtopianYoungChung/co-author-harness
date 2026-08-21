@@ -334,8 +334,8 @@ def _project(sandbox: Path, name: str, *, legacy: bool = False) -> tuple[Path, b
     # canonical project root.  Materialize once at the exact working path and
     # always restore to that same path; never validate the relocated pristine
     # backup as though it were a project.
-    project = sandbox / ".valid-v1-working"
-    pristine = sandbox / ".valid-v1-pristine"
+    project = sandbox / f".working-{name}"
+    pristine = sandbox / f".pristine-{name}"
     if not pristine.exists():
         project.mkdir()
         template_ledger = fixture._materialize_native_project(project, include_scholarly=True)
@@ -378,7 +378,7 @@ def _project(sandbox: Path, name: str, *, legacy: bool = False) -> tuple[Path, b
 
 
 def _active_project(sandbox: Path, name: str) -> tuple[Path, bytes]:
-    project = sandbox / ".valid-v1-working"
+    project = sandbox / f".working-{name}"
     if project.exists():
         shutil.rmtree(project)
     project.mkdir()
@@ -641,6 +641,25 @@ def main() -> int:
     with _sandbox_temporary_directory() as raw, semantic_graph_fixture_environment():
         sandbox = Path(raw)
         _assert_sandbox_outside_package_root(sandbox)
+
+        def failed_first_case_cannot_contaminate_second() -> None:
+            first = sandbox / ".working-contaminate-first"
+            first.mkdir()
+            (first / "stale.bin").write_bytes(b"leftover")
+            try:
+                first.mkdir()
+            except FileExistsError:
+                pass
+            project, _ = _project(sandbox, "contaminate-second")
+            if project == first:
+                raise AssertionError("second case reused the first working directory")
+            if not project.is_dir() or (project / "stale.bin").exists():
+                raise AssertionError("second case inherited first-case residue")
+
+        matrix.case(
+            "failed first case cannot contaminate the second working directory",
+            failed_first_case_cannot_contaminate_second,
+        )
 
         def no_authority_refuses_without_writes() -> None:
             project, _ = _project(sandbox, "no-authority")

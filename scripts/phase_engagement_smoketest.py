@@ -260,7 +260,6 @@ def _write_synthetic_package(root: Path) -> dict[str, Path]:
     files = {
         "README": root / "README.md",
         "AGENTS": root / "AGENTS.md",
-        "CLAUDE": root / "CLAUDE.md",
         "agents": root / "agents" / "evaluator.md",
         "references": root / "references" / "current-contract.md",
         "skills": root / "skills" / "phase-skill" / "SKILL.md",
@@ -318,7 +317,7 @@ def _run_cli_cases(module: Any) -> list[str]:
             "skills",
             "docs",
             "README",
-            "CLAUDE",
+            "AGENTS",
         ):
             path = files[category]
             original = path.read_bytes()

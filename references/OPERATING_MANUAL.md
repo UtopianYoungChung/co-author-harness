@@ -6,7 +6,7 @@
 
 **Scope.** This manual describes how to run the package day-to-day: what to do before the first session, what to do on every session, how to invoke each of the seven phases, how to read the artifacts produced, how to recover when something goes wrong, and how to sustain the benefits over time. It is a *how* document — the *what* (rules, checks, agent prompts) lives in the component files and is referenced here rather than duplicated.
 
-**Precedence.** This manual is a teaching surface. Its rulings lose to every component file and to every higher-precedence source in `CLAUDE.md §4`. Where a rule stated here appears to conflict with `AGENT_ORCHESTRATION.md`, `REVIEW_ORCHESTRATION.md`, `ROUTING_SPINE.md`, or `AGENT_CONTRACTS.md`, the component file wins.
+**Precedence.** This manual is a teaching surface. Its rulings lose to every component file and to every higher-precedence source in `AGENTS.md §4`. Where a rule stated here appears to conflict with `AGENT_ORCHESTRATION.md`, `REVIEW_ORCHESTRATION.md`, `ROUTING_SPINE.md`, or `AGENT_CONTRACTS.md`, the component file wins.
 
 ---
 
@@ -28,7 +28,7 @@ The package is deployed once at the plugin root `<workspace-root>/platform/co-au
 
 Before your first real round, confirm:
 
-*The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/CLAUDE.md`, and `references/MANIFEST.md` are readable. Do not recreate the retired Claude pack to make discovery work.
+*The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md` are readable. Do not recreate the retired Claude pack to make discovery work.
 
 *The project is explicit.* Supply the exact project root. Confirm that `reviews/assignment_contract.json` resolves when the request can produce academic prose, and read `reviews/phase_state.json` rather than inferring state from filenames or another project.
 
@@ -38,9 +38,9 @@ Before your first real round, confirm:
 
 *The output lane is writable.* Harness bootstrap output belongs under `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`. Create that exact run parent before calling `native_project_bootstrap.py`; its absence is not created implicitly. A direct `research/60_Workbench/<work-id>` target is protected and must return `DEST-PROTECTED`.
 
-### 2.3 Knowing which CLAUDE.md Claude is reading
+### 2.3 Knowing which AGENTS.md the agent is reading
 
-Instruction files form a scope chain: workspace instructions, package-root instructions, and the active project's instructions/directives. The closest project instructions win within that project, subject to the precedence rules in `references/CLAUDE.md §4` and the absolute Grounding Protocol. If you suspect stale rules, ask the assistant to list the instruction files it read and the exact project root each one governs.
+Instruction files form a scope chain: workspace instructions, package-root instructions, and the active project's instructions/directives. The closest project instructions win within that project, subject to the precedence rules in `references/AGENTS.md §4` and the absolute Grounding Protocol. If you suspect stale rules, ask the assistant to list the instruction files it read and the exact project root each one governs.
 
 ### 2.4 Bootstrap a proposal safely
 
@@ -83,7 +83,7 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Interrogate the problem before any argument is committed to paper. Define the phenomenon concretely, name one or more tensions in the literature, list the terms whose assumptions need unpacking, and surface candidate questions (q-α, q-β, q-γ) that the later drafts will sharpen into RQs.
 
-**Invocation.** *"Bootstrap a new project on X, targeting venue V, paper type T."* Claude reads `PROJECT_BOOTSTRAP.md`, gathers missing inputs (your advisor, the submission deadline, the paper's expected length, the empirical corpus if any), creates the standard directory tree, and seeds the project `CLAUDE.md`. Then the Planner classifies the project (paper type + P-stage per `project_writing_style_checklist.md`), and the Generator drafts `milestones/M1_project_memo.md`.
+**Invocation.** *"Bootstrap a new project on X, targeting venue V, paper type T."* Claude reads `PROJECT_BOOTSTRAP.md`, gathers missing inputs (your advisor, the submission deadline, the paper's expected length, the empirical corpus if any), creates the standard directory tree, and seeds the project `AGENTS.md`. Then the Planner classifies the project (paper type + P-stage per `project_writing_style_checklist.md`), and the Generator stages `milestones/M1_project_memo.md` via `assignment_writer_commit.py`. Writer (outside the plugin) applies Joseph-accepted exact path-and-hash bytes to the governed workbench.
 
 **What you will be asked to decide.** The paper type (conceptual / empirical / position / methodological / tool / case-study), the P-stage (P0 problem-finding / P1 problem-framing / P2 problem-solving), the venue, and whether any style commitments (C-1…C-4 per `STYLE_COMMITMENTS.md`) are in force.
 
@@ -95,9 +95,9 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Build the scaffolding. M2 lays down the literature that will carry the argument; M3 lays down the argument that the literature will serve.
 
-**M2 invocation.** *"Build annotated references for the memo, following the snowball strategy."* Generator drafts `milestones/M2_annotated_references.md`; Evaluator checks each annotation for contribution-to-tension, track assignment, and coverage balance. The output is not a summary of papers but a working catalogue of who-says-what-and-what-does-that-do-for-us.
+**M2 invocation.** *"Build annotated references for the memo, following the snowball strategy."* Generator stages `milestones/M2_annotated_references.md` via `assignment_writer_commit.py`; Evaluator checks each annotation for contribution-to-tension, track assignment, and coverage balance. The output is not a summary of papers but a working catalogue of who-says-what-and-what-does-that-do-for-us.
 
-**M3 invocation.** *"Outline the paper against the annotated references."* Generator drafts `milestones/M3_argument_evidence_outline.md`; Evaluator checks for argument skeleton visible from outline alone, tension threaded intro-through-conclusion, framework critique slot present, synthesis slot for unresolved questions. The outline is the moment to make structural decisions you do not want to make later.
+**M3 invocation.** *"Outline the paper against the annotated references."* Generator stages `milestones/M3_argument_evidence_outline.md` via `assignment_writer_commit.py`; Evaluator checks for argument skeleton visible from outline alone, tension threaded intro-through-conclusion, framework critique slot present, synthesis slot for unresolved questions. The outline is the moment to make structural decisions you do not want to make later.
 
 **Exit gates.** `ROUTING_SPINE.md §3` rows 2 and 3.
 
@@ -107,7 +107,7 @@ The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *do
 
 **Purpose.** Produce a full manuscript pass from outline to prose. Every outline node gets at least one paragraph. No `TODO` / `TKTK` / `[?]` markers at the end.
 
-**Invocation.** *"Co-author §N"* (targeted) or *"Draft the paper against the outline"* (full pass). The Generator writes to `milestones/M4_complete_paper_draft.md`; the revision log is opened. The Generator is the **only** agent that writes prose. At this phase the Generator also honors `GROUNDING_PROTOCOL.md` on every claim — no citation enters the draft without the source being readable from the project or from a registered verifier.
+**Invocation.** *"Co-author §N"* (targeted) or *"Draft the paper against the outline"* (full pass). The Generator stages `milestones/M4_complete_paper_draft.md` via `assignment_writer_commit.py`; the revision log is opened. The Generator is the sole writer of academic deliverables within the plugin. Writer (outside the plugin) applies Joseph-accepted exact path-and-hash bytes to the governed workbench. At this phase the Generator also honors `GROUNDING_PROTOCOL.md` on every claim — no citation enters the draft without the source being readable from the project or from a registered verifier.
 
 **Exit gate.** `ROUTING_SPINE.md §3` row 4.
 
@@ -234,15 +234,15 @@ If you maintain a peer `LLM wiki/` store alongside `Research/`, four skills conn
 | `/promote-lessons-to-wiki` (SK-14) | C | Research → Wiki (lessons → syntheses) | **Automatic.** Reflector Phase 3.5, every round, if the round produced lesson changes and at least one is G/P-classifiable |
 | `/backfill-source-stubs-from-references` (SK-15) | A-revised | Research → Wiki (REFERENCES → source stubs) | **On demand.** Invoke when a project's REFERENCES outgrows the wiki's source corpus |
 | `/retrofit-concept-grounding` (SK-16) | B | Within Wiki (sources → concept-page citations) | **On demand.** Invoke after SK-15 populates new stubs, or when a concept page is asserting ungrounded claims |
-| `/ingest-m5-to-wiki` (SK-17) | D | Research → Wiki (final paper → source, full read) | **Milestone-triggered.** Fires at M5 close-out after G.4 sign-off; expects project CLAUDE.md to declare `wiki_linked: true` and `coupling_d_on_m5: true` |
+| `/ingest-m5-to-wiki` (SK-17) | D | Research → Wiki (final paper → source, full read) | **Milestone-triggered.** Fires at M5 close-out after G.4 sign-off; expects project AGENTS.md to declare `wiki_linked: true` and `coupling_d_on_m5: true` |
 
-**How to control what fires.** Every project's CLAUDE.md declares its wiki-facing interface via the fields registered by `PROJECT_BOOTSTRAP.md §3 Step 5`:
+**How to control what fires.** Every project's AGENTS.md declares its wiki-facing interface via the fields registered by `PROJECT_BOOTSTRAP.md §3 Step 5`:
 
 - `wiki_linked: true | false` — master switch. If false, no coupling fires.
 - `coupling_c_active: true | false` — per-round SK-14 promotion (default: same as `wiki_linked`).
 - `coupling_d_on_m5: true | false` — M5 SK-17 self-ingestion (default: same as `wiki_linked`).
 
-You can suppress per-round promotion while keeping M5 ingestion, or vice versa. Changing the flags after bootstrap is supported — just edit the project CLAUDE.md and the next Reflector round honors the new settings.
+You can suppress per-round promotion while keeping M5 ingestion, or vice versa. Changing the flags after bootstrap is supported — just edit the project AGENTS.md and the next Reflector round honors the new settings.
 
 **The chain composes.** SK-15 populates stub sources. SK-16 consumes those stubs (and any full-read sources) to ground concept pages. SK-14 uses the now-grounded concepts and sources as wikilink targets when it writes syntheses. SK-17 replaces stubs with full-read source pages at M5 and queues further concept-page retrofits for a subsequent SK-16 sweep. Each skill has an explicit "do not do" list naming the others' work; if you see one skill doing another's job, file it as a lesson.
 
@@ -256,13 +256,13 @@ You can suppress per-round promotion while keeping M5 ingestion, or vice versa. 
 
 Most PhD weeks are multi-project. The conductor makes this safe.
 
-**Default model — L1 cross-project parallel** (`PARALLEL_CONDUCTOR.md §3`). Every project is isolated: its own directory, its own `CLAUDE.md`, its own directives, its own lessons. Package-level directives and the `GROUNDING_PROTOCOL.md` apply everywhere; project directives stay in their project.
+**Default model — L1 cross-project parallel** (`PARALLEL_CONDUCTOR.md §3`). Every project is isolated: its own directory, its own `AGENTS.md`, its own directives, its own lessons. Package-level directives and the `GROUNDING_PROTOCOL.md` apply everywhere; project directives stay in their project.
 
 **When to use L2 (intra-project cross-phase).** Only when a Round-N Reflector pass is long and you need to start Round-N+1 Planning concurrently. The Reflector's reads are frozen; the Planner's writes go to new files. Forbidden: two concurrent Generators on the same manuscript.
 
 **When to use L3 (intra-phase parallel).** Only for large manuscripts with genuinely decoupled sections, and only for Evaluator or Reflector (never Generator). The Planner must authorize and log it in the conductor.
 
-**Switching projects mid-session.** Name the project explicitly: *"Switching to RE2026_agency_delegation."* Claude writes a handoff note on the exiting project, updates the conductor, then opens the new project's `CLAUDE.md` and directives. Do not switch implicitly; it is the single most common source of directive bleed.
+**Switching projects mid-session.** Name the project explicitly: *"Switching to RE2026_agency_delegation."* Claude writes a handoff note on the exiting project, updates the conductor, then opens the new project's `AGENTS.md` and directives. Do not switch implicitly; it is the single most common source of directive bleed.
 
 ---
 
@@ -338,7 +338,7 @@ The package gets better the more rounds it runs, but only if the Reflector's out
 
 Three cases where the manual should yield.
 
-*When a venue requires something the manual does not cover.* The venue author guide wins (precedence 2 in `CLAUDE.md §4`). File the requirement in the project's `research_notes/directives.md` with `[venue-override]` scope.
+*When a venue requires something the manual does not cover.* The venue author guide wins (precedence 2 in `AGENTS.md §4`). File the requirement in the project's `research_notes/directives.md` with `[venue-override]` scope.
 
 *When the advisor says something the manual does not cover.* The advisor wins (precedence 3). File in `research_notes/directives.md` with `[advisor-override]` scope, citing the source (email, meeting note, comment on draft).
 
@@ -381,4 +381,4 @@ When in doubt, read `QUICKSTART.md`.
 
 ---
 
-*Created 2026-04-13 at user direction, paired with `QUICKSTART.md`. Loses to every component file on rule conflicts per `CLAUDE.md §4`.*
+*Created 2026-04-13 at user direction, paired with `QUICKSTART.md`. Loses to every component file on rule conflicts per `AGENTS.md §4`.*

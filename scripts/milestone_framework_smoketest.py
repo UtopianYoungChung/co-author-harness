@@ -1673,7 +1673,7 @@ def _run_exemplar_cases(
 
     identity_project = directory / "INF3130"
     identity_project.mkdir(); _write_real_case("valid_native_chain", identity_project)
-    declaration_surface = identity_project / "CLAUDE.md"
+    declaration_surface = identity_project / "AGENTS.md"
     positive_claims = (
         "INF3130 is a reference implementation.",
         "This project has been designated as a clean lifecycle exemplar.",
@@ -1720,7 +1720,7 @@ def _run_exemplar_cases(
 
     claimed = directory / "exemplar-inf-shaped-claim"
     claimed.mkdir(); _write_real_case("valid_native_chain", claimed)
-    (claimed / "CLAUDE.md").write_text("# Project status\n\nThis project is the portfolio exemplar.\n", encoding="utf-8")
+    (claimed / "AGENTS.md").write_text("# Project status\n\nThis project is the portfolio exemplar.\n", encoding="utf-8")
     run("inf_prose_self_declaration", claimed, empty, 4, "MF-EXEMPLAR")
 
     if segment == "claims":
@@ -2195,7 +2195,7 @@ def _write_sk20_project(project: Path, claude_fields: dict[str, str], directive_
         rows.extend(f"| `{key}` | `{value}` |" for key, value in fields.items())
         return "\n".join(rows) + "\n"
 
-    (project / "CLAUDE.md").write_text("# Project\n\n" + table(claude_fields), encoding="utf-8")
+    (project / "AGENTS.md").write_text("# Project\n\n" + table(claude_fields), encoding="utf-8")
     directives = "# Directives\n\n"
     if directive_fields is not None:
         directives += "## SK-20 applicability override\n\n" + table(directive_fields)
@@ -2282,7 +2282,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
                 failures.append("sk20/default manuscript probe did not use path-contract 2.0.0 M4")
             if expected_outcome == "NOT_APPLICABLE":
                 expected_source = "CLI" if name.startswith("cli_") else (
-                    "research_notes/directives.md" if name.startswith("directive_") else "project CLAUDE.md"
+                    "research_notes/directives.md" if name.startswith("directive_") else "project AGENTS.md"
                 )
                 if readiness.get("metadata", {}).get("authorization_source") != expected_source:
                     failures.append(f"sk20/{name} did not record exact authorization source {expected_source}")
@@ -2330,7 +2330,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
 
     malformed_project = directory / "sk20-malformed-config"
     _write_sk20_project(malformed_project, base)
-    (malformed_project / "CLAUDE.md").write_bytes(b"\xff\xfe\x00")
+    (malformed_project / "AGENTS.md").write_bytes(b"\xff\xfe\x00")
     malformed = subprocess.run(
         [sys.executable, "-I", "-S", "-B", str(SK20_GATE), "--project-root", str(malformed_project), "--date", "2026-07-13", "--strict-exit"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,

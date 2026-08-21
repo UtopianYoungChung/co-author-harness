@@ -127,7 +127,7 @@ For every `[source: advisor]` item in the audited artifact:
 
 For every graph-sourced item in the audited artifact:
 
-1. Does a corresponding entry exist in `${wiki_path}/graphify-out/graph.json` (for extracted/inferred; resolve `wiki_path` from project CLAUDE.md or CLI overrides) or in the manuscript's citation set (for stub)?
+1. Does a corresponding entry exist in `${wiki_path}/graphify-out/graph.json` (for extracted/inferred; resolve `wiki_path` from project AGENTS.md or CLI overrides) or in the manuscript's citation set (for stub)?
 2. For `[source: graph-extracted]`: does the node's `source_file` + `source_location` match the finding's claim location? The node must carry `confidence: EXTRACTED` and `confidence_score == 1.0`.
 3. For `[source: graph-inferred]`: does the edge's endpoints, `relation`, and `confidence: INFERRED` (or `AMBIGUOUS`) match the finding's claim? The finding MUST carry the edge's `confidence_score` through.
 4. For `[source: graph-stub]`: is the cited source genuinely absent from graph.json (zero nodes with matching `source_file`)?

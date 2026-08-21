@@ -40,12 +40,12 @@ See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the
 
 | Read this first | Why |
 | --- | --- |
-| [`CLAUDE.md`](CLAUDE.md) (repo root) | **When the package is invoked**, precedence in one place, and maintainer check commands. |
+| [`AGENTS.md`](AGENTS.md) (repo root) | **When the package is invoked**, precedence in one place, and maintainer check commands. |
 | [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md) | **Intent → canonical milestone/state** routing; its seven labels are derived and never persisted. |
 | [`references/QUICKSTART.md`](references/QUICKSTART.md) | One-page operator primer (session open, failure modes, shortcuts). |
 | [`references/OPERATING_MANUAL.md`](references/OPERATING_MANUAL.md) | Full runbook when you inherit the package cold. |
 | [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
-| [`references/CLAUDE.md`](references/CLAUDE.md) | **Package-level** invocation rules and component map. |
+| [`references/AGENTS.md`](references/AGENTS.md) | **Package-level** invocation rules and component map. |
 
 **New project?** Use `scripts/native_project_bootstrap.py` exactly as specified in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md); it atomically seeds the standard directories and the mandatory graph-independent reader-profile v2 binding. Hand-built native ledgers are not supported. **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
 
@@ -81,7 +81,7 @@ package root. Profile-mode output remains byte-compatible with existing binds.
 
 ## Quick start
 
-1. **Open this repository** in Cursor or Claude Code so `${CLAUDE_PLUGIN_ROOT}`-style resolution matches your actual layout (see [`references/CLAUDE.md`](references/CLAUDE.md) for embedded vs plugin-root deployment).
+1. **Open this repository** so package-root path resolution matches your actual layout (see [`references/AGENTS.md`](references/AGENTS.md) for embedded vs plugin-root deployment).
 2. **Start every substantive session** by resolving the project’s active milestone and canonical lifecycle state through [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md); do not persist a derived intent label as state.
 3. **Wire a research project** using the standard tree and `reviews/phase_state.json` as the ledger; bootstrap details are in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md).
 

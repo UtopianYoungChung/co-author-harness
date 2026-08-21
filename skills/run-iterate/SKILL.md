@@ -7,6 +7,14 @@ version: 0.50.0
 
 # run-iterate — public iterate coordinator (staging)
 
+## Output Profile
+
+**Runtime binding.** Before acting, resolve
+`../../references/_snippets/output-profile.md` relative to this `SKILL.md`,
+read it in full, and treat it as part of this skill contract. Its canonical
+plugin-root identity is `references/_snippets/output-profile.md`. Do not rely
+on build-time include expansion.
+
 `/run-iterate` is a real public coordinator. It is not a degraded ad and not
 a chat-to-manuscript bypass. It coordinates the four plugin hands **on
 staging** after a draft exists.

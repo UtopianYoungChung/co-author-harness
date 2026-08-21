@@ -95,8 +95,9 @@ python scripts/release_qualification_controller_smoketest.py
 python scripts/qualification_plane_topology_smoketest.py
 python scripts/runtime_plane_probe_smoketest.py
 python scripts/archive_runtime_probe_smoketest.py
-python scripts/token_budget_smoketest.py
 ```
+
+`token_budget_smoketest.py` is retired (removed with `token_budget_check.py`).
 
 Runtime receipts distinguish exact files, permitted CRLF transformations,
 semantic differences, missing files, and foreign extras. Cache equality is

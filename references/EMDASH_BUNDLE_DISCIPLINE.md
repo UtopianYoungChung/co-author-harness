@@ -59,4 +59,4 @@ The Generator records the waiver in `manuscript/revision_log.md` with `waiver_us
 |---|---|---|
 | 1.0 | 2026-04-30 (v0.13.0) | Initial authoring. Three-rule bundle (B1 em-dash, B2 negative parallelism, B3 triadic-list); mandatory at every prose action; waiver process defined; co-audit and bundle delta check procedures specified. Per `docs/superpowers/plans/2026-04-30-voice-and-h-lessons.md` cluster 3.6 (Q4 elevation). |
 
-**Note.** This file is the canonical home for the AI-tell-bundle discipline. Cross-references in `agents/generator.md` Binding Constraints, `references/CLAUDE.md` precedence ladder, and `DETERMINISTIC_CHECKS.md §3 / §4` should resolve here rather than re-state the rules in prose.
+**Note.** This file is the canonical home for the AI-tell-bundle discipline. Cross-references in `agents/generator.md` Binding Constraints, `references/AGENTS.md` precedence ladder, and `DETERMINISTIC_CHECKS.md §3 / §4` should resolve here rather than re-state the rules in prose.

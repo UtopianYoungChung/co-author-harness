@@ -4,7 +4,7 @@
 HERMETIC. Every mutation case runs in a disposable clone under a temp dir; the
 user's checkout is never written to. The first revision of this file ran
 `git mv` and `git restore --staged` against the LIVE workspace, so pre-existing
-staged work on SECURITY.md or CLAUDE.md could have been destroyed -- a test that
+staged work on SECURITY.md or AGENTS.md could have been destroyed -- a test that
 can corrupt the repo is worse than no test.
 
 Guards the property membership checks cannot see. build-plugin.py takes paths
@@ -470,7 +470,7 @@ def case_dirty_unstaged_ignored() -> None:
 
 def case_dirty_staged_ignored() -> None:
     with sandbox() as repo:
-        victim = "CLAUDE.md"
+        victim = "AGENTS.md"
         (repo / victim).write_bytes(_head_blob(repo, victim) + b"\n<!-- STAGED PROBE -->\n")
         _git(repo, "add", victim)
         rc, out, _ = build(repo)

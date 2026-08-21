@@ -90,7 +90,7 @@ Before invoking this skill, verify all of the following. On any failure that is 
 
 4. **Idempotency check.** Read `reviews/phase_state.json` for the target section. If `references_initialized: true` and `references/REFERENCES.md` exists with non-empty core corpus and snowball tables, no-op with `ALREADY_INITIALIZED`. The user must explicitly delete the field or invoke `/extend-snowball-incremental` (SK-35) to extend the existing pool.
 
-5. **Optional graph-file age note (when `wiki_linked: true`).** Resolve `wiki_path` from the project CLAUDE.md. If `${wiki_path}/graphify-out/graph.json` exists, compare its `captured_at` against `references/REFERENCES.md` and `manuscript/<section>.md` `Last updated:` markers. If the file is older, emit a `[graph-stale]` warning into `reviews/snowball_log.md`'s opening row. Proceed with **external-verifier-only** iteration regardless; do not treat the graph file as admission authority. Re-running graphify remains a user decision.
+5. **Optional graph-file age note (when `wiki_linked: true`).** Resolve `wiki_path` from the project AGENTS.md. If `${wiki_path}/graphify-out/graph.json` exists, compare its `captured_at` against `references/REFERENCES.md` and `manuscript/<section>.md` `Last updated:` markers. If the file is older, emit a `[graph-stale]` warning into `reviews/snowball_log.md`'s opening row. Proceed with **external-verifier-only** iteration regardless; do not treat the graph file as admission authority. Re-running graphify remains a user decision.
 
 ### No-op reason codes
 

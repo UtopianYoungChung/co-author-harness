@@ -96,7 +96,7 @@ The Planner is the only milestone-state writer because `milestone_framework` is 
    - `STYLE_COMMITMENTS.md` - declared prose/theory-shape commitments, including C-6 scoped-metaphor applicability when the piece uses load-bearing theory terms, spatial/mechanical metaphors, or ontology/modeling vocabulary, and C-7 voice-fingerprint preservation, applicable by default to any piece written in the author's own voice and suspended only when the author has chosen a borrowed or house voice (record the C-7 applicability decision in the revision plan), and C-8 analytic-construction discipline, applicable by default to any piece that builds or extends a theory or conceptual argument (record the C-8 applicability decision **and the piece's P-stage** in the revision plan — the P-stage gates the C-8 move set: P0/P1 admits only M-3/M-5/M-6, P2 admits all seven)
    - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally when the requested artifact is a formal ontology, ontology module, formalization-bound taxonomy/term set, or ontology audit; record whether BFO alignment is explicit, proposed, rejected, or not applicable
 2. **Project files (always):**
-   - Project `CLAUDE.md` — project-specific classification, directives, do-not-do list
+   - Project `AGENTS.md` — project-specific classification, directives, do-not-do list
    - `milestones/M4_complete_paper_draft.md` — the current draft (read in full)
    - `manuscript/revision_log.md` — what has been done so far
    - `reviews/classification.md` — existing classification, if any (v0.7.4 `default_final_phase:` field retained from v0.7.0 (originally `default_final_tier` at v0.6.0))
@@ -112,7 +112,7 @@ The Planner is the only milestone-state writer because `milestone_framework` is 
    - `reviews/d_style_profile_YYYY-MM-DD.json` — D-STYLE profile-routing output for the current round, if already emitted
    - `research_notes/lessons_learned.md` — accumulated feedback
    - `reviews/DO_NOT_DISTURB.md` — confirmed-strong items, if the file exists
-3. **Wiki/graph files (when `wiki_linked: true` in project `CLAUDE.md`):**
+3. **Wiki/graph files (when `wiki_linked: true` in project `AGENTS.md`):**
    - `knowledge/LLM wiki/wiki/sources/*.md` — source-grounded wiki pages for candidate synthesis clusters
    - `knowledge/LLM wiki/wiki/concepts/*.md` and `knowledge/LLM wiki/wiki/syntheses/*.md` when the round may add or reconcile literature (wiki-first; see `EXTERNAL_VERIFIERS.md` §1.5)
    - `knowledge/LLM wiki/graphify-out/GRAPH_REPORT.md` — graph communities, hubs, and suggested questions
@@ -265,7 +265,7 @@ Before any downstream dispatch fires (Evaluator, Generator, or Reflector), the P
 
 ### Phase 1 — Read and orient
 
-1. Read the project `CLAUDE.md` and `research_notes/directives.md` to understand project-specific constraints.
+1. Read the project `AGENTS.md` and `research_notes/directives.md` to understand project-specific constraints.
 2. Read `milestones/M4_complete_paper_draft.md` in full. Note length, section count, P-stage register, voice register.
 3. Read `manuscript/revision_log.md` to understand what rounds have been completed.
 4. Read `reviews/consolidated_findings_report.md` (if present) to see what the last Evaluator found.

@@ -1,10 +1,10 @@
-# Package CLAUDE.md — Invocation Rules
+# Package AGENTS.md — Invocation Rules
 
 **Typed output boundary.** `references/role_output_contract.json` 3.0.0 is the sole machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve trigger occurrence, context, cardinality, ordering, path, and typed suppression there. Legacy artifacts remain readable but never become shipment-v2 transaction evidence, application proof, or acceptance authority by presence.
 
-**Scope.** This file governs how Claude (or any agent) invokes the **Research and Academic Paper Writing Package** when asked to review, edit, or critique academic writing. It sits **inside** the package folder and describes how the package is used; the **content rules themselves** live in the component files indexed by `MANIFEST.md`.
+**Scope.** This file governs how the executing agent invokes the **Research and Academic Paper Writing Package** when asked to review, edit, or critique academic writing. It sits **inside** the package folder and describes how the package is used; the **content rules themselves** live in the component files indexed by `MANIFEST.md`.
 
-**Deployment.** Two common layouts: (1) **Embedded** — this content lives under `.paper-package/` (or equivalent) inside a Research tree; the Research-root `CLAUDE.md` delegates here. (2) **Plugin root** — this `references/` folder sits under the published plugin workspace (for example `co-author-harness/`); treat `${CLAUDE_PLUGIN_ROOT}` as that plugin root and resolve paths from there. Use the layout you actually opened; do not assume `.paper-package/` exists if you are already at the plugin root.
+**Deployment.** Two common layouts: (1) **Embedded** — this content lives under `.paper-package/` (or equivalent) inside a Research tree; the Research-root `AGENTS.md` delegates here. (2) **Plugin root** — this `references/` folder sits under the published plugin workspace (for example `co-author-harness/`); treat the package root as that plugin root and resolve paths from there. Use the layout you actually opened; do not assume `.paper-package/` exists if you are already at the plugin root.
 
 **Lifecycle scope.** This package governs the **full research lifecycle** — from project bootstrapping (M1) through final submission (M5). Pre-drafting milestones (M1–M3) are dispatched via `AGENT_ORCHESTRATION.md §10`; drafting and revision (M4–M5) follow the standard four-agent loop in §3.
 
@@ -30,7 +30,7 @@ The agent uses this package whenever:
 - The user asks about **project lifecycle or milestones** (where is this project, what milestone, what's next).
 - The user asks to **assess improvement or readiness** (is it ready, how much better, show me the metrics).
 
-The parent CLAUDE.md files already require this package for all such work. This file picks up from there.
+The parent `AGENTS.md` files already require this package for all such work. This file picks up from there.
 
 **Agent mode.** When the user asks to "run the planner," "evaluate the manuscript," "co-author §6," "reflect on this round," or otherwise invokes a specific agent role, read `AGENT_ORCHESTRATION.md` first. It defines the four-agent system (Planner, Evaluator, Generator, Reflector) and the dispatch loop. Each agent's full prompt is in `agents/<role>.md`.
 
@@ -86,6 +86,6 @@ When in doubt, name the conflict in the findings report and ask the user.
 ## 6. What this file is NOT
 
 - **Not** a rule source. Rules live in the component files indexed by `MANIFEST.md`.
-- **Not** project-specific. Project-specific guidance lives in the parent CLAUDE.md files and in project `research_notes/` folders.
+- **Not** project-specific. Project-specific guidance lives in the parent `AGENTS.md` files and in project `research_notes/` folders.
 - **Not** a substitute for reading the orchestration file.
-- **Not** a substitute for `MANIFEST.md`. CLAUDE.md says *what this package is*; MANIFEST says *which files to read for your task*.
+- **Not** a substitute for `MANIFEST.md`. AGENTS.md says *what this package is*; MANIFEST says *which files to read for your task*.

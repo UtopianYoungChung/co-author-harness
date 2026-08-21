@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v0.15.0-pre PR-4b — MANIFEST link and CLAUDE.md preservation check.
+"""v0.15.0-pre PR-4b — MANIFEST link and package AGENTS.md preservation check.
 
 Verifies two invariants:
 
@@ -7,7 +7,7 @@ Verifies two invariants:
     a Markdown file under `references/`, `agents/`, or `skills/`,
     or `scripts/` resolves to an existing path.
 
-(B) `references/CLAUDE.md` continues to satisfy the binding-preservation
+(B) `references/AGENTS.md` continues to satisfy the binding-preservation
     guarantees PR-4b made when slimming the prelude:
       * GROUNDING_PROTOCOL.md is named as the always-loaded floor.
       * MANIFEST.md is named as the routing index.
@@ -29,7 +29,7 @@ from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent.parent
 MANIFEST = HARNESS / "references" / "MANIFEST.md"
-CLAUDE_MD = HARNESS / "references" / "CLAUDE.md"
+PACKAGE_AGENTS_MD = HARNESS / "references" / "AGENTS.md"
 
 # Filename patterns we expect to resolve. Conservative: only match tokens
 # that look like a real Markdown filename (no spaces, ends in .md or .yaml).
@@ -109,9 +109,9 @@ def check_manifest_links() -> list[str]:
     return errors
 
 
-REQUIRED_CLAUDE_MD_MENTIONS = [
-    ("GROUNDING_PROTOCOL.md", "GROUNDING_PROTOCOL.md must be named in CLAUDE.md"),
-    ("MANIFEST.md", "MANIFEST.md must be named in CLAUDE.md (PR-4b routing pointer)"),
+REQUIRED_PACKAGE_AGENTS_MD_MENTIONS = [
+    ("GROUNDING_PROTOCOL.md", "GROUNDING_PROTOCOL.md must be named in references/AGENTS.md"),
+    ("MANIFEST.md", "MANIFEST.md must be named in references/AGENTS.md (PR-4b routing pointer)"),
 ]
 
 REQUIRED_PRECEDENCE_LINES = [
@@ -132,26 +132,26 @@ REQUIRED_GROUNDING_PRECEDENCE_NOTE_FRAGMENTS = [
 ]
 
 
-def check_claude_md_preservation() -> list[str]:
+def check_package_agents_md_preservation() -> list[str]:
     errors: list[str] = []
-    if not CLAUDE_MD.is_file():
-        return [f"missing: {CLAUDE_MD}"]
-    text = CLAUDE_MD.read_text(encoding="utf-8")
+    if not PACKAGE_AGENTS_MD.is_file():
+        return [f"missing: {PACKAGE_AGENTS_MD}"]
+    text = PACKAGE_AGENTS_MD.read_text(encoding="utf-8")
 
-    for needle, msg in REQUIRED_CLAUDE_MD_MENTIONS:
+    for needle, msg in REQUIRED_PACKAGE_AGENTS_MD_MENTIONS:
         if needle not in text:
-            errors.append(f"CLAUDE.md preservation broken: {msg}")
+            errors.append(f"references/AGENTS.md preservation broken: {msg}")
 
     for line in REQUIRED_PRECEDENCE_LINES:
         if line not in text:
             errors.append(
-                f"CLAUDE.md §4 precedence missing required line fragment: {line!r}"
+                f"references/AGENTS.md §4 precedence missing required line fragment: {line!r}"
             )
 
     for fragment in REQUIRED_GROUNDING_PRECEDENCE_NOTE_FRAGMENTS:
         if fragment not in text:
             errors.append(
-                f"CLAUDE.md §4 must preserve the Grounding-above-precedence "
+                f"references/AGENTS.md §4 must preserve the Grounding-above-precedence "
                 f"note; missing fragment: {fragment!r}"
             )
 
@@ -161,14 +161,14 @@ def check_claude_md_preservation() -> list[str]:
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    errors = check_manifest_links() + check_claude_md_preservation()
+    errors = check_manifest_links() + check_package_agents_md_preservation()
     if errors:
         for e in errors:
             print(f"  [BLOCKER] {e}", file=sys.stderr)
         print(f"[BLOCKER] manifest_links_check failed with {len(errors)} issue(s)",
               file=sys.stderr)
         return 1
-    print("OK manifest_links_check — MANIFEST links resolve and CLAUDE.md "
+    print("OK manifest_links_check — MANIFEST links resolve and references/AGENTS.md "
           "preservation invariants hold")
     return 0
 

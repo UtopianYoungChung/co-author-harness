@@ -2,9 +2,9 @@
 
 **Status.** This file is an **index, not an authority layer.** It indexes the principal reference files under `references/` (style-substrate guideline files, templates, resources, and examples may be unlisted; the index is not a completeness guarantee) plus the `agents/` and native `skills/` surfaces an invocation typically consults, and routes the reader by task to the correct file. The **rules themselves** live in those files; MANIFEST.md has no normative content of its own.
 
-**Why this file exists.** Before v0.15.0-pre PR-4b, `references/CLAUDE.md §2` enumerated ~13 inline "Before X, read Y" routes that every agent loaded eagerly on every invocation. PR-4b moves that catalog here and slims CLAUDE.md to a small precedence + invocation surface. Agents consult MANIFEST when they need to know which reference applies; they do not read every file in this list.
+**Why this file exists.** Before v0.15.0-pre PR-4b, package invocation rules enumerated ~13 inline "Before X, read Y" routes that every agent loaded eagerly on every invocation. PR-4b moves that catalog here and slims `references/AGENTS.md` to a small precedence + invocation surface. Agents consult MANIFEST when they need to know which reference applies; they do not read every file in this list.
 
-**Authority precedence is unchanged** — see `CLAUDE.md §4`. The Grounding Protocol still wins over everything below user instruction. MANIFEST does not alter that ladder.
+**Authority precedence is unchanged** — see `AGENTS.md §4`. The Grounding Protocol still wins over everything below user instruction. MANIFEST does not alter that ladder.
 
 **Release-history integration (v0.43.1).** The historical release narrative is
 `docs/release-notes/RELEASE_NOTES_v0.43.1.md`; current package identity remains
@@ -19,7 +19,7 @@ authority.
 Two files are read unconditionally on every invocation:
 
 - `GROUNDING_PROTOCOL.md` — **binding** no-hallucination rules; cannot be overridden by any instruction. Always full-file read (the phase-gated digest exception was retired at v0.7.4).
-- `CLAUDE.md` (this folder) — invocation rules, precedence ladder, do-not-skip reminders. ~70 lines after the PR-4b slim.
+- `AGENTS.md` (this folder) — invocation rules, precedence ladder, do-not-skip reminders. ~70 lines after the PR-4b slim. This package does not ship a Claude-specific instruction file.
 
 Everything else is on-demand per the routing table below.
 
@@ -180,7 +180,7 @@ Anti-duplication and distribution parity: `scripts/snippet-check.py` verifies th
 
 ---
 
-## 5. Notes preserved from CLAUDE.md §3
+## 5. Notes preserved from package invocation §3
 
 - **Autoresearch-inspired concepts (2026-04-13).** Six enhancements adapted from Karpathy's autoresearch project distributed across existing files: (1) primary gate metrics per phase (`ROUTING_SPINE.md §3`); (2) scope budgets per agent (`AGENT_CONTRACTS.md §§1–4`); (3) `round_program.md` per round (`AGENT_ORCHESTRATION.md §8.2`); (4) Retain/Revert Protocol (`AGENT_ORCHESTRATION.md §7`); (5) structured experiment logging in `revision_log.md` (`AGENT_CONTRACTS.md §3`); (6) three-layer architecture immutable/experimental/control (`AGENT_ORCHESTRATION.md §8.1`).
 - **Graphify Coupling E.2 (2026-04-16; unavailable).** SK-20 `graph-grounding-overlay` remains fail-closed with `GRAPH_GOVERNED_GENERATION_UNAVAILABLE`. `wiki_linked: true`, `coupling_e_on_review: true`, fresh files, and valid graph structure are necessary checks but cannot activate graph authority. Orchestration hook: `AGENT_ORCHESTRATION.md §8.6`.
@@ -190,7 +190,7 @@ Anti-duplication and distribution parity: `scripts/snippet-check.py` verifies th
 
 ## 6. What MANIFEST is NOT
 
-- **Not** a new authority layer. Authority precedence is in `CLAUDE.md §4`; this file routes only.
+- **Not** a new authority layer. Authority precedence is in `AGENTS.md §4`; this file routes only.
 - **Not** an excuse to skip files. The routing table tells you which files are relevant for your task; you still read those files in full when invoked.
 - **Not** a substitute for the Grounding Protocol. `GROUNDING_PROTOCOL.md` is always-loaded and binding regardless of what MANIFEST says.
 - **Not** a stable interface for cross-project references. Other projects should reference the canonical files directly (`PHASE_PROTOCOL.md`, etc.), not MANIFEST sections.

@@ -10,7 +10,7 @@
     "graph_id": "package-invocation-v1",
     "always_loaded": [
       "references/GROUNDING_PROTOCOL.md",
-      "references/CLAUDE.md",
+      "references/AGENTS.md",
       "references/MANIFEST.md"
     ]
   },

@@ -239,6 +239,8 @@ def main() -> int:
     try:
         payload = json.load(sys.stdin)
     except Exception as e:
+        if _active_parent_scope() is None:
+            return _allow()
         reason = f"[FRC-HOOK-ERROR] unreadable hook payload: {e}"
         print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
         return _deny(reason)
@@ -259,6 +261,8 @@ def main() -> int:
             return _handle_agent(tool_input)
         return _allow()
     except Exception as e:
+        if _active_parent_scope() is None:
+            return _allow()
         reason = f"[FRC-HOOK-ERROR] internal hook error: {e}"
         print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
         if payload.get("hook_event_name") == "Stop":

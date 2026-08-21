@@ -193,7 +193,7 @@ Legacy Markdown stacks may still be emitted on exception paths or when the user 
 
 ## 11. Relationship to T3R (response-letter manuscript-class)
 
-**Disposition settled 2026-07-07 (aligning with the SKILL_REGISTRY v0.14.0 retirement banner):** the former independent T3R sibling ladder is **retired**; response-letter review is a **manuscript-class within Ph3**, entered via `/response-letter-review`. `T3R` survives only as the historical label of that entry point. A response letter or rebuttal document still follows its own artefact contract (opening strength, discipline provenance, tone a A response letter or rebuttal document follows a different artefact contract (opening strength, discipline provenance, tone audit, coverage completeness, scope hedging, SAFEGUARD integrity checks) and does not feed the staircase's main Ph1→Ph2→Ph3→Ph3_converged→Ph4 advancement. Dispatch T3R via SK-11 directly; do not route through this skill.
+**Disposition settled 2026-07-07 (aligning with the SKILL_REGISTRY v0.14.0 retirement banner):** the former independent T3R sibling ladder is **retired**; response-letter review is a **manuscript-class within Ph3**, entered via `/response-letter-review`. `T3R` survives only as the historical label of that entry point. A response letter or rebuttal document follows its own artefact contract (opening strength, discipline provenance, tone audit, coverage completeness, scope hedging, SAFEGUARD integrity checks) and does not feed the main Ph1→Ph2→Ph3→Ph3_converged→Ph4 advancement. Dispatch that class via SK-11 directly; do not route through this skill.
 
 ## 12. What this stage does NOT do
 

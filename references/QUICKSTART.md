@@ -31,7 +31,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 ## Session opening (every time)
 
-Open the assistant at the governed workspace or the exact project root. The package itself is the plugin root at `<workspace-root>/platform/co-author-harness`; it is not copied into `Research/.paper-package/`. If the assistant does not volunteer its grounding, prompt: *"Read the workspace and project instructions, then the package `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/CLAUDE.md`, and `references/MANIFEST.md`. Read this project's `reviews/assignment_contract.json` and `reviews/phase_state.json`. Declare `adhoc_review`, `lab_iteration`, or `full_lifecycle`, then tell me the current project state and next authorized action."*
+Open the assistant at the governed workspace or the exact project root. The package itself is the plugin root at `<workspace-root>/platform/co-author-harness`; it is not copied into `Research/.paper-package/`. If the assistant does not volunteer its grounding, prompt: *"Read the workspace and project instructions, then the package `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md`. Read this project's `reviews/assignment_contract.json` and `reviews/phase_state.json`. Declare `adhoc_review`, `lab_iteration`, or `full_lifecycle`, then tell me the current project state and next authorized action."*
 
 Do not infer the active project or phase from a root `conductor.md`. Project identity comes from the explicit project path and assignment contract; lifecycle state comes from that project's `reviews/phase_state.json` and milestone records.
 
@@ -61,7 +61,7 @@ python "$packageRoot/scripts/native_project_bootstrap.py" `
 | Start a new project | *"Bootstrap a new project on X, targeting venue V, paper type T"* | **Think (M1)** | `milestones/M1_project_memo.md` |
 | Build the bibliography | *"Build annotated references for the memo"* | **Plan (M2)** | `milestones/M2_annotated_references.md` |
 | Structure the argument | *"Outline the paper"* | **Plan (M3)** | `milestones/M3_argument_evidence_outline.md` |
-| Draft prose | *"Co-author §N on topic T"* | **Build (M4)** | Edits to `milestones/M4_complete_paper_draft.md` + revision-log entry |
+| Draft prose | *"Co-author §N on topic T"* | **Build (M4)** | Staged `milestones/M4_complete_paper_draft.md` + revision-log via `assignment_writer_commit.py`; Writer apply after acceptance |
 | Get a review | *"Run a full review"* or *"Critique §N"* | **Review** | `scripts/run-evaluator-preflight.ps1` then `reviews/consolidated_findings_report.md` |
 | Run only checks | *"Run the deterministic pass"* / *"Run the safeguard layer"* | **Test** | Per-check results under `reviews/` |
 | Sign off for submission | *"Is it ready?"* then *"Do the G.4 sign-off"* | **Ship (M5)** | `reviews/G4_signoff.md` |
@@ -119,7 +119,7 @@ Four skills link Research projects to a peer wiki — see `wiki/syntheses/synerg
 - **SK-16** `retrofit-concept-grounding` — on-demand. Cites existing sources on wiki concept pages; flags red-links.
 - **SK-17** `ingest-m5-to-wiki` — may be invoked at M5 close-out after G.4 sign-off but currently returns `status: deferred` / `WIKI_WRITE_TRANSACTION_UNAVAILABLE` without writing a Wiki source page; G.4 / Phase 4 completion does not depend on Wiki write availability.
 
-At bootstrap, `PROJECT_BOOTSTRAP.md §3 Step 5` records wiki-linkage intent in the project CLAUDE.md. Set `wiki_linked: false` to opt out entirely.
+At bootstrap, `PROJECT_BOOTSTRAP.md §3 Step 5` records wiki-linkage intent in the project AGENTS.md. Set `wiki_linked: false` to opt out entirely.
 
 Before each evaluator round in a wiki-linked project, run:
 
@@ -141,4 +141,4 @@ Ask Claude to *"Run the contract audit per `AGENT_CONTRACTS.md §6`"*. It will r
 
 ---
 
-*Created 2026-04-13. Paired with `OPERATING_MANUAL.md` (comprehensive runbook). If something here contradicts the operating manual, the operating manual wins; if the manual contradicts a component file, the component file wins (per `CLAUDE.md §4` precedence).*
+*Created 2026-04-13. Paired with `OPERATING_MANUAL.md` (comprehensive runbook). If something here contradicts the operating manual, the operating manual wins; if the manual contradicts a component file, the component file wins (per `AGENTS.md §4` precedence).*

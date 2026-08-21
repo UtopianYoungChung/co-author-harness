@@ -19,7 +19,7 @@
 
 - Before writing "MASTER §B.1 says X," the agent must have used the Read tool (or equivalent) on `MASTER_research_and_paper_guidelines.md` and confirmed that §B.1 exists and says X.
 - Before writing "line 42 of the manuscript contains Y," the agent must have read line 42 and confirmed it contains Y.
-- Before writing "the project CLAUDE.md requires Z," the agent must have read the project CLAUDE.md in this session and confirmed it requires Z.
+- Before writing "the project AGENTS.md requires Z," the agent must have read the project AGENTS.md in this session and confirmed it requires Z.
 
 ### What this prohibits
 

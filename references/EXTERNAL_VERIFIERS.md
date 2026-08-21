@@ -24,7 +24,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 **Status.** This file is a **binding component** of the Grounding Protocol. It enumerates the external Model-Context-Protocol (MCP) servers that the four agents (Planner, Evaluator, Generator, Reflector) may invoke as **ground-truth validity layers** when verifying citations, attributions, factual claims, or retraction status. It also defines **§1.5** (peer `LLM wiki/` paths and optional `/llm-wiki-query` — not MCP) for **discovery** ordering. Every verification tier in §2 onward participates in the Chain of Verification (`GROUNDING_PROTOCOL.md` Rule 7) and in Rule 7a (the external-verifier rule introduced below).
 
-**Scope.** Applies to all projects governed by this package. A project's `CLAUDE.md` may declare which verifier tiers it permits (e.g. `external_verifiers: [class_1, class_1_5]`) but may not declare a verifier that is not registered here. Adding a new verifier requires editing this file and bumping the package version.
+**Scope.** Applies to all projects governed by this package. A project's `AGENTS.md` may declare which verifier tiers it permits (e.g. `external_verifiers: [class_1, class_1_5]`) but may not declare a verifier that is not registered here. Adding a new verifier requires editing this file and bumping the package version.
 
 **Precedence.** This file sits **below** `GROUNDING_PROTOCOL.md` (which is binding and non-overridable) and **above** the component style files. It is read by the Evaluator (Step 8 synthesis), the Generator (before adding any citation), and the Reflector (Phase 2.5 grounding audit, Categories 1, 7, 8). It is not consulted during the deterministic pass (Step 0a) or the pre-flight graph overlay (Step 0.5).
 
@@ -49,7 +49,7 @@ Each of these questions is a **Category 1 citation audit** (Rule 4) question tha
 
 **Purpose.** Closes the read loop with the peer `LLM wiki/`: *reuse curated knowledge before* opening new PDFs from Zotero or running broad external search (e.g. Scholar Gateway, **Consensus**). This section governs **where to look first** when the task is to **find, justify, or add** literature — not the **Rule 7a** resolution order for a citation already under audit (see §3 — Evaluator/Generator/Reflector steps for 7a are unchanged).
 
-**When it applies.** The project’s `CLAUDE.md` has `wiki_linked: true` **and** `wiki_first_resources` is not `false` (see `PROJECT_BOOTSTRAP.md` §3 Step 5). If `wiki_linked: false` or the user has set `wiki_first_resources: false`, skip straight to the Zotero → external flow below.
+**When it applies.** The project’s `AGENTS.md` has `wiki_linked: true` **and** `wiki_first_resources` is not `false` (see `PROJECT_BOOTSTRAP.md` §3 Step 5). If `wiki_linked: false` or the user has set `wiki_first_resources: false`, skip straight to the Zotero → external flow below.
 
 **Order (strict):**
 
@@ -67,7 +67,7 @@ Each of these questions is a **Category 1 citation audit** (Rule 4) question tha
 
 ## 2. Verifier tiers
 
-Four tiers are defined. A project inherits all four unless its `CLAUDE.md` narrows the list.
+Four tiers are defined. A project inherits all four unless its `AGENTS.md` narrows the list.
 
 ### Class 1 — Scholarly search with provenance (authoritative for Rule 7a)
 
@@ -124,7 +124,7 @@ Active Class 3 verifiers:
 
 ### Planner
 
-- At bootstrap (M1), the Planner confirms which verifier tiers are reachable by probing each MCP with a whoami-class call (`mcp__zotero__zotero_list_libraries`, `mcp__*__hf_whoami`). It records the result in the project's `CLAUDE.md` under a `Verifier availability` section. The Evaluator reads this section at the start of each round.
+- At bootstrap (M1), the Planner confirms which verifier tiers are reachable by probing each MCP with a whoami-class call (`mcp__zotero__zotero_list_libraries`, `mcp__*__hf_whoami`). It records the result in the project's `AGENTS.md` under a `Verifier availability` section. The Evaluator reads this section at the start of each round.
 - If a Class 1 verifier is unreachable and the project is at submission-bound depth, the Planner escalates: either the user connects the MCP, or the project proceeds with `[UNVERIFIED]` citations that cannot be cleared at submission time.
 - When a round’s scope may introduce **new** references or PDFs, and the project is wiki-linked with `wiki_first_resources` not `false`, the Planner’s `reviews/revision_plan.md` must include a **Wiki-first** line per **§1.5** (what was read under `wiki_path`, or an explicit `N/A` with reason).
 

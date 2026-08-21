@@ -1,34 +1,24 @@
 ---
 name: run-generator-session
 user-invocable: false
-description: CLOSED public bypass (CLOSED_PUBLIC_BYPASS). Do not write manuscript from chat without Evaluator findings and F6 approval.
-trigger: refuse /run-generator-session and chat-apply requests unless Evaluator findings and F6 are on disk
-version: 1.1
+description: CLOSED public bypass (CLOSED_PUBLIC_BYPASS). Do not write manuscript from chat. Route to /run-draft or /run-iterate.
+trigger: refuse /run-generator-session and chat-apply requests. Zero manuscript bytes from this skill.
+version: 1.2
 ---
 
 # run-generator-session -- closed as a chat-to-manuscript bypass
 
-This skill is not a public write path. Chat is not authority. Classification plus phase_state.json presence is not enough.
-Closed output economy: this skill does not emit `role_output_contract.json` or shipment-v2 receipts. CLOSED_PUBLIC_BYPASS.
+This skill is not a public write path. Chat is not authority. Classification plus phase_state.json presence is not enough. Evaluator findings and F6 are not enough. CLOSED_PUBLIC_BYPASS.
 
-Do not write manuscript files unless every hard stop below passes.
+Closed output economy: this skill does not emit `role_output_contract.json` or shipment-v2 receipts. It produces **zero** manuscript bytes and **zero** revision-log bytes. It does not call `assignment_writer_commit.py`.
 
-## Hard stops all required
+## Unconditional refuse
 
-If any check fails: no writes. Route to /run-draft or /run-iterate so Planner can collect F6 and Evaluator can publish findings.
-
-1. reviews/classification.md exists.
-2. reviews/phase_state.json exists and has a section entry for the named target.
-3. Evaluator findings for that section exist on disk: F7 packet or reviews/step_findings covering the target. A chat summary is not findings.
-4. F6 is approved: reviews/dispatch_plan_<cycle_id>.md exists and user_approval_signature is populated, not empty and not null. I-Planner-10.
-5. Generator may apply only Evaluator-authorized fixes plus F6-listed items that do not add argument beyond those findings. Chat cannot introduce new claims.
-
-## If all hard stops pass
-
-Obey agents/generator.md for the declared current_phase. Write only manuscript files and manuscript/revision_log.md. Do not write reviews. Chat is not evidence for facts.
+Do not write, stage, or apply manuscript files. Do not write `manuscript/revision_log.md`. Route to `/run-draft` or `/run-iterate` so Planner can collect F6 and Evaluator can publish findings. Generator publication, if any, happens only under those coordinators via `assignment_writer_commit.py`.
 
 ## You must not
 
-- Rewrite manuscript from session chat alone.
-- Skip Evaluator or F6 because the user asked to apply what was agreed.
-- Treat this skill as a public slash command. Use /run-draft, /run-iterate, or /run-finalize.
+- Rewrite manuscript from session chat, with or without findings on disk.
+- Treat Evaluator findings or an F6 signature as a license for this skill to write.
+- Skip `/run-draft` or `/run-iterate` because the user asked to apply what was agreed.
+- Treat this skill as a public slash command.

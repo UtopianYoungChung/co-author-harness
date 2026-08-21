@@ -60,7 +60,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 |---|---|---|---|
 | **Planner** | Session initializer and dispatcher. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md` | **Never** |
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
-| **Generator** | Prose writer and editor. The only agent that writes to the manuscript. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. At Ph1 writes under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | `milestones/M4_complete_paper_draft.md` (edits and new content), `manuscript/revision_log.md` (append-only log) | **Yes — the only agent that does** |
+| **Generator** | Prose stager and editor. The sole writer of academic deliverables within the plugin. Publishes only via `assignment_writer_commit.py` into classified staging or the exact private shipment lane. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. Writer (outside the plugin) applies Joseph-accepted exact path-and-hash bytes to the governed workbench. At Ph1 stages under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | Staging bytes for M1–M4 deliverables; `manuscript/revision_log.md` (append-only log) on the staged tree | **Stages only — never a workbench apply** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
 | **Reflector — full** | Engaged at Ph4 close-out (terminal sign-off) and at explicit user request. Runs the five-phase reflection: Phase 1 evidence, Phase 2a + Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons → `lessons_learned.md`, Phase 4 skill proposals, Phase 5 memory → `DO_NOT_DISTURB.md`. Attempts Coupling C/D Wiki mutation via SK-14/SK-17; currently returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null` without blocking primary close-out. | `reviews/reflection_report.md`, `research_notes/lessons_learned.md` (append), `reviews/DO_NOT_DISTURB.md` (append), `research_notes/directives.md` (propose), `skills/*.md` (new skills, with user approval), `references/SKILL_REGISTRY.md` (append) | **Never** |
 
@@ -254,8 +254,8 @@ Not every round requires all four agents. The user can shortcut:
 
 | File / directory | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| `milestones/M4_complete_paper_draft.md` | read | read | **read + write** | read |
-| `manuscript/revision_log.md` | read | read | **read + append** | read |
+| `milestones/M4_complete_paper_draft.md` | read | read | **read; stage + `assignment_writer_commit.py` only** | read |
+| `manuscript/revision_log.md` | read | read | **read; stage + `assignment_writer_commit.py` only** | read |
 | `reviews/classification.md` | **read + write** | read | read | read |
 | `reviews/revision_plan.md` | **read + write** | read | read | read |
 | `reviews/step_0a_*.md` | read | **write** | read | read |
@@ -271,7 +271,7 @@ Not every round requires all four agents. The user can shortcut:
 | `skills/*.md` (skill files) | read | read | read | **write (new skills, with user approval)** |
 | Package files (`research-writing-harness/*` except skills/) | read | read | read | read (propose changes via reflection report) |
 
-**Enforcement.** These permissions are encoded in each agent's prompt file as binding instructions. They are not structurally enforced by the filesystem. If an agent violates its permissions, the Reflector should flag it as an avoidable error in the next reflection.
+**Enforcement.** These permissions are encoded in each agent's prompt file as binding instructions. They are not structurally enforced by the filesystem. If an agent violates its permissions, the Reflector should flag it as an avoidable error in the next reflection. Generator never writes the final M4 or revision-log path; Writer (outside the plugin) is the only workbench apply after Joseph accepts exact path-and-hash bytes.
 
 ---
 
@@ -297,7 +297,7 @@ Agent tool invocation for Evaluator at Ph3:
                  Project: <project path>
                  Task: Full review of milestones/M4_complete_paper_draft.md at Ph3 (Iterate & Converge) depth.
 
-                 Read the project CLAUDE.md first, then follow the Evaluator procedure."
+                 Read the project AGENTS.md first, then follow the Evaluator procedure."
 ```
 
 **Capability-inversion refusal.** Before dispatching, the Planner checks that the round's resolved allocation does not place the Evaluator below the Generator on the family ordering `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}`. If it would, the Planner refuses the round with `E-MA-CAPABILITY-INVERSION` and presents the resolved allocation to the user for override or correction. See `MODEL_ALLOCATION.md §5 Hazard H-MA-1`.
@@ -397,7 +397,7 @@ The autoresearch project (Karpathy, 2025) makes a productive architectural move:
 
 ### 8.2 The Round Program (`round_program.md`)
 
-The round program is a lightweight, user-authored markdown file that lives at the **project root** (alongside the project `CLAUDE.md`). It declares the user's intent for the current round — what to focus on, what to ignore, and what "success" looks like for *this specific iteration*. It is the academic-writing analogue of autoresearch's `program.md`.
+The round program is a lightweight, user-authored markdown file that lives at the **project root** (alongside the project `AGENTS.md`). It declares the user's intent for the current round — what to focus on, what to ignore, and what "success" looks like for *this specific iteration*. It is the academic-writing analogue of autoresearch's `program.md`.
 
 **Why it exists.** The revision plan (`reviews/revision_plan.md`) is agent-generated. The directives file (`research_notes/directives.md`) is persistent across rounds. Neither captures the ephemeral, round-specific intent of the user. The round program fills this gap.
 
@@ -614,7 +614,7 @@ If `should_run_sk20` is false, SK-20 should not run. The gate script already emi
 
 **Firing conditions (all must be true, else SK-20 no-ops cleanly):**
 
-1. Project CLAUDE.md declares `wiki_linked: true` and `coupling_e_on_review: true`.
+1. Project AGENTS.md declares `wiki_linked: true` and `coupling_e_on_review: true`.
 2. `knowledge/LLM wiki/graphify-out/graph.json` and `GRAPH_REPORT.md` exist.
 3. The graph's `captured_at` timestamp is no older than the most recent `Last updated:` timestamp on the project's `references/REFERENCES.md` or `milestones/M4_complete_paper_draft.md`.
 4. `reviews/classification.md` exists (SK-20 uses it to tune P-stage severity adjustments).

@@ -26,19 +26,19 @@ Some projects carry **binding supplements** — files that add rules within that
 
 ## Domain-specific modeling rules
 
-When a project involves a specific modeling notation, the project CLAUDE.md should record the notation rules. Known domain rules from the Year 2026 workspace:
+When a project involves a specific modeling notation, the project AGENTS.md should record the notation rules. Known domain rules from the Year 2026 workspace:
 
 - **i\* modeling (CAiSE_Rev01):** When generating or reviewing i\* model content (in projects whose manuscripts are *about* i\*), consult the i\* Construct Vocabulary table in the project's memory. Key rule: agents are specific actors, roles are abstract expectations — do not confuse them.
 
 (The harness itself no longer authors SD/SR models as part of its own pipeline; the v0.7.1 `sd_sr_required` opt-in was retired at v0.11.0 along with the Cold-Start defence and the `E-IMODEL-STRUCTURALLY-INCOMPLETE` / `E-Ph2-SD-UNGROUNDABLE` finding classes. Projects that author manuscripts *about* i*/GORE/AORE remain fully supported through the Reader-Experience and Argumentative-Rigor surfaces.)
 
-These rules are recorded here as a cross-reference so the agent knows they exist even if the project has not yet migrated to the Research tree. Once a project migrates, the modeling rules should live in that project's own CLAUDE.md.
+These rules are recorded here as a cross-reference so the agent knows they exist even if the project has not yet migrated to the Research tree. Once a project migrates, the modeling rules should live in that project's own AGENTS.md.
 
 ---
 
 ## Legacy projects (Year 2026 workspace)
 
-The following projects were still tracked under an **external Year 2026 portfolio workspace** (path varies by machine; not part of this harness repo). They are governed by that tree’s `CLAUDE.md` where it still applies. They may migrate to the portfolio root (`Ph.D. Research/`) in the future; when they do, each should get the standard project structure (see [harness-discovery-lifecycle.md](harness-discovery-lifecycle.md) § Bootstrapping) and a project CLAUDE.md.
+The following projects were still tracked under an **external Year 2026 portfolio workspace** (path varies by machine; not part of this harness repo). They are governed by that tree’s `AGENTS.md` where it still applies. They may migrate to the portfolio root (`Ph.D. Research/`) in the future; when they do, each should get the standard project structure (see [harness-discovery-lifecycle.md](harness-discovery-lifecycle.md) § Bootstrapping) and a project AGENTS.md.
 
 | Project | Venue / Context | Status |
 |---------|-----------------|--------|
@@ -51,4 +51,4 @@ The following projects were still tracked under an **external Year 2026 portfoli
 | AIWare | AIWare conference | Active |
 | TA | Teaching assistant work | Ongoing |
 
-The Year 2026 CLAUDE.md and this harness root `CLAUDE.md` share the same package rules. The two files should be kept in sync on shared rules; project-specific rules live only in the relevant workspace.
+The Year 2026 instruction file and this harness root `AGENTS.md` share the same package rules. The two files should be kept in sync on shared rules; project-specific rules live only in the relevant workspace. There is no package `CLAUDE.md`.

@@ -53,7 +53,7 @@ Two hazards are called out explicitly and are the subject of ongoing audit.
 
 ## 6. Absent-means-inherit migration semantics
 
-Projects that predate v0.7.3 have no `model_dispatch` marker in `reviews/phase_state.json` and no entries in their `reviews/classification.md` that speak to model selection. Such projects inherit the allocation in §2 unconditionally at first Planner invocation under v0.7.3+; no migration script is required, and no user-visible ledger field is added. If a project wants to opt out of a specific slot's default — for example, to force Opus 4.7 at the Generator-Ph3 slot during a contested revision round — the opt-out is declared in `research_notes/directives.md` as a project directive, which sits at precedence level 4 in `CLAUDE.md §4` and outranks this file (precedence level 5, package component). The directive syntax is:
+Projects that predate v0.7.3 have no `model_dispatch` marker in `reviews/phase_state.json` and no entries in their `reviews/classification.md` that speak to model selection. Such projects inherit the allocation in §2 unconditionally at first Planner invocation under v0.7.3+; no migration script is required, and no user-visible ledger field is added. If a project wants to opt out of a specific slot's default — for example, to force Opus 4.7 at the Generator-Ph3 slot during a contested revision round — the opt-out is declared in `research_notes/directives.md` as a project directive, which sits at precedence level 4 in `AGENTS.md §4` and outranks this file (precedence level 5, package component). The directive syntax is:
 
 ```
 D-NN: Model dispatch override — Generator-Ph3 := Opus 4.7
@@ -81,4 +81,4 @@ Opus 4.6 is deprecating and is not in the allocation. Any project directive that
 
 ---
 
-*Normative status.* This file is at precedence level 5 (package component) per `CLAUDE.md §4`. Project directives (level 4) override this file; venue and advisor instructions (levels 2 and 3) override both; the user's explicit instruction in the current conversation (level 1) is supreme. `GROUNDING_PROTOCOL.md` sits outside the ladder and is absolute — no model dispatch decision licenses a grounding violation.
+*Normative status.* This file is at precedence level 5 (package component) per `AGENTS.md §4`. Project directives (level 4) override this file; venue and advisor instructions (levels 2 and 3) override both; the user's explicit instruction in the current conversation (level 1) is supreme. `GROUNDING_PROTOCOL.md` sits outside the ladder and is absolute — no model dispatch decision licenses a grounding violation.

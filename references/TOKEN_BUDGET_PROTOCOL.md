@@ -6,10 +6,10 @@ context warning. It governs segmentation, state preservation, and continuity.
 
 **Binding status.** Advisory. This protocol guides operational decisions; it does not override the Grounding Protocol or the Safeguard Layer. If a budget constraint forces a trade-off, the agent must declare the trade-off in the findings report — it must not silently skip checks.
 
-**Package-surface ratchet.** The owned machine policy
-`policies/token_budget.v1.json` pins the encoder, load graph, owners, and
-immutable baseline. It blocks new or growing debt, floor growth, policy drift,
-and invalid exceptions. Baseline debt remains unresolved.
+**Package-surface ratchet.** Retired at v0.50.0. `scripts/token_budget_check.py`
+is removed. `policies/token_budget.v1.json` remains as historical policy
+record only. This protocol is advisory for manuscript segmentation and
+state preservation; it does not run a package-surface debt check.
 
 ---
 

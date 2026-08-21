@@ -621,7 +621,7 @@ ph1_ph2_signoff:
       placeholder Step 0.5 re-tests the gate.
       Recommended action: inspect SK-NEW-A's reason code in `reviews/snowball_log.md` (if any was
       written before the unmet precondition fired); resolve the precondition (e.g., set `wiki_path`
-      in `CLAUDE.md`, populate the claim register) and re-run `/run-phase-1 <section>` to retry.
+      in `AGENTS.md`, populate the claim register) and re-run `/run-phase-1 <section>` to retry.
       (Introduced v0.10.0 Stage S2; cross-refs: `skills/seed-snowball-discovery/SKILL.md §2`,
       `skills/run-phase-1/SKILL.md §3 Step 4.5`.)
 

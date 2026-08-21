@@ -47,7 +47,6 @@ def main() -> int:
 
     docs = {
         "AGENTS.md": (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
-        "CLAUDE.md": (ROOT / "CLAUDE.md").read_text(encoding="utf-8"),
         "README.md": (ROOT / "README.md").read_text(encoding="utf-8"),
     }
     for name, text in docs.items():

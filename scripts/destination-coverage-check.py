@@ -138,11 +138,10 @@ def main() -> int:
         if rel not in writers:
             findings.append(f"[STALE-ENTRY] {rel}: registered but no longer a census writer")
 
-    # Runbook parity: BOTH root maintainer runbooks must carry this check.
-    # CLAUDE.md alone is not enough -- AGENTS.md governs Codex and every other
-    # agent, and a battery that only some agents run is a battery that rots
-    # (the Blocker-1 lesson applied to the check itself).
-    for runbook in ("CLAUDE.md", "AGENTS.md"):
+    # Runbook parity: the root maintainer runbook must carry this check.
+    # AGENTS.md is the general instruction surface for every host; a battery
+    # that only some agents run is a battery that rots.
+    for runbook in ("AGENTS.md",):
         text = (ROOT / runbook).read_text(encoding="utf-8", errors="replace")
         if "python scripts/destination-coverage-check.py" not in text:
             findings.append(

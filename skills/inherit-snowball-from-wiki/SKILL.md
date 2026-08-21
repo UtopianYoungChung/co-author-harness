@@ -52,11 +52,11 @@ Before invoking this skill, verify all of the following. On any failure, no-op w
 
 0. **Graph authority is available.** If `graph_authority_gate` reports `GRAPH_GOVERNED_GENERATION_UNAVAILABLE` / `governed_available: false`: immediate no-op with that reason. Do not continue to community traversal.
 
-1. **Project is wiki-linked.** The project CLAUDE.md contains `wiki_linked: true`. If absent or false: `NOT_WIKI_LINKED`.
+1. **Project is wiki-linked.** The project AGENTS.md contains `wiki_linked: true`. If absent or false: `NOT_WIKI_LINKED`.
 
-2. **Opt-in is active.** `reviews/classification.md` carries `inherit_snowball: true` (or the field is absent and the project CLAUDE.md confirms `wiki_linked: true`, in which case the default is `true`). If explicitly `inherit_snowball: false`: `INHERIT_SNOWBALL_DISABLED`.
+2. **Opt-in is active.** `reviews/classification.md` carries `inherit_snowball: true` (or the field is absent and the project AGENTS.md confirms `wiki_linked: true`, in which case the default is `true`). If explicitly `inherit_snowball: false`: `INHERIT_SNOWBALL_DISABLED`.
 
-3. **Graph output exists.** Resolve `wiki_path` from project CLAUDE.md. Verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing: `GRAPH_OUTPUT_MISSING`.
+3. **Graph output exists.** Resolve `wiki_path` from project AGENTS.md. Verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing: `GRAPH_OUTPUT_MISSING`.
 
 4. **Graph is not stale.** Following the same pattern as SK-20 Precondition 3: compare the `captured_at` field in `graph.json` against the most recent `Last updated:` date across the project's `references/REFERENCES.md` (if it exists) and `manuscript/<section>.md`. (SK-36 is section-scoped so it checks the section file rather than SK-20's `milestones/M4_complete_paper_draft.md`; the staleness logic is otherwise identical.) If the graph is older: `GRAPH_STALE`. (Contrast SK-33, which demotes to `[graph-stale]` warning and continues; SK-36 is a pre-seed step and its entire value depends on graph freshness — a stale pre-seed can propagate stale corpus assumptions into iteration 1.)
 
@@ -225,7 +225,7 @@ If SK-36 no-oped for any reason (including `NO_ADJACENT_COMMUNITIES`), append:
 
 - `"inherit-snowball"` · `"pre-seed from wiki"` · `"cross-project seed"` · `"/inherit-snowball-from-wiki"`
 - **Auto-invoked** by SK-33 `seed-snowball-discovery` Phase 0 when:
-  - `wiki_linked: true` in project CLAUDE.md
+  - `wiki_linked: true` in project AGENTS.md
   - `inherit_snowball: true` in `reviews/classification.md` (default `true` for wiki-linked projects)
   - `${wiki_path}/graphify-out/graph.json` exists and is fresh per SK-20 Precondition 3
 - **Manually invokable** for inspection without a live SK-33 session (e.g., to preview which communities would pre-seed a section before committing to a full snowball run).

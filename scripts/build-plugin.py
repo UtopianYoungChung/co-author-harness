@@ -119,7 +119,7 @@ REQUIRED_FILES = (
     "skills/plugin-commands/SKILL.md",
     "README.md",
     "CHANGELOG.md",
-    "CLAUDE.md",
+    "AGENTS.md",
     # This module's own import target. Added 2026-07-15 after the extraction
     # shipped a BROKEN bundle: build-plugin.py (tracked) began importing
     # package_enumeration.py (untracked), so HEAD-based enumeration excluded the

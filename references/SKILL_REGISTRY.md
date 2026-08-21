@@ -198,12 +198,12 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-17. `ingest-m5-to-wiki`
 - **File:** `skills/ingest-m5-to-wiki/SKILL.md`
-- **Pattern:** Materializes **Coupling D** — ingests a project's M5 (submission-bound final) manuscript into `LLM wiki/wiki/sources/<key>.md` as a complete, non-stub source page with `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)`. Fires after G.4 sign-off. Produces: bibliographic table, structured claim summary, method/apparatus note, relationship-to-program paragraph, limitations list, harvested wikilinks to concepts/entities the paper grounds, and a concept-page follow-on batch queued for SK-16. Closes the coupling by appending a dated line to the project CLAUDE.md's Wiki linkage section. Preserves the manuscript as source of truth; the wiki source page is a searchable view.
+- **Pattern:** Materializes **Coupling D** — ingests a project's M5 (submission-bound final) manuscript into `LLM wiki/wiki/sources/<key>.md` as a complete, non-stub source page with `grounding_status: full-read (deferred Wiki page; do not write until governed ingestion)`. Fires after G.4 sign-off. Produces: bibliographic table, structured claim summary, method/apparatus note, relationship-to-program paragraph, limitations list, harvested wikilinks to concepts/entities the paper grounds, and a concept-page follow-on batch queued for SK-16. Closes the coupling by appending a dated line to the project AGENTS.md's Wiki linkage section. Preserves the manuscript as source of truth; the wiki source page is a searchable view.
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F6 (M5 final paper is a natural wiki source, not just a review artefact). Coupling D was registered as a bootstrap-time intent in PROJECT_BOOTSTRAP.md §3 Step 5 on 2026-04-13; SK-17 formalizes the ingestion protocol itself so the coupling becomes executable rather than aspirational.
 - **Tier:** Package
 - **Status:** Active
-- **Depends on:** Project at M5 with G4_signoff; wiki reachable; project CLAUDE.md declares `wiki_linked: true` and `coupling_d_on_m5: true` (per PROJECT_BOOTSTRAP.md §3 Step 5)
+- **Depends on:** Project at M5 with G4_signoff; wiki reachable; project AGENTS.md declares `wiki_linked: true` and `coupling_d_on_m5: true` (per PROJECT_BOOTSTRAP.md §3 Step 5)
 - **Sibling:** SK-14 (independent, both can fire at round close); SK-16 (downstream consumer — SK-17 queues concept-page follow-ons that SK-16 executes); SK-15 (inverse relationship — SK-17 produces full source pages, SK-15 produces stubs)
 - **One-time trigger on first deployment:** SK-17 Phase 9 surfaces a recommendation to upgrade `QUICKSTART.md` and `OPERATING_MANUAL.md` from the lighter patch (applied 2026-04-13) to full integration, based on actual-use experience. Scheduled 2026-04-13 against the first SK-17 invocation in the workspace.
 
@@ -224,7 +224,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F1 (wiki holds zero external scholarly sources; the wiki and the pipeline are complementary, not redundant). Humanness retrofit (2026-04-13) demonstrated that stub-first grounding works if `grounding_status` frontmatter carries the audit trail; this skill codifies the stub-generation half as a repeatable batch operation.
 - **Tier:** Package
 - **Status:** Active
-- **Depends on:** Project has a REFERENCES file in the INF3006Y_AgencyDelegation format (source-root aliases + core + snowball + cited-via tables); wiki exists at the path declared in workspace CLAUDE.md
+- **Depends on:** Project has a REFERENCES file in the INF3006Y_AgencyDelegation format (source-root aliases + core + snowball + cited-via tables); wiki exists at the path declared in workspace AGENTS.md
 - **Sibling:** SK-14 `promote-lessons-to-wiki` — downstream consumer. Together SK-15 → SK-14 forms the batch pathway "populate external sources, then promote project lessons into syntheses that can cite them without red links."
 
 ### SK-14. `promote-lessons-to-wiki`
@@ -234,7 +234,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F4 (lessons terminate in-project; `wiki/syntheses/` is the natural sink but no protocol connected the two); pilot executed ad hoc on INF3006Y_AgencyDelegation L-01..L-05 producing `lessons-agency-delegation-2026-04-13.md`. This skill codifies the pilot as a repeatable protocol so the Reflector can trigger it at review-round close.
 - **Tier:** Package
 - **Status:** Active
-- **Depends on:** A functioning LLM wiki at the path the workspace CLAUDE.md declares; the project's source page must exist in `wiki/sources/` (else skill stops and asks)
+- **Depends on:** A functioning LLM wiki at the path the workspace AGENTS.md declares; the project's source page must exist in `wiki/sources/` (else skill stops and asks)
 - **Related couplings:** Coupling B (concept-page grounding retrofit) is a likely follow-on when red-link candidates accumulate; Coupling D (manuscript self-ingestion on M5) is this skill's upstream prerequisite
 
 ### SK-18. `advisor-escalation`
@@ -268,7 +268,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Source:** Synergy analysis 2026-04-16 — graphify produces 43 nodes / 53 edges / 7 communities / 81% EXTRACTED 19% INFERRED / section-level provenance at `LLM wiki/graphify-out/`, but zero file in `.paper-package/` references it (grep confirmed). SK-20 is the v0.3.0 minimum-viable pilot: a single Evaluator pre-flight hook that converts graph topology into findings in the pipeline's native output format, preserving uncertainty inheritance through graph-specific source tags.
 - **Tier:** Package
 - **Status:** Unavailable (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`); a separate governed graph-generation contract is required before promotion.
-- **Depends on:** graphify toolchain (runs externally; produces `graph.json` and `GRAPH_REPORT.md` under `LLM wiki/graphify-out/`); SK-15 `backfill-source-stubs-from-references` (provides citation-key ↔ pdf-path mapping Phase 2 relies on); project CLAUDE.md declares `wiki_linked: true`; `reviews/classification.md` exists for P-stage adjustment
+- **Depends on:** graphify toolchain (runs externally; produces `graph.json` and `GRAPH_REPORT.md` under `LLM wiki/graphify-out/`); SK-15 `backfill-source-stubs-from-references` (provides citation-key ↔ pdf-path mapping Phase 2 relies on); project AGENTS.md declares `wiki_linked: true`; `reviews/classification.md` exists for P-stage adjustment
 - **Contract version gate:** Graphify output schema as observed 2026-04-13 (top-level keys: `directed`, `multigraph`, `graph`, `nodes`, `links`, `hyperedges`; node fields: `id`, `label`, `source_file`, `source_location`, `author`, `captured_at`, `community`, `norm_label`; edge fields: `relation`, `confidence`, `confidence_score`, `source_file`, `source_location`, `weight`, `source`, `target`). If graphify's output schema changes, update this skill before running against a new graph.
 - **Grounding-audit extension:** Adds Category 8 (graph-sourced claims) to grounding-audit, paralleling SK-18's Category 7 extension. Category 8 audits three tag classes (extracted, inferred, stub), enforces confidence-score inheritance, and blocks on fabricated node/edge references or false stubs. As of v0.4.0, Category 8 gains sub-item 8a (confidence-echo detector) — every `[GRAPH-OVERLAY][CAT-8]` finding whose severity matches the mechanical confidence-to-severity mapping (EXTRACTED→BLOCKER, INFERRED→MAJOR, AMBIGUOUS→MINOR) must carry an independent-reasoning note citing a passage, directive, P-stage rule, or Class 1 verifier cross-check. Echo findings (matching severity + missing note) are MAJOR at standard depth and BLOCKER at submission-bound depth; shallow findings (matching severity + confidence-only note) are one tier below. Round-level ECHO+SHALLOW rate ≥ 30% triggers a `[COUPLING-E.2 DEGRADED]` flag.
 - **Sibling:** SK-18 `advisor-escalation` (structurally analogous — both bridge an external source of claims into the pipeline with tag-preserved uncertainty; SK-18 → Category 7, SK-20 → Category 8); SK-15 `backfill-source-stubs-from-references` (upstream dependency); SK-16 `retrofit-concept-grounding` (shares citation-parsing patterns); SK-17 `ingest-m5-to-wiki` (downstream — M5 ingestion triggers graphify re-run, which in turn refreshes SK-20's substrate)
@@ -360,14 +360,14 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-32. `run-generator-session` (closed public bypass, 2026-08-19)
 - **File:** `skills/run-generator-session/SKILL.md`
-- **Pattern:** **Session-sourced Generator** pass — the current chat supplies revision *instructions*; `reviews/classification.md` and `reviews/phase_state.json` supply *authority* (phase, P-stage, ceiling). No new `reviews/` session artefacts in v1. Aligned with `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md` and `agents/generator.md` (manuscript + `manuscript/revision_log.md` only; no `reviews` writes by the Generator).
+- **Pattern:** **CLOSED_PUBLIC_BYPASS.** Unconditional refuse: this skill produces zero manuscript bytes and zero revision-log bytes. Chat is not authority. Classification, `phase_state.json`, Evaluator findings, and F6 are not a license for this skill to write. Route to `/run-draft` or `/run-iterate`. Generator publication, if any, happens only under those coordinators via `assignment_writer_commit.py`.
 - **Created:** 2026-04-25
 - **Source:** Brainstorming + approved design spec `docs/superpowers/specs/2026-04-25-generator-session-revision-design.md`
 - **Tier:** Package
-- **Status:** Closed — not a public write path. Manuscript writes require Evaluator findings and F6.
-- **Depends on:** `agents/generator.md`, `references/GROUNDING_PROTOCOL.md`, `reviews/classification.md`, `reviews/phase_state.json`, optional project-local style path via `CLAUDE.md` / `directives.md`
-- **Sibling:** SK-25 `run-phase-1` … SK-27 `run-phase-4` (full ladder entry points with Planner/Evaluator packaging); SK-23 `plugin-commands` (discovery); SK-07 `sentence-level-pass` / SK-08 `narrative-structure-pass` (craft overlays, not the Generator role file)
-- **Not a replacement for:** full `/run-phase-2+` with Evaluator when the project’s governance still requires that round; does not create Planner artefacts
+- **Status:** Closed — not a public write path. Unconditional refuse (skill version 1.2).
+- **Depends on:** `agents/generator.md` (stage-only publication under coordinators), `skills/run-draft/SKILL.md`, `skills/run-iterate/SKILL.md`
+- **Sibling:** SK-25 `run-phase-1` … SK-27 `run-phase-4` (full ladder entry points with Planner/Evaluator packaging); SK-37 `run-draft` / SK-38 `run-iterate` (public coordinators); SK-23 `plugin-commands` (discovery)
+- **Not a replacement for:** `/run-draft` or `/run-iterate`; does not create Planner artefacts; does not call `assignment_writer_commit.py`
 
 ### SK-33. `seed-snowball-discovery`
 - **File:** `skills/seed-snowball-discovery/SKILL.md`

@@ -31,7 +31,7 @@ Within the non-overridable boundaries above, milestone content and form follow t
 1. Current user instruction.
 2. Venue requirements.
 3. Advisor, instructor, or committee requirements.
-4. Project-local `AGENTS.md`, `CLAUDE.md`, `directives.md`, and the declared project profile.
+4. Project-local `AGENTS.md`, `directives.md`, and the declared project profile.
 5. This protocol and `PHASE_PROTOCOL.md` within their respective axes.
 6. General package defaults.
 
@@ -215,7 +215,7 @@ All registered evidence paths are project-relative, contained, current-byte hash
 
 These are two separate approval layers. The migration-boundary authority approves the historical migration; the registry `approval_authority` approves granting exemplar status. Both must be independently permitted and supported by their own evidence, but they need not be the same actor. Registration records these decisions; it does not collapse them, rewrite ledger outcome, or alter historical provenance.
 
-Self-declaration detection is deliberately bounded. The validator inspects the machine ledger and only the declared project authority/status surfaces `AGENTS.md`, `CLAUDE.md`, and `reviews/lifecycle_state.md`. It recognizes exact lifecycle credential keys, exact credential headings, Markdown status fields or tables, and affirmative project-is/remains/serves-as/designated-as/registered-as declarations for `portfolio exemplar`, `reference implementation`, `clean_lifecycle_exemplar`, or `legacy_migration_exemplar`. Sentence subjects are limited to `this project`, `the project`, the canonical project-root name, and the ledger `manuscript_id`; identity matching is case-insensitive. Arbitrary bare subjects, arbitrary ledger scalars, negations, questions, and analytical mentions do not count. It does not scan manuscripts or arbitrary reviews, where ordinary disciplinary uses of “exemplar” or “reference implementation” are not lifecycle claims.
+Self-declaration detection is deliberately bounded. The validator inspects the machine ledger and only the declared project authority/status surfaces `AGENTS.md` and `reviews/lifecycle_state.md`. It recognizes exact lifecycle credential keys, exact credential headings, Markdown status fields or tables, and affirmative project-is/remains/serves-as/designated-as/registered-as declarations for `portfolio exemplar`, `reference implementation`, `clean_lifecycle_exemplar`, or `legacy_migration_exemplar`. Sentence subjects are limited to `this project`, `the project`, the canonical project-root name, and the ledger `manuscript_id`; identity matching is case-insensitive. Arbitrary bare subjects, arbitrary ledger scalars, negations, questions, and analytical mentions do not count. It does not scan manuscripts or arbitrary reviews, where ordinary disciplinary uses of “exemplar” or “reference implementation” are not lifecycle claims.
 
 For a registered clean exemplar, the lifecycle-view evidence hash is also the exact-byte derived-view binding. Any manual edit therefore emits both `MF-EXEMPLAR` and `MF-DERIVED`; editing or deleting the local claim cannot create or restore the external credential.
 

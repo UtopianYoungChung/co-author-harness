@@ -344,9 +344,6 @@ def case_output_redirect_refusals() -> None:
             ("d-style profile protected project",
              [sys.executable, str(HARNESS / "scripts" / "d_style_profile_check.py"),
               "--project-root", str(protected_dir)]),
-            ("token-budget redirected out",
-             [sys.executable, str(HARNESS / "scripts" / "token_budget_check.py"),
-              "--out", str(protected_dir / "token_budget_report.json")]),
         ]
         for label, argv in probes:
             before = {p.relative_to(protected_dir) for p in protected_dir.rglob("*")}

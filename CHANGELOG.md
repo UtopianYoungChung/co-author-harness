@@ -16,7 +16,11 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Grounding Protocol Rule 6 enforcement.** Rule 6 (no plausible fabrication) now has documented precedence over named-case pressure and "concrete detail" guidance. Generator must leave marked gaps (`[FACT NEEDED]`) rather than inventing plausible scenes when no vault/plan case exists. This binding is documented in `generator.md` and `run-draft/SKILL.md`.
 
-**Writer contract unification.** Generator stages only; Writer (outside plugin) applies exact path+hash after Joseph accepts. `generator.md` updated to match `run-draft/SKILL.md`: Generator is not the manuscript writer, Generator is the stager. DEST-PROTECTED maintained. SK-32 `/run-generator-session` remains CLOSED.
+**Writer contract unification.** Generator stages only; Writer (outside plugin) applies exact path+hash after Joseph accepts. `generator.md` updated to match `run-draft/SKILL.md`: Generator is not the manuscript writer, Generator is the stager. Leftover in-place procedure language (direct M4/revision-log writes) is restaged through `assignment_writer_commit.py`. DEST-PROTECTED maintained. SK-32 `/run-generator-session` is `CLOSED_PUBLIC_BYPASS` with an unconditional refuse: no write path even when Evaluator findings and F6 are on disk.
+
+**General `AGENTS.md` only.** Package-root `CLAUDE.md` and `references/CLAUDE.md` are removed. Invocation rules live in `AGENTS.md` and `references/AGENTS.md`. This package is not a Claude-specific instruction surface.
+
+**Token-budget check removed.** `scripts/token_budget_check.py` and `scripts/token_budget_smoketest.py` are deleted. The package-surface debt ratchet is not a live gate. `TOKEN_BUDGET_PROTOCOL.md` remains advisory for long-manuscript segmentation.
 
 **run-phase-1 invocability.** The `run-phase-1` skill is marked `user-invocable: false` to prevent model invocation. It remains on disk as a parked paper-specific compatibility body per the 0.50 kernel spec.
 

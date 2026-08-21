@@ -56,8 +56,8 @@ Before invoking this skill, verify all of the following. Abort with a clear `SK-
 
 Before these checks, run deterministic gate `scripts/sk20_preflight_gate.py` so readiness + no-op artifacts are emitted consistently. If `should_run_sk20` is false, SK-20 must no-op and use `reviews/sk20_noop_YYYY-MM-DD.json` as the authoritative reason record.
 
-1. **Project is wiki-linked.** The project CLAUDE.md contains `wiki_linked: true`. If absent or false, this skill is a no-op.
-2. **Graphify output exists.** Resolve `wiki_path` from the project CLAUDE.md (or deterministic gate overrides), then verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing, no-op.
+1. **Project is wiki-linked.** The project AGENTS.md contains `wiki_linked: true`. If absent or false, this skill is a no-op.
+2. **Graphify output exists.** Resolve `wiki_path` from the project AGENTS.md (or deterministic gate overrides), then verify `${wiki_path}/graphify-out/` contains both `graph.json` and `GRAPH_REPORT.md`. If either is missing, no-op.
 3. **Graph is not stale.** Compare the `captured_at` field in `graph.json` (or the date line in `GRAPH_REPORT.md`) against the most recent `Last updated:` date across the project's `references/REFERENCES.md` and `milestones/M4_complete_paper_draft.md`. If the graph is older than either, no-op with `SK-20: graph stale — last captured <date>, manuscript/references updated <date>. Re-run graphify before overlay.`
 4. **Manuscript is classified.** `reviews/classification.md` exists (or the user has explicitly set P-stage and paper-type). The overlay uses the classification to tune thresholds (e.g., P0 vs P1 expectations on orphan-node density) — without it, the overlay runs but reports all findings at their raw severity with no P-stage adjustment.
 5. **Manuscript cites at least one source.** If the manuscript has no in-text citations, no-op with `SK-20: no citations to overlay`.
@@ -109,7 +109,7 @@ When `reviews/coupling_readiness_YYYY-MM-DD.json` exists, prefer its `recommende
 
 ### Phase 3 — Generate the three finding types
 
-**MANDATORY — READ ENTIRE FILE.** Before generating findings, you MUST read [`references/AGENT_ORCHESTRATION.md`](references/AGENT_ORCHESTRATION.md) completely from start to finish and locate §8.6 (Coupling E.2). That section carries the full spec for Finding A (graph-stub citations — cited sources absent from the graph), Finding B (section-location mismatches — three-tier matcher with Jaccard thresholds 0.25 / bigram / 0.30), and Finding C (missing-citation candidates — graphify edges between cited and uncited sources). **NEVER set any range limits when reading this file.** The threshold numerics, severity-by-P-stage mappings, and the match-tier annotation format (`(match-tier: 2)`, `(match-tier: 3)`) are load-bearing for grounding-audit Category 8 downstream consumption.
+**MANDATORY — READ ENTIRE FILE.** Before generating findings, you MUST read [`references/AGENT_ORCHESTRATION.md`](../../references/AGENT_ORCHESTRATION.md) completely from start to finish and locate §8.6 (Coupling E.2). That section carries the full spec for Finding A (graph-stub citations — cited sources absent from the graph), Finding B (section-location mismatches — three-tier matcher with Jaccard thresholds 0.25 / bigram / 0.30), and Finding C (missing-citation candidates — graphify edges between cited and uncited sources). **NEVER set any range limits when reading this file.** The threshold numerics, severity-by-P-stage mappings, and the match-tier annotation format (`(match-tier: 2)`, `(match-tier: 3)`) are load-bearing for grounding-audit Category 8 downstream consumption.
 
 **Do NOT auto-promote findings to BLOCKER.** The overlay's function is to surface candidates; severity escalation beyond MAJOR requires the Evaluator's normal seven-step judgment in a subsequent pass.
 
@@ -190,7 +190,7 @@ Append a single line to `manuscript/revision_log.md`:
 5. **Do not fabricate edges or nodes.** If the graph lacks a node for a cited source, that absence is a Finding-A entry, not an imputation.
 6. **Do not re-run graphify.** If the graph is stale, no-op with a clear message; re-running graphify is the user's decision because it may be costly and modifies the wiki.
 7. **Do not consume graph output without carrying its uncertainty tags.** Every finding MUST be tagged `[source: graph-extracted]`, `[source: graph-inferred]`, or `[source: graph-stub]` so grounding-audit Category 8 can trace it back.
-8. **Do not run if the project is not wiki-linked.** Coupling E, like Couplings A–D, fires only when `wiki_linked: true` in the project CLAUDE.md.
+8. **Do not run if the project is not wiki-linked.** Coupling E, like Couplings A–D, fires only when `wiki_linked: true` in the project AGENTS.md.
 
 ## Grounding-protocol integration
 

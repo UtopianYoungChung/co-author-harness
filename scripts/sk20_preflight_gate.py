@@ -298,6 +298,7 @@ def _commit_outputs(
 
 
 def _resolve_configuration(project_root: Path, args: argparse.Namespace) -> Tuple[str, Dict[str, object], str, str]:
+    local_agents = project_root / "AGENTS.md"
     local_claude = project_root / "CLAUDE.md"
     if args.project_claude_path:
         explicit = Path(args.project_claude_path).resolve(strict=True)
@@ -305,18 +306,26 @@ def _resolve_configuration(project_root: Path, args: argparse.Namespace) -> Tupl
             relative = str(explicit.relative_to(project_root))
             resolved_claude = _contained_file(project_root, relative)
         except ValueError:
-            if not args.allow_ancestor_claude or explicit.name != "CLAUDE.md" or explicit.parent not in project_root.parents:
-                raise GateIOError("explicit project CLAUDE.md must be contained or an allowed ancestor CLAUDE.md")
+            if (
+                not args.allow_ancestor_claude
+                or explicit.name not in {"AGENTS.md", "CLAUDE.md"}
+                or explicit.parent not in project_root.parents
+            ):
+                raise GateIOError("explicit project AGENTS.md must be contained or an allowed ancestor AGENTS.md")
             if not explicit.is_file() or _is_reparse(explicit):
-                raise GateIOError("ancestor CLAUDE.md must be a regular non-reparse file")
+                raise GateIOError("ancestor AGENTS.md must be a regular non-reparse file")
             resolved_claude = explicit
+    elif local_agents.exists() or local_agents.is_symlink():
+        resolved_claude = _contained_file(project_root, "AGENTS.md")
+        if resolved_claude is None:
+            raise GateIOError("project AGENTS.md must be a contained non-reparse file")
     elif local_claude.exists() or local_claude.is_symlink():
         resolved_claude = _contained_file(project_root, "CLAUDE.md")
         if resolved_claude is None:
-            raise GateIOError("project CLAUDE.md must be a contained non-reparse file")
+            raise GateIOError("legacy project CLAUDE.md must be a contained non-reparse file")
     else:
         resolved_claude = resolve_project_claude_path(project_root, allow_ancestor=args.allow_ancestor_claude)
-    claude_path = resolved_claude or project_root / "CLAUDE.md"
+    claude_path = resolved_claude or project_root / "AGENTS.md"
     claude_fields, errors = _read_fields(claude_path)
     directives_path = project_root / "research_notes" / "directives.md"
     if directives_path.exists() or directives_path.is_symlink():
@@ -338,7 +347,7 @@ def _resolve_configuration(project_root: Path, args: argparse.Namespace) -> Tupl
             "sk20_not_applicable_substitute_evidence": args.sk20_not_applicable_substitute_evidence,
         }.items() if value is not None
     }
-    layers = [("project CLAUDE.md", claude_fields), ("research_notes/directives.md", directive_fields), ("CLI", cli_fields)]
+    layers = [("project AGENTS.md", claude_fields), ("research_notes/directives.md", directive_fields), ("CLI", cli_fields)]
     effective: Dict[str, str] = {}
     for _, layer in layers:
         effective.update(layer)
@@ -349,11 +358,11 @@ def _resolve_configuration(project_root: Path, args: argparse.Namespace) -> Tupl
     metadata: Dict[str, object] = {
         "project_root": str(project_root),
         "configuration_layers": active_layers,
-        "configuration_precedence": "CLI > research_notes/directives.md > project CLAUDE.md > package",
+        "configuration_precedence": "CLI > research_notes/directives.md > project AGENTS.md > package",
     }
 
     if not claude_path.is_file() and not args.allow_missing_project_claude:
-        errors.append("missing project CLAUDE.md")
+        errors.append("missing project AGENTS.md")
     if wiki_linked is False and coupling_enabled is True:
         errors.append("coupling_e_on_review=true contradicts wiki_linked=false")
     if errors:

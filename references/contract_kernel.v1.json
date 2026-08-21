@@ -4,6 +4,13 @@
   "plugin_identity_source": "version.json",
   "release_history": [
     {
+      "version": "0.50.0",
+      "date": "2026-08-20",
+      "kind": "kernel-identity-and-integration-repair",
+      "release_notes": "CHANGELOG.md",
+      "authority": "historical-only-no-qualification-clearance-shipment-host-or-lifecycle-authority"
+    },
+    {
       "version": "0.43.1",
       "date": "2026-08-14",
       "kind": "shipment-v2-membership-repair-and-qualification-coverage-integration",
@@ -179,7 +186,7 @@
       "id": "capability-registry",
       "path": "references/capabilities.yaml",
       "revision_kind": "sha256",
-      "sha256": "61b87dd49a38cb875add7860e3bb8d65e50c8a68fcef31e24a97669aa76a1a06",
+      "sha256": "d73db1da4576c622892a11cb334bb1ce2947737588c27886e9dbaa297bafd3e1",
       "migration_ids": [
         "capability-closure-six-plane-v1"
       ]
@@ -230,7 +237,7 @@
       "id": "milestone-handoff",
       "path": "references/MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md",
       "revision_kind": "sha256",
-      "sha256": "fd37a981ce53c53a4a321a6c219c508cadc7267b3e07b032ec3a1637a4b92e4c",
+      "sha256": "85586233240de7c179e096fa0352fe7e83b17fb3005c7ed532e4e747debfc9e0",
       "migration_ids": [
         "milestone-path-contract-v2",
         "lab-iteration-derived-handoff-v1",
@@ -252,7 +259,7 @@
       "id": "full-run-contract",
       "path": "references/FULL_RUN_CONTRACT.md",
       "revision_kind": "sha256",
-      "sha256": "1a547c3a563165c1ef409998b9d91d1b861e258987d98cf7dfbcaf33f6b05f61",
+      "sha256": "39ded8d407d03b0980c2c00f54edeb16e3eb9e68f9cd59deb5052d6bbc8a5b02",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -271,7 +278,7 @@
       "id": "grounding-protocol",
       "path": "references/GROUNDING_PROTOCOL.md",
       "revision_kind": "sha256",
-      "sha256": "248dc4226145ed52d246f3674a4b80754627a480e5f775305d8d76dce715fe32",
+      "sha256": "5b298e472b90ce4395e5eec5e092f54d9b1409dc0b46ce8ed8f9525969547d5d",
       "migration_ids": []
     },
     {
@@ -421,7 +428,7 @@
       "id": "milestone-framework-validator",
       "path": "scripts/milestone_framework_validate.py",
       "revision_kind": "sha256",
-      "sha256": "0ea26106fc71cf0a9ccefaec6bbd4a2375483a537ff921c0eb11a159cb230e53",
+      "sha256": "a31df0c0852f238a5860ca3a7092f204d99e4d172de540f8afec205951c2f6ba",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -639,16 +646,7 @@
       "id": "token-budget-policy",
       "path": "references/policies/token_budget.v1.json",
       "revision_kind": "sha256",
-      "sha256": "9faa259a8c51a10747311961eeb4813396f3ca0f21abda1513140e55678a2a2a",
-      "migration_ids": [
-        "qualification-architecture-v1"
-      ]
-    },
-    {
-      "id": "token-budget-check",
-      "path": "scripts/token_budget_check.py",
-      "revision_kind": "sha256",
-      "sha256": "1a041f28f232cdffcba37360b679496b3e0877282d9f0eb73a91e822999a5388",
+      "sha256": "4105c295fe3e8faf350d9c010288c517979898d29db6a46cad4f21f82eceac5a",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -684,7 +682,7 @@
       "id": "build-plugin",
       "path": "scripts/build-plugin.py",
       "revision_kind": "sha256",
-      "sha256": "e5edc9cdd5faafc0c5c4fdee4909045e5995155f49e58a5895b2fa9517c2ca0c",
+      "sha256": "6f3a12c9674f3f14ff305d20fe50f5b1fb053de27a5173c831b244ac5e64e4d5",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -693,7 +691,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "d2f94c447c7632439299e59998df3f49d553676b478211fcf430a564ab26ac73",
+      "sha256": "1684022dab76f4a259b94ac1779e167cdb18caa53cdee1a59112832680c71119",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -758,7 +756,7 @@
       "id": "phase-engagement-check",
       "path": "scripts/phase_engagement_check.py",
       "revision_kind": "sha256",
-      "sha256": "d62a659de1b7d3d2b0baa34c518c53c45b010dae3fcd95f68e49a4b4b1756c87",
+      "sha256": "a5f43dc7fb5a49f93363a784684014cfaabfa7f34466fd0c67c2ced95ebd1dfa",
       "migration_ids": []
     },
     {
@@ -845,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "1a9712622ade50c1bb96e9f8b11bba84cae1e62f66acf72b3ec3fac8dde89990",
+      "sha256": "d0bdf279484f979b3e9f9c078440a626ada76c43eb256347cc9313e93d377557",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -873,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "d878a0dfb9a05f7c3e3e00398f7adf4b4f2f8dce4452dbd7b2aac476318bcbd6",
+      "sha256": "c35ae7ea669a57d1faab5b099906839ec870f15cf9c87f2bb5fc23e87763ca21",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -889,9 +887,9 @@
     },
     {
       "id": "package-invocation-rules",
-      "path": "references/CLAUDE.md",
+      "path": "references/AGENTS.md",
       "revision_kind": "sha256",
-      "sha256": "83da631360a700fb317cf3575cc32f96e506f1a1ea4c23a5ae6b0f1f3dff5a9b",
+      "sha256": "168bfb28d64cb2d666047529981c78b0d08b65b3272438e3901a78ff4d41d1da",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -900,7 +898,7 @@
       "id": "agent-orchestration",
       "path": "references/AGENT_ORCHESTRATION.md",
       "revision_kind": "sha256",
-      "sha256": "6747765a7f0846cb93f1ac656fa3348a8e80e517eca3dbb774b5bfdd8b67830d",
+      "sha256": "bdef62bc6bcac075ed287ace5e63912b651498f8f3b5cca9663bb1f4657f04bd",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -918,7 +916,7 @@
       "id": "operating-manual",
       "path": "references/OPERATING_MANUAL.md",
       "revision_kind": "sha256",
-      "sha256": "3d821ed21fec0c561e9ca7bfd5651491e41518f7b535d87a3f5eb05b4b965bbd",
+      "sha256": "cd8c4bdb0b7f42c40e733f9d1403d78383adc7afbb9f65cf831fdcc85e2d3915",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -936,7 +934,7 @@
       "id": "phase-protocol",
       "path": "references/PHASE_PROTOCOL.md",
       "revision_kind": "sha256",
-      "sha256": "216713c11d2893b3bf21333fdb5b360c6001da3f5b5d6b198c0d84251697330d",
+      "sha256": "07958a75a93b3c56a2d3568430992b4e4aa94f3d401f485911e8face4f2a63c8",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -945,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "2e08f885d28e7e1ab46ddc2457465d17902ae8befcd89a2a59bbfabde0d56cda",
+      "sha256": "001d23386004237af4fb46281c487a7625bbd99ac6efe09fc910b40166a152a6",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -954,7 +952,7 @@
       "id": "evaluator-agent",
       "path": "agents/evaluator.md",
       "revision_kind": "sha256",
-      "sha256": "6b679569f91cca060562f6615e08d8175e22f24b198420dbeb145486042616f3",
+      "sha256": "a7f6557671449ddd8cdfb5cade95ca55f705c2adf3423c324967e1eeb7dade39",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -963,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "58e5d02c597b3c3c3b9f3e12f167492143ca53663e07c3b300cf7774f2348877",
+      "sha256": "f419cc08e5d989fb155aca54eacb749d47697a2c1c8352bf0d54ae73cb86b0cb",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -981,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "acbea9204676c37a3d53c93adbecf1d9faf6da3bad31621d54264b51a991c083",
+      "sha256": "2d97b57f77cd9bd260e1c00ae44f34a4ecf59e127d306408433ae84de4ca17e4",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -990,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "44fa77e9409afd8c9d314833edc24c9dfe1ad9844606e8086f781d7dbc1d95d1",
+      "sha256": "b47d1b2b872e35531dd3cdaa5570f47dfdb93071101ef68c21f283ffc8de0c04",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -999,7 +997,7 @@
       "id": "skill-run-finalize",
       "path": "skills/run-finalize/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "60ec63058f6fcea1a9a6932d2bc01abfe97105b0247f078f20a6731c07373a18",
+      "sha256": "cdd6e382d416277e6df9915ad5ae8d0f902ce8a37b87db6d17186328038c8e96",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1008,7 +1006,7 @@
       "id": "skill-run-generator-session",
       "path": "skills/run-generator-session/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "5e1087693e36b97dc135dae69f10a885080fb898189024cd723ab2a366a790b7",
+      "sha256": "a9ffa8944046ba43595e1f730ee58413affbaf08655c5f8fb832d0a5197ff219",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1017,7 +1015,7 @@
       "id": "skill-run-phase-4",
       "path": "skills/run-phase-4/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "a3f527f53f0311ccb6a66fa71f3826be1bd07d9c99ccf340c77b51379708dc99",
+      "sha256": "ab363fd1589a1e4faa08233a31df41b4e1e0281390317b56ca1cf6308bee93f2",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1026,7 +1024,7 @@
       "id": "skill-quick-deterministic",
       "path": "skills/quick-deterministic/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "1c62d3fb446660ea973a1b0352e7bb3c626cbf9b2dc3757c926e59e65d58df64",
+      "sha256": "053521fc90934ccab32a0fbf4fa8e1985fd235471138532338b5284daf94b1b9",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1035,7 +1033,7 @@
       "id": "skill-plugin-commands",
       "path": "skills/plugin-commands/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "537525d5a0f46a22e354c435fdd6da567f900e7289431b176eb96f8ef5971fa0",
+      "sha256": "b436d78adc53813237645c7b8591ebb69938544f5bc48125f26583c37ed31d81",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

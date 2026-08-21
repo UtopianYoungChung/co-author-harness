@@ -410,7 +410,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/update_version_manifests_smoketest.py": [_default_case()],
     "scripts/write_release_checksum_smoketest.py": [_default_case()],
     "scripts/tests/test_resolve_includes.py": [_default_case()],
-    "scripts/token_budget_smoketest.py": [_default_case()],
+
     "scripts/version_policy_smoketest.py": [_default_case()],
 }
 
@@ -465,7 +465,7 @@ CACHEABLE_SUITES = frozenset({
     "scripts/scholarly_lifecycle_integration_smoketest.py",
     "scripts/staging_authority_mode_smoketest.py",
     "scripts/subprocess_text_policy_smoketest.py",
-    "scripts/token_budget_smoketest.py",
+
     "scripts/version_policy_smoketest.py",
 })
 

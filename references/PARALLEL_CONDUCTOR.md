@@ -70,13 +70,13 @@ Each Research root maintains a live `conductor.md` at its root (e.g., `Research/
 
 **Default concurrency model.** Each project is a logically isolated unit. The invariants:
 
-- Every project has its own `CLAUDE.md`, `manuscript/`, `reviews/`, `research_notes/`, and (optionally) `skills/`.
+- Every project has its own `AGENTS.md`, `manuscript/`, `reviews/`, `research_notes/`, and (optionally) `skills/`.
 - Directives are project-scoped unless explicitly marked package-level (see `RESEARCH_ROOT_CLAUDE.md` §6).
 - Lessons in a project's `research_notes/lessons_learned.md` stay in that project. Package-level lessons (recorded by the Reflector in the package repo) apply everywhere.
 - Skills are tiered (Package / Project / Global per `SKILL_REGISTRY.md`). Project skills do not cross projects.
 - `DO_NOT_DISTURB.md` is project-scoped by default; a user can declare a frozen rule package-level by filing it in `.paper-package/DO_NOT_DISTURB_PACKAGE.md` (create on first use).
 
-**What the Planner does on every invocation.** Reads `conductor.md`; identifies which project the current utterance concerns (by explicit name, by recent activity, or by asking); loads that project's `CLAUDE.md` and `research_notes/directives.md`; proceeds in L0 mode within that project.
+**What the Planner does on every invocation.** Reads `conductor.md`; identifies which project the current utterance concerns (by explicit name, by recent activity, or by asking); loads that project's `AGENTS.md` and `research_notes/directives.md`; proceeds in L0 mode within that project.
 
 **What is forbidden.** Silent cross-project directive application. If the Planner notices a pattern in Project A that seems to apply to Project B, it does not propagate it automatically; it files a Reflector-level note proposing a package-level directive for user approval.
 
@@ -122,7 +122,7 @@ A session ends either because the user closes it or because the Agent tool's ses
 3. **Pending-dispatch queue.** If the session ended mid-dispatch (e.g., Planner dispatched Evaluator but Evaluator did not complete), the dispatch is recorded in `conductor.md` under "Resume here" with the exact prompt.
 4. **User handoff note.** A one-paragraph summary in the user-visible response at session close: what was done, what is pending, what the next session should pick up.
 
-**Session entry.** The next Planner reads `conductor.md` first, then the project's `CLAUDE.md`, then the "Resume here" note if any, then proceeds.
+**Session entry.** The next Planner reads `conductor.md` first, then the project's `AGENTS.md`, then the "Resume here" note if any, then proceeds.
 
 ---
 
@@ -154,7 +154,7 @@ Legacy projects still housed under `D:\OneDrive - University of Toronto\Year 202
 
 - Not a locking primitive. It is a normative protocol.
 - Not a scheduler. The user (or the Planner at the user's direction) decides what runs when.
-- Not a replacement for project-level `CLAUDE.md` files. The conductor points at projects; the per-project files govern the work.
+- Not a replacement for project-level `AGENTS.md` files. The conductor points at projects; the per-project files govern the work.
 
 ---
 

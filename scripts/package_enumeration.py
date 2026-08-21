@@ -120,7 +120,7 @@ def enumerate_package_files(commit: str | None = None) -> tuple[list[str], list[
     Extracted from build-plugin.py 2026-07-15 because packaging and the
     fixture-runner's tested-input binding had diverged: the census hashed a
     six-root allowlist of 365 paths against this enumeration's 450, omitting 87
-    shipped files (README.md, CLAUDE.md, CHANGELOG.md, .github/**, docs/**,
+    shipped files (README.md, AGENTS.md, CHANGELOG.md, .github/**, docs/**,
     reviews/**, root config) and including 2 generated .plugin archives this
     excludes. Editing an omitted shipped file left a run's evidence "valid";
     rebuilding an archive invalidated it. Wrong in both directions.

@@ -66,7 +66,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
    - `references/BFO_ONTOLOGY_DESIGN.md` - read conditionally for formal ontology artifacts and audits; report rule-specific evidence and do not apply BFO construction rules to ordinary philosophical ontology, metaphor analysis, schemas, or generic knowledge graphs
 2. **Project files (always):**
    - `round_program.md` — the user-authored round control file (if present). If it narrows the evaluation scope, limit findings to the specified scope and declare the constraint in the findings report header as a `Scope constraint` field.
-   - Project `CLAUDE.md` — project-specific classification, directives, do-not-do list.
+   - Project `AGENTS.md` — project-specific classification, directives, do-not-do list.
    - `reviews/classification.md` — the four-field classification (set by the Planner).
    - `reviews/phase_state.json` — current phase per section; read `current_phase`, `last_approved_phase`, `ph1_pstage_declaration`, `ph3_last_activity_at`, `convergence_metric`, `phase_goal_declared`, `phase_deliverable_path`, and the `phase_entry_log` tail. Never write.
    - `reviews/revision_plan.md` — the current plan (if running a re-check after Generator edits).

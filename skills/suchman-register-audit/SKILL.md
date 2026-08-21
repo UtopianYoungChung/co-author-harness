@@ -31,7 +31,7 @@ Read `suchman_writing_style.md §5` (Evaluator register summary table). For each
 | Move 6 — We/I alternation | Is "we" used for shared epistemic moves and "I" for authorial positions? | Present / Absent / Uniform (flag) |
 | Move 7 — Forward-opening paragraph close | Do major paragraphs close with a question or reframing rather than a synthesis announcement? | Present / Absent |
 
-**Output.** List each move with its verdict and the line or passage location. Moves marked Absent are MINOR findings unless they were declared as deferred in the project's CLAUDE.md (in which case: note the deferral and do not flag).
+**Output.** List each move with its verdict and the line or passage location. Moves marked Absent are MINOR findings unless they were declared as deferred in the project's AGENTS.md (in which case: note the deferral and do not flag).
 
 ---
 
@@ -85,7 +85,7 @@ Run the following two checks:
 | Move 7 — Forward-opening close | [verdict] | [§X, line N / not found] |
 
 Moves absent / partial: [list or none]
-Deferred moves (per CLAUDE.md): [list or none]
+Deferred moves (per AGENTS.md): [list or none]
 Layer 1 verdict: [All present / N absent — list]
 
 ### Layer 2: Theoretical Adequacy

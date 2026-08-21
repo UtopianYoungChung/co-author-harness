@@ -70,15 +70,17 @@ def resolve_project_claude_path(
             return explicit.resolve()
         return None
 
-    local = project_root / "CLAUDE.md"
-    if local.exists():
-        return local.resolve()
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        local = project_root / name
+        if local.exists():
+            return local.resolve()
 
     if allow_ancestor:
         for parent in project_root.parents:
-            candidate = parent / "CLAUDE.md"
-            if candidate.exists():
-                return candidate.resolve()
+            for name in ("AGENTS.md", "CLAUDE.md"):
+                candidate = parent / name
+                if candidate.exists():
+                    return candidate.resolve()
     return None
 
 
@@ -151,10 +153,10 @@ def run_checks(
     )
 
     if claude_path is None and not allow_missing_project_claude:
-        results.append(CheckResult("project_claude_exists", False, "Missing project CLAUDE.md"))
+        results.append(CheckResult("project_claude_exists", False, "Missing project AGENTS.md"))
         return results, metadata
     if claude_path is None and allow_missing_project_claude:
-        results.append(CheckResult("project_claude_exists", True, "Missing project CLAUDE.md; using CLI overrides"))
+        results.append(CheckResult("project_claude_exists", True, "Missing project AGENTS.md; using CLI overrides"))
         claude_text = ""
     else:
         results.append(CheckResult("project_claude_exists", True, f"Using {claude_path}"))

@@ -66,7 +66,7 @@ _LIVE_ROOTS = (
     "skills",
     "docs/agent-instructions",
 )
-_ROOT_DOCUMENTS = ("README.md", "AGENTS.md", "CLAUDE.md")
+_ROOT_DOCUMENTS = ("README.md", "AGENTS.md")
 _TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".json", ".yaml", ".yml", ".toml"}
 _GENERATED_PARTS = {"__pycache__", "node_modules", "dist", "build"}
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")

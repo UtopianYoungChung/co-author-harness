@@ -79,6 +79,16 @@
    "retired_at": "n/a",
    "successor": "audit/audit_citations.py",
    "note": "never existed; walkthrough-era aspiration"
+  },
+  "token_budget_check.py": {
+   "retired_at": "v0.50.0",
+   "successor": null,
+   "note": "package-surface debt ratchet removed; TOKEN_BUDGET_PROTOCOL.md remains advisory for long-manuscript segmentation"
+  },
+  "token_budget_smoketest.py": {
+   "retired_at": "v0.50.0",
+   "successor": null,
+   "note": "retired with token_budget_check.py"
   }
  },
  "retired_phrases": {

@@ -13,7 +13,7 @@ You are running the **Advisor MCP** bridge skill shipped by the **co-author-harn
 
 It handles everything between "the Planner decides it needs external feedback" and "the requesting agent receives a grounded, auditable consultation result."
 
-**Normative one-pager.** Read [`references/ADVISOR_MCP.md`](references/ADVISOR_MCP.md) for EP-1 / EP-2 definitions and plugin–MCP wiring.
+**Normative one-pager.** Read [`references/ADVISOR_MCP.md`](../../references/ADVISOR_MCP.md) for EP-1 / EP-2 definitions and plugin–MCP wiring.
 
 ---
 
@@ -131,7 +131,7 @@ Capture the full response text. The response will contain:
 
 The advisor's output carries `[source: external]` tags on claims the advisor attributes to named authorities. Those tags must be re-classified defensively before the content enters the manuscript pipeline — some will resolve to verifiable citations in your REFERENCES.md, some will remain unverified and must stay `[REF to be verified]`, and a few will be ungrounded rhetorical attributions that must be removed entirely.
 
-**MANDATORY — READ ENTIRE FILE.** Before running re-classification, you MUST read [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) completely from start to finish. That file carries the attribution-confidence tiers (Verified / Inherited / Indirect), the Rule 4 attribution procedure, and the four-pattern framework (Name+verb, Author's-term, Per-X/According-to-X, X-who-argues) plus the extract → heuristic-reclassify → force-reclassify → validate procedure. **NEVER set any range limits when reading this file.** The tier definitions and pattern numbering are load-bearing for the reclassification log the Step 5 artifact template consumes.
+**MANDATORY — READ ENTIRE FILE.** Before running re-classification, you MUST read [`references/GROUNDING_PROTOCOL.md`](../../references/GROUNDING_PROTOCOL.md) completely from start to finish. That file carries the attribution-confidence tiers (Verified / Inherited / Indirect), the Rule 4 attribution procedure, and the four-pattern framework (Name+verb, Author's-term, Per-X/According-to-X, X-who-argues) plus the extract → heuristic-reclassify → force-reclassify → validate procedure. **NEVER set any range limits when reading this file.** The tier definitions and pattern numbering are load-bearing for the reclassification log the Step 5 artifact template consumes.
 
 If you already read `GROUNDING_PROTOCOL.md` at Step 0, re-read the **Rule 4** and **Attribution-confidence tiers** sections specifically rather than reloading the full file.
 

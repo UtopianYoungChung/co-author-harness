@@ -99,7 +99,7 @@ FIXTURE_MARKERS = ("_smoketest", "_test", "test_")
 #   tested inputs   *.py + schema json   99 files  ("conservative", wasn't)
 #   tested inputs   six-root "denylist"  365 files -- STILL an allowlist, and
 #                   still wrong: vs. build-plugin.py's 450 tracked files it
-#                   omitted 87 SHIPPED files (README.md, CLAUDE.md,
+#                   omitted 87 SHIPPED files (README.md, AGENTS.md,
 #                   CHANGELOG.md, .github/**, docs/**, reviews/**, root config)
 #                   and INCLUDED 2 generated .plugin archives the builder
 #                   explicitly excludes. Editing an omitted shipped file left

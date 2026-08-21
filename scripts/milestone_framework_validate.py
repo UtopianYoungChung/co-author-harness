@@ -2419,7 +2419,7 @@ def _project_prose_exemplar_claims(
     # These are the declared project authority/status surfaces only.  Broad
     # manuscript/review scanning would confuse ordinary uses of "exemplar"
     # with a lifecycle credential.
-    surfaces = ("AGENTS.md", "CLAUDE.md", "reviews/lifecycle_state.md")
+    surfaces = ("AGENTS.md", "reviews/lifecycle_state.md")
     for relative in surfaces:
         candidate = _canonical_path(project_root, relative)
         if candidate is None or not candidate.is_file():

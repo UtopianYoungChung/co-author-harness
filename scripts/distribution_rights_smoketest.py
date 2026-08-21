@@ -83,7 +83,6 @@ def base_registry(forbidden_bytes: bytes = b"removed synthetic source bytes") ->
         ],
         "enforcement_surfaces": {
             "AGENTS.md": "python scripts/distribution-rights-check.py",
-            "CLAUDE.md": "python scripts/distribution-rights-check.py",
             ".github/workflows/structural-checks.yml": "distribution-rights-check.py",
             "scripts/release-gate.sh": "distribution-rights-check.py",
             "scripts/analysis/fixture_runner.py": "scripts/distribution_rights_smoketest.py",

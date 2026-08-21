@@ -107,7 +107,7 @@ def section(text: str, heading: str, next_heading: str) -> str:
 
 def advertised_slash_names(plugin_root: Path) -> dict[str, set[str]]:
     surfaces: dict[str, set[str]] = {}
-    for rel in ("AGENTS.md", "CLAUDE.md"):
+    for rel in ("AGENTS.md",):
         path = plugin_root / rel
         if path.is_file():
             surfaces[rel] = set(SLASH_NAME.findall(read_text(path)))

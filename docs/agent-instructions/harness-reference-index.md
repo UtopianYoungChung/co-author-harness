@@ -1,14 +1,15 @@
-# What the harness root CLAUDE is not — and where to read rules
+# What the harness root AGENTS.md is not — and where to read rules
 
-**When to read:** You need the canonical file index or a reminder not to treat this repo’s root `CLAUDE.md` as the full rule source.
+**When to read:** You need the canonical file index or a reminder not to treat this repo’s root `AGENTS.md` as the full rule source.
 
 ---
 
-## What the harness root CLAUDE.md is NOT
+## What the harness root AGENTS.md is NOT
 
 - **Not** a rule source. Rules live in the package component files under `agents/`, `references/`, and `skills/`.
 - **Not** a substitute for reading the package orchestration files. The root file delegates; it does not replicate.
-- **Not** project-specific. Project-specific guidance lives in each project's own CLAUDE.md and `research_notes/` folder.
+- **Not** project-specific. Project-specific guidance lives in each project's own AGENTS.md and `research_notes/` folder.
+- **Not** a Claude-specific instruction file. This package has no `CLAUDE.md`.
 
 ---
 
