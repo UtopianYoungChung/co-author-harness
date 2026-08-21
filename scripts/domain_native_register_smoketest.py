@@ -312,14 +312,33 @@ def main() -> int:
             else: raise AssertionError(f"malformed graph escaped controlled policy error: {payload!r}")
             proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT)],capture_output=True,text=True,encoding="utf-8",errors="replace")
             payload_out=json.loads(proc.stdout)
-            assert proc.returncode==4 and payload_out["status"]=="MISCONFIGURED" and payload_out["code"]=="RA-POLICY" and "Traceback" not in proc.stdout+proc.stderr
+            assert proc.returncode==4 and "Traceback" not in proc.stdout+proc.stderr
+            if str(payload_out.get("message","")).startswith("GRAPH-SEMANTIC-INELIGIBLE"):
+                assert payload_out["status"]=="FAIL_CLOSED" and payload_out["code"]=="GRAPH-SEMANTIC-INELIGIBLE"
+            else:
+                assert payload_out["status"]=="MISCONFIGURED" and payload_out["code"]=="RA-POLICY"
+        graph_path.write_bytes(valid_graph_bytes)
+        structural=json.loads(valid_graph_bytes.decode("utf-8"))
+        structural["graph"]["extraction_mode"]="structural-only"
+        structural["graph"]["semantic_status"]="pending"
+        graph_path.write_text(json.dumps(structural),encoding="utf-8")
+        diagnostic=workspace/"graph-semantic-ineligible.json"
+        proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT),"--out",str(diagnostic)],capture_output=True,text=True,encoding="utf-8",errors="replace")
+        payload_out=json.loads(proc.stdout) if proc.stdout.strip() else json.loads(diagnostic.read_text(encoding="utf-8"))
+        assert proc.returncode==4 and payload_out["status"]=="FAIL_CLOSED" and payload_out["code"]=="GRAPH-SEMANTIC-INELIGIBLE"
+        assert diagnostic.is_file() and "GRAPH-SEMANTIC-INELIGIBLE" in diagnostic.read_text(encoding="utf-8")
         graph_path.write_bytes(valid_graph_bytes)
         source_page=wiki/"wiki/sources/yu-1995-istar.md"; valid_source_bytes=source_page.read_bytes(); source_page.write_bytes(b"\xff")
         try: policy.resolve_domain_native_register(baseline,wiki_root=wiki,workspace_root=workspace,harness_root=ROOT)
         except policy.PolicyError as exc: assert "not UTF-8" in str(exc) or "pinned semantic page hash mismatch" in str(exc)
         else: raise AssertionError("invalid UTF-8 source page escaped controlled policy error")
         proc=subprocess.run([sys.executable,str(ROOT/"scripts/reader_accessibility_policy.py"),"--wiki-root",str(wiki),"--workspace-root",str(workspace),"--harness-root",str(ROOT)],capture_output=True,text=True,encoding="utf-8",errors="replace")
-        assert proc.returncode==4 and json.loads(proc.stdout)["code"]=="RA-POLICY" and "Traceback" not in proc.stdout+proc.stderr
+        payload_out=json.loads(proc.stdout)
+        assert proc.returncode==4 and "Traceback" not in proc.stdout+proc.stderr
+        if str(payload_out.get("message","")).startswith("GRAPH-SEMANTIC-INELIGIBLE"):
+            assert payload_out["status"]=="FAIL_CLOSED" and payload_out["code"]=="GRAPH-SEMANTIC-INELIGIBLE"
+        else:
+            assert payload_out["status"]=="MISCONFIGURED" and payload_out["code"]=="RA-POLICY"
         source_page.write_bytes(valid_source_bytes)
         absent_key=profile["domain_native_register"]["exemplar_members"][1]["source_key"]
         absent_page=wiki/f"wiki/sources/{absent_key}.md"

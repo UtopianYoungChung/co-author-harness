@@ -46,7 +46,119 @@ def run_runner(project: Path, text: str, *extra: str) -> subprocess.CompletedPro
     )
 
 
+def test_policy_error_payload_classifies_graph_ineligible() -> None:
+    payload = policy.policy_error_payload(
+        policy.PolicyError(
+            "GRAPH-SEMANTIC-INELIGIBLE: extraction_mode 'structural-only' "
+            "is not one of ['hybrid-structural-semantic', 'semantic']"
+        )
+    )
+    assert payload["status"] == "FAIL_CLOSED"
+    assert payload["code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+    assert payload["message"].startswith("GRAPH-SEMANTIC-INELIGIBLE:")
+
+
+def test_policy_error_payload_keeps_true_misconfiguration() -> None:
+    payload = policy.policy_error_payload(
+        policy.PolicyError("invalid passage_scope_class: nonsense")
+    )
+    assert payload["status"] == "MISCONFIGURED"
+    assert payload["code"] == "RA-POLICY"
+
+
+def test_v2_dormant_project_uses_reader_profile() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td)
+        reviews = project / "reviews"
+        reviews.mkdir()
+        (reviews / "phase_state.json").write_text(
+            json.dumps(
+                {
+                    "milestone_framework": {
+                        "policy_bindings": {
+                            "reader_accessibility": {
+                                "binding_version": "2.0.0",
+                                "binding_kind": "reader_profile",
+                                "semantic_usage": "not_invoked",
+                            }
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        assert policy.reader_profile_v2_is_dormant(project) is True
+        resolved = policy.resolve_declared_policy(project)
+        assert resolved["binding_kind"] == "reader_profile"
+        assert resolved["semantic_usage"] == "not_invoked"
+        assert "blocker" not in resolved
+        assert "attestation_view_pin" not in resolved
+        assert "exemplar_view_pin" not in resolved
+
+
+def _write_v2_phase_state(project: Path, payload: object) -> None:
+    reviews = project / "reviews"
+    reviews.mkdir(exist_ok=True)
+    (reviews / "phase_state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_v2_dormant_rejects_non_mapping_containers() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td)
+        cases = (
+            [],
+            {"milestone_framework": []},
+            {"milestone_framework": {"policy_bindings": []}},
+            {"milestone_framework": "not-a-mapping"},
+        )
+        for payload in cases:
+            _write_v2_phase_state(project, payload)
+            assert policy.reader_profile_v2_is_dormant(project) is False, payload
+
+
+def test_v2_declared_policy_emits_candidates() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        project = Path(td)
+        _write_v2_phase_state(
+            project,
+            {
+                "milestone_framework": {
+                    "policy_bindings": {
+                        "reader_accessibility": {
+                            "binding_version": "2.0.0",
+                            "binding_kind": "reader_profile",
+                            "semantic_usage": "not_invoked",
+                        }
+                    }
+                }
+            },
+        )
+        result = run_runner(
+            project,
+            "# Opening\n\nThis section turns to an example because the reader needs a map.\n",
+        )
+        combined = result.stdout + result.stderr
+        assert result.returncode == 0 and "Traceback" not in combined and "KeyError" not in combined, combined
+        artifact = json.loads(
+            (project / "reviews/reader_accessibility_candidates_adversarial.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert artifact["schema_version"] == "reader_accessibility_candidates.v2"
+        assert artifact["semantic_usage"] == "not_invoked"
+        assert "attestation_view_pin" not in artifact
+        assert "exemplar_view_pin" not in artifact
+        assert artifact["candidate_only"] is True
+        assert artifact["sub_checks"]["H"]["applicable"]
+        policy.validate_candidate_artifact(artifact)
+
+
 def main() -> int:
+    test_policy_error_payload_classifies_graph_ineligible()
+    test_policy_error_payload_keeps_true_misconfiguration()
+    test_v2_dormant_project_uses_reader_profile()
+    test_v2_dormant_rejects_non_mapping_containers()
+    test_v2_declared_policy_emits_candidates()
     # Deep runtime invariants, not merely top-level shape checks.
     rejects(lambda p: p["thresholds"]["cadence"]["bands"][1].update(min_words=160), "ordered and contiguous")
     rejects(lambda p: p["thresholds"]["cadence"]["above_ceiling"].update(mandatory_split=False), "above_ceiling")

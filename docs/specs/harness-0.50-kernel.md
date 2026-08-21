@@ -5,7 +5,7 @@
 **Accepted-as.** sha256 `a31d3e5505e8d28197a073f29859e686e0ee9531a1e184cf03a93708d326d430` (bytes before this accept stamp).
 **Date.** 2026-08-20.
 **Owner.** Harness (instrument). Joseph is the only R-plane actor.
-**Lane.** New docs lane. Do not treat this file as a rewrite of the live 0.43.1 tree.
+**Lane.** New docs lane. Do not treat this file as a rewrite of the historical 0.43.1 snapshot tree.
 
 **Does not change until Joseph orders implementation.** `version.json`, live skills, DEST-PROTECTED, SK-32, role files, the dirty 0.43.1 audit tree, or any manuscript under `research/`. Closed until he orders them: Evaluator fold, `/run-reflection` coordinator. Host-after-pack locked Grok-only 2026-08-20.
 
@@ -23,7 +23,7 @@ Freeze what the plugin is allowed to be after the Claude-pack wipe and the 0.43.
 
 ## 2. Historical 0.43.1 freeze (snapshot lane — superseded by 0.50.0)
 
-**Status.** This section was accurate at the time the 0.50 kernel spec was accepted (2026-08-20). The 0.50 kernel has since been implemented and shipped as version 0.50.0 on 2026-08-20. Live package identity is now **0.50.0** at HEAD `d3b93b3` on origin/main.
+**Status.** This section was accurate at the time the 0.50 kernel spec was accepted (2026-08-20). The 0.50 kernel has since been implemented and shipped as version 0.50.0 on 2026-08-20. Current package identity is owned solely by `version.json`.
 
 Original freeze note (historical): Live package identity at spec acceptance was **0.43.1** at HEAD `e8ed23b` (dirty, origin/main +9). That tree was a **snapshot lane**. The packaging retarget off `.claude-plugin` to `version.json` + root `plugin.json` was part of the 0.43.1 snapshot cleanup, not 0.50 implementation.
 

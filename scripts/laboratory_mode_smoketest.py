@@ -390,8 +390,107 @@ def _brief(base: Path, name: str, content: str) -> Path:
     return path
 
 
+def _f6_is_never_lab_iteration() -> None:
+    paths = [
+        ROOT / "references" / "role_output_contract.json",
+        ROOT / "references" / "compatibility" / "shipment-v2" / "role_output_contract.json",
+    ]
+    checked = 0
+    for path in paths:
+        if not path.is_file():
+            continue
+        document = json.loads(path.read_text(encoding="utf-8"))
+        f6 = document["triggered_output_classes"]["F6_planner_dispatch_plan"]
+        if "lab_iteration" in f6.get("invocation_scopes", ()):
+            raise AssertionError(f"{path.name} admits F6 in lab_iteration")
+        if "never_lab_iteration" not in str(f6.get("authorization_rule", "")):
+            raise AssertionError(f"{path.name} lost never_lab_iteration")
+        checked += 1
+    if checked == 0:
+        raise AssertionError("no role-output contract file found")
+
+
+def _sentence_with(text: str, needle: str) -> str:
+    for part in text.replace("\n", " ").split("."):
+        if needle in part:
+            return part
+    raise AssertionError(f"no sentence contains {needle!r}")
+
+
+def _phase_06_section() -> str:
+    text = (ROOT / "agents" / "planner.md").read_text(encoding="utf-8")
+    start = text.index("### Phase 0.6")
+    end = text.index("### Phase 1")
+    return text[start:end]
+
+
+def _reflector_probe_scopes_dp2_to_full_lifecycle() -> None:
+    text = (ROOT / "agents" / "reflector-probe.md").read_text(encoding="utf-8")
+    start = text.index("**6.9.")
+    end = text.index("**6.10.")
+    section = text[start:end]
+    if "lab_iteration" not in section:
+        raise AssertionError("reflector-probe 6.9 does not exempt lab_iteration from F6 presence")
+    if "full_lifecycle" not in section:
+        raise AssertionError("reflector-probe 6.9 does not keep R-Refl-DP-2 on full_lifecycle")
+    if "R-Refl-DP-2" not in section:
+        raise AssertionError("reflector-probe 6.9 lost R-Refl-DP-2")
+    contracts = (ROOT / "references" / "AGENT_CONTRACTS.md").read_text(encoding="utf-8")
+    dp2 = next(line for line in contracts.splitlines() if "R-Refl-DP-2" in line)
+    if "lab_iteration" not in dp2 or "full_lifecycle" not in dp2:
+        raise AssertionError("AGENT_CONTRACTS R-Refl-DP-2 row is not scoped to full_lifecycle")
+
+
+def _phase_06_is_gated_before_f6_mandate() -> None:
+    section = _phase_06_section()
+    gate_at = section.find("full_lifecycle")
+    mandate_at = section.find("Before any downstream dispatch")
+    if gate_at < 0:
+        raise AssertionError("Phase 0.6 never names full_lifecycle")
+    if mandate_at < 0:
+        raise AssertionError("Phase 0.6 lost the full_lifecycle F6 mandate")
+    if gate_at > mandate_at:
+        raise AssertionError("Phase 0.6 still mandates F6 before it gates on full_lifecycle")
+    mandate = _sentence_with(section[mandate_at:], "Before any downstream dispatch")
+    if "full_lifecycle" not in mandate:
+        raise AssertionError("F6-before-dispatch mandate is not scoped to full_lifecycle")
+    if "GENERATION_PLAN.md" not in section or "non-F6" not in section:
+        raise AssertionError("Phase 0.6 does not define the shipment-lane plan as a distinct non-F6 artefact")
+    if "must not write" not in section and "must not author" not in section:
+        raise AssertionError("Phase 0.6 does not forbid writing F6 in lab_iteration")
+
+
+def _schema_dp2_is_full_lifecycle_only() -> None:
+    text = (ROOT / "references" / "ARTEFACT_FRONTMATTER_SCHEMA.md").read_text(encoding="utf-8")
+    sentence = _sentence_with(text, "R-Refl-DP-2")
+    if "full_lifecycle" not in sentence:
+        raise AssertionError("schema R-Refl-DP-2 rule is not scoped to full_lifecycle")
+    if "lab_iteration" not in text[text.index("R-Refl-DP-2") : text.index("R-Refl-DP-2") + 400]:
+        raise AssertionError("schema DP-2 rule does not register the lab-forbidden diagnostic")
+    if "R-Refl-DP-LAB-FORBIDDEN" not in text:
+        raise AssertionError("schema lost R-Refl-DP-LAB-FORBIDDEN")
+
+
+def _i_planner_10_does_not_author_f6_on_every_round() -> None:
+    text = (ROOT / "references" / "AGENT_CONTRACTS.md").read_text(encoding="utf-8")
+    start = text.index("- I-Planner-10")
+    block = text[start : text.index("- I-Planner-11")]
+    if "On Phase 0.6 of every round" in block:
+        raise AssertionError("I-Planner-10 still authors F6 on every unscoped round")
+    if "On Phase 0.6 of every `full_lifecycle` round" not in block:
+        raise AssertionError("I-Planner-10 lost the full_lifecycle Phase 0.6 authorship rule")
+
+
 def main() -> int:
     matrix = Matrix()
+    matrix.case("F6 remains full_lifecycle-only / never lab_iteration", _f6_is_never_lab_iteration)
+    matrix.case(
+        "lightweight Reflector does not require F6 in lab_iteration",
+        _reflector_probe_scopes_dp2_to_full_lifecycle,
+    )
+    matrix.case("Phase 0.6 gates F6 on full_lifecycle before any dispatch mandate", _phase_06_is_gated_before_f6_mandate)
+    matrix.case("schema R-Refl-DP-2 is full_lifecycle-only", _schema_dp2_is_full_lifecycle_only)
+    matrix.case("I-Planner-10 does not author F6 on every unscoped round", _i_planner_10_does_not_author_f6_on_every_round)
     with tempfile.TemporaryDirectory(prefix="v041-laboratory-mode-") as raw:
         sandbox = Path(raw)
         workspace, project, output = _synthetic_workspace(sandbox)

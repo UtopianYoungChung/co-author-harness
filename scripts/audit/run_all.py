@@ -36,7 +36,11 @@ from audit_style import (
 )
 from audit_craft import audit_craft
 from d_style_profile_check import build_report as build_d_style_profile_report
-from reader_accessibility_policy import PolicyError, resolve_policy
+from reader_accessibility_policy import (
+    PolicyError,
+    policy_error_payload,
+    resolve_declared_policy,
+)
 from reader_accessibility_candidates import build_candidate_artifact
 from schema import Finding, FindingsReport
 from product_assurance import AssuranceError, build as build_product_assurance
@@ -95,7 +99,7 @@ def run_accessibility_prefilters(
 ) -> tuple[dict[str, object], Path]:
     """Emit a separate schema-defined candidate artifact; do not overload Finding."""
 
-    # Root overrides are threaded through, not re-implemented: resolve_policy
+    # Root overrides are threaded through, not re-implemented: resolve_declared_policy
     # already owns the seam (and records path_roots_mode=override in the
     # artifact). Passing None keeps the declared-profile behaviour exactly.
     # All THREE roots are exposed here. The first cut passed wiki and workspace
@@ -110,9 +114,9 @@ def run_accessibility_prefilters(
         root_kwargs["workspace_root"] = workspace_root
     if harness_root is not None:
         root_kwargs["harness_root"] = harness_root
-    resolved = (resolve_policy(project_root, profile_path=profile_path, **root_kwargs)
+    resolved = (resolve_declared_policy(project_root, profile_path=profile_path, **root_kwargs)
                 if profile_path is not None
-                else resolve_policy(project_root, **root_kwargs))
+                else resolve_declared_policy(project_root, **root_kwargs))
     artifact = build_candidate_artifact(project_root, manuscript_path, phase, cycle_id, resolved)
     output_path = output.resolve() if output else project_root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -285,7 +289,11 @@ def main(argv: List[str] | None = None) -> int:
                 harness_root=args.harness_root,
             )
         except (PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
-            payload = {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}
+            payload = (
+                policy_error_payload(exc)
+                if isinstance(exc, PolicyError)
+                else {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}
+            )
             print(json.dumps(payload, ensure_ascii=False))
             return 4
     if args.stdout:

@@ -59,7 +59,7 @@ This is the main signal of a lightweight pass: a ledger-integrity check on `revi
 
 **6.8. Ceiling-lock termination-ranking integrity (v0.7.4 P-8).** For rows where `ceiling_locked` flipped `false→true` or `notes` records `ceiling_locked:true`, verify a matching `reviews/ceiling_lock_proposal_*.md` artefact exists with an approved Option C signoff (`R-Refl-Ceil-1` BLOCKER if absent). Audit proposal-emission justification (`R-Refl-Ceil-2` MAJOR), frontmatter marker (`R-Refl-Ceil-3` MAJOR), and approval-row marker (`R-Refl-Ceil-4` MINOR).
 
-**6.9. Round dispatch-plan integrity (v0.7.4 P-1).** Verify every cycle with downstream artefacts has a matching `reviews/dispatch_plan_<cycle_id>.md` F6 (`R-Refl-DP-2` BLOCKER if missing). Verify F6 `user_approval_signature` is populated (`R-Refl-DP-3` BLOCKER). Audit `dispatched_agents[]` vs observed actors for drift (`R-Refl-DP-1` MAJOR).
+**6.9. Round dispatch-plan integrity (v0.7.4 P-1).** Scope is `full_lifecycle` only. F6 is `reviews/dispatch_plan_<cycle_id>.md` and is forbidden in `lab_iteration` (`role_output_contract` `never_lab_iteration`). In `lab_iteration`, do not raise `R-Refl-DP-2` for a missing F6; a shipment-lane plan such as `GENERATION_PLAN.md` is not F6. If an F6 path is present under `lab_iteration`, raise `R-Refl-DP-LAB-FORBIDDEN` BLOCKER. Under `full_lifecycle`, verify every cycle with downstream artefacts has a matching F6 (`R-Refl-DP-2` BLOCKER if missing). Verify F6 `user_approval_signature` is populated (`R-Refl-DP-3` BLOCKER). Audit `dispatched_agents[]` vs observed actors for drift (`R-Refl-DP-1` MAJOR).
 
 **6.10. v0.8.0 β register + routing integrity (P2.5).** When an F1 artefact carries `adversarial_register` and `routing_rationale`, run two semantic checks:
 

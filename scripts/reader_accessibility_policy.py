@@ -1494,6 +1494,17 @@ def recompute_check8(evidence: dict[str, Any], transitions: dict[str, Any]) -> d
 
 def validate_candidate_artifact(candidate: dict[str, Any]) -> None:
     validate_schema_file(candidate, CANDIDATE_SCHEMA)
+    version = candidate.get("schema_version") if isinstance(candidate, dict) else None
+    if version == "reader_accessibility_candidates.v1":
+        if any(candidate.get(key) is None for key in ("attestation_view_pin", "exemplar_view_pin")):
+            raise PolicyError("candidate v1 requires both semantic register pins")
+    elif version == "reader_accessibility_candidates.v2":
+        if candidate.get("semantic_usage") != "not_invoked":
+            raise PolicyError("candidate v2 requires semantic_usage not_invoked")
+        if any(key in candidate for key in ("attestation_view_pin", "exemplar_view_pin")):
+            raise PolicyError("candidate v2 cannot assert semantic register pins")
+    else:
+        raise PolicyError("unsupported candidate schema version")
 
 
 def validate_check8_evidence(evidence: dict[str, Any]) -> None:
@@ -1598,6 +1609,73 @@ def resolve_policy_scaffold(
         "project_identity": project_identity,
         "project_root": project_root,
     }
+
+
+def policy_error_payload(exc: BaseException) -> dict[str, str]:
+    """Classify a policy exception without collapsing eligibility into misconfiguration.
+
+    GRAPH-SEMANTIC-INELIGIBLE is an honest fail-closed eligibility result. A
+    malformed profile, override, or locator remains RA-POLICY / MISCONFIGURED.
+    """
+    message = str(exc)
+    if message.startswith("GRAPH-SEMANTIC-INELIGIBLE"):
+        return {
+            "status": "FAIL_CLOSED",
+            "code": "GRAPH-SEMANTIC-INELIGIBLE",
+            "message": message,
+        }
+    return {"status": "MISCONFIGURED", "code": "RA-POLICY", "message": message}
+
+
+def reader_profile_v2_is_dormant(project_root: Path | None) -> bool:
+    """Recognize a graph-independent v2 project binding without reading Graphify."""
+    if project_root is None:
+        return False
+    state_path = Path(project_root) / "reviews" / "phase_state.json"
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(state, dict):
+        return False
+    framework = state.get("milestone_framework")
+    if not isinstance(framework, dict):
+        return False
+    bindings = framework.get("policy_bindings")
+    if not isinstance(bindings, dict):
+        return False
+    binding = bindings.get("reader_accessibility")
+    return bool(
+        isinstance(binding, dict)
+        and binding.get("binding_version") == "2.0.0"
+        and binding.get("binding_kind") == "reader_profile"
+        and binding.get("semantic_usage") == "not_invoked"
+    )
+
+
+def resolve_declared_policy(
+    project_root: Path | None,
+    *,
+    profile_path: Path = DEFAULT_PROFILE,
+    wiki_root: Path | None = None,
+    workspace_root: Path | None = None,
+    harness_root: Path | None = None,
+) -> dict[str, Any]:
+    """Resolve the project-declared reader path.
+
+    Reader-profile v2 with ``semantic_usage: not_invoked`` uses the
+    graph-independent resolver. Every other project keeps the semantic
+    register path and its existing fail-closed eligibility refusals.
+    """
+    if reader_profile_v2_is_dormant(project_root):
+        return resolve_reader_profile(project_root, profile_path=profile_path)
+    return resolve_policy(
+        project_root,
+        profile_path=profile_path,
+        wiki_root=wiki_root,
+        workspace_root=workspace_root,
+        harness_root=harness_root,
+    )
 
 
 def resolve_reader_profile(
@@ -2544,9 +2622,13 @@ def main(argv: list[str] | None = None) -> int:
                 confirm_drop_locked_role=args.confirm_drop_locked_role,
             )
         else:
-            result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
+            result = resolve_declared_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
     except PolicyError as exc:
-        print(json.dumps({"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}))
+        diagnostic = json.dumps(policy_error_payload(exc), ensure_ascii=False)
+        print(diagnostic)
+        if args.out:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(diagnostic + "\n", encoding="utf-8", newline="\n")
         return 4
     payload = render_policy_view(result["resolved_profile"]) if args.render_view and not args.repin else json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.out:

@@ -2,9 +2,9 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"reader_accessibility_candidates.schema.json",
   "type":"object","additionalProperties":false,
-  "required":["schema_version","phase","cycle_id","manuscript_path","manuscript_sha256","profile_path","profile_sha256","source_bindings","register_class","passage_scope_class","attestation_view_pin","exemplar_view_pin","candidate_only","evaluator_judgment_required","sub_checks"],
+  "required":["schema_version","phase","cycle_id","manuscript_path","manuscript_sha256","profile_path","profile_sha256","source_bindings","register_class","passage_scope_class","candidate_only","evaluator_judgment_required","sub_checks"],
   "properties":{
-    "schema_version":{"const":"reader_accessibility_candidates.v1"},
+    "schema_version":{"enum":["reader_accessibility_candidates.v1","reader_accessibility_candidates.v2"]},
     "phase":{"enum":["Ph2","Ph3","Ph4"]},"cycle_id":{"$ref":"#/$defs/text"},
     "manuscript_path":{"$ref":"#/$defs/text"},"manuscript_sha256":{"$ref":"#/$defs/sha"},
     "profile_path":{"$ref":"#/$defs/text"},"profile_sha256":{"$ref":"#/$defs/sha"},
@@ -12,11 +12,16 @@
     "register_class":{"const":"domain-native"},
     "passage_scope_class":{"enum":["technical","mixed","non-technical"]},
     "attestation_view_pin":{"$ref":"#/$defs/sha"},"exemplar_view_pin":{"$ref":"#/$defs/sha"},
+    "semantic_usage":{"const":"not_invoked"},
     "candidate_only":{"const":true},"evaluator_judgment_required":{"const":true},
     "sub_checks":{"type":"object","additionalProperties":false,"required":["A","B","C","D","E","F","G","H"],"properties":{
       "A":{"$ref":"#/$defs/a"},"B":{"$ref":"#/$defs/judgment"},"C":{"$ref":"#/$defs/judgment"},"D":{"$ref":"#/$defs/d"},"E":{"$ref":"#/$defs/e"},"F":{"$ref":"#/$defs/f"},"G":{"$ref":"#/$defs/g"},"H":{"$ref":"#/$defs/h"}
     }}
   },
+  "allOf":[
+    {"if":{"properties":{"schema_version":{"const":"reader_accessibility_candidates.v1"}}},"then":{"required":["attestation_view_pin","exemplar_view_pin"]}},
+    {"if":{"properties":{"schema_version":{"const":"reader_accessibility_candidates.v2"}}},"then":{"required":["semantic_usage"],"not":{"anyOf":[{"required":["attestation_view_pin"]},{"required":["exemplar_view_pin"]}]}}}
+  ],
   "$defs":{
     "text":{"type":"string","minLength":1},"sha":{"type":"string","pattern":"^[0-9a-f]{64}$"},
     "source":{"oneOf":[{"$ref":"#/$defs/packageSource"},{"$ref":"#/$defs/directivesSource"},{"$ref":"#/$defs/projectOverrideSource"}]},

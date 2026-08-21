@@ -53,8 +53,8 @@ Finding classes:
 F6-specific cross-artefact finding classes (scheduled, not enforced here):
     R-Refl-DP-1   plan-drift MAJOR: F6 dispatched_agents disagree with
                   phase_state.json-observed actors for that cycle
-    R-Refl-DP-2   missing-plan BLOCKER: a round with F1/F2/F3/F5 artefacts but
-                  no F6 present
+    R-Refl-DP-2   missing-plan BLOCKER: a full_lifecycle round with F1/F2/F3/F5
+                  artefacts but no F6 present; not raised in lab_iteration
     R-Refl-DP-3   unsigned-plan: downstream artefact cites dispatch_plan_reference
                   whose target F6 lacks a populated user_approval_signature
 """
@@ -1093,7 +1093,7 @@ def validate_path(path: Path) -> List[Finding]:
         if payload.get("artifact_family") == "F7" or ".harness/evidence" in path.as_posix():
             return validate_f7_json(path)
         try:
-            if payload.get("schema_version") == "reader_accessibility_candidates.v1":
+            if payload.get("schema_version") in {"reader_accessibility_candidates.v1", "reader_accessibility_candidates.v2"}:
                 validate_candidate_artifact(payload)
             elif payload.get("schema_version") == "check8_evidence.v1":
                 validate_check8_evidence(payload)

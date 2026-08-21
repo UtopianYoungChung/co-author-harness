@@ -11,7 +11,7 @@
 
 **Scope.** These checks do **not** replace judgment-based review. They are a floor: if a piece fails these, the judgment-based review will also fail. Passing these is necessary but not sufficient.
 
-**Release-history integration (v0.43.1).** Qualification keeps separate evidence
+**Release-history integration.** Qualification keeps separate evidence
 for shipment-v2 membership, completeness diagnostics, static output-economy,
 and versioned replay; it grants no downstream or research authority.
 
