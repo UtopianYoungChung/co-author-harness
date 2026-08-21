@@ -21,6 +21,7 @@ PROFILE_REL = Path("references/policies/course_essay_milestones.v1.json")
 ROLE_OUTPUT_REL = Path("references/role_output_contract.json")
 EXPECTED_SEQUENCE = ["M1", "M2", "M3", "M4", "FINAL"]
 EXPECTED_MAPPING = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
+GATHER_KEYS = ("M1", "M2", "M3", "M4")
 COPY_POLICY = "author_controlled_unless_explicitly_requested"
 PREDECESSORS = {
     "M1": (),
@@ -29,6 +30,9 @@ PREDECESSORS = {
     "M4": ("M1", "M2", "M3"),
     "FINAL": ("M1", "M2", "M3", "M4"),
 }
+EVER_ACCEPTED_STATUSES = frozenset({"accepted", "reopened", "superseded"})
+EVER_ACCEPTED_APPROVALS = frozenset({"approved", "reopened"})
+JOSEPH_MATERIALS_AUTHORITY = "user"
 RECEIPT_SCHEMA_VERSION = "2.2.0"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SAFE_ATOM_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -375,6 +379,187 @@ def derive_receipt_authority(target: str) -> tuple[str, list[dict[str, str]], st
 def derive_released_export_path(target: str) -> str | None:
     """Return the live role contract's released-export path, when declared."""
     return released_export(target)
+
+
+def _currently_accepted(record: Any) -> bool:
+    return isinstance(record, dict) and record.get("status") == "accepted"
+
+
+def _is_not_started(record: Any) -> bool:
+    if not isinstance(record, dict):
+        return True
+    return record.get("status") in {None, "not_started"}
+
+
+def _ever_accepted(record: Any, events: Any, key: str) -> bool:
+    """Ledger proof that this milestone was accepted at least once.
+
+    File presence of a deliverable is never enough. Status ``reopened`` /
+    ``superseded``, an approved-or-reopened approval row, or a
+    ``milestone_accepted`` event are the only substitutes for a live
+    ``accepted`` status.
+    """
+    if _currently_accepted(record):
+        return True
+    if isinstance(record, dict):
+        if record.get("status") in EVER_ACCEPTED_STATUSES:
+            return True
+        approval = record.get("approval")
+        if isinstance(approval, dict) and approval.get("status") in EVER_ACCEPTED_APPROVALS:
+            return True
+    if isinstance(events, list):
+        for event in events:
+            if (
+                isinstance(event, dict)
+                and event.get("event_type") == "milestone_accepted"
+                and event.get("milestone") == key
+            ):
+                return True
+    return False
+
+
+def _predecessors_currently_accepted(milestones: dict[str, Any], target: str) -> bool:
+    for key in PREDECESSORS[target]:
+        record = milestones.get(key)
+        if not _currently_accepted(record):
+            return False
+    return True
+
+
+def _unmet_predecessors(milestones: dict[str, Any], target: str) -> list[str]:
+    unmet: list[str] = []
+    for key in PREDECESSORS[target]:
+        record = milestones.get(key)
+        status = record.get("status") if isinstance(record, dict) else None
+        if status != "accepted":
+            unmet.append(f"{key}={status!r}")
+    return unmet
+
+
+def _validate_materials_in_play_declaration(
+    project: Path, declaration: Any
+) -> tuple[list[tuple[str, str]], bool]:
+    """Joseph's R-plane latch. Invalid bytes do not grant circulation."""
+    if declaration is None:
+        return [], False
+    if not isinstance(declaration, dict):
+        return [
+            (
+                "APG-MATERIALS-IN-PLAY-INVALID",
+                "materials_in_play must be a Joseph-bound evidence object",
+            )
+        ], False
+    evidence_path = _project_path(project, declaration.get("evidence_path"))
+    expected_hash = declaration.get("evidence_sha256")
+    valid = (
+        declaration.get("authority") == JOSEPH_MATERIALS_AUTHORITY
+        and evidence_path is not None
+        and evidence_path.is_file()
+        and isinstance(expected_hash, str)
+        and SHA256_RE.match(expected_hash) is not None
+        and _sha256(evidence_path) == expected_hash
+        and _valid_timestamp(declaration.get("declared_at"))
+    )
+    if not valid:
+        return [
+            (
+                "APG-MATERIALS-IN-PLAY-INVALID",
+                "materials_in_play requires user authority, RFC3339 declared_at, and current project-local evidence",
+            )
+        ], False
+    return [], True
+
+
+def resolve_circulation(
+    project: Path, framework: Any
+) -> tuple[str, str, list[tuple[str, str]]]:
+    """Return gather/circulate mode. Never infers materials from file presence.
+
+    Circulate when Joseph declares materials-in-play with bound evidence, or
+    when each of M1-M4 has a current accepted hash, or when each of M1-M4 has
+    been accepted at least once. M5 remains a one-way door on current hashes.
+    """
+    findings: list[tuple[str, str]] = []
+    if not isinstance(framework, dict):
+        return "gather", "gather", findings
+    declaration_ok = False
+    if "materials_in_play" in framework:
+        decl_findings, declaration_ok = _validate_materials_in_play_declaration(
+            project, framework.get("materials_in_play")
+        )
+        findings.extend(decl_findings)
+    milestones = framework.get("milestones")
+    events = framework.get("events")
+    if not isinstance(milestones, dict):
+        milestones = {}
+    if all(_currently_accepted(milestones.get(key)) for key in GATHER_KEYS):
+        return "circulate", "four_current_accepted", findings
+    if all(_ever_accepted(milestones.get(key), events, key) for key in GATHER_KEYS):
+        return "circulate", "four_ever_accepted", findings
+    if declaration_ok:
+        return "circulate", "joseph_declaration", findings
+    return "gather", "gather", findings
+
+
+def named_draft_permitted(project: Path, framework: Any, target: str) -> bool:
+    """Whether READY/derive may honor this named assignment target.
+
+    First-start of a ``not_started`` M1-M4 always requires current accepted
+    predecessors. After materials are in play, a started M1-M4 may be named
+    in any order. FINAL always requires four current accepted hashes. An
+    accepted M5 closes circulation: M1-M4 may not be named past that door.
+    """
+    if not isinstance(framework, dict):
+        return False
+    milestones = framework.get("milestones")
+    if not isinstance(milestones, dict):
+        return False
+    if target == "FINAL":
+        return all(_currently_accepted(milestones.get(key)) for key in GATHER_KEYS)
+    if target not in GATHER_KEYS:
+        return False
+    if _currently_accepted(milestones.get("M5")):
+        return False
+    mode, _reason, _findings = resolve_circulation(project, framework)
+    record = milestones.get(target)
+    if _is_not_started(record):
+        return _predecessors_currently_accepted(milestones, target)
+    if mode == "circulate":
+        return True
+    return _predecessors_currently_accepted(milestones, target)
+
+
+def _sequence_findings(
+    project: Path, framework: Any, target: str
+) -> list[tuple[str, str]]:
+    findings: list[tuple[str, str]] = []
+    mode, _reason, circulation_findings = resolve_circulation(project, framework)
+    findings.extend(circulation_findings)
+    milestones = framework.get("milestones") if isinstance(framework, dict) else {}
+    if not isinstance(milestones, dict):
+        milestones = {}
+    if target == "FINAL":
+        unmet = _unmet_predecessors(milestones, target)
+        if unmet:
+            findings.append(
+                (
+                    f"APG-SEQUENCE-{target}",
+                    f"{target} drafting requires accepted predecessors; observed {', '.join(unmet)}",
+                )
+            )
+        return findings
+    record = milestones.get(target)
+    if mode == "circulate" and not _is_not_started(record):
+        return findings
+    unmet = _unmet_predecessors(milestones, target)
+    if unmet:
+        findings.append(
+            (
+                f"APG-SEQUENCE-{target}",
+                f"{target} drafting requires accepted predecessors; observed {', '.join(unmet)}",
+            )
+        )
+    return findings
 
 
 def _receipt_record(
@@ -793,19 +978,7 @@ def validate(
         return findings
 
     milestones = milestone_framework.get("milestones", {}) if isinstance(milestone_framework, dict) else {}
-    unmet: list[str] = []
-    for key in PREDECESSORS[target]:
-        record = milestones.get(key)
-        status = record.get("status") if isinstance(record, dict) else None
-        if status != "accepted":
-            unmet.append(f"{key}={status!r}")
-    if unmet:
-        findings.append(
-            (
-                f"APG-SEQUENCE-{target}",
-                f"{target} drafting requires accepted predecessors; observed {', '.join(unmet)}",
-            )
-        )
+    findings.extend(_sequence_findings(project, milestone_framework, target))
 
     if target in {"M4", "FINAL"} and isinstance(milestone_framework, dict):
         findings.extend(_wiki_grounding_findings(project, milestone_framework))

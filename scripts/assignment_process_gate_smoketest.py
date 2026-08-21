@@ -386,6 +386,77 @@ def main() -> int:
         valid_opt_out = run_gate(root, "draft", "M4")
         assert valid_opt_out.returncode == 0, valid_opt_out.stdout + valid_opt_out.stderr
 
+        # Circulate: four current accepted hashes latch restage of M4 while M3 is reopened.
+        phase_state["milestone_framework"]["milestones"]["M3"]["status"] = "reopened"
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+        m4_circulate = run_gate(root, "draft", "M4")
+        assert m4_circulate.returncode == 0 and "target=M4" in m4_circulate.stdout, (
+            m4_circulate.stdout + m4_circulate.stderr
+        )
+        blocked_final_reopen = run_gate(root, "final")
+        assert (
+            blocked_final_reopen.returncode == 4
+            and "APG-PREREQUISITE-M3" in blocked_final_reopen.stdout
+        ), blocked_final_reopen.stdout + blocked_final_reopen.stderr
+
+        manuscript = root / "milestones" / "M4_complete_paper_draft.md"
+        manuscript.parent.mkdir(parents=True, exist_ok=True)
+        manuscript.write_text("# File presence is not materials-in-play.\n", encoding="utf-8")
+
+        # Joseph declaration does not skip first-start of a not_started M4.
+        phase_state["milestone_framework"]["milestones"]["M3"]["status"] = "reopened"
+        phase_state["milestone_framework"]["milestones"]["M4"]["status"] = "not_started"
+        declaration_evidence = reviews / "materials_in_play.txt"
+        declaration_evidence.write_text("Joseph: materials are in play.\n", encoding="utf-8")
+        phase_state["milestone_framework"]["materials_in_play"] = {
+            "authority": "user",
+            "declared_at": "2026-08-21T00:00:00Z",
+            "evidence_path": declaration_evidence.relative_to(root).as_posix(),
+            "evidence_sha256": sha256(declaration_evidence),
+            "reason": "Enough materials gathered through M1-M4.",
+        }
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+        m4_first_start = run_gate(root, "draft", "M4")
+        assert (
+            m4_first_start.returncode == 4 and "APG-SEQUENCE-M4" in m4_first_start.stdout
+        ), m4_first_start.stdout + m4_first_start.stderr
+
+        # Started M4 + Joseph declaration + M3 reopened: restage is legal.
+        phase_state["milestone_framework"]["milestones"]["M4"]["status"] = "in_progress"
+        phase_state["milestone_framework"]["milestones"]["M3"]["status"] = "reopened"
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+        m4_declared = run_gate(root, "draft", "M4")
+        assert m4_declared.returncode == 0 and "target=M4" in m4_declared.stdout, (
+            m4_declared.stdout + m4_declared.stderr
+        )
+
+        # Invalid declaration does not latch circulation by itself.
+        phase_state["milestone_framework"]["milestones"]["M2"]["status"] = "not_started"
+        phase_state["milestone_framework"]["milestones"]["M3"]["status"] = "not_started"
+        phase_state["milestone_framework"]["materials_in_play"]["authority"] = "planner"
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+        invalid_decl = run_gate(root, "draft", "M4")
+        assert (
+            invalid_decl.returncode == 4
+            and "APG-MATERIALS-IN-PLAY-INVALID" in invalid_decl.stdout
+            and "APG-SEQUENCE-M4" in invalid_decl.stdout
+        ), invalid_decl.stdout + invalid_decl.stderr
+
+        phase_state["milestone_framework"].pop("materials_in_play")
+        for key in ("M1", "M2", "M3", "M4"):
+            phase_state["milestone_framework"]["milestones"][key]["status"] = "accepted"
+        (reviews / "phase_state.json").write_text(
+            json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
+        )
+
         phase_state["milestone_framework"]["mode"] = "legacy"
         (reviews / "phase_state.json").write_text(
             json.dumps(phase_state, indent=2) + "\n", encoding="utf-8"
@@ -409,6 +480,64 @@ def main() -> int:
         )
         boundary = run_gate(root, "draft", "M1")
         assert boundary.returncode == 4 and "APG-PROFESSOR-COPY-AUTHORITY" in boundary.stdout, boundary.stdout + boundary.stderr
+
+    from assignment_process_gate import named_draft_permitted, resolve_circulation
+    from full_run_contract_check import derive_active_target
+
+    empty = Path(".")
+    gather_framework = {
+        "milestones": {
+            key: {"status": "not_started"}
+            for key in ("M1", "M2", "M3", "M4", "M5")
+        }
+    }
+    mode, reason, findings = resolve_circulation(empty, gather_framework)
+    assert (mode, reason, findings) == ("gather", "gather", [])
+    assert named_draft_permitted(empty, gather_framework, "M1")
+    assert not named_draft_permitted(empty, gather_framework, "M2")
+    assert not named_draft_permitted(empty, gather_framework, "M4")
+    assert not named_draft_permitted(empty, gather_framework, "FINAL")
+
+    gather_framework["milestones"]["M1"]["status"] = "accepted"
+    assert named_draft_permitted(empty, gather_framework, "M2")
+    assert not named_draft_permitted(empty, gather_framework, "M4")
+
+    ever_framework = {
+        "milestones": {
+            "M1": {"status": "reopened"},
+            "M2": {"status": "accepted"},
+            "M3": {"status": "accepted"},
+            "M4": {"status": "in_progress"},
+            "M5": {"status": "not_started"},
+        },
+        "events": [{"event_type": "milestone_accepted", "milestone": "M4"}],
+    }
+    mode, reason, findings = resolve_circulation(empty, ever_framework)
+    assert mode == "circulate" and reason == "four_ever_accepted" and findings == []
+    assert named_draft_permitted(empty, ever_framework, "M4")
+    assert named_draft_permitted(empty, ever_framework, "M1")
+    assert not named_draft_permitted(empty, ever_framework, "FINAL")
+
+    closed_framework = copy.deepcopy(ever_framework)
+    closed_framework["milestones"]["M5"]["status"] = "accepted"
+    assert not named_draft_permitted(empty, closed_framework, "M4")
+
+    with tempfile.TemporaryDirectory() as temp:
+        proj = Path(temp)
+        reviews = proj / "reviews"
+        reviews.mkdir()
+        (reviews / "phase_state.json").write_text(
+            json.dumps({"milestone_framework": ever_framework}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        target, errors = derive_active_target(proj)
+        assert target == "M1" and errors == []
+        named, named_errors = derive_active_target(proj, requested="M4")
+        assert named == "M4" and named_errors == []
+        refused, refused_errors = derive_active_target(proj, requested="FINAL")
+        assert refused is None and any(
+            row.get("code") == "FRC-MILESTONE-ORDER" for row in refused_errors
+        )
 
     # C7 coupling: once C2 has rebound the active Generator target, an unbound
     # receipt cannot survive, while a receipt naming the exact marker-committed

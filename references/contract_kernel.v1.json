@@ -225,7 +225,7 @@
       "id": "assignment-process",
       "path": "references/ASSIGNMENT_MILESTONE_PROCESS.md",
       "revision_kind": "sha256",
-      "sha256": "ce6f89683e56f1fbc5aef997d165b9a5d72b1e945b66832a25a607325c017325",
+      "sha256": "ec78a28892e341a64a45285a9c50d69efd488782b56727d9afb4b8ca23c9724b",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -259,7 +259,7 @@
       "id": "full-run-contract",
       "path": "references/FULL_RUN_CONTRACT.md",
       "revision_kind": "sha256",
-      "sha256": "39ded8d407d03b0980c2c00f54edeb16e3eb9e68f9cd59deb5052d6bbc8a5b02",
+      "sha256": "2cc58fed021474181bc706cc6f518583bd7e761a46be42d765af9db1f2552e7a",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -385,7 +385,7 @@
       "id": "assignment-process-gate",
       "path": "scripts/assignment_process_gate.py",
       "revision_kind": "sha256",
-      "sha256": "165138db986d6061bcf4d4d967823b6c98e539c724375d54d10bb6e37168886c",
+      "sha256": "2840a8b7d769bf82f7651c1bc0f6c1039a120c793a3713cf9418d701f638cde5",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -410,7 +410,7 @@
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "183aba811cd21a5c54a56977afa888340d9cedc37a830a1b556b944dd6efe701",
+      "sha256": "0f9a080d504804728ebf1d5a3810405e56819a0551dd560e9e2fa6ef98d17659",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -502,7 +502,7 @@
       "id": "assignment-milestone-command",
       "path": "scripts/assignment_milestone_checkpoint.py",
       "revision_kind": "sha256",
-      "sha256": "73d883512669ac197d233a475ba4d7eb001764161b166ddeead0b5fdc5a50987",
+      "sha256": "eaefa28c5311c47dc678912a0ed071ce48b1d8e31c94de9228d46b8895630de7",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1"
       ]
@@ -551,7 +551,7 @@
       "id": "milestone-framework-schema",
       "path": "references/schemas/milestone_framework.schema.json",
       "revision_kind": "sha256",
-      "sha256": "e7c161bc0f1811c28cb9541f8317716986a8362e21e4bc69003668a8e36155a1",
+      "sha256": "163e501c9b0ae4c023cee079382cb9f5b1a3f67df9a391e0736edac79e3f08de",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -898,7 +898,7 @@
       "id": "agent-orchestration",
       "path": "references/AGENT_ORCHESTRATION.md",
       "revision_kind": "sha256",
-      "sha256": "bdef62bc6bcac075ed287ace5e63912b651498f8f3b5cca9663bb1f4657f04bd",
+      "sha256": "6e53eebc58b3619de94c0bb0aec801f30621df00e8737e9540e5093a97accdac",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "3917dd7e8517685461b682409eb18209317dfd691eb0e44282c32ea9194b5906",
+      "sha256": "e07ee6fa7dfeaa93f4233b961ff2ff7e7fda47aa1cf74b92d8fd7e66f7a4b1fe",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -979,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "90d4248b36a66807bcbad2e3a07754cab03420e12de0c819d192c898a5183283",
+      "sha256": "fb896de1dff5c2405a5c6854a26d5a32c9891be553c9783e4ff6b74af436543a",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -988,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "33c53719b1e34e2c23bb9d4ce79e73c5292dba18852984df0d1f367636647a21",
+      "sha256": "52f0101196b8c848bb703823117806e64d92b8e9b5404f04782088e0b9fec367",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

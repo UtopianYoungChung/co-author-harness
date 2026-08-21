@@ -54,6 +54,36 @@
         "reader_accessibility": {"$ref": "#/$defs/reader_accessibility_binding"}
       }
     },
+    "materials_in_play": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "declared_at",
+        "evidence_path",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "authority": {
+          "const": "user"
+        },
+        "declared_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+        },
+        "evidence_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "milestones": {
       "type": "object",
       "additionalProperties": false,

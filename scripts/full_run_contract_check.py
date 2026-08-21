@@ -439,20 +439,7 @@ def project_floor(project_root: Path | None) -> list[dict]:
     return findings
 
 
-def derive_active_target(project_root: Path) -> tuple[str | None, list[dict]]:
-    """The active target is DERIVED from state: first non-accepted of M1..FINAL.
-
-    Never chosen by the agent, and never read from a request (§2 item 3). An
-    applicable milestone that is not `accepted` is the target; `not_applicable`
-    records are skipped only when the ledger itself declares them so.
-    """
-    state, _ = _load_json(project_root / "reviews" / "phase_state.json")
-    mf = (state or {}).get("milestone_framework")
-    milestones = mf.get("milestones") if isinstance(mf, dict) else None
-    if not isinstance(milestones, dict):
-        return None, [_f("FRC-NO-PROJECT",
-                         "milestone_framework.milestones is absent or not an object; "
-                         "no active target can be derived from state")]
+def _first_non_accepted_target(milestones: dict) -> tuple[str | None, list[dict]]:
     for target in ASSIGNMENT_TARGETS:
         record = milestones.get(LEDGER_KEY[target])
         if not isinstance(record, dict):
@@ -465,7 +452,47 @@ def derive_active_target(project_root: Path) -> tuple[str | None, list[dict]]:
             continue
         if record.get("status") != "accepted":
             return target, []
-    return None, []  # every applicable milestone accepted: nothing to author
+    return None, []
+
+
+def derive_active_target(
+    project_root: Path, requested: str | None = None
+) -> tuple[str | None, list[dict]]:
+    """Default active target: first non-accepted of M1..FINAL (gather auto-walk).
+
+    After materials are in play, ``requested`` may name any of M1-M4. The agent
+    still does not invent the name; Joseph names it. File presence never
+    implies materials-in-play or acceptance. FINAL still requires four current
+    accepted hashes. An accepted M5 is the one-way door.
+    """
+    state, _ = _load_json(project_root / "reviews" / "phase_state.json")
+    mf = (state or {}).get("milestone_framework")
+    milestones = mf.get("milestones") if isinstance(mf, dict) else None
+    if not isinstance(milestones, dict):
+        return None, [_f("FRC-NO-PROJECT",
+                         "milestone_framework.milestones is absent or not an object; "
+                         "no active target can be derived from state")]
+    first_hole, hole_err = _first_non_accepted_target(milestones)
+    if hole_err:
+        return None, hole_err
+    if requested:
+        if requested not in ASSIGNMENT_TARGETS:
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                f"named target {requested!r} is not an assignment target",
+                named_target=requested)]
+        if requested == first_hole:
+            return requested, []
+        if not apg.named_draft_permitted(project_root, mf, requested):
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                f"named target {requested} is not permitted while gather order "
+                f"is still in force (active hole {first_hole}). After materials "
+                "are in play, any of M1-M4 may be named. File presence is never "
+                "enough. FINAL still requires four current accepted hashes.",
+                active_target=first_hole, named_target=requested)]
+        return requested, []
+    return first_hole, []
 
 
 def _find_receipt(
@@ -490,7 +517,7 @@ def _find_receipt(
     return cands[-1] if cands else None
 
 
-def authorize(project_root: Path | None) -> list[dict]:
+def authorize(project_root: Path | None, requested: str | None = None) -> list[dict]:
     """Read-only §2 readiness: floor, active target, and current READY receipt.
 
     A resolved contract used to be the whole test, which meant items 3-5 of the
@@ -498,13 +525,16 @@ def authorize(project_root: Path | None) -> list[dict]:
     is what makes authorization CURRENT rather than historical:
     `verify_receipt` binds it to live phase_state and contract bytes, so a stale
     receipt is refused by the gate that issued it, not by a rule re-guessed here.
+
+    Gather auto-walk uses the first non-accepted milestone. After materials are
+    in play, ``requested`` may name any of M1-M4. FINAL still binds current hashes.
     """
     findings = project_floor(project_root)
     if findings:
         return findings
     assert project_root is not None
 
-    target, derr = derive_active_target(project_root)
+    target, derr = derive_active_target(project_root, requested=requested)
     findings.extend(derr)
     if derr:
         return findings
@@ -743,7 +773,7 @@ def cmd_authorize(args) -> int:
         )
         return OK
 
-    findings = authorize(args.project_root)
+    findings = authorize(args.project_root, requested=args.target_milestone)
     if findings:
         _emit(findings, "REFUSED")
         return REFUSED
@@ -1897,6 +1927,12 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument(
         "--output-root", type=Path,
         help="required only for lab_iteration; governed staging run or exact private shipment lane",
+    )
+    a.add_argument(
+        "--target-milestone",
+        choices=tuple(ASSIGNMENT_TARGETS),
+        help="Joseph-named M1-M4 or FINAL after materials are in play; "
+             "gather auto-walk still uses the first non-accepted milestone when omitted",
     )
     a.set_defaults(fn=cmd_authorize)
 

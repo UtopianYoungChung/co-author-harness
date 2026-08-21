@@ -24,6 +24,7 @@ import uuid
 from assignment_process_gate import (
     derive_receipt_authority,
     derive_released_export_path,
+    named_draft_permitted,
     verify_receipt,
 )
 from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
@@ -1169,30 +1170,53 @@ def archive_stale_reader_accessibility_request(
         return archive
 
 
-def derive(project: Path) -> dict[str, Any]:
-    _, state, _ = _load_state(project.resolve())
-    milestones = _framework(state)["milestones"]
+def _action_for_open_milestone(project: Path, state: dict[str, Any], milestone: str) -> dict[str, Any]:
+    record = _framework(state)["milestones"].get(milestone)
+    if not isinstance(record, dict):
+        raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
+    public = LEDGER_TO_PUBLIC[milestone]
+    if record.get("status") == "not_started":
+        action = "begin"
+    elif not record.get("artifacts"):
+        action = "finalize" if milestone == "M5" else "draft"
+    elif milestone == "M4" and any(
+        section.get("current_phase") != "Ph3_converged"
+        for section in state.get("sections", {}).values()
+        if isinstance(section, dict)
+    ):
+        action = "revise"
+    else:
+        action = "close" if milestone == "M5" else "accept"
+    return {"status": "READY", "milestone": public, "action": action,
+            "authority_mode": _authority_mode_for(project)}
+
+
+def derive(project: Path, requested: str | None = None) -> dict[str, Any]:
+    """Default target is the first non-accepted milestone (gather auto-walk).
+
+    After materials are in play, ``requested`` may name any started M1-M4.
+    First-start of a ``not_started`` successor still requires accepted
+    predecessors. FINAL still requires four current accepted hashes.
+    """
+    resolved = project.resolve()
+    _, state, _ = _load_state(resolved)
+    framework = _framework(state)
+    milestones = framework["milestones"]
+    if requested is not None:
+        ledger = PUBLIC_TO_LEDGER.get(requested)
+        if ledger is None:
+            raise MilestoneTransactionError("AMC-TARGET", "derive target must be M1-M4 or FINAL")
+        record = milestones.get(ledger)
+        if isinstance(record, dict) and record.get("status") != "accepted":
+            if named_draft_permitted(resolved, framework, requested):
+                return _action_for_open_milestone(resolved, state, ledger)
     for milestone in MILESTONES:
         record = milestones.get(milestone)
         if not isinstance(record, dict):
             raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
         if record.get("status") == "accepted":
             continue
-        public = LEDGER_TO_PUBLIC[milestone]
-        if record.get("status") == "not_started":
-            action = "begin"
-        elif not record.get("artifacts"):
-            action = "finalize" if milestone == "M5" else "draft"
-        elif milestone == "M4" and any(
-            section.get("current_phase") != "Ph3_converged"
-            for section in state.get("sections", {}).values()
-            if isinstance(section, dict)
-        ):
-            action = "revise"
-        else:
-            action = "close" if milestone == "M5" else "accept"
-        return {"status": "READY", "milestone": public, "action": action,
-                "authority_mode": _authority_mode_for(project)}
+        return _action_for_open_milestone(resolved, state, milestone)
     return {"status": "COMPLETE", "milestone": None, "action": None,
             "authority_mode": _authority_mode_for(project)}
 
@@ -1233,7 +1257,7 @@ def begin(project: Path, milestone: str, at: str | None = None) -> None:
         raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, M4, or FINAL")
     with transaction_claim(project, f"begin:{milestone}"):
         path, state, prehash = _load_state(project)
-        derived = derive(project)
+        derived = derive(project, requested=milestone)
         if (derived.get("status"), derived.get("milestone"), derived.get("action")) != ("READY", milestone, "begin"):
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived begin action")
         proposed = copy.deepcopy(state); framework = _framework(proposed)
@@ -1662,7 +1686,7 @@ def record(
         raise MilestoneTransactionError("AMC-TARGET", "record target must be M1-M4 or FINAL")
     with transaction_claim(project, f"record:{milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
-        expected = derive(project)
+        expected = derive(project, requested=public_milestone)
         allowed_actions = {"draft", "revise"} if milestone == "M4" else ({"finalize"} if milestone == "M5" else {"draft"})
         supersedes_candidate = False
         if _ACTIVE_AUTHORITY_MODE == "shipment_only":
@@ -2038,7 +2062,7 @@ def accept(
     with transaction_claim(project, f"accept:{public_milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         handoff_policy = _effective_handoff_policy(framework)
-        derived = derive(project)
+        derived = derive(project, requested=public_milestone)
         permitted_actions = {"accept", "revise"} if milestone == "M4" else ({"close"} if milestone == "M5" else {"accept"})
         if derived.get("status") != "READY" or derived.get("milestone") != public_milestone or derived.get("action") not in permitted_actions:
             raise MilestoneTransactionError("AMC-ORDER", f"{public_milestone} is not the derived accept action")

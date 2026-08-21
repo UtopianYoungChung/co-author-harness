@@ -34,6 +34,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Instrument independence (2026-08-21).** The harness is a tool, not a governing body. A live work-id root stays `DEST-PROTECTED` (manuscript, `phase_state`, acceptance). Tool scratch under `reviews/.harness/` (assignment ready/reserved/consumed, control-plane lock, scholarly-evaluations, shipments) is dest-legal `instrument` per work-id. Assignment gate and receipt transactions no longer require the whole live package to be writable. Two work-ids stay isolated. Package identity does not depend on any one paper. Manuscript publish onto the live workbench still refuses. Writer apply and Joseph R-plane unchanged.
 
+**Gather/circulate milestone split (2026-08-21).** First-start of M1–M4 remains an earning order (`APG-SEQUENCE-*` on a `not_started` target). After materials are in play — Joseph's bound `materials_in_play` declaration, four current accepted hashes, or ledger proof that each of M1–M4 has been accepted at least once — READY/derive/authorize may name any started M1–M4. File presence is never enough. FINAL still requires four current accepted hashes; accepted M5 is the one-way door. DEST-PROTECTED, SK-32 CLOSED, Writer-apply-only, and Joseph R-plane unchanged.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure

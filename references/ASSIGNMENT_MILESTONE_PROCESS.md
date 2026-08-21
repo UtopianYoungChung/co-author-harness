@@ -40,19 +40,25 @@ The terminal framework slot is named `M5` for backward-compatible machine state.
 
 ## 3. Gate semantics
 
-- `draft` verifies that the assignment contract is resolved, the source and profile hashes are current, the assigned sequence and framework mapping are complete, professor-copy authority remains with the author unless explicitly delegated, and the target's predecessors are accepted.
-- `final` includes every `draft` check and requires M1, M2, M3, and M4 to be `accepted`.
-- Native course-essay projects use the sequence gate below. A legacy contract fails with `APG-SEQUENCE-LEGACY` until the operator performs the named migration and acceptance work; file presence never implies acceptance and the gate never promotes status.
+- `draft` verifies that the assignment contract is resolved, the source and profile hashes are current, the assigned sequence and framework mapping are complete, professor-copy authority remains with the author unless explicitly delegated, and gather/circulate sequence rules hold.
+- `final` includes every `draft` check and requires M1, M2, M3, and M4 to be *currently* `accepted`.
+- Native course-essay projects use the sequence gate below. A legacy contract fails with `APG-SEQUENCE-LEGACY` until the operator performs the named migration and acceptance work; file presence never implies acceptance, materials-in-play, or promotion.
 - Harness phases remain orthogonal. Ph1-Ph4 control drafting and review maturity; they do not redefine assignment deliverables.
 - Assignment or instructor requirements override the package profile. A different assignment requires an appropriate versioned profile or explicit higher-authority specialization before drafting.
 
-| Target | Required accepted predecessors | Sequence blocker |
+**Gather.** First-start of a `not_started` M1-M4 requires current accepted predecessors. The table below is that earning order.
+
+**Circulate.** After materials are in play — Joseph's bound `materials_in_play` declaration (`authority: user`), or four current accepted hashes, or ledger proof that each of M1-M4 has been accepted at least once — a started M1-M4 may be named in any order. File presence is never enough.
+
+**Close.** FINAL / M5 still requires four *current* accepted hashes. An accepted M5 is the one-way door.
+
+| Target | Gather first-start predecessors | Sequence blocker |
 |---|---|---|
 | M1 | none | none |
 | M2 | M1 | `APG-SEQUENCE-M2` |
 | M3 | M1, M2 | `APG-SEQUENCE-M3` |
 | M4 | M1, M2, M3 | `APG-SEQUENCE-M4` |
-| FINAL | M1, M2, M3, M4 | `APG-SEQUENCE-FINAL` plus the retained per-milestone final prerequisite finding |
+| FINAL | M1, M2, M3, M4 current hashes | `APG-SEQUENCE-FINAL` plus the retained per-milestone final prerequisite finding |
 
 Missing `--target-milestone` at draft stage produces `APG-SEQUENCE-TARGET`. `reviews/phase_state.json.milestone_framework.milestones` is the sole source of milestone acceptance state, and only the Planner may write it.
 
@@ -72,13 +78,13 @@ Every M1-M4 and FINAL dispatch requires a separate current C6 scholarly evaluati
 
 When governed semantic use is enabled by the authoritative reader binding, Yu is the default domain-native surface centroid and Dennett is the intentional-root admissible only for argument architecture with `warrant_scope: argument-only`; Dennett is never a surface-register emulation target. When Dennett is pending rather than admitted, the gate emits `APG-EXEMPLAR-DENNETT-PENDING` as an advisory while Yu-conditioned drafting remains available. Reader-profile v2 with `semantic_usage: not_invoked` does not create either exemplar obligation. Ordinary scholarly citation remains separately governed by the Grounding Protocol.
 
-| Target | Accepted predecessors | Wiki grounding | Exemplar conditioning |
+| Target | Gather first-start predecessors | Wiki grounding | Exemplar conditioning |
 |---|---|---|---|
 | M1 | none | not required | mandatory generation + independent evaluation |
 | M2 | M1 | not required | mandatory generation + independent evaluation; scholarly citation separately grounded |
 | M3 | M1, M2 | not required | mandatory generation + independent evaluation |
 | M4 | M1, M2, M3 | current evidence or authorized opt-out | mandatory under Yu/Dennett role split |
-| FINAL | M1-M4 | current evidence or authorized opt-out | mandatory under Yu/Dennett role split |
+| FINAL | M1-M4 current hashes | current evidence or authorized opt-out | mandatory under Yu/Dennett role split |
 
 ### 3.3 READY receipt lifecycle
 
@@ -104,7 +110,7 @@ The role field is an orchestration assertion enforced by the wrapper, not crypto
 derived only through the receipted `lab-iteration-derived-handoff-v1`
 migration, never through validation or an ordinary laboratory run.
 
-`/run-draft` derives one active target by running `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>`. It gates and dispatches only the returned deliverable. The Planner does not reimplement the first-non-accepted predicate in prose. After accepted M5, derive returns `{"status":"COMPLETE","milestone":null,"action":null}`; the lifecycle has no active authoring target, and the operator validates or reports the completed run rather than dispatching another write.
+`/run-draft` derives one active target by running `python scripts/assignment_milestone_checkpoint.py derive --project-root <project-root>`. During gather, that is the first non-accepted deliverable. After materials are in play, Joseph may name any of M1-M4 with `derive --milestone` / the assignment gate `--target-milestone`; the Planner does not invent the name. After accepted M5, derive returns `{"status":"COMPLETE","milestone":null,"action":null}`; the one-way door is closed, and the operator validates or reports the completed run rather than dispatching another write.
 
 The same public command owns the lifecycle transaction:
 

@@ -167,12 +167,29 @@ then resolve `reviews/assignment_contract.json` from the controlling source
 is genuinely ambiguous. **Asking one question is always cheaper than an
 unauthorized deliverable.**
 
-### 2.2 Milestone order is not negotiable
+### 2.2 Gather, then circulate; M5 is the one-way door
 
-M4 (deliverable) requires M1, M2, M3 `accepted` with real approval evidence.
-"Draft the whole paper" does not collapse them. **File presence never implies
-acceptance**: a `project_memo.md` on disk is not an accepted M1. Acceptance
-lives in `milestone_framework.milestones.M<n>.approval` and nowhere else.
+First-start of M1-M4 is an earning order. M2 cannot *start* until M1 has a
+current accepted hash; M3 until M1 and M2; M4 until M1-M3. "Draft the whole
+paper" does not collapse that gather. **File presence never implies
+acceptance or materials-in-play**: a `project_memo.md` on disk is not an
+accepted M1.
+
+After materials are in play, any of M1-M4 may be named for restage in any
+order. Materials-in-play is Joseph's bound `materials_in_play` declaration
+(`authority: user`) or four current accepted hashes, or the ledger proof that
+each of M1-M4 has been accepted at least once. It is never inferred from
+files on disk.
+
+M5 / FINAL still requires four *current* accepted hashes. Revising M3 after
+M4 was accepted does not open FINAL until the four current hashes are
+accepted together. An accepted M5 is the one-way door: M1-M4 may not be
+named past it.
+
+Acceptance lives in `milestone_framework.milestones.M<n>.approval` and
+nowhere else. Gather auto-walk still derives the first non-accepted
+milestone when Joseph does not name one. After materials are in play, name
+the target with `--target-milestone`.
 
 ### 2.3 Laboratory proposal authorization
 

@@ -29,7 +29,7 @@ acceptance.
 on apply, that is a **new draft**, not the certified shipment. Grok Writer,
 Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
 
-**R-plane authority.** Joseph is the only R-plane actor. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. Any iteration may require revision of any of M1–M4. No agent promotes research artifacts.
+**R-plane authority.** Joseph is the only R-plane actor. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. First-start of M1–M4 is an earning order. After materials are in play, any of M1–M4 may be named for restage. File presence is never materials-in-play. M5 requires four current accepted hashes and is the one-way door. No agent promotes research artifacts.
 
 ## Staging loop
 
