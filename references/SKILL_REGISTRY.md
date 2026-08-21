@@ -529,6 +529,16 @@ Own sentence-logic pass on top of a `binding_resolved` centroid binder packet. I
 - **Trigger:** Every M1-M4/FINAL draft or revision whose authoritative reader binding enables governed semantic use, or explicit `/centroid-pass`; reader-profile v2 with `semantic_usage: not_invoked` does not auto-dispatch it.
 - **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).
 
+### SK-49. `chung-academic-voice-pass`
+- **File:** `skills/chung-academic-voice-pass/SKILL.md` (new at 2026-08-21)
+- **Pattern:** Optional authorial-register overlay. Audits or, on explicit request, drafts so that a technical representation is joined to institutional consequences for identity, authority, competence, and accountability. Encodes the author's supplied profile; does not validate the calibration papers' claims or citations.
+- **Created:** 2026-08-21 from the author-supplied voice profile sampled against `chung-2026-identity-req` and `chung-2026-inf3001-field-essay`.
+- **Tier:** Package
+- **Status:** Active
+- **Depends on:** `references/chung_academic_voice_guidelines.md` (read-before-act). No milestone, assignment, or phase-state prerequisite.
+- **Non-overlap (deliberate):** not a STYLE_COMMITMENTS C-n; does not replace C-7 idiolect protection, `/sentence-level-pass`, `/analytic-move-audit`, or `/public-interest-accountability-pass`. Not auto-dispatched by Planner, Evaluator, or phase skills.
+- **Sibling:** SK-24 `public-interest-accountability-pass` (optional overlay), SK-13 `suchman-register-audit` (register audit), C-7 substrate `voice_preservation_guidelines.md` (preservation, not target register).
+
 ---
 
 ## Planner intents (not slash commands)

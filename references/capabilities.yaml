@@ -110,6 +110,7 @@ capabilities:
   centroid-sentence-logic: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-active, implementation: scripts/centroid_sentence_logic.py, evidence: [scripts/centroid_sentence_logic_smoketest.py]}
   check-abstract-body: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   check-contradictions: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
+  chung-academic-voice-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   citation-format-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/audit/test_citations.py]}
   claim-coverage-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   classify-manuscript: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}

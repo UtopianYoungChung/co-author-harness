@@ -6,8 +6,8 @@
 
 **Authority precedence is unchanged** — see `AGENTS.md §4`. The Grounding Protocol still wins over everything below user instruction. MANIFEST does not alter that ladder.
 
-**Release-history integration (v0.43.1).** The historical release narrative is
-`docs/release-notes/RELEASE_NOTES_v0.43.1.md`; current package identity remains
+**Release-history integration.** Historical release narratives live in
+`CHANGELOG.md` and `docs/release-notes/`; current package identity remains
 owned solely by `version.json`. This routing marker grants no
 qualification, clearance, shipment, installation, host, lifecycle, or research
 authority.
@@ -43,6 +43,7 @@ Assignment writer transaction entry points are `scripts/assignment_process_gate.
 | **Assessing improvement / readiness** | `SUCCESS_METRICS.md` (D1–D6 quality framework) |
 | **Submission-bound depth (cited claims must be externally verifiable)** | `EXTERNAL_VERIFIERS.md`; `ADVISOR_MCP.md` (EP-1/EP-2 escalation points) |
 | **Applying / flagging a prose-craft or theory-shape rule** | `STYLE_COMMITMENTS.md` (C-1 Suchman / C-2 Bacon / C-3 Sexton / C-4 Baird in-force test; C-5 reader-accessibility always-on; C-6 rhetorical–analytical separation / scoped metaphor; C-7 voice-fingerprint preservation; C-8 analytic-construction discipline — `analytic_construction_guidelines.md`, standalone skill `analytic-move-audit`); the named source file for C-N |
+| **Running the registered Chung academic-voice pass** | `chung_academic_voice_guidelines.md`; `skills/chung-academic-voice-pass/SKILL.md` — on-demand only; not a STYLE_COMMITMENTS C-n and not auto-dispatched |
 | **Building, extending, formalizing, or auditing a BFO-aligned ontology** | `BFO_ONTOLOGY_DESIGN.md` (conditional trigger boundary, construction loop, terminology, definition, taxonomy, provenance, validation, BFO conformance profile, relation discipline, lifecycle/versioning, and blocking release gate) |
 | **Generator writing prose** | `EMDASH_BUNDLE_DISCIPLINE.md` (binding B1/B2/B3 bundle); `CITATION_DISCIPLINE.md` (term-of-art two-question test) |
 | **Reflector post-round** | `DRIFT_CHECK.md` (Phase 2.6 MASTER/component reconciliation); `REFLEXIVITY_CHECK.md` (Phase 2.7 authorship-identity audit) |
@@ -126,6 +127,7 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `STYLE_COMMITMENTS.md` | Declares Suchman/Bacon/Sexton/Baird (C-1…C-4) plus C-5 reader-accessibility, C-6 rhetorical–analytical separation / scoped metaphor, C-7 voice-fingerprint preservation, and C-8 analytic-construction discipline as named commitments, with relaxation procedure |
 | `analytic_construction_guidelines.md` | C-8 substrate — the seven analytic-move tests (M-1…M-7) grounded in Abbott, *The System of Professions* (1988); the analytic-move layer between C-2 (clause craft) and C-4 (theory anatomy); plus the reflexive agents-as-jurisdictions lens (§6) |
 | `voice_preservation_guidelines.md` | C-7 substrate — mechanics/identity split, idiolect non-target list, baseline-before-register scoring (Moran, Zinsser, Strunk, Abbott ×2) |
+| `chung_academic_voice_guidelines.md` | Optional on-demand authorial-register overlay; invoked only by `/chung-academic-voice-pass` |
 | `Sexton_Fiction_to_Academic_Writing_Guide.md` | Narrative arc, openings, show-don't-tell, cause-effect |
 | `MASTER_research_and_paper_guidelines.md` | Cross-venue playbook for tone, claims, theory, audience, structure |
 | `M1_M2_M3_ARGUMENTATIVE_RIGOR_CHECKLIST.md` | Pre-drafting argumentative-rigor checklist |
