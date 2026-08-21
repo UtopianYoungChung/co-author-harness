@@ -21,12 +21,14 @@ acceptance.
 | Planner | One active target, assignment/phase bind, READY reserve | Edit manuscript |
 | Generator | Rewrite/fix-apply **on staging** via `assignment_writer_commit.py` only | Publish to `research/60_Workbench`; chat-apply (SK-32) |
 | Evaluator | Certify **shipment / staging bytes** (exact hash); fire citation / claim / derivation / similar checks | Edit prose; mint scholarly CLEAN |
-| Reflector | Probe / closeout after a certified shipment | Accept milestones; apply to the workbench |
+| Reflector | Probe / closeout after a certified shipment | Accept milestones; promote research artifacts |
 
 **Outside** the plugin: Writer is the apply step onto
 `research/60_Workbench/<work-id>/` — exact path, exact hash. If Writer edits
 on apply, that is a **new draft**, not the certified shipment. Grok Writer,
 Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
+
+**R-plane authority.** Joseph is the only R-plane actor. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. Any iteration may require revision of any of M1–M4. No agent promotes research artifacts.
 
 ## Staging loop
 

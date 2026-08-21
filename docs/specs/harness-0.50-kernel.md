@@ -38,9 +38,11 @@ Four hands **inside** the plugin:
 | Planner | One active target, assignment/phase bind, READY reserve | Edit manuscript |
 | Generator | Rewrite/fix-apply **on staging** via `assignment_writer_commit.py` | Publish to `research/60_Workbench`; chat-apply (SK-32) |
 | Evaluator | Certify **shipment / staging bytes** (exact hash) | Edit prose; mint scholarly CLEAN |
-| Reflector | Probe / closeout after a certified shipment | Accept milestones; apply to the workbench |
+| Reflector | Probe / closeout after a certified shipment | Accept milestones; promote research artifacts |
 
 **Outside** the plugin (not 0.50 kernel members): Grok Writer, Reviewer, Wiki, Orchestrator, Overseer. They package, draft, critique, and steward research. They do not become plugin roles.
+
+**R-plane authority.** Joseph is the only R-plane actor. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. Any iteration may require revision of any of M1–M4. No agent promotes research artifacts.
 
 Loop on a live package:
 

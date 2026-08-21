@@ -26,6 +26,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Receipt metadata.** Evaluation transactions now bind host identity, prompt-package identity/hash, and input artifact paths+hashes. Evaluate operations refuse to proceed without these receipt fields. This closes the generation/evaluate transaction binding gap.
 
+**Milestone-contract slice (2026-08-21).** Clarified R-plane authority and milestone acceptance contract. Joseph is the only R-plane actor; no agent promotes research artifacts. Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. Any iteration may require revision of any of M1–M4. Updated kernel spec, planner, run-draft, and run-iterate to document this contract. DEST-PROTECTED and Writer-stages-only remain unchanged.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure
