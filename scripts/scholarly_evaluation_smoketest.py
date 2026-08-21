@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -862,10 +863,60 @@ def main() -> int:
     semantic_pairs = 0
     attack_cases = 0
     api_cases = 0
+    missing_c6 = {"claim_register", "admission_use", "warrant_logic", "grounding_citation"} - set(
+        evaluation.PROFILE_MINIMUM
+    )
+    if missing_c6:
+        failures.append(f"c6-quality-kernel-missing: {sorted(missing_c6)}")
+    else:
+        api_cases += 1
+
+    # No workspace routing manifest in this install. A dummy extra governed
+    # root makes OS temp projects classify as external, not DEST-UNGOVERNED.
+    dummy_governed = Path(tempfile.mkdtemp(prefix="c6-dummy-governed-"))
+    extra_roots = [
+        item
+        for item in os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "").split(os.pathsep)
+        if item
+    ]
+    extra_roots.append(str(dummy_governed))
+    os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(extra_roots)
 
     with tempfile.TemporaryDirectory(prefix="scholarly-evaluation-c6-") as td:
         project = Path(td) / "synthetic-project"
         project.mkdir()
+        dest_safe_stamp = project / "dest-safe-info-stamp.json"
+        _write_json(
+            dest_safe_stamp,
+            {
+                "schema_version": "1.0.0",
+                "evaluation_id": "dest-safe-impersonation",
+                "execution_status": "completed",
+                "outcome": "findings",
+                "findings": [
+                    {
+                        "finding_id": "grounding-protocol-evaluation-lane-fired",
+                        "severity": "INFO",
+                        "message": "fired; requires evaluator dispatch for full check",
+                    }
+                ],
+            },
+        )
+        try:
+            evaluation.validate_scholarly_evaluation_binding(
+                project,
+                dest_safe_stamp,
+                {
+                    "evidence_path": dest_safe_stamp.relative_to(project).as_posix(),
+                    "evidence_sha256": _sha_bytes(dest_safe_stamp.read_bytes()),
+                },
+            )
+        except evaluation.EvaluationRefusal:
+            api_cases += 1
+        else:
+            failures.append(
+                "dest-safe INFO stamp must not qualify as C6 scholarly evaluation"
+            )
         registry_copy = project / "policies/obligation-result-registry.json"
         registry_copy.parent.mkdir(parents=True)
         registry_copy.write_bytes(REGISTRY.read_bytes())

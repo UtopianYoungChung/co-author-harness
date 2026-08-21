@@ -52,24 +52,35 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
     # v0.50.0: Tests need to mark temp workspaces as governed roots
     # Extract project-root from args if present
     env = os.environ.copy()
+    project_root: Path | None = None
     try:
         project_idx = args.index("--project-root")
         if project_idx + 1 < len(args):
             project_root = Path(args[project_idx + 1])
-            # For research/60_Workbench/<work-id>/ structure, add the workspace root
-            # (3 levels up: work-id -> 60_Workbench -> research -> workspace)
-            if len(project_root.parts) >= 3 and project_root.parts[-3:-1] == ("research", "60_Workbench"):
-                workspace_root = str(project_root.parents[2])
-            else:
-                workspace_root = str(project_root)
-            # Add workspace as a governed root for destination capability
-            existing = env.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "")
-            roots = [r for r in existing.split(os.pathsep) if r]
-            if workspace_root not in roots:
-                roots.append(workspace_root)
-            env["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(roots)
     except ValueError:
-        pass  # No --project-root arg
+        try:
+            contract_idx = args.index("--contract")
+            if contract_idx + 1 < len(args):
+                contract_path = Path(args[contract_idx + 1])
+                if contract_path.is_file():
+                    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+                    raw_root = contract.get("project_root")
+                    if isinstance(raw_root, str) and raw_root:
+                        project_root = Path(raw_root)
+        except (ValueError, OSError, json.JSONDecodeError):
+            project_root = None
+    if project_root is not None:
+        # For research/60_Workbench/<work-id>/ structure, add the workspace root
+        # (3 levels up: work-id -> 60_Workbench -> research -> workspace)
+        if len(project_root.parts) >= 3 and project_root.parts[-3:-1] == ("research", "60_Workbench"):
+            workspace_root = str(project_root.parents[2])
+        else:
+            workspace_root = str(project_root)
+        existing = env.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "")
+        roots = [r for r in existing.split(os.pathsep) if r]
+        if workspace_root not in roots:
+            roots.append(workspace_root)
+        env["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(roots)
     
     return subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), "__fixture_cli__", *args],
@@ -1043,51 +1054,66 @@ checked the wording, while the author retained responsibility for the claim.
             "deterministic-audit" in lane_note.get("ran_obligation_ids", []),
             "deterministic-audit must actually run dest-safe on the evaluation lane",
         )
-        # v0.50.0: Scholarly obligations are fired (completed/findings), not deferred/fail-closed
-        ran = lane_note.get("ran_obligation_ids", [])
         require(
-            isinstance(ran, list) and len(ran) > 0,
-            "evaluation-lane should fire scholarly obligations",
+            lane_note.get("deferred_obligation_ids") == [],
+            "evaluation-lane must not emit silent not_run deferrals",
         )
-        # v0.50.0: Centroid binder/join invoked even when semantic_usage=not_invoked
-        # Centroid is now in ran list (completed/findings), not fail_closed
+        require(
+            lane_note.get("mechanical_preflight_only") is True
+            and lane_note.get("scholarly_fire") == "evaluator_required",
+            "evaluation-lane must stay mechanical preflight, not scholarly fire",
+        )
         require(
             lane_note.get("centroid_graph", {}).get("status") == "fail_closed"
             and lane_note.get("centroid_graph", {}).get("reason_code")
             == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
-            "centroid/graph fail-closed note should remain (but obligation fired with completed/findings)",
+            "centroid/graph must fail-closed when semantic_usage=not_invoked",
         )
         ship = project / "reviews" / ".harness" / "shipments" / "smoketest-evaluation-lane"
         result_dir = ship / "obligation-results" / "evaluation"
-        fired_results = []
+        silent = []
         cleaned = []
+        impersonated = []
         mechanical = []
         for result_path in sorted(result_dir.glob("*.json")):
             value = json.loads(result_path.read_text(encoding="utf-8"))
             obligation_id = value.get("obligation_id")
-            if value.get("execution_status") == "completed":
-                fired_results.append(obligation_id)
+            if value.get("execution_status") == "not_run":
+                silent.append(obligation_id)
             if value.get("outcome") == "clean" and obligation_id != "d-style-profile":
                 cleaned.append(obligation_id)
             if obligation_id in ("d-style-profile", "deterministic-audit"):
                 mechanical.append(obligation_id)
-        # v0.50.0: Scholarly obligations are fired (completed/findings), not deferred
+            for finding in value.get("findings") or []:
+                severity = finding.get("severity")
+                code = str(finding.get("code") or finding.get("finding_id") or "")
+                message = str(finding.get("message") or finding.get("evidence_identity") or "")
+                if severity in {"INFO", "ADVISORY"} and (
+                    "evaluation-lane-fired" in code
+                    or "EVALUATOR-FIRE-RAN" in code
+                    or "requires evaluator dispatch" in message.lower()
+                ):
+                    impersonated.append(obligation_id)
+        require(not silent, "silent not_run results remain: " + ", ".join(map(str, silent)))
+        require(not cleaned, "evaluation-lane must not mint scholarly CLEAN: " + ", ".join(map(str, cleaned)))
         require(
-            len(fired_results) > 0,
-            "evaluation-lane must fire scholarly obligations (completed/findings)",
+            not impersonated,
+            "dest-safe must not impersonate scholarly fire: " + ", ".join(map(str, impersonated)),
         )
-        require(not cleaned, "evaluation-lane must not mint scholarly CLEAN: " + ", ".join(cleaned))
-        # Mechanical obligations should still run
         require(
             len(mechanical) >= 2,
             "d-style-profile and deterministic-audit must run mechanically",
         )
         grounding = json.loads((result_dir / "grounding-protocol.json").read_text(encoding="utf-8"))
         require(
-            grounding.get("execution_status") == "completed"
-            and grounding.get("outcome") == "findings"
-            and len(grounding.get("findings", [])) > 0,
-            "scholarly obligations must be fired (completed/findings), not deferred (not_run)",
+            grounding.get("execution_status") == "failed"
+            and grounding.get("outcome") == "error"
+            and grounding.get("findings")
+            and grounding["findings"][0].get("code") == "EVALUATOR-FIRE-REQUIRED"
+            and grounding["findings"][0].get("severity") == "MAJOR"
+            and "Evaluator must fire grounding-protocol on these bytes."
+            in grounding["findings"][0].get("evidence_identity", ""),
+            "scholarly rows must fail closed with blocking Evaluator-fire demand",
         )
         dstyle = json.loads((result_dir / "d-style-profile.json").read_text(encoding="utf-8"))
         require(
@@ -1100,6 +1126,100 @@ checked the wording, while the author retained responsibility for the claim.
                 all(row.get("disposition") == "open" for row in dstyle.get("findings", [])),
                 "d-style findings must stay findings",
             )
+
+        lane_verify = run(
+            "verify",
+            "--contract", str(ship / "draft_governance_prepare_evaluator.json"),
+            "--receipt", lane_note["receipt_path"],
+            "--artifact", str(artifact),
+            "--phase", "evaluation",
+            "--role", "evaluator",
+        )
+        require(
+            lane_verify.returncode != 0
+            and "DRAFT-POLICY-SCHOLARLY-EVALUATION-MISSING" in lane_verify.stdout,
+            "evaluate verify must refuse evaluation-lane without Evaluator C6: "
+            + lane_verify.stdout
+            + lane_verify.stderr,
+        )
+
+        impersonation_receipt = json.loads(Path(lane_note["receipt_path"]).read_text(encoding="utf-8"))
+        impersonation_path = ship / "impersonated-grounding.json"
+        impersonated_result = {
+            **grounding,
+            "execution_status": "completed",
+            "outcome": "findings",
+            "findings": [
+                {
+                    "finding_id": "grounding-protocol-evaluation-lane-fired",
+                    "severity": "INFO",
+                    "category": "evaluation-lane",
+                    "message": (
+                        "Obligation grounding-protocol fired at evaluation; "
+                        "requires evaluator dispatch for full check"
+                    ),
+                }
+            ],
+        }
+        write_json(impersonation_path, impersonated_result)
+        for row in impersonation_receipt["obligations"]:
+            if row.get("id") == "grounding-protocol":
+                row["result"] = exact_binding(impersonation_path, project)
+        impersonation_receipt_path = ship / "impersonated-receipt.json"
+        write_json(impersonation_receipt_path, impersonation_receipt)
+        impersonation_verify = run(
+            "verify",
+            "--contract", str(ship / "draft_governance_prepare_evaluator.json"),
+            "--receipt", str(impersonation_receipt_path),
+            "--artifact", str(artifact),
+            "--phase", "evaluation",
+            "--role", "evaluator",
+        )
+        require(
+            impersonation_verify.returncode != 0
+            and (
+                "DRAFT-POLICY-SCHOLARLY-EVALUATION-MISSING" in impersonation_verify.stdout
+                or "DRAFT-POLICY-SCHOLARLY-FIRE-IMPERSONATED" in impersonation_verify.stdout
+            ),
+            "evaluate verify must not complete scholarly rows on dest-safe INFO stamps: "
+            + impersonation_verify.stdout
+            + impersonation_verify.stderr,
+        )
+
+        generation_contract = prepare(project, artifact, "M3", "generation")
+        generation_contract_path = ship / "generation-prepare.json"
+        write_json(generation_contract_path, generation_contract)
+        generation_scaffold = run(
+            "scaffold-receipt",
+            "--contract", str(generation_contract_path),
+            "--artifact", str(artifact),
+            "--phase", "generation",
+            "--role", "generator",
+            "--shipment-id", "smoketest-generation-deferral",
+        )
+        require(generation_scaffold.returncode == 0, generation_scaffold.stdout + generation_scaffold.stderr)
+        generation_note = json.loads(generation_scaffold.stdout)
+        require(
+            "grounding-protocol" in generation_note.get("deferred_obligation_ids", []),
+            "generation may still defer scholarly rows as honest not_run",
+        )
+        require(
+            "d-style-profile" in generation_note.get("ran_obligation_ids", [])
+            or "d-style-profile" in generation_note.get("mechanical_obligation_ids", []),
+            "generation still runs dest-safe d-style-profile",
+        )
+        gen_ship = project / "reviews" / ".harness" / "shipments" / "smoketest-generation-deferral"
+        gen_grounding = json.loads(
+            (gen_ship / "obligation-results" / "generation" / "grounding-protocol.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        require(
+            gen_grounding.get("execution_status") == "not_run"
+            and gen_grounding.get("outcome") == "error"
+            and gen_grounding.get("findings") == [],
+            "generation scholarly deferral must remain an honest not_run shell",
+        )
 
         require(
             not intended_red,

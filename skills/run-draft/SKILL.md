@@ -47,7 +47,12 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
 
 ### Evaluator fire table
 
-Evaluator fires these obligations dest-safe at evaluation (completed/findings):
+Evaluator must fire these skills against certified staging bytes. Dest-safe
+evaluation-lane does not stamp them completed/INFO. Findings land under the
+shipment lane. Evaluator (or `attach-verifier-receipt`) binds
+`assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
+C6 profile (claim, derivation, warrant, citation) on those exact bytes.
+Evaluate verify refuses completion if those receipts or C6 results are missing.
 - **Grounding protocol** (grounding-protocol): Rule 4 quote-before-attribute, Rule 6 no-gap-filling
 - **Citation discipline** (citation-discipline): citation integrity, source traceback
 - **Claim coverage** (claim-coverage): evidence coverage for load-bearing claims
@@ -55,9 +60,9 @@ Evaluator fires these obligations dest-safe at evaluation (completed/findings):
 - **Grammar mechanics** (grammar-mechanics): mechanical correctness
 - **Contradictions** (contradictions): SAFEGUARD Check 4 same-diff contradictions
 - **Analytic construction** (analytic-construction): Abbott 7-move audit when applicable
-- **Centroid bind/join** (centroid-evaluation): binder and join invoked; graph retrieval fail-closes when semantic_usage=not_invoked
+- **Centroid bind/join** (centroid-evaluation): graph retrieval fail-closes when semantic_usage=not_invoked
 
-Mechanical dest-safe: d-style-profile, deterministic-audit. Do not mint scholarly CLEAN.
+Mechanical dest-safe preflight only: d-style-profile, deterministic-audit. Do not mint scholarly CLEAN.
 
 **DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
 `research/60_Workbench/<work-id>/`. `scripts/destination_capability.py` is the

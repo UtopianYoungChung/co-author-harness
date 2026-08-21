@@ -77,7 +77,17 @@ Dest-safe receipts may land under
 
 ### Evaluator fire table
 
-Evaluator fires these obligations dest-safe (completed/findings): grounding-protocol, citation-discipline, claim-coverage, derivation-check, grammar-mechanics, contradictions, analytic-construction, centroid-evaluation (binder/join invoked; graph fail-closes when semantic_usage=not_invoked). Mechanical: d-style-profile, deterministic-audit. No scholarly CLEAN.
+Evaluator must fire these skills against certified staging bytes. Dest-safe
+evaluation-lane does not stamp them completed/INFO. Findings land under the
+shipment lane. Evaluator (or `attach-verifier-receipt`) binds
+`assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
+C6 profile (claim, derivation, warrant, citation) on those exact bytes.
+Evaluate verify refuses completion if those receipts or C6 results are missing.
+Fire table: grounding-protocol, citation-discipline, claim-coverage,
+derivation-check, grammar-mechanics, contradictions, analytic-construction,
+centroid-evaluation (graph fail-closes when semantic_usage=not_invoked).
+Mechanical dest-safe preflight only: d-style-profile, deterministic-audit.
+No scholarly CLEAN.
 
 ## Parked compatibility bodies
 

@@ -728,7 +728,13 @@ def verify(
         "schema_version", "phase", "role", "contract_sha256", "artifact", "obligations",
         "host_identity", "package_identity", "input_bindings"
     }
-    if set(receipt) != required_receipt or receipt.get("schema_version") != "1.0.0":
+    allowed_extra = {"scholarly_evaluation"}
+    receipt_keys = set(receipt)
+    if (
+        not required_receipt <= receipt_keys
+        or receipt_keys - required_receipt - allowed_extra
+        or receipt.get("schema_version") != "1.0.0"
+    ):
         raise ContractError("DRAFT-POLICY-RECEIPT", "receipt fields or version are invalid")
     # v0.50.0: Verify transaction metadata is bound
     if not isinstance(receipt.get("host_identity"), str) or not receipt["host_identity"]:
@@ -788,6 +794,8 @@ def verify(
             "DRAFT-POLICY-OBLIGATION-UNKNOWN",
             "receipt includes obligations outside the phase contract: " + ", ".join(extra),
         )
+    if args.phase == "evaluation":
+        _require_evaluation_scholarly_quality(args, project, artifact_path, receipt)
     centroid_evidence_paths: list[Path] = []
     typed_obligation_ids: list[str] = []
     lifecycle_clearing_obligation_ids: list[str] = []
@@ -829,6 +837,12 @@ def verify(
                 raise ContractError(
                     "DRAFT-POLICY-OBLIGATION-STALE",
                     f"typed result does not bind the receipt artifact and resolved contract: {obligation_id}",
+                )
+            if args.phase == "evaluation" and _is_dest_safe_scholarly_impersonation(result):
+                raise ContractError(
+                    "DRAFT-POLICY-SCHOLARLY-FIRE-IMPERSONATED",
+                    "dest-safe INFO/ADVISORY stamps are not scholarly fire: "
+                    f"{obligation_id}",
                 )
             if result.get("execution_status") == "not_run":
                 _accept_generation_not_run(
@@ -961,6 +975,11 @@ DSTYLE_REPORT_SCHEMA_REL = "scripts/d_style_profile_check.py"
 REASON_PROMPT_MEDIATED = "PROMPT-MEDIATED-NOT-DEST-SAFE"
 REASON_GRAPH_UNAVAILABLE = "GRAPH_GOVERNED_GENERATION_UNAVAILABLE"
 REASON_CENTROID_RECEIPT_ABSENT = "CENTROID-SEMANTIC-RECEIPT-ABSENT"
+REASON_EVALUATOR_FIRE_REQUIRED = "EVALUATOR-FIRE-REQUIRED"
+DEST_SAFE_MECHANICAL_IDS = frozenset({"d-style-profile", "deterministic-audit"})
+C6_QUALITY_CHECKS = frozenset(
+    {"claim_register", "admission_use", "warrant_logic", "grounding_citation"}
+)
 
 
 def _exact_binding(path: Path, project: Path) -> dict[str, str | int]:
@@ -968,6 +987,133 @@ def _exact_binding(path: Path, project: Path) -> dict[str, str | int]:
     rel = resolved.relative_to(project.resolve(strict=True)).as_posix()
     payload = resolved.read_bytes()
     return {"path": rel, "sha256": _sha_bytes(payload), "byte_length": len(payload)}
+
+
+def _is_dest_safe_mechanical(obligation_id: str, adapter: dict[str, Any] | None = None) -> bool:
+    if obligation_id in DEST_SAFE_MECHANICAL_IDS:
+        return True
+    report_path = ""
+    if isinstance(adapter, dict):
+        report_path = str((adapter.get("report_schema") or {}).get("path") or "")
+    return report_path == DSTYLE_REPORT_SCHEMA_REL
+
+
+def _is_dest_safe_scholarly_impersonation(result: dict[str, Any]) -> bool:
+    """True when dest-safe stamped scholarly fire as completed INFO/ADVISORY."""
+    obligation_id = str(result.get("obligation_id") or "")
+    if _is_dest_safe_mechanical(obligation_id):
+        return False
+    findings = result.get("findings")
+    if not isinstance(findings, list):
+        return False
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        severity = str(finding.get("severity") or "")
+        code = str(finding.get("code") or finding.get("finding_id") or "")
+        message = str(finding.get("message") or finding.get("evidence_identity") or "")
+        category = str(finding.get("category") or "")
+        impersonated = (
+            "evaluation-lane-fired" in code
+            or "EVALUATOR-FIRE-RAN" in code
+            or "requires evaluator dispatch" in message.lower()
+            or "fired at evaluation" in message.lower()
+            or category == "evaluation-lane"
+        )
+        if impersonated and severity in {"INFO", "ADVISORY"}:
+            return True
+    return False
+
+
+def _verifier_authority_mode(project: Path, result: dict[str, Any]) -> str | None:
+    receipt = result.get("verifier_receipt")
+    if not isinstance(receipt, dict) or not receipt.get("path"):
+        return None
+    try:
+        envelope_path = _typed_result_binding(receipt, project)
+        envelope = _load(envelope_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+    except (ContractError, OSError, TypeError, ValueError):
+        return None
+    mode = envelope.get("authority_mode")
+    return mode if isinstance(mode, str) else None
+
+
+def _evaluation_has_only_fixture_hmac_scholarly(
+    project: Path, receipt: dict[str, Any]
+) -> bool:
+    """Test-only path: every scholarly typed result already has fixture_hmac."""
+    seen = 0
+    for row in receipt.get("obligations") or []:
+        if not isinstance(row, dict) or not isinstance(row.get("result"), dict):
+            continue
+        obligation_id = str(row.get("id") or "")
+        if _is_dest_safe_mechanical(obligation_id) or obligation_id.startswith("centroid-"):
+            continue
+        try:
+            result_path = _typed_result_binding(row.get("result"), project)
+            result = _load(result_path, "DRAFT-POLICY-OBLIGATION-SCHEMA")
+        except (ContractError, OSError, TypeError, ValueError):
+            return False
+        if _verifier_authority_mode(project, result) != "fixture_hmac":
+            return False
+        seen += 1
+    return seen > 0
+
+
+def _c6_binding_from_args(
+    args: argparse.Namespace, project: Path, receipt: dict[str, Any]
+) -> dict[str, Any] | None:
+    path_arg = getattr(args, "scholarly_evaluation", None)
+    if path_arg:
+        evaluation_path = Path(str(path_arg)).resolve(strict=True)
+        try:
+            rel = evaluation_path.relative_to(project).as_posix()
+        except ValueError as exc:
+            raise ContractError(
+                "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+                "scholarly_evaluation C6 bytes must stay under the bound project",
+            ) from exc
+        return {"evidence_path": rel, "evidence_sha256": _sha(evaluation_path)}
+    binding = receipt.get("scholarly_evaluation")
+    return binding if isinstance(binding, dict) else None
+
+
+def _require_evaluation_scholarly_quality(
+    args: argparse.Namespace,
+    project: Path,
+    artifact_path: Path,
+    receipt: dict[str, Any],
+) -> None:
+    """Refuse dest-safe scholarly impersonation; require Evaluator C6 at evaluate."""
+    binding = _c6_binding_from_args(args, project, receipt)
+    if binding is None:
+        if _evaluation_has_only_fixture_hmac_scholarly(project, receipt):
+            return
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-MISSING",
+            "Evaluator must fire scholarly_evaluation C6 on these bytes.",
+        )
+    from scholarly_evaluation import PROFILE_MINIMUM
+    from scholarly_evaluation_binding import ScholarlyBindingError, validate_scholarly_binding
+
+    missing_c6 = sorted(C6_QUALITY_CHECKS - set(PROFILE_MINIMUM))
+    if missing_c6:
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+            "scholarly_evaluation C6 profile no longer names "
+            + ", ".join(missing_c6),
+        )
+    try:
+        validate_scholarly_binding(
+            project_root=project,
+            artifact=artifact_path,
+            binding=binding,
+        )
+    except ScholarlyBindingError as exc:
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+            f"{exc.code}: {exc}",
+        ) from exc
 
 
 def _write_json(path: Path, value: dict[str, Any]) -> dict[str, str | int]:
@@ -1391,10 +1537,8 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                 )
                 fail_closed.append(obligation_id)
                 fail_closed_reasons[obligation_id] = "DETERMINISTIC-AUDIT-INSTRUMENT-FAILED"
-        elif args.phase == "evaluation" and obligation_id.startswith("centroid-"):
-            # v0.50.0: Centroid binder/join invoked even when semantic_usage=not_invoked
-            # Graph retrieval fails-closed, but binder/join instruments run
-            if (
+        elif args.phase == "evaluation":
+            if obligation_id.startswith("centroid-") and (
                 centroid.get("semantic_usage") == "not_invoked"
                 or centroid.get("required") is not True
             ):
@@ -1402,168 +1546,74 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
                     centroid.get("unavailable_code") or REASON_GRAPH_UNAVAILABLE
                 )
                 reason_detail = (
-                    "Centroid binder/join invoked; graph retrieval fail-closed "
-                    "(semantic_usage=not_invoked or receipt absent)"
+                    "package semantic_usage=not_invoked; "
+                    "graph/centroid cannot run dest-safe"
                 )
-                # Completed with findings: binder/join ran, graph fail-closed
-                result = {
-                    "schema_version": "1.0.0",
-                    "obligation_id": obligation_id,
-                    "adapter_version": adapter["adapter_version"],
-                    "artifact": {
-                        "path": artifact_rel,
-                        "sha256": artifact_sha,
-                        "byte_length": artifact_bytes,
-                    },
-                    "policy": {
-                        "path": contract_path.relative_to(project).as_posix(),
-                        "sha256": _sha(contract_path),
-                        "byte_length": contract_path.stat().st_size,
-                    },
-                    "activation": adapter["activation"],
-                    "execution_status": "completed",
-                    "outcome": "findings",
-                    "findings": [
-                        {
-                            "finding_id": f"{obligation_id}-graph-fail-closed",
-                            "severity": "INFO",
-                            "category": "centroid-evaluation",
-                            "message": reason_detail,
-                            "reason_code": reason_code,
-                        }
-                    ],
-                    "diagnostic_only": adapter["diagnostic_only"],
-                    "created_at": created_at,
-                    "adjudications": [],
-                }
-                report = {
-                    "schema_version": "1.0.0",
-                    "report_type": "obligation_adapter_report",
-                    "adapter_id": adapter["adapter_id"],
-                    "adapter_version": adapter["adapter_version"],
-                    "obligation_id": obligation_id,
-                    "artifact": result["artifact"],
-                    "policy": result["policy"],
-                    "activation": result["activation"],
-                    "execution_status": "completed",
-                    "outcome": "findings",
-                    "findings": result["findings"],
-                    "diagnostic_only": result["diagnostic_only"],
-                    "created_at": created_at,
-                }
-                mechanical.append(obligation_id)  # Fired (binder/join invoked)
-            else:
-                # Semantic_usage enabled but receipt absent: fail-close as before
+            elif obligation_id.startswith("centroid-"):
                 reason_code = REASON_CENTROID_RECEIPT_ABSENT
                 reason_detail = (
                     "centroid semantic receipt is not dest-safe to invent; "
                     "fail-closed rather than a silent not_run shell"
                 )
-                result, report = _fail_closed_pair(
-                    obligation_id=obligation_id,
-                    adapter=adapter,
-                    artifact_rel=artifact_rel,
-                    artifact_sha=artifact_sha,
-                    artifact_bytes=artifact_bytes,
-                    contract_path=contract_path,
-                    project=project,
-                    created_at=created_at,
-                    reason_code=reason_code,
-                    reason_detail=reason_detail,
-                )
-                fail_closed.append(obligation_id)
-                fail_closed_reasons[obligation_id] = reason_code
-        else:
-            # v0.50.0 scholarly-evaluation-lane: at evaluation, fire scholarly obligations
-            # (completed/findings), not not_run shells. At generation, still defer as not_run.
-            if args.phase == "evaluation":
-                # Scholarly obligations at evaluation: completed with findings indicating
-                # they were fired and require evaluator dispatch (dest-safe invocation)
-                result = {
-                    "schema_version": "1.0.0",
-                    "obligation_id": obligation_id,
-                    "adapter_version": adapter["adapter_version"],
-                    "artifact": {
-                        "path": artifact_rel,
-                        "sha256": artifact_sha,
-                        "byte_length": artifact_bytes,
-                    },
-                    "policy": {
-                        "path": contract_path.relative_to(project).as_posix(),
-                        "sha256": _sha(contract_path),
-                        "byte_length": contract_path.stat().st_size,
-                    },
-                    "activation": adapter["activation"],
-                    "execution_status": "completed",
-                    "outcome": "findings",
-                    "findings": [
-                        {
-                            "finding_id": f"{obligation_id}-evaluation-lane-fired",
-                            "severity": "INFO",
-                            "category": "evaluation-lane",
-                            "message": f"Obligation {obligation_id} fired at evaluation; requires evaluator dispatch for full check",
-                        }
-                    ],
-                    "diagnostic_only": adapter["diagnostic_only"],
-                    "created_at": created_at,
-                    "adjudications": [],
-                }
-                report = {
-                    "schema_version": "1.0.0",
-                    "report_type": "obligation_adapter_report",
-                    "adapter_id": adapter["adapter_id"],
-                    "adapter_version": adapter["adapter_version"],
-                    "obligation_id": obligation_id,
-                    "artifact": result["artifact"],
-                    "policy": result["policy"],
-                    "activation": result["activation"],
-                    "execution_status": "completed",
-                    "outcome": "findings",
-                    "findings": result["findings"],
-                    "diagnostic_only": result["diagnostic_only"],
-                    "created_at": created_at,
-                }
-                mechanical.append(obligation_id)  # Fired, not deferred
             else:
-                # Generation phase: defer as not_run
-                result = {
-                    "schema_version": "1.0.0",
-                    "obligation_id": obligation_id,
-                    "adapter_version": adapter["adapter_version"],
-                    "artifact": {
-                        "path": artifact_rel,
-                        "sha256": artifact_sha,
-                        "byte_length": artifact_bytes,
-                    },
-                    "policy": {
-                        "path": contract_path.relative_to(project).as_posix(),
-                        "sha256": _sha(contract_path),
-                        "byte_length": contract_path.stat().st_size,
-                    },
-                    "activation": adapter["activation"],
-                    "execution_status": "not_run",
-                    "outcome": "error",
-                    "findings": [],
-                    "diagnostic_only": adapter["diagnostic_only"],
-                    "created_at": created_at,
-                    "adjudications": [],
-                }
-                report = {
-                    "schema_version": "1.0.0",
-                    "report_type": "obligation_adapter_report",
-                    "adapter_id": adapter["adapter_id"],
-                    "adapter_version": adapter["adapter_version"],
-                    "obligation_id": obligation_id,
-                    "artifact": result["artifact"],
-                    "policy": result["policy"],
-                    "activation": result["activation"],
-                    "execution_status": "not_run",
-                    "outcome": "error",
-                    "findings": [],
-                    "diagnostic_only": result["diagnostic_only"],
-                    "created_at": created_at,
-                }
-                deferred.append(obligation_id)
+                reason_code = REASON_EVALUATOR_FIRE_REQUIRED
+                reason_detail = (
+                    f"Evaluator must fire {obligation_id} on these bytes."
+                )
+            result, report = _fail_closed_pair(
+                obligation_id=obligation_id,
+                adapter=adapter,
+                artifact_rel=artifact_rel,
+                artifact_sha=artifact_sha,
+                artifact_bytes=artifact_bytes,
+                contract_path=contract_path,
+                project=project,
+                created_at=created_at,
+                reason_code=reason_code,
+                reason_detail=reason_detail,
+            )
+            fail_closed.append(obligation_id)
+            fail_closed_reasons[obligation_id] = reason_code
+        else:
+            # Generation phase: defer scholarly rows as honest not_run.
+            result = {
+                "schema_version": "1.0.0",
+                "obligation_id": obligation_id,
+                "adapter_version": adapter["adapter_version"],
+                "artifact": {
+                    "path": artifact_rel,
+                    "sha256": artifact_sha,
+                    "byte_length": artifact_bytes,
+                },
+                "policy": {
+                    "path": contract_path.relative_to(project).as_posix(),
+                    "sha256": _sha(contract_path),
+                    "byte_length": contract_path.stat().st_size,
+                },
+                "activation": adapter["activation"],
+                "execution_status": "not_run",
+                "outcome": "error",
+                "findings": [],
+                "diagnostic_only": adapter["diagnostic_only"],
+                "created_at": created_at,
+                "adjudications": [],
+            }
+            report = {
+                "schema_version": "1.0.0",
+                "report_type": "obligation_adapter_report",
+                "adapter_id": adapter["adapter_id"],
+                "adapter_version": adapter["adapter_version"],
+                "obligation_id": obligation_id,
+                "artifact": result["artifact"],
+                "policy": result["policy"],
+                "activation": result["activation"],
+                "execution_status": "not_run",
+                "outcome": "error",
+                "findings": [],
+                "diagnostic_only": result["diagnostic_only"],
+                "created_at": created_at,
+            }
+            deferred.append(obligation_id)
         report_path = reports_dir / f"{obligation_id}.json"
         result_path = results_dir / f"{obligation_id}.json"
         result["report"] = None  # filled after report bytes land
@@ -1645,7 +1695,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "still_requires_joseph": [
             "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
-            "evaluation-phase scholarly and governance obligations are fired (completed/findings) and require evaluator dispatch for full check; fired obligations are dest-safe invocations, not CLEAN",
+            "evaluation-phase scholarly rows fail closed until Evaluator fires the skill on these bytes and binds assignment_dispatch; scholarly_evaluation C6 is required at evaluate verify; dest-safe INFO stamps are not scholarly fire; no CLEAN",
         ],
     }
     _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
@@ -1740,10 +1790,13 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
     note.pop("verify_is_not_complete", None)
     note["verify_still_requires_reviewer_bind"] = (
         "Dest-safe mechanical obligations ran. Scholarly and governance obligations "
-        "fired at evaluation (completed/findings) and require evaluator dispatch for full check. "
-        "attach-verifier-receipt can bind external evaluation receipts; "
-        "the harness still refuses CLEAN bind."
+        "fail closed until Evaluator fires them on these bytes and binds "
+        "assignment_dispatch receipts. scripts/scholarly_evaluation.py C6 "
+        "(claim, derivation, warrant, citation) is required at evaluate verify. "
+        "The harness still refuses CLEAN bind."
     )
+    note["mechanical_preflight_only"] = True
+    note["scholarly_fire"] = "evaluator_required"
     note["dest_protected_stays"] = True
     centroid = contract.get("centroid") if isinstance(contract.get("centroid"), dict) else {}
     if centroid.get("semantic_usage") == "not_invoked" or centroid.get("required") is not True:
@@ -1789,6 +1842,10 @@ def main(
         "--requested-independence-level",
         choices=("none", "dispatch_separation", "host_attested_independence"),
         default="none",
+    )
+    verify_parser.add_argument(
+        "--scholarly-evaluation",
+        help="Evaluator C6 scholarly_evaluation document bound to these artifact bytes",
     )
     scaffold_parser = sub.add_parser("scaffold-receipt")
     scaffold_parser.add_argument("--contract", required=True)
