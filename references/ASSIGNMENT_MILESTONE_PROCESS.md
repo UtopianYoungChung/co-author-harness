@@ -41,6 +41,7 @@ The terminal framework slot is named `M5` for backward-compatible machine state.
 ## 3. Gate semantics
 
 - `draft` verifies that the assignment contract is resolved, the source and profile hashes are current, the assigned sequence and framework mapping are complete, professor-copy authority remains with the author unless explicitly delegated, and gather/circulate sequence rules hold.
+- `evaluate` admits scholarly C6 on already-staged named M1-M4 bytes. Sequence, source-hash, and wiki-grounding dest-safe misses do not occupy that path. Evaluate does not emit a write-authorizing READY receipt, does not mint scholarly CLEAN, and never treats file presence as acceptance. Dest-safe mechanical preflight still runs; dest-safe must not stamp scholarly rows completed/INFO.
 - `final` includes every `draft` check and requires M1, M2, M3, and M4 to be *currently* `accepted`.
 - Native course-essay projects use the sequence gate below. A legacy contract fails with `APG-SEQUENCE-LEGACY` until the operator performs the named migration and acceptance work; file presence never implies acceptance, materials-in-play, or promotion.
 - Harness phases remain orthogonal. Ph1-Ph4 control drafting and review maturity; they do not redefine assignment deliverables.
@@ -49,6 +50,8 @@ The terminal framework slot is named `M5` for backward-compatible machine state.
 **Gather.** First-start of a `not_started` M1-M4 requires current accepted predecessors. The table below is that earning order.
 
 **Circulate.** After materials are in play — Joseph's bound `materials_in_play` declaration (`authority: user`), or four current accepted hashes, or ledger proof that each of M1-M4 has been accepted at least once — a started M1-M4 may be named in any order. File presence is never enough.
+
+**Evaluate.** When Joseph names an M1-M4 target that already has staged bytes, `assignment_process_gate.py --stage evaluate` and `assignment_milestone_checkpoint.py derive --milestone <Mn> --purpose evaluate` bind that named target for C6. They do not fall back to the gather hole. Sequence failures stay on first-start draft dispatch and on FINAL/M5 apply.
 
 **Close.** FINAL / M5 still requires four *current* accepted hashes. An accepted M5 is the one-way door.
 

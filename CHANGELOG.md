@@ -36,6 +36,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Gather/circulate milestone split (2026-08-21).** First-start of M1–M4 remains an earning order (`APG-SEQUENCE-*` on a `not_started` target). After materials are in play — Joseph's bound `materials_in_play` declaration, four current accepted hashes, or ledger proof that each of M1–M4 has been accepted at least once — READY/derive/authorize may name any started M1–M4. File presence is never enough. FINAL still requires four current accepted hashes; accepted M5 is the one-way door. DEST-PROTECTED, SK-32 CLOSED, Writer-apply-only, and Joseph R-plane unchanged.
 
+**Dest-safe as C6 guardrail (2026-08-21).** Gather/circulate remains the dispatch/apply/FINAL order. It is not a bar on C6 reading bytes Joseph already staged. `assignment_process_gate.py --stage evaluate` and `derive --purpose evaluate` bind a named M1-M4 for scholarly evaluate even when `phase_state` predecessors are not currently accepted. Sequence, source-hash, and wiki-grounding dest-safe misses no longer exit-4 that path. Planner derive no longer binds M1 when the named target is M4. Evaluate still does not emit a write-authorizing READY receipt. C6 remains required at evaluate verify (claim, derivation, warrant, citation plus Evaluator `assignment_dispatch`). Dest-safe mechanical preflight still runs; dest-safe must not stamp scholarly rows completed/INFO or impersonate C6. FINAL still requires accepted M1-M4. DEST-PROTECTED, SK-32 CLOSED, Writer-apply-only, no scholarly CLEAN, and honest graph fail-closed remain. No paper-specific bars.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure

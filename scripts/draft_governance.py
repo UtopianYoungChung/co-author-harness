@@ -1084,7 +1084,11 @@ def _require_evaluation_scholarly_quality(
     artifact_path: Path,
     receipt: dict[str, Any],
 ) -> None:
-    """Refuse dest-safe scholarly impersonation; require Evaluator C6 at evaluate."""
+    """Refuse dest-safe scholarly impersonation; require Evaluator C6 at evaluate.
+
+    Dest-safe process-gate sequence / source-hash / wiki-grounding findings
+    are not scholarly fire and must not occupy this path.
+    """
     binding = _c6_binding_from_args(args, project, receipt)
     if binding is None:
         if _evaluation_has_only_fixture_hmac_scholarly(project, receipt):

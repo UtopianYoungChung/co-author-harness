@@ -82,6 +82,15 @@ def main() -> int:
     assert deliverables["FINAL"]["prerequisites"] == ["M1", "M2", "M3", "M4"]
     assert "a fifth assigned milestone" in deliverables["FINAL"]["must_not_be_treated_as"]
 
+    dummy_governed = Path(tempfile.mkdtemp(prefix="apg-dummy-governed-"))
+    extra_roots = [
+        item
+        for item in os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "").split(os.pathsep)
+        if item
+    ]
+    extra_roots.append(str(dummy_governed))
+    os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(extra_roots)
+
     # F1 regression: milestone_framework.mode describes lifecycle format, not
     # assignment-process applicability.  Treating mode:native + a missing
     # contract as an implicit N/A would turn a deleted or never-resolved
@@ -538,6 +547,119 @@ def main() -> int:
         assert refused is None and any(
             row.get("code") == "FRC-MILESTONE-ORDER" for row in refused_errors
         )
+
+    # Live M4 evaluate: stale bootstrap (M1 in_progress, M2/M3 not_started)
+    # must not let dest-safe sequence/source/wiki occupy the scholarly path.
+    # File presence is never acceptance. FINAL apply still needs current hashes.
+    with tempfile.TemporaryDirectory(prefix="apg-evaluate-guardrail-") as temp:
+        from assignment_milestone_transaction import (
+            MilestoneTransactionError,
+            derive as derive_checkpoint,
+        )
+
+        root = Path(temp)
+        reviews = root / "reviews"
+        reviews.mkdir()
+        contract = write_valid_contract(root)
+        source = root / "course-assignment.pdf"
+        source.write_bytes(b"stale assignment source after hash bind\n")
+        manuscript = root / "milestones" / "M4_complete_paper_draft.md"
+        manuscript.parent.mkdir(parents=True, exist_ok=True)
+        manuscript.write_text("# Already-staged M4 bytes are not acceptance.\n", encoding="utf-8")
+        stale_framework = {
+            "mode": "native",
+            "milestones": {
+                "M1": {"status": "in_progress"},
+                "M2": {"status": "not_started"},
+                "M3": {"status": "not_started"},
+                "M4": {"status": "not_started"},
+                "M5": {"status": "not_started"},
+            },
+        }
+        (reviews / "phase_state.json").write_text(
+            json.dumps({"milestone_framework": stale_framework}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        draft_m4 = run_gate(root, "draft", "M4")
+        assert (
+            draft_m4.returncode == 4
+            and "APG-SEQUENCE-M4" in draft_m4.stdout
+            and "APG-SOURCE-HASH" in draft_m4.stdout
+            and "APG-WIKI-GROUNDING-MISSING" in draft_m4.stdout
+        ), draft_m4.stdout + draft_m4.stderr
+
+        evaluate_m4 = run_gate(root, "evaluate", "M4")
+        assert evaluate_m4.returncode == 0, evaluate_m4.stdout + evaluate_m4.stderr
+        assert "EVALUATE-ADMITTED" in evaluate_m4.stdout, evaluate_m4.stdout
+        assert "READY assignment-process" not in evaluate_m4.stdout, evaluate_m4.stdout
+        for code in (
+            "APG-SEQUENCE-M4",
+            "APG-SOURCE-HASH",
+            "APG-WIKI-GROUNDING-MISSING",
+        ):
+            assert code not in evaluate_m4.stdout, evaluate_m4.stdout + evaluate_m4.stderr
+
+        evaluate_receipt = Path(
+            "reviews/.harness/assignment/ready/gate_receipt_M4_20260821T000000Z.json"
+        )
+        evaluate_emit = run_gate(
+            root, "evaluate", "M4", emit_receipt=evaluate_receipt
+        )
+        assert (
+            evaluate_emit.returncode == 4
+            and "APG-RECEIPT-INVALID" in evaluate_emit.stdout
+        ), evaluate_emit.stdout + evaluate_emit.stderr
+        assert not (root / evaluate_receipt).exists(), (
+            "evaluate must not mint a write-authorizing READY receipt"
+        )
+
+        evaluate_final = run_gate(root, "evaluate", "FINAL")
+        assert (
+            evaluate_final.returncode == 4
+            and "APG-SEQUENCE-TARGET" in evaluate_final.stdout
+        ), evaluate_final.stdout + evaluate_final.stderr
+
+        blocked_final = run_gate(root, "final")
+        assert (
+            blocked_final.returncode == 4
+            and "APG-PREREQUISITE-M1" in blocked_final.stdout
+        ), blocked_final.stdout + blocked_final.stderr
+
+        hole, hole_errors = derive_active_target(root)
+        assert hole == "M1" and hole_errors == []
+        dispatch_named, dispatch_errors = derive_active_target(root, requested="M4")
+        assert dispatch_named is None and any(
+            row.get("code") == "FRC-MILESTONE-ORDER" for row in dispatch_errors
+        )
+        evaluate_named, evaluate_errors = derive_active_target(
+            root, requested="M4", purpose="evaluate"
+        )
+        assert evaluate_named == "M4" and evaluate_errors == []
+        evaluate_final_named, evaluate_final_errors = derive_active_target(
+            root, requested="FINAL", purpose="evaluate"
+        )
+        assert evaluate_final_named is None and any(
+            row.get("code") == "FRC-MILESTONE-ORDER" for row in evaluate_final_errors
+        )
+
+        try:
+            fallback = derive_checkpoint(root, requested="M4")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError(
+                "named M4 dispatch must refuse rather than bind another milestone: "
+                + repr(fallback)
+            )
+        evaluated = derive_checkpoint(root, requested="M4", purpose="evaluate")
+        assert evaluated == {
+            "status": "READY",
+            "milestone": "M4",
+            "action": "evaluate",
+            "authority_mode": evaluated.get("authority_mode"),
+        }, evaluated
+        assert evaluated["authority_mode"] in {"direct_local", "shipment_only"}
 
     # C7 coupling: once C2 has rebound the active Generator target, an unbound
     # receipt cannot survive, while a receipt naming the exact marker-committed

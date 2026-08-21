@@ -902,6 +902,15 @@ def main() -> int:
                 ],
             },
         )
+        import assignment_process_gate as process_gate
+
+        def _process_gate_must_not_run(*_args: object, **_kwargs: object) -> list:
+            raise AssertionError(
+                "scholarly_evaluation must not consult assignment_process_gate"
+            )
+
+        original_validate = process_gate.validate
+        process_gate.validate = _process_gate_must_not_run  # type: ignore[method-assign]
         try:
             evaluation.validate_scholarly_evaluation_binding(
                 project,
@@ -913,10 +922,14 @@ def main() -> int:
             )
         except evaluation.EvaluationRefusal:
             api_cases += 1
+        except AssertionError as exc:
+            failures.append(str(exc))
         else:
             failures.append(
                 "dest-safe INFO stamp must not qualify as C6 scholarly evaluation"
             )
+        finally:
+            process_gate.validate = original_validate
         registry_copy = project / "policies/obligation-result-registry.json"
         registry_copy.parent.mkdir(parents=True)
         registry_copy.write_bytes(REGISTRY.read_bytes())
@@ -1152,6 +1165,44 @@ def main() -> int:
                 "legacy verify_evaluation result unexpectedly exposed artifact binding"
             )
         api_cases += 1
+
+        stale_state = project / "reviews" / "phase_state.json"
+        stale_state.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(
+            stale_state,
+            {
+                "milestone_framework": {
+                    "mode": "native",
+                    "milestones": {
+                        "M1": {"status": "in_progress"},
+                        "M2": {"status": "not_started"},
+                        "M3": {"status": "not_started"},
+                        "M4": {"status": "not_started"},
+                        "M5": {"status": "not_started"},
+                    },
+                }
+            },
+        )
+        stale_c6 = evaluation.verify_evaluation(
+            project, clean_artifact, clean_register, clean_evaluation
+        )
+        if stale_c6.get("status") not in {"qualified", "blocked"}:
+            failures.append(
+                "c6-stale-phase-state: scholarly evaluate must still run when "
+                f"predecessors are not accepted: {stale_c6!r}"
+            )
+        else:
+            api_cases += 1
+        stale_binding = evaluation.validate_scholarly_evaluation_binding(
+            project, clean_artifact, clean_binding
+        )
+        if stale_binding.get("status") != "qualified":
+            failures.append(
+                "c6-stale-phase-state-binding: C6 binding must not consult "
+                f"assignment_process_gate sequence: {stale_binding!r}"
+            )
+        else:
+            api_cases += 1
 
         red_binding = {
             "evidence_path": red_evaluation.relative_to(project).as_posix(),

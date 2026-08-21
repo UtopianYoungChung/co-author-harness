@@ -866,7 +866,12 @@ def _verify_evaluation_transaction(
     *,
     expected_evaluation: BoundFile | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Authenticate one evaluation transaction; do not infer judgment truth."""
+    """Authenticate one evaluation transaction; do not infer judgment truth.
+
+    Predecessor acceptance in ``phase_state`` is not a C6 input. Dest-safe
+    sequence / source-hash / wiki-grounding misses stay on draft dispatch
+    and FINAL apply; they do not refuse scholarly evaluate of named bytes.
+    """
 
     root = project_root.absolute()
     if not root.is_dir() or _is_link(root):

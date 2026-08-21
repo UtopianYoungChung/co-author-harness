@@ -917,12 +917,59 @@ def validate_resolved_contract(project: Path) -> list[tuple[str, str]]:
     return findings
 
 
+def _evaluate_admission_findings(
+    project: Path, target_milestone: str | None
+) -> list[tuple[str, str]]:
+    """Admit C6 evaluate of named M1-M4 bytes. Not a dispatch or apply grant.
+
+    Sequence, source-hash, and wiki-grounding remain draft-dispatch / FINAL
+    apply guardrails. They must not occupy the scholarly evaluate path.
+    File presence is never acceptance. Accepted M5 stays the one-way door.
+    """
+    findings: list[tuple[str, str]] = []
+    if target_milestone is None:
+        findings.append(
+            ("APG-SEQUENCE-TARGET", "evaluate stage requires an explicit --target-milestone")
+        )
+        return findings
+    if target_milestone == "FINAL":
+        findings.append(
+            (
+                "APG-SEQUENCE-TARGET",
+                "FINAL apply stays on --stage final; evaluate names M1-M4",
+            )
+        )
+        return findings
+    if target_milestone not in GATHER_KEYS:
+        findings.append(("APG-SEQUENCE-TARGET", "evaluate names M1-M4"))
+        return findings
+    state = _load_json(
+        project / "reviews" / "phase_state.json", "APG-PHASE-STATE-MISSING", findings
+    )
+    if not isinstance(state, dict):
+        return findings
+    framework = state.get("milestone_framework")
+    milestones = framework.get("milestones") if isinstance(framework, dict) else None
+    if not isinstance(milestones, dict):
+        milestones = {}
+    if _currently_accepted(milestones.get("M5")):
+        findings.append(
+            (
+                "APG-SEQUENCE-FINAL",
+                "accepted M5 is the one-way door; evaluate of M1-M4 is closed",
+            )
+        )
+    return findings
+
+
 def validate(
     project: Path,
     stage: str,
     target_milestone: str | None = None,
     exemplar_conditioning: bool = False,
 ) -> list[tuple[str, str]]:
+    if stage == "evaluate":
+        return _evaluate_admission_findings(project, target_milestone)
     findings: list[tuple[str, str]] = []
     contract = _load_json(project / "reviews" / "assignment_contract.json", "APG-CONTRACT-MISSING", findings)
     if not isinstance(contract, dict):
@@ -1007,7 +1054,7 @@ def validate(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", required=True, type=Path)
-    parser.add_argument("--stage", choices=("draft", "final"))
+    parser.add_argument("--stage", choices=("draft", "final", "evaluate"))
     parser.add_argument("--target-milestone", choices=EXPECTED_SEQUENCE)
     parser.add_argument("--exemplar-conditioning", action="store_true")
     parser.add_argument("--control-transition-id")
@@ -1052,6 +1099,23 @@ def main() -> int:
     if findings:
         _print_findings(findings)
         return 4
+    if args.stage == "evaluate":
+        if args.emit_receipt is not None:
+            _print_findings(
+                [
+                    (
+                        "APG-RECEIPT-INVALID",
+                        "evaluate admits scholarly C6 on named-milestone bytes; "
+                        "it does not emit a write-authorizing READY receipt",
+                    )
+                ]
+            )
+            return 4
+        print(
+            "EVALUATE-ADMITTED assignment-process "
+            f"stage=evaluate target={args.target_milestone}"
+        )
+        return 0
     target = "FINAL" if args.stage == "final" else args.target_milestone
     assert target is not None
     ready_lines = _ready_lines(project, args.stage, target, args.exemplar_conditioning)

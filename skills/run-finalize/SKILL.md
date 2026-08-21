@@ -45,6 +45,7 @@ shipment lane. Evaluator (or `attach-verifier-receipt`) binds
 `assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
 C6 profile (claim, derivation, warrant, citation) on those exact bytes.
 Evaluate verify refuses completion if those receipts or C6 results are missing.
+Dest-safe remains a guardrail: FINAL/M5 apply still requires accepted M1-M4. Sequence, source-hash, and wiki-grounding misses do not occupy C6 evaluate of already-staged named M1-M4 bytes. File presence is never acceptance.
 Fire table: grounding-protocol, citation-discipline, claim-coverage,
 derivation-check, grammar-mechanics, contradictions, analytic-construction,
 centroid-evaluation (graph fail-closes when semantic_usage=not_invoked).

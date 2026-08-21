@@ -456,14 +456,17 @@ def _first_non_accepted_target(milestones: dict) -> tuple[str | None, list[dict]
 
 
 def derive_active_target(
-    project_root: Path, requested: str | None = None
+    project_root: Path,
+    requested: str | None = None,
+    purpose: str = "dispatch",
 ) -> tuple[str | None, list[dict]]:
     """Default active target: first non-accepted of M1..FINAL (gather auto-walk).
 
     After materials are in play, ``requested`` may name any of M1-M4. The agent
     still does not invent the name; Joseph names it. File presence never
     implies materials-in-play or acceptance. FINAL still requires four current
-    accepted hashes. An accepted M5 is the one-way door.
+    accepted hashes. An accepted M5 is the one-way door. Evaluate of named
+    M1-M4 staging bytes does not bind the gather hole.
     """
     state, _ = _load_json(project_root / "reviews" / "phase_state.json")
     mf = (state or {}).get("milestone_framework")
@@ -475,6 +478,31 @@ def derive_active_target(
     first_hole, hole_err = _first_non_accepted_target(milestones)
     if hole_err:
         return None, hole_err
+    if purpose == "evaluate":
+        if requested is None:
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                "evaluate requires a named M1-M4",
+            )]
+        if requested not in {"M1", "M2", "M3", "M4"}:
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                "evaluate names M1-M4; FINAL apply stays on --stage final",
+                named_target=requested,
+            )]
+        m5 = milestones.get("M5")
+        if isinstance(m5, dict) and m5.get("status") == "accepted":
+            return None, [_f(
+                "FRC-MILESTONE-ORDER",
+                "accepted M5 is the one-way door",
+                named_target=requested,
+            )]
+        return requested, []
+    if purpose != "dispatch":
+        return None, [_f(
+            "FRC-MILESTONE-ORDER",
+            f"unknown derive purpose {purpose!r}",
+        )]
     if requested:
         if requested not in ASSIGNMENT_TARGETS:
             return None, [_f(

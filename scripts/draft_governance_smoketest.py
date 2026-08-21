@@ -1142,6 +1142,116 @@ checked the wording, while the author retained responsibility for the claim.
             + lane_verify.stdout
             + lane_verify.stderr,
         )
+        require(
+            "APG-SEQUENCE-M4" not in lane_verify.stdout
+            and "APG-SOURCE-HASH" not in lane_verify.stdout
+            and "APG-WIKI-GROUNDING-MISSING" not in lane_verify.stdout,
+            "dest-safe process-gate misses must not occupy scholarly evaluate verify: "
+            + lane_verify.stdout
+            + lane_verify.stderr,
+        )
+
+        from assignment_fixture_support import write_valid_contract
+        write_valid_contract(project)
+        (project / "course-assignment.pdf").write_bytes(b"stale source after bind\n")
+        write_json(
+            project / "reviews" / "phase_state.json",
+            {
+                "schema_version": "0.7.4",
+                "milestone_framework": {
+                    "mode": "native",
+                    "milestones": {
+                        "M1": {"status": "in_progress"},
+                        "M2": {"status": "not_started"},
+                        "M3": {"status": "not_started"},
+                        "M4": {"status": "not_started"},
+                        "M5": {"status": "not_started"},
+                    },
+                    "policy_bindings": {
+                        "reader_accessibility": {
+                            "binding_version": "2.0.0",
+                            "semantic_usage": "not_invoked",
+                            "profile_path": "references/policies/reader_accessibility.v1.json",
+                            "profile_sha256": "0" * 64,
+                            "resolved_sha256": "1" * 64,
+                        }
+                    },
+                },
+            },
+        )
+        gate = ROOT / "scripts" / "assignment_process_gate.py"
+        env = os.environ.copy()
+        extra = [item for item in env.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "").split(os.pathsep) if item]
+        extra.append(str(workspace_root))
+        env["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(extra)
+        draft_blocked = subprocess.run(
+            [
+                sys.executable,
+                str(gate),
+                "--project-root",
+                str(project),
+                "--stage",
+                "draft",
+                "--target-milestone",
+                "M4",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+        )
+        require(
+            draft_blocked.returncode == 4 and "APG-SEQUENCE-M4" in draft_blocked.stdout,
+            "first-start draft dispatch must keep gather sequence: "
+            + draft_blocked.stdout
+            + draft_blocked.stderr,
+        )
+        evaluate_admitted = subprocess.run(
+            [
+                sys.executable,
+                str(gate),
+                "--project-root",
+                str(project),
+                "--stage",
+                "evaluate",
+                "--target-milestone",
+                "M4",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+        )
+        require(
+            evaluate_admitted.returncode == 0
+            and "EVALUATE-ADMITTED" in evaluate_admitted.stdout
+            and "APG-SEQUENCE-M4" not in evaluate_admitted.stdout
+            and "APG-SOURCE-HASH" not in evaluate_admitted.stdout
+            and "APG-WIKI-GROUNDING-MISSING" not in evaluate_admitted.stdout,
+            "named-milestone evaluate must not be exit-4ed by dest-safe process gates: "
+            + evaluate_admitted.stdout
+            + evaluate_admitted.stderr,
+        )
+        stale_verify = run(
+            "verify",
+            "--contract", str(ship / "draft_governance_prepare_evaluator.json"),
+            "--receipt", lane_note["receipt_path"],
+            "--artifact", str(artifact),
+            "--phase", "evaluation",
+            "--role", "evaluator",
+        )
+        require(
+            stale_verify.returncode != 0
+            and "DRAFT-POLICY-SCHOLARLY-EVALUATION-MISSING" in stale_verify.stdout
+            and "APG-SEQUENCE-M4" not in stale_verify.stdout,
+            "evaluate verify still requires C6 and must not inherit dest-safe sequence: "
+            + stale_verify.stdout
+            + stale_verify.stderr,
+        )
 
         impersonation_receipt = json.loads(Path(lane_note["receipt_path"]).read_text(encoding="utf-8"))
         impersonation_path = ship / "impersonated-grounding.json"

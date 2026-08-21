@@ -23,6 +23,12 @@ def main() -> int:
         command.add_argument("--project-root", type=Path, required=True)
         if name == "derive":
             command.add_argument("--milestone", choices=("M1", "M2", "M3", "M4", "FINAL"))
+            command.add_argument(
+                "--purpose",
+                choices=("dispatch", "evaluate"),
+                default="dispatch",
+                help="dispatch keeps gather/circulate; evaluate binds a named M1-M4 for C6",
+            )
         if name in {"begin", "record", "accept"}:
             command.add_argument("--milestone", choices=("M1", "M2", "M3", "M4", "FINAL"), required=True)
             command.add_argument("--at")
@@ -43,7 +49,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "derive":
-            print(json.dumps(derive(args.project_root.resolve(), requested=args.milestone), sort_keys=True))
+            print(json.dumps(
+                derive(
+                    args.project_root.resolve(),
+                    requested=args.milestone,
+                    purpose=args.purpose,
+                ),
+                sort_keys=True,
+            ))
         elif args.command == "begin":
             begin(args.project_root, args.milestone, args.at); print(f"BEGUN {args.milestone}")
         elif args.command == "record":

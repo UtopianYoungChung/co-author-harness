@@ -1191,17 +1191,39 @@ def _action_for_open_milestone(project: Path, state: dict[str, Any], milestone: 
             "authority_mode": _authority_mode_for(project)}
 
 
-def derive(project: Path, requested: str | None = None) -> dict[str, Any]:
+def derive(
+    project: Path, requested: str | None = None, purpose: str = "dispatch"
+) -> dict[str, Any]:
     """Default target is the first non-accepted milestone (gather auto-walk).
 
     After materials are in play, ``requested`` may name any started M1-M4.
     First-start of a ``not_started`` successor still requires accepted
     predecessors. FINAL still requires four current accepted hashes.
+    Evaluate of already-staged named M1-M4 bytes does not bind the gather hole.
     """
     resolved = project.resolve()
     _, state, _ = _load_state(resolved)
     framework = _framework(state)
     milestones = framework["milestones"]
+    if purpose == "evaluate":
+        if requested is None:
+            raise MilestoneTransactionError("AMC-TARGET", "evaluate requires a named M1-M4")
+        if requested not in {"M1", "M2", "M3", "M4"}:
+            raise MilestoneTransactionError(
+                "AMC-TARGET",
+                "evaluate names M1-M4; FINAL apply stays on the final stage",
+            )
+        m5 = milestones.get("M5")
+        if isinstance(m5, dict) and m5.get("status") == "accepted":
+            raise MilestoneTransactionError("AMC-ORDER", "accepted M5 is the one-way door")
+        return {
+            "status": "READY",
+            "milestone": requested,
+            "action": "evaluate",
+            "authority_mode": _authority_mode_for(project),
+        }
+    if purpose != "dispatch":
+        raise MilestoneTransactionError("AMC-TARGET", "derive purpose must be dispatch or evaluate")
     if requested is not None:
         ledger = PUBLIC_TO_LEDGER.get(requested)
         if ledger is None:
@@ -1210,6 +1232,12 @@ def derive(project: Path, requested: str | None = None) -> dict[str, Any]:
         if isinstance(record, dict) and record.get("status") != "accepted":
             if named_draft_permitted(resolved, framework, requested):
                 return _action_for_open_milestone(resolved, state, ledger)
+            raise MilestoneTransactionError(
+                "AMC-ORDER",
+                f"named target {requested} is not permitted for first-start dispatch "
+                "while gather order is in force. Evaluate already-staged bytes with "
+                "--purpose evaluate. Do not bind another milestone.",
+            )
     for milestone in MILESTONES:
         record = milestones.get(milestone)
         if not isinstance(record, dict):
