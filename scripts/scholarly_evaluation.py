@@ -232,6 +232,26 @@ def _bind(root: Path, binding: Any, label: str) -> BoundFile:
     return BoundFile(path=path, payload=payload, binding=binding, label=label)
 
 
+def _bind_if_present(root: Path, binding: Any, label: str) -> BoundFile | None:
+    """Bind a present file; return None when the named path is simply absent.
+
+    Used for Generator envelope and Evaluator dispatch claim so C6 can still
+    read already-staged bytes when no generator run occurred. A present stale
+    digest still refuses. A link or reparse point is not treated as absence.
+    """
+
+    if not isinstance(binding, dict) or set(binding) != {"path", "sha256", "byte_length"}:
+        _refuse(SET_SCHEMA, f"{label} is not an exact binding")
+    if not SHA_RE.fullmatch(str(binding.get("sha256", ""))) or not isinstance(
+        binding.get("byte_length"), int
+    ) or binding["byte_length"] < 0:
+        _refuse(SET_SCHEMA, f"{label} digest or byte length is malformed")
+    path = _safe_relative(root, binding.get("path"), label)
+    if not path.exists() and not path.is_symlink():
+        return None
+    return _bind(root, binding, label)
+
+
 def _json(bound: BoundFile) -> dict[str, Any]:
     return _decode_json(bound.payload, bound.label)
 
@@ -871,6 +891,10 @@ def _verify_evaluation_transaction(
     Predecessor acceptance in ``phase_state`` is not a C6 input. Dest-safe
     sequence / source-hash / wiki-grounding misses stay on draft dispatch
     and FINAL apply; they do not refuse scholarly evaluate of named bytes.
+    A missing Generator envelope or empty assignment_dispatch is not a bar
+    on claim/derivation/warrant/citation of already-staged bytes. A present
+    stale or wrong envelope still refuses. C6 does not invent an envelope
+    and cannot mint CLEAN without Evaluator fire and unresolved-finding close.
     """
 
     root = project_root.absolute()
@@ -919,11 +943,19 @@ def _verify_evaluation_transaction(
         _refuse(SET_ARTIFACT_STALE, "CLI inputs differ from evaluation bindings")
     bound_files.extend([artifact, register_bound])
 
-    generator_envelope = _bind(root, value["generator_envelope"], "Generator envelope")
+    generator_envelope = _bind_if_present(
+        root, value["generator_envelope"], "Generator envelope"
+    )
     criteria_bound = _bind(root, value["milestone_criteria"], "milestone criteria")
     profile_bound = _bind(root, value["scholarly_profile"], "scholarly profile")
-    claim_bound = _bind(root, value["evaluation_dispatch"]["claim"], "Evaluator dispatch claim")
-    bound_files.extend([generator_envelope, criteria_bound, profile_bound, claim_bound])
+    claim_bound = _bind_if_present(
+        root, value["evaluation_dispatch"]["claim"], "Evaluator dispatch claim"
+    )
+    bound_files.extend(
+        item
+        for item in (generator_envelope, criteria_bound, profile_bound, claim_bound)
+        if item is not None
+    )
 
     criteria = _json(criteria_bound)
     if (
@@ -958,45 +990,109 @@ def _verify_evaluation_transaction(
     if register_result.get("status") != "qualified":
         _refuse(SET_COVERAGE_INCOMPLETE, "claim register is not complete and current")
 
-    evaluator_claim, _, _ = _derive_evaluation_consumption(
-        root,
-        value,
-        evaluation_input,
-        evaluation_payload,
-        claim_bound,
-        bound_files,
-    )
-    if evaluator_claim.get("claim_kind") != "evaluation":
-        _refuse(SET_DISPATCH_SEPARATION, "consumed dispatch is not an evaluation claim")
-    _discover_exact_bindings(root, evaluator_claim, "Evaluator claim", bound_files)
-    generation_id, generation_path, generation_claim = _verify_generator_envelope(
-        root, generator_envelope, value["artifact"], evaluator_claim
-    )
-    bound_files.append(_watch_path(generation_path, "nested Generator claim"))
-    for path, label in (
-        (claim_bound.path.parent / "publication_manifest.json", "Evaluator claim publication manifest"),
-        (claim_bound.path.parent / "commit_marker.json", "Evaluator claim commit marker"),
-        (generation_path.parent / "publication_manifest.json", "Generator claim publication manifest"),
-        (generation_path.parent / "commit_marker.json", "Generator claim commit marker"),
-    ):
-        bound_files.append(_watch_path(path, label))
-    _discover_exact_bindings(root, generation_claim, "Generator claim", bound_files)
-    evaluator_id = evaluator_claim["claim_id"]
-    separation = value["dispatch_separation"]
-    if (
-        generation_id == evaluator_id
-        or separation["generator_claim_id"] != generation_id
-        or separation["evaluator_claim_id"] != evaluator_id
-        or separation["separate"] is not True
-    ):
-        _refuse(SET_DISPATCH_SEPARATION, "dispatch separation is false or stale")
-    if separation["independence_level"] == "host_attested_independence":
-        # Host attestations are higher-grade optional evidence.  Their exact bytes
-        # are bound here; host semantics remain the host verifier's authority.
-        for index, binding in enumerate(separation["host_attestations"]):
-            bound_files.append(_bind(root, binding, f"host attestation {index}"))
-    if register["review_dispatch"] != {"dispatch_id": evaluator_id, "role": "evaluator"}:
-        _refuse(SET_DISPATCH_SEPARATION, "claim register names another review dispatch")
+    evaluator_fire = False
+    if claim_bound is None and generator_envelope is not None:
+        _refuse(
+            SET_DISPATCH_SEPARATION,
+            "Generator envelope is stale or names another dispatch",
+        )
+    if claim_bound is not None:
+        evaluator_claim, _, _ = _derive_evaluation_consumption(
+            root,
+            value,
+            evaluation_input,
+            evaluation_payload,
+            claim_bound,
+            bound_files,
+        )
+        if evaluator_claim.get("claim_kind") != "evaluation":
+            _refuse(SET_DISPATCH_SEPARATION, "consumed dispatch is not an evaluation claim")
+        _discover_exact_bindings(root, evaluator_claim, "Evaluator claim", bound_files)
+        evaluator_fire = True
+        generation_binding = evaluator_claim.get("generation_claim")
+        generation_exists = False
+        if isinstance(generation_binding, dict) and isinstance(
+            generation_binding.get("path"), str
+        ):
+            generation_candidate = _safe_relative(
+                root, generation_binding["path"], "generation claim"
+            )
+            if generation_candidate.is_file() and not _is_link(generation_candidate):
+                generation_exists = True
+        if generator_envelope is None:
+            if generation_exists:
+                _refuse(
+                    SET_DISPATCH_SEPARATION,
+                    "Generator envelope is stale or names another dispatch",
+                )
+            for path, label in (
+                (
+                    claim_bound.path.parent / "publication_manifest.json",
+                    "Evaluator claim publication manifest",
+                ),
+                (
+                    claim_bound.path.parent / "commit_marker.json",
+                    "Evaluator claim commit marker",
+                ),
+            ):
+                if path.is_file() and not _is_link(path):
+                    bound_files.append(_watch_path(path, label))
+            if register["review_dispatch"] != {
+                "dispatch_id": evaluator_claim["claim_id"],
+                "role": "evaluator",
+            }:
+                _refuse(
+                    SET_DISPATCH_SEPARATION,
+                    "claim register names another review dispatch",
+                )
+        else:
+            generation_id, generation_path, generation_claim = _verify_generator_envelope(
+                root, generator_envelope, value["artifact"], evaluator_claim
+            )
+            bound_files.append(_watch_path(generation_path, "nested Generator claim"))
+            for path, label in (
+                (
+                    claim_bound.path.parent / "publication_manifest.json",
+                    "Evaluator claim publication manifest",
+                ),
+                (
+                    claim_bound.path.parent / "commit_marker.json",
+                    "Evaluator claim commit marker",
+                ),
+                (
+                    generation_path.parent / "publication_manifest.json",
+                    "Generator claim publication manifest",
+                ),
+                (
+                    generation_path.parent / "commit_marker.json",
+                    "Generator claim commit marker",
+                ),
+            ):
+                bound_files.append(_watch_path(path, label))
+            _discover_exact_bindings(root, generation_claim, "Generator claim", bound_files)
+            evaluator_id = evaluator_claim["claim_id"]
+            separation = value["dispatch_separation"]
+            if (
+                generation_id == evaluator_id
+                or separation["generator_claim_id"] != generation_id
+                or separation["evaluator_claim_id"] != evaluator_id
+                or separation["separate"] is not True
+            ):
+                _refuse(SET_DISPATCH_SEPARATION, "dispatch separation is false or stale")
+            if separation["independence_level"] == "host_attested_independence":
+                # Host attestations are higher-grade optional evidence.  Their exact
+                # bytes are bound here; host semantics remain the host verifier's
+                # authority.
+                for index, binding in enumerate(separation["host_attestations"]):
+                    bound_files.append(_bind(root, binding, f"host attestation {index}"))
+            if register["review_dispatch"] != {
+                "dispatch_id": evaluator_id,
+                "role": "evaluator",
+            }:
+                _refuse(
+                    SET_DISPATCH_SEPARATION,
+                    "claim register names another review dispatch",
+                )
 
     represented, finding_blockers = _verify_findings(
         value, artifact.payload, register, check_by_id, code_owner, bound_files
@@ -1045,8 +1141,17 @@ def _verify_evaluation_transaction(
         }
         for finding in finding_blockers
     ] + obligation_blockers
+    if not evaluator_fire:
+        blockers.append(
+            {
+                "code": SET_FINDING_UNRESOLVED,
+                "message": "C6 cannot mint CLEAN without Evaluator fire",
+                "scholarly_code": "EVALUATOR-FIRE-REQUIRED",
+                "current_fingerprint": value["artifact"]["sha256"],
+            }
+        )
     expected_status = "blocked" if blockers else "qualified"
-    if value["verdict"]["status"] != expected_status:
+    if evaluator_fire and value["verdict"]["status"] != expected_status:
         _refuse(
             SET_FINDING_UNRESOLVED if blockers else SET_SCHEMA,
             f"verdict status must be {expected_status}",

@@ -1087,7 +1087,8 @@ def _require_evaluation_scholarly_quality(
     """Refuse dest-safe scholarly impersonation; require Evaluator C6 at evaluate.
 
     Dest-safe process-gate sequence / source-hash / wiki-grounding findings
-    are not scholarly fire and must not occupy this path.
+    are not scholarly fire and must not occupy this path. A missing
+    Generator envelope is not a C6 bar on already-staged bytes.
     """
     binding = _c6_binding_from_args(args, project, receipt)
     if binding is None:
@@ -1699,7 +1700,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "still_requires_joseph": [
             "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
-            "evaluation-phase scholarly rows fail closed until Evaluator fires the skill on these bytes and binds assignment_dispatch; scholarly_evaluation C6 is required at evaluate verify; dest-safe INFO stamps are not scholarly fire; no CLEAN",
+            "evaluation-phase scholarly rows fail closed until Evaluator fires the skill on these bytes; scholarly_evaluation C6 is required at evaluate verify and reads already-staged bytes even when a Generator envelope or assignment_dispatch tree is absent; C6 does not invent an envelope; dest-safe INFO stamps are not scholarly fire; no CLEAN",
         ],
     }
     _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
@@ -1796,7 +1797,8 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
         "Dest-safe mechanical obligations ran. Scholarly and governance obligations "
         "fail closed until Evaluator fires them on these bytes and binds "
         "assignment_dispatch receipts. scripts/scholarly_evaluation.py C6 "
-        "(claim, derivation, warrant, citation) is required at evaluate verify. "
+        "(claim, derivation, warrant, citation) is required at evaluate verify "
+        "and reads already-staged bytes without inventing a Generator envelope. "
         "The harness still refuses CLEAN bind."
     )
     note["mechanical_preflight_only"] = True

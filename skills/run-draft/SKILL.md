@@ -53,7 +53,7 @@ shipment lane. Evaluator (or `attach-verifier-receipt`) binds
 `assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
 C6 profile (claim, derivation, warrant, citation) on those exact bytes.
 Evaluate verify refuses completion if those receipts or C6 results are missing.
-Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `derive --purpose evaluate`; dest-safe sequence, source-hash, and wiki-grounding misses do not exit-4 that C6 path. File presence is never acceptance. FINAL still requires accepted M1-M4.
+Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `derive --purpose evaluate`; dest-safe sequence, source-hash, and wiki-grounding misses do not exit-4 that C6 path. A missing Generator envelope or empty `assignment_dispatch` does not prevent C6 claim/derivation/warrant/citation of those bytes; C6 does not invent an envelope or mint CLEAN. Present stale/wrong envelopes still refuse. File presence is never acceptance. FINAL still requires accepted M1-M4.
 - **Grounding protocol** (grounding-protocol): Rule 4 quote-before-attribute, Rule 6 no-gap-filling
 - **Citation discipline** (citation-discipline): citation integrity, source traceback
 - **Claim coverage** (claim-coverage): evidence coverage for load-bearing claims

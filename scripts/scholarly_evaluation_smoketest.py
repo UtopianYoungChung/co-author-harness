@@ -554,6 +554,112 @@ def _expect(run: tuple[int, dict[str, Any]], *, rc: int, codes: set[str], label:
         failures.append(f"{label}: rc={run[0]} codes={sorted(str(x) for x in actual_codes)} expected rc={rc} codes={sorted(codes)}")
 
 
+def _absent_binding(relative: str) -> dict[str, Any]:
+    return {"path": relative, "sha256": "0" * 64, "byte_length": 0}
+
+
+def _staged_bytes_c6_evaluation(
+    project: Path,
+    *,
+    cases: list[dict[str, Any]],
+    include_finding: bool,
+) -> tuple[Path, Path, Path, dict[str, Any]]:
+    """Stage named-milestone bytes with no Generator envelope and no dispatch tree."""
+
+    case = cases[0]
+    text = case["red_claim_text"] if include_finding else case["clean_claim_text"]
+    lane = project / "milestones" / "staged"
+    lane.mkdir(parents=True, exist_ok=True)
+    artifact = lane / "M4_complete_paper_draft.md"
+    artifact.write_text(
+        f"# Synthetic analysis\n\n{text}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    source_a = lane / "synthetic-source-a.txt"
+    source_b = lane / "synthetic-source-b.txt"
+    source_a.write_text("Synthetic Source A.\n", encoding="utf-8", newline="\n")
+    source_b.write_text("Synthetic Source B.\n", encoding="utf-8", newline="\n")
+    registry_copy = project / "policies/obligation-result-registry.json"
+    registry_copy.parent.mkdir(parents=True, exist_ok=True)
+    registry_copy.write_bytes(REGISTRY.read_bytes())
+    criteria = project / "policy/milestone-criteria.json"
+    _write_json(
+        criteria,
+        {
+            "schema_version": "1.0.0",
+            "milestone": "M4",
+            "criteria": ["Synthetic claims remain bounded to their exact evidence."],
+        },
+    )
+    profile = project / "policy/scholarly-profile.json"
+    _write_json(profile, _profile(cases, _binding(project, registry_copy)))
+    register = lane / "claim-register.json"
+    register_value = _claim_register(
+        artifact,
+        register,
+        text,
+        case["red_claim_profile"] if include_finding else case["clean_claim_profile"],
+        "dispatch-0000000000000001",
+        (source_a, source_b),
+    )
+    _write_json(register, register_value)
+    evaluation_id = "SET-STAGED-NO-ENVELOPE"
+    artifact_binding = _binding(project, artifact)
+    check_ids = [
+        row["check_id"]
+        for row in json.loads(profile.read_text(encoding="utf-8"))["checks"]
+    ]
+    value: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "evaluation_id": evaluation_id,
+        "artifact": artifact_binding,
+        "generator_envelope": _absent_binding(
+            "reviews/.harness/missing-generator-envelope.json"
+        ),
+        "evaluation_dispatch": {
+            "claim": _absent_binding(
+                "reviews/.harness/assignment/dispatch/claims/missing-claim.json"
+            ),
+            "consumer_transaction_id": f"scholarly-evaluation:{evaluation_id}",
+        },
+        "claim_register": _binding(project, register),
+        "milestone_criteria": _binding(project, criteria),
+        "scholarly_profile": _binding(project, profile),
+        "findings": [],
+        "omitted_checks": [],
+        "obligation_results": [],
+        "dispatch_separation": {
+            "generator_claim_id": "dispatch-0000000000000000",
+            "evaluator_claim_id": "dispatch-0000000000000001",
+            "separate": True,
+            "independence_level": "dispatch_separation",
+        },
+        "verdict": {
+            "status": "qualified",
+            "check_results": [
+                {
+                    "check_id": check_id,
+                    "status": "pass",
+                    "evidence": [artifact_binding],
+                    "reasoning": "C6 recorded a bounded pass on Joseph-staged bytes.",
+                }
+                for check_id in check_ids
+            ],
+        },
+        "created_at": "2026-07-26T00:00:04Z",
+    }
+    if include_finding:
+        value["_profile_path"] = str(profile)
+        _add_finding(value, case["red_change"]["value"], artifact, register_value)
+        del value["_profile_path"]
+    evaluation_path = (
+        project / "reviews/.harness/scholarly-evaluations/staged-no-envelope.json"
+    )
+    _write_json(evaluation_path, value)
+    return artifact, register, evaluation_path, value
+
+
 def _obligation_result(
     project: Path,
     prepared: dict[str, Any],
@@ -882,6 +988,140 @@ def main() -> int:
     extra_roots.append(str(dummy_governed))
     os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(extra_roots)
 
+    with tempfile.TemporaryDirectory(prefix="scholarly-evaluation-staged-") as staged_td:
+        staged_project = Path(staged_td) / "joseph-staged"
+        staged_project.mkdir()
+        assignment_tree = staged_project / "reviews/.harness/assignment"
+        staged_artifact, staged_register, staged_evaluation, staged_value = (
+            _staged_bytes_c6_evaluation(
+                staged_project, cases=cases, include_finding=True
+            )
+        )
+        if assignment_tree.exists() and any(assignment_tree.rglob("*")):
+            failures.append(
+                "c6-staged-no-envelope: test invented an assignment_dispatch tree"
+            )
+        staged_run = _run(
+            staged_project, staged_artifact, staged_register, staged_evaluation
+        )
+        staged_codes = {
+            row.get("code") for row in staged_run[1].get("findings", [])
+        }
+        if (
+            staged_run[0] != 1
+            or "SET-BINDING-MISSING" in staged_codes
+            or "SET-FINDING-UNRESOLVED" not in staged_codes
+            or staged_run[1].get("status") == "qualified"
+            or not any(
+                row.get("scholarly_code") == cases[0]["expected_scholarly_code"]
+                for row in staged_run[1].get("findings", [])
+                if isinstance(row, dict)
+            )
+        ):
+            failures.append(
+                "c6-staged-no-envelope: missing Generator envelope must reach C6 "
+                f"scholarly checks, not exit on SET-BINDING-MISSING: {staged_run!r}"
+            )
+        else:
+            api_cases += 1
+        try:
+            staged_api = evaluation.validate_scholarly_evaluation_binding(
+                staged_project,
+                staged_artifact,
+                {
+                    "evidence_path": staged_evaluation.relative_to(staged_project).as_posix(),
+                    "evidence_sha256": _sha_bytes(staged_evaluation.read_bytes()),
+                },
+            )
+        except evaluation.EvaluationRefusal as exc:
+            if (
+                exc.code == "SET-BINDING-MISSING"
+                or exc.code != "SET-FINDING-UNRESOLVED"
+                or any(
+                    "CLEAN" in str(item).upper()
+                    for item in (exc.code, exc, exc.details)
+                )
+            ):
+                failures.append(
+                    "c6-staged-no-envelope-binding: missing envelope must not "
+                    f"SET-BINDING-MISSING or mint CLEAN: {exc.code}: {exc}"
+                )
+            else:
+                api_cases += 1
+        else:
+            failures.append(
+                "c6-staged-no-envelope-binding: missing-envelope blocked C6 "
+                f"must not qualify: {staged_api!r}"
+            )
+
+        clean_attempt_project = Path(staged_td) / "joseph-staged-clean-attempt"
+        clean_attempt_project.mkdir()
+        clean_artifact, clean_register, clean_evaluation, _ = (
+            _staged_bytes_c6_evaluation(
+                clean_attempt_project, cases=cases, include_finding=False
+            )
+        )
+        clean_attempt = _run(
+            clean_attempt_project, clean_artifact, clean_register, clean_evaluation
+        )
+        clean_attempt_codes = {
+            row.get("code") for row in clean_attempt[1].get("findings", [])
+        }
+        if (
+            clean_attempt[0] == 0
+            or clean_attempt[1].get("status") == "qualified"
+            or "SET-BINDING-MISSING" in clean_attempt_codes
+        ):
+            failures.append(
+                "c6-staged-no-envelope-no-clean: C6 must not mint CLEAN without "
+                f"Evaluator fire: {clean_attempt!r}"
+            )
+        else:
+            api_cases += 1
+
+        stale_envelope = (
+            staged_project / "reviews/.harness/missing-generator-envelope.json"
+        )
+        stale_envelope.parent.mkdir(parents=True, exist_ok=True)
+        stale_envelope.write_bytes(b"{}\n")
+        stale_present = _run(
+            staged_project, staged_artifact, staged_register, staged_evaluation
+        )
+        stale_present_codes = {
+            row.get("code") for row in stale_present[1].get("findings", [])
+        }
+        if stale_present_codes != {"SET-ARTIFACT-STALE"}:
+            failures.append(
+                "c6-staged-stale-envelope: present envelope with a stale digest "
+                f"must still refuse: {stale_present!r}"
+            )
+        else:
+            attack_cases += 1
+
+        present_envelope_value = {
+            "schema_version": "1.0.0",
+            "envelope_type": "generator_envelope",
+            "dispatch_id": "dispatch-0000000000000000",
+            "role": "generator",
+            "artifact": _binding(staged_project, staged_artifact),
+        }
+        _write_json(stale_envelope, present_envelope_value)
+        staged_value["generator_envelope"] = _binding(staged_project, stale_envelope)
+        _write_json(staged_evaluation, staged_value)
+        wrong_present = _run(
+            staged_project, staged_artifact, staged_register, staged_evaluation
+        )
+        wrong_present_codes = {
+            row.get("code") for row in wrong_present[1].get("findings", [])
+        }
+        if wrong_present_codes != {"SET-DISPATCH-SEPARATION"}:
+            failures.append(
+                "c6-staged-wrong-envelope: present envelope without matching "
+                f"dispatch must still refuse SET-DISPATCH-SEPARATION: {wrong_present!r}"
+            )
+        else:
+            attack_cases += 1
+
     with tempfile.TemporaryDirectory(prefix="scholarly-evaluation-c6-") as td:
         project = Path(td) / "synthetic-project"
         project.mkdir()
@@ -1056,6 +1296,50 @@ def main() -> int:
         red_value, red_artifact, red_register, red_evaluation, red_prepared, red_envelope = saved_red
         attacks = project / "attacks"
         attacks.mkdir()
+
+        envelope_bytes = clean_envelope.read_bytes()
+        clean_envelope.unlink()
+        missing_present_dispatch = _run(
+            project, clean_artifact, clean_register, clean_evaluation
+        )
+        missing_present_codes = {
+            row.get("code") for row in missing_present_dispatch[1].get("findings", [])
+        }
+        if (
+            missing_present_dispatch[0] != 1
+            or missing_present_codes != {"SET-DISPATCH-SEPARATION"}
+        ):
+            failures.append(
+                "c6-missing-envelope-with-generator-dispatch: present generator "
+                "dispatch must still refuse SET-DISPATCH-SEPARATION, not "
+                f"SET-BINDING-MISSING: {missing_present_dispatch!r}"
+            )
+        else:
+            attack_cases += 1
+        clean_envelope.write_bytes(envelope_bytes)
+
+        wrong_envelope = json.loads(envelope_bytes.decode("utf-8"))
+        wrong_envelope["dispatch_id"] = "dispatch-0000000000000000"
+        clean_envelope.write_text(
+            json.dumps(wrong_envelope, indent=2, sort_keys=True, ensure_ascii=False)
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        wrong_present = _run(project, clean_artifact, clean_register, clean_evaluation)
+        wrong_present_codes = {
+            row.get("code") for row in wrong_present[1].get("findings", [])
+        }
+        if wrong_present[0] != 1 or not wrong_present_codes.intersection(
+            {"SET-DISPATCH-SEPARATION", "SET-ARTIFACT-STALE"}
+        ):
+            failures.append(
+                "c6-wrong-envelope-present: present stale/wrong envelope must "
+                f"still refuse: {wrong_present!r}"
+            )
+        else:
+            attack_cases += 1
+        clean_envelope.write_bytes(envelope_bytes)
 
         (
             _,
