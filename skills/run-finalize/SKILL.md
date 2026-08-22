@@ -44,10 +44,13 @@ evaluation-lane does not stamp them completed/INFO. Findings land under the
 shipment lane. Evaluator (or `attach-verifier-receipt`) binds
 `assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
 C6 profile (claim, derivation, warrant, citation) on those exact bytes.
+Bind `dest_safe_scholarly_profile.scholarly_profile` as the evaluation
+`scholarly_profile`. Do not point C6 at a missing `policy/scholarly-profile.json`.
 Evaluate verify refuses completion if those receipts or C6 results are missing.
 Dest-safe remains a guardrail: FINAL/M5 apply still requires accepted M1-M4. Sequence, source-hash, and wiki-grounding misses do not occupy C6 evaluate of already-staged named M1-M4 bytes. A missing Generator envelope or empty `assignment_dispatch` does not prevent C6 of those bytes; C6 does not invent an envelope or mint CLEAN. Present stale/wrong envelopes still refuse. File presence is never acceptance.
 Fire table: grounding-protocol, citation-discipline, claim-coverage,
 derivation-check, grammar-mechanics, contradictions, analytic-construction,
+check-abstract-body, chung-academic-voice-pass,
 centroid-evaluation (graph fail-closes when semantic_usage=not_invoked).
 Mechanical dest-safe preflight only: d-style-profile, deterministic-audit.
 No scholarly CLEAN.

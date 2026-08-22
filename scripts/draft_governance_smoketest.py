@@ -1063,6 +1063,26 @@ checked the wording, while the author retained responsibility for the claim.
             and lane_note.get("scholarly_fire") == "evaluator_required",
             "evaluation-lane must stay mechanical preflight, not scholarly fire",
         )
+        dest_safe_profile = lane_note.get("dest_safe_scholarly_profile") or {}
+        profile_binding = dest_safe_profile.get("scholarly_profile") or {}
+        require(
+            isinstance(profile_binding.get("path"), str)
+            and profile_binding.get("path").endswith("c6/scholarly-profile.json"),
+            "evaluation-lane must emit dest_safe_scholarly_profile for C6 bind",
+        )
+        profile_path = project / profile_binding["path"]
+        require(
+            profile_path.is_file() and not profile_path.is_symlink(),
+            "dest-safe scholarly profile must be a plain file",
+        )
+        profile_value = json.loads(profile_path.read_text(encoding="utf-8"))
+        require(
+            profile_value.get("profile_id") == "scholarly-evaluation-v1",
+            "dest-safe scholarly profile identity is malformed",
+        )
+        from scholarly_evaluation import _profile_contract
+
+        _profile_contract(profile_value)
         require(
             lane_note.get("centroid_graph", {}).get("status") == "fail_closed"
             and lane_note.get("centroid_graph", {}).get("reason_code")

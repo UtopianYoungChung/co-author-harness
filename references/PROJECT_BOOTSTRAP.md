@@ -441,6 +441,7 @@ d_style_profile:
   source_role_policy: strict_role_classification
   evidence_display_policy: standard
   assistance_disclosure_policy: project_local
+  abstract_citation_policy: tbd
   harness_profile: standard_research_review
 
 ---

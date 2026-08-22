@@ -318,7 +318,7 @@ def main() -> int:
             else:
                 assert payload_out["status"]=="MISCONFIGURED" and payload_out["code"]=="RA-POLICY"
         graph_path.write_bytes(valid_graph_bytes)
-        structural=json.loads(valid_graph_bytes.decode("utf-8"))
+        structural=json.loads(valid_graph_bytes.decode("utf-8", errors="strict"))
         structural["graph"]["extraction_mode"]="structural-only"
         structural["graph"]["semantic_status"]="pending"
         graph_path.write_text(json.dumps(structural),encoding="utf-8")

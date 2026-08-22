@@ -218,6 +218,207 @@ d_style_profile:
         assert "DSTYLE_ASSISTANCE_SURFACE_MISSING" in codes
 
 
+def test_tbd_abstract_without_citation_is_info() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: venue_template
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  harness_profile: standard_research_review
+""",
+        )
+        manuscript = write_manuscript(
+            project,
+            """# Draft
+
+## Abstract
+
+This paper shows how registration changes what counts as competence.
+
+## Introduction
+
+The claim is that registration is not explanation. The paper proceeds as
+follows. Section 2 states the reason. The reason is that residual
+coordination remains because the cases still diverge. The evidence includes
+Example 1 and Smith (2020). The warrant is that this matters because readers
+must see the role. A limitation is the observed substrate.
+
+## Analysis
+
+The same claim, reason, and limit return here.
+
+Assistance: AI-assisted review identified wording issues; the author retained
+responsibility for claims and sources.
+""",
+        )
+        code, payload = run_check(project, manuscript=manuscript)
+        assert code == 0
+        assert payload["verdict"] == "CLEAN"
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ABSTRACT_CITATION_ABSENT" in codes
+        assert "DSTYLE_ABSTRACT_CITATION_MISSING" not in codes
+        assert "DSTYLE_PROFILE_ABSTRACT_CITATION_POLICY_TBD" in codes
+
+
+def test_required_abstract_without_citation_is_minor() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: venue_template
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  abstract_citation_policy: required
+  harness_profile: standard_research_review
+""",
+        )
+        manuscript = write_manuscript(
+            project,
+            """# Draft
+
+## Abstract
+
+This paper shows how registration changes what counts as competence.
+
+## Introduction
+
+The claim is that registration is not explanation. The paper proceeds as
+follows. Section 2 states the reason. The reason is that residual
+coordination remains because the cases still diverge. The evidence includes
+Example 1 and Smith (2020). The warrant is that this matters because readers
+must see the role. A limitation is the observed substrate.
+
+## Analysis
+
+The same claim, reason, and limit return here.
+
+Assistance: AI-assisted review identified wording issues; the author retained
+responsibility for claims and sources.
+""",
+        )
+        code, payload = run_check(project, manuscript=manuscript)
+        assert code == 0
+        assert payload["verdict"] == "ADVISORY"
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ABSTRACT_CITATION_MISSING" in codes
+
+
+def test_forbidden_abstract_with_citation_is_minor() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: venue_template
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  abstract_citation_policy: forbidden
+  harness_profile: standard_research_review
+""",
+        )
+        manuscript = write_manuscript(
+            project,
+            """# Draft
+
+## Abstract
+
+This paper shows how registration changes competence (Smith, 2020).
+
+## Introduction
+
+The claim is that registration is not explanation. The paper proceeds as
+follows. Section 2 states the reason. The reason is that residual
+coordination remains because the cases still diverge. The evidence includes
+Example 1 and Smith (2020). The warrant is that this matters because readers
+must see the role. A limitation is the observed substrate.
+
+## Analysis
+
+The same claim, reason, and limit return here.
+
+Assistance: AI-assisted review identified wording issues; the author retained
+responsibility for claims and sources.
+""",
+        )
+        code, payload = run_check(project, manuscript=manuscript)
+        assert code == 0
+        assert payload["verdict"] == "ADVISORY"
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ABSTRACT_CITATION_FORBIDDEN" in codes
+
+
+def test_abstract_citation_and_roadmap_pass() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp)
+        write_directives(
+            project,
+            """# Directives
+
+d_style_profile:
+  question_type: mixed
+  citation_style: venue_template
+  source_role_policy: strict_role_classification
+  evidence_display_policy: standard
+  assistance_disclosure_policy: project_local
+  harness_profile: standard_research_review
+""",
+        )
+        manuscript = write_manuscript(
+            project,
+            """# Draft
+
+## Abstract
+
+This paper shows how registration changes competence (Smith, 2020).
+
+## Introduction
+
+The claim is that registration is not explanation. The paper proceeds as
+follows. Section 2 states the reason. Section 3 gives evidence. The reason is
+that residual coordination remains because the cases still diverge. The
+evidence includes Example 1 and Smith (2020). The warrant is that this matters
+because readers must see the role. A limitation is the observed substrate.
+
+## Analysis
+
+The same claim, reason, and limit return here.
+
+Assistance: AI-assisted review identified wording issues; the author retained
+responsibility for claims and sources.
+""",
+        )
+        code, payload = run_check(project, manuscript=manuscript)
+        assert code == 0
+        assert payload["verdict"] == "CLEAN"
+        report = project / "reviews" / "d_style_profile_2026-06-29.json"
+        data = json.loads(report.read_text(encoding="utf-8"))
+        codes = {finding["code"] for finding in data["findings"]}
+        assert "DSTYLE_ABSTRACT_CITATION_PRESENT" in codes
+        assert "DSTYLE_INTRO_ROADMAP_PRESENT" in codes
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -228,6 +429,10 @@ def main() -> int:
         test_bad_enum_is_strict_blocker,
         test_substantive_surfaces_pass_when_exposed,
         test_substantive_surfaces_fail_when_missing,
+        test_tbd_abstract_without_citation_is_info,
+        test_required_abstract_without_citation_is_minor,
+        test_forbidden_abstract_with_citation_is_minor,
+        test_abstract_citation_and_roadmap_pass,
     ]
     failures: list[str] = []
     for test in tests:

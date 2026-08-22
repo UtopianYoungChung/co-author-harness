@@ -52,7 +52,10 @@ evaluation-lane does not stamp them completed/INFO. Findings land under the
 shipment lane. Evaluator (or `attach-verifier-receipt`) binds
 `assignment_dispatch` receipts. `scripts/scholarly_evaluation.py` verifies the
 C6 profile (claim, derivation, warrant, citation) on those exact bytes.
-Evaluate verify refuses completion if those receipts or C6 results are missing.
+Bind `SCAFFOLD-NOTE.json` / `EVALUATION-LANE.json` `dest_safe_scholarly_profile.scholarly_profile`
+as the evaluation `scholarly_profile`. Do not point C6 at a missing
+`policy/scholarly-profile.json`. Evaluate verify refuses completion if those
+receipts or C6 results are missing.
 Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `derive --purpose evaluate`; dest-safe sequence, source-hash, and wiki-grounding misses do not exit-4 that C6 path. A missing Generator envelope or empty `assignment_dispatch` does not prevent C6 claim/derivation/warrant/citation of those bytes; C6 does not invent an envelope or mint CLEAN. Present stale/wrong envelopes still refuse. File presence is never acceptance. FINAL still requires accepted M1-M4.
 - **Grounding protocol** (grounding-protocol): Rule 4 quote-before-attribute, Rule 6 no-gap-filling
 - **Citation discipline** (citation-discipline): citation integrity, source traceback
@@ -61,6 +64,8 @@ Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `deri
 - **Grammar mechanics** (grammar-mechanics): mechanical correctness
 - **Contradictions** (contradictions): SAFEGUARD Check 4 same-diff contradictions
 - **Analytic construction** (analytic-construction): Abbott 7-move audit when applicable
+- **Abstract-body** (check-abstract-body): title/abstract payoff, §1 roadmap, abstract citation polarity (named `abstract_citation_policy` only; `tbd` is INFO and not an insert/strip mandate)
+- **Chung academic voice** (chung-academic-voice-pass): register plus the prose-requirement overlay
 - **Centroid bind/join** (centroid-evaluation): graph retrieval fail-closes when semantic_usage=not_invoked
 
 Mechanical dest-safe preflight only: d-style-profile, deterministic-audit. Do not mint scholarly CLEAN.

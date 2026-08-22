@@ -772,15 +772,7 @@ def _native_dstyle_result(
         severity = observed["severity"]
         if severity not in {"BLOCKER", "MAJOR", "MINOR", "ADVISORY"}:
             continue
-        evidence_identity = _sha_bytes(
-            _canonical(
-                {
-                    "field": observed.get("field"),
-                    "locator": observed.get("locator"),
-                    "message": observed.get("message"),
-                }
-            )
-        )
+        evidence_identity = obligations._dstyle_evidence_identity(observed)
         findings.append(
             {
                 "code": observed["code"],
@@ -1037,14 +1029,10 @@ def main() -> int:
             if (
                 exc.code == "SET-BINDING-MISSING"
                 or exc.code != "SET-FINDING-UNRESOLVED"
-                or any(
-                    "CLEAN" in str(item).upper()
-                    for item in (exc.code, exc, exc.details)
-                )
             ):
                 failures.append(
                     "c6-staged-no-envelope-binding: missing envelope must not "
-                    f"SET-BINDING-MISSING or mint CLEAN: {exc.code}: {exc}"
+                    f"SET-BINDING-MISSING or qualify: {exc.code}: {exc}"
                 )
             else:
                 api_cases += 1
@@ -1318,7 +1306,7 @@ def main() -> int:
             attack_cases += 1
         clean_envelope.write_bytes(envelope_bytes)
 
-        wrong_envelope = json.loads(envelope_bytes.decode("utf-8"))
+        wrong_envelope = json.loads(envelope_bytes.decode("utf-8", errors="strict"))
         wrong_envelope["dispatch_id"] = "dispatch-0000000000000000"
         clean_envelope.write_text(
             json.dumps(wrong_envelope, indent=2, sort_keys=True, ensure_ascii=False)

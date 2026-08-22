@@ -83,7 +83,7 @@ receipt for that governed evidence.
 | `/IS-theory-pass` | degraded | Run the Baird IS-theory criteria pass. | IS theory manuscripts. |
 | `/suchman-register-audit` | degraded | Audit Suchman register and asymmetric argument quality. | Suchman-grounded work. |
 | `/public-interest-accountability-pass` | degraded | Run the optional policy-critical accountability pass. | Inequality and public-service sections. |
-| `/chung-academic-voice-pass` | degraded | Run the optional Chung academic-voice register pass. | On-demand authorial-voice audit or draft. |
+| `/chung-academic-voice-pass` | degraded | Run the optional Chung academic-voice register pass. | On-demand or Evaluator evaluate fire-table. |
 | `/citation-format-pass` | degraded | Check Turabian/Chicago citation form. | Notes, references, and bibliography. |
 | `/turabian-format-pass` | degraded | Check Turabian/Chicago document structure and layout requirements. | Thesis or course-paper formatting. |
 | `/response-letter-review` | degraded | Review rebuttal or response-letter quality and traceability. | Revise-and-resubmit work. |

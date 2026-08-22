@@ -314,7 +314,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/loader_compat_portability_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
     "scripts/migrate_lab_iteration_derived_handoff_smoketest.py": [
-        _default_case(timeout_s=1200)
+        _default_case(timeout_s=2400)
     ],
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],

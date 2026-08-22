@@ -56,13 +56,24 @@ You are running a targeted consistency check between the abstract/title/opening 
    - Defined but vanishes (never appears in the analytical sections): **BLOCKER** — "unused apparatus"
    - Bookend only (appears in definition and conclusion but not in the middle): **MAJOR** — "construct not earning its keep in the argument"
 
-### Part C — Roadmap Alignment (if present)
+### Part C — Roadmap Alignment
 
-If the introduction includes a section roadmap ("§2 does X, §3 does Y, …"):
+A multi-section paper must have a §1 / introduction roadmap ("§2 does X, §3 does Y," "the paper proceeds as follows," or equivalent).
 
-1. Compare each roadmap entry to the actual section heading and content.
-2. Flag mismatches (roadmap says "§3 develops the modeling apparatus" but §3 is titled "Implications").
-3. Verdict: **MINOR** for each mismatch.
+1. If no roadmap is present, verdict: **MINOR** — "no §1 roadmap."
+2. If a roadmap is present, compare each entry to the actual section heading and content.
+3. Flag mismatches (roadmap says "§3 develops the modeling apparatus" but §3 is titled "Implications").
+4. Verdict: **MINOR** for each mismatch.
+
+### Part D — Abstract citation polarity
+
+Read `research_notes/directives.md` `d_style_profile.abstract_citation_policy` (`tbd` | `required` | `forbidden`). Inherit-by-absence is `tbd`. Do not invent a venue rule from `citation_style`.
+
+1. **Read the abstract.** Count citation surfaces: author-date parentheses, `\cite{}`, numbered `[1]`, or keyed `[smith2020]`.
+2. **`tbd` (default):** record presence or absence as **INFO** only. Do not insert citations to clear absence. Do not strip citations to clear presence. Venue fit still has to be judged.
+3. **`required`:** zero surfaces → **MINOR** — "no citation in abstract." A present surface is INFO.
+4. **`forbidden`:** one or more surfaces → **MINOR** — "citation in abstract is forbidden." Zero surfaces is INFO.
+5. Do not treat an abstract citation as source verification. Citation-discipline still owns attribution.
 
 ## What you output
 
@@ -87,16 +98,23 @@ If the introduction includes a section roadmap ("§2 does X, §3 does Y, …"):
 ### Part C — Roadmap Alignment
 | Roadmap entry | Actual section | Match? |
 |---|---|---|
-| [entry] | [heading + content summary] | [yes / MINOR mismatch] |
+| [entry or NONE] | [heading + content summary] | [yes / MINOR mismatch / MINOR missing] |
+
+### Part D — Abstract citation
+- Policy: [tbd / required / forbidden]
+- Citation surfaces in abstract: [n]
+- Verdict: [INFO absent / INFO present / MINOR required-missing / MINOR forbidden-present]
 
 ### Summary
 - Abstract commitments: [n total, n resolved, n BLOCKER, n MAJOR]
 - Constructs: [n total, n deployed, n unused BLOCKER, n bookend MAJOR]
-- Roadmap: [aligned / n mismatches]
+- Roadmap: [aligned / n mismatches / missing]
+- Abstract citation: [INFO absent / INFO present / MINOR required-missing / MINOR forbidden-present]
 ```
 
 ## What you do NOT do
 
 - **Do not fix the gaps.** Report them. The Generator resolves; the Evaluator verifies.
+- **Do not insert or strip abstract citations to close Part D when `abstract_citation_policy` is `tbd`.** Leave the INFO standing.
 - **Do not flag constructs that are explicitly deferred.** If a construct is introduced with "developed in future work" or "reserved for P2," that is an intentional deferral, not an unused apparatus. Check the P-stage classification.
 - **Do not require every sentence of the abstract to have a body counterpart.** Scope framing ("this paper is a problem-setting survey") is a commitment about register, not about a specific analytical move.

@@ -325,15 +325,7 @@ def _dstyle_result(
         severity = observed["severity"]
         if severity not in {"BLOCKER", "MAJOR", "MINOR", "ADVISORY"}:
             continue
-        evidence_identity = sha256_bytes(
-            canonical_bytes(
-                {
-                    "field": observed.get("field"),
-                    "locator": observed.get("locator"),
-                    "message": observed.get("message"),
-                }
-            )
-        )
+        evidence_identity = obligations._dstyle_evidence_identity(observed)
         findings.append(
             {
                 "code": observed["code"],

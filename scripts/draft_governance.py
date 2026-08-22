@@ -989,6 +989,55 @@ def _exact_binding(path: Path, project: Path) -> dict[str, str | int]:
     return {"path": rel, "sha256": _sha_bytes(payload), "byte_length": len(payload)}
 
 
+def _emit_dest_safe_scholarly_profile(
+    project: Path, out_dir: Path
+) -> dict[str, Any]:
+    """Write a plain-file C6 profile into the shipment lane. Not CLEAN."""
+
+    import scholarly_evaluation
+
+    c6_dir = out_dir / "c6"
+    c6_dir.mkdir(parents=True, exist_ok=True)
+    registry_path = c6_dir / "obligation-registry.v1.json"
+    registry_path.write_bytes(OBLIGATION_REGISTRY_PATH.read_bytes())
+    if registry_path.is_symlink():
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+            "dest-safe scholarly profile registry must be a plain file",
+        )
+    registry_binding = _exact_binding(registry_path, project)
+    profile = scholarly_evaluation.canonical_scholarly_profile(
+        {
+            "path": str(registry_binding["path"]),
+            "sha256": str(registry_binding["sha256"]),
+            "byte_length": int(registry_binding["byte_length"]),
+        },
+        ["d-style-profile", "deterministic-audit"],
+    )
+    try:
+        scholarly_evaluation._profile_contract(profile)
+    except scholarly_evaluation.EvaluationRefusal as exc:
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+            f"{exc.code}: dest-safe scholarly profile is not bindable: {exc}",
+        ) from exc
+    profile_path = c6_dir / "scholarly-profile.json"
+    _write_json(profile_path, profile)
+    if profile_path.is_symlink():
+        raise ContractError(
+            "DRAFT-POLICY-SCHOLARLY-EVALUATION-STALE",
+            "dest-safe scholarly profile must be a plain file",
+        )
+    return {
+        "scholarly_profile": _exact_binding(profile_path, project),
+        "obligation_registry": registry_binding,
+        "note": (
+            "Dest-safe C6 profile for Evaluator bind. Not scholarly fire. "
+            "Not CLEAN. Not acceptance."
+        ),
+    }
+
+
 def _is_dest_safe_mechanical(obligation_id: str, adapter: dict[str, Any] | None = None) -> bool:
     if obligation_id in DEST_SAFE_MECHANICAL_IDS:
         return True
@@ -1665,6 +1714,11 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
     }
     receipt_path = out_dir / f"draft_governance_receipt_{args.role}.json"
     _write_json(receipt_path, receipt)
+    dest_safe_profile = (
+        _emit_dest_safe_scholarly_profile(project, out_dir)
+        if args.phase == "evaluation"
+        else None
+    )
     evaluated = args.phase == "evaluation" and bool(mechanical or fail_closed)
     note = {
         "schema_version": "1.0.0",
@@ -1700,9 +1754,11 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "still_requires_joseph": [
             "d-style-profile MAJOR while the profile is undeclared: Joseph or Writer declare the profile in directives.md (harness will not write it), then re-run scaffold-receipt; or Joseph/Evaluator adjudicate the open MAJOR findings",
-            "evaluation-phase scholarly rows fail closed until Evaluator fires the skill on these bytes; scholarly_evaluation C6 is required at evaluate verify and reads already-staged bytes even when a Generator envelope or assignment_dispatch tree is absent; C6 does not invent an envelope; dest-safe INFO stamps are not scholarly fire; no CLEAN",
+            "evaluation-phase scholarly rows fail closed until Evaluator fires the skill on these bytes; scholarly_evaluation C6 is required at evaluate verify and reads already-staged bytes even when a Generator envelope or assignment_dispatch tree is absent; C6 does not invent an envelope; bind dest_safe_scholarly_profile.scholarly_profile as the evaluation scholarly_profile; dest-safe INFO stamps are not scholarly fire; no CLEAN",
         ],
     }
+    if dest_safe_profile is not None:
+        note["dest_safe_scholarly_profile"] = dest_safe_profile
     _write_json(out_dir / "SCAFFOLD-NOTE.json", note)
     return note
 

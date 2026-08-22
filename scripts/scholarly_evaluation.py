@@ -1328,6 +1328,39 @@ def _finding(exc: EvaluationRefusal) -> dict[str, Any]:
     return row
 
 
+def canonical_scholarly_profile(
+    registry_binding: dict[str, Any],
+    obligation_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return the dest-safe C6 profile document. Does not mint CLEAN."""
+
+    if not isinstance(registry_binding, dict) or set(registry_binding) != {
+        "path",
+        "sha256",
+        "byte_length",
+    }:
+        _refuse(SET_SCHEMA, "obligation registry is not an exact binding")
+    ids = list(obligation_ids or [])
+    if len(set(ids)) != len(ids) or any(
+        not isinstance(item, str) or not ID_RE.fullmatch(item) for item in ids
+    ):
+        _refuse(SET_SCHEMA, "profile obligations are malformed or duplicate")
+    return {
+        "schema_version": PROFILE_AUTHORITY_VERSION,
+        "profile_id": PROFILE_AUTHORITY_ID,
+        "checks": [
+            {
+                "check_id": check_id,
+                "allowed_omission_codes": sorted(authority["omissions"]),
+                "finding_severity_floor": dict(authority["floors"]),
+            }
+            for check_id, authority in PROFILE_MINIMUM.items()
+        ],
+        "obligation_registry": registry_binding,
+        "obligations": ids,
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", required=True, type=Path)
@@ -1360,6 +1393,7 @@ __all__ = [
     "EvaluationRefusal",
     "finding_fingerprint",
     "verify_evaluation",
+    "canonical_scholarly_profile",
     "SET_SCHEMA",
     "SET_BINDING_MISSING",
     "SET_ARTIFACT_STALE",

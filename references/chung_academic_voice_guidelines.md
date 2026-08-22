@@ -1,6 +1,6 @@
 # Chung academic voice — registered authorial profile
 
-**Status.** Optional overlay. Invoke only through `/chung-academic-voice-pass` or an explicit request to audit or draft in this register. This file is not a `STYLE_COMMITMENTS.md` C-n and is not auto-dispatched by Planner, Evaluator, or phase skills.
+**Status.** Overlay. Invoke through `/chung-academic-voice-pass`, an explicit request to audit or draft in this register, or the Evaluator evaluate fire table. This file is not a `STYLE_COMMITMENTS.md` C-n.
 
 **Source of the profile.** The author supplied the profile after reviewing the co-authored technical paper `knowledge/LLM wiki/raw/corpus/chung-2026-identity-req.pdf` and the solo field essay `knowledge/LLM wiki/raw/corpus/chung-2026-inf3001-field-essay.pdf`. The profile describes writing; it does not independently validate those papers’ scholarly claims or citations.
 
@@ -60,6 +60,25 @@ Useful transition patterns include:
 - “The practical effect is similar, but the mechanism differs.”
 
 These should remain occasional moves, not become templates repeated in every paragraph.
+
+## Prose-requirement overlay
+
+The following checks ride with this pass on evaluate fire-table runs. They do not become C-n commitments. Venue and advisor still outrank them.
+
+- Use varied sentence rhythm and state purpose in ordinary language.
+- Clarify abstract concepts with a concrete example and a stated nuance.
+- Differentiate conceptual terms with operational definitions.
+- Embed theory only where it changes the discussion.
+- Open subsections with plain headings.
+- Explain analysis steps in a named sequence.
+- Specify modeling cuts so pre-modeling assumptions stay visible.
+- Connect literature to the present case without restating the source’s language.
+- Contextualize each academic reference for relevance.
+- Summarize main contributions in a plain enumeration.
+- Explain literature distinctions without jargon overload.
+- Restate open issues in accessible phrasing.
+- Restate analytical boundaries and limitations concisely.
+- Use prior work critically to explain the paper’s assumptions.
 
 ## Representative examples
 

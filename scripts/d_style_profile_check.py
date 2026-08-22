@@ -5,8 +5,9 @@ This is a routing and surface-validation check, not a quality-judgment check. It
 ``d_style_profile`` block in ``research_notes/directives.md``, validates the
 declared enum values, resolves inherit-by-absence defaults, and emits the
 review obligations the Planner/Evaluator must consider. When passed a manuscript,
-it also checks that claim/warrant, visual-evidence, and assistance-boundary
-surfaces are visible enough for Evaluator judgment.
+it also checks that claim/warrant, visual-evidence, assistance-boundary,
+abstract-citation, and introduction-roadmap surfaces are visible enough
+for Evaluator judgment.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ FIELDS = {
     "source_role_policy": {"strict_role_classification", "venue_default", "project_defined"},
     "evidence_display_policy": {"standard", "visual_ethics_required", "project_defined"},
     "assistance_disclosure_policy": {"project_local", "venue_required", "overseer_escalate"},
+    "abstract_citation_policy": {"tbd", "required", "forbidden"},
     "harness_profile": {
         "standard_research_review",
         "thesis_qe",
@@ -48,6 +50,7 @@ DEFAULTS = {
     "source_role_policy": "strict_role_classification",
     "evidence_display_policy": "standard",
     "assistance_disclosure_policy": "project_local",
+    "abstract_citation_policy": "tbd",
     "harness_profile": "standard_research_review",
 }
 
@@ -180,6 +183,15 @@ def validate_profile(
                 "DSTYLE_PROFILE_CITATION_STYLE_TBD",
                 "citation_style remains tbd; resolve before citation/form review or promotion.",
                 "citation_style",
+            )
+        )
+    if resolved_profile["abstract_citation_policy"] == "tbd":
+        findings.append(
+            Finding(
+                "INFO",
+                "DSTYLE_PROFILE_ABSTRACT_CITATION_POLICY_TBD",
+                "abstract_citation_policy remains tbd; record abstract citation presence or absence as INFO only. Do not insert or strip abstract citations to close a finding.",
+                "abstract_citation_policy",
             )
         )
 
@@ -461,6 +473,169 @@ def validate_visual_evidence_surface(
     return findings
 
 
+_ABSTRACT_START = re.compile(
+    r"^(?:#{1,3}\s+abstract\b|\\begin\{abstract\})",
+    re.IGNORECASE | re.MULTILINE,
+)
+_ABSTRACT_END = re.compile(
+    r"^(?:#{1,3}\s+\S|\\end\{abstract\})",
+    re.MULTILINE,
+)
+_CITATION_SURFACE = [
+    r"\([A-Z][A-Za-z-]+(?:\s+(?:and|&)\s+[A-Z][A-Za-z-]+)?(?:\s+et\s+al\.)?,?\s+\d{4}",
+    r"\\cite[a-zA-Z]*\s*\{",
+    r"\[[0-9]+(?:,\s*[0-9]+)*\]",
+    r"\[[A-Za-z][A-Za-z0-9:_-]+\]",
+]
+_SECTION_HEADING = re.compile(r"^#{1,3}\s+(.+)$", re.MULTILINE)
+_NON_BODY_HEADINGS = {
+    "abstract",
+    "keywords",
+    "acknowledgements",
+    "acknowledgment",
+    "acknowledgments",
+    "references",
+    "bibliography",
+}
+_ROADMAP_SURFACE = [
+    r"§\s*\d",
+    r"\bsections?\s+\d",
+    r"\bproceeds as\s+follows\b",
+    r"\bis organis(?:e|z)ed as\s+follows\b",
+    r"\bthe rest of (?:this|the) (?:paper|essay|chapter)\b",
+]
+_INTRO_TITLES = {"introduction", "intro"}
+
+
+def _abstract_span(text: str) -> tuple[str, int] | None:
+    match = _ABSTRACT_START.search(text)
+    if not match:
+        return None
+    rest = text[match.end() :]
+    end = _ABSTRACT_END.search(rest)
+    body = rest[: end.start()] if end else rest
+    return body, text[: match.start()].count("\n") + 1
+
+
+def validate_abstract_citation_surface(
+    profile: dict[str, str],
+    text: str,
+    manuscript_path: Path | None,
+) -> list[Finding]:
+    span = _abstract_span(text)
+    if span is None:
+        return []
+    body, line = span
+    locator = _locator(manuscript_path, line)
+    has_cite = _has_any(body, _CITATION_SURFACE)
+    policy = profile.get("abstract_citation_policy", "tbd")
+    if policy == "required":
+        if has_cite:
+            return [
+                Finding(
+                    "INFO",
+                    "DSTYLE_ABSTRACT_CITATION_PRESENT",
+                    "Abstract citation surface detected under abstract_citation_policy=required.",
+                    "abstract",
+                    locator,
+                )
+            ]
+        return [
+            Finding(
+                "MINOR",
+                "DSTYLE_ABSTRACT_CITATION_MISSING",
+                "Abstract has no citation surface; abstract_citation_policy=required.",
+                "abstract",
+                locator,
+            )
+        ]
+    if policy == "forbidden":
+        if has_cite:
+            return [
+                Finding(
+                    "MINOR",
+                    "DSTYLE_ABSTRACT_CITATION_FORBIDDEN",
+                    "Abstract contains a citation surface; abstract_citation_policy=forbidden.",
+                    "abstract",
+                    locator,
+                )
+            ]
+        return [
+            Finding(
+                "INFO",
+                "DSTYLE_ABSTRACT_CITATION_ABSENT",
+                "Abstract has no citation surface under abstract_citation_policy=forbidden.",
+                "abstract",
+                locator,
+            )
+        ]
+    if has_cite:
+        return [
+            Finding(
+                "INFO",
+                "DSTYLE_ABSTRACT_CITATION_PRESENT",
+                "Abstract citation surface detected; abstract_citation_policy=tbd. Do not treat presence as required. Evaluator must judge venue fit.",
+                "abstract",
+                locator,
+            )
+        ]
+    return [
+        Finding(
+            "INFO",
+            "DSTYLE_ABSTRACT_CITATION_ABSENT",
+            "Abstract has no citation surface; abstract_citation_policy=tbd. Do not insert citations to close this finding.",
+            "abstract",
+            locator,
+        )
+    ]
+
+
+def validate_intro_roadmap_surface(
+    text: str, manuscript_path: Path | None
+) -> list[Finding]:
+    headings = list(_SECTION_HEADING.finditer(text))
+    if len(headings) < 3:
+        return []
+
+    def _title(match: re.Match[str]) -> str:
+        return re.sub(r"^(?:\d+[\.\)]\s+|§\s*)", "", match.group(1).strip().lower())
+
+    def _body(match: re.Match[str]) -> str:
+        nxt = next((row for row in headings if row.start() > match.start()), None)
+        return text[match.end() : nxt.start() if nxt else None]
+
+    candidates = [
+        match
+        for match in headings
+        if _title(match) not in _NON_BODY_HEADINGS
+    ]
+    intro = next((match for match in candidates if _title(match) in _INTRO_TITLES), None)
+    if intro is None:
+        intro = next((match for match in candidates if len(_body(match).strip()) >= 40), None)
+    if intro is None:
+        return []
+    body = _body(intro)
+    if _has_any(body, _ROADMAP_SURFACE):
+        return [
+            Finding(
+                "INFO",
+                "DSTYLE_INTRO_ROADMAP_PRESENT",
+                "Introduction roadmap surface detected; Evaluator must judge section fit.",
+                "roadmap",
+                _locator(manuscript_path, text[: intro.start()].count("\n") + 1),
+            )
+        ]
+    return [
+        Finding(
+            "MINOR",
+            "DSTYLE_INTRO_ROADMAP_MISSING",
+            "No §1 roadmap surface detected in the opening body section.",
+            "roadmap",
+            _locator(manuscript_path, text[: intro.start()].count("\n") + 1),
+        )
+    ]
+
+
 def validate_assistance_boundary_surface(
     profile: dict[str, str],
     text: str,
@@ -515,11 +690,19 @@ def validate_substantive_surfaces(
     findings.extend(validate_argument_surface(text, manuscript_path))
     findings.extend(validate_visual_evidence_surface(profile, text, manuscript_path))
     findings.extend(validate_assistance_boundary_surface(profile, text, project_root))
+    findings.extend(validate_abstract_citation_surface(profile, text, manuscript_path))
+    findings.extend(validate_intro_roadmap_surface(text, manuscript_path))
     return findings
 
 
 def surface_finding_codes(findings: Iterable[Finding]) -> list[str]:
-    prefixes = ("DSTYLE_ARGUMENT_", "DSTYLE_VISUAL_", "DSTYLE_ASSISTANCE_")
+    prefixes = (
+        "DSTYLE_ARGUMENT_",
+        "DSTYLE_VISUAL_",
+        "DSTYLE_ASSISTANCE_",
+        "DSTYLE_ABSTRACT_",
+        "DSTYLE_INTRO_",
+    )
     return [finding.code for finding in findings if finding.code.startswith(prefixes)]
 
 

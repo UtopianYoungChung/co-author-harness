@@ -536,7 +536,7 @@ Own sentence-logic pass on top of a `binding_resolved` centroid binder packet. I
 - **Tier:** Package
 - **Status:** Active
 - **Depends on:** `references/chung_academic_voice_guidelines.md` (read-before-act). No milestone, assignment, or phase-state prerequisite.
-- **Non-overlap (deliberate):** not a STYLE_COMMITMENTS C-n; does not replace C-7 idiolect protection, `/sentence-level-pass`, `/analytic-move-audit`, or `/public-interest-accountability-pass`. Not auto-dispatched by Planner, Evaluator, or phase skills.
+- **Non-overlap (deliberate):** not a STYLE_COMMITMENTS C-n; does not replace C-7 idiolect protection, `/sentence-level-pass`, `/analytic-move-audit`, or `/public-interest-accountability-pass`. Evaluator evaluate fire tables now name this pass; it remains prompt-mediated and is not a C-n.
 - **Sibling:** SK-24 `public-interest-accountability-pass` (optional overlay), SK-13 `suchman-register-audit` (register audit), C-7 substrate `voice_preservation_guidelines.md` (preservation, not target register).
 
 ---

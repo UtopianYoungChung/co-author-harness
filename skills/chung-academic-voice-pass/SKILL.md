@@ -11,7 +11,7 @@ version: 1.0
 
 You are running an optional authorial-register pass. Read `chung_academic_voice_guidelines.md` in the package before acting. Do not rely on memory.
 
-This pass is additive and on-demand. It does not replace C-5, C-7, Bacon, Sexton, Baird, Abbott, or venue rules. It is not a STYLE_COMMITMENTS C-n and is not auto-dispatched.
+This pass is additive. It does not replace C-5, C-7, Bacon, Sexton, Baird, Abbott, or venue rules. It is not a STYLE_COMMITMENTS C-n. Evaluator evaluate fire tables now fire it on certified staging bytes; a user may still invoke it on demand.
 
 ## File resolution
 
@@ -19,7 +19,7 @@ Read style and orchestration files from the package `references/` tree.
 
 ## Activation
 
-Run when the user invoked this skill or explicitly asked for this register. Apply it to the manuscript, section, or pasted prose they named.
+Run when the user invoked this skill, explicitly asked for this register, or the Evaluator fire table named this pass. Apply it to the manuscript, section, or pasted prose they named.
 
 If no target text is available, stop and ask for a path or paste. Do not invent a manuscript. Do not require milestone, assignment, or phase state.
 
@@ -61,10 +61,26 @@ If a venue template or advisor instruction conflicts with this register, name th
    - Target average roughly 20–30 words, with occasional longer layered sentences.
    - Use this as a signature check, not a per-sentence ceiling. C-7 still protects baseline idiolect.
 
+9. **Prose-requirement overlay** (evaluate fire-table)
+   - Varied sentence rhythm; purpose stated in ordinary language.
+   - Abstract concepts followed by a concrete example or nuance.
+   - Conceptual terms differentiated with operational definitions.
+   - Theory embedded only where it changes the discussion.
+   - Subsections opened with plain headings.
+   - Analysis steps in a named logical sequence.
+   - Modeling cuts stated so pre-modeling assumptions stay visible.
+   - Literature connected to the present case without restating source language.
+   - References contextualized for relevance, not stacked.
+   - Main contributions summarized in plain enumerations.
+   - Literature distinctions explained without jargon overload.
+   - Open issues restated in accessible phrasing.
+   - Analytical boundaries and limits restated concisely.
+   - Prior work used critically to explain the paper’s assumptions.
+
 ## Severity
 
 - **[MAJOR]** load-bearing design/organization claim with no institutional join; generic AI-importance opening; ethical grandstanding that replaces mechanism; unsupported “the literature has ignored X entirely.”
-- **[MINOR]** theory introduced without returning to a concrete site; citation cluster with no job; missing operational definition at a disciplinary crossing; generic limits.
+- **[MINOR]** theory introduced without returning to a concrete site; citation cluster with no job; missing operational definition at a disciplinary crossing; generic limits; a prose-requirement overlay item missing from a load-bearing section.
 - **[INFO]** sentence-length or first-person pattern differs from the profile but matches the manuscript’s own baseline, or is required by venue compression.
 
 Do not use **[BLOCKER]** for register mismatch. Grounding Protocol violations remain grounding findings, not voice findings.
