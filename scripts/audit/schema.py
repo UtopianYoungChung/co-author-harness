@@ -8,9 +8,14 @@ field names without reading auditor implementations.
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from destination_capability import assert_writable  # noqa: E402
 
 SEVERITY_INVIOLABLE = "inviolable"
 SEVERITY_DEFAULT = "default"
@@ -64,6 +69,7 @@ class FindingsReport:
         return c
 
     def write(self, path: Path) -> None:
+        assert_writable(path, purpose="audit report write")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 

@@ -78,9 +78,13 @@
       "regression": "scripts/destination_capability_smoketest.py::case_output_redirect_refusals"
     },
     "scripts/audit/schema.py": {
-      "class": "excluded",
-      "reason": "write-helper library with no CLI entry; its only writing caller is scripts/audit/run_all.py, which is guarded; sha256 pin forces re-review of any change",
-      "sha256": "5dffcc635b2a64075be1eebcfda88fd6e8527bd0d185f566be62484fed70177e"
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_r0_writer_refusals (audit schema writer)"
+    },
+    "scripts/audit/test_audit.py": {
+      "class": "test_only",
+      "justification": "audit-suite smoketest writes only beneath a TemporaryDirectory project root it creates and removes",
+      "sha256": "3c31323ecc0c79076153fe7a8530fdc7b7e5143f26e49b17353b608362ac9d1e"
     },
     "scripts/canonical_bibliography.py": {
       "class": "guarded",
@@ -91,9 +95,8 @@
       "regression": "scripts/control_plane_transition_smoketest.py::destination capability, alias, marker-last, crash/replay, and recovery refusals"
     },
     "scripts/contract-kernel-check.py": {
-      "class": "package_confined",
-      "evidence": "writes only references/contract_kernel.v1.json (package constant) and only under explicit --refresh",
-      "sha256": "0cc1bb055f6ea076224491084aee3bb00c3aa8412852b8d5f7192e29a9abf8a8"
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_r0_writer_refusals (contract-kernel refresh)"
     },
     "scripts/product_assurance.py": {
       "class": "guarded",
@@ -145,9 +148,8 @@
       "regression": "scripts/write_release_checksum_smoketest.py::protected destination, traversal, reparse, exclusive-create fallback, and typed no-partial refusals"
     },
     "scripts/evidence_publication.py": {
-      "class": "excluded",
-      "reason": "journaled publication, validation, and recovery library with no CLI entry; its writing callers are guarded publishers",
-      "sha256": "e002ed4cac4101ef95f535ad90cfc741432c8511de0850d641630201aa3fa94f"
+      "class": "guarded",
+      "regression": "scripts/destination_capability_smoketest.py::case_r0_writer_refusals (evidence publication)"
     },
     "scripts/draft_evidence_verifier.py": {
       "class": "guarded",
@@ -195,7 +197,7 @@
     "scripts/destination-coverage-check.py": {
       "class": "package_confined",
       "evidence": "writes only references/destination_coverage_registry.json (package constant) and only under --pin",
-      "sha256": "603d8018e8e2b438d3b5dc1fbd467d506805682b745fd427aeafb7be245273b8"
+      "sha256": "76f6a2ee5c2acc5aa8c8181c6e418f0095dd7bba86ee6a1f479cba14e8853c61"
     },
     "scripts/gate_threshold_tuner.py": {
       "class": "guarded",

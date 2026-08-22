@@ -13,6 +13,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
+from destination_capability import guard_project_root
+
 
 class EvidencePublicationError(RuntimeError):
     pass
@@ -150,6 +152,7 @@ def publish_committed(
 ) -> None:
     """Publish prepared bytes under an exclusive claim, with marker last."""
     root = project_root.resolve(strict=True)
+    guard_project_root(root)
     all_rows = [*outputs, marker]
     resolved = [(path.resolve(), data) for path, data in all_rows]
     if not transaction_id or len({path for path, _ in resolved}) != len(resolved):
@@ -438,6 +441,7 @@ def recover_committed(
     if acknowledgement != "inspected-evidence-state-and-journal":
         raise EvidencePublicationError("exact recovery acknowledgement is required")
     root = project_root.resolve(strict=True)
+    guard_project_root(root)
     all_rows = [*outputs, marker]
     resolved = [(path.resolve(), data) for path, data in all_rows]
     if not transaction_id or len({path for path, _ in resolved}) != len(resolved):

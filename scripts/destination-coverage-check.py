@@ -54,12 +54,15 @@ GUARD_PATTERN = re.compile(
     r"guard_project_root\(|guard_repin_project_root\(|guard_instrument_lane\(|assert_writable\("
 )
 CLASSES = {"guarded", "package_confined", "test_only", "excluded"}
+EXPLICIT_TEST_WRITERS = {"scripts/audit/test_audit.py"}
 
 
 def pattern_exempt(rel: str) -> bool:
     name = Path(rel).name
-    return ("smoketest" in name or name.startswith("test_")
+    return (rel not in EXPLICIT_TEST_WRITERS
+            and ("smoketest" in name or name.startswith("test_")
             or rel.replace("\\", "/").startswith("scripts/tests/"))
+            )
 
 
 def census() -> list[str]:

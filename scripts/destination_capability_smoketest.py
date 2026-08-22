@@ -13,7 +13,9 @@ Exit: 0 all pass; 1 a case failed.
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,6 +25,8 @@ HARNESS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HARNESS / "scripts"))
 
 import destination_capability as dc  # noqa: E402
+import evidence_publication  # noqa: E402
+from audit.schema import FindingsReport  # noqa: E402
 
 PATH_HYGIENE_SPEC = importlib.util.spec_from_file_location(
     "path_hygiene_check", HARNESS / "scripts" / "path-hygiene-check.py"
@@ -419,6 +423,74 @@ def case_output_redirect_refusals() -> None:
                   f"created {sorted(str(x) for x in (after - before))[:3]}")
 
 
+def case_r0_writer_refusals() -> None:
+    """The three R-0 production writers refuse governed research paths."""
+    with tempfile.TemporaryDirectory(prefix="destcap-r0-") as td:
+        fake = make_fake_root(Path(td))
+        protected = fake / "research" / "60_Workbench" / "r0-probe"
+        protected.mkdir(parents=True)
+        env = {**os.environ, "COAUTHOR_EXTRA_GOVERNED_ROOTS": str(fake)}
+        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
+        try:
+            before = {p.relative_to(protected) for p in protected.rglob("*")}
+            refused = None
+            try:
+                evidence_publication.publish_committed(
+                    project_root=protected,
+                    transaction_id="r0-probe",
+                    preconditions=[],
+                    inventory_preconditions=[],
+                    outputs=[(protected / "out.json", b"{}\n")],
+                    marker=(protected / "committed.json", b"{}\n"),
+                )
+            except dc.DestinationRefused as exc:
+                refused = exc
+            after = {p.relative_to(protected) for p in protected.rglob("*")}
+            check("evidence publication raises DEST-PROTECTED",
+                  refused is not None and refused.code == dc.DEST_PROTECTED)
+            check("evidence publication writes nothing", after == before)
+
+            report_path = protected / "findings.json"
+            refused = None
+            try:
+                FindingsReport(target="r0-probe").write(report_path)
+            except dc.DestinationRefused as exc:
+                refused = exc
+            check("audit schema writer raises DEST-PROTECTED",
+                  refused is not None and refused.code == dc.DEST_PROTECTED)
+            check("audit schema writer creates no report", not report_path.exists())
+
+            # The contract-kernel CLI must read a coherent package before it
+            # reaches its explicit --refresh write. Copy only its enumerated
+            # inputs into the fake governed root, then prove the write refuses.
+            source_kernel = HARNESS / "references" / "contract_kernel.v1.json"
+            kernel_doc = json.loads(source_kernel.read_text(encoding="utf-8"))
+            required = {"version.json", "README.md", "LICENSE",
+                        "references/contract_kernel.v1.json"}
+            required.update(row["path"] for row in kernel_doc["components"])
+            for rel in sorted(required):
+                source = HARNESS / rel
+                destination = protected / rel
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, destination)
+            kernel_path = protected / "references" / "contract_kernel.v1.json"
+            kernel_before = kernel_path.read_bytes()
+            result = subprocess.run(
+                [sys.executable, str(HARNESS / "scripts" / "contract-kernel-check.py"),
+                 "--plugin-root", str(protected), "--refresh"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                env=env,
+            )
+            output = result.stdout + result.stderr
+            check("contract-kernel refresh refuses governed root",
+                  result.returncode != 0 and "DEST-PROTECTED" in output,
+                  output.strip().splitlines()[-1][:120] if output.strip() else "silent")
+            check("contract-kernel refresh preserves kernel bytes",
+                  kernel_path.read_bytes() == kernel_before)
+        finally:
+            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+
+
 def case_audit_shipment_output() -> None:
     """A read-only audit may consume a protected project while writing its
     report only to that project's exact private shipment lane."""
@@ -453,7 +525,8 @@ def main() -> int:
                 case_real_workspace_discovery,
                 case_distributed_destination_discovery,
                 case_ungoverned_fails_closed, case_mutator_wiring,
-                case_output_redirect_refusals, case_audit_shipment_output):
+                case_output_redirect_refusals, case_r0_writer_refusals,
+                case_audit_shipment_output):
         print(f"{fn.__name__}:")
         try:
             fn()

@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from destination_capability import assert_writable  # noqa: E402
+
 
 EXPECTED_PHASES = ["Ph1", "Ph2", "Ph3", "Ph4"]
 EXPECTED_MILESTONES = ["M1", "M2", "M3", "M4", "M5"]
@@ -213,6 +217,7 @@ def main() -> int:
         data = json.loads(kernel_path.read_text(encoding="utf-8"))
         if args.refresh:
             refresh_component_hashes(root, data)
+            assert_writable(kernel_path, purpose="contract-kernel refresh")
             kernel_path.write_text(
                 json.dumps(data, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",

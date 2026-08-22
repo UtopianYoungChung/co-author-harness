@@ -17,6 +17,8 @@
 #   6. Runs scripts/version-check.py for release-version consistency.
 #   7. Runs scripts/catalog-check.py for README and registry parity checks.
 #   8. Runs scripts/path-hygiene-check.py for maintainer-local path hygiene.
+#   8c. Runs scripts/destination-coverage-check.py so every filesystem writer
+#       is classified and guarded, confined, test-only, or explicitly excluded.
 #   8a. Runs scripts/snippet-check.py for runtime-binding resolution and
 #       anti-duplication of extracted policy blocks.
 #   8b. Runs scripts/output_economy_check.py; all behavioral fixtures execute
@@ -468,6 +470,24 @@ if [[ -f "$PLUGIN_ROOT/scripts/path-hygiene-check.py" ]]; then
 else
     echo "Path hygiene checks: script missing (scripts/path-hygiene-check.py)"
     echo "  [BLOCKER] cannot run path hygiene checks"
+    BLOCKERS=$((BLOCKERS + 1))
+    echo ""
+fi
+
+# --- Phase 0.6a: destination coverage checks -------------------------------
+
+if [[ -f "$PLUGIN_ROOT/scripts/destination-coverage-check.py" ]]; then
+    echo "Destination coverage checks (filesystem writer classification)"
+    if ! python3 "$PLUGIN_ROOT/scripts/destination-coverage-check.py"; then
+        echo "  [BLOCKER] scripts/destination-coverage-check.py reported blocking issues"
+        BLOCKERS=$((BLOCKERS + 1))
+    else
+        echo "  [OK]      scripts/destination-coverage-check.py passed"
+    fi
+    echo ""
+else
+    echo "Destination coverage checks: script missing (scripts/destination-coverage-check.py)"
+    echo "  [BLOCKER] cannot run destination coverage checks"
     BLOCKERS=$((BLOCKERS + 1))
     echo ""
 fi
