@@ -86,7 +86,15 @@ if [[ "${1:-}" == "--coauthor-controller-child" ]]; then
         echo "CONTROLLER-CHILD-ATTESTATION: direct controlled-child marker invocation refused" >&2
         exit 2
     fi
-    if ! python3 -B "$SCRIPT_DIR/release_qualification_controller.py" verify-child \
+    # Path spelling only: `pwd` re-emits POSIX form (/b/Agents/...) even when
+    # $0 was native. Native Windows Python cannot open that spelling when MSYS
+    # argument conversion is disabled. Normalize when cygpath exists; leave the
+    # POSIX path unchanged otherwise. Interpreter remains bare python3.
+    ATTEST_CONTROLLER="$SCRIPT_DIR/release_qualification_controller.py"
+    if command -v cygpath >/dev/null 2>&1; then
+        ATTEST_CONTROLLER="$(cygpath -am "$ATTEST_CONTROLLER")"
+    fi
+    if ! python3 -B "$ATTEST_CONTROLLER" verify-child \
         --run-dir "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR" \
         --token "$COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN"; then
         echo "CONTROLLER-CHILD-ATTESTATION: controller attestation refused" >&2

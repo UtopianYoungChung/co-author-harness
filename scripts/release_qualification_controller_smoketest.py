@@ -42,8 +42,37 @@ def _assert_release_gate_bytecode_argv() -> None:
     gate_text = (ROOT / "scripts" / "release-gate.sh").read_text(
         encoding="utf-8", errors="strict",
     )
-    assert 'python3 -B "$SCRIPT_DIR/release_qualification_controller.py" verify-child' in gate_text
+    assert 'ATTEST_CONTROLLER="$SCRIPT_DIR/release_qualification_controller.py"' in gate_text
+    assert 'cygpath -am "$ATTEST_CONTROLLER"' in gate_text
+    assert 'python3 -B "$ATTEST_CONTROLLER" verify-child' in gate_text
     assert 'exec python3 -B "$CONTROLLER_NATIVE" run' in gate_text
+    assert "sys.executable" not in gate_text
+
+
+def _case_verify_child_path_spelling() -> None:
+    """Native Windows Python must open the controller; POSIX spelling stays."""
+    gate = ROOT / "scripts" / "release-gate.sh"
+    env = {
+        key: value for key, value in os.environ.items()
+        if key.upper() != "PYTHONUTF8"
+    }
+    env["COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR"] = str(
+        ROOT / "does-not-exist-attestation-run"
+    )
+    env["COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN"] = "0" * 64
+    bash = shutil.which("bash")
+    assert bash, "bash is required to exercise release-gate.sh"
+    result = subprocess.run(
+        [bash, str(gate), "--coauthor-controller-child", "--help"],
+        capture_output=True, check=False, env=env, timeout=120,
+    )
+    combined = result.stdout + result.stderr
+    assert result.returncode == 2, combined[-800:]
+    assert b"can't open file" not in combined, combined[-800:]
+    assert b"B:\\b\\Agents" not in combined and b"B:/b/Agents" not in combined, (
+        combined[-800:]
+    )
+    assert b"CONTROLLER-CHILD-ATTESTATION" in combined, combined[-800:]
 
 
 def _load(path: Path, name: str):
@@ -1754,6 +1783,8 @@ def main() -> int:
     platform_skips = 0
     expected_failures: list[str] = []
     _assert_release_gate_bytecode_argv()
+    _case_verify_child_path_spelling()
+    cases += 1
     unknown_env, _ = env.controlled_environment(
         delta={"COAUTHOR_CONTROLLER_REOPENED_RED": "1"}, allow_user_site=True,
     )

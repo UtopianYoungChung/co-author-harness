@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Prove the release loader check survives a non-UTF-8 Windows console."""
+"""Prove the release loader check survives a non-UTF-8 Windows console.
+
+Also covers R-3: hook interpreter resolution and loud launch failure.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHECK = ROOT / "scripts" / "loader-compat-check.py"
+HOOKS = ROOT / "hooks" / "hooks.json"
+GATE_REL = "scripts/hooks/full_run_pretooluse_gate.py"
 
 
 def _write(path: Path, text: str) -> None:
@@ -21,7 +26,66 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def main() -> int:
+def _hook_launch_command() -> tuple[str, list[str]]:
+    config = json.loads(HOOKS.read_text(encoding="utf-8"))
+    hook = config["hooks"]["PreToolUse"][0]["hooks"][0]
+    stop = config["hooks"]["Stop"][0]["hooks"][0]
+    assert hook == stop, "PreToolUse and Stop must share the same interpreter resolver"
+    return hook["command"], list(hook.get("args") or [])
+
+
+def case_hook_interpreter_resolution() -> None:
+    command, args = _hook_launch_command()
+    blob = " ".join([command, *args])
+    assert command != "python3", "bare python3 is the R-3 defect"
+    assert "CLAUDE_PLUGIN_PYTHON" in blob
+    assert "WindowsApps" in blob
+    assert "HOOK-INTERPRETER" in blob
+    assert GATE_REL in blob.replace("\\", "/")
+
+
+def case_hook_launch_failure_is_loud() -> None:
+    command, args = _hook_launch_command()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key not in {"CLAUDE_PLUGIN_PYTHON", "CLAUDE_PLUGIN_ROOT"}
+        and key.upper() != "PYTHONUTF8"
+    }
+    env["PATH"] = ""
+    proc = subprocess.run(
+        [command, *args],
+        capture_output=True,
+        check=False,
+        env=env,
+        timeout=30,
+    )
+    combined = (proc.stdout + proc.stderr).decode("utf-8", errors="replace")
+    assert proc.returncode != 0, combined[-800:]
+    assert "HOOK-INTERPRETER" in combined, combined[-800:]
+
+
+def case_hook_launches_from_resolved_interpreter() -> None:
+    command, args = _hook_launch_command()
+    env = {
+        key: value for key, value in os.environ.items()
+        if key.upper() != "PYTHONUTF8"
+    }
+    env["CLAUDE_PLUGIN_PYTHON"] = sys.executable
+    env["CLAUDE_PLUGIN_ROOT"] = str(ROOT)
+    proc = subprocess.run(
+        [command, *args],
+        input=b"{}",
+        capture_output=True,
+        check=False,
+        env=env,
+        timeout=30,
+    )
+    combined = (proc.stdout + proc.stderr).decode("utf-8", errors="replace")
+    assert proc.returncode == 0, combined[-800:]
+    assert "can't open file" not in combined, combined[-800:]
+
+
+def case_loader_compat_encoding() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         description = "Synthetic loader portability fixture."
@@ -83,7 +147,14 @@ def main() -> int:
         # formerly crashing non-CP949 output path was exercised, not bypassed.
         assert "co-author-harness — loader-compat-check" in decoded
 
+
+def main() -> int:
+    case_loader_compat_encoding()
+    case_hook_interpreter_resolution()
+    case_hook_launch_failure_is_loud()
+    case_hook_launches_from_resolved_interpreter()
     print("PASS: loader compatibility check is console-encoding independent")
+    print("PASS: hook interpreter resolves and launch failure is loud")
     return 0
 
 

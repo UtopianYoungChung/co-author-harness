@@ -6,9 +6,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
+            "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/full_run_pretooluse_gate.py"
+              "-c",
+              "set -euo pipefail; resolve_hook_python(){ if [ -n \"${CLAUDE_PLUGIN_PYTHON:-}\" ]; then if [ -x \"$CLAUDE_PLUGIN_PYTHON\" ]; then printf '%s' \"$CLAUDE_PLUGIN_PYTHON\"; return 0; fi; echo \"HOOK-INTERPRETER: CLAUDE_PLUGIN_PYTHON is not executable: $CLAUDE_PLUGIN_PYTHON\" >&2; return 2; fi; if command -v py >/dev/null 2>&1; then cand=$(py -3 -c 'import sys; print(sys.executable)' 2>/dev/null || true); if [ -n \"$cand\" ] && [ -x \"$cand\" ]; then printf '%s' \"$cand\"; return 0; fi; fi; for name in python3 python; do cand=$(command -v \"$name\" || true); if [ -z \"$cand\" ]; then continue; fi; case \"$cand\" in *WindowsApps*) continue ;; esac; if [ -x \"$cand\" ]; then printf '%s' \"$cand\"; return 0; fi; done; echo \"HOOK-INTERPRETER: no usable Python; set CLAUDE_PLUGIN_PYTHON to an executable interpreter\" >&2; return 2; }; PY=$(resolve_hook_python); if [ -z \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then echo \"HOOK-INTERPRETER: CLAUDE_PLUGIN_ROOT is unset\" >&2; exit 2; fi; exec \"$PY\" -B \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/full_run_pretooluse_gate.py\""
             ]
           }
         ]
@@ -19,9 +20,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
+            "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/full_run_pretooluse_gate.py"
+              "-c",
+              "set -euo pipefail; resolve_hook_python(){ if [ -n \"${CLAUDE_PLUGIN_PYTHON:-}\" ]; then if [ -x \"$CLAUDE_PLUGIN_PYTHON\" ]; then printf '%s' \"$CLAUDE_PLUGIN_PYTHON\"; return 0; fi; echo \"HOOK-INTERPRETER: CLAUDE_PLUGIN_PYTHON is not executable: $CLAUDE_PLUGIN_PYTHON\" >&2; return 2; fi; if command -v py >/dev/null 2>&1; then cand=$(py -3 -c 'import sys; print(sys.executable)' 2>/dev/null || true); if [ -n \"$cand\" ] && [ -x \"$cand\" ]; then printf '%s' \"$cand\"; return 0; fi; fi; for name in python3 python; do cand=$(command -v \"$name\" || true); if [ -z \"$cand\" ]; then continue; fi; case \"$cand\" in *WindowsApps*) continue ;; esac; if [ -x \"$cand\" ]; then printf '%s' \"$cand\"; return 0; fi; done; echo \"HOOK-INTERPRETER: no usable Python; set CLAUDE_PLUGIN_PYTHON to an executable interpreter\" >&2; return 2; }; PY=$(resolve_hook_python); if [ -z \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then echo \"HOOK-INTERPRETER: CLAUDE_PLUGIN_ROOT is unset\" >&2; exit 2; fi; exec \"$PY\" -B \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/full_run_pretooluse_gate.py\""
             ]
           }
         ]
