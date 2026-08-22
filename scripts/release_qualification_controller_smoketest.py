@@ -4344,7 +4344,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 57 if os.name != "nt" else 59
+    expected_case_count = 58 if os.name != "nt" else 60
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)
