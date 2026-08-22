@@ -13,6 +13,11 @@ Known scopes: adhoc_review, lab_iteration, full_lifecycle.
 A missing or unknown scope is not permission to write argument-bearing
 paths. Ordinary non-argument writes may still proceed.
 
+``FRC_REQUIRE_SCOPE=1`` is an opt-in that refuses every event when no valid
+scope is declared. Any other value, including ``0`` or unset, is the default
+passthrough policy. ``FRC_GATE_HOOK_DISABLE`` remains the higher-priority
+explicit off switch.
+
 WHAT IT DOES
 ------------
 It reads hook JSON on stdin and delegates in-scope decisions to
@@ -24,13 +29,14 @@ It reads hook JSON on stdin and delegates in-scope decisions to
   Task / Agent (subagent dispatch; host naming varies)
         -> `scope --parent-scope <declared parent> --child-brief <the prompt>`.
 
-  Stop (terminal language in the final response)
+  Stop (terminal language, or structured terminal_phase_reached)
         -> `terminal --project-root <current project>`.
 
 Without a known scope, argument-bearing Write/Edit paths are denied, and
 Agent/Task briefs that name manuscript/ or run-generator-session are denied.
 Everything else without a scope is allowed so a user-scoped plugin does not
-freeze ordinary coding sessions.
+freeze ordinary coding sessions; each such passthrough emits one stderr
+notice tagged ``[FRC-SCOPE-PASSTHROUGH]``.
 
 BLOCK CONTRACT
 --------------
@@ -43,8 +49,10 @@ FAIL MODE
 ---------
 Missing or unknown FRC_PARENT_SCOPE fails closed for argument-bearing
 Write/Edit paths and for Agent/Task briefs that name manuscript/ or
-run-generator-session. Internal errors and a missing gate fail closed.
-FRC_GATE_HOOK_DISABLE remains an explicit off switch.
+run-generator-session. Internal errors and a missing gate fail closed
+when a valid scope is active or FRC_REQUIRE_SCOPE=1. Default-unset errors
+may pass only with a loud stderr diagnostic. FRC_GATE_HOOK_DISABLE remains
+an explicit off switch.
 """
 from __future__ import annotations
 
@@ -68,6 +76,7 @@ else:
     GATE = Path(__file__).resolve().parents[1] / "full_run_contract_check.py"
 
 ACTIVE_SCOPE_ENV = "FRC_PARENT_SCOPE"
+REQUIRE_SCOPE_ENV = "FRC_REQUIRE_SCOPE"
 SCOPES = set(invocation.SCOPES)
 MANUSCRIPT_DIR = "manuscript"
 TERMINAL_MARKERS = (
@@ -97,6 +106,41 @@ def _block_stop(reason: str) -> int:
 def _active_parent_scope() -> str | None:
     scope = os.environ.get(ACTIVE_SCOPE_ENV, "").strip().lower()
     return scope if scope in SCOPES else None
+
+
+def _raw_scope() -> str:
+    return os.environ.get(ACTIVE_SCOPE_ENV, "").strip()
+
+
+def _require_scope() -> bool:
+    return os.environ.get(REQUIRE_SCOPE_ENV) == "1"
+
+
+def _passthrough_notice(event: str, tool: str = "") -> None:
+    tool_bit = f" tool={tool}" if tool else ""
+    print(
+        f"[FRC-SCOPE-PASSTHROUGH] event={event}{tool_bit} "
+        f"FRC_PARENT_SCOPE is unset",
+        file=sys.stderr,
+    )
+
+
+def _hook_error_notice(reason: str) -> None:
+    print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
+
+
+def _scope_required_reason(kind: str) -> str:
+    return (
+        f"[FRC-SCOPE-REQUIRED] {kind} refused without FRC_PARENT_SCOPE "
+        "in {adhoc_review, lab_iteration, full_lifecycle}"
+    )
+
+
+def _scope_unknown_reason(kind: str) -> str:
+    return (
+        "[FRC-SCOPE-UNKNOWN] FRC_PARENT_SCOPE is set but is not "
+        f"adhoc_review, lab_iteration, or full_lifecycle; refusing {kind}"
+    )
 
 
 def _first_finding(gate_stdout: str) -> str:
@@ -142,10 +186,26 @@ def _is_argument_path(path_str: str) -> bool:
     return any(part in parts for part in (MANUSCRIPT_DIR, "research", "60_workbench", "milestones"))
 
 
-def _handle_write(tool_input: dict, *, cwd: str | None = None) -> int:
+def _terminal_phase_reached(root: Path) -> bool:
+    path = root / "reviews" / "phase_state.json"
+    if not path.is_file():
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    return isinstance(data, dict) and data.get("terminal_phase_reached") is True
+
+
+def _handle_write(tool_input: dict, *, cwd: str | None = None,
+                  tool_name: str = "Write") -> int:
     raw = os.environ.get(ACTIVE_SCOPE_ENV, "").strip().lower()
     scope = _active_parent_scope()
     path_str = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    if _require_scope() and scope is None:
+        if raw:
+            return _deny(_scope_unknown_reason("write"))
+        return _deny(_scope_required_reason("write"))
     if raw and scope is None:
         return _deny(
             "[FRC-SCOPE-UNKNOWN] FRC_PARENT_SCOPE is set but is not "
@@ -157,6 +217,7 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None) -> int:
                 "[FRC-SCOPE-REQUIRED] argument-bearing write refused without "
                 "FRC_PARENT_SCOPE in {adhoc_review, lab_iteration, full_lifecycle}"
             )
+        _passthrough_notice("PreToolUse", tool_name)
         return _allow()
     if not path_str:
         return _allow()
@@ -189,12 +250,17 @@ def _handle_agent(tool_input: dict) -> int:
     parent_scope = _active_parent_scope()
     brief = tool_input.get("prompt") or tool_input.get("description") or ""
     if parent_scope is None:
+        if _require_scope():
+            if _raw_scope():
+                return _deny(_scope_unknown_reason("Agent/Task"))
+            return _deny(_scope_required_reason("Agent/Task"))
         low = brief.casefold()
         if "manuscript" in low or "run-generator-session" in low:
             return _deny(
                 "[FRC-SCOPE-REQUIRED] Agent/Task that names manuscript or "
                 "run-generator-session refused without FRC_PARENT_SCOPE"
             )
+        _passthrough_notice("PreToolUse", "Agent")
         return _allow()
     if not brief.strip():
         return _deny("[FRC-SCOPE-UNDECLARED] active lifecycle subagent dispatch "
@@ -215,20 +281,30 @@ def _handle_agent(tool_input: dict) -> int:
 
 
 def _handle_stop(payload: dict) -> int:
+    raw = _raw_scope()
     scope = _active_parent_scope()
     if scope is None:
+        if _require_scope() or raw:
+            if raw:
+                return _block_stop(_scope_unknown_reason("Stop"))
+            return _block_stop(_scope_required_reason("Stop"))
+        _passthrough_notice("Stop")
         return _allow()
     message = payload.get("last_assistant_message") or ""
     low = " ".join(message.casefold().split())
-    if not any(marker in low for marker in TERMINAL_MARKERS):
-        return _allow()
-    if scope == invocation.LAB_ITERATION:
-        return _block_stop(
-            "[FRC-LAB-TERMINAL-FORBIDDEN] lab_iteration cannot make a terminal, "
-            "shipment, convergence, or lifecycle-complete claim"
-        )
+    has_marker = any(marker in low for marker in TERMINAL_MARKERS)
     cwd = payload.get("cwd") or os.getcwd()
     root = _find_project_root(Path(cwd)) or Path(cwd)
+    structured = _terminal_phase_reached(root)
+    if scope == invocation.LAB_ITERATION:
+        if has_marker:
+            return _block_stop(
+                "[FRC-LAB-TERMINAL-FORBIDDEN] lab_iteration cannot make a terminal, "
+                "shipment, convergence, or lifecycle-complete claim"
+            )
+        return _allow()
+    if not has_marker and not structured:
+        return _allow()
     rc, out = _run_gate("terminal", "--project-root", str(root))
     return _block_stop(_first_finding(out)) if rc != 0 else _allow()
 
@@ -239,10 +315,13 @@ def main() -> int:
     try:
         payload = json.load(sys.stdin)
     except Exception as e:
-        if _active_parent_scope() is None:
-            return _allow()
         reason = f"[FRC-HOOK-ERROR] unreadable hook payload: {e}"
-        print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
+        _hook_error_notice(reason)
+        if _require_scope():
+            return _deny(reason)
+        if _active_parent_scope() is None and not _raw_scope():
+            _passthrough_notice("PreToolUse")
+            return _allow()
         return _deny(reason)
     if not GATE.is_file():
         reason = f"[FRC-GATE-UNAVAILABLE] authoritative gate missing at {GATE}"
@@ -256,18 +335,26 @@ def main() -> int:
         tool = payload.get("tool_name", "")
         tool_input = payload.get("tool_input", {}) or {}
         if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
-            return _handle_write(tool_input, cwd=payload.get("cwd"))
+            return _handle_write(tool_input, cwd=payload.get("cwd"), tool_name=tool)
         if tool in ("Task", "Agent"):
             return _handle_agent(tool_input)
+        if _require_scope() and _active_parent_scope() is None:
+            if _raw_scope():
+                return _deny(_scope_unknown_reason(tool or "event"))
+            return _deny(_scope_required_reason(tool or "event"))
+        if _active_parent_scope() is None and not _raw_scope():
+            _passthrough_notice("PreToolUse", tool or "unknown")
         return _allow()
     except Exception as e:
-        if _active_parent_scope() is None:
-            return _allow()
         reason = f"[FRC-HOOK-ERROR] internal hook error: {e}"
-        print(f"full_run_pretooluse_gate: {reason}", file=sys.stderr)
-        if payload.get("hook_event_name") == "Stop":
-            return _block_stop(reason)
-        return _deny(reason)
+        _hook_error_notice(reason)
+        event_stop = payload.get("hook_event_name") == "Stop"
+        if _require_scope():
+            return _block_stop(reason) if event_stop else _deny(reason)
+        if _active_parent_scope() is None and not _raw_scope():
+            _passthrough_notice("Stop" if event_stop else "PreToolUse")
+            return _allow()
+        return _block_stop(reason) if event_stop else _deny(reason)
 
 
 if __name__ == "__main__":
