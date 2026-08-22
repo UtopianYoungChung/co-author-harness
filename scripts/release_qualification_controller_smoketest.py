@@ -47,6 +47,105 @@ def _assert_release_gate_bytecode_argv() -> None:
     assert 'python3 -B "$ATTEST_CONTROLLER" verify-child' in gate_text
     assert 'exec python3 -B "$CONTROLLER_NATIVE" run' in gate_text
     assert "sys.executable" not in gate_text
+    verify_at = gate_text.index('python3 -B "$ATTEST_CONTROLLER" verify-child')
+    rematerialize_at = gate_text.index('PLUGIN_ROOT="$(cygpath -am "$PLUGIN_ROOT")"')
+    walk_at = gate_text.index('NEXT="$( dirname "$PROBE" )"')
+    phase01_at = gate_text.index(
+        "json.load(open(sys.argv[1], encoding='utf-8'))['name']"
+    )
+    assert verify_at < rematerialize_at < walk_at < phase01_at, (
+        verify_at, rematerialize_at, walk_at, phase01_at,
+    )
+    assert 'SCRIPT_DIR="$(cygpath' not in gate_text
+    assert 'if [[ "$NEXT" == "$PROBE" ]]; then' in gate_text
+    rematerialize_if = gate_text.index(
+        "if command -v cygpath >/dev/null 2>&1; then\n    PLUGIN_ROOT="
+    )
+    rematerialize_fi = gate_text.index(
+        '\nfi\n\nif [[ ! -f "$VERSION_MANIFEST" ]]', rematerialize_if,
+    )
+    cygpath_block = gate_text[rematerialize_if:rematerialize_fi]
+    assert "dirname" not in cygpath_block
+    assert "NEXT=" not in cygpath_block
+
+
+_WALK_HELPER = r"""
+set +e
+PROBE="$1"
+CAP="$2"
+FIXED="$3"
+i=0
+while [ "$PROBE" != "/" ]; do
+  i=$((i + 1))
+  if [ "$i" -gt "$CAP" ]; then
+    printf 'CAP %s %s\n' "$i" "$PROBE"
+    exit 2
+  fi
+  NEXT=$(dirname "$PROBE")
+  if [ "$FIXED" = "1" ] && [ "$NEXT" = "$PROBE" ]; then
+    printf 'FIXED %s %s\n' "$i" "$PROBE"
+    exit 0
+  fi
+  PROBE=$NEXT
+done
+printf 'ROOT %s %s\n' "$i" "$PROBE"
+exit 0
+"""
+
+
+def _run_dirname_walk(*, start: str, fixed_point: bool, cap: int = 32) -> subprocess.CompletedProcess:
+    bash = shutil.which("bash")
+    assert bash, "bash is required to exercise dirname walks"
+    return subprocess.run(
+        [bash, "-c", _WALK_HELPER, "walk", start, str(cap), "1" if fixed_point else "0"],
+        capture_output=True, check=False, timeout=15, text=True,
+    )
+
+
+def _case_legacy_peer_walk_hits_cap() -> None:
+    """Old while != / walk never terminates on a Windows drive root."""
+    result = _run_dirname_walk(
+        start="B:/Agents/platform/co-author-harness", fixed_point=False,
+    )
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert result.stdout.startswith("CAP "), result.stdout
+
+
+def _case_fixed_point_walk_terminates() -> None:
+    result = _run_dirname_walk(
+        start="B:/Agents/platform/co-author-harness", fixed_point=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout.startswith("FIXED "), result.stdout
+    iterations = int(result.stdout.split()[1])
+    assert 1 <= iterations <= 32, result.stdout
+
+
+def _case_phase01_native_open_and_git() -> None:
+    """After rematerialize, native python3 and git -C can see PLUGIN_ROOT."""
+    bash = shutil.which("bash")
+    assert bash, "bash is required to exercise release-gate rematerialize"
+    script = r"""
+set -euo pipefail
+PLUGIN_ROOT="$(cd "$1" && pwd)"
+if command -v cygpath >/dev/null 2>&1; then
+  PLUGIN_ROOT="$(cygpath -am "$PLUGIN_ROOT")"
+fi
+VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
+python3 - "$VERSION_MANIFEST" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["name"])
+PY
+git -C "$PLUGIN_ROOT" rev-parse --is-inside-work-tree
+"""
+    result = subprocess.run(
+        [bash, "-s", str(ROOT)],
+        input=script, capture_output=True, check=False, text=True, timeout=30,
+    )
+    assert result.returncode == 0, (result.stdout + result.stderr)[-800:]
+    assert "co-author-harness" in result.stdout, result.stdout
+    assert "true" in result.stdout, result.stdout
+    assert "/b/" not in result.stdout, result.stdout
 
 
 def _case_verify_child_path_spelling() -> None:
@@ -1784,6 +1883,12 @@ def main() -> int:
     expected_failures: list[str] = []
     _assert_release_gate_bytecode_argv()
     _case_verify_child_path_spelling()
+    cases += 1
+    _case_legacy_peer_walk_hits_cap()
+    cases += 1
+    _case_fixed_point_walk_terminates()
+    cases += 1
+    _case_phase01_native_open_and_git()
     cases += 1
     unknown_env, _ = env.controlled_environment(
         delta={"COAUTHOR_CONTROLLER_REOPENED_RED": "1"}, allow_user_site=True,
@@ -4344,7 +4449,7 @@ time.sleep(60)
     missing_contracts = sorted(required_contracts - set(ctl.REGRESSION_CONTRACT))
     if missing_contracts:
         expected_failures.append(f"production regression contract is missing: {missing_contracts!r}")
-    expected_case_count = 58 if os.name != "nt" else 60
+    expected_case_count = 61 if os.name != "nt" else 63
     expected_skip_count = 0 if os.name != "nt" else 9
     assert cases == expected_case_count, (cases, expected_case_count)
     assert platform_skips == expected_skip_count, (platform_skips, expected_skip_count)

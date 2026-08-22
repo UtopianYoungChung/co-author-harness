@@ -234,6 +234,29 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Rematerialize the closed root set once the flag loop is finished.
+# `pwd` re-emits POSIX form (/b/Agents/...) even when $0 was native.
+# Native Windows Python and git -C cannot use that spelling when MSYS
+# argument conversion is disabled. Normalize with cygpath -am when it
+# exists; leave every path unchanged otherwise so POSIX hosts keep
+# today's bytes. SCRIPT_DIR is intentionally not rematerialized: it
+# still participates in the attestation path above.
+if command -v cygpath >/dev/null 2>&1; then
+    PLUGIN_ROOT="$(cygpath -am "$PLUGIN_ROOT")"
+    VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
+    HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
+    PRODUCT_OUTPUT_DIR="$(cygpath -am "$PRODUCT_OUTPUT_DIR")"
+    if [[ -n "$PEER_ROOT" ]]; then
+        PEER_ROOT="$(cygpath -am "$PEER_ROOT")"
+    fi
+    if [[ -n "$OUTPUTS_DIR" ]]; then
+        OUTPUTS_DIR="$(cygpath -am "$OUTPUTS_DIR")"
+    fi
+    if [[ -n "$QUALIFICATION_SPEC" ]]; then
+        QUALIFICATION_SPEC="$(cygpath -am "$QUALIFICATION_SPEC")"
+    fi
+fi
+
 if [[ ! -f "$VERSION_MANIFEST" ]]; then
     echo "ERROR: version.json not found at $VERSION_MANIFEST" >&2
     exit 2
@@ -253,7 +276,11 @@ if [[ -z "$PEER_ROOT" ]]; then
             PEER_ROOT="$PROBE/mnt/.remote-plugins"
             break
         fi
-        PROBE="$( dirname "$PROBE" )"
+        NEXT="$( dirname "$PROBE" )"
+        if [[ "$NEXT" == "$PROBE" ]]; then
+            break
+        fi
+        PROBE="$NEXT"
     done
 fi
 
