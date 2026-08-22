@@ -386,6 +386,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/reader_profile_v2_global_smoketest.py": [_default_case()],
     "scripts/reader_accessibility_semantics_smoketest.py": [_default_case()],
     "scripts/receipt_compaction_smoketest.py": [_default_case()],
+    "scripts/register_dispersion_check_smoketest.py": [_default_case()],
     "scripts/release_evidence_index_smoketest.py": [_default_case()],
     "scripts/release_source_parity_smoketest.py": [_default_case()],
     "scripts/reflector_split_parity_smoketest.py": [_default_case()],

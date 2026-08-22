@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import statistics
 import sys
@@ -90,6 +91,14 @@ from pathlib import Path
 # author's own baseline dispersion before it is worth surfacing.
 B4_BASELINE_RATIO = 0.75
 B5_BASELINE_RATIO = 0.75
+
+
+def _strictly_below_ratio(value: float, baseline: float, ratio: float) -> bool:
+    """Apply a strict ratio boundary without binary-float edge drift."""
+    threshold = baseline * ratio
+    return value < threshold and not math.isclose(
+        value, threshold, rel_tol=1e-12, abs_tol=1e-12
+    )
 
 # B6: content-word Jaccard overlap between a paragraph's first and last
 # sentence, for paragraphs of at least B6_MIN_SENTENCES. This one DID separate:
@@ -396,14 +405,14 @@ def findings_for(name: str, stats: dict, baseline: dict | None) -> list[dict]:
         # replicate, so with no baseline there is nothing defensible to assert.
         if grounded:
             cv, base_cv = stats["cv"], baseline["cv"]
-            if base_cv and cv < base_cv * B4_BASELINE_RATIO:
+            if base_cv and _strictly_below_ratio(cv, base_cv, B4_BASELINE_RATIO):
                 out.append({
                     "rule": "B4", "severity": "MINOR",
                     "detail": (f"rhythm CV {cv} is below this author's own baseline "
                                f"{base_cv}; the draft is flatter than the author writes"),
                 })
             rate, base_rate = stats["interruption_rate"], baseline["interruption_rate"]
-            if base_rate and rate < base_rate * B5_BASELINE_RATIO:
+            if base_rate and _strictly_below_ratio(rate, base_rate, B5_BASELINE_RATIO):
                 out.append({
                     "rule": "B5", "severity": "MINOR",
                     "detail": (f"pre-predicate interruption rate {rate} below this "
