@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "2ef5f988c8ce276537c10e9d8987eab8d7c2038e1a9110505b2a1500c32f6310",
+      "sha256": "d71e3a83574e5a9c5a2f090be273c06daea509415a61cef1d42894661951ecc8",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
