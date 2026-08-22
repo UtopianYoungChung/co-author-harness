@@ -315,7 +315,12 @@ Two consequences, both binding:
    interruption rate). This is also what C-7 requires: the author's own prose is
    the yardstick, never a population constant. Do not change the `0.75` ratio or
    introduce a population band without rerunning this calibration on a larger
-   corpus and recording the result here.
+   corpus and recording the result here. **Implementation lesson (2026-08-22):**
+   this strict boundary must use a tolerance-aware comparison. A direct
+   `value < baseline * 0.75` comparison caused values exactly on the documented
+   boundary to fire because of binary floating-point representation. The exact,
+   below, and above cases are permanently covered by
+   `scripts/register_dispersion_check_smoketest.py`.
 2. **B6 and B7 survive as detectors** because they measure a *local* property of the
    text rather than a population comparison. B6 separated cleanly — across 48
    qualifying paragraphs in both corpora the observed maximum overlap was 0.250 and
