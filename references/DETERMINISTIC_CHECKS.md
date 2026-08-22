@@ -309,10 +309,13 @@ guide (CV 0.437) as machine-generated.
 Two consequences, both binding:
 
 1. **B4 and B5 carry no absolute threshold.** They are reported as measurements and
-   fire only as a within-author delta against `--baseline`. This is also what C-7
-   requires: the author's own prose is the yardstick, never a population constant.
-   Do not reintroduce a population band without rerunning this calibration on a
-   larger corpus and recording the result here.
+   fire only as a within-author delta against `--baseline`. The current local
+   sensitivity convention is explicit: a candidate fires when the draft statistic
+   is below **0.75 ×** the corresponding author-baseline statistic (B4 CV or B5
+   interruption rate). This is also what C-7 requires: the author's own prose is
+   the yardstick, never a population constant. Do not change the `0.75` ratio or
+   introduce a population band without rerunning this calibration on a larger
+   corpus and recording the result here.
 2. **B6 and B7 survive as detectors** because they measure a *local* property of the
    text rather than a population comparison. B6 separated cleanly — across 48
    qualifying paragraphs in both corpora the observed maximum overlap was 0.250 and
@@ -663,6 +666,10 @@ After running the checks above, emit this block into the findings report:
 - hedged paragraph-start transitions: <n>/<total paragraph breaks>
 - sentences > 60 words: <n>
 - avg sentence length: <words>
+- B4 rhythm CV: <value | not computed>          [finding only vs. author baseline]
+- B5 interruption rate: <value | not computed>  [finding only vs. author baseline]
+- B6 circular paragraphs: <n; paragraph locations>
+- B7 undischarged complexity claims: <n; sentence locations>
 - [REF to be verified] placeholders: <n>
 
 ### Stage-specific flags (if P0 or P1)

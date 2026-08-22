@@ -451,22 +451,26 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     baseline = None
-    if args.baseline:
-        merged = "\n\n".join(read(p) for p in args.baseline)
-        baseline = analyse(merged)
-        if not baseline.get("sufficient"):
-            print(f"warning: baseline too small ({baseline['sentences']} sentences); "
-                  f"treating as absent", file=sys.stderr)
-            baseline = None
+    try:
+        if args.baseline:
+            merged = "\n\n".join(read(p) for p in args.baseline)
+            baseline = analyse(merged)
+            if not baseline.get("sufficient"):
+                print(f"warning: baseline too small ({baseline['sentences']} sentences); "
+                      f"treating as absent", file=sys.stderr)
+                baseline = None
 
-    report = {"baseline_supplied": baseline is not None, "files": {}, "findings": []}
-    if baseline:
-        report["baseline"] = baseline
+        report = {"baseline_supplied": baseline is not None, "files": {}, "findings": []}
+        if baseline:
+            report["baseline"] = baseline
 
-    for p in args.files:
-        stats = analyse(read(p))
-        report["files"][p.as_posix()] = stats
-        report["findings"].extend(findings_for(p.as_posix(), stats, baseline))
+        for p in args.files:
+            stats = analyse(read(p))
+            report["files"][p.as_posix()] = stats
+            report["findings"].extend(findings_for(p.as_posix(), stats, baseline))
+    except OSError as exc:
+        print(f"cannot analyse: {exc}", file=sys.stderr)
+        return 2
 
     if args.json:
         print(json.dumps(report, indent=2))
