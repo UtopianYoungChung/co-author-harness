@@ -691,7 +691,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "1684022dab76f4a259b94ac1779e167cdb18caa53cdee1a59112832680c71119",
+      "sha256": "03bca6875c62d2d10b6f3be313a370dbf29f6bdc83921f29430e34796e91c043",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "123440447efe86598c831dba5c78842c03d7ed04a7abb47f4e4be616b44ffd75",
+      "sha256": "0512a9745858b567f875b0c59c244b766ca5a7697c7b64659f61ce70678c33d5",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
