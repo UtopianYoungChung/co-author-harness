@@ -4,8 +4,8 @@ description: 'Run a targeted Bacon sentence-craft pass on academic prose — a c
 trigger: when the user asks for line editing, sentence-level feedback, prose polish, Bacon pass, fix the sentences, or tighten the prose
 created_by: Reflector
 created_from: Tier 2 skill build, 2026-04-11 — bacon_2009_well_crafted_sentence_guidelines.md had no standalone entry point
-pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist; voice_preservation_guidelines.md (C-7 idiolect carve-out)
-version: 1.4
+pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist; voice_preservation_guidelines.md (C-7 idiolect carve-out); EMDASH_BUNDLE_DISCIPLINE.md §1 (B4–B7 jurisdiction boundary)
+version: 1.5
 ---
 # Sentence-Level Pass (Bacon)
 
@@ -28,7 +28,7 @@ Run these counts on the manuscript (or the section the user specifies):
 | Sentences > 60 words | grep/count | 0 (each is a finding) |
 | Average sentence length | compute | ~15–20 for technical; ~25 for prestige/essay; flag if > 30 |
 | Max sentence length | compute | flag if > 50 |
-| Consecutive sentences of similar length (±3 words, 3+ in a row) | scan | flag clusters as monotony **unless the pattern recurs in the author's baseline (C-7 idiolect — see carve-out below)** |
+| Consecutive sentences of similar length (±3 words, 3+ in a row) | scan | flag clusters as monotony **unless the pattern recurs in the author's baseline (C-7 idiolect — see carve-out below)**. **Do not assign a numeric burstiness/CV verdict here** — dispersion belongs to B4 (`DETERMINISTIC_CHECKS.md` §4b), which carries no absolute threshold; report the local cluster, not a document statistic |
 | Em-dash (U+2014 `—` and LaTeX `---` in body prose) | `rg` count; per-paragraph if needed | **Total** in scope; any paragraph with **2+** em-dashes or **increase** vs. prior version if available → [MINOR] candidate (`research_paper_writing_guidelines.md` §7, `DETERMINISTIC_CHECKS.md` §3). **Rewrites must not** swap commas for em-dashes for “emphasis.” |
 | Dummy subjects (*it is*, *there is*, *there are*, *there remain*) | grep | flag each; not all are violations, but each must earn its place |
 | Passive voice clusters (3+ consecutive passive clauses) | scan | flag the cluster |
@@ -131,6 +131,18 @@ Do not clear this sentence merely because *hospital* is a concrete subject. The 
 - **Do not rewrite sentences.** Report findings and propose fixes. The Generator rewrites; the Evaluator verifies.
 - **Do not run safeguard checks.** This is a craft pass, not a post-review integrity check.
 - **Do not flag items already handled by DETERMINISTIC_CHECKS.md** (em-dashes, LLM tics, absolutes). Those are mechanical; this skill is judgment-based. If both overlap, note the overlap and skip the item here.
+- **Do not adjudicate B4–B7.** The dispersion bundle (`DETERMINISTIC_CHECKS.md` §4b, `EMDASH_BUNDLE_DISCIPLINE.md` §1) owns document-level rhythm (B4), clause-depth uniformity (B5), circular paragraph closure (B6), and undischarged complexity claims (B7). Report a *local* craft observation if you have one, but do not issue a burstiness verdict, and do not restate a B6/B7 finding as a Check 9 rhythm defect. Where your judgment and a B-rule disagree, say so rather than silently overriding either.
+
+### B5 and Bacon §§5–8 (use the craft, don't duplicate the count)
+
+B5 measures how often material sits between a subject and its predicate. It is a
+*count*; the remedy is exactly the craft this skill already teaches — appositives
+(Check 7), relative clauses (Check 5), verbal phrases (Check 6), cumulative and
+medial modification (Check 4). When a B5 finding arrives with the manuscript, treat
+it as a pointer into those checks rather than a separate defect: prose whose subjects
+sit adjacent to their verbs throughout is prose that is declining the constructions
+Bacon §§5–8 exist to supply. Propose the specific construction at specific sentences;
+never propose "add variety."
 
 ### C-7 idiolect carve-out (when C-7 is applicable)
 

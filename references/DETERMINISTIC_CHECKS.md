@@ -265,6 +265,76 @@ From MASTER §A.4.2. The "humanness pass." Each pattern is a tell; multiple hits
 
 ---
 
+## 4b. Register dispersion (B4–B7) — proxy candidates only (added 2026-08-21)
+
+§4 above counts *patterns*; §6 below measures *central tendency*. Neither measures
+**dispersion** — and a manuscript can sit dead-on every average while reading as
+machine-generated because its sentences are all the same shape. `scripts/register_dispersion_check.py`
+covers that gap. It is read-only (it writes no files, so it is not a census writer
+under `destination-coverage-check.py`).
+
+```bash
+python scripts/register_dispersion_check.py <file> [--baseline <accepted-prose>] [--json]
+```
+
+| Rule | Signal | Status |
+|---|---|---|
+| **B4** | Coefficient of variation of sentence length ("burstiness") | Measurement; finding only vs. `--baseline` |
+| **B5** | Rate of pre-predicate interrupting material (proxy for subject–verb distance) | Measurement; finding only vs. `--baseline` |
+| **B6** | Content-word overlap between a paragraph's first and last sentence (circular closure) | MINOR at ≥ 0.35 |
+| **B7** | "Nuanced"-family complexity claim the sentence never discharges | MINOR per instance |
+
+### Calibration record (binding on how these may be cited)
+
+The pattern inventory was prompted by a popular-audience video on AI writing tells
+(*Nail It With AI*, "7 Hidden AI Writing Tells," 2026-02-12). **That source's numbers
+are not in this package.** It attributes burstiness bands, detector accuracies, and
+corpus percentages to unnamed or unverifiable studies; `GROUNDING_PROTOCOL.md` is
+absolute, so none of them may be repeated as findings. What follows is local
+measurement, run 2026-08-21, and is falsifiable by recalibration.
+
+Corpus: 4 LLM-authored memos under `docs/analysis/` vs. 3 human-authored craft and
+scholarly sources under `references/` (Abbott, Suchman, Bacon).
+
+| | B4 rhythm CV | B5 interruption rate |
+|---|---|---|
+| LLM-authored | 0.602 – 0.683 | 0.304 – 0.615 |
+| Human-authored | 0.437 – 0.623 | 0.382 – 0.541 |
+
+**The ranges overlap and the direction is inverted.** The LLM sample scored *more*
+varied, not less. The low-burstiness-implies-machine claim did not replicate. An
+absolute low-CV threshold would have flagged Bacon's own published sentence-craft
+guide (CV 0.437) as machine-generated.
+
+Two consequences, both binding:
+
+1. **B4 and B5 carry no absolute threshold.** They are reported as measurements and
+   fire only as a within-author delta against `--baseline`. This is also what C-7
+   requires: the author's own prose is the yardstick, never a population constant.
+   Do not reintroduce a population band without rerunning this calibration on a
+   larger corpus and recording the result here.
+2. **B6 and B7 survive as detectors** because they measure a *local* property of the
+   text rather than a population comparison. B6 separated cleanly — across 48
+   qualifying paragraphs in both corpora the observed maximum overlap was 0.250 and
+   the 90th percentile 0.067, while a constructed circular paragraph scored 0.444;
+   0.35 sits in the empty band. A sweep across five human-authored reference works
+   produced zero findings.
+
+Two of the video's seven tells were **rejected outright** rather than implemented.
+Its "low perplexity" remedy (take creative risks, use idioms and colloquialisms,
+be surprising) is a register prescription that collides with C-7's prohibition on
+imposing a borrowed register, and the source itself concedes the measure misfires on
+formal prose. Its "synonym cycling" tell is already owned as judgment by C-6 and by
+Baird's terminology rule; a mechanical detector would duplicate that jurisdiction.
+The remaining tell, temporal vagueness, is not a style defect at all — an undated
+"recent studies show" is a citation failure, and it belongs to §7 and
+`CITATION_DISCIPLINE.md`, where it is now enforced.
+
+All B4–B7 outputs are **proxy candidates for Evaluator judgment, never normative
+semantic predicates** — the same status the reader-accessibility prefilters carry.
+
+---
+
 ## 5. Sentence focus and voice (Bacon §10; MASTER §F.2)
 
 | Rule | Pattern | Scope | Threshold | Severity | Fix hint |
@@ -316,6 +386,7 @@ cat file.tex \
 | Fabrication guard (MASTER §A.2) | `\[REF to be verified\]` | per file | Warn if present at submission time | **BLOCKER** if submission-bound | Verify each placeholder before submission. |
 | Citation order (Springer/numeric venues) | Manual: walk `\cite{...}` / `\bibitem` in appearance order | per file | Strict ordering if venue requires | MAJOR | Renumber. |
 | Unused bib entries | `grep -v '\cite{' mainfile.tex` against `\bibitem` keys | per file | Warn | MINOR | Remove unused bibitems. |
+| **Temporal vagueness on an evidential claim** (added 2026-08-21) | `\b(recent(ly\|\s+(studies\|work\|research\|years))\|in\s+recent\s+years\|nowadays\|the\s+modern\s+era\|contemporary\s+approaches\|traditional\s+methods\|increasingly)\b` | per file | Each hit requires judgment | **MAJOR** when the sentence asserts an evidential claim (a study, trend, or finding) with no date, date range, or citation carrying one; MINOR otherwise | Supply the actual period or the citation that dates it. "Recent studies show" is not a style tic — it is an undated evidential claim, and the reader cannot ask *which* studies or *when*. Prefer a named year, a range, or a dated citation. If the date is unknown, look it up rather than hedging. |
 | Undefined citations | Check LaTeX build log for `Citation 'X' undefined` | build log | ≤ 0 | **BLOCKER** if building for submission | Add the missing bib entry. |
 | Citation format consistency in `\hyperlink{}{}` documents | `\([A-Z][^)]+, [0-9]{4}\)` patterns not preceded by `\hyperlink` | per file | 0 | MINOR | Wrap plain `(Author, Year)` in `\hyperlink{key}{Author, Year}`. |
 | Compound-claim citation flag (L-P4) | Sentence ending in `\hyperlink{...}{...}\)` that contains any of `\s(and\|or\|as well as)\s` between a finite verb and the citation, or lists separated by commas terminated by a single citation | per file | Flag all matches as candidates for manual conjunct-level check | MAJOR if unverified | For each flagged sentence, verify the cited source supports *every* conjunct, not just the first. See GROUNDING_PROTOCOL.md §Audit Procedure, Rule 1 (conjunct-level attribution check). Remediate by splitting the citation, narrowing the claim, or replacing with a source that covers the full compound. |
