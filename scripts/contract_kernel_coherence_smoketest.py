@@ -434,90 +434,146 @@ def check_d4_valid_adapter_grants_nothing(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------
-# TH N1-N3 — hermetic projection/kernel/file drift detection
+# TH N1-N3 — hermetic post-envelope tree, then injected drift
 # --------------------------------------------------------------------------
 
-_N_PROJECTED_ID = "capability-registry"
+_N_PROJECTED_ID = "shipment-manifest-v2-schema"
+_KIT_NAMES = (
+    "shipment_manifest.schema.json",
+    "role_output_contract.json",
+    "contract_kernel_projection.json",
+    "canonicalization.json",
+    "diagnostic_map.json",
+    "shared_fixture_corpus.json",
+)
 
 
-def _load_kernel_and_projection() -> tuple[dict, dict]:
-    kernel = json.loads((ROOT / "references" / "contract_kernel.v1.json").read_text(encoding="utf-8"))
-    projection = json.loads(
-        (ROOT / "references" / "compatibility" / "shipment-v2" / "contract_kernel_projection.json").read_text(
-            encoding="utf-8"
+def _write_json(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+
+
+def _kit_aggregate_sha256(kit_root: Path) -> str:
+    kit_rows = [
+        {"path": name, "sha256": hashlib.sha256((kit_root / name).read_bytes()).hexdigest()}
+        for name in _KIT_NAMES
+    ]
+    kit_bytes = (
+        json.dumps(
+            {"algorithm": "sha256-canonical-kit-file-map-v1", "files": kit_rows},
+            sort_keys=True,
+            separators=(",", ":"),
         )
+        + "\n"
+    ).encode("utf-8")
+    return hashlib.sha256(kit_bytes).hexdigest()
+
+
+def _rebind_l7_l13_l25(tree: Path) -> str:
+    """Apply intended live-kernel pins inside a hermetic tree. Returns kernel sha256."""
+    kernel_path = tree / "references" / "contract_kernel.v1.json"
+    kernel_sha = hashlib.sha256(kernel_path.read_bytes()).hexdigest()
+    kit_root = tree / "references" / "compatibility" / "shipment-v2"
+    projection = json.loads((kit_root / "contract_kernel_projection.json").read_text(encoding="utf-8"))
+    profile = json.loads((kit_root / "compatibility_profile.json").read_text(encoding="utf-8"))
+    projection["kernel"]["sha256"] = kernel_sha
+    profile["contract_kernel"]["sha256"] = kernel_sha
+    _write_json(kit_root / "contract_kernel_projection.json", projection)
+    profile["compatibility_kit"]["sha256"] = _kit_aggregate_sha256(kit_root)
+    _write_json(kit_root / "compatibility_profile.json", profile)
+    return kernel_sha
+
+
+def _materialize_rebound_tree(dest: Path) -> Path:
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(
+        ROOT,
+        dest,
+        ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".pytest_cache", "node_modules"),
     )
-    return kernel, projection
+    _rebind_l7_l13_l25(dest)
+    return dest
 
 
-def _projection_kernel_component_errors(kernel: dict, projection: dict, kernel_file_sha256: str) -> list[str]:
-    errors: list[str] = []
-    if projection["kernel"]["sha256"] != kernel_file_sha256:
-        errors.append("compatibility-kit kernel projection hash drift")
-    kernel_components = {row["id"]: row["sha256"] for row in kernel["components"]}
-    for row in projection["components"]:
-        if kernel_components.get(row["id"]) != row["sha256"]:
-            errors.append(f"compatibility-kit component drift: {row['id']}")
-    return errors
+def _run_schema_runtime(tree: Path) -> tuple[int, dict]:
+    script = tree / "scripts" / "schema_runtime_check.py"
+    spec = importlib.util.spec_from_file_location(f"schema_runtime_{tree.name}", script)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    scripts_dir = str(tree / "scripts")
+    sys.path.insert(0, scripts_dir)
+    captured = io.StringIO()
+    try:
+        spec.loader.exec_module(module)
+        with redirect_stdout(captured):
+            status = module.main()
+    finally:
+        if sys.path and sys.path[0] == scripts_dir:
+            sys.path.pop(0)
+    raw = captured.getvalue().strip()
+    payload = json.loads(raw) if raw else {}
+    return status, payload
 
 
 def check_n1_projected_component_file_drift(sandbox: Path) -> None:
-    """Projected component file bytes differ from the projection row hash."""
-    kernel, projection = _load_kernel_and_projection()
-    proj_row = next(row for row in projection["components"] if row["id"] == _N_PROJECTED_ID)
+    """After L7/L13/L25 rebind, mutate one projected component FILE only."""
+    tree = _materialize_rebound_tree(sandbox / "n1-rebound")
+    baseline_status, baseline = _run_schema_runtime(tree)
+    assert baseline_status == 0, baseline
+    kernel = json.loads((tree / "references" / "contract_kernel.v1.json").read_text(encoding="utf-8"))
     krow = next(row for row in kernel["components"] if row["id"] == _N_PROJECTED_ID)
-    source = ROOT / krow["path"]
-    drifted = sandbox / "projected_component_file_drift.bin"
-    drifted.write_bytes(source.read_bytes() + b"\n#n1-file-drift\n")
-    file_sha = hashlib.sha256(drifted.read_bytes()).hexdigest()
-    assert file_sha != proj_row["sha256"]
-    mini = copy.deepcopy(kernel)
-    mini_row = next(row for row in mini["components"] if row["id"] == _N_PROJECTED_ID)
-    mini_row["path"] = drifted.name
-    mini["components"] = [mini_row]
-    (sandbox / "version.json").write_text(
-        (ROOT / "version.json").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    (sandbox / "README.md").write_text(
-        (ROOT / "README.md").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    (sandbox / "LICENSE").write_text(
-        (ROOT / "LICENSE").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    errors = MODULE.validate(sandbox, mini)
-    assert any("content hash drift" in error for error in errors), errors
+    target = tree / krow["path"]
+    target.write_bytes(target.read_bytes() + b"\n")
+    status, payload = _run_schema_runtime(tree)
+    detail = str(payload.get("detail", ""))
+    print(f"N1 schema_runtime status={status} detail={detail!r}")
+    assert status == 2, payload
+    assert "kernel projection hash drift" not in detail, payload
+    assert "compatibility-kit byte drift" in detail or "content hash drift" in detail, payload
+    errors = MODULE.validate(tree, kernel)
+    print(f"N1 validate={[e for e in errors if 'drift' in e]}")
+    assert any(f"{_N_PROJECTED_ID}: content hash drift" in error for error in errors), errors
 
 
-def check_n2_projection_row_only_drift() -> None:
-    """Projection component row hash differs; kernel row and file unchanged."""
-    kernel, projection = _load_kernel_and_projection()
-    kernel_file_sha = hashlib.sha256((ROOT / "references" / "contract_kernel.v1.json").read_bytes()).hexdigest()
-    drifted = copy.deepcopy(projection)
-    row = next(item for item in drifted["components"] if item["id"] == _N_PROJECTED_ID)
-    original = row["sha256"]
+def check_n2_projection_row_only_drift(sandbox: Path) -> None:
+    """After rebind, mutate one projection component ROW only; expect L129."""
+    tree = _materialize_rebound_tree(sandbox / "n2-rebound")
+    kit_root = tree / "references" / "compatibility" / "shipment-v2"
+    projection = json.loads((kit_root / "contract_kernel_projection.json").read_text(encoding="utf-8"))
+    row = next(item for item in projection["components"] if item["id"] == _N_PROJECTED_ID)
     row["sha256"] = "0" * 64
-    errors = _projection_kernel_component_errors(kernel, drifted, kernel_file_sha)
-    assert f"compatibility-kit component drift: {_N_PROJECTED_ID}" in errors, errors
-    clean = _projection_kernel_component_errors(kernel, projection, kernel_file_sha)
-    # Live kernel.sha256 pin may still be stale; row-only case must not depend on it.
-    assert f"compatibility-kit component drift: {_N_PROJECTED_ID}" not in clean
-    assert original != "0" * 64
+    _write_json(kit_root / "contract_kernel_projection.json", projection)
+    profile = json.loads((kit_root / "compatibility_profile.json").read_text(encoding="utf-8"))
+    profile["compatibility_kit"]["sha256"] = _kit_aggregate_sha256(kit_root)
+    _write_json(kit_root / "compatibility_profile.json", profile)
+    status, payload = _run_schema_runtime(tree)
+    detail = str(payload.get("detail", ""))
+    print(f"N2 schema_runtime status={status} detail={detail!r}")
+    assert status == 2, payload
+    assert detail == f"compatibility-kit component drift: {_N_PROJECTED_ID}", payload
+    assert "kernel projection hash drift" not in detail
 
 
-def check_n3_kernel_row_drift_without_file() -> None:
-    """Kernel component row hash differs; component file bytes unchanged."""
-    kernel, _projection = _load_kernel_and_projection()
-    case = copy.deepcopy(kernel)
-    row = next(item for item in case["components"] if item["id"] == _N_PROJECTED_ID)
-    live_path = ROOT / row["path"]
-    live_sha = hashlib.sha256(live_path.read_bytes()).hexdigest()
-    assert row["sha256"] == live_sha
+def check_n3_kernel_row_drift_without_file(sandbox: Path) -> None:
+    """After rebind, mutate kernel component ROW only; L129 + content-hash."""
+    tree = _materialize_rebound_tree(sandbox / "n3-rebound")
+    kernel_path = tree / "references" / "contract_kernel.v1.json"
+    kernel = json.loads(kernel_path.read_text(encoding="utf-8"))
+    row = next(item for item in kernel["components"] if item["id"] == _N_PROJECTED_ID)
+    component_file = tree / row["path"]
+    file_sha = hashlib.sha256(component_file.read_bytes()).hexdigest()
     row["sha256"] = "0" * 64
-    require_error(case, f"{_N_PROJECTED_ID}: content hash drift")
-    assert hashlib.sha256(live_path.read_bytes()).hexdigest() == live_sha
+    _write_json(kernel_path, kernel)
+    assert hashlib.sha256(component_file.read_bytes()).hexdigest() == file_sha
+    _rebind_l7_l13_l25(tree)
+    status, payload = _run_schema_runtime(tree)
+    detail = str(payload.get("detail", ""))
+    print(f"N3 schema_runtime status={status} detail={detail!r}")
+    assert status == 2, payload
+    assert detail == f"compatibility-kit component drift: {_N_PROJECTED_ID}", payload
+    errors = MODULE.validate(tree, kernel)
+    print(f"N3 validate={[e for e in errors if 'drift' in e]}")
+    assert any(f"{_N_PROJECTED_ID}: content hash drift" in error for error in errors), errors
 
 
 def check_d5_fixtures_are_synthetic(sandbox: Path) -> None:
@@ -616,8 +672,8 @@ def main() -> int:
     try:
         check_d5_fixtures_are_synthetic(sandbox)
         check_n1_projected_component_file_drift(sandbox)
-        check_n2_projection_row_only_drift()
-        check_n3_kernel_row_drift_without_file()
+        check_n2_projection_row_only_drift(sandbox)
+        check_n3_kernel_row_drift_without_file(sandbox)
         check_d1_no_workspace_paths_in_core()
         check_d1_template_is_unbound()
         check_d3_contract_language_is_schema_scoped()
