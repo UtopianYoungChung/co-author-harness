@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pypdf==6.14.2"]
+# ///
 """centroid-sentence-logic — admitted-passage sentence-pair instrument.
 
 The binder stays a binder. This script does not emit a scholarly CLEAN
@@ -48,6 +52,14 @@ CONTENT_STOP = frozenset(
     }
 )
 MODES = ("write", "review", "revise")
+# Must stay byte-for-byte semantically aligned with centroid_service. A logic
+# pass may consume a binder scope; it may not reinterpret the heading grammar.
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$")
+REFERENCE_HEADINGS = frozenset({"references", "bibliography", "works cited"})
+CONTROL_FIELD_RE = re.compile(r"^\*\*[^*]+:\*\*\s*")
+TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)+\s*\|?$")
+SHIPMENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+FENCE_RE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 
 
 class Refusal(RuntimeError):
@@ -130,7 +142,13 @@ def _passages_from_json(path: Path) -> list[dict[str, Any]]:
 
 
 def _extract_pdf_page(pdf_path: Path, page_number: int) -> str:
-    from pypdf import PdfReader
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:
+        raise Refusal(
+            "SENTENCE-LOGIC-DEPENDENCY",
+            "PDF admission requires the isolated script dependency; run with `uv run --python 3.11 scripts/centroid_sentence_logic.py ...`",
+        ) from exc
 
     reader = PdfReader(str(pdf_path))
     index = page_number - 1
@@ -165,6 +183,116 @@ def _passages_from_pdf(pdf_path: Path, source_key: str, pages: list[int], layer:
 def _sentences(text: str) -> list[str]:
     parts = [part.strip() for part in SENTENCE_SPLIT.split(text) if part.strip()]
     return parts if parts else [text.strip()] if text.strip() else []
+
+
+def _heading_scope(text: str, heading: str) -> str:
+    """Return one unique ATX heading scope, including its heading line."""
+    lines = text.splitlines()
+    matches: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        match = HEADING_RE.match(line)
+        if match and match.group(2).strip() == heading:
+            matches.append((index, len(match.group(1))))
+    if not matches:
+        raise Refusal("SENTENCE-LOGIC-SCOPE", f"heading not found: {heading}")
+    if len(matches) != 1:
+        raise Refusal("SENTENCE-LOGIC-SCOPE", f"heading occurs {len(matches)} times: {heading}")
+    start, level = matches[0]
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        match = HEADING_RE.match(lines[index])
+        if match and len(match.group(1)) <= level:
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
+def _bound_scope_text(text: str, scope: dict[str, Any], cli_heading: str | None) -> tuple[str, str | None]:
+    """Resolve the exact binder scope; CLI scope may not widen or retarget it."""
+    kind = str(scope.get("kind") or "")
+    packet_heading = str(scope.get("heading") or "").strip() or None
+    if kind == "heading":
+        if not packet_heading:
+            raise Refusal("SENTENCE-LOGIC-SCOPE", "heading-scoped packet has no heading")
+        if cli_heading is not None and cli_heading != packet_heading:
+            raise Refusal(
+                "SENTENCE-LOGIC-SCOPE",
+                f"--heading {cli_heading!r} does not match packet scope {packet_heading!r}",
+            )
+        scoped = _heading_scope(text, packet_heading)
+        return scoped, packet_heading
+    if kind != "full_manuscript":
+        raise Refusal("SENTENCE-LOGIC-SCOPE", f"unsupported packet scope kind: {kind or '<missing>'}")
+    if cli_heading is not None:
+        raise Refusal(
+            "SENTENCE-LOGIC-SCOPE",
+            "--heading requires a binder packet created for the same heading",
+        )
+    return text, None
+
+
+def _prose_text(text: str, *, scoped_heading: str | None) -> str:
+    """Remove Markdown control surfaces before sentence pairing."""
+    lines = text.splitlines()
+    start = 0
+    if lines and lines[0].strip() == "---":
+        for index in range(1, len(lines)):
+            if lines[index].strip() == "---":
+                start = index + 1
+                break
+    table_lines: set[int] = set()
+    for index in range(start, len(lines)):
+        if not TABLE_SEPARATOR_RE.fullmatch(lines[index].strip()):
+            continue
+        table_lines.add(index)
+        if index > start and "|" in lines[index - 1]:
+            table_lines.add(index - 1)
+        next_index = index + 1
+        while next_index < len(lines) and lines[next_index].strip() and "|" in lines[next_index]:
+            table_lines.add(next_index)
+            next_index += 1
+
+    prose: list[str] = []
+    fence_char: str | None = None
+    fence_length = 0
+    for line_index, raw in enumerate(lines[start:], start=start):
+        line = raw.strip()
+        fence_match = FENCE_RE.match(line)
+        if fence_char is not None:
+            if (
+                fence_match
+                and fence_match.group(1)[0] == fence_char
+                and len(fence_match.group(1)) >= fence_length
+                and not fence_match.group(2).strip()
+            ):
+                fence_char = None
+                fence_length = 0
+            continue
+        if fence_match:
+            marker = fence_match.group(1)
+            fence_char = marker[0]
+            fence_length = len(marker)
+            continue
+        if not line:
+            continue
+        if line_index in table_lines:
+            continue
+        heading_match = HEADING_RE.match(raw)
+        if heading_match:
+            heading_name = heading_match.group(2).strip().lower()
+            if scoped_heading is None and heading_name in REFERENCE_HEADINGS:
+                break
+            continue
+        if CONTROL_FIELD_RE.match(line):
+            continue
+        if line.startswith("|") and line.endswith("|"):
+            continue
+        if re.fullmatch(r"[-:| ]+", line):
+            continue
+        if re.fullmatch(r"!\[[^]]*\]\([^)]*\)", line):
+            continue
+        prose.append(line)
+    return "\n".join(prose)
 
 
 def _words(text: str) -> list[str]:
@@ -282,8 +410,6 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
             "manuscript sha256 does not match packet.manuscript.sha256; re-run centroid-pass on these bytes",
         )
     scope = bound.get("scope") or {}
-    if scope.get("sha256") and scope.get("sha256") != manuscript_sha and args.heading is None:
-        raise Refusal("SENTENCE-LOGIC-STALE", "scope sha256 does not match manuscript bytes")
     reason = packet.get("reason_code")
     ineligible = reason == "GRAPH-SEMANTIC-INELIGIBLE"
     graph_state = "ineligible" if ineligible else "eligible"
@@ -312,7 +438,12 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     text = manuscript_bytes.decode("utf-8", errors="strict")
-    sentences = _sentences(text)
+    scope_text, scope_heading = _bound_scope_text(text, scope, args.heading)
+    scope_sha = _sha_text(scope_text)
+    if scope.get("sha256") != scope_sha:
+        raise Refusal("SENTENCE-LOGIC-STALE", "packet scope sha256 does not match resolved scope bytes")
+    prose_text = _prose_text(scope_text, scoped_heading=scope_heading)
+    sentences = _sentences(prose_text)
     pairs = _pairs(sentences)
     cadence_misses = sum(1 for row in pairs if row["checks"]["join_cadence"] == "unearned_verdict")
     backtrack_misses = sum(1 for row in pairs if row["checks"]["needed_backtrack"] == "missing")
@@ -327,7 +458,10 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "packet_sha256": _sha_bytes(packet_path.read_bytes()),
         "manuscript_path": str(manuscript_path),
         "manuscript_sha256": manuscript_sha,
-        "scope_sha256": scope.get("sha256") or manuscript_sha,
+        "scope_kind": scope.get("kind"),
+        "scope_heading": scope_heading,
+        "scope_sha256": scope_sha,
+        "prose_sha256": _sha_text(prose_text),
         "graph_state": graph_state,
         "binder_reason_code": reason,
         "admitted_passages": admitted,
@@ -363,12 +497,23 @@ def _out_dir(args: argparse.Namespace) -> Path | None:
     if args.shipment_id:
         if not args.project_root:
             raise Refusal("SENTENCE-LOGIC-DEST", "--shipment-id requires --project-root")
-        dest = Path(args.project_root).resolve() / "reviews" / ".harness" / "shipments" / args.shipment_id
+        shipment_id = str(args.shipment_id)
+        if shipment_id in {".", ".."} or not SHIPMENT_ID_RE.fullmatch(shipment_id):
+            raise Refusal(
+                "SENTENCE-LOGIC-DEST",
+                "--shipment-id must be one safe path segment (letters, digits, dot, underscore, hyphen)",
+            )
+        dest = Path(args.project_root).resolve() / "reviews" / ".harness" / "shipments" / shipment_id
     elif args.out_dir:
         dest = Path(args.out_dir).resolve()
     else:
         return None
-    assert_writable(dest, purpose="centroid-sentence-logic receipt")
+    destination_class = assert_writable(dest, purpose="centroid-sentence-logic receipt")
+    if args.shipment_id and destination_class != "shipment":
+        raise Refusal(
+            "SENTENCE-LOGIC-DEST",
+            f"--shipment-id destination must classify as shipment, got {destination_class}",
+        )
     dest.mkdir(parents=True, exist_ok=True)
     return dest
 

@@ -29,11 +29,13 @@ After `centroid-pass` emits `status: binding_resolved`. While `reason_code` is `
 From the harness root:
 
 ```
-python scripts/centroid_sentence_logic.py --mode review --packet <binder.json> --manuscript <M4.md> --passages <joseph-passages.json>
-python scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --manuscript <M4.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
+uv run --python 3.11 scripts/centroid_sentence_logic.py --mode review --packet <binder.json> --manuscript <M4.md> --passages <joseph-passages.json>
+uv run --python 3.11 scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --manuscript <M4.md> --heading <exact-heading> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
 ```
 
-`--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound PDF pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+The script carries PEP 723 metadata that pins `pypdf==6.14.2`; `uv run` resolves it in an isolated script environment rather than mutating Hermes Agent's shared venv. `--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound PDF pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+
+`--heading` is an exact, case-sensitive ATX Markdown heading and must match the heading scope already bound in the centroid packet. It cannot narrow a full-manuscript packet or retarget a differently bound heading. Before sentence pairing, the instrument removes YAML front matter, Markdown headings/tables/fences, and the full-manuscript References/Bibliography tail; receipts bind both raw scope and filtered prose hashes.
 
 Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/.harness/shipments/<id>/` via `--shipment-id`.
 
