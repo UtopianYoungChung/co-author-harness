@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,242 @@ def run(tmp: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.
 def require(cond: bool, msg: str) -> None:
     if not cond:
         raise SystemExit(f"FAIL: {msg}")
+
+
+def _site_packages(prefix: Path) -> Path | None:
+    for candidate in (
+        prefix / "Lib" / "site-packages",
+        prefix / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    ):
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _pypdf_inventory(prefix: Path) -> dict[str, tuple[int, str]]:
+    site = _site_packages(prefix)
+    if site is None:
+        return {}
+    hits: dict[str, tuple[int, str]] = {}
+    for path in site.glob("pypdf*"):
+        files = [path] if path.is_file() else [item for item in path.rglob("*") if item.is_file()]
+        for item in files:
+            hits[str(item.resolve())] = (item.stat().st_size, hashlib.sha256(item.read_bytes()).hexdigest())
+    return hits
+
+
+def _venv_python(venv: Path) -> Path:
+    for candidate in (venv / "Scripts" / "python.exe", venv / "bin" / "python"):
+        if candidate.is_file():
+            return candidate
+    raise SystemExit(f"FAIL: isolated venv python missing under {venv}")
+
+
+def _pdf_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _minimal_pdf(pages: list[str]) -> bytes:
+    """Hand-rolled PDF so the fixture does not import host/Hermes pypdf."""
+    font_n = 3 + 2 * len(pages)
+    kids = " ".join(f"{3 + 2 * index} 0 R" for index in range(len(pages)))
+    objects: dict[int, bytes] = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: f"<< /Type /Pages /Kids [{kids}] /Count {len(pages)} >>".encode("ascii"),
+        font_n: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }
+    for index, text in enumerate(pages):
+        page_n = 3 + 2 * index
+        content_n = 4 + 2 * index
+        stream = f"BT /F1 12 Tf 72 720 Td ({_pdf_escape(text)}) Tj ET\n".encode("latin-1", "replace")
+        objects[page_n] = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            f"/Contents {content_n} 0 R /Resources << /Font << /F1 {font_n} 0 R >> >> >>"
+        ).encode("ascii")
+        objects[content_n] = b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"endstream"
+    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = {0: 0}
+    for number in sorted(objects):
+        offsets[number] = len(out)
+        out += f"{number} 0 obj\n".encode("ascii") + objects[number] + b"\nendobj\n"
+    xref_at = len(out)
+    size = max(objects) + 1
+    out += f"xref\n0 {size}\n".encode("ascii")
+    out += b"0000000000 65535 f \n"
+    for number in range(1, size):
+        out += f"{offsets[number]:010d} 00000 n \n".encode("ascii")
+    out += f"trailer\n<< /Size {size} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n".encode("ascii")
+    return bytes(out)
+
+
+def _isolation_env(tmp: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("PYTHONHOME", None)
+    env["PYTHONNOUSERSITE"] = "1"
+    env["UV_MANAGED_PYTHON"] = "1"
+    if extra:
+        env.update(extra)
+    return env
+
+
+def _run_from_harness_root(argv: list[str], *, env: dict[str, str], timeout: int = 180) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        argv,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        env=env,
+        timeout=timeout,
+    )
+
+
+def assert_dependency_isolation(tmp: Path, packet: Path, manuscript: Path) -> None:
+    """Fail if PDF isolation, passage independence, or fail-closed degrade."""
+    require(shutil.which("uv") is not None, "uv is required for isolated PDF admission")
+    hermes_prefix = Path(sys.prefix).resolve()
+    before = _pypdf_inventory(hermes_prefix)
+    quote = "Strategic actors depend on each other for goals to be achieved."
+    pdf_path = tmp / "yu-2011-window.pdf"
+    pdf_path.write_bytes(_minimal_pdf([f"spacer page {page}" for page in range(1, 7)] + [quote]))
+
+    bare = tmp / "bare-managed-311"
+    venv_run = _run_from_harness_root(
+        ["uv", "venv", "--python", "3.11", "--managed-python", str(bare)],
+        env=_isolation_env(tmp),
+    )
+    require(venv_run.returncode == 0, f"managed 3.11 venv must create: {venv_run.stdout}{venv_run.stderr}")
+    bare_python = _venv_python(bare)
+    bare_probe = _run_from_harness_root(
+        [str(bare_python), "-c", "import importlib.util, sys; print(sys.prefix); print(importlib.util.find_spec('pypdf'))"],
+        env=_isolation_env(tmp),
+    )
+    require(bare_probe.returncode == 0 and "None" in bare_probe.stdout.splitlines()[-1], "bare managed 3.11 must not already have pypdf")
+    require(Path(bare_probe.stdout.splitlines()[0]).resolve() != hermes_prefix, "bare venv must not be Hermes shared venv")
+
+    passage_argv = [
+        str(bare_python),
+        str(SCRIPT),
+        "--packet",
+        str(packet),
+        "--manuscript",
+        str(manuscript),
+        "--mode",
+        "review",
+        "--passages",
+        str(packet.parent / "passages.json"),
+    ]
+    passage_run = _run_from_harness_root(passage_argv, env=_isolation_env(tmp))
+    require(passage_run.returncode == 0, f"non-PDF passage mode must stay dependency-free: {passage_run.stdout}{passage_run.stderr}")
+    passage_receipt = json.loads(passage_run.stdout)
+    require(passage_receipt["status"] == "ready_for_role", "passage mode must not mint CLEAN")
+    require(passage_receipt["summary"]["CLEAN"] == 0, "passage mode must not mint CLEAN counts")
+    require(passage_receipt["reason_code"] is None, "passage mode must not emit a dependency refusal")
+
+    missing_run = _run_from_harness_root(
+        [
+            str(bare_python),
+            str(SCRIPT),
+            "--packet",
+            str(packet),
+            "--manuscript",
+            str(manuscript),
+            "--mode",
+            "review",
+            "--admit-pdf",
+            str(pdf_path),
+            "--pages",
+            "7",
+        ],
+        env=_isolation_env(tmp),
+    )
+    require(missing_run.returncode == 4, f"unavailable pypdf must fail closed: {missing_run.stdout}{missing_run.stderr}")
+    missing = json.loads(missing_run.stdout)
+    require(missing["status"] == "blocked", "unavailable dependency must not silently degrade to a ready receipt")
+    require(missing["reason_code"] == "SENTENCE-LOGIC-DEPENDENCY", "unavailable dependency must use stable SENTENCE-LOGIC-DEPENDENCY")
+    require("CLEAN" not in json.dumps(missing), "fail-closed PDF admission must not mint CLEAN")
+
+    probe = tmp / "interpreter-probe.json"
+    probe_dir = tmp / "sitecustomize-dir"
+    probe_dir.mkdir()
+    (probe_dir / "sitecustomize.py").write_text(
+        "import json, os, sys\n"
+        "from importlib.metadata import version\n"
+        "from importlib.util import find_spec\n"
+        "from pathlib import Path\n"
+        "spec = find_spec('pypdf')\n"
+        "Path(os.environ['SENTENCE_LOGIC_ISOLATION_PROBE']).write_text(\n"
+        "    json.dumps({\n"
+        "        'executable': sys.executable,\n"
+        "        'prefix': sys.prefix,\n"
+        "        'version_info': list(sys.version_info[:3]),\n"
+        "        'pypdf_origin': None if spec is None else spec.origin,\n"
+        "        'pypdf_version': None if spec is None else version('pypdf'),\n"
+        "    }),\n"
+        "    encoding='utf-8',\n"
+        ")\n",
+        encoding="utf-8",
+    )
+    isolated_env = _isolation_env(
+        tmp,
+        {
+            "PYTHONPATH": str(probe_dir),
+            "SENTENCE_LOGIC_ISOLATION_PROBE": str(probe),
+        },
+    )
+    isolated_run = _run_from_harness_root(
+        [
+            "uv",
+            "run",
+            "--python",
+            "3.11",
+            "--isolated",
+            "--no-project",
+            "--managed-python",
+            "--script",
+            str(SCRIPT),
+            "--packet",
+            str(packet),
+            "--manuscript",
+            str(manuscript),
+            "--mode",
+            "review",
+            "--admit-pdf",
+            str(pdf_path),
+            "--pages",
+            "7",
+        ],
+        env=isolated_env,
+    )
+    require(isolated_run.returncode == 0, f"PDF admission from harness root in managed 3.11 must succeed: {isolated_run.stdout}{isolated_run.stderr}")
+    isolated = json.loads(isolated_run.stdout)
+    require(isolated["status"] == "ready_for_role", "isolated PDF admission must not mint CLEAN")
+    require(isolated["summary"]["CLEAN"] == 0, "isolated PDF admission must not mint CLEAN counts")
+    require(isolated["pairs"][0]["verdict"] == "not_run", "roles still fill isolated PDF verdicts")
+    require(len(isolated["admitted_passages"]) == 1, "isolated PDF admission must bind the requested page")
+    admitted = isolated["admitted_passages"][0]
+    require(admitted["admitted_by"] == "hash-bound-pdf", "PDF page must be hash-bound, not a silent paste fallback")
+    require(admitted.get("page") == 7, "isolated PDF admission must read the requested page")
+    require(quote in admitted["quote"].replace("\n", " "), "isolated PDF admission must extract the page text")
+
+    require(probe.is_file(), "isolated run must record its interpreter identity")
+    identity = json.loads(probe.read_text(encoding="utf-8"))
+    child_prefix = Path(identity["prefix"]).resolve()
+    child_exe = Path(identity["executable"]).resolve()
+    require(identity["version_info"][:2] == [3, 11], "PDF admission must run on managed Python 3.11")
+    require(child_prefix != hermes_prefix, "PDF admission must not use Hermes shared venv prefix")
+    require(child_exe != Path(sys.executable).resolve(), "PDF admission must not use the Hermes interpreter")
+    require(identity["pypdf_origin"], "isolated PDF admission must resolve pypdf inside the script env")
+    require(
+        hermes_prefix not in Path(identity["pypdf_origin"]).resolve().parents
+        and Path(identity["pypdf_origin"]).resolve() != hermes_prefix,
+        "isolated pypdf must not be loaded from Hermes shared venv",
+    )
+    require(identity["pypdf_version"] == "6.14.2", "isolated env must honor the PEP 723 pypdf pin")
+    after = _pypdf_inventory(hermes_prefix)
+    require(after == before, "isolated PDF admission must not mutate Hermes shared venv pypdf artifacts")
 
 
 def main() -> int:
@@ -251,6 +488,21 @@ Yu, E. 2011. Bibliography fragment. https://doi.org/10.0000/example.
         fake_pdf.write_bytes(b"%PDF-1.4 simulated")
         dependency_env = os.environ.copy()
         dependency_env["PYTHONPATH"] = str(blocked_import)
+        passage_blocked = run(
+            tmp,
+            "--packet", str(pkt),
+            "--manuscript", str(man),
+            "--mode", "review",
+            "--passages", str(pas),
+            env=dependency_env,
+        )
+        require(passage_blocked.returncode == 0, f"passage mode must not require pypdf: {passage_blocked.stdout}{passage_blocked.stderr}")
+        passage_blocked_receipt = json.loads(passage_blocked.stdout)
+        require(
+            passage_blocked_receipt["status"] == "ready_for_role" and passage_blocked_receipt["summary"]["CLEAN"] == 0,
+            "blocked-pypdf passage mode must not mint CLEAN",
+        )
+
         dependency_run = run(
             tmp,
             "--packet", str(pkt),
@@ -266,6 +518,11 @@ Yu, E. 2011. Bibliography fragment. https://doi.org/10.0000/example.
             and "Traceback" not in dependency_run.stderr,
             "missing pypdf must fail closed with a stable dependency code",
         )
+        dependency_payload = json.loads(dependency_run.stdout)
+        require(dependency_payload["status"] == "blocked", "missing pypdf must not degrade to a ready receipt")
+        require(dependency_payload["reason_code"] == "SENTENCE-LOGIC-DEPENDENCY", "missing pypdf must keep the stable reason_code")
+
+        assert_dependency_isolation(tmp, pkt, man)
 
         fake_workspace = tmp / "fake-workspace"
         routing_manifest = fake_workspace / "governance" / "output-routing" / "output_routing.yaml"
