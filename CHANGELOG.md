@@ -48,6 +48,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 **Abstract-citation polarity (2026-08-21).** The evaluate-gap slice made abstract-citation *absence* a MINOR. That was a drafting magnet: agents inserted citations to “clear” the finding while venue/`citation_style` were TBD. `d_style_profile.abstract_citation_policy` is now `tbd` (default) | `required` | `forbidden`. TBD records presence or absence as INFO only and tells the Generator not to insert or strip citations to close a finding. MINOR-on-absence fires only when the named policy is `required`. MINOR-on-presence fires only when the named policy is `forbidden`. The harness does not infer that policy from `citation_style`. `/check-abstract-body` Part D matches. DEST-PROTECTED, SK-32 CLOSED, no scholarly CLEAN.
 
+**Shipment-v2 kernel-projection requalification (2026-08-22).** Hash-only rebind of `references/compatibility/shipment-v2/contract_kernel_projection.json` `kernel.sha256` and `compatibility_profile.json` `contract_kernel.sha256` to live kernel `9cd6793b46ad5ea2567dddbe27147c2cae6f72f217b8bffdf71348525a91512f`. `compatibility_kit.sha256` recomputed with the schema_runtime six-file canonical-map + trailing-newline algorithm. Projection component rows and versions are unchanged. `scripts/contract_kernel_coherence_smoketest.py` adds hermetic N1–N3 refusal cases (projected component file drift, projection row-only drift, kernel row drift without file). Not a kernel release, not a new compatibility contract, no README/spec.
+
 ## v0.43.1 — 2026-08-14
 
 ### Shipment-v2 membership repair and qualification-coverage closure

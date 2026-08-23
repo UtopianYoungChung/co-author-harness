@@ -433,6 +433,93 @@ def check_d4_valid_adapter_grants_nothing(sandbox: Path) -> None:
 # D5 - every fixture is a synthetic temporary tree outside live project roots
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# TH N1-N3 — hermetic projection/kernel/file drift detection
+# --------------------------------------------------------------------------
+
+_N_PROJECTED_ID = "capability-registry"
+
+
+def _load_kernel_and_projection() -> tuple[dict, dict]:
+    kernel = json.loads((ROOT / "references" / "contract_kernel.v1.json").read_text(encoding="utf-8"))
+    projection = json.loads(
+        (ROOT / "references" / "compatibility" / "shipment-v2" / "contract_kernel_projection.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    return kernel, projection
+
+
+def _projection_kernel_component_errors(kernel: dict, projection: dict, kernel_file_sha256: str) -> list[str]:
+    errors: list[str] = []
+    if projection["kernel"]["sha256"] != kernel_file_sha256:
+        errors.append("compatibility-kit kernel projection hash drift")
+    kernel_components = {row["id"]: row["sha256"] for row in kernel["components"]}
+    for row in projection["components"]:
+        if kernel_components.get(row["id"]) != row["sha256"]:
+            errors.append(f"compatibility-kit component drift: {row['id']}")
+    return errors
+
+
+def check_n1_projected_component_file_drift(sandbox: Path) -> None:
+    """Projected component file bytes differ from the projection row hash."""
+    kernel, projection = _load_kernel_and_projection()
+    proj_row = next(row for row in projection["components"] if row["id"] == _N_PROJECTED_ID)
+    krow = next(row for row in kernel["components"] if row["id"] == _N_PROJECTED_ID)
+    source = ROOT / krow["path"]
+    drifted = sandbox / "projected_component_file_drift.bin"
+    drifted.write_bytes(source.read_bytes() + b"\n#n1-file-drift\n")
+    file_sha = hashlib.sha256(drifted.read_bytes()).hexdigest()
+    assert file_sha != proj_row["sha256"]
+    mini = copy.deepcopy(kernel)
+    mini_row = next(row for row in mini["components"] if row["id"] == _N_PROJECTED_ID)
+    mini_row["path"] = drifted.name
+    mini["components"] = [mini_row]
+    (sandbox / "version.json").write_text(
+        (ROOT / "version.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (sandbox / "README.md").write_text(
+        (ROOT / "README.md").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (sandbox / "LICENSE").write_text(
+        (ROOT / "LICENSE").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    errors = MODULE.validate(sandbox, mini)
+    assert any("content hash drift" in error for error in errors), errors
+
+
+def check_n2_projection_row_only_drift() -> None:
+    """Projection component row hash differs; kernel row and file unchanged."""
+    kernel, projection = _load_kernel_and_projection()
+    kernel_file_sha = hashlib.sha256((ROOT / "references" / "contract_kernel.v1.json").read_bytes()).hexdigest()
+    drifted = copy.deepcopy(projection)
+    row = next(item for item in drifted["components"] if item["id"] == _N_PROJECTED_ID)
+    original = row["sha256"]
+    row["sha256"] = "0" * 64
+    errors = _projection_kernel_component_errors(kernel, drifted, kernel_file_sha)
+    assert f"compatibility-kit component drift: {_N_PROJECTED_ID}" in errors, errors
+    clean = _projection_kernel_component_errors(kernel, projection, kernel_file_sha)
+    # Live kernel.sha256 pin may still be stale; row-only case must not depend on it.
+    assert f"compatibility-kit component drift: {_N_PROJECTED_ID}" not in clean
+    assert original != "0" * 64
+
+
+def check_n3_kernel_row_drift_without_file() -> None:
+    """Kernel component row hash differs; component file bytes unchanged."""
+    kernel, _projection = _load_kernel_and_projection()
+    case = copy.deepcopy(kernel)
+    row = next(item for item in case["components"] if item["id"] == _N_PROJECTED_ID)
+    live_path = ROOT / row["path"]
+    live_sha = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    assert row["sha256"] == live_sha
+    row["sha256"] = "0" * 64
+    require_error(case, f"{_N_PROJECTED_ID}: content hash drift")
+    assert hashlib.sha256(live_path.read_bytes()).hexdigest() == live_sha
+
+
 def check_d5_fixtures_are_synthetic(sandbox: Path) -> None:
     resolved = sandbox.resolve()
     assert resolved.is_dir()
@@ -528,6 +615,9 @@ def main() -> int:
     sandbox = Path(tempfile.mkdtemp(prefix="coauthor-core-decoupling-"))
     try:
         check_d5_fixtures_are_synthetic(sandbox)
+        check_n1_projected_component_file_drift(sandbox)
+        check_n2_projection_row_only_drift()
+        check_n3_kernel_row_drift_without_file()
         check_d1_no_workspace_paths_in_core()
         check_d1_template_is_unbound()
         check_d3_contract_language_is_schema_scoped()
