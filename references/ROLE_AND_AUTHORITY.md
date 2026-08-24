@@ -34,12 +34,27 @@ package shipped at v0.37.4 and names the already-installed Master Governance
 clauses that govern that boundary.
 
 **Bound Master Governance version (7.7).** Before any write, this package
-must name the bound Master Governance version. Resolve the current head
-by exact path and existence only, never by hashes: if
+must name the bound Master Governance version. The mechanical resolver is
+workspace `governance/tools/master_governance_resolver.py`, invoked by
+`governance/tools/workspace_preflight.py`. Resolve the current head by
+exact path and existence only, never by hashes, in this order: if
+`research/99_System/migrations/2026-08-20_master_governance_amendment_1_0_11/JOSEPH_AMENDMENT_ANCHOR.yaml`
+exists, it must validate against
+`research/10_Governance/MASTER_GOVERNANCE_AMENDMENT_RECORD_1.0.11.md`; if
+that validation succeeds, the bound version is **1.0.11**; if that file
+exists and validation fails, evaluation STOPs and must not fall back. If
+that A06 path is absent and
+`research/99_System/migrations/2026-08-20_master_governance_amendment_1_0_10/JOSEPH_AMENDMENT_ANCHOR.yaml`
+exists, it must validate against
+`research/10_Governance/MASTER_GOVERNANCE_AMENDMENT_RECORD_1.0.10.md`; if
+that validation succeeds, the bound version is **1.0.10**; if that file
+exists and validation fails, evaluation STOPs and must not fall back. If
+that A05 path is absent and
 `research/99_System/migrations/2026-08-04_master_governance_amendment_1_0_9/JOSEPH_AMENDMENT_ANCHOR.yaml`
 exists and validates against
 `research/10_Governance/MASTER_GOVERNANCE_AMENDMENT_RECORD_1.0.9.md`, the
-bound version is **1.0.9**; else if
+bound version is **1.0.9**; a present invalid A02 STOPs and must not fall
+back. Else if
 `research/99_System/migrations/2026-08-03_ws10_authority_split/JOSEPH_ACTIVATION_ANCHOR.yaml`
 exists and validates against
 `research/10_Governance/ACTIVATION_RECORD.md`, the bound version is
