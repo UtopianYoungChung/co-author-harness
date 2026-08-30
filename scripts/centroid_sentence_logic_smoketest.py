@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -63,7 +64,17 @@ def main() -> int:
         man = tmp / "m.md"
         pkt = tmp / "packet.json"
         pas = tmp / "passages.json"
-        out = tmp / "out"
+        out = Path(tempfile.mkdtemp(prefix=".centroid-check-smoke-", dir=str(ROOT)))
+        try:
+            _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages)
+        finally:
+            shutil.rmtree(out, ignore_errors=True)
+
+    print("centroid_sentence_logic_smoketest: PASS")
+    return 0
+
+
+def _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages) -> None:
         man.write_text(manuscript, encoding="utf-8", newline="\n")
         pkt.write_text(json.dumps(packet), encoding="utf-8")
         pas.write_text(json.dumps(passages), encoding="utf-8")
@@ -199,9 +210,6 @@ def main() -> int:
         require("centroid-bind" in help_run.stdout, "help names centroid-bind")
         require("Printed book pages" in help_run.stdout, "help says --pages is printed book pages")
         require("PDF-index 3,7,12" in help_run.stdout, "help refuses legacy PDF-index 3,7,12")
-
-    print("centroid_sentence_logic_smoketest: PASS")
-    return 0
 
 
 if __name__ == "__main__":

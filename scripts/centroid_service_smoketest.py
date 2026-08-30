@@ -277,7 +277,7 @@ def main() -> int:
         assert "centroid-source" in help_result.stdout
         assert "centroid-check" in help_result.stdout
         assert "centroid-bind" in help_result.stdout
-        assert "GRAPH-SEMANTIC-INELIGIBLE is eligibility" in help_result.stdout
+        assert "INELIGIBLE is eligibility" in help_result.stdout
 
         after = {path: tree_digest(path) for path in (project, wiki, workspace)}
         # Restore-neutral comparison: only the smoke itself changed the manuscript.
