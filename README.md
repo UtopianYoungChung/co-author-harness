@@ -24,15 +24,30 @@ The harness root is **canonical** (formerly `research-writing-harness/`; `paper-
 
 ## Features
 
-* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives Generator work under the obligations derived from its authoritative reader binding and an independent current-byte Evaluator policy pass, including at Ph1; centroid work applies only when that binding enables governed semantic use, and the full revision-maturity review begins at Ph2. Role engagement is governed by [`references/policies/phase_engagement.v1.json`](references/policies/phase_engagement.v1.json); model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
+* **Multi-agent, phase-conditioned dispatch.** Every M1-M4/FINAL draft receives Generator work under the obligations derived from its authoritative reader binding and an independent current-byte Evaluator policy pass, including at Ph1; the full revision-maturity review begins at Ph2. Centroid-bind and centroid-check are invoke-only (see Centroid below); reader-profile v2 with semantic_usage not_invoked does not auto-dispatch /centroid-pass. Role engagement is governed by [`references/policies/phase_engagement.v1.json`](references/policies/phase_engagement.v1.json); model allocation and obligations are in [`references/MODEL_ALLOCATION.md`](references/MODEL_ALLOCATION.md) and [`references/AGENT_CONTRACTS.md`](references/AGENT_CONTRACTS.md).
 * **Artifact presence is not compliance.** [`references/policies/draft_governance.v1.json`](references/policies/draft_governance.v1.json) binds centroid, D-STYLE, retained grammar/style rules, grounding, deterministic checks, SAFEGUARD, and applicable overlays before generation and after evaluation. Milestone record and terminal close require exact-byte evidence from both roles.
 * **Two orthogonal axes.** Ph1 (Plan & Draft) → Ph2 (Review & Revise) → Ph3 (Iterate & Converge) → Ph4 (Finalize & Close) is specified in [`references/PHASE_PROTOCOL.md`](references/PHASE_PROTOCOL.md) (schema, triggers, MCR / convergence gates). Assignment-derived deliverables describe the *project* arc; the phase ladder governs *review and revision*. The backward-compatible M5 machine slot may represent a final paper that the assignment treats separately from its named milestones.
 * **Grounding in front of cleverness.** [`references/GROUNDING_PROTOCOL.md`](references/GROUNDING_PROTOCOL.md) is absolute: no fabrication, no uncited numbers, no unverified citations. Precedence and cross-project rules: [`docs/agent-instructions/harness-governance.md`](docs/agent-instructions/harness-governance.md).
-* **Slash-style skills, documented as files.** Slash commands under [`skills/`](skills/) (e.g. `check-contradictions`, `grounding-audit`, `narrative-structure-pass`, `seed-snowball-discovery`, `claim-coverage-audit`, `extend-snowball-incremental`) with machine-checkable front matter—validated by the scripts below.
+* **Slash-style skills, documented as files.** Slash commands under [`skills/`](skills/) (e.g. `/run-draft`, `/run-iterate`, `/run-finalize`, `/centroid-pass`, `/centroid-sentence-logic`, `check-contradictions`, `grounding-audit`) with machine-checkable front matter—validated by the scripts below.
 
 ### Skill catalog
 
 See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the supported slash-command table. Visibility is governed by [`references/policies/command_surface.v1.json`](references/policies/command_surface.v1.json) and checked against native skill frontmatter by `scripts/command_surface_check.py`.
+
+### Centroid
+
+Current instrument (leftover centroid-names, accepted 2026-08-30). Catalog ids stay `/centroid-pass` and `/centroid-sentence-logic`; both are `active` in [`references/capabilities.yaml`](references/capabilities.yaml). Policy member `yu-et-al-2011-social-modeling` in [`references/policies/reader_accessibility.v1.json`](references/policies/reader_accessibility.v1.json).
+
+* **centroid-source.** Policy member `yu-et-al-2011-social-modeling`, role centroid, Yu-authored window book pp. 3-10 and 11-52. Does not move when a check binds new manuscript bytes. Dennett is warrant, not a second centroid.
+* **centroid-check.** `/centroid-sentence-logic` (`scripts/centroid_sentence_logic.py`). Named manuscript bytes against that source. Pairs verdict `not_run` until roles fill CLEAN/ADVISORY/BLOCKER. A check of live M4 is a check, not a redefinition of the source. `--pages` is printed book pages; legacy PDF-index 3,7,12 refused.
+* **centroid-bind.** `/centroid-pass` (`scripts/centroid_service.py`). Policy plus graph eligibility plus named bytes. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. Empty `semantic_findings` is not a pass. Does not mint scholarly CLEAN.
+
+**Does:** four-agent Planner/Evaluator/Generator/Reflector plugin; climb-only phase ladder; grounding non-negotiable; public `/run-draft` `/run-iterate` `/run-finalize`; invoke-only centroid-bind and centroid-check as above.
+
+**Does not:** write the manuscript from centroid skills; mint scholarly CLEAN from the binder; treat empty findings as pass; treat `GRAPH-SEMANTIC-INELIGIBLE` as a pair CLEAN/BLOCKER; redefine centroid-source by hashing M4; graph-governed generation (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE`); Wiki mutation from this package; promote research artifacts.
+
+SK-32 stays CLOSED. Graph `extraction_mode` structural-only remains; 2026-07-25 is not reopened here.
+
 
 ---
 
@@ -152,7 +167,7 @@ Full release packaging: `scripts/release-gate.sh` (see script header). Release z
 
 ## Version
 
-The current version is recorded in [`version.json`](version.json), which is its sole authority. This section is release **history**; it does not restate the current version.
+The current version is recorded in [`version.json`](version.json), which is its sole authority. This section is release **history**; it does not restate the current version. Rows such as 0.32.0 / 0.33.0 public `/centroid-pass` `IMPLEMENTATION_MISSING` / unavailable are history, not current disposition.
 
 | Release | Highlights |
 | --- | --- |
