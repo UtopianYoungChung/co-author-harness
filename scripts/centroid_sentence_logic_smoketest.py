@@ -12,6 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "centroid_sentence_logic.py"
+sys.path.insert(0, str(ROOT / "scripts"))
+import centroid_sentence_logic as csl  # noqa: E402
 
 
 def sha(text: str) -> str:
@@ -94,13 +96,29 @@ def main() -> int:
         receipt = json.loads(ok.stdout)
         require(receipt["status"] == "ready_for_role", "must not mint CLEAN")
         require(receipt["summary"]["CLEAN"] == 0, "must not mint CLEAN counts")
+        require(receipt["pass"] == "centroid-check", "instrument name is centroid-check")
+        require(receipt["instrument"] == "centroid-check", "instrument field")
+        require(receipt["centroid_source"] == "yu-et-al-2011-social-modeling", "centroid-source stays Yu 2011")
+        require(
+            receipt["naming"]
+            == (
+                f"this is a centroid-check of manuscript {receipt['manuscript_sha256']}/"
+                f"{receipt['manuscript_bytes']} against centroid-source yu-et-al-2011-social-modeling"
+            ),
+            "receipt must name check vs source",
+        )
+        require("eligibility, not a pair verdict" in " ".join(receipt["limitations"]), "bind eligibility sentence")
         require(len(receipt["pairs"]) == 1, "expected one sentence pair")
         require(receipt["pairs"][0]["verdict"] == "not_run", "roles fill verdicts")
         require(receipt["pairs"][0]["checks"]["join_cadence"] == "derivation_shown", "that-dependency pair should show derivation")
         require(receipt["pairs"][0]["checks"]["needed_backtrack"] == "not_required", "forward derivation must not require backtrack")
         require(receipt["summary"]["all_short_stack"] is False, "two-sentence manuscript is not a stack")
-        require((out / "centroid-sentence-logic_review.json").is_file(), "json receipt missing")
-        require((out / "centroid-sentence-logic_review.md").is_file(), "md receipt missing")
+        require((out / "centroid-check_review.json").is_file(), "json receipt missing")
+        require((out / "centroid-check_review.md").is_file(), "md receipt missing")
+        md = (out / "centroid-check_review.md").read_text(encoding="utf-8")
+        require("this is a centroid-check of manuscript" in md, "md receipt names the check")
+        require("centroid-source yu-et-al-2011-social-modeling" in md, "md receipt names the source")
+        require("GRAPH-SEMANTIC-INELIGIBLE" in md, "md receipt keeps bind eligibility distinct")
 
         short = "Actors depend. So they are strategic. Thus i-star applies.\n"
         short_sha = sha(short)
@@ -134,6 +152,53 @@ def main() -> int:
         retract_receipt = json.loads(retract_run.stdout)
         require(retract_receipt["pairs"][0]["checks"]["needed_backtrack"] == "missing", "short retract without return is a needed-backtrack miss")
         require(retract_receipt["pairs"][0]["verdict"] == "not_run", "backtrack miss is a signal, not a minted BLOCKER")
+
+        locked = run(
+            tmp,
+            "--packet", str(pkt),
+            "--manuscript", str(man),
+            "--mode", "review",
+            "--passages", str(pas),
+            "--centroid-source", "yu-1995-istar",
+        )
+        require(locked.returncode == 4 and "SENTENCE-LOGIC-SOURCE" in locked.stdout, "centroid-source must stay locked")
+
+        # Legacy PDF-index 3,7,12: identity labels on title/foreword/contents are not printed book pages.
+        front_pages = []
+        headings = {3: "TITLE PAGE", 7: "FOREWORD", 12: "CONTENTS"}
+        for identity in range(1, 13):
+            heading = headings.get(identity, "front matter")
+            front_pages.append(
+                {
+                    "identity": identity,
+                    "label": str(identity),
+                    "text": f"{heading}\nSocial Modeling\n{identity}\n",
+                }
+            )
+        try:
+            csl.resolve_printed_pages(front_pages, [3, 7, 12])
+        except csl.Refusal as exc:
+            require(exc.code == "SENTENCE-LOGIC-PDF-INDEX", f"legacy PDF-index must refuse, got {exc.code}")
+        else:
+            raise SystemExit("FAIL: legacy PDF-index 3,7,12 must be refused")
+
+        yu_body = [
+            {
+                "identity": 20,
+                "label": "iv",
+                "text": "Actors depend on each other for goals to be achieved.\n7\n",
+            }
+        ]
+        admitted = csl.resolve_printed_pages(yu_body, [7])
+        require(admitted[0]["printed_page"] == 7, "printed book page 7 must resolve from a non-identity footer")
+
+        help_run = run(tmp, "--help")
+        require(help_run.returncode == 0, "help must run")
+        require("centroid-source" in help_run.stdout, "help names centroid-source")
+        require("centroid-check" in help_run.stdout, "help names centroid-check")
+        require("centroid-bind" in help_run.stdout, "help names centroid-bind")
+        require("Printed book pages" in help_run.stdout, "help says --pages is printed book pages")
+        require("PDF-index 3,7,12" in help_run.stdout, "help refuses legacy PDF-index 3,7,12")
 
     print("centroid_sentence_logic_smoketest: PASS")
     return 0

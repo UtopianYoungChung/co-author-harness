@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
-"""centroid-sentence-logic — admitted-passage sentence-pair instrument.
+"""centroid-check — join consecutive sentences to admitted Yu/Dennett passages.
 
-The binder stays a binder. This script does not emit a scholarly CLEAN
-verdict. It fail-closes without a binding_resolved packet, matching
-manuscript bytes, and admitted passages (Joseph paste or hash-bound PDF
-pages). Roles fill pair verdicts. SK-32 stays CLOSED.
+This CLI is centroid-check. It is not centroid-source and not a centroid-bind.
 
-Join-cadence is a miss of its own: S_n+1 must show derivation from S_n,
-not only an attested hinge. Mechanical signals only. No CLEAN mint.
+  centroid-source  live policy member yu-et-al-2011-social-modeling (role
+                   centroid). Retrieval is the Yu-authored window only: book
+                   pp. 3-10 and 11-52. Dennett is argument-only warrant, not
+                   a second centroid. That object does not move when this
+                   check binds new manuscript bytes.
+  centroid-check   this instrument. Requires named manuscript bytes at start.
+                   A check of live M4 is a check, not a redefinition of
+                   centroid-source. Receipts say: this is a centroid-check of
+                   manuscript <sha256/bytes> against centroid-source
+                   yu-et-al-2011-social-modeling.
+  centroid-bind    scripts/centroid_service.py packet (policy + graph
+                   eligibility + named bytes). GRAPH-SEMANTIC-INELIGIBLE is
+                   eligibility, not a pair verdict. Empty binder
+                   semantic_findings is not a pass.
+
+--pages is printed book pages (running footer or non-identity labels).
+Identity 1…N labels are ignored. Title/foreword/contents are not admitted
+Yu body. Legacy PDF-index 3,7,12 is refused.
+
+Public skill folder remains skills/centroid-sentence-logic (catalog id).
+The binder stays a binder. No scholarly CLEAN mint. SK-32 stays CLOSED.
 """
 
 from __future__ import annotations
@@ -27,6 +43,15 @@ YU_2011 = "yu-et-al-2011-social-modeling"
 DENNETT = "dennett-1987-intentional-stance"
 YU_PAGES = set(range(3, 11)) | set(range(11, 53))
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“])")
+FRONT_HEADING_RE = re.compile(
+    r"(?im)^\s*(title page|title|foreword|preface|table of contents|contents|copyright)\s*$"
+)
+PRINTED_PAGE_RE = re.compile(r"(?m)^\s*(?:pp?\.\s*)?(\d{1,3})\s*$")
+OBJECT_NAMES = {
+    "centroid-source": "live policy member yu-et-al-2011-social-modeling (role centroid)",
+    "centroid-check": "this instrument: sentence-logic on named manuscript bytes",
+    "centroid-bind": "centroid_service packet; GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict",
+}
 WORD_RE = re.compile(r"[A-Za-z0-9']+")
 VERDICT_OPEN = re.compile(r"^(thus|therefore|hence|so|accordingly|in short)\b", re.I)
 DERIVE_CUE = re.compile(
@@ -129,28 +154,100 @@ def _passages_from_json(path: Path) -> list[dict[str, Any]]:
     return [_validate_passage(row, admitted_by="joseph") for row in rows if isinstance(row, dict)]
 
 
-def _extract_pdf_page(pdf_path: Path, page_number: int) -> str:
+def _is_front_matter(text: str) -> bool:
+    head = "\n".join(text.splitlines()[:8])
+    return bool(FRONT_HEADING_RE.search(head))
+
+
+def _printed_page_number(text: str, identity: int, label: str | None) -> int | None:
+    """Return a printed book page. Identity 1…N labels are ignored."""
+    if label is not None:
+        stripped = str(label).strip()
+        if stripped.isdigit() and int(stripped) != identity:
+            return int(stripped)
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in reversed(lines[-4:]):
+        match = PRINTED_PAGE_RE.fullmatch(line)
+        if not match:
+            continue
+        printed = int(match.group(1))
+        if printed != identity:
+            return printed
+        if not _is_front_matter(text):
+            return printed
+    return None
+
+
+def resolve_printed_pages(pages: list[dict[str, Any]], requested: list[int]) -> list[dict[str, Any]]:
+    """Map --pages (printed book pages) onto page records. Refuse identity/front-matter."""
+    by_printed: dict[int, dict[str, Any]] = {}
+    annotated: list[dict[str, Any]] = []
+    for rec in pages:
+        printed = _printed_page_number(rec["text"], rec["identity"], rec.get("label"))
+        row = {**rec, "printed_page": printed}
+        annotated.append(row)
+        if printed is None:
+            continue
+        if printed in by_printed:
+            raise Refusal("SENTENCE-LOGIC-PDF", f"printed book page {printed} is ambiguous")
+        by_printed[printed] = row
+
+    out: list[dict[str, Any]] = []
+    for page in requested:
+        rec = by_printed.get(page)
+        if rec is None:
+            identity_hits = [row for row in annotated if row["identity"] == page]
+            if identity_hits and (
+                _is_front_matter(identity_hits[0]["text"])
+                or identity_hits[0].get("label") == str(page)
+            ):
+                raise Refusal(
+                    "SENTENCE-LOGIC-PDF-INDEX",
+                    f"legacy PDF-index {page} is an identity 1…N label or "
+                    "title/foreword/contents, not a printed book page",
+                )
+            raise Refusal(
+                "SENTENCE-LOGIC-PDF",
+                f"printed book page {page} was not found (identity 1…N labels are ignored)",
+            )
+        if _is_front_matter(rec["text"]):
+            raise Refusal(
+                "SENTENCE-LOGIC-PDF",
+                f"printed book page {page} is title/foreword/contents, not admitted Yu body",
+            )
+        out.append(rec)
+    return out
+
+
+def _pdf_page_records(pdf_path: Path) -> list[dict[str, Any]]:
     from pypdf import PdfReader
 
     reader = PdfReader(str(pdf_path))
-    index = page_number - 1
-    if index < 0 or index >= len(reader.pages):
-        raise Refusal("SENTENCE-LOGIC-PDF", f"{pdf_path.name} has no page {page_number}")
-    text = reader.pages[index].extract_text() or ""
-    if not text.strip():
-        raise Refusal("SENTENCE-LOGIC-PDF", f"{pdf_path.name} page {page_number} extracted empty text")
-    return text
+    try:
+        labels = list(reader.page_labels)
+    except Exception:
+        labels = [None] * len(reader.pages)
+    records: list[dict[str, Any]] = []
+    for index, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        label = labels[index - 1] if index - 1 < len(labels) else None
+        records.append({"identity": index, "text": text, "label": label})
+    return records
 
 
 def _passages_from_pdf(pdf_path: Path, source_key: str, pages: list[int], layer: str) -> list[dict[str, Any]]:
     file_sha = _sha_bytes(pdf_path.read_bytes())
+    resolved = resolve_printed_pages(_pdf_page_records(pdf_path), pages)
     out: list[dict[str, Any]] = []
-    for page in pages:
-        quote = _extract_pdf_page(pdf_path, page)
+    for rec in resolved:
+        quote = rec["text"]
+        if not quote.strip():
+            raise Refusal("SENTENCE-LOGIC-PDF", f"{pdf_path.name} printed p. {rec['printed_page']} extracted empty text")
+        page = rec["printed_page"]
         row = _validate_passage(
             {
                 "source_key": source_key,
-                "locator": f"hash-bound PDF {pdf_path.name} p. {page} sha256={file_sha}",
+                "locator": f"hash-bound PDF {pdf_path.name} printed p. {page} sha256={file_sha}",
                 "quote": quote,
                 "warrant_layer": layer,
             },
@@ -158,6 +255,7 @@ def _passages_from_pdf(pdf_path: Path, source_key: str, pages: list[int], layer:
         )
         row["pdf_sha256"] = file_sha
         row["page"] = page
+        row["pdf_identity"] = rec["identity"]
         out.append(row)
     return out
 
@@ -244,14 +342,30 @@ def _pairs(sentences: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
+def _check_sentence(receipt: dict[str, Any]) -> str:
+    return (
+        f"this is a centroid-check of manuscript {receipt['manuscript_sha256']}/"
+        f"{receipt['manuscript_bytes']} against centroid-source {YU_2011}"
+    )
+
+
 def _markdown_receipt(receipt: dict[str, Any]) -> str:
     lines = [
-        f"# centroid-sentence-logic ({receipt['mode']})",
+        f"# centroid-check ({receipt['mode']})",
         "",
+        _check_sentence(receipt) + ".",
+        "",
+        "This is not centroid-source and not a centroid-bind. A check of these "
+        "manuscript bytes does not redefine centroid-source.",
+        "GRAPH-SEMANTIC-INELIGIBLE on the centroid-bind packet is eligibility, not a pair verdict.",
+        "",
+        f"- instrument: `centroid-check`",
+        f"- centroid-source: `{receipt['centroid_source']}`",
         f"- status: `{receipt['status']}`",
         f"- reason_code: `{receipt['reason_code']}`",
         f"- packet_sha256: `{receipt['packet_sha256']}`",
         f"- manuscript_sha256: `{receipt['manuscript_sha256']}`",
+        f"- manuscript_bytes: `{receipt['manuscript_bytes']}`",
         f"- graph_state: `{receipt['graph_state']}`",
         f"- admitted_passages: {len(receipt['admitted_passages'])}",
         f"- pairs: {len(receipt['pairs'])} (verdicts not_run; roles fill CLEAN/ADVISORY/BLOCKER)",
@@ -272,14 +386,20 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     manuscript_path = Path(args.manuscript).resolve(strict=True)
     packet = _load_json(packet_path)
     if packet.get("status") != "binding_resolved":
-        raise Refusal("SENTENCE-LOGIC-PACKET", "binder packet is not binding_resolved")
+        raise Refusal("SENTENCE-LOGIC-PACKET", "centroid-bind packet is not binding_resolved")
+    requested_source = str(getattr(args, "centroid_source", YU_2011) or YU_2011)
+    if requested_source != YU_2011:
+        raise Refusal(
+            "SENTENCE-LOGIC-SOURCE",
+            "centroid-source is yu-et-al-2011-social-modeling; this check does not move that object",
+        )
     manuscript_bytes = manuscript_path.read_bytes()
     manuscript_sha = _sha_bytes(manuscript_bytes)
     bound = packet.get("manuscript") or {}
     if bound.get("sha256") != manuscript_sha:
         raise Refusal(
             "SENTENCE-LOGIC-STALE",
-            "manuscript sha256 does not match packet.manuscript.sha256; re-run centroid-pass on these bytes",
+            "manuscript sha256 does not match packet.manuscript.sha256; re-run centroid-bind on these bytes",
         )
     scope = bound.get("scope") or {}
     if scope.get("sha256") and scope.get("sha256") != manuscript_sha and args.heading is None:
@@ -317,9 +437,12 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     cadence_misses = sum(1 for row in pairs if row["checks"]["join_cadence"] == "unearned_verdict")
     backtrack_misses = sum(1 for row in pairs if row["checks"]["needed_backtrack"] == "missing")
     created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    return {
-        "schema_version": "1.1.0",
-        "pass": "centroid-sentence-logic",
+    receipt = {
+        "schema_version": "1.2.0",
+        "pass": "centroid-check",
+        "instrument": "centroid-check",
+        "centroid_source": YU_2011,
+        "object_names": dict(OBJECT_NAMES),
         "status": "ready_for_role",
         "reason_code": None,
         "mode": args.mode,
@@ -327,6 +450,7 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "packet_sha256": _sha_bytes(packet_path.read_bytes()),
         "manuscript_path": str(manuscript_path),
         "manuscript_sha256": manuscript_sha,
+        "manuscript_bytes": len(manuscript_bytes),
         "scope_sha256": scope.get("sha256") or manuscript_sha,
         "graph_state": graph_state,
         "binder_reason_code": reason,
@@ -348,6 +472,8 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "sk32": "CLOSED",
         "created_at": created,
         "limitations": [
+            "This is a centroid-check of named manuscript bytes against centroid-source yu-et-al-2011-social-modeling.",
+            "GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict.",
             "Instrument listed pairs and bound admitted passages only.",
             "Roles fill CLEAN/ADVISORY/BLOCKER. This file is not a scholarly CLEAN.",
             "One BLOCKER pair fails the bound scope for qualification.",
@@ -357,6 +483,8 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
             "Backtrack is not required on every pair.",
         ],
     }
+    receipt["naming"] = _check_sentence(receipt)
+    return receipt
 
 
 def _out_dir(args: argparse.Namespace) -> Path | None:
@@ -368,19 +496,31 @@ def _out_dir(args: argparse.Namespace) -> Path | None:
         dest = Path(args.out_dir).resolve()
     else:
         return None
-    assert_writable(dest, purpose="centroid-sentence-logic receipt")
+    assert_writable(dest, purpose="centroid-check receipt")
     dest.mkdir(parents=True, exist_ok=True)
     return dest
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--packet", required=True)
-    parser.add_argument("--manuscript", required=True)
+    parser.add_argument("--packet", required=True, help="centroid-bind packet JSON (not centroid-source)")
+    parser.add_argument("--manuscript", required=True, help="Named manuscript bytes for this centroid-check")
     parser.add_argument("--mode", choices=MODES, required=True)
+    parser.add_argument(
+        "--centroid-source",
+        default=YU_2011,
+        help="centroid-source key. Locked to yu-et-al-2011-social-modeling. Does not move the policy centroid.",
+    )
     parser.add_argument("--passages", help="Joseph-admitted passages JSON")
-    parser.add_argument("--admit-pdf", help="Hash-bound PDF to read as admitted pages")
-    parser.add_argument("--pages", help="Comma-separated PDF page numbers (book pagination)")
+    parser.add_argument("--admit-pdf", help="Hash-bound PDF to read as admitted printed book pages")
+    parser.add_argument(
+        "--pages",
+        help=(
+            "Printed book pages (running footer or non-identity labels). "
+            "Identity 1…N labels are ignored. Title/foreword/contents are not "
+            "admitted Yu body. Legacy PDF-index 3,7,12 is refused."
+        ),
+    )
     parser.add_argument("--pdf-source-key", default=YU_2011)
     parser.add_argument("--project-root")
     parser.add_argument("--out-dir")
@@ -400,7 +540,7 @@ def main(argv: list[str] | None = None) -> int:
         receipt = build_receipt(args)
         dest = _out_dir(args)
         if dest is not None:
-            stem = f"centroid-sentence-logic_{args.mode}"
+            stem = f"centroid-check_{args.mode}"
             _write_json(dest / f"{stem}.json", receipt)
             _write_md(dest / f"{stem}.md", _markdown_receipt(receipt))
             receipt["written"] = {

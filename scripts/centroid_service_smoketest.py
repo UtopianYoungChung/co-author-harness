@@ -114,6 +114,11 @@ def main() -> int:
         assert packet["read_only"] is True
         assert packet["public_activation"] == "active"
         assert packet["semantic_findings"] == []
+        assert packet["instrument"] == "centroid-bind"
+        assert packet["centroid_source"]["source_key"] == "yu-et-al-2011-social-modeling"
+        assert packet["centroid_source"]["role"] == "centroid"
+        assert "book pp. 3-10" in packet["centroid_source"]["retrieval_scope"]
+        assert set(packet["object_names"]) == {"centroid-source", "centroid-check", "centroid-bind"}
         assert packet["manuscript"]["scope"]["kind"] == "full_manuscript"
         assert len(packet["manuscript"]["sha256"]) == 64
         assert packet["policy"]["attestation_view_pin"]
@@ -148,6 +153,11 @@ def main() -> int:
         assert ineligible_packet["status"] == "binding_resolved"
         assert ineligible_packet["reason_code"] == "GRAPH-SEMANTIC-INELIGIBLE"
         assert ineligible_packet["semantic_findings"] == []
+        validate_packet(ineligible_packet, schema)
+        assert ineligible_packet["instrument"] == "centroid-bind"
+        assert ineligible_packet["centroid_source"]["source_key"] == "yu-et-al-2011-social-modeling"
+        assert any("eligibility, not a pair verdict" in item for item in ineligible_packet["limitations"])
+        assert any("Empty semantic_findings" in item for item in ineligible_packet["limitations"])
         graph_path.write_bytes(graph_bytes)
 
         heading = invoke(
@@ -253,10 +263,21 @@ def main() -> int:
         else:
             raise AssertionError("schema check accepted an additional property")
 
+        locked = invoke(
+            *common_args(project, manuscript, wiki, workspace),
+            "--centroid-source", "yu-1995-istar",
+        )
+        assert locked.returncode == 4
+        assert json.loads(locked.stdout)["reason_code"] == "CENTROID_SOURCE_LOCKED"
+
         help_result = invoke("--help")
         assert help_result.returncode == 0
         assert "--apply" not in help_result.stdout
         assert "--mode" in help_result.stdout
+        assert "centroid-source" in help_result.stdout
+        assert "centroid-check" in help_result.stdout
+        assert "centroid-bind" in help_result.stdout
+        assert "GRAPH-SEMANTIC-INELIGIBLE is eligibility" in help_result.stdout
 
         after = {path: tree_digest(path) for path in (project, wiki, workspace)}
         # Restore-neutral comparison: only the smoke itself changed the manuscript.

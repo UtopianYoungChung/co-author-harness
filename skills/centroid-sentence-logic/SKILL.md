@@ -1,22 +1,29 @@
 ---
 name: centroid-sentence-logic
 user-invocable: true
-description: 'Join consecutive manuscript sentences to admitted Yu 2011 and Dennett passages. A missing join-cadence is a miss, not only a missing attested hinge. Invoke-only while the centroid binder packet is GRAPH-SEMANTIC-INELIGIBLE. Does not retrieve from a structural-only graph and does not mint scholarly CLEAN.'
-trigger: explicitly when Writer or Reviewer invokes /centroid-sentence-logic after a binding_resolved centroid packet. Auto-run after the binder only once a later packet is semantically eligible. Not dispatched by chat-to-manuscript apply.
-version: 1.1
+description: 'centroid-check: join consecutive manuscript sentences to admitted Yu 2011 and Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. Does not mint scholarly CLEAN.'
+trigger: explicitly when Writer or Reviewer invokes /centroid-sentence-logic after a binding_resolved centroid-bind packet. Auto-run after the binder only once a later packet is semantically eligible. Not dispatched by chat-to-manuscript apply.
+version: 1.2
 ---
 
-# centroid-sentence-logic
+# centroid-sentence-logic (instrument: centroid-check)
 
 **Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN.
 
-Own skill. Not the binder. `scripts/centroid_service.py` stays a binder.
+This skill is **centroid-check**. It is not centroid-source and not a centroid-bind.
+`scripts/centroid_service.py` stays the binder.
+
+| Name | What it is | What it is not |
+|---|---|---|
+| **centroid-source** | Policy member `yu-et-al-2011-social-modeling`, role `centroid`. Yu-authored window book pp. 3-10 and 11-52. | Not a manuscript hash. Not this check. |
+| **centroid-check** | This skill. Consecutive sentences must join to admitted Yu/Dennett passages. Requires named manuscript bytes at start. | Not a redefinition of centroid-source. A check of live M4 is a check. |
+| **centroid-bind** | The `/centroid-pass` packet. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. | Not a pair CLEAN. Empty `semantic_findings` is not a pass. |
 
 Joseph is the only R-plane actor. SK-32 stays CLOSED. DEST-PROTECTED stays.
 
 ## When to run
 
-After `centroid-pass` emits `status: binding_resolved`. While `reason_code` is `GRAPH-SEMANTIC-INELIGIBLE`, invoke this skill; do not wait for Wiki graph repair.
+After `centroid-pass` (centroid-bind) emits `status: binding_resolved`. While `reason_code` is `GRAPH-SEMANTIC-INELIGIBLE`, invoke this skill; do not wait for Wiki graph repair.
 
 | Mode | Who | What |
 |---|---|---|
@@ -29,13 +36,17 @@ After `centroid-pass` emits `status: binding_resolved`. While `reason_code` is `
 From the harness root:
 
 ```
-python scripts/centroid_sentence_logic.py --mode review --packet <binder.json> --manuscript <M4.md> --passages <joseph-passages.json>
-python scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --manuscript <M4.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
+python scripts/centroid_sentence_logic.py --mode review --packet <binder.json> --manuscript <named.md> --passages <joseph-passages.json>
+python scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
 ```
 
-`--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound PDF pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+`--pages 3,7,12` means printed book pages 3, 7, and 12 (running footer or non-identity labels). Identity 1…N labels are ignored. Title/foreword/contents are not admitted Yu body. The same numbers used as a legacy PDF-index are refused.
 
-Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/.harness/shipments/<id>/` via `--shipment-id`.
+`--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound printed book pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+
+Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/.harness/shipments/<id>/` via `--shipment-id`, under stems `centroid-check_<mode>`.
+
+A receipt must say: this is a centroid-check of manuscript `<sha256>/<bytes>` against centroid-source `yu-et-al-2011-social-modeling`.
 
 ## Fail closed
 
@@ -43,7 +54,7 @@ No CLEAN, no manuscript write, no promote, when any of these hold: packet is not
 
 The instrument lists pairs with `verdict: not_run`. Roles fill verdicts. One BLOCKER pair fails the bound scope for qualification.
 
-Empty binder `semantic_findings` is not a pass.
+Empty binder `semantic_findings` is not a pass. Do not mint CLEAN from the binder.
 
 ## Join-cadence
 

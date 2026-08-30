@@ -35,7 +35,7 @@ for internal routing, compatibility, and truthful failure behavior.
 | Structural, deep, or byte-stable iteration | `/run-iterate --profile structural|deep|stability` |
 | Submission-bound close-out | `/run-finalize` |
 | Fast mechanical pre-flight | `/quick-deterministic` |
-| Bind centroid / draft-governance packet | `/centroid-pass` |
+| Bind centroid-source + eligibility + named bytes (centroid-bind) | `/centroid-pass` |
 | Inspect evidence integrity | `/grounding-audit` |
 | Learn from a round | `/run-reflection lightweight|full` |
 
@@ -72,8 +72,8 @@ receipt for that governed evidence.
 | `/check-contradictions` | degraded | Audit theoretical and terminological contradictions across sources. | Multi-theory manuscripts. |
 | `/p-stage-checker` | degraded | Check manuscript claims and vocabulary against the declared P-stage. | Stage-drift diagnosis. |
 | `/accessibility-overlay` | degraded | Run the governed reader-accessibility checks. | Review and sign-off passes. |
-| `/centroid-pass` | active | Bind and execute governed centroid-conditioned generation, review, or revision. | Explicit centroid audits and projects whose authoritative reader binding enables governed semantic use; reader-profile v2 with `semantic_usage: not_invoked` does not dispatch it. |
-| `/centroid-sentence-logic` | active | Join consecutive sentences to admitted Yu 2011 / Dennett passages after a binder packet. Invoke-only while GRAPH-SEMANTIC-INELIGIBLE. | After `/centroid-pass` on the same manuscript bytes. |
+| `/centroid-pass` | active | centroid-bind: bind live centroid-source (yu-et-al-2011-social-modeling) plus graph eligibility plus named bytes. GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict. Empty semantic_findings is not a pass. | Explicit bind audits; does not redefine centroid-source; reader-profile v2 with `semantic_usage: not_invoked` does not dispatch it. |
+| `/centroid-sentence-logic` | active | centroid-check: join consecutive sentences to admitted Yu 2011 / Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. | After `/centroid-pass` (centroid-bind) on the same manuscript bytes. |
 | `/analytic-move-audit` | degraded | Audit Abbott-style analytic construction across seven moves. | Theory-building arguments. |
 | `/definition-derivation-check` | degraded | Check whether load-bearing terms are derived, imported, or stipulated. | Definitions and construct formation. |
 | `/dissolution-move-check` | degraded | Check charitable reconstruction, buried assumptions, and dissolution moves. | Rival-view engagement. |

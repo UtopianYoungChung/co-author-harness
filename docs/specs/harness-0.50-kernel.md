@@ -83,8 +83,8 @@ Writer is the apply step (exact path, exact hash). Evaluator certifies shipment 
 
 **Invoke-only** (fail-closed; no auto-dispatch as scholarly CLEAN):
 
-- `centroid-pass` (bind only)
-- `centroid-sentence-logic`
+- `centroid-pass` (centroid-bind only; does not move centroid-source)
+- `centroid-sentence-logic` (centroid-check of named manuscript bytes against centroid-source yu-et-al-2011-social-modeling)
 - `quick-deterministic`
 - `classify-manuscript`
 
@@ -94,7 +94,7 @@ Graph / centroid remain invoke-only / fail-closed (`GRAPH-SEMANTIC-INELIGIBLE` s
 
 - `assignment_writer_commit.py` — publish to **staging** only
 - dest-safe `draft_governance` (`evaluation-lane`, `attach-verifier-receipt`; no CLEAN bind)
-- existing centroid instruments (`centroid_service.py` binder; `centroid_sentence_logic.py`)
+- existing centroid instruments (`centroid_service.py` centroid-bind; `centroid_sentence_logic.py` centroid-check)
 
 **Park as first-class, paper-specific skills** (not public coordinators; Claude/Cursor marketplace leftovers):
 
@@ -127,8 +127,8 @@ Do **not** park citation / claim / derivation / similar checks unless they are f
 - DEST-PROTECTED write chokepoint (`destination_capability.py`)
 - `assignment_writer_commit.py` (staging publish)
 - `draft_governance.py` dest-safe evaluation-lane + attach-verifier-receipt
-- `centroid_service.py` bind-only
-- `centroid_sentence_logic.py` (including join-cadence)
+- `centroid_service.py` centroid-bind only
+- `centroid_sentence_logic.py` centroid-check (including join-cadence)
 - `version.json` + root `plugin.json`
 - Four role files under `agents/` (planner, generator, evaluator, reflector*)
 - Public coordinator skill names in §5
