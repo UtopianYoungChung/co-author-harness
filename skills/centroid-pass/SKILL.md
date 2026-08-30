@@ -1,16 +1,24 @@
 ---
 name: centroid-pass
 user-invocable: true
-description: 'Bind and execute the package centroid for generation, review, or revision. The deterministic service resolves the live corpus policy and scope; the dispatched Generator or Evaluator performs the grounded semantic pass.'
+description: 'centroid-bind: bind live policy centroid-source plus graph eligibility plus named manuscript bytes. Catalog id stays /centroid-pass. This is not a centroid-check and does not move centroid-source yu-et-al-2011-social-modeling.'
 trigger: invoke-only / fail-closed. Explicit /centroid-pass only. Do not auto-dispatch as scholarly CLEAN. Reader-profile v2 with semantic_usage not_invoked does not dispatch this skill. GRAPH-SEMANTIC-INELIGIBLE stays fail-closed.
-version: 3.0
+version: 3.1
 ---
 
-# centroid-pass
+# centroid-pass (instrument: centroid-bind)
 
 **Invoke-only / fail-closed.** Not a scholarly CLEAN mint and not an
 auto-dispatch. Graph / centroid remain invoke-only. `GRAPH-SEMANTIC-INELIGIBLE`
-is fail-closed, not a fabricated retrieval.
+is eligibility, not a pair verdict.
+
+Three objects share the word centroid. Keep them separate:
+
+| Name | What it is | What it is not |
+|---|---|---|
+| **centroid-source** | Live policy `references/policies/reader_accessibility.v1.json` member `yu-et-al-2011-social-modeling`, role `centroid`. Retrieval is the Yu-authored window only: book pp. 3-10 and 11-52. | Not a manuscript hash. Not this bind. Not a pair verdict. |
+| **centroid-check** | Sentence-logic on named manuscript bytes against that source (`/centroid-sentence-logic`). | Not a redefinition of centroid-source. A check of live M4 is a check. |
+| **centroid-bind** | This skill. `scripts/centroid_service.py` binds policy + graph eligibility + named bytes. | Not a scholarly CLEAN. Empty `semantic_findings` means no role judgment ran, not a pass. |
 
 The script always runs. When reader-profile v2 sets `semantic_usage: not_invoked`,
 it still emits a general binding packet (scope, hashes, metrics) and marks
@@ -27,7 +35,7 @@ finding-driven rewrite. The pass is read-only: the Generator remains the sole
 academic-prose writer and the Evaluator remains the independent reviewer.
 
 The policy at `references/policies/reader_accessibility.v1.json` is authoritative
-for centroid membership, warrant layers, derivations, semantic pins, and the C-7
+for centroid-source membership, warrant layers, derivations, semantic pins, and the C-7
 identity fence. `references/GROUNDING_PROTOCOL.md` remains absolute. Never invent
 a passage, quotation, attestation, locator, or member.
 
@@ -40,19 +48,20 @@ a passage, quotation, attestation, locator, or member.
    If the target file does not yet exist, omit `--artifact`. The returned
    `artifact_state: absent` is valid and does not relax any obligation.
 
-2. Build the centroid packet with
+2. Build the centroid-bind packet with
    `python scripts/centroid_service.py --mode <write|review|revise>
    --manuscript <input-or-draft> --project-root <project-root>`. For `write` when
    the target is absent, use the closest grounded controlling text that will
    actually condition the draft: accepted predecessor, structured outline, or
    assignment source. Do not create placeholder prose merely to satisfy this
    argument.
-   A successful packet says `status: binding_resolved`. This means only that
-   policy, pins, members, scope, and input bytes were resolved. The retired
-   word `ready` must not be used for this state. If the response is
+   A successful packet says `status: binding_resolved` and `instrument: centroid-bind`.
+   This means only that policy, pins, members, scope, and input bytes were resolved.
+   The retired word `ready` must not be used for this state. If the response is
    `PROJECT_BINDING_REBIND_AVAILABLE`, use only the exact Planner-owned command
    in its `recovery` object; a bare stale/conflict refusal is not permission to
    infer or perform a rebind.
+   `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict.
 
 3. Retrieve only passages admitted by the packet's member and warrant views.
    `surface` members condition register; `argument` members condition argument
@@ -62,7 +71,7 @@ a passage, quotation, attestation, locator, or member.
    `references/schemas/centroid_semantic_execution.schema.json`. Bind the source
    bytes, a non-empty canonical extracted-passage file, the verbatim quote
    actually used, citation identity, its corpus/page locator, its `surface` or
-   `argument` use, and the exact deterministic centroid packet. Produce PDF
+   `argument` use, and the exact deterministic centroid-bind packet. Produce PDF
    extracts with `python scripts/source_extract.py`; a lone `pypdf` extraction
    is not canonical evidence.
    `references/templates/centroid_semantic_execution.json` is the authoring
@@ -71,7 +80,7 @@ a passage, quotation, attestation, locator, or member.
 
 4. In `write`, the Generator conditions the draft on the retrieved passages but
    does not imitate a source's identity-layer voice. In `review`, the Evaluator
-   independently compares the produced draft with the resolved centroid and
+   independently compares the produced draft with the resolved centroid-source and
    records strengths, deviations, warrant limits, and actionable findings. In
    `revise`, preserve propositional content and C-7 identity features while
    substituting only grounded, attested constructions.
@@ -99,7 +108,7 @@ a passage, quotation, attestation, locator, or member.
    claim, or product qualification without both consumed role claims and both
    current-byte verifier transactions fails closed. Mechanics-mode output is
    diagnostic and cannot substitute. Evaluation preparation and the `review`
-   centroid packet must bind the exact bytes that the Evaluator reviewed;
+   centroid-bind packet must bind the exact bytes that the Evaluator reviewed;
    unresolved candidates prevent product qualification.
 
 ## Semantic output
@@ -126,3 +135,4 @@ Generator or Evaluator must perform and document the semantic judgment; empty
   manuscript bibliography.
 - Do not mutate lifecycle state, the canonical Wiki, or a protected consumer
   path from this skill.
+- Do not treat a manuscript hash as centroid-source. Do not mint CLEAN from this binder.

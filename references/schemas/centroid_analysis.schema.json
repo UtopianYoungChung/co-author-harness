@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://co-author-harness.local/schemas/centroid_analysis.schema.json",
-  "title": "Read-only centroid execution envelope",
+  "title": "Read-only centroid-bind execution envelope",
   "type": "object",
   "required": [
     "schema_version",
     "capability",
+    "instrument",
     "status",
     "reason_code",
     "read_only",
@@ -15,6 +16,27 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "capability": {"const": "centroid-pass"},
+    "instrument": {"const": "centroid-bind"},
+    "centroid_source": {
+      "type": "object",
+      "required": ["source_key", "role"],
+      "properties": {
+        "source_key": {"const": "yu-et-al-2011-social-modeling"},
+        "role": {"const": "centroid"},
+        "retrieval_scope": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "object_names": {
+      "type": "object",
+      "required": ["centroid-source", "centroid-check", "centroid-bind"],
+      "properties": {
+        "centroid-source": {"type": "string", "minLength": 1},
+        "centroid-check": {"type": "string", "minLength": 1},
+        "centroid-bind": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
     "status": {"enum": ["binding_resolved", "unavailable"]},
     "reason_code": {"type": ["string", "null"]},
     "read_only": {"const": true},
@@ -31,7 +53,7 @@
         "command": {"type": "string", "minLength": 1}
       }
     },
-    "binding_provenance": {"enum": ["project", "package-default"]},
+    "binding_provenance": {"enum": ["project", "package-default", "general"]},
     "manuscript": {"type": "object"},
     "policy": {"type": "object"},
     "analysis_contract": {"type": "object"},
@@ -50,9 +72,12 @@
           "analysis_contract",
           "scope_metrics",
           "semantic_findings",
-          "limitations"
+          "limitations",
+          "instrument",
+          "centroid_source",
+          "object_names"
         ],
-        "properties": {"reason_code": {"type": "null"}}
+        "properties": {"reason_code": {"type": ["string", "null"]}}
       },
       "else": {
         "required": ["detail"],

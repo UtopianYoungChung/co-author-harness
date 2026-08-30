@@ -1,11 +1,19 @@
 # Centroid sentence-logic pass (spec only)
 
-**Status.** Implemented on the existing `centroid-sentence-logic` skill and script. Binder unchanged. Not promoted. SK-32 stays CLOSED.
-**Date.** 2026-08-19. Join-cadence retarget the same day (Joseph via Orchestrator).
+**Status.** Implemented on the existing `centroid-sentence-logic` skill and script as **centroid-check**. Binder is **centroid-bind**. Policy member is **centroid-source**. Not promoted. SK-32 stays CLOSED.
+**Date.** 2026-08-19. Join-cadence retarget the same day (Joseph via Orchestrator). Naming split 2026-08-30 (Joseph): leftover shared word `centroid` repaired without moving the Yu 2011 window.
 **Owner.** Harness (instrument). Joseph is the only R-plane actor.
-**Does not change.** `scripts/centroid_service.py`, the live `binding_resolved` packet, SK-32, or role files in this pass.
+**Does not change.** The live policy centroid-source member or window; SK-32; role files in this pass; manuscripts.
 
-This document specifies a **role-produced** pass that sits on top of a successful centroid binder packet. The binder stays a binder.
+Three names (no glossary hunt):
+
+| Name | Object |
+|---|---|
+| **centroid-source** | Live policy `references/policies/reader_accessibility.v1.json` member `yu-et-al-2011-social-modeling`, role `centroid`. Yu-authored window book pp. 3-10 and 11-52. Does not move when M4 or a check moves. |
+| **centroid-check** | This pass. Consecutive sentences join to admitted Yu/Dennett passages. Requires named manuscript bytes. A check of live M4 is a check, not a redefinition of the source. |
+| **centroid-bind** | `scripts/centroid_service.py` packet. Policy + graph eligibility + named bytes. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. Empty `semantic_findings` is not a pass. |
+
+This document specifies a **role-produced** pass that sits on top of a successful centroid-bind packet. The binder stays a binder.
 
 ---
 
@@ -23,7 +31,7 @@ The sentence-logic pass is the missing judgment layer: given a `binding_resolved
 
 All three are required before a verdict. Missing any one is fail-closed (see §8).
 
-1. **Binder packet.** A successful `centroid_service.py` result with `status: binding_resolved`. The packet is evidence of what was bound, not of prose quality.
+1. **centroid-bind packet.** A successful `centroid_service.py` result with `status: binding_resolved` and `instrument: centroid-bind`. The packet is evidence of what was bound, not of prose quality.
 2. **Manuscript bytes.** The exact UTF-8 bytes whose `sha256` matches `packet.manuscript.sha256` (and scoped bytes matching `packet.manuscript.scope.sha256`).
 3. **Admitted passages.** Verbatim excerpts that the packet's member and warrant views already admit, each with locator (source_key, work, page or section, quote, sha256 of the quote). Passages Joseph admits on the R-plane count. Passages invented by a role, fetched from a structural-only graph, or taken from a Yu/Dennett page outside the admitted retrieval_scope do **not** count.
 
@@ -124,12 +132,15 @@ Advisory is allowed only for **packet limitations** (tell Joseph the graph canno
 
 Roles write the receipt. The service does not. Suggested path (not created here):
 
-`reviews/<date>_centroid-sentence-logic_<mode>.md` (or a JSON sibling under the same stem)
+`reviews/.harness/shipments/<id>/centroid-check_<mode>.md` (or a JSON sibling under the same stem)
 
 Minimum fields:
 
 ```text
-pass: centroid-sentence-logic
+pass: centroid-check
+instrument: centroid-check
+centroid_source: yu-et-al-2011-social-modeling
+naming: this is a centroid-check of manuscript <sha256>/<bytes> against centroid-source yu-et-al-2011-social-modeling
 mode: write | review | revise
 packet_sha256: <sha256 of the binder JSON>
 manuscript_sha256: <must match packet.manuscript.sha256>

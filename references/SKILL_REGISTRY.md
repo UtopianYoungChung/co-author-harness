@@ -516,18 +516,20 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-47. `centroid-pass`
 
+Instrument name: **centroid-bind**. Catalog id stays `centroid-pass`. Binds live **centroid-source** (`yu-et-al-2011-social-modeling`, role `centroid`) plus graph eligibility plus named manuscript bytes. Does not redefine centroid-source. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. Empty `semantic_findings` means no role judgment ran, not a pass.
+
 ### SK-48. `centroid-sentence-logic`
 
-Own sentence-logic pass on top of a `binding_resolved` centroid binder packet. Invoke-only while `GRAPH-SEMANTIC-INELIGIBLE`. Admitted passages are Joseph pastes or hash-bound Yu 2011 pp. 3-10 / 11-52 PDF pages. Does not mint scholarly CLEAN. SK-32 stays CLOSED.
+Instrument name: **centroid-check**. Own sentence-logic pass on top of a `binding_resolved` centroid-bind packet. A check of named manuscript bytes against centroid-source `yu-et-al-2011-social-modeling` is a check, not a redefinition of the source. Invoke-only while `GRAPH-SEMANTIC-INELIGIBLE`. Admitted passages are Joseph pastes or hash-bound Yu 2011 printed book pp. 3-10 / 11-52. Identity 1…N PDF labels and title/foreword/contents are not admitted. Does not mint scholarly CLEAN. SK-32 stays CLOSED.
 
 - **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
-- **Pattern:** Public, read-only orchestration. A deterministic packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass.
+- **Pattern:** Public, read-only orchestration. A deterministic centroid-bind packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass. Sentence-logic lives on SK-48.
 - **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.
 - **Tier:** Package
 - **Status:** Active. The script always emits a binding packet; graph-governed scholarly use is claimed only when the reader binding enables it.
 - **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/policies/draft_governance.v1.json`, `scripts/centroid_service.py`, `scripts/draft_governance.py`, and `references/GROUNDING_PROTOCOL.md`.
 - **Trigger:** Every M1-M4/FINAL draft or revision whose authoritative reader binding enables governed semantic use, or explicit `/centroid-pass`; reader-profile v2 with `semantic_usage: not_invoked` does not auto-dispatch it.
-- **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface).
+- **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface); SK-48 `centroid-sentence-logic` (centroid-check).
 
 ### SK-49. `chung-academic-voice-pass`
 - **File:** `skills/chung-academic-voice-pass/SKILL.md` (new at 2026-08-21)

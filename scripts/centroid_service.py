@@ -1,9 +1,23 @@
 #!/usr/bin/env python3
-"""Prepare a deterministic, read-only centroid execution packet.
+"""centroid-bind — bind policy + graph eligibility + named manuscript bytes.
 
-The public centroid-pass skill uses this script to bind the live
-reader-accessibility profile, corpus members, warrants, manuscript scope, and
-hashes before a Generator or Evaluator performs the semantic pass.
+This CLI is centroid-bind. It is not centroid-source and not a centroid-check.
+
+  centroid-source  live policy member yu-et-al-2011-social-modeling (role
+                   centroid). Retrieval is the Yu-authored window only: book
+                   pp. 3-10 (volume introduction) and pp. 11-52 (i* core
+                   chapter). That object does not move when a check binds new
+                   manuscript bytes.
+  centroid-check   sentence-logic on named manuscript bytes against that
+                   source (scripts/centroid_sentence_logic.py). A check of
+                   live M4 is a check, not a redefinition of centroid-source.
+  centroid-bind    this packet: policy + graph eligibility + named bytes.
+                   GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair
+                   verdict. Empty semantic_findings means no role judgment
+                   ran, not a pass.
+
+Public skill folder remains skills/centroid-pass (catalog id). Capability
+row remains centroid-pass. Instrument name is centroid-bind.
 """
 
 from __future__ import annotations
@@ -24,6 +38,22 @@ SCHEMA_VERSION = "1.0.0"
 EXIT_UNAVAILABLE = 4
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$")
 WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*", re.UNICODE)
+POLICY_PATH = Path(__file__).resolve().parents[1] / "references" / "policies" / "reader_accessibility.v1.json"
+CENTROID_SOURCE_KEY = "yu-et-al-2011-social-modeling"
+OBJECT_NAMES = {
+    "centroid-source": (
+        "live policy member yu-et-al-2011-social-modeling (role centroid); "
+        "Yu-authored window book pp. 3-10 and 11-52"
+    ),
+    "centroid-check": (
+        "sentence-logic on named manuscript bytes against centroid-source; "
+        "a check does not redefine the source"
+    ),
+    "centroid-bind": (
+        "this packet: policy + graph eligibility + named bytes; "
+        "GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict"
+    ),
+}
 
 
 class Unavailable(RuntimeError):
@@ -42,8 +72,36 @@ def _policy_reason(exc: Exception) -> str:
     return "PROFILE_UNRESOLVED"
 
 
-def _base(status: str, reason_code: str | None) -> dict[str, Any]:
+def _live_centroid_source() -> dict[str, str]:
+    """Read the policy centroid member without resolving the wiki graph."""
+    try:
+        profile = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        members = profile["domain_native_register"]["exemplar_members"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise Unavailable("CENTROID_SOURCE_UNRESOLVED", f"cannot read live centroid-source: {exc}") from exc
+    hits = [item for item in members if isinstance(item, dict) and item.get("role") == "centroid"]
+    if len(hits) != 1 or hits[0].get("source_key") != CENTROID_SOURCE_KEY:
+        raise Unavailable(
+            "CENTROID_SOURCE_UNRESOLVED",
+            "live policy must have exactly one centroid member yu-et-al-2011-social-modeling",
+        )
+    member = hits[0]
     return {
+        "source_key": CENTROID_SOURCE_KEY,
+        "role": "centroid",
+        "retrieval_scope": str(member.get("retrieval_scope", "")),
+    }
+
+
+def _with_names(packet: dict[str, Any]) -> dict[str, Any]:
+    packet["instrument"] = "centroid-bind"
+    packet["centroid_source"] = _live_centroid_source()
+    packet["object_names"] = dict(OBJECT_NAMES)
+    return packet
+
+
+def _base(status: str, reason_code: str | None) -> dict[str, Any]:
+    return _with_names({
         "schema_version": SCHEMA_VERSION,
         "capability": "centroid-pass",
         "status": status,
@@ -51,7 +109,7 @@ def _base(status: str, reason_code: str | None) -> dict[str, Any]:
         "read_only": True,
         "writes_performed": False,
         "public_activation": "active",
-    }
+    })
 
 
 def _sha256(payload: bytes) -> str:
@@ -266,8 +324,12 @@ def _general_packet(
         },
         "semantic_findings": [],
         "limitations": [
+            "This is a centroid-bind of named manuscript bytes against centroid-source yu-et-al-2011-social-modeling.",
+            "GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict.",
+            "Empty semantic_findings means no role judgment ran, not a pass.",
             "General binding packet: manuscript scope, hashes, and text metrics only.",
-            "Graph-governed semantic corpus was not used. Do not treat empty semantic_findings as a scholarly pass.",
+            "Graph-governed semantic corpus was not used. Do not mint CLEAN from this binder.",
+            "centroid-source remains yu-et-al-2011-social-modeling; this bind does not redefine it.",
             "It performs no manuscript, lifecycle, review, graph, or Wiki write.",
         ],
     })
@@ -275,6 +337,13 @@ def _general_packet(
 
 
 def build_packet(args: argparse.Namespace) -> dict[str, Any]:
+    requested_source = str(getattr(args, "centroid_source", CENTROID_SOURCE_KEY) or CENTROID_SOURCE_KEY)
+    if requested_source != CENTROID_SOURCE_KEY:
+        raise Unavailable(
+            "CENTROID_SOURCE_LOCKED",
+            "centroid-source is the live policy member yu-et-al-2011-social-modeling; "
+            "this flag does not move that object",
+        )
     project_root: Path | None = None
     if args.project_root is not None:
         try:
@@ -372,8 +441,12 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
         },
         "semantic_findings": [],
         "limitations": [
+            "This is a centroid-bind of named manuscript bytes against centroid-source yu-et-al-2011-social-modeling.",
+            "GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict.",
+            "Empty semantic_findings means no role judgment ran, not a pass.",
             "This script resolves policy, pins, members, scope, hashes, and deterministic text metrics only.",
             "The dispatched Generator or Evaluator must retrieve grounded passages and perform the semantic judgment.",
+            "A later centroid-check of these bytes is a check, not a redefinition of centroid-source.",
             "It performs no manuscript, lifecycle, review, graph, or Wiki write.",
         ],
     })
@@ -388,7 +461,12 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manuscript", required=True, help="UTF-8 manuscript path to read")
+    parser.add_argument("--manuscript", required=True, help="UTF-8 manuscript path to bind (centroid-bind input bytes; not centroid-source)")
+    parser.add_argument(
+        "--centroid-source",
+        default=CENTROID_SOURCE_KEY,
+        help="centroid-source key. Locked to yu-et-al-2011-social-modeling. Does not move the policy centroid.",
+    )
     parser.add_argument("--project-root", help="Optional project root for policy overrides/binding checks")
     parser.add_argument("--heading", help="Exact Markdown heading text; default is the full manuscript")
     parser.add_argument("--mode", choices=("write", "review", "revise"), default="review")
