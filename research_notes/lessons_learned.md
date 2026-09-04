@@ -209,6 +209,39 @@ A sentence can define a term fluently, focus a concrete subject grammatically, a
 
 ---
 
-*End of package-level lessons. This file is maintained by the Reflector and updated after every cross-project insight.*
+## L-P8: Five Enforcement Measures Are the Umbrella; C-n Instruments Sit Under Them
 
-*Last updated: 2026-07-12.*
+**Source.** Paper 2 v4 abstract calibration, 2026-08-31 through 2026-09-01; folded into the harness on Joseph's 2026-09-01 instruction after a verifier pass on the preview abstract. This entry is a package-level fold directed in conversation, not a Ph4 Reflector close-out. No manuscript bytes were changed.
+
+**The lesson.**
+
+The measures that distinguished the accepted-as-best abstract from prior drafts are the core guideline for the rest of the manuscript and for later papers. Everything else the harness already carries — C-1…C-8, Check 8, MASTER A.4.2, Bacon, Sexton, Baird — remains, and is classified under these five:
+
+1. **Vocabulary audit.** Every technical term traces to a source byte or the professor's transcript; else earn it or drop it. Zero invented vocabulary.
+2. **Novelty shape.** Name the prior practice before the strain ("X has always been done; this paper puts X under strain where Y").
+3. **Ordering.** Familiar situation → felt gap → concrete case → contribution name. Project vocabulary must not appear before its referent.
+4. **Gap-before-claim.** Each exclusion or finding is preceded by the gap it closes.
+5. **One job per sentence.** The Ver03 choppiness report's A1–A5 are this rule's absence.
+
+**Failure patterns to watch for.**
+
+- Recording the five only in seat MEMORY.md or a writer skill, while the Evaluator and Generator still lead with C-n and Check 8.
+- Numbering drift: a five-lesson commentary that folds EIBU into its own slot and leaves gap-before-claim implicit.
+- Treating a C-n suspension as a suspension of the matching umbrella.
+- Citing a stale preview hash as the live calibration object.
+
+**How to apply.**
+
+- Generator and Evaluator read `references/FIVE_ENFORCEMENT_MEASURES.md` before C-n craft and wording discussion.
+- Findings name the umbrella (`U1`…`U5`) and may also name the C-n.
+- Re-hash the calibration preview before citing it. As of 2026-09-01 the live file is `PREVIEW_paper2-v4_2026-08-31.md` at `a0fa9222…` / 42,504 B; seat notes that say `cde8ad63…` / 42,932 B are a prior identifier, not the live file.
+
+**Scope.** Binding on all academic draft, revision, and evaluation work this package runs. Complements L-P7: L-P7 is the vocabulary/provenance test at sentence level; U1 is that test raised to the umbrella that other instruments serve.
+
+**Promotion.** Operationalized in: `references/FIVE_ENFORCEMENT_MEASURES.md`; `references/MASTER_research_and_paper_guidelines.md` (A.0); `references/STYLE_COMMITMENTS.md` (purpose); `references/MANIFEST.md`; `agents/generator.md`, `agents/evaluator.md`, `agents/planner.md`.
+
+---
+
+*End of package-level lessons. This file is maintained by the Reflector and updated after every cross-project insight. L-P8 was appended under Joseph's 2026-09-01 fold instruction.*
+
+*Last updated: 2026-09-01.*

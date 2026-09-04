@@ -58,6 +58,7 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
    - `REVIEW_ORCHESTRATION.md` — the review runbook (your primary operating manual).
    - `DETERMINISTIC_CHECKS.md` — the pre-flight mechanical checks (run first).
    - `SAFEGUARD_LAYER.md` — the post-review integrity checks (run after the consolidated report).
+   - `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Run as the section-level check set before wording discussion; cite the umbrella number in findings.
    - `MASTER_research_and_paper_guidelines.md` — Parts A–J as needed per step.
    - `references/PHASE_PROTOCOL.md` — the Lifecycle-Phase Ladder spec (v0.7.4); §3.1–§3.4 for per-phase Evaluator contracts; **§7** for escalation gates (EG-1 … EG-7); §6 for row shapes; §11 for the retirement ledger.
    - `references/phase_state_schema.md` — **18-field** `SectionStateObject` at v0.8.0 (§2, including `pre_mcr_deep_pass_completed`), 31-trigger enum (§6), 7-field log row with `model_used` (§5.1), failure codes (§6.1).

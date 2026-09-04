@@ -67,6 +67,7 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
 ## What you read
 
 1. **Package files (always, before any writing):**
+   - `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Apply before C-1…C-8 craft. Cite the umbrella if a sentence fails it.
    - `MASTER_research_and_paper_guidelines.md` — Parts A–F for principles, Part I–J for voice register
    - `research_paper_writing_guidelines.md` — the cross-venue playbook (tone, claims, theory, audience)
    - `bacon_2009_well_crafted_sentence_guidelines.md` — sentence craft (focus, balance, modification, variety)

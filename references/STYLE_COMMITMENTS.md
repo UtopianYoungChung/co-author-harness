@@ -2,6 +2,8 @@
 
 **Purpose.** This file makes explicit a fact that the package's tone has elsewhere left implicit: the prose-craft, narrative, and theoretical-shape rules carried by `bacon_2009_well_crafted_sentence_guidelines.md`, `Sexton_Fiction_to_Academic_Writing_Guide.md`, `baird_2021_writing_guidelines.md`, and the Suchman-inflected register favoured throughout `MASTER_research_and_paper_guidelines.md` are **methodological commitments**, not universal hygiene. They reflect a stance the author has taken about what good academic writing looks like in this research program. They are *defensible*, but they are not *neutral*; treating them as neutral would conceal an argument and pre-empt legitimate disagreement from venues, reviewers, or co-authors who hold different positions.
 
+C-1…C-8 are the method-stance layer. They sit **under** the five enforcement measures in `FIVE_ENFORCEMENT_MEASURES.md` (vocabulary audit, novelty shape, ordering, gap-before-claim, one job per sentence). This file does not add a C-9. A C-n suspension is not a suspension of the matching umbrella unless Joseph names the umbrella.
+
 **Status.** Read by the Planner at classification time, by the Generator before any prose-shaping action, and by the Reflector when assessing whether voice drift is a *violation* (against a declared commitment) or a *legitimate variation* (the commitment itself is what's contested). Cross-referenced from `.paper-package/CLAUDE.md` §3 and from MASTER §A.
 
 ---

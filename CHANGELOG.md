@@ -6,6 +6,12 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## Unreleased (docs, 2026-09-01)
+
+**Five enforcement measures.** Joseph directed that the Paper 2 v4 abstract calibration become the harness core guideline, with remaining instruments classified under five umbrellas: vocabulary audit, novelty shape, ordering, gap-before-claim, one job per sentence. New `references/FIVE_ENFORCEMENT_MEASURES.md`; pointers in MASTER A.0, STYLE_COMMITMENTS purpose, MANIFEST routing, Generator/Evaluator/Planner read lists, and package `lessons_learned.md` L-P8. Not a C-9. No version bump. No manuscript fold. Calibration object re-hashed: live preview `a0fa9222…` / 42,504 B; seat-cited `cde8ad63…` / 42,932 B is not the live file.
+
+---
+
 ## v0.50.0 — 2026-08-20
 
 ### M1→M2→M3→M4 flow repair

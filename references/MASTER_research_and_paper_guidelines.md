@@ -4,6 +4,8 @@
 
 **Scope:** Cross-venue **argument hygiene**, **process**, **structure**, **tone**, **sentence craft**, and **integrity**. Venue-specific rules (page limits, templates, CFP) still override where they conflict.
 
+**Five enforcement measures (core guideline).** Drafting and evaluation apply `FIVE_ENFORCEMENT_MEASURES.md` first: (1) vocabulary audit, (2) novelty shape, (3) ordering, (4) gap-before-claim, (5) one job per sentence. C-1…C-8, Check 8, A.4.2, Bacon, Sexton, Baird, and the Grounding Protocol remain in force; each is classified under those five umbrellas. The five do not replace the seven-component completion pass below, and they do not authorize a manuscript fold.
+
 ---
 
 ## Policy: mandatory full-package review
@@ -94,6 +96,7 @@ Use this table to **follow** each block of the master back to the **section head
 
 | Master section | Primary source file(s) | Source location (heading / topic) |
 |----------------|------------------------|-------------------------------------|
+| **A.0** Five enforcement measures | `FIVE_ENFORCEMENT_MEASURES.md` | U1–U5; instrument-under-umbrella table |
 | **A.1** Reader, red thread, hourglass | `baird_2021_writing_guidelines.md`, `research_paper_writing_guidelines.md`, `project_writing_style_checklist.md` | Baird §1; Playbook §5.5; Checklist Part 4 §10 |
 | **A.2** Evidence, integrity loop | `research_paper_writing_guidelines.md`, `AGENTS.md` | Playbook §6, §9; AGENTS “Academic Writing Rules” |
 | **A.2** Ethics / reporting stub | *General research norms; align to venue/IRB* | Not duplicated in a single package file—follow CfP, publisher, IRB |
@@ -117,6 +120,10 @@ Use this table to **follow** each block of the master back to the **section head
 ---
 
 ## Part A — Foundational principles
+
+### A.0 Five enforcement measures (umbrella)
+
+Before Parts A.1–F craft, apply the five measures in `FIVE_ENFORCEMENT_MEASURES.md` section by section: vocabulary must be source- or transcript-owned; novelty names prior practice then strain; order is situation → gap → case → name; claims follow the gap they close; one job per sentence. Cite U1–U5 in findings. Remaining MASTER, C-n, and Check 8 rules sit under those umbrellas; they are not retired.
 
 ### A.1 Reader and cognitive load
 
