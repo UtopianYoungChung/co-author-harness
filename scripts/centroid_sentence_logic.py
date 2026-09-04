@@ -46,7 +46,7 @@ SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“])")
 FRONT_HEADING_RE = re.compile(
     r"(?im)^\s*(title page|title|foreword|preface|table of contents|contents|copyright)\s*$"
 )
-PRINTED_PAGE_RE = re.compile(r"(?m)^\s*(?:pp?\.\s*)?(\d{1,3})\s*$")
+PRINTED_PAGE_RE = re.compile(r"(?m)^\s*(?:pp?\.\s*)?(\d{1,3})(?:\s+\S.*)?\s*$")
 OBJECT_NAMES = {
     "centroid-source": "live policy member yu-et-al-2011-social-modeling (role centroid)",
     "centroid-check": "this instrument: sentence-logic on named manuscript bytes",

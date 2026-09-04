@@ -203,6 +203,19 @@ def _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages) -> None:
         admitted = csl.resolve_printed_pages(yu_body, [7])
         require(admitted[0]["printed_page"] == 7, "printed book page 7 must resolve from a non-identity footer")
 
+        yu_running_head = [
+            {
+                "identity": 12,
+                "label": "12",
+                "text": "Actors depend on each other for goals to be achieved.\n5 Introduction\n",
+            }
+        ]
+        admitted_rh = csl.resolve_printed_pages(yu_running_head, [5])
+        require(
+            admitted_rh[0]["printed_page"] == 5,
+            "printed book page 5 must resolve from a running-head footer",
+        )
+
         help_run = run(tmp, "--help")
         require(help_run.returncode == 0, "help must run")
         require("centroid-source" in help_run.stdout, "help names centroid-source")
