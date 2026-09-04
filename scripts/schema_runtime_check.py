@@ -25,6 +25,7 @@ REQUIRED_SCHEMAS = (
     "references/schemas/token_budget_policy.schema.json",
     "references/schemas/host_qualification_transaction.schema.json",
     "references/schemas/release_evidence_index.schema.json",
+    "references/schemas/lifecycle_draft_governance_binding.schema.json",
 )
 
 

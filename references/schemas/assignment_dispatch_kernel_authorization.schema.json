@@ -55,7 +55,7 @@
         "path": {"$ref": "#/$defs/safePath"},
         "sha256": {"$ref": "#/$defs/sha256"},
         "claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
-        "claim_kind": {"enum": ["generation", "evaluation"]}
+        "claim_kind": {"enum": ["generation", "obligation_evaluation", "evaluation"]}
       }
     },
     "publication": {

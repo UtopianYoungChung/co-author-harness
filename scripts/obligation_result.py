@@ -519,7 +519,9 @@ def _generic_report_adapter(
         code=STALE,
         test_authority_adapter=test_authority_adapter,
     )
-    if envelope["authority"] not in adapter["authorized_adjudicators"]:
+    authority = envelope["authority"]
+    authorized = authority in adapter["authorized_adjudicators"]
+    if not authorized:
         _refuse(STALE, "generic report issuer is not authorized by the registry")
 
 

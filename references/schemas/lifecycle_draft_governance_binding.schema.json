@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/lifecycle_draft_governance_binding.schema.json",
+  "title": "Lifecycle draft-governance binding 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "binding_type", "evidence_id", "phase", "role",
+    "target", "receipt_id", "semantic_usage", "contract",
+    "obligation_receipt", "verified_envelope", "dispatch_claim",
+    "dispatch_consumption", "lifecycle_inventory"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "binding_type": {"const": "lifecycle_draft_governance"},
+    "evidence_id": {"type": "string", "pattern": "^draft-governance-[0-9a-f]{16}$"},
+    "phase": {"enum": ["generation", "evaluation"]},
+    "role": {"enum": ["generator", "evaluator"]},
+    "target": {"$ref": "#/$defs/safe_path"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "semantic_usage": {"const": "not_invoked"},
+    "contract": {"$ref": "#/$defs/project_binding"},
+    "obligation_receipt": {"$ref": "#/$defs/project_binding"},
+    "verified_envelope": {"$ref": "#/$defs/project_binding"},
+    "dispatch_claim": {"$ref": "#/$defs/project_binding"},
+    "dispatch_consumption": {"$ref": "#/$defs/project_binding"},
+    "lifecycle_inventory": {"$ref": "#/$defs/harness_binding"}
+  },
+  "allOf": [
+    {"if": {"properties": {"phase": {"const": "generation"}}}, "then": {"properties": {"role": {"const": "generator"}}}},
+    {"if": {"properties": {"phase": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "safe_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
+    "project_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256"],
+      "properties": {
+        "root": {"const": "project"},
+        "path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "harness_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "path", "sha256"],
+      "properties": {
+        "root": {"const": "harness"},
+        "path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

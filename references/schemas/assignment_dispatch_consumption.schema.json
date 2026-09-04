@@ -4,7 +4,7 @@
   "title": "Assignment dispatch consumption 1.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "consumption_type", "consumption_id", "state", "claim", "claim_id", "role", "consumer_transaction_id", "postimages", "mutation_row_hashes", "mutation_head", "consumed_at", "nonce"],
+  "required": ["schema_version", "consumption_type", "consumption_id", "state", "claim", "claim_id", "role", "consumer_transaction_id", "postimages", "consumed_at", "nonce"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "consumption_type": {"const": "assignment_dispatch"},
@@ -18,15 +18,22 @@
     "postimages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/postimage"}},
     "mutation_row_hashes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/sha256"}},
     "mutation_head": {"$ref": "#/$defs/sha256"},
+    "publication": {"$ref": "#/$defs/publication"},
     "consumed_at": {"$ref": "#/$defs/timestamp"},
     "nonce": {"type": "string", "pattern": "^[0-9a-f]{32,64}$"}
   },
+  "oneOf": [
+    {"required": ["mutation_row_hashes", "mutation_head"], "not": {"required": ["publication"]}},
+    {"required": ["publication"], "not": {"anyOf": [{"required": ["mutation_row_hashes"]}, {"required": ["mutation_head"]}]}}
+  ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "timestamp": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"},
     "safePath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"},
     "root": {"type": "object", "additionalProperties": false, "required": ["kind", "identity", "discovery", "manifest_sha256"], "properties": {"kind": {"enum": ["project", "harness"]}, "identity": {"type": "string", "minLength": 1}, "discovery": {"type": "string", "minLength": 1}, "manifest_sha256": {"$ref": "#/$defs/sha256"}}},
     "binding": {"type": "object", "additionalProperties": false, "required": ["root", "path", "sha256", "evidence_type"], "properties": {"root": {"$ref": "#/$defs/root"}, "path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "evidence_type": {"type": "string", "minLength": 1}}},
-    "postimage": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}}
+    "postimage": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "size"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "size": {"type": "integer", "minimum": 0}}},
+    "dependency": {"type": "object", "additionalProperties": false, "required": ["root_kind", "relative_path", "sha256", "byte_length"], "properties": {"root_kind": {"enum": ["project", "harness"]}, "relative_path": {"$ref": "#/$defs/safePath"}, "sha256": {"$ref": "#/$defs/sha256"}, "byte_length": {"type": "integer", "minimum": 0}}},
+    "publication": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "transaction_claim", "transaction_journal", "commit_marker", "output_paths"], "properties": {"transaction_id": {"type": "string", "minLength": 1}, "transaction_claim": {"$ref": "#/$defs/binding"}, "transaction_journal": {"$ref": "#/$defs/binding"}, "commit_marker": {"$ref": "#/$defs/binding"}, "output_paths": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/safePath"}}, "dependencies": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/dependency"}}}}
   }
 }

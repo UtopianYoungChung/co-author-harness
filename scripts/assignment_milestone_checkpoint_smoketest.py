@@ -9,11 +9,22 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 
 import assignment_dispatch_claim as dispatch_claims
+import assignment_milestone_transaction as milestone_transactions
+import draft_governance
+from draft_governance_lifecycle import (
+    DraftGovernanceLifecycleError,
+    validate_lifecycle_draft_governance_binding,
+)
 import draft_evidence_verifier as verifier
 from assignment_fixture_support import write_valid_contract
 from c2_evidence_fixture_support import build_activation_fixture
+from draft_governance_smoketest import (
+    DeterministicFixtureAdapter,
+    obligation_receipt,
+)
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 from scholarly_assurance_fixture_support import (
     build_qualified_scholarly_from_authorities,
@@ -22,6 +33,7 @@ from assignment_milestone_transaction import (
     MilestoneTransactionError, accept as accept_transaction,
     record as record_transaction,
 )
+from milestone_framework_validate import validate_document
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +44,7 @@ WRITER = ROOT / "scripts" / "assignment_writer_commit.py"
 CHECKPOINT = ROOT / "scripts" / "assignment_milestone_checkpoint.py"
 VALIDATOR = ROOT / "scripts" / "milestone_framework_validate.py"
 PHASE_VALIDATOR = ROOT / "scripts" / "phase_state_validate.py"
+FULL_RUN = ROOT / "scripts" / "full_run_contract_check.py"
 SEMANTICS = ROOT / "references" / "semantics_manifest.v1.json"
 PATHS = {
     "M1": "milestones/M1_project_memo.md",
@@ -123,6 +136,75 @@ def _lifecycle_locator(
         "evidence_path": locator.relative_to(project).as_posix(),
         "evidence_sha256": sha(locator),
     }
+
+
+def _draft_governance_locator(
+    project: Path, *, milestone: str, label: str, phase: str,
+    receipt_id: str, claim: Path, consumption: Path,
+) -> tuple[dict[str, str], Path]:
+    """Build real graph-independent draft-governance evidence for lifecycle use."""
+    role = {"generation": "generator", "evaluation": "evaluator"}[phase]
+    artifact = project / PATHS[milestone]
+    lane = (
+        project / "reviews" / ".harness" / "draft-governance"
+        / f"{milestone.lower()}-{label}-{phase}"
+    )
+    contract = draft_governance.prepare(SimpleNamespace(
+        project_root=str(project), target=milestone, phase=phase,
+        role=role, artifact=str(artifact),
+    ))
+    assert contract["centroid"]["required"] is False
+    assert contract["centroid"]["semantic_usage"] == "not_invoked"
+    contract_path = lane / "contract.json"
+    write_json(contract_path, contract)
+    generic = lane / "non-graph-evidence.txt"
+    generic.parent.mkdir(parents=True, exist_ok=True)
+    generic.write_text("Synthetic current non-graph obligation evidence.\n", encoding="utf-8")
+    receipt = obligation_receipt(
+        contract, contract_path, artifact, phase, generic, generic,
+    )
+    receipt_path = lane / "obligation-receipt.json"
+    write_json(receipt_path, receipt)
+    envelope = draft_governance.verify(
+        SimpleNamespace(
+            contract=str(contract_path), receipt=str(receipt_path),
+            artifact=str(artifact), phase=phase, role=role,
+            wiki_root=None, verifier_out_dir=None,
+            semantics_manifest=str(SEMANTICS),
+            requested_independence_level="none",
+        ),
+        _test_authority_adapter=DeterministicFixtureAdapter(),
+    )
+    assert envelope["status"] == "verified"
+    assert envelope["semantic_usage"] == "not_invoked"
+    envelope_path = lane / "verified-envelope.json"
+    write_json(envelope_path, envelope)
+    evidence_id = "draft-governance-" + sha(envelope_path)[:16]
+    locator = lane / "lifecycle.json"
+    write_json(locator, {
+        "schema_version": "1.0.0",
+        "binding_type": "lifecycle_draft_governance",
+        "evidence_id": evidence_id,
+        "phase": phase,
+        "role": role,
+        "target": PATHS[milestone],
+        "receipt_id": receipt_id,
+        "semantic_usage": "not_invoked",
+        "contract": _root_binding(project, contract_path, "project"),
+        "obligation_receipt": _root_binding(project, receipt_path, "project"),
+        "verified_envelope": _root_binding(project, envelope_path, "project"),
+        "dispatch_claim": _root_binding(project, claim, "project"),
+        "dispatch_consumption": _root_binding(project, consumption, "project"),
+        "lifecycle_inventory": _root_binding(
+            project,
+            ROOT / "references" / "draft_governance_lifecycle_inventory.v1.json",
+            "harness",
+        ),
+    })
+    return ({
+        "evidence_path": locator.relative_to(project).as_posix(),
+        "evidence_sha256": sha(locator),
+    }, locator)
 
 
 def checkpoint_input(
@@ -263,7 +345,8 @@ def m4_acceptance_policy_input(project: Path) -> Path:
 
 def publish(
     project: Path, milestone: str, content: bytes, *, label: str = "initial",
-    include_dstyle: bool = False,
+    include_dstyle: bool = False, native_v2: bool = False,
+    exercise_v2_adversarial: bool = False,
     ) -> tuple[Path, dict]:
     activation = build_activation_fixture(
         project,
@@ -275,7 +358,7 @@ def publish(
         "This paper argues a bounded claim because evidence supports the warrant "
         "and explains the stakes. However, a limitation defines the scope and an "
         "alternative explanation. AI-assisted work is disclosed."
-        if include_dstyle
+        if include_dstyle or native_v2
         else f"A bounded synthetic {milestone} claim remains qualified."
     )
     activation.mutate_artifact(
@@ -307,6 +390,20 @@ def publish(
         issuer_transaction_id=f"assignment-reserve-{milestone}",
         issued_at="2026-07-19T00:00:00Z",
     )
+    alternate_generation: tuple[dict, Path] | None = None
+    if native_v2 and exercise_v2_adversarial:
+        alternate_claim, alternate_path, _ = dispatch_claims.issue_generation_claim(
+            project,
+            reserved,
+            policy_path=activation.wiki_root / "policy.json",
+            bibliography_snapshot=activation.bibliography_snapshot,
+            nonce=hashlib.sha256(
+                f"{milestone}:{label}:alternate-generation".encode()
+            ).hexdigest()[:32],
+            issuer_transaction_id=f"assignment-reserve-{milestone}",
+            issued_at="2026-07-19T00:00:00Z",
+        )
+        alternate_generation = alternate_claim, alternate_path
     staged = project / "reviews" / ".harness" / "assignment" / "staged" / record["receipt_id"] / f"{milestone.lower()}_{label}.md"
     staged.parent.mkdir(parents=True, exist_ok=True); staged.write_bytes(artifact_bytes)
     plan = staged.with_name("write_plan.json")
@@ -330,37 +427,87 @@ def publish(
             consumed_at="2026-07-19T00:00:01Z",
         )
     )
+    alternate_consumption_path: Path | None = None
+    if alternate_generation is not None:
+        _, alternate_consumption_path, _ = dispatch_claims.consume_dispatch_claim(
+            project,
+            alternate_generation[1],
+            role="generator",
+            consumer_transaction_id=f"assignment-write-{milestone}-alternate",
+            target_paths=[PATHS[milestone]],
+            consumed_at="2026-07-19T00:00:01Z",
+        )
     verifier_root = (
         project / "reviews" / ".harness" / "verifier"
         / f"{milestone.lower()}-{label}"
     )
     semantics = SEMANTICS
-    generation_paths = verifier.publish_verifier_transaction(
-        artifact=activation.artifact,
-        semantic_receipt=activation.receipt,
-        phase="generation",
-        project_root=project,
-        wiki_root=activation.wiki_root,
-        harness_root=ROOT,
-        semantics_manifest=semantics,
-        out_dir=verifier_root / "generation",
-        requested_independence_level="none",
-    )
-    evaluation_claim, evaluation_claim_path, _ = dispatch_claims.issue_evaluation_claim(
-        project,
-        generation_claim_path,
-        generation_consumption=generation_consumption_path,
-        artifact=activation.artifact,
-        generation_transaction=generation_paths["transaction"],
-        generation_publication_manifest=generation_paths["publication_manifest"],
-        generation_commit_marker=generation_paths["commit_marker"],
-        generation_semantic_receipt=activation.receipt,
-        wiki_root=activation.wiki_root,
-        semantics_manifest=semantics,
-        nonce=hashlib.sha256(f"{milestone}:{label}:evaluation".encode()).hexdigest()[:32],
-        issuer_transaction_id=f"assignment-evaluation-{milestone}",
-        issued_at="2026-07-19T00:00:02Z",
-    )
+    if native_v2:
+        generation_binding, generation_locator = _draft_governance_locator(
+            project, milestone=milestone, label=label, phase="generation",
+            receipt_id=record["receipt_id"], claim=generation_claim_path,
+            consumption=generation_consumption_path,
+        )
+        generation_paths = {}
+        if alternate_generation is not None and alternate_consumption_path is not None:
+            try:
+                dispatch_claims.issue_evaluation_claim(
+                    project,
+                    alternate_generation[1],
+                    generation_consumption=alternate_consumption_path,
+                    artifact=activation.artifact,
+                    generation_draft_governance=generation_locator,
+                    nonce=hashlib.sha256(
+                        f"{milestone}:{label}:mismatched-evaluation".encode()
+                    ).hexdigest()[:32],
+                    issuer_transaction_id=f"assignment-evaluation-{milestone}",
+                    issued_at="2026-07-19T00:00:02Z",
+                    _test_authority_adapter=DeterministicFixtureAdapter(),
+                )
+            except dispatch_claims.ReceiptTransactionError as exc:
+                assert exc.code == "APG-DISPATCH-CLAIM-GENERATION-MISMATCH"
+            else:
+                raise AssertionError(
+                    "evaluation issuance accepted a v2 locator bound to another exact generation claim"
+                )
+        evaluation_claim, evaluation_claim_path, _ = dispatch_claims.issue_evaluation_claim(
+            project,
+            generation_claim_path,
+            generation_consumption=generation_consumption_path,
+            artifact=activation.artifact,
+            generation_draft_governance=generation_locator,
+            nonce=hashlib.sha256(f"{milestone}:{label}:evaluation".encode()).hexdigest()[:32],
+            issuer_transaction_id=f"assignment-evaluation-{milestone}",
+            issued_at="2026-07-19T00:00:02Z",
+            _test_authority_adapter=DeterministicFixtureAdapter(),
+        )
+    else:
+        generation_paths = verifier.publish_verifier_transaction(
+            artifact=activation.artifact,
+            semantic_receipt=activation.receipt,
+            phase="generation",
+            project_root=project,
+            wiki_root=activation.wiki_root,
+            harness_root=ROOT,
+            semantics_manifest=semantics,
+            out_dir=verifier_root / "generation",
+            requested_independence_level="none",
+        )
+        evaluation_claim, evaluation_claim_path, _ = dispatch_claims.issue_evaluation_claim(
+            project,
+            generation_claim_path,
+            generation_consumption=generation_consumption_path,
+            artifact=activation.artifact,
+            generation_transaction=generation_paths["transaction"],
+            generation_publication_manifest=generation_paths["publication_manifest"],
+            generation_commit_marker=generation_paths["commit_marker"],
+            generation_semantic_receipt=activation.receipt,
+            wiki_root=activation.wiki_root,
+            semantics_manifest=semantics,
+            nonce=hashlib.sha256(f"{milestone}:{label}:evaluation".encode()).hexdigest()[:32],
+            issuer_transaction_id=f"assignment-evaluation-{milestone}",
+            issued_at="2026-07-19T00:00:02Z",
+        )
     scholarly = build_qualified_scholarly_from_authorities(
         project,
         authorities={
@@ -380,15 +527,28 @@ def publish(
         label=f"{milestone.lower()}-{label}",
         claim_text=claim_text,
         include_dstyle=include_dstyle,
+        legacy_semantic_evidence=not native_v2,
     )
     evaluation_consumption_path = scholarly.evaluation_consumption
     evaluation_semantic = scholarly.evaluation_semantic_receipt
     evaluation_paths = scholarly.evaluation_verifier
-    generation_id = json.loads(
-        generation_paths["transaction"].read_text(encoding="utf-8")
-    )["transaction_id"]
-    policy = {
-        "draft_generation": _lifecycle_locator(
+    if native_v2:
+        evaluation_binding, _ = _draft_governance_locator(
+            project, milestone=milestone, label=label, phase="evaluation",
+            receipt_id=record["receipt_id"], claim=evaluation_claim_path,
+            consumption=evaluation_consumption_path,
+        )
+        policy = {
+            "draft_generation": generation_binding,
+            "draft_evaluation": evaluation_binding,
+            "scholarly_evaluation": scholarly.binding,
+        }
+    else:
+        generation_id = json.loads(
+            generation_paths["transaction"].read_text(encoding="utf-8")
+        )["transaction_id"]
+        policy = {
+            "draft_generation": _lifecycle_locator(
             project, milestone=milestone, label=label, phase="generation",
             receipt_id=record["receipt_id"], paths=generation_paths,
             claim=generation_claim_path, consumption=generation_consumption_path,
@@ -396,7 +556,7 @@ def publish(
             generation_transaction_id=None,
             semantics_manifest=semantics,
         ),
-        "draft_evaluation": _lifecycle_locator(
+            "draft_evaluation": _lifecycle_locator(
             project, milestone=milestone, label=label, phase="evaluation",
             receipt_id=record["receipt_id"], paths=evaluation_paths,
             claim=evaluation_claim_path, consumption=evaluation_consumption_path,
@@ -404,8 +564,8 @@ def publish(
             generation_transaction_id=generation_id,
             semantics_manifest=semantics,
         ),
-        "scholarly_evaluation": scholarly.binding,
-    }
+            "scholarly_evaluation": scholarly.binding,
+        }
     assert generation_claim["receipt_id"] == record["receipt_id"]
     assert generation_consumption["claim_id"] == generation_claim["claim_id"]
     assert evaluation_claim["receipt_id"] == record["receipt_id"]
@@ -413,6 +573,9 @@ def publish(
 
 
 def main() -> int:
+    native_v2_only = sys.argv[1:] == ["--native-v2-only"]
+    if sys.argv[1:] and not native_v2_only:
+        raise SystemExit("usage: assignment_milestone_checkpoint_smoketest.py [--native-v2-only]")
     # Package-local scratch keeps this end-to-end fixture runnable from a
     # distributed plugin cache whose production boundary correctly refuses
     # unrelated OS-temp writes when no workspace manifest is discoverable.
@@ -421,6 +584,215 @@ def main() -> int:
         project = Path(raw) / "walk"
         run(BOOTSTRAP, "--project-root", project, "--project-name", "walk", "--title", "Synthetic Walk", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z", "--handoff-policy", "audited")
         write_valid_contract(project)
+
+        # Native reader-profile v2 lifecycle compatibility: synthetic fixture
+        # authority is injected only into library calls.  Production CLI paths
+        # retain the real authority verifier and this fixture creates no
+        # semantic transaction, publication, receipt, or commit marker.
+        v2_project = Path(raw) / "native-v2"
+        run(BOOTSTRAP, "--project-root", v2_project, "--project-name", "native-v2", "--title", "Synthetic Native V2", "--intended-reader", "researcher", "--created-at", "2026-07-19T00:00:00Z", "--handoff-policy", "audited")
+        write_valid_contract(v2_project)
+        v2_consumed, v2_policy = publish(
+            v2_project, "M1", b"# M1 native v2 synthetic deliverable\n",
+            native_v2=True, exercise_v2_adversarial=True,
+        )
+        v2_checkpoint = checkpoint_input(
+            v2_project, "M1", "2026-07-19T00:00:02Z", policy=v2_policy,
+        )
+        fixture_adapter = DeterministicFixtureAdapter()
+        record_transaction(
+            v2_project, "M1", v2_consumed, v2_checkpoint,
+            "2026-07-19T00:00:03Z",
+            _test_authority_adapter=fixture_adapter,
+        )
+        v2_state = state(v2_project)
+        v2_m1 = v2_state["milestone_framework"]["milestones"]["M1"]
+        assert v2_m1["status"] == "in_progress" and v2_m1["artifacts"]
+        original_draft_validator = milestone_transactions._validate_draft_evidence
+
+        def force_v2_stale(*args, **kwargs):
+            raise DraftGovernanceLifecycleError(
+                "LIFECYCLE-DRAFT-GOVERNANCE-STALE",
+                "forced stale lifecycle evidence",
+            )
+
+        milestone_transactions._validate_draft_evidence = force_v2_stale
+        try:
+            try:
+                milestone_transactions._validate_checkpoint(
+                    v2_project,
+                    v2_checkpoint,
+                    "M1",
+                    "main",
+                    json.loads(v2_consumed.read_text(encoding="utf-8"))["receipt_id"],
+                    _test_authority_adapter=fixture_adapter,
+                )
+            except milestone_transactions.MilestoneTransactionError as exc:
+                assert exc.code == "AMC-DRAFT-POLICY-STALE"
+            else:
+                raise AssertionError(
+                    "v2 lifecycle staleness lost its typed milestone diagnostic"
+                )
+        finally:
+            milestone_transactions._validate_draft_evidence = original_draft_validator
+        generation_locator = json.loads(
+            (v2_project / v2_policy["draft_generation"]["evidence_path"]).read_text(encoding="utf-8")
+        )
+        evaluation_locator = json.loads(
+            (v2_project / v2_policy["draft_evaluation"]["evidence_path"]).read_text(encoding="utf-8")
+        )
+        evaluation_claim = json.loads(
+            (v2_project / evaluation_locator["dispatch_claim"]["path"]).read_text(encoding="utf-8")
+        )
+        scholarly_value = json.loads(
+            (v2_project / v2_policy["scholarly_evaluation"]["evidence_path"]).read_text(encoding="utf-8")
+        )
+        assert generation_locator["semantic_usage"] == "not_invoked"
+        assert evaluation_locator["semantic_usage"] == "not_invoked"
+        assert "generation_verifier" not in evaluation_claim
+        assert evaluation_claim["generation_draft_governance"]["evidence_id"] == generation_locator["evidence_id"]
+        assert scholarly_value["evaluation_dispatch"]["claim"]["path"] == evaluation_locator["dispatch_claim"]["path"]
+        assert generation_locator["receipt_id"] == evaluation_locator["receipt_id"] == evaluation_claim["receipt_id"]
+        assert not list(v2_project.rglob("evaluation-semantic.json"))
+        assert not list(v2_project.rglob("evaluation-product"))
+        generation_result = validate_lifecycle_draft_governance_binding(
+            locator=v2_project / v2_policy["draft_generation"]["evidence_path"],
+            artifact=v2_project / PATHS["M1"],
+            project_root=v2_project,
+            expected_phase="generation",
+            expected_role="generator",
+            expected_milestone="M1",
+            expected_receipt_id=generation_locator["receipt_id"],
+            expected_dispatch_claim=v2_project / generation_locator["dispatch_claim"]["path"],
+            expected_dispatch_consumption=v2_project / generation_locator["dispatch_consumption"]["path"],
+            _test_authority_adapter=fixture_adapter,
+        )
+        dependency_paths = {
+            Path(row["path"]).as_posix() for row in generation_result["dependencies"]
+        }
+        assert any(
+            path.endswith("/scripts/draft_governance_lifecycle.py")
+            for path in dependency_paths
+        )
+        assert any(
+            path.endswith("/references/schemas/lifecycle_draft_governance_binding.schema.json")
+            for path in dependency_paths
+        )
+        alternate_inventory = (
+            v2_project / "reviews/.harness/draft-governance/alternate-inventory.json"
+        )
+        alternate_inventory.write_bytes(
+            (ROOT / "references/draft_governance_lifecycle_inventory.v1.json").read_bytes()
+        )
+        alternate_locator = json.loads(json.dumps(generation_locator))
+        alternate_locator["lifecycle_inventory"] = _root_binding(
+            v2_project, alternate_inventory, "harness",
+        )
+        alternate_locator_path = alternate_inventory.with_name(
+            "alternate-inventory-lifecycle.json"
+        )
+        write_json(alternate_locator_path, alternate_locator)
+        try:
+            validate_lifecycle_draft_governance_binding(
+                locator=alternate_locator_path,
+                artifact=v2_project / PATHS["M1"],
+                project_root=v2_project,
+                expected_phase="generation",
+                expected_role="generator",
+                expected_milestone="M1",
+                expected_receipt_id=generation_locator["receipt_id"],
+                expected_dispatch_claim=v2_project / generation_locator["dispatch_claim"]["path"],
+                expected_dispatch_consumption=v2_project / generation_locator["dispatch_consumption"]["path"],
+                _test_authority_adapter=fixture_adapter,
+            )
+        except DraftGovernanceLifecycleError as exc:
+            assert exc.code == "LIFECYCLE-DRAFT-GOVERNANCE-INVENTORY"
+        else:
+            raise AssertionError("v2 lifecycle accepted a substituted inventory path")
+        try:
+            validate_lifecycle_draft_governance_binding(
+                locator=v2_project / v2_policy["draft_generation"]["evidence_path"],
+                artifact=v2_project / PATHS["M1"],
+                project_root=v2_project,
+                expected_phase="generation",
+                expected_role="generator",
+                expected_milestone="M1",
+                expected_receipt_id="receipt-from-another-authority-chain",
+                expected_dispatch_claim=v2_project / generation_locator["dispatch_claim"]["path"],
+                expected_dispatch_consumption=v2_project / generation_locator["dispatch_consumption"]["path"],
+                _test_authority_adapter=fixture_adapter,
+            )
+        except DraftGovernanceLifecycleError as exc:
+            assert exc.code == "LIFECYCLE-DRAFT-GOVERNANCE-DISPATCH"
+        else:
+            raise AssertionError("v2 lifecycle replay accepted a cross-receipt authority")
+        try:
+            validate_lifecycle_draft_governance_binding(
+                locator=v2_project / v2_policy["draft_generation"]["evidence_path"],
+                artifact=v2_project / PATHS["M1"],
+                project_root=v2_project,
+                expected_phase="generation",
+                expected_role="generator",
+                expected_milestone="M2",
+                expected_receipt_id=generation_locator["receipt_id"],
+                expected_dispatch_claim=v2_project / generation_locator["dispatch_claim"]["path"],
+                expected_dispatch_consumption=v2_project / generation_locator["dispatch_consumption"]["path"],
+                _test_authority_adapter=fixture_adapter,
+            )
+        except DraftGovernanceLifecycleError as exc:
+            assert exc.code == "LIFECYCLE-DRAFT-GOVERNANCE-DISPOSITION"
+        else:
+            raise AssertionError("M1 draft governance accepted under the M2 artifact contract")
+        malformed_locator = (
+            v2_project / "reviews/.harness/draft-governance/malformed-root.json"
+        )
+        malformed_locator.parent.mkdir(parents=True, exist_ok=True)
+        for malformed_root in ([], "scalar", 7):
+            malformed_locator.write_text(
+                json.dumps(malformed_root) + "\n", encoding="utf-8"
+            )
+            try:
+                milestone_transactions._validate_draft_evidence(
+                    v2_project, malformed_locator, v2_project / PATHS["M1"],
+                    "generation", "evaluation_ready",
+                )
+            except DraftGovernanceLifecycleError as exc:
+                assert exc.code == "LIFECYCLE-DRAFT-GOVERNANCE-INVALID"
+            else:
+                raise AssertionError(
+                    "milestone transaction accepted a non-object lifecycle locator"
+                )
+        v2_validation = validate_document(
+            v2_project, v2_state, _test_authority_adapter=fixture_adapter,
+        )
+        assert v2_validation.exit_permitted, v2_validation.findings
+        phase_state_path = v2_project / "reviews/phase_state.json"
+        phase_state_bytes = phase_state_path.read_bytes()
+        malformed_locator.write_text("[]\n", encoding="utf-8")
+        malformed_state = json.loads(phase_state_bytes)
+        malformed_state["milestone_framework"]["milestones"]["M1"][
+            "policy_evidence"
+        ]["draft_generation"] = {
+            "evidence_path": malformed_locator.relative_to(v2_project).as_posix(),
+            "evidence_sha256": sha(malformed_locator),
+        }
+        malformed_validation = validate_document(
+            v2_project, malformed_state, _test_authority_adapter=fixture_adapter,
+        )
+        assert not malformed_validation.exit_permitted
+        assert any(
+            row.code == "AMC-SCHOLARLY-EVALUATION-STALE"
+            for row in malformed_validation.findings
+        )
+        write_json(phase_state_path, malformed_state)
+        malformed_full_run = run(
+            FULL_RUN, "terminal", "--project-root", v2_project, expected=4,
+        )
+        assert "FRC-DRAFT-POLICY-STALE" in malformed_full_run.stdout
+        phase_state_path.write_bytes(phase_state_bytes)
+        if native_v2_only:
+            print("assignment milestone native-v2 lifecycle smoketest: PASS")
+            return 0
 
         # No state or F9 handoff is edited by this test: every lifecycle change
         # below goes through the public command under test.
@@ -432,7 +804,7 @@ def main() -> int:
             derived = json.loads(run(CHECKPOINT, "derive", "--project-root", project).stdout)
             assert derived == {"status": "READY", "milestone": milestone, "action": "draft", "authority_mode": "direct_local"}, derived
             consumed, draft_policy = publish(
-                project, milestone, f"# {milestone} synthetic deliverable\n".encode()
+                project, milestone, f"# {milestone} synthetic deliverable\n".encode(),
             )
             checkpoint = checkpoint_input(
                 project, milestone, f"2026-07-19T00:00:{next(ticks):02d}Z",

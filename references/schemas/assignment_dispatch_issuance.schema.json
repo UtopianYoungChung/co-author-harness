@@ -34,7 +34,7 @@
     "claim": {"$ref": "#/$defs/binding"},
     "claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
     "claim_sha256": {"$ref": "#/$defs/sha256"},
-    "claim_kind": {"enum": ["generation", "evaluation"]},
+    "claim_kind": {"enum": ["generation", "obligation_evaluation", "evaluation"]},
     "receipt_id": {"type": "string", "format": "uuid"},
     "reservation_id": {"type": "string", "format": "uuid"},
     "issuer": {"$ref": "#/$defs/issuer"},
