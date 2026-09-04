@@ -171,6 +171,7 @@ The current version is recorded in [`version.json`](version.json), which is its 
 
 | Release | Highlights |
 | --- | --- |
+| **0.50.1** | Patch since 0.50.0: WR-20260903 stabilize (FIVE docs, verifier/capability, centroid HOT, paper2 unique land, fail-closed kernel repair), reflector FIVE bind (probe/closeout/grounding; router skipped), printed-page running-head footers. KEEP WIP `c4563c8`+`d5fe3c0`; July stashes kept; no promote; SK-32 closed. |
 | **0.50.0** | SemVer identity 0.5.0 to 0.50.0 (monotonically newer than 0.43.0). Evaluation-lane is dest-safe mechanical only (`d-style-profile`, `deterministic-audit`); scholarly rows fail closed and do not mint CLEAN. Joseph is the only R-plane actor. `GRAPH-SEMANTIC-INELIGIBLE` stays eligibility, not `RA-POLICY`. |
 | **0.43.1** | Shipment-v2 treats `inputs/` as immutable preimage evidence and requires operation bijection only across `work/`, `state/`, and `evidence/`. Qualification coverage routes `RUNTIME-PLANE-MISSING` diagnostics and includes the static output-economy guard. This slice is not source qualification, clearance, shipment, or activation. |
 | **0.43.0** | Reader-profile v2 records `semantic_usage: not_invoked` when no governed semantic binding is available. Release qualification uses a durable receipt-authoritative controller transaction. `0.43.0` is the manifest version; this slice is not clearance, shipment, or activation. |

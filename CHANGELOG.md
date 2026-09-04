@@ -6,9 +6,21 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
-## Unreleased (docs, 2026-09-01)
+## Unreleased
 
-**Five enforcement measures.** Joseph directed that the Paper 2 v4 abstract calibration become the harness core guideline, with remaining instruments classified under five umbrellas: vocabulary audit, novelty shape, ordering, gap-before-claim, one job per sentence. New `references/FIVE_ENFORCEMENT_MEASURES.md`; pointers in MASTER A.0, STYLE_COMMITMENTS purpose, MANIFEST routing, Generator/Evaluator/Planner read lists, and package `lessons_learned.md` L-P8. Not a C-9. No version bump. No manuscript fold. Calibration object re-hashed: live preview `a0fa9222…` / 42,504 B; seat-cited `cde8ad63…` / 42,932 B is not the live file.
+---
+
+## v0.50.1 — 2026-09-04
+
+**WR-20260903 harness stabilize-upgrade (closed).** Docs FIVE enforcement umbrella (`references/FIVE_ENFORCEMENT_MEASURES.md`; MASTER / STYLE_COMMITMENTS / MANIFEST / Planner–Evaluator–Generator reads; L-P8). Verifier/capability schema+script land. Centroid-advisory IN+HOT activation path. Paper2 lifecycle unique adds + non-dual mods (WO-05b); dual-mod tip deltas kept museum on `d5fe3c0` (WO-05c closed no land). Fail-closed prove repair: restore `policy_error_payload` / `resolve_declared_policy`, re-pin four semantics members (canonical JSON), refresh `contract_kernel` hashes, rebind shipment-v2 projection/profile. All six fail-closed smokes PASS on tip.
+
+**Five enforcement measures (from Unreleased docs).** Paper 2 v4 abstract calibration is the harness core guideline; instruments sit under five umbrellas: vocabulary audit, novelty shape, ordering, gap-before-claim, one job per sentence. Not a C-9. Calibration object re-hashed: live preview `a0fa9222…` / 42,504 B; seat-cited `cde8ad63…` / 42,932 B is not the live file.
+
+**Reflector FIVE bind.** `agents/reflector-probe.md`, `agents/reflector-closeout.md`, and `references/_snippets/reflection-grounding.md` cite FIVE as umbrella check set for integrity/recurrence accounting; compatibility router `agents/reflector.md` skipped. No scholarly CLEAN mint; no G.4; no preview→M4.
+
+**Printed-page footers.** `centroid_sentence_logic` admits printed book pages whose footer is digit + running head (e.g. `5 Introduction`); legacy PDF-index 3/7/12 refuse stays.
+
+**Stay notes.** KEEP WIP tips `c4563c8` + `d5fe3c0`. July stashes kept. No promote. SK-32 closed.
 
 ---
 
