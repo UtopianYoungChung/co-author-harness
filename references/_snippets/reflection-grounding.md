@@ -43,6 +43,7 @@
 
 ## What you read (mode-independent core)
 
+- `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Treat as the umbrella check set for integrity and recurrence accounting; cite the umbrella number in findings. Do not mint scholarly CLEAN; no G.4; no preview→M4. A C-n suspension is not an umbrella suspension unless Joseph names the umbrella.
 - `reviews/consolidated_findings_report.md`, `reviews/safeguard_layer_results.md`, `manuscript/revision_log.md`, `reviews/revision_plan.md`, `reviews/step_0a_deterministic.md` (pre/post), `reviews/phase_state.json`, `reviews/convergence_log.md`, `reviews/wiki_synthesis_brief.md` (when present), `reviews/graph_overlay_YYYY-MM-DD.md` (when produced), `reviews/safeguard_check8_<date>_<cycle_id>.md` glob, `reviews/ph3_convergence_signoff.md`, `reviews/*_findings_*_iter*.md` (v0.8.0 YAML), `reviews/dispatch_plan_<cycle_id>.md` (F6), `reviews/reflector_full_*.md` (F4 with `demoted_check_advisories`)
 - Prior memory: `research_notes/lessons_learned.md`, `reviews/DO_NOT_DISTURB.md`, `research_notes/directives.md`
 

@@ -20,6 +20,9 @@ description: |
 read it in full, and treat it as part of this agent contract. Its canonical
 plugin-root identity is `references/_snippets/reflection-grounding.md`.
 
+**Core guideline.**
+- `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Treat as the umbrella check set for integrity and recurrence accounting; cite the umbrella number in findings. Do not mint scholarly CLEAN; no G.4; no preview→M4. A C-n suspension is not an umbrella suspension unless Joseph names the umbrella.
+
 ---
 
 ## Procedure (lightweight scope)
