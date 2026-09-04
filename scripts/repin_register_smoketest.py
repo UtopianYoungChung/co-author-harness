@@ -10,6 +10,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -62,6 +63,222 @@ def fixture(root: Path) -> tuple[Path, Path, Path, Path]:
     ] = current["graph_sha256_provenance"]
     write_json(profile_path, profile)
     return harness, profile_path, wiki, workspace
+
+
+def add_model_provenance_to_fixture(wiki: Path, graph_path: Path) -> None:
+    """Relocate the semantic fixture into one complete fresh transaction."""
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    metadata = graph["graph"]
+    transaction_id = graph_path.parent.name
+    stage = wiki / "graphify-out/semantic-qualifications" / transaction_id
+    stage.mkdir(parents=True, exist_ok=True)
+    base_graph = wiki / "graphify-out/graph.json"
+    base_graph.parent.mkdir(parents=True, exist_ok=True)
+    base_graph.write_bytes(graph_path.read_bytes())
+    base_sha = hashlib.sha256(base_graph.read_bytes()).hexdigest()
+
+    old_manifest_path = wiki / metadata["semantic_manifest"]
+    old_audit_path = wiki / metadata["semantic_audit"]
+    old_report_path = wiki / metadata["semantic_report"]
+    manifest_path = stage / "manifest.json"
+    audit_path = stage / "audit.json"
+    receipt_path = stage / "receipt.json"
+    manifest = json.loads(old_manifest_path.read_text(encoding="utf-8"))
+    manifest.update(
+        transaction_id=transaction_id,
+        publication_mode="consumer-only-semantic-composite",
+        producer="Codex",
+        producer_model="gpt-fixture-model",
+        base_graph_path="graphify-out/graph.json",
+        base_graph_sha256=base_sha,
+        structural_graph_sha256=base_sha,
+    )
+    output_rows = []
+    for chunk in manifest["chunks"]:
+        chunk_id = chunk["chunk_id"]
+        request = stage / "chunks" / f"{chunk_id}.request.json"
+        prompt = stage / "chunks" / f"{chunk_id}.prompt.md"
+        request.parent.mkdir(parents=True, exist_ok=True)
+        request.write_text(
+            json.dumps({
+                "schema_version": "1.0.0", "producer": "Codex",
+                "producer_model": "gpt-fixture-model", "chunk_id": chunk_id,
+                "source_files": chunk["source_files"],
+            }, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        prompt.write_text("fixture model prompt\n", encoding="utf-8")
+        chunk["request_sha256"] = hashlib.sha256(request.read_bytes()).hexdigest()
+        chunk["prompt_sha256"] = hashlib.sha256(prompt.read_bytes()).hexdigest()
+        old_output = wiki / next(
+            row["path"] for row in metadata["semantic_output_files"]
+            if row["path"].endswith(f"{chunk_id}.output.json")
+        )
+        output = json.loads(old_output.read_text(encoding="utf-8"))
+        output.update(producer="Codex", producer_model="gpt-fixture-model")
+        for page in output["pages"]:
+            for edge in page["edges"]:
+                edge["warrant"] = (
+                    "model-textual" if edge["confidence"] == "EXTRACTED"
+                    else "model-inferential"
+                )
+        output_path = stage / "chunks" / f"{chunk_id}.output.json"
+        write_json(output_path, output)
+        output_rows.append({
+            "path": output_path.relative_to(wiki).as_posix(),
+            "sha256": hashlib.sha256(output_path.read_bytes()).hexdigest(),
+        })
+    write_json(manifest_path, manifest)
+    manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    outputs_payload = "\n".join(
+        f"{row['path']}\t{row['sha256']}" for row in output_rows
+    ).encode("utf-8")
+    outputs_sha = hashlib.sha256(outputs_payload).hexdigest()
+    audit = json.loads(old_audit_path.read_text(encoding="utf-8"))
+    audit.update(
+        transaction_id=transaction_id,
+        manifest_sha256=manifest_sha,
+        semantic_outputs_sha256=outputs_sha,
+        producer="Codex",
+        producer_model="gpt-fixture-model",
+        auditor="Claude Code",
+        auditor_model="claude-fixture-model",
+        reviewer="Claude Code",
+        reviewer_model="claude-fixture-model",
+        reviewers=["Claude Code"],
+        reviewer_counts={"Claude Code": len(audit["edges"])},
+    )
+    for row in audit["edges"]:
+        row["reviewer"] = "Claude Code"
+    write_json(audit_path, audit)
+    report_path = stage / "QUALIFICATION_REPORT.md"
+    report_path.write_bytes(old_report_path.read_bytes())
+    for edge in graph["links"]:
+        if edge.get("semantic_status") == "validated":
+            edge["warrant"] = (
+                "model-textual" if edge.get("confidence") == "EXTRACTED"
+                else "model-inferential"
+            )
+    metadata.update(
+        publication_mode="consumer-only-semantic-composite",
+        semantic_transaction_id=transaction_id,
+        base_graph_sha256=base_sha,
+        semantic_manifest=manifest_path.relative_to(wiki).as_posix(),
+        semantic_manifest_sha256=manifest_sha,
+        semantic_audit=audit_path.relative_to(wiki).as_posix(),
+        semantic_audit_sha256=hashlib.sha256(audit_path.read_bytes()).hexdigest(),
+        semantic_report=report_path.relative_to(wiki).as_posix(),
+        semantic_receipt=receipt_path.relative_to(wiki).as_posix(),
+        semantic_output_files=output_rows,
+        semantic_outputs_sha256=outputs_sha,
+        semantic_producer="Codex",
+        semantic_producer_model="gpt-fixture-model",
+        semantic_auditor="Claude Code",
+        semantic_auditor_model="claude-fixture-model",
+    )
+    write_json(graph_path, graph)
+    audit_request = stage / "audit_request.json"
+    audit_prompt = stage / "audit.prompt.md"
+    audit_submission = stage / "audit.submission.json"
+    candidate = stage / "candidate.graph.json"
+    write_json(audit_request, {"transaction_id": transaction_id, "auditor": "Claude Code"})
+    audit_prompt.write_text("fixture independent audit prompt\n", encoding="utf-8")
+    write_json(audit_submission, audit)
+    candidate.write_bytes(graph_path.read_bytes())
+    (stage / "qualified.graph.json").write_bytes(graph_path.read_bytes())
+    created_paths = [
+        {
+            "path": path.relative_to(stage).as_posix(),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in sorted(
+            (path for path in stage.rglob("*") if path.is_file()),
+            key=lambda path: path.relative_to(stage).as_posix().encode("utf-8"),
+        )
+    ]
+    rollback = {
+        "schema_version": "1.0.0",
+        "transaction_id": transaction_id,
+        "live_graph_mutated": False,
+        "base_graph_path": "graphify-out/graph.json",
+        "base_graph_sha256": base_sha,
+        "rollback_action": "withdraw exact transaction binding",
+        "created_paths": created_paths,
+    }
+    rollback_path = stage / "rollback.json"
+    write_json(rollback_path, rollback)
+    receipt = {
+        "schema_version": "1.0.0",
+        "transaction_id": transaction_id,
+        "publication_mode": "consumer-only-semantic-composite",
+        "producer": "Codex", "producer_model": "gpt-fixture-model",
+        "auditor": "Claude Code", "auditor_model": "claude-fixture-model",
+        "base_graph_sha256": base_sha,
+        "final_graph_sha256": hashlib.sha256(graph_path.read_bytes()).hexdigest(),
+        "manifest_sha256": manifest_sha,
+        "audit_sha256": metadata["semantic_audit_sha256"],
+        "semantic_outputs_sha256": outputs_sha,
+        "research_inventory_sha256": metadata["research_inventory_sha256"],
+        "report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        "extraction_mode": metadata["extraction_mode"],
+        "semantic_status": metadata["semantic_status"],
+        "semantic_scope": metadata["semantic_scope"],
+        "page_count": metadata["semantic_pages_represented"],
+        "semantic_node_count": metadata["semantic_node_count"],
+        "semantic_edge_count": metadata["semantic_edge_count"],
+        "audit_sample_count": audit["sample_count"],
+        "audit_request_sha256": hashlib.sha256(audit_request.read_bytes()).hexdigest(),
+        "audit_prompt_sha256": hashlib.sha256(audit_prompt.read_bytes()).hexdigest(),
+        "audit_submission_sha256": hashlib.sha256(audit_submission.read_bytes()).hexdigest(),
+        "rollback_path": rollback_path.relative_to(wiki).as_posix(),
+        "rollback_sha256": hashlib.sha256(rollback_path.read_bytes()).hexdigest(),
+    }
+    write_json(receipt_path, receipt)
+
+
+def refresh_fresh_fixture(wiki: Path, graph_path: Path, graph: dict) -> None:
+    """Rebind synchronized fixture bytes so adversarial tests reach the target check."""
+    metadata = graph["graph"]
+    stage = wiki / "graphify-out/semantic-qualifications" / metadata["semantic_transaction_id"]
+    output_rows = metadata["semantic_output_files"]
+    for row in output_rows:
+        row["sha256"] = hashlib.sha256((wiki / row["path"]).read_bytes()).hexdigest()
+    output_payload = "\n".join(
+        f"{row['path']}\t{row['sha256']}" for row in output_rows
+    ).encode("utf-8")
+    metadata["semantic_outputs_sha256"] = hashlib.sha256(output_payload).hexdigest()
+    audit_path = wiki / metadata["semantic_audit"]
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    audit["semantic_outputs_sha256"] = metadata["semantic_outputs_sha256"]
+    write_json(audit_path, audit)
+    metadata["semantic_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+    write_json(graph_path, graph)
+    (stage / "qualified.graph.json").write_bytes(graph_path.read_bytes())
+    rollback_path = stage / "rollback.json"
+    rollback = json.loads(rollback_path.read_text(encoding="utf-8"))
+    rollback["created_paths"] = [
+        {
+            "path": path.relative_to(stage).as_posix(),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in sorted(
+            (
+                path for path in stage.rglob("*")
+                if path.is_file() and path.name not in {"rollback.json", "receipt.json"}
+            ),
+            key=lambda path: path.relative_to(stage).as_posix().encode("utf-8"),
+        )
+    ]
+    write_json(rollback_path, rollback)
+    receipt_path = stage / "receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt.update(
+        final_graph_sha256=hashlib.sha256(graph_path.read_bytes()).hexdigest(),
+        audit_sha256=metadata["semantic_audit_sha256"],
+        semantic_outputs_sha256=metadata["semantic_outputs_sha256"],
+        rollback_sha256=hashlib.sha256(rollback_path.read_bytes()).hexdigest(),
+    )
+    write_json(receipt_path, receipt)
 
 
 def invoke(
@@ -134,6 +351,140 @@ def case_no_delta() -> None:
         assert rows(harness)[0]["commit"] == approved_commit
 
 
+def case_semantic_graph_path_activation() -> None:
+    """A qualified semantic composite is a corpus-binding delta, not a pin-only refresh."""
+    with tempfile.TemporaryDirectory() as td:
+        harness, profile_path, wiki, workspace = fixture(Path(td))
+        profile_before = profile_path.read_bytes()
+        source_graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        graph_relative = (
+            "knowledge/LLM wiki/graphify-out/semantic-qualifications/"
+            "semq-20260808T000000Z-1234abcd/qualified.graph.json"
+        )
+        qualified_graph = workspace / graph_relative
+        qualified_graph.parent.mkdir(parents=True, exist_ok=True)
+        qualified_graph.write_bytes(source_graph.read_bytes())
+        add_model_provenance_to_fixture(wiki, qualified_graph)
+        dry_project = Path(td) / "dry-project"
+        (dry_project / "reviews").mkdir(parents=True)
+
+        preview = invoke(
+            harness, profile_path, wiki, workspace,
+            "--semantic-graph-path", graph_relative, "--project-root", str(dry_project),
+            "--dry-run",
+        )
+        assert preview.returncode == 0, preview.stdout + preview.stderr
+        payload = json.loads(preview.stdout)
+        assert payload["delta_class"] == "corpus"
+        assert payload["applied"] is False
+        assert payload["delta_report"]["graph_path"] == {
+            "old": "knowledge/LLM wiki/graphify-out/graph.json",
+            "new": graph_relative,
+        }
+        assert profile_path.read_bytes() == profile_before
+        assert not (dry_project / "reviews/repin_rebind_request.json").exists()
+
+    with tempfile.TemporaryDirectory() as td:
+        harness, profile_path, wiki, workspace = fixture(Path(td))
+        source_graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        graph_relative = (
+            "knowledge/LLM wiki/graphify-out/semantic-qualifications/"
+            "semq-20260808T000000Z-1234abcd/qualified.graph.json"
+        )
+        qualified_graph = workspace / graph_relative
+        qualified_graph.parent.mkdir(parents=True, exist_ok=True)
+        qualified_graph.write_bytes(source_graph.read_bytes())
+        add_model_provenance_to_fixture(wiki, qualified_graph)
+        applied = invoke(
+            harness, profile_path, wiki, workspace,
+            "--semantic-graph-path", graph_relative, answer="yes\n",
+        )
+        assert applied.returncode == 0, applied.stdout + applied.stderr
+        payload = json.loads(applied.stdout)
+        assert payload["delta_class"] == "corpus" and payload["applied"] is True
+        updated = json.loads(profile_path.read_text(encoding="utf-8"))
+        graph_binding = updated["domain_native_register"]["corpus_binding"]["graph"]
+        assert graph_binding["path"] == graph_relative
+        assert graph_binding["observed_sha256_at_review"] == hashlib.sha256(
+            qualified_graph.read_bytes()
+        ).hexdigest()
+        assert rows(harness)[-1]["delta_class"] == "corpus"
+        policy.resolve_domain_native_register(
+            updated, wiki_root=wiki, workspace_root=workspace, harness_root=harness,
+        )
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        source_graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        graph_relative = (
+            "knowledge/LLM wiki/graphify-out/semantic-qualifications/"
+            "semq-20260808T000000Z-1234abcd/qualified.graph.json"
+        )
+        qualified_graph = workspace / graph_relative
+        qualified_graph.parent.mkdir(parents=True, exist_ok=True)
+        qualified_graph.write_bytes(source_graph.read_bytes())
+        add_model_provenance_to_fixture(wiki, qualified_graph)
+        project = root / "project"
+        resolved = project / "reviews/.harness/policies/reader_accessibility.resolved.json"
+        resolved.parent.mkdir(parents=True)
+        resolved.write_text('{"contract_version":"2.0.0"}\n', encoding="utf-8")
+        prior_binding = {
+            "binding_version": "2.0.0", "binding_kind": "reader_profile",
+            "semantic_usage": "not_invoked",
+            "profile_path": "references/policies/reader_accessibility.v1.json",
+            "profile_sha256": "1" * 64,
+            "resolved_path": "reviews/.harness/policies/reader_accessibility.resolved.json",
+            "resolved_sha256": hashlib.sha256(resolved.read_bytes()).hexdigest(),
+            "source_bindings": [], "project_identity": None,
+            "transitions": {
+                key: {"state": "active", "observed_count": 0,
+                      "last_event_sequence": None, "events": []}
+                for key in ("G", "H", "VE")
+            },
+        }
+        state_path = project / "reviews/phase_state.json"
+        write_json(state_path, {
+            "milestone_framework": {
+                "policy_bindings": {"reader_accessibility": prior_binding},
+                "milestones": {name: {"status": "not_started"} for name in ("M1", "M2", "M3", "M4", "M5")},
+            }
+        })
+        phase_state_before = state_path.read_bytes()
+        applied = invoke(
+            harness, profile_path, wiki, workspace,
+            "--semantic-graph-path", graph_relative,
+            "--project-root", str(project), answer="yes\n",
+        )
+        assert applied.returncode == 0, applied.stdout + applied.stderr
+        request_path = project / "reviews/repin_rebind_request.json"
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        assert request["schema_version"] == "reader-semantic-activation.v1"
+        assert request["operation"] == "reader_profile_v2_to_semantic"
+        assert request["phase_state_sha256"] == hashlib.sha256(phase_state_before).hexdigest()
+        assert request["prior_binding_sha256"] == hashlib.sha256(
+            (json.dumps(prior_binding, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        ).hexdigest()
+        assert request["prior_resolved_sha256"] == prior_binding["resolved_sha256"]
+        assert request["graph_path"] == graph_relative
+        assert request["graph_sha256"] == hashlib.sha256(qualified_graph.read_bytes()).hexdigest()
+        assert request["qualification_receipt_path"].endswith(
+            "semq-20260808T000000Z-1234abcd/receipt.json"
+        )
+        assert re.fullmatch(r"[0-9a-f]{64}", request["qualification_receipt_sha256"])
+        ledger_path = harness / "references/policies/repin_log.jsonl"
+        ledger_rows = rows(harness)
+        assert len(ledger_rows) == 1
+        assert request["repin_ledger_sha256"] == hashlib.sha256(ledger_path.read_bytes()).hexdigest()
+        assert request["repin_event_sha256"] == hashlib.sha256(
+            (json.dumps(ledger_rows[0], sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+        ).hexdigest()
+        snapshot_path = harness / request["repin_snapshot_ref"]
+        assert request["repin_snapshot_sha256"] == hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
+        assert request["status"] == "pending"
+        assert state_path.read_bytes() == phase_state_before
+
+
 def case_graph_semantic_eligibility() -> None:
     mutations = (
         ("missing metadata", lambda graph: graph.pop("graph"), "metadata object is required"),
@@ -164,6 +515,53 @@ def case_graph_semantic_eligibility() -> None:
             assert result.returncode != 0, f"{label} graph passed semantic eligibility"
             assert "GRAPH-SEMANTIC-INELIGIBLE" in output and needle in output, output
             assert not (harness / "references/policies/repin_log.jsonl").exists()
+
+
+def case_fresh_transaction_trust_boundary() -> None:
+    for case in ("missing_warrant", "forged_model", "cross_transaction_path"):
+        with tempfile.TemporaryDirectory() as td:
+            harness, profile_path, wiki, workspace = fixture(Path(td))
+            source_graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+            graph_relative = (
+                "knowledge/LLM wiki/graphify-out/semantic-qualifications/"
+                "semq-20260808T000000Z-1234abcd/qualified.graph.json"
+            )
+            graph_path = workspace / graph_relative
+            graph_path.parent.mkdir(parents=True, exist_ok=True)
+            graph_path.write_bytes(source_graph.read_bytes())
+            add_model_provenance_to_fixture(wiki, graph_path)
+            graph = json.loads(graph_path.read_text(encoding="utf-8"))
+            metadata = graph["graph"]
+            if case == "missing_warrant":
+                for edge in graph["links"]:
+                    if edge.get("semantic_status") == "validated":
+                        edge.pop("warrant", None)
+                for row in metadata["semantic_output_files"]:
+                    output_path = wiki / row["path"]
+                    output = json.loads(output_path.read_text(encoding="utf-8"))
+                    for page in output["pages"]:
+                        for edge in page["edges"]:
+                            edge.pop("warrant", None)
+                    write_json(output_path, output)
+                refresh_fresh_fixture(wiki, graph_path, graph)
+                needle = "edge warrant"
+            elif case == "forged_model":
+                output_path = wiki / metadata["semantic_output_files"][0]["path"]
+                output = json.loads(output_path.read_text(encoding="utf-8"))
+                output["producer_model"] = "forged-model"
+                write_json(output_path, output)
+                refresh_fresh_fixture(wiki, graph_path, graph)
+                needle = "output producer or model provenance"
+            else:
+                metadata["semantic_audit"] = "graphify-out/fixture-audit.json"
+                write_json(graph_path, graph)
+                needle = "identity, paths, or model roles"
+            result = invoke(
+                harness, profile_path, wiki, workspace,
+                "--semantic-graph-path", graph_relative, "--dry-run",
+            )
+            output = result.stdout + result.stderr
+            assert result.returncode != 0 and needle in output, f"{case}: {output}"
             snapshots = harness / "reviews/.harness/repin"
             assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
 
@@ -418,6 +816,48 @@ def case_rebind_transaction_rollback() -> None:
         assert not (harness / "references/policies/repin_log.md").exists()
         snapshots = harness / "reviews/.harness/repin"
         assert not snapshots.exists() or not list(snapshots.glob("*.snapshot.json"))
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        harness, profile_path, wiki, workspace = fixture(root)
+        profile_before = profile_path.read_bytes()
+        graph = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        value = json.loads(graph.read_text(encoding="utf-8"))
+        value["nodes"].append({
+            "id": "external-rollback-new", "community": 5,
+            "file_type": "concept", "source_file": "wiki/sources/import.md",
+        })
+        write_json(graph, value)
+        dnr_fixture.refresh_semantic_fixture(wiki, graph)
+        ledger_path = harness / "references/policies/repin_log.jsonl"
+        markdown_path = harness / "references/policies/repin_log.md"
+        foreign = b'{"external":"ledger-owner"}\n'
+        original_atomic = policy._atomic_bytes
+
+        def inject_external_ledger(path: Path, payload: bytes) -> None:
+            if path == markdown_path:
+                ledger_path.write_bytes(foreign)
+                raise policy.PolicyError("injected post-ledger failure")
+            original_atomic(path, payload)
+
+        policy._atomic_bytes = inject_external_ledger
+        try:
+            policy.run_repin(
+                harness_root=harness, profile_path=profile_path,
+                wiki_root=wiki, workspace_root=workspace, project_root=None,
+                trigger="manual", dry_run=False, allow_unrelated_dirty=False,
+                force_lock=False, add_exemplar=None, drop_exemplar=None,
+                role=None, warrant_scope=None, confirm_drop_locked_role=False,
+                confirm=lambda _: True,
+            )
+        except policy.PolicyError as exc:
+            assert "rollback preserved external conflicting bytes" in str(exc)
+        else:
+            raise AssertionError("external re-pin rollback conflict was overwritten")
+        finally:
+            policy._atomic_bytes = original_atomic
+        assert ledger_path.read_bytes() == foreign
+        assert profile_path.read_bytes() == profile_before
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
@@ -1049,6 +1489,8 @@ def main() -> int:
     cases = [
         case_graph_semantic_eligibility,
         case_graph_semantic_artifact_integrity,
+        case_fresh_transaction_trust_boundary,
+        case_semantic_graph_path_activation,
         case_no_delta,
         case_delta_apply,
         case_rebind_transaction_rollback,

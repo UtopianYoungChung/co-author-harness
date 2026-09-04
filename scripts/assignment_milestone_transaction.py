@@ -24,15 +24,10 @@ import uuid
 from assignment_process_gate import (
     derive_receipt_authority,
     derive_released_export_path,
-    named_draft_permitted,
     verify_receipt,
 )
 from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
-from destination_capability import (
-    guard_lifecycle_project_root,
-    guard_project_root,
-    guard_repin_project_root,
-)
+from destination_capability import guard_project_root, guard_repin_project_root
 from draft_evidence_verifier import VerifierError, validate_lifecycle_verifier_binding
 from milestone_framework_validate import (
     validate_document,
@@ -916,6 +911,347 @@ def _refresh_reader_profile_v2(
         raise
 
 
+def _activate_reader_profile_semantic(
+    project: Path,
+    state_path: Path,
+    state: dict[str, Any],
+    prehash: str,
+    framework: dict[str, Any],
+    old_binding: dict[str, Any],
+    request_path: Path,
+    at: str,
+    policy: Any,
+) -> Path:
+    """Apply one hash-bound v2-to-semantic reader binding migration.
+
+    The re-pin producer owns the pending request. Planner alone publishes the
+    resolved semantic policy and authoritative state. Existing milestone
+    records are immutable inputs to this transaction and are copied unchanged.
+    """
+    transitions = old_binding.get("transitions")
+    if (
+        old_binding.get("binding_version") != "2.0.0"
+        or old_binding.get("binding_kind") != "reader_profile"
+        or old_binding.get("semantic_usage") != "not_invoked"
+        or not isinstance(old_binding.get("resolved_path"), str)
+        or not isinstance(old_binding.get("resolved_sha256"), str)
+        or not isinstance(transitions, dict)
+        or set(transitions) != {"G", "H", "VE"}
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY",
+            "semantic activation requires a well-formed reader-profile-v2 binding",
+        )
+    for milestone in ("M2", "M3", "M4", "M5"):
+        record = framework.get("milestones", {}).get(milestone)
+        if isinstance(record, dict) and record.get("status") not in {"not_started", "not_applicable"}:
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-MILESTONE",
+                f"{milestone} lifecycle evidence already exists; semantic activation may not rewrite history",
+            )
+    if not request_path.is_file() or _is_link(request_path):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-REQUEST", "pending semantic activation request is missing or linked",
+        )
+    request_bytes = request_path.read_bytes()
+    request = _load_object(request_path, "AMC-SEMANTIC-ACTIVATION-REQUEST")
+    required = {
+        "request_id", "schema_version", "operation", "phase_state_sha256",
+        "prior_binding_sha256", "prior_resolved_sha256", "pin_epoch",
+        "profile_sha256", "attestation_view_pin", "exemplar_view_pin",
+        "delta_class", "repin_log_ref", "graph_path", "graph_sha256",
+        "repin_event_sha256", "repin_ledger_sha256",
+        "repin_snapshot_ref", "repin_snapshot_sha256",
+        "qualification_receipt_path", "qualification_receipt_sha256", "status",
+    }
+    if (
+        set(request) != required
+        or request.get("schema_version") != "reader-semantic-activation.v1"
+        or request.get("operation") != "reader_profile_v2_to_semantic"
+        or request.get("status") != "pending"
+        or not isinstance(request.get("pin_epoch"), int)
+        or request.get("pin_epoch", 0) < 1
+        or any(SHA_RE.fullmatch(str(request.get(key))) is None for key in (
+            "phase_state_sha256", "prior_binding_sha256", "prior_resolved_sha256",
+            "profile_sha256", "attestation_view_pin", "exemplar_view_pin",
+            "graph_sha256", "qualification_receipt_sha256", "repin_event_sha256",
+            "repin_ledger_sha256", "repin_snapshot_sha256",
+        ))
+        or not isinstance(request.get("repin_snapshot_ref"), str)
+        or not request["repin_snapshot_ref"]
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-REQUEST", "semantic activation request shape or status is invalid",
+        )
+    if request["phase_state_sha256"] != prehash or _sha256(state_path) != prehash:
+        raise MilestoneTransactionError(
+            "AMC-CONCURRENT-CHANGE", "phase state differs from the semantic activation request preimage",
+        )
+    if request["prior_binding_sha256"] != hashlib.sha256(_json_bytes(old_binding)).hexdigest():
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-REQUEST", "request does not bind the current v2 reader binding",
+        )
+    resolved_path = (project / Path(*PurePosixPath(old_binding["resolved_path"]).parts)).resolve()
+    try:
+        resolved_path.relative_to(project)
+    except ValueError as exc:
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY", "resolved reader policy path escapes project root",
+        ) from exc
+    if not resolved_path.is_file() or _is_link(resolved_path) or _is_link(resolved_path.parent):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY", "resolved reader policy artifact is absent or linked",
+        )
+    old_resolved = resolved_path.read_bytes()
+    if (
+        hashlib.sha256(old_resolved).hexdigest() != old_binding["resolved_sha256"]
+        or request["prior_resolved_sha256"] != old_binding["resolved_sha256"]
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY", "v2 resolved policy preimage is stale",
+        )
+
+    ledger_path = policy.ROOT / "references/policies/repin_log.jsonl"
+    if not ledger_path.is_file():
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-LEDGER", "re-pin ledger is missing",
+        )
+    ledger_bytes = ledger_path.read_bytes()
+    try:
+        rows = [json.loads(line) for line in ledger_bytes.decode("utf-8").splitlines() if line.strip()]
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-LEDGER", f"re-pin ledger is invalid: {exc}",
+        ) from exc
+    epoch = request["pin_epoch"]
+    matching_rows = [item for item in rows if isinstance(item, dict) and item.get("epoch") == epoch]
+    row = matching_rows[0] if len(matching_rows) == 1 else None
+    event_bytes = (
+        (json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+        if isinstance(row, dict) else b""
+    )
+    if (
+        not isinstance(row, dict)
+        or request["repin_ledger_sha256"] != hashlib.sha256(ledger_bytes).hexdigest()
+        or request["repin_event_sha256"] != hashlib.sha256(event_bytes).hexdigest()
+        or request["repin_log_ref"] != f"references/policies/repin_log.jsonl#epoch-{epoch}"
+        or row.get("snapshot_ref") != request["repin_snapshot_ref"]
+        or row.get("delta_class") != request["delta_class"]
+        or row.get("profile_sha256", {}).get("new") != request["profile_sha256"]
+        or row.get("graph_sha256_provenance") != request["graph_sha256"]
+        or row.get("attestation_view_pin", {}).get("new") != request["attestation_view_pin"]
+        or row.get("exemplar_view_pin", {}).get("new") != request["exemplar_view_pin"]
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-LEDGER",
+            "request and re-pin ledger do not form one corpus-binding transaction",
+        )
+    snapshot_path = (policy.ROOT / Path(*PurePosixPath(request["repin_snapshot_ref"]).parts)).resolve()
+    try:
+        snapshot_path.relative_to(policy.ROOT.resolve())
+    except ValueError as exc:
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-LEDGER", "re-pin snapshot path escapes the package root",
+        ) from exc
+    if (
+        not snapshot_path.is_file()
+        or _is_link(snapshot_path)
+        or _sha256(snapshot_path) != request["repin_snapshot_sha256"]
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-LEDGER", "re-pin snapshot is missing, linked, or stale",
+        )
+
+    try:
+        fresh = policy.resolve_policy(project)
+    except policy.PolicyError as exc:
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY", f"semantic policy cannot be resolved: {exc}",
+        ) from exc
+    expected = fresh.get("resolved_profile", {}).get("domain_native_register", {}).get("expected_verification", {})
+    graph_path = fresh.get("resolved_profile", {}).get("domain_native_register", {}).get("corpus_binding", {}).get("graph", {}).get("path")
+    if (
+        fresh.get("contract_version") != "1.1.0"
+        or fresh.get("profile_sha256") != request["profile_sha256"]
+        or fresh.get("attestation_view_pin") != request["attestation_view_pin"]
+        or fresh.get("exemplar_view_pin") != request["exemplar_view_pin"]
+        or fresh.get("graph_sha256_provenance") != request["graph_sha256"]
+        or graph_path != request["graph_path"]
+        or expected.get("pin_epoch") != epoch
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-POLICY", "fresh semantic resolver output differs from the request",
+        )
+    register = fresh.get("register_provenance")
+    effective_roots = register.get("path_roots", {}).get("effective", {}) if isinstance(register, dict) else {}
+    wiki_root = Path(str(effective_roots.get("wiki_root", ""))).resolve()
+    receipt_entry = next(
+        (item for item in register.get("provenance", []) if isinstance(item, dict) and item.get("role") == "semantic_receipt"),
+        None,
+    ) if isinstance(register, dict) else None
+    if not isinstance(receipt_entry, dict):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-PROVENANCE", "fresh semantic resolver lacks receipt provenance",
+        )
+    qualification_receipt = (wiki_root / Path(*PurePosixPath(request["qualification_receipt_path"]).parts)).resolve()
+    try:
+        qualification_receipt.relative_to(wiki_root)
+    except ValueError as exc:
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-PROVENANCE", "qualification receipt escapes the bound wiki root",
+        ) from exc
+    if (
+        not qualification_receipt.is_file()
+        or _sha256(qualification_receipt) != request["qualification_receipt_sha256"]
+        or Path(str(receipt_entry.get("path"))).resolve() != qualification_receipt
+        or receipt_entry.get("sha256") != request["qualification_receipt_sha256"]
+    ):
+        raise MilestoneTransactionError(
+            "AMC-SEMANTIC-ACTIVATION-PROVENANCE", "qualification receipt provenance is stale or inconsistent",
+        )
+
+    old_state_bytes = state_path.read_bytes()
+    fresh_bytes = _json_bytes(fresh)
+    request_hash = hashlib.sha256(request_bytes).hexdigest()
+    ledger_hash = hashlib.sha256(ledger_bytes).hexdigest()
+    archive = project / "reviews" / f"repin_rebind_request.{epoch}.applied.json"
+    archive_created = False
+    archive_bytes: bytes | None = None
+    state_post_bytes: bytes | None = None
+    resolved_write_attempted = False
+    state_write_attempted = False
+    request_removed = False
+    if (
+        state_path.read_bytes() != old_state_bytes
+        or request_path.read_bytes() != request_bytes
+        or resolved_path.read_bytes() != old_resolved
+    ):
+        raise MilestoneTransactionError(
+            "AMC-CONCURRENT-CHANGE", "state, semantic activation request, or resolved policy changed before publication",
+        )
+    try:
+        resolved_write_attempted = True
+        _restore_exact_bytes(resolved_path, fresh_bytes)
+        binding = policy.phase_state_binding(fresh, resolved_path, project)
+        binding["transitions"] = copy.deepcopy(transitions)
+        proposed = copy.deepcopy(state)
+        proposed_framework = _framework(proposed)
+        prior_milestones = copy.deepcopy(proposed_framework["milestones"])
+        proposed_framework["policy_bindings"]["reader_accessibility"] = binding
+        if proposed_framework["milestones"] != prior_milestones:
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-HISTORY", "semantic activation altered milestone evidence",
+            )
+        validation = validate_document(project, proposed)
+        if validation.findings:
+            first = validation.findings[0]
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-VALIDATION",
+                f"semantic binding failed canonical validation: {first.code} {first.path}: {first.message}",
+            )
+        state_post_bytes = _json_bytes(proposed)
+        posthash = hashlib.sha256(state_post_bytes).hexdigest()
+        if (
+            state_path.read_bytes() != old_state_bytes
+            or request_path.read_bytes() != request_bytes
+            or hashlib.sha256(ledger_path.read_bytes()).hexdigest() != ledger_hash
+            or resolved_path.read_bytes() != fresh_bytes
+        ):
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE", "activation inputs changed immediately before state publication",
+            )
+        state_write_attempted = True
+        _atomic_replace(state_path, proposed)
+        applied = copy.deepcopy(request)
+        applied.update({
+            "status": "applied", "applied_at": at, "applied_by": "planner",
+            "request_sha256": request_hash,
+            "repin_ledger_sha256": ledger_hash,
+            "resolved": {
+                "prior_sha256": old_binding["resolved_sha256"],
+                "current_sha256": binding["resolved_sha256"],
+            },
+            "phase_state": {"pre_sha256": prehash, "post_sha256": posthash},
+            "rollback": {
+                "phase_state_pre_sha256": prehash,
+                "resolved_policy_pre_sha256": old_binding["resolved_sha256"],
+                "request_pre_sha256": request_hash,
+                "protection": "restore exact owned preimages on failure; preserve conflicting external bytes",
+            },
+        })
+        archive_bytes = _json_bytes(applied)
+        archive_created = _exclusive_bytes(archive, archive_bytes)
+        if (
+            state_path.read_bytes() != state_post_bytes
+            or resolved_path.read_bytes() != fresh_bytes
+            or request_path.read_bytes() != request_bytes
+        ):
+            raise MilestoneTransactionError(
+                "AMC-CONCURRENT-CHANGE", "activation outputs changed before request archival",
+            )
+        request_path.unlink()
+        request_removed = True
+        return archive
+    except Exception as original_exc:
+        conflicts: list[str] = []
+        if request_removed:
+            if request_path.exists():
+                if request_path.read_bytes() != request_bytes:
+                    conflicts.append(str(request_path))
+            else:
+                _restore_exact_bytes(request_path, request_bytes)
+        if archive_created:
+            if archive.is_file() and archive_bytes is not None and archive.read_bytes() == archive_bytes:
+                archive.unlink()
+            else:
+                conflicts.append(str(archive))
+        if state_write_attempted:
+            live = state_path.read_bytes()
+            if state_post_bytes is not None and live == state_post_bytes:
+                _restore_exact_bytes(state_path, old_state_bytes)
+            elif live != old_state_bytes:
+                conflicts.append(str(state_path))
+        if resolved_write_attempted:
+            live = resolved_path.read_bytes()
+            if live == fresh_bytes:
+                _restore_exact_bytes(resolved_path, old_resolved)
+            elif live != old_resolved:
+                conflicts.append(str(resolved_path))
+        if conflicts:
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-RECOVERY-CONFLICT",
+                "external post-publication bytes were preserved: " + ", ".join(sorted(set(conflicts))),
+            ) from original_exc
+        raise
+
+
+def activate_reader_semantic(project: Path, at: str | None = None) -> Path:
+    """Planner-only application of a pending v2-to-semantic binding request."""
+    import reader_accessibility_policy as policy
+
+    project = project.resolve()
+    guard_repin_project_root(project)
+    _enter_authority_mode(project)
+    at = _timestamp(at)
+    request_path = project / "reviews/repin_rebind_request.json"
+    with transaction_claim(project, "rebind:reader_semantic"):
+        state_path, state, prehash = _load_state(project)
+        framework = _framework(state)
+        if policy._open_project_round(project):
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-ROUND", "semantic activation requires no open review round",
+            )
+        old_binding = framework.get("policy_bindings", {}).get("reader_accessibility")
+        if not isinstance(old_binding, dict):
+            raise MilestoneTransactionError(
+                "AMC-SEMANTIC-ACTIVATION-POLICY", "current reader binding is missing",
+            )
+        return _activate_reader_profile_semantic(
+            project, state_path, state, prehash, framework, old_binding,
+            request_path, at, policy,
+        )
+
+
 def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
     """Apply a reader-policy migration or pending legacy rebind transaction.
 
@@ -1174,81 +1510,30 @@ def archive_stale_reader_accessibility_request(
         return archive
 
 
-def _action_for_open_milestone(project: Path, state: dict[str, Any], milestone: str) -> dict[str, Any]:
-    record = _framework(state)["milestones"].get(milestone)
-    if not isinstance(record, dict):
-        raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
-    public = LEDGER_TO_PUBLIC[milestone]
-    if record.get("status") == "not_started":
-        action = "begin"
-    elif not record.get("artifacts"):
-        action = "finalize" if milestone == "M5" else "draft"
-    elif milestone == "M4" and any(
-        section.get("current_phase") != "Ph3_converged"
-        for section in state.get("sections", {}).values()
-        if isinstance(section, dict)
-    ):
-        action = "revise"
-    else:
-        action = "close" if milestone == "M5" else "accept"
-    return {"status": "READY", "milestone": public, "action": action,
-            "authority_mode": _authority_mode_for(project)}
-
-
-def derive(
-    project: Path, requested: str | None = None, purpose: str = "dispatch"
-) -> dict[str, Any]:
-    """Default target is the first non-accepted milestone (gather auto-walk).
-
-    After materials are in play, ``requested`` may name any started M1-M4.
-    First-start of a ``not_started`` successor still requires accepted
-    predecessors. FINAL still requires four current accepted hashes.
-    Evaluate of already-staged named M1-M4 bytes does not bind the gather hole.
-    """
-    resolved = project.resolve()
-    _, state, _ = _load_state(resolved)
-    framework = _framework(state)
-    milestones = framework["milestones"]
-    if purpose == "evaluate":
-        if requested is None:
-            raise MilestoneTransactionError("AMC-TARGET", "evaluate requires a named M1-M4")
-        if requested not in {"M1", "M2", "M3", "M4"}:
-            raise MilestoneTransactionError(
-                "AMC-TARGET",
-                "evaluate names M1-M4; FINAL apply stays on the final stage",
-            )
-        m5 = milestones.get("M5")
-        if isinstance(m5, dict) and m5.get("status") == "accepted":
-            raise MilestoneTransactionError("AMC-ORDER", "accepted M5 is the one-way door")
-        return {
-            "status": "READY",
-            "milestone": requested,
-            "action": "evaluate",
-            "authority_mode": _authority_mode_for(project),
-        }
-    if purpose != "dispatch":
-        raise MilestoneTransactionError("AMC-TARGET", "derive purpose must be dispatch or evaluate")
-    if requested is not None:
-        ledger = PUBLIC_TO_LEDGER.get(requested)
-        if ledger is None:
-            raise MilestoneTransactionError("AMC-TARGET", "derive target must be M1-M4 or FINAL")
-        record = milestones.get(ledger)
-        if isinstance(record, dict) and record.get("status") != "accepted":
-            if named_draft_permitted(resolved, framework, requested):
-                return _action_for_open_milestone(resolved, state, ledger)
-            raise MilestoneTransactionError(
-                "AMC-ORDER",
-                f"named target {requested} is not permitted for first-start dispatch "
-                "while gather order is in force. Evaluate already-staged bytes with "
-                "--purpose evaluate. Do not bind another milestone.",
-            )
+def derive(project: Path) -> dict[str, Any]:
+    _, state, _ = _load_state(project.resolve())
+    milestones = _framework(state)["milestones"]
     for milestone in MILESTONES:
         record = milestones.get(milestone)
         if not isinstance(record, dict):
             raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
         if record.get("status") == "accepted":
             continue
-        return _action_for_open_milestone(resolved, state, milestone)
+        public = LEDGER_TO_PUBLIC[milestone]
+        if record.get("status") == "not_started":
+            action = "begin"
+        elif not record.get("artifacts"):
+            action = "finalize" if milestone == "M5" else "draft"
+        elif milestone == "M4" and any(
+            section.get("current_phase") != "Ph3_converged"
+            for section in state.get("sections", {}).values()
+            if isinstance(section, dict)
+        ):
+            action = "revise"
+        else:
+            action = "close" if milestone == "M5" else "accept"
+        return {"status": "READY", "milestone": public, "action": action,
+                "authority_mode": _authority_mode_for(project)}
     return {"status": "COMPLETE", "milestone": None, "action": None,
             "authority_mode": _authority_mode_for(project)}
 
@@ -1283,13 +1568,13 @@ def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
 
 
 def begin(project: Path, milestone: str, at: str | None = None) -> None:
-    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     ledger_milestone = PUBLIC_TO_LEDGER.get(milestone)
     if ledger_milestone not in PREDECESSOR:
         raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, M4, or FINAL")
     with transaction_claim(project, f"begin:{milestone}"):
         path, state, prehash = _load_state(project)
-        derived = derive(project, requested=milestone)
+        derived = derive(project)
         if (derived.get("status"), derived.get("milestone"), derived.get("action")) != ("READY", milestone, "begin"):
             raise MilestoneTransactionError("AMC-ORDER", f"{milestone} is not the derived begin action")
         proposed = copy.deepcopy(state); framework = _framework(proposed)
@@ -1711,14 +1996,14 @@ def record(
     project: Path, milestone: str, receipt: Path, checkpoint_path: Path,
     at: str | None = None, *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
         raise MilestoneTransactionError("AMC-TARGET", "record target must be M1-M4 or FINAL")
     with transaction_claim(project, f"record:{milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
-        expected = derive(project, requested=public_milestone)
+        expected = derive(project)
         allowed_actions = {"draft", "revise"} if milestone == "M4" else ({"finalize"} if milestone == "M5" else {"draft"})
         supersedes_candidate = False
         if _ACTIVE_AUTHORITY_MODE == "shipment_only":
@@ -2086,7 +2371,7 @@ def accept(
     *, emit_f9: bool = False,
     _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
@@ -2094,7 +2379,7 @@ def accept(
     with transaction_claim(project, f"accept:{public_milestone}"):
         state_path, state, prehash = _load_state(project); framework = _framework(state)
         handoff_policy = _effective_handoff_policy(framework)
-        derived = derive(project, requested=public_milestone)
+        derived = derive(project)
         permitted_actions = {"accept", "revise"} if milestone == "M4" else ({"close"} if milestone == "M5" else {"accept"})
         if derived.get("status") != "READY" or derived.get("milestone") != public_milestone or derived.get("action") not in permitted_actions:
             raise MilestoneTransactionError("AMC-ORDER", f"{public_milestone} is not the derived accept action")
@@ -2258,7 +2543,7 @@ def accept(
 
 
 def recover_claim(project: Path, acknowledgement: str) -> Path:
-    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); root = _ensure_control_tree(project)
+    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); root = _ensure_control_tree(project)
     if acknowledgement != "inspected-milestone-state-and-journal":
         raise MilestoneTransactionError("AMC-RECOVERY-ACK", "exact acknowledgement is required after inspecting phase_state.json and lifecycle journal")
     claim = root / "claims" / "transaction.lock"

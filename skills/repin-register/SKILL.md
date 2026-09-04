@@ -9,13 +9,15 @@ version: 1.0
 ---
 # Re-pin Domain-Native Register
 
-Only the loader computes hashes. Graph-independent v2 keeps the centroid
-dormant and skips this skill. Mechanical digests are neither pins nor rebind
-authority. Semantic binding is required.
+Only the loader computes hashes. Graph-independent v2 normally keeps the
+centroid dormant and skips this skill. The sole exception is an explicitly
+authorized v2-to-semantic migration that names a fresh, independently audited
+qualification graph through `--semantic-graph-path`. Mechanical digests are
+neither pins nor rebind authority. Semantic binding is required.
 
 ## Invocation
 
-`/repin-register [--dry-run] [--project-root PATH] [--trigger milestone|snowball|mf-policy-discovery|manual] [--allow-unrelated-dirty] [--force-lock] [--add-exemplar KEY --role ROLE [--warrant-scope both|argument-only] | --drop-exemplar KEY [--confirm-drop-locked-role]]`
+`/repin-register [--dry-run] [--project-root PATH] [--trigger milestone|snowball|mf-policy-discovery|manual] [--allow-unrelated-dirty] [--force-lock] [--semantic-graph-path knowledge/LLM wiki/graphify-out/semantic-qualifications/<transaction-id>/qualified.graph.json | --add-exemplar KEY --role ROLE [--warrant-scope both|argument-only] | --drop-exemplar KEY [--confirm-drop-locked-role]]`
 
 Package phase is the default and requires no project. `--project-root` adds the
 project phase, whose only direct project write is
@@ -35,6 +37,13 @@ project phase, whose only direct project write is
    The loader refuses an open round. Do not work around that refusal.
 4. Explain that old-cycle evidence remains valid; only a new cycle is held for
    a pending rebind. A re-pin is not permission to reopen an active round.
+5. For `--semantic-graph-path`, verify that the path is under a new
+   `semantic-qualifications/<transaction-id>/` directory. Its receipt must bind
+   current inventory, explicit model warrants, an independent audit, and the
+   exact qualified graph. The resolver also requires transaction-local
+   producer/auditor model provenance, prompt/request/output bindings, a complete
+   rollback inventory, and confidence-compatible warrants. Never point this option at the live structural graph
+   or an archived stabilization artifact.
 
 ## Exemplar ingestion
 
@@ -60,7 +69,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
 
 1. Invoke the single compute path:
 
-   `python scripts/reader_accessibility_policy.py --repin --trigger <trigger> [--dry-run] [--project-root "<path>"] [--allow-unrelated-dirty] [--force-lock]`
+   `python scripts/reader_accessibility_policy.py --repin --trigger <trigger> [--dry-run] [--project-root "<path>"] [--semantic-graph-path "<fresh-qualified-graph-relative-path>"] [--allow-unrelated-dirty] [--force-lock]`
 
 2. On `delta_class: none`, report the ledger event and snapshot. Confirm that
    the profile bytes and `profile_version` did not change. Stop.
@@ -78,6 +87,14 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
    package-scoped snapshot, ledger row, atomic read-back result, and optional
    project request path. Do not claim the project is rebound until the Planner
    applies and archives the request.
+   A v2 semantic migration request remains inert until a separate Planner act:
+
+   `python scripts/assignment_milestone_checkpoint.py activate-reader-semantic --project-root <project-root>`
+
+   Do not run that command in the same authority step as qualification,
+   independent audit, re-pin, or request creation.
+   The pending request must bind the exact re-pin ledger, canonical event, and
+   snapshot bytes. `--dry-run` never creates a project request.
    If the loader returns `COMMITTED_CLEANUP_REQUIRED`, report every
    `cleanup_errors` entry and stop for lock-owner recovery. The package writes
    are committed, but this is not clean `READY`: do not run another re-pin,
