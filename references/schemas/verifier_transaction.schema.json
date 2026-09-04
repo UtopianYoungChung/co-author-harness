@@ -3,19 +3,21 @@
   "$id": "https://co-author-harness.local/schemas/verifier_transaction.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "transaction_type", "transaction_id", "state", "phase", "qualification_mode", "product_disposition", "requested_independence_level", "achieved_independence_level", "artifact", "semantic_receipt", "product_assurance", "semantics_manifest", "semantics_digest", "dependency_hashes"],
+  "required": ["schema_version", "transaction_type", "transaction_id", "state", "phase", "qualification_mode", "product_disposition", "requested_independence_level", "achieved_independence_level", "artifact", "product_assurance", "semantics_manifest", "semantics_digest", "dependency_hashes"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "transaction_type": {"const": "draft_evidence_verifier"},
     "transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"},
     "state": {"const": "prepared"},
     "phase": {"enum": ["generation", "evaluation"]},
-    "qualification_mode": {"const": "governed_v3"},
+    "qualification_mode": {"enum": ["governed_v3", "graph_independent_v2"]},
     "product_disposition": {"enum": ["evaluation_ready", "product_qualified"]},
     "requested_independence_level": {"const": "none"},
     "achieved_independence_level": {"const": "none"},
     "artifact": {"$ref": "#/$defs/binding"},
     "semantic_receipt": {"$ref": "#/$defs/binding"},
+    "reader_policy": {"$ref": "#/$defs/binding"},
+    "semantic_usage": {"const": "not_invoked"},
     "product_assurance": {"$ref": "#/$defs/binding"},
     "semantics_manifest": {"$ref": "#/$defs/binding"},
     "semantics_digest": {"$ref": "#/$defs/sha256"},
@@ -23,7 +25,9 @@
   },
   "allOf": [
     {"if": {"properties": {"phase": {"const": "generation"}}}, "then": {"properties": {"product_disposition": {"const": "evaluation_ready"}}}},
-    {"if": {"properties": {"phase": {"const": "evaluation"}}}, "then": {"properties": {"product_disposition": {"const": "product_qualified"}}}}
+    {"if": {"properties": {"phase": {"const": "evaluation"}}}, "then": {"properties": {"product_disposition": {"const": "product_qualified"}}}},
+    {"if": {"properties": {"qualification_mode": {"const": "governed_v3"}}, "required": ["qualification_mode"]}, "then": {"required": ["semantic_receipt"], "not": {"anyOf": [{"required": ["reader_policy"]}, {"required": ["semantic_usage"]}]} }},
+    {"if": {"properties": {"qualification_mode": {"const": "graph_independent_v2"}}, "required": ["qualification_mode"]}, "then": {"required": ["reader_policy", "semantic_usage"], "not": {"required": ["semantic_receipt"]}}}
   ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

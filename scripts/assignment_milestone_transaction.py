@@ -28,7 +28,11 @@ from assignment_process_gate import (
     verify_receipt,
 )
 from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
-from destination_capability import guard_project_root, guard_repin_project_root
+from destination_capability import (
+    guard_lifecycle_project_root,
+    guard_project_root,
+    guard_repin_project_root,
+)
 from draft_evidence_verifier import VerifierError, validate_lifecycle_verifier_binding
 from milestone_framework_validate import (
     validate_document,
@@ -1279,7 +1283,7 @@ def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:
 
 
 def begin(project: Path, milestone: str, at: str | None = None) -> None:
-    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     ledger_milestone = PUBLIC_TO_LEDGER.get(milestone)
     if ledger_milestone not in PREDECESSOR:
         raise MilestoneTransactionError("AMC-TARGET", "begin target must be M2, M3, M4, or FINAL")
@@ -1707,7 +1711,7 @@ def record(
     project: Path, milestone: str, receipt: Path, checkpoint_path: Path,
     at: str | None = None, *, _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
@@ -2082,7 +2086,7 @@ def accept(
     *, emit_f9: bool = False,
     _before_state_publish: Callable[[], None] | None = None,
 ) -> None:
-    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
+    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
     milestone = PUBLIC_TO_LEDGER.get(public_milestone, "")
     if milestone not in MILESTONES:
@@ -2254,7 +2258,7 @@ def accept(
 
 
 def recover_claim(project: Path, acknowledgement: str) -> Path:
-    project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); root = _ensure_control_tree(project)
+    project = project.resolve(); guard_lifecycle_project_root(project); _enter_authority_mode(project); root = _ensure_control_tree(project)
     if acknowledgement != "inspected-milestone-state-and-journal":
         raise MilestoneTransactionError("AMC-RECOVERY-ACK", "exact acknowledgement is required after inspecting phase_state.json and lifecycle journal")
     claim = root / "claims" / "transaction.lock"

@@ -403,14 +403,14 @@
       "id": "assignment-receipt-transaction",
       "path": "scripts/assignment_receipt_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "bc230b08a59e3433cc72672753dbf8aef27e8a6b95593874db942116487b6b64",
+      "sha256": "437a9e3135b1326006af28e19fe5e51537b222d901709be978a11cc9e45d872e",
       "migration_ids": []
     },
     {
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "98a29e4655c9d28baedf75b8965c6c4fcbcaf782440def4d00c25c0eb16c22c4",
+      "sha256": "fdf7952ac85ec73166a0d1664e645bb19f953a6f443775326bf338621c792f66",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",

@@ -181,6 +181,15 @@ def case_classifier() -> None:
                   dc.classify(work_id) == "protected", dc.classify(work_id))
             check("guard_instrument_lane unlocks assignment without unlocking work-id",
                   dc.guard_instrument_lane(work_id) == "instrument")
+            check("guard_lifecycle_project_root unlocks only the canonical lifecycle container",
+                  dc.guard_lifecycle_project_root(work_id) == "lifecycle_container")
+            refused_state = None
+            try:
+                dc.assert_writable(work_id / "reviews" / "phase_state.json")
+            except dc.DestinationRefused as exc:
+                refused_state = exc
+            check("phase_state remains protected outside the lifecycle transaction",
+                  refused_state is not None and refused_state.code == dc.DEST_PROTECTED)
             refused_memo = None
             try:
                 dc.assert_writable(memo)
@@ -286,6 +295,11 @@ WIRED_MUTATORS = [
     ("checkpoint begin",
      _script("assignment_milestone_checkpoint.py", "begin",
              "--project-root", "{ROOT}", "--milestone", "M2")),
+    ("checkpoint accept",
+     _script("assignment_milestone_checkpoint.py", "accept",
+             "--project-root", "{ROOT}", "--milestone", "M1",
+             "--checkpoint", "reviews/.harness/milestones/checkpoints/missing.json",
+             "--approval-evidence", "reviews/.harness/milestones/checkpoints/missing-approval.json")),
     ("checkpoint recover",
      _script("assignment_milestone_checkpoint.py", "recover",
              "--project-root", "{ROOT}", "--acknowledgement", "x")),
@@ -334,6 +348,9 @@ WIRED_MUTATORS = [
 ]
 
 
+LIFECYCLE_MUTATORS = {"checkpoint begin", "checkpoint accept", "checkpoint recover"}
+
+
 def case_mutator_wiring() -> None:
     with tempfile.TemporaryDirectory(prefix="destcap-wire-") as td:
         fake = make_fake_root(Path(td))
@@ -348,7 +365,14 @@ def case_mutator_wiring() -> None:
             out = (r.stdout + r.stderr)
             check(f"{label}: refuses governed root (nonzero exit)",
                   r.returncode != 0, f"rc={r.returncode}")
-            dest_ok = "DEST-PROTECTED" in out or (
+            dest_ok = (
+                label in LIFECYCLE_MUTATORS
+                and (
+                    "AMC-PHASE-STATE" in out
+                    or "AMC-RECOVERY-ACK" in out
+                    or "AMC-RECOVERY" in out
+                )
+            ) or "DEST-PROTECTED" in out or (
                 label == "process gate"
                 and (
                     "APG-CONTRACT-MISSING" in out
@@ -356,14 +380,31 @@ def case_mutator_wiring() -> None:
                 )
             )
             check(
-                f"{label}: names DEST-PROTECTED"
+                f"{label}: reaches lifecycle validation"
+                if label in LIFECYCLE_MUTATORS
+                else f"{label}: names DEST-PROTECTED"
                 if label != "process gate"
                 else f"{label}: DEST-PROTECTED or read-only contract miss",
                 dest_ok,
                 out.strip().splitlines()[-1][:80] if out.strip() else "silent",
             )
-            check(f"{label}: wrote nothing", after == before,
-                  f"created {sorted(str(x) for x in (after - before))[:3]}")
+            created = {str(x) for x in (after - before)}
+            if label in LIFECYCLE_MUTATORS:
+                allowed = {
+                    "reviews",
+                    "reviews\\.harness",
+                    "reviews\\.harness\\control-plane",
+                    "reviews\\.harness\\control-plane\\authority.lock",
+                    "reviews\\.harness\\milestones",
+                    "reviews\\.harness\\milestones\\claims",
+                    "reviews\\.harness\\milestones\\checkpoints",
+                    "reviews\\.harness\\milestones\\journal",
+                }
+                check(f"{label}: writes only lifecycle control dirs",
+                      created <= allowed, f"created {sorted(created)[:3]}")
+            else:
+                check(f"{label}: wrote nothing", after == before,
+                      f"created {sorted(created)[:3]}")
 
 
 def case_output_redirect_refusals() -> None:

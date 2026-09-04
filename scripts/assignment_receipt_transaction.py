@@ -964,13 +964,17 @@ def _prepare_journal(
 
 def _publish_one(project: Path, row: dict[str, Any]) -> None:
     target = _resolved_inside(project, _safe_relative(row["target_path"]))
+    current = _target_snapshot(target)
+    # A receipt-backed current-byte admission is verification, not a protected
+    # artifact mutation. Return before capability checking only when the exact
+    # desired postimage is already present; every byte-changing path still
+    # passes through the destination chokepoint below.
+    if current["exists"] and current["sha256"] == row["desired_sha256"]:
+        return
     try:
         assert_writable(target, purpose="assignment-publish")
     except DestinationRefused as exc:
         raise ReceiptTransactionError(exc.code, str(exc)) from exc
-    current = _target_snapshot(target)
-    if current["exists"] and current["sha256"] == row["desired_sha256"]:
-        return
     if current != row["preimage"]:
         raise ReceiptTransactionError(
             "APG-WRITE-PREIMAGE-MISMATCH", f"target changed during publication: {row['target_path']}"

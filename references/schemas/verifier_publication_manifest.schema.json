@@ -9,7 +9,7 @@
     "transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"},
     "mode": {"const": "committed"},
     "state": {"const": "prepared"},
-    "inputs": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/binding"}},
+    "inputs": {"type": "array", "minItems": 3, "maxItems": 4, "items": {"$ref": "#/$defs/binding"}},
     "semantics_digest": {"$ref": "#/$defs/sha256"},
     "intended_outputs": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/binding"}}
   },

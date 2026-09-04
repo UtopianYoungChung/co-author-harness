@@ -13,8 +13,9 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 from referencing.exceptions import Unresolvable
+import yaml
 
-from destination_capability import guard_project_root
+from destination_capability import guard_instrument_lane
 from assignment_receipt_transaction import (
     ReceiptTransactionError,
     _assignment_root,
@@ -22,6 +23,8 @@ from assignment_receipt_transaction import (
     _issue_dispatch_kernel_authorization,
     _json_bytes,
     _load_record,
+    _mutation_ledger_path,
+    _mutation_row_hash,
     _target_snapshot,
     _transaction_claim,
     load_mutation_ledger,
@@ -152,13 +155,30 @@ def _validate_schema(
 
 
 def _project_root_binding(project: Path) -> dict[str, Any]:
-    manifest = project / "project_manifest.json"
-    if not manifest.is_file():
+    candidates = (
+        (project / "project_manifest.json", ("identity",)),
+        (project / "WORK_PACKAGE.yaml", ("work_id",)),
+    )
+    selected = next(((path, keys) for path, keys in candidates if path.is_file()), None)
+    if selected is None:
         raise ReceiptTransactionError(
-            "APG-DISPATCH-CLAIM-INVALID", "synthetic project manifest is missing"
+            "APG-DISPATCH-CLAIM-INVALID", "project identity manifest is missing"
         )
-    value = _load_record(manifest, "APG-DISPATCH-CLAIM-INVALID")
-    identity = value.get("identity")
+    manifest, identity_keys = selected
+    if manifest.suffix.casefold() == ".json":
+        value = _load_record(manifest, "APG-DISPATCH-CLAIM-INVALID")
+    else:
+        try:
+            value = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError) as exc:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID", f"project identity manifest is invalid: {exc}"
+            ) from exc
+        if not isinstance(value, dict):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID", "project identity manifest must be an object"
+            )
+    identity = next((value.get(key) for key in identity_keys if value.get(key)), None)
     if not isinstance(identity, str) or not identity:
         raise ReceiptTransactionError(
             "APG-DISPATCH-CLAIM-INVALID", "project manifest identity is missing"
@@ -166,7 +186,7 @@ def _project_root_binding(project: Path) -> dict[str, Any]:
     return {
         "kind": "project",
         "identity": identity,
-        "discovery": "explicit:project_manifest.json",
+        "discovery": f"explicit:{manifest.relative_to(project).as_posix()}",
         "manifest_sha256": _digest_path(manifest),
     }
 
@@ -790,14 +810,15 @@ def issue_generation_claim(
     reserved_receipt: Path,
     *,
     policy_path: Path,
-    bibliography_snapshot: Path,
+    bibliography_snapshot: Path | None = None,
+    reader_policy: Path | None = None,
     nonce: str,
     issuer_transaction_id: str,
     issued_at: str | None = None,
 ) -> tuple[dict[str, Any], Path, Path]:
     """Issue one genuine generation control through the assignment kernel."""
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     reserved_receipt = reserved_receipt.resolve()
     with _transaction_claim(project):
         receipt = _load_record(reserved_receipt, "APG-DISPATCH-CLAIM-INVALID")
@@ -820,6 +841,22 @@ def issue_generation_claim(
                 "APG-DISPATCH-CLAIM-INVALID", "reservation has no authorized writes"
             )
         target_path = str(receipt["primary_deliverable_path"])
+        if (bibliography_snapshot is None) == (reader_policy is None):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID",
+                "dispatch requires exactly one governed-v3 bibliography or graph-independent reader policy",
+            )
+        if reader_policy is not None:
+            try:
+                from draft_evidence_verifier import _load_graph_independent_inputs
+
+                _load_graph_independent_inputs(
+                    project_root=project, reader_policy=reader_policy.resolve(strict=True)
+                )
+            except Exception as exc:
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-INVALID", f"reader policy is stale: {exc}"
+                ) from exc
         unsigned: dict[str, Any] = {
             "schema_version": "1.0.0",
             "claim_type": "assignment_dispatch",
@@ -848,11 +885,21 @@ def issue_generation_claim(
             "target_path": target_path,
             "authorized_writes": writes,
             "policy": binding(project, policy_path, "assignment_policy"),
-            "canonical_bibliography_snapshot": binding(
-                project, bibliography_snapshot, "canonical_bibliography_snapshot"
-            ),
-            "corpus_digest": _digest_path(bibliography_snapshot),
         }
+        if reader_policy is not None:
+            unsigned.update({
+                "qualification_mode": "graph_independent_v2",
+                "reader_policy": binding(project, reader_policy, "reader_profile_v2"),
+                "semantic_usage": "not_invoked",
+            })
+        else:
+            assert bibliography_snapshot is not None
+            unsigned.update({
+                "canonical_bibliography_snapshot": binding(
+                    project, bibliography_snapshot, "canonical_bibliography_snapshot"
+                ),
+                "corpus_digest": _digest_path(bibliography_snapshot),
+            })
         claims_root = _assignment_root(project) / "dispatch" / "claims"
         for existing in claims_root.glob("*/claim.json"):
             prior = _load_record(existing, "APG-DISPATCH-CLAIM-INVALID")
@@ -1001,8 +1048,9 @@ def validate_generation_for_evaluation(
     generation_transaction: Path,
     generation_publication_manifest: Path,
     generation_commit_marker: Path,
-    generation_semantic_receipt: Path,
-    wiki_root: Path,
+    generation_semantic_receipt: Path | None,
+    reader_policy: Path | None = None,
+    wiki_root: Path | None,
     semantics_manifest: Path,
 ) -> dict[str, Any]:
     """Validate committed generation evidence before evaluation issuance."""
@@ -1044,6 +1092,7 @@ def validate_generation_for_evaluation(
             commit_marker=generation_commit_marker,
             artifact=artifact,
             semantic_receipt=generation_semantic_receipt,
+            reader_policy=reader_policy,
             project_root=project,
             wiki_root=wiki_root,
             harness_root=ROOT,
@@ -1073,8 +1122,9 @@ def issue_evaluation_claim(
     generation_transaction: Path,
     generation_publication_manifest: Path,
     generation_commit_marker: Path,
-    generation_semantic_receipt: Path,
-    wiki_root: Path,
+    generation_semantic_receipt: Path | None,
+    reader_policy: Path | None = None,
+    wiki_root: Path | None,
     semantics_manifest: Path,
     nonce: str,
     issuer_transaction_id: str,
@@ -1082,7 +1132,7 @@ def issue_evaluation_claim(
 ) -> tuple[dict[str, Any], Path, Path]:
     """Issue the activation evaluation control from a generation claim."""
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     generation_claim_path = generation_claim_path.resolve()
     artifact = artifact.resolve()
     with _transaction_claim(project):
@@ -1106,6 +1156,7 @@ def issue_evaluation_claim(
             generation_publication_manifest=generation_publication_manifest,
             generation_commit_marker=generation_commit_marker,
             generation_semantic_receipt=generation_semantic_receipt,
+            reader_policy=reader_policy,
             wiki_root=wiki_root,
             semantics_manifest=semantics_manifest,
         )
@@ -1147,10 +1198,6 @@ def issue_evaluation_claim(
             "target_path": generation_claim["target_path"],
             "authorized_writes": generation_claim["authorized_writes"],
             "policy": generation_claim["policy"],
-            "canonical_bibliography_snapshot": generation_claim[
-                "canonical_bibliography_snapshot"
-            ],
-            "corpus_digest": generation_claim["corpus_digest"],
             "generation_claim": binding(
                 project, generation_claim_path, "assignment_generation_claim"
             ),
@@ -1172,6 +1219,19 @@ def issue_evaluation_claim(
                 "product_disposition": "evaluation_ready",
             },
         }
+        if generation_claim.get("qualification_mode") == "graph_independent_v2":
+            unsigned.update({
+                "qualification_mode": "graph_independent_v2",
+                "reader_policy": generation_claim["reader_policy"],
+                "semantic_usage": "not_invoked",
+            })
+        else:
+            unsigned.update({
+                "canonical_bibliography_snapshot": generation_claim[
+                    "canonical_bibliography_snapshot"
+                ],
+                "corpus_digest": generation_claim["corpus_digest"],
+            })
         claim_id = f"dispatch-{_digest_bytes(_canonical_bytes(unsigned))[:16]}"
         claim = {**unsigned, "claim_id": claim_id}
         _validate_schema(claim, CLAIM_SCHEMA, "APG-DISPATCH-CLAIM-INVALID")
@@ -1334,7 +1394,7 @@ def accept_host_pair_for_independence(
     }
     use_id = "host-use-" + _digest_bytes(_canonical_bytes(payload))[:16]
     lane = _assignment_root(project) / "dispatch" / "host-uses" / use_id
-    guard_project_root(project)
+    guard_instrument_lane(project)
     with _transaction_claim(project):
         if (
             _digest_path(generation_attestation_path) != generation_hash
@@ -1415,7 +1475,7 @@ def consume_dispatch_claim(
 ) -> tuple[dict[str, Any], Path, Path]:
     """Consume one dispatch claim under the assignment transaction claim."""
     project = project.resolve()
-    guard_project_root(project)
+    guard_instrument_lane(project)
     with _transaction_claim(project):
         claim = _validate_claim_publication(project, claim_path)
         if claim.get("role") != role:
@@ -1463,4 +1523,127 @@ def consume_dispatch_claim(
             consumed_at=consumed_at,
             stop_before_marker=stop_before_marker,
             resume_incomplete=resume_incomplete,
+        )
+
+
+def publish_evaluation_product(
+    project: Path,
+    claim_path: Path,
+    *,
+    output_path: Path,
+    payload: dict[str, Any],
+    consumer_transaction_id: str,
+    consumed_at: str | None = None,
+) -> tuple[dict[str, Any], Path, Path]:
+    """Publish and consume one evaluator-authored scholarly product atomically.
+
+    The evaluator claim authorizes exactly one JSON product below the dedicated
+    scholarly-evaluations instrument lane. The mutation row is appended before
+    the dispatch consumption marker, so lifecycle verification never relies on
+    a role-authored, unjournaled evaluation file.
+    """
+    project = project.resolve()
+    guard_instrument_lane(project)
+    claim_path = claim_path.resolve()
+    output_path = output_path.resolve()
+    lane_root = (project / "reviews/.harness/scholarly-evaluations").resolve()
+    if (
+        not output_path.is_relative_to(lane_root)
+        or output_path.suffix.lower() != ".json"
+        or output_path == lane_root
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-PATH-MISMATCH",
+            "evaluation product must be a JSON file in the scholarly-evaluations lane",
+        )
+    with _transaction_claim(project):
+        claim = _validate_claim_publication(project, claim_path)
+        if claim.get("claim_kind") != "evaluation" or claim.get("role") != "evaluator":
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-ROLE-MISMATCH",
+                "evaluation publication requires an Evaluator dispatch claim",
+            )
+        for existing in (_assignment_root(project) / "dispatch/consumptions").glob(
+            "*/consumption.json"
+        ):
+            prior = _load_record(existing, "APG-DISPATCH-CLAIM-RECOVERY-REQUIRED")
+            if prior.get("claim_id") == claim.get("claim_id"):
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-REPLAY", "Evaluator dispatch is already consumed"
+                )
+        if output_path.exists():
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-REPLAY", "evaluation product already exists"
+            )
+        _atomic_json(output_path, payload, exclusive=True)
+        relative = output_path.relative_to(project).as_posix()
+        rows = load_mutation_ledger(project)
+        artifact_rows = [
+            row for row in rows if row.get("target_path") == claim.get("target_path")
+        ]
+        if not artifact_rows:
+            raise ReceiptTransactionError(
+                "APG-MUTATION-UNJOURNALED",
+                "Evaluator claim artifact has no sanctioned mutation row",
+            )
+        artifact_row = artifact_rows[-1]
+        if _target_snapshot(project / Path(claim["target_path"])) != artifact_row.get(
+            "postimage"
+        ):
+            raise ReceiptTransactionError(
+                "APG-MUTATION-UNJOURNALED", "Evaluator claim artifact bytes are stale"
+            )
+        postimage = _target_snapshot(output_path)
+        row = {
+            "schema_version": "1.0.0",
+            "sequence": len(rows) + 1,
+            "prior_row_sha256": rows[-1]["row_sha256"] if rows else None,
+            "receipt_id": claim["receipt_id"],
+            "reservation_id": claim["reservation_id"],
+            "target_path": relative,
+            "mode": "create",
+            "preimage": {"exists": False, "sha256": None, "size": 0},
+            "postimage": postimage,
+        }
+        row["row_sha256"] = _mutation_row_hash(row)
+        ledger = _mutation_ledger_path(project)
+        prior_bytes = ledger.read_bytes() if ledger.exists() else b""
+        updated = prior_bytes + json.dumps(row, sort_keys=True).encode("utf-8") + b"\n"
+        temporary = ledger.with_name(ledger.name + f".tmp.{os.getpid()}")
+        try:
+            with temporary.open("xb") as handle:
+                handle.write(updated)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, ledger)
+        finally:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+        journal_lane = _assignment_root(project) / "evaluation-publications" / claim["claim_id"]
+        journal = {
+            "schema_version": "1.0.0",
+            "publication_type": "scholarly_evaluation",
+            "claim": binding(project, claim_path, "assignment_dispatch_claim"),
+            "product": binding(project, output_path, "scholarly_evaluation"),
+            "mutation_row_sha256": row["row_sha256"],
+            "state": "committed",
+        }
+        _atomic_json(journal_lane / "publication.json", journal, exclusive=True)
+        return _consume_claim_locked(
+            project,
+            claim_path,
+            role="evaluator",
+            consumer_transaction_id=consumer_transaction_id,
+            postimages=[
+                {
+                    "path": claim["target_path"],
+                    "sha256": artifact_row["postimage"]["sha256"],
+                    "size": artifact_row["postimage"]["size"],
+                },
+                {"path": relative, "sha256": postimage["sha256"], "size": postimage["size"]},
+            ],
+            mutation_row_hashes=[artifact_row["row_sha256"], row["row_sha256"]],
+            consumed_at=consumed_at,
         )

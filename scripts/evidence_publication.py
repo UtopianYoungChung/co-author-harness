@@ -13,11 +13,18 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from destination_capability import guard_project_root
+from destination_capability import assert_writable, classify
 
 
 class EvidencePublicationError(RuntimeError):
     pass
+
+
+def _transaction_lane(root: Path, transaction_id: str) -> Path:
+    """Keep live Workbench control state inside its instrument lane."""
+    if classify(root) == "protected":
+        return root / "reviews" / ".harness" / "evidence-transactions" / transaction_id
+    return root / ".harness-evidence-transactions" / transaction_id
 
 
 def _canonical(value: Any) -> bytes:
@@ -152,13 +159,14 @@ def publish_committed(
 ) -> None:
     """Publish prepared bytes under an exclusive claim, with marker last."""
     root = project_root.resolve(strict=True)
-    guard_project_root(root)
     all_rows = [*outputs, marker]
     resolved = [(path.resolve(), data) for path, data in all_rows]
     if not transaction_id or len({path for path, _ in resolved}) != len(resolved):
         raise EvidencePublicationError("transaction id or output set is invalid")
     if any(not path.is_relative_to(root) for path, _ in resolved):
         raise EvidencePublicationError("publication output escapes project root")
+    for path, _data in resolved:
+        assert_writable(path, purpose="evidence publication")
     plan = {
         "schema_version": "1.0.0",
         "transaction_id": transaction_id,
@@ -181,7 +189,8 @@ def publish_committed(
         "marker_path": resolved[-1][0].relative_to(root).as_posix(),
     }
     plan_hash = _digest(_canonical(plan))
-    lane = root / ".harness-evidence-transactions" / transaction_id
+    lane = _transaction_lane(root, transaction_id)
+    assert_writable(lane, purpose="evidence transaction state")
     prepared = lane / "prepared"
     claim_path = lane / "claim.json"
     journal_path = lane / "journal.json"
@@ -359,7 +368,7 @@ def validate_committed(
         "marker_path": resolved[-1][0].relative_to(root).as_posix(),
     }
     plan_hash = _digest(_canonical(plan))
-    lane = (root / ".harness-evidence-transactions" / transaction_id).resolve()
+    lane = _transaction_lane(root, transaction_id).resolve()
     if not lane.is_relative_to(root):
         raise EvidencePublicationError("transaction lane escapes project root")
     claim_path = lane / "claim.json"
@@ -441,7 +450,6 @@ def recover_committed(
     if acknowledgement != "inspected-evidence-state-and-journal":
         raise EvidencePublicationError("exact recovery acknowledgement is required")
     root = project_root.resolve(strict=True)
-    guard_project_root(root)
     all_rows = [*outputs, marker]
     resolved = [(path.resolve(), data) for path, data in all_rows]
     if not transaction_id or len({path for path, _ in resolved}) != len(resolved):
@@ -449,6 +457,7 @@ def recover_committed(
     if any(not path.is_relative_to(root) for path, _ in resolved):
         raise EvidencePublicationError("publication output escapes project root")
     for path, _data in resolved:
+        assert_writable(path, purpose="evidence recovery")
         destination_validator(path)
     for path, expected in preconditions:
         resolved_input = path.resolve(strict=True)
@@ -489,7 +498,8 @@ def recover_committed(
         "marker_path": resolved[-1][0].relative_to(root).as_posix(),
     }
     plan_hash = _digest(_canonical(plan))
-    lane = (root / ".harness-evidence-transactions" / transaction_id).resolve()
+    lane = _transaction_lane(root, transaction_id).resolve()
+    assert_writable(lane, purpose="evidence recovery transaction state")
     if not lane.is_relative_to(root):
         raise EvidencePublicationError("transaction lane escapes project root")
     claim_path = lane / "claim.json"

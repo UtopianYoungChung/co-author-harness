@@ -313,6 +313,20 @@ def guard_instrument_lane(project_root: os.PathLike | str) -> str:
         return assert_writable(dest, purpose="assignment-control-plane")
 
 
+def guard_lifecycle_project_root(project_root: os.PathLike | str) -> str:
+    """Grant container access only to a canonical Workbench lifecycle writer.
+
+    This does not make ``phase_state.json`` generally writable. Callers must be
+    the canonical lifecycle transaction itself, which validates its complete
+    receipt/evidence dependency graph and publishes state last.
+    """
+    dest = _canon(project_root)
+    for root in governed_roots(project_root):
+        if _is_workbench_work_id_root(dest, root):
+            return "lifecycle_container"
+    return guard_project_root(project_root)
+
+
 def guard_repin_project_root(project_root: os.PathLike | str) -> str:
     """Re-pin / rebind entry guard.
 

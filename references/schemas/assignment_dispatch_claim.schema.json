@@ -4,7 +4,7 @@
   "title": "Assignment dispatch claim 1.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "claim_type", "claim_id", "claim_kind", "state", "role", "issued_at", "nonce", "issuer", "assignment_receipt", "receipt_id", "reservation", "reservation_id", "target_milestone", "target_path", "authorized_writes", "policy", "canonical_bibliography_snapshot", "corpus_digest"],
+  "required": ["schema_version", "claim_type", "claim_id", "claim_kind", "state", "role", "issued_at", "nonce", "issuer", "assignment_receipt", "receipt_id", "reservation", "reservation_id", "target_milestone", "target_path", "authorized_writes", "policy"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "claim_type": {"const": "assignment_dispatch"},
@@ -23,8 +23,11 @@
     "target_path": {"$ref": "#/$defs/safePath"},
     "authorized_writes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/write"}},
     "policy": {"$ref": "#/$defs/binding"},
+    "qualification_mode": {"enum": ["governed_v3", "graph_independent_v2"]},
     "canonical_bibliography_snapshot": {"$ref": "#/$defs/binding"},
     "corpus_digest": {"$ref": "#/$defs/sha256"},
+    "reader_policy": {"$ref": "#/$defs/binding"},
+    "semantic_usage": {"const": "not_invoked"},
     "generation_claim": {"$ref": "#/$defs/binding"},
     "generation_consumption": {"$ref": "#/$defs/binding"},
     "artifact": {"$ref": "#/$defs/binding"},
@@ -32,7 +35,8 @@
   },
   "allOf": [
     {"if": {"properties": {"claim_kind": {"const": "generation"}}}, "then": {"properties": {"role": {"const": "generator"}}, "not": {"anyOf": [{"required": ["generation_claim"]}, {"required": ["generation_consumption"]}, {"required": ["artifact"]}, {"required": ["generation_verifier"]}]}}},
-    {"if": {"properties": {"claim_kind": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact", "generation_verifier"]}}
+    {"if": {"properties": {"claim_kind": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact", "generation_verifier"]}},
+    {"if": {"properties": {"qualification_mode": {"const": "graph_independent_v2"}}, "required": ["qualification_mode"]}, "then": {"required": ["reader_policy", "semantic_usage"], "not": {"anyOf": [{"required": ["canonical_bibliography_snapshot"]}, {"required": ["corpus_digest"]}]}}, "else": {"required": ["canonical_bibliography_snapshot", "corpus_digest"], "not": {"anyOf": [{"required": ["reader_policy"]}, {"required": ["semantic_usage"]}]}}}
   ],
   "$defs": {
     "sha256": {"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/sha256"},

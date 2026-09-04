@@ -7,7 +7,7 @@
   "required": [
     "schema_version", "binding_type", "phase", "product_disposition",
     "target", "receipt_id", "transaction", "publication_manifest",
-    "commit_marker", "semantic_receipt", "wiki_root", "semantics_manifest",
+    "commit_marker", "semantics_manifest",
     "dispatch_claim", "dispatch_consumption", "generation_verifier_transaction_id"
   ],
   "properties": {
@@ -20,7 +20,10 @@
     "transaction": {"$ref": "#/$defs/project_binding"},
     "publication_manifest": {"$ref": "#/$defs/project_binding"},
     "commit_marker": {"$ref": "#/$defs/project_binding"},
+    "qualification_mode": {"enum": ["governed_v3", "graph_independent_v2"]},
     "semantic_receipt": {"$ref": "#/$defs/project_binding"},
+    "reader_policy": {"$ref": "#/$defs/project_binding"},
+    "semantic_usage": {"const": "not_invoked"},
     "wiki_root": {
       "type": "object",
       "additionalProperties": false,
@@ -58,6 +61,17 @@
           "product_disposition": {"const": "product_qualified"},
           "generation_verifier_transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}
         }
+      }
+    },
+    {
+      "if": {"properties": {"qualification_mode": {"const": "graph_independent_v2"}}, "required": ["qualification_mode"]},
+      "then": {
+        "required": ["reader_policy", "semantic_usage"],
+        "not": {"anyOf": [{"required": ["semantic_receipt"]}, {"required": ["wiki_root"]}]}
+      },
+      "else": {
+        "required": ["semantic_receipt", "wiki_root"],
+        "not": {"anyOf": [{"required": ["reader_policy"]}, {"required": ["semantic_usage"]}]}
       }
     }
   ],

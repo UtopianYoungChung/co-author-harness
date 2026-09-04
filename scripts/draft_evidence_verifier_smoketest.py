@@ -17,6 +17,10 @@ import draft_evidence_verifier as verifier
 import draft_governance
 import evidence_publication
 from c2_evidence_fixture_support import build_activation_fixture
+from reader_accessibility_policy import (
+    reader_profile_phase_state_binding,
+    resolve_reader_profile,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -82,6 +86,43 @@ def require_refusal(call, code: str) -> None:
         raise AssertionError(f"expected verifier refusal {code}")
 
 
+def build_graph_independent_fixture(root: Path):
+    activation = build_activation_fixture(root)
+    write_json(
+        activation.root / "project_manifest.json",
+        json.loads(activation.project_manifest.read_text(encoding="utf-8")),
+    )
+    directives = activation.root / "research_notes" / "directives.md"
+    directives.parent.mkdir(parents=True, exist_ok=True)
+    directives.write_text(
+        "project_id: graph-independent-test\npassage_scope_class: technical\n",
+        encoding="utf-8",
+    )
+    resolved = resolve_reader_profile(activation.root)
+    reader_policy = (
+        activation.root
+        / "reviews"
+        / ".harness"
+        / "policies"
+        / "reader_accessibility.resolved.json"
+    )
+    write_json(reader_policy, resolved)
+    phase_state = activation.root / "reviews" / "phase_state.json"
+    write_json(
+        phase_state,
+        {
+            "milestone_framework": {
+                "policy_bindings": {
+                    "reader_accessibility": reader_profile_phase_state_binding(
+                        resolved, reader_policy, activation.root
+                    )
+                }
+            }
+        },
+    )
+    return activation, reader_policy
+
+
 def main() -> int:
     required_callables = (
         "publish_verifier_transaction",
@@ -132,6 +173,35 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="draft-evidence-verifier-c3-") as td:
         root = Path(td)
+        graph, reader_policy = build_graph_independent_fixture(
+            root / "graph-independent" / "project"
+        )
+        graph_published = verifier.publish_graph_independent_verifier_transaction(
+            artifact=graph.artifact,
+            reader_policy=reader_policy,
+            phase="generation",
+            project_root=graph.root,
+            harness_root=ROOT,
+            semantics_manifest=SEMANTICS_MANIFEST,
+            out_dir=graph.root / "verifier" / "graph-independent",
+            requested_independence_level="none",
+        )
+        graph_transaction = verifier.validate_verifier_transaction(
+            transaction=graph_published["transaction"],
+            publication_manifest=graph_published["publication_manifest"],
+            commit_marker=graph_published["commit_marker"],
+            artifact=graph.artifact,
+            semantic_receipt=None,
+            reader_policy=reader_policy,
+            project_root=graph.root,
+            wiki_root=None,
+            harness_root=ROOT,
+            semantics_manifest=SEMANTICS_MANIFEST,
+        )
+        assert graph_transaction["qualification_mode"] == "graph_independent_v2"
+        assert graph_transaction["semantic_usage"] == "not_invoked"
+        assert "semantic_receipt" not in graph_transaction
+
         activation = build_activation_fixture(root / "project")
         stronger_before = tree_state(activation.root, omit_locks=True)
         require_refusal(
