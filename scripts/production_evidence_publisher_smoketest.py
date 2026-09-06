@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import contextmanager
 import os
 import tempfile
 import subprocess
@@ -521,7 +522,114 @@ def case_publishers_refuse_protected_and_escaping_destinations() -> None:
                 os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = previous
 
 
+def case_committed_dependencies_are_replayed() -> None:
+    with tempfile.TemporaryDirectory(prefix="publication-dependency-replay-") as raw:
+        root = Path(raw).resolve()
+        source = root / "input.txt"
+        source.write_bytes(b"before\n")
+        inventory = root / "inventory"
+        inventory.mkdir()
+        member = inventory / "one.md"
+        member.write_bytes(b"one\n")
+        product, marker = root / "product.json", root / "marker.json"
+        kwargs = dict(
+            project_root=root, transaction_id="dependency-replay",
+            preconditions=[(source, hashlib.sha256(source.read_bytes()).hexdigest())],
+            inventory_preconditions=[(inventory, {"one.md": hashlib.sha256(member.read_bytes()).hexdigest()})],
+            outputs=[(product, b"{}\n")], marker=(marker, b"{}\n"),
+        )
+        evidence_publication.publish_committed(**kwargs)
+        evidence_publication.validate_committed(**kwargs)
+        assert evidence_publication.recover_committed(
+            **kwargs, acknowledgement="inspected-evidence-state-and-journal",
+            destination_validator=lambda _path: None,
+        ) == "committed"
+        lane = evidence_publication._transaction_lane(root, "dependency-replay")
+        observed = [product, marker, lane / "claim.json", lane / "journal.json"]
+        before = {path: path.read_bytes() for path in observed}
+        for dependency in (source, member):
+            original = dependency.read_bytes()
+            dependency.write_bytes(b"x" * len(original))
+            try:
+                try:
+                    evidence_publication.validate_committed(**kwargs)
+                except evidence_publication.EvidencePublicationError as exc:
+                    assert "changed" in str(exc), str(exc)
+                else:
+                    raise AssertionError(f"committed replay accepted changed dependency: {dependency.name}")
+                assert {path: path.read_bytes() for path in observed} == before
+            finally:
+                dependency.write_bytes(original)
+        evidence_publication.validate_committed(**kwargs)
+
+
+def case_recovery_rechecks_after_both_claims() -> None:
+    for drift in ("file", "inventory", "destination"):
+        with tempfile.TemporaryDirectory(prefix="publication-recovery-recheck-") as raw:
+            root = Path(raw).resolve()
+            source = root / "input.txt"
+            source.write_bytes(b"before\n")
+            inventory = root / "inventory"
+            inventory.mkdir()
+            member = inventory / "one.md"
+            member.write_bytes(b"one\n")
+            product, marker = root / "product.json", root / "marker.json"
+            kwargs = dict(
+                project_root=root, transaction_id="recovery-recheck",
+                preconditions=[(source, hashlib.sha256(source.read_bytes()).hexdigest())],
+                inventory_preconditions=[(inventory, {"one.md": hashlib.sha256(member.read_bytes()).hexdigest()})],
+                outputs=[(product, b"{}\n")], marker=(marker, b"{}\n"),
+            )
+            evidence_publication.publish_committed(**kwargs)
+            lane = evidence_publication._transaction_lane(root, "recovery-recheck")
+            observed = [product, marker, lane / "claim.json", lane / "journal.json"]
+            before = {path: path.read_bytes() for path in observed}
+            original_lock = evidence_publication._claim_lock
+            acquired = 0
+            mutated = False
+            validations = []
+
+            @contextmanager
+            def mutate_after_claim(path, **lock_kwargs):
+                nonlocal acquired, mutated
+                with original_lock(path, **lock_kwargs):
+                    acquired += 1
+                    if acquired == 2:
+                        if drift == "file":
+                            source.write_bytes(b"change\n")
+                        elif drift == "inventory":
+                            member.write_bytes(b"two\n")
+                        mutated = True
+                    yield
+
+            def validate_destination(path):
+                validations.append(mutated)
+                if drift == "destination" and mutated:
+                    raise evidence_publication.EvidencePublicationError("destination changed under claims")
+
+            evidence_publication._claim_lock = mutate_after_claim
+            try:
+                try:
+                    evidence_publication.recover_committed(
+                        **kwargs, acknowledgement="inspected-evidence-state-and-journal",
+                        destination_validator=validate_destination,
+                    )
+                except evidence_publication.EvidencePublicationError as exc:
+                    assert "changed" in str(exc), str(exc)
+                else:
+                    raise AssertionError(f"recovery accepted {drift} drift after precheck")
+            finally:
+                evidence_publication._claim_lock = original_lock
+            assert acquired == 2 and mutated
+            assert validations[:2] == [False, False], validations
+            if drift == "destination":
+                assert validations[-1] is True, validations
+            assert {path: path.read_bytes() for path in observed} == before
+
+
 def main() -> int:
+    case_committed_dependencies_are_replayed()
+    case_recovery_rechecks_after_both_claims()
     case_publishers_refuse_protected_and_escaping_destinations()
     case_protected_transaction_id_publish_creates_no_directories()
     case_protected_transaction_id_recover_creates_no_directories()

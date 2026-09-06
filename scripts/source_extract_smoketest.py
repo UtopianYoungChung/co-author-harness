@@ -147,7 +147,8 @@ def main() -> int:
 
         evidence_publication.os.replace = transient_replace
         try:
-            evidence_publication._durable_write(retry_target, b"durable\n")
+            with evidence_publication._hold_bound_tree(root):
+                evidence_publication._durable_write(retry_target, b"durable\n", root=root)
         finally:
             evidence_publication.os.replace = real_replace
         assert replace_attempts == 3
@@ -166,9 +167,10 @@ def main() -> int:
         evidence_publication.time.sleep = lambda _delay: None
         try:
             try:
-                evidence_publication._durable_write(
-                    persistent_target, b"must-not-publish\n"
-                )
+                with evidence_publication._hold_bound_tree(root):
+                    evidence_publication._durable_write(
+                        persistent_target, b"must-not-publish\n", root=root
+                    )
             except PermissionError:
                 pass
             else:

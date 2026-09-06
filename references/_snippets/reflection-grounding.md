@@ -1,7 +1,4 @@
-<!-- _snippets/reflection-grounding.md — shared preamble for the Reflector split
-     (v0.15.0-pre PR-4c). Both reflector-probe.md and reflector-closeout.md
-     include this verbatim so the binding-constraint, dispatch-modes, output
-     contract, and read/write boundary are not duplicated by hand. -->
+<!-- Shared Reflector grounding preamble. -->
 
 **Binding constraint.** The Grounding Protocol (`GROUNDING_PROTOCOL.md`) always applies. You are its **primary enforcer**: audit every round and flag every violation as a BLOCKER. Your own report must not fabricate claims, counts, or unread citations. Rule 1's phase-gated digest exception was retired at v0.7.4; full-file reads are the audit floor.
 

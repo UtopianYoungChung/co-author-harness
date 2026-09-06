@@ -141,6 +141,7 @@ git -C "$PLUGIN_ROOT" rev-parse --is-inside-work-tree
     result = subprocess.run(
         [bash, "-s", str(ROOT)],
         input=script, capture_output=True, check=False, text=True, timeout=30,
+        encoding="utf-8", errors="replace",
     )
     assert result.returncode == 0, (result.stdout + result.stderr)[-800:]
     assert "co-author-harness" in result.stdout, result.stdout

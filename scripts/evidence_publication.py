@@ -963,6 +963,23 @@ def validate_committed(
         raise EvidencePublicationError("transaction id or output set is invalid")
     if any(not path.is_relative_to(root) for path, _ in resolved):
         raise EvidencePublicationError("publication output escapes project root")
+    for path, expected in preconditions:
+        resolved_input = path.resolve(strict=True)
+        if _digest(resolved_input.read_bytes()) != expected:
+            raise EvidencePublicationError(
+                f"publication dependency changed during committed validation: {resolved_input}"
+            )
+    for inventory_root, expected in inventory_preconditions:
+        resolved_inventory = inventory_root.resolve(strict=True)
+        actual = {
+            path.relative_to(resolved_inventory).as_posix(): _digest(path.read_bytes())
+            for path in sorted(resolved_inventory.glob("*.md"))
+            if path.is_file()
+        }
+        if actual != expected:
+            raise EvidencePublicationError(
+                f"publication inventory changed during committed validation: {resolved_inventory}"
+            )
     plan = {
         "schema_version": "1.0.0",
         "transaction_id": transaction_id,
@@ -1161,6 +1178,25 @@ def _finish_recover_committed(
         _claim_lock(_publication_lock_path(root), root=root),
         _claim_lock(lane / "claim.lock", root=root),
     ):
+        for path, _data in resolved:
+            destination_validator(path)
+        for path, expected in preconditions:
+            resolved_input = path.resolve(strict=True)
+            if _digest(resolved_input.read_bytes()) != expected:
+                raise EvidencePublicationError(
+                    f"publication dependency changed under recovery claims: {resolved_input}"
+                )
+        for inventory_root, expected in inventory_preconditions:
+            resolved_inventory = inventory_root.resolve(strict=True)
+            actual = {
+                path.relative_to(resolved_inventory).as_posix(): _digest(path.read_bytes())
+                for path in sorted(resolved_inventory.glob("*.md"))
+                if path.is_file()
+            }
+            if actual != expected:
+                raise EvidencePublicationError(
+                    f"publication inventory changed under recovery claims: {resolved_inventory}"
+                )
         try:
             claim_raw = claim_path.read_bytes()
             journal_raw = journal_path.read_bytes()
