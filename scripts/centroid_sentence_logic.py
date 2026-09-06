@@ -431,7 +431,7 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
             "GRAPH-SEMANTIC-INELIGIBLE and no admitted passages; pass --passages (Joseph) or --admit-pdf pages",
         )
 
-    text = manuscript_bytes.decode("utf-8")
+    text = manuscript_bytes.decode("utf-8", errors="strict")
     sentences = _sentences(text)
     pairs = _pairs(sentences)
     cadence_misses = sum(1 for row in pairs if row["checks"]["join_cadence"] == "unearned_verdict")
@@ -557,4 +557,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="strict")
     raise SystemExit(main())

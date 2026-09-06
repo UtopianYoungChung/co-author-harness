@@ -29,6 +29,9 @@ from assignment_process_gate import (
 from assignment_receipt_transaction import ReceiptTransactionError, validate_mutation_target
 from destination_capability import guard_project_root, guard_repin_project_root
 from draft_evidence_verifier import VerifierError, validate_lifecycle_verifier_binding
+from draft_governance_lifecycle import (
+    DraftGovernanceLifecycleError, validate_lifecycle_draft_governance_binding,
+)
 from milestone_framework_validate import (
     validate_document,
     validate_gate,
@@ -444,8 +447,12 @@ def _append_event(
     events.append(row)
 
 
-def _validate_prospective(project: Path, state: dict[str, Any]) -> None:
-    result = validate_document(project, state)
+def _validate_prospective(
+    project: Path, state: dict[str, Any], _test_authority_adapter: Any | None = None,
+) -> None:
+    result = validate_document(
+        project, state, _test_authority_adapter=_test_authority_adapter,
+    )
     if not result.exit_permitted:
         detail = "; ".join(f"{row.code} at {row.path}: {row.message}" for row in result.findings[:6])
         raise MilestoneTransactionError("AMC-STATE-INVALID", detail or "prospective milestone state is invalid")
@@ -1018,7 +1025,7 @@ def _activate_reader_profile_semantic(
         )
     ledger_bytes = ledger_path.read_bytes()
     try:
-        rows = [json.loads(line) for line in ledger_bytes.decode("utf-8").splitlines() if line.strip()]
+        rows = [json.loads(line) for line in ledger_bytes.decode("utf-8", errors="strict").splitlines() if line.strip()]
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise MilestoneTransactionError(
             "AMC-SEMANTIC-ACTIVATION-LEDGER", f"re-pin ledger is invalid: {exc}",
@@ -1741,9 +1748,72 @@ def _assert_scholarly_authority_chain(
         ) from exc
 
 
+def _validate_draft_evidence(
+    project: Path, evidence: Path, deliverable: Path, phase: str, disposition: str,
+    *, expected_milestone: str | None = None,
+    expected_receipt_id: str | None = None,
+    generation_result: dict[str, Any] | None = None,
+    _test_authority_adapter: Any | None = None,
+) -> dict[str, Any]:
+    try:
+        preview = json.loads(evidence.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise DraftGovernanceLifecycleError(
+            "LIFECYCLE-DRAFT-GOVERNANCE-INVALID", str(exc)
+        ) from exc
+    if not isinstance(preview, dict):
+        raise DraftGovernanceLifecycleError(
+            "LIFECYCLE-DRAFT-GOVERNANCE-INVALID",
+            "lifecycle locator root must be an object",
+        )
+    if preview.get("binding_type") == "lifecycle_draft_governance":
+        if expected_milestone is None or expected_receipt_id is None:
+            raise DraftGovernanceLifecycleError(
+                "LIFECYCLE-DRAFT-GOVERNANCE-DISPOSITION",
+                "lifecycle consumer omitted milestone or receipt authority",
+            )
+        claim_binding = preview.get("dispatch_claim")
+        consumption_binding = preview.get("dispatch_consumption")
+        if not isinstance(claim_binding, dict) or not isinstance(consumption_binding, dict):
+            raise DraftGovernanceLifecycleError(
+                "LIFECYCLE-DRAFT-GOVERNANCE-INVALID",
+                "lifecycle dispatch bindings must be objects",
+            )
+        claim, _ = _safe_project_file(
+            project, claim_binding.get("path"),
+            "AMC-DRAFT-POLICY",
+        )
+        consumption, _ = _safe_project_file(
+            project, consumption_binding.get("path"),
+            "AMC-DRAFT-POLICY",
+        )
+        return validate_lifecycle_draft_governance_binding(
+            locator=evidence,
+            artifact=deliverable,
+            project_root=project,
+            expected_phase=phase,
+            expected_role="generator" if phase == "generation" else "evaluator",
+            expected_milestone=expected_milestone,
+            expected_receipt_id=expected_receipt_id,
+            expected_dispatch_claim=claim,
+            expected_dispatch_consumption=consumption,
+            expected_generation_result=generation_result,
+            _test_authority_adapter=_test_authority_adapter,
+        )
+    return validate_lifecycle_verifier_binding(
+        locator=evidence,
+        artifact=deliverable,
+        project_root=project,
+        harness_root=ROOT,
+        expected_phase=phase,
+        expected_disposition=disposition,
+    )
+
+
 def _validate_checkpoint(
     project: Path, path: Path, milestone: str, lineage: str,
     expected_receipt_id: str,
+    _test_authority_adapter: Any | None = None,
 ) -> tuple[dict[str, Any], Path, str, str, int, dict[str, Any]]:
     checkpoint_file, checkpoint_relative = _supplied_project_file(project, path, "AMC-CHECKPOINT")
     try:
@@ -1791,6 +1861,7 @@ def _validate_checkpoint(
         "draft_evaluation": ("evaluation", "product_qualified"),
     }
     draft_results: dict[str, dict[str, Any]] = {}
+    generation_result: dict[str, Any] | None = None
     for key, (phase_name, disposition) in phase_requirements.items():
         binding = policy.get(key)
         if not isinstance(binding, dict) or set(binding) != {"evidence_path", "evidence_sha256"}:
@@ -1799,18 +1870,18 @@ def _validate_checkpoint(
         if binding.get("evidence_sha256") != _sha256(evidence):
             raise MilestoneTransactionError("AMC-DRAFT-POLICY-STALE", f"policy evidence is stale: {relative}")
         try:
-            result = validate_lifecycle_verifier_binding(
-                locator=evidence,
-                artifact=deliverable,
-                project_root=project,
-                harness_root=ROOT,
-                expected_phase=phase_name,
-                expected_disposition=disposition,
+            result = _validate_draft_evidence(
+                project, evidence, deliverable, phase_name, disposition,
+                expected_milestone=public_target,
+                expected_receipt_id=expected_receipt_id,
+                generation_result=generation_result,
+                _test_authority_adapter=_test_authority_adapter,
             )
-        except VerifierError as exc:
+        except (VerifierError, DraftGovernanceLifecycleError) as exc:
             code = "AMC-DRAFT-POLICY-STALE" if exc.code in {
                 "LIFECYCLE-EVIDENCE-STALE", "EVIDENCE-TOCTOU",
                 "VERIFIER-TRANSACTION-INCOMPLETE",
+                "LIFECYCLE-DRAFT-GOVERNANCE-STALE",
             } else "AMC-DRAFT-POLICY"
             raise MilestoneTransactionError(code, f"{exc.code}: {exc.message}") from exc
         if result["locator"].get("target") != deliverable_relative:
@@ -1818,6 +1889,8 @@ def _validate_checkpoint(
                 "AMC-DRAFT-POLICY", f"{key} target differs from {deliverable_relative}"
             )
         draft_results[key] = result
+        if key == "draft_generation":
+            generation_result = result
         binding["evidence_path"] = relative
     try:
         scholarly = validate_scholarly_binding(
@@ -1976,7 +2049,8 @@ def _recorded_assignment_receipt(
 
 
 def _lifecycle_policy_dependencies(
-    project: Path, checkpoint: dict[str, Any]
+    project: Path, checkpoint: dict[str, Any], expected_receipt_id: str,
+    _test_authority_adapter: Any | None = None,
 ) -> dict[str, str]:
     milestone = checkpoint["milestone"]
     public_target = LEDGER_TO_PUBLIC[milestone]
@@ -1985,6 +2059,7 @@ def _lifecycle_policy_dependencies(
         project, deliverable_relative, "AMC-DRAFT-POLICY"
     )
     expected: dict[str, str] = {}
+    generation_result: dict[str, Any] | None = None
     for key, phase, disposition in (
         ("draft_generation", "generation", "evaluation_ready"),
         ("draft_evaluation", "evaluation", "product_qualified"),
@@ -1995,25 +2070,27 @@ def _lifecycle_policy_dependencies(
             "AMC-DRAFT-POLICY",
         )
         try:
-            result = validate_lifecycle_verifier_binding(
-                locator=locator,
-                artifact=deliverable,
-                project_root=project,
-                harness_root=ROOT,
-                expected_phase=phase,
-                expected_disposition=disposition,
+            result = _validate_draft_evidence(
+                project, locator, deliverable, phase, disposition,
+                expected_milestone=public_target,
+                expected_receipt_id=expected_receipt_id,
+                generation_result=generation_result,
+                _test_authority_adapter=_test_authority_adapter,
             )
-        except VerifierError as exc:
+        except (VerifierError, DraftGovernanceLifecycleError) as exc:
             raise MilestoneTransactionError(
                 "AMC-DRAFT-POLICY-STALE", f"{exc.code}: {exc.message}"
             ) from exc
         for row in result["dependencies"]:
             expected[row["path"]] = row["sha256"]
+        if key == "draft_generation":
+            generation_result = result
     return expected
 
 
 def _checkpoint_dependencies(
-    project: Path, checkpoint: dict[str, Any], scholarly: dict[str, Any]
+    project: Path, checkpoint: dict[str, Any], scholarly: dict[str, Any],
+    _test_authority_adapter: Any | None = None,
 ) -> list[Path]:
     paths: list[Path] = []
     for row in checkpoint["feedback_records"]:
@@ -2025,13 +2102,17 @@ def _checkpoint_dependencies(
     grounding = policy.get("wiki_grounding") or policy.get("wiki_grounding_opt_out")
     if isinstance(grounding, dict) and isinstance(grounding.get("evidence_path"), str):
         paths.append(_safe_project_file(project, grounding["evidence_path"], "AMC-DEPENDENCY")[0])
-    paths.extend(Path(path) for path in _lifecycle_policy_dependencies(project, checkpoint))
+    paths.extend(Path(path) for path in _lifecycle_policy_dependencies(
+        project, checkpoint, scholarly["_authority_receipt_id"],
+        _test_authority_adapter,
+    ))
     paths.extend(Path(row["path"]) for row in scholarly["dependencies"])
     return paths
 
 
 def _checkpoint_dependency_expectations(
-    project: Path, checkpoint: dict[str, Any], scholarly: dict[str, Any]
+    project: Path, checkpoint: dict[str, Any], scholarly: dict[str, Any],
+    _test_authority_adapter: Any | None = None,
 ) -> dict[str, str]:
     expected: dict[str, str] = {}
     for row in checkpoint["feedback_records"]:
@@ -2046,7 +2127,10 @@ def _checkpoint_dependency_expectations(
     if isinstance(grounding, dict) and isinstance(grounding.get("evidence_path"), str):
         path = _safe_project_file(project, grounding["evidence_path"], "AMC-DEPENDENCY")[0]
         expected[str(path.resolve())] = grounding["evidence_sha256"]
-    expected.update(_lifecycle_policy_dependencies(project, checkpoint))
+    expected.update(_lifecycle_policy_dependencies(
+        project, checkpoint, scholarly["_authority_receipt_id"],
+        _test_authority_adapter,
+    ))
     expected.update({
         path: value[0]
         for path, value in _scholarly_dependency_expectations(scholarly).items()
@@ -2057,6 +2141,7 @@ def _checkpoint_dependency_expectations(
 def record(
     project: Path, milestone: str, receipt: Path, checkpoint_path: Path,
     at: str | None = None, *, _before_state_publish: Callable[[], None] | None = None,
+    _test_authority_adapter: Any | None = None,
 ) -> None:
     project = project.resolve(); guard_project_root(project); _enter_authority_mode(project); at = _timestamp(at)
     public_milestone = milestone
@@ -2091,6 +2176,7 @@ def record(
         checkpoint, checkpoint_file, checkpoint_relative, checkpoint_sha, checkpoint_size, scholarly = _validate_checkpoint(
             project, checkpoint_path.resolve(), milestone, lineage,
             receipt_record["receipt_id"],
+            _test_authority_adapter,
         )
         publication_dependencies: list[Path] = []
         publication_expectations: dict[str, str] = {}
@@ -2103,9 +2189,9 @@ def record(
             publication_expectations[str(export_file.resolve())] = _sha256(export_file)
         dependencies = _dependency_snapshot(
             project,
-            [receipt.resolve(), receipt.resolve().with_suffix(".result.json"), deliverable_path, checkpoint_file, *publication_dependencies, *_checkpoint_dependencies(project, checkpoint, scholarly)],
+            [receipt.resolve(), receipt.resolve().with_suffix(".result.json"), deliverable_path, checkpoint_file, *publication_dependencies, *_checkpoint_dependencies(project, checkpoint, scholarly, _test_authority_adapter)],
         )
-        expected_dependencies = {**source_expectations, **publication_expectations, **_checkpoint_dependency_expectations(project, checkpoint, scholarly)}
+        expected_dependencies = {**source_expectations, **publication_expectations, **_checkpoint_dependency_expectations(project, checkpoint, scholarly, _test_authority_adapter)}
         expected_dependencies[str(deliverable_path.resolve())] = digest
         expected_dependencies[str(checkpoint_file.resolve())] = checkpoint_sha
         if any(dependencies.get(path, (None, 0))[0] != expected_sha for path, expected_sha in expected_dependencies.items()):
@@ -2231,7 +2317,7 @@ def record(
         try:
             if snapshot_bytes is not None:
                 snapshot_created = _exclusive_bytes(artifact_path, snapshot_bytes)
-            _validate_prospective(project, proposed)
+            _validate_prospective(project, proposed, _test_authority_adapter)
             if _sha256(state_path) != prehash:
                 raise MilestoneTransactionError("AMC-CONCURRENT-CHANGE", "phase state changed during record transaction")
             if _before_state_publish is not None:

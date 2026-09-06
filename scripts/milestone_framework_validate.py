@@ -1319,14 +1319,34 @@ def validate_scholarly_authority_chain(
         raise ValueError(
             "draft and scholarly authority do not share the consumed assignment receipt"
         )
-    generation_id = generation["transaction"].get("transaction_id")
-    if (
-        not isinstance(generation_id, str)
-        or evaluation_locator.get("generation_verifier_transaction_id") != generation_id
-    ):
-        raise ValueError(
-            "evaluation authority does not bind the qualified generation transaction"
+    generation_evidence_id = generation_locator.get("evidence_id")
+    if generation_evidence_id is None:
+        generation_id = generation["transaction"].get("transaction_id")
+        if (
+            not isinstance(generation_id, str)
+            or evaluation_locator.get("generation_verifier_transaction_id") != generation_id
+        ):
+            raise ValueError(
+                "evaluation authority does not bind the qualified generation transaction"
+            )
+    else:
+        evaluation_claim_binding = evaluation_locator.get("dispatch_claim")
+        evaluation_claim_path = _canonical_path(
+            project_root,
+            evaluation_claim_binding.get("path")
+            if isinstance(evaluation_claim_binding, dict) else None,
         )
+        if evaluation_claim_path is None or not evaluation_claim_path.is_file():
+            raise ValueError("v2 evaluation dispatch claim is unavailable")
+        evaluation_claim = json.loads(evaluation_claim_path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(generation_evidence_id, str)
+            or evaluation_claim.get("generation_draft_governance", {}).get("evidence_id")
+            != generation_evidence_id
+        ):
+            raise ValueError(
+                "evaluation authority does not bind the verified generation draft governance"
+            )
     try:
         evaluation_value = json.loads(
             Path(scholarly["evaluation_path"]).read_text(encoding="utf-8")
@@ -1383,6 +1403,7 @@ def _validate_scholarly_policy(
     findings: list[Finding],
     evidence: list[dict[str, Any]],
     scholarly_memo: ScholarlyValidationMemo | None = None,
+    _test_authority_adapter: Any | None = None,
 ) -> dict[str, Any] | None:
     """Replay the sole C6 predicate and cross-bind immutable ledger snapshots."""
 
@@ -1393,6 +1414,9 @@ def _validate_scholarly_policy(
     }:
         return None
     base = f"milestone_framework.milestones.{milestone}.policy_evidence.scholarly_evaluation"
+    # Fixture authority must never populate or consume the production memo.
+    if _test_authority_adapter is not None:
+        scholarly_memo = None
     memo_key = _scholarly_memo_key(project_root, milestone, record, deliverable, base)
     if scholarly_memo is not None:
         cached = _try_scholarly_memo_hit(scholarly_memo, memo_key, evidence)
@@ -1460,6 +1484,10 @@ def _validate_scholarly_policy(
             VerifierError,
             validate_lifecycle_verifier_binding,
         )
+        from draft_governance_lifecycle import (
+            DraftGovernanceLifecycleError,
+            validate_lifecycle_draft_governance_binding,
+        )
 
         assignment = policy.get("assignment_receipt") if isinstance(policy, dict) else None
         if (
@@ -1480,6 +1508,7 @@ def _validate_scholarly_policy(
         if not isinstance(receipt_value, dict) or receipt_value.get("receipt_id") != assignment["receipt_id"]:
             raise ValueError("recorded assignment receipt identity is stale")
         draft_results: dict[str, dict[str, Any]] = {}
+        generation_result: dict[str, Any] | None = None
         for key, phase_name, disposition in (
             ("draft_generation", "generation", "evaluation_ready"),
             ("draft_evaluation", "evaluation", "product_qualified"),
@@ -1496,14 +1525,44 @@ def _validate_scholarly_policy(
             extra_reads.append(locator)
             if hashlib.sha256(locator.read_bytes()).hexdigest() != locator_binding.get("evidence_sha256"):
                 raise ValueError(f"{key} locator hash is stale")
-            draft_results[key] = validate_lifecycle_verifier_binding(
-                locator=locator,
-                artifact=scholarly["artifact_path"],
-                project_root=project_root,
-                harness_root=ROOT,
-                expected_phase=phase_name,
-                expected_disposition=disposition,
-            )
+            preview = json.loads(locator.read_text(encoding="utf-8"))
+            if not isinstance(preview, dict):
+                raise ValueError(f"{key} locator root must be an object")
+            if preview.get("binding_type") == "lifecycle_draft_governance":
+                claim_binding = preview.get("dispatch_claim")
+                consumption_binding = preview.get("dispatch_consumption")
+                if not isinstance(claim_binding, dict) or not isinstance(consumption_binding, dict):
+                    raise ValueError(f"{key} dispatch bindings must be objects")
+                dispatch_claim = _canonical_path(project_root, claim_binding.get("path"))
+                dispatch_consumption = _canonical_path(
+                    project_root, consumption_binding.get("path")
+                )
+                if dispatch_claim is None or dispatch_consumption is None:
+                    raise ValueError(f"{key} dispatch bindings are unavailable")
+                draft_results[key] = validate_lifecycle_draft_governance_binding(
+                    locator=locator,
+                    artifact=scholarly["artifact_path"],
+                    project_root=project_root,
+                    expected_phase=phase_name,
+                    expected_role=("generator" if phase_name == "generation" else "evaluator"),
+                    expected_milestone=milestone,
+                    expected_receipt_id=assignment["receipt_id"],
+                    expected_dispatch_claim=dispatch_claim,
+                    expected_dispatch_consumption=dispatch_consumption,
+                    expected_generation_result=generation_result,
+                    _test_authority_adapter=_test_authority_adapter,
+                )
+            else:
+                draft_results[key] = validate_lifecycle_verifier_binding(
+                    locator=locator,
+                    artifact=scholarly["artifact_path"],
+                    project_root=project_root,
+                    harness_root=ROOT,
+                    expected_phase=phase_name,
+                    expected_disposition=disposition,
+                )
+            if key == "draft_generation":
+                generation_result = draft_results[key]
         validate_scholarly_authority_chain(
             project_root, draft_results, scholarly, assignment["receipt_id"],
         )
@@ -1518,7 +1577,7 @@ def _validate_scholarly_policy(
                 claim_path = _canonical_path(project_root, binding_row.get("path"))
                 if claim_path is not None:
                     extra_reads.append(claim_path)
-    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError, VerifierError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError, VerifierError, DraftGovernanceLifecycleError) as exc:
         findings.append(_finding(
             "AMC-SCHOLARLY-EVALUATION-STALE", base,
             f"scholarly lifecycle authority is stale: {exc}",
@@ -2717,6 +2776,7 @@ def validate_document(
     _exemplar_snapshot_hook: Callable[[str, str, Path], None] | None = None,
     opening_new_cycle: bool = False,
     scholarly_memo: ScholarlyValidationMemo | None = None,
+    _test_authority_adapter: Any | None = None,
 ) -> ValidationResult:
     """Validate the additive namespace in an already-parsed phase document."""
     if scholarly_memo is not None:
@@ -2796,6 +2856,7 @@ def validate_document(
         scholarly = _validate_scholarly_policy(
             project_root, milestone, record, deliverable, findings, evidence,
             scholarly_memo=scholarly_memo,
+            _test_authority_adapter=_test_authority_adapter,
         )
         _validate_feedback(project_root, milestone, record, primary_lineage, findings, evidence)
         approval = record.get("approval")

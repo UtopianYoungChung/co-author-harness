@@ -190,13 +190,13 @@ def _check_cli_out_diagnostic_contract_with_env(child_env: dict[str, str]) -> No
             [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
              "--harness-root", str(ROOT), "--out", str(out_path)],
             capture_output=True, text=True, encoding="utf-8",
-            env=child_env if env is None else env,
+            env=child_env if env is None else env, errors="replace"
         )
 
     def assert_utf8_no_bom(path: Path) -> dict:
         raw = path.read_bytes()
         assert not raw.startswith(b"\xef\xbb\xbf"), path
-        return json.loads(raw.decode("utf-8"))
+        return json.loads(raw.decode("utf-8", errors="strict"))
 
     with tempfile.TemporaryDirectory(prefix="wp2l-cli-out-") as td:
         root = Path(td)
@@ -306,12 +306,12 @@ def _check_cli_encoding_nonascii_and_render_view(child_env: dict[str, str]) -> N
         proc = subprocess.run(
             [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
              "--harness-root", str(ROOT), "--out", str(success_out)],
-            capture_output=True, text=True, encoding="utf-8", env=child_env,
+            capture_output=True, text=True, encoding="utf-8", env=child_env, errors="replace"
         )
         assert proc.returncode == 0, proc.stdout + proc.stderr
         raw = success_out.read_bytes()
         assert not raw.startswith(b"\xef\xbb\xbf"), success_out
-        payload = json.loads(raw.decode("utf-8"))
+        payload = json.loads(raw.decode("utf-8", errors="strict"))
         assert "resolved_profile" in payload
         dumped = json.dumps(payload, ensure_ascii=False)
         assert em in dumped
@@ -323,12 +323,12 @@ def _check_cli_encoding_nonascii_and_render_view(child_env: dict[str, str]) -> N
         proc = subprocess.run(
             [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
              "--harness-root", str(ROOT), "--out", str(view_out), "--render-view"],
-            capture_output=True, text=True, encoding="utf-8", env=child_env,
+            capture_output=True, text=True, encoding="utf-8", env=child_env, errors="replace"
         )
         assert proc.returncode == 0, proc.stdout + proc.stderr
         view_raw = view_out.read_bytes()
         assert not view_raw.startswith(b"\xef\xbb\xbf"), view_out
-        view_text = view_raw.decode("utf-8")
+        view_text = view_raw.decode("utf-8", errors="strict")
         assert view_text.startswith("# Reader Accessibility Policy View")
         assert "\ufffd" not in view_text
 
@@ -348,7 +348,7 @@ def _check_cli_encoding_nonascii_and_render_view(child_env: dict[str, str]) -> N
         proc = subprocess.run(
             [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
              "--harness-root", str(ROOT), "--out", str(protected_out), "--render-view"],
-            capture_output=True, text=True, encoding="utf-8", env=protected_env,
+            capture_output=True, text=True, encoding="utf-8", env=protected_env, errors="replace"
         )
         assert proc.returncode == 4, proc.stdout + proc.stderr
         assert not protected_root.exists(), "render-view --out created protected directories"

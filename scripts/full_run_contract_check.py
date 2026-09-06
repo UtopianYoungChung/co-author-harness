@@ -1791,6 +1791,8 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     continue
                 try:
                     locator_probe = json.loads(evidence_path.read_text(encoding="utf-8"))
+                    if not isinstance(locator_probe, dict):
+                        raise ValueError("locator must be a JSON object")
                     target = locator_probe.get("target")
                     if not isinstance(target, str) or not target:
                         raise ValueError("locator target is absent")

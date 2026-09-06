@@ -64,7 +64,7 @@ def _directory_link(link: Path, target: Path) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        check=False,
+        check=False, encoding="utf-8", errors="replace"
     )
     if completed.returncode != 0:
         raise AssertionError(
@@ -540,6 +540,15 @@ def case_committed_dependencies_are_replayed() -> None:
         )
         evidence_publication.publish_committed(**kwargs)
         evidence_publication.validate_committed(**kwargs)
+        try:
+            evidence_publication.validate_recorded_committed(
+                project_root=root, transaction_id="dependency-replay",
+                expected_products=[product], expected_marker=marker,
+            )
+        except evidence_publication.EvidencePublicationError:
+            pass
+        else:
+            raise AssertionError("recorded replay invented the missing inventory map")
         assert evidence_publication.recover_committed(
             **kwargs, acknowledgement="inspected-evidence-state-and-journal",
             destination_validator=lambda _path: None,
@@ -627,7 +636,52 @@ def case_recovery_rechecks_after_both_claims() -> None:
             assert {path: path.read_bytes() for path in observed} == before
 
 
+def case_recorded_publication_replays_exact_intent() -> None:
+    with tempfile.TemporaryDirectory(prefix="recorded-publication-replay-") as raw:
+        root = Path(raw).resolve()
+        dependency = root / "input.txt"
+        dependency.write_bytes(b"before\n")
+        product, marker = root / "product.json", root / "marker.json"
+        evidence_publication.publish_committed(
+            project_root=root, transaction_id="recorded-replay",
+            preconditions=[(dependency, hashlib.sha256(dependency.read_bytes()).hexdigest())],
+            inventory_preconditions=[], outputs=[(product, b"{}\n")],
+            marker=(marker, b'{"committed":true}\n'),
+        )
+        kwargs = dict(
+            project_root=root, transaction_id="recorded-replay",
+            expected_products=[product], expected_marker=marker,
+        )
+        evidence_publication.validate_recorded_committed(**kwargs)
+        lane = evidence_publication._transaction_lane(root, "recorded-replay")
+        state_files = [lane / "claim.json", lane / "journal.json"]
+        state = {path: path.read_bytes() for path in state_files}
+        for target in (dependency, product):
+            original = target.read_bytes()
+            target.write_bytes(b"x" * len(original))
+            try:
+                try:
+                    evidence_publication.validate_recorded_committed(**kwargs)
+                except evidence_publication.EvidencePublicationError:
+                    pass
+                else:
+                    raise AssertionError(f"recorded replay accepted stale {target.name}")
+                assert {path: path.read_bytes() for path in state_files} == state
+            finally:
+                target.write_bytes(original)
+        try:
+            evidence_publication.validate_recorded_committed(
+                **{**kwargs, "expected_marker": product},
+            )
+        except evidence_publication.EvidencePublicationError:
+            pass
+        else:
+            raise AssertionError("recorded replay accepted another marker")
+        evidence_publication.validate_recorded_committed(**kwargs)
+
+
 def main() -> int:
+    case_recorded_publication_replays_exact_intent()
     case_committed_dependencies_are_replayed()
     case_recovery_rechecks_after_both_claims()
     case_publishers_refuse_protected_and_escaping_destinations()
@@ -698,7 +752,7 @@ def main() -> int:
                 "audited",
             ],
             check=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace"
         )
         escape_parent = project / "reviews/.harness/evidence/junction-attack"
         escape_parent.mkdir(parents=True, exist_ok=True)
@@ -978,7 +1032,7 @@ def main() -> int:
                 str(ready),
             ],
             check=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace"
         )
         record = json.loads(ready.read_text(encoding="utf-8"))
         subprocess.run(
@@ -998,7 +1052,7 @@ def main() -> int:
             ],
             check=True,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace"
         )
         reserved = ready.parent.parent / "reserved" / ready.name
         generation, generation_path, _ = dispatch.issue_generation_claim(
@@ -1050,7 +1104,7 @@ def main() -> int:
             ],
             check=True,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace"
         )
         _, generation_consumption, _ = dispatch.consume_dispatch_claim(
             project,
@@ -1362,6 +1416,82 @@ def main() -> int:
             issuer_transaction_id="assignment-evaluation-M1",
             issued_at="2026-08-11T00:00:08Z",
         )
+        evaluation_prepared = draft_publish.prepare_contract(
+            project_root=project,
+            artifact=artifact,
+            milestone="M1",
+            phase="evaluation",
+            role="evaluator",
+            evidence_label="evaluation-producer-smoke",
+        )
+        evaluation_obligation_claim, evaluation_obligation_claim_path, _ = (
+            dispatch.issue_obligation_evaluation_claim(
+                project,
+                generation_path,
+                generation_consumption=generation_consumption,
+                artifact=artifact,
+                nonce=hashlib.sha256(
+                    b"producer-smoke:evaluation-obligations"
+                ).hexdigest()[:32],
+                issuer_transaction_id="assignment-obligation-evaluation-M1",
+                issued_at="2026-08-11T00:00:09Z",
+            )
+        )
+        evaluation_contract_binding = {
+            "path": evaluation_prepared["contract_path"].relative_to(
+                project
+            ).as_posix(),
+            "sha256": hashlib.sha256(
+                evaluation_prepared["contract_path"].read_bytes()
+            ).hexdigest(),
+            "byte_length": evaluation_prepared["contract_path"].stat().st_size,
+        }
+        evaluation_reports: dict[str, Path] = {}
+        for row in evaluation_prepared["contract"]["obligations"]:
+            if (
+                "evaluation" not in row["phases"]
+                or row.get("typed_result_required") is not True
+                or row["id"] == "d-style-profile"
+            ):
+                continue
+            obligation_id = row["id"]
+            adapter = registry["obligations"][obligation_id]
+            report_path = (
+                project
+                / "reviews/.harness/external-evaluator/evaluation-producer-smoke"
+                / f"{obligation_id}.json"
+            )
+            _write_json(
+                report_path,
+                {
+                    "schema_version": "1.0.0",
+                    "report_type": "obligation_adapter_report",
+                    "adapter_id": adapter["adapter_id"],
+                    "adapter_version": adapter["adapter_version"],
+                    "obligation_id": obligation_id,
+                    "artifact": artifact_binding,
+                    "policy": evaluation_contract_binding,
+                    "activation": adapter["activation"],
+                    "execution_status": "completed",
+                    "outcome": "clean",
+                    "findings": [],
+                    "diagnostic_only": adapter["diagnostic_only"],
+                    "created_at": "2026-08-11T00:00:09Z",
+                },
+            )
+            evaluation_reports[obligation_id] = report_path
+        evaluation_results = draft_publish.publish_obligation_results(
+            project_root=project,
+            artifact=artifact,
+            contract_path=evaluation_prepared["contract_path"],
+            phase="evaluation",
+            role="evaluator",
+            milestone="M1",
+            evidence_label="evaluation-producer-smoke",
+            obligation_claim=evaluation_obligation_claim_path,
+            adapter_reports=evaluation_reports,
+            created_at="2026-08-11T00:00:09Z",
+        )
         claim_text = "This paper argues a bounded claim"
         span = _span(artifact, claim_text)
         profile = _profile(
@@ -1573,82 +1703,6 @@ def main() -> int:
         )
         assert scholarly["verified"]["status"] == "qualified"
         assert scholarly["judgment_truth_certified"] is False
-        evaluation_prepared = draft_publish.prepare_contract(
-            project_root=project,
-            artifact=artifact,
-            milestone="M1",
-            phase="evaluation",
-            role="evaluator",
-            evidence_label="evaluation-producer-smoke",
-        )
-        evaluation_obligation_claim, evaluation_obligation_claim_path, _ = (
-            dispatch.issue_obligation_evaluation_claim(
-                project,
-                generation_path,
-                generation_consumption=generation_consumption,
-                artifact=artifact,
-                nonce=hashlib.sha256(
-                    b"producer-smoke:evaluation-obligations"
-                ).hexdigest()[:32],
-                issuer_transaction_id="assignment-obligation-evaluation-M1",
-                issued_at="2026-08-11T00:00:11Z",
-            )
-        )
-        evaluation_contract_binding = {
-            "path": evaluation_prepared["contract_path"].relative_to(
-                project
-            ).as_posix(),
-            "sha256": hashlib.sha256(
-                evaluation_prepared["contract_path"].read_bytes()
-            ).hexdigest(),
-            "byte_length": evaluation_prepared["contract_path"].stat().st_size,
-        }
-        evaluation_reports: dict[str, Path] = {}
-        for row in evaluation_prepared["contract"]["obligations"]:
-            if (
-                "evaluation" not in row["phases"]
-                or row.get("typed_result_required") is not True
-                or row["id"] == "d-style-profile"
-            ):
-                continue
-            obligation_id = row["id"]
-            adapter = registry["obligations"][obligation_id]
-            report_path = (
-                project
-                / "reviews/.harness/external-evaluator/evaluation-producer-smoke"
-                / f"{obligation_id}.json"
-            )
-            _write_json(
-                report_path,
-                {
-                    "schema_version": "1.0.0",
-                    "report_type": "obligation_adapter_report",
-                    "adapter_id": adapter["adapter_id"],
-                    "adapter_version": adapter["adapter_version"],
-                    "obligation_id": obligation_id,
-                    "artifact": artifact_binding,
-                    "policy": evaluation_contract_binding,
-                    "activation": adapter["activation"],
-                    "execution_status": "completed",
-                    "outcome": "clean",
-                    "findings": [],
-                    "diagnostic_only": adapter["diagnostic_only"],
-                    "created_at": "2026-08-11T00:00:12Z",
-                },
-            )
-            evaluation_reports[obligation_id] = report_path
-        evaluation_results = draft_publish.publish_obligation_results(
-            project_root=project,
-            artifact=artifact,
-            contract_path=evaluation_prepared["contract_path"],
-            phase="evaluation",
-            role="evaluator",
-            milestone="M1",
-            evidence_label="evaluation-producer-smoke",
-            obligation_claim=evaluation_obligation_claim_path,
-            adapter_reports=evaluation_reports,
-            created_at="2026-08-11T00:00:13Z",
-        )
         evaluation_finalized = draft_publish.finalize_evidence(
             project_root=project,
             artifact=artifact,
@@ -1723,7 +1777,7 @@ def main() -> int:
             capture_output=True,
             text=True,
             check=False,
-            timeout=180,
+            timeout=180, encoding="utf-8", errors="replace"
         )
         assert terminal.returncode == 4, terminal.stdout + terminal.stderr
         terminal_diagnostics = terminal.stdout + terminal.stderr

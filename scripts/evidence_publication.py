@@ -946,6 +946,57 @@ def _finish_publish_committed(
             ) from exc
 
 
+def validate_recorded_committed(
+    *,
+    project_root: Path,
+    transaction_id: str,
+    expected_products: list[Path],
+    expected_marker: Path,
+) -> None:
+    """Replay an inventory-free publication through the exact validator.
+
+    Journals do not record inventory maps. A plan needing those maps cannot
+    be reconstructed here and must fail the normal plan-hash comparison.
+    """
+    root = project_root.resolve(strict=True)
+    lane = _transaction_lane(root, transaction_id).resolve()
+    if not lane.is_relative_to(root):
+        raise EvidencePublicationError("transaction lane escapes project root")
+    try:
+        raw = (lane / "journal.json").read_bytes()
+        journal = json.loads(raw.decode("utf-8", errors="strict"))
+        if not isinstance(journal, dict) or raw != _canonical(journal):
+            raise EvidencePublicationError("recorded transaction journal is not canonical")
+        expected = [path.resolve(strict=True) for path in [*expected_products, expected_marker]]
+        if any(not path.is_relative_to(root) for path in expected):
+            raise EvidencePublicationError("recorded transaction output escapes project root")
+        writes = journal.get("writes")
+        if (
+            not isinstance(writes, list)
+            or [row.get("path") for row in writes if isinstance(row, dict)]
+            != [path.relative_to(root).as_posix() for path in expected]
+        ):
+            raise EvidencePublicationError("recorded transaction output set differs")
+        inputs = journal.get("inputs")
+        if not isinstance(inputs, list) or any(
+            not isinstance(row, dict) or set(row) != {"path", "sha256", "size"}
+            or not isinstance(row["path"], str) or not isinstance(row["sha256"], str)
+            for row in inputs
+        ):
+            raise EvidencePublicationError("recorded transaction input set is malformed")
+        payloads = [
+            (path, (lane / "prepared" / f"{index:03d}.bin").read_bytes())
+            for index, path in enumerate(expected)
+        ]
+        validate_committed(
+            project_root=root, transaction_id=transaction_id,
+            preconditions=[(Path(row["path"]), row["sha256"]) for row in inputs],
+            inventory_preconditions=[], outputs=payloads[:-1], marker=payloads[-1],
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise EvidencePublicationError("recorded transaction state is unreadable") from exc
+
+
 def validate_committed(
     *,
     project_root: Path,

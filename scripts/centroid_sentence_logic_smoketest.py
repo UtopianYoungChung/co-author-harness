@@ -27,7 +27,7 @@ def run(tmp: Path, *args: str) -> subprocess.CompletedProcess[str]:
         cwd=str(ROOT / "scripts"),
         capture_output=True,
         text=True,
-        encoding="utf-8",
+        encoding="utf-8", errors="replace"
     )
 
 

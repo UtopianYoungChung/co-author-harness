@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import argparse
 import re
 import sys
@@ -684,6 +685,81 @@ def finalize_evidence(
         raise DraftGovernancePublicationError(
             "typed-obligation publication does not cover the phase contract"
         )
+    scholarly_preconditions = []
+    scholarly_binding = None
+    if phase == "evaluation":
+        from scholarly_evaluation_binding import validate_scholarly_binding
+
+        try:
+            _, consumption = dispatch.validate_consumed_claim_for_context(
+                project, claim_path, consumption_path,
+                expected_role="evaluator",
+                expected_target=artifact_path.relative_to(project).as_posix(),
+                expected_receipt_id=receipt_id,
+                expected_artifact_sha256=_file_digest(artifact_path),
+            )
+            publication = consumption.get("publication", {})
+            products = publication.get("output_paths", [])
+            consumer_tx = consumption.get("consumer_transaction_id", "")
+            if (
+                not consumer_tx.startswith("scholarly-evaluation:")
+                or len(products) != 2
+                or Path(products[0]).name != "evaluation.json"
+                or Path(products[1]).name != "evaluation-commit-marker.json"
+            ):
+                raise ValueError("Evaluator consumption does not bind a C6 publication")
+            evaluation_path = (project / products[0]).resolve(strict=True)
+            evaluation_path.relative_to(project)
+            evaluation_bytes = evaluation_path.read_bytes()
+            scholarly_binding = {
+                "evidence_path": evaluation_path.relative_to(project).as_posix(),
+                "evidence_sha256": _digest(evaluation_bytes),
+            }
+            scholarly = validate_scholarly_binding(
+                project_root=project, artifact=artifact_path, binding=scholarly_binding,
+            )
+            evaluation_dispatch = json.loads(evaluation_bytes)["evaluation_dispatch"]
+            if (
+                evaluation_dispatch["claim"] != _binding(project, claim_path)
+                or evaluation_dispatch["consumer_transaction_id"] != consumer_tx
+            ):
+                raise ValueError("C6 evidence and finalizer Evaluator authority are split")
+            scholarly_preconditions = [
+                (Path(row["path"]), row["sha256"])
+                for row in scholarly["dependencies"]
+            ]
+        except Exception as exc:
+            raise DraftGovernancePublicationError(
+                f"evaluation receipt requires exact consumed C6 evidence: {exc}"
+            ) from exc
+    # Capture the metadata bytes once and replay them under publication locks.
+    package_version_path = draft_governance.ROOT / "version.json"
+    package_bytes = package_version_path.read_bytes()
+    package_version = json.loads(package_bytes)
+    metadata_preconditions = [
+        (package_version_path, _digest(package_bytes)),
+        (draft_governance.POLICY_PATH, _file_digest(draft_governance.POLICY_PATH)),
+        (draft_governance.OBLIGATION_REGISTRY_PATH,
+         _file_digest(draft_governance.OBLIGATION_REGISTRY_PATH)),
+    ]
+    package_identity = {
+        "name": package_version["name"],
+        "version": package_version["version"],
+        "path": package_version_path.relative_to(draft_governance.ROOT).as_posix(),
+        "sha256": metadata_preconditions[0][1],
+    }
+    if "CURSOR_AGENT_RUN_ID" in os.environ:
+        host_identity = "cursor"
+    elif "XAI_API_KEY" in os.environ or "GROK_API_KEY" in os.environ:
+        host_identity = "grok"
+    elif "ANTHROPIC_API_KEY" in os.environ:
+        host_identity = "claude"
+    else:
+        host_identity = "unknown"
+    input_bindings = [
+        {"path": path.relative_to(draft_governance.ROOT).as_posix(), "sha256": digest}
+        for path, digest in metadata_preconditions[1:]
+    ]
     receipt_value = {
         "schema_version": "1.0.0",
         "phase": phase,
@@ -694,7 +770,12 @@ def finalize_evidence(
             "sha256": _file_digest(artifact_path),
         },
         "obligations": receipt_rows,
+        "host_identity": host_identity,
+        "package_identity": package_identity,
+        "input_bindings": input_bindings,
     }
+    if scholarly_binding is not None:
+        receipt_value["scholarly_evaluation"] = scholarly_binding
     receipt_path = lane / "obligation-receipt.json"
     receipt_data = _canonical(receipt_value)
     receipt_tx = "draft-governance-receipt-" + _digest(receipt_data)[:16]
@@ -709,6 +790,8 @@ def finalize_evidence(
         }
     )
     receipt_preconditions = [
+        *metadata_preconditions,
+        *scholarly_preconditions,
         (artifact_path, _file_digest(artifact_path)),
         (contract_file, _file_digest(contract_file)),
         (claim_path, _file_digest(claim_path)),

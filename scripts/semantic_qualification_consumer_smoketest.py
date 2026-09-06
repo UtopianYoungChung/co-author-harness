@@ -19,6 +19,7 @@ import domain_native_register_smoketest as dnr_fixture
 import assignment_milestone_transaction as amt
 import milestone_framework_validate as milestone_validator
 import reader_accessibility_policy as policy
+from native_project_bootstrap import bootstrap
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
 
@@ -37,7 +38,7 @@ def _write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
-def run(qualification_script: Path, project_template: Path) -> None:
+def run(qualification_script: Path, project_template: Path | None) -> None:
     qualification = _load_qualification(qualification_script.resolve())
     transaction_id = "semq-20260808T235959Z-c0dec0de"
     producer = "Codex"
@@ -151,7 +152,13 @@ def run(qualification_script: Path, project_template: Path) -> None:
 
         # Exercise Planner with the canonical milestone validator, not a stub.
         project = root / "project"
-        shutil.copytree(project_template, project)
+        if project_template is None:
+            bootstrap(
+                project, "semantic-consumer-fixture", "Semantic consumer fixture",
+                ["Synthetic test readers"], "2026-08-08T23:59:59Z",
+            )
+        else:
+            shutil.copytree(project_template, project)
         register = policy.resolve_domain_native_register(
             profile, wiki_root=wiki, workspace_root=workspace, harness_root=harness,
         )
@@ -260,11 +267,11 @@ def main() -> int:
     parser.add_argument("--qualification-script", type=Path, default=default)
     parser.add_argument(
         "--project-template", type=Path,
-        default=ROOT.parents[1] / "research/60_Workbench/2026-07-27_augmented-selves-paper2",
+        default=None, help="Optional synthetic project template; default uses native bootstrap",
     )
     args = parser.parse_args()
     with semantic_graph_fixture_environment():
-        run(args.qualification_script, args.project_template.resolve())
+        run(args.qualification_script, args.project_template.resolve() if args.project_template else None)
     print("semantic_qualification_consumer_smoketest: PASS")
     return 0
 

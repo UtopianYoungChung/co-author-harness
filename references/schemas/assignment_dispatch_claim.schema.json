@@ -9,7 +9,7 @@
     "schema_version": {"const": "1.0.0"},
     "claim_type": {"const": "assignment_dispatch"},
     "claim_id": {"type": "string", "pattern": "^dispatch-[0-9a-f]{16}$"},
-    "claim_kind": {"enum": ["generation", "evaluation"]},
+    "claim_kind": {"enum": ["generation", "obligation_evaluation", "evaluation"]},
     "state": {"const": "issued"},
     "role": {"enum": ["generator", "evaluator"]},
     "issued_at": {"$ref": "#/$defs/timestamp"},
@@ -31,11 +31,14 @@
     "generation_claim": {"$ref": "#/$defs/binding"},
     "generation_consumption": {"$ref": "#/$defs/binding"},
     "artifact": {"$ref": "#/$defs/binding"},
-    "generation_verifier": {"$ref": "#/$defs/generationVerifier"}
+    "generation_verifier": {"$ref": "#/$defs/generationVerifier"},
+    "generation_draft_governance": {"$ref": "#/$defs/generationDraftGovernance"},
+    "authority_scope": {"const": "obligation_results"}
   },
   "allOf": [
-    {"if": {"properties": {"claim_kind": {"const": "generation"}}}, "then": {"properties": {"role": {"const": "generator"}}, "not": {"anyOf": [{"required": ["generation_claim"]}, {"required": ["generation_consumption"]}, {"required": ["artifact"]}, {"required": ["generation_verifier"]}]}}},
-    {"if": {"properties": {"claim_kind": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact", "generation_verifier"]}},
+    {"if": {"properties": {"claim_kind": {"const": "generation"}}}, "then": {"properties": {"role": {"const": "generator"}}, "not": {"anyOf": [{"required": ["generation_claim"]}, {"required": ["generation_consumption"]}, {"required": ["artifact"]}, {"required": ["generation_verifier"]}, {"required": ["generation_draft_governance"]}, {"required": ["authority_scope"]}]}}},
+    {"if": {"properties": {"claim_kind": {"const": "obligation_evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact", "authority_scope"], "not": {"anyOf": [{"required": ["generation_verifier"]}, {"required": ["generation_draft_governance"]}]}}},
+    {"if": {"properties": {"claim_kind": {"const": "evaluation"}}}, "then": {"properties": {"role": {"const": "evaluator"}}, "required": ["generation_claim", "generation_consumption", "artifact"], "not": {"required": ["authority_scope"]}, "oneOf": [{"required": ["generation_verifier"], "not": {"required": ["generation_draft_governance"]}}, {"required": ["generation_draft_governance"], "not": {"required": ["generation_verifier"]}}]}},
     {"if": {"properties": {"qualification_mode": {"const": "graph_independent_v2"}}, "required": ["qualification_mode"]}, "then": {"required": ["reader_policy", "semantic_usage"], "not": {"anyOf": [{"required": ["canonical_bibliography_snapshot"]}, {"required": ["corpus_digest"]}]}}, "else": {"required": ["canonical_bibliography_snapshot", "corpus_digest"], "not": {"anyOf": [{"required": ["reader_policy"]}, {"required": ["semantic_usage"]}]}}}
   ],
   "$defs": {
@@ -47,6 +50,7 @@
     "snapshot": {"type": "object", "additionalProperties": false, "required": ["exists", "sha256", "size"], "properties": {"exists": {"type": "boolean"}, "sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}, "size": {"type": "integer", "minimum": 0}}},
     "write": {"type": "object", "additionalProperties": false, "required": ["path", "mode", "preimage"], "properties": {"path": {"$ref": "#/$defs/safePath"}, "mode": {"enum": ["create", "replace", "append"]}, "preimage": {"$ref": "#/$defs/snapshot"}}},
     "issuer": {"type": "object", "additionalProperties": false, "required": ["name", "version", "transaction_id"], "properties": {"name": {"const": "assignment_transaction_kernel"}, "version": {"const": "1.0.0"}, "transaction_id": {"type": "string", "minLength": 1}}},
-    "generationVerifier": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "transaction", "publication_manifest", "commit_marker", "product_disposition"], "allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/publicationChain"}], "properties": {"transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}, "transaction": {"$ref": "#/$defs/binding"}, "publication_manifest": {"$ref": "#/$defs/binding"}, "commit_marker": {"$ref": "#/$defs/binding"}, "product_disposition": {"const": "evaluation_ready"}}}
+    "generationVerifier": {"type": "object", "additionalProperties": false, "required": ["transaction_id", "transaction", "publication_manifest", "commit_marker", "product_disposition"], "allOf": [{"$ref": "https://co-author-harness.local/schemas/common_scholarly_primitives.schema.json#/$defs/publicationChain"}], "properties": {"transaction_id": {"type": "string", "pattern": "^verifier-[0-9a-f]{16}$"}, "transaction": {"$ref": "#/$defs/binding"}, "publication_manifest": {"$ref": "#/$defs/binding"}, "commit_marker": {"$ref": "#/$defs/binding"}, "product_disposition": {"const": "evaluation_ready"}}},
+    "generationDraftGovernance": {"type": "object", "additionalProperties": false, "required": ["evidence_id", "binding", "semantic_usage"], "properties": {"evidence_id": {"type": "string", "pattern": "^draft-governance-[0-9a-f]{16}$"}, "binding": {"$ref": "#/$defs/binding"}, "semantic_usage": {"const": "not_invoked"}}}
   }
 }

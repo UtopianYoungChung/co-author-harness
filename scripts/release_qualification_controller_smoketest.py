@@ -98,7 +98,7 @@ def _run_dirname_walk(*, start: str, fixed_point: bool, cap: int = 32) -> subpro
     assert bash, "bash is required to exercise dirname walks"
     return subprocess.run(
         [bash, "-c", _WALK_HELPER, "walk", start, str(cap), "1" if fixed_point else "0"],
-        capture_output=True, check=False, timeout=15, text=True,
+        capture_output=True, check=False, timeout=15, text=True, encoding="utf-8", errors="replace"
     )
 
 

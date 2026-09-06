@@ -701,14 +701,19 @@ def _validate_claim_publication(project: Path, claim_path: Path | None) -> dict[
         / expected_claim_id
         / "claim.json"
     ).resolve()
-    allowed_issuer_transactions = (
-        {
+    if claim.get("claim_kind") == "generation":
+        allowed_issuer_transactions = {
             f"assignment-reserve-{claim.get('target_milestone')}",
             f"assignment-recovery-{claim.get('target_milestone')}",
         }
-        if claim.get("claim_kind") == "generation"
-        else {f"assignment-evaluation-{claim.get('target_milestone')}"}
-    )
+    elif claim.get("claim_kind") == "obligation_evaluation":
+        allowed_issuer_transactions = {
+            f"assignment-obligation-evaluation-{claim.get('target_milestone')}"
+        }
+    else:
+        allowed_issuer_transactions = {
+            f"assignment-evaluation-{claim.get('target_milestone')}"
+        }
     if (
         issuer.get("name") != KERNEL_NAME
         or issuer.get("version") != KERNEL_VERSION
@@ -940,6 +945,7 @@ def accept_claim_for_context(
     expected_corpus_digest: str | None = None,
     expected_artifact_sha256: str | None = None,
     expected_generation_transaction_id: str | None = None,
+    expected_generation_evidence_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate one committed claim against its exact dispatch context."""
     project = project.resolve()
@@ -981,6 +987,15 @@ def accept_claim_for_context(
             "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
             "claim generation transaction differs from context",
         )
+    if (
+        expected_generation_evidence_id is not None
+        and claim.get("generation_draft_governance", {}).get("evidence_id")
+        != expected_generation_evidence_id
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+            "claim generation draft-governance evidence differs from context",
+        )
     return claim
 
 
@@ -994,6 +1009,7 @@ def validate_consumed_claim_for_context(
     expected_receipt_id: str,
     expected_artifact_sha256: str,
     expected_generation_transaction_id: str | None = None,
+    expected_generation_evidence_id: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Validate one committed claim and its one-time artifact consumption."""
     project = project.resolve()
@@ -1007,6 +1023,7 @@ def validate_consumed_claim_for_context(
             expected_artifact_sha256 if expected_role == "evaluator" else None
         ),
         expected_generation_transaction_id=expected_generation_transaction_id,
+        expected_generation_evidence_id=expected_generation_evidence_id,
     )
     consumption = _load_published(
         project,
@@ -1036,6 +1053,70 @@ def validate_consumed_claim_for_context(
             "APG-DISPATCH-CLAIM-ARTIFACT-MISMATCH",
             "claim consumption does not bind the exact governed artifact",
         )
+    publication = consumption.get("publication")
+    if publication is not None:
+        try:
+            lane = (
+                project
+                / ".harness-evidence-transactions"
+                / publication["transaction_id"]
+            ).resolve()
+            _resolve_binding(
+                project,
+                publication["transaction_claim"],
+                code="APG-DISPATCH-CLAIM-INVALID",
+                expected_path=lane / "claim.json",
+            )
+            _resolve_binding(
+                project,
+                publication["transaction_journal"],
+                code="APG-DISPATCH-CLAIM-INVALID",
+                expected_path=lane / "journal.json",
+            )
+            marker_path = _resolve_binding(
+                project,
+                publication["commit_marker"],
+                code="APG-DISPATCH-CLAIM-INVALID",
+            )
+            product_paths = [
+                (project / row["path"]).resolve(strict=True)
+                for row in postimages
+                if row.get("path") != expected_target
+            ]
+            expected_output_paths = [
+                path.relative_to(project).as_posix()
+                for path in [*product_paths, marker_path]
+            ]
+            if publication.get("output_paths") != expected_output_paths:
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-INVALID",
+                    "evidence publication output inventory differs",
+                )
+            from evidence_publication import validate_recorded_committed
+            validate_recorded_committed(
+                project_root=project,
+                transaction_id=publication["transaction_id"],
+                expected_products=product_paths,
+                expected_marker=marker_path,
+            )
+            for dependency in publication.get("dependencies", []):
+                dependency_root = project if dependency["root_kind"] == "project" else ROOT
+                dependency_path = (dependency_root / dependency["relative_path"]).resolve(strict=True)
+                if (
+                    not dependency_path.is_relative_to(dependency_root.resolve())
+                    or dependency_path.stat().st_size != dependency["byte_length"]
+                    or _digest_path(dependency_path) != dependency["sha256"]
+                ):
+                    raise ReceiptTransactionError(
+                        "APG-DISPATCH-CLAIM-STALE", "recorded evidence dependency changed",
+                    )
+        except ReceiptTransactionError:
+            raise
+        except Exception as exc:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID",
+                f"evidence publication does not validate: {exc}",
+            ) from exc
     return claim, consumption
 
 
@@ -1113,22 +1194,133 @@ def validate_generation_for_evaluation(
     return value
 
 
+def issue_obligation_evaluation_claim(
+    project: Path,
+    generation_claim_path: Path,
+    *,
+    generation_consumption: Path,
+    artifact: Path,
+    nonce: str,
+    issuer_transaction_id: str,
+    issued_at: str | None = None,
+) -> tuple[dict[str, Any], Path, Path]:
+    """Issue a narrow Evaluator claim for pre-lifecycle obligation reports.
+
+    This claim closes the graph-independent generation cycle without granting
+    C6 authority.  It authenticates supplied obligation reports only; the full
+    evaluation claim still requires the completed generation lifecycle locator.
+    """
+
+    project = project.resolve()
+    guard_instrument_lane(project)
+    generation_claim_path = generation_claim_path.resolve()
+    generation_consumption = generation_consumption.resolve()
+    artifact = artifact.resolve()
+    with _transaction_claim(project):
+        generation_claim = _validate_claim_publication(
+            project, generation_claim_path
+        )
+        expected_issuer = (
+            f"assignment-obligation-evaluation-"
+            f"{generation_claim['target_milestone']}"
+        )
+        if issuer_transaction_id != expected_issuer:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-AUTHORITY",
+                "obligation Evaluator issuer transaction is not kernel-derived",
+            )
+        if generation_claim.get("claim_kind") != "generation":
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+                "obligation Evaluator source claim is not generation",
+            )
+        artifact_sha = _digest_path(artifact)
+        validate_consumed_claim_for_context(
+            project,
+            generation_claim_path,
+            generation_consumption,
+            expected_role="generator",
+            expected_target=generation_claim["target_path"],
+            expected_receipt_id=generation_claim["receipt_id"],
+            expected_artifact_sha256=artifact_sha,
+        )
+        unsigned: dict[str, Any] = {
+            "schema_version": "1.0.0",
+            "claim_type": "assignment_dispatch",
+            "claim_kind": "obligation_evaluation",
+            "state": "issued",
+            "role": "evaluator",
+            "issued_at": issued_at or _now(),
+            "nonce": nonce,
+            "issuer": {
+                "name": KERNEL_NAME,
+                "version": KERNEL_VERSION,
+                "transaction_id": issuer_transaction_id,
+            },
+            "assignment_receipt": generation_claim["assignment_receipt"],
+            "receipt_id": generation_claim["receipt_id"],
+            "reservation": generation_claim["reservation"],
+            "reservation_id": generation_claim["reservation_id"],
+            "target_milestone": generation_claim["target_milestone"],
+            "target_path": generation_claim["target_path"],
+            "authorized_writes": generation_claim["authorized_writes"],
+            "policy": generation_claim["policy"],
+            "generation_claim": binding(
+                project, generation_claim_path, "assignment_generation_claim"
+            ),
+            "generation_consumption": binding(
+                project,
+                generation_consumption,
+                "assignment_dispatch_consumption",
+            ),
+            "artifact": binding(project, artifact, "governed_artifact"),
+            "authority_scope": "obligation_results",
+        }
+        if generation_claim.get("qualification_mode") == "graph_independent_v2":
+            unsigned.update({
+                "qualification_mode": "graph_independent_v2",
+                "reader_policy": generation_claim["reader_policy"],
+                "semantic_usage": "not_invoked",
+            })
+        else:
+            unsigned.update({
+                "canonical_bibliography_snapshot": generation_claim[
+                    "canonical_bibliography_snapshot"
+                ],
+                "corpus_digest": generation_claim["corpus_digest"],
+            })
+        claim_id = f"dispatch-{_digest_bytes(_canonical_bytes(unsigned))[:16]}"
+        claim = {**unsigned, "claim_id": claim_id}
+        _validate_schema(claim, CLAIM_SCHEMA, "APG-DISPATCH-CLAIM-INVALID")
+        lane = _assignment_root(project) / "dispatch" / "claims" / claim_id
+        claim_path, _, marker_path = _publish_record(
+            project, lane, "claim.json", claim, issuer_transaction_id
+        )
+        _, authorization_path = _issue_dispatch_kernel_authorization(
+            project, claim_path
+        )
+        _append_issuance_row(project, claim, claim_path, authorization_path)
+    return claim, claim_path, marker_path
+
+
 def issue_evaluation_claim(
     project: Path,
     generation_claim_path: Path,
     *,
     generation_consumption: Path | None,
     artifact: Path,
-    generation_transaction: Path,
-    generation_publication_manifest: Path,
-    generation_commit_marker: Path,
-    generation_semantic_receipt: Path | None,
-    reader_policy: Path | None = None,
-    wiki_root: Path | None,
-    semantics_manifest: Path,
     nonce: str,
     issuer_transaction_id: str,
     issued_at: str | None = None,
+    generation_transaction: Path | None = None,
+    generation_publication_manifest: Path | None = None,
+    generation_commit_marker: Path | None = None,
+    generation_semantic_receipt: Path | None = None,
+    wiki_root: Path | None = None,
+    semantics_manifest: Path | None = None,
+    reader_policy: Path | None = None,
+    generation_draft_governance: Path | None = None,
+    _test_authority_adapter: Any | None = None,
 ) -> tuple[dict[str, Any], Path, Path]:
     """Issue the activation evaluation control from a generation claim."""
     project = project.resolve()
@@ -1147,19 +1339,101 @@ def issue_evaluation_claim(
                 "APG-DISPATCH-CLAIM-AUTHORITY",
                 "evaluation issuer transaction is not kernel-derived",
             )
-        transaction = validate_generation_for_evaluation(
-            project,
-            generation_claim_path=generation_claim_path,
-            generation_consumption=generation_consumption,
-            artifact=artifact,
-            generation_transaction=generation_transaction,
-            generation_publication_manifest=generation_publication_manifest,
-            generation_commit_marker=generation_commit_marker,
-            generation_semantic_receipt=generation_semantic_receipt,
-            reader_policy=reader_policy,
-            wiki_root=wiki_root,
-            semantics_manifest=semantics_manifest,
-        )
+        if generation_draft_governance is not None:
+            if any(item is not None for item in (
+                generation_transaction, generation_publication_manifest,
+                generation_commit_marker, generation_semantic_receipt,
+                wiki_root, semantics_manifest, reader_policy,
+            )):
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+                    "evaluation issuance must select exactly one generation evidence rail",
+                )
+            if generation_consumption is None:
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+                    "v2 evaluation issuance requires the exact generation consumption",
+                )
+            from draft_governance_lifecycle import (
+                DraftGovernanceLifecycleError,
+                validate_lifecycle_draft_governance_binding,
+            )
+            try:
+                draft_result = validate_lifecycle_draft_governance_binding(
+                    locator=generation_draft_governance,
+                    artifact=artifact,
+                    project_root=project,
+                    expected_phase="generation",
+                    expected_role="generator",
+                    expected_milestone=generation_claim["target_milestone"],
+                    expected_receipt_id=generation_claim["receipt_id"],
+                    expected_dispatch_claim=generation_claim_path,
+                    expected_dispatch_consumption=generation_consumption,
+                    _test_authority_adapter=_test_authority_adapter,
+                )
+                validate_consumed_claim_for_context(
+                    project,
+                    generation_claim_path,
+                    generation_consumption,
+                    expected_role="generator",
+                    expected_target=generation_claim["target_path"],
+                    expected_receipt_id=generation_claim["receipt_id"],
+                    expected_artifact_sha256=_digest_path(artifact),
+                )
+            except DraftGovernanceLifecycleError as exc:
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+                    f"{exc.code}: {exc.message}",
+                ) from exc
+            generation_authority = {
+                "generation_draft_governance": {
+                    "evidence_id": draft_result["locator"]["evidence_id"],
+                    "binding": binding(
+                        project, generation_draft_governance,
+                        "lifecycle_draft_governance",
+                    ),
+                    "semantic_usage": "not_invoked",
+                }
+            }
+        else:
+            if any(item is None for item in (
+                generation_transaction, generation_publication_manifest,
+                generation_commit_marker, semantics_manifest,
+            )):
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-GENERATION-MISMATCH",
+                    "legacy evaluation issuance requires the complete generation verifier chain",
+                )
+            transaction = validate_generation_for_evaluation(
+                project,
+                generation_claim_path=generation_claim_path,
+                generation_consumption=generation_consumption,
+                artifact=artifact,
+                generation_transaction=generation_transaction,
+                generation_publication_manifest=generation_publication_manifest,
+                generation_commit_marker=generation_commit_marker,
+                generation_semantic_receipt=generation_semantic_receipt,
+                reader_policy=reader_policy,
+                wiki_root=wiki_root,
+                semantics_manifest=semantics_manifest,
+            )
+            generation_authority = {
+                "generation_verifier": {
+                    "transaction_id": transaction["transaction_id"],
+                    "transaction": binding(
+                        project, generation_transaction, "verifier_transaction"
+                    ),
+                    "publication_manifest": binding(
+                        project,
+                        generation_publication_manifest,
+                        "verifier_publication_manifest",
+                    ),
+                    "commit_marker": binding(
+                        project, generation_commit_marker, "verifier_commit_marker"
+                    ),
+                    "product_disposition": "evaluation_ready",
+                }
+            }
         if generation_consumption is None:
             consumption_binding = binding_from_digest(
                 project,
@@ -1203,21 +1477,7 @@ def issue_evaluation_claim(
             ),
             "generation_consumption": consumption_binding,
             "artifact": binding(project, artifact, "governed_artifact"),
-            "generation_verifier": {
-                "transaction_id": transaction["transaction_id"],
-                "transaction": binding(
-                    project, generation_transaction, "verifier_transaction"
-                ),
-                "publication_manifest": binding(
-                    project,
-                    generation_publication_manifest,
-                    "verifier_publication_manifest",
-                ),
-                "commit_marker": binding(
-                    project, generation_commit_marker, "verifier_commit_marker"
-                ),
-                "product_disposition": "evaluation_ready",
-            },
+            **generation_authority,
         }
         if generation_claim.get("qualification_mode") == "graph_independent_v2":
             unsigned.update({
@@ -1420,7 +1680,8 @@ def _consume_claim_locked(
     role: str,
     consumer_transaction_id: str,
     postimages: list[dict[str, Any]],
-    mutation_row_hashes: list[str],
+    mutation_row_hashes: list[str] | None = None,
+    publication: dict[str, Any] | None = None,
     consumed_at: str | None = None,
     stop_before_marker: bool = False,
     resume_incomplete: bool = False,
@@ -1430,7 +1691,7 @@ def _consume_claim_locked(
     nonce = _digest_bytes(
         f"{claim.get('claim_id')}:{consumer_transaction_id}:{consumed_at}".encode("utf-8")
     )[:32]
-    unsigned = {
+    unsigned: dict[str, Any] = {
         "schema_version": "1.0.0",
         "consumption_type": "assignment_dispatch",
         "state": "consumed",
@@ -1439,11 +1700,24 @@ def _consume_claim_locked(
         "role": role,
         "consumer_transaction_id": consumer_transaction_id,
         "postimages": postimages,
-        "mutation_row_hashes": mutation_row_hashes,
-        "mutation_head": mutation_row_hashes[-1],
         "consumed_at": consumed_at,
         "nonce": nonce,
     }
+    if publication is None:
+        if not mutation_row_hashes:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID",
+                "mutation-backed consumption has no mutation rows",
+            )
+        unsigned["mutation_row_hashes"] = mutation_row_hashes
+        unsigned["mutation_head"] = mutation_row_hashes[-1]
+    else:
+        if mutation_row_hashes:
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-INVALID",
+                "evidence-backed consumption cannot claim mutation rows",
+            )
+        unsigned["publication"] = publication
     consumption_id = f"consume-{_digest_bytes(_canonical_bytes(unsigned))[:16]}"
     consumption = {**unsigned, "consumption_id": consumption_id}
     _validate_schema(
@@ -1460,6 +1734,187 @@ def _consume_claim_locked(
         resume_incomplete=resume_incomplete,
     )
     return consumption, consumption_path, marker_path
+
+
+def consume_evidence_dispatch_claim(
+    project: Path,
+    claim_path: Path,
+    *,
+    role: str,
+    consumer_transaction_id: str,
+    artifact: Path,
+    publication_transaction_id: str,
+    product_paths: list[Path],
+    commit_marker: Path,
+    dependency_preconditions: list[tuple[Path, str]] | None = None,
+    consumed_at: str | None = None,
+    recover_exact: bool = False,
+) -> tuple[dict[str, Any], Path, Path]:
+    """Consume an Evaluator claim through a committed F7 evidence publication."""
+
+    project = project.resolve()
+    guard_instrument_lane(project)
+    artifact = artifact.resolve(strict=True)
+    products = [path.resolve(strict=True) for path in product_paths]
+    marker = commit_marker.resolve(strict=True)
+    dependencies = [
+        (path.resolve(strict=True), expected_sha256)
+        for path, expected_sha256 in (dependency_preconditions or [])
+    ]
+    if not products or len(set(products)) != len(products):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-INVALID",
+            "evidence-backed consumption requires unique products",
+        )
+    evidence_root = (project / "reviews" / ".harness" / "evidence").resolve()
+    if (
+        not artifact.is_relative_to(project)
+        or any(not path.is_relative_to(evidence_root) for path in [*products, marker])
+        or any(
+            not (path.is_relative_to(project) or path.is_relative_to(ROOT))
+            or len(str(expected_sha256)) != 64
+            or any(character not in "0123456789abcdef" for character in str(expected_sha256))
+            for path, expected_sha256 in dependencies
+        )
+    ):
+        raise ReceiptTransactionError(
+            "APG-DISPATCH-CLAIM-PATH-MISMATCH",
+            "evidence-backed consumption escapes the canonical F7 lane",
+        )
+    from evidence_publication import validate_recorded_committed
+
+    with _transaction_claim(project):
+        claim = _validate_claim_publication(project, claim_path)
+        if (
+            claim.get("role") != role
+            or role != "evaluator"
+            or claim.get("claim_kind")
+            not in {"obligation_evaluation", "evaluation"}
+        ):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-ROLE-MISMATCH",
+                "evidence publication requires an Evaluator claim",
+            )
+        if (
+            claim.get("artifact", {}).get("sha256") != _digest_path(artifact)
+            or claim.get("target_path")
+            != artifact.relative_to(project).as_posix()
+        ):
+            raise ReceiptTransactionError(
+                "APG-DISPATCH-CLAIM-ARTIFACT-MISMATCH",
+                "evidence publication binds another artifact",
+            )
+        def recheck_dependency_preconditions() -> None:
+            for dependency_path, expected_sha256 in dependencies:
+                if _digest_path(dependency_path) == expected_sha256:
+                    continue
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-STALE",
+                    "evidence dependency changed after substantive preflight",
+                )
+        recheck_dependency_preconditions()
+        validate_recorded_committed(
+            project_root=project,
+            transaction_id=publication_transaction_id,
+            expected_products=products,
+            expected_marker=marker,
+        )
+        lane = project / ".harness-evidence-transactions" / publication_transaction_id
+        publication = {
+            "transaction_id": publication_transaction_id,
+            "transaction_claim": binding(
+                project, lane / "claim.json", "evidence_publication_claim"
+            ),
+            "transaction_journal": binding(
+                project, lane / "journal.json", "evidence_publication_journal"
+            ),
+            "commit_marker": binding(
+                project, marker, "evidence_publication_marker"
+            ),
+            "output_paths": [
+                path.relative_to(project).as_posix()
+                for path in [*products, marker]
+            ],
+            "dependencies": [
+                {
+                    "root_kind": (
+                        "project" if path.is_relative_to(project) else "harness"
+                    ),
+                    "relative_path": path.relative_to(
+                        project if path.is_relative_to(project) else ROOT
+                    ).as_posix(),
+                    "sha256": expected_sha256,
+                    "byte_length": path.stat().st_size,
+                }
+                for path, expected_sha256 in dependencies
+            ],
+        }
+        postimages = [
+            {
+                "path": artifact.relative_to(project).as_posix(),
+                "sha256": _digest_path(artifact),
+                "size": artifact.stat().st_size,
+            },
+            *[
+                {
+                    "path": path.relative_to(project).as_posix(),
+                    "sha256": _digest_path(path),
+                    "size": path.stat().st_size,
+                }
+                for path in products
+            ],
+        ]
+        consumptions = _assignment_root(project) / "dispatch" / "consumptions"
+        for existing in consumptions.glob("*/consumption.json"):
+            prior = _load_record(
+                existing, "APG-DISPATCH-CLAIM-RECOVERY-REQUIRED"
+            )
+            if prior.get("claim_id") != claim.get("claim_id"):
+                continue
+            prior_marker = existing.parent / "commit_marker.json"
+            if not prior_marker.is_file():
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-RECOVERY-REQUIRED",
+                    "dispatch consumption publication is incomplete",
+                )
+            exact_recovery = (
+                recover_exact
+                and consumed_at is not None
+                and prior.get("role") == role
+                and prior.get("consumer_transaction_id")
+                == consumer_transaction_id
+                and prior.get("consumed_at") == consumed_at
+                and prior.get("postimages") == postimages
+                and prior.get("publication") == publication
+                and prior.get("claim")
+                == binding(project, claim_path.resolve(), "assignment_dispatch_claim")
+            )
+            if not exact_recovery:
+                raise ReceiptTransactionError(
+                    "APG-DISPATCH-CLAIM-REPLAY",
+                    "dispatch claim is already consumed",
+                )
+            recheck_dependency_preconditions()
+            validate_consumed_claim_for_context(
+                project,
+                claim_path,
+                existing,
+                expected_role=role,
+                expected_target=claim["target_path"],
+                expected_receipt_id=claim["receipt_id"],
+                expected_artifact_sha256=claim["artifact"]["sha256"],
+            )
+            return prior, existing, prior_marker
+        recheck_dependency_preconditions()
+        return _consume_claim_locked(
+            project,
+            claim_path.resolve(),
+            role=role,
+            consumer_transaction_id=consumer_transaction_id,
+            postimages=postimages,
+            publication=publication,
+            consumed_at=consumed_at,
+        )
 
 
 def consume_dispatch_claim(

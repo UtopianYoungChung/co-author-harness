@@ -403,14 +403,14 @@
       "id": "assignment-receipt-transaction",
       "path": "scripts/assignment_receipt_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "437a9e3135b1326006af28e19fe5e51537b222d901709be978a11cc9e45d872e",
+      "sha256": "1702605e5e4387457f9f124c30545d2653a16943910dddb15e71149064fa0499",
       "migration_ids": []
     },
     {
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "8bb6aad6203f68fc0cbf43b19c6f5a77f26b6bb82568bbb2af26a495dd3ad3ef",
+      "sha256": "0337f816a31badccfbbf8fd4d6fd875dfb67501a1f0e0117c6ad798be8da1b18",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -428,7 +428,7 @@
       "id": "milestone-framework-validator",
       "path": "scripts/milestone_framework_validate.py",
       "revision_kind": "sha256",
-      "sha256": "a31df0c0852f238a5860ca3a7092f204d99e4d172de540f8afec205951c2f6ba",
+      "sha256": "a61093036d808127d83bbd088acd10073899b1f87194e3c3910c5a42a7c998ed",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -784,7 +784,7 @@
       "id": "scholarly-evaluation",
       "path": "scripts/scholarly_evaluation.py",
       "revision_kind": "sha256",
-      "sha256": "8d458fb0ac09f2b3ca408ce55e717ef75f8c8c05d2cccd2a299236aafa09dcd3",
+      "sha256": "2dcc2fb42804444ebc0ca5b40457037c9e9942f83b01da5b0c2206224d49b90e",
       "migration_ids": []
     },
     {

@@ -70,7 +70,8 @@ def evaluation_output_path(project_root: Path, *, evaluation_id: str) -> Path:
     ).resolve()
     if not path.is_relative_to(project):
         raise ScholarlyPublicationError("evaluation output escapes project root")
-    return path
+    # Use the same case before and after the destination directory exists.
+    return Path(os.path.normcase(str(path)))
 
 
 def _preflight_evaluation_value(

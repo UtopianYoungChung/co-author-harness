@@ -439,7 +439,7 @@ def _issue_dispatch_kernel_authorization(
     issuer = claim.get("issuer")
     if (
         not isinstance(claim_id, str)
-        or claim_kind not in {"generation", "evaluation"}
+        or claim_kind not in {"generation", "obligation_evaluation", "evaluation"}
         or not isinstance(receipt_id, str)
         or not isinstance(reservation_id, str)
         or not isinstance(milestone, str)
@@ -454,14 +454,14 @@ def _issue_dispatch_kernel_authorization(
             "APG-DISPATCH-CLAIM-AUTHORITY", "claim is outside its canonical lane"
         )
     transaction_id = issuer.get("transaction_id")
-    allowed_transactions = (
-        {
-            f"assignment-reserve-{milestone}",
-            f"assignment-recovery-{milestone}",
+    if claim_kind == "generation":
+        allowed_transactions = {
+            f"assignment-reserve-{milestone}", f"assignment-recovery-{milestone}",
         }
-        if claim_kind == "generation"
-        else {f"assignment-evaluation-{milestone}"}
-    )
+    elif claim_kind == "obligation_evaluation":
+        allowed_transactions = {f"assignment-obligation-evaluation-{milestone}"}
+    else:
+        allowed_transactions = {f"assignment-evaluation-{milestone}"}
     if (
         issuer.get("name") != "assignment_transaction_kernel"
         or issuer.get("version") != "1.0.0"

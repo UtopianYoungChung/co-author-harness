@@ -638,6 +638,8 @@ def _derive_evaluation_consumption(
             "global evaluation transaction binds another Evaluator claim",
         )
     try:
+        generation_verifier_id = claim_preview.get("generation_verifier", {}).get("transaction_id")
+        generation_draft_id = claim_preview.get("generation_draft_governance", {}).get("evidence_id")
         evaluator_claim, consumption = dispatch.validate_consumed_claim_for_context(
             root,
             claim_bound.path,
@@ -646,7 +648,8 @@ def _derive_evaluation_consumption(
             expected_target=value["artifact"]["path"],
             expected_receipt_id=claim_preview.get("receipt_id"),
             expected_artifact_sha256=value["artifact"]["sha256"],
-            expected_generation_transaction_id=claim_preview.get("generation_verifier", {}).get("transaction_id"),
+            expected_generation_transaction_id=generation_verifier_id,
+            expected_generation_evidence_id=generation_draft_id,
         )
     except Exception as exc:
         _refuse(SET_DISPATCH_SEPARATION, f"Evaluator dispatch does not authenticate: {exc}")
@@ -885,6 +888,7 @@ def _verify_evaluation_transaction(
     evaluation_path: Path,
     *,
     expected_evaluation: BoundFile | None = None,
+    preflight_claim: Path | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Authenticate one evaluation transaction; do not infer judgment truth.
 
@@ -909,8 +913,18 @@ def _verify_evaluation_transaction(
     conditional_paths: list[ConditionalPath] = []
     artifact_input = _load_input(root, artifact_path, "artifact")
     register_input = _load_input(root, register_path, "claim register")
-    evaluation_input = _load_input(root, evaluation_path, "evaluation")
-    if expected_evaluation is not None:
+    if expected_evaluation is not None and preflight_claim is not None:
+        evaluation_input = expected_evaluation.path.absolute()
+        try:
+            evaluation_input.resolve().relative_to(root.resolve())
+        except ValueError:
+            _refuse(SET_SCHEMA, "evaluation preflight path is outside the project root")
+    else:
+        evaluation_input = _load_input(root, evaluation_path, "evaluation")
+    if expected_evaluation is not None and preflight_claim is not None:
+        evaluation_payload = expected_evaluation.payload
+        evaluation_snapshot = expected_evaluation
+    elif expected_evaluation is not None:
         if not _same_path(evaluation_input, expected_evaluation.path):
             _refuse(SET_ARTIFACT_STALE, "authoritative evaluation path differs from the caller snapshot")
         try:
@@ -936,7 +950,8 @@ def _verify_evaluation_transaction(
     _schema_validate(value)
     value["_root"] = str(root)
 
-    bound_files.append(evaluation_snapshot)
+    if preflight_claim is None:
+        bound_files.append(evaluation_snapshot)
     artifact = _bind(root, value["artifact"], "artifact")
     register_bound = _bind(root, value["claim_register"], "claim register")
     if not _same_path(artifact.path, artifact_input) or not _same_path(register_bound.path, register_input):
@@ -990,6 +1005,8 @@ def _verify_evaluation_transaction(
     if register_result.get("status") != "qualified":
         _refuse(SET_COVERAGE_INCOMPLETE, "claim register is not complete and current")
 
+    if preflight_claim is not None and claim_bound is None:
+        _refuse(SET_DISPATCH_SEPARATION, "preflight requires an authenticated Evaluator claim")
     evaluator_fire = False
     if claim_bound is None and generator_envelope is not None:
         _refuse(
@@ -997,14 +1014,29 @@ def _verify_evaluation_transaction(
             "Generator envelope is stale or names another dispatch",
         )
     if claim_bound is not None:
-        evaluator_claim, _, _ = _derive_evaluation_consumption(
-            root,
-            value,
-            evaluation_input,
-            evaluation_payload,
-            claim_bound,
-            bound_files,
-        )
+        if preflight_claim is None:
+            evaluator_claim, _, _ = _derive_evaluation_consumption(
+                root,
+                value,
+                evaluation_input,
+                evaluation_payload,
+                claim_bound,
+                bound_files,
+            )
+        else:
+            preflight_claim_path = _load_input(root, preflight_claim, "preflight Evaluator claim")
+            if not _same_path(claim_bound.path, preflight_claim_path):
+                _refuse(SET_DISPATCH_SEPARATION, "preflight claim differs from evaluation binding")
+            claim_value = _json(claim_bound)
+            try:
+                evaluator_claim = dispatch.accept_claim_for_context(
+                    root, preflight_claim_path, expected_role="evaluator",
+                    expected_target=artifact.path.relative_to(root).as_posix(),
+                    expected_receipt_id=claim_value["receipt_id"],
+                    expected_artifact_sha256=value["artifact"]["sha256"],
+                )
+            except (KeyError, dispatch.ReceiptTransactionError) as exc:
+                _refuse(SET_DISPATCH_SEPARATION, f"Evaluator claim fails preflight: {exc}")
         if evaluator_claim.get("claim_kind") != "evaluation":
             _refuse(SET_DISPATCH_SEPARATION, "consumed dispatch is not an evaluation claim")
         _discover_exact_bindings(root, evaluator_claim, "Evaluator claim", bound_files)
@@ -1200,6 +1232,33 @@ def _verify_evaluation_transaction(
         "judgment_truth_certified": False,
         "findings": [],
     }, dependencies)
+
+
+def preflight_evaluation(
+    project_root: Path,
+    artifact_path: Path,
+    register_path: Path,
+    evaluation_path: Path,
+    evaluation_payload: bytes,
+    evaluation_claim: Path,
+) -> dict[str, Any]:
+    """Validate complete C6 judgment semantics before claim consumption."""
+
+    snapshot = BoundFile(
+        path=evaluation_path.absolute(),
+        payload=evaluation_payload,
+        binding={},
+        label="unpublished evaluation preflight",
+    )
+    result, dependencies = _verify_evaluation_transaction(
+        project_root,
+        artifact_path,
+        register_path,
+        evaluation_path,
+        expected_evaluation=snapshot,
+        preflight_claim=evaluation_claim,
+    )
+    return {**result, "dependencies": dependencies}
 
 
 def verify_evaluation(
