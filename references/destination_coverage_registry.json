@@ -176,7 +176,7 @@
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "755f83b43e7734f9982087c2410372911e38118c45e3302ebe79b04638764d41"
+      "sha256": "c17238600087a158d27c2e1a35f78a61d14f16b3f31d76c81ba7112f5d4e6fdf"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
@@ -282,6 +282,14 @@
     "scripts/draft_governance.py": {
       "class": "guarded",
       "regression": "scripts/draft_governance_smoketest.py"
+    },
+    "scripts/draft_governance_publish.py": {
+      "class": "guarded",
+      "regression": "scripts/production_evidence_publisher_smoketest.py::protected and escaping destination refusals"
+    },
+    "scripts/scholarly_evaluation_publish.py": {
+      "class": "guarded",
+      "regression": "scripts/production_evidence_publisher_smoketest.py::protected and escaping destination refusals"
     }
   }
 }

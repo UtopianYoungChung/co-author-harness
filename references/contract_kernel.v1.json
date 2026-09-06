@@ -410,7 +410,7 @@
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "29c3535d829a7d48a4c82689900f9d2fdcd36acf61bc523071de9cc2e89a88af",
+      "sha256": "8bb6aad6203f68fc0cbf43b19c6f5a77f26b6bb82568bbb2af26a495dd3ad3ef",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -763,14 +763,14 @@
       "id": "scholarly-claim-register-schema",
       "path": "references/schemas/scholarly_claim_register.schema.json",
       "revision_kind": "sha256",
-      "sha256": "191f000c3026d7c197d7f15a7cd99f8d60e433921983ed294080b7beb0c319ab",
+      "sha256": "c68af2d3d78a08528888e0512137b6ac5fbb9b5fe81ff49b8a6104cb2bc024dc",
       "migration_ids": []
     },
     {
       "id": "scholarly-claim-register",
       "path": "scripts/scholarly_claim_register.py",
       "revision_kind": "sha256",
-      "sha256": "2c3730d6224febb819c9712edf084fc0c3a3e597174d36bd5e0efe5c034abf04",
+      "sha256": "3e6ff057a3311cf21ded8eb9124861101a66652e8f1bf37bf32ba5beef66aeca",
       "migration_ids": []
     },
     {
@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "d71e3a83574e5a9c5a2f090be273c06daea509415a61cef1d42894661951ecc8",
+      "sha256": "1b5ecd8793afd2e06da554204b65525b5e4588c7460e94045a0f9caed4367f3d",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "16185b7eb87bf82acc682849bbcce79155c17b824ad3fad09ecf67120212cf1e",
+      "sha256": "86a7cfda0370839e739eed44b8d6f19c70a4532e940537ac6c530a839e80ad14",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1033,7 +1033,7 @@
       "id": "skill-plugin-commands",
       "path": "skills/plugin-commands/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "383a7d665d5cdf96bc86b1320cf938a7a2c6b7c7877d19c736bf1be81a60cdcd",
+      "sha256": "267099d191e045e5892a49e7ce2ba2025021b482d827e7a1484bcfacc6dfc371",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

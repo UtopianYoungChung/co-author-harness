@@ -42,7 +42,7 @@ class ScholarlyAssuranceFixture:
     semantics_manifest: Path
     generation_verifier: dict[str, Path]
     evaluation_consumption: Path
-    evaluation_semantic_receipt: Path
+    evaluation_semantic_receipt: Path | None
     evaluation_verifier: dict[str, Path]
 
 
@@ -485,6 +485,7 @@ def build_qualified_scholarly_fixture(
     include_dstyle: bool = False,
     adjudicate_dstyle: bool = False,
     allow_blocked: bool = False,
+    legacy_semantic_evidence: bool = True,
 ) -> ScholarlyAssuranceFixture:
     """Build and verify one clean C2-C6 synthetic evaluation transaction."""
 
@@ -707,23 +708,26 @@ def build_qualified_scholarly_fixture(
         target_paths=[artifact_relative, evaluation_relative],
         consumed_at="2026-07-26T00:00:05Z",
     )
-    evaluation_semantic = project / f"reviews/.harness/verifier/{label}/evaluation-semantic.json"
-    semantic_value = json.loads(prepared["activation"].receipt.read_text(encoding="utf-8"))
-    semantic_value["phase"] = "evaluation"
-    semantic_value["role"] = "evaluator"
-    evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
-    evaluation_semantic.write_bytes(verifier.canonical_bytes(semantic_value))
-    evaluation_verifier = verifier.publish_verifier_transaction(
-        artifact=artifact,
-        semantic_receipt=evaluation_semantic,
-        phase="evaluation",
-        project_root=project,
-        wiki_root=prepared["activation"].wiki_root,
-        harness_root=ROOT,
-        semantics_manifest=prepared["semantics"],
-        out_dir=project / f"reviews/.harness/verifier/{label}/evaluation-product",
-        requested_independence_level="none",
-    )
+    evaluation_semantic = None
+    evaluation_verifier = {}
+    if legacy_semantic_evidence:
+        evaluation_semantic = project / f"reviews/.harness/verifier/{label}/evaluation-semantic.json"
+        semantic_value = json.loads(prepared["activation"].receipt.read_text(encoding="utf-8"))
+        semantic_value["phase"] = "evaluation"
+        semantic_value["role"] = "evaluator"
+        evaluation_semantic.parent.mkdir(parents=True, exist_ok=True)
+        evaluation_semantic.write_bytes(verifier.canonical_bytes(semantic_value))
+        evaluation_verifier = verifier.publish_verifier_transaction(
+            artifact=artifact,
+            semantic_receipt=evaluation_semantic,
+            phase="evaluation",
+            project_root=project,
+            wiki_root=prepared["activation"].wiki_root,
+            harness_root=ROOT,
+            semantics_manifest=prepared["semantics"],
+            out_dir=project / f"reviews/.harness/verifier/{label}/evaluation-product",
+            requested_independence_level="none",
+        )
     scholarly_binding = {
         "evidence_path": evaluation_relative,
         "evidence_sha256": sha256(evaluation_path),
@@ -768,6 +772,7 @@ def build_qualified_scholarly_from_authorities(
     include_dstyle: bool = False,
     adjudicate_dstyle: bool = False,
     allow_blocked: bool = False,
+    legacy_semantic_evidence: bool = True,
 ) -> ScholarlyAssuranceFixture:
     """Bind C3-C6 to one already-current, unconsumed Evaluator chain."""
 
@@ -782,6 +787,7 @@ def build_qualified_scholarly_from_authorities(
         include_dstyle=include_dstyle,
         adjudicate_dstyle=adjudicate_dstyle,
         allow_blocked=allow_blocked,
+        legacy_semantic_evidence=legacy_semantic_evidence,
     )
 
 

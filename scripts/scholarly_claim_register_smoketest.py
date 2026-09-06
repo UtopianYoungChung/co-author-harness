@@ -190,6 +190,689 @@ def _run_validator(artifact: Path, register: Path) -> tuple[subprocess.Completed
     return completed, json.loads(completed.stdout)
 
 
+def _v110_span(raw: bytes, text: str) -> tuple[int, int]:
+    needle = text.encode("utf-8")
+    start = raw.find(needle)
+    if start < 0 or raw.find(needle, start + 1) >= 0:
+        raise AssertionError(f"inventory span missing or not unique: {text!r}")
+    return start, start + len(needle)
+
+
+def _v110_locator(raw: bytes, start: int, end: int) -> dict[str, Any]:
+    section = claim_register._nearest_section(raw, start)
+    line = claim_register._commonmark_line_number(raw, start)
+    if not isinstance(section, str) or line is None:
+        raise AssertionError(f"inventory locator failed start={start}")
+    return {
+        "section": section,
+        "line": line,
+        "byte_start": start,
+        "byte_end": end,
+    }
+
+
+def _v110_block(
+    raw: bytes,
+    block_id: str,
+    kind: str,
+    text: str,
+    coverage: str,
+    *,
+    claim_ids: list[str] | None = None,
+    reason: str | None = None,
+    start: int | None = None,
+    end: int | None = None,
+) -> dict[str, Any]:
+    if start is None or end is None:
+        start, end = _v110_span(raw, text)
+    block: dict[str, Any] = {
+        "block_id": block_id,
+        "kind": kind,
+        "locator": _v110_locator(raw, start, end),
+        "span_sha256": _sha_bytes(raw[start:end]),
+        "coverage": coverage,
+        "claim_ids": list(claim_ids or []),
+    }
+    if reason is not None:
+        block["reason"] = reason
+    return block
+
+
+def _v110_claim(
+    artifact: Path,
+    evidence: Path,
+    claim_id: str,
+    claim_text: str,
+    evidence_marker: bytes,
+) -> dict[str, Any]:
+    raw = artifact.read_bytes()
+    start, end = _v110_span(raw, claim_text)
+    return {
+        "claim_id": claim_id,
+        "text": claim_text,
+        "span_sha256": _sha_bytes(claim_text.encode("utf-8")),
+        "locator": _v110_locator(raw, start, end),
+        "load_bearing": True,
+        "viewpoint": "source_ascription",
+        "provenance": "direct_source",
+        "evidence_locator": [_evidence_span(evidence, evidence_marker)],
+        "admission_use": "admitted_evidence",
+        "argument_leg": "ascription",
+        "modal_force": "qualified",
+        "warrant_relation": "constraint",
+    }
+
+
+def _v110_register(
+    artifact: Path,
+    claims: list[dict[str, Any]],
+    blocks: list[dict[str, Any]],
+    *,
+    register_id: str,
+    schema_version: str = "1.1.0",
+    disposition: str = "complete",
+    include_inventory: bool = True,
+) -> dict[str, Any]:
+    raw = artifact.read_bytes()
+    value: dict[str, Any] = {
+        "schema_version": schema_version,
+        "register_id": register_id,
+        "artifact": {
+            "path": artifact.as_posix(),
+            "sha256": _sha_bytes(raw),
+            "byte_length": len(raw),
+        },
+        "review_dispatch": {
+            "dispatch_id": "dispatch-evaluator-v110-synthetic",
+            "role": "evaluator",
+        },
+        "claims": claims,
+        "generator_inventory": [claim["claim_id"] for claim in claims],
+        "evaluator_additions": [],
+        "evaluator_omissions": [],
+        "coverage_disposition": disposition,
+        "created_at": "2026-09-05T00:00:00Z",
+    }
+    if include_inventory:
+        value["document_inventory"] = {
+            "blocks": blocks,
+            "whitespace_gaps_ignored": True,
+        }
+    return value
+
+
+def _v110_expect(
+    failures: list[str],
+    label: str,
+    run: subprocess.CompletedProcess[str],
+    result: dict[str, Any],
+    *,
+    exit_code: int,
+    status: str,
+    codes: set[str],
+    inventory: dict[str, Any] | None = None,
+) -> None:
+    got_codes = {
+        row["code"]
+        for row in result.get("findings") or []
+        if isinstance(row, dict) and isinstance(row.get("code"), str)
+    }
+    if run.returncode != exit_code or result.get("status") != status or got_codes != codes:
+        failures.append(
+            f"{label}: rc={run.returncode} status={result.get('status')!r} "
+            f"codes={sorted(got_codes)} expected_rc={exit_code} "
+            f"expected_status={status!r} expected_codes={sorted(codes)}"
+        )
+        return
+    if inventory is None:
+        return
+    inv = result.get("document_inventory_result")
+    if not isinstance(inv, dict):
+        failures.append(f"{label}: missing document_inventory_result")
+        return
+    if "whole_document_pass" in inv:
+        failures.append(f"{label}: unqualified whole_document_pass is present")
+    if inv.get("semantic_claim_universe_complete") is True:
+        failures.append(f"{label}: semantic_claim_universe_complete is true")
+    if inv.get("human_reference_inventory_established") is True:
+        failures.append(f"{label}: human_reference_inventory_established is true")
+    for key, wanted in inventory.items():
+        if inv.get(key) != wanted:
+            failures.append(
+                f"{label}: inventory.{key}={inv.get(key)!r} expected={wanted!r}"
+            )
+
+
+def _run_v110_inventory_regressions(temporary: Path, failures: list[str]) -> int:
+    """Self-contained 1.1.0 inventory cases. Synthetic temp files only."""
+    counted = 0
+    artifact = temporary / "v110-inventory.md"
+    artifact.write_text(
+        "# Synthetic inventory\n"
+        "\n"
+        "A source states a bounded synthetic observation.\n"
+        "\n"
+        "| Metric | Value |\n"
+        "| --- | --- |\n"
+        "| constructed_count | 7 |\n"
+        "\n"
+        "Table 1. Synthetic caption for the constructed_count table.\n"
+        "\n"
+        "![Unavailable figure](missing-synthetic-figure.png)\n"
+        "\n"
+        "Figure 1. Synthetic caption for an unavailable image-only figure.\n"
+        "\n"
+        "A second load-bearing observation constrains the boundary.\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    evidence = temporary / "v110-evidence.txt"
+    evidence.write_text(
+        "C-001: bounded observation.\n"
+        "C-002: boundary constraint.\n"
+        "C-TABLE: constructed_count is 7.\n"
+        "C-CAPTION: table caption.\n"
+        "C-FIGCAP: figure caption.\n"
+        "C-FIGACC: accessible caption.\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    raw = artifact.read_bytes()
+    claim_specs = [
+        ("C-001", "A source states a bounded synthetic observation.", b"C-001:"),
+        ("C-TABLE", "| constructed_count | 7 |", b"C-TABLE:"),
+        ("C-CAPTION", "Table 1. Synthetic caption for the constructed_count table.", b"C-CAPTION:"),
+        ("C-FIGCAP", "Figure 1. Synthetic caption for an unavailable image-only figure.", b"C-FIGCAP:"),
+        ("C-002", "A second load-bearing observation constrains the boundary.", b"C-002:"),
+    ]
+    claims_by_id = {
+        claim_id: _v110_claim(artifact, evidence, claim_id, text, marker)
+        for claim_id, text, marker in claim_specs
+    }
+
+    def blocks_for(*, omit: set[str] | None = None, figure_coverage: str = "excluded") -> list[dict[str, Any]]:
+        omit = omit or set()
+        specs: list[dict[str, Any]] = [
+            {
+                "block_id": "B-HEAD",
+                "kind": "heading",
+                "text": "# Synthetic inventory",
+                "coverage": "excluded",
+                "reason": "ATX heading; locator metadata, not a proposition",
+            },
+            {
+                "block_id": "B-SENT",
+                "kind": "sentence",
+                "text": "A source states a bounded synthetic observation.",
+                "coverage": "in_scope",
+                "claim_ids": ["C-001"],
+            },
+            {
+                "block_id": "B-THDR",
+                "kind": "other",
+                "text": "| Metric | Value |",
+                "coverage": "excluded",
+                "reason": "table chrome",
+            },
+            {
+                "block_id": "B-TSEP",
+                "kind": "other",
+                "text": "| --- | --- |",
+                "coverage": "excluded",
+                "reason": "table chrome",
+            },
+            {
+                "block_id": "B-TABLE",
+                "kind": "table",
+                "text": "| constructed_count | 7 |",
+                "coverage": "in_scope",
+                "claim_ids": ["C-TABLE"],
+            },
+            {
+                "block_id": "B-CAPTION",
+                "kind": "caption",
+                "text": "Table 1. Synthetic caption for the constructed_count table.",
+                "coverage": "in_scope",
+                "claim_ids": ["C-CAPTION"],
+            },
+            {
+                "block_id": "B-FIG",
+                "kind": "figure",
+                "text": "![Unavailable figure](missing-synthetic-figure.png)",
+                "coverage": figure_coverage,
+                "reason": (
+                    "image-only pixels are not in the markdown artifact; no OCR; unsupported assurance"
+                    if figure_coverage == "inaccessible"
+                    else "image markdown listed as nonclaim; pixels are outside the markdown artifact"
+                ),
+                "claim_ids": [],
+            },
+            {
+                "block_id": "B-FIGCAP",
+                "kind": "caption",
+                "text": "Figure 1. Synthetic caption for an unavailable image-only figure.",
+                "coverage": "in_scope",
+                "claim_ids": ["C-FIGCAP"],
+            },
+            {
+                "block_id": "B-SENT2",
+                "kind": "sentence",
+                "text": "A second load-bearing observation constrains the boundary.",
+                "coverage": "in_scope",
+                "claim_ids": ["C-002"],
+            },
+        ]
+        built: list[dict[str, Any]] = []
+        for spec in specs:
+            if spec["block_id"] in omit:
+                continue
+            coverage = spec["coverage"]
+            reason = spec.get("reason")
+            claim_ids = list(spec.get("claim_ids") or [])
+            if coverage != "in_scope":
+                claim_ids = []
+            else:
+                reason = None
+            built.append(
+                _v110_block(
+                    raw,
+                    spec["block_id"],
+                    spec["kind"],
+                    spec["text"],
+                    coverage,
+                    claim_ids=claim_ids,
+                    reason=reason,
+                )
+            )
+        return built
+
+    def claims_for(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        wanted: list[str] = []
+        for block in blocks:
+            wanted.extend(block.get("claim_ids") or [])
+        return [copy.deepcopy(claims_by_id[claim_id]) for claim_id in wanted]
+
+    def write_and_run(name: str, value: dict[str, Any]) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+        path = temporary / f"{name}.json"
+        _write_json(path, value)
+        return _run_validator(artifact, path)
+
+    accounted = {
+        "full_artifact_bytes_accounted": True,
+        "semantic_claim_universe_complete": False,
+        "human_reference_inventory_established": False,
+        "coverage_basis": "declared_byte_accounted_inventory_and_exclusions",
+    }
+    narrowed = {**accounted, "review_scope": "narrowed"}
+    full_scope = {**accounted, "review_scope": "declared_full_artifact_bytes"}
+
+    complete_blocks = blocks_for()
+    complete = _v110_register(
+        artifact,
+        claims_for(complete_blocks),
+        complete_blocks,
+        register_id="SCR-V110-COMPLETE",
+    )
+    run, result = write_and_run("v110-complete", complete)
+    _v110_expect(
+        failures,
+        "v110_complete_twin",
+        run,
+        result,
+        exit_code=0,
+        status="qualified",
+        codes=set(),
+        inventory=narrowed,
+    )
+    counted += 1
+
+    omit_specs = [
+        ("v110_omit_sentence", {"B-SENT"}, "SCR-COVERAGE-UNCOVERED-BYTES"),
+        ("v110_omit_table", {"B-TABLE"}, "SCR-COVERAGE-UNCOVERED-BYTES"),
+        ("v110_omit_caption", {"B-CAPTION"}, "SCR-COVERAGE-UNCOVERED-BYTES"),
+        ("v110_omit_figure", {"B-FIG"}, "SCR-COVERAGE-UNCOVERED-BYTES"),
+    ]
+    for label, omit, code in omit_specs:
+        omitted_blocks = blocks_for(omit=omit)
+        omitted = _v110_register(
+            artifact,
+            claims_for(omitted_blocks),
+            omitted_blocks,
+            register_id=f"SCR-V110-{label.upper()}",
+        )
+        run, result = write_and_run(label, omitted)
+        _v110_expect(
+            failures,
+            label,
+            run,
+            result,
+            exit_code=2,
+            status="refused",
+            codes={code},
+        )
+        counted += 1
+
+    run, result = write_and_run("v110-complete-restore", complete)
+    _v110_expect(
+        failures,
+        "v110_omit_sentence_twin",
+        run,
+        result,
+        exit_code=0,
+        status="qualified",
+        codes=set(),
+        inventory=narrowed,
+    )
+    counted += 1
+
+    dup = copy.deepcopy(complete)
+    dup["register_id"] = "SCR-V110-DUP"
+    dup["document_inventory"]["blocks"][3]["block_id"] = dup["document_inventory"]["blocks"][2]["block_id"]
+    run, result = write_and_run("v110-duplicate", dup)
+    _v110_expect(
+        failures, "v110_duplicate_block_id", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-DUPLICATE-ID"},
+    )
+    counted += 1
+
+    stale = copy.deepcopy(complete)
+    stale["register_id"] = "SCR-V110-STALE"
+    stale["document_inventory"]["blocks"][1]["span_sha256"] = "0" * 64
+    run, result = write_and_run("v110-stale", stale)
+    _v110_expect(
+        failures, "v110_stale_block_hash", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-STALE"},
+    )
+    counted += 1
+
+    overlap = copy.deepcopy(complete)
+    overlap["register_id"] = "SCR-V110-OVERLAP"
+    overlap["document_inventory"]["blocks"][2]["locator"] = copy.deepcopy(
+        overlap["document_inventory"]["blocks"][1]["locator"]
+    )
+    overlap["document_inventory"]["blocks"][2]["span_sha256"] = overlap["document_inventory"]["blocks"][1]["span_sha256"]
+    run, result = write_and_run("v110-overlap", overlap)
+    _v110_expect(
+        failures, "v110_overlap", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-OVERLAP"},
+    )
+    counted += 1
+
+    dangling = copy.deepcopy(complete)
+    dangling["register_id"] = "SCR-V110-DANGLE"
+    dangling["document_inventory"]["blocks"][1]["claim_ids"] = ["C-MISSING"]
+    run, result = write_and_run("v110-dangling", dangling)
+    _v110_expect(
+        failures, "v110_dangling_claim", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-CLAIM-REF"},
+    )
+    counted += 1
+
+    oor = copy.deepcopy(complete)
+    oor["register_id"] = "SCR-V110-OOR"
+    oor["document_inventory"]["blocks"][4]["claim_ids"] = ["C-001"]
+    run, result = write_and_run("v110-oor", oor)
+    _v110_expect(
+        failures, "v110_claim_out_of_range", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-CLAIM-RANGE"},
+    )
+    counted += 1
+
+    inac_blocks = blocks_for(figure_coverage="inaccessible")
+    inac = _v110_register(
+        artifact,
+        claims_for(inac_blocks),
+        inac_blocks,
+        register_id="SCR-V110-INACC-COMPLETE",
+    )
+    run, result = write_and_run("v110-inacc-complete", inac)
+    _v110_expect(
+        failures, "v110_inaccessible_complete", run, result,
+        exit_code=2, status="refused", codes={"SCR-COVERAGE-INACCESSIBLE"},
+    )
+    counted += 1
+
+    inac_blocked = _v110_register(
+        artifact,
+        claims_for(inac_blocks),
+        inac_blocks,
+        register_id="SCR-V110-INACC-BLOCKED",
+        disposition="blocked",
+    )
+    run, result = write_and_run("v110-inacc-blocked", inac_blocked)
+    _v110_expect(
+        failures, "v110_inaccessible_blocked", run, result,
+        exit_code=0, status="blocked", codes=set(), inventory=narrowed,
+    )
+    counted += 1
+
+    honest = _v110_register(
+        artifact,
+        claims_for(blocks_for(omit={"B-SENT"})),
+        blocks_for(omit={"B-SENT"}),
+        register_id="SCR-V110-INCOMPLETE-UNCOVERED",
+        disposition="incomplete",
+    )
+    run, result = write_and_run("v110-incomplete-uncovered", honest)
+    _v110_expect(
+        failures,
+        "v110_honest_incomplete_uncovered",
+        run,
+        result,
+        exit_code=0,
+        status="incomplete",
+        codes=set(),
+        inventory={
+            "full_artifact_bytes_accounted": False,
+            "semantic_claim_universe_complete": False,
+            "coverage_basis": "declared_byte_accounted_inventory_and_exclusions",
+        },
+    )
+    counted += 1
+
+    no_deficit = copy.deepcopy(complete)
+    no_deficit["register_id"] = "SCR-V110-INCOMPLETE-NO-DEFICIT"
+    no_deficit["coverage_disposition"] = "incomplete"
+    run, result = write_and_run("v110-incomplete-no-deficit", no_deficit)
+    _v110_expect(
+        failures, "v110_incomplete_no_deficit", run, result,
+        exit_code=2, status="refused", codes={"SCR-COVERAGE-INCOMPLETE"},
+    )
+    counted += 1
+
+    inac_incomplete = _v110_register(
+        artifact,
+        claims_for(inac_blocks),
+        inac_blocks,
+        register_id="SCR-V110-INACC-INCOMPLETE",
+        disposition="incomplete",
+    )
+    run, result = write_and_run("v110-inacc-incomplete", inac_incomplete)
+    _v110_expect(
+        failures, "v110_inaccessible_incomplete_only", run, result,
+        exit_code=2, status="refused", codes={"SCR-COVERAGE-INCOMPLETE"},
+    )
+    counted += 1
+
+    stale_incomplete = copy.deepcopy(stale)
+    stale_incomplete["register_id"] = "SCR-V110-STALE-INCOMPLETE"
+    stale_incomplete["coverage_disposition"] = "incomplete"
+    run, result = write_and_run("v110-stale-incomplete", stale_incomplete)
+    _v110_expect(
+        failures, "v110_incomplete_stale", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-STALE"},
+    )
+    counted += 1
+
+    overlap_incomplete = copy.deepcopy(overlap)
+    overlap_incomplete["register_id"] = "SCR-V110-OVERLAP-INCOMPLETE"
+    overlap_incomplete["coverage_disposition"] = "incomplete"
+    run, result = write_and_run("v110-overlap-incomplete", overlap_incomplete)
+    _v110_expect(
+        failures, "v110_incomplete_overlap", run, result,
+        exit_code=2, status="refused", codes={"SCR-INVENTORY-OVERLAP"},
+    )
+    counted += 1
+
+    forbidden = copy.deepcopy(complete)
+    forbidden["register_id"] = "SCR-V110-100-FORBIDS"
+    forbidden["schema_version"] = "1.0.0"
+    run, result = write_and_run("v110-100-forbids", forbidden)
+    _v110_expect(
+        failures, "v110_1_0_0_forbids_inventory", run, result,
+        exit_code=2, status="refused", codes={"SCR-SCHEMA"},
+    )
+    counted += 1
+
+    full_block = _v110_block(
+        raw,
+        "B-FULL",
+        "paragraph",
+        "# Synthetic inventory",
+        "in_scope",
+        claim_ids=["C-001"],
+        start=0,
+        end=len(raw),
+    )
+    full_claims = [copy.deepcopy(claims_by_id["C-001"])]
+    full_complete = _v110_register(
+        artifact,
+        full_claims,
+        [full_block],
+        register_id="SCR-V110-FULLSPAN-COMPLETE",
+    )
+    run, result = write_and_run("v110-fullspan-complete", full_complete)
+    _v110_expect(
+        failures, "v110_fullspan_complete", run, result,
+        exit_code=0, status="qualified", codes=set(), inventory=full_scope,
+    )
+    counted += 1
+
+    full_blocked = _v110_register(
+        artifact,
+        full_claims,
+        [full_block],
+        register_id="SCR-V110-FULLSPAN-BLOCKED",
+        disposition="blocked",
+    )
+    run, result = write_and_run("v110-fullspan-blocked", full_blocked)
+    _v110_expect(
+        failures, "v110_fullspan_blocked", run, result,
+        exit_code=0, status="blocked", codes=set(), inventory=full_scope,
+    )
+    counted += 1
+
+    accessible = temporary / "v110-accessible.md"
+    accessible.write_text(
+        "# Accessible figure\n"
+        "\n"
+        "![Described figure](synthetic-described.png)\n"
+        "\n"
+        "Figure 1. Seven constructed bars; the caption is the assurance surface.\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    acc_raw = accessible.read_bytes()
+    acc_claim = _v110_claim(
+        accessible,
+        evidence,
+        "C-FIGACC",
+        "Figure 1. Seven constructed bars; the caption is the assurance surface.",
+        b"C-FIGACC:",
+    )
+    acc_fig_text = (
+        "![Described figure](synthetic-described.png)\n"
+        "\n"
+        "Figure 1. Seven constructed bars; the caption is the assurance surface."
+    )
+    acc_blocks = [
+        _v110_block(
+            acc_raw,
+            "B-AHEAD",
+            "heading",
+            "# Accessible figure",
+            "excluded",
+            reason="ATX heading",
+        ),
+        _v110_block(
+            acc_raw,
+            "B-AFIG",
+            "figure",
+            acc_fig_text,
+            "in_scope",
+            claim_ids=["C-FIGACC"],
+        ),
+    ]
+    acc_register = _v110_register(
+        accessible,
+        [acc_claim],
+        acc_blocks,
+        register_id="SCR-V110-ACCFIG",
+    )
+    acc_path = temporary / "v110-accessible.json"
+    _write_json(acc_path, acc_register)
+    acc_run, acc_result = _run_validator(accessible, acc_path)
+    _v110_expect(
+        failures, "v110_accessible_figure", acc_run, acc_result,
+        exit_code=0, status="qualified", codes=set(), inventory=narrowed,
+    )
+    counted += 1
+
+    rendered = claim_register.render_markdown(complete)
+    required_ids = ["B-HEAD", "B-THDR", "B-TSEP", "B-FIG"]
+    if "Declared document inventory" not in rendered:
+        failures.append("v110_render_exclusions: missing inventory table")
+    if "narrowed" not in rendered:
+        failures.append("v110_render_exclusions: missing declared review_scope narrowed")
+    if "whole_document_pass" in rendered:
+        failures.append("v110_render_exclusions: contains whole_document_pass")
+    for block_id in required_ids:
+        lines_with_id = [line for line in rendered.splitlines() if block_id in line]
+        if not any("excluded" in line for line in lines_with_id):
+            failures.append(f"v110_render_exclusions: {block_id} not shown as excluded row")
+    fig_lines = [line for line in rendered.splitlines() if "B-FIG" in line]
+    if not any("image markdown" in line or "pixels" in line for line in fig_lines):
+        failures.append("v110_render_exclusions: B-FIG reason not rendered")
+    counted += 1
+
+    rendered_inacc = claim_register.render_markdown(inac_blocked)
+    inacc_lines = [line for line in rendered_inacc.splitlines() if "B-FIG" in line]
+    if not any("inaccessible" in line for line in inacc_lines):
+        failures.append("v110_render_inaccessible: B-FIG not shown as inaccessible row")
+    if "whole_document_pass" in rendered_inacc:
+        failures.append("v110_render_inaccessible: contains whole_document_pass")
+    counted += 1
+
+    legacy = _base_register(artifact, evidence)
+    rendered_10 = claim_register.render_markdown(legacy)
+    if "NON-AUTHORITATIVE VIEW" not in rendered_10:
+        failures.append("v110_render_1_0_0: lost non-authoritative banner")
+    if "Declared document inventory" in rendered_10:
+        failures.append("v110_render_1_0_0: gained 1.1.0 inventory table")
+    counted += 1
+
+    complete_path = temporary / "v110-complete.json"
+    render_run = subprocess.run(
+        [sys.executable, str(SCRIPT), "--artifact", str(artifact), "--register", str(complete_path), "--render"],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+    )
+    if (
+        render_run.returncode != 0
+        or not render_run.stdout.startswith("<!-- NON-AUTHORITATIVE VIEW:")
+        or "B-HEAD" not in render_run.stdout
+        or "excluded" not in render_run.stdout
+    ):
+        failures.append("v110_render_cli: did not render declared exclusions")
+    counted += 1
+
+    return counted
+
+
 def main() -> int:
     fixture = json.loads(CASES.read_text(encoding="utf-8"))
     cases = fixture.get("cases", [])
@@ -203,6 +886,7 @@ def main() -> int:
     optional_alias_executed = 0
     optional_alias_skipped = 0
     api_cases = 0
+    v110_cases = 0
     with tempfile.TemporaryDirectory(prefix="scholarly-claim-register-") as td:
         temporary = Path(td)
         artifact = temporary / "synthetic.md"
@@ -645,6 +1329,7 @@ def main() -> int:
                     failures.append(
                         f"CommonMark ATX wrong-section case {section_id} was not refused exactly"
                     )
+            v110_cases = _run_v110_inventory_regressions(temporary, failures)
 
     if interface_missing:
         print(f"scholarly_claim_register_smoketest: RED 0/{len(cases)} defended")
@@ -657,7 +1342,8 @@ def main() -> int:
     print(
         f"scholarly_claim_register_smoketest: PASS ({len(cases)} red/twin pairs; "
         f"section parser pairs=27; optional aliases executed={optional_alias_executed} "
-        f"skipped={optional_alias_skipped}; read-set API cases={api_cases})"
+        f"skipped={optional_alias_skipped}; read-set API cases={api_cases}; "
+        f"v1.1.0 inventory cases={v110_cases})"
     )
     return 0
 

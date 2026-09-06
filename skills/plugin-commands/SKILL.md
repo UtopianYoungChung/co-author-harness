@@ -77,6 +77,7 @@ receipt for that governed evidence.
 | `/analytic-move-audit` | degraded | Audit Abbott-style analytic construction across seven moves. | Theory-building arguments. |
 | `/definition-derivation-check` | degraded | Check whether load-bearing terms are derived, imported, or stipulated. | Definitions and construct formation. |
 | `/dissolution-move-check` | degraded | Check charitable reconstruction, buried assumptions, and dissolution moves. | Rival-view engagement. |
+| `/chung-academic-voice-pass` | degraded | Run the registered Chung academic-voice pass: join technical representations to institutional consequences for identity, authority, competence, and accountability. | On-demand or Evaluator evaluate fire-table authorial-register audit; not a STYLE_COMMITMENTS C-n. |
 | `/sentence-level-pass` | degraded | Run the Bacon sentence-craft pass. | Line editing. |
 | `/grammar-mechanics-pass` | degraded | Run grammar and punctuation correctness checks. | Copyediting and proofreading. |
 | `/narrative-structure-pass` | degraded | Run the Sexton narrative-arc pass. | Structure and flow. |

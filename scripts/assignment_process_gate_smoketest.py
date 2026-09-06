@@ -661,6 +661,149 @@ def main() -> int:
         }, evaluated
         assert evaluated["authority_mode"] in {"direct_local", "shipment_only"}
 
+        phase_path = reviews / "phase_state.json"
+        pre_hash = hashlib.sha256(phase_path.read_bytes()).hexdigest()
+        defaulted = derive_checkpoint(root)
+        assert defaulted["status"] == "READY"
+        assert defaulted["milestone"] == "M1"
+        assert defaulted["action"] == "draft", defaulted
+        assert defaulted["authority_mode"] in {"direct_local", "shipment_only"}
+        named_hole = derive_checkpoint(root, requested="M1")
+        assert named_hole == defaulted, named_hole
+        try:
+            derive_checkpoint(root, requested="M2")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError("named M2 dispatch must refuse before materials-in-play")
+        try:
+            derive_checkpoint(root, purpose="evaluate")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError("unnamed evaluate must refuse")
+        try:
+            derive_checkpoint(root, requested="M9", purpose="evaluate")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError("invalid evaluate target must refuse")
+        try:
+            derive_checkpoint(root, requested="FINAL", purpose="evaluate")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError("FINAL evaluate must refuse")
+        try:
+            derive_checkpoint(root, requested="M4", purpose="restage")
+        except MilestoneTransactionError as exc:
+            assert exc.code == "AMC-ORDER", exc.code
+        else:
+            raise AssertionError("unknown purpose must refuse")
+        assert hashlib.sha256(phase_path.read_bytes()).hexdigest() == pre_hash
+
+        with tempfile.TemporaryDirectory(prefix="apg-derive-m5-door-") as closed_temp:
+            closed = Path(closed_temp)
+            closed_reviews = closed / "reviews"
+            closed_reviews.mkdir()
+            closed_framework = {
+                "mode": "native",
+                "milestones": {
+                    "M1": {"status": "accepted"},
+                    "M2": {"status": "accepted"},
+                    "M3": {"status": "accepted"},
+                    "M4": {"status": "accepted"},
+                    "M5": {"status": "accepted"},
+                },
+            }
+            closed_phase = closed_reviews / "phase_state.json"
+            closed_phase.write_text(
+                json.dumps({"milestone_framework": closed_framework}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            closed_hash = hashlib.sha256(closed_phase.read_bytes()).hexdigest()
+            complete = derive_checkpoint(closed)
+            assert complete == {
+                "status": "COMPLETE",
+                "milestone": None,
+                "action": None,
+                "authority_mode": complete.get("authority_mode"),
+            }, complete
+            assert complete["authority_mode"] in {"direct_local", "shipment_only"}
+            try:
+                derive_checkpoint(closed, requested="M4", purpose="evaluate")
+            except MilestoneTransactionError as exc:
+                assert exc.code == "AMC-ORDER", exc.code
+            else:
+                raise AssertionError("accepted M5 evaluate must refuse")
+            try:
+                derive_checkpoint(closed, requested="M4")
+            except MilestoneTransactionError as exc:
+                assert exc.code == "AMC-ORDER", exc.code
+            else:
+                raise AssertionError("accepted M5 named dispatch must refuse")
+            assert hashlib.sha256(closed_phase.read_bytes()).hexdigest() == closed_hash
+
+        with tempfile.TemporaryDirectory(prefix="apg-derive-circulate-") as circ_temp:
+            circ = Path(circ_temp)
+            circ_reviews = circ / "reviews"
+            circ_reviews.mkdir()
+            circulate_framework = {
+                "mode": "native",
+                "milestones": {
+                    "M1": {"status": "reopened"},
+                    "M2": {"status": "accepted"},
+                    "M3": {"status": "accepted"},
+                    "M4": {"status": "in_progress"},
+                    "M5": {"status": "not_started"},
+                },
+                "events": [{"event_type": "milestone_accepted", "milestone": "M4"}],
+            }
+            circ_phase = circ_reviews / "phase_state.json"
+            circ_phase.write_text(
+                json.dumps({"milestone_framework": circulate_framework}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            circ_hash = hashlib.sha256(circ_phase.read_bytes()).hexdigest()
+            circ_default = derive_checkpoint(circ)
+            assert circ_default["status"] == "READY"
+            assert circ_default["milestone"] == "M1", circ_default
+            named_m4 = derive_checkpoint(circ, requested="M4")
+            assert named_m4["status"] == "READY"
+            assert named_m4["milestone"] == "M4"
+            assert named_m4["action"] == "draft", named_m4
+            assert named_m4["authority_mode"] in {"direct_local", "shipment_only"}
+            circ_eval = derive_checkpoint(circ, requested="M4", purpose="evaluate")
+            assert circ_eval["status"] == "READY"
+            assert circ_eval["milestone"] == "M4"
+            assert circ_eval["action"] == "evaluate"
+            assert hashlib.sha256(circ_phase.read_bytes()).hexdigest() == circ_hash
+
+        with tempfile.TemporaryDirectory(prefix="apg-derive-malformed-") as bad_temp:
+            bad = Path(bad_temp)
+            bad_reviews = bad / "reviews"
+            bad_reviews.mkdir()
+            (bad_reviews / "phase_state.json").write_text(
+                json.dumps(
+                    {"milestone_framework": {"mode": "native", "milestones": {}}},
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            try:
+                derive_checkpoint(bad)
+            except MilestoneTransactionError as exc:
+                assert exc.code == "AMC-PHASE-STATE", exc.code
+            else:
+                raise AssertionError("empty milestones must fail AMC-PHASE-STATE")
+            try:
+                derive_checkpoint(bad, requested="M4", purpose="evaluate")
+            except MilestoneTransactionError as exc:
+                assert exc.code == "AMC-PHASE-STATE", exc.code
+            else:
+                raise AssertionError("named evaluate must preserve AMC-PHASE-STATE")
+
     # C7 coupling: once C2 has rebound the active Generator target, an unbound
     # receipt cannot survive, while a receipt naming the exact marker-committed
     # transition remains replayable through the public gate.

@@ -15,6 +15,7 @@ from typing import Any
 import draft_governance
 import assignment_dispatch_claim as dispatch
 import obligation_result
+from destination_capability import DestinationRefused, assert_writable
 from evidence_publication import publish_committed, validate_committed
 from draft_governance_lifecycle import (
     INVENTORY as LIFECYCLE_INVENTORY,
@@ -29,6 +30,11 @@ _PHASES = {"generation", "evaluation"}
 
 class DraftGovernancePublicationError(RuntimeError):
     """Refuse an unsafe or unverifiable draft-governance publication."""
+
+
+def _assert_publication_writable(*paths: Path, purpose: str) -> None:
+    for path in paths:
+        assert_writable(path, purpose=purpose)
 
 
 def _canonical(value: Any) -> bytes:
@@ -115,6 +121,11 @@ def prepare_contract(
         milestone=milestone,
         phase=phase,
         evidence_label=evidence_label,
+    )
+    _assert_publication_writable(
+        lane / "contract.json",
+        lane / "contract-commit-marker.json",
+        purpose="draft-governance contract publication",
     )
     args = SimpleNamespace(
         project_root=str(project),
@@ -287,6 +298,10 @@ def publish_obligation_results(
         milestone=milestone,
         phase=phase,
         evidence_label=evidence_label,
+    )
+    _assert_publication_writable(
+        lane,
+        purpose="draft-governance obligation publication",
     )
     report_outputs: list[tuple[Path, bytes]] = []
     report_values: dict[str, dict[str, Any]] = {}
@@ -642,6 +657,10 @@ def finalize_evidence(
         phase=phase,
         evidence_label=evidence_label,
     )
+    _assert_publication_writable(
+        lane,
+        purpose="draft-governance finalize publication",
+    )
     try:
         contract = json.loads(contract_file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -969,7 +988,7 @@ def main(argv: list[str] | None = None) -> int:
                 "evidence_id": result["evidence_id"],
                 "commit_marker": str(result["commit_marker"]),
             }
-    except (DraftGovernancePublicationError, OSError, ValueError, KeyError) as exc:
+    except (DraftGovernancePublicationError, DestinationRefused, OSError, ValueError, KeyError) as exc:
         print(
             json.dumps(
                 {

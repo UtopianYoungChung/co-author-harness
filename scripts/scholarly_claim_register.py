@@ -3,6 +3,10 @@
 
 The JSON register is authoritative. Rendered Markdown is a convenience view
 only and never upgrades an incomplete or blocked coverage disposition.
+
+Schema 1.0.0 remains listed-claim partition only. Schema 1.1.0 adds a
+declared byte-accounted document_inventory. Byte coverage is not semantic
+claim-universe completeness and is not a human reference inventory.
 """
 
 from __future__ import annotations
@@ -49,6 +53,12 @@ ATX_RE = re.compile(r"^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$")
 ATX_CLOSING_RE = re.compile(r"^(.*?)(?:[ \t]+#+)[ \t]*$")
 COMMONMARK_LINE_END_RE = re.compile(r"\r\n|\n|\r")
 EVIDENCE_SPAN_FIELDS = {"path", "sha256", "byte_start", "byte_end", "span_sha256"}
+INVENTORY_WHITESPACE = frozenset({0x09, 0x0A, 0x0D, 0x20})
+INVENTORY_LIMITATION = (
+    "Byte coverage of a block does not establish that every assertion in that "
+    "block was inventoried or reviewed. A checked inventory is not an "
+    "independently established human reference inventory."
+)
 
 
 class ClaimRegisterError(RuntimeError):
@@ -464,6 +474,236 @@ def _coverage_findings(value: dict[str, Any]) -> list[dict[str, str]]:
     return []
 
 
+def _block_covers_claim(block_locator: dict[str, Any], claim_locator: dict[str, Any]) -> bool:
+    return (
+        claim_locator["byte_start"] >= block_locator["byte_start"]
+        and claim_locator["byte_end"] <= block_locator["byte_end"]
+    )
+
+
+def _inventory_byte_stats(
+    artifact_raw: bytes, blocks: list[dict[str, Any]]
+) -> dict[str, Any]:
+    covered = bytearray(len(artifact_raw))
+    excluded_ns = 0
+    inaccessible_ns = 0
+    in_scope_ns = 0
+    for block in blocks:
+        start = block["locator"]["byte_start"]
+        end = block["locator"]["byte_end"]
+        coverage = block["coverage"]
+        for index in range(start, min(end, len(artifact_raw))):
+            covered[index] = 1
+            if artifact_raw[index] in INVENTORY_WHITESPACE:
+                continue
+            if coverage == "excluded":
+                excluded_ns += 1
+            elif coverage == "inaccessible":
+                inaccessible_ns += 1
+            else:
+                in_scope_ns += 1
+    uncovered_ns = 0
+    for index, flag in enumerate(covered):
+        if flag == 0 and artifact_raw[index] not in INVENTORY_WHITESPACE:
+            uncovered_ns += 1
+    excluded_blocks = sum(1 for block in blocks if block["coverage"] == "excluded")
+    inaccessible_blocks = sum(1 for block in blocks if block["coverage"] == "inaccessible")
+    in_scope_blocks = sum(1 for block in blocks if block["coverage"] == "in_scope")
+    narrowed = excluded_blocks > 0 or inaccessible_blocks > 0
+    return {
+        "covered_flag": covered,
+        "uncovered_non_whitespace_bytes": uncovered_ns,
+        "excluded_non_whitespace_bytes": excluded_ns,
+        "inaccessible_non_whitespace_bytes": inaccessible_ns,
+        "in_scope_non_whitespace_bytes": in_scope_ns,
+        "excluded_blocks": excluded_blocks,
+        "inaccessible_blocks": inaccessible_blocks,
+        "in_scope_blocks": in_scope_blocks,
+        "narrowed": narrowed,
+    }
+
+
+def _inventory_result(value: dict[str, Any], artifact_raw: bytes) -> dict[str, Any]:
+    inventory = value.get("document_inventory") or {}
+    blocks = inventory.get("blocks") or []
+    stats = _inventory_byte_stats(artifact_raw, blocks)
+    narrowed = bool(stats["narrowed"])
+    # Byte-accounting fact only. Independent of disposition, review_scope,
+    # acceptance, and semantic completeness. Not a document/review/semantic PASS.
+    full_artifact_bytes_accounted = (
+        stats["uncovered_non_whitespace_bytes"] == 0 and bool(blocks)
+    )
+    return {
+        "coverage_basis": "declared_byte_accounted_inventory_and_exclusions",
+        "semantic_claim_universe_complete": False,
+        "human_reference_inventory_established": False,
+        "review_scope": "narrowed" if narrowed else "declared_full_artifact_bytes",
+        "full_artifact_bytes_accounted": full_artifact_bytes_accounted,
+        "whitespace_gaps_ignored": inventory.get("whitespace_gaps_ignored") is True,
+        "in_scope_non_whitespace_bytes": stats["in_scope_non_whitespace_bytes"],
+        "excluded_non_whitespace_bytes": stats["excluded_non_whitespace_bytes"],
+        "inaccessible_non_whitespace_bytes": stats["inaccessible_non_whitespace_bytes"],
+        "uncovered_non_whitespace_bytes": stats["uncovered_non_whitespace_bytes"],
+        "in_scope_blocks": stats["in_scope_blocks"],
+        "excluded_blocks": stats["excluded_blocks"],
+        "inaccessible_blocks": stats["inaccessible_blocks"],
+        "limitation": INVENTORY_LIMITATION,
+    }
+
+
+def _inventory_incomplete_deficits(
+    value: dict[str, Any], artifact_raw: bytes
+) -> list[str]:
+    """Concrete 1.1.0 incomplete deficits. Inaccessible-only is not a deficit."""
+    inventory = value.get("document_inventory") or {}
+    blocks = inventory.get("blocks") or []
+    if not isinstance(blocks, list):
+        return []
+    stats = _inventory_byte_stats(artifact_raw, blocks)
+    deficits: list[str] = []
+    if stats["uncovered_non_whitespace_bytes"]:
+        deficits.append("uncovered_bytes")
+    claim_ids = {claim["claim_id"] for claim in value.get("claims") or []}
+    owners: set[str] = set()
+    in_scope_unclaimed = False
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        bound = list(block.get("claim_ids") or [])
+        if block.get("coverage") == "in_scope":
+            if not bound:
+                in_scope_unclaimed = True
+            owners.update(bound)
+    if in_scope_unclaimed:
+        deficits.append("in_scope_unclaimed")
+    if claim_ids - owners:
+        deficits.append("unassigned_claim")
+    return deficits
+
+
+def _inventory_findings(value: dict[str, Any], artifact_raw: bytes) -> list[dict[str, str]]:
+    if value.get("schema_version") != "1.1.0":
+        return []
+    inventory = value.get("document_inventory")
+    disposition = value["coverage_disposition"]
+    if not isinstance(inventory, dict):
+        if disposition in {"complete", "blocked"}:
+            return [_finding(
+                "SCR-COVERAGE-INVENTORY-MISSING",
+                "1.1.0 complete or blocked coverage requires document_inventory",
+            )]
+        return []
+    blocks = inventory.get("blocks")
+    if not isinstance(blocks, list):
+        return [_finding("SCR-SCHEMA", "document_inventory.blocks must be an array")]
+
+    claims = {claim["claim_id"]: claim for claim in value["claims"]}
+    seen_ids: set[str] = set()
+    claimed_ranges: list[tuple[int, int, str]] = []
+    claim_owners: dict[str, str] = {}
+
+    for block in blocks:
+        if not isinstance(block, dict):
+            return [_finding("SCR-SCHEMA", "inventory block must be an object")]
+        block_id = block.get("block_id")
+        if not isinstance(block_id, str) or not block_id:
+            return [_finding("SCR-SCHEMA", "inventory block_id is missing")]
+        if block_id in seen_ids:
+            return [_finding("SCR-INVENTORY-DUPLICATE-ID", "inventory block IDs must be unique")]
+        seen_ids.add(block_id)
+
+        locator = block.get("locator")
+        if not isinstance(locator, dict):
+            return [_finding("SCR-INVENTORY-STALE", "inventory block locator is missing")]
+        start, end = locator.get("byte_start"), locator.get("byte_end")
+        if (
+            not isinstance(start, int)
+            or isinstance(start, bool)
+            or not isinstance(end, int)
+            or isinstance(end, bool)
+            or end <= start
+            or end > len(artifact_raw)
+        ):
+            return [_finding("SCR-INVENTORY-STALE", "inventory block locator does not bind exact artifact bytes")]
+        span = artifact_raw[start:end]
+        if block.get("span_sha256") != _sha_bytes(span):
+            return [_finding("SCR-INVENTORY-STALE", "inventory block span hash is not current")]
+        actual_line = _commonmark_line_number(artifact_raw, start)
+        if actual_line is None or locator.get("line") != actual_line:
+            return [_finding("SCR-INVENTORY-STALE", "inventory block line locator is not current")]
+        actual_section = _nearest_section(artifact_raw, start)
+        if actual_section is None or locator.get("section") != actual_section:
+            return [_finding("SCR-INVENTORY-STALE", "inventory block section locator is not current")]
+
+        coverage = block.get("coverage")
+        if coverage in {"excluded", "inaccessible"}:
+            reason = block.get("reason")
+            if not isinstance(reason, str) or not reason:
+                return [_finding("SCR-SCHEMA", "excluded or inaccessible block requires a reason")]
+            if block.get("claim_ids"):
+                return [_finding(
+                    "SCR-INVENTORY-CLAIM-REF",
+                    "excluded or inaccessible block cannot list claim_ids",
+                )]
+
+        for other_start, other_end, other_id in claimed_ranges:
+            if not (end <= other_start or other_end <= start):
+                return [_finding(
+                    "SCR-INVENTORY-OVERLAP",
+                    f"inventory blocks overlap: {block_id} and {other_id}",
+                )]
+        claimed_ranges.append((start, end, block_id))
+
+        for claim_id in block.get("claim_ids") or []:
+            claim = claims.get(claim_id)
+            if claim is None:
+                return [_finding(
+                    "SCR-INVENTORY-CLAIM-REF",
+                    "inventory block names an absent claim",
+                    claim_id,
+                )]
+            if not _block_covers_claim(locator, claim["locator"]):
+                return [_finding(
+                    "SCR-INVENTORY-CLAIM-RANGE",
+                    "claim locator is outside the bound inventory block",
+                    claim_id,
+                )]
+            if claim_id in claim_owners:
+                return [_finding(
+                    "SCR-INVENTORY-CLAIM-REF",
+                    "claim is bound to more than one inventory block",
+                    claim_id,
+                )]
+            claim_owners[claim_id] = block_id
+
+    stats = _inventory_byte_stats(artifact_raw, blocks)
+    if disposition == "complete":
+        if stats["inaccessible_blocks"]:
+            return [_finding(
+                "SCR-COVERAGE-INACCESSIBLE",
+                "complete coverage cannot include inaccessible document blocks",
+            )]
+        if stats["uncovered_non_whitespace_bytes"]:
+            return [_finding(
+                "SCR-COVERAGE-UNCOVERED-BYTES",
+                "non-whitespace artifact bytes are not covered by inventory blocks or excluded spans",
+            )]
+        for block in blocks:
+            if block.get("coverage") == "in_scope" and not block.get("claim_ids"):
+                return [_finding(
+                    "SCR-COVERAGE-IN-SCOPE-UNCLAIMED",
+                    "in_scope block has no bound claim",
+                )]
+        for claim_id in claims:
+            if claim_id not in claim_owners:
+                return [_finding(
+                    "SCR-INVENTORY-CLAIM-REF",
+                    "registered claim is not bound to an in_scope inventory block",
+                    claim_id,
+                )]
+    return []
+
+
 def _validate_register_value(
     artifact_path: Path,
     register_path: Path,
@@ -482,11 +722,29 @@ def _validate_register_value(
         )
     if not findings and artifact_raw is not None:
         findings = _claim_findings(value, artifact_raw, register_path, reads)
+    inventory_deficits: list[str] = []
+    if not findings and value.get("schema_version") == "1.1.0" and artifact_raw is not None:
+        findings = _inventory_findings(value, artifact_raw)
+        if not findings:
+            inventory_deficits = _inventory_incomplete_deficits(value, artifact_raw)
     if not findings:
         findings = _coverage_findings(value)
+        if (
+            findings
+            and value.get("schema_version") == "1.1.0"
+            and value.get("coverage_disposition") == "incomplete"
+            and inventory_deficits
+            and all(
+                row.get("code") == "SCR-COVERAGE-INCOMPLETE"
+                and row.get("message")
+                == "incomplete coverage declares no concrete addition or omission"
+                for row in findings
+            )
+        ):
+            findings = []
     if findings:
         return {"status": "refused", "findings": findings}
-    return {
+    result = {
         "status": "qualified" if value["coverage_disposition"] == "complete" else value["coverage_disposition"],
         "coverage_disposition": value["coverage_disposition"],
         "claim_count": len(value["claims"]),
@@ -495,6 +753,9 @@ def _validate_register_value(
         "evaluator_omission_count": len(value["evaluator_omissions"]),
         "findings": [],
     }
+    if value.get("schema_version") == "1.1.0" and artifact_raw is not None:
+        result["document_inventory_result"] = _inventory_result(value, artifact_raw)
+    return result
 
 
 def validate_register(
@@ -562,8 +823,16 @@ def validate_register_with_dependencies(
     return {**result, "dependencies": reads.rows()}
 
 
-def render_markdown(value: dict[str, Any]) -> str:
-    """Render a non-authoritative human-readable view of a validated register."""
+def _escape_md_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def render_markdown(value: dict[str, Any], result: dict[str, Any] | None = None) -> str:
+    """Render a non-authoritative human-readable view of a validated register.
+
+    Does not reread artifact bytes. Optional ``result`` may supply already
+    validated snapshot statistics; those are not new verification claims.
+    """
     lines = [
         "<!-- NON-AUTHORITATIVE VIEW: the JSON scholarly claim register governs. -->",
         "# Scholarly Claim Register",
@@ -572,15 +841,84 @@ def render_markdown(value: dict[str, Any]) -> str:
         f"- Artifact: `{value['artifact']['path']}`",
         f"- Artifact SHA-256: `{value['artifact']['sha256']}`",
         f"- Coverage: `{value['coverage_disposition']}`",
-        "",
-        "| Claim | Viewpoint | Provenance | Admission/use | Argument leg | Modal force | Warrant |",
-        "|---|---|---|---|---|---|---|",
     ]
+    if value.get("schema_version") == "1.1.0":
+        inventory = value.get("document_inventory") or {}
+        blocks = inventory.get("blocks") if isinstance(inventory, dict) else None
+        if not isinstance(blocks, list):
+            blocks = []
+        declared_narrowed = any(
+            isinstance(block, dict) and block.get("coverage") in {"excluded", "inaccessible"}
+            for block in blocks
+        )
+        declared_scope = "narrowed" if declared_narrowed else "declared_full_artifact_bytes"
+        lines.extend(
+            [
+                "- Inventory coverage basis: `declared_byte_accounted_inventory_and_exclusions`",
+                "- Semantic claim-universe completeness: `not established`",
+                "- Human reference inventory: `not established`",
+                f"- Declared review_scope: `{declared_scope}`",
+                f"- Limitation: {INVENTORY_LIMITATION}",
+            ]
+        )
+        snapshot = None
+        if isinstance(result, dict):
+            snapshot = result.get("document_inventory_result")
+        if isinstance(snapshot, dict):
+            lines.extend(
+                [
+                    "- Validated snapshot review_scope: "
+                    f"`{snapshot.get('review_scope')}`",
+                    "- Validated snapshot full_artifact_bytes_accounted: "
+                    f"`{snapshot.get('full_artifact_bytes_accounted')}`",
+                    "- Validated snapshot uncovered_non_whitespace_bytes: "
+                    f"`{snapshot.get('uncovered_non_whitespace_bytes')}`",
+                    "- Snapshot statistics are copied from the already validated "
+                    "result; this view does not re-verify artifact bytes.",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "## Declared document inventory (non-authoritative)",
+                "",
+                "| block_id | kind | range | coverage | reason | claim_ids |",
+                "|---|---|---|---|---|---|",
+            ]
+        )
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            locator = block.get("locator") if isinstance(block.get("locator"), dict) else {}
+            start = locator.get("byte_start")
+            end = locator.get("byte_end")
+            claim_ids = ",".join(str(item) for item in (block.get("claim_ids") or []))
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _escape_md_cell(block.get("block_id", "")),
+                        _escape_md_cell(block.get("kind", "")),
+                        _escape_md_cell(f"[{start},{end})"),
+                        _escape_md_cell(block.get("coverage", "")),
+                        _escape_md_cell(block.get("reason", "")),
+                        _escape_md_cell(claim_ids),
+                    ]
+                )
+                + " |"
+            )
+    lines.extend(
+        [
+            "",
+            "| Claim | Viewpoint | Provenance | Admission/use | Argument leg | Modal force | Warrant |",
+            "|---|---|---|---|---|---|---|",
+        ]
+    )
     for claim in value["claims"]:
         lines.append(
             "| "
             + " | ".join(
-                str(claim[key]).replace("|", "\\|").replace("\n", " ")
+                _escape_md_cell(claim[key])
                 for key in (
                     "claim_id",
                     "viewpoint",
@@ -616,7 +954,7 @@ def main(argv: list[str] | None = None) -> int:
     if result["findings"] or not args.render:
         print(json.dumps(result, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
     else:
-        print(render_markdown(value), end="")
+        print(render_markdown(value, result), end="")
     return 0 if not result["findings"] else 2
 
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://co-author-harness.local/schemas/scholarly_claim_register.schema.json",
-  "title": "Scholarly claim register 1.0.0",
+  "title": "Scholarly claim register 1.0.0 / 1.1.0",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
     "created_at"
   ],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"enum": ["1.0.0", "1.1.0"]},
     "register_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
     "artifact": {"$ref": "#/$defs/artifactBinding"},
     "review_dispatch": {"$ref": "#/$defs/reviewDispatch"},
@@ -39,8 +39,23 @@
     "created_at": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
-    }
+    },
+    "document_inventory": {"$ref": "#/$defs/documentInventory"}
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"schema_version": {"const": "1.1.0"}},
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["document_inventory"]
+      },
+      "else": {
+        "properties": {"document_inventory": false}
+      }
+    }
+  ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "claimId": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
@@ -73,6 +88,57 @@
         "byte_start": {"type": "integer", "minimum": 0},
         "byte_end": {"type": "integer", "minimum": 1}
       }
+    },
+    "documentInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocks", "whitespace_gaps_ignored"],
+      "properties": {
+        "blocks": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/inventoryBlock"}
+        },
+        "whitespace_gaps_ignored": {"const": true}
+      }
+    },
+    "inventoryBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "kind", "locator", "span_sha256", "coverage"],
+      "properties": {
+        "block_id": {"$ref": "#/$defs/claimId"},
+        "kind": {
+          "enum": [
+            "heading",
+            "paragraph",
+            "sentence",
+            "table",
+            "table_cell",
+            "caption",
+            "note",
+            "figure",
+            "other"
+          ]
+        },
+        "locator": {"$ref": "#/$defs/locator"},
+        "span_sha256": {"$ref": "#/$defs/sha256"},
+        "coverage": {"enum": ["in_scope", "excluded", "inaccessible"]},
+        "claim_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/claimId"},
+          "uniqueItems": true
+        },
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"coverage": {"enum": ["excluded", "inaccessible"]}},
+            "required": ["coverage"]
+          },
+          "then": {"required": ["reason"]}
+        }
+      ]
     },
     "claim": {
       "type": "object",

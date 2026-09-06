@@ -2873,6 +2873,56 @@ def run_repin(*, harness_root: Path, profile_path: Path, wiki_root: Path | None,
                 sys.stderr.write("cleanup warning while preserving primary re-pin failure: " + "; ".join(cleanup_errors) + "\n")
 
 
+def _guard_cli_out_destination(out_path: Path) -> None:
+    """Refuse CLI --out before mkdir or file mutation.
+
+    Guard the final path and every missing ancestor mkdir(parents=True)
+    would create. Stop at the first existing ancestor so a writable leaf
+    is not failed closed by a protected parent root.
+    """
+    from destination_capability import assert_writable
+    target = Path(os.path.abspath(os.fspath(out_path)))
+    assert_writable(target, purpose="cli-out")
+    cursor = target.parent
+    while not cursor.exists():
+        assert_writable(cursor, purpose="cli-out")
+        parent = cursor.parent
+        if parent == cursor:
+            break
+        cursor = parent
+
+
+def _write_cli_out(out_path: Path, text: str) -> None:
+    """Write CLI --out as UTF-8 without BOM after destination_capability guard."""
+    _guard_cli_out_destination(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def _write_cli_stream(stream: Any, text: str) -> None:
+    """Write documented CLI stdout/stderr as UTF-8, independent of locale stdio.
+
+    Ordinary Windows streams may be cp949 (or another locale codec) and cannot
+    encode U+2014. JSON and diagnostic paths must keep decoded non-ASCII.
+    Never use errors='replace'. Never delete non-ASCII.
+    """
+    data = text.encode("utf-8")
+    try:
+        stream.flush()
+    except Exception:
+        pass
+    buffer = getattr(stream, "buffer", None)
+    if buffer is not None:
+        buffer.write(data)
+        buffer.flush()
+        return
+    stream.write(text)
+    try:
+        stream.flush()
+    except Exception:
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
@@ -2928,7 +2978,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 guard_project_root(args.project_root)
         except DestinationRefused as exc:
-            print(f"[BLOCKER] {exc}")
+            _write_cli_stream(sys.stdout, f"[BLOCKER] {exc}\n")
             return 4
     try:
         if args.backfill_repin_commit:
@@ -2950,14 +3000,26 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = resolve_policy(args.project_root, profile_path=args.profile, wiki_root=args.wiki_root, workspace_root=args.workspace_root, harness_root=args.harness_root)
     except PolicyError as exc:
-        print(json.dumps({"status": "MISCONFIGURED", "code": "RA-POLICY", "message": str(exc)}))
+        from destination_capability import DestinationRefused
+        diagnostic = json.dumps(policy_error_payload(exc))
+        _write_cli_stream(sys.stdout, diagnostic + "\n")
+        if args.out:
+            try:
+                _write_cli_out(args.out, diagnostic + "\n")
+            except DestinationRefused as refused:
+                _write_cli_stream(sys.stderr, f"[BLOCKER] {refused}\n")
         return 4
     payload = render_policy_view(result["resolved_profile"]) if args.render_view and not args.repin else json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.out:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(payload, encoding="utf-8", newline="\n")
+        from destination_capability import DestinationRefused
+        try:
+            _write_cli_out(args.out, payload)
+        except DestinationRefused as refused:
+            _write_cli_stream(sys.stdout, payload)
+            _write_cli_stream(sys.stderr, f"[BLOCKER] {refused}\n")
+            return 4
     else:
-        print(payload, end="")
+        _write_cli_stream(sys.stdout, payload)
     return 0
 
 

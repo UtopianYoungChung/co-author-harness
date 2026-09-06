@@ -16,6 +16,7 @@ import draft_governance_publish as draft_publish
 import scholarly_evaluation_publish as scholarly_publish
 import assignment_dispatch_claim as dispatch
 import evidence_publication
+from destination_capability import DEST_PROTECTED, DestinationRefused
 from assignment_milestone_transaction import record as record_transaction
 from c2_evidence_fixture_support import build_activation_fixture
 from assignment_milestone_checkpoint_smoketest import (
@@ -89,7 +90,444 @@ def _committed_consumptions(project: Path, claim_id: str) -> list[Path]:
     return matches
 
 
+def _hermetic_governed_root(base: Path) -> Path:
+    fake = base / "fake-ws"
+    (fake / "research" / "60_Workbench").mkdir(parents=True)
+    (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True)
+    (fake / "knowledge").mkdir(parents=True)
+    manifest = fake / "governance" / "output-routing" / "output_routing.yaml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
+    return fake
+
+
+def _protected_refusal(exc: BaseException) -> bool:
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, DestinationRefused) and current.code == DEST_PROTECTED:
+            return True
+        if "DEST-PROTECTED" in str(current):
+            return True
+        current = current.__cause__
+    return False
+
+
+def _relative_entries(root: Path) -> set[Path]:
+    return {p.relative_to(root) for p in root.rglob("*")}
+
+
+def _run_protected_transaction_id_probe(*, action: str) -> None:
+    """Refuse ../../../forbidden with no new files or directories.
+
+    Codex WP2h probe (guards unmocked, hermetic Temp only): post-006
+    publish_committed created forbidden/, forbidden/prepared, and
+    reviews/.harness/evidence-transactions then raised DEST-PROTECTED.
+    Pre-006 refused with new_paths=[]. Preserve that preflight: validate
+    every intended control/output destination before mkdir/ensure_directory.
+    """
+    previous = os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS")
+    with tempfile.TemporaryDirectory(
+        prefix="research-assurance-wp2i-protected-"
+    ) as raw:
+        fake = _hermetic_governed_root(Path(raw))
+        root = fake / "research" / "60_Workbench" / "probe"
+        root.mkdir()
+        out = root / "reviews" / ".harness" / "evidence" / "probe"
+        out.mkdir(parents=True)
+        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
+        try:
+            before = _relative_entries(root)
+            refused: BaseException | None = None
+            try:
+                if action == "publish":
+                    evidence_publication.publish_committed(
+                        project_root=root,
+                        transaction_id="../../../forbidden",
+                        preconditions=[],
+                        inventory_preconditions=[],
+                        outputs=[(out / "product.json", b"{}\n")],
+                        marker=(out / "marker.json", b"{}\n"),
+                    )
+                elif action == "recover":
+                    evidence_publication.recover_committed(
+                        project_root=root,
+                        transaction_id="../../../forbidden",
+                        acknowledgement="inspected-evidence-state-and-journal",
+                        preconditions=[],
+                        inventory_preconditions=[],
+                        outputs=[(out / "product.json", b"{}\n")],
+                        marker=(out / "marker.json", b"{}\n"),
+                        destination_validator=lambda _path: None,
+                    )
+                else:
+                    raise AssertionError(f"unknown protected probe action: {action}")
+            except BaseException as exc:
+                refused = exc
+            after = _relative_entries(root)
+            new_paths = after - before
+            assert refused is not None, (
+                f"protected transaction_id {action} succeeded"
+            )
+            assert _protected_refusal(refused), refused
+            assert new_paths == set(), (
+                f"protected transaction_id {action} mutated the filesystem "
+                f"including directories before DEST-PROTECTED refusal: "
+                + str(sorted(str(p) for p in new_paths))
+            )
+            assert not (root / "forbidden").exists()
+            assert not (root / "forbidden" / "prepared").exists()
+            assert not (root / "forbidden" / "recovery").exists()
+        finally:
+            if previous is None:
+                os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+            else:
+                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = previous
+
+
+def case_protected_transaction_id_publish_creates_no_directories() -> None:
+    _run_protected_transaction_id_probe(action="publish")
+
+
+def case_protected_transaction_id_recover_creates_no_directories() -> None:
+    _run_protected_transaction_id_probe(action="recover")
+
+
+def _attempt_directory_substitution(
+    source: Path, saved: Path, outside: Path
+) -> str:
+    """Try to replace source with a link to outside. Return completed|prevented."""
+    try:
+        source.rename(saved)
+    except OSError:
+        return "prevented"
+    try:
+        _directory_link(source, outside)
+    except BaseException:
+        if saved.exists():
+            saved.rename(source)
+        raise
+    return "completed"
+
+
+def case_late_open_marker_parent_substitution_is_contained() -> None:
+    """Late-open substitution at actual exclusive-create backends.
+
+    NT exclusive marker creation uses Path.open('xb'). POSIX exclusive
+    marker creation uses os.open(..., O_EXCL, dir_fd=parent) via
+    _exclusive_create_posix, so a Path.open('xb')-only hook never runs on
+    that backend. Hook both mutation points. Do not fake os.name and do
+    not mock destination_capability guards. A prevented OS rename is a
+    valid negative. Escape is a new file or directory outside the admitted
+    root. attempted / prevented / completed are recorded separately.
+    Handle-relative create may succeed in-root after a completed swap;
+    path-based create after a completed swap must not write outside.
+    """
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory(
+        prefix="research-assurance-wp2i-late-open-"
+    ) as raw:
+        base = Path(raw).resolve()
+        root = base / "project"
+        root.mkdir()
+        parent = root / "artifacts"
+        parent.mkdir()
+        saved = root / "artifacts-original"
+        outside = base / "outside"
+        outside.mkdir()
+        marker = parent / "commit-marker.json"
+        original_open = Path.open
+        original_os_open = evidence_publication.os.open
+        attempted: list[str] = []
+        substitution = "not_attempted"
+
+        def _try_substitute(backend: str) -> None:
+            nonlocal substitution
+            if attempted:
+                return
+            attempted.append(backend)
+            assert parent.resolve().is_relative_to(base)
+            assert outside.resolve().is_relative_to(base)
+            substitution = _attempt_directory_substitution(parent, saved, outside)
+
+        def injected_open(self: Path, mode: str = "r", *args: object, **kwargs: object):
+            if self == marker and mode == "xb" and not attempted:
+                _try_substitute("path.open.xb")
+                if substitution == "prevented":
+                    return original_open(self, mode, *args, **kwargs)
+            return original_open(self, mode, *args, **kwargs)
+
+        def injected_os_open(path: str | bytes | os.PathLike[str], flags: int = 0, *args: object, **kwargs: object):
+            name = os.fspath(path)
+            excl = bool(flags & getattr(os, "O_EXCL", 0))
+            if (
+                excl
+                and os.path.basename(name) == marker.name
+                and not attempted
+            ):
+                _try_substitute("os.open.excl")
+                if substitution == "prevented":
+                    return original_os_open(path, flags, *args, **kwargs)
+            return original_os_open(path, flags, *args, **kwargs)
+
+        publisher_returned: str
+        try:
+            with (
+                patch.object(Path, "open", injected_open),
+                patch.object(evidence_publication.os, "open", injected_os_open),
+            ):
+                try:
+                    evidence_publication.publish_committed(
+                        project_root=root,
+                        transaction_id="codex-final-open-probe",
+                        preconditions=[],
+                        inventory_preconditions=[],
+                        outputs=[(parent / "product.json", b"{}\n")],
+                        marker=(marker, b'{"committed":true}\n'),
+                    )
+                    publisher_returned = "success"
+                except Exception as exc:
+                    publisher_returned = f"{type(exc).__name__}: {exc}"
+            outside_files = sorted(
+                p.name for p in outside.iterdir() if p.is_file()
+            )
+            outside_dirs = sorted(
+                p.name for p in outside.iterdir() if p.is_dir()
+            )
+            outside_marker = (
+                (outside / "commit-marker.json").read_bytes()
+                if (outside / "commit-marker.json").is_file()
+                else None
+            )
+        finally:
+            if substitution == "completed":
+                _remove_directory_link(parent)
+                if saved.exists():
+                    saved.rename(parent)
+
+        if outside_files or outside_dirs or outside_marker is not None:
+            raise AssertionError(
+                "late-open exclusive-create marker-parent substitution wrote "
+                f"outside the admitted root: files={outside_files} "
+                f"dirs={outside_dirs} marker={outside_marker!r} "
+                f"publisher_returned={publisher_returned} "
+                f"substitution={substitution} attempted={attempted} "
+                f"os.name={os.name!r}"
+            )
+        if not attempted:
+            raise AssertionError(
+                "late-open exclusive-create probe did not run; reproducer is "
+                f"incomplete publisher_returned={publisher_returned} "
+                f"substitution={substitution} os.name={os.name!r}"
+            )
+        if publisher_returned == "success":
+            assert (parent / "commit-marker.json").read_bytes() == b'{"committed":true}\n'
+            assert (parent / "product.json").read_bytes() == b"{}\n"
+
+
+def case_direct_publish_and_recover_roundtrip() -> None:
+    """Normal permitted publish/validate/recover still succeed in-root."""
+    with tempfile.TemporaryDirectory(
+        prefix="research-assurance-wp2h-positive-"
+    ) as raw:
+        base = Path(raw).resolve()
+        root = base / "project"
+        root.mkdir()
+        parent = root / "artifacts"
+        parent.mkdir()
+        product = parent / "product.json"
+        marker = parent / "commit-marker.json"
+        product_bytes = b"{}\n"
+        marker_bytes = b'{"committed":true}\n'
+        evidence_publication.publish_committed(
+            project_root=root,
+            transaction_id="wp2h-positive-roundtrip",
+            preconditions=[],
+            inventory_preconditions=[],
+            outputs=[(product, product_bytes)],
+            marker=(marker, marker_bytes),
+        )
+        assert product.read_bytes() == product_bytes
+        assert marker.read_bytes() == marker_bytes
+        evidence_publication.validate_committed(
+            project_root=root,
+            transaction_id="wp2h-positive-roundtrip",
+            preconditions=[],
+            inventory_preconditions=[],
+            outputs=[(product, product_bytes)],
+            marker=(marker, marker_bytes),
+        )
+        recovered = evidence_publication.recover_committed(
+            project_root=root,
+            transaction_id="wp2h-positive-roundtrip",
+            acknowledgement="inspected-evidence-state-and-journal",
+            preconditions=[],
+            inventory_preconditions=[],
+            outputs=[(product, product_bytes)],
+            marker=(marker, marker_bytes),
+            destination_validator=lambda _path: None,
+        )
+        assert recovered == "committed"
+        assert product.read_bytes() == product_bytes
+        assert marker.read_bytes() == marker_bytes
+
+
+def case_admitted_root_rename_is_prevented_or_refused() -> None:
+    """Root rename between validation and use must not write outside."""
+    with tempfile.TemporaryDirectory(
+        prefix="research-assurance-wp2h-root-sub-"
+    ) as raw:
+        base = Path(raw).resolve()
+        holder = base / "holder"
+        holder.mkdir()
+        root = holder / "project"
+        root.mkdir()
+        parent = root / "artifacts"
+        parent.mkdir()
+        saved = holder / "project-original"
+        outside = base / "outside"
+        outside.mkdir()
+        marker = parent / "commit-marker.json"
+        substitution = "not_attempted"
+
+        def inject_root_swap() -> None:
+            nonlocal substitution
+            substitution = _attempt_directory_substitution(root, saved, outside)
+
+        try:
+            try:
+                evidence_publication.publish_committed(
+                    project_root=root,
+                    transaction_id="wp2h-root-substitution",
+                    preconditions=[],
+                    inventory_preconditions=[],
+                    outputs=[(parent / "product.json", b"{}\n")],
+                    marker=(marker, b'{"committed":true}\n'),
+                    under_claim_validator=inject_root_swap,
+                )
+                publisher_returned = "success"
+            except Exception as exc:
+                publisher_returned = f"{type(exc).__name__}: {exc}"
+            outside_files = sorted(
+                p.name for p in outside.iterdir() if p.is_file()
+            )
+        finally:
+            if substitution == "completed":
+                _remove_directory_link(root)
+                if saved.exists():
+                    saved.rename(root)
+
+        if substitution == "not_attempted":
+            raise AssertionError(
+                "admitted-root substitution did not trigger under claim "
+                f"publisher_returned={publisher_returned}"
+            )
+        if outside_files:
+            raise AssertionError(
+                "admitted-root substitution wrote outside the admitted root: "
+                f"{outside_files} substitution={substitution} "
+                f"publisher_returned={publisher_returned}"
+            )
+        if substitution == "completed" and publisher_returned == "success":
+            raise AssertionError(
+                "admitted-root substitution completed and publisher returned success"
+            )
+
+
+def case_publishers_refuse_protected_and_escaping_destinations() -> None:
+    with tempfile.TemporaryDirectory(prefix="publisher-dest-refuse-") as raw:
+        fake = _hermetic_governed_root(Path(raw))
+        project = fake / "research" / "protected-not-workbench" / "probe"
+        project.mkdir(parents=True)
+        artifact = project / "artifact.md"
+        artifact.write_text("# probe\n", encoding="utf-8")
+        claim = project / "claim.json"
+        claim.write_text("{}\n", encoding="utf-8")
+        previous = os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS")
+        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
+        try:
+            before = {p.relative_to(project) for p in project.rglob("*")}
+            refused = None
+            try:
+                draft_publish.prepare_contract(
+                    project_root=project,
+                    artifact=artifact,
+                    milestone="M1",
+                    phase="generation",
+                    role="generator",
+                    evidence_label="dest-probe",
+                )
+            except (
+                DestinationRefused,
+                draft_publish.DraftGovernancePublicationError,
+            ) as exc:
+                refused = exc
+            assert refused is not None, "draft publisher accepted a protected destination"
+            assert _protected_refusal(refused), refused
+            after = {p.relative_to(project) for p in project.rglob("*")}
+            assert after == before, (
+                "draft publisher wrote partial output on a protected destination: "
+                + str(sorted(str(p) for p in (after - before))[:8])
+            )
+
+            before = {p.relative_to(project) for p in project.rglob("*")}
+            refused = None
+            try:
+                scholarly_publish.publish_evaluation(
+                    project_root=project,
+                    artifact=artifact,
+                    evaluation_claim=claim,
+                    evaluation_id="SET-DEST-PROBE",
+                    milestone="M1",
+                    criteria=["c1"],
+                    scholarly_profile={},
+                    claim_register={},
+                    judgment={},
+                    created_at="2026-09-05T00:00:00Z",
+                )
+            except (
+                DestinationRefused,
+                scholarly_publish.ScholarlyPublicationError,
+            ) as exc:
+                refused = exc
+            assert refused is not None, (
+                "scholarly publisher accepted a protected destination"
+            )
+            assert _protected_refusal(refused), refused
+            after = {p.relative_to(project) for p in project.rglob("*")}
+            assert after == before, (
+                "scholarly publisher wrote partial output on a protected destination: "
+                + str(sorted(str(p) for p in (after - before))[:8])
+            )
+
+            for invalid in ("", "../escape", "bad\\name", "bad/name", "bad:name"):
+                try:
+                    draft_publish.publication_lane(
+                        project,
+                        milestone="M1",
+                        phase="generation",
+                        evidence_label=invalid,
+                    )
+                except draft_publish.DraftGovernancePublicationError:
+                    pass
+                else:
+                    raise AssertionError(
+                        f"unsafe evidence label was accepted: {invalid!r}"
+                    )
+        finally:
+            if previous is None:
+                os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+            else:
+                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = previous
+
+
 def main() -> int:
+    case_publishers_refuse_protected_and_escaping_destinations()
+    case_protected_transaction_id_publish_creates_no_directories()
+    case_protected_transaction_id_recover_creates_no_directories()
+    case_late_open_marker_parent_substitution_is_contained()
+    case_direct_publish_and_recover_roundtrip()
+    case_admitted_root_rename_is_prevented_or_refused()
     with tempfile.TemporaryDirectory(
         prefix="production-evidence-publisher-", dir=ROOT
     ) as raw:
@@ -160,28 +598,33 @@ def main() -> int:
         outside = Path(raw) / "outside-publication"
         outside.mkdir()
 
+        publication_swap = "not_attempted"
+
         def swap_publication_parent() -> None:
-            escape_parent.replace(safe_parent)
-            _directory_link(escape_parent, outside)
+            nonlocal publication_swap
+            try:
+                escape_parent.replace(safe_parent)
+                _directory_link(escape_parent, outside)
+                publication_swap = "completed"
+            except OSError:
+                publication_swap = "prevented"
 
         original_durable_write = evidence_publication._durable_write
-        swapped = False
 
         def inject_junction_after_prepare(
             path: Path, data: bytes, **kwargs: object
         ) -> None:
-            nonlocal swapped
             original_durable_write(path, data, **kwargs)
             if (
-                not swapped
+                publication_swap == "not_attempted"
                 and path.name == "journal.json"
                 and b'"state":"publishing"' in data
             ):
                 swap_publication_parent()
-                swapped = True
 
         evidence_publication._durable_write = inject_junction_after_prepare
         try:
+            publication_result = "success"
             try:
                 evidence_publication.publish_committed(
                     project_root=project,
@@ -191,20 +634,28 @@ def main() -> int:
                     outputs=[(escape_parent / "product.json", b"{}\n")],
                     marker=(escape_parent / "commit-marker.json", b"{}\n"),
                 )
-            except evidence_publication.EvidencePublicationError:
-                pass
-            else:
+            except (evidence_publication.EvidencePublicationError, OSError):
+                publication_result = "refused"
+            if publication_swap == "not_attempted":
+                raise AssertionError(
+                    "ancestor junction swap did not trigger during publication"
+                )
+            if publication_swap == "completed" and publication_result == "success":
                 raise AssertionError(
                     "evidence publication accepted an ancestor junction swap"
                 )
             assert not (outside / "product.json").exists(), (
                 "junction substitution redirected publication outside the project"
             )
+            assert list(outside.iterdir()) == [], (
+                "outside content changed during publication ancestor substitution"
+            )
         finally:
             evidence_publication._durable_write = original_durable_write
-            _remove_directory_link(escape_parent)
-            if safe_parent.exists():
-                safe_parent.replace(escape_parent)
+            if publication_swap == "completed":
+                _remove_directory_link(escape_parent)
+                if safe_parent.exists():
+                    safe_parent.replace(escape_parent)
         publication_lock = (
             project / ".harness-evidence-transactions/publication.lock"
         )
@@ -227,46 +678,91 @@ def main() -> int:
                     "evidence recovery bypassed the project publication lock"
                 )
         (escape_parent / "product.json").write_bytes(b"{}\n")
+        recovery_parent = project / "reviews/.harness/evidence/junction-recovery"
+        recovery_parent.mkdir(parents=True, exist_ok=True)
+        recovery_safe = recovery_parent.with_name("junction-recovery-safe")
+        recovery_product = recovery_parent / "product.json"
+        recovery_marker = recovery_parent / "commit-marker.json"
         original_exclusive_marker = evidence_publication._exclusive_marker
-        recovery_swapped = False
 
-        def inject_recovery_junction(
+        def interrupt_before_marker(
             path: Path, data: bytes, **kwargs: object
         ) -> None:
-            nonlocal recovery_swapped
-            if not recovery_swapped and path.name == "commit-marker.json":
-                swap_publication_parent()
-                recovery_swapped = True
+            if path.name == "commit-marker.json":
+                raise OSError("injected interrupt before marker")
             original_exclusive_marker(path, data, **kwargs)
 
-        evidence_publication._exclusive_marker = inject_recovery_junction
+        evidence_publication._exclusive_marker = interrupt_before_marker
         try:
             try:
-                evidence_publication.recover_committed(
+                evidence_publication.publish_committed(
                     project_root=project,
-                    transaction_id="junction-escape-regression",
-                    acknowledgement="inspected-evidence-state-and-journal",
+                    transaction_id="junction-escape-recovery",
                     preconditions=[],
                     inventory_preconditions=[],
-                    outputs=[(escape_parent / "product.json", b"{}\n")],
-                    marker=(escape_parent / "commit-marker.json", b"{}\n"),
-                    destination_validator=lambda _path: None,
+                    outputs=[(recovery_product, b"{}\n")],
+                    marker=(recovery_marker, b"{}\n"),
                 )
             except evidence_publication.EvidencePublicationError:
                 pass
             else:
+                raise AssertionError(
+                    "setup publish did not interrupt before the recovery marker"
+                )
+        finally:
+            evidence_publication._exclusive_marker = original_exclusive_marker
+        recovery_product.write_bytes(b"{}\n")
+        recovery_swap = "not_attempted"
+
+        def inject_recovery_junction(
+            path: Path, data: bytes, **kwargs: object
+        ) -> None:
+            nonlocal recovery_swap
+            if recovery_swap == "not_attempted" and path.name == "commit-marker.json":
+                try:
+                    recovery_parent.replace(recovery_safe)
+                    _directory_link(recovery_parent, outside)
+                    recovery_swap = "completed"
+                except OSError:
+                    recovery_swap = "prevented"
+            original_exclusive_marker(path, data, **kwargs)
+
+        evidence_publication._exclusive_marker = inject_recovery_junction
+        try:
+            recovery_result = "success"
+            try:
+                evidence_publication.recover_committed(
+                    project_root=project,
+                    transaction_id="junction-escape-recovery",
+                    acknowledgement="inspected-evidence-state-and-journal",
+                    preconditions=[],
+                    inventory_preconditions=[],
+                    outputs=[(recovery_product, b"{}\n")],
+                    marker=(recovery_marker, b"{}\n"),
+                    destination_validator=lambda _path: None,
+                )
+            except (evidence_publication.EvidencePublicationError, OSError):
+                recovery_result = "refused"
+            if recovery_swap == "not_attempted":
+                raise AssertionError(
+                    "ancestor junction swap did not trigger during recovery"
+                )
+            if recovery_swap == "completed" and recovery_result == "success":
                 raise AssertionError(
                     "evidence recovery accepted an ancestor junction swap"
                 )
             assert not (outside / "commit-marker.json").exists(), (
                 "junction substitution redirected recovery outside the project"
             )
+            assert list(outside.iterdir()) == [], (
+                "outside content changed during recovery ancestor substitution"
+            )
         finally:
             evidence_publication._exclusive_marker = original_exclusive_marker
-            if recovery_swapped:
-                _remove_directory_link(escape_parent)
-                if safe_parent.exists():
-                    safe_parent.replace(escape_parent)
+            if recovery_swap == "completed":
+                _remove_directory_link(recovery_parent)
+                if recovery_safe.exists():
+                    recovery_safe.replace(recovery_parent)
         write_valid_contract(project)
         _write_json(
             project / "project_manifest.json",

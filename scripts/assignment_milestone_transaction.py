@@ -1510,32 +1510,94 @@ def archive_stale_reader_accessibility_request(
         return archive
 
 
-def derive(project: Path) -> dict[str, Any]:
-    _, state, _ = _load_state(project.resolve())
+def _derived_dispatch_action(
+    milestone: str, record: dict[str, Any], state: dict[str, Any]
+) -> str | None:
+    if record.get("status") == "accepted":
+        return None
+    if record.get("status") == "not_started":
+        return "begin"
+    if not record.get("artifacts"):
+        return "finalize" if milestone == "M5" else "draft"
+    if milestone == "M4" and any(
+        section.get("current_phase") != "Ph3_converged"
+        for section in state.get("sections", {}).values()
+        if isinstance(section, dict)
+    ):
+        return "revise"
+    return "close" if milestone == "M5" else "accept"
+
+
+def derive(
+    project: Path,
+    requested: str | None = None,
+    purpose: str = "dispatch",
+) -> dict[str, Any]:
+    project = project.resolve()
+    _, state, _ = _load_state(project)
     milestones = _framework(state)["milestones"]
+    default: dict[str, Any] | None = None
     for milestone in MILESTONES:
         record = milestones.get(milestone)
         if not isinstance(record, dict):
             raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {milestone}")
-        if record.get("status") == "accepted":
+        action = _derived_dispatch_action(milestone, record, state)
+        if action is None:
             continue
-        public = LEDGER_TO_PUBLIC[milestone]
-        if record.get("status") == "not_started":
-            action = "begin"
-        elif not record.get("artifacts"):
-            action = "finalize" if milestone == "M5" else "draft"
-        elif milestone == "M4" and any(
-            section.get("current_phase") != "Ph3_converged"
-            for section in state.get("sections", {}).values()
-            if isinstance(section, dict)
-        ):
-            action = "revise"
-        else:
-            action = "close" if milestone == "M5" else "accept"
-        return {"status": "READY", "milestone": public, "action": action,
-                "authority_mode": _authority_mode_for(project)}
-    return {"status": "COMPLETE", "milestone": None, "action": None,
-            "authority_mode": _authority_mode_for(project)}
+        default = {
+            "status": "READY",
+            "milestone": LEDGER_TO_PUBLIC[milestone],
+            "action": action,
+            "authority_mode": _authority_mode_for(project),
+        }
+        break
+    if default is None:
+        default = {
+            "status": "COMPLETE",
+            "milestone": None,
+            "action": None,
+            "authority_mode": _authority_mode_for(project),
+        }
+    if requested is None and purpose == "dispatch":
+        return default
+    from full_run_contract_check import derive_active_target
+    target, errors = derive_active_target(project, requested=requested, purpose=purpose)
+    if errors or target is None:
+        first = errors[0] if errors else {}
+        message = first.get("message") if isinstance(first, dict) else None
+        raise MilestoneTransactionError(
+            "AMC-ORDER",
+            message or "named target is not permitted",
+        )
+    if purpose == "evaluate":
+        return {
+            "status": "READY",
+            "milestone": target,
+            "action": "evaluate",
+            "authority_mode": _authority_mode_for(project),
+        }
+    if requested is not None and target != requested:
+        raise MilestoneTransactionError(
+            "AMC-ORDER",
+            f"named dispatch must not fall back from {requested} to {target}",
+        )
+    if target == default.get("milestone"):
+        return default
+    ledger = PUBLIC_TO_LEDGER.get(target)
+    if ledger is None:
+        raise MilestoneTransactionError("AMC-ORDER", f"named target {target!r} is not an assignment target")
+    record = milestones.get(ledger)
+    if not isinstance(record, dict):
+        raise MilestoneTransactionError("AMC-PHASE-STATE", f"missing milestone record: {ledger}")
+    action = _derived_dispatch_action(ledger, record, state)
+    if action is None:
+        raise MilestoneTransactionError("AMC-ORDER", f"{target} has no derived dispatch action")
+    return {
+        "status": "READY",
+        "milestone": target,
+        "action": action,
+        "authority_mode": _authority_mode_for(project),
+    }
 
 
 def _stable_policy(framework: dict[str, Any]) -> dict[str, Any]:

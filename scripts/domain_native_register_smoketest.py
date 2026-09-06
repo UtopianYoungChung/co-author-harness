@@ -147,6 +147,219 @@ def refresh_semantic_fixture(wiki: Path, graph_path: Path) -> None:
     receipt_path.write_text(json.dumps({"schema_version":"1.0.0","final_graph_sha256":hashlib.sha256(graph_path.read_bytes()).hexdigest(),"manifest_sha256":metadata["semantic_manifest_sha256"],"audit_sha256":metadata["semantic_audit_sha256"],"semantic_outputs_sha256":outputs_sha256,"research_inventory_sha256":inventory_sha256,"report_sha256":hashlib.sha256(report_path.read_bytes()).hexdigest(),"extraction_mode":metadata["extraction_mode"],"semantic_status":metadata["semantic_status"],"semantic_scope":metadata["semantic_scope"],"page_count":len(pages),"semantic_node_count":len(semantic_nodes),"semantic_edge_count":len(semantic_edges),"audit_sample_count":len(audit_rows)}) + "\n", encoding="utf-8")
 
 
+def _cli_child_env(*, pythonioencoding: str | None) -> dict[str, str]:
+    """Real CLI child env. Clear inherited agent UTF-8 stdio so locale encoding is visible."""
+    env = os.environ.copy()
+    env.pop("PYTHONUTF8", None)
+    env.pop("PYTHONIOENCODING", None)
+    env.pop("PYTHONLEGACYWINDOWSSTDIO", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    if pythonioencoding is not None:
+        env["PYTHONIOENCODING"] = pythonioencoding
+    return env
+
+
+def check_cli_out_diagnostic_contract() -> None:
+    """Focused CLI --out contract: success, graph failure, misconfig, protected refusal.
+
+    Encoding-paired: ordinary Windows stream encoding (PYTHONUTF8 /
+    PYTHONIOENCODING / PYTHONLEGACYWINDOWSSTDIO cleared) and explicit
+    UTF-8 via PYTHONIOENCODING=utf-8 only (PYTHONUTF8 still absent).
+    """
+    default_env = _cli_child_env(pythonioencoding=None)
+    utf8_env = _cli_child_env(pythonioencoding="utf-8")
+    assert "PYTHONUTF8" not in default_env
+    assert "PYTHONIOENCODING" not in default_env
+    assert "PYTHONLEGACYWINDOWSSTDIO" not in default_env
+    assert utf8_env.get("PYTHONIOENCODING") == "utf-8"
+    assert "PYTHONUTF8" not in utf8_env
+    assert "PYTHONLEGACYWINDOWSSTDIO" not in utf8_env
+    _check_cli_out_diagnostic_contract_with_env(default_env)
+    _check_cli_out_diagnostic_contract_with_env(utf8_env)
+    _check_cli_encoding_nonascii_and_render_view(default_env)
+    _check_cli_encoding_nonascii_and_render_view(utf8_env)
+
+
+def _check_cli_out_diagnostic_contract_with_env(child_env: dict[str, str]) -> None:
+    import destination_capability as destcap
+    script = ROOT / "scripts" / "reader_accessibility_policy.py"
+    em = "\u2014"
+
+    def run_cli(out_path: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
+             "--harness-root", str(ROOT), "--out", str(out_path)],
+            capture_output=True, text=True, encoding="utf-8",
+            env=child_env if env is None else env,
+        )
+
+    def assert_utf8_no_bom(path: Path) -> dict:
+        raw = path.read_bytes()
+        assert not raw.startswith(b"\xef\xbb\xbf"), path
+        return json.loads(raw.decode("utf-8"))
+
+    with tempfile.TemporaryDirectory(prefix="wp2l-cli-out-") as td:
+        root = Path(td)
+        wiki, workspace = write_fixture(root, all_members=True)
+        graph_path = workspace / "knowledge/LLM wiki/graphify-out/graph.json"
+        valid_graph_bytes = graph_path.read_bytes()
+        out_root = root / "cli-out"
+        out_root.mkdir()
+        success_out = out_root / "success.json"
+        proc = run_cli(success_out)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        success_payload = assert_utf8_no_bom(success_out)
+        assert "resolved_profile" in success_payload
+        assert em in json.dumps(success_payload, ensure_ascii=False)
+        assert "\ufffd" not in json.dumps(success_payload, ensure_ascii=False)
+
+        structural = json.loads(valid_graph_bytes.decode("utf-8", errors="strict"))
+        structural["graph"]["extraction_mode"] = "structural-only"
+        structural["graph"]["semantic_status"] = "pending"
+        graph_path.write_text(json.dumps(structural), encoding="utf-8")
+        try:
+            graph_out = out_root / "graph-fail.json"
+            proc = run_cli(graph_out)
+            payload_out = json.loads(proc.stdout) if proc.stdout.strip() else assert_utf8_no_bom(graph_out)
+            assert proc.returncode == 4
+            assert payload_out["status"] == "FAIL_CLOSED" and payload_out["code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+            assert payload_out["message"].startswith("GRAPH-SEMANTIC-INELIGIBLE")
+            file_payload = assert_utf8_no_bom(graph_out)
+            assert file_payload == payload_out
+        finally:
+            graph_path.write_bytes(valid_graph_bytes)
+
+        graph_path.write_bytes(b"\xff")
+        try:
+            mis_out = out_root / "misconfig.json"
+            proc = run_cli(mis_out)
+            payload_out = json.loads(proc.stdout) if proc.stdout.strip() else assert_utf8_no_bom(mis_out)
+            assert proc.returncode == 4, proc.stdout + proc.stderr
+            assert payload_out["status"] == "MISCONFIGURED" and payload_out["code"] == "RA-POLICY", payload_out
+            file_payload = assert_utf8_no_bom(mis_out)
+            assert file_payload == payload_out
+        finally:
+            graph_path.write_bytes(valid_graph_bytes)
+
+        fake = out_root / "fake-ws"
+        (fake / "research" / "60_Workbench").mkdir(parents=True)
+        (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True)
+        manifest = fake / "governance" / "output-routing" / "output_routing.yaml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
+        extra = child_env.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "")
+        protected_env = dict(child_env)
+        protected_env["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(
+            item for item in (extra, str(fake)) if item
+        )
+        protected_root = fake / "research" / "60_Workbench" / "TDP-20260905-009-cli-out-must-not-exist"
+        protected_out = protected_root / "nested" / "diagnostic.json"
+        assert not protected_root.exists()
+        previous_extra = os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS")
+        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = protected_env["COAUTHOR_EXTRA_GOVERNED_ROOTS"]
+        try:
+            kind = destcap.classify(protected_out)
+        finally:
+            if previous_extra is None:
+                os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+            else:
+                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = previous_extra
+        assert kind == "protected", kind
+
+        proc = run_cli(protected_out, env=protected_env)
+        assert proc.returncode == 4, proc.stdout + proc.stderr
+        assert not protected_root.exists(), "success --out created protected directories"
+        assert not protected_out.exists()
+        usable = json.loads(proc.stdout)
+        assert "resolved_profile" in usable
+        assert em in proc.stdout
+        assert "\ufffd" not in proc.stdout
+        assert "DEST-PROTECTED" in proc.stderr
+        assert "\ufffd" not in proc.stderr
+
+        graph_path.write_text(json.dumps(structural), encoding="utf-8")
+        try:
+            proc = run_cli(protected_out, env=protected_env)
+            assert proc.returncode == 4, proc.stdout + proc.stderr
+            assert not protected_root.exists(), "PolicyError --out created protected directories"
+            assert not protected_out.exists()
+            payload_out = json.loads(proc.stdout)
+            assert payload_out["status"] == "FAIL_CLOSED" and payload_out["code"] == "GRAPH-SEMANTIC-INELIGIBLE"
+            assert payload_out["message"].startswith("GRAPH-SEMANTIC-INELIGIBLE")
+            assert "DEST-PROTECTED" in proc.stderr
+            assert "\ufffd" not in proc.stdout
+            assert "\ufffd" not in proc.stderr
+        finally:
+            graph_path.write_bytes(valid_graph_bytes)
+
+
+def _check_cli_encoding_nonascii_and_render_view(child_env: dict[str, str]) -> None:
+    """Non-ASCII --out path, --render-view, and protected diagnostics on a real CLI child."""
+    script = ROOT / "scripts" / "reader_accessibility_policy.py"
+    em = "\u2014"
+    with tempfile.TemporaryDirectory(prefix="wp2m-cli-enc-") as td:
+        root = Path(td)
+        wiki, workspace = write_fixture(root, all_members=True)
+        out_root = root / "cli-out"
+        out_root.mkdir()
+        success_out = out_root / f"success{em}out.json"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
+             "--harness-root", str(ROOT), "--out", str(success_out)],
+            capture_output=True, text=True, encoding="utf-8", env=child_env,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        raw = success_out.read_bytes()
+        assert not raw.startswith(b"\xef\xbb\xbf"), success_out
+        payload = json.loads(raw.decode("utf-8"))
+        assert "resolved_profile" in payload
+        dumped = json.dumps(payload, ensure_ascii=False)
+        assert em in dumped
+        assert "\ufffd" not in dumped
+        assert "\ufffd" not in proc.stdout
+        assert "\ufffd" not in proc.stderr
+
+        view_out = out_root / f"view{em}.md"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
+             "--harness-root", str(ROOT), "--out", str(view_out), "--render-view"],
+            capture_output=True, text=True, encoding="utf-8", env=child_env,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        view_raw = view_out.read_bytes()
+        assert not view_raw.startswith(b"\xef\xbb\xbf"), view_out
+        view_text = view_raw.decode("utf-8")
+        assert view_text.startswith("# Reader Accessibility Policy View")
+        assert "\ufffd" not in view_text
+
+        fake = out_root / "fake-ws"
+        (fake / "research" / "60_Workbench").mkdir(parents=True)
+        (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True)
+        manifest = fake / "governance" / "output-routing" / "output_routing.yaml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
+        extra = child_env.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "")
+        protected_env = dict(child_env)
+        protected_env["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(
+            item for item in (extra, str(fake)) if item
+        )
+        protected_root = fake / "research" / "60_Workbench" / f"TDP-20260905-010-must-not-exist{em}"
+        protected_out = protected_root / "nested" / f"view{em}.md"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--wiki-root", str(wiki), "--workspace-root", str(workspace),
+             "--harness-root", str(ROOT), "--out", str(protected_out), "--render-view"],
+            capture_output=True, text=True, encoding="utf-8", env=protected_env,
+        )
+        assert proc.returncode == 4, proc.stdout + proc.stderr
+        assert not protected_root.exists(), "render-view --out created protected directories"
+        assert not protected_out.exists()
+        assert proc.stdout.startswith("# Reader Accessibility Policy View")
+        assert "DEST-PROTECTED" in proc.stderr
+        assert em in proc.stderr
+        assert "\ufffd" not in proc.stdout
+        assert "\ufffd" not in proc.stderr
+
+
 def main() -> int:
     profile = policy.load_profile()
     # Hermetic baseline for the FIXTURE-resolve block only: exclude post-release
@@ -193,6 +406,7 @@ def main() -> int:
     assert policy.normalize_tier("full-text-pass") == "full-read"
     assert policy.normalize_tier("section-read-verified") == "section-read"
     assert not policy.grounding_admitted("stub — awaiting read") and not policy.grounding_admitted("unresolved - missing source")
+    check_cli_out_diagnostic_contract()
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); wiki,workspace=write_fixture(root)
         resolved=policy.resolve_domain_native_register(baseline, wiki_root=wiki, workspace_root=workspace, harness_root=ROOT)

@@ -15,6 +15,7 @@ from typing import Any
 import assignment_dispatch_claim as dispatch
 import scholarly_claim_register
 import scholarly_evaluation
+from destination_capability import DestinationRefused, assert_writable
 from evidence_publication import publish_committed
 
 
@@ -23,6 +24,11 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 class ScholarlyPublicationError(RuntimeError):
     """Refuse an unsafe or unverifiable scholarly publication."""
+
+
+def _assert_publication_writable(*paths: Path, purpose: str) -> None:
+    for path in paths:
+        assert_writable(path, purpose=purpose)
 
 
 def _canonical(value: Any) -> bytes:
@@ -124,6 +130,27 @@ def publish_evaluation(
         for path in (artifact_path, claim_path)
     ):
         raise ScholarlyPublicationError("C6 inputs escape the project root")
+    evaluation_path = evaluation_output_path(
+        project, evaluation_id=evaluation_id
+    )
+    lane = evaluation_path.parent
+    registry_path = lane / "obligation-registry.json"
+    generator_envelope_path = lane / "generator-envelope.json"
+    criteria_path = lane / "milestone-criteria.json"
+    profile_path = lane / "scholarly-profile.json"
+    register_path = lane / "claim-register.json"
+    support_marker = lane / "support-commit-marker.json"
+    _assert_publication_writable(
+        evaluation_path,
+        registry_path,
+        generator_envelope_path,
+        criteria_path,
+        profile_path,
+        register_path,
+        support_marker,
+        lane / "evaluation-commit-marker.json",
+        purpose="scholarly evaluation publication",
+    )
     try:
         claim = json.loads(claim_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -149,16 +176,6 @@ def publish_evaluation(
         generation_claim = json.loads(generation_path.read_text(encoding="utf-8"))
     except (KeyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ScholarlyPublicationError(f"Generation claim is unreadable: {exc}") from exc
-    evaluation_path = evaluation_output_path(
-        project, evaluation_id=evaluation_id
-    )
-    lane = evaluation_path.parent
-    registry_path = lane / "obligation-registry.json"
-    generator_envelope_path = lane / "generator-envelope.json"
-    criteria_path = lane / "milestone-criteria.json"
-    profile_path = lane / "scholarly-profile.json"
-    register_path = lane / "claim-register.json"
-    support_marker = lane / "support-commit-marker.json"
     if (
         not isinstance(criteria, list)
         or not criteria
@@ -427,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
             judgment=_load_json(args.judgment, "Evaluator judgment"),
             created_at=args.created_at,
         )
-    except (ScholarlyPublicationError, OSError, ValueError, KeyError) as exc:
+    except (ScholarlyPublicationError, DestinationRefused, OSError, ValueError, KeyError) as exc:
         print(
             json.dumps(
                 {
