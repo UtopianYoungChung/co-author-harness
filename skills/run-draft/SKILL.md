@@ -1,10 +1,39 @@
 ---
 name: run-draft
-description: 'Public 0.50 draft coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector. Generator publishes only via assignment_writer_commit.py to staging. Writer (outside the plugin) is the apply step. Parked paper-specific body: run-phase-1.'
+description: 'Draft from a brief without a pre-existing project using distinct native Generator, Evaluator and Reflector contexts, exact-byte review and required closeout. Explicit governed lifecycle requests retain assignment publication and acceptance gates.'
 trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft"'
 version: 0.50.0
 user-invocable: true
 ---
+
+## Ordinary drafting and revision
+
+Ordinary requests use `project_independent`; follow
+`references/PROJECT_INDEPENDENT_WORKFLOW.md` before the governed workflow below.
+The caller may be Planner; Generator, Evaluator and Reflector are distinct real
+native child contexts. Bind the brief, input, scope, rules, exclusions and output
+authority; wait for actual child outcomes. Reflection closeout is required.
+Task completion is verified separately from scholarly CLEAN, lifecycle terminal
+status and research acceptance. A missing child capability blocks this workflow
+with `PIW-HOST-CAPABILITY-UNAVAILABLE`; read-only passes remain available.
+
+For an existing manuscript, independent diagnosis precedes the Planner's revision
+plan and Generator edits. Preserve unrequested bytes, terms, claims and citations.
+Proposal-only delivery leaves the original untouched. Every correction returns to
+Evaluator, with three correction cycles by default; unresolved findings end
+`needs_revision`. New Reflector findings reopen correction and evaluation.
+
+Chung voice applies only when selected and never when explicitly excluded.
+Propagate the exclusion through every role brief, applied-rule list, fire table
+and correction. A required file read does not activate an excluded overlay.
+Graph unavailability limits graph-dependent checks; requested rule-based checks
+and admitted-source sentence judgments can still run. See the shared runbook.
+
+The remainder is the **governed project workflow**, used for an explicit
+`full_lifecycle` or `lab_iteration` operation. Its assignment, source, publication,
+protected-destination and author-acceptance prerequisites remain in force.
+
+
 
 # run-draft — public draft coordinator (staging)
 
@@ -41,7 +70,7 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
    and dest-safe receipts under
    `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
 3. Evaluator certifies those exact shipment bytes (exact hash).
-4. Reflector may probe after a certified shipment. It does not accept
+4. Reflector performs the required scoped closeout after a certified shipment. It does not accept
    milestones and does not promote research artifacts.
 5. Writer (outside the plugin) is the only apply step: exact path, exact hash.
 
@@ -65,8 +94,8 @@ Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `deri
 - **Contradictions** (contradictions): SAFEGUARD Check 4 same-diff contradictions
 - **Analytic construction** (analytic-construction): Abbott 7-move audit when applicable
 - **Abstract-body** (check-abstract-body): title/abstract payoff, §1 roadmap, abstract citation polarity (named `abstract_citation_policy` only; `tbd` is INFO and not an insert/strip mandate)
-- **Chung academic voice** (chung-academic-voice-pass): register plus the prose-requirement overlay
-- **Centroid bind/join** (centroid-evaluation): graph retrieval fail-closes when semantic_usage=not_invoked
+- **Chung academic voice** (chung-academic-voice-pass): only when selected and not explicitly excluded; record exclusion separately from any required read
+- **Centroid bind/join** (centroid-evaluation): graph retrieval is unavailable when semantic_usage=not_invoked; requested admitted-passage judgment remains available
 
 Mechanical dest-safe preflight only: d-style-profile, deterministic-audit. Do not mint scholarly CLEAN.
 
@@ -90,30 +119,17 @@ fail-closed, not a fabricated retrieval.
 
 ## Scope
 
-Route exactly `adhoc_review`, `lab_iteration`, or `full_lifecycle`, and put
-`run_scope:` matching the parent in every Planner, Generator, and Evaluator
-brief. `lab_iteration` is proposal-only: existing governed project, resolved
-assignment contract, resolved staging/private-shipment output, no lifecycle
-and no F9 authority. It never accepts milestones, consumes handoffs, writes
-authoritative research/final paths, or claims terminal completion.
-
-Whole-lifecycle intent ("harness full run," "draft the whole paper") enters
-this coordinator. With **no project at all**, fail closed into the canonical
-bootstrap instruction rather than writing prose anywhere:
-`python scripts/full_run_contract_check.py authorize --project-root <p>` is
-the mechanical check, and a new native root is created only by
-`python scripts/native_project_bootstrap.py ...`, which must install
-reader-profile binding v2. Resolve the live
-`milestone_framework.policy_bindings.reader_accessibility` binding
-(path, sha256, `semantic_usage`) before any centroid or reader-conditioned
-dispatch; do not treat the phrase "authoritative reader binding" as the
-binding.
-
-**Handoff policy.** New native bootstrap creates contract `1.1.0` with
-explicit `derived` policy unless `--handoff-policy audited` is requested.
-Valid `1.0.0` projects remain implicit audited without rewrite. Audited
-requires exact F9 publication and consumption; derived acceptance is
-authoritative without F9.
+Declare exactly `adhoc_review`, `project_independent`, `lab_iteration`, or
+`full_lifecycle`; put the same `run_scope:` in every child brief, including
+Reflector. Ordinary drafting does not require bootstrap. Explicit whole-lifecycle
+intent ("harness full run", "run the ladder", Ph4, M1-M5 acceptance/finalization)
+retains the native project prerequisites in `references/FULL_RUN_CONTRACT.md`.
+If no governed project exists, stop at the canonical
+`python scripts/native_project_bootstrap.py ...` instruction; that bootstrap
+must install reader-profile binding v2 before governed drafting or evaluation.
+`lab_iteration` is proposal-only with an existing governed project, resolved
+assignment contract and staging/private-shipment output, no lifecycle and no F9
+authority. It never accepts milestones or writes authoritative research.
 
 ## Parked compatibility body
 

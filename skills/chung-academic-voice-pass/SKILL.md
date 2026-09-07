@@ -7,6 +7,19 @@ created_from: Author-supplied voice profile, 2026-08-21 — sampled from chung-2
 pattern_source: references/chung_academic_voice_guidelines.md
 version: 1.0
 ---
+
+## Ordinary task routing
+
+For a bounded read-only pass on pasted text or a file, declare `adhoc_review`
+and follow `references/PROJECT_INDEPENDENT_WORKFLOW.md`. Resolve rules from
+this package, read the requested input, perform this skill's actual checks,
+and return locator-bound findings, counts, rule hashes and limitations.
+No project, assignment contract, graph or four-role loop is required.
+Optional venue instructions refine the relevant rule. An explicitly supplied
+invalid authoritative project binding is a binding error, never silent fallback.
+A proposal in findings does not authorize editing the original input.
+
+
 # Chung Academic Voice Pass
 
 You are running an optional authorial-register pass. Read `chung_academic_voice_guidelines.md` in the package before acting. Do not rely on memory.

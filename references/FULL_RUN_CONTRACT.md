@@ -60,41 +60,31 @@ not inferred.
 |---|---|---|---|---|
 | `full_lifecycle` | The canonical draft lifecycle: milestones, state, evidence, handoffs | Yes — via Generator, once authorized (§2) | Yes | Yes — only via §4 |
 | `lab_iteration` | Transient proposal work in a resolved governed staging/private-shipment destination | Proposal bytes only | **No** | **No** |
-| `adhoc_review` | A one-off read/critique the user explicitly asked for | **No** | **No** | **No** |
+| `adhoc_review` | A bounded read/critique on pasted text or a file; findings may propose edits | Findings only | **No** | **No** |
+| `project_independent` | Ordinary drafting or revision with native child execution and task-local evidence | Yes, to authorized task output | **No** | **No** |
 
 ### 1.1 Scope is DECLARED, never sniffed
 
-**The mechanism is the declaration, not the phrasing.** A request whose intent
-is to produce or advance an academic deliverable is `full_lifecycle`, and
-`full_lifecycle` is the **default** for any prose-producing request.
-`adhoc_review` and `lab_iteration` must be **explicitly** declared. Ambiguity resolves to
-`full_lifecycle`: guessing `adhoc_review` silently skips the lifecycle, while
-guessing `full_lifecycle` costs one bootstrap prompt the user can decline.
-`lab_iteration` is never inferred from a request for a draft or full run; it is
-an explicit proposal-only laboratory scope with its own governed destination.
+**The mechanism is the declaration.** Declare `adhoc_review` for a bounded
+read-only pass and `project_independent` for ordinary drafting or revision.
+A user need not create a project first. "Draft a short essay" alone is ordinary
+drafting. Follow `PROJECT_INDEPENDENT_WORKFLOW.md` for task execution.
 
-Phrases like "Harness full run", "draft the whole paper", or "run the ladder"
-are **recognition aids only**. They are not the contract, and no gate keys off
-them:
+Explicit lifecycle, milestone acceptance, finalization, promotion, "harness full
+run" or "run the ladder" intent retains `full_lifecycle` and its prerequisites.
+`lab_iteration` remains an explicit governed proposal-only scope. Validate any
+explicitly supplied authoritative project binding; invalid state is not a reason
+to discard that binding and continue standalone. Optional valid context does not
+itself request lifecycle advancement.
 
-- `full_run_contract_check.py intent` is **advisory** — it always exits 0, it
-  returns a `suggested_run_scope`, and it authorizes nothing. If it could
-  authorize, a phrase list would be the contract, and a phrase list only
-  catches the wordings someone already thought of. The next failure will be
-  worded differently from the last one.
-- `authorize` takes an **explicit** `--run-scope`. It never reads the request
-  text. An unanticipated wording of "just have a look" cannot silently
-  authorize the ad hoc path.
-- `scope` compares **declared** parent and child scopes. A brief with no
-  `run_scope:` line is refused (`FRC-SCOPE-UNDECLARED`) rather than guessed at.
-
-This is why the repair generalises past the one sentence that triggered it: the
-enforcement surface is the declaration and the project state, both of which are
-structural facts, not turns of phrase.
+`intent` is advisory and authorizes nothing. `authorize` accepts a declared scope;
+`scope` requires the child's explicit declaration to match its parent. Ordinary
+task completion is neither terminal nor acceptance. A governed request must not
+be silently downgraded.
 
 ### 1.2 Scope is inherited exactly
 
-The exact diagnostic order is `adhoc_review < lab_iteration < full_lifecycle`.
+The exact diagnostic order is `adhoc_review < project_independent < lab_iteration < full_lifecycle`.
 A child declaration different from its parent is always refused: movement down
 is `FRC-SCOPE-DOWNGRADE`, movement up is `FRC-SCOPE-ESCALATION`, and omission is
 `FRC-SCOPE-UNDECLARED`. The order selects the diagnostic only; it never grants
@@ -127,7 +117,12 @@ is not a judgement call — it is refused with `FRC-SCOPE-DOWNGRADE`.
 
 ## 2. Authorization to write academic prose
 
-**No project, no prose.** Before any academic prose is written, all of:
+For `project_independent`, authorize the validated task session and destination
+under `PROJECT_INDEPENDENT_WORKFLOW.md`; task completion uses its evidence verifier.
+The prerequisites and bootstrap response below apply to **governed lifecycle
+prose**, not to ordinary tasks.
+
+**No project, no governed lifecycle prose.** Before lifecycle prose is written, all of:
 
 1. a **project root** exists and is a native project (`reviews/phase_state.json`
    present, `milestone_framework.mode == "native"`);

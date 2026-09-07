@@ -13,7 +13,7 @@ from types import MappingProxyType
 from typing import Final, Literal, TypedDict, cast
 
 
-Scope = Literal["adhoc_review", "lab_iteration", "full_lifecycle"]
+Scope = Literal["adhoc_review", "project_independent", "lab_iteration", "full_lifecycle"]
 ScopeResult = Literal["OK", "PROPOSAL_ONLY", "REFUSED"]
 DeclarationResult = Literal["DECLARED", "UNDECLARED", "INVALID"]
 ComparisonDirection = Literal["exact", "downgrade", "escalation", "undeclared"]
@@ -21,9 +21,11 @@ ComparisonDirection = Literal["exact", "downgrade", "escalation", "undeclared"]
 ADHOC_REVIEW: Final[Scope] = "adhoc_review"
 LAB_ITERATION: Final[Scope] = "lab_iteration"
 FULL_LIFECYCLE: Final[Scope] = "full_lifecycle"
+PROJECT_INDEPENDENT: Final[Scope] = "project_independent"
 
-SCOPES: Final[tuple[Scope, Scope, Scope]] = (
+SCOPES: Final[tuple[Scope, Scope, Scope, Scope]] = (
     ADHOC_REVIEW,
+    PROJECT_INDEPENDENT,
     LAB_ITERATION,
     FULL_LIFECYCLE,
 )
@@ -41,6 +43,10 @@ FRC_SCOPE_DOWNGRADE: Final = "FRC-SCOPE-DOWNGRADE"
 FRC_SCOPE_ESCALATION: Final = "FRC-SCOPE-ESCALATION"
 FRC_PROSE_FORBIDDEN: Final = "FRC-PROSE-FORBIDDEN"
 FRC_TERMINAL_UNPROVEN: Final = "FRC-TERMINAL-UNPROVEN"
+FRC_PIW_SESSION_REQUIRED: Final = "FRC-PIW-SESSION-REQUIRED"
+FRC_PIW_NON_TERMINAL: Final = "FRC-PIW-NON-TERMINAL"
+FRC_PIW_HISTORY_RECONSTRUCT: Final = "FRC-HISTORY-RECONSTRUCT-FORBIDDEN"
+MSS_PIN_DRIFT: Final = "MSS_PIN_DRIFT"
 
 FRC_LAB_PROPOSAL_ONLY: Final = "FRC-LAB-PROPOSAL-ONLY"
 FRC_LAB_PROJECT_REQUIRED: Final = "FRC-LAB-PROJECT-REQUIRED"
@@ -319,6 +325,7 @@ def proposal_only_authority() -> LabAuthorityRecord:
 __all__ = [
     "ADHOC_REVIEW",
     "FULL_LIFECYCLE",
+    "PROJECT_INDEPENDENT",
     "FRC_LAB_CONTRACT_REQUIRED",
     "FRC_LAB_DESTINATION_MISMATCH",
     "FRC_LAB_DESTINATION_REQUIRED",
@@ -328,6 +335,10 @@ __all__ = [
     "FRC_LAB_PROPOSAL_ONLY",
     "FRC_LAB_TERMINAL_FORBIDDEN",
     "FRC_PROSE_FORBIDDEN",
+    "FRC_PIW_SESSION_REQUIRED",
+    "FRC_PIW_NON_TERMINAL",
+    "FRC_PIW_HISTORY_RECONSTRUCT",
+    "MSS_PIN_DRIFT",
     "FRC_SCOPE_DOWNGRADE",
     "FRC_SCOPE_ESCALATION",
     "FRC_SCOPE_UNDECLARED",

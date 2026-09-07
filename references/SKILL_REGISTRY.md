@@ -126,7 +126,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-06. `run-reflection`
 - **File:** `skills/run-reflection/SKILL.md`
-- **Pattern:** Public **reflection** coordinator on staging after a certified shipment. Two modes: (a) **lightweight** probe; (b) **full** close-out. Coordinates Planner/Generator/Evaluator/Reflector. Does not apply to the workbench. DEST-PROTECTED stays.
+- **Pattern:** Public **reflection** coordinator: ordinary task-closeout follows `PROJECT_INDEPENDENT_WORKFLOW.md` without a project. Governed staging after a certified shipment has two modes: (a) **lightweight** probe; (b) **full** close-out. Coordinates Planner/Generator/Evaluator/Reflector. Does not apply to the workbench. DEST-PROTECTED stays.
 - **Created:** 2026-04-11; mode-split rewritten 2026-04-20 for v0.7.0
 - **Source:** Early package skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Phase Ladder's unbounded Ph3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
 - **Tier:** Package
@@ -415,7 +415,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-37. `run-draft`
 - **File:** `skills/run-draft/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** Public **draft** coordinator on staging. Coordinates Planner/Generator/Evaluator/Reflector. Generator publishes only via `assignment_writer_commit.py` to staging. Evaluator certifies shipment bytes. Writer (outside the plugin) is the apply step. SK-25 `run-phase-1` is a parked paper-specific compatibility body, not the live implementation.
+- **Pattern:** Public **draft** coordinator: ordinary tasks follow `PROJECT_INDEPENDENT_WORKFLOW.md` with native Generator/Evaluator/Reflector and verified task completion. Governed project staging retains `assignment_writer_commit.py` and exact-byte evaluation. Writer (outside the plugin) is the apply step. SK-25 `run-phase-1` is a parked paper-specific compatibility body, not the live implementation.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
 - **Status:** Active public staging coordinator
@@ -424,7 +424,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 
 ### SK-38. `run-iterate`
 - **File:** `skills/run-iterate/SKILL.md` (new at v0.15.0-pre PR-3b.3)
-- **Pattern:** Public **iterate** coordinator on staging. Coordinates the four plugin hands for `refine` / `structural` / `deep` / `stability`. Generator publishes only via `assignment_writer_commit.py`. Parked bodies: SK-29 `run-phase-2`, SK-26 `run-phase-3`, SK-31 `run-phase-3-stability`.
+- **Pattern:** Public **iterate** coordinator: ordinary manuscripts get independent diagnosis, scoped plan, native revision/review and reflection under `PROJECT_INDEPENDENT_WORKFLOW.md`. Governed project `refine` / `structural` / `deep` / `stability` publication retains `assignment_writer_commit.py`. Parked bodies: SK-29 `run-phase-2`, SK-26 `run-phase-3`, SK-31 `run-phase-3-stability`.
 - **Created:** 2026-05-12 (v0.15.0-pre PR-3b.3)
 - **Tier:** Package
 - **Status:** Active public staging coordinator

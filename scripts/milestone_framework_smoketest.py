@@ -2232,10 +2232,10 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
     }
     cases: list[tuple[str, dict[str, str], dict[str, str] | None, bool, str, int, list[str]]] = [
         ("enabled_graph_authority_unavailable", base, None, True, "MISCONFIGURED", 4, []),
-        ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0, []),
+        ("claude_authorized_disabled", {**base, **na, "sk20_not_applicable_substitute_evidence": "AGENTS.md"}, None, False, "NOT_APPLICABLE", 0, []),
         ("directive_authorized_disabled", base, na, False, "NOT_APPLICABLE", 0, []),
         ("directive_partial_cannot_inherit_claude_authorization", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, {"coupling_e_on_review": "false"}, False, "MISCONFIGURED", 4, []),
-        ("cli_complete_authorized_disabled", base, None, False, "NOT_APPLICABLE", 0, ["--coupling-e-on-review", "false", "--sk20-not-applicable-authority", "user", "--sk20-not-applicable-reason", "CLI user decision.", "--sk20-not-applicable-scope", "SK-20", "--sk20-not-applicable-substitute-evidence", "CLAUDE.md"]),
+        ("cli_complete_authorized_disabled", base, None, False, "NOT_APPLICABLE", 0, ["--coupling-e-on-review", "false", "--sk20-not-applicable-authority", "user", "--sk20-not-applicable-reason", "CLI user decision.", "--sk20-not-applicable-scope", "SK-20", "--sk20-not-applicable-substitute-evidence", "AGENTS.md"]),
         ("cli_partial_cannot_inherit_file_authorization", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "MISCONFIGURED", 4, ["--coupling-e-on-review", "false"]),
         ("silent_absence", {"wiki_path": "wiki"}, None, True, "MISCONFIGURED", 4, []),
         ("false_like_string", {**base, "coupling_e_on_review": "off"}, None, True, "MISCONFIGURED", 4, []),
@@ -2245,7 +2245,7 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         ("disabled_unrelated_scope", {**base, **na, "sk20_not_applicable_scope": "citation formatting"}, None, False, "MISCONFIGURED", 4, []),
         ("disabled_outside_evidence", {**base, **na, "sk20_not_applicable_substitute_evidence": "../outside.md"}, None, False, "MISCONFIGURED", 4, []),
         ("enabled_missing_wiki_resources", base, None, False, "MISCONFIGURED", 4, []),
-        ("disabled_missing_wiki_resources", {**base, **na, "sk20_not_applicable_substitute_evidence": "CLAUDE.md"}, None, False, "NOT_APPLICABLE", 0, []),
+        ("disabled_missing_wiki_resources", {**base, **na, "sk20_not_applicable_substitute_evidence": "AGENTS.md"}, None, False, "NOT_APPLICABLE", 0, []),
     ]
     for name, claude_fields, directive_fields, graph, expected_outcome, expected_exit, extra_args in cases:
         project = directory / f"sk20-{name}"

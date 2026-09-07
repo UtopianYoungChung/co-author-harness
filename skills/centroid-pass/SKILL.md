@@ -39,7 +39,24 @@ for centroid-source membership, warrant layers, derivations, semantic pins, and 
 identity fence. `references/GROUNDING_PROTOCOL.md` remains absolute. Never invent
 a passage, quotation, attestation, locator, or member.
 
-## Required execution
+## Ordinary invocation without a project
+
+For an ordinary requested bind on an existing manuscript outside a governed
+project, use `python scripts/centroid_service.py --mode review --manuscript
+<exact-file>`. Do not manufacture a project or milestone to run this command.
+The result is a centroid-bind packet only; `GRAPH-SEMANTIC-INELIGIBLE` remains
+an honest graph eligibility result. For requested substantive sentence judgment,
+continue through `skills/centroid-sentence-logic/SKILL.md` with actual admitted
+passages, canonical source identity, locators and hashes. Apply its membership,
+warrant, source-window and role checks unchanged. Missing passages hold the
+source-dependent judgment; available grammar/sentence checks can continue.
+A binder or empty findings list is never a performed semantic review. Invalid
+explicit authoritative context is not discarded into this ordinary route.
+
+The governed sequence below applies to project lifecycle operations and their
+commissioned generation/evaluation contracts. It remains mandatory there.
+
+## Required execution for governed projects
 
 1. Resolve the project and exact target. Run:
 

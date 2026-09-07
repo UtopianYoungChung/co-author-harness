@@ -1,5 +1,16 @@
 # AGENT ORCHESTRATION — Four-Agent Architecture
 
+## Ordinary tasks before lifecycle routing
+
+Read `PROJECT_INDEPENDENT_WORKFLOW.md` first for ordinary drafting, revision or
+standalone named passes. It defines native child execution and task completion.
+A read-only pass executes its own substantive checks without the four-role loop.
+The lifecycle states, READY/F6/F9 records and phase procedures below apply to
+explicit governed operations only; do not invent them for ordinary tasks.
+The producer boundary still protects every governed destination. Outside a
+governed workspace, explicit authorized task outputs are supported.
+
+
 **Typed output boundary.** The narrative role descriptions below defer to `references/role_output_contract.json` 3.0.0 for the six fixed roles and nine triggered F1-F9 classes, including trigger context, cardinality, ordering, paths, and suppression. Readable legacy artifacts remain inputs only and do not become shipment-v2 transaction or application evidence.
 
 ## Producer boundary (binding, 2026-07-22)

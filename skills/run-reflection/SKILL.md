@@ -1,9 +1,22 @@
 ---
 name: run-reflection
-description: 'Public 0.50 reflection coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector after a certified shipment. Mode must be declared (lightweight or full). Does not apply to the workbench.'
+description: 'Reflect on named task evidence without a project, or close a governed shipment in its declared mode. Required standalone closeout uses a distinct native Reflector and reopens correction for material findings. No acceptance or Workbench apply.'
 trigger: 'when the user says "reflect," "run reflector," "check grounding," "what did we learn," or invokes "/run-reflection"'
 version: 0.50.0
 ---
+
+## Ordinary task closeout
+
+For `project_independent`, load `references/PROJECT_INDEPENDENT_WORKFLOW.md`
+and `agents/reflector.md` task-closeout routing. Bind the current reviewed bytes
+and actual role evidence; perform required grounding, scope, exclusion and
+unresolved-finding checks as a distinct native child. No project root or
+lifecycle mode is required. A new material finding reopens correction and review.
+A standalone reflection request reviews its named evidence and reports limits;
+it cannot complete a missing drafting/revision chain. The mode selection and
+project requirements below apply to governed lifecycle reflection only.
+
+
 
 # run-reflection — public reflection coordinator (staging)
 

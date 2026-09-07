@@ -492,7 +492,7 @@ def main() -> int:
         interrupted_dir = activation.root / "verifier" / "interrupted"
         original_marker = evidence_publication._exclusive_marker
 
-        def interrupt_marker(_path: Path, _data: bytes) -> None:
+        def interrupt_marker(_path: Path, _data: bytes, *, root: Path, purpose: str = "evidence publication") -> None:
             raise OSError("injected verifier marker interruption")
 
         evidence_publication._exclusive_marker = interrupt_marker

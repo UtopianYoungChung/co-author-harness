@@ -192,6 +192,7 @@ LEDGER_KEY = {"M1": "M1", "M2": "M2", "M3": "M3", "M4": "M4", "FINAL": "M5"}
 # Run scope vocabulary (FULL_RUN_CONTRACT.md §1)
 # --------------------------------------------------------------------------
 ADHOC = invocation.ADHOC_REVIEW
+PIW = invocation.PROJECT_INDEPENDENT
 LAB = invocation.LAB_ITERATION
 FULL = invocation.FULL_LIFECYCLE
 SCOPES = invocation.SCOPES
@@ -212,17 +213,14 @@ SCOPES = invocation.SCOPES
 # --------------------------------------------------------------------------
 FULL_RUN_PHRASES = (
     "harness full run", "full harness run", "full run", "full-run",
-    "draft the whole paper", "draft the whole thing", "write the whole paper",
-    "draft me an essay", "draft an essay", "write me an essay", "write an essay",
-    "draft the paper", "write the paper", "draft this section", "write this section",
     "run the ladder", "start the ladder", "take this to ph4", "ship this",
-    "full lifecycle", "whole lifecycle",
+    "full lifecycle", "whole lifecycle", "full_lifecycle", "finalize",
+    "milestone acceptance", "promote", "promotion",
 )
 ADHOC_PHRASES = (
     "just review", "only review", "quick look", "quick review",
-    "no artifacts", "no artefacts", "don't bootstrap", "do not bootstrap",
-    "dont bootstrap", "ad hoc review", "adhoc review", "response only",
-    "response-only", "without bootstrapping", "no scaffold",
+    "no artifacts", "no artefacts", "ad hoc review", "adhoc review",
+    "response only", "response-only",
 )
 
 # A declared scope line in a dispatch brief: `run_scope: full_lifecycle`.
@@ -333,13 +331,17 @@ def _load_json(path: Path) -> tuple[dict | None, str | None]:
 # intent
 # --------------------------------------------------------------------------
 def classify_intent(text: str) -> str:
-    """Classify a user request's run scope. Ambiguity -> full_lifecycle (§1.1)."""
+    """Suggest a declaration; ordinary drafting is independent of lifecycle."""
     low = " ".join(text.lower().split())
-    if any(p in low for p in ADHOC_PHRASES):
-        return ADHOC
+    # Explicit governed intent wins even when the request also asks for a review.
     if any(p in low for p in FULL_RUN_PHRASES):
         return FULL
-    return FULL  # prose-producing default; see §1.1
+    if any(p in low for p in ADHOC_PHRASES):
+        return ADHOC
+    if any(p in low for p in ("grammar pass", "grammar-mechanics-pass", "sentence-level pass",
+                             "sentence-level-pass", "chung-academic-voice-pass", "proofread", "audit")):
+        return ADHOC
+    return PIW
 
 
 def cmd_intent(args) -> int:
@@ -747,6 +749,34 @@ def _lab_destination_findings(context: dict, output_root: Path | None) -> list[d
     return []
 
 
+
+def authorize_project_independent(piw_session_arg: Path | None) -> list[dict]:
+    """PIW prose may be written on PIW staging without a native project.
+
+    Distinct from adhoc_review (which refuses prose) and from full_lifecycle /
+    lab_iteration (which still require a governed project). PIW remains
+    non-terminal and cannot mint CLEAN.
+    """
+    if piw_session_arg is None:
+        return [_f(
+            invocation.FRC_PIW_SESSION_REQUIRED,
+            "project_independent authorize requires --piw-session pointing at "
+            "binding/piw_session.json or the PIW staging root",
+        )]
+    try:
+        import piw_session as piw_mod
+    except ImportError as exc:  # pragma: no cover
+        return [_f("FRC-PIW-SESSION-REQUIRED", f"piw_session module unavailable: {exc}")]
+    try:
+        result = piw_mod.validate_session(piw_session_arg)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [_f(getattr(exc, "code", invocation.FRC_PIW_SESSION_REQUIRED), str(exc))]
+    if not result.get("ok"):
+        return [_f(result.get("code", invocation.FRC_PIW_SESSION_REQUIRED),
+                   result.get("message", "task session validation failed"))]
+    return []
+
+
 def cmd_authorize(args) -> int:
     """May academic prose be written here?
 
@@ -788,6 +818,16 @@ def cmd_authorize(args) -> int:
                   run_scope=ADHOC)], "REFUSED")
         return REFUSED
 
+    if scope == PIW:
+        # Unlike adhoc_review, project_independent MAY authorize academic prose
+        # onto PIW staging. It still cannot mint CLEAN or satisfy terminal.
+        findings = authorize_project_independent(getattr(args, "piw_session", None))
+        if findings:
+            _emit(findings, "REFUSED")
+            return REFUSED
+        _emit([], "OK")
+        return OK
+
     if scope == LAB:
         context, findings = _lab_project_context(args.project_root)
         if not findings and context is not None:
@@ -812,6 +852,47 @@ def cmd_authorize(args) -> int:
 # --------------------------------------------------------------------------
 # scope  (§1.2 -- a child may not narrow a full-lifecycle parent)
 # --------------------------------------------------------------------------
+def _child_scope_comparison(parent_scope: str, brief: str) -> tuple[dict, str]:
+    """Accept plain declarations or one strict top-level JSON declaration.
+
+    Native PIW requests are JSON objects. Nested values are instructions/context,
+    never substitute declarations. Reject duplicate keys and malformed JSON
+    instead of falling back to any incidental plain-text line inside that input.
+    """
+    if not brief.lstrip().startswith(("{", "[")):
+        return invocation.evaluate_scope_inheritance(parent_scope, brief), brief
+
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON field {key!r}")
+            value[key] = item
+        return value
+
+    def reject_constant(value):
+        raise ValueError(f"non-JSON constant {value!r}")
+
+    def instruction_lines(value):
+        if isinstance(value, dict):
+            return "\n".join(f"{key}: {instruction_lines(item)}" for key, item in value.items())
+        if isinstance(value, list):
+            return "\n".join(instruction_lines(item) for item in value)
+        return str(value)
+
+    try:
+        envelope = json.loads(brief, object_pairs_hook=unique_object, parse_constant=reject_constant)
+        if not isinstance(envelope, dict) or not isinstance(envelope.get("run_scope"), str):
+            raise ValueError("one top-level run_scope string is required")
+    except (ValueError, TypeError) as exc:
+        comparison = invocation.compare_scope_inheritance(parent_scope, None)
+        comparison["message"] = f"child JSON brief has no unambiguous scope declaration: {exc}"
+        return comparison, brief
+    comparison = invocation.compare_scope_inheritance(parent_scope, envelope["run_scope"])
+    # Decode string escapes before applying the unchanged secondary refusal net.
+    return comparison, instruction_lines(envelope)
+
+
 def check_scope(parent_scope: str, brief: str) -> list[dict]:
     """Is this child dispatch legal under its parent?
 
@@ -833,7 +914,7 @@ def check_scope(parent_scope: str, brief: str) -> list[dict]:
     one, so the enforcement floor never depends on a phrase list.
     """
     findings: list[dict] = []
-    comparison = invocation.evaluate_scope_inheritance(parent_scope, brief)
+    comparison, instruction_text = _child_scope_comparison(parent_scope, brief)
     if not comparison["exact"]:
         findings.append(_f(
             comparison["code"], comparison["message"],
@@ -850,10 +931,10 @@ def check_scope(parent_scope: str, brief: str) -> list[dict]:
 
     child_scope = comparison["child_scope"]
     if comparison["exact"] and comparison["parent_scope"] == LAB:
-        findings.extend(dict(row) for row in invocation.lab_brief_findings(brief))
+        findings.extend(dict(row) for row in invocation.lab_brief_findings(instruction_text))
 
     # --- secondary: a brief that contradicts its own declaration -----------
-    low = " ".join(brief.lower().split())
+    low = " ".join(instruction_text.lower().split())
     if parent_scope == FULL:
         hits = sorted({m for m in DOWNGRADE_MARKERS if m in low})
         if hits:
@@ -1925,6 +2006,18 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
 
 
 def cmd_terminal(args) -> int:
+    # PIW staging receipts must never satisfy terminal (AT-8).
+    root = args.project_root
+    if root is not None:
+        piw_marker = Path(root) / "binding" / "piw_session.json"
+        alt = Path(root) / "piw_session.json"
+        if piw_marker.is_file() or alt.is_file():
+            _emit([_f(
+                invocation.FRC_PIW_NON_TERMINAL,
+                "PIW staging / session cannot satisfy full_lifecycle terminal 15-gate",
+                project_root=str(root),
+            )], "REFUSED")
+            return REFUSED
     findings = check_terminal(args.project_root)
     if findings:
         _emit(findings, "REFUSED")
@@ -1940,20 +2033,11 @@ def main(argv: list[str] | None = None) -> int:
 
     a = sub.add_parser("authorize", help="may academic prose be written here?")
     a.add_argument("--project-root", type=Path)
-    # NOT required, deliberately. §1.1 resolves an omitted top-level scope to
-    # full_lifecycle, and only `adhoc_review` must be declared explicitly. That
-    # is a SAFE DEFAULT, not phrase sniffing: the two are opposites. Sniffing
-    # reads the request text to guess what the user meant, and guesses wrong in
-    # the permissive direction. This default reads nothing at all, and resolves
-    # ambiguity toward the STRICTER path -- guessing full_lifecycle costs one
-    # bootstrap prompt the user can decline, while guessing adhoc_review
-    # silently skips the entire lifecycle, which is the 2026-07-17 audit.
-    # Making the flag mandatory would make the strict path the one you have to
-    # remember to ask for.
+    # Legacy direct authorize calls fail closed as full_lifecycle when omitted.
+    # Public ordinary coordinators explicitly declare project_independent.
     a.add_argument("--run-scope", type=str, default=None,
-                   help=f"declared scope, one of {SCOPES}. Omitted resolves to "
-                        f"{FULL} (§1.1: only adhoc_review must be explicit). "
-                        "Never inferred from request text.")
+                   help=f"declared scope, one of {SCOPES}. Omitted retains the "
+                        f"legacy {FULL} authorization guard; public callers declare scope.")
     a.add_argument(
         "--output-root", type=Path,
         help="required only for lab_iteration; governed staging run or exact private shipment lane",
@@ -1963,6 +2047,10 @@ def main(argv: list[str] | None = None) -> int:
         choices=tuple(ASSIGNMENT_TARGETS),
         help="Joseph-named M1-M4 or FINAL after materials are in play; "
              "gather auto-walk still uses the first non-accepted milestone when omitted",
+    )
+    a.add_argument(
+        "--piw-session", type=Path,
+        help="required for project_independent; piw_session.json or PIW staging root",
     )
     a.set_defaults(fn=cmd_authorize)
 

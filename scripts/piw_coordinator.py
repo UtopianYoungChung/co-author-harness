@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+"""Host-driven drafting/revision state machine: start, next, plan, ingest, deliver.
+
+`next` returns a role request. The calling host invokes its actual native child
+and waits; this Python process never pretends to dispatch cognitive execution.
+"""
+from __future__ import annotations
+import argparse
+import json
+import re
+from pathlib import Path
+import piw_session as piw
+from piw_session import assert_output as assert_writable
+import piw_native_host as native
+
+require = native.require
+PROFILES = {'draft': 'Produce a new deliverable from the bound brief and supplied sources.', 'refine': 'Improve requested wording and local clarity while preserving argument, terminology and citations.', 'structural': 'Revise organization only within the explicitly authorized scope; preserve claims and sources.', 'deep': 'Make the explicitly requested substantive revision; do not infer authority to alter unrelated material.', 'stability': 'Check whether the requested material needs any change; explained no-change is valid after all required roles.'}
+
+
+def _paths(session_path):
+    checked = piw.validate_session(session_path)
+    return checked['session'], Path(checked['staging_root'])
+
+
+def _fresh(binding: dict, code='PIW-EVIDENCE-DRIFT'):
+    actual = piw.identity(Path(binding['path']))
+    require(all(actual[k] == binding[k] for k in ('sha256', 'bytes')), code, 'Bound bytes changed: ' + binding['path'])
+    return actual
+
+
+def _scope(original: bytes, requested: dict) -> dict:
+    if requested.get('section'):
+        content_start = 3 if original.startswith(b'\xef\xbb\xbf') else 0
+        matches = list(re.finditer(rb'(?m)^(#{1,6})[ \t]+([^\r\n]+)\r?\n', original[content_start:]))
+        hits = [m for m in matches if m.group(2).decode('utf-8', errors='strict').strip() == requested['section']]
+        require(len(hits) == 1, 'PIW-SCOPE-INVALID', 'Requested section must match exactly one heading')
+        selected = hits[0]
+        end = next((content_start + m.start() for m in matches if m.start() > selected.start() and len(m.group(1)) <= len(selected.group(1))), len(original))
+        start = content_start + selected.start()
+    else:
+        start, end = 0, len(original)
+    return {**requested, 'start_byte': start, 'end_byte': end,
+            'prefix_sha256': piw.digest(original[:start]), 'suffix_sha256': piw.digest(original[end:])}
+
+
+def _preserved(contract, candidate):
+    if not contract.get('input'):
+        return
+    original = Path(contract['input_snapshot']['path']).read_bytes()
+    final = Path(candidate['path']).read_bytes()
+    scope = contract['requested_scope']
+    prefix, suffix = original[:scope['start_byte']], original[scope['end_byte']:]
+    require(len(final) >= len(prefix) + len(suffix) and final.startswith(prefix) and final.endswith(suffix),
+            'PIW-SCOPE-DRIFT', 'Unrequested manuscript bytes changed')
+
+
+def start(session_path: Path, request: dict) -> dict:
+    session, root = _paths(session_path)
+    require(not (root / 'binding/run.json').exists(), 'PIW-RUN-EXISTS', 'Start a new session for another run')
+    require(isinstance(request.get('brief'), str) and len(request['brief'].strip()) >= 10,
+            'PIW-BRIEF-REQUIRED', 'Bind the actual user request and constraints')
+    require(not any(request.get(x) for x in ('lifecycle_terminal', 'promotion', 'research_acceptance', 'full_lifecycle')), 'FRC-PIW-NON-TERMINAL', 'Explicit lifecycle operations must retain their governed route')
+    project_context = piw.validate_authoritative_binding(Path(request['authoritative_binding'])) if request.get('authoritative_binding') else None
+    profile = request.get('profile', 'refine' if session.get('mss_pin') else 'draft')
+    require(profile in PROFILES, 'PIW-PROFILE-INVALID', 'Unknown draft/revision profile')
+    host = native.bind_host(request.get('host', {}), root)
+    exclusions = sorted(set('chung-academic-voice-pass' if 'chung' in str(x).lower() else x for x in request.get('exclusions', [])))
+    passes = request.get('passes', ['grammar-mechanics-pass', 'sentence-level-pass'])
+    applied = [x for x in passes if x not in exclusions]
+    checks = request.get('required_checks', [{'id': 'brief_and_scope', 'required': True}, {'id': 'grammar', 'required': True}, {'id': 'grounding', 'required': True}])
+    checks = [{'id': x, 'required': True} if isinstance(x, str) else x for x in checks]
+    require(checks and len({x['id'] for x in checks}) == len(checks), 'PIW-CHECKS-INVALID', 'Bind unique substantive checks')
+    requested_scope = request.get('requested_scope', {'description': 'whole deliverable'})
+    require(isinstance(requested_scope, dict) and requested_scope.get('description'), 'PIW-SCOPE-REQUIRED', 'Bind an explicit scope description')
+    original = (root / 'binding/original.bin').read_bytes() if session.get('mss_pin') else None
+    if original is not None:
+        requested_scope = _scope(original, requested_scope)
+    limit = request.get('max_corrections', 3)
+    require(isinstance(limit, int) and 0 <= limit <= 20, 'PIW-CORRECTION-LIMIT', 'Correction limit must be 0..20')
+    sources = []
+    for item in request.get('source_excerpts', []):
+        require(item.get('locator') and item.get('source_id'), 'PIW-SOURCE-LOCATOR', 'Source excerpts require source identity and locator')
+        bound = piw.identity(Path(item['path']))
+        if item.get('sha256'):
+            require(item['sha256'] == bound['sha256'], 'PIW-SOURCE-DRIFT', 'Supplied source hash differs from actual excerpt')
+        sources.append({**item, **bound})
+    contract = {'schema_version': '2.0.0', 'run_id': session['piw_work_id'], 'created_at': piw.utc_now(), 'session': piw.identity(root / 'binding/piw_session.json'),
+                'brief': request['brief'], 'profile': profile, 'profile_definition': PROFILES[profile], 'project_context': project_context, 'requested_scope': requested_scope, 'input': session.get('mss_pin'),
+                'input_snapshot': piw.identity(root / 'binding/original.bin') if original is not None else None,
+                'proposal_only': bool(request.get('proposal_only', False)), 'passes': applied, 'exclusions': exclusions,
+                'rules': piw.rule_bindings(applied, exclusions), 'package_version': piw.read_json(piw.ROOT / 'version.json'),
+                'required_checks': checks, 'max_corrections': limit, 'source_excerpts': sources,
+                'host': host, 'output_authority': 'task-local deliverable; input apply is separate',
+                'lifecycle_terminal': False, 'research_acceptance': False}
+    if request.get('venue_path'):
+        contract['venue'] = piw.identity(Path(request['venue_path']))
+    piw.write_json(root / 'binding/run.json', contract)
+    piw.write_json(root / 'logs/state.json', {'events': [], 'pending': None})
+    return next_step(session_path)
+
+
+def _contract(session_path):
+    session, root = _paths(session_path)
+    path = root / 'binding/run.json'
+    contract = piw.read_json(path)
+    require(contract['run_id'] == session['piw_work_id'], 'PIW-WRONG-RUN', 'Run and session identities differ')
+    for item in [contract['session'], *contract['rules'], *contract['source_excerpts']]:
+        _fresh(item)
+    if contract.get('venue'):
+        _fresh(contract['venue'])
+    if contract.get('project_context'):
+        _fresh(contract['project_context']['contract'])
+        _fresh(contract['project_context']['assignment_source'])
+        piw.validate_authoritative_binding(Path(contract['project_context']['contract']['path']))
+    return contract, root, piw.identity(path)
+
+
+def initial_state(contract):
+    return {'stage': 'diagnosis' if contract['input'] else 'plan', 'candidate': contract.get('input_snapshot'), 'corrections': 0, 'unresolved_findings': [], 'limitations': [], 'executions': {}, 'last_findings': [], 'generator_execution_id': None}
+
+
+def validate_result(contract, request, result, state):
+    expected_role = {'diagnosis': 'evaluator', 'generation': 'generator', 'evaluation': 'evaluator', 'reflection': 'reflector'}.get(state['stage'])
+    require(expected_role is not None and request.get('role') == expected_role and request.get('phase') == state['stage'], 'PIW-ROLE-SEQUENCE', 'Role must match the actual diagnosis/plan/generation/evaluation/reflection stage')
+    for key in ('run_id', 'step_id', 'role', 'phase'):
+        require(result.get(key) == request.get(key), 'PIW-WRONG-RUN-OR-STEP', 'Result mismatches bound ' + key)
+    require(result.get('request_sha256') == piw.digest(piw.json_bytes(request)), 'PIW-REQUEST-DRIFT', 'Result does not bind the exact dispatched request')
+    require(result.get('outcome') == 'completed', 'PIW-EXECUTION-FAILED', 'Native role outcome: ' + str(result.get('outcome')))
+    require(isinstance(result.get('summary'), str) and len(result['summary'].strip()) >= 30, 'PIW-SUBSTANTIVE-EVIDENCE-MISSING', 'Explain actual work and conclusions')
+    require(result.get('exclusions') == contract['exclusions'] and result.get('applied_passes') == contract['passes'],
+            'PIW-EXCLUSION-DRIFT', 'Applied rules or exclusions differ from the user-bound fire table')
+    require(result.get('rule_reads') == contract['rules'], 'PIW-RULE-EVIDENCE-MISSING', 'Record the exact rule identities actually read, separately from activation')
+    require(result.get('target') == request.get('target'), 'PIW-TARGET-MISMATCH', 'Result must inspect the bound target bytes')
+    execution = result.get('agent_execution_id')
+    require(bool(execution), 'PIW-HOST-IDENTITY', 'Missing actual host child execution ID')
+    roles = state['executions']
+    require(all(role == request['role'] or execution not in ids for role, ids in roles.items()),
+            'PIW-ROLE-IMPERSONATION', 'Generator, Evaluator and Reflector must have distinct host contexts')
+    require(execution != contract['host']['parent_execution_id'], 'PIW-ROLE-IMPERSONATION', 'Caller cannot impersonate a child')
+    if request['role'] == 'generator':
+        artifact = result.get('artifact')
+        require(isinstance(artifact, dict), 'PIW-ARTIFACT-MISSING', 'Generator must bind substantive authored bytes')
+        _fresh(artifact, 'PIW-ARTIFACT-DRIFT')
+        root = Path(contract['session']['path']).parent.parent
+        require(Path(artifact['path']).resolve().is_relative_to(root / 'draft'), 'PIW-ARTIFACT-LOCATION', 'Generator writes a new candidate in this run draft directory')
+        require(artifact['bytes'] > 0 and len(Path(artifact['path']).read_text(encoding='utf-8-sig').split()) >= 3,
+                'PIW-SUBSTANTIVE-EVIDENCE-MISSING', 'Generator artifact is empty')
+        _preserved(contract, artifact)
+        expected = {x['id'] for x in state['last_findings'] if x.get('blocking')}
+        require(expected.issubset(set(result.get('addressed_findings', []))), 'PIW-CORRECTION-UNBOUND', 'Correction must address the actual blocking finding IDs')
+        return
+    checks = result.get('checks', [])
+    require(isinstance(checks, list) and len({x.get('id') for x in checks}) == len(checks), 'PIW-CHECK-EVIDENCE-MISSING', 'Supply distinct performed checks')
+    by_id = {x.get('id'): x for x in checks}
+    for required_check in contract['required_checks']:
+        item = by_id.get(required_check['id'])
+        require(bool(item) and item.get('status') in ('pass', 'fail', 'not_applicable', 'unavailable') and len(item.get('rationale', '').strip()) >= 20 and bool(item.get('locators')),
+                'PIW-CHECK-EVIDENCE-MISSING', 'Check needs applicability, result, actual reason and locators: ' + required_check['id'])
+        if required_check.get('source_required') and not contract['source_excerpts']:
+            require(item['status'] in (('unavailable',) if required_check.get('required', True) else ('unavailable', 'not_applicable')), 'PIW-SOURCE-EVIDENCE-MISSING', 'Source-dependent check cannot pass without bound excerpts')
+    findings = result.get('findings')
+    require(isinstance(findings, list), 'PIW-FINDINGS-MISSING', 'Return findings or explained no-defect checks')
+    require(all(isinstance(f.get('blocking'), bool) and f.get('id') and f.get('locator') and len(f.get('message', '').strip()) >= 15 for f in findings), 'PIW-FINDINGS-MISSING', 'Findings need IDs, locators, reasons and blocking disposition')
+
+
+def advance(contract, state, role, result):
+    if role == 'planner':
+        state['stage'] = 'generation'
+        return
+    state['executions'].setdefault(role, []).append(result['agent_execution_id'])
+    if role == 'generator':
+        state['candidate'] = result['artifact']
+        state['generator_execution_id'] = result['agent_execution_id']
+        state['stage'] = 'evaluation'
+        return
+    blockers = [x for x in result['findings'] if x['blocking']]
+    required = {x['id'] for x in contract['required_checks'] if x.get('required', True)}
+    for check in result['checks']:
+        if check['id'] in required and check['status'] in ('fail', 'unavailable'):
+            blockers.append({'id': check['id'], 'blocking': True, 'locator': ', '.join(check['locators']), 'message': check['rationale']})
+        if check['status'] == 'unavailable' and check['id'] not in required:
+            state['limitations'].append(check)
+    state['last_findings'] = blockers
+    if state['stage'] == 'diagnosis':
+        state['stage'] = 'plan'
+    elif blockers:
+        state['unresolved_findings'] = blockers
+        if state['corrections'] >= contract['max_corrections']:
+            state['stage'] = 'needs_revision'
+        else:
+            state['corrections'] += 1
+            state['stage'] = 'generation'
+    else:
+        state['unresolved_findings'] = []
+        state['stage'] = 'reflection' if role == 'evaluator' else 'ready_to_deliver'
+
+
+def replay(session_path):
+    contract, root, contract_binding = _contract(session_path)
+    log = piw.read_json(root / 'logs/state.json')
+    state = initial_state(contract)
+    for index, event in enumerate(log['events']):
+        _fresh(event['result'])
+        result = piw.read_json(event['result']['path'])
+        if event['kind'] == 'plan':
+            require(state['stage'] == 'plan', 'PIW-SEQUENCE', 'Revision diagnosis must precede planning')
+            require(result.get('run_id') == contract['run_id'] and result.get('contract_sha256') == contract_binding['sha256'] and len(result.get('summary', '')) >= 30 and bool(result.get('steps')), 'PIW-PLAN-MISSING', 'Planner must map user request and diagnosis into bounded concrete steps')
+            expected_diagnosis = log['events'][index - 1]['result']['sha256'] if contract['input'] else None
+            require(result.get('diagnosis_sha256') == expected_diagnosis, 'PIW-PLAN-DIAGNOSIS', 'Revision plan must bind the actual independent diagnosis')
+            advance(contract, state, 'planner', result)
+            continue
+        _fresh(event['request'])
+        request = piw.read_json(event['request']['path'])
+        require(request['phase'] == state['stage'] and request['contract_sha256'] == contract_binding['sha256'] and request['sequence'] == index,
+                'PIW-SEQUENCE', 'Evidence is out of order or bound to another contract')
+        target = contract['input_snapshot'] if state['stage'] == 'diagnosis' else state['candidate']
+        require(request.get('target') == target, 'PIW-TARGET-MISMATCH', 'Request points at stale or unrelated bytes')
+        validate_result(contract, request, result, state)
+        native.verify_execution(contract['host'], event['host'], request, result, event['host']['pins'])
+        advance(contract, state, request['role'], result)
+    return contract, root, log, state
+
+
+def next_step(session_path):
+    contract, root, log, state = replay(session_path)
+    stage = state['stage']
+    if stage in ('plan', 'ready_to_deliver', 'needs_revision'):
+        return {'ok': stage != 'needs_revision', 'status': stage, 'run_id': contract['run_id'], 'state': state,
+                'contract': piw.identity(root / 'binding/run.json'), 'diagnosis': log['events'][-1]['result'] if stage == 'plan' and log['events'] else None, 'task_complete': False}
+    if log.get('pending'):
+        _fresh(log['pending'])
+        pending = piw.read_json(log['pending']['path'])
+    else:
+        role = {'generation': 'generator', 'diagnosis': 'evaluator', 'evaluation': 'evaluator', 'reflection': 'reflector'}[stage]
+        pending = {'run_id': contract['run_id'], 'step_id': piw.mint_work_id(), 'sequence': len(log['events']), 'created_at': piw.utc_now(),
+                   'role': role, 'phase': stage, 'run_scope': 'project_independent', 'contract_sha256': piw.identity(root / 'binding/run.json')['sha256'],
+                   'contract_path': str(root / 'binding/run.json'), 'target': contract['input_snapshot'] if stage == 'diagnosis' else state['candidate'],
+                   'brief': contract['brief'], 'profile': contract.get('profile', 'refine' if contract['input'] else 'draft'), 'profile_definition': contract.get('profile_definition'), 'venue': contract.get('venue'), 'project_context': contract.get('project_context'), 'requested_scope': contract['requested_scope'], 'rules': contract['rules'], 'applied_passes': contract['passes'],
+                   'exclusions': contract['exclusions'], 'required_checks': contract['required_checks'], 'source_excerpts': contract['source_excerpts'],
+                   'findings_to_address': state['last_findings'], 'evidence_so_far': log['events'], 'output_directory': str(root / 'draft'),
+                   'instruction': 'Perform the real assigned role in a distinct native context. Read actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
+        path = root / 'logs' / f'{len(log["events"]):03d}-{stage}-request.json'
+        piw.write_json(path, pending)
+        log['pending'] = piw.identity(path)
+        piw.write_json(root / 'logs/state.json', log)
+    return {'ok': True, 'status': 'awaiting_native_child', 'request_path': log['pending']['path'], 'request_sha256': log['pending']['sha256'], 'request': pending, 'task_complete': False}
+
+
+def record_plan(session_path, plan):
+    contract, root, log, state = replay(session_path)
+    require(state['stage'] == 'plan', 'PIW-SEQUENCE', 'Plan is accepted only after required independent diagnosis')
+    plan = {**plan, 'profile': contract.get('profile'), 'applied_passes': contract['passes'], 'exclusions': contract['exclusions'], 'run_id': contract['run_id'], 'contract_sha256': piw.identity(root / 'binding/run.json')['sha256'],
+            'diagnosis_sha256': log['events'][-1]['result']['sha256'] if contract['input'] else None}
+    require(len(plan.get('summary', '')) >= 30 and bool(plan.get('steps')), 'PIW-PLAN-MISSING', 'Provide substantive scope-preserving plan and concrete steps')
+    path = root / 'plan/planner.json'
+    piw.write_json(path, plan)
+    log['events'].append({'kind': 'plan', 'result': piw.identity(path)})
+    piw.write_json(root / 'logs/state.json', log)
+    return next_step(session_path)
+
+
+def ingest(session_path, result, evidence):
+    contract, root, log, state = replay(session_path)
+    require(bool(log.get('pending')), 'PIW-NO-PENDING-REQUEST', 'Run next before native dispatch')
+    _fresh(log['pending'])
+    request = piw.read_json(log['pending']['path'])
+    validate_result(contract, request, result, state)
+    host = native.verify_execution(contract['host'], evidence, request, result)
+    path = root / {'generator': 'draft', 'evaluator': 'evaluate', 'reflector': 'reflect'}[request['role']] / f'{len(log["events"]):03d}-{request["phase"]}-result.json'
+    piw.write_json(path, result)
+    log['events'].append({'kind': 'role', 'request': log['pending'], 'result': piw.identity(path), 'host': host})
+    log['pending'] = None
+    piw.write_json(root / 'logs/state.json', log)
+    return next_step(session_path)
+
+
+def deliver(session_path, destination):
+    contract, root, log, state = replay(session_path)
+    require(state['stage'] == 'ready_to_deliver', 'PIW-INCOMPLETE' if state['stage'] != 'needs_revision' else 'PIW-NEEDS-REVISION', 'Required role work has not completed acceptably')
+    destination = Path(destination).resolve()
+    assert_writable(destination)
+    require(not contract['input'] or destination != Path(contract['input']['path']).resolve(), 'PIW-INPUT-APPLY-SEPARATE', 'Deliver to an authorized output artifact; original manuscript application is separate')
+    reserved = [root / name for name in piw.STAGING_SUBDIRS]
+    reserved.append(Path(contract['host']['logs_root']).resolve())
+    bound_files = [contract['session'], *contract['rules'], *contract['source_excerpts']]
+    bound_files.extend(x for x in (contract.get('input_snapshot'), contract.get('venue')) if x)
+    if contract.get('project_context'):
+        bound_files.extend([contract['project_context']['contract'], contract['project_context']['assignment_source']])
+    protected_files = {Path(x['path']).resolve() for x in bound_files} | {root / 'completion.json', root / 'evaluation.json'}
+    require(destination not in protected_files and not any(destination.is_relative_to(path) for path in reserved), 'PIW-DELIVERY-LOCATION', 'Delivery must not overwrite bound inputs, sources, rules, original host logs or runtime evidence')
+    data = Path(state['candidate']['path']).read_bytes()
+    piw.write_bytes(destination, data)
+    piw.write_json(root / 'binding/delivery.json', {'run_id': contract['run_id'], 'artifact': piw.identity(destination), 'candidate': state['candidate'], 'created_at': piw.utc_now()})
+    import piw_completion_guard as guard
+    result = guard.verify_completion(session_path)
+    piw.write_json(root / 'completion.json', result)
+    if result.get('task_complete'):
+        evaluation = piw.read_json(result['evaluation']['path'])
+        piw.write_json(root / 'evaluation.json', {**evaluation, 'artifact_sha256': result['artifact_sha256'], 'artifact_bytes': result['artifact_bytes'], 'original_evidence': result['evaluation']})
+    return result
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('command', nargs='?', choices=('start', 'next', 'plan', 'ingest', 'deliver', 'status'))
+    ap.add_argument('--piw-session', required=True, type=Path)
+    ap.add_argument('--request-json', type=Path)
+    ap.add_argument('--plan-json', type=Path)
+    ap.add_argument('--result-json', type=Path)
+    ap.add_argument('--host-evidence', type=Path)
+    ap.add_argument('--destination', type=Path)
+    ap.add_argument('--dest-write', type=Path)
+    ap.add_argument('--coordinator', choices=('draft', 'iterate', 'reflection'))
+    ap.add_argument('--profile', default='refine')
+    ap.add_argument('--mode', default='probe')
+    args = ap.parse_args(argv)
+    try:
+        if args.dest_write:
+            piw.assert_output(args.dest_write)
+        if args.command == 'start':
+            result = start(args.piw_session, piw.read_json(args.request_json))
+        elif args.command == 'plan':
+            result = record_plan(args.piw_session, piw.read_json(args.plan_json))
+        elif args.command == 'ingest':
+            result = ingest(args.piw_session, piw.read_json(args.result_json), piw.read_json(args.host_evidence))
+        elif args.command == 'deliver':
+            result = deliver(args.piw_session, args.destination)
+        elif args.command in ('next', 'status'):
+            result = next_step(args.piw_session)
+        else:
+            raise piw.PIWError('PIW-HOST-DISPATCH-REQUIRED', 'Use start/next/plan/ingest with actual native children; legacy receipt-only coordinators cannot perform this task')
+    except (piw.PIWError, OSError, ValueError, KeyError, TypeError) as exc:
+        result = {'ok': False, 'status': 'execution_error', 'code': getattr(exc, 'code', 'PIW-INVALID-EVIDENCE'), 'message': str(exc), 'task_complete': False}
+    print(json.dumps(result, indent=2, ensure_ascii=True))
+    return 0 if result.get('ok') else 4
+
+if __name__ == '__main__':
+    raise SystemExit(main())

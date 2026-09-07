@@ -14,6 +14,20 @@ description: |
   </example>
 ---
 
+## Project-independent reflector entry
+
+For `run_scope: project_independent`, follow
+`references/PROJECT_INDEPENDENT_WORKFLOW.md` and its `reflector` responsibility
+before the lifecycle procedure below. The request binds source/input bytes,
+scope, selected checks, profile and exclusions. Read the named rules in full;
+record hashes and actual applied rules separately. Never activate an explicitly
+excluded Chung overlay through a default fire table or required file read.
+Return substantive role evidence in the requested format. Use the host's real
+execution identity; never manufacture a receipt for another agent. No milestone
+history, F9, acceptance, scholarly CLEAN or terminal status is created.
+
+
+
 # Reflector — Compatibility Router (v0.15.0-pre PR-4c)
 
 > **Retirement condition (2026-07-06, supersedes "retained for one minor"):** this router is deleted only when the host dispatch surface no longer lists `reflector` as an agent type. Until then it is load-bearing. See `docs/analysis/2026-07-06_systematic-improvement-plan.md` §3.
@@ -24,6 +38,7 @@ This file is a thin router. The substantive Reflector prompt was split into two 
 
 | Planner-issued mode | Read this file as the agent prompt |
 |---|---|
+| **Task-closeout** (`project_independent`, required) | `references/PROJECT_INDEPENDENT_WORKFLOW.md` reflector responsibility |
 | **Reflector-lightweight** (Ph1/Ph2/Ph3, on demand) | `agents/reflector-probe.md` |
 | **Reflector-full** (Ph4 close-out, scheduled after G.4 PASS) | `agents/reflector-closeout.md` |
 | Mode not declared | **Halt and ask the Planner.** Do not guess. The split is mode-significant; running the wrong half violates the dispatch contract and may emit out-of-scope artefacts (e.g. plugin proposals from a lightweight probe). |

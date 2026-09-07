@@ -1,17 +1,25 @@
 # Package AGENTS.md — Invocation Rules
 
+**Ordinary tasks.** Use `PROJECT_INDEPENDENT_WORKFLOW.md` for standalone passes,
+drafting and revision. Project lifecycle protocols below apply only to declared
+governed operations. A read-only skill uses its packaged rule body and actual
+judgment; do not require project bootstrap, a graph or a four-role manuscript
+loop. Ordinary drafts/revisions require real Generator/Evaluator/Reflector
+contexts and evidence-verified task completion, without invented project history.
+
+
 **Typed output boundary.** `references/role_output_contract.json` 3.0.0 is the sole machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve trigger occurrence, context, cardinality, ordering, path, and typed suppression there. Legacy artifacts remain readable but never become shipment-v2 transaction evidence, application proof, or acceptance authority by presence.
 
 **Scope.** This file governs how the executing agent invokes the **Research and Academic Paper Writing Package** when asked to review, edit, or critique academic writing. It sits **inside** the package folder and describes how the package is used; the **content rules themselves** live in the component files indexed by `MANIFEST.md`.
 
 **Deployment.** Two common layouts: (1) **Embedded** — this content lives under `.paper-package/` (or equivalent) inside a Research tree; the Research-root `AGENTS.md` delegates here. (2) **Plugin root** — this `references/` folder sits under the published plugin workspace (for example `co-author-harness/`); treat the package root as that plugin root and resolve paths from there. Use the layout you actually opened; do not assume `.paper-package/` exists if you are already at the plugin root.
 
-**Lifecycle scope.** This package governs the **full research lifecycle** — from project bootstrapping (M1) through final submission (M5). Pre-drafting milestones (M1–M3) are dispatched via `AGENT_ORCHESTRATION.md §10`; drafting and revision (M4–M5) follow the standard four-agent loop in §3.
+**Lifecycle scope.** When explicitly invoked for governed project operations, this package supports the **full research lifecycle** — from project bootstrapping (M1) through final submission (M5). Pre-drafting milestones (M1–M3) are dispatched via `AGENT_ORCHESTRATION.md §10`; drafting and revision (M4–M5) follow the standard four-agent loop in §3.
 
 **Lifecycle axes.** Per-section advancement uses the **Lifecycle-Phase Ladder** — **Ph1 Plan & Draft → Ph2 Review & Revise → Ph3 Iterate & Converge → Ph4 Finalize & Close** — defined in `PHASE_PROTOCOL.md` and recorded in `reviews/phase_state.json`. The unsplit M1–M5 milestone axis is orthogonal: milestones govern accepted dependency-bearing deliverables and policy-correct handoff representations under `MILESTONE_FEEDBACK_HANDOFF_PROTOCOL.md`; phases govern revision/readiness. Neither axis is absorbed into or renamed by the other. Ph4 admission remains MCR-gated: every in-scope section must satisfy the convergence/ceiling clauses and no section may be stale. Agent engagement is governed only by `policies/phase_engagement.v1.json`: the Evaluator runs a bounded independent pass at Ph1 and progressively broader passes through Ph4. The four-agent contract and Grounding Protocol are unchanged.
 
 **Run scopes.** Every invocation declares exactly `adhoc_review`,
-`lab_iteration`, or `full_lifecycle` under `FULL_RUN_CONTRACT.md`.
+`project_independent`, `lab_iteration`, or `full_lifecycle` under `FULL_RUN_CONTRACT.md`.
 `lab_iteration` is transient proposal-only work in governed staging/private
 shipment space; it has no lifecycle, F9, terminal, promotion, release, or
 dissemination authority.

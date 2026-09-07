@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
 # 34 existing checks plus 20 R-6/R-7 checks. No platform split.
-EXPECTED_CHECKS = 54
+EXPECTED_CHECKS = 55
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -164,9 +164,9 @@ def case_lab_hook_public_router_and_role_propagation() -> None:
         ROOT / "scripts" / "hooks" / "full_run_pretooluse_gate.py",
     )
     check(
-        "hook scope vocabulary is exactly the three charter scopes",
+        "hook scope vocabulary is exactly the four declared scopes",
         set(getattr(hook, "SCOPES", set()))
-        == {"adhoc_review", "lab_iteration", "full_lifecycle"},
+        == {"adhoc_review", "project_independent", "lab_iteration", "full_lifecycle"},
         repr(getattr(hook, "SCOPES", None)),
     )
     old = os.environ.get("FRC_PARENT_SCOPE")
@@ -228,7 +228,7 @@ def case_lab_hook_public_router_and_role_propagation() -> None:
         encoding="utf-8"
     )
     router_low = " ".join(public_router.casefold().split())
-    for token in ("`adhoc_review`", "`lab_iteration`", "`full_lifecycle`"):
+    for token in ("`adhoc_review`", "`project_independent`", "`lab_iteration`", "`full_lifecycle`"):
         check(f"public /run-draft names {token}", token in router_low)
     check(
         "public /run-draft routes lab work as proposal-only without lifecycle/F9 authority",
@@ -246,9 +246,9 @@ def case_lab_hook_public_router_and_role_propagation() -> None:
         role_text = path.read_text(encoding="utf-8")
         role_low = role_text.casefold()
         check(
-            f"{role} names the exact three-scope vocabulary",
+            f"{role} names the exact four-scope vocabulary",
             all(scope in role_low for scope in (
-                "adhoc_review", "lab_iteration", "full_lifecycle"
+                "adhoc_review", "project_independent", "lab_iteration", "full_lifecycle"
             )),
         )
         check(

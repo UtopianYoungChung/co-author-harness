@@ -9,7 +9,7 @@ plugin-scoped PreToolUse hooks run. Cowork and Cursor coverage are not claimed.
 ACTIVATION
 ----------
 The driver must declare the parent scope in ``FRC_PARENT_SCOPE``.
-Known scopes: adhoc_review, lab_iteration, full_lifecycle.
+Known scopes: adhoc_review, project_independent, lab_iteration, full_lifecycle.
 A missing or unknown scope is not permission to write argument-bearing
 paths. Ordinary non-argument writes may still proceed.
 
@@ -132,14 +132,14 @@ def _hook_error_notice(reason: str) -> None:
 def _scope_required_reason(kind: str) -> str:
     return (
         f"[FRC-SCOPE-REQUIRED] {kind} refused without FRC_PARENT_SCOPE "
-        "in {adhoc_review, lab_iteration, full_lifecycle}"
+        "in {adhoc_review, project_independent, lab_iteration, full_lifecycle}"
     )
 
 
 def _scope_unknown_reason(kind: str) -> str:
     return (
         "[FRC-SCOPE-UNKNOWN] FRC_PARENT_SCOPE is set but is not "
-        f"adhoc_review, lab_iteration, or full_lifecycle; refusing {kind}"
+        f"adhoc_review, project_independent, lab_iteration, or full_lifecycle; refusing {kind}"
     )
 
 
@@ -209,19 +209,33 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
     if raw and scope is None:
         return _deny(
             "[FRC-SCOPE-UNKNOWN] FRC_PARENT_SCOPE is set but is not "
-            "adhoc_review, lab_iteration, or full_lifecycle; refusing write"
+            "adhoc_review, project_independent, lab_iteration, or full_lifecycle; refusing write"
         )
     if scope is None:
         if path_str and _is_argument_path(path_str):
             return _deny(
                 "[FRC-SCOPE-REQUIRED] argument-bearing write refused without "
-                "FRC_PARENT_SCOPE in {adhoc_review, lab_iteration, full_lifecycle}"
+                "FRC_PARENT_SCOPE in {adhoc_review, project_independent, lab_iteration, full_lifecycle}"
             )
         _passthrough_notice("PreToolUse", tool_name)
         return _allow()
     if not path_str:
         return _allow()
     p = _path_from_input(path_str, cwd)
+    if scope == invocation.PROJECT_INDEPENDENT:
+        import piw_session
+        session_path = os.environ.get("FRC_PIW_SESSION", "")
+        if not session_path:
+            return _deny("[FRC-PIW-SESSION-REQUIRED] standalone writes require the bound task session")
+        try:
+            bound = piw_session.validate_session(session_path)
+            staging = Path(bound["staging_root"]).resolve()
+            # Scope labels never bypass governed destinations or task confinement.
+            piw_session.assert_output(p)
+            p.resolve().relative_to(staging)
+        except (OSError, ValueError) as exc:
+            return _deny(f"[{getattr(exc, 'code', 'PIW-OUTPUT-SCOPE')}] {exc}")
+        return _allow()
     if scope == invocation.LAB_ITERATION:
         try:
             destination_kind = destination.classify(p)
@@ -296,6 +310,12 @@ def _handle_stop(payload: dict) -> int:
     cwd = payload.get("cwd") or os.getcwd()
     root = _find_project_root(Path(cwd)) or Path(cwd)
     structured = _terminal_phase_reached(root)
+    if scope == invocation.PROJECT_INDEPENDENT:
+        if has_marker or structured:
+            return _block_stop(
+                "[FRC-PIW-NON-TERMINAL] task completion does not authorize lifecycle terminal or promotion"
+            )
+        return _allow()
     if scope == invocation.LAB_ITERATION:
         if has_marker:
             return _block_stop(

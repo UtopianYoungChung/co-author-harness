@@ -7,6 +7,22 @@ created_from: Three-manuals integration, 2026-06-28 — docs/superpowers/plans/2
 pattern_source: blue_book_grammar_guidelines.md §§1–7; turabian_chicago_guidelines.md §5 (Part III item map, Turabian sub-pass added v1.1, 2026-07-01)
 version: 1.1
 ---
+
+Rule paths below are package-relative (`references/`), not relative to the input folder. Record the selected rules separately from files read only for context.
+
+
+## Ordinary task routing
+
+For a bounded read-only pass on pasted text or a file, declare `adhoc_review`
+and follow `references/PROJECT_INDEPENDENT_WORKFLOW.md`. Resolve rules from
+this package, read the requested input, perform this skill's actual checks,
+and return locator-bound findings, counts, rule hashes and limitations.
+No project, assignment contract, graph or four-role loop is required.
+Optional venue instructions refine the relevant rule. An explicitly supplied
+invalid authoritative project binding is a binding error, never silent fallback.
+A proposal in findings does not authorize editing the original input.
+
+
 # Grammar-Mechanics Pass (Blue Book)
 
 You are running a targeted **correctness** review on academic prose: grammar and punctuation mechanics, not rhetoric or rhythm. This skill draws on `blue_book_grammar_guidelines.md`.

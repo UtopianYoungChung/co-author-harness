@@ -361,14 +361,15 @@ def _commit_builder_under_test(repo: Path) -> None:
          "commit", "--quiet", "-m", "sbx: builder under test")
 
 
-def build(repo: Path) -> tuple[int, Path, str]:
+def build(repo: Path, *, env: dict[str, str] | None = None) -> tuple[int, Path, str]:
     out_dir = _external_output_dir(repo)
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "co-author-harness.plugin"
     out.unlink(missing_ok=True)
     r = subprocess.run([sys.executable, str(repo / "scripts" / "build-plugin.py"),
                         "--out", str(out_dir)],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env=env)
     return r.returncode, out, (r.stdout + r.stderr)
 
 
@@ -710,17 +711,21 @@ def case_exact_output_handoff() -> None:
     """The child's bundle lands at the PARENT's declared output, and nothing
     of the build worktree survives -- neither the directory nor git's admin
     registration. Pins the exit-6 detection's positive complement."""
-    with sandbox() as repo:
+    with sandbox() as repo, tempfile.TemporaryDirectory(
+        prefix="coauthor-handoff-"
+    ) as build_tmp:
+        wt_base = Path(build_tmp)
+        child_env = os.environ.copy()
+        child_env.update({name: str(wt_base) for name in ("TMPDIR", "TEMP", "TMP")})
         expected = _external_output_dir(repo) / "co-author-harness.plugin"
         if expected.exists():
             expected.unlink()
-        rc, out, _ = build(repo)
+        rc, out, _ = build(repo, env=child_env)
         check("handoff: builder exits 0", rc == 0)
         if rc != 0:
             return
         check("handoff: bundle at the declared output path", expected.is_file())
         check("handoff: build() path and declared path agree", out == expected)
-        wt_base = Path(tempfile.gettempdir())
         leftovers = sorted(p.name for p in wt_base.glob("coauthor-build-plane-*")) if wt_base.is_dir() else []
         check("handoff: no build worktree directory remains", not leftovers,
               f"{leftovers[:2]}")

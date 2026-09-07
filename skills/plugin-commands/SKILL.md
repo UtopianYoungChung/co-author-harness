@@ -97,3 +97,13 @@ receipt for that governed evidence.
 Return the concise catalog above. When the user's situation is clear, lead with
 one recommended command and one sentence explaining why. State status honestly:
 do not present a degraded or external-dependent command as a live mechanical runner.
+
+
+## Ordinary use without a project
+
+Use `/sentence-level-pass` or `/grammar-mechanics-pass` for substantive findings
+on pasted text or a file. `/run-draft`, `/run-iterate` and `/run-reflection` route
+ordinary tasks through `references/PROJECT_INDEPENDENT_WORKFLOW.md`; no special
+PIW aliases or pre-existing project are required. Drafting/revision needs actual
+native subagents and evidence-verified completion. Explicit governed lifecycle
+operations retain their prerequisites.

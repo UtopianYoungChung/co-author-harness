@@ -33,8 +33,15 @@ Governance 2.4). This record adds no rule: it states the producer boundary this
 package shipped at v0.37.4 and names the already-installed Master Governance
 clauses that govern that boundary.
 
-**Bound Master Governance version (7.7).** Before any write, this package
-must name the bound Master Governance version. The mechanical resolver is
+**Bound Master Governance version (7.7).** Before a write within a governed
+workspace or an explicitly governed operation, this package must name the bound
+Master Governance version under that workspace's current resolver. Ordinary
+read-only checks and authorized task-local drafting/revision outside governed
+workspaces do not require installing Master Governance; their outputs confer no
+research acceptance or lifecycle authority. A supplied invalid authoritative
+binding remains a refusal, and a scope label cannot bypass a protected destination.
+The following installed-workspace resolution record remains subordinate to the
+workspace's current resolver and newer validating amendment anchors. The mechanical resolver is
 workspace `governance/tools/master_governance_resolver.py`, invoked by
 `governance/tools/workspace_preflight.py`. Resolve the current head by
 exact path and existence only, never by hashes, in this order: if
@@ -58,6 +65,6 @@ back. Else if
 `research/99_System/migrations/2026-08-03_ws10_authority_split/JOSEPH_ACTIVATION_ANCHOR.yaml`
 exists and validates against
 `research/10_Governance/ACTIVATION_RECORD.md`, the bound version is
-**1.0.8**; else the pre-activation regime remains. An invocation that
-cannot name that version before its first write is refused. This
+**1.0.8**; else the pre-activation regime remains. A governed invocation that
+cannot name that version before its first governed write is refused. This
 paragraph names the resolver; it does not amend Master Governance.

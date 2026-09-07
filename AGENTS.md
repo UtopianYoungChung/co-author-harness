@@ -92,7 +92,7 @@ The agent **must** read the package component files and follow the orchestration
 
 | Trigger                                                                 | Example                                                                                                                                                      |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **User asks for a whole-lifecycle run or an academic deliverable** — read `references/FULL_RUN_CONTRACT.md` **first** | "Harness full run," "full harness run," "draft me a short essay," "draft the whole paper," "run the ladder," "ship this" |
+| **User asks for an explicit whole-lifecycle run** — read `references/FULL_RUN_CONTRACT.md` **first** | "Harness full run," "full harness run," "run the ladder," "finalize at Ph4" |
 | User asks for a review, edit, critique, or refinement of academic prose | "Review my draft," "Check this abstract," "Polish §4"                                                                                                        |
 | User refers to the package by name or shorthand                         | "Run the master guidelines," "Use the style package," "Apply the writing rules"                                                                              |
 | User pastes academic text and asks for feedback                         | (any draft + "what do you think?")                                                                                                                           |
@@ -105,15 +105,22 @@ The agent **must** read the package component files and follow the orchestration
 
 **When not triggered:** If the user asks about non-writing tasks (data analysis, coding, general Q&A), do not invoke the package unless the task involves producing or reviewing academic prose.
 
-**No project, no prose (binding).** A prose-producing request with no project root or no resolved `reviews/assignment_contract.json` **fails closed**: do not write academic prose (not in the project, not outside it, not as a "quick draft"), do not substitute a task checklist for milestone state, and do not treat a missing scaffold as licence to proceed informally. Respond with the bootstrap instruction. A full-lifecycle run may never be downgraded to a lightweight/response-only subpass, and terminal language ("Ph4," "G.4," "terminal PASS," "ladder complete," "converged," "shipped") requires `python scripts/full_run_contract_check.py terminal --project-root <p>` to exit 0. Rules and error codes: `references/FULL_RUN_CONTRACT.md` — normative there, not restated here.
+**Ordinary task routing (binding).** Named read-only passes use `adhoc_review`
+on pasted text or files without a project. Ordinary new drafts and manuscript
+revisions use `project_independent` and the actual native child workflow in
+`references/PROJECT_INDEPENDENT_WORKFLOW.md`. "Draft a short essay" alone does
+not require bootstrap. Explicit governed lifecycle/finalization requests retain
+`references/FULL_RUN_CONTRACT.md` prerequisites and never silently downgrade.
+Invalid supplied authoritative project bindings fail closed. Task completion
+carries no lifecycle, research acceptance, release or promotion authority.
 
-**Run scope (binding).** Declare exactly `adhoc_review`, `lab_iteration`, or
-`full_lifecycle`; every child inherits the declaration exactly. A
-`lab_iteration` is transient proposal-only work at a resolved governed
-staging/private-shipment destination. It has no lifecycle, F9, terminal,
-promotion, release, or dissemination authority and never writes authoritative
-research. Mechanical authority and stable diagnostics live in
-`references/FULL_RUN_CONTRACT.md` and `scripts/invocation_scope.py`.
+**Run scope (binding).** Declare exactly `adhoc_review`, `project_independent`,
+`lab_iteration`, or `full_lifecycle`; every child inherits it exactly.
+`lab_iteration` remains transient proposal-only work at a resolved governed
+staging/private-shipment destination with no lifecycle, F9, terminal, promotion,
+release or dissemination authority. `project_independent` allows authorized
+task-local outputs outside governed workspaces while preserving protected paths
+inside them. Mechanical scope authority lives in `scripts/invocation_scope.py`.
 
 **Formal ontology trigger:** For the BFO-aligned ontology trigger, read `references/BFO_ONTOLOGY_DESIGN.md`. Its trigger boundary is binding: do not apply formal BFO construction rules merely because prose uses philosophical ontology, conceptual analysis, modeling vocabulary, or metaphor.
 

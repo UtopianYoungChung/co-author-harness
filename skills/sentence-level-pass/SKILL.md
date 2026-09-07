@@ -7,6 +7,22 @@ created_from: Tier 2 skill build, 2026-04-11 — bacon_2009_well_crafted_sentenc
 pattern_source: bacon_2009_well_crafted_sentence_guidelines.md §§2–9 + §10 Quick Revision Checklist; voice_preservation_guidelines.md (C-7 idiolect carve-out); EMDASH_BUNDLE_DISCIPLINE.md §1 (B4–B7 jurisdiction boundary)
 version: 1.5
 ---
+
+Rule paths below are package-relative (`references/`), not relative to the input folder. Record the selected rules separately from files read only for context.
+
+
+## Ordinary task routing
+
+For a bounded read-only pass on pasted text or a file, declare `adhoc_review`
+and follow `references/PROJECT_INDEPENDENT_WORKFLOW.md`. Resolve rules from
+this package, read the requested input, perform this skill's actual checks,
+and return locator-bound findings, counts, rule hashes and limitations.
+No project, assignment contract, graph or four-role loop is required.
+Optional venue instructions refine the relevant rule. An explicitly supplied
+invalid authoritative project binding is a binding error, never silent fallback.
+A proposal in findings does not authorize editing the original input.
+
+
 # Sentence-Level Pass (Bacon)
 
 You are running a targeted sentence-craft review on academic prose. This skill implements Step 4 of the review pipeline as a standalone pass, drawing on `bacon_2009_well_crafted_sentence_guidelines.md`.

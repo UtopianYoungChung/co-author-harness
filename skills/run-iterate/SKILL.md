@@ -1,10 +1,39 @@
 ---
 name: run-iterate
-description: 'Public 0.50 iterate coordinator on staging. Coordinates Planner, Generator, Evaluator, and Reflector for refine/structural/deep/stability. Generator publishes only via assignment_writer_commit.py to staging. Parked paper-specific bodies: run-phase-2, run-phase-3, run-phase-3-stability.'
+description: 'Revise an existing manuscript without a pre-existing project: independent diagnosis, bounded plan, Generator revision, independent review, corrections and required reflection. Preserves untouched bytes and supports proposal-only delivery. Governed lifecycle gates remain.'
 trigger: 'when the user says "run iterate," "iterate," "stage = iterate," or invokes "/run-iterate"'
 version: 0.50.0
 user-invocable: true
 ---
+
+## Ordinary drafting and revision
+
+Ordinary requests use `project_independent`; follow
+`references/PROJECT_INDEPENDENT_WORKFLOW.md` before the governed workflow below.
+The caller may be Planner; Generator, Evaluator and Reflector are distinct real
+native child contexts. Bind the brief, input, scope, rules, exclusions and output
+authority; wait for actual child outcomes. Reflection closeout is required.
+Task completion is verified separately from scholarly CLEAN, lifecycle terminal
+status and research acceptance. A missing child capability blocks this workflow
+with `PIW-HOST-CAPABILITY-UNAVAILABLE`; read-only passes remain available.
+
+For an existing manuscript, independent diagnosis precedes the Planner's revision
+plan and Generator edits. Preserve unrequested bytes, terms, claims and citations.
+Proposal-only delivery leaves the original untouched. Every correction returns to
+Evaluator, with three correction cycles by default; unresolved findings end
+`needs_revision`. New Reflector findings reopen correction and evaluation.
+
+Chung voice applies only when selected and never when explicitly excluded.
+Propagate the exclusion through every role brief, applied-rule list, fire table
+and correction. A required file read does not activate an excluded overlay.
+Graph unavailability limits graph-dependent checks; requested rule-based checks
+and admitted-source sentence judgments can still run. See the shared runbook.
+
+The remainder is the **governed project workflow**, used for an explicit
+`full_lifecycle` or `lab_iteration` operation. Its assignment, source, publication,
+protected-destination and author-acceptance prerequisites remain in force.
+
+
 
 # run-iterate — public iterate coordinator (staging)
 
@@ -58,7 +87,7 @@ pre-MCR deep-pass or mint CLEAN.
    `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
 3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
    claim, derivation, and similar checks stay invoke-able and still fire.
-4. Reflector may probe after a certified shipment.
+4. Reflector performs the required scoped closeout after a certified shipment.
 5. Writer (outside the plugin) applies exact path, exact hash.
 
 **DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
@@ -89,8 +118,8 @@ receipts or C6 results are missing.
 Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `derive --purpose evaluate`; dest-safe sequence, source-hash, and wiki-grounding misses do not exit-4 that C6 path. A missing Generator envelope or empty `assignment_dispatch` does not prevent C6 claim/derivation/warrant/citation of those bytes; C6 does not invent an envelope or mint CLEAN. Present stale/wrong envelopes still refuse. File presence is never acceptance. FINAL still requires accepted M1-M4.
 Fire table: grounding-protocol, citation-discipline, claim-coverage,
 derivation-check, grammar-mechanics, contradictions, analytic-construction,
-check-abstract-body, chung-academic-voice-pass,
-centroid-evaluation (graph fail-closes when semantic_usage=not_invoked).
+check-abstract-body, chung-academic-voice-pass only when selected and not excluded,
+centroid-evaluation (graph capability may be unavailable; admitted-passage judgment remains separate).
 Mechanical dest-safe preflight only: d-style-profile, deterministic-audit.
 No scholarly CLEAN.
 

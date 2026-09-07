@@ -505,12 +505,12 @@ def main() -> int:
             sys.path.insert(0, str(ROOT / "scripts"))
             try:
                 import full_run_contract_check as contract  # type: ignore
-                if tuple(contract.SCOPES) != ("adhoc_review", "lab_iteration", "full_lifecycle"):
+                if tuple(contract.SCOPES) != ("adhoc_review", "project_independent", "lab_iteration", "full_lifecycle"):
                     raise AssertionError(f"SCOPES={contract.SCOPES!r}")
             finally:
                 sys.path.pop(0)
 
-        lab_case("scope vocabulary is exactly adhoc_review/lab_iteration/full_lifecycle", project, exact_scope_vocabulary)
+        lab_case("scope vocabulary includes project_independent without changing governed lab restrictions", project, exact_scope_vocabulary)
 
         same = _brief(sandbox, "same", "run_scope: lab_iteration\nproposal_only: true\n")
         down = _brief(sandbox, "down", "run_scope: adhoc_review\n")

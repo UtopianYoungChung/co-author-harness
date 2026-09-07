@@ -42,7 +42,7 @@ from milestone_handoff_policy import (
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
-PLUGIN_MANIFEST_PATH = ROOT / ".claude-plugin" / "plugin.json"
+PLUGIN_MANIFEST_PATH = ROOT / "version.json"
 EXEMPLAR_CLASSES = frozenset({"clean_lifecycle_exemplar", "legacy_migration_exemplar"})
 EXEMPLAR_AUTHORITIES = frozenset({"user", "advisor", "instructor", "committee", "harness_maintainer", "portfolio_owner"})
 EXEMPLAR_EVIDENCE_ROLES = {

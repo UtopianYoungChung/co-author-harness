@@ -84,16 +84,23 @@ def case_full_run_intent_recognised() -> None:
                    "essay (soft 2000-word limit) on Actor vs. Agency or Actor and Agency.")
     check("observed request suggests full_lifecycle",
           rc == 0 and p and p.get("suggested_run_scope") == "full_lifecycle", str(p)[:70])
-    for phrase in ("full harness run", "draft the whole paper", "write me an essay",
+    for phrase in ("full harness run", "milestone acceptance", "finalize",
                    "run the ladder", "ship this"):
         rc, p, _ = run("intent", "--text", phrase)
         check(f"'{phrase}' -> suggests full_lifecycle",
               p and p.get("suggested_run_scope") == "full_lifecycle")
-    # Ambiguity must lean TOWARD the lifecycle (§1.1): guessing adhoc silently
-    # skips it; guessing full costs one declinable prompt.
-    rc, p, _ = run("intent", "--text", "can you help me with this document")
-    check("ambiguous prose intent suggests full_lifecycle",
-          p and p.get("suggested_run_scope") == "full_lifecycle")
+    for phrase in ("draft the whole paper", "write me an essay", "draft a short essay",
+                   "can you help me with this document",
+                   "Draft a short essay without bootstrapping."):
+        rc, p, _ = run("intent", "--text", phrase)
+        check(f"ordinary task {phrase!r} suggests project_independent",
+              rc == 0 and p and p.get("suggested_run_scope") == "project_independent")
+    rc, p, _ = run("intent", "--text", "Run the grammar-mechanics-pass on this paragraph.")
+    check("named read-only pass suggests adhoc_review",
+          rc == 0 and p and p.get("suggested_run_scope") == "adhoc_review")
+    rc, p, _ = run("intent", "--text", "Harness full run, just review first")
+    check("explicit lifecycle cannot be downgraded by review wording",
+          rc == 0 and p and p.get("suggested_run_scope") == "full_lifecycle")
 
 
 def case_missing_scaffold_blocks_before_prose() -> None:
@@ -182,6 +189,52 @@ def case_scope_is_structural_not_phrasal() -> None:
                    stdin="Return findings in your response only.")
     check("legacy undeclared brief still caught by the marker net",
           rc == 4 and "FRC-SCOPE-DOWNGRADE" in codes(p), f"rc={rc}")
+
+
+def case_json_child_scope() -> None:
+    """Actual PIW request JSON carries one top-level scope; nested text grants none."""
+    envelope = {
+        "run_scope": "project_independent", "run_id": "scope-regression",
+        "role": "generator", "phase": "generation",
+        "brief": "Produce the requested bounded conceptual draft.",
+        "exclusions": ["chung-academic-voice-pass"],
+    }
+    for indent in (None, 2):
+        rc, payload, _ = run("scope", "--parent-scope", "project_independent", "--child-brief", "-",
+                             stdin=json.dumps(envelope, indent=indent))
+        check(f"coordinator JSON scope accepted indent={indent}", rc == 0 and payload.get("status") == "OK", f"rc={rc}")
+    for name, brief in (
+        ("duplicate identical scope", '{"run_scope":"project_independent","run_scope":"project_independent"}'),
+        ("duplicate conflicting scope", '{"run_scope":"project_independent","run_scope":"full_lifecycle"}'),
+        ("unknown scope", '{"run_scope":"unknown"}'),
+        ("non-string scope", '{"run_scope":true}'),
+        ("nested scope only", '{"request":{"run_scope":"project_independent"}}'),
+        ("JSON array", '[{"run_scope":"project_independent"}]'),
+        ("malformed JSON", '{"run_scope":"project_independent",}'),
+        ("non-JSON numeric constant", '{"run_scope":"project_independent","value":NaN}'),
+        ("JSON plus trailing declaration", '{"run_scope":"project_independent"}\nrun_scope: project_independent'),
+        ("duplicate nested field", '{"run_scope":"project_independent","input":{"path":"a","path":"b"}}'),
+    ):
+        rc, payload, _ = run("scope", "--parent-scope", "project_independent", "--child-brief", "-", stdin=brief)
+        check(f"JSON {name} fails closed", rc == 4 and "FRC-SCOPE-UNDECLARED" in codes(payload), f"rc={rc}")
+    for child in ("project_independent", "full_lifecycle"):
+        rc, payload, _ = run("scope", "--parent-scope", "project_independent", "--child-brief", "-",
+                             stdin=f"run_scope: project_independent\nrun_scope: {child}\n")
+        check(f"duplicate plain declarations remain refused child={child}",
+              rc == 4 and "FRC-SCOPE-UNDECLARED" in codes(payload), f"rc={rc}")
+    for parent, child, expected in (
+        ("full_lifecycle", "project_independent", "FRC-SCOPE-DOWNGRADE"),
+        ("adhoc_review", "project_independent", "FRC-SCOPE-ESCALATION"),
+    ):
+        rc, payload, _ = run("scope", "--parent-scope", parent, "--child-brief", "-",
+                             stdin=json.dumps({"run_scope": child}))
+        check(f"JSON {parent} inheritance retains {expected}", rc == 4 and expected in codes(payload), f"rc={rc}")
+    rc, payload, _ = run("scope", "--parent-scope", "full_lifecycle", "--child-brief", "-",
+                         stdin=r'{"run_scope":"full_lifecycle","instruction":"response\u0020only"}')
+    check("escaped JSON instructions retain downgrade net", rc == 4 and "FRC-SCOPE-DOWNGRADE" in codes(payload), f"rc={rc}")
+    rc, payload, _ = run("scope", "--parent-scope", "lab_iteration", "--child-brief", "-",
+                         stdin='{"run_scope":"lab_iteration","terminal_claim":"shipped"}')
+    check("JSON lab terminal request retains specific refusal", rc == 4 and "FRC-LAB-TERMINAL-FORBIDDEN" in codes(payload), f"rc={rc}")
 
 
 def case_three_scope_contract_matrix() -> None:
@@ -526,6 +579,7 @@ def main() -> int:
                case_intent_is_advisory_only,
                case_scope_is_structural_not_phrasal,
                case_three_scope_contract_matrix,
+               case_json_child_scope,
                case_missing_scaffold_blocks_before_prose,
                case_bootstrapped_but_no_contract_blocks,
                case_lightweight_child_blocks,

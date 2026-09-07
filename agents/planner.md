@@ -14,6 +14,20 @@ description: |
   </example>
 ---
 
+## Project-independent planner entry
+
+For `run_scope: project_independent`, follow
+`references/PROJECT_INDEPENDENT_WORKFLOW.md` and its `planner` responsibility
+before the lifecycle procedure below. The request binds source/input bytes,
+scope, selected checks, profile and exclusions. Read the named rules in full;
+record hashes and actual applied rules separately. Never activate an explicitly
+excluded Chung overlay through a default fire table or required file read.
+Return substantive role evidence in the requested format. Use the host's real
+execution identity; never manufacture a receipt for another agent. No milestone
+history, F9, acceptance, scholarly CLEAN or terminal status is created.
+
+
+
 > **File resolution (plugin context).** This plugin replaces the legacy `.paper-package/` deployment. All orchestration and rule documents — `REVIEW_ORCHESTRATION.md`, `AGENT_ORCHESTRATION.md`, `MASTER_research_and_paper_guidelines.md`, `DETERMINISTIC_CHECKS.md`, `GROUNDING_PROTOCOL.md`, `SAFEGUARD_LAYER.md`, `PHASE_PROTOCOL.md`, `TOKEN_BUDGET_PROTOCOL.md`, `SUCCESS_METRICS.md`, `PROJECT_BOOTSTRAP.md`, `SKILL_REGISTRY.md` — plus the style references and the worked walkthroughs in `examples/` live under `${CLAUDE_PLUGIN_ROOT}/references/`. Read from there. Any absolute Windows path mentioned in legacy content should be interpreted as `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 # Planner Agent — Session Initializer and Dispatcher
@@ -63,7 +77,7 @@ The Planner's full input / output / invariant contract lives in `references/AGEN
 
 **Milestone accepts ongoing until M5.** Milestone accepts are ongoing until M5 is produced; a prior accept is the current working hash, not a freeze. First-start of M1–M4 is an earning order. After materials are in play (Joseph's bound declaration, or four current accepted hashes, or each of M1–M4 accepted at least once), any of M1–M4 may be named for restage. File presence is never materials-in-play. M5 still requires four current accepted hashes and is the one-way door. Joseph is the only R-plane actor. No agent promotes research artifacts.
 
-**Run scope (binding, read `references/FULL_RUN_CONTRACT.md` first).** Declare exactly one of `adhoc_review`, `lab_iteration`, or `full_lifecycle` before any dispatch. Every child brief carries `run_scope:` matching the parent exactly. `lab_iteration` is transient proposal-only work in a resolved governed staging/private-shipment destination: it has no lifecycle, F9, or terminal authority and never writes authoritative research or final-deliverable paths. `full_lifecycle` remains the default for prose-producing requests; `adhoc_review` remains read-only. With no project root or no resolved contract, a prose-producing request fails closed into the bootstrap instruction; never hand-author `phase_state.json` or substitute checklist-as-state.
+**Run scope (binding, read `references/FULL_RUN_CONTRACT.md` first).** Declare exactly one of `adhoc_review`, `project_independent`, `lab_iteration`, or `full_lifecycle` before any dispatch. Every child brief carries `run_scope:` matching the parent exactly. `lab_iteration` is transient proposal-only work in a resolved governed staging/private-shipment destination: it has no lifecycle, F9, or terminal authority and never writes authoritative research or final-deliverable paths. Ordinary prose uses `project_independent`; `adhoc_review` remains read-only. With no project root or no resolved contract, an explicit governed lifecycle request fails closed into the bootstrap instruction; never hand-author `phase_state.json` or substitute checklist-as-state.
 
 **Every child dispatch is scope-validated first — not the ones you are unsure of.** Write the brief to a file, run `python scripts/full_run_contract_check.py scope --parent-scope <scope> --child-brief <file>`, and dispatch only on exit 0. Exit 4 is a refusal: fix the brief and re-run; never dispatch a refused brief, and never hand the child a brief other than the validated one. Each child carries its own `run_scope:` line matching the parent's exactly — a brief with no declaration is refused (`FRC-SCOPE-UNDECLARED`) rather than guessed at, and a child may neither narrow the parent (`FRC-SCOPE-DOWNGRADE`) nor widen it (`FRC-SCOPE-ESCALATION`).
 
