@@ -214,6 +214,12 @@ else
     PRODUCT_OUTPUT_DIR="$(mktemp -d "${TMPDIR:-${TEMP:-/tmp}}/coauthor-release-product.XXXXXX")"
 fi
 
+# Keep explicit py_compile output inside the controller's declared product root.
+PYTHON_BYTECODE_ROOT="$PRODUCT_OUTPUT_DIR/python-bytecode"
+if command -v cygpath >/dev/null 2>&1; then
+    PYTHON_BYTECODE_ROOT="$(cygpath -am "$PYTHON_BYTECODE_ROOT")"
+fi
+
 BUILD=0
 OUTPUTS_DIR=""
 PEER_ROOT=""
@@ -595,7 +601,7 @@ done
 
 if (( MILESTONE_COMPILE_READY == 1 )); then
     echo "Milestone-feedback framework syntax check"
-    if ! python3 -m py_compile \
+    if ! python3 -X "pycache_prefix=$PYTHON_BYTECODE_ROOT" -m py_compile \
         "$PLUGIN_ROOT/scripts/assignment_process_gate.py" \
         "$PLUGIN_ROOT/scripts/assignment_dispatch_preflight.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_transaction.py" \
@@ -804,7 +810,7 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"
 do
     if [[ -f "$pyf" ]]; then
-        if python3 -m py_compile "$pyf"; then
+        if python3 -X "pycache_prefix=$PYTHON_BYTECODE_ROOT" -m py_compile "$pyf"; then
             echo "  [OK]      $( basename "$pyf" )"
         else
             echo "  [BLOCKER] $( basename "$pyf" ) failed python syntax check"
@@ -1098,9 +1104,11 @@ from pathlib import Path
 
 value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 planes = {row["plane_kind"]: row["path"] for row in value["planes"]}
-print(value["source_commit"])
+lines = [value["source_commit"]]
 for kind in ("source", "archive", "unpacked", "installed_cache"):
-    print(planes[kind])
+    lines.append(planes[kind])
+# Native Windows text stdout uses CRLF; mapfile requires explicit LF records.
+sys.stdout.buffer.write(("\n".join(lines) + "\n").encode("utf-8"))
 PY
 )
         if (( ${#PLANE_VALUES[@]} != 5 )); then
