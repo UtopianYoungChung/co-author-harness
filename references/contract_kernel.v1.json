@@ -682,7 +682,7 @@
       "id": "build-plugin",
       "path": "scripts/build-plugin.py",
       "revision_kind": "sha256",
-      "sha256": "6f3a12c9674f3f14ff305d20fe50f5b1fb053de27a5173c831b244ac5e64e4d5",
+      "sha256": "7a91f409b90016e0ac75f982b3b81fb429d807f541131b653f35e16c66838683",
       "migration_ids": [
         "qualification-architecture-v1"
       ]

@@ -128,6 +128,30 @@ def case_compliant_readme_passes() -> None:
               str(blockers(out)[:1]))
 
 
+def case_codex_host_identity_mirrors_authority() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td))
+        authority = json.loads((root / "version.json").read_text(encoding="utf-8"))
+        native = root / ".codex-plugin/plugin.json"
+        _w(native, json.dumps(authority) + "\n")
+        rc, out = run(root)
+        check("matching Codex host identity PASSES", rc == 0, blockers(out))
+        for field in ("name", "version", "license"):
+            for missing in (False, True):
+                value = dict(authority)
+                if missing:
+                    value.pop(field)
+                else:
+                    value[field] = "wrong"
+                _w(native, json.dumps(value) + "\n")
+                rc, out = run(root)
+                check(
+                    f"Codex host {field} {'missing' if missing else 'mismatch'} is REFUSED",
+                    rc == 1 and blocked_for(out, ".codex-plugin/plugin.json", field),
+                    blockers(out),
+                )
+
+
 def case_retired_cursor_manifest_is_refused() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = fixture(Path(td))
@@ -397,6 +421,7 @@ def main() -> int:
     print("            changelog/release identifiers are historical records.")
     print()
     for fn in (case_compliant_readme_passes,
+               case_codex_host_identity_mirrors_authority,
                case_retired_cursor_manifest_is_refused,
                case_readme_badge_is_refused,
                case_readme_badge_refused_even_when_matching,

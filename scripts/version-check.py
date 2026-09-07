@@ -469,30 +469,33 @@ def main() -> int:
             "gap, not a release blocker."
         )
 
-    # Root plugin.json is a generic host identity file, not a second authority.
-    root_plugin = plugin_root / "plugin.json"
-    if root_plugin.exists():
-        try:
-            root_manifest = json.loads(read_text(root_plugin))
-            for field in ("name", "version", "license"):
-                left = str(root_manifest.get(field, "")).strip()
-                right = str(json.loads(read_text(plugin_root / "version.json")).get(field, "")).strip() if (plugin_root / "version.json").exists() else {
-                    "version": manifest_version,
-                    "license": manifest_license,
-                    "name": "",
-                }.get(field, "")
-                if field == "version":
-                    right = manifest_version
-                elif field == "license":
-                    right = manifest_license
-                elif field == "name":
-                    right = str(json.loads(read_text(manifest_path(plugin_root))).get("name", "")).strip()
-                if left and right and left != right:
-                    blockers.append(
-                        f"plugin.json {field} ({left}) != version.json {field} ({right})"
-                    )
-        except Exception as exc:  # noqa: BLE001
-            blockers.append(f"plugin.json identity check failed: {exc}")
+    # Host identities mechanically mirror version.json; neither is an authority.
+    for host_relative in ("plugin.json", ".codex-plugin/plugin.json"):
+        root_plugin = plugin_root / host_relative
+        if root_plugin.exists():
+            try:
+                root_manifest = json.loads(read_text(root_plugin))
+                for field in ("name", "version", "license"):
+                    left = str(root_manifest.get(field, "")).strip()
+                    right = str(json.loads(read_text(plugin_root / "version.json")).get(field, "")).strip() if (plugin_root / "version.json").exists() else {
+                        "version": manifest_version,
+                        "license": manifest_license,
+                        "name": "",
+                    }.get(field, "")
+                    if field == "version":
+                        right = manifest_version
+                    elif field == "license":
+                        right = manifest_license
+                    elif field == "name":
+                        right = str(json.loads(read_text(manifest_path(plugin_root))).get("name", "")).strip()
+                    if left != right and (
+                        host_relative == ".codex-plugin/plugin.json" or (left and right)
+                    ):
+                        blockers.append(
+                            f"{host_relative} {field} ({left}) != version.json {field} ({right})"
+                        )
+            except Exception as exc:  # noqa: BLE001
+                blockers.append(f"{host_relative} identity check failed: {exc}")
 
     marketplace_metadata = extract_marketplace_self_referencing_metadata(plugin_root)
 

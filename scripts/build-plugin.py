@@ -115,6 +115,7 @@ GIT = find_git()
 REQUIRED_FILES = (
     "version.json",
     "plugin.json",
+    ".codex-plugin/plugin.json",
     "agents/planner.md",
     "skills/plugin-commands/SKILL.md",
     "README.md",

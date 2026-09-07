@@ -312,6 +312,7 @@ def _final_teardown() -> None:
 
 
 OVERLAY_RELS = (
+    ".codex-plugin/plugin.json",
     "scripts/build-plugin.py",
     "scripts/package_enumeration.py",
     "scripts/resolve_includes.py",
@@ -337,7 +338,9 @@ def _overlay(repo: Path) -> None:
     case_child_is_committed_builder: a child reading HEAD bytes is unaffected.
     """
     for rel in OVERLAY_RELS:
-        shutil.copy2(HARNESS / rel, repo / rel)
+        destination = repo / rel
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(HARNESS / rel, destination)
 
 
 def _commit_builder_under_test(repo: Path) -> None:

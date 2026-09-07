@@ -1,0 +1,37 @@
+{
+  "name": "co-author-harness",
+  "version": "0.50.1",
+  "description": "Research and academic paper writing harness with governed planning, evaluation, generation, and reflection skills.",
+  "author": {
+    "name": "Young Jo Chung",
+    "email": "jo.chung@utoronto.ca",
+    "url": "https://github.com/UtopianYoungChung"
+  },
+  "homepage": "https://github.com/UtopianYoungChung/co-author-harness",
+  "repository": "https://github.com/UtopianYoungChung/co-author-harness.git",
+  "license": "MIT",
+  "keywords": [
+    "academic-writing",
+    "research",
+    "review",
+    "governance"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Co-Author Harness",
+    "shortDescription": "Governed academic writing and review workflows.",
+    "longDescription": "Loads the co-author harness skill surface for project-aware academic planning, review, drafting, iteration, and lifecycle checks.",
+    "developerName": "Young Jo Chung",
+    "category": "Productivity",
+    "capabilities": [
+      "Academic writing",
+      "Manuscript review",
+      "Research governance"
+    ],
+    "defaultPrompt": [
+      "Show the co-author harness commands.",
+      "Review an academic manuscript with the harness.",
+      "Check a project's harness lifecycle state."
+    ]
+  }
+}
