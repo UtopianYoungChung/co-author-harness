@@ -109,7 +109,7 @@ Read references/ROUTING_SPINE.md, then tell me which milestone and lifecycle sta
 run under and which artefact you will touch first.
 ```
 
-Plugin identity and version are authoritative in [`version.json`](version.json).
+Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads (`hermes plugins install UtopianYoungChung/co-author-harness`, then `hermes plugins enable co-author-harness`). That is loadability, not installed-cache or startup qualification.
 
 ---
 
@@ -126,6 +126,7 @@ Plugin identity and version are authoritative in [`version.json`](version.json).
 | [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`version.json`](version.json) | Published plugin `name` / `version` / `license` |
+| [`plugin.json`](plugin.json) | Portable Agent Plugins v1 host identity; identity fields mirror `version.json` |
 
 ---
 

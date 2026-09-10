@@ -1,6 +1,14 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "co-author-harness",
   "version": "0.50.1",
-  "license": "MIT",
-  "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector."
+  "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
+  "author": {
+    "name": "Young Jo Chung",
+    "email": "jo.chung@utoronto.ca",
+    "url": "https://github.com/UtopianYoungChung"
+  },
+  "homepage": "https://github.com/UtopianYoungChung/co-author-harness",
+  "repository": "https://github.com/UtopianYoungChung/co-author-harness.git",
+  "license": "MIT"
 }

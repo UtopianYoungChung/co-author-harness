@@ -8,6 +8,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## Unreleased
 
+**Hermes Agent portable load.** Root `plugin.json` now declares the Agent Plugins v1.0.0 `$schema` so Hermes can install and enable this package as a portable plugin (`skills/*/SKILL.md` at the fixed location). Native `plugin.yaml` is refused: Hermes would prefer it and hide the portable loader. `scripts/version-check.py` gates the schema, closed field set, and YAML refusal. This is loadability, not Hermes installed-cache or startup qualification. Codex source-path execution remains a separate host.
+
 ---
 
 ## v0.50.1 — 2026-09-04
