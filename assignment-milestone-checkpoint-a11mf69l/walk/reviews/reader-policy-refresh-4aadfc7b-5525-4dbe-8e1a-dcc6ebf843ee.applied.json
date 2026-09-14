@@ -1,0 +1,76 @@
+{
+  "applied_at": "2026-09-10T17:33:38Z",
+  "applied_by": "planner",
+  "current": {
+    "binding_version": "2.0.0",
+    "milestone_policy_evidence_refreshed": [],
+    "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+    "resolved_sha256": "5c187cc39bf673f3d38bb73eaa0fe06c9696f0ffe0c5cdfa23d3c063f6d1b7e9",
+    "semantic_usage": "not_invoked",
+    "source_bindings": [
+      {
+        "path": "references/policies/reader_accessibility.v1.json",
+        "role": "package_profile",
+        "scope": "package",
+        "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c"
+      },
+      {
+        "path": "references/READER_ACCESSIBILITY.md",
+        "role": "package_contributor",
+        "scope": "package",
+        "sha256": "2b1bb64a21662b8fa86b6d5f6ecdfc396885c0d2b11e019413de2574a379d2cc"
+      },
+      {
+        "path": "references/examples/model_prose_corpus.md",
+        "role": "package_contributor",
+        "scope": "package",
+        "sha256": "efa03146aa443309e08fe027bc4552ee0c68094840d9264e5308d82854e95f96"
+      },
+      {
+        "path": "research_notes/directives.md",
+        "role": "directives",
+        "scope": "project",
+        "sha256": "d0f825103a9365e954fd85539e6c853eb79051c9f010a6795fb26cbdc43467ce"
+      }
+    ],
+    "source_bindings_digest": "aa9a157497b94be4bf0c2c87614fdbfc23baeb212c102e240b92dc5a88194844"
+  },
+  "phase_state": {
+    "post_sha256": "fdc453fe75081272166c4711739a1e17717d95b5be82a31446f390ad03e27ac7",
+    "pre_sha256": "40867510abd4237d82f946eb3d7be41943386d90d555cd1ec77b678ac03544da"
+  },
+  "prior": {
+    "profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "resolved_sha256": "9e85a559164fcbe46991eef6108d826154e2eee7712218f9bbca7b8ab6310085",
+    "source_bindings": [
+      {
+        "path": "references/policies/reader_accessibility.v1.json",
+        "role": "package_profile",
+        "scope": "package",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "path": "references/READER_ACCESSIBILITY.md",
+        "role": "package_contributor",
+        "scope": "package",
+        "sha256": "2b1bb64a21662b8fa86b6d5f6ecdfc396885c0d2b11e019413de2574a379d2cc"
+      },
+      {
+        "path": "references/examples/model_prose_corpus.md",
+        "role": "package_contributor",
+        "scope": "package",
+        "sha256": "efa03146aa443309e08fe027bc4552ee0c68094840d9264e5308d82854e95f96"
+      },
+      {
+        "path": "research_notes/directives.md",
+        "role": "directives",
+        "scope": "project",
+        "sha256": "d0f825103a9365e954fd85539e6c853eb79051c9f010a6795fb26cbdc43467ce"
+      }
+    ],
+    "source_bindings_digest": "6610dd42f2bd11d87491485d817bcb84525f3a4f15592bfc54dd19d9619fa207"
+  },
+  "refresh_id": "reader-policy-refresh-4aadfc7b-5525-4dbe-8e1a-dcc6ebf843ee",
+  "schema_version": "2.0.0",
+  "status": "applied"
+}

@@ -1,0 +1,14 @@
+{
+  "consumed_receipt": "reviews/.harness/assignment/consumed/gate_receipt_M2_walk_initial.json",
+  "consumed_receipt_sha256": "a97f33acdc974666197648b3391807e4b2973cf3ae2dde9b5d01ab9a6f0eca6a",
+  "head": "2928446f82b4d4b1dff852cca5f8a7c18943338077f2c49cda22a818a246e8b0",
+  "journal": "reviews/.harness/assignment/journal/772c848e-5d05-4360-82af-2c6c87a73ec7.json",
+  "journal_sha256": "533ee3a3ec4b3b96aea19a18be41706de7dceb0f4b26828e96ad127760e1a674",
+  "ledger": "reviews/.harness/assignment/mutation_ledger.jsonl",
+  "ledger_sha256": "219a77b1a63747fc40afb05b8b8bb7bf98cb0f969e3a7b09578873e3b55c3928",
+  "receipt_id": "772c848e-5d05-4360-82af-2c6c87a73ec7",
+  "reservation_id": "49708282-5a44-4532-8b5d-b46bc09e2da6",
+  "row_count": 3,
+  "schema_version": "1.0.0",
+  "state": "committed"
+}

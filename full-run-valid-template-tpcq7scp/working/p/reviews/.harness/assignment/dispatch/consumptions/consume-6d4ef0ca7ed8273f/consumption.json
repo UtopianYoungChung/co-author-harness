@@ -1,0 +1,39 @@
+{
+  "claim": {
+    "evidence_type": "assignment_dispatch_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-0efeb9d87bb24263/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "5c89ff9e31b4c68590bf05c0c190e52a1299801cac517b4e95aa34bc1ce67d01"
+  },
+  "claim_id": "dispatch-0efeb9d87bb24263",
+  "consumed_at": "2026-07-26T00:00:05Z",
+  "consumer_transaction_id": "scholarly-evaluation:SET-TERMINAL_M3",
+  "consumption_id": "consume-6d4ef0ca7ed8273f",
+  "consumption_type": "assignment_dispatch",
+  "mutation_head": "87404e6b5e0e9fad44ed0a77e2cc0a08d5b8af104b29335a91d10ec04d476f0e",
+  "mutation_row_hashes": [
+    "741a9c22f20ec67cffd1234f198eb1c87fa0f951794277c8dd6a7c0c9f9d61c7",
+    "87404e6b5e0e9fad44ed0a77e2cc0a08d5b8af104b29335a91d10ec04d476f0e"
+  ],
+  "nonce": "ad02195cae8d2edfea8f3ea49357efc6",
+  "postimages": [
+    {
+      "path": "research_notes/m3_deliverable.md",
+      "sha256": "1121ef42a8339a21f0b443ce1689beb5f7eacc960b4a2186b97a9c6afbb13fb9",
+      "size": 329
+    },
+    {
+      "path": "research_notes/terminal-m3-scholarly-evaluation.json",
+      "sha256": "87c3eb1ef4615fc8e790c47437dcb08634cc4092bafb33390cdcd9b0d6cf7875",
+      "size": 6576
+    }
+  ],
+  "role": "evaluator",
+  "schema_version": "1.0.0",
+  "state": "consumed"
+}

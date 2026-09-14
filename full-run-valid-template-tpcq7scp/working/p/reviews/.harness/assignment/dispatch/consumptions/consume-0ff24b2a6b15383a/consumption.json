@@ -1,0 +1,33 @@
+{
+  "claim": {
+    "evidence_type": "assignment_dispatch_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-03f12c2c9a87b9e8/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "9066afebbd0f8cf5cbf748d6b37285cf58b91e59ff21b0bc16fc742d09d5f05a"
+  },
+  "claim_id": "dispatch-03f12c2c9a87b9e8",
+  "consumed_at": "2026-07-25T12:00:01Z",
+  "consumer_transaction_id": "assignment-write-M4",
+  "consumption_id": "consume-0ff24b2a6b15383a",
+  "consumption_type": "assignment_dispatch",
+  "mutation_head": "e46b44a10c7ac23cc94e56ad1b760b4229286223ae05ec7111cf80018e764f67",
+  "mutation_row_hashes": [
+    "e46b44a10c7ac23cc94e56ad1b760b4229286223ae05ec7111cf80018e764f67"
+  ],
+  "nonce": "3866f072e318e1565f5683d22aff4735",
+  "postimages": [
+    {
+      "path": "research_notes/m4_deliverable.md",
+      "sha256": "d406bdac4738ce8a1836fe58925e43b90378596e8fc38263e82402b2b5d07ec5",
+      "size": 329
+    }
+  ],
+  "role": "generator",
+  "schema_version": "1.0.0",
+  "state": "consumed"
+}

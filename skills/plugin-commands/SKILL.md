@@ -87,7 +87,6 @@ receipt for that governed evidence.
 | `/citation-format-pass` | degraded | Check Turabian/Chicago citation form. | Notes, references, and bibliography. |
 | `/turabian-format-pass` | degraded | Check Turabian/Chicago document structure and layout requirements. | Thesis or course-paper formatting. |
 | `/response-letter-review` | degraded | Review rebuttal or response-letter quality and traceability. | Revise-and-resubmit work. |
-| `/advisor-escalation` | external-dependent | Route a strategic question to the configured advisor MCP. | EP-1 or EP-2 external feedback. |
 | `/seed-snowball-discovery` | external-dependent | Build a section's initial reference pool through bounded snowballing. | Fresh section research. |
 | `/claim-coverage-audit` | degraded | Map claims to covered, partially covered, or uncovered sources. | Before post-draft iteration. |
 | `/extend-snowball-incremental` | external-dependent | Extend the source pool for a specific uncovered claim. | Targeted evidence gaps. |

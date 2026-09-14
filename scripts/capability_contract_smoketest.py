@@ -50,10 +50,6 @@ def main() -> int:
     require_error(case, "CAP-DEFERRED-UNDECLARED")
 
     case = copy.deepcopy(data)
-    case["capabilities"]["advisor-escalation"].pop("provider")
-    require_error(case, "external-dependent capability needs provider")
-
-    case = copy.deepcopy(data)
     case["capabilities"]["quick-deterministic"]["evidence"] = [
         "scripts/capability_contract_smoketest.py"
     ]

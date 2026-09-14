@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "receipt_id": "00000000-0000-4000-8000-000000000005",
+  "reservation_id": "00000000-0000-4000-8000-000000000006",
+  "outcome": "published",
+  "published": [
+    {
+      "path": "research_notes/m5_deliverable.md",
+      "sha256": "1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a",
+      "mutation_row_sha256": "82017cb2f9cdee595a1911c5969204b606bbffe91c96db5b2e07a4efc9171cf9"
+    },
+    {
+      "path": "exports/final-paper.pdf",
+      "sha256": "137f16ac2a1ecd33b0aa4470d705a044b21551992809a2ec481a29af7f3529a4",
+      "mutation_row_sha256": "0198813cbb886fda95f2737b33c367ac06688bb2f4b8894682a9c8a8850ac568"
+    }
+  ]
+}

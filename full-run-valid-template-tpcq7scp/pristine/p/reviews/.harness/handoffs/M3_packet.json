@@ -1,0 +1,59 @@
+{
+  "artifact_family": "F9",
+  "contract_version": "1.0.0",
+  "project": "smoke-project",
+  "lineage_id": "main",
+  "from_milestone": "M3",
+  "to_milestone": "M4",
+  "predecessor_packet": {
+    "path": "reviews/.harness/handoffs/M2_packet.json",
+    "sha256": "a53c001e8ea75663a0fc6d96809bbdb9c13087304d49c3e334e2339723b2bfae"
+  },
+  "deliverable": {
+    "role": "deliverable",
+    "path": "research_notes/m3_deliverable.md",
+    "sha256": "1121ef42a8339a21f0b443ce1689beb5f7eacc960b4a2186b97a9c6afbb13fb9",
+    "bytes": 329
+  },
+  "released_export": null,
+  "inputs_consumed": [],
+  "decisions_frozen": [],
+  "feedback_dispositions": [
+    {
+      "feedback_id": "feedback-m3-1",
+      "disposition": "informational",
+      "rationale": "No blocking findings."
+    }
+  ],
+  "open_debts": [],
+  "next_milestone_instructions": [],
+  "approval": {
+    "authority": "user",
+    "evidence_path": "reviews/m3_approval.md",
+    "approved_at": "2026-07-13T18:00:00Z"
+  },
+  "policy_evidence": {
+    "profile_path": "reviews/.harness/policy/reader_accessibility_resolved.json",
+    "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+    "resolved_sha256": "b0e3aff7dd2a41078aaafe8f6248073c1d1ac4921464fd8c8986bd3612bd3649",
+    "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
+    "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m3/generation.lifecycle.json",
+      "evidence_sha256": "30c0975d6406392219511e3b0cdf865a01481601dbb0eeb85bcff85018283bef"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m3/evaluation.lifecycle.json",
+      "evidence_sha256": "ff9ae859c1891b4b62958deeeefcbd822869aa4ae6116d4f0c72d2fdc13c6933"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "research_notes/terminal-m3-scholarly-evaluation.json",
+      "evidence_sha256": "87c3eb1ef4615fc8e790c47437dcb08634cc4092bafb33390cdcd9b0d6cf7875"
+    },
+    "assignment_receipt": {
+      "receipt_id": "23672b90-95f8-5051-b7cc-c750106db9b1",
+      "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_M3_terminal-m3.json",
+      "evidence_sha256": "361aec8216368ab61c2577379fd0ef50ac347d665035bf303d44850b8e5c3a66"
+    }
+  }
+}

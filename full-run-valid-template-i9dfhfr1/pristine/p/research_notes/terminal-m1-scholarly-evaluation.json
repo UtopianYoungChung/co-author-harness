@@ -1,0 +1,196 @@
+{
+  "artifact": {
+    "byte_length": 329,
+    "path": "research_notes/m1_deliverable.md",
+    "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+  },
+  "claim_register": {
+    "byte_length": 1103,
+    "path": "research_notes/terminal-m1-claim-register.json",
+    "sha256": "9786d110fd1ef11f4409c64983054f5a2ab0935310ab454978c0227b7b56fb02"
+  },
+  "created_at": "2026-07-26T00:00:04Z",
+  "dispatch_separation": {
+    "evaluator_claim_id": "dispatch-f94a8231b02cbcf3",
+    "generator_claim_id": "dispatch-4fd39044190fe96a",
+    "independence_level": "dispatch_separation",
+    "separate": true
+  },
+  "evaluation_dispatch": {
+    "claim": {
+      "byte_length": 6009,
+      "path": "reviews/.harness/assignment/dispatch/claims/dispatch-f94a8231b02cbcf3/claim.json",
+      "sha256": "a91ba0093b826cc414f903e850e9959941634278dfe92738f694f9b226663c15"
+    },
+    "consumer_transaction_id": "scholarly-evaluation:SET-TERMINAL_M1"
+  },
+  "evaluation_id": "SET-TERMINAL_M1",
+  "findings": [],
+  "generator_envelope": {
+    "byte_length": 316,
+    "path": "research_notes/terminal-m1-generator-envelope.json",
+    "sha256": "7c099b04b2da68bde9659cf7916bcf1931ec4389988624bf23ee0ca25d3308d1"
+  },
+  "milestone_criteria": {
+    "byte_length": 117,
+    "path": "research_notes/terminal-m1-milestone-criteria.json",
+    "sha256": "ecef1252017ce6fe29c48b2b94701e4ed75b094aec01662318b4b282ef4e8d43"
+  },
+  "obligation_results": [],
+  "omitted_checks": [],
+  "schema_version": "1.0.0",
+  "scholarly_profile": {
+    "byte_length": 2220,
+    "path": "research_notes/terminal-m1-scholarly-profile.json",
+    "sha256": "44b956a7de7ef9c20978e84aced905e4a70c44a3896a1207022ef844c4653b57"
+  },
+  "verdict": {
+    "check_results": [
+      {
+        "check_id": "milestone_criteria",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "claim_register",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "scope_quantifier",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "provenance_integrity",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "admission_use",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "argument_leg",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "warrant_logic",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "modal_consistency",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "grounding_citation",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "d_style",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "reader_accessibility",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      },
+      {
+        "check_id": "active_overlays",
+        "evidence": [
+          {
+            "byte_length": 329,
+            "path": "research_notes/m1_deliverable.md",
+            "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+          }
+        ],
+        "reasoning": "The independent synthetic Evaluator recorded a bounded pass.",
+        "status": "pass"
+      }
+    ],
+    "status": "qualified"
+  }
+}

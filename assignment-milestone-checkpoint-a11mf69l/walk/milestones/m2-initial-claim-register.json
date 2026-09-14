@@ -1,0 +1,40 @@
+{
+  "artifact": {
+    "byte_length": 387,
+    "path": "M2_annotated_references.md",
+    "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062"
+  },
+  "claims": [
+    {
+      "admission_use": "working_position",
+      "argument_leg": "composition",
+      "claim_id": "C-001",
+      "load_bearing": true,
+      "locator": {
+        "byte_end": 386,
+        "byte_start": 339,
+        "line": 18,
+        "section": "Synthetic analysis"
+      },
+      "modal_force": "qualified",
+      "provenance": "author_derivation",
+      "span_sha256": "28a8729829046c8000fa763a4675eedc53ae13b82949fa2e013e781d14eed2cd",
+      "text": "A bounded synthetic M2 claim remains qualified.",
+      "viewpoint": "project_position",
+      "warrant_relation": "candidate"
+    }
+  ],
+  "coverage_disposition": "complete",
+  "created_at": "2026-07-26T00:00:03Z",
+  "evaluator_additions": [],
+  "evaluator_omissions": [],
+  "generator_inventory": [
+    "C-001"
+  ],
+  "register_id": "SCR-M2_INITIAL",
+  "review_dispatch": {
+    "dispatch_id": "dispatch-9602f4ef0fbf9fa6",
+    "role": "evaluator"
+  },
+  "schema_version": "1.0.0"
+}

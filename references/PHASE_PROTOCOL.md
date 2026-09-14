@@ -24,8 +24,6 @@ v0.7.0 replaces the v0.6.0 Progressive Approval Staircase (four rungs of progres
 - **Ph4 Finalize & Close** — Full four-agent loop (Reflector-full). Consume accepted M4, ship the M5 submission-bound artefact, and close the institutional-learning loop. MCR- and milestone-gated admission (§9). Exit artefact: `reviews/ph4_ship_signoff.md` + G.4 sign-off.
 - **T4R Response-Letter Sibling** — renamed from T3R at v0.7.0 to reflect its terminal-artefact nature. Entered independently via `/response-letter-review`; does **not** interact with the main ladder or consume `phase_state.json`.
 
-**Advisor MCP (optional external feedback — plugin-bridged).** For projects that want **submission-defensibility–oriented** external consultation, the package recommends two **scheduled** `advisor-escalation` moments (see `references/ADVISOR_MCP.md`): **EP-1** after Ph2 review completion, before deep Ph3 iteration; **EP-2** after all in-scope sections reach `Ph3_converged`, before MCR clearance and Ph4. The co-author-harness **plugin** exposes `/advisor-escalation`; the **host** must connect the **advisor** MCP server so the `consult_advisor` tool is available. Filed `reviews/advisor_consultation_*.md` artefacts are auditable; they do **not** replace user approval on the ladder, `EXTERNAL_VERIFIERS` citation checks, or MCR/Ph4 gates.
-
 Each Ph2 / Ph3 / Ph4 stage runs the `review → plan → generate → human approval` cycle appropriate to its lifecycle role. Ph1 runs `plan → binding-governed draft → bounded independent policy evaluation → human milestone approval`; centroid work appears only when enabled by the authoritative reader binding. User approval at a phase advances the section per §8.1. The monotonicity invariant survives from v0.6.0: **a section's `last_approved_phase` is non-decreasing within a session except for explicit user-initiated phase-down** (§8.5) or a fingerprint demotion (§8.6).
 
 **Retired at v0.7.0.** Depth-of-review tier vocabulary, Confirmation Mode at Ph2 entry, the Generator Self-Ph1 Verdict (CLEAN / SUSPECT / DIRTY), escalation gate EG-2 (Self-Ph1 verdict mismatch), the "Laggard Clearance Report" name, the `Ph4_ready` enum value, and `AGENT_ORCHESTRATION.md §10.1`'s artefact-anchored milestone definitions (superseded by §4 here). See §11 for the full retirement ledger.
@@ -334,7 +332,6 @@ The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at 
 | `retrofit-concept-grounding` | Wiki grounding retrofit | **Ph4 mandatory** |
 | `tool-contract-roundtrip` | Verifier-MCP sanity | **Ph4 mandatory** |
 | Generator | Submission-bundle assembly | yes |
-| `advisor-escalation` | Strategic consult | if flagged (available at any phase) |
 | G.4 sign-off | Submission closure | **Ph4 terminal** |
 | Reflector-full (`/run-reflection mode: full`) | Lessons extraction, Couplings A-revised / B / C / D closure, R1–R5 retirement proposals, A1–A5 addition proposals | **Ph4 terminal** |
 | `ingest-m5-to-wiki` | Coupling D ingestion | **Ph4 terminal** |

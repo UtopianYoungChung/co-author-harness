@@ -1,0 +1,948 @@
+{
+  "schema_version": "1.0.0",
+  "status": "binding_resolved",
+  "policy": {
+    "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\draft_governance.v1.json",
+    "sha256": "28ad3437578468d847116744199e762d870b99ac914ee9faf170b9bc33b6b23d",
+    "policy_id": "all-drafts-centroid-and-governing-style-v1"
+  },
+  "obligation_registry": {
+    "path": "B:\\Agents\\platform\\co-author-harness\\references\\policies\\obligation_result_registry.v1.json",
+    "sha256": "2cedbfbb779c0f0033be096f28a26cf0373d0a3157a2817aeeb0cd5e1c8be51a",
+    "byte_length": 19231,
+    "registry_id": "draft-governance-obligation-results-v1"
+  },
+  "project_root": "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2",
+  "target": "M1",
+  "phase": "evaluation",
+  "required_role": "evaluator",
+  "artifact": {
+    "path": "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2\\milestones\\M1_project_memo.md",
+    "state": "present",
+    "sha256": "a0df579be3f460b17c872cfd15fc10938e1c7dda0d66b57586e760e35fd92908",
+    "bytes": 549
+  },
+  "artifact_presence_rule": "existing, missing, stub, staged, migrated, and reopened artifacts receive the same policy resolution; only current hash-bound evidence satisfies the contract",
+  "centroid": {
+    "required": false,
+    "binding_provenance": "project",
+    "binding_version": "2.0.0",
+    "profile_path": "references/policies/reader_accessibility.v1.json",
+    "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+    "resolved_sha256": "32ddd93cff90c238ca60219fd466a6bcd5185d9b2ab5c9d15c1438f46ea3438c",
+    "semantic_usage": "not_invoked",
+    "unavailable_code": "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
+    "generation_derivation": "not_invoked",
+    "evaluation_derivation": "not_invoked",
+    "revision_derivation": "not_invoked",
+    "c7_identity_fence_required": true
+  },
+  "obligations": [
+    {
+      "id": "grounding-protocol",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/GROUNDING_PROTOCOL.md",
+          "sha256": "5b298e472b90ce4395e5eec5e092f54d9b1409dc0b46ce8ed8f9525969547d5d"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "grounding-protocol-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "d-style-profile",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "scripts/d_style_profile_check.py",
+          "sha256": "eb4a489be55e8b853f4ba7a935ae74568f9d3362b84ba30f8a38d5fb03659e8b"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "d-style-profile-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "scripts/d_style_profile_check.py",
+          "version": "1.1.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "dispatch-issuance-authority",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/schemas/assignment_dispatch_issuance.schema.json",
+          "sha256": "b150c9f5e0494bd84c4731642045974609b599b328c28ef9847b4a6ea42d39a6"
+        },
+        {
+          "path": "references/schemas/assignment_dispatch_kernel_authorization.schema.json",
+          "sha256": "3d37d9d7781ad703d0998d265a86818d0bfd13b41a2f2bdfa9b59c67295d6941"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "dispatch-issuance-authority-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "centroid-generation",
+      "phases": [
+        "generation"
+      ],
+      "activation": "always",
+      "required_this_phase": false,
+      "sources": [
+        {
+          "path": "scripts/centroid_service.py",
+          "sha256": "c883be95fd3d507c676f1121b419d1b2aecd12c6645b9db61ecc6e3549a6da43"
+        },
+        {
+          "path": "scripts/source_extract.py",
+          "sha256": "96c90d56cecb6f873dde61c312ed1eb51fee5133635292dc711d62e58ee4c41c"
+        },
+        {
+          "path": "scripts/canonical_bibliography.py",
+          "sha256": "e314d6736a80b8d895af44737fe6cbcdea1cf576a436552ee75fb0fe2271b2e1"
+        },
+        {
+          "path": "scripts/evidence_publication.py",
+          "sha256": "41b701ae1f1c4eae9352fb4871eb6307581f850168fd61e25652b10d0966c77c"
+        },
+        {
+          "path": "scripts/product_assurance.py",
+          "sha256": "70cf23995ad509e9f8b125cbf389dcd9888c4668acd4623a836d9591afe4847c"
+        },
+        {
+          "path": "scripts/c2_evidence_validation.py",
+          "sha256": "f2a47b2954fcf63bc116875df780dbd2e0b8ac3271974d8a490cc295b26d9733"
+        },
+        {
+          "path": "scripts/draft_evidence_verifier.py",
+          "sha256": "cc37be3dfe3b1bf48f16054a36797fe526cd4fb4c801356bc12923469cc0a65a"
+        },
+        {
+          "path": "scripts/assignment_dispatch_claim.py",
+          "sha256": "27f56cab1194ed0533f771bd191a49a8396936c41e8587fcd046ffa48e5c357d"
+        },
+        {
+          "path": "scripts/assignment_mutation_anchor.py",
+          "sha256": "7d98411f84172fe7519f08d4427fd5fa8be16b456912d71ffbc12ed4df41e350"
+        },
+        {
+          "path": "scripts/assignment_receipt_transaction.py",
+          "sha256": "1702605e5e4387457f9f124c30545d2653a16943910dddb15e71149064fa0499"
+        },
+        {
+          "path": "references/semantics_manifest.v1.json",
+          "sha256": "bff0081411ade7e9230d9b8f3756d35b69b6df15bf1c01c2c300904f5ff79010"
+        },
+        {
+          "path": "references/policies/reader_accessibility.v1.json",
+          "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c"
+        },
+        {
+          "path": "references/schemas/assignment_dispatch_claim.schema.json",
+          "sha256": "25bbc81456d092a87131ba10aad12e0f8c93d937deee31009d104b39e1dfea17"
+        },
+        {
+          "path": "references/schemas/assignment_dispatch_consumption.schema.json",
+          "sha256": "435c7c8718d16af31dc020017e5e19e9bd7fa6268873024265dd3f8bcc55e8eb"
+        },
+        {
+          "path": "references/schemas/assignment_host_attestation.schema.json",
+          "sha256": "f9ea3cb8f4310ff0a842863739e8a252faaf43026dce1b897ca042271d3bf7cf"
+        },
+        {
+          "path": "references/schemas/assignment_mutation_anchor.schema.json",
+          "sha256": "1b77ca752aaf11e31aaf0d37e6f79b255fb7b509d921449f491293bb83212f91"
+        },
+        {
+          "path": "references/schemas/assignment_mutation_genesis.schema.json",
+          "sha256": "3d70a65d28d47431e31e3465d21c27ed41959b4adf11221b44c7b5a1d1c823b6"
+        },
+        {
+          "path": "references/schemas/assignment_mutation_state.schema.json",
+          "sha256": "317404d51494cd1201f1cd4c30972899b20619509e1be09e1298243e52a1a9bb"
+        },
+        {
+          "path": "references/schemas/lifecycle_verifier_binding.schema.json",
+          "sha256": "bf191ba767f6ae74dfc32b477f02ff1f4cadbab962ebbe3e48c1fa3932e5d5ff"
+        },
+        {
+          "path": "references/schemas/centroid_semantic_execution.schema.json",
+          "sha256": "f4e428741fc1f1f9542f077a0ff134bc4d71b54043965d227591d65419bbcec3"
+        },
+        {
+          "path": "references/schemas/centroid_semantic_execution.v3.schema.json",
+          "sha256": "0ce982c8715744d57a8e37cfd6f1ff95e4a57c474ba833506adac072ca76702a"
+        },
+        {
+          "path": "references/schemas/canonical_extract_receipt.schema.json",
+          "sha256": "96df55e74e28b80703cdec695aad49703d0bb60ef5c545524fdfa5dfb9eb914e"
+        },
+        {
+          "path": "references/schemas/canonical_bibliography_snapshot.schema.json",
+          "sha256": "a2f75e86d2fde19f0e22a0bfe7ba15b74ab4830bcdf1b37039d016cfee4f0721"
+        },
+        {
+          "path": "references/schemas/source_extract_blocker.schema.json",
+          "sha256": "fad2de1634015c90d3a6307c6c573b2e8b1213045f54c918330eac64bdc5f672"
+        },
+        {
+          "path": "references/schemas/canonical_bibliography_blocker.schema.json",
+          "sha256": "c432ff00c04b74e1ee816955947a6a7ef1d1d6c570ff454bd6793f181f7b5998"
+        },
+        {
+          "path": "references/schemas/product_assurance.schema.json",
+          "sha256": "a10b8cf9857b4c787e5881381751192f14802af88c95c27db8995c5a219b8db9"
+        },
+        {
+          "path": "references/schemas/product_assurance.v2.schema.json",
+          "sha256": "6d9415adb619e6cf93676aeb333ca70386cdee27eb1e48c18df7adf4c9817a9f"
+        },
+        {
+          "path": "references/schemas/semantics_manifest.schema.json",
+          "sha256": "c8405570791fc39260d8d78c74f5b7e332c3edbba9e447f1779b6460c27e64a9"
+        },
+        {
+          "path": "references/schemas/verifier_transaction.schema.json",
+          "sha256": "0b3e46d338c41d983af32ad5090a0f48da413fc73c984d077c1a305104cb21a8"
+        },
+        {
+          "path": "references/schemas/verifier_publication_manifest.schema.json",
+          "sha256": "5187cd64f4a8489de8ee71faf87ffbfed632d946b96260e369b516f44f34cd93"
+        },
+        {
+          "path": "references/schemas/verifier_commit_marker.schema.json",
+          "sha256": "e2bbf719f2f46df6767e2b26e4f13773e6fa6460f26ef0e8360db24af2bd6bdf"
+        },
+        {
+          "path": "references/schemas/evidence_publication_claim.schema.json",
+          "sha256": "a84e78c0815d75183c9928bb1211f014aa8dc9fcfc0186091097f41a201ceb37"
+        },
+        {
+          "path": "references/schemas/evidence_publication_journal.schema.json",
+          "sha256": "b24eb155816c62de6e0a23e8f23feb3c09211984f1b1a8ad1dbc4052a804754e"
+        },
+        {
+          "path": "references/schemas/verifier_blocker.schema.json",
+          "sha256": "cbe1ddb007e6efe2a0827d4c473f6641fedc9f9ab67c2443d4011676b3b470a7"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "centroid-generation-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "reader-accessibility",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/READER_ACCESSIBILITY.md",
+          "sha256": "2b1bb64a21662b8fa86b6d5f6ecdfc396885c0d2b11e019413de2574a379d2cc"
+        },
+        {
+          "path": "references/policies/reader_accessibility.v1.json",
+          "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "reader-accessibility-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "master-guidelines",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/MASTER_research_and_paper_guidelines.md",
+          "sha256": "cc5929ec5622610eb080060fedfb178f56f3cc2505216d1b8a7246db4901a81e"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "master-guidelines-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "research-writing-playbook",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/research_paper_writing_guidelines.md",
+          "sha256": "cfd6e91b4bcb8cdd576734b0ee155312fe07482122eaa4c07529ffe393de7320"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "research-writing-playbook-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "style-commitments",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/STYLE_COMMITMENTS.md",
+          "sha256": "eca03bbcd3b97182a24ea424df5202473bd649f5356e9aff6b1c80610851d9ea"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "style-commitments-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "integrated-style-checklist",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/project_writing_style_checklist.md",
+          "sha256": "a942f330a7056e611edc9c2addd266b4e7666e62a2970bb4eb00dee092043329"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "integrated-style-checklist-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "grammar-mechanics",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "skills/grammar-mechanics-pass/SKILL.md",
+          "sha256": "b513b77e6acf0926760a8974883c30f41cdf4649e397420a85974b930247ec31"
+        },
+        {
+          "path": "references/blue_book_grammar_guidelines.md",
+          "sha256": "7fab06054d379e833ca0b509837354a956fe56d5ecaf5aa5c8fa301346e74072"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "grammar-mechanics-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "citation-discipline",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/CITATION_DISCIPLINE.md",
+          "sha256": "f6e767de91de7a392183da9348d7a9c235969cb0d0a56d6a909dd2ced40d02ad"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "citation-discipline-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "emdash-bundle",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/EMDASH_BUNDLE_DISCIPLINE.md",
+          "sha256": "4e5e0a73579c0e67527f6960e16a51f1c75aa1752936cc8f8bc013f8c3c4da5c"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "emdash-bundle-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "sentence-craft",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/bacon_2009_well_crafted_sentence_guidelines.md",
+          "sha256": "dd0ce9228e3164c60abe9e70f8698af9316319f2133149e4a970903d769c7b82"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "sentence-craft-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "narrative-structure",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/Sexton_Fiction_to_Academic_Writing_Guide.md",
+          "sha256": "892f95d2c0941812b1653d1cd3487509f000862809064003edd2447385108287"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "narrative-structure-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "is-paper-architecture",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "is_or_adjacent_piece",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/baird_2021_writing_guidelines.md",
+          "sha256": "b6b181b3ba5519109cb2d97657233cdc0593f925e0b2953c9e56a9ff6b269421"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "is-paper-architecture-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "suchman-register",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "declared_suchman_or_blend_register",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/suchman_writing_style.md",
+          "sha256": "24f482c99a72f04d1bfbde44e0786dba60afa9d1e487821fc5d7328c0d02d4fa"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "suchman-register-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "public-interest-register",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "public_interest_or_inequality_piece",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/eubanks_2018_automating_inequality_style_guidelines.md",
+          "sha256": "d07c52d14f8fce1d93944abdfcdd2a3b125cce2552cb2f0994c993f83e887a21"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "public-interest-register-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "voice-preservation",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "author_voice_present",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/voice_preservation_guidelines.md",
+          "sha256": "6383046e7c639716745582420606e3107f7e529eba86eac0dc032ba472805b46"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "voice-preservation-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "analytic-construction",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "theory_or_conceptual_argument",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/analytic_construction_guidelines.md",
+          "sha256": "6baecd5eb425e5f00d0a3723f260a631ae466d66003bac8b0785a48007879a16"
+        },
+        {
+          "path": "skills/analytic-move-audit/SKILL.md",
+          "sha256": "e137b48ec7ed326bfe5e10dd36b5cfe563bc33e387961f8ab72044c4d00fa2e9"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "analytic-construction-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "turabian-mechanics",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "turabian_declared",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/turabian_chicago_guidelines.md",
+          "sha256": "4d2b72a8a48b7f8c4761251122cb0af3330bdbf13e854a9db93197defddbc4fe"
+        },
+        {
+          "path": "skills/turabian-format-pass/SKILL.md",
+          "sha256": "16b0e8c680b88788c2f1873ced6e4f7ec353ee7a00f1bd938c0122e4bac4b278"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "turabian-mechanics-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "deterministic-audit",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/DETERMINISTIC_CHECKS.md",
+          "sha256": "eb495a44681fa61796f93c4168ddcb529d2462f351de7b11dfa4a5197fbdebc2"
+        },
+        {
+          "path": "scripts/audit/run_all.py",
+          "sha256": "120623ed38b9cb3059dc7bf4df57bb5416e7f26d11490fcbc1f3f169ee81be27"
+        },
+        {
+          "path": "scripts/product_assurance.py",
+          "sha256": "70cf23995ad509e9f8b125cbf389dcd9888c4668acd4623a836d9591afe4847c"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "deterministic-audit-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": true
+      }
+    },
+    {
+      "id": "review-orchestration",
+      "phases": [
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/REVIEW_ORCHESTRATION.md",
+          "sha256": "9997007ab64d249974063b8241d08ed7d1684046cd5f05fb4ba9edc8ab353da0"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "review-orchestration-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "safeguard-layer",
+      "phases": [
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/SAFEGUARD_LAYER.md",
+          "sha256": "9792310eac12ef72d25a65d99fb2bdd802bf0bb8a661c5583ba72a0f24b4cff9"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "safeguard-layer-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "grounding-audit",
+      "phases": [
+        "evaluation"
+      ],
+      "activation": "always",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "skills/grounding-audit/SKILL.md",
+          "sha256": "9d77830204d738324588cb38467f3cd39e4a03bddae8fb121f8469d7ae152e7e"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "grounding-audit-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    },
+    {
+      "id": "formal-ontology-policy",
+      "phases": [
+        "generation",
+        "evaluation"
+      ],
+      "activation": "formal_bfo_ontology_artifact",
+      "required_this_phase": true,
+      "sources": [
+        {
+          "path": "references/BFO_ONTOLOGY_DESIGN.md",
+          "sha256": "67f606884a13b58d3dc1378b60f243fdba8886bb1c09552366325c7b07bf75d2"
+        }
+      ],
+      "typed_result_required": true,
+      "result_adapter": {
+        "adapter_id": "formal-ontology-policy-result",
+        "adapter_version": "1.0.0",
+        "report_schema": {
+          "path": "references/schemas/obligation_result.schema.json#/$defs/adapterReport",
+          "version": "1.0.0"
+        },
+        "adjudication_schema": {
+          "path": "references/schemas/obligation_adjudication.schema.json",
+          "version": "1.0.0"
+        },
+        "blocking_threshold": "MAJOR",
+        "diagnostic_only": false
+      }
+    }
+  ]
+}

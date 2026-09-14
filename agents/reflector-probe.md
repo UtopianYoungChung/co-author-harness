@@ -75,7 +75,7 @@ Syntactic frontmatter violations remain `R-Refl-FM-*` territory for `scripts/art
 
 ### Phase 2.5 — Grounding Audit *(gated per §2.5.1)*
 
-Run the Grounding Audit as specified in `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibility)`. The nine-item procedure (citation / metric / path / rule-citation / gap-fill / marker / Category 7 advisor / Category 8 graph overlay incl. 8a confidence-echo detector + 8b synthesis reconciliation / Rule 7a external verifier + 9a Scholar Gateway render contract) is shared with closeout but the sampling counts and severity floors differ per the phase-gated subset table below.
+Run the Grounding Audit as specified in `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibility)`. The nine-item procedure (citation / metric / path / rule-citation / gap-fill / marker / Category 7 legacy advisor-sourced artifacts / Category 8 graph overlay incl. 8a confidence-echo detector + 8b synthesis reconciliation / Rule 7a external verifier + 9a Scholar Gateway render contract) is shared with closeout but the sampling counts and severity floors differ per the phase-gated subset table below.
 
 **Any grounding violation is a BLOCKER** regardless of the underlying claim's severity. A MINOR style fix applied on a fabricated rule citation is still a grounding BLOCKER.
 
@@ -89,7 +89,7 @@ Run the Grounding Audit as specified in `GROUNDING_PROTOCOL.md §Grounding Audit
 | 4. Rule-citation audit | sample ≥ 1 | sample ≥ 1 | sample ≥ 3 |
 | 5. Gap-fill audit | skip | skip | every new paragraph |
 | 6. Marker audit | **must run** | **must run** | **must run** |
-| 7. Category 7 — advisor | if advisor invoked | if advisor invoked | if advisor invoked |
+| 7. Category 7 — legacy advisor-sourced artifacts | if present | if present | if present |
 | 8. Category 8 — graph overlay | if E.2 active | if E.2 active | if E.2 active |
 | 8b. Synthesis reconciliation | if wiki-linked | if wiki-linked | when brief exists |
 | 9. Rule 7a — external verifier | **must run** (MINOR floor) | **must run** (MINOR floor) | **must run** (MAJOR floor) |

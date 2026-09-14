@@ -1,0 +1,145 @@
+{
+  "artifact": {
+    "evidence_type": "governed_artifact",
+    "path": "milestones/M2_annotated_references.md",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062"
+  },
+  "assignment_receipt": {
+    "evidence_type": "assignment_gate_receipt",
+    "path": "reviews/.harness/assignment/consumed/gate_receipt_M2_walk_initial.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "a97f33acdc974666197648b3391807e4b2973cf3ae2dde9b5d01ab9a6f0eca6a"
+  },
+  "authorized_writes": [
+    {
+      "mode": "replace",
+      "path": "milestones/M2_annotated_references.md",
+      "preimage": {
+        "exists": true,
+        "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062",
+        "size": 387
+      }
+    }
+  ],
+  "canonical_bibliography_snapshot": {
+    "evidence_type": "canonical_bibliography_snapshot",
+    "path": "reviews/.harness/fixtures/m2-initial/canonical-bibliography-1.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "4bc7c8d07046493d9b4de5eaab1b47cf27574cb7785e466cbc1f02f9de301125"
+  },
+  "claim_id": "dispatch-9602f4ef0fbf9fa6",
+  "claim_kind": "evaluation",
+  "claim_type": "assignment_dispatch",
+  "corpus_digest": "4bc7c8d07046493d9b4de5eaab1b47cf27574cb7785e466cbc1f02f9de301125",
+  "generation_claim": {
+    "evidence_type": "assignment_generation_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-c560933fe4790442/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "3a02c323f38dcfba230730cd21ef32f5885c10115de60b89cf19e520d90d887f"
+  },
+  "generation_consumption": {
+    "evidence_type": "assignment_dispatch_consumption",
+    "path": "reviews/.harness/assignment/dispatch/consumptions/consume-7c8d4f81e39f5f47/consumption.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "e1255d75abe150b551fbc1abd858ef26e21f895659d1a16e8a70334a020086e2"
+  },
+  "generation_verifier": {
+    "commit_marker": {
+      "evidence_type": "verifier_commit_marker",
+      "path": "reviews/.harness/verifier/m2-initial/generation/commit-marker.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-milestone-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+      },
+      "sha256": "02c6d9ccb12e8eccf90aec301d54f70f14bc0b3f015033628dc2f6f47dd865d2"
+    },
+    "product_disposition": "evaluation_ready",
+    "publication_manifest": {
+      "evidence_type": "verifier_publication_manifest",
+      "path": "reviews/.harness/verifier/m2-initial/generation/publication-manifest.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-milestone-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+      },
+      "sha256": "e5b92a17f1e17e72ebcd529c942fa0a9916f7c173683fc869fa26c57b56a18e4"
+    },
+    "transaction": {
+      "evidence_type": "verifier_transaction",
+      "path": "reviews/.harness/verifier/m2-initial/generation/verifier-transaction.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-milestone-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+      },
+      "sha256": "73013f0a4be4fc199181c63bd005f3e77b1dc48feb319d1810f268cb52107b61"
+    },
+    "transaction_id": "verifier-138edecfca9a2816"
+  },
+  "issued_at": "2026-07-19T00:00:02Z",
+  "issuer": {
+    "name": "assignment_transaction_kernel",
+    "transaction_id": "assignment-evaluation-M2",
+    "version": "1.0.0"
+  },
+  "nonce": "aeb4fbdb750955c785e6ed394019958d",
+  "policy": {
+    "evidence_type": "assignment_policy",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki/policy.json",
+    "root": {
+      "discovery": "explicit:version.json",
+      "identity": "co-author-harness",
+      "kind": "harness",
+      "manifest_sha256": "4b502fdfff05eb228668af53c37e444d50d3cd3d01ce244ab8c26dcdcb8cfb08"
+    },
+    "sha256": "d38bfae99c4b10de53a53d9134e33ef1b9eecda8a6b4d5b3224eea0c7dfbd8f1"
+  },
+  "receipt_id": "772c848e-5d05-4360-82af-2c6c87a73ec7",
+  "reservation": {
+    "evidence_type": "assignment_receipt_reservation",
+    "path": "reviews/.harness/assignment/reservations/772c848e-5d05-4360-82af-2c6c87a73ec7.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "9d33bd104c4c9a752b08446118bfbf08888dad276561a406c5172f0749b1c214"
+  },
+  "reservation_id": "49708282-5a44-4532-8b5d-b46bc09e2da6",
+  "role": "evaluator",
+  "schema_version": "1.0.0",
+  "state": "issued",
+  "target_milestone": "M2",
+  "target_path": "milestones/M2_annotated_references.md"
+}

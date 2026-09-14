@@ -1,0 +1,10 @@
+{
+  "products": [
+    {
+      "path": "reviews/.harness/assignment/dispatch/consumptions/consume-4da1f0d08f7a7f99/consumption.json",
+      "sha256": "245cac0783e8651c256150be0b188973f248b3ca3d1722c6b90f2c17d62c1592"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "transaction_id": "assignment-write-M2"
+}

@@ -1,0 +1,27 @@
+{
+  "contract_version": "1.0.0",
+  "status": "resolved",
+  "profile_id": "course-essay-four-milestones-v1",
+  "profile_path": "references/policies/course_essay_milestones.v1.json",
+  "profile_sha256": "134c7d6fd3dd3d07a8e130c6404e1a47cd18dadb4e0ee68c4d5d27651c0c20fe",
+  "assignment_source": {
+    "path": "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2\\course-assignment.pdf",
+    "sha256": "7a82361f9c75d9e9284f2d2d7355dd5f32cb8da39d12bb1f42968c23ddf303ff",
+    "authority": "instructor"
+  },
+  "assigned_sequence": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "FINAL"
+  ],
+  "framework_mapping": {
+    "M1": "M1",
+    "M2": "M2",
+    "M3": "M3",
+    "M4": "M4",
+    "FINAL": "M5"
+  },
+  "professor_copy_policy": "author_controlled_unless_explicitly_requested"
+}

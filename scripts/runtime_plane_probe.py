@@ -775,6 +775,9 @@ def probe_plane(
                 baseline_excluded.add(candidate.relative_to(baseline_root).as_posix())
             if _inside(candidate, local_root):
                 local_excluded.add(candidate.relative_to(local_root).as_posix())
+        evidence_dir = out_path.parent
+        if _inside(evidence_dir, baseline_root):
+            baseline_excluded.add(evidence_dir.relative_to(baseline_root).as_posix())
 
     actual_source_commit = _source_commit(baseline_root)
     baseline_inventory = (

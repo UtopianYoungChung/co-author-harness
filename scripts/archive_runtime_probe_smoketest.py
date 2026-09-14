@@ -49,7 +49,7 @@ parser.add_argument("--stdout",action="store_true",required=True)
 args=parser.parse_args()
 allowed_python={"PYTHONPATH","PYTHONDONTWRITEBYTECODE","PYTHONNOUSERSITE"}
 unexpected_python=sorted(key for key in os.environ if key.upper().startswith("PYTHON") and key.upper() not in allowed_python)
-if "-I" not in sys.orig_argv or os.environ.get("PYTHONPATH") != "" or os.environ.get("PYTHONDONTWRITEBYTECODE") != "1" or os.environ.get("PYTHONNOUSERSITE") != "1" or unexpected_python:
+if "-I" not in sys.orig_argv or os.environ.get("PYTHONPATH") not in (None, "") or os.environ.get("PYTHONDONTWRITEBYTECODE") != "1" or os.environ.get("PYTHONNOUSERSITE") != "1" or unexpected_python:
     raise SystemExit(9)
 if not args.cleared_zip.is_file() or len(args.source_commit) not in (40,64):
     raise SystemExit(10)

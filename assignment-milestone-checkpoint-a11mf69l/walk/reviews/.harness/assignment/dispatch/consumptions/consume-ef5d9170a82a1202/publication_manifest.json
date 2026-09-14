@@ -1,0 +1,10 @@
+{
+  "products": [
+    {
+      "path": "reviews/.harness/assignment/dispatch/consumptions/consume-ef5d9170a82a1202/consumption.json",
+      "sha256": "3642ac47cf904fa4a42947d2fbaca86ed90abc8f4394cf8841dc996318c1753f"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "transaction_id": "scholarly-evaluation:SET-M2_INITIAL"
+}

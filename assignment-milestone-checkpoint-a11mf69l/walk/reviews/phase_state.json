@@ -1,0 +1,635 @@
+{
+  "default_final_phase": "Ph4",
+  "manuscript_id": "walk",
+  "milestone_framework": {
+    "contract_version": "1.1.0",
+    "events": [
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [],
+        "caused_by_sequence": null,
+        "event_type": "milestone_started",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Native project walk initialized at M1 without acceptance claims.",
+        "sequence": 1,
+        "timestamp": "2026-07-19T00:00:00Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "artifact",
+            "path": "milestones/M1_project_memo.md",
+            "sha256": "4f4b76267242ef8b7dd15c5010c1a056010f97abf8e969fd64586d05b358e0a7"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "deliverable_recorded",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner recorded the consumed scoped-writer M1 deliverable.",
+        "sequence": 2,
+        "timestamp": "2026-07-19T00:00:02Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "feedback",
+            "path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+            "sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "feedback_recorded",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner recorded current M1 feedback provenance.",
+        "sequence": 3,
+        "timestamp": "2026-07-19T00:00:02Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "feedback",
+            "path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+            "sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "feedback_adjudicated",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner recorded non-pending M1 feedback dispositions.",
+        "sequence": 4,
+        "timestamp": "2026-07-19T00:00:02Z"
+      },
+      {
+        "actor": "planner",
+        "authority": "user",
+        "bindings": [
+          {
+            "binding_type": "artifact",
+            "path": "milestones/M1_project_memo.md",
+            "sha256": "4f4b76267242ef8b7dd15c5010c1a056010f97abf8e969fd64586d05b358e0a7"
+          },
+          {
+            "binding_type": "approval",
+            "path": "reviews/.harness/milestones/checkpoints/m1_approval.json",
+            "sha256": "fc86a72191b0561f3f8e3857be8db8985117c0fdf4164808f8c12aafe786881a"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "milestone_accepted",
+        "evidence_path": "reviews/.harness/milestones/checkpoints/m1_approval.json",
+        "evidence_sha256": "fc86a72191b0561f3f8e3857be8db8985117c0fdf4164808f8c12aafe786881a",
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner accepted M1 after explicit current-byte approval.",
+        "sequence": 5,
+        "timestamp": "2026-07-19T00:00:04Z"
+      },
+      {
+        "actor": "planner",
+        "authority": "user",
+        "bindings": [
+          {
+            "binding_type": "handoff_packet",
+            "path": "reviews/.harness/handoffs/M1_to_M2.json",
+            "sha256": "de9f3380082e786afa261a193206b3426f8b2604196647de04fb006b2c124dbe"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "handoff_ready",
+        "evidence_path": "reviews/.harness/milestones/checkpoints/m1_approval.json",
+        "evidence_sha256": "fc86a72191b0561f3f8e3857be8db8985117c0fdf4164808f8c12aafe786881a",
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner finalized the accepted M1 F9 handoff.",
+        "sequence": 6,
+        "timestamp": "2026-07-19T00:00:04Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "handoff_packet",
+            "path": "reviews/.harness/handoffs/M1_to_M2.json",
+            "sha256": "de9f3380082e786afa261a193206b3426f8b2604196647de04fb006b2c124dbe"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "handoff_consumed",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M1",
+        "reason": "Planner consumed M1 F9 to begin M2.",
+        "sequence": 7,
+        "timestamp": "2026-07-19T00:00:05Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [],
+        "caused_by_sequence": null,
+        "event_type": "milestone_started",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner began the derived M2 milestone.",
+        "sequence": 8,
+        "timestamp": "2026-07-19T00:00:05Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "artifact",
+            "path": "milestones/M2_annotated_references.md",
+            "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "deliverable_recorded",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner recorded the consumed scoped-writer M2 deliverable.",
+        "sequence": 9,
+        "timestamp": "2026-07-19T00:00:07Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "feedback",
+            "path": "reviews/.harness/milestones/checkpoints/m2_feedback.md",
+            "sha256": "bd62f4458e492cb8c0d3d46ac4f83b48211707e5f090eceae8a25cc9a55a81e9"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "feedback_recorded",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner recorded current M2 feedback provenance.",
+        "sequence": 10,
+        "timestamp": "2026-07-19T00:00:07Z"
+      },
+      {
+        "actor": "planner",
+        "authority": null,
+        "bindings": [
+          {
+            "binding_type": "feedback",
+            "path": "reviews/.harness/milestones/checkpoints/m2_feedback.md",
+            "sha256": "bd62f4458e492cb8c0d3d46ac4f83b48211707e5f090eceae8a25cc9a55a81e9"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "feedback_adjudicated",
+        "evidence_path": null,
+        "evidence_sha256": null,
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner recorded non-pending M2 feedback dispositions.",
+        "sequence": 11,
+        "timestamp": "2026-07-19T00:00:07Z"
+      },
+      {
+        "actor": "planner",
+        "authority": "user",
+        "bindings": [
+          {
+            "binding_type": "artifact",
+            "path": "milestones/M2_annotated_references.md",
+            "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062"
+          },
+          {
+            "binding_type": "approval",
+            "path": "reviews/.harness/milestones/checkpoints/m2_approval.json",
+            "sha256": "dbd12251372e66ce56cb4387540f3aeee8ef9c44ae798e228586c7af29dfc1f9"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "milestone_accepted",
+        "evidence_path": "reviews/.harness/milestones/checkpoints/m2_approval.json",
+        "evidence_sha256": "dbd12251372e66ce56cb4387540f3aeee8ef9c44ae798e228586c7af29dfc1f9",
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner accepted M2 after explicit current-byte approval.",
+        "sequence": 12,
+        "timestamp": "2026-07-19T00:00:09Z"
+      },
+      {
+        "actor": "planner",
+        "authority": "user",
+        "bindings": [
+          {
+            "binding_type": "handoff_packet",
+            "path": "reviews/.harness/handoffs/M2_to_M3.json",
+            "sha256": "72d08fb0ed59b1049650f923e40b8d35ecdd6e7e384cf735af311c47d82e9113"
+          }
+        ],
+        "caused_by_sequence": null,
+        "event_type": "handoff_ready",
+        "evidence_path": "reviews/.harness/milestones/checkpoints/m2_approval.json",
+        "evidence_sha256": "dbd12251372e66ce56cb4387540f3aeee8ef9c44ae798e228586c7af29dfc1f9",
+        "lineage_id": "main",
+        "milestone": "M2",
+        "reason": "Planner finalized the accepted M2 F9 handoff.",
+        "sequence": 13,
+        "timestamp": "2026-07-19T00:00:09Z"
+      }
+    ],
+    "handoff_policy": "audited",
+    "migration_boundary": null,
+    "milestones": {
+      "M1": {
+        "applicability": "applicable",
+        "approval": {
+          "approved_at": "2026-07-19T00:00:03Z",
+          "authority": "user",
+          "evidence_path": "reviews/.harness/milestones/checkpoints/m1_approval.json",
+          "status": "approved"
+        },
+        "artifacts": [
+          {
+            "artifact_kind": "project_memo",
+            "bytes": 387,
+            "lineage_id": "main",
+            "path": "milestones/M1_project_memo.md",
+            "role": "deliverable",
+            "sha256": "4f4b76267242ef8b7dd15c5010c1a056010f97abf8e969fd64586d05b358e0a7",
+            "verified_at": "2026-07-19T00:00:02Z"
+          },
+          {
+            "artifact_kind": "milestone_checkpoint",
+            "bytes": 1885,
+            "lineage_id": "main",
+            "path": "reviews/.harness/milestones/checkpoints/m1_checkpoint.json",
+            "role": "evidence",
+            "sha256": "e1b72d82c20e5c83a2addb2aa2beb3b98455a914e15256fea6d854821a87f445",
+            "verified_at": "2026-07-19T00:00:02Z"
+          }
+        ],
+        "authorized_override": null,
+        "dependency_state": "current",
+        "exit_criteria": [
+          "Project memo is reviewed against the stated problem and intended readers.",
+          "Feedback is adjudicated and an authorized approver accepts the memo.",
+          "An F9 handoff binds the accepted memo and instructions for M2."
+        ],
+        "feedback_records": [
+          {
+            "blocking": false,
+            "contemporaneity_evidence_path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+            "contemporaneity_evidence_sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4",
+            "disposition": "informational",
+            "evidence_class": "direct_milestone_feedback",
+            "feedback_id": "m1-feedback-initial",
+            "lineage_id": "main",
+            "rationale": "Synthetic feedback was reviewed and requires no revision.",
+            "received_at": "2026-07-19T00:00:01Z",
+            "source_actor": "user",
+            "source_authority": "user",
+            "source_milestone": "M1",
+            "source_path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+            "source_sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4",
+            "successor_effect": "Proceed only after explicit approval.",
+            "target_milestone": "M1"
+          }
+        ],
+        "handoff": {
+          "packet_path": "reviews/.harness/handoffs/M1_to_M2.json",
+          "packet_sha256": "de9f3380082e786afa261a193206b3426f8b2604196647de04fb006b2c124dbe",
+          "status": "consumed"
+        },
+        "policy_evidence": {
+          "assignment_receipt": {
+            "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_M1_walk_initial.json",
+            "evidence_sha256": "87a5d4d97f89dcae3d6309623f2ed6753828bf280eaf22243c81a1e0b9d1d0b7",
+            "receipt_id": "f68655ac-2517-4f6e-8ce0-4f3963c0a1dc"
+          },
+          "draft_evaluation": {
+            "evidence_path": "reviews/.harness/shipments/synthetic/m1_initial_evaluation.lifecycle.json",
+            "evidence_sha256": "cfa497211a4d5164fb8bbc00009722bc9ecf1654142cfe70f5924846c130b78a"
+          },
+          "draft_generation": {
+            "evidence_path": "reviews/.harness/shipments/synthetic/m1_initial_generation.lifecycle.json",
+            "evidence_sha256": "cc27fe39215d46eca6479edc50fc2268d19ced251bbe7c583adcdcde885185f8"
+          },
+          "reader_model": {
+            "audience_classes": [
+              "IS scholar",
+              "software engineer",
+              "systems engineer",
+              "requirements engineer"
+            ],
+            "imported_theory_registers": [
+              "sociology",
+              "psychology",
+              "philosophy"
+            ],
+            "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
+            "register_class": "domain-native",
+            "source": "M1 milestone reader declaration"
+          },
+          "scholarly_evaluation": {
+            "evidence_path": "milestones/m1-initial-scholarly-evaluation.json",
+            "evidence_sha256": "6dc12f58180d0fc6290f1f82d7d14d02f43b819bb8694c62a348b97880c02904"
+          }
+        },
+        "purpose": "Establish the project's focus, motivating tension, intended readers, and question candidates.",
+        "required_inputs": [
+          "User brief, venue or advisor constraints, and initial problem evidence"
+        ],
+        "status": "accepted"
+      },
+      "M2": {
+        "applicability": "applicable",
+        "approval": {
+          "approved_at": "2026-07-19T00:00:08Z",
+          "authority": "user",
+          "evidence_path": "reviews/.harness/milestones/checkpoints/m2_approval.json",
+          "status": "approved"
+        },
+        "artifacts": [
+          {
+            "artifact_kind": "annotated_references",
+            "bytes": 387,
+            "lineage_id": "main",
+            "path": "milestones/M2_annotated_references.md",
+            "role": "deliverable",
+            "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062",
+            "verified_at": "2026-07-19T00:00:07Z"
+          },
+          {
+            "artifact_kind": "milestone_checkpoint",
+            "bytes": 1885,
+            "lineage_id": "main",
+            "path": "reviews/.harness/milestones/checkpoints/m2_checkpoint.json",
+            "role": "evidence",
+            "sha256": "5d0b61438b8cd7350d8826124a4810a3a257e11c2520a087f3a98e0b5a05569c",
+            "verified_at": "2026-07-19T00:00:07Z"
+          }
+        ],
+        "authorized_override": null,
+        "dependency_state": "current",
+        "exit_criteria": [
+          "Annotated references cover the M1 tension and expose material gaps or disagreements.",
+          "Feedback is adjudicated and an authorized approver accepts the reference set.",
+          "An F9 handoff binds the accepted references and instructions for M3."
+        ],
+        "feedback_records": [
+          {
+            "blocking": false,
+            "contemporaneity_evidence_path": "reviews/.harness/milestones/checkpoints/m2_feedback.md",
+            "contemporaneity_evidence_sha256": "bd62f4458e492cb8c0d3d46ac4f83b48211707e5f090eceae8a25cc9a55a81e9",
+            "disposition": "informational",
+            "evidence_class": "direct_milestone_feedback",
+            "feedback_id": "m2-feedback-initial",
+            "lineage_id": "main",
+            "rationale": "Synthetic feedback was reviewed and requires no revision.",
+            "received_at": "2026-07-19T00:00:06Z",
+            "source_actor": "user",
+            "source_authority": "user",
+            "source_milestone": "M2",
+            "source_path": "reviews/.harness/milestones/checkpoints/m2_feedback.md",
+            "source_sha256": "bd62f4458e492cb8c0d3d46ac4f83b48211707e5f090eceae8a25cc9a55a81e9",
+            "successor_effect": "Proceed only after explicit approval.",
+            "target_milestone": "M2"
+          }
+        ],
+        "handoff": {
+          "packet_path": "reviews/.harness/handoffs/M2_to_M3.json",
+          "packet_sha256": "72d08fb0ed59b1049650f923e40b8d35ecdd6e7e384cf735af311c47d82e9113",
+          "status": "ready"
+        },
+        "policy_evidence": {
+          "assignment_receipt": {
+            "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_M2_walk_initial.json",
+            "evidence_sha256": "a97f33acdc974666197648b3391807e4b2973cf3ae2dde9b5d01ab9a6f0eca6a",
+            "receipt_id": "772c848e-5d05-4360-82af-2c6c87a73ec7"
+          },
+          "draft_evaluation": {
+            "evidence_path": "reviews/.harness/shipments/synthetic/m2_initial_evaluation.lifecycle.json",
+            "evidence_sha256": "f019146ad6a24a43741ab84ed593d5bf0661fccbc493e37a0b3408f48036e75e"
+          },
+          "draft_generation": {
+            "evidence_path": "reviews/.harness/shipments/synthetic/m2_initial_generation.lifecycle.json",
+            "evidence_sha256": "dec909c32d7428d3226b6bae1a72384fd4860bd4a010d615fb5f11ff2ddbd812"
+          },
+          "scholarly_evaluation": {
+            "evidence_path": "milestones/m2-initial-scholarly-evaluation.json",
+            "evidence_sha256": "02de3ef9a52587a081e9ca30a8b5524a43c88bce9b09fd3ce1ceb467ea42a6a6"
+          }
+        },
+        "purpose": "Build and annotate the evidence base needed to test and refine the M1 framing.",
+        "required_inputs": [
+          "Accepted M1 F9 handoff",
+          "milestones/M1_project_memo.md"
+        ],
+        "status": "accepted"
+      },
+      "M3": {
+        "applicability": "applicable",
+        "approval": {
+          "approved_at": null,
+          "authority": null,
+          "evidence_path": null,
+          "status": "pending"
+        },
+        "artifacts": [],
+        "authorized_override": null,
+        "dependency_state": "current",
+        "exit_criteria": [
+          "The outline maps claims, evidence, objections, and section dependencies.",
+          "Feedback is adjudicated and an authorized approver accepts the outline.",
+          "An F9 handoff binds the accepted outline and drafting instructions for M4."
+        ],
+        "feedback_records": [],
+        "handoff": {
+          "packet_path": null,
+          "packet_sha256": null,
+          "status": "not_ready"
+        },
+        "purpose": "Turn the accepted framing and evidence base into a coherent argument and evidence plan.",
+        "required_inputs": [
+          "Accepted M2 F9 handoff",
+          "milestones/M2_annotated_references.md"
+        ],
+        "status": "not_started"
+      },
+      "M4": {
+        "applicability": "applicable",
+        "approval": {
+          "approved_at": null,
+          "authority": null,
+          "evidence_path": null,
+          "status": "pending"
+        },
+        "artifacts": [],
+        "authorized_override": null,
+        "dependency_state": "current",
+        "exit_criteria": [
+          "A complete manuscript is bound as the deliverable rather than a plan or checklist.",
+          "Review feedback is adjudicated against the current manuscript hash.",
+          "An authorized approver accepts the draft and an F9 handoff releases it to M5."
+        ],
+        "feedback_records": [],
+        "handoff": {
+          "packet_path": null,
+          "packet_sha256": null,
+          "status": "not_ready"
+        },
+        "purpose": "Produce and stabilize a complete manuscript that realizes the accepted M3 argument plan.",
+        "required_inputs": [
+          "Accepted M3 F9 handoff",
+          "milestones/M3_argument_evidence_outline.md"
+        ],
+        "status": "not_started"
+      },
+      "M5": {
+        "applicability": "applicable",
+        "approval": {
+          "approved_at": null,
+          "authority": null,
+          "evidence_path": null,
+          "status": "pending"
+        },
+        "artifacts": [],
+        "authorized_override": null,
+        "dependency_state": "current",
+        "exit_criteria": [
+          "The submission-bound manuscript and released export are hash-bound.",
+          "Final feedback and closure checks are adjudicated.",
+          "An authorized approver accepts the final deliverable and terminal F9 packet."
+        ],
+        "feedback_records": [],
+        "handoff": {
+          "packet_path": null,
+          "packet_sha256": null,
+          "status": "not_ready"
+        },
+        "purpose": "Finalize the accepted draft for its declared submission or delivery surface.",
+        "required_inputs": [
+          "Accepted M4 F9 handoff",
+          "milestones/M4_complete_paper_draft.md",
+          "Venue or delivery requirements"
+        ],
+        "status": "not_started"
+      }
+    },
+    "mode": "native",
+    "path_contract_version": "2.0.0",
+    "policy_bindings": {
+      "reader_accessibility": {
+        "binding_kind": "reader_profile",
+        "binding_version": "2.0.0",
+        "profile_path": "references/policies/reader_accessibility.v1.json",
+        "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+        "project_identity": "walk",
+        "resolved_path": "reviews/.harness/policies/reader_accessibility.resolved.json",
+        "resolved_sha256": "5c187cc39bf673f3d38bb73eaa0fe06c9696f0ffe0c5cdfa23d3c063f6d1b7e9",
+        "semantic_usage": "not_invoked",
+        "source_bindings": [
+          {
+            "path": "references/policies/reader_accessibility.v1.json",
+            "role": "package_profile",
+            "scope": "package",
+            "sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c"
+          },
+          {
+            "path": "references/READER_ACCESSIBILITY.md",
+            "role": "package_contributor",
+            "scope": "package",
+            "sha256": "2b1bb64a21662b8fa86b6d5f6ecdfc396885c0d2b11e019413de2574a379d2cc"
+          },
+          {
+            "path": "references/examples/model_prose_corpus.md",
+            "role": "package_contributor",
+            "scope": "package",
+            "sha256": "efa03146aa443309e08fe027bc4552ee0c68094840d9264e5308d82854e95f96"
+          },
+          {
+            "path": "research_notes/directives.md",
+            "role": "directives",
+            "scope": "project",
+            "sha256": "d0f825103a9365e954fd85539e6c853eb79051c9f010a6795fb26cbdc43467ce"
+          }
+        ],
+        "transitions": {
+          "G": {
+            "events": [],
+            "last_event_sequence": null,
+            "observed_count": 0,
+            "state": "active"
+          },
+          "H": {
+            "events": [],
+            "last_event_sequence": null,
+            "observed_count": 0,
+            "state": "active"
+          },
+          "VE": {
+            "events": [],
+            "last_event_sequence": null,
+            "observed_count": 0,
+            "state": "active"
+          }
+        }
+      }
+    },
+    "primary_lineage": "main"
+  },
+  "schema_version": "0.7.4",
+  "sections": {
+    "milestones/M4_complete_paper_draft.md": {
+      "current_phase": "Ph1",
+      "phase_entry_log": [
+        {
+          "actor": "planner",
+          "model_used": null,
+          "new_phase": "Ph1",
+          "notes": "Native bootstrap created an empty manuscript scaffold; no milestone was accepted.",
+          "prev_phase": null,
+          "timestamp": "2026-07-19T00:00:00Z",
+          "trigger": "initial_dispatch"
+        },
+        {
+          "actor": "planner",
+          "model_used": null,
+          "new_phase": "Ph1",
+          "notes": "Synthetic no-open-round boundary for Planner rebind regression.",
+          "prev_phase": "Ph1",
+          "timestamp": "2026-07-19T00:00:00Z",
+          "trigger": "ph1_draft_completion_signed"
+        }
+      ]
+    }
+  },
+  "terminal_phase_reached": false,
+  "terminal_round_id": null
+}

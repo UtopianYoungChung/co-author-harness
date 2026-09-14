@@ -1,0 +1,156 @@
+{
+  "artifact_family": "F9",
+  "contract_version": "1.0.0",
+  "project": "smoke-project",
+  "lineage_id": "main",
+  "from_milestone": "M5",
+  "to_milestone": null,
+  "predecessor_packet": {
+    "path": "reviews/.harness/handoffs/M4_packet.json",
+    "sha256": "36baba8a37ffd705f45444cc4fb2b1c062c44a0514bdd92bdfd4df2168c97a56"
+  },
+  "deliverable": {
+    "role": "deliverable",
+    "path": "research_notes/m5_deliverable.md",
+    "sha256": "1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a",
+    "bytes": 329
+  },
+  "released_export": {
+    "role": "export",
+    "path": "exports/final-paper.pdf",
+    "sha256": "137f16ac2a1ecd33b0aa4470d705a044b21551992809a2ec481a29af7f3529a4",
+    "bytes": 16,
+    "source_path": "research_notes/m5_deliverable.md",
+    "source_sha256": "1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a"
+  },
+  "inputs_consumed": [
+    {
+      "path": "reviews/G4_signoff.md",
+      "sha256": "d41d57222c3c1bbe2f14665fa1805e9cb830e07a54d03796a97343a196655653"
+    },
+    {
+      "path": "reviews/ph4_ship_signoff.md",
+      "sha256": "86a29c61944ad02ad6a5cd33ede740b88eb736575110afce5b5d1ff94d510a26"
+    },
+    {
+      "path": "reviews/final_round_report_round_2026-07-17_001.md",
+      "sha256": "f258b7c9efc2ac676559795552707fe312c958ab9d2fafdbc9e562056d2ae574"
+    },
+    {
+      "path": "reviews/reflection_report.md",
+      "sha256": "33f9e7b4660707a342cf10da66f5b6b62c9cf35213b85b0fb1118e3ffa18258b"
+    },
+    {
+      "path": "reviews/.harness/evidence/round_2026-07-17_001__ph4__001.json",
+      "sha256": "8e48539ca0a59e630d2192324b708c99c3bb9c8e551fbd01c1dd0f2e967cd830"
+    },
+    {
+      "path": "reviews/.harness/events.jsonl",
+      "sha256": "64ce41f7eb5088ef635db6faf382476e431eeb0d8ff2081dfe8ecdff7a1eeb64"
+    },
+    {
+      "path": "reviews/findings.json",
+      "sha256": "202153b27e85224755a451e2a637cdf4b39f37e8ffd1474a8fd733ba710ed878"
+    },
+    {
+      "path": "reviews/convergence_log.md",
+      "sha256": "70527ae9d13fc432ff009442ffe45076e1827fd4d911062f6866a31712cf5a52"
+    },
+    {
+      "path": "reviews/.harness/assignment/consumed/gate_receipt_FINAL_fixture.json",
+      "sha256": "4ca0adc2f192c7585b6bb0fbfe9e54044c842573cf7deff4b29d5c4d8c4d73fc"
+    },
+    {
+      "path": "reviews/.harness/assignment/consumed/gate_receipt_FINAL_fixture.result.json",
+      "sha256": "ebdd308249830de5db0b29d95642d65a0a69ef4348e16bc12100a79ff1e1cee5"
+    }
+  ],
+  "decisions_frozen": [],
+  "feedback_dispositions": [
+    {
+      "feedback_id": "feedback-m5-1",
+      "disposition": "informational",
+      "rationale": "No blocking findings."
+    }
+  ],
+  "open_debts": [],
+  "next_milestone_instructions": [],
+  "approval": {
+    "authority": "user",
+    "evidence_path": "reviews/m5_approval.md",
+    "approved_at": "2026-07-13T18:00:00Z"
+  },
+  "policy_evidence": {
+    "profile_path": "reviews/.harness/policy/reader_accessibility_resolved.json",
+    "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+    "resolved_sha256": "b0e3aff7dd2a41078aaafe8f6248073c1d1ac4921464fd8c8986bd3612bd3649",
+    "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
+    "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+    "manuscript_sha256": "1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a",
+    "cycle_id": "round_2026-07-17_001",
+    "check8_path": "reviews/.harness/policy/m5_check8.json",
+    "check8_sha256": "34fb99af50e6cec45b5bdc0af5f812563d153c746890ad19aa8662b4b31c1aaf",
+    "aggregate_verdict": "CLEAN",
+    "phase": "Ph4",
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m5/generation.lifecycle.json",
+      "evidence_sha256": "80208e9b31f8d8b3fef2bf8c3f58e5403785b28e9cf0db8b5c0e8c7c11c3bd83"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m5/evaluation.lifecycle.json",
+      "evidence_sha256": "a35afce785adc74b77a434907c4b353bd5a13342ca68e11cfe0e6a3342c8ce96"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "research_notes/terminal-m5-scholarly-evaluation.json",
+      "evidence_sha256": "19be04caab4dc7147d6a72c3cffe591f497a0cd1d4a1e53cc3301bb35aa0c2bf"
+    },
+    "assignment_receipt": {
+      "receipt_id": "a1c26c1f-e3e4-522e-b0ed-d4b3cb7b1742",
+      "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_FINAL_terminal-m5.json",
+      "evidence_sha256": "32e19e114c91a865c61792a84f7046a872356e42d50cb056fba1262577f70152"
+    },
+    "terminal_round_id": "round_2026-07-17_001",
+    "bindings": [
+      {
+        "role": "g4_signoff",
+        "path": "reviews/G4_signoff.md",
+        "sha256": "d41d57222c3c1bbe2f14665fa1805e9cb830e07a54d03796a97343a196655653"
+      },
+      {
+        "role": "ship_signoff",
+        "path": "reviews/ph4_ship_signoff.md",
+        "sha256": "86a29c61944ad02ad6a5cd33ede740b88eb736575110afce5b5d1ff94d510a26"
+      },
+      {
+        "role": "final_round_report",
+        "path": "reviews/final_round_report_round_2026-07-17_001.md",
+        "sha256": "f258b7c9efc2ac676559795552707fe312c958ab9d2fafdbc9e562056d2ae574"
+      },
+      {
+        "role": "reflector_full",
+        "path": "reviews/reflection_report.md",
+        "sha256": "33f9e7b4660707a342cf10da66f5b6b62c9cf35213b85b0fb1118e3ffa18258b"
+      },
+      {
+        "role": "f7_evidence",
+        "path": "reviews/.harness/evidence/round_2026-07-17_001__ph4__001.json",
+        "sha256": "8e48539ca0a59e630d2192324b708c99c3bb9c8e551fbd01c1dd0f2e967cd830"
+      },
+      {
+        "role": "events_log",
+        "path": "reviews/.harness/events.jsonl",
+        "sha256": "64ce41f7eb5088ef635db6faf382476e431eeb0d8ff2081dfe8ecdff7a1eeb64"
+      },
+      {
+        "role": "findings",
+        "path": "reviews/findings.json",
+        "sha256": "202153b27e85224755a451e2a637cdf4b39f37e8ffd1474a8fd733ba710ed878"
+      },
+      {
+        "role": "convergence_log",
+        "path": "reviews/convergence_log.md",
+        "sha256": "70527ae9d13fc432ff009442ffe45076e1827fd4d911062f6866a31712cf5a52"
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "claim": {
+    "evidence_type": "assignment_dispatch_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-4f62f51f1ed42be8/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "819f0d945c12b772626f9c676580c31563052351798c6eb227c0766de27d4605"
+  },
+  "claim_id": "dispatch-4f62f51f1ed42be8",
+  "consumed_at": "2026-07-19T00:00:01Z",
+  "consumer_transaction_id": "assignment-write-M1-alternate",
+  "consumption_id": "consume-24a387a778165948",
+  "consumption_type": "assignment_dispatch",
+  "mutation_head": "dad13c52f6ca93e06259f86d15de6f77d00a4a3d3f352f7b18521433fe549366",
+  "mutation_row_hashes": [
+    "dad13c52f6ca93e06259f86d15de6f77d00a4a3d3f352f7b18521433fe549366"
+  ],
+  "nonce": "3fd6b5abbf79c53718a855d3d13501a4",
+  "postimages": [
+    {
+      "path": "milestones/M1_project_memo.md",
+      "sha256": "a0df579be3f460b17c872cfd15fc10938e1c7dda0d66b57586e760e35fd92908",
+      "size": 549
+    }
+  ],
+  "role": "generator",
+  "schema_version": "1.0.0",
+  "state": "consumed"
+}

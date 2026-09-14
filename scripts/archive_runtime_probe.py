@@ -532,7 +532,7 @@ def probe_archive(
         if not runtime_script.is_file():
             findings.append(_finding("ARCHIVE-RUNTIME-PROBE-MISSING", f"missing {RUNTIME_PROBE}"))
         child_env, _ = controlled_environment()
-        child_env["PYTHONPATH"] = ""
+        child_env.pop("PYTHONPATH", None)
         inspect_argv = [
             sys.executable, "-I", "-B", "-c",
             "import json,sys;print(json.dumps(sys.path,separators=(',',':')))",
@@ -661,7 +661,7 @@ def probe_archive(
             "source_root": str(source_root),
             "cwd_outside_source": not _inside(extraction_root, source_root),
             "extraction_outside_source": not _inside(extraction_root, source_root),
-            "pythonpath_empty": child_env.get("PYTHONPATH") == "",
+            "pythonpath_empty": child_env.get("PYTHONPATH") in (None, ""),
             "isolated_flag": "-I" in argv,
             "source_root_absent_from_sys_path": not source_in_sys_path,
             "interpreter_sys_path_observed": sys_path_observed,

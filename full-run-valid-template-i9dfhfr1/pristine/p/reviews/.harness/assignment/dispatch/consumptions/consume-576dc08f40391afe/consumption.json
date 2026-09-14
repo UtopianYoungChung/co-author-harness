@@ -1,0 +1,39 @@
+{
+  "claim": {
+    "evidence_type": "assignment_dispatch_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-57610fa53f89a7ca/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "c27a492bec77f58bf4ec2033bfae886d54ff59c604a94ff64a0bcb2e96271a68"
+  },
+  "claim_id": "dispatch-57610fa53f89a7ca",
+  "consumed_at": "2026-07-26T00:00:05Z",
+  "consumer_transaction_id": "scholarly-evaluation:SET-TERMINAL_M5",
+  "consumption_id": "consume-576dc08f40391afe",
+  "consumption_type": "assignment_dispatch",
+  "mutation_head": "60e07fd44822bc48033b3d50b31bce916e9392ae414f4f84751713f8b228c97f",
+  "mutation_row_hashes": [
+    "82017cb2f9cdee595a1911c5969204b606bbffe91c96db5b2e07a4efc9171cf9",
+    "60e07fd44822bc48033b3d50b31bce916e9392ae414f4f84751713f8b228c97f"
+  ],
+  "nonce": "b135506383938fb87916ad4687abe736",
+  "postimages": [
+    {
+      "path": "research_notes/m5_deliverable.md",
+      "sha256": "1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a",
+      "size": 329
+    },
+    {
+      "path": "research_notes/terminal-m5-scholarly-evaluation.json",
+      "sha256": "dd271eb44ca86c3fb96e842d4b5e68012fd56d7e76dd8c5c6282cee1e71f2c1f",
+      "size": 6576
+    }
+  ],
+  "role": "evaluator",
+  "schema_version": "1.0.0",
+  "state": "consumed"
+}

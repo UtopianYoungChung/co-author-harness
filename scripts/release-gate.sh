@@ -205,6 +205,7 @@ if (( CONTROLLED_CHILD == 0 )); then
         --allow-user-site \
         --child-attestation \
         --env "COAUTHOR_RELEASE_PRODUCT_ROOT=$PRODUCT_ROOT_CHILD" \
+        --env "COAUTHOR_RELEASE_EVIDENCE_ROOT=$PRODUCT_ROOT_CHILD/verification" \
         -- "$BASH_NATIVE" "$GATE_NATIVE" --coauthor-controller-child "${ORIGINAL_ARGS[@]}"
 fi
 
@@ -213,12 +214,8 @@ if [[ -n "${COAUTHOR_RELEASE_PRODUCT_ROOT:-}" ]]; then
 else
     PRODUCT_OUTPUT_DIR="$(mktemp -d "${TMPDIR:-${TEMP:-/tmp}}/coauthor-release-product.XXXXXX")"
 fi
-
-# Keep explicit py_compile output inside the controller's declared product root.
-PYTHON_BYTECODE_ROOT="$PRODUCT_OUTPUT_DIR/python-bytecode"
-if command -v cygpath >/dev/null 2>&1; then
-    PYTHON_BYTECODE_ROOT="$(cygpath -am "$PYTHON_BYTECODE_ROOT")"
-fi
+RUNTIME_EVIDENCE_DIR="${COAUTHOR_RELEASE_EVIDENCE_ROOT:-$PRODUCT_OUTPUT_DIR}"
+mkdir -p "$RUNTIME_EVIDENCE_DIR"
 
 BUILD=0
 OUTPUTS_DIR=""
@@ -601,7 +598,7 @@ done
 
 if (( MILESTONE_COMPILE_READY == 1 )); then
     echo "Milestone-feedback framework syntax check"
-    if ! python3 -X "pycache_prefix=$PYTHON_BYTECODE_ROOT" -m py_compile \
+    if ! python3 -m py_compile \
         "$PLUGIN_ROOT/scripts/assignment_process_gate.py" \
         "$PLUGIN_ROOT/scripts/assignment_dispatch_preflight.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_transaction.py" \
@@ -810,7 +807,7 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"
 do
     if [[ -f "$pyf" ]]; then
-        if python3 -X "pycache_prefix=$PYTHON_BYTECODE_ROOT" -m py_compile "$pyf"; then
+        if python3 -m py_compile "$pyf"; then
             echo "  [OK]      $( basename "$pyf" )"
         else
             echo "  [BLOCKER] $( basename "$pyf" ) failed python syntax check"
@@ -1104,11 +1101,9 @@ from pathlib import Path
 
 value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 planes = {row["plane_kind"]: row["path"] for row in value["planes"]}
-lines = [value["source_commit"]]
+print(value["source_commit"])
 for kind in ("source", "archive", "unpacked", "installed_cache"):
-    lines.append(planes[kind])
-# Native Windows text stdout uses CRLF; mapfile requires explicit LF records.
-sys.stdout.buffer.write(("\n".join(lines) + "\n").encode("utf-8"))
+    print(planes[kind])
 PY
 )
         if (( ${#PLANE_VALUES[@]} != 5 )); then
@@ -1158,7 +1153,7 @@ PY
                     --local-root "$PLANE_UNPACKED" --baseline-root "$PLANE_SOURCE" \
                     --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
                     --plane-kind unpacked --topology-receipt "$TOPOLOGY_RECEIPT" \
-                    --out "$PRODUCT_OUTPUT_DIR/unpacked-runtime-receipt.json"; then
+                    --out "$RUNTIME_EVIDENCE_DIR/unpacked-runtime-receipt.json"; then
                     echo "  [BLOCKER] unpacked runtime plane refused"
                     BLOCKERS=$((BLOCKERS + 1))
                     PLANE_QUALIFICATION_OK=0
@@ -1169,7 +1164,7 @@ PY
                     --local-root "$PLANE_CACHE" --baseline-root "$PLANE_SOURCE" \
                     --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
                     --plane-kind installed_cache --topology-receipt "$TOPOLOGY_RECEIPT" \
-                    --out "$PRODUCT_OUTPUT_DIR/installed-cache-runtime-receipt.json"; then
+                    --out "$RUNTIME_EVIDENCE_DIR/installed-cache-runtime-receipt.json"; then
                     echo "  [BLOCKER] installed-cache runtime plane refused"
                     BLOCKERS=$((BLOCKERS + 1))
                     PLANE_QUALIFICATION_OK=0

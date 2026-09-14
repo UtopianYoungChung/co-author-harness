@@ -1,0 +1,39 @@
+{
+  "claim": {
+    "evidence_type": "assignment_dispatch_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-9602f4ef0fbf9fa6/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-milestone-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "c70336a03bd82e405971f5b03e2ec7c6ff6682a254f2e1685ea32a90e9763fd7"
+    },
+    "sha256": "a3bf169e3a44947c8c3db273035baeee5bdd54f5066548ad41751db268d22a67"
+  },
+  "claim_id": "dispatch-9602f4ef0fbf9fa6",
+  "consumed_at": "2026-07-26T00:00:05Z",
+  "consumer_transaction_id": "scholarly-evaluation:SET-M2_INITIAL",
+  "consumption_id": "consume-ef5d9170a82a1202",
+  "consumption_type": "assignment_dispatch",
+  "mutation_head": "57c02a3c6d64766b74aa15591331000d28dc3f80a1c2ebbb10de8982c786fe1d",
+  "mutation_row_hashes": [
+    "2928446f82b4d4b1dff852cca5f8a7c18943338077f2c49cda22a818a246e8b0",
+    "57c02a3c6d64766b74aa15591331000d28dc3f80a1c2ebbb10de8982c786fe1d"
+  ],
+  "nonce": "3a48476ff2601469c4155ea3f71fbfb1",
+  "postimages": [
+    {
+      "path": "milestones/M2_annotated_references.md",
+      "sha256": "9a37c5f81f60367abf798f64e37babf1db948b88e6703fb9c9a156b60031b062",
+      "size": 387
+    },
+    {
+      "path": "milestones/m2-initial-scholarly-evaluation.json",
+      "sha256": "02de3ef9a52587a081e9ca30a8b5524a43c88bce9b09fd3ce1ceb467ea42a6a6",
+      "size": 6619
+    }
+  ],
+  "role": "evaluator",
+  "schema_version": "1.0.0",
+  "state": "consumed"
+}

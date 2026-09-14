@@ -1,0 +1,145 @@
+{
+  "artifact": {
+    "evidence_type": "governed_artifact",
+    "path": "research_notes/m4_deliverable.md",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "d406bdac4738ce8a1836fe58925e43b90378596e8fc38263e82402b2b5d07ec5"
+  },
+  "assignment_receipt": {
+    "evidence_type": "assignment_gate_receipt",
+    "path": "reviews/.harness/assignment/consumed/gate_receipt_M4_terminal-m4.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "27ad6f6b93aadb11da8b338b422eb5534a1c3032add6d647f1eaebed18ccd54b"
+  },
+  "authorized_writes": [
+    {
+      "mode": "replace",
+      "path": "research_notes/m4_deliverable.md",
+      "preimage": {
+        "exists": true,
+        "sha256": "f0cbefccafd43882be079f67423c5d170031c5fa192124b322ac3bfc2f24566c",
+        "size": 25
+      }
+    }
+  ],
+  "canonical_bibliography_snapshot": {
+    "evidence_type": "canonical_bibliography_snapshot",
+    "path": "reviews/.harness/fixtures/terminal-m4/canonical-bibliography-1.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "d1b2f2b4f210646a7d00215f7e9294c6a37cdbc6aa260bbc4e5bec29e4d74d6b"
+  },
+  "claim_id": "dispatch-3da88bc9f933b636",
+  "claim_kind": "evaluation",
+  "claim_type": "assignment_dispatch",
+  "corpus_digest": "d1b2f2b4f210646a7d00215f7e9294c6a37cdbc6aa260bbc4e5bec29e4d74d6b",
+  "generation_claim": {
+    "evidence_type": "assignment_generation_claim",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-03f12c2c9a87b9e8/claim.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "9066afebbd0f8cf5cbf748d6b37285cf58b91e59ff21b0bc16fc742d09d5f05a"
+  },
+  "generation_consumption": {
+    "evidence_type": "assignment_dispatch_consumption",
+    "path": "reviews/.harness/assignment/dispatch/consumptions/consume-0ff24b2a6b15383a/consumption.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "0599d26095ee2f5be63a0395cba44c1d5341dbd26f28e1062faf812d4677e39d"
+  },
+  "generation_verifier": {
+    "commit_marker": {
+      "evidence_type": "verifier_commit_marker",
+      "path": "reviews/.harness/verifier/terminal-m4/generation/commit-marker.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-terminal-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+      },
+      "sha256": "6ce59d59015183b66fc4bd042036654134d7a23bb93cb5aaadb6a1e61cf34fba"
+    },
+    "product_disposition": "evaluation_ready",
+    "publication_manifest": {
+      "evidence_type": "verifier_publication_manifest",
+      "path": "reviews/.harness/verifier/terminal-m4/generation/publication-manifest.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-terminal-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+      },
+      "sha256": "aa6b085c4cbba8f167b09fc6914c455a27524a95c0d5a67ff2888f99b133aa71"
+    },
+    "transaction": {
+      "evidence_type": "verifier_transaction",
+      "path": "reviews/.harness/verifier/terminal-m4/generation/verifier-transaction.json",
+      "root": {
+        "discovery": "explicit:project_manifest.json",
+        "identity": "c5-terminal-lifecycle-fixture",
+        "kind": "project",
+        "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+      },
+      "sha256": "6b64e5c9b3a41283459aa7831dfc7ac49f933dacae10e6967aff890094404632"
+    },
+    "transaction_id": "verifier-ed16c276cbec59ba"
+  },
+  "issued_at": "2026-07-25T12:00:02Z",
+  "issuer": {
+    "name": "assignment_transaction_kernel",
+    "transaction_id": "assignment-evaluation-M4",
+    "version": "1.0.0"
+  },
+  "nonce": "29a84dffd6b3a0dcfd5d94ab7247faed",
+  "policy": {
+    "evidence_type": "assignment_policy",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki/policy.json",
+    "root": {
+      "discovery": "explicit:version.json",
+      "identity": "co-author-harness",
+      "kind": "harness",
+      "manifest_sha256": "4b502fdfff05eb228668af53c37e444d50d3cd3d01ce244ab8c26dcdcb8cfb08"
+    },
+    "sha256": "d38bfae99c4b10de53a53d9134e33ef1b9eecda8a6b4d5b3224eea0c7dfbd8f1"
+  },
+  "receipt_id": "09e2bf12-c183-550d-bc27-2cb81815c1db",
+  "reservation": {
+    "evidence_type": "assignment_receipt_reservation",
+    "path": "reviews/.harness/assignment/reservations/09e2bf12-c183-550d-bc27-2cb81815c1db.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "3f1592b81a001deef784c1f2d76e8c13109ee0f1c78b6190dbf07f8dd9664f94"
+  },
+  "reservation_id": "aa6f0047-99c2-51b0-88ab-688cf7b1ddf8",
+  "role": "evaluator",
+  "schema_version": "1.0.0",
+  "state": "issued",
+  "target_milestone": "M4",
+  "target_path": "research_notes/m4_deliverable.md"
+}

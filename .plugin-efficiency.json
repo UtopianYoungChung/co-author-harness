@@ -43,7 +43,6 @@
     "skills/p-stage-checker/SKILL.md": "executor",
     "skills/check-contradictions/SKILL.md": "executor",
     "skills/check-abstract-body/SKILL.md": "executor",
-    "skills/advisor-escalation/SKILL.md": "executor",
     "skills/backfill-source-stubs-from-references/SKILL.md": "executor",
     "skills/ingest-m5-to-wiki/SKILL.md": "executor",
     "skills/plugin-commands/SKILL.md": "executor",

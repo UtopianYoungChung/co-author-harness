@@ -1,0 +1,48 @@
+{
+  "schema_version": "2.2.0",
+  "receipt_id": "fd505454-22fd-4d9c-b7d8-8a30a2f6fd3a",
+  "reservation_id": "5bb11226-184e-4c1e-9708-65a64ccd04c1",
+  "stage": "draft",
+  "target_milestone": "M1",
+  "authorized_role": "generator",
+  "authorized_paths": [
+    "milestones/M1_project_memo.md",
+    "manuscript/revision_log.md"
+  ],
+  "authorized_writes": [
+    {
+      "path": "milestones/M1_project_memo.md",
+      "mode": "replace"
+    },
+    {
+      "path": "manuscript/revision_log.md",
+      "mode": "append"
+    }
+  ],
+  "primary_deliverable_path": "milestones/M1_project_memo.md",
+  "project_root_name": "native-v2",
+  "project_root_resolved": "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2",
+  "produced_at": "2026-09-10T17:32:32Z",
+  "authority": "planner",
+  "gate_command": [
+    "C:\\Python314\\python.exe",
+    "B:\\Agents\\platform\\co-author-harness\\scripts\\assignment_process_gate.py",
+    "--project-root",
+    "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2",
+    "--stage",
+    "draft",
+    "--target-milestone",
+    "M1",
+    "--emit-receipt",
+    "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2\\reviews\\.harness\\assignment\\ready\\gate_receipt_M1_walk_initial.json"
+  ],
+  "gate_exit_code": 0,
+  "gate_stdout_sha256": "0943494d0fb1ba5bad1505cd5b05349dd64e5ef2dbdca095a355835cf2a5d323",
+  "assignment_contract_sha256": "a2f1b5264905e161683999c71d0c5353a283d940e9fb068931ffde8f3e281850",
+  "phase_state_sha256": "4172095e1cacb469eeb773fc03a3b78beb9e13029b289a86411d86571fa748b1",
+  "profile_sha256": "134c7d6fd3dd3d07a8e130c6404e1a47cd18dadb4e0ee68c4d5d27651c0c20fe",
+  "role_output_contract_sha256": "14e570572dd1aed67922e61ca2b95b98050f3461768740ef585a92d058217d8c",
+  "exemplar_conditioning": false,
+  "active_lineage_id": "main",
+  "control_transition": null
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "binding_type": "lifecycle_verifier_transaction",
+  "phase": "evaluation",
+  "product_disposition": "product_qualified",
+  "target": "milestones/M1_project_memo.md",
+  "receipt_id": "f68655ac-2517-4f6e-8ce0-4f3963c0a1dc",
+  "transaction": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/evaluation-product/verifier-transaction.json",
+    "sha256": "b9eb8851340ee223430c737f8c62a95d1393579d5ae4820a65657886d53c6fb8"
+  },
+  "publication_manifest": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/evaluation-product/publication-manifest.json",
+    "sha256": "91cd455a024aa8ebc82210bfbc3c59af4b40b8886a3473112aa040408d72a35f"
+  },
+  "commit_marker": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/evaluation-product/commit-marker.json",
+    "sha256": "a5ce423c1c0e8c272c30fa8ed283c540ba0863cb8461a1d96189e7bceb7f2102"
+  },
+  "semantic_receipt": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/evaluation-semantic.json",
+    "sha256": "530e1d5e20d10ddd29c83512b6eb554ed73276bdb0d1c04557c39a6fda81374e"
+  },
+  "wiki_root": {
+    "root": "harness",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki",
+    "manifest_sha256": "4221125abecf155091593d6686c6512d54dd0219e041cd0b6672675af9d009a2"
+  },
+  "semantics_manifest": {
+    "root": "harness",
+    "path": "references/semantics_manifest.v1.json",
+    "sha256": "bff0081411ade7e9230d9b8f3756d35b69b6df15bf1c01c2c300904f5ff79010"
+  },
+  "dispatch_claim": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-680b2ea233e11b3c/claim.json",
+    "sha256": "a930a4144d8a934639502f5e1bfc2d28ab97913d23e194ebdb0787b217081a4d"
+  },
+  "dispatch_consumption": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/consumptions/consume-94e0fb3bc5458431/consumption.json",
+    "sha256": "7df678a0e6242867e7b594ccaaf3a31324159c4830ac88d5a73f2bb2bc42e6c3"
+  },
+  "generation_verifier_transaction_id": "verifier-29727808f9bc68d9"
+}

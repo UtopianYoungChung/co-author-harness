@@ -1,0 +1,10 @@
+{
+  "products": [
+    {
+      "path": "reviews/.harness/assignment/dispatch/claims/dispatch-9602f4ef0fbf9fa6/claim.json",
+      "sha256": "a3bf169e3a44947c8c3db273035baeee5bdd54f5066548ad41751db268d22a67"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "transaction_id": "assignment-evaluation-M2"
+}

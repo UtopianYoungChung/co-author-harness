@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "binding_type": "lifecycle_verifier_transaction",
+  "phase": "generation",
+  "product_disposition": "evaluation_ready",
+  "target": "milestones/M1_project_memo.md",
+  "receipt_id": "f68655ac-2517-4f6e-8ce0-4f3963c0a1dc",
+  "transaction": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/generation/verifier-transaction.json",
+    "sha256": "b8f7c470841b0a51eaa09940dec663e4ab9b6d0e0e058e8570c227b357086876"
+  },
+  "publication_manifest": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/generation/publication-manifest.json",
+    "sha256": "33f1173e1495d4637bdedafa2a591d7c621ca89d6da6f6aa4c7b70b8c23eed8a"
+  },
+  "commit_marker": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m1-initial/generation/commit-marker.json",
+    "sha256": "1897cfc456fcc3202fb1650b79e4bf84ed215098b5be934b6f5e5ba876d6fd7f"
+  },
+  "semantic_receipt": {
+    "root": "project",
+    "path": "reviews/.harness/fixtures/m1-initial/semantic-execution-3.json",
+    "sha256": "32495569d212f2bf014afaa53eeed92ecf732f1a48ad4031971c6cbd1fb15340"
+  },
+  "wiki_root": {
+    "root": "harness",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki",
+    "manifest_sha256": "4221125abecf155091593d6686c6512d54dd0219e041cd0b6672675af9d009a2"
+  },
+  "semantics_manifest": {
+    "root": "harness",
+    "path": "references/semantics_manifest.v1.json",
+    "sha256": "bff0081411ade7e9230d9b8f3756d35b69b6df15bf1c01c2c300904f5ff79010"
+  },
+  "dispatch_claim": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-b44603df417d7ba5/claim.json",
+    "sha256": "b36e085f9003af423d728a8b36cfd5ed09907279eb21e35394ac54ecc51659a7"
+  },
+  "dispatch_consumption": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/consumptions/consume-348664009a1cd5b6/consumption.json",
+    "sha256": "74c53a556f0b01cb6952fd657bee2bb84013dc45fd34700e7d96f8f0603155e7"
+  },
+  "generation_verifier_transaction_id": null
+}

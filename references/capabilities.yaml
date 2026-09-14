@@ -103,7 +103,6 @@ closure_profiles:
 # not promote a capability; only a deliberate registry edit plus evidence can.
 capabilities:
   accessibility-overlay: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/reader_accessibility_contract_smoketest.py]}
-  advisor-escalation: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-external, provider: advisor-mcp, evidence: [scripts/skill-check.py]}
   analytic-move-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
   centroid-pass: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-active, implementation: scripts/centroid_service.py, evidence: [scripts/centroid_service_smoketest.py, scripts/draft_governance_smoketest.py]}

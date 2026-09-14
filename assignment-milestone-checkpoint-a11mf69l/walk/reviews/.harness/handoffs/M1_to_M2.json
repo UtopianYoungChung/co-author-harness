@@ -1,0 +1,71 @@
+{
+  "approval": {
+    "approved_at": "2026-07-19T00:00:03Z",
+    "authority": "user",
+    "evidence_path": "reviews/.harness/milestones/checkpoints/m1_approval.json"
+  },
+  "artifact_family": "F9",
+  "contract_version": "1.0.0",
+  "decisions_frozen": [
+    "Freeze M1 synthetic decision."
+  ],
+  "deliverable": {
+    "bytes": 387,
+    "path": "milestones/M1_project_memo.md",
+    "role": "deliverable",
+    "sha256": "4f4b76267242ef8b7dd15c5010c1a056010f97abf8e969fd64586d05b358e0a7"
+  },
+  "feedback_dispositions": [
+    {
+      "disposition": "informational",
+      "feedback_id": "m1-feedback-initial",
+      "rationale": "Synthetic feedback was reviewed and requires no revision."
+    }
+  ],
+  "from_milestone": "M1",
+  "inputs_consumed": [],
+  "lineage_id": "main",
+  "next_milestone_instructions": [
+    "Use accepted M1 evidence."
+  ],
+  "open_debts": [],
+  "policy_evidence": {
+    "assignment_receipt": {
+      "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_M1_walk_initial.json",
+      "evidence_sha256": "87a5d4d97f89dcae3d6309623f2ed6753828bf280eaf22243c81a1e0b9d1d0b7",
+      "receipt_id": "f68655ac-2517-4f6e-8ce0-4f3963c0a1dc"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/shipments/synthetic/m1_initial_evaluation.lifecycle.json",
+      "evidence_sha256": "cfa497211a4d5164fb8bbc00009722bc9ecf1654142cfe70f5924846c130b78a"
+    },
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/shipments/synthetic/m1_initial_generation.lifecycle.json",
+      "evidence_sha256": "cc27fe39215d46eca6479edc50fc2268d19ced251bbe7c583adcdcde885185f8"
+    },
+    "reader_model": {
+      "audience_classes": [
+        "IS scholar",
+        "software engineer",
+        "systems engineer",
+        "requirements engineer"
+      ],
+      "imported_theory_registers": [
+        "sociology",
+        "psychology",
+        "philosophy"
+      ],
+      "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
+      "register_class": "domain-native",
+      "source": "M1 milestone reader declaration"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "milestones/m1-initial-scholarly-evaluation.json",
+      "evidence_sha256": "6dc12f58180d0fc6290f1f82d7d14d02f43b819bb8694c62a348b97880c02904"
+    }
+  },
+  "predecessor_packet": null,
+  "project": "walk",
+  "released_export": null,
+  "to_milestone": "M2"
+}

@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "generation",
+  "role": "generator",
+  "contract_sha256": "2ece1cb7d4d8505ed633a79ac4c08315fd5f2cb6b77bb7d83a7d2baaa7e722fb",
+  "artifact": {
+    "path": "B:\\Agents\\platform\\co-author-harness\\assignment-milestone-checkpoint-a11mf69l\\native-v2\\milestones\\M1_project_memo.md",
+    "sha256": "a0df579be3f460b17c872cfd15fc10938e1c7dda0d66b57586e760e35fd92908"
+  },
+  "obligations": [
+    {
+      "id": "grounding-protocol",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/grounding-protocol.json",
+        "sha256": "f253a843b7f9d3d542f6d2cfbba1f8e723a3717d11aed49f0debcd457c8809f2",
+        "byte_length": 1322
+      }
+    },
+    {
+      "id": "d-style-profile",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/d-style-profile.json",
+        "sha256": "dae9a503eeefb2cb4b0246722110f4d6bcab1615327710f9b083ee0ecbfab415",
+        "byte_length": 1858
+      }
+    },
+    {
+      "id": "dispatch-issuance-authority",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/dispatch-issuance-authority.json",
+        "sha256": "d7e71d4d593cab2315e0b873f293987ebf2e0312157e3508e920547023de1a63",
+        "byte_length": 1340
+      }
+    },
+    {
+      "id": "reader-accessibility",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/reader-accessibility.json",
+        "sha256": "9fc9a4e01a29930850a501ee4d50726504e98cc6d731271d557f375e34316867",
+        "byte_length": 1326
+      }
+    },
+    {
+      "id": "master-guidelines",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/master-guidelines.json",
+        "sha256": "a873ccac5e893000936f2720b714b61c753be83de5dce3bdd2ecf84e7eea7f61",
+        "byte_length": 1320
+      }
+    },
+    {
+      "id": "research-writing-playbook",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/research-writing-playbook.json",
+        "sha256": "700eea3c4fc33653faf66e1fd63dd9912dc79eab8a4c5f35f8162db882ad3be7",
+        "byte_length": 1336
+      }
+    },
+    {
+      "id": "style-commitments",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/style-commitments.json",
+        "sha256": "f4cdcb7da44e40deab9454a246ee61da749012735bd8c9a7bea653299f478193",
+        "byte_length": 1320
+      }
+    },
+    {
+      "id": "integrated-style-checklist",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/integrated-style-checklist.json",
+        "sha256": "1c1e192bd305a1fec94923d852aac44e858f08b08ddaf22b5c092c8ec6d5dc40",
+        "byte_length": 1338
+      }
+    },
+    {
+      "id": "grammar-mechanics",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/grammar-mechanics.json",
+        "sha256": "e0672a91d95bc2837714b3fc76b33810d8b2e5db1af4762637290c1dbdfd0e82",
+        "byte_length": 1320
+      }
+    },
+    {
+      "id": "citation-discipline",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/citation-discipline.json",
+        "sha256": "d68198d783897956cf6997831fb96b412599e6de67cb367871f3c17c8522d845",
+        "byte_length": 1324
+      }
+    },
+    {
+      "id": "emdash-bundle",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/emdash-bundle.json",
+        "sha256": "c762cc836b2d6cbb1f5565368cbb9e6f4f855c1ddaf2b840410bdd0b73408bb1",
+        "byte_length": 1312
+      }
+    },
+    {
+      "id": "sentence-craft",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/sentence-craft.json",
+        "sha256": "0725ca60244aebaf0fc7daa3fdd7fee0e52ebccbd1103a4f11f5d4abf8892a4c",
+        "byte_length": 1314
+      }
+    },
+    {
+      "id": "narrative-structure",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/narrative-structure.json",
+        "sha256": "b905dd3c0b2c8a3857d77c875f57cf722189333b431ea32f28b0c2c5f61594b2",
+        "byte_length": 1324
+      }
+    },
+    {
+      "id": "is-paper-architecture",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/is-paper-architecture.json",
+        "sha256": "c382ec546be58fd459e7b0268348094fc3277ecc7cc0684bc83683c6f442da01",
+        "byte_length": 1342
+      }
+    },
+    {
+      "id": "suchman-register",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/suchman-register.json",
+        "sha256": "4d816f04ee193a040ffcb6e462c3ba2fb44030501ea218108aa5b8eac34ea116",
+        "byte_length": 1346
+      }
+    },
+    {
+      "id": "public-interest-register",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/public-interest-register.json",
+        "sha256": "27c6b1c7fbac87d870b13e77750f0dabc389dcb15af71641a8d9227dbb5c0b5e",
+        "byte_length": 1363
+      }
+    },
+    {
+      "id": "voice-preservation",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/voice-preservation.json",
+        "sha256": "ce115a8b85494bcfe640e48b396af71bada5a8dc7cac56783643e1c7cc650035",
+        "byte_length": 1336
+      }
+    },
+    {
+      "id": "analytic-construction",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/analytic-construction.json",
+        "sha256": "79cf33a079870e7a4adfc64b2a49da278d7556047048f660e9ad33300a7104f7",
+        "byte_length": 1351
+      }
+    },
+    {
+      "id": "turabian-mechanics",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/turabian-mechanics.json",
+        "sha256": "5f9c07480b35483fce460861397172b7c1c921aaf4895bf04702f9a0df8bb575",
+        "byte_length": 1333
+      }
+    },
+    {
+      "id": "deterministic-audit",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/deterministic-audit.json",
+        "sha256": "627d0635f72377312f623d56ab6de8d2ac6fe05f6ba8f95b3f607eee7139b86a",
+        "byte_length": 1323
+      }
+    },
+    {
+      "id": "formal-ontology-policy",
+      "result": {
+        "path": "reviews/.harness/obligation-results/generation/formal-ontology-policy.json",
+        "sha256": "d5086976c589dd309472905db747954a7cc79794e4f479950ad0a9bb917178cf",
+        "byte_length": 1352
+      }
+    }
+  ],
+  "host_identity": "test",
+  "package_identity": {
+    "name": "co-author-harness",
+    "version": "0.50.1",
+    "path": "version.json",
+    "sha256": "4b502fdfff05eb228668af53c37e444d50d3cd3d01ce244ab8c26dcdcb8cfb08"
+  },
+  "input_bindings": [
+    {
+      "path": "references\\policies\\draft_governance.v1.json",
+      "sha256": "28ad3437578468d847116744199e762d870b99ac914ee9faf170b9bc33b6b23d"
+    },
+    {
+      "path": "references\\policies\\obligation_result_registry.v1.json",
+      "sha256": "2cedbfbb779c0f0033be096f28a26cf0373d0a3157a2817aeeb0cd5e1c8be51a"
+    }
+  ]
+}

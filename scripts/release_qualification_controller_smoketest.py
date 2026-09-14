@@ -4280,6 +4280,10 @@ time.sleep(60)
                 else Path(shutil.which("bash") or ""))
         assert bash.is_file(), bash
         facade_root = root / "facade-runs"
+        # Fresh identity prevents old source-side output from masking drift.
+        facade_run_id = "ambient-marker-" + root.name.rsplit("-", 1)[-1]
+        source_evidence = ROOT / "releases" / "verification" / facade_run_id
+        assert not source_evidence.exists()
         facade_env = {
             key: value for key, value in os.environ.items()
             if not key.upper().startswith("PYTHON")
@@ -4287,7 +4291,7 @@ time.sleep(60)
         facade_env.update({
             "COAUTHOR_RELEASE_GATE_CONTROLLED_CHILD": "1",
             "COAUTHOR_RELEASE_CONTROLLER_ROOT": str(facade_root),
-            "COAUTHOR_RELEASE_RUN_ID": "ambient-marker",
+            "COAUTHOR_RELEASE_RUN_ID": facade_run_id,
         })
         bytecode_before = _package_bytecode_inventory()
         facade_process = subprocess.Popen(
@@ -4306,27 +4310,29 @@ time.sleep(60)
             _terminate_identities(ctl, facade_frontend)
             _reap_frontends([facade_process])
             _capture_run_identities(
-                ctl, root, "ambient-marker", facade_owned, run_root=facade_root,
+                ctl, root, facade_run_id, facade_owned, run_root=facade_root,
             )
-            if (facade_root / "ambient-marker" / "intent.json").is_file():
+            if (facade_root / facade_run_id / "intent.json").is_file():
                 _cancel_finally(
-                    ctl, root, "ambient-marker", run_root=facade_root,
+                    ctl, root, facade_run_id, run_root=facade_root,
                 )
             _capture_run_identities(
-                ctl, root, "ambient-marker", facade_owned, run_root=facade_root,
+                ctl, root, facade_run_id, facade_owned, run_root=facade_root,
             )
             _terminate_identities(ctl, facade_owned)
         assert not _alive_identities(ctl, facade_frontend)
         assert not _alive_identities(ctl, facade_owned)
         assert facade_output is not None
         assert facade_process.returncode == 0, facade_output[1]
-        facade_receipt_path = facade_root / "ambient-marker" / "receipt.json"
+        facade_receipt_path = facade_root / facade_run_id / "receipt.json"
         assert facade_receipt_path.is_file()
         facade_receipt = ctl.status_run(
-            run_root=facade_root, run_id="ambient-marker",
+            run_root=facade_root, run_id=facade_run_id,
         )
         assert facade_receipt["state"] == "succeeded"
         assert facade_receipt["diagnostic"] is None
+        assert not source_evidence.exists()
+        assert (Path(str(facade_root) + "-products") / facade_run_id / "verification").is_dir()
         cases += 1
 
         direct_marker = subprocess.run(

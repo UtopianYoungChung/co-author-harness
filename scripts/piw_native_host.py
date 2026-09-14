@@ -65,6 +65,9 @@ def _session_metadata(rows: list[dict], expected_id: str | None = None) -> list[
 
 
 def bind_host(host: dict, staging: Path) -> dict:
+    if host.get('adapter') == 'hermes-hooks-jsonl':
+        import piw_hermes_host
+        return piw_hermes_host.bind_host(host, staging)
     require(host.get('adapter') == 'codex-jsonl' and host.get('subagents_available') is True,
             'PIW-HOST-CAPABILITY-UNAVAILABLE', 'This drafting/revision route requires actual native subagents and the codex-jsonl trace adapter')
     logs = Path(host['logs_root']).resolve()
@@ -78,6 +81,9 @@ def bind_host(host: dict, staging: Path) -> dict:
 
 
 def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pins: dict | None = None) -> dict:
+    if host.get('adapter') == 'hermes-hooks-jsonl':
+        import piw_hermes_host
+        return piw_hermes_host.verify_execution(host, evidence, request, result, pins)
     child = Path(evidence['child_log']).resolve()
     parent = Path(host['parent_log']).resolve()
     require(child.is_relative_to(Path(host['logs_root']).resolve()) and child != parent,

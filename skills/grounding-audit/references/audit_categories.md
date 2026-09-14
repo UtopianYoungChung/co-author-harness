@@ -98,7 +98,7 @@ For every uncertainty marker (`[UNVERIFIED]`, `[FROM MEMORY]`, `[INFERRED]`, `[A
 
 Additionally: are there claims that **should** have markers but don't? Look for hedging language ("probably," "likely," "I believe") that masks an unverified claim without using the formal marker system.
 
-## Category 7 — Advisor-sourced claims (Rules 4, 7a)
+## Category 7 — Legacy advisor-sourced claims (Rules 4, 7a)
 
 **Applies when:** the audited artifact contains `[source: advisor]` cross-references. If no `[source: advisor]` items exist, mark this category N/A.
 

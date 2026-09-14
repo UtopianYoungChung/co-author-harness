@@ -3,7 +3,6 @@
   "authority": "Native skills are the only command implementation surface. The public menu is the public list below; hidden skills remain model-invocable unless their own frontmatter states otherwise. Public names in degraded are prompt-mediated or otherwise not mechanically complete. Public names in external_dependent require the named provider in capabilities.yaml. Unavailable capabilities must not appear in public.",
   "public": [
     "accessibility-overlay",
-    "advisor-escalation",
     "analytic-move-audit",
     "check-abstract-body",
     "check-contradictions",
@@ -58,7 +57,6 @@
     "turabian-format-pass"
   ],
   "external_dependent": [
-    "advisor-escalation",
     "extend-snowball-incremental",
     "seed-snowball-discovery"
   ],

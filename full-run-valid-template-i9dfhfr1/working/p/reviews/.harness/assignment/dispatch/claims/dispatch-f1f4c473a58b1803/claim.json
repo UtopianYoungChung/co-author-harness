@@ -1,0 +1,75 @@
+{
+  "assignment_receipt": {
+    "evidence_type": "assignment_gate_receipt",
+    "path": "reviews/.harness/assignment/consumed/gate_receipt_M3_terminal-m3.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "361aec8216368ab61c2577379fd0ef50ac347d665035bf303d44850b8e5c3a66"
+  },
+  "authorized_writes": [
+    {
+      "mode": "replace",
+      "path": "research_notes/m3_deliverable.md",
+      "preimage": {
+        "exists": true,
+        "sha256": "9aef76666c35f12fac3352f2104e3b5cdf898a52af5e5647072d6555231dbb07",
+        "size": 25
+      }
+    }
+  ],
+  "canonical_bibliography_snapshot": {
+    "evidence_type": "canonical_bibliography_snapshot",
+    "path": "reviews/.harness/fixtures/terminal-m3/canonical-bibliography-1.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "da8d384c0575e79070d5c40ab85849d3b77080798a29a36da7038a9344176d9d"
+  },
+  "claim_id": "dispatch-f1f4c473a58b1803",
+  "claim_kind": "generation",
+  "claim_type": "assignment_dispatch",
+  "corpus_digest": "da8d384c0575e79070d5c40ab85849d3b77080798a29a36da7038a9344176d9d",
+  "issued_at": "2026-07-25T12:00:00Z",
+  "issuer": {
+    "name": "assignment_transaction_kernel",
+    "transaction_id": "assignment-reserve-M3",
+    "version": "1.0.0"
+  },
+  "nonce": "5ae1dec73d59d1ad988b12dbe42d6857",
+  "policy": {
+    "evidence_type": "assignment_policy",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki/policy.json",
+    "root": {
+      "discovery": "explicit:version.json",
+      "identity": "co-author-harness",
+      "kind": "harness",
+      "manifest_sha256": "4b502fdfff05eb228668af53c37e444d50d3cd3d01ce244ab8c26dcdcb8cfb08"
+    },
+    "sha256": "d38bfae99c4b10de53a53d9134e33ef1b9eecda8a6b4d5b3224eea0c7dfbd8f1"
+  },
+  "receipt_id": "23672b90-95f8-5051-b7cc-c750106db9b1",
+  "reservation": {
+    "evidence_type": "assignment_receipt_reservation",
+    "path": "reviews/.harness/assignment/reservations/23672b90-95f8-5051-b7cc-c750106db9b1.json",
+    "root": {
+      "discovery": "explicit:project_manifest.json",
+      "identity": "c5-terminal-lifecycle-fixture",
+      "kind": "project",
+      "manifest_sha256": "5e28741d3c167321b0374962c13b5251b27b1d472106f18a5b6d906e1df7bc46"
+    },
+    "sha256": "b6c6044d6666f7ecfe6d2bbecd36b6d2c85a07e75b5ef3378ed6dd63a057deb1"
+  },
+  "reservation_id": "6ed17fbc-e0fe-50c1-8b0b-63ea3914ad19",
+  "role": "generator",
+  "schema_version": "1.0.0",
+  "state": "issued",
+  "target_milestone": "M3",
+  "target_path": "research_notes/m3_deliverable.md"
+}

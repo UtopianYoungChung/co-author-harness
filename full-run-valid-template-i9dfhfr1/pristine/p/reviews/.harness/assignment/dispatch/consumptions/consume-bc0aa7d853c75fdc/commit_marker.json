@@ -1,0 +1,7 @@
+{
+  "publication_manifest": "reviews/.harness/assignment/dispatch/consumptions/consume-bc0aa7d853c75fdc/publication_manifest.json",
+  "publication_manifest_sha256": "c21b74eb1ffbd7adc25e060ca30d23b29b4a897b306c7763bc4ae717b32736dd",
+  "schema_version": "1.0.0",
+  "state": "committed",
+  "transaction_id": "scholarly-evaluation:SET-TERMINAL_M4"
+}

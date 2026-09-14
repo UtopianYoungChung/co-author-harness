@@ -298,6 +298,14 @@
     "scripts/piw_coordinator.py": {
       "class": "guarded",
       "regression": "scripts/piw_acceptance_smoketest.py::protected output and out-of-run hook refusal; pre-write delivery collision controls"
+    },
+    "scripts/hermes_plugin.py": {
+      "class": "guarded",
+      "regression": "scripts/hermes_host_smoketest.py"
+    },
+    "scripts/install_hermes.py": {
+      "class": "guarded",
+      "regression": "scripts/hermes_host_smoketest.py"
     }
   }
 }

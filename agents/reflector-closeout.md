@@ -133,7 +133,7 @@ Cross-round aggregation that the per-round Evaluator cannot see. Scoped to close
 
 ### Phase 2.5 — Grounding Audit
 
-Run the audit per `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibility)`. Nine items: (1) citation audit, (2) metric audit, (3) path audit, (4) rule-citation audit, (5) gap-fill audit, (6) marker audit, (7) Category 7 — advisor-sourced claims (Rule 7), (8) Category 8 — graph-sourced claims (Coupling E.2; incl. 8a confidence-echo detector applying the two-step mechanical-match + independent-reasoning-note presence test, ECHO=MAJOR@Ph3/BLOCKER@Ph4, SHALLOW=MINOR@Ph3/MAJOR@Ph4, round-rate ≥30% → `[COUPLING-E.2 DEGRADED]`; plus 8b synthesis-reconciliation audit on wiki-linked rounds — forced consensus on contested clusters is MAJOR@Ph3 / BLOCKER@Ph4 for core-contribution claims), (9) Rule 7a — external verifier discipline (every citation-dependent finding verified against Class 1 or `[UNVERIFIED]`-tagged; severity floors phase-gated in §2.5.1; plus 9a Scholar Gateway render-contract audit per `EXTERNAL_VERIFIERS.md §3.1`).
+Run the audit per `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibility)`. Nine items: (1) citation audit, (2) metric audit, (3) path audit, (4) rule-citation audit, (5) gap-fill audit, (6) marker audit, (7) legacy advisor-sourced artifact audit (Rule 7), (8) Category 8 — graph-sourced claims (Coupling E.2; incl. 8a confidence-echo detector applying the two-step mechanical-match + independent-reasoning-note presence test, ECHO=MAJOR@Ph3/BLOCKER@Ph4, SHALLOW=MINOR@Ph3/MAJOR@Ph4, round-rate ≥30% → `[COUPLING-E.2 DEGRADED]`; plus 8b synthesis-reconciliation audit on wiki-linked rounds — forced consensus on contested clusters is MAJOR@Ph3 / BLOCKER@Ph4 for core-contribution claims), (9) Rule 7a — external verifier discipline (every citation-dependent finding verified against Class 1 or `[UNVERIFIED]`-tagged; severity floors phase-gated in §2.5.1; plus 9a Scholar Gateway render-contract audit per `EXTERNAL_VERIFIERS.md §3.1`).
 
 **Any grounding violation is a BLOCKER** regardless of underlying severity.
 
@@ -147,7 +147,7 @@ Run the audit per `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibi
 | 4. Rule-citation audit | **must run** · sample ≥ 5 | BLOCKER on fabricated rule |
 | 5. Gap-fill audit | **must run** · every new paragraph | BLOCKER on unsourced factual claim |
 | 6. Marker audit | **must run** | BLOCKER on silently dropped marker |
-| 7. Category 7 — advisor | **must run** if advisor invoked | BLOCKER on missing re-classification |
+| 7. Category 7 — legacy advisor-sourced artifacts | **must run** if present | BLOCKER on missing re-classification |
 | 8. Category 8 — graph overlay | **must run** (mandatory at Ph4) | BLOCKER on fabricated node / severity-echo |
 | 8b. Synthesis reconciliation | **must run** when brief exists | BLOCKER on forced consensus in core claims |
 | 9. Rule 7a — external verifier | **must run** (BLOCKER floor) | BLOCKER on unmarked unverified citation |

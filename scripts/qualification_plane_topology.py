@@ -124,6 +124,10 @@ def capture_source_snapshot(root: Path) -> dict[str, dict[str, Any]]:
 
 def _tree_digest(root: Path) -> str:
     inventory = capture_source_snapshot(root)
+    inventory = {
+        rel: row for rel, row in inventory.items()
+        if rel != "releases/verification" and not rel.startswith("releases/verification/")
+    }
     material = "".join(
         f"{rel}\0{row['kind']}\0{row['sha256']}\n"
         for rel, row in sorted(inventory.items())

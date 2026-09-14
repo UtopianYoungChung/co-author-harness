@@ -1,0 +1,67 @@
+{
+  "artifact_family": "F9",
+  "contract_version": "1.0.0",
+  "project": "smoke-project",
+  "lineage_id": "main",
+  "from_milestone": "M1",
+  "to_milestone": "M2",
+  "predecessor_packet": null,
+  "deliverable": {
+    "role": "deliverable",
+    "path": "research_notes/m1_deliverable.md",
+    "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763",
+    "bytes": 329
+  },
+  "released_export": null,
+  "inputs_consumed": [],
+  "decisions_frozen": [],
+  "feedback_dispositions": [
+    {
+      "feedback_id": "feedback-m1-1",
+      "disposition": "informational",
+      "rationale": "No blocking findings."
+    }
+  ],
+  "open_debts": [],
+  "next_milestone_instructions": [],
+  "approval": {
+    "authority": "user",
+    "evidence_path": "reviews/m1_approval.md",
+    "approved_at": "2026-07-13T18:00:00Z"
+  },
+  "policy_evidence": {
+    "reader_model": {
+      "audience_classes": [
+        "IS scholar",
+        "software engineer",
+        "systems engineer",
+        "requirements engineer"
+      ],
+      "imported_theory_registers": [
+        "sociology",
+        "psychology",
+        "philosophy"
+      ],
+      "reading_task": "recover the argument's claims and their derivation on a single read, without leaving the page to look up a term",
+      "register_class": "domain-native",
+      "source": "M1 milestone reader declaration"
+    },
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m1/generation.lifecycle.json",
+      "evidence_sha256": "d69f18f3397ff73c03bfa59e98b7b7009bdfd415a1fee9ba27890668953586e0"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/verifier/terminal-m1/evaluation.lifecycle.json",
+      "evidence_sha256": "5ed2b0a2ebc1914341b8073a176b7ebfe8e7e684a46fb69e19d39af52e019618"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "research_notes/terminal-m1-scholarly-evaluation.json",
+      "evidence_sha256": "c1eee599f618bba947ee8124967190fd636eadbb903b35c4b82af9799293e5e2"
+    },
+    "assignment_receipt": {
+      "receipt_id": "49927b27-a0f0-5659-91cd-abf47d780035",
+      "evidence_path": "reviews/.harness/assignment/consumed/gate_receipt_M1_terminal-m1.json",
+      "evidence_sha256": "4446442bcb3978e4c87840359b6ec8854e1a056ae6e2f712f570771062997849"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "head_row_sha256": "73e40afc8ae56992b23d8a8d281952051c43e5017e2b26054aea233ef198a035",
+  "ledger_path": "reviews/.harness/assignment/dispatch/issuance/ledger.jsonl",
+  "ledger_prefix_sha256": "7db03a8f84c30111c782b169eab9e46a9458978bb7a7fa9bf89c107419450b41",
+  "marker_type": "assignment_dispatch_issuance",
+  "prior_head_row_sha256": "d7800c795ed4060666743d5605d1aa0cce10ed08fa0e7a79fb146982d497aa98",
+  "row_count": 10,
+  "schema_version": "1.0.0",
+  "sequence": 10,
+  "state": "committed",
+  "transaction_id": "assignment-evaluation-FINAL"
+}

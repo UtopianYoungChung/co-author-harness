@@ -1,0 +1,11 @@
+{
+  "artifact": {
+    "byte_length": 329,
+    "path": "research_notes/m1_deliverable.md",
+    "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+  },
+  "dispatch_id": "dispatch-4fd39044190fe96a",
+  "envelope_type": "generator_envelope",
+  "role": "generator",
+  "schema_version": "1.0.0"
+}

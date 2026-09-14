@@ -1,0 +1,40 @@
+{
+  "artifact": {
+    "byte_length": 329,
+    "path": "m1_deliverable.md",
+    "sha256": "f4e3d2abcf25005b47967306a2608c01779bb010670c6f666e2fa10088735763"
+  },
+  "claims": [
+    {
+      "admission_use": "working_position",
+      "argument_leg": "composition",
+      "claim_id": "C-001",
+      "load_bearing": true,
+      "locator": {
+        "byte_end": 328,
+        "byte_start": 289,
+        "line": 14,
+        "section": "References"
+      },
+      "modal_force": "qualified",
+      "provenance": "author_derivation",
+      "span_sha256": "7981382591a3e9d7dff476625bf5d5fecca95249db24efefc07fa7183f4c4671",
+      "text": "Synthetic lifecycle target terminal-m1.",
+      "viewpoint": "project_position",
+      "warrant_relation": "candidate"
+    }
+  ],
+  "coverage_disposition": "complete",
+  "created_at": "2026-07-26T00:00:03Z",
+  "evaluator_additions": [],
+  "evaluator_omissions": [],
+  "generator_inventory": [
+    "C-001"
+  ],
+  "register_id": "SCR-TERMINAL_M1",
+  "review_dispatch": {
+    "dispatch_id": "dispatch-9a5951c0ca7d10e5",
+    "role": "evaluator"
+  },
+  "schema_version": "1.0.0"
+}

@@ -1,0 +1,40 @@
+{
+  "authorization_id": "e93a6d6e-3ef0-4e6f-8e96-b093ea87e3ac",
+  "authorization_type": "assignment_dispatch_kernel",
+  "authorized_at": "2026-09-07T00:41:53.720982Z",
+  "claim": {
+    "claim_id": "dispatch-a93c578303bc8612",
+    "claim_kind": "generation",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-a93c578303bc8612/claim.json",
+    "sha256": "f3a45d459338dfcf5b53fe99e2426b740c397ddf2edc59d78baf309fefb8a090"
+  },
+  "kernel": {
+    "name": "assignment_transaction_kernel",
+    "transaction_id": "assignment-reserve-M2",
+    "version": "1.0.0"
+  },
+  "publication": {
+    "commit_marker_path": "reviews/.harness/assignment/dispatch/claims/dispatch-a93c578303bc8612/commit_marker.json",
+    "commit_marker_sha256": "41b3e84209f34ce6c92fdee71b25cc8e4925f5ba1a0714ceb933d85d8c9f9b6c",
+    "manifest_path": "reviews/.harness/assignment/dispatch/claims/dispatch-a93c578303bc8612/publication_manifest.json",
+    "manifest_sha256": "67092ad5607d06d1765d14d251738480b27b9961e045d471bdc499336f2a3a87"
+  },
+  "reservation_transition": {
+    "event": {
+      "receipt_id": "2015e46e-331e-51e0-bacf-8b37960adff0",
+      "reservation_id": "03a22553-9b7e-5573-ade1-84a7ecc1b911",
+      "state": "reserved"
+    },
+    "ledger_prefix_sha256": "cadd2e2fb908622066dc0349e10a4817997e494537f9dd3f2ceb1da747dfa5d3",
+    "receipt_id": "2015e46e-331e-51e0-bacf-8b37960adff0",
+    "receipt_ledger_path": "reviews/.harness/assignment/ledger/gate_receipt_M2_terminal-m2.json.jsonl",
+    "receipt_sha256": "aaf1e07b2e70649694c54b310ef6bcc02484b453edf709603a96e51351d6ff2b",
+    "reservation_id": "03a22553-9b7e-5573-ade1-84a7ecc1b911",
+    "reservation_path": "reviews/.harness/assignment/reservations/2015e46e-331e-51e0-bacf-8b37960adff0.json",
+    "reservation_sha256": "0a3498a818b71e8e07835881b9f417e117bb00accd2f1d226961c6a1a987f014",
+    "sequence": 1,
+    "target_milestone": "M2"
+  },
+  "schema_version": "1.0.0",
+  "state": "authorized"
+}

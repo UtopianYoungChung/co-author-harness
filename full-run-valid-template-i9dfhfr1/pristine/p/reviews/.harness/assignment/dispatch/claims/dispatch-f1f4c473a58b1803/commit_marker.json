@@ -1,0 +1,7 @@
+{
+  "publication_manifest": "reviews/.harness/assignment/dispatch/claims/dispatch-f1f4c473a58b1803/publication_manifest.json",
+  "publication_manifest_sha256": "1af1a72e7cf4b42671ea4ed489e750dee08d01029f13e30c790a22d67a10bbc9",
+  "schema_version": "1.0.0",
+  "state": "committed",
+  "transaction_id": "assignment-reserve-M3"
+}

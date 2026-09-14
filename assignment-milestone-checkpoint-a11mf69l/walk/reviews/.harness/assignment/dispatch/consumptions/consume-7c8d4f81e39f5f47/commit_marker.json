@@ -1,0 +1,7 @@
+{
+  "publication_manifest": "reviews/.harness/assignment/dispatch/consumptions/consume-7c8d4f81e39f5f47/publication_manifest.json",
+  "publication_manifest_sha256": "da3ea6f722d3e0bad4c934d76646dd855b60767022e8b3e2f1805f4a562afea8",
+  "schema_version": "1.0.0",
+  "state": "committed",
+  "transaction_id": "assignment-write-M2"
+}

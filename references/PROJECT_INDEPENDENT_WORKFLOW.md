@@ -41,6 +41,8 @@ real children or inspectable execution evidence returns
 `PIW-HOST-CAPABILITY-UNAVAILABLE` for drafting/revision. Independent read-only
 passes continue. Other host adapters require their own tested trace mapping;
 Codex source-path execution is not Hermes, installed-cache or startup qualification.
+Hermes uses the native lifecycle-hook adapter described in `HERMES_DESKTOP.md`;
+its fixture checks do not establish live-host qualification.
 
 Original host logs are the trust boundary, not a cryptographic attestation.
 Verification must check parent-child linkage, execution/turn identity, finished

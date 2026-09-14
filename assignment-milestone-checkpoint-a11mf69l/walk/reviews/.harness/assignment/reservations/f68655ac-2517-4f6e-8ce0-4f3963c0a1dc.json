@@ -1,0 +1,20 @@
+{
+  "phase_state_sha256": "7003f026cfe7d734e6d5a42963b9a856b27d2308a4b1c02b417a1cc72fec1fe0",
+  "receipt_id": "f68655ac-2517-4f6e-8ce0-4f3963c0a1dc",
+  "receipt_sha256": "87a5d4d97f89dcae3d6309623f2ed6753828bf280eaf22243c81a1e0b9d1d0b7",
+  "reservation_id": "c3ca0afc-05e5-4ba9-9c6d-94072f75e600",
+  "role": "generator",
+  "schema_version": "1.0.0",
+  "target_milestone": "M1",
+  "writes": [
+    {
+      "mode": "replace",
+      "path": "milestones/M1_project_memo.md",
+      "preimage": {
+        "exists": true,
+        "sha256": "4f4b76267242ef8b7dd15c5010c1a056010f97abf8e969fd64586d05b358e0a7",
+        "size": 387
+      }
+    }
+  ]
+}

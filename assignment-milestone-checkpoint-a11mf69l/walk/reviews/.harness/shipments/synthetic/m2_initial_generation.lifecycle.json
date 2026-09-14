@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "binding_type": "lifecycle_verifier_transaction",
+  "phase": "generation",
+  "product_disposition": "evaluation_ready",
+  "target": "milestones/M2_annotated_references.md",
+  "receipt_id": "772c848e-5d05-4360-82af-2c6c87a73ec7",
+  "transaction": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m2-initial/generation/verifier-transaction.json",
+    "sha256": "73013f0a4be4fc199181c63bd005f3e77b1dc48feb319d1810f268cb52107b61"
+  },
+  "publication_manifest": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m2-initial/generation/publication-manifest.json",
+    "sha256": "e5b92a17f1e17e72ebcd529c942fa0a9916f7c173683fc869fa26c57b56a18e4"
+  },
+  "commit_marker": {
+    "root": "project",
+    "path": "reviews/.harness/verifier/m2-initial/generation/commit-marker.json",
+    "sha256": "02c6d9ccb12e8eccf90aec301d54f70f14bc0b3f015033628dc2f6f47dd865d2"
+  },
+  "semantic_receipt": {
+    "root": "project",
+    "path": "reviews/.harness/fixtures/m2-initial/semantic-execution-3.json",
+    "sha256": "dbeaf6672d91bf7949367293eda76e55ff653b257af82fa64c90170be8352c54"
+  },
+  "wiki_root": {
+    "root": "harness",
+    "path": "scripts/fixtures/assurance_provenance_c2/wiki",
+    "manifest_sha256": "4221125abecf155091593d6686c6512d54dd0219e041cd0b6672675af9d009a2"
+  },
+  "semantics_manifest": {
+    "root": "harness",
+    "path": "references/semantics_manifest.v1.json",
+    "sha256": "bff0081411ade7e9230d9b8f3756d35b69b6df15bf1c01c2c300904f5ff79010"
+  },
+  "dispatch_claim": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/claims/dispatch-c560933fe4790442/claim.json",
+    "sha256": "3a02c323f38dcfba230730cd21ef32f5885c10115de60b89cf19e520d90d887f"
+  },
+  "dispatch_consumption": {
+    "root": "project",
+    "path": "reviews/.harness/assignment/dispatch/consumptions/consume-7c8d4f81e39f5f47/consumption.json",
+    "sha256": "e1255d75abe150b551fbc1abd858ef26e21f895659d1a16e8a70334a020086e2"
+  },
+  "generation_verifier_transaction_id": null
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "check8_evidence.v1",
+  "cycle_id": "M4-policy-round",
+  "profile_path": "reviews/.harness/policy/reader_accessibility_resolved.json",
+  "profile_sha256": "cc041a7e44a1860221dfe286ae96dedc3e616e0e18b6a12cec236a2fe70a7f2c",
+  "attestation_view_pin": "cf0ebac3918624c5ef788cc3bc3f442aadfd75e65549fb2d99adfe9c110b0738",
+  "exemplar_view_pin": "5b7fcb501ca76e21d92ab187be9a7db7494d2ba4f72bf931516227b12c888344",
+  "manuscript_path": "research_notes/m4_deliverable.md",
+  "manuscript_sha256": "d406bdac4738ce8a1836fe58925e43b90378596e8fc38263e82402b2b5d07ec5",
+  "phase": "Ph3",
+  "transition_snapshot": {
+    "G": "active",
+    "H": "active",
+    "VE": "active"
+  },
+  "subchecks": {
+    "A": {
+      "findings": []
+    },
+    "B": {
+      "findings": []
+    },
+    "C": {
+      "findings": []
+    },
+    "D": {
+      "findings": []
+    },
+    "E": {
+      "findings": []
+    },
+    "F": {
+      "findings": []
+    },
+    "G": {
+      "findings": []
+    },
+    "H": {
+      "findings": []
+    }
+  },
+  "subcheck_verdicts": {
+    "A": "CLEAN",
+    "B": "CLEAN",
+    "C": "CLEAN",
+    "D": "CLEAN",
+    "E": "CLEAN",
+    "F": "CLEAN",
+    "G": "CLEAN",
+    "H": "CLEAN"
+  },
+  "ve": {
+    "aggregate_member": false,
+    "gate_contribution": "none",
+    "findings": []
+  },
+  "aggregate_verdict": "CLEAN"
+}

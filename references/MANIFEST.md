@@ -43,7 +43,7 @@ Assignment writer transaction entry points are `scripts/assignment_process_gate.
 | **Concurrent work across projects / phases** | `PARALLEL_CONDUCTOR.md` (L0–L3 concurrency, conductor.md ledger, handoff) |
 | **Long manuscript (> 8,000 words)** | `TOKEN_BUDGET_PROTOCOL.md` (segmentation + state preservation) |
 | **Assessing improvement / readiness** | `SUCCESS_METRICS.md` (D1–D6 quality framework) |
-| **Submission-bound depth (cited claims must be externally verifiable)** | `EXTERNAL_VERIFIERS.md`; `ADVISOR_MCP.md` (EP-1/EP-2 escalation points) |
+| **Submission-bound depth (cited claims must be externally verifiable)** | `EXTERNAL_VERIFIERS.md` |
 | **Applying / flagging a prose-craft or theory-shape rule** | `FIVE_ENFORCEMENT_MEASURES.md` (which umbrella the finding sits under); then `STYLE_COMMITMENTS.md` (C-1 Suchman / C-2 Bacon / C-3 Sexton / C-4 Baird in-force test; C-5 reader-accessibility always-on; C-6 rhetorical–analytical separation / scoped metaphor; C-7 voice-fingerprint preservation; C-8 analytic-construction discipline — `analytic_construction_guidelines.md`, standalone skill `analytic-move-audit`); the named source file for C-N |
 | **Running the registered Chung academic-voice pass (only when selected and not excluded)** | `chung_academic_voice_guidelines.md`; `skills/chung-academic-voice-pass/SKILL.md` — on-demand or selected Evaluator fire-table; not a STYLE_COMMITMENTS C-n |
 | **Building, extending, formalizing, or auditing a BFO-aligned ontology** | `BFO_ONTOLOGY_DESIGN.md` (conditional trigger boundary, construction loop, terminology, definition, taxonomy, provenance, validation, BFO conformance profile, relation discipline, lifecycle/versioning, and blocking release gate) |
@@ -111,7 +111,6 @@ Files in `references/`, grouped by role. The "When authoritative" column is the 
 | `OUTPUT_ECONOMY_PROTOCOL.md` | Evidence packets, events log, final round report assembly, compatibility pointers | Default outputs per phase since v0.14.0 |
 | `PHASE3_PHASE4_COMMON_ENVELOPE.md` | Shared Ph3/Ph4 semantics inherited by `run-phase-3-stability` | When implementing or auditing the common envelope |
 | `phase_notifications.yaml` | Centralised notification templates for user-facing ledger transitions | Planner rendering checkpoint notifications |
-| `ADVISOR_MCP.md` | Advisor MCP entry points EP-1 / EP-2; not a substitute for `EXTERNAL_VERIFIERS` | Scheduling external feedback or submission-defensibility consultations |
 
 ### Post-review integrity
 

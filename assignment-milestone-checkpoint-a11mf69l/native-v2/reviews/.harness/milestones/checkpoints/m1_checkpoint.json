@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "milestone": "M1",
+  "feedback_records": [
+    {
+      "feedback_id": "m1-feedback-initial",
+      "evidence_class": "direct_milestone_feedback",
+      "source_path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+      "source_sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4",
+      "source_actor": "user",
+      "source_authority": "user",
+      "source_milestone": "M1",
+      "target_milestone": "M1",
+      "received_at": "2026-07-19T00:00:02Z",
+      "contemporaneity_evidence_path": "reviews/.harness/milestones/checkpoints/m1_feedback.md",
+      "contemporaneity_evidence_sha256": "3ca491338780a644e43599ed37810171a0a6f756d28322a2defe55c97b8b51c4",
+      "lineage_id": "main",
+      "blocking": false,
+      "disposition": "informational",
+      "rationale": "Synthetic feedback was reviewed and requires no revision.",
+      "successor_effect": "Proceed only after explicit approval."
+    }
+  ],
+  "inputs_consumed": [],
+  "decisions_frozen": [
+    "Freeze M1 synthetic decision."
+  ],
+  "open_debts": [],
+  "next_milestone_instructions": [
+    "Use accepted M1 evidence."
+  ],
+  "policy_evidence": {
+    "draft_generation": {
+      "evidence_path": "reviews/.harness/draft-governance/m1-initial-generation/lifecycle.json",
+      "evidence_sha256": "47d5c4319635ac4711ec1b80ad00b8563dc6da95f58d403389cf6b4926de01ab"
+    },
+    "draft_evaluation": {
+      "evidence_path": "reviews/.harness/draft-governance/m1-initial-evaluation/lifecycle.json",
+      "evidence_sha256": "57735a09cabefb3c877286c4e6ab1a5a73bf3baef1e25c6ddfacf19784d862c9"
+    },
+    "scholarly_evaluation": {
+      "evidence_path": "milestones/m1-initial-scholarly-evaluation.json",
+      "evidence_sha256": "4395ab3045dfa274b34262ef2e2c26334c3139091e7fa721a48de34b52530c10"
+    }
+  }
+}

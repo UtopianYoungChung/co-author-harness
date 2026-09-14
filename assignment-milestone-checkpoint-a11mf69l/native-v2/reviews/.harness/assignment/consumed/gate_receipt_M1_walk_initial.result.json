@@ -1,0 +1,14 @@
+{
+  "outcome": "published",
+  "published": [
+    {
+      "mode": "replace",
+      "mutation_row_sha256": "dad13c52f6ca93e06259f86d15de6f77d00a4a3d3f352f7b18521433fe549366",
+      "path": "milestones/M1_project_memo.md",
+      "sha256": "a0df579be3f460b17c872cfd15fc10938e1c7dda0d66b57586e760e35fd92908"
+    }
+  ],
+  "receipt_id": "fd505454-22fd-4d9c-b7d8-8a30a2f6fd3a",
+  "reservation_id": "5bb11226-184e-4c1e-9708-65a64ccd04c1",
+  "schema_version": "1.0.0"
+}

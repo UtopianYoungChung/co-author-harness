@@ -1,0 +1,10 @@
+{
+  "products": [
+    {
+      "path": "reviews/.harness/assignment/dispatch/consumptions/consume-7df4ce4b676b8428/consumption.json",
+      "sha256": "f5cfd87cc23d9e4a5cbda642f33ce46fe394d4cfe22dbac9bb82204a71c457c8"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "transaction_id": "scholarly-evaluation:SET-TERMINAL_M1"
+}
