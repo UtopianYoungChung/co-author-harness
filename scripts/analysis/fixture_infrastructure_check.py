@@ -172,6 +172,22 @@ def _mini_registry(runner_mod) -> tuple[dict, list[str]]:
 # R2: census writer-binding negatives (synthetic manifest, temp path, real repo)
 # --------------------------------------------------------------------------
 
+def case_static_matrix_does_not_consume_execution_receipts() -> None:
+    census = _load(HARNESS / 'scripts/analysis/code_census.py', 'cc_static', repo=HARNESS)
+    report = census.build_report()
+    def receipt_unavailable(_report):
+        raise AssertionError('Static predicate generation consulted a mutable execution receipt')
+    census._check_suite_bound_manifest_consistency = receipt_unavailable
+    try:
+        first = census.emit_matrix(report)
+        second = census.emit_matrix(report)
+    except AssertionError as exc:
+        check('static map remains generatable without execution receipts', False, str(exc))
+        return
+    check('static map remains generatable without execution receipts', first == second)
+    check('static map points to separate execution evidence', 'fixture_manifest.json' in first and 'fixture_cases=0' not in first)
+
+
 def case_census_writer_binding() -> None:
     census = _load(HARNESS / "scripts" / "analysis" / "code_census.py", "cc_real",
                    repo=HARNESS)
@@ -2103,6 +2119,7 @@ def main() -> int:
     case_repo_global_paths()
     print()
     print("case_census_writer_binding:")
+    case_static_matrix_does_not_consume_execution_receipts()
     case_census_writer_binding()
     print()
     print("case_cache_contract:")
