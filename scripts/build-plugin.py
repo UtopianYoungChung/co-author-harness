@@ -117,6 +117,8 @@ REQUIRED_FILES = (
     "version.json",
     "plugin.json",
     ".codex-plugin/plugin.json",
+    ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
     "agents/planner.md",
     "skills/plugin-commands/SKILL.md",
     "README.md",

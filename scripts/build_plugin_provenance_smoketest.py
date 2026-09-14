@@ -328,8 +328,8 @@ def _overlay(repo: Path) -> None:
     Without this the sandbox parent is HEAD's builder. Overlay alone is
     uncommitted: the child is `git worktree add` of HEAD, and source HEAD's
     builder still treats `.claude-plugin/plugin.json` as identity (exit 3).
-    A HEAD clone of this repo has version.json + root plugin.json and does
-    not have the retired pack -- fixtures must not plant a fake pack.
+    A HEAD clone of this repo has version.json, root plugin.json, and the
+    Claude host pack as a version.json identity mirror.
 
     Deliberately narrow and listed, not globbed. Everything else stays at
     the sandbox commit, so package bytes are commit content.
