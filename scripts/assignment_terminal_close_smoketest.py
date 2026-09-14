@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 import subprocess
 import sys
 import tempfile
@@ -419,7 +420,7 @@ def main() -> int:
                 handle.flush()
                 os.fsync(handle.fileno())
 
-    with tempfile.TemporaryDirectory(prefix="assignment-terminal-close-", dir=ROOT) as raw:
+    with tempfile.TemporaryDirectory(prefix="assignment-terminal-close-", dir=package_scratch(ROOT)) as raw:
         project = Path(raw) / "walk"
         prepare_public_m1_m4(project)
         stage("m1-m4-ready")

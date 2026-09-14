@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 import tempfile
 
 from milestone_framework_validate import validate_scholarly_authority_chain
@@ -34,7 +35,7 @@ def _binding(project: Path, path: Path) -> dict[str, object]:
 def main() -> int:
     cases = 0
     with tempfile.TemporaryDirectory(
-        prefix="scholarly-authority-chain-", dir=ROOT
+        prefix="scholarly-authority-chain-", dir=package_scratch(ROOT)
     ) as raw:
         project = Path(raw)
         generation_claim = project / "authority/generation/claim.json"

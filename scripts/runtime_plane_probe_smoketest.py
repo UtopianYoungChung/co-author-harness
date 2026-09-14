@@ -14,6 +14,7 @@ import time
 import warnings
 import zipfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 
 if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1" or not sys.dont_write_bytecode:
     environment = dict(os.environ)
@@ -292,7 +293,7 @@ def main() -> int:
     assert os.environ.get("PYTHONDONTWRITEBYTECODE") == "1"
     probe = load_probe()
     cases: list[str] = []
-    with RetryingTemporaryDirectory(prefix="runtime-plane-v40-", dir=ROOT) as td:
+    with RetryingTemporaryDirectory(prefix="runtime-plane-v40-", dir=package_scratch(ROOT)) as td:
         base = Path(td)
 
         nested_root = base / "nested-dependency"

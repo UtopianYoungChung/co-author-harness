@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 import tempfile
 import threading
 from copy import deepcopy
@@ -356,7 +357,7 @@ def main() -> int:
     module = load_module()
     HOST_VALIDATOR = module._host_validator()
     cases: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="host-qualification-v40-", dir=ROOT) as td:
+    with tempfile.TemporaryDirectory(prefix="host-qualification-v40-", dir=package_scratch(ROOT)) as td:
         base = Path(td)
 
         paths = evidence(base, "pending")

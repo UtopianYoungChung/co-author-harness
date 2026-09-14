@@ -12,6 +12,7 @@ import sys
 import hashlib
 import json
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 
 import draft_governance_publish as draft_publish
 import scholarly_evaluation_publish as scholarly_publish
@@ -691,7 +692,7 @@ def main() -> int:
     case_direct_publish_and_recover_roundtrip()
     case_admitted_root_rename_is_prevented_or_refused()
     with tempfile.TemporaryDirectory(
-        prefix="production-evidence-publisher-", dir=ROOT
+        prefix="production-evidence-publisher-", dir=package_scratch(ROOT)
     ) as raw:
         project = (Path(raw) / "project").resolve()
 

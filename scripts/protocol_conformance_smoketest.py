@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 import tempfile
 
 from protocol_conformance_fixture_support import build_protocol_conformance
@@ -15,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> int:
     with tempfile.TemporaryDirectory(
-        prefix="protocol-conformance-", dir=ROOT
+        prefix="protocol-conformance-", dir=package_scratch(ROOT)
     ) as raw:
         fixture = build_protocol_conformance(Path(raw))
         report = json.loads(fixture.report.read_text(encoding="utf-8"))

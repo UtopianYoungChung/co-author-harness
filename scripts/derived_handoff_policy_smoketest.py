@@ -15,6 +15,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 import platform
 import shutil
 import subprocess
@@ -454,7 +455,7 @@ def main() -> int:
         _assert_core_surfaces_are_policy_correct,
     )
 
-    with tempfile.TemporaryDirectory(prefix="v041-derived-policy-", dir=ROOT) as raw, semantic_graph_fixture_environment():
+    with tempfile.TemporaryDirectory(prefix="v041-derived-policy-", dir=package_scratch(ROOT)) as raw, semantic_graph_fixture_environment():
         sandbox = Path(raw)
         matrix.case(
             "new native bootstrap explicitly defaults to derived 1.1.0",

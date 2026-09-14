@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 
 from jsonschema import Draft202012Validator
 
@@ -238,7 +239,7 @@ def main() -> int:
     # temp directory is correctly classified DEST-UNGOVERNED by the production
     # extractor.  Package-local scratch remains authorized and exercises the
     # same extraction path from both a source checkout and an installed cache.
-    with tempfile.TemporaryDirectory(prefix="product-assurance-", dir=ROOT) as td:
+    with tempfile.TemporaryDirectory(prefix="product-assurance-", dir=package_scratch(ROOT)) as td:
         root = Path(td)
         source_a = root / "why.txt"; extract_a = root / "why.extract.txt"
         source_b = root / "actors.txt"; extract_b = root / "actors.extract.txt"

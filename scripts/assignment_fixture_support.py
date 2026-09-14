@@ -39,6 +39,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "references" / "policies" / "course_essay_milestones.v1.json"
 
 
+def package_scratch(root: Path = ROOT) -> Path:
+    """Package-local fixtures share one ignored, non-distributable namespace."""
+    scratch = root.resolve() / '.harness-test-scratch'
+    scratch.mkdir(exist_ok=True)
+    return scratch
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 

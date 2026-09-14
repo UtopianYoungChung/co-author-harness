@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "edc5c3614711f7b921c171b98653c07ffe293f692e40c54327d1d6760d5b3c22",
+      "sha256": "996ff70da958c4510531d0197f47a8ec17ff2d39bb6b70021aed659bead2ba73",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1051,7 +1051,7 @@
       "id": "runtime-plane-probe-smoketest",
       "path": "scripts/runtime_plane_probe_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "0edbb5e79f6443951cb7ff46338c8779cda52a73f19e7526e97805b787326616",
+      "sha256": "fe292e430b080fbd27f8db6348401788ec931c5e98a42a8db8bbce83123ef591",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]

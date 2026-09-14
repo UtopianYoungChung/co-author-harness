@@ -8,6 +8,7 @@ seed_resolution, MF graph non-gating) are NOT duplicated here — see
 from __future__ import annotations
 import copy, hashlib, json, shutil, sys, tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import jsonschema
@@ -86,7 +87,7 @@ def main() -> int:
     schema = json.loads((ROOT / "references/schemas/reader_accessibility_profile.schema.json").read_text(encoding="utf-8"))
     assert not list(jsonschema.Draft202012Validator(schema).iter_errors(tunable)), "schema fixes cadence authority at 300"
     policy.validate_profile(tunable)
-    with tempfile.TemporaryDirectory(dir=ROOT) as td:
+    with tempfile.TemporaryDirectory(dir=package_scratch(ROOT)) as td:
         copied_profile = Path(td) / "reader_accessibility.350.json"
         copied_profile.write_text(json.dumps(tunable), encoding="utf-8")
         resolved_tunable = policy.resolve_policy(None, profile_path=copied_profile)

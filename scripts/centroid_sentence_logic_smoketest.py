@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "centroid_sentence_logic.py"
@@ -64,7 +65,7 @@ def main() -> int:
         man = tmp / "m.md"
         pkt = tmp / "packet.json"
         pas = tmp / "passages.json"
-        out = Path(tempfile.mkdtemp(prefix=".centroid-check-smoke-", dir=str(ROOT)))
+        out = Path(tempfile.mkdtemp(prefix=".centroid-check-smoke-", dir=str(package_scratch(ROOT))))
         try:
             _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages)
         finally:

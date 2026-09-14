@@ -8,6 +8,7 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 from typing import Any, Callable
 
 import run_product_gate as gate
@@ -57,7 +58,7 @@ def main() -> int:
     Draft202012Validator.check_schema(schema)
     cases = 0
     with tempfile.TemporaryDirectory(
-        prefix="run-product-gate-c7-", dir=ROOT
+        prefix="run-product-gate-c7-", dir=package_scratch(ROOT)
     ) as temporary:
         project = Path(temporary) / "project"
         claim_text = (

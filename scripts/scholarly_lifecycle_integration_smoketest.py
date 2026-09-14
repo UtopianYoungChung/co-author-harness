@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 from types import SimpleNamespace
 
 import assignment_dispatch_claim as dispatch_claims
@@ -355,7 +356,7 @@ def main() -> int:
     cases = 0
     with semantic_graph_fixture_environment():
         with tempfile.TemporaryDirectory(
-            prefix="scholarly-lifecycle-c7-", dir=ROOT
+            prefix="scholarly-lifecycle-c7-", dir=package_scratch(ROOT)
         ) as raw:
             project = Path(raw) / "recovery"
             run(

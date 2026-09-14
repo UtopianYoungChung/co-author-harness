@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -807,7 +808,7 @@ def main() -> int:
     # C7 coupling: once C2 has rebound the active Generator target, an unbound
     # receipt cannot survive, while a receipt naming the exact marker-committed
     # transition remains replayable through the public gate.
-    with tempfile.TemporaryDirectory(prefix="assignment-gate-control-", dir=ROOT) as temp:
+    with tempfile.TemporaryDirectory(prefix="assignment-gate-control-", dir=package_scratch(ROOT)) as temp:
         import control_plane_transition as control
         from control_plane_transition_smoketest import _project_fixture
 

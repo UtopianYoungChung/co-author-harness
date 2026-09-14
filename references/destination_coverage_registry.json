@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "47bd9b94b2cdf2a07476749e7f6b07d42a4b9354a3b9b522173a6df167dab41a"
+      "sha256": "d41e2197c2b5ac81976cc8f55edf120ee669186abcbb8117d08a04509c44f7d7"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
@@ -42,7 +42,7 @@
     "scripts/assignment_fixture_support.py": {
       "class": "test_only",
       "justification": "smoketest fixture scaffolding; invoked only by suites against temp or hermetic staging trees",
-      "sha256": "d6c2a271bc3cc38a387a24f5b58e9af709e7bccdfbed0f09d116dd9761434ebd"
+      "sha256": "8e3d90dbd568259514277f0c1e7d90e79fc96b11ab6106f3bd35795b4909d844"
     },
     "scripts/assignment_dispatch_claim.py": {
       "class": "guarded",

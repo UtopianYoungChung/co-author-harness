@@ -13,6 +13,7 @@ import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from assignment_fixture_support import package_scratch
 from typing import Any, Callable
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -655,7 +656,7 @@ def expect_schema_refusal(code: str, call: Callable[[], Any]) -> None:
 def main() -> int:
     global SEMANTICS
     with tempfile.TemporaryDirectory(
-        prefix="assignment-dispatch-semantics-", dir=ROOT
+        prefix="assignment-dispatch-semantics-", dir=package_scratch(ROOT)
     ) as semantics_td, tempfile.TemporaryDirectory(
         prefix="assignment-dispatch-c4-"
     ) as td:
