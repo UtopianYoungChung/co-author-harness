@@ -22,6 +22,11 @@ venv/
 
 # Local probe / scratch
 .write-probe
+.harness-test-scratch/
+/assignment-milestone-checkpoint-*/
+/full-run-valid-template-*/
+/.centroid-check-smoke-*/
+/scripts/_piw_acceptance_last_run.json
 
 # OS / editor
 Thumbs.db

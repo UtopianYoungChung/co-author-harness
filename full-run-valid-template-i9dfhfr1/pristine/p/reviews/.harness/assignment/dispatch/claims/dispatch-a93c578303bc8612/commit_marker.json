@@ -1,7 +1,0 @@
-{
-  "publication_manifest": "reviews/.harness/assignment/dispatch/claims/dispatch-a93c578303bc8612/publication_manifest.json",
-  "publication_manifest_sha256": "67092ad5607d06d1765d14d251738480b27b9961e045d471bdc499336f2a3a87",
-  "schema_version": "1.0.0",
-  "state": "committed",
-  "transaction_id": "assignment-reserve-M2"
-}

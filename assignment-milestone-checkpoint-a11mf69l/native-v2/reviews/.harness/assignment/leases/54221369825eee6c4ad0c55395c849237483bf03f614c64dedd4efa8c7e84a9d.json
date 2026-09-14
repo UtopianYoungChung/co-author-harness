@@ -1,8 +1,0 @@
-{
-  "phase_state_sha256": "4172095e1cacb469eeb773fc03a3b78beb9e13029b289a86411d86571fa748b1",
-  "receipt_id": "fd505454-22fd-4d9c-b7d8-8a30a2f6fd3a",
-  "reservation_id": "5bb11226-184e-4c1e-9708-65a64ccd04c1",
-  "schema_version": "1.0.0",
-  "state": "completed",
-  "target_path": "milestones/M1_project_memo.md"
-}

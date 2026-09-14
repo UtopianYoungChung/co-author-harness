@@ -1,7 +1,0 @@
-{
-  "publication_manifest": "reviews/.harness/assignment/dispatch/consumptions/consume-576dc08f40391afe/publication_manifest.json",
-  "publication_manifest_sha256": "a3cb4f26b2a86f80e935e8912873f1561eceb7df4741234c2998a146e4807aac",
-  "schema_version": "1.0.0",
-  "state": "committed",
-  "transaction_id": "scholarly-evaluation:SET-TERMINAL_M5"
-}

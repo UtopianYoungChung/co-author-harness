@@ -1,7 +1,0 @@
-{
-  "publication_manifest": "reviews/.harness/assignment/dispatch/consumptions/consume-005ea2a5d103077b/publication_manifest.json",
-  "publication_manifest_sha256": "422de89081a0592ad7788bea2b431cac776f9a30f5b5748c336175791a6bdf9d",
-  "schema_version": "1.0.0",
-  "state": "committed",
-  "transaction_id": "scholarly-evaluation:SET-M1_INITIAL"
-}

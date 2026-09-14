@@ -1,9 +1,0 @@
-# G.4
-
-status: PASS
-manuscript_path: research_notes/m5_deliverable.md
-manuscript_sha256: 1f1fcd21699475f9b844feb0f248dea00764d9301da6131aa0fb05158f4c276a
-round_id: round_2026-07-17_001
-authority: evaluator
-check8_sha256: 34fb99af50e6cec45b5bdc0af5f812563d153c746890ad19aa8662b4b31c1aaf
-safeguard_status: CLEAN
