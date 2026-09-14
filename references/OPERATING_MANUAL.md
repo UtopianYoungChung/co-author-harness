@@ -28,7 +28,7 @@ The package is deployed once at the plugin root `<workspace-root>/platform/co-au
 
 Before your first real round, confirm:
 
-*The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md` are readable. Do not recreate the retired Claude pack to make discovery work.
+*The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md` are readable. Claude Desktop / Cowork plugin load uses `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` as host/marketplace mirrors of `version.json`; do not invent a second plugin id or restore `.claude-plugin/ssot.yaml`.
 
 *The project is explicit.* Supply the exact project root. Confirm that `reviews/assignment_contract.json` resolves when the request can produce academic prose, and read `reviews/phase_state.json` rather than inferring state from filenames or another project.
 

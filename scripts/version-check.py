@@ -4,8 +4,14 @@ co-author-harness — version-check.py
 
 THE MANIFEST IS THE SOLE AUTHORITY FOR THE CURRENT VERSION.
 
-`version.json` owns it. `.claude-plugin` is not an identity fallback. Everything else either mirrors it
-mechanically (and is gated) or must not state it at all.
+`version.json` owns it. `.claude-plugin/plugin.json` is the Claude Desktop /
+Cowork host identity mirror, not an authority. Everything else either mirrors
+the manifest mechanically (and is gated) or must not state it at all.
+
+  HARD GATE   .claude-plugin/plugin.json — when present, name/version/license
+              must equal version.json. Restoring a second plugin id
+              (`co-author-harness-claude`) is a competing identity and is
+              refused.
 
   HARD GATE   .claude-plugin/marketplace.json — self-referencing plugins[]
               entries must equal the manifest. Both files ship inside the
@@ -37,6 +43,11 @@ mechanically (and is gated) or must not state it at all.
               authoritative for the current version: a changelog that lags the
               manifest is a documentation gap (WARN), not a release blocker,
               because treating it as a blocker makes it a competing authority.
+
+  HARD GATE   root plugin.json is the portable Agent Plugins v1.0.0 host
+              identity. Hermes Agent loads that file and refuses a missing or
+              unknown $schema. Native plugin.yaml / plugin.yml is refused
+              because it would take precedence and hide the portable loader.
 """
 
 from __future__ import annotations
@@ -48,6 +59,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from agent_plugin_v1 import PLUGIN_SCHEMA_V1, check_plugin_root
 from marketplace_contract import (
     manifest_entries,
     manifest_entry_cardinality_error,
@@ -62,16 +74,15 @@ def read_text(path: Path) -> str:
 def manifest_path(plugin_root: Path) -> Path:
     """version.json is the sole current-version authority.
 
-    `.claude-plugin/plugin.json` is retired. It is not an identity fallback
-    and must not be restored as a required path, identity source, or
-    HEAD-clone fixture.
+    `.claude-plugin/plugin.json` is a host identity mirror. It is not an
+    identity fallback and must not be read as the current-version authority.
     """
     general = plugin_root / "version.json"
     if general.exists():
         return general
     raise FileNotFoundError(
         "version.json is the sole current-version authority; "
-        ".claude-plugin is not an identity fallback"
+        ".claude-plugin is a host identity mirror, not an identity fallback"
     )
 
 
@@ -449,12 +460,7 @@ def main() -> int:
     # README must not assert a current version (AGENTS.md authority rule).
     blockers.extend(find_readme_version_assertions(plugin_root))
     blockers.extend(find_retired_host_manifests(plugin_root))
-    pack_identity = plugin_root / ".claude-plugin" / "plugin.json"
-    if pack_identity.exists():
-        blockers.append(
-            ".claude-plugin/plugin.json is retired and must not be an identity "
-            "source; version.json owns current package identity"
-        )
+    blockers.extend(check_plugin_root(plugin_root))
 
     # CHANGELOG: structure + release consistency; never the current-version authority.
     blockers.extend(find_malformed_release_headings(plugin_root))
@@ -470,7 +476,11 @@ def main() -> int:
         )
 
     # Host identities mechanically mirror version.json; neither is an authority.
-    for host_relative in ("plugin.json", ".codex-plugin/plugin.json"):
+    for host_relative in (
+        "plugin.json",
+        ".codex-plugin/plugin.json",
+        ".claude-plugin/plugin.json",
+    ):
         root_plugin = plugin_root / host_relative
         if root_plugin.exists():
             try:
@@ -489,7 +499,12 @@ def main() -> int:
                     elif field == "name":
                         right = str(json.loads(read_text(manifest_path(plugin_root))).get("name", "")).strip()
                     if left != right and (
-                        host_relative == ".codex-plugin/plugin.json" or (left and right)
+                        host_relative
+                        in (
+                            ".codex-plugin/plugin.json",
+                            ".claude-plugin/plugin.json",
+                        )
+                        or (left and right)
                     ):
                         blockers.append(
                             f"{host_relative} {field} ({left}) != version.json {field} ({right})"
@@ -534,6 +549,7 @@ def main() -> int:
           f"(must be 0)")
     print(f"- Retired host manifests present: {len(find_retired_host_manifests(plugin_root))} "
           f"(must be 0)")
+    print(f"- Agent Plugins schema: {PLUGIN_SCHEMA_V1}")
     print(f"- CHANGELOG newest release (history, not authority): "
           f"{('v' + changelog_version) if changelog_version else '<none>'}")
     print(f"- CHANGELOG releases recorded: {len(releases)}")

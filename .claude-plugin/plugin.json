@@ -1,5 +1,4 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "co-author-harness",
   "version": "0.50.1",
   "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
@@ -10,5 +9,17 @@
   },
   "homepage": "https://github.com/UtopianYoungChung/co-author-harness",
   "repository": "https://github.com/UtopianYoungChung/co-author-harness.git",
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "academic-writing",
+    "peer-review",
+    "four-agent-loop",
+    "phase-ladder",
+    "grounding-protocol",
+    "snowball-references",
+    "IS-research",
+    "HCI",
+    "zotero"
+  ]
 }

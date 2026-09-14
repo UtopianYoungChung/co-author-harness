@@ -115,8 +115,8 @@ Do **not** park citation / claim / derivation / similar checks unless they are f
 
 - `version.json` owns current package name, version, license.
 - Root `plugin.json` is published host metadata and mechanically mirrors those identity fields.
-- `.claude-plugin/plugin.json` is retired. Do not restore the Claude pack.
-- Tests **fail** if they mention `.claude-plugin` as a required path, identity source, or HEAD-clone fixture.
+- `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity mirror. Name, version, and license must equal `version.json`. Do not restore a second plugin id (`co-author-harness-claude`) or `.claude-plugin/ssot.yaml`.
+- Tests **fail** if they treat `.claude-plugin` as the current-version authority, a required identity fallback, or a HEAD-clone fixture that replaces `version.json`.
 
 ---
 

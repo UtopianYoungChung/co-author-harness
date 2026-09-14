@@ -42,6 +42,12 @@ def update(root: Path, version: str) -> None:
     root = root.resolve(strict=True)
     version_path = root / "version.json"
     plugin_path = root / "plugin.json"
+    claude_path = root / ".claude-plugin" / "plugin.json"
+    marketplace_path = root / ".claude-plugin" / "marketplace.json"
+    if claude_path.exists():
+        destinations.assert_writable(claude_path, purpose="Claude host identity parity update")
+    if marketplace_path.exists():
+        destinations.assert_writable(marketplace_path, purpose="Claude marketplace identity parity update")
     authoritative = _load(version_path)
     plugin = _load(plugin_path)
     name = authoritative.get("name")
@@ -54,7 +60,39 @@ def update(root: Path, version: str) -> None:
         raise VersionUpdateRefusal("plugin.json license does not mirror version.json")
     authoritative["version"] = version
     plugin["version"] = version
-    outputs = ((version_path, _bytes(authoritative)), (plugin_path, _bytes(plugin)))
+    planned: list[tuple[Path, bytes]] = [
+        (version_path, _bytes(authoritative)),
+        (plugin_path, _bytes(plugin)),
+    ]
+    if claude_path.exists():
+        claude = _load(claude_path)
+        if claude.get("name") != name:
+            raise VersionUpdateRefusal(".claude-plugin/plugin.json name does not mirror version.json")
+        if claude.get("license") != license_name:
+            raise VersionUpdateRefusal(".claude-plugin/plugin.json license does not mirror version.json")
+        claude["version"] = version
+        planned.append((claude_path, _bytes(claude)))
+    if marketplace_path.exists():
+        marketplace = _load(marketplace_path)
+        plugins = marketplace.get("plugins")
+        if not isinstance(plugins, list):
+            raise VersionUpdateRefusal("marketplace.json plugins is not a list")
+        matched = 0
+        for entry in plugins:
+            if not isinstance(entry, dict) or entry.get("name") != name:
+                continue
+            if entry.get("license") != license_name:
+                raise VersionUpdateRefusal(
+                    "marketplace.json self-entry license does not mirror version.json"
+                )
+            entry["version"] = version
+            matched += 1
+        if matched != 1:
+            raise VersionUpdateRefusal(
+                "marketplace.json must contain exactly one self-entry mirroring version.json"
+            )
+        planned.append((marketplace_path, _bytes(marketplace)))
+    outputs = tuple(planned)
     originals = {path: path.read_bytes() for path, _data in outputs}
     temporaries: list[tuple[Path, Path]] = []
     replaced: list[Path] = []
@@ -75,6 +113,17 @@ def update(root: Path, version: str) -> None:
         parity = _load(plugin_path)
         if parity.get("version") != version:
             raise VersionUpdateRefusal("plugin.json parity readback failed")
+        if claude_path.exists() and _load(claude_path).get("version") != version:
+            raise VersionUpdateRefusal(".claude-plugin/plugin.json parity readback failed")
+        if marketplace_path.exists():
+            entries = _load(marketplace_path).get("plugins") or []
+            self_versions = [
+                entry.get("version")
+                for entry in entries
+                if isinstance(entry, dict) and entry.get("name") == name
+            ]
+            if self_versions != [version]:
+                raise VersionUpdateRefusal("marketplace.json self-entry parity readback failed")
     except Exception:
         for path in reversed(replaced):
             recovery = path.with_name(path.name + f".recover.{os.getpid()}")
