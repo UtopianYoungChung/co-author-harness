@@ -106,18 +106,12 @@ def parse_registry_skill_names(plugin_root: Path) -> Set[str]:
 def validate_manifest(plugin_root: Path) -> Tuple[List[str], List[str]]:
     """Identity comes from version.json. Root plugin.json may mirror it.
 
-    `.claude-plugin/plugin.json` is a retired host manifest. Its absence is
-    not a blocker. Presence is a leftover and is refused.
+    `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity
+    mirror. Its absence is not a skill-check blocker; when present,
+    version-check.py enforces name/version/license parity with version.json.
     """
     blockers: List[str] = []
     warnings: List[str] = []
-
-    retired = plugin_root / ".claude-plugin" / "plugin.json"
-    if retired.exists():
-        blockers.append(
-            "retired host manifest present: .claude-plugin/plugin.json "
-            "(identity must come only from version.json)"
-        )
 
     version_path = plugin_root / "version.json"
     if not version_path.exists():

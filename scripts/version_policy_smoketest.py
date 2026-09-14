@@ -7,7 +7,8 @@ THE CONTRACT (AGENTS.md, version.json authority)
 ----------------------------------------------
 `version.json` is the SOLE authority for the CURRENT version. Root
 `plugin.json` must mechanically mirror name, version, and license.
-`.claude-plugin/plugin.json` is retired and must not be restored.
+`.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity
+mirror: when present it must match those same fields and is not an authority.
 
   * Descriptive prose must not manually mirror it. A README badge and a
     standalone "## Version `X.Y.Z`" literal are duplicated authority: they
@@ -22,7 +23,8 @@ THE CONTRACT (AGENTS.md, version.json authority)
     satisfy a rule about authority. They are already exempt from the
     trailer-strip invariant (version-check.py `_VERSION_TRAILER_EXEMPT_PATHS`).
   * Root `plugin.json` must mechanically mirror `version.json` name, version,
-    and license. Marketplace / `.claude-plugin` identity is retired.
+    and license. `.claude-plugin/plugin.json` and marketplace self-entries,
+    when present, are the same class of host/marketplace mirror.
 
 So: the changelog is validated for STRUCTURE and RELEASE CONSISTENCY, but is
 never treated as the authority for the current version.
@@ -155,6 +157,30 @@ def case_codex_host_identity_mirrors_authority() -> None:
                 check(
                     f"Codex host {field} {'missing' if missing else 'mismatch'} is REFUSED",
                     rc == 1 and blocked_for(out, ".codex-plugin/plugin.json", field),
+                    blockers(out),
+                )
+
+
+def case_claude_host_identity_mirrors_authority() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td))
+        authority = json.loads((root / "version.json").read_text(encoding="utf-8"))
+        native = root / ".claude-plugin/plugin.json"
+        _w(native, json.dumps(authority) + "\n")
+        rc, out = run(root)
+        check("matching Claude host identity PASSES", rc == 0, blockers(out))
+        for field in ("name", "version", "license"):
+            for missing in (False, True):
+                value = dict(authority)
+                if missing:
+                    value.pop(field)
+                else:
+                    value[field] = "wrong"
+                _w(native, json.dumps(value) + "\n")
+                rc, out = run(root)
+                check(
+                    f"Claude host {field} {'missing' if missing else 'mismatch'} is REFUSED",
+                    rc == 1 and blocked_for(out, ".claude-plugin/plugin.json", field),
                     blockers(out),
                 )
 
@@ -491,6 +517,7 @@ def main() -> int:
     print()
     for fn in (case_compliant_readme_passes,
                case_codex_host_identity_mirrors_authority,
+               case_claude_host_identity_mirrors_authority,
                case_agent_plugins_v1_schema_is_required,
                case_native_hermes_yaml_is_refused,
                case_closed_agent_plugin_manifest_is_required,
