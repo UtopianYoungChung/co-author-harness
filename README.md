@@ -99,14 +99,14 @@ package root. Profile-mode output remains byte-compatible with existing binds.
 ## Quick start
 
 1. **Open this repository** so package-root path resolution matches your actual layout (see [`references/AGENTS.md`](references/AGENTS.md) for embedded vs plugin-root deployment).
-2. **Start every substantive session** by resolving the project’s active milestone and canonical lifecycle state through [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md); do not persist a derived intent label as state.
-3. **Wire a research project** using the standard tree and `reviews/phase_state.json` as the ledger; bootstrap details are in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md).
+2. **Name the requested scope.** A bounded read-only pass uses `adhoc_review`; an ordinary draft or revision uses `project_independent` and the native child workflow in [`references/PROJECT_INDEPENDENT_WORKFLOW.md`](references/PROJECT_INDEPENDENT_WORKFLOW.md). Neither requires a pre-existing research project.
+3. **For explicit governed project work**, resolve the assignment, milestone and live lifecycle state through [`references/ROUTING_SPINE.md`](references/ROUTING_SPINE.md). Bootstrap instructions are in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md); full lifecycle requests retain [`references/FULL_RUN_CONTRACT.md`](references/FULL_RUN_CONTRACT.md) prerequisites.
 
 **Example (session open)** — what you can literally ask the agent:
 
 ```text
-Read references/ROUTING_SPINE.md, then tell me which milestone and lifecycle state this session should
-run under and which artefact you will touch first.
+Draft a short research memo from these supplied excerpts. Declare project_independent,
+follow the native drafting/review/reflection workflow, and deliver the reviewed memo.
 ```
 
 Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads (`hermes plugins install UtopianYoungChung/co-author-harness`, then `hermes plugins enable co-author-harness`). Claude Desktop / Cowork loads the Claude host pack at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) (direct `.plugin` install) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (`/plugin marketplace add`). Those files mirror `version.json` identity; they are not a second authority. That is loadability, not installed-cache or startup qualification.

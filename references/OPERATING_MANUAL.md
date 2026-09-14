@@ -30,7 +30,7 @@ Before your first real round, confirm:
 
 *The harness is wired.* The host resolves the package root, and its root `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md` are readable. Claude Desktop / Cowork plugin load uses `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` as host/marketplace mirrors of `version.json`; do not invent a second plugin id or restore `.claude-plugin/ssot.yaml`.
 
-*The project is explicit.* Supply the exact project root. Confirm that `reviews/assignment_contract.json` resolves when the request can produce academic prose, and read `reviews/phase_state.json` rather than inferring state from filenames or another project.
+*The scope is explicit.* Ordinary read-only passes use `adhoc_review`; ordinary drafts and revisions use `project_independent` and `PROJECT_INDEPENDENT_WORKFLOW.md`, without a pre-existing project. For explicit governed work, supply the exact project root and resolve its assignment contract and phase state. Invalid supplied authoritative bindings fail closed.
 
 *External verifiers are registered.* If you maintain a Zotero library and want submission-bound rounds to pass `GROUNDING_PROTOCOL.md` Rule 7a, confirm the Zotero MCP is operational. `EXTERNAL_VERIFIERS.md` declares it as the default Class 1 verifier in Joseph's deployment. Without a verifier, submission-bound rounds will block at G.4.
 
@@ -65,9 +65,9 @@ Run `milestone_framework_validate.py` and `phase_state_validate.py` against the 
 
 Every session begins and ends the same way. The contract is short.
 
-**Opening.** The assistant resolves the exact project root, reads the applicable workspace/package/project instructions, the project's assignment contract, phase state, milestone records, and directives, then declares exactly one run scope: `adhoc_review`, `lab_iteration`, or `full_lifecycle`. It confirms the project identity, verified live state, writable output lane, and next authorized action. State from another project or an old session is not inherited.
+**Opening.** Read the applicable instructions and declare exactly one scope: `adhoc_review`, `project_independent`, `lab_iteration`, or `full_lifecycle`. Bind the actual brief/input and permitted output. Ordinary work follows `PROJECT_INDEPENDENT_WORKFLOW.md`; governed work additionally resolves the exact project assignment, phase state, milestone records and directives. State from another project or old session is not inherited.
 
-**Mid-session.** Every user utterance is classified into one phase by `ROUTING_SPINE.md §2`. The Planner dispatches one agent at a time with a prompt that names the phase, the entry artifact, and the exit gate. The agent operates under the contract in `AGENT_CONTRACTS.md §§1–4`. At every `► PRESENTS TO USER ◄` checkpoint in `AGENT_ORCHESTRATION.md §3`, you approve, modify, dispute, or reject. The round advances only on approval.
+**Mid-session.** Continue authorized ordinary work through its required native roles and bounded correction loop. Do not add approval stops at every role transition. Governed work follows `ROUTING_SPINE.md`, `AGENT_CONTRACTS.md` and its active assignment/lifecycle checkpoints; a required user approval remains required. Every child inherits the exact run scope. Neither a role report nor silence grants approval or research authority.
 
 **Closing.** The assistant updates only the authorized project-local transaction/state surfaces, checkpoints in-progress artifacts in the permitted output lane, and summarizes what changed and what remains. It does not create or update a global conductor as a substitute for project state. If a round was completed, the required Reflector output must exist under the current output contract.
 
@@ -75,7 +75,7 @@ If any of opening / mid / closing is skipped, the next session will cost you tim
 
 ---
 
-## 4. The seven phases in operational detail
+## 4. Governed project phases in operational detail
 
 The dispatch table is in `ROUTING_SPINE.md §2`. This section elaborates the *doing* of each phase.
 

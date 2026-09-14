@@ -38,6 +38,8 @@ import sys
 from pathlib import Path
 from typing import Iterable, List
 
+from package_enumeration import validate_package_membership
+
 
 BLOCKED_PATTERNS = [
     re.compile(r"C:\\Users\\young\\", re.I),
@@ -251,6 +253,17 @@ def main() -> int:
     blockers.extend(check_captured_build_state(plugin_root))
     blockers.extend(check_repo_local_project_staging(plugin_root))
     blockers.extend(check_required_pack_identity(plugin_root))
+    tracked = subprocess.run(
+        ['git', '-C', str(plugin_root), 'ls-files', '-z'],
+        capture_output=True, check=False,
+    )
+    if tracked.returncode == 0:
+        try:
+            validate_package_membership([
+                name.decode('utf-8') for name in tracked.stdout.split(b'\0') if name
+            ])
+        except ValueError as exc:
+            blockers.append(str(exc))
 
     print("PATH HYGIENE CHECK")
     print(f"- Plugin root: {plugin_root}")

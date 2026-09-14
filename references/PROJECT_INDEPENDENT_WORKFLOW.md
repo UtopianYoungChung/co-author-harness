@@ -127,6 +127,26 @@ and governed staging continue under destination capability policy.
 
 ## Coordinator commands for host callers
 
+### Portable evidence and timing
+
+After successful live verification, export an evidence closure with
+`python scripts/piw_archive.py export --piw-session <session> --destination <new-authorized-directory>`.
+Retain the returned manifest SHA-256 separately. Verify a relocated copy with
+`python scripts/piw_archive.py verify --manifest <archive/manifest.json> --sha256 <retained-hash>`.
+Verification reads only explicit source-to-archive mappings, preserves original
+path identities, and replays shared role and trace checks. Missing mappings,
+changed artifacts and incomplete trace prefixes fail. It reports
+`archived_evidence_verified`, with live execution, host qualification and task
+completion flags false. Export before original rules or evidence change; a stale
+session cannot gain a valid archive through a copied completion flag.
+
+`python scripts/piw_metrics.py --piw-session <session>` reports observed role timing
+and prefix sizes. Missing context/usage data and unrecorded failures remain null.
+The artifact benchmark and human-reference requirements are documented in
+`docs/evaluation/research-artifact-benchmark.md` at the package root.
+
+### Task execution
+
 Resolve `scripts/` from the loaded package, not from the input directory.
 The public skill's caller performs these steps without asking the user to build
 state. Commands below are evidence plumbing; the native child performs the work.
@@ -153,6 +173,15 @@ For `start`, request JSON binds `brief`, `requested_scope` (a description, plus
 `exclusions`, `required_checks`, optional source excerpts/venue/project context,
 `proposal_only` and `max_corrections`. Each required check has an `id` and
 `required` boolean; a source-dependent check also declares `source_required`.
+With bound sources, the default grounding check is source-dependent. Its default
+`verification_level` is `attribution`; a check explicitly limited to citation
+identity may use `bibliographic` and cannot clear attribution support. An
+attribution `pass` requires nonempty `source_support` rows containing `source_id`,
+`source_locator`, `quote`, `claim` and `status: supported`. IDs and locators must
+match the bound excerpts; quotations must occur in those excerpts and claims in
+the reviewed target. The native Evaluator/Reflector judges actual support and
+qualifications; substring validation establishes provenance, not entailment.
+Contested, unsupported or unavailable passages cannot clear the check.
 The default correction limit is three. No-change revision still follows the full
 revision sequence and produces separately reviewed unchanged candidate bytes.
 

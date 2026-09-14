@@ -85,7 +85,7 @@ Active Class 1 verifiers in this deployment:
 
 > **Scholar Gateway `semanticSearch` required parameters.** The tool requires `query` (natural-language, do not reduce to keywords), `interaction_id` (a UUID generated once per user prompt and reused across parallel/follow-up searches in that episode), and `inferred_intent` (a free-text description of the *underlying information need*, not the query itself — e.g. "checking whether Baumer 2024 advances algorithmic co-constitution or merely surveys it"). Optional: `start_year`, `end_year`, `includeRetractedContent` (default `false`; set `true` only when retraction history is itself the subject), `topN` (1–20, default 15).
 
-**Rule 7a wiring.** An agent may remove an `[UNVERIFIED]` marker after a Class 1 hit only if the audit log records: verifier name, exact query, returned DOI/ID, returned title (for disambiguation), and the session timestamp. The Reflector's Category 1 audit re-checks a sample of these removals.
+**Rule 7a wiring.** A Class 1 metadata hit resolves bibliography only. Clearing an attribution also requires an inspected supporting passage, source and claim locators, and a support judgment under `GROUNDING_PROTOCOL.md` Rule 7a. Log these separately from verifier/query/identifier/title/timestamp. The Reflector re-checks passage support as well as source identity.
 
 ### Class 1.5 — Domain-specific scholarly search (supporting, not authoritative)
 
@@ -192,9 +192,9 @@ This marker signals to downstream agents and to the Reflector that the file is s
 
 ## 4. Rule 7a — External verification as Chain-of-Verification evidence
 
-**Text of Rule 7a** (appended to `GROUNDING_PROTOCOL.md` after Rule 7 in package version 0.3.2):
+The authoritative rule is `GROUNDING_PROTOCOL.md` Rule 7a.
 
-> **Rule 7a — External Verification.** A claim whose source has not been read in the current session may be treated as `[externally verified]` (and any upstream `[UNVERIFIED]` marker removed) only if a Class 1 verifier (per `EXTERNAL_VERIFIERS.md`) returned a corroborating result in the current session AND the verification was logged in `reviews/external_verification_log.md` with: verifier name, query, returned identifier, returned title, and timestamp. A Class 1.5 or Class 2 hit is supporting evidence and does not satisfy Rule 7a on its own. A Class 3 retraction hit is binding: a `retracted: true` result overrides any prior verification and escalates the finding to BLOCKER regardless of the cited claim's quality.
+Bibliographic resolution and attribution support are separate outcomes. A metadata match cannot clear a claim. Record an actual source passage, its locator, the exact manuscript claim and locator, and a reasoned support judgment. Unsupported, contested or unavailable support leaves the claim unresolved. A Class 3 retraction hit overrides prior verification and escalates to BLOCKER.
 
 **Enforcement.** The Reflector's Phase 2.5 Category 1 audit spot-checks Rule 7a annotations. A removed `[UNVERIFIED]` marker without a corresponding log entry is flagged:
 
@@ -218,7 +218,7 @@ A mismatch between the logged identifier and the re-checked identifier (same cla
 
 ## 5. External verification log format
 
-Every agent that invokes a Class 1 or Class 3 verifier appends a row to `reviews/external_verification_log.md`:
+Every agent that invokes a Class 1 or Class 3 verifier appends a row in the authorized output lane. The following historical metadata-only layout records resolution; its MATCH rows do not establish attribution support:
 
 ```markdown
 | Date | Agent | Claim (short) | Verifier | Query | Returned ID | Returned title | Result |
@@ -227,7 +227,7 @@ Every agent that invokes a Class 1 or Class 3 verifier appends a row to `reviews
 | 2026-04-16 | Evaluator | Retraction check — Holldack 2026 | Scite | Holldack 2026 | n/a | n/a | NOT RETRACTED |
 ```
 
-The log file is append-only — rows are never edited after write so the Reflector can diff for fabricated additions. The Evaluator and the Reflector both write to this file; the Planner reads it at round start to inventory prior verifications.
+New attribution entries also require `claim_locator`, `bibliographic_resolution`, `source_locator`, `quoted_passage`, `attribution_support` (`supported`, `unsupported`, `contested`, `unavailable`) and `rationale`. The log is append-only. Preserve historical metadata rows and append fresh support evidence; never reinterpret an old MATCH as passage verification. The Reflector reads the passage and claim during its audit.
 
 ---
 
@@ -235,8 +235,8 @@ The log file is append-only — rows are never edited after write so the Reflect
 
 Class 1 verifiers can disagree (Scholar Gateway returns a matching paper; Consensus returns "claim contested by [paper X]"). The disagreement is itself evidence:
 
-- **Both return MATCH:** claim is corroborated; log both, annotate `[externally verified, n=2]`.
-- **One MATCH, one UNKNOWN:** claim is corroborated on the weaker ground of single-verifier match; annotate `[externally verified, n=1, single-verifier]`.
+- **Both return metadata MATCH:** bibliography resolves; attribution remains unverified until inspected passage evidence supports it. Two search hits are not two independent supporting sources.
+- **One metadata MATCH, one UNKNOWN:** record resolution and the unavailable result separately. Only actual supporting passage evidence can clear the attribution; retain the limitation.
 - **MATCH and CONTESTED:** the finding is preserved, but the contested status is appended to the manuscript's attribution: "Baumer et al. (2024) argue X [contested by Y (Consensus)]." At submission-bound depth, a CONTESTED result escalates the Category 1 audit to MAJOR until the contradiction is resolved in-text.
 - **Both UNKNOWN / NOT FOUND:** the `[UNVERIFIED]` marker may not be removed; the Evaluator flags the citation as **[BLOCKER] citation does not resolve via any Class 1 verifier**.
 
@@ -251,10 +251,10 @@ As of the 2026-04-16 customization round, the following verifiers are **operatio
 - **Zotero + Scite** — `connected: true`, 43 tools registered under `mcp__zotero__*`
 - **HuggingFace Papers** — `connected: true` (UUID `ab9ac1e8-8aca-4de3-afba-92c86249d5aa`)
 
-Rule 7a is therefore **operationally satisfiable** at submission-bound depth in this deployment. Projects that were previously unable to clear `[UNVERIFIED]` markers because no Class 1 verifier was reachable should re-run the Evaluator's Step 8 citation pass on the next round; the Rule 7a column of the Category 1 audit should now close cleanly.
+These are historical connectivity observations, not current availability or claim-support evidence. Probe the actual session's tools before relying on a verifier. Successful connection and bibliographic resolution alone do not satisfy attribution support.
 
 **Failure-mode contract.** If a verifier is unreachable mid-session (MCP timeout, auth failure), the agent does NOT silently fall back to memory. It writes `[VERIFIER UNREACHABLE — <verifier>]` into the artifact at the point of use and continues with `[UNVERIFIED]` preserved. The Reflector's Category 1 audit distinguishes unreachable-verifier cases (not a violation) from bypassed-verifier cases (a Rule 7a violation).
 
 ---
 
-*Relationship to SK-20 (graph-grounding-overlay).* The graphify graph is **not** a Class 1 verifier. It is a pre-flight input that surfaces overlay candidates; its findings carry `[source: graph-extracted]` / `[source: graph-inferred]` / `[source: graph-stub]` tags and are audited under Category 8 of grounding-audit. A graphify hit does not satisfy Rule 7a; a Scholar Gateway hit does. The two layers are complementary: graphify tells you which cited sources the corpus graph knows about; Scholar Gateway tells you whether the cited paper exists in the external bibliographic record and what passage supports the claim.
+*Relationship to SK-20 (graph-grounding-overlay).* Graph results surface candidates with their extraction/inference/stub provenance. Neither a graph hit nor a scholarly-search metadata hit establishes attribution support. Read and judge the actual source passage under Rule 7a.

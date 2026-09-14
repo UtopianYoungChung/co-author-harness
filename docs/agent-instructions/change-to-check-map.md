@@ -50,6 +50,8 @@ the runner lock and registry invocation.
 | Command catalog or capability disposition | `python scripts/catalog-check.py`; `python scripts/command_surface_check.py` | Capability- or alias-specific smoketest | No |
 | Snippets or runtime snippet consumers | `python scripts/snippet-check.py` | Consumer skill's smoketest | No |
 | Documentation and links | `python scripts/path-hygiene-check.py`; `python scripts/manifest_links_check.py`; `python scripts/retirement-sweep-check.py` | None unless the document is a machine-consumed contract | No |
+| Ordinary task source support, traces, archives or timing | `python scripts/contract-kernel-check.py`; `python scripts/destination-coverage-check.py` | `piw_acceptance_smoketest.py`, `piw_research_support_smoketest.py`, `piw_trace_io_smoketest.py`, `piw_archive_smoketest.py`, `hermes_host_smoketest.py` under `scripts/` | No, unless registry/census changes |
+| Golden or research artifact scoring | `python scripts/contract-kernel-check.py` | `python scripts/golden_eval_smoketest.py`; `python scripts/research_artifact_eval_smoketest.py` | No, unless registry/census changes |
 | Distribution inventory or rights | `python scripts/distribution-rights-check.py` | `python scripts/distribution_rights_smoketest.py` | No |
 | Output-economy contracts | `python scripts/output_economy_check.py` | `python scripts/output_economy_smoketest.py` | No |
 | Commitment interactions | `python scripts/commitment-interactions-check.py` | Relevant interaction smoketest, if registered | No |

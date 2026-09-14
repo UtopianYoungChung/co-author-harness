@@ -23,9 +23,13 @@ def main() -> int:
         plugin = root / "plugin.json"
         dump(version, {"name": "fixture", "version": "0.1.0", "license": "MIT"})
         dump(plugin, {"name": "fixture", "version": "0.1.0", "license": "MIT", "description": "fixture"})
+        codex = root / '.codex-plugin/plugin.json'
+        dump(codex, {'name': 'fixture', 'version': '0.1.0', 'license': 'MIT', 'skills': './skills/'})
         updater.update(root, "0.2.0")
         assert json.loads(version.read_text())["version"] == "0.2.0"
         assert json.loads(plugin.read_text())["version"] == "0.2.0"
+        assert json.loads(codex.read_text())['version'] == '0.2.0'
+        assert json.loads(codex.read_text())['skills'] == './skills/'
         before = (version.read_bytes(), plugin.read_bytes())
         updater.update(root, "0.2.0")
         assert before == (version.read_bytes(), plugin.read_bytes())

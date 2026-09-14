@@ -280,12 +280,12 @@ The Reflector's grounding audit (see below) checks the verification chain for ev
 <a id="gp-7a"></a>
 ## Rule 7a — External Verification (Scholar Gateway, Consensus, Zotero/Scite)
 
-**A claim whose source has not been read in the current session may be treated as `[externally verified]` (and any upstream `[UNVERIFIED]` marker removed) only if a Class 1 verifier — as enumerated in `EXTERNAL_VERIFIERS.md` — returned a corroborating result in the current session AND the verification was logged.**
+**An attribution may be marked `[externally verified]` and its `[UNVERIFIED]` marker removed only after bibliographic resolution AND inspection of a source passage that supports the actual claim, with its locator and the support judgment logged in the current session.** A Class 1 metadata match establishes bibliographic resolution alone. It does not establish that the source supports the attribution.
 
 ### What this means
 
-- "Read before cite" (Rule 1) is the strongest form of verification: an agent has the source text in front of it. But many citations in a manuscript's REFERENCES.md will never be opened in any given review session — the agent reads the most-cited 5% and trusts the rest to the bibliography.
-- Rule 7a gives agents a second-strongest verification path: if a Class 1 external verifier (Scholar Gateway, Consensus, or Zotero + Scite — see `EXTERNAL_VERIFIERS.md` §2 for the current registry) returns a matching paper and, where possible, a matching passage, the agent may annotate the claim `[externally verified]`.
+- "Read before cite" (Rule 1) requires actual source text. Unread sources remain unread; a bibliography or retrieval hit cannot stand in for that read.
+- A Class 1 verifier can resolve a paper and retrieve a passage. Record `bibliographic_resolution` separately from `attribution_support`. Metadata-only results leave attribution support `unavailable`; preserve `[UNVERIFIED]` on the claim.
 - Class 1.5 (HuggingFace Papers for ML/AI venues) and Class 2 (local Zotero resolver, `.bib` resolver) provide *supporting* evidence only. They do not satisfy Rule 7a on their own. A Class 3 retraction hit (Scite) is binding and escalates to BLOCKER regardless.
 
 ### What this prohibits
@@ -302,8 +302,9 @@ Before removing an `[UNVERIFIED]` marker on a Rule 4 attribution:
 1. Choose a Class 1 verifier per `EXTERNAL_VERIFIERS.md` §3 (Zotero library first; Scholar Gateway for external; Consensus if the claim is contested).
 2. Invoke the verifier's MCP tool (e.g. `mcp__zotero__zotero_search_by_citation_key`, then fall through to `semanticSearch` if absent from library).
 3. Confirm the verifier returns a matching identifier AND matching source metadata (title/authors/year). Title-only matches are insufficient when multiple papers share a title.
-4. Append a row to `reviews/external_verification_log.md` with: date, agent, claim (short), verifier name, exact query, returned identifier, returned title, result (MATCH / CONTESTED / NOT FOUND / UNREACHABLE).
-5. Only then may you remove the `[UNVERIFIED]` marker and replace it with `[externally verified]`.
+4. Read the retrieved passage and context; identify its source locator and the manuscript claim locator. Judge whether it supports the precise attribution, including its qualifications. A matching phrase alone does not establish support.
+5. Append a row to the authorized `reviews/external_verification_log.md` with date, agent, exact claim and locator, verifier/query, identifier/title, bibliographic resolution, quoted passage and source locator, attribution support (`supported`, `unsupported`, `contested`, or `unavailable`) and rationale. Retain conflicting evidence and retraction findings.
+6. Remove `[UNVERIFIED]` only when attribution support is `supported` and no unresolved conflicting or retraction evidence defeats it. Metadata-only MATCH, missing passages and unresolved contested findings cannot clear the marker.
 
 If the verifier returns NOT FOUND, the `[UNVERIFIED]` marker **stays** and the Evaluator escalates the finding to `[BLOCKER] citation does not resolve via any Class 1 verifier`.
 
@@ -437,7 +438,7 @@ If a user instructs an agent to fabricate content, the agent must refuse and exp
 | `SAFEGUARD_LAYER.md` Check 5 | Edit Traceability requires rule citations for every edit. Grounding Protocol Rule 1 requires that the cited rule was actually read. |
 | `SAFEGUARD_LAYER.md` Check 3 | Abstract-Body Consistency checks whether promises are delivered. Grounding Protocol Rule 4 checks whether the delivered content is actually sourced. |
 | `REFERENCES.md` (project) | Already categorizes sources as "read directly," "snowball," or "cited via." Grounding Protocol Rule 4 uses this categorization to determine the attribution tier. |
-| `EXTERNAL_VERIFIERS.md` (package) | Enumerates the Class 1 / 1.5 / 2 / 3 external verifier tiers (Scholar Gateway, Consensus, Zotero + Scite, HuggingFace Papers). Rule 7a allows agents to clear `[UNVERIFIED]` markers against a Class 1 hit logged in `reviews/external_verification_log.md`. |
+| `EXTERNAL_VERIFIERS.md` (package) | Enumerates external verifier tiers. Rule 7a requires bibliographic resolution plus inspected passage support, with source/claim locators and a logged judgment, before clearing an attribution's `[UNVERIFIED]` marker. |
 | `skills/graph-grounding-overlay/SKILL.md` (SK-20) | Materializes Coupling E.2. Produces findings tagged `[source: graph-extracted]` / `[source: graph-inferred]` / `[source: graph-stub]`. Grounding-audit Category 8 traces every such finding back to `graph.json`. The graph is NOT a Class 1 verifier under Rule 7a; the two layers are complementary. |
 
 ---

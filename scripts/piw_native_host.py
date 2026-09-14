@@ -9,7 +9,7 @@ Synthetic logs are useful integration fixtures, never live-host qualification.
 from __future__ import annotations
 import json
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath, PurePosixPath
 import piw_session as piw
 
 
@@ -19,9 +19,10 @@ def require(condition: bool, code: str, message: str) -> None:
 
 
 def _rows(path: Path, byte_count: int | None = None) -> tuple[bytes, list[dict]]:
-    data = path.read_bytes()
-    if byte_count is not None:
-        data = data[:byte_count]
+    require(byte_count is None or (type(byte_count) is int and byte_count >= 0),
+            'PIW-HOST-TRACE-DRIFT', 'Trace prefix length must be a nonnegative integer')
+    with path.open('rb') as stream:
+        data = stream.read(-1 if byte_count is None else byte_count)
     # Only complete host log lines; a live parent can be appending concurrently.
     data = data[:data.rfind(b'\n') + 1]
     return data, [json.loads(x) for x in data.splitlines() if x.strip()]
@@ -80,16 +81,23 @@ def bind_host(host: dict, staging: Path) -> dict:
             'trust_boundary': 'Original host JSONL integrity is trusted; hashes detect changes but are not host authentication.'}
 
 
-def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pins: dict | None = None) -> dict:
+def trace_path(value, archived=False):
+    if archived:
+        return PureWindowsPath(value) if PureWindowsPath(value).drive else PurePosixPath(value)
+    return Path(value).resolve()
+
+
+def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pins: dict | None = None, read_rows=None) -> dict:
     if host.get('adapter') == 'hermes-hooks-jsonl':
         import piw_hermes_host
-        return piw_hermes_host.verify_execution(host, evidence, request, result, pins)
-    child = Path(evidence['child_log']).resolve()
-    parent = Path(host['parent_log']).resolve()
-    require(child.is_relative_to(Path(host['logs_root']).resolve()) and child != parent,
+        return piw_hermes_host.verify_execution(host, evidence, request, result, pins, read_rows)
+    child = trace_path(evidence['child_log'], read_rows is not None)
+    parent = trace_path(host['parent_log'], read_rows is not None)
+    require(child.is_relative_to(trace_path(host['logs_root'], read_rows is not None)) and child != parent,
             'PIW-HOST-TRACE-LOCATION', 'Child must have its own original host log')
-    child_data, rows = _rows(child, pins.get('child', {}).get('bytes') if pins else None)
-    parent_data, parent_rows = _rows(parent, pins.get('parent', {}).get('bytes') if pins else None)
+    reader = read_rows or _rows
+    child_data, rows = reader(child, pins.get('child', {}).get('bytes') if pins else None)
+    parent_data, parent_rows = reader(parent, pins.get('parent', {}).get('bytes') if pins else None)
     if pins:
         for name, data in [('child', child_data), ('parent', parent_data)]:
             require(piw.digest(data) == pins[name]['sha256'] and len(data) == pins[name]['bytes'],

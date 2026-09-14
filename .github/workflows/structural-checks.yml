@@ -50,6 +50,7 @@ jobs:
           set -e
           for script in \
             grounding_anchors_check.py \
+            contract-kernel-check.py \
             manifest_links_check.py \
             manifest-coherence-check.py \
             ssot-check.py

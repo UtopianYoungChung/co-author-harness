@@ -43,9 +43,12 @@ def update(root: Path, version: str) -> None:
     version_path = root / "version.json"
     plugin_path = root / "plugin.json"
     claude_path = root / ".claude-plugin" / "plugin.json"
+    codex_path = root / ".codex-plugin" / "plugin.json"
     marketplace_path = root / ".claude-plugin" / "marketplace.json"
     if claude_path.exists():
         destinations.assert_writable(claude_path, purpose="Claude host identity parity update")
+    if codex_path.exists():
+        destinations.assert_writable(codex_path, purpose="Codex host identity parity update")
     if marketplace_path.exists():
         destinations.assert_writable(marketplace_path, purpose="Claude marketplace identity parity update")
     authoritative = _load(version_path)
@@ -64,6 +67,12 @@ def update(root: Path, version: str) -> None:
         (version_path, _bytes(authoritative)),
         (plugin_path, _bytes(plugin)),
     ]
+    if codex_path.exists():
+        codex = _load(codex_path)
+        if codex.get('name') != name or codex.get('license') != license_name:
+            raise VersionUpdateRefusal('.codex-plugin/plugin.json identity does not mirror version.json')
+        codex['version'] = version
+        planned.append((codex_path, _bytes(codex)))
     if claude_path.exists():
         claude = _load(claude_path)
         if claude.get("name") != name:
@@ -110,6 +119,10 @@ def update(root: Path, version: str) -> None:
             replaced.append(path)
         if _load(version_path).get("version") != version:
             raise VersionUpdateRefusal("version readback failed")
+        if codex_path.exists():
+            codex = _load(codex_path)
+            if (codex.get('name'), codex.get('version'), codex.get('license')) != (name, version, license_name):
+                raise VersionUpdateRefusal('Codex host identity readback failed')
         parity = _load(plugin_path)
         if parity.get("version") != version:
             raise VersionUpdateRefusal("plugin.json parity readback failed")

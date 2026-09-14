@@ -90,6 +90,26 @@ GIT = find_git()
 # contract and can make upload installs fail.
 ARCHIVE_SUFFIXES = (".plugin", ".zip")
 
+# Execution state is not a fixture definition. Reject accidental tracking
+# rather than silently changing the builder/census population. Named fixtures
+# under scripts/fixtures remain ordinary package members.
+TRANSIENT_ROOT_PREFIXES = (
+    "assignment-milestone-checkpoint-", "full-run-valid-template-",
+    ".centroid-check-smoke-", ".harness-test-scratch",
+)
+
+
+def validate_package_membership(files: list[str]) -> None:
+    leaked = [rel for rel in files
+              if rel.split('/', 1)[0].startswith(TRANSIENT_ROOT_PREFIXES)
+              or rel == 'scripts/_piw_acceptance_last_run.json'
+              or rel.startswith('outputs/co-author-harness/')]
+    if leaked:
+        raise ValueError(
+            f"PACKAGE-TRANSIENT-MEMBER: {len(leaked)} generated workspace/state "
+            f"members are tracked; preserve and untrack them before packaging: "
+            + ', '.join(leaked[:3]))
+
 
 def resolve_head() -> str:
     """Resolve HEAD to a full SHA, once.
@@ -134,5 +154,6 @@ def enumerate_package_files(commit: str | None = None) -> tuple[list[str], list[
     )
     files = [line for line in result.stdout.splitlines() if line.strip()]
     filtered = [f for f in files if not f.endswith(ARCHIVE_SUFFIXES)]
+    validate_package_membership(filtered)
     excluded = sorted(set(files) - set(filtered))
     return filtered, excluded

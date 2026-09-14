@@ -1,0 +1,18 @@
+{
+  "schema_version": "research-artifact-benchmark/v1",
+  "evidence_kind": "synthetic task inputs; no real empirical claims",
+  "source_file": "sources.md",
+  "dimensions": ["source_fidelity", "argument_adequacy", "coverage", "uncertainty", "reader_comprehension", "scope_preservation"],
+  "scale": {"0": "absent or misleading", "1": "major repair needed", "2": "material weakness", "3": "adequate with bounded limitations", "4": "strong and explicit"},
+  "minimum_per_dimension": 3,
+  "critical_failures": ["fabricated_source_or_result", "unrequested_change", "false_acceptance_claim"],
+  "qualification": {"repeats_per_case_per_host": 3, "human_adjudication_required": true, "baseline_runs": [], "status": "unqualified_no_observed_baseline"},
+  "cases": [
+    {"id": "memo", "artifact": "project_memo.md", "brief": "Write a 300-450 word project memo explaining the research problem, investigatory question, proposed comparison, stakeholder concern, evaluation limits and expected contribution. Hold work conditions constant while varying representation; preserve unresolved questions.", "checks": ["Problem leads to question, method, evaluation and contribution", "Representation and authority are distinguished", "No settled definition invented for S4"]},
+    {"id": "synthesis", "artifact": "annotated_synthesis.md", "brief": "Write an annotated synthesis of S1-S4. Give each source identity, what it supports, its limits, and its relationship to the others. Conclude with the unresolved evidence needs.", "checks": ["All four sources are covered", "S2 and S3 measure different outcomes", "Contrasting observations remain visible"]},
+    {"id": "outline", "artifact": "argument_evidence_outline.md", "brief": "Produce an argument and evidence outline for a short conceptual and pilot paper. Map proposed claims to S1-S4, distinguish contribution from results, and identify the evidence needed before stronger claims are defensible.", "checks": ["Every substantive proposed claim has a source or evidence-needed marker", "Pilot inference remains bounded", "Method assesses stakeholder concern detection"]},
+    {"id": "draft", "artifact": "sourced_draft.md", "brief": "Write a 500-700 word draft with problem, method, observations, limitations and contribution. Cite supplied source IDs and paragraph locators. Present the pilot counts accurately without causal, population-wide or pooled effects.", "checks": ["Counts remain three of four and two of four", "Arrival-order assignment and missing timing are retained", "S3 is not pooled with S2"]},
+    {"id": "revision", "artifact": "revised_draft.md", "input_file": "revision.md", "editable_section": "Requested revision", "brief": "Repair unsupported claims and grammar only within the Requested revision section, using S1-S4. Preserve every byte outside that section, including realizational Agent and the open research question.", "checks": ["Protected sections match exactly", "Superiority and validated-scale claims are removed or explicitly qualified", "Meaningful terminology is preserved"]},
+    {"id": "review", "artifact": "final_review.md", "input_file": "revision.md", "brief": "Review the supplied draft against S1-S4. Provide locator-bound findings, justified severity, proposed remedies and a whole-document comprehension assessment. Identify unsupported claims while preserving the valid open question. Give a bounded readiness judgment without granting research acceptance.", "checks": ["Unsupported superiority, corroboration and scale claims are found", "Protected open question is not treated as a defect", "No acceptance or lifecycle terminal authority is invented"]}
+  ]
+}

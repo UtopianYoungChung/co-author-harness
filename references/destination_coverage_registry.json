@@ -299,6 +299,10 @@
       "class": "guarded",
       "regression": "scripts/piw_acceptance_smoketest.py::protected output and out-of-run hook refusal; pre-write delivery collision controls"
     },
+    "scripts/piw_archive.py": {
+      "class": "guarded",
+      "regression": "scripts/piw_archive_smoketest.py::protected destination refusal and intact portable archive"
+    },
     "scripts/hermes_plugin.py": {
       "class": "guarded",
       "regression": "scripts/hermes_host_smoketest.py"

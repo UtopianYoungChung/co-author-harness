@@ -85,6 +85,21 @@ class HermesAdapterTests(unittest.TestCase):
         plugin.record(self.traces, 'parent', 'unrelated_later_event')
         self.assertEqual(native.verify_execution(self.host, bound, self.request, self.result, bound['pins']), bound)
 
+    def test_archived_trace_reader_uses_only_captured_prefixes(self):
+        self.run_child()
+        bound = native.verify_execution(self.host, self.evidence, self.request, self.result)
+        captured = {p['path']: Path(p['path']).read_bytes()[:p['bytes']] for p in bound['pins'].values()}
+        def reader(path, count):
+            data = captured[str(path)][:count]
+            return data, [json.loads(line) for line in data.splitlines() if line.strip()]
+        with patch('piw_native_host._rows', side_effect=AssertionError('Archive must not read live paths')):
+            self.assertEqual(native.verify_execution(self.host, bound, self.request, self.result, bound['pins'], reader), bound)
+            captured[bound['pins']['child']['path']] += b'\n'
+            self.assertEqual(native.verify_execution(self.host, bound, self.request, self.result, bound['pins'], reader), bound)
+            captured[bound['pins']['child']['path']] = b''
+            with self.assertRaises(piw.PIWError):
+                native.verify_execution(self.host, bound, self.request, self.result, bound['pins'], reader)
+
     def test_budget_exhaustion_is_not_completion(self):
         self.run_child(completed=False)
         with self.assertRaisesRegex(piw.PIWError, 'successful finished'):

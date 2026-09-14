@@ -1,6 +1,6 @@
 {
   "name": "co-author-harness",
-  "version": "0.50.1",
+  "version": "0.50.2",
   "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
   "author": {
     "name": "Young Jo Chung",

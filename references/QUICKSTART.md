@@ -25,13 +25,13 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 ## The one rule
 
-**Always begin with an explicit project root, read its live lifecycle files, and name the run scope before dispatch. Never let a round close without the required Reflector pass.** These habits exercise nearly all of the machinery without inventing a global project ledger.
+**Name the requested scope before dispatch.** A bounded named review uses `adhoc_review`; ordinary drafting or revision uses `project_independent`. These routes need no pre-existing project. Drafting/revision must complete the required independent review and reflection before delivery. Explicit governed work uses `lab_iteration` or `full_lifecycle` with its actual project bindings.
 
 ---
 
 ## Session opening (every time)
 
-Open the assistant at the governed workspace or the exact project root. The package itself is the plugin root at `<workspace-root>/platform/co-author-harness`; it is not copied into `Research/.paper-package/`. If the assistant does not volunteer its grounding, prompt: *"Read the workspace and project instructions, then the package `AGENTS.md`, `references/GROUNDING_PROTOCOL.md`, `references/AGENTS.md`, and `references/MANIFEST.md`. Read this project's `reviews/assignment_contract.json` and `reviews/phase_state.json`. Declare `adhoc_review`, `lab_iteration`, or `full_lifecycle`, then tell me the current project state and next authorized action."*
+Resolve the loaded package root and read the named skill, `GROUNDING_PROTOCOL.md` and its selected rules. Ordinary tasks follow `PROJECT_INDEPENDENT_WORKFLOW.md`; supply the brief or input file, source excerpts where needed, and an authorized output area. For governed work, also read workspace/project instructions, the exact project's `reviews/assignment_contract.json` and `reviews/phase_state.json`. Explicit full runs read `FULL_RUN_CONTRACT.md` first.
 
 Do not infer the active project or phase from a root `conductor.md`. Project identity comes from the explicit project path and assignment contract; lifecycle state comes from that project's `reviews/phase_state.json` and milestone records.
 
@@ -54,7 +54,9 @@ python "$packageRoot/scripts/native_project_bootstrap.py" `
 
 ---
 
-## The seven phases and how to invoke each
+## Governed project phases and artifacts
+
+This table applies when the user requests governed project work. An ordinary "draft this" or "critique this" uses the scope routes above. Project artifacts remain in the authorized staging or private shipment lane until a separately authorized governance transaction applies them.
 
 | To do this | Say this | Lands on | First artifact you will see |
 |---|---|---|---|
@@ -67,13 +69,13 @@ python "$packageRoot/scripts/native_project_bootstrap.py" `
 | Sign off for submission | *"Is it ready?"* then *"Do the G.4 sign-off"* | **Ship (M5)** | `reviews/G4_signoff.md` |
 | Learn from the round | *"Retro this round"* | **Reflect** | `reviews/reflection_report.md` |
 
-Ambiguous utterances: Claude should ask which phase. If it doesn't, push back — *"Name the phase before dispatching."*
+Resolve ordinary task intent from the request. Clarify only when missing information changes the work; never invent a governed binding or silently downgrade explicit lifecycle intent.
 
 ---
 
 ## User checkpoints (do not skip them)
 
-Every arrow in `AGENT_ORCHESTRATION.md §3`'s loop is a mandatory stop. You see either a plan, findings, proposed edits, a re-check, or a reflection, and you either **approve**, **modify**, **dispute**, or **reject**. Approvals are what let the round advance. Silence is not approval.
+Continue the authorized ordinary task through planning, generation, review, correction and reflection. The task does not require a new user approval at each role transition. Governed operations retain the specific checkpoints and approval boundaries in their active assignment and lifecycle contracts. Where an approval is required, silence is not approval; a technical pass grants no research acceptance or promotion authority.
 
 ---
 
@@ -115,8 +117,8 @@ Skills are shortcuts, not substitutes. A BLOCKER from any skill should escalate 
 Four skills link Research projects to a peer wiki — see `wiki/syntheses/synergy-program-m0-completion-2026-04-13.md` for the full picture.
 
 - **SK-14** `promote-lessons-to-wiki` — Reflector may invoke it automatically; currently returns deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`) and must not write a Wiki synthesis page.
-- **SK-15** `backfill-source-stubs-from-references` — on-demand. Burns a project's REFERENCES.md into `wiki/sources/` stubs.
-- **SK-16** `retrofit-concept-grounding` — on-demand. Cites existing sources on wiki concept pages; flags red-links.
+- **SK-15** `backfill-source-stubs-from-references` — on-demand; canonical Wiki writes return deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
+- **SK-16** `retrofit-concept-grounding` — on-demand; canonical Wiki writes return deferred (`WIKI_WRITE_TRANSACTION_UNAVAILABLE`).
 - **SK-17** `ingest-m5-to-wiki` — may be invoked at M5 close-out after G.4 sign-off but currently returns `status: deferred` / `WIKI_WRITE_TRANSACTION_UNAVAILABLE` without writing a Wiki source page; G.4 / Phase 4 completion does not depend on Wiki write availability.
 
 At bootstrap, `PROJECT_BOOTSTRAP.md §3 Step 5` records wiki-linkage intent in the project AGENTS.md. Set `wiki_linked: false` to opt out entirely.

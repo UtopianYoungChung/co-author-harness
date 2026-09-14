@@ -22,8 +22,13 @@ def _paths(session_path):
     return checked['session'], Path(checked['staging_root'])
 
 
-def _fresh(binding: dict, code='PIW-EVIDENCE-DRIFT'):
-    actual = piw.identity(Path(binding['path']))
+def _read_bytes(path):
+    return Path(path).read_bytes()
+
+
+def _fresh(binding: dict, code='PIW-EVIDENCE-DRIFT', read_bytes=None):
+    data = (read_bytes or _read_bytes)(binding['path'])
+    actual = {'path': binding['path'], 'sha256': piw.digest(data), 'bytes': len(data)}
     require(all(actual[k] == binding[k] for k in ('sha256', 'bytes')), code, 'Bound bytes changed: ' + binding['path'])
     return actual
 
@@ -43,11 +48,12 @@ def _scope(original: bytes, requested: dict) -> dict:
             'prefix_sha256': piw.digest(original[:start]), 'suffix_sha256': piw.digest(original[end:])}
 
 
-def _preserved(contract, candidate):
+def _preserved(contract, candidate, read_bytes=None):
     if not contract.get('input'):
         return
-    original = Path(contract['input_snapshot']['path']).read_bytes()
-    final = Path(candidate['path']).read_bytes()
+    reader = read_bytes or _read_bytes
+    original = reader(contract['input_snapshot']['path'])
+    final = reader(candidate['path'])
     scope = contract['requested_scope']
     prefix, suffix = original[:scope['start_byte']], original[scope['end_byte']:]
     require(len(final) >= len(prefix) + len(suffix) and final.startswith(prefix) and final.endswith(suffix),
@@ -67,9 +73,11 @@ def start(session_path: Path, request: dict) -> dict:
     exclusions = sorted(set('chung-academic-voice-pass' if 'chung' in str(x).lower() else x for x in request.get('exclusions', [])))
     passes = request.get('passes', ['grammar-mechanics-pass', 'sentence-level-pass'])
     applied = [x for x in passes if x not in exclusions]
-    checks = request.get('required_checks', [{'id': 'brief_and_scope', 'required': True}, {'id': 'grammar', 'required': True}, {'id': 'grounding', 'required': True}])
+    checks = request.get('required_checks', [{'id': 'brief_and_scope', 'required': True}, {'id': 'grammar', 'required': True}, {'id': 'grounding', 'required': True, 'source_required': bool(request.get('source_excerpts'))}])
     checks = [{'id': x, 'required': True} if isinstance(x, str) else x for x in checks]
     require(checks and len({x['id'] for x in checks}) == len(checks), 'PIW-CHECKS-INVALID', 'Bind unique substantive checks')
+    require(all(x.get('verification_level', 'attribution') in ('attribution', 'bibliographic') for x in checks),
+            'PIW-CHECKS-INVALID', 'Source verification level must be attribution or bibliographic')
     requested_scope = request.get('requested_scope', {'description': 'whole deliverable'})
     require(isinstance(requested_scope, dict) and requested_scope.get('description'), 'PIW-SCOPE-REQUIRED', 'Bind an explicit scope description')
     original = (root / 'binding/original.bin').read_bytes() if session.get('mss_pin') else None
@@ -84,6 +92,7 @@ def start(session_path: Path, request: dict) -> dict:
         if item.get('sha256'):
             require(item['sha256'] == bound['sha256'], 'PIW-SOURCE-DRIFT', 'Supplied source hash differs from actual excerpt')
         sources.append({**item, **bound})
+    require(len({x['source_id'] for x in sources}) == len(sources), 'PIW-SOURCE-LOCATOR', 'Bind a unique source ID for each excerpt')
     contract = {'schema_version': '2.0.0', 'run_id': session['piw_work_id'], 'created_at': piw.utc_now(), 'session': piw.identity(root / 'binding/piw_session.json'),
                 'brief': request['brief'], 'profile': profile, 'profile_definition': PROFILES[profile], 'project_context': project_context, 'requested_scope': requested_scope, 'input': session.get('mss_pin'),
                 'input_snapshot': piw.identity(root / 'binding/original.bin') if original is not None else None,
@@ -119,7 +128,8 @@ def initial_state(contract):
     return {'stage': 'diagnosis' if contract['input'] else 'plan', 'candidate': contract.get('input_snapshot'), 'corrections': 0, 'unresolved_findings': [], 'limitations': [], 'executions': {}, 'last_findings': [], 'generator_execution_id': None}
 
 
-def validate_result(contract, request, result, state):
+def validate_result(contract, request, result, state, read_bytes=None):
+    reader = read_bytes or _read_bytes
     expected_role = {'diagnosis': 'evaluator', 'generation': 'generator', 'evaluation': 'evaluator', 'reflection': 'reflector'}.get(state['stage'])
     require(expected_role is not None and request.get('role') == expected_role and request.get('phase') == state['stage'], 'PIW-ROLE-SEQUENCE', 'Role must match the actual diagnosis/plan/generation/evaluation/reflection stage')
     for key in ('run_id', 'step_id', 'role', 'phase'):
@@ -140,12 +150,12 @@ def validate_result(contract, request, result, state):
     if request['role'] == 'generator':
         artifact = result.get('artifact')
         require(isinstance(artifact, dict), 'PIW-ARTIFACT-MISSING', 'Generator must bind substantive authored bytes')
-        _fresh(artifact, 'PIW-ARTIFACT-DRIFT')
-        root = Path(contract['session']['path']).parent.parent
-        require(Path(artifact['path']).resolve().is_relative_to(root / 'draft'), 'PIW-ARTIFACT-LOCATION', 'Generator writes a new candidate in this run draft directory')
-        require(artifact['bytes'] > 0 and len(Path(artifact['path']).read_text(encoding='utf-8-sig').split()) >= 3,
+        _fresh(artifact, 'PIW-ARTIFACT-DRIFT', read_bytes)
+        root = native.trace_path(contract['session']['path'], read_bytes is not None).parent.parent
+        require(native.trace_path(artifact['path'], read_bytes is not None).is_relative_to(root / 'draft'), 'PIW-ARTIFACT-LOCATION', 'Generator writes a new candidate in this run draft directory')
+        require(artifact['bytes'] > 0 and len(reader(artifact['path']).decode('utf-8-sig').split()) >= 3,
                 'PIW-SUBSTANTIVE-EVIDENCE-MISSING', 'Generator artifact is empty')
-        _preserved(contract, artifact)
+        _preserved(contract, artifact, read_bytes)
         expected = {x['id'] for x in state['last_findings'] if x.get('blocking')}
         require(expected.issubset(set(result.get('addressed_findings', []))), 'PIW-CORRECTION-UNBOUND', 'Correction must address the actual blocking finding IDs')
         return
@@ -158,6 +168,22 @@ def validate_result(contract, request, result, state):
                 'PIW-CHECK-EVIDENCE-MISSING', 'Check needs applicability, result, actual reason and locators: ' + required_check['id'])
         if required_check.get('source_required') and not contract['source_excerpts']:
             require(item['status'] in (('unavailable',) if required_check.get('required', True) else ('unavailable', 'not_applicable')), 'PIW-SOURCE-EVIDENCE-MISSING', 'Source-dependent check cannot pass without bound excerpts')
+        if required_check.get('source_required') and item['status'] == 'pass' and required_check.get('verification_level', 'attribution') == 'attribution':
+            support = item.get('source_support')
+            require(isinstance(support, list) and bool(support), 'PIW-SOURCE-EVIDENCE-MISSING', 'An attribution pass requires a supporting passage and claim locator')
+            sources = {x['source_id']: x for x in contract['source_excerpts']}
+            target_text = ' '.join(reader(request['target']['path']).decode('utf-8-sig').split())
+            for row in support:
+                require(isinstance(row, dict), 'PIW-SOURCE-EVIDENCE-MISSING', 'Source support must identify a passage and claim')
+                source = sources.get(row.get('source_id'))
+                require(source and row.get('source_locator') == source['locator'] and row.get('status') == 'supported',
+                        'PIW-SOURCE-EVIDENCE-MISSING', 'Attribution pass requires supported status and the bound passage locator')
+                quote, claim = row.get('quote'), row.get('claim')
+                require(isinstance(quote, str) and quote.strip() and isinstance(claim, str) and claim.strip(),
+                        'PIW-SOURCE-EVIDENCE-MISSING', 'Quote the source passage and the actual target claim')
+                source_text = ' '.join(reader(source['path']).decode('utf-8-sig').split())
+                require(' '.join(quote.split()) in source_text and ' '.join(claim.split()) in target_text,
+                        'PIW-SOURCE-EVIDENCE-MISSING', 'Quoted passage or claim does not occur in the bound bytes')
     findings = result.get('findings')
     require(isinstance(findings, list), 'PIW-FINDINGS-MISSING', 'Return findings or explained no-defect checks')
     require(all(isinstance(f.get('blocking'), bool) and f.get('id') and f.get('locator') and len(f.get('message', '').strip()) >= 15 for f in findings), 'PIW-FINDINGS-MISSING', 'Findings need IDs, locators, reasons and blocking disposition')
@@ -198,10 +224,17 @@ def advance(contract, state, role, result):
 def replay(session_path):
     contract, root, contract_binding = _contract(session_path)
     log = piw.read_json(root / 'logs/state.json')
+    state = replay_records(contract, contract_binding, log)
+    return contract, root, log, state
+
+
+def replay_records(contract, contract_binding, log, read_bytes=None, read_rows=None):
+    """Shared state validation; archived readers never resolve live source paths."""
+    reader = read_bytes or _read_bytes
     state = initial_state(contract)
     for index, event in enumerate(log['events']):
-        _fresh(event['result'])
-        result = piw.read_json(event['result']['path'])
+        _fresh(event['result'], read_bytes=read_bytes)
+        result = json.loads(reader(event['result']['path']))
         if event['kind'] == 'plan':
             require(state['stage'] == 'plan', 'PIW-SEQUENCE', 'Revision diagnosis must precede planning')
             require(result.get('run_id') == contract['run_id'] and result.get('contract_sha256') == contract_binding['sha256'] and len(result.get('summary', '')) >= 30 and bool(result.get('steps')), 'PIW-PLAN-MISSING', 'Planner must map user request and diagnosis into bounded concrete steps')
@@ -209,16 +242,16 @@ def replay(session_path):
             require(result.get('diagnosis_sha256') == expected_diagnosis, 'PIW-PLAN-DIAGNOSIS', 'Revision plan must bind the actual independent diagnosis')
             advance(contract, state, 'planner', result)
             continue
-        _fresh(event['request'])
-        request = piw.read_json(event['request']['path'])
+        _fresh(event['request'], read_bytes=read_bytes)
+        request = json.loads(reader(event['request']['path']))
         require(request['phase'] == state['stage'] and request['contract_sha256'] == contract_binding['sha256'] and request['sequence'] == index,
                 'PIW-SEQUENCE', 'Evidence is out of order or bound to another contract')
         target = contract['input_snapshot'] if state['stage'] == 'diagnosis' else state['candidate']
         require(request.get('target') == target, 'PIW-TARGET-MISMATCH', 'Request points at stale or unrelated bytes')
-        validate_result(contract, request, result, state)
-        native.verify_execution(contract['host'], event['host'], request, result, event['host']['pins'])
+        validate_result(contract, request, result, state, read_bytes)
+        native.verify_execution(contract['host'], event['host'], request, result, event['host']['pins'], read_rows)
         advance(contract, state, request['role'], result)
-    return contract, root, log, state
+    return state
 
 
 def next_step(session_path):
@@ -239,6 +272,7 @@ def next_step(session_path):
                    'exclusions': contract['exclusions'], 'required_checks': contract['required_checks'], 'source_excerpts': contract['source_excerpts'],
                    'findings_to_address': state['last_findings'], 'evidence_so_far': log['events'], 'output_directory': str(root / 'draft'),
                    'instruction': 'Perform the real assigned role in a distinct native context. Read actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
+        pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
         path = root / 'logs' / f'{len(log["events"]):03d}-{stage}-request.json'
         piw.write_json(path, pending)
         log['pending'] = piw.identity(path)

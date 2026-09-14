@@ -1,12 +1,14 @@
 # Changelog — co-author-harness
 
-Package-level changelog tracking substantive architectural changes, lessons learned across release cycles, and proposed-and-approved package improvements. Version-by-version narrative is mirrored in `README.md §Version`; this file adds the meta-learning layer (lessons, proposals, recurrence tracking) that `README.md` does not carry.
+Package-level changelog tracking substantive changes and lessons across release cycles. Current identity is authoritative in `version.json`; headings here record release history.
 
 Format follows the co-author-harness Reflector convention: each entry records *what*, *why*, and *how to apply*, with severity and agent attribution where applicable.
 
 ---
 
 ## Unreleased
+
+**Evaluation repairs (14 September 2026).** Remove generated fixture workspaces from tracking after a verified forensic backup, isolate future fixture workspaces, and refuse transient members at packaging. Repair exact-code/location golden scoring, remove answer-bearing headers when blinding, and require comparable baselines for regression gates. Add artifact-oriented benchmark inputs and an explicit human-adjudication boundary. Distinguish bibliographic resolution from passage support in source checks. Align onboarding with ordinary task routing. Bound host-prefix I/O, report observed role timing, and verify portable evidence archives without granting live execution or research authority. Refresh contract and test evidence after validation; installed and loaded host identities remain separate.
 
 **Claude Desktop / Cowork host pack.** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` are restored as Claude loader files. They mechanically mirror `version.json` name, version, and license (`co-author-harness`, not the retired second id `co-author-harness-claude`). Marketplace self-entry uses the dual-loader HTTPS URL source. `version-check.py` and `version_policy_smoketest.py` treat the Claude pack like the Codex host mirror: matching identity passes; drift is a blocker. `.claude-plugin/ssot.yaml` stays retired. This is loadability, not Claude Desktop installed-cache or Cowork hook-prevention qualification.
 

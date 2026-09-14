@@ -24,16 +24,16 @@ def bind_host(host, staging):
             'trust_boundary': 'Original Hermes lifecycle-hook JSONL integrity is trusted; hashes detect changes, not host authentication.'}
 
 
-def verify_execution(host, evidence, request, result, pins=None):
-    from piw_native_host import require, _rows, _time
-    parent = Path(host['parent_log']).resolve()
-    child = Path(evidence['child_log']).resolve()
-    require(child != parent and child.is_relative_to(Path(host['logs_root']).resolve()),
+def verify_execution(host, evidence, request, result, pins=None, read_rows=None):
+    from piw_native_host import require, _rows, _time, trace_path
+    parent = trace_path(host['parent_log'], read_rows is not None)
+    child = trace_path(evidence['child_log'], read_rows is not None)
+    require(child != parent and child.is_relative_to(trace_path(host['logs_root'], read_rows is not None)),
             'PIW-HOST-TRACE-LOCATION', 'Use the distinct original child log')
     data = {}
     rows = {}
     for name, path in [('parent', parent), ('child', child)]:
-        data[name], rows[name] = _rows(path, pins[name]['bytes'] if pins else None)
+        data[name], rows[name] = (read_rows or _rows)(path, pins[name]['bytes'] if pins else None)
         if pins:
             require(piw.digest(data[name]) == pins[name]['sha256'] and len(data[name]) == pins[name]['bytes'],
                     'PIW-HOST-TRACE-DRIFT', 'Pinned Hermes trace prefix changed')

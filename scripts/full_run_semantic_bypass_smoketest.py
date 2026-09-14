@@ -302,8 +302,10 @@ def valid_project(base: Path) -> Path:
             shutil.rmtree(_VALID_WORKING)
         shutil.copytree(_VALID_TEMPLATE, _VALID_WORKING)
         return _VALID_WORKING
+    scratch = ROOT / '.harness-test-scratch'
+    scratch.mkdir(exist_ok=True)
     _VALID_TEMPLATE_OWNER = tempfile.TemporaryDirectory(
-        prefix="full-run-valid-template-", dir=ROOT
+        prefix="full-run-valid-template-", dir=scratch
     )
     owner_root = Path(_VALID_TEMPLATE_OWNER.name)
     _VALID_WORKING = owner_root / "working" / "p"
