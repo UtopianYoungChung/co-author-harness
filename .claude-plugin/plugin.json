@@ -1,0 +1,25 @@
+{
+  "name": "co-author-harness",
+  "version": "0.50.1",
+  "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
+  "author": {
+    "name": "Young Jo Chung",
+    "email": "jo.chung@utoronto.ca",
+    "url": "https://github.com/UtopianYoungChung"
+  },
+  "homepage": "https://github.com/UtopianYoungChung/co-author-harness",
+  "repository": "https://github.com/UtopianYoungChung/co-author-harness.git",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "academic-writing",
+    "peer-review",
+    "four-agent-loop",
+    "phase-ladder",
+    "grounding-protocol",
+    "snowball-references",
+    "IS-research",
+    "HCI",
+    "zotero"
+  ]
+}

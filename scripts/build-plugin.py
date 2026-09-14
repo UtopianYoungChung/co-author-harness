@@ -2,8 +2,9 @@
 """Build the co-author-harness commit-bound package bundle.
 
 A `.plugin` file is a ZIP archive carrying the general `version.json`
-authority, the root `plugin.json` host identity, and the package tree. The
-retired Claude host pack is not synthesized during packaging.
+authority, the root `plugin.json` host identity, the Claude host pack when
+those files are tracked, and the package tree. The Claude pack is not
+synthesized from `version.json` during packaging.
 
 **Bundle definition.** `git ls-tree -r HEAD --name-only` on the harness root.
 Tracked files at the current HEAD go in; untracked session-scope content

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "joseph-chung-co-author-harness",
+  "owner": {
+    "name": "Young Jo Chung",
+    "email": "jo.chung@utoronto.ca"
+  },
+  "metadata": {
+    "description": "Single-plugin marketplace for the co-author-harness plugin: PhD-level academic-writing review harness, four-agent loop on a four-phase ladder."
+  },
+  "plugins": [
+    {
+      "name": "co-author-harness",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/UtopianYoungChung/co-author-harness.git"
+      },
+      "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
+      "version": "0.50.1",
+      "author": {
+        "name": "Young Jo Chung",
+        "email": "jo.chung@utoronto.ca"
+      },
+      "repository": "https://github.com/UtopianYoungChung/co-author-harness",
+      "license": "MIT",
+      "keywords": [
+        "research",
+        "academic-writing",
+        "peer-review",
+        "four-agent-loop",
+        "phase-ladder",
+        "grounding-protocol",
+        "snowball-references",
+        "IS-research",
+        "HCI",
+        "zotero"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

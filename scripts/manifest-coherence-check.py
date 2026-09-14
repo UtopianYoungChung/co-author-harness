@@ -178,9 +178,9 @@ def extract_marketplace_self_description(
 ) -> Tuple[Optional[str], Optional[str]]:
     """Return (self-entry description, cardinality/parse error).
 
-    The live package no longer ships the retired Claude pack. When a legacy
-    marketplace is present, zero or multiple manifest-identity entries remain
-    parity failures rather than a reason to skip the check.
+    When `.claude-plugin/marketplace.json` is present, zero or multiple
+    manifest-identity entries remain parity failures rather than a reason
+    to skip the check.
     """
     marketplace_path = plugin_root / ".claude-plugin" / "marketplace.json"
     if not marketplace_path.exists():

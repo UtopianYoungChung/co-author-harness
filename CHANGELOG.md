@@ -8,6 +8,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## Unreleased
 
+**Claude Desktop / Cowork host pack.** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` are restored as Claude loader files. They mechanically mirror `version.json` name, version, and license (`co-author-harness`, not the retired second id `co-author-harness-claude`). Marketplace self-entry uses the dual-loader HTTPS URL source. `version-check.py` and `version_policy_smoketest.py` treat the Claude pack like the Codex host mirror: matching identity passes; drift is a blocker. `.claude-plugin/ssot.yaml` stays retired. This is loadability, not Claude Desktop installed-cache or Cowork hook-prevention qualification.
+
 **Hermes Agent portable load.** Root `plugin.json` now declares the Agent Plugins v1.0.0 `$schema` so Hermes can install and enable this package as a portable plugin (`skills/*/SKILL.md` at the fixed location). Native `plugin.yaml` is refused: Hermes would prefer it and hide the portable loader. `scripts/version-check.py` gates the schema, closed field set, and YAML refusal. This is loadability, not Hermes installed-cache or startup qualification. Codex source-path execution remains a separate host.
 
 ---
