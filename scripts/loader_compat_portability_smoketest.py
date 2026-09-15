@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CHECK = ROOT / "scripts" / "loader-compat-check.py"
 HOOKS = ROOT / "hooks" / "hooks.json"
 GATE_REL = "scripts/hooks/full_run_pretooluse_gate.py"
+WINDOWS_GIT_BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
 
 
 def _write(path: Path, text: str) -> None:
@@ -34,6 +36,16 @@ def _hook_launch_command() -> tuple[str, list[str]]:
     return hook["command"], list(hook.get("args") or [])
 
 
+def _hook_shell(command: str) -> str:
+    """Resolve the configured shell before the test intentionally clears PATH."""
+    located = shutil.which(command)
+    if located:
+        return located
+    if os.name == "nt" and WINDOWS_GIT_BASH.is_file() and command == "bash":
+        return str(WINDOWS_GIT_BASH)
+    raise AssertionError(f"configured hook shell is unavailable: {command!r}")
+
+
 def case_hook_interpreter_resolution() -> None:
     command, args = _hook_launch_command()
     blob = " ".join([command, *args])
@@ -46,6 +58,7 @@ def case_hook_interpreter_resolution() -> None:
 
 def case_hook_launch_failure_is_loud() -> None:
     command, args = _hook_launch_command()
+    shell = _hook_shell(command)
     env = {
         key: value for key, value in os.environ.items()
         if key not in {"CLAUDE_PLUGIN_PYTHON", "CLAUDE_PLUGIN_ROOT"}
@@ -53,7 +66,7 @@ def case_hook_launch_failure_is_loud() -> None:
     }
     env["PATH"] = ""
     proc = subprocess.run(
-        [command, *args],
+        [shell, *args],
         capture_output=True,
         check=False,
         env=env,
@@ -66,6 +79,7 @@ def case_hook_launch_failure_is_loud() -> None:
 
 def case_hook_launches_from_resolved_interpreter() -> None:
     command, args = _hook_launch_command()
+    shell = _hook_shell(command)
     env = {
         key: value for key, value in os.environ.items()
         if key.upper() != "PYTHONUTF8"
@@ -73,7 +87,7 @@ def case_hook_launches_from_resolved_interpreter() -> None:
     env["CLAUDE_PLUGIN_PYTHON"] = sys.executable
     env["CLAUDE_PLUGIN_ROOT"] = str(ROOT)
     proc = subprocess.run(
-        [command, *args],
+        [shell, *args],
         input=b"{}",
         capture_output=True,
         check=False,

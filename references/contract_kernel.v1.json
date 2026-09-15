@@ -1184,7 +1184,7 @@
       "id": "research-artifact-eval",
       "path": "scripts/eval/research_artifact_eval.py",
       "revision_kind": "sha256",
-      "sha256": "d70ea9196c8d5d0a74248a5aa944631ce5018fd40015229df218e1ab9807e1f6",
+      "sha256": "aad2bea35b71c449cfeb92e16d00fe6691e112f1adb4ded09c02bd254973e315",
       "migration_ids": []
     },
     {

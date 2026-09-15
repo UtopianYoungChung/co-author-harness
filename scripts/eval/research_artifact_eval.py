@@ -28,7 +28,7 @@ def prepare(case):
     inputs = []
     for name in names:
         data = (ROOT / name).read_bytes()
-        inputs.append({'name': name, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'text': data.decode('utf-8')})
+        inputs.append({'name': name, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'text': data.decode('utf-8', errors='strict')})
     packet = {k: spec[k] for k in ('id', 'artifact', 'brief', 'editable_section') if k in spec}
     packet.update(inputs=inputs, evidence_kind=MANIFEST['evidence_kind'])
     return {'packet': packet, 'packet_sha256': piw.digest(piw.json_bytes(packet)), 'quality_qualified': False}

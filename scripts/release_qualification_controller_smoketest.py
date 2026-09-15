@@ -22,6 +22,16 @@ ROOT = Path(__file__).resolve().parent.parent
 MODULE = ROOT / "scripts" / "release_qualification_controller.py"
 ENVIRONMENT = ROOT / "scripts" / "qualification_environment.py"
 _FIXTURE_OWNER_MODE = False
+WINDOWS_GIT_BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
+
+
+def _bash() -> str:
+    """Locate Git Bash on Windows even when PowerShell PATH omits it."""
+    if os.name == "nt" and WINDOWS_GIT_BASH.is_file():
+        return str(WINDOWS_GIT_BASH)
+    bash = shutil.which("bash")
+    assert bash, "bash is required to exercise release-gate.sh"
+    return bash
 
 
 def _package_bytecode_inventory() -> tuple[tuple[str, ...], dict[str, tuple[int, str]]]:
@@ -94,8 +104,7 @@ exit 0
 
 
 def _run_dirname_walk(*, start: str, fixed_point: bool, cap: int = 32) -> subprocess.CompletedProcess:
-    bash = shutil.which("bash")
-    assert bash, "bash is required to exercise dirname walks"
+    bash = _bash()
     return subprocess.run(
         [bash, "-c", _WALK_HELPER, "walk", start, str(cap), "1" if fixed_point else "0"],
         capture_output=True, check=False, timeout=15, text=True, encoding="utf-8", errors="replace"
@@ -123,8 +132,7 @@ def _case_fixed_point_walk_terminates() -> None:
 
 def _case_phase01_native_open_and_git() -> None:
     """After rematerialize, native python3 and git -C can see PLUGIN_ROOT."""
-    bash = shutil.which("bash")
-    assert bash, "bash is required to exercise release-gate rematerialize"
+    bash = _bash()
     script = r"""
 set -euo pipefail
 PLUGIN_ROOT="$(cd "$1" && pwd)"
@@ -160,8 +168,7 @@ def _case_verify_child_path_spelling() -> None:
         ROOT / "does-not-exist-attestation-run"
     )
     env["COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_TOKEN"] = "0" * 64
-    bash = shutil.which("bash")
-    assert bash, "bash is required to exercise release-gate.sh"
+    bash = _bash()
     result = subprocess.run(
         [bash, str(gate), "--coauthor-controller-child", "--help"],
         capture_output=True, check=False, env=env, timeout=120,
@@ -4276,8 +4283,7 @@ time.sleep(60)
         # An ambient recursion marker cannot bypass the durable release-gate
         # facade.  The controller receipt proves the gate was relaunched.
         gate = ROOT / "scripts" / "release-gate.sh"
-        bash = (Path(r"C:\Program Files\Git\bin\bash.exe") if os.name == "nt"
-                else Path(shutil.which("bash") or ""))
+        bash = Path(_bash())
         assert bash.is_file(), bash
         facade_root = root / "facade-runs"
         # Fresh identity prevents old source-side output from masking drift.

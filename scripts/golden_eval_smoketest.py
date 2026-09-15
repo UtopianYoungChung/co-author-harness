@@ -94,7 +94,7 @@ class GoldenTests(unittest.TestCase):
                     baseline_path.write_text(json.dumps(changed), encoding='utf-8')
                     result = subprocess.run([sys.executable, '-X', 'utf8', str(SCRIPT),
                         str(findings_path), '--baseline', str(baseline_path)],
-                        capture_output=True, text=True, encoding='utf-8')
+                        capture_output=True, text=True, encoding='utf-8', errors='strict')
                     self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
 

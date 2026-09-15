@@ -260,7 +260,7 @@ def main() -> int:
     if tracked.returncode == 0:
         try:
             validate_package_membership([
-                name.decode('utf-8') for name in tracked.stdout.split(b'\0') if name
+                name.decode('utf-8', errors='strict') for name in tracked.stdout.split(b'\0') if name
             ])
         except ValueError as exc:
             blockers.append(str(exc))
