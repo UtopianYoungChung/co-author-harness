@@ -88,6 +88,13 @@ Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.
 
+Ordinary drafting and revision need a host that can spawn real child agents and
+keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`),
+Hermes (`hermes-hooks-jsonl`, [`references/HERMES_DESKTOP.md`](references/HERMES_DESKTOP.md)),
+and Claude Code / Claude Desktop / Cowork (`claude-code-jsonl`,
+[`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md)). Read-only
+passes and the mechanical adapters run on any host without one.
+
 On hosts where the corpus is not mounted at the profile's recorded Windows
 paths, set `AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and (when the package is
 relocated) `AGENT_HARNESS_ROOT`. Explicit `--wiki-root`, `--workspace-root`, and

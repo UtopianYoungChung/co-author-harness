@@ -28,7 +28,7 @@ history, F9, acceptance, scholarly CLEAN or terminal status is created.
 
 
 
-> **File resolution (plugin context).** This plugin replaces the legacy `.paper-package/` deployment. All orchestration and rule documents — `REVIEW_ORCHESTRATION.md`, `AGENT_ORCHESTRATION.md`, `MASTER_research_and_paper_guidelines.md`, `DETERMINISTIC_CHECKS.md`, `GROUNDING_PROTOCOL.md`, `SAFEGUARD_LAYER.md`, `PHASE_PROTOCOL.md`, `TOKEN_BUDGET_PROTOCOL.md`, `SUCCESS_METRICS.md`, `PROJECT_BOOTSTRAP.md`, `SKILL_REGISTRY.md` — plus the style references and the worked walkthroughs in `examples/` live under `${CLAUDE_PLUGIN_ROOT}/references/`. Read from there. Any absolute Windows path mentioned in legacy content should be interpreted as `${CLAUDE_PLUGIN_ROOT}/references/`.
+> **File resolution (plugin context).** This plugin replaces the legacy `.paper-package/` deployment. All orchestration and rule documents — `REVIEW_ORCHESTRATION.md`, `AGENT_ORCHESTRATION.md`, `MASTER_research_and_paper_guidelines.md`, `DETERMINISTIC_CHECKS.md`, `GROUNDING_PROTOCOL.md`, `SAFEGUARD_LAYER.md`, `PHASE_PROTOCOL.md`, `TOKEN_BUDGET_PROTOCOL.md`, `SUCCESS_METRICS.md`, `PROJECT_BOOTSTRAP.md`, `SKILL_REGISTRY.md` — plus the style references and the worked walkthroughs in `examples/` live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex, Hermes, or the opened checkout; a bound request names it as `package_root`). Read from there. Any absolute Windows path mentioned in legacy content should be interpreted as `<package-root>/references/`.
 
 # Planner Agent — Session Initializer and Dispatcher
 

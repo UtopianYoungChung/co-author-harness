@@ -1,16 +1,32 @@
 #!/usr/bin/env python3
-"""Small native-host boundary for Codex original JSONL logs.
+"""Native-host boundary: adapter registry plus the Codex original-JSONL verifier.
 
 Python never dispatches cognitive roles. The caller invokes native subagents and
 waits, then supplies original host logs. Their integrity is a trust boundary,
 not cryptographic authentication. Prefix pins tolerate subsequent log appends.
 Synthetic logs are useful integration fixtures, never live-host qualification.
+
+Every host that can spawn a real child agent and keeps an inspectable original
+trace binds through one adapter in ``ADAPTERS``. The Codex verifier lives in this
+module; the others live in their own ``piw_<host>_host`` module exposing
+``bind_host``, ``verify_execution`` and ``start_timestamp``. An unregistered
+adapter is refused as ``PIW-HOST-CAPABILITY-UNAVAILABLE``; read-only passes never
+depend on an adapter.
 """
 from __future__ import annotations
+import importlib
 import json
 from datetime import datetime
 from pathlib import Path, PureWindowsPath, PurePosixPath
 import piw_session as piw
+
+# adapter name -> module exposing bind_host / verify_execution / start_timestamp;
+# None means the Codex implementation below.
+ADAPTERS: dict[str, str | None] = {
+    'codex-jsonl': None,
+    'hermes-hooks-jsonl': 'piw_hermes_host',
+    'claude-code-jsonl': 'piw_claude_host',
+}
 
 
 def require(condition: bool, code: str, message: str) -> None:
@@ -65,11 +81,21 @@ def _session_metadata(rows: list[dict], expected_id: str | None = None) -> list[
     return metas
 
 
+def adapter_module(host: dict):
+    """Resolve the registered adapter for a host object; unknown adapters fail closed."""
+    name = host.get('adapter') if isinstance(host, dict) else None
+    require(name in ADAPTERS, 'PIW-HOST-CAPABILITY-UNAVAILABLE',
+            'This drafting/revision route requires actual native subagents through a registered trace adapter: '
+            + ', '.join(sorted(ADAPTERS)))
+    module = ADAPTERS[name]
+    return importlib.import_module(module) if module else None
+
+
 def bind_host(host: dict, staging: Path) -> dict:
-    if host.get('adapter') == 'hermes-hooks-jsonl':
-        import piw_hermes_host
-        return piw_hermes_host.bind_host(host, staging)
-    require(host.get('adapter') == 'codex-jsonl' and host.get('subagents_available') is True,
+    adapter = adapter_module(host)
+    if adapter is not None:
+        return adapter.bind_host(host, staging)
+    require(host.get('subagents_available') is True,
             'PIW-HOST-CAPABILITY-UNAVAILABLE', 'This drafting/revision route requires actual native subagents and the codex-jsonl trace adapter')
     logs = Path(host['logs_root']).resolve()
     parent = Path(host['parent_log']).resolve()
@@ -88,9 +114,9 @@ def trace_path(value, archived=False):
 
 
 def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pins: dict | None = None, read_rows=None) -> dict:
-    if host.get('adapter') == 'hermes-hooks-jsonl':
-        import piw_hermes_host
-        return piw_hermes_host.verify_execution(host, evidence, request, result, pins, read_rows)
+    adapter = adapter_module(host)
+    if adapter is not None:
+        return adapter.verify_execution(host, evidence, request, result, pins, read_rows)
     child = trace_path(evidence['child_log'], read_rows is not None)
     parent = trace_path(host['parent_log'], read_rows is not None)
     require(child.is_relative_to(trace_path(host['logs_root'], read_rows is not None)) and child != parent,
@@ -141,3 +167,14 @@ def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pi
                 'parent': {'path': str(parent), 'bytes': len(parent_data), 'sha256': piw.digest(parent_data)}},
             'child_complete_ordinal': completed[0].get('ordinal'),
             'parent_dispatch_ordinal': starts[0].get('ordinal'), 'trust_boundary': host['trust_boundary']}
+
+
+def start_timestamp(host: dict, rows: list[dict], evidence: dict) -> str:
+    """Timestamp of the verified role start inside the pinned child prefix, per adapter."""
+    adapter = adapter_module(host)
+    if adapter is not None:
+        return adapter.start_timestamp(host, rows, evidence)
+    starts = [r for r in rows if r.get('type') == 'event_msg' and r['payload'].get('type') == 'task_started'
+              and r['payload'].get('turn_id') == evidence['turn_id']]
+    require(len(starts) == 1, 'PIW-METRICS-START', 'Cannot identify a unique role start')
+    return starts[0]['timestamp']

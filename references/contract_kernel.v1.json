@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "3a6cabe811c72e276be6948e50982a211da8195541d6fb36b5d700b7129af5fe",
+      "sha256": "23521ae38e212e0921bb75e4b9528f591ecf70efebd6c10f1e9562e81effa71d",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "b88c62c92d43b7cd59a9a0cfe0c995fcff7b856556e091167dc6b2e220a178b0",
+      "sha256": "b52d992345b4de15692d3360db3ce677455701f57805cbd3ec6db2e69a08255f",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -961,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "e91835e463ddc96e961eed3f014644411362cafb01a7397bd225faf099f18e5e",
+      "sha256": "ddf758f82a4832f94656cdb7e69bdc68dad378bf64377266c9c9ba7d5a4fc3e9",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1121,7 +1121,7 @@
       "id": "project-independent-workflow",
       "path": "references/PROJECT_INDEPENDENT_WORKFLOW.md",
       "revision_kind": "sha256",
-      "sha256": "3eff924987a69d02663ad1b0d86ab2a0a46984473502a6f5208b6a7c7935aad5",
+      "sha256": "2cd1ed77aad678a13844e91a63794108418f654227f10ed0dede29f2466ff5ae",
       "migration_ids": []
     },
     {
@@ -1135,7 +1135,7 @@
       "id": "piw-coordinator",
       "path": "scripts/piw_coordinator.py",
       "revision_kind": "sha256",
-      "sha256": "d7a8d51f10025f05420010512dddff34cf1689850222ebb8a04dbc8b13203492",
+      "sha256": "dabef1c91e8bffd7808297dcf7f855555720f7a2b9251708a346d4dfc3dff265",
       "migration_ids": []
     },
     {
@@ -1149,14 +1149,21 @@
       "id": "piw-native-host",
       "path": "scripts/piw_native_host.py",
       "revision_kind": "sha256",
-      "sha256": "584b37cb655deedaae48075fcde3428f23d74e3ca8080fdfce42d4518d8fb7fe",
+      "sha256": "ccd7a8258e24e0915d6873bebab690329cd51079ce499f04983605f1a201afc6",
       "migration_ids": []
     },
     {
       "id": "piw-hermes-host",
       "path": "scripts/piw_hermes_host.py",
       "revision_kind": "sha256",
-      "sha256": "624b0c6e1d508b25d21080fcff26aaaccf33074fafd379cd9fddc826b4bd809c",
+      "sha256": "73028c37c47775e4ce41435e254e10b17ce79da8542cb47b20e43b7a82ed0337",
+      "migration_ids": []
+    },
+    {
+      "id": "piw-claude-host",
+      "path": "scripts/piw_claude_host.py",
+      "revision_kind": "sha256",
+      "sha256": "77921571b2e009edef8d6efc65ba0fd2d70272299005c0d19ef20157ac5deaef",
       "migration_ids": []
     },
     {
@@ -1170,7 +1177,7 @@
       "id": "piw-metrics",
       "path": "scripts/piw_metrics.py",
       "revision_kind": "sha256",
-      "sha256": "c66f9b2f0186cd97418f41323379f05eb6d257aa72da68087212666d8452e363",
+      "sha256": "081183b25c8942c1ebec18656455e039799d2b5e477f250b83659feb4160b149",
       "migration_ids": []
     },
     {

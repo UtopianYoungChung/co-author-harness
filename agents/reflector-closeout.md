@@ -9,7 +9,7 @@ description: |
   </example>
 ---
 
-> **File resolution (plugin context).** All orchestration and rule documents live under `${CLAUDE_PLUGIN_ROOT}/references/`. Read from there.
+> **File resolution (plugin context).** All orchestration and rule documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex, Hermes, or the opened checkout; a bound request names it as `package_root`). Read from there.
 
 # Reflector (closeout) — Full Five-Phase Reflection
 

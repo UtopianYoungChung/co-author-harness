@@ -15,12 +15,7 @@ def measure(session):
         request = piw.read_json(event['request']['path'])
         host = event['host']
         _, rows = native._rows(Path(host['child_log']), host['pins']['child']['bytes'])
-        if contract['host']['adapter'] == 'codex-jsonl':
-            starts = [r for r in rows if r.get('type') == 'event_msg' and r['payload'].get('type') == 'task_started' and r['payload'].get('turn_id') == host['turn_id']]
-        else:
-            starts = [r for r in rows if r.get('type') == 'child_started']
-        native.require(len(starts) == 1, 'PIW-METRICS-START', 'Cannot identify a unique role start')
-        started = starts[0]['timestamp']
+        started = native.start_timestamp(contract['host'], rows, host)
         finished = host['finished_at']
         roles.append({'role': request['role'], 'phase': request['phase'], 'agent_execution_id': host['agent_execution_id'],
                       'started_at': started, 'finished_at': finished,

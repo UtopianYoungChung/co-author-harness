@@ -13,7 +13,7 @@ This pass is additive. It does not replace Baird, Sexton, Bacon, or P-stage gati
 
 ## File resolution
 
-Read style and orchestration files from `${CLAUDE_PLUGIN_ROOT}/references/`.
+Read style and orchestration files from the package `references/` directory (`${CLAUDE_PLUGIN_ROOT}` on Claude hosts; otherwise the installed package root containing `version.json`).
 
 ## Activation gate
 

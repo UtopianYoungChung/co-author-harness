@@ -69,3 +69,10 @@ def verify_execution(host, evidence, request, result, pins=None, read_rows=None)
     return {**evidence, 'finished_at': stops[0]['timestamp'], 'pins': {
         name: {'path': str(path), 'bytes': len(data[name]), 'sha256': piw.digest(data[name])}
         for name, path in [('parent', parent), ('child', child)]}, 'trust_boundary': host['trust_boundary']}
+
+
+def start_timestamp(host, rows, evidence):
+    from piw_native_host import require
+    starts = [r for r in rows if r.get('type') == 'child_started']
+    require(len(starts) == 1, 'PIW-METRICS-START', 'Cannot identify a unique role start')
+    return starts[0]['timestamp']

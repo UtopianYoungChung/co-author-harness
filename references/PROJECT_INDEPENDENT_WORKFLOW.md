@@ -34,15 +34,18 @@ role execution. The host caller invokes its native child-agent tools, waits for
 finished outcomes and retains original execution references. A script producing
 role JSON or a coordinator echoing fixed prose is not a child agent.
 
-On Codex use native spawn, followup/message, wait/status and returned final outputs.
+Every host binds through one registered trace adapter in
+`scripts/piw_native_host.py` (`ADAPTERS`): `codex-jsonl` (Codex native spawn,
+followup/message, wait/status and returned final outputs), `hermes-hooks-jsonl`
+(Hermes lifecycle hooks, `HERMES_DESKTOP.md`), and `claude-code-jsonl` (Claude
+Code, Claude Desktop, Cowork and Agent SDK session logs, `CLAUDE_CODE_HOST.md`).
 Pass the bound role request to a real child and wait for completion before ingest.
 Never pass model/provider overrides where dispatch inherits a pin. A host lacking
-real children or inspectable execution evidence returns
+real children, an inspectable original trace, or a registered adapter returns
 `PIW-HOST-CAPABILITY-UNAVAILABLE` for drafting/revision. Independent read-only
-passes continue. Other host adapters require their own tested trace mapping;
-Codex source-path execution is not Hermes, installed-cache or startup qualification.
-Hermes uses the native lifecycle-hook adapter described in `HERMES_DESKTOP.md`;
-its fixture checks do not establish live-host qualification.
+passes continue. A new host requires its own adapter module and fixture suite;
+source-path execution on one host is not installed-cache, startup, or live
+qualification on another, and adapter fixtures never establish live-host proof.
 
 Original host logs are the trust boundary, not a cryptographic attestation.
 Verification must check parent-child linkage, execution/turn identity, finished
@@ -185,11 +188,17 @@ Contested, unsupported or unavailable passages cannot clear the check.
 The default correction limit is three. No-change revision still follows the full
 revision sequence and produces separately reviewed unchanged candidate bytes.
 
-The Codex host object names `adapter: codex-jsonl`, `subagents_available: true`,
-`logs_root` and `parent_log` from the actual running host. These declarations do
-not prove execution. `ingest` requires the child's original `child_log`, actual
-`agent_execution_id` and `turn_id`; the verifier inspects that parent/child trace.
-Never point this boundary at synthetic integration logs for live qualification.
+The host object names the registered `adapter`, `subagents_available: true`,
+`logs_root` and `parent_log` from the actual running host (Codex: `codex-jsonl`;
+Hermes: `hermes-hooks-jsonl`; Claude Code and Claude Desktop: `claude-code-jsonl`).
+These declarations do not prove execution. `ingest` requires the child's original
+`child_log`, actual `agent_execution_id` and `turn_id` (on Claude Code the
+`agentId` and the dispatching `tool_use` id); the verifier inspects that
+parent/child trace. Every emitted request also binds `role_prompt`
+(`agents/<role>.md`), `skill_bodies` (the applied `skills/*/SKILL.md`) and
+`package_root`, so a child on any host reads the same role file and skill
+bodies. Never point this boundary at synthetic integration logs for live
+qualification.
 
 When `next` returns `awaiting_native_child`, read the returned `request_path` and
 validate `python scripts/full_run_contract_check.py scope --parent-scope
