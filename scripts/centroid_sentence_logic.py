@@ -491,7 +491,7 @@ def _out_dir(args: argparse.Namespace) -> Path | None:
     if args.shipment_id:
         if not args.project_root:
             raise Refusal("SENTENCE-LOGIC-DEST", "--shipment-id requires --project-root")
-        dest = Path(args.project_root).resolve() / "reviews" / ".harness" / "shipments" / args.shipment_id
+        dest = Path(args.project_root).resolve() / "reviews" / "harness" / "shipments" / args.shipment_id
     elif args.out_dir:
         dest = Path(args.out_dir).resolve()
     else:

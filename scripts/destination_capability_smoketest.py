@@ -83,6 +83,15 @@ def case_classifier() -> None:
                         "findings.json")
             check("research shipment lane -> shipment (writable)",
                   dc.classify(shipment) == "shipment", dc.classify(shipment))
+            visible_base = fake / "research" / "60_Workbench" / "w1" / "reviews" / "harness"
+            for label, path, expected in (
+                ("visible shipment", visible_base / "shipments" / "s1" / "draft.md", "shipment"),
+                ("visible root", visible_base, "protected"),
+                ("visible shipment parent", visible_base / "shipments", "protected"),
+                ("visible adjacent control", visible_base / "phase_state.json", "protected"),
+                ("visible traversal", visible_base / "shipments" / "s1" / ".." / ".." / "phase_state.json", "protected"),
+            ):
+                check(label, dc.classify(path) == expected, dc.classify(path))
             assignment_ready = (fake / "research" / "60_Workbench" / "w1" /
                                 "reviews" / ".harness" / "assignment" / "ready" /
                                 "gate.json")

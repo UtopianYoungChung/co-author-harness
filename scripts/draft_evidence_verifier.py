@@ -72,6 +72,7 @@ REQUIRED_SEMANTICS_MEMBERS = (
     "scripts/assignment_receipt_transaction.py",
     "scripts/c2_evidence_validation.py",
     "scripts/canonical_bibliography.py",
+    "scripts/bibliography_review.py",
     "scripts/destination_capability.py",
     "scripts/draft_evidence_verifier.py",
     "scripts/evidence_publication.py",

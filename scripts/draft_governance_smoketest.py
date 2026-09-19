@@ -337,6 +337,9 @@ def semantic_receipt(
             "actionable_findings": [],
         },
     }
+    from bibliography_fixture_support import from_passages
+    value['semantic_assessment']['bibliography_review'] = from_passages(
+        artifact.read_text(encoding='utf-8'), value['passages'])
     if generation_envelope is not None:
         value["generation_envelope"] = binding(generation_envelope)
         value["adjudications"] = []
@@ -1089,7 +1092,7 @@ checked the wording, while the author retained responsibility for the claim.
             == "GRAPH_GOVERNED_GENERATION_UNAVAILABLE",
             "centroid/graph must fail-closed when semantic_usage=not_invoked",
         )
-        ship = project / "reviews" / ".harness" / "shipments" / "smoketest-evaluation-lane"
+        ship = project / "reviews" / "harness" / "shipments" / "smoketest-evaluation-lane"
         result_dir = ship / "obligation-results" / "evaluation"
         silent = []
         cleaned = []
@@ -1338,7 +1341,7 @@ checked the wording, while the author retained responsibility for the claim.
             or "d-style-profile" in generation_note.get("mechanical_obligation_ids", []),
             "generation still runs dest-safe d-style-profile",
         )
-        gen_ship = project / "reviews" / ".harness" / "shipments" / "smoketest-generation-deferral"
+        gen_ship = project / "reviews" / "harness" / "shipments" / "smoketest-generation-deferral"
         gen_grounding = json.loads(
             (gen_ship / "obligation-results" / "generation" / "grounding-protocol.json").read_text(
                 encoding="utf-8"

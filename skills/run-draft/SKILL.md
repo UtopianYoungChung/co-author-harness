@@ -37,6 +37,8 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-draft — public draft coordinator (staging)
 
+**Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 through discovery, generation and evaluation. Require complete reference/use assessments in existing role evidence before substantive completion; current-state claims need current evidence, and advisor guidance is not automatically a reference.
+
 `/run-draft` is a real public coordinator. It is not a degraded ad and not a
 chat-to-manuscript bypass. It coordinates the four plugin hands **on staging**.
 
@@ -68,7 +70,7 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
    Staging roots are
    `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`
    and dest-safe receipts under
-   `research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
+   `research/60_Workbench/<work-id>/reviews/harness/shipments/<shipment-id>/`.
 3. Evaluator certifies those exact shipment bytes (exact hash).
 4. Reflector performs the required scoped closeout after a certified shipment. It does not accept
    milestones and does not promote research artifacts.

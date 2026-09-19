@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator
 
 from c2_evidence_fixture_support import build_activation_fixture
 import product_assurance as detector
+from bibliography_fixture_support import from_passages
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -227,6 +228,8 @@ def write_receipt(path: Path, manuscript: Path, source_a: Path, extract_a: Path,
             "deviations": [], "warrant_limits": [], "actionable_findings": [],
         },
     }
+    payload['semantic_assessment']['bibliography_review'] = from_passages(
+        manuscript.read_text(encoding='utf-8'), payload['passages'])
     path.write_text(canonical_json(payload), encoding="utf-8", newline="\n")
     # Self-bindings above are deliberately ignored by this kernel; draft
     # governance owns cross-envelope identity and exact packet verification.
@@ -282,6 +285,31 @@ def main() -> int:
 
         intended_red: list[str] = []
         intended_red.extend(detector_fixture_failures())
+
+        repeated = json.loads(receipt.read_text(encoding='utf-8'))
+        extra = dict(repeated['passages'][0], quote='whys')
+        repeated['passages'].append(extra)
+        repeated_path = root / 'same-page-passages.json'
+        repeated_path.write_text(canonical_json(repeated), encoding='utf-8', newline='\n')
+        repeated_result = run(good, repeated_path, root / 'same-page-report.json')
+        assert repeated_result.returncode == 0, repeated_result.stdout + repeated_result.stderr
+
+        # Run the public v2 CLI against otherwise valid evidence, changing only
+        # bibliography assessment. Valid samples must not clear missing rows.
+        for label, code, mutate in (
+            ('missing', 'BIBLIOGRAPHY-UNASSESSED', lambda value: value['semantic_assessment'].pop('bibliography_review')),
+            ('sample-only', 'BIBLIOGRAPHY-COVERAGE', lambda value: value['semantic_assessment']['bibliography_review']['sources'].pop()),
+            ('stale', 'BIBLIOGRAPHY-STALE', lambda value: value['semantic_assessment']['bibliography_review'].update(coverage_sha256='0' * 64)),
+            ('prose-only', 'BIBLIOGRAPHY-SCOPE', lambda value: value['semantic_assessment']['bibliography_review'].update(scope='prose_only')),
+        ):
+            attacked = json.loads(receipt.read_text(encoding='utf-8'))
+            mutate(attacked)
+            attacked_path = root / ('bibliography-' + label + '.json')
+            attacked_path.write_text(canonical_json(attacked), encoding='utf-8', newline='\n')
+            attacked_report = root / ('bibliography-' + label + '-report.json')
+            expect_intended_refusal(intended_red, label='bibliography ' + label,
+                                    result=run(good, attacked_path, attacked_report),
+                                    output=attacked_report, expected_code=code)
 
         fingerprint_probe = detector.finding(
             "TERM-COINAGE",
@@ -510,6 +538,14 @@ def main() -> int:
                 expected_code=expected_code,
             )
 
+        activation_attack(
+            'missing bibliography assessment', 'BIBLIOGRAPHY-UNASSESSED',
+            receipt_change=lambda value: value['semantic_assessment'].pop('bibliography_review'),
+        )
+        activation_attack(
+            'sample bibliography assessment', 'BIBLIOGRAPHY-COVERAGE',
+            receipt_change=lambda value: value['semantic_assessment']['bibliography_review']['source_support'].pop(),
+        )
         activation_attack(
             "missing extraction receipt",
             "EXTRACT-RECEIPT-MISSING",

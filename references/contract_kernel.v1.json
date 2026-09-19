@@ -225,7 +225,7 @@
       "id": "assignment-process",
       "path": "references/ASSIGNMENT_MILESTONE_PROCESS.md",
       "revision_kind": "sha256",
-      "sha256": "51a7396880b5c62a0b7cc618a3dbf3ffb6383e8d07711e8a248748fef6c67d6f",
+      "sha256": "e03af8f3717ffada5fa0c893597ea2cdce4cfa9e5246f52e5ceb8ad56d2f1ad1",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -278,7 +278,7 @@
       "id": "grounding-protocol",
       "path": "references/GROUNDING_PROTOCOL.md",
       "revision_kind": "sha256",
-      "sha256": "0999f254a0b0053669a1118deb1de1672ddc047f863cfced90db8655712c1627",
+      "sha256": "e43a323ce62efe6c2cf8049e211b561a5c1febef57d653a6d32c2b17eba3ca47",
       "migration_ids": []
     },
     {
@@ -355,7 +355,7 @@
       "id": "assignment-checkpoint-template",
       "path": "references/templates/assignment_milestone_checkpoint.json",
       "revision_kind": "sha256",
-      "sha256": "9620ee9dcc746a2c3371a1e12b1ba7546730cda207843b5e4ce608740b814a39",
+      "sha256": "ff0b56defd69736aa8fe138de30ca16c3b2b850ebfa9c56c80800a8f44f8d096",
       "migration_ids": []
     },
     {
@@ -777,14 +777,14 @@
       "id": "scholarly-evaluation-schema",
       "path": "references/schemas/scholarly_evaluation.schema.json",
       "revision_kind": "sha256",
-      "sha256": "1a02905cc682f1d247cb0326ade816bfe4f32f20f2d34a035def3279462c9750",
+      "sha256": "ec4a5fda40909f2cd6aafb1e5de5b0e8177a95e74baebdd0040ca1808ba10934",
       "migration_ids": []
     },
     {
       "id": "scholarly-evaluation",
       "path": "scripts/scholarly_evaluation.py",
       "revision_kind": "sha256",
-      "sha256": "2dcc2fb42804444ebc0ca5b40457037c9e9942f83b01da5b0c2206224d49b90e",
+      "sha256": "0909ba2f08027ad33a1fe10c5f19d3852f6d3a27959936d456adfd11fa8ae348",
       "migration_ids": []
     },
     {
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "996ff70da958c4510531d0197f47a8ec17ff2d39bb6b70021aed659bead2ba73",
+      "sha256": "69550ab30cf764c57e4d57987cade4bb8efaa4d65c1184eacd3feebb63c9a9c6",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -898,7 +898,7 @@
       "id": "agent-orchestration",
       "path": "references/AGENT_ORCHESTRATION.md",
       "revision_kind": "sha256",
-      "sha256": "8b4ac3b480af084ca79630cba48f3151e2143475fefbbb4232808397ca4cb071",
+      "sha256": "87454f06f7e478c4a6e50c536835e2302897dcd2981edc4c3261ab2ef0d911fe",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "b52d992345b4de15692d3360db3ce677455701f57805cbd3ec6db2e69a08255f",
+      "sha256": "c5e0418ee9076bbd8e459ee29b50cb70d0be507bd11eb6f20acab5f74ea3f5ad",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -952,7 +952,7 @@
       "id": "evaluator-agent",
       "path": "agents/evaluator.md",
       "revision_kind": "sha256",
-      "sha256": "56575aec72a53400b02c1715aee4f317995ea4322ea7401c89e4a56f7e237683",
+      "sha256": "4b18c5967fa5fa9bdca08aec2057d62208583869ac059ee61672f0cfb277301c",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -961,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "ddf758f82a4832f94656cdb7e69bdc68dad378bf64377266c9c9ba7d5a4fc3e9",
+      "sha256": "cbe1758aba57b88e3e00e374348edb31e84342f68621dd6f963327511c49471a",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -970,7 +970,7 @@
       "id": "reflector-router-agent",
       "path": "agents/reflector.md",
       "revision_kind": "sha256",
-      "sha256": "efe96d0dead61c2753eb3bb6ca19aaadd5ea70991b47e3c60bf4afbcb7d6de50",
+      "sha256": "9f95a287adec349167892f0aaf7b07a987b2b834192c12c90192173100cf73a4",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -979,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "44aa59574d49ed6badbdf1a5029c76979041001211a33861c7d45248e4aef3e2",
+      "sha256": "26295b934516da5b86ba3452baba7bc05601e77b526c10fe2822d82ffbddffef",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -988,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "b96c4386e2b9bbeec88556aaa42021bfc2cd2e63ceaadd370f8f4eef284a1338",
+      "sha256": "517b4cb93ef56c2da6661593cf2b3466166751f2449e48dcb53e09f03d5de3c7",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -997,7 +997,7 @@
       "id": "skill-run-finalize",
       "path": "skills/run-finalize/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "baf60dcfb8b35482da9d6cf35b646c80d4a34b809f9ff37eab515ac56b251ca5",
+      "sha256": "476c450504f3aa8ade265cda75b264e4b9b1a5c40a0c2d56fa90786773ac319f",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1121,28 +1121,28 @@
       "id": "project-independent-workflow",
       "path": "references/PROJECT_INDEPENDENT_WORKFLOW.md",
       "revision_kind": "sha256",
-      "sha256": "2cd1ed77aad678a13844e91a63794108418f654227f10ed0dede29f2466ff5ae",
+      "sha256": "446daba55ab36ab40e50f2e576fe0f6a4dc9b1226e7ce8f495299d835a04662b",
       "migration_ids": []
     },
     {
       "id": "piw-session",
       "path": "scripts/piw_session.py",
       "revision_kind": "sha256",
-      "sha256": "6d980d88a775341cab752835c5455b8aa738a9d776dbc92e41e22c2b20af4747",
+      "sha256": "7ce4bf532914dfd6fc5ef1f485fb39c5c0ad3521f479ac7001593dffed5bc75a",
       "migration_ids": []
     },
     {
       "id": "piw-coordinator",
       "path": "scripts/piw_coordinator.py",
       "revision_kind": "sha256",
-      "sha256": "dabef1c91e8bffd7808297dcf7f855555720f7a2b9251708a346d4dfc3dff265",
+      "sha256": "14859ecf9efbd162e1b098c826a833ce16b801da4c5b7ff3868dbcd78b061549",
       "migration_ids": []
     },
     {
       "id": "piw-completion",
       "path": "scripts/piw_completion_guard.py",
       "revision_kind": "sha256",
-      "sha256": "4f592570d5ca0e5249a382517144707b4ae699a59d251f1dd2f134d771525a6e",
+      "sha256": "62733df4456dd36f2cbb8b30d002232e5ecfc3c7f975276c418940c0cc2b5cdc",
       "migration_ids": []
     },
     {

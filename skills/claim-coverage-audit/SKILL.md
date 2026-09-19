@@ -7,6 +7,8 @@ version: 1.0
 
 # claim-coverage-audit — Per-Claim Source Mapping for Ph1 → Ph2 Admission
 
+**Bibliography boundary.** Apply `references/CITATION_DISCIPLINE.md` §6. This score and source-resolution map are discovery/coverage aids, not scholarly bibliography clearance. Synthesis similarity, metadata resolution or a passing threshold cannot clear unassessed references or citation uses; full role/currency/directness judgments require inspected evidence and final-version coverage.
+
 **Grounding basis:** `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §§4.1 (claim definition), 4.4 (per-claim coverage map), 5.1 SK-NEW-B (skill specification), 5.5.3 (synthesis-alignment fast-path; v0.10.0-S4.5 R1), 6.4 (S3 deliverable scope), 6.6 (S4.5 deliverable scope)`; `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §§5.4 (S3 stage specification), 5.6 (S4.5 stage specification)`; `references/GROUNDING_PROTOCOL.md §§Rule 4 (quote-before-attribute), Rule 6 (no gap-filling)`; `references/EXTERNAL_VERIFIERS.md §3 (Planner clause for source-resolution discipline)`; `references/PHASE_PROTOCOL.md §3.2 (Ph2 admission preconditions)`; `skills/seed-snowball-discovery/SKILL.md` (SK-33; this skill audits the pool SK-NEW-A produces).
 
 ---

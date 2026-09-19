@@ -178,7 +178,7 @@ def validate_session(piw_session: Path | str) -> dict:
     return {'ok': True, 'code': 'OK', 'session': session, 'staging_root': str(staging)}
 
 def rule_bindings(passes: list[str], exclusions: list[str]) -> list[dict]:
-    names = ['GROUNDING_PROTOCOL.md']
+    names = ['GROUNDING_PROTOCOL.md', 'CITATION_DISCIPLINE.md']
     for name in passes:
         if name in exclusions:
             continue

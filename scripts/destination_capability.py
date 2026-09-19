@@ -11,7 +11,7 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
   misrouted  <harness>/outputs/co-author-harness/    -> REFUSE (project output
                                                         cannot live in package)
   shipment   <governed-root>/research/60_Workbench/<work-id>/
-             reviews/.harness/shipments/<shipment-id>/ -> writable (reports only)
+             reviews/harness/shipments/<shipment-id>/ -> writable (reports only)
   instrument <governed-root>/research/60_Workbench/<work-id>/
              reviews/.harness/<scratch>/...            -> writable (tool control
              plane only: assignment, control-plane, scholarly-evaluations;
@@ -53,7 +53,11 @@ _MANIFEST_REL = Path("governance") / "output-routing" / "output_routing.yaml"
 _STAGING_REL = Path("outputs") / "co-author-harness" / "staging"
 _PACKAGE_PROJECT_OUTPUT_REL = Path("outputs") / "co-author-harness"
 _SHIPMENT_PREFIX = tuple(os.path.normcase(p) for p in ("research", "60_Workbench"))
-_SHIPMENT_SUFFIX = tuple(os.path.normcase(p) for p in ("reviews", ".harness", "shipments"))
+# Visible lane is the default; legacy paths retain their original evidence identity.
+_SHIPMENT_SUFFIXES = tuple(
+    tuple(os.path.normcase(p) for p in ("reviews", folder, "shipments"))
+    for folder in ("harness", ".harness")
+)
 _HARNESS_SCRATCH = tuple(os.path.normcase(p) for p in ("reviews", ".harness"))
 
 # Re-pin lane: the exact semantic-register re-pin transition-control artifacts a
@@ -106,7 +110,7 @@ def _is_research_shipment(child_canon: str, root: Path) -> bool:
     if len(parts) < 7:
         return False
     return (parts[:2] == _SHIPMENT_PREFIX
-            and parts[3:6] == _SHIPMENT_SUFFIX
+            and parts[3:6] in _SHIPMENT_SUFFIXES
             and parts[2] not in {"", ".", ".."}
             and parts[6] not in {"", ".", ".."})
 

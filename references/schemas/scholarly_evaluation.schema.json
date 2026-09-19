@@ -21,6 +21,19 @@
     "created_at"
   ],
   "properties": {
+    "bibliography_review": {"type": "object", "description": "Complete bibliography/use assessment; required by the verifier for cited artifacts."},
+    "source_materials": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["source_id", "locator", "binding"],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "locator": {"type": "string", "minLength": 1},
+          "binding": {"$ref": "#/$defs/binding"}
+        }
+      }
+    },
     "schema_version": {"const": "1.0.0"},
     "evaluation_id": {"$ref": "#/$defs/id"},
     "artifact": {"$ref": "#/$defs/binding"},

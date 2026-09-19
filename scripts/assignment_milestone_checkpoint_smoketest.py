@@ -368,6 +368,7 @@ def publish(
         )
     )
     project_manifest = project / "project_manifest.json"
+    activation.refresh_synthetic_bibliography()
     if not project_manifest.is_file():
         write_json(project_manifest, {
             "schema_version": "synthetic-nonqualifying-1.0.0",

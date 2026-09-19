@@ -37,6 +37,8 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-iterate — public iterate coordinator (staging)
 
+**Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6. New references, changed claims, expanded attribution or changed source roles reopen affected coverage. Only harmless numbering with unchanged identities/attachments may reuse judgments. Explicit prose-only work reports bibliography not assessed.
+
 ## Output Profile
 
 **Runtime binding.** Before acting, resolve
@@ -99,7 +101,7 @@ Graph / centroid remain invoke-only / fail-closed. Do not auto-dispatch
 `classify-manuscript` as scholarly CLEAN.
 
 Dest-safe receipts may land under
-`reviews/.harness/shipments/<id>/` and/or
+`reviews/harness/shipments/<id>/` and/or
 `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
 `scripts/draft_governance.py` stays dest-safe (`evaluation-lane`,
 `attach-verifier-receipt`; no CLEAN bind).

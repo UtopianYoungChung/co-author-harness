@@ -733,7 +733,7 @@ def _lab_destination_findings(context: dict, output_root: Path | None) -> list[d
         valid = (
             len(parts) == 4
             and parts[0].casefold() == "reviews"
-            and parts[1].casefold() == ".harness"
+            and parts[1].casefold() in {"harness", ".harness"}
             and parts[2].casefold() == "shipments"
             and bool(parts[3])
         )

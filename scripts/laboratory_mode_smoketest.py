@@ -639,7 +639,7 @@ def main() -> int:
             ),
         )
         private_shipment = (
-            project / "reviews" / ".harness" / "shipments" / "synthetic-shipment-001"
+            project / "reviews" / "harness" / "shipments" / "synthetic-shipment-001"
         )
 
         def exact_private_shipment_is_writable() -> None:

@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from canonical_bibliography import publish_bibliography
 from source_extract import main as source_extract_main
+from bibliography_fixture_support import from_passages
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -371,6 +372,13 @@ class ActivationFixture:
         change(value)
         self._refresh_extract_publication(value)
         self._rebind_external_objects()
+
+    def refresh_synthetic_bibliography(self) -> None:
+        """Explicitly construct fresh test evidence; mutation alone never renews it."""
+        value = json.loads(self.receipt.read_text(encoding='utf-8'))
+        value['semantic_assessment']['bibliography_review'] = from_passages(
+            self.artifact.read_text(encoding='utf-8'), value['diagnostic_legacy_view']['passages'])
+        write_json(self.receipt, value)
 
     def remove_extract_commit_marker(self) -> None:
         value = json.loads(self.extract_receipt.read_text(encoding="utf-8"))
@@ -794,6 +802,8 @@ def build_activation_fixture(
         },
         "diagnostic_legacy_view": {"passages": legacy_passages},
     }
+    base_receipt['semantic_assessment']['bibliography_review'] = from_passages(
+        artifact.read_text(encoding='utf-8'), legacy_passages)
     receipt = support_root / "semantic-execution-3.json"
     fixture = ActivationFixture(
         root=root,

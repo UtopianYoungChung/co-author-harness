@@ -11,7 +11,7 @@ Every verb resolves its mutable project root through
 `<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`.
 Package-local `co-author-harness\outputs\co-author-harness\` is forbidden.
 Report-only tools may read a protected project but write solely to
-`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`,
+`research/60_Workbench/<work-id>/reviews/harness/shipments/<shipment-id>/`,
 with every output declared. Research governance alone applies changes beyond
 that lane under `research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`; no
 harness status, PASS, handoff, or shipment grants consumer-state authority.

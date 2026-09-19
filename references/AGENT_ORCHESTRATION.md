@@ -21,7 +21,7 @@ file tool — creates, modifies, moves, renames, or deletes a path under a
 governed workspace root outside the harness package (`research/`,
 `knowledge/`, `governance/`, and every other governed surface).
 Private Stage reports, evidence, and manifests may be written only inside
-`research/60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`.
+`research/60_Workbench/<work-id>/reviews/harness/shipments/<shipment-id>/`.
 The other writable destinations are the harness package root and the governed
 staging lane `<governed-workspace-root>\outputs\co-author-harness\staging\<work-id>\<run-id>\`.
 The lookalike path `co-author-harness\outputs\co-author-harness\` is forbidden:

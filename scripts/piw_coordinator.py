@@ -12,6 +12,7 @@ from pathlib import Path
 import piw_session as piw
 from piw_session import assert_output as assert_writable
 import piw_native_host as native
+import bibliography_review as bibliography
 
 require = native.require
 PROFILES = {'draft': 'Produce a new deliverable from the bound brief and supplied sources.', 'refine': 'Improve requested wording and local clarity while preserving argument, terminology and citations.', 'structural': 'Revise organization only within the explicitly authorized scope; preserve claims and sources.', 'deep': 'Make the explicitly requested substantive revision; do not infer authority to alter unrelated material.', 'stability': 'Check whether the requested material needs any change; explained no-change is valid after all required roles.'}
@@ -69,6 +70,8 @@ def start(session_path: Path, request: dict) -> dict:
     project_context = piw.validate_authoritative_binding(Path(request['authoritative_binding'])) if request.get('authoritative_binding') else None
     profile = request.get('profile', 'refine' if session.get('mss_pin') else 'draft')
     require(profile in PROFILES, 'PIW-PROFILE-INVALID', 'Unknown draft/revision profile')
+    review_scope = request.get('review_scope', 'substantive')
+    require(review_scope in ('substantive', 'prose_only'), 'PIW-SCOPE-REQUIRED', 'Review scope must be substantive or prose_only')
     host = native.bind_host(request.get('host', {}), root)
     exclusions = sorted(set('chung-academic-voice-pass' if 'chung' in str(x).lower() else x for x in request.get('exclusions', [])))
     passes = request.get('passes', ['grammar-mechanics-pass', 'sentence-level-pass'])
@@ -98,7 +101,7 @@ def start(session_path: Path, request: dict) -> dict:
                 'input_snapshot': piw.identity(root / 'binding/original.bin') if original is not None else None,
                 'proposal_only': bool(request.get('proposal_only', False)), 'passes': applied, 'exclusions': exclusions,
                 'rules': piw.rule_bindings(applied, exclusions), 'package_version': piw.read_json(piw.ROOT / 'version.json'),
-                'required_checks': checks, 'max_corrections': limit, 'source_excerpts': sources,
+                'required_checks': checks, 'max_corrections': limit, 'source_excerpts': sources, 'review_scope': review_scope,
                 'host': host, 'output_authority': 'task-local deliverable; input apply is separate',
                 'lifecycle_terminal': False, 'research_acceptance': False}
     if request.get('venue_path'):
@@ -126,6 +129,16 @@ def _contract(session_path):
 
 def initial_state(contract):
     return {'stage': 'diagnosis' if contract['input'] else 'plan', 'candidate': contract.get('input_snapshot'), 'corrections': 0, 'unresolved_findings': [], 'limitations': [], 'executions': {}, 'last_findings': [], 'generator_execution_id': None}
+
+
+def effective_checks(contract, target=None, read_bytes=None):
+    checks = list(contract['required_checks'])
+    if contract.get('review_scope', 'substantive') != 'prose_only' and target:
+        text = (read_bytes or _read_bytes)(target['path']).decode('utf-8-sig')
+        if bibliography.has_sources(text):
+            checks = [x for x in checks if x['id'] != 'bibliography']
+            checks.append({'id': 'bibliography', 'required': True})
+    return checks
 
 
 def validate_result(contract, request, result, state, read_bytes=None):
@@ -162,7 +175,7 @@ def validate_result(contract, request, result, state, read_bytes=None):
     checks = result.get('checks', [])
     require(isinstance(checks, list) and len({x.get('id') for x in checks}) == len(checks), 'PIW-CHECK-EVIDENCE-MISSING', 'Supply distinct performed checks')
     by_id = {x.get('id'): x for x in checks}
-    for required_check in contract['required_checks']:
+    for required_check in effective_checks(contract, request.get('target'), read_bytes):
         item = by_id.get(required_check['id'])
         require(bool(item) and item.get('status') in ('pass', 'fail', 'not_applicable', 'unavailable') and len(item.get('rationale', '').strip()) >= 20 and bool(item.get('locators')),
                 'PIW-CHECK-EVIDENCE-MISSING', 'Check needs applicability, result, actual reason and locators: ' + required_check['id'])
@@ -184,6 +197,21 @@ def validate_result(contract, request, result, state, read_bytes=None):
                 source_text = ' '.join(reader(source['path']).decode('utf-8-sig').split())
                 require(' '.join(quote.split()) in source_text and ' '.join(claim.split()) in target_text,
                         'PIW-SOURCE-EVIDENCE-MISSING', 'Quoted passage or claim does not occur in the bound bytes')
+    bibliography_check = by_id.get('bibliography')
+    if contract.get('review_scope') == 'prose_only':
+        require(not bibliography_check or bibliography_check['status'] in ('not_applicable', 'unavailable'),
+                'BIBLIOGRAPHY-SCOPE', 'A prose-only pass cannot approve the bibliography')
+        require(not result.get('bibliography_review'), 'BIBLIOGRAPHY-SCOPE', 'Prose-only work must report bibliography not assessed')
+    elif bibliography_check:
+        require(bibliography_check['status'] in ('pass', 'fail', 'unavailable'),
+                'BIBLIOGRAPHY-UNASSESSED', 'A cited manuscript cannot mark its bibliography not applicable')
+        if bibliography_check['status'] == 'pass' or result.get('bibliography_review'):
+            try:
+                bibliography.validate(reader(request['target']['path']).decode('utf-8-sig'),
+                                      result.get('bibliography_review'), contract['source_excerpts'], reader,
+                                      require_clear=bibliography_check['status'] == 'pass')
+            except bibliography.ReviewError as exc:
+                raise piw.PIWError(exc.code, str(exc)) from exc
     findings = result.get('findings')
     require(isinstance(findings, list), 'PIW-FINDINGS-MISSING', 'Return findings or explained no-defect checks')
     require(all(isinstance(f.get('blocking'), bool) and f.get('id') and f.get('locator') and len(f.get('message', '').strip()) >= 15 for f in findings), 'PIW-FINDINGS-MISSING', 'Findings need IDs, locators, reasons and blocking disposition')
@@ -201,6 +229,8 @@ def advance(contract, state, role, result):
         return
     blockers = [x for x in result['findings'] if x['blocking']]
     required = {x['id'] for x in contract['required_checks'] if x.get('required', True)}
+    if contract.get('review_scope', 'substantive') != 'prose_only':
+        required.add('bibliography')
     for check in result['checks']:
         if check['id'] in required and check['status'] in ('fail', 'unavailable'):
             blockers.append({'id': check['id'], 'blocking': True, 'locator': ', '.join(check['locators']), 'message': check['rationale']})
@@ -269,13 +299,15 @@ def next_step(session_path):
                    'role': role, 'phase': stage, 'run_scope': 'project_independent', 'contract_sha256': piw.identity(root / 'binding/run.json')['sha256'],
                    'contract_path': str(root / 'binding/run.json'), 'target': contract['input_snapshot'] if stage == 'diagnosis' else state['candidate'],
                    'brief': contract['brief'], 'profile': contract.get('profile', 'refine' if contract['input'] else 'draft'), 'profile_definition': contract.get('profile_definition'), 'venue': contract.get('venue'), 'project_context': contract.get('project_context'), 'requested_scope': contract['requested_scope'], 'rules': contract['rules'], 'applied_passes': contract['passes'],
-                   'exclusions': contract['exclusions'], 'required_checks': contract['required_checks'], 'source_excerpts': contract['source_excerpts'],
+                   'exclusions': contract['exclusions'], 'required_checks': effective_checks(contract, contract['input_snapshot'] if stage == 'diagnosis' else state['candidate']), 'source_excerpts': contract['source_excerpts'],
+                   'review_scope': contract.get('review_scope', 'substantive'),
                    'findings_to_address': state['last_findings'], 'evidence_so_far': log['events'], 'output_directory': str(root / 'draft'),
                    'role_prompt': piw.identity(piw.ROOT / 'agents' / f'{role}.md'),
                    'skill_bodies': [piw.identity(piw.ROOT / 'skills' / name / 'SKILL.md') for name in contract['passes']],
                    'package_root': str(piw.ROOT),
                    'instruction': 'Perform the real assigned role in a distinct native context. Read role_prompt and skill_bodies from package_root on any host, then actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
         pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
+        pending['bibliography_instruction'] = 'Read references/CITATION_DISCIPLINE.md. Substantive cited drafts require a bibliography check and bibliography_review in the result. Use scripts/bibliography_review.py inventory(target_text) to enumerate references, citation uses and non_citations; copy the exact non_citations classifications into the assessment, then inspect all claims in each cited paragraph and supply judgments; inventory output is not approval. Bind sources, actually inspected materials, all source_support use IDs, role, authority, directness, currency, discovery/challenging evidence and dispositions. A supported example cannot clear other uses. New references/claims/roles reopen affected judgments; pure numbering changes may reuse identical coverage. Prose-only work must state bibliography not assessed. Unresolved evidence blocks dependent claims, while independent planning/drafting may continue.'
         path = root / 'logs' / f'{len(log["events"]):03d}-{stage}-request.json'
         piw.write_json(path, pending)
         log['pending'] = piw.identity(path)

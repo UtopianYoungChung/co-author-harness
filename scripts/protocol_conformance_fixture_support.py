@@ -100,6 +100,7 @@ def _candidate_adjudication(project: Path) -> dict[str, Any]:
             "The bounded contribution is bounded and bounded.\n\n# References",
         )
     )
+    activation.refresh_synthetic_bibliography()
     v3 = json.loads(activation.receipt.read_text(encoding="utf-8"))
     receipt = lane / "semantic-evaluation-v2.json"
     placeholder = {"path": str(receipt.resolve()), "sha256": "0" * 64}
@@ -129,6 +130,9 @@ def _candidate_adjudication(project: Path) -> dict[str, Any]:
             "actionable_findings": [],
         },
     }
+    from bibliography_fixture_support import from_passages
+    semantic['semantic_assessment']['bibliography_review'] = from_passages(
+        activation.artifact.read_text(encoding='utf-8'), semantic['passages'])
     write_json(receipt, semantic, canonical=True)
     first_report = lane / "product-candidates.json"
     first_rc = _product_main([

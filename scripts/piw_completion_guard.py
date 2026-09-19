@@ -97,6 +97,8 @@ def verify_completion(session_path: Path | str) -> dict[str, Any]:
                 'reflection_execution_id': reflections[-1][1]['agent_execution_id'],
                 'evidence': role_events, 'evaluation': reviews[-1][0]['result'], 'reflection': reflections[-1][0]['result'],
                 'checks': reviews[-1][1]['checks'], 'unresolved_blocking_findings': [], 'limitations': state['limitations'],
+                'bibliography_status': ('not_assessed_prose_only' if contract.get('review_scope') == 'prose_only' else
+                                        'assessed' if any(x['id'] == 'bibliography' and x['status'] == 'pass' for x in reviews[-1][1]['checks']) else 'not_applicable'),
                 'change_summary': generations[-1][1]['summary'], 'correction_cycles': state['corrections'],
                 'lifecycle_terminal': False, 'research_acceptance': False, 'terminal': False, 'clean': False,
                 'trust_boundary': contract['host']['trust_boundary']}

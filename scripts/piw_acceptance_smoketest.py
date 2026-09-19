@@ -73,7 +73,7 @@ def complete_child(session, *, blockers=False, artifact=None, execution_id=None,
         result['artifact'] = piw.identity(path)
         result['addressed_findings'] = [x['id'] for x in req['findings_to_address']]
     else:
-        result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['Scope sentence 1' if contract['input'] else 'paragraph 1']} for x in contract['required_checks']]
+        result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['Scope sentence 1' if contract['input'] else 'paragraph 1']} for x in req['required_checks']]
         result['findings'] = [{'id': 'F1', 'blocking': True, 'locator': 'paragraph 1', 'message': 'Synthetic planted blocking issue must be corrected before completion.'}] if blockers else []
     log = Path(contract['host']['logs_root']) / f'{eid}.jsonl'
     if not log.exists():

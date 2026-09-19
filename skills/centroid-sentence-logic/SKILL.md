@@ -44,7 +44,7 @@ python scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --
 
 `--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound printed book pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
 
-Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/.harness/shipments/<id>/` via `--shipment-id`, under stems `centroid-check_<mode>`.
+Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/harness/shipments/<id>/` via `--shipment-id`, under stems `centroid-check_<mode>`.
 
 A receipt must say: this is a centroid-check of manuscript `<sha256>/<bytes>` against centroid-source `yu-et-al-2011-social-modeling`.
 

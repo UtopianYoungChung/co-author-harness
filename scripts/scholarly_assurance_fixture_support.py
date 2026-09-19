@@ -119,6 +119,7 @@ def _prepare_dispatch(
         )
     elif text not in artifact.read_text(encoding="utf-8"):
         raise ValueError("already-current artifact does not contain the exact claim text")
+    activation.refresh_synthetic_bibliography()
     semantics = _fresh_semantics(project, label)
     manifest = project / "project_manifest.json"
     if not manifest.is_file():
@@ -691,6 +692,9 @@ def build_qualified_scholarly_fixture(
         },
         "created_at": "2026-07-26T00:00:04Z",
     }
+    from bibliography_fixture_support import attach_evaluation_review
+    semantic_source = json.loads(prepared['activation'].receipt.read_text(encoding='utf-8'))
+    attach_evaluation_review(evaluation_value, artifact, project, semantic_source['diagnostic_legacy_view']['passages'])
     write_json(evaluation_path, evaluation_value)
     evaluation_relative = evaluation_path.relative_to(project).as_posix()
     _append_mutation(

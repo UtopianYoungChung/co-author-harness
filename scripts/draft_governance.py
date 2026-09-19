@@ -546,7 +546,8 @@ def _verify_semantic_execution(
     }
     if (
         not isinstance(assessment, dict)
-        or set(assessment) != assessment_fields
+        or not assessment_fields <= set(assessment)
+        or not set(assessment) <= assessment_fields | {"bibliography_review"}
         or not _nonempty(assessment.get("summary"))
         or any(not _string_list(assessment.get(key)) for key in assessment_fields - {"summary"})
     ):
@@ -1247,7 +1248,7 @@ def _scaffold_out_dir(args: argparse.Namespace, project: Path) -> Path:
         dest = (
             project
             / "reviews"
-            / ".harness"
+            / "harness"
             / "shipments"
             / args.shipment_id
         )
@@ -1527,7 +1528,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         raise ContractError(
             "DRAFT-POLICY-OBLIGATION-STALE",
             "scaffold out-dir must stay under the bound project so verify can bind it; "
-            "use --shipment-id for the dest-allowed reviews/.harness/shipments/<id>/ lane",
+            "use --shipment-id for the dest-allowed reviews/harness/shipments/<id>/ lane",
         ) from exc
     current_policy = _load(POLICY_PATH, "DRAFT-POLICY-CONTRACT")
     _, adapters = _resolved_obligation_registry(current_policy)
@@ -1734,7 +1735,7 @@ def scaffold_receipt(args: argparse.Namespace) -> dict[str, Any]:
         "deferred_obligation_ids": deferred,
         "dest_protected_stays": True,
         "who_writes": {
-            "harness": "reviews/.harness/shipments/<id>/ only",
+            "harness": "reviews/harness/shipments/<id>/ only",
             "writer": "may copy into the package; must not invent scholarly CLEAN",
             "joseph": "D-STYLE profile in research_notes/directives.md or MAJOR adjudications; evaluation-phase scholarly verifier_receipts as research-governance",
         },
@@ -1829,7 +1830,7 @@ def evaluation_lane(args: argparse.Namespace) -> dict[str, Any]:
     contract = prepare(prepare_args)
     project = Path(contract["project_root"]).resolve(strict=True)
     dest = (
-        project / "reviews" / ".harness" / "shipments" / args.shipment_id
+        project / "reviews" / "harness" / "shipments" / args.shipment_id
     ).resolve()
     assert_writable(dest, purpose="draft-governance evaluation-lane")
     dest.mkdir(parents=True, exist_ok=True)

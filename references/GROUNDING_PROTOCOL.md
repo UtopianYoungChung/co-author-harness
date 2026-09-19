@@ -312,6 +312,15 @@ If the verifier returns UNREACHABLE (MCP timeout, auth failure), annotate `[VERI
 
 **Discovery vs. resolution.** Rule 7a’s Class 1 ordering (Zotero among verifiers, then Scholar Gateway, etc.) applies to **removing `[UNVERIFIED]` on a specific attribution**. When **choosing** new literature or PDFs, wiki-linked projects follow **`EXTERNAL_VERIFIERS.md` §1.5 (wiki-first)** before Zotero and before external search — the two orderings are complementary, not identical.
 
+**Complete bibliography coverage.** Apply `CITATION_DISCIPLINE.md` §6 to every
+reference and substantive citation use. Identity resolution and a few supported
+examples do not clear unassessed entries. Record role, currency, directness,
+authority, actually inspected material and disposition in existing evidence.
+Advisor instructions do not establish a scholarly record or a personal
+communication's speaker, date, title or publication status. A personal
+communication needs verified provenance or explicit user confirmation and the
+required style's treatment. Prose-only review carries no bibliography clearance.
+
 ### Enforcement
 
 The Reflector's Phase 2.5 grounding audit (Category 1) spot-checks Rule 7a annotations:
@@ -343,7 +352,7 @@ The Reflector runs a **grounding audit** as part of every reflection round. This
 1. **Citation audit.** For every citation the Generator added or the Evaluator referenced in this round:
    - Does the reference exist in `references/REFERENCES.md` or the manuscript bibliography?
    - Has the source been read (directly or via extract) in this session or a documented prior session?
-   - Is the attributed claim actually present in the source? (Spot-check at least 3 attributions per round.)
+   - Is every substantive citation use supported for its actual argumentative role? Account for the complete final bibliography and all citation uses under `CITATION_DISCIPLINE.md` §6; spot-checks may audit prior evidence but cannot clear unassessed entries.
    - Flag any citation that fails as `[GROUNDING VIOLATION — Rule 4]`.
 
 2. **Metric audit.** For every count or metric the Evaluator reported:

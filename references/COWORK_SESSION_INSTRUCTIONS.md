@@ -102,7 +102,7 @@ Source of truth: `research/10_Governance/RESEARCH_RUNTIME.md`.
 - Severity vocabulary only: **BLOCKER / MAJOR / MINOR**.
 - Lifecycle axes (orthogonal): milestones **M1–M5** (deliverables) and phases **Ph1–Ph4** (revision readiness). Do not collapse them. Terminal language ("Ph4," "G.4," "shipped," "converged") requires the full-run contract check to pass — never self-attest.
 - **Shipment boundary** (`research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md`):
-  - Default: write only a manifested private shipment under `60_Workbench/<work-id>/reviews/.harness/shipments/<shipment-id>/`
+  - Default: write only a manifested private shipment under `60_Workbench/<work-id>/reviews/harness/shipments/<shipment-id>/`
   - Apply mode outside that lane needs current user authority naming exact paths or a bounded change class
   - Never write canon, `40_Advisor/delivered/`, `65_Deliverables/`, promotion receipts, or `phase_state.json` except through their canonical gated transactions
 

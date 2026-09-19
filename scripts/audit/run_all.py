@@ -220,7 +220,7 @@ def main(argv: List[str] | None = None) -> int:
                     raise DestinationRefused(
                         DEST_PROTECTED,
                         "an audit of a protected project may write only to its "
-                        "private reviews/.harness/shipments/<shipment-id>/ lane; "
+                        "private reviews/harness/shipments/<shipment-id>/ lane; "
                         f"got {Path(dest).resolve()!s}")
     except DestinationRefused as exc:
         print(f"[BLOCKER] {exc}", file=sys.stderr)

@@ -25,6 +25,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 import assignment_dispatch_claim as dispatch
 import obligation_result as obligations
 import scholarly_claim_register as claim_register
+import bibliography_review as bibliography
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,6 +108,8 @@ class ConditionalPath:
 
 STATIC_DEPENDENCY_PATHS = (
     SCHEMA,
+    ROOT / 'scripts' / 'bibliography_review.py',
+    ROOT / 'references' / 'CITATION_DISCIPLINE.md',
     dispatch.CLAIM_SCHEMA,
     dispatch.CONSUMPTION_SCHEMA,
     dispatch.HOST_SCHEMA,
@@ -1173,6 +1176,21 @@ def _verify_evaluation_transaction(
         }
         for finding in finding_blockers
     ] + obligation_blockers
+    if bibliography.has_sources(artifact.payload.decode('utf-8-sig')):
+        materials, material_bytes = [], {}
+        for row in value.get('source_materials', []):
+            bound = _bind(root, row['binding'], 'bibliography inspected material')
+            bound_files.append(bound)
+            material_bytes[str(bound.path)] = bound.payload
+            materials.append({'source_id': row['source_id'], 'locator': row['locator'],
+                              'path': str(bound.path), 'sha256': row['binding']['sha256']})
+        try:
+            bibliography.validate(artifact.payload.decode('utf-8-sig'), value.get('bibliography_review'),
+                                  materials, lambda path: material_bytes[path])
+        except bibliography.ReviewError as exc:
+            blockers.append({'code': exc.code, 'message': str(exc),
+                             'scholarly_code': 'BIBLIOGRAPHY-REVIEW-REQUIRED',
+                             'current_fingerprint': value['artifact']['sha256']})
     if not evaluator_fire:
         blockers.append(
             {

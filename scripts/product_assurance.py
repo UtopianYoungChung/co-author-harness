@@ -25,18 +25,19 @@ from c2_evidence_validation import (
     validate_v3_receipt,
 )
 from destination_capability import DestinationRefused, assert_writable
+import bibliography_review as bibliography
 
 
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 WORD_RE = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*", re.UNICODE)
 QUOTE_SPACE_RE = re.compile(r"\s+")
 PARENTHETICAL_AUTHOR_YEAR_RE = re.compile(
-    r"\([^()\n]{1,120}?,\s*(?:19|20)\d{2}[a-z]?\)", re.IGNORECASE
+    r"\([^()\n]{1,120}?,\s*[1-9]\d{3}[a-z]?\)", re.IGNORECASE
 )
 NARRATIVE_AUTHOR_YEAR_RE = re.compile(
     r"\b[A-Z][A-Za-z'\N{RIGHT SINGLE QUOTATION MARK}-]+"
     r"(?:\s+(?:(?:and|&)\s+[A-Z][A-Za-z'\N{RIGHT SINGLE QUOTATION MARK}-]+|et\s+al\.))?"
-    r"\s+\((?:19|20)\d{2}[a-z]?\)"
+    r"\s+\([1-9]\d{3}[a-z]?\)"
 )
 MARKDOWN_HEADING_RE = re.compile(
     r"^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$"
@@ -385,7 +386,7 @@ def _validate_passage_shape(row: Any) -> None:
             or not isinstance(citation.get("year"), int)
             or not isinstance(citation.get("title"), str)
             or not citation["title"].strip()
-            or not re.fullmatch(r"(?:19|20)\d{2}[a-z]?", str(citation.get("label", "")))):
+            or not re.fullmatch(r"[1-9]\d{3}[a-z]?", str(citation.get("label", "")))):
         raise AssuranceError("CITATION-IDENTITY", "citation identity values are invalid")
 
 
@@ -394,7 +395,11 @@ def _citation_groups(passages: list[dict[str, Any]]) -> dict[tuple[tuple[str, ..
     for row in passages:
         citation = row["citation"]
         key = (tuple(a.casefold() for a in citation["authors"]), citation["year"])
-        grouped[key].append(row)
+        # Count distinct source identities, not inspected passages. Preserve
+        # conflicting metadata as separate rows so it still fails closed.
+        if not any(existing['source_key'] == row['source_key'] and existing['citation'] == citation
+                   for existing in grouped[key]):
+            grouped[key].append(row)
     return grouped
 
 
@@ -438,7 +443,7 @@ def _hard_evidence_findings(artifact: Path, text: str,
         best_label = None
         best_overlap = 0
         for line in artifact_lines:
-            match = re.search(r"\(((?:19|20)\d{2}[a-z])\)", line, re.IGNORECASE)
+            match = re.search(r"\(([1-9]\d{3}[a-z])\)", line, re.IGNORECASE)
             if not match:
                 continue
             overlap = len(title_words & (set(words(line)) - STOPWORDS))
@@ -737,6 +742,28 @@ def build(
     if not isinstance(passages, list) or not passages:
         raise AssuranceError("PASSAGE-MISSING", "semantic receipt contains no passages")
     hard, corpus = _hard_evidence_findings(artifact, text, passages)
+    if bibliography.has_sources(text):
+        materials = working_receipt.get('bibliography_materials') or [
+            {'source_id': row['source_key'] + '@' + row['locator'],
+             'locator': row['locator'], 'passage_text': row['quote'], **row['extract']} for row in passages]
+        assessment = working_receipt.get('semantic_assessment', {})
+        try:
+            # Several exact inspected spans can share a page locator. Keep each
+            # span separate so no quote can be fabricated across their boundary.
+            combined = {}
+            for material in materials:
+                key = material['source_id']
+                if key not in combined:
+                    combined[key] = {k: v for k, v in material.items() if k not in ('passage_text', 'passage_texts')}
+                    combined[key]['passage_texts'] = []
+                if any(combined[key][k] != material[k] for k in ('path', 'sha256', 'locator')):
+                    raise bibliography.ReviewError('BIBLIOGRAPHY-MATERIAL', 'Conflicting material bindings for one source locator')
+                combined[key]['passage_texts'].extend(material.get('passage_texts', [material.get('passage_text', '')]))
+            materials = list(combined.values())
+            bibliography.validate(text, assessment.get('bibliography_review'), materials,
+                                  lambda path: Path(path).read_bytes())
+        except bibliography.ReviewError as exc:
+            hard.append(finding(exc.code, 'citation', 'hard', artifact.as_posix(), str(exc)))
     if receipt.get("schema_version") == "2.0.0":
         coverage_finding = _legacy_centroid_surface_finding(receipt, artifact)
         if coverage_finding is not None:

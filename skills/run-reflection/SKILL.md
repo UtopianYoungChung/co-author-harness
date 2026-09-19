@@ -20,6 +20,8 @@ project requirements below apply to governed lifecycle reflection only.
 
 # run-reflection — public reflection coordinator (staging)
 
+**Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 to final manuscript bytes and recorded Evaluator assessments. Reconcile every reference and citation use; stale, partial or prose-only evidence cannot clear the bibliography.
+
 `/run-reflection` is a real public coordinator. It is not a degraded ad.
 It coordinates the four plugin hands **on staging** after a certified
 shipment. It does not accept milestones and does not apply to the workbench.
@@ -53,7 +55,7 @@ the mode. Never guess and never run both modes.
 Resolve the project root already established in the session. Reflection
 reads project evidence; it never substitutes the package root for the
 project root. It may write dest-safe reflection receipts under
-`reviews/.harness/shipments/<id>/` and/or
+`reviews/harness/shipments/<id>/` and/or
 `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
 
 **DEST-PROTECTED stays.** Do not write manuscript bytes onto

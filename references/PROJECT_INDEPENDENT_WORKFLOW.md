@@ -185,6 +185,17 @@ match the bound excerpts; quotations must occur in those excerpts and claims in
 the reviewed target. The native Evaluator/Reflector judges actual support and
 qualifications; substring validation establishes provenance, not entailment.
 Contested, unsupported or unavailable passages cannot clear the check.
+Substantive review of a manuscript containing citations or a bibliography also
+requires the automatic `bibliography` check and a complete `bibliography_review`
+object in both Evaluator and Reflector results, following
+`CITATION_DISCIPLINE.md` §6. This applies even if callers supply narrower
+`required_checks`; a single attribution row cannot clear the bibliography.
+Set `review_scope: prose_only` only for an explicitly prose-only task; completion
+then reports `bibliography_status: not_assessed_prose_only`. New references or
+changed citation contexts reopen coverage. Numeric renumbering can reuse
+unchanged identities and attachments, while native final-byte review remains
+required. Unresolved evidence permits planning and draft correction but blocks
+satisfactory completion of dependent substantive checks.
 The default correction limit is three. No-change revision still follows the full
 revision sequence and produces separately reviewed unchanged candidate bytes.
 

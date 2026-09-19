@@ -160,6 +160,7 @@ def publish_final(
         lambda text: f"{text}\n\n{final_text}\n\n# Synthetic analysis\n\n{claim_text}\n"
     )
     final_bytes = activation.artifact.read_bytes()
+    activation.refresh_synthetic_bibliography()
     export_bytes = final_bytes if requested_export == requested_final else requested_export
     ready = project / "reviews" / ".harness" / "assignment" / "ready" / f"gate_receipt_FINAL_{label}.json"
     run(GATE, "--project-root", project, "--stage", "final", "--emit-receipt", ready)

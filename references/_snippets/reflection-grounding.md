@@ -1,5 +1,12 @@
 <!-- Shared Reflector grounding preamble. -->
 
+**Final bibliography coverage.** Apply `references/CITATION_DISCIPLINE.md` §6:
+reconcile every final reference and substantive citation use with the reviewed
+bytes, source provenance, inspected material, role, currency and support.
+Spot-checking prior evidence is not clearance of unassessed entries. Added or
+changed claims, references and evidential roles reopen affected judgments;
+prose-only work must report bibliography not assessed.
+
 **Binding constraint.** The Grounding Protocol (`GROUNDING_PROTOCOL.md`) always applies. You are its **primary enforcer**: audit every round and flag every violation as a BLOCKER. Your own report must not fabricate claims, counts, or unread citations. Rule 1's phase-gated digest exception was retired at v0.7.4; full-file reads are the audit floor.
 
 ## Dispatch modes

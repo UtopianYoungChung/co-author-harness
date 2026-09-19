@@ -799,6 +799,7 @@ def validate_v3_receipt(
         raise EvidenceValidationError("EXTRACT-RECEIPT-MISSING", "semantic receipt has no passages")
     artifact_text = artifact.read_text(encoding="utf-8", errors="strict")
     direct_legacy: list[dict[str, Any]] = []
+    bibliography_materials: dict[str, dict[str, Any]] = {}
     cited_keys: set[str] = set()
     for passage in passages:
         if not isinstance(passage, dict) or "canonical_extract_receipt" not in passage:
@@ -815,6 +816,16 @@ def validate_v3_receipt(
         if extract is None or passage.get("source_key") != extract["value"].get("source_key"):
             raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "passage binds the wrong extract receipt")
         selected = _locator_bytes(extract, passage.get("locator"))
+        material_locator = f"p. {passage['locator']['page_start']}"
+        material_id = passage['source_key'] + '@' + material_locator
+        material = bibliography_materials.setdefault(material_id, {
+            'source_id': material_id, 'locator': material_locator,
+            'path': str(extract['normalized']), 'sha256': sha256(extract['normalized']),
+            'passage_texts': [],
+        })
+        if material['path'] != str(extract['normalized']) or material['sha256'] != sha256(extract['normalized']):
+            raise EvidenceValidationError('BIBLIOGRAPHY-MATERIAL', 'Conflicting extracts for one source locator')
+        material['passage_texts'].append(selected.decode('utf-8'))
         manuscript = _span_bytes(artifact_text, passage.get("manuscript_span"), "MANUSCRIPT-SPAN-MISMATCH")
         use = passage.get("passage_use")
         common = {
@@ -972,5 +983,6 @@ def validate_v3_receipt(
         "phase": receipt.get("phase"),
         "artifact": {"path": str(artifact), "sha256": sha256(artifact)},
         "passages": direct_legacy,
+        "bibliography_materials": list(bibliography_materials.values()),
         "semantic_assessment": receipt.get("semantic_assessment"),
     }

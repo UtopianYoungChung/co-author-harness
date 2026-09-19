@@ -151,7 +151,8 @@ def build_existing_artifact_pair(
         evidence_relative=f"reviews/.harness/fixtures/{label}",
     )
     claim_text = f"Synthetic lifecycle target {label}."
-    activation.mutate_artifact(lambda text: f"{text}\n\n{claim_text}\n")
+    activation.mutate_artifact(lambda text: f"{text}\n\n# Synthetic analysis\n\n{claim_text}\n")
+    activation.refresh_synthetic_bibliography()
 
     receipt_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"c5:{label}:receipt"))
     reservation_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"c5:{label}:reservation"))

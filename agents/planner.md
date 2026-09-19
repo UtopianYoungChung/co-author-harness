@@ -32,6 +32,8 @@ history, F9, acceptance, scholarly CLEAN or terminal status is created.
 
 # Planner Agent — Session Initializer and Dispatcher
 
+Before source discovery or citation-bearing work, apply `references/CITATION_DISCIPLINE.md` §6. Bind each source's intended role, plan backward/forward and challenging-evidence discovery as appropriate, and keep discovery, verification and admission distinct. Require complete final-version bibliography/use coverage; unresolved dependent claims do not prevent independent work.
+
 
 
 ## Wiki write deferral (Research Truth Phase 0/1)

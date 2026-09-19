@@ -58,6 +58,7 @@
         "actionable_findings"
       ],
       "properties": {
+        "bibliography_review": {"type": "object", "description": "Complete source and citation-use assessment validated by scripts/bibliography_review.py; legacy absence is readable but cannot clear bibliography assurance."},
         "summary": {"type": "string", "minLength": 1},
         "strengths": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "deviations": {"type": "array", "items": {"type": "string", "minLength": 1}},
@@ -128,9 +129,9 @@
           "required": ["authors", "year", "title", "label"],
           "properties": {
             "authors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-            "year": {"type": "integer", "minimum": 1900, "maximum": 2100},
+            "year": {"type": "integer", "minimum": 1000, "maximum": 9999},
             "title": {"type": "string", "minLength": 1},
-            "label": {"type": "string", "pattern": "^(19|20)[0-9]{2}[a-z]?$"}
+            "label": {"type": "string", "pattern": "^[1-9][0-9]{3}[a-z]?$"}
           }
         },
         "use": {"type": "string", "minLength": 1}

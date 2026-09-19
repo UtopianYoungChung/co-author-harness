@@ -1,0 +1,75 @@
+{
+  "provenance": "All names, titles, dates, excerpts and manuscripts below are invented test fixtures. No real scholarship or personal communication is represented.",
+  "cases": [
+    {
+      "id": "foundation",
+      "manuscript": "The historical Ledger framework distinguished recording a request from authorizing it [1].",
+      "reference": "[1] Example, A. (1974). Ledger concepts. Monograph.",
+      "inspected_material": "Synthetic primary monograph, page 12: In the Ledger framework, recording a request does not authorize it. This book examines the framework's original design.",
+      "evidence_context": "The fixture stipulates a verified identity and direct inspection of this exact page. Intended role: historical foundation. No present-day gap or effectiveness claim is made."
+    },
+    {
+      "id": "current_gap",
+      "manuscript": "No contemporary request-management framework can distinguish recording from authorization [1].",
+      "reference": "[1] Example, A. (1974). Ledger concepts. Monograph.",
+      "inspected_material": "Synthetic primary monograph, page 12: In the Ledger framework, recording a request does not authorize it. This book examines the framework's original design.",
+      "evidence_context": "Identity and direct inspection are stipulated. The agent proposes this classic as sole evidence of the current research gap. No forward discovery was performed."
+    },
+    {
+      "id": "hidden_indirection",
+      "manuscript": "Reading the original Ledger monograph confirms that its author proved authorization accuracy [1].",
+      "reference": "[1] Example, A. (1974). Ledger concepts. Monograph.",
+      "inspected_material": "Synthetic secondary book review, by Reviewer B., page 2: The book distinguishes recording from authorization. Its examples are conceptual and do not measure accuracy.",
+      "evidence_context": "The primary monograph is unavailable. Only the book review has been inspected."
+    },
+    {
+      "id": "visible_indirection",
+      "manuscript": "Reviewer B.'s review describes Ledger as distinguishing recording from authorization; this characterization is indirect because the original monograph has not been inspected [1].",
+      "reference": "[1] Reviewer, B. (1975). Review of Ledger concepts. Book review.",
+      "inspected_material": "Synthetic secondary book review, page 2: The book distinguishes recording from authorization. Its examples are conceptual and do not measure accuracy.",
+      "evidence_context": "The review's identity and direct inspection are stipulated. The claim is about the review's characterization, with the primary-inspection limitation explicit."
+    },
+    {
+      "id": "constructed_communication",
+      "manuscript": "Advisor C. established that Ledger remains the best available framework [2].",
+      "reference": "[2] Advisor, C. (2026, September 12). Why Ledger remains best. Personal communication.",
+      "inspected_material": "Synthetic task instruction: Please frame the proposal around authorization and compare alternatives.",
+      "evidence_context": "The agent invented the numbered reference, title and date from task guidance. There is no communication record or explicit user confirmation. Required style is APA."
+    },
+    {
+      "id": "partial_inventory",
+      "manuscript": "Recording differs from authorization [1]. The 2026 survey establishes universal adoption [2].",
+      "reference": "[1] Example, A. (1974). Ledger concepts. Monograph.\n[2] Survey, D. (2026). Universal adoption report.",
+      "inspected_material": "Synthetic primary monograph, page 12: Recording a request does not authorize it.",
+      "evidence_context": "Only reference 1 is identity-verified and inspected. No evidence for reference 2 exists. The earlier reviewer marked the overall bibliography satisfactory after checking reference 1."
+    },
+    {
+      "id": "late_change",
+      "manuscript": "Ledger distinguishes recording from authorization and demonstrably eliminates all authorization errors [1].",
+      "reference": "[1] Example, A. (1974). Ledger concepts. Monograph.",
+      "inspected_material": "Synthetic primary monograph, page 12: Recording a request does not authorize it. No empirical effectiveness is assessed.",
+      "evidence_context": "The prior review covered only 'Ledger distinguishes recording from authorization [1].' A later prose review preserved the expanded claim and declared the bibliography satisfactory without source review."
+    },
+    {
+      "id": "technical_standard",
+      "manuscript": "For systems claiming conformance to Standard L revision 2, the prescribed request record has an authorization field [1].",
+      "reference": "[1] Synthetic Standards Group. (2026). Standard L, revision 2.",
+      "inspected_material": "Synthetic standard, clause 4: A conforming implementation shall include an authorization field in each request record. This specification does not measure real-world adoption or outcomes.",
+      "evidence_context": "Identity, current revision and direct clause inspection are stipulated. Role: method/specification. The draft claims no measured adoption or effectiveness."
+    },
+    {
+      "id": "renumbering",
+      "manuscript": "The historical Ledger framework distinguished recording from authorization [7].",
+      "reference": "[7] Example, A. (1974). Ledger concepts. Monograph.",
+      "inspected_material": "Synthetic primary monograph, page 12: In the Ledger framework, recording a request does not authorize it.",
+      "evidence_context": "An earlier grounded assessment covered exactly the same source, claim, role and attachment, labelled [1]. Only that reference number and its in-text marker changed together. The final-byte reviewer has checked the mapping."
+    },
+    {
+      "id": "prose_scope",
+      "manuscript": "The survey establishes universal adoption [1].",
+      "reference": "[1] Survey, D. (2026). Universal adoption report.",
+      "inspected_material": "No source material was inspected.",
+      "evidence_context": "The authorized task was grammar only. Agreement and punctuation passed. The source identity, support, currency and suitability remain unassessed."
+    }
+  ]
+}

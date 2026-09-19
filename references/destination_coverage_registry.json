@@ -113,7 +113,7 @@
     "scripts/protocol_conformance_fixture_support.py": {
       "class": "test_only",
       "justification": "C7 protocol-conformance support writes only beneath the caller-supplied synthetic temporary fixture root and composes production publishers for test evidence",
-      "sha256": "675d0c00a54007091dc79d29c643634db9ff044504c82bace9f149e1bcfe08d4"
+      "sha256": "68fe77f702a95bd68b6ca4d7ab53f975bc3704e5378babd285c25e3f59f810b6"
     },
     "scripts/run_product_gate.py": {
       "class": "guarded",
@@ -166,17 +166,17 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "4dead01683525a6401400b9acde462e4aa5f4f549b3df37af1c6066dc8849386"
+      "sha256": "78ca205002a401feb1e9a02ac2b18c86b29dc89af8619ed9d875ef15ad86f432"
     },
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",
       "justification": "C5 fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "9a22a81cf56ae92f5db0f9a103a8b7fa7f6f3d012443bb28643bb631daee28cb"
+      "sha256": "6be2e48c106a6cc521300ffef49a8acc273078e5ebceceaeaa4d6edc8489f7a0"
     },
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "c17238600087a158d27c2e1a35f78a61d14f16b3f31d76c81ba7112f5d4e6fdf"
+      "sha256": "b54f848c21b5c0e2c45d42682fc087864ecae98650bb35d83421b96155a83608"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

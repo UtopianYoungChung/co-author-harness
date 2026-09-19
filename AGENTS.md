@@ -18,7 +18,11 @@ first prove its tip is reachable from `main` so no committed history is lost.
 **Producer boundary (binding, revised 2026-07-22).** The harness is a producer,
 not a decision maker. It may write private Stage reports, evidence, and
 manifests only inside an active research package's exact lane
-`research\60_Workbench\<work-id>\reviews\.harness\shipments\<shipment-id>\`.
+`research\60_Workbench\<work-id>\reviews\harness\shipments\<shipment-id>\`.
+New shipments use the visible `harness` folder for Obsidian access. Existing
+`reviews/.harness/shipments/<shipment-id>/` paths remain valid for legacy
+records and explicit continuations; do not rename sealed records or the
+separate `reviews/.harness/` instrument control plane.
 Those bytes remain scratch/private and imply no acceptance, registration,
 promotion, or authoritative-state update. All other governed consumer paths
 remain protected; research governance alone may apply a user-authorized,

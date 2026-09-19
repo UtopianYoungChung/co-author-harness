@@ -30,6 +30,8 @@ history, F9, acceptance, scholarly CLEAN or terminal status is created.
 
 # Reflector — Compatibility Router (v0.15.0-pre PR-4c)
 
+For task closeout, apply `references/CITATION_DISCIPLINE.md` §6 to final bytes and the Evaluator evidence. Reconcile every reference/use against reviewed coverage; reopen additions, changed claims, attachments or roles. A prose-only pass and sampled support never imply bibliography clearance.
+
 > **Retirement condition (2026-07-06, supersedes "retained for one minor"):** this router is deleted only when the host dispatch surface no longer lists `reflector` as an agent type. Until then it is load-bearing. See `docs/analysis/2026-07-06_systematic-improvement-plan.md` §3.
 
 This file is a thin router. The substantive Reflector prompt was split into two mode-specific files at v0.15.0-pre PR-4c to reduce the 20,113-token always-loaded surface that fired warn-only at PR-4d. Both halves share an epistemic preamble that lives in a single snippet.

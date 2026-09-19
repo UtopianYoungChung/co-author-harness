@@ -163,6 +163,7 @@ def _prepare_dispatch(
     activation.mutate_artifact(
         lambda original: f"{original.rstrip()}\n\n# Synthetic analysis\n\n{text}\n"
     )
+    activation.refresh_synthetic_bibliography()
     semantics = _fresh_semantics(project, label)
     manifest = project / "project_manifest.json"
     if not manifest.is_file():
@@ -361,7 +362,7 @@ def _base_evaluation(
 ) -> dict[str, Any]:
     artifact_binding = _binding(project, prepared["artifact"])
     check_ids = [row["check_id"] for row in json.loads(profile.read_text(encoding="utf-8"))["checks"]]
-    return {
+    value = {
         "schema_version": "1.0.0",
         "evaluation_id": evaluation_id,
         "artifact": artifact_binding,
@@ -396,6 +397,10 @@ def _base_evaluation(
         },
         "created_at": "2026-07-26T00:00:04Z",
     }
+    from bibliography_fixture_support import attach_evaluation_review
+    semantic = json.loads(prepared['activation'].receipt.read_text(encoding='utf-8'))
+    attach_evaluation_review(value, prepared['artifact'], project, semantic['diagnostic_legacy_view']['passages'])
+    return value
 
 
 def _publish_evaluation(
@@ -1863,6 +1868,14 @@ def main() -> int:
             attack_cases += 1
             return value, path, current_register, current
 
+        authenticated_attack("bibliography-missing", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value.pop('bibliography_review'), 'BIBLIOGRAPHY-UNASSESSED')
+        authenticated_attack("bibliography-sample-only", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value['bibliography_review']['source_support'].pop(), 'BIBLIOGRAPHY-COVERAGE')
+        authenticated_attack("bibliography-stale", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value['bibliography_review'].update(coverage_sha256='0' * 64), 'BIBLIOGRAPHY-STALE')
+        authenticated_attack("bibliography-prose-only", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value['bibliography_review'].update(scope='prose_only'), 'BIBLIOGRAPHY-SCOPE')
         authenticated_attack("forged-separation", clean_value, clean_artifact, clean_register, clean_prepared, lambda value, *_: value["dispatch_separation"].update({"generator_claim_id": "dispatch-0000000000000000"}), "SET-DISPATCH-SEPARATION")
         authenticated_attack("forged-dispatch", clean_value, clean_artifact, clean_register, clean_prepared, lambda value, *_: value["evaluation_dispatch"].update({"claim": value["generator_envelope"]}), "SET-DISPATCH-SEPARATION")
 

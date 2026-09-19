@@ -65,7 +65,147 @@ A term invoked solely to cross-reference another section in the same manuscript 
 
 When Sub-check H closes a finding on a register-boundary aside (e.g., the §2 / §5 twin-paragraph pattern documented in `lay_term_lexicons.md §5`), the citation behaviour at that aside should be audited as part of the H finding-close. Specifically: if the aside contains terms-of-art and the H suggested-fix introduces or modifies term-of-art invocations, the engagement-vs-demarcation test should be applied to each invocation. The default for register-boundary asides is the demarcation pattern (no cite), per the v0.13.0 INF3006Y precedent.
 
-## 6. Versioning
+## 6. Source selection, admission and final-version coverage
+
+This section applies to discovery, drafting, revision, evaluation, reflection,
+and any claim of satisfactory bibliography review, on every host. Reuse
+`references/REFERENCES.md`, the external verification log, role check evidence,
+and semantic execution receipts. Do not create a parallel clearance ledger.
+
+Before admission, identify the purpose of each source at each use:
+`historical_foundation`, `current_evidence`, `research_gap`, `method`, or
+`other` with an explanation. Record identity and provenance, source type,
+material actually inspected, source and manuscript locators, qualifications,
+currency, authority, directness, suitability and disposition. Discovery finds
+candidates; verification establishes what the inspected material is and says;
+admission judges fitness for this particular claim. These are separate acts.
+
+Use backward and forward discovery where appropriate. Search for evidence
+that qualifies or challenges the claim as well as supporting it. Record the
+actual queries, results and limits in existing verification evidence; if a
+direction is unnecessary, explain why. Do not claim a search was performed
+because the record has a search-shaped field. Assess current-state and gap
+claims against a dated, sufficiently current search. A classic can establish a
+historical foundation without establishing the current state of the field.
+Assess authority, directness and currency separately. Age, citation counts,
+publisher reputation and publication type are not automatic quality scores;
+appropriate books, standards, datasets and other non-journal sources remain
+admissible. Judge the argumentative weight, not a publication hierarchy.
+
+Advisor instructions and meeting guidance are research-direction inputs. They
+do not automatically become scholarly references. Admit a personal communication
+only with verified provenance or explicit user confirmation of the record,
+accurate speaker/date attribution, and a recorded citation style and appropriate
+treatment. Never invent a title, date, or publication status. If the required
+style calls for in-text-only treatment, do not add a numbered bibliography entry.
+A book review, abstract, or secondary summary must be recorded as the material
+actually inspected; distinguish claims about that text from indirect attribution
+to a primary work. Make indirection visible in the manuscript.
+
+Account for **every bibliography entry and every substantive citation use**,
+including repeated uses, uncited bibliography entries, and all claims in a
+cited paragraph. A coverage score, metadata match, supported example, or
+prose-only pass is not bibliography clearance. Unresolved sources block the
+dependent claims; record the limitation and continue independent work.
+
+Bind the assessment to the reviewed manuscript and source bytes. Added or
+changed references, changed claims, expanded attribution, different citation
+attachments, changed evidential roles, and changed inspected material reopen
+affected judgments. Preserve unaffected assessment rows by identity where
+possible; the final reviewer must still inspect and bind the delivered bytes.
+Numeric renumbering alone may reuse judgments only when source identities and
+citation attachments are identical. A change to the judgment record itself
+requires renewed review; the enclosing role result/receipt binds those bytes.
+
+### Evidence fields and mechanical boundary
+
+The ordinary workflow embeds `bibliography_review` in Evaluator and Reflector
+results. Governed product assurance embeds it in the existing
+`semantic_assessment` object of semantic execution receipts. The C6 scholarly
+evaluation transaction embeds `bibliography_review` directly and binds each
+inspected material in `source_materials` as `{source_id, locator, binding}`;
+`binding` uses the existing project-relative path, hash and byte-length form.
+This also enforces coverage when semantic graph use is not invoked. All use
+`scripts/bibliography_review.py`; old receipts remain readable, but absent
+coverage cannot establish a new satisfactory bibliography result.
+
+Call `inventory(text)` to obtain `references`, `uses`, `non_citations`,
+`coverage_sha256` and `errors`. It supports Markdown reference headings, numbered
+references, author/year (including `n.d.`) citations, and in-text personal
+communications. A detected citation that resolves to no source is an error.
+Ambiguous matches
+and detected unsupported syntax block automated clearance. The reviewer must
+inspect the entire manuscript for omitted/custom syntax and uncited substantive
+claims; the parser cannot prove semantic exhaustiveness. Do not assert
+`inventory_complete` when that inspection is incomplete. Adapt unsupported
+formats with tested inventory support before claiming mechanical clearance.
+
+Only numeric citation labels are replaced by source identity when computing
+coverage. Author/year citation text remains in the fingerprint, including page
+locators, `contra`, `see also`, and other qualifiers. Changing them requires a
+new assessment even when the source identity stays the same.
+
+Bare parenthetical years/ranges are non-citations only with positive, immediately
+adjacent calendar wording: “next/last/this year” (also “calendar year”) or an
+explicit “spans two years” form (counts two through ten or positive digits).
+Ordinary prose such as “next year (2027)” therefore needs no bibliography review.
+A matching adjacent narrative author takes precedence over any calendar cue.
+Narrative authors include possessive forms with straight or curly apostrophes,
+such as “Smith et al.'s (2020)” and “Smith et al.’s (2020)”. Unresolved names
+remain candidates regardless of capitalization, including “eResearch (2020)”.
+Absent positive calendar evidence, ambiguous years must resolve as citations;
+failure to recognize an author never licenses exclusion. This is a deliberately
+narrow grammar, not a general date parser.
+For a bibliography-wide pass, copy the inventory's exact `non_citations` rows
+into the assessment: each binds `candidate_id`, `claim_sha256`, `text`,
+`classification`, `reason`, and the matched `calendar_context` wording to the
+current paragraph context. The verifier
+recomputes and compares every classification; a caller cannot add an exclusion
+for an author/year citation or use an old classification for changed text.
+An empty list may be omitted. Other ambiguous forms require tested inventory
+support, not an unchecked ignore list. Reviewers still inspect the whole text.
+
+The embedded object has:
+
+- `scope: bibliography`, `coverage_sha256`, `inventory_complete: true`, and
+  `inventory_rationale` explaining the actual coverage inspection.
+- `sources`: one row per inventory `reference_id`, with exact `reference`,
+  `identity_status` (`verified` or `user_confirmed` for admission),
+  `identity_rationale`, `provenance`, `source_type`, `material_kind`
+  (`primary`, `secondary`, `personal_communication`), `inspected`,
+  `disposition` (`admitted`, `unresolved`, `excluded`) and `rationale`.
+  Each inspected item binds `source_id`, `sha256`, `locator`, and an actual
+  `quote`. Personal communications additionally record
+  `communication_provenance` (`verified_record` or `explicit_user_confirmation`),
+  `attribution`, `citation_style`, `style_treatment`, and `communication_record`
+  binding `source_id`, `locator`, `quote`, `speaker` and `date` to the inspected
+  provenance/confirmation. APA personal communications must be in-text only.
+- `source_support`: one row per inventory `use_id`, copying `reference_id`
+  and `claim_sha256`; bind `source_id`, `source_locator` and a supporting
+  `quote`. Record `role`, `role_rationale`, `authority_rationale`, `directness`
+  (`primary`, `indirect`, `personal_communication`), `directness_rationale`,
+  `currency` (`current`, `historical`, `not_time_sensitive`),
+  `currency_rationale`, `discovery` (`backward`, `forward`,
+  `challenging_evidence` with actual results or reasoned non-applicability),
+  `disposition` (`supported`, `unresolved`, `unsupported`), `rationale`, and
+  `limitations`. Current evidence and research gaps require `assessed_as_of`
+  in YYYY-MM-DD form. Indirect support requires an `indirection_marker`
+  actually present in the cited paragraph.
+
+Ordinary materials use the bound excerpt's `source_id` and `locator`.
+Governed materials use `source_key@locator` (for example `example@p. 1`),
+the verified extract hash and its passage locator; v3 portable paths are
+resolved by the existing evidence verifier. Unresolved rows may record the
+reason without pretending to have inspected inaccessible material.
+
+The machinery verifies inventory equality, bound material, quoted bytes and
+record completeness. It does **not** infer entailment, genuine authority,
+adequate search or fitness from a rationale string. Evaluator judgment remains
+required, and Reflector checks its qualifications against the final bytes.
+Test-generated records must be labelled synthetic and never passed off as
+performed scholarly review.
+
+## 7. Versioning
 
 | Version | Date | Changes |
 |---|---|---|

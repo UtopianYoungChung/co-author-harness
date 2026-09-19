@@ -8,6 +8,8 @@ user-invocable: true
 
 # run-finalize — public finalize coordinator (staging)
 
+**Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 before any applicable completion check. Require complete final-version reference/use coverage and resolved dependent evidence. Mechanical provenance checks do not establish source suitability; a prose-only pass carries no bibliography approval.
+
 `/run-finalize` is a real public coordinator. It is not a degraded ad and not
 a mechanical generate+evaluate onto the live workbench. It coordinates the
 four plugin hands **on staging**.
@@ -57,7 +59,7 @@ No scholarly CLEAN.
 
 **DEST-PROTECTED stays.** Refuse a direct write of manuscript bytes onto
 `research/60_Workbench/<work-id>/`. Dest-safe receipts only under
-`reviews/.harness/shipments/<id>/` and/or
+`reviews/harness/shipments/<id>/` and/or
 `outputs/co-author-harness/staging/<work-id>/<run-id>/`.
 Derived handoff remains valid. No CLEAN mint. SK-32 stays closed.
 
