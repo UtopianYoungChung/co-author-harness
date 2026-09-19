@@ -54,6 +54,11 @@ class BibliographyWorkflowTests(unittest.TestCase):
             ingest_review(session, result, evidence)
         self.assertEqual(cm.exception.code, code)
 
+    def test_document_sized_material_without_passage_is_refused(self):
+        passage = 'The original framework distinguished recording from approval. The source does not establish a current research gap.'
+        session, result, evidence = self.setup_review(source_text=passage + ' ' + 'Unrelated filler sentence. ' * 1000)
+        self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-MATERIAL-UNSCOPED')
+
     def assert_completion_blocked(self, session):
         with self.assertRaises(piw.PIWError):
             coordinator.deliver(session, session.parent / 'blocked.md')

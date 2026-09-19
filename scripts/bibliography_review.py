@@ -13,6 +13,10 @@ import re
 from collections import Counter
 
 
+# Largest bound file accepted as the passage at a locator (about five printed pages of text).
+EXCERPT_MAX_CHARS = 20000
+
+
 class ReviewError(ValueError):
     def __init__(self, code, message):
         super().__init__(message)
@@ -264,8 +268,17 @@ def validate(text, review, materials, read_bytes, *, require_clear=True):
                     'BIBLIOGRAPHY-MATERIAL', 'Inspection must bind a supplied material and locator.')
             data = read_bytes(material['path'])
             require(hashlib.sha256(data).hexdigest() == material['sha256'], 'BIBLIOGRAPHY-MATERIAL-STALE', 'Inspected material changed.')
-            text_at_locator = material.get('passage_text', data.decode('utf-8-sig'))
-            inspected_text[item['source_id']] = [normalized(x) for x in material.get('passage_texts', [text_at_locator])]
+            # A quote must be matched against the passage at the stated locator. A bound file stands in for
+            # that passage only when it is excerpt-sized; matching against a whole document would let a quote
+            # from any page satisfy any locator.
+            passages = material.get('passage_texts') or ([material['passage_text']] if material.get('passage_text') else [])
+            if not passages:
+                whole = data.decode('utf-8-sig')
+                require(len(whole) <= EXCERPT_MAX_CHARS, 'BIBLIOGRAPHY-MATERIAL-UNSCOPED',
+                        'Bound material is document-sized and supplies no passage text at its locator; whole-document matching is not accepted.')
+                passages = [whole]
+            require(all(isinstance(x, str) and x.strip() for x in passages), 'BIBLIOGRAPHY-MATERIAL', 'Passage text at the locator is empty.')
+            inspected_text[item['source_id']] = [normalized(x) for x in passages]
             require(isinstance(item.get('quote'), str) and item['quote'].strip() and any(normalized(item['quote']) in x for x in inspected_text[item['source_id']]),
                     'BIBLIOGRAPHY-MATERIAL', 'Inspection quote must occur in the bound material.')
         if row['material_kind'] == 'personal_communication' or 'personal communication' in ref['reference'].lower():

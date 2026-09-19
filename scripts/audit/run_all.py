@@ -35,6 +35,7 @@ from audit_style import (
     audit_voice,
 )
 from audit_craft import audit_craft
+from audit_citations import audit_source_locators
 from d_style_profile_check import build_report as build_d_style_profile_report
 from reader_accessibility_policy import (
     PolicyError,
@@ -55,6 +56,7 @@ AUDITORS: List[Tuple[str, Auditor]] = [
     ("sentence_length", audit_sentence_length),
     ("passive_voice", audit_passive_voice),
     ("craft", audit_craft),
+    ("source_locators", audit_source_locators),
 ]
 
 

@@ -140,6 +140,99 @@ def audit_tree(root: Path, valid_anchors: Set[str]) -> FindingsReport:
     return report
 
 
+# --- Source locators (bibliographic citations) --------------------------------
+# The rule-anchor audit above checks the harness's own citations. This auditor
+# covers a manuscript's citations to sources. It issues no verdict itself: it runs
+# the two quote-binding gates on the project's checks file and relays their
+# conclusions, and it says so when no such evidence exists.
+
+SOURCE_CITATION_RE = re.compile(
+    r"\([^()\n]*?\b(?:1[89]|20)\d\d[a-z]?\b[^()\n]*?\)"
+    r"|\[\d{1,3}(?:\s?[,–-]\s?\d{1,3})*\]"
+    r"|\\cite[tp]?\*?\{"
+)
+CHECKS_FILENAME = "citation_checks.json"
+GATE_TOOLS = ("verify_locators.py", "validate_sources.py")
+GATE_RULE_REF = "GROUNDING_PROTOCOL.md#gp-1"
+
+
+def _find_checks_file(target: Path) -> Path | None:
+    for base in list(target.parents)[:3]:
+        candidate = base / "reviews" / CHECKS_FILENAME
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _gate_tools_dir() -> Path:
+    import os
+
+    return Path(os.environ.get("CITATION_GATE_TOOLS") or (Path.home() / ".claude" / "tools"))
+
+
+def audit_source_locators(text: str, target: Path) -> List[Finding]:
+    import subprocess
+
+    first = next(
+        (i for i, line in enumerate(text.splitlines(), 1) if SOURCE_CITATION_RE.search(line)),
+        None,
+    )
+    if first is None:
+        return []
+
+    def finding(check_id: str, severity: str, evidence: str, tentative: bool = False) -> Finding:
+        return Finding(
+            check_id=check_id,
+            category="citation",
+            severity=severity,
+            locator=locator_for(target, first),
+            evidence=evidence[:400],
+            rule_ref=GATE_RULE_REF,
+            tentative=tentative,
+        )
+
+    checks = _find_checks_file(target)
+    if checks is None:
+        return [finding(
+            "CIT-LOC-000", "default",
+            f"manuscript cites sources but no reviews/{CHECKS_FILENAME} exists; no citation "
+            "has a quote bound to its stated page, so all are UNVERIFIED",
+        )]
+    tools = _gate_tools_dir()
+    missing = [name for name in GATE_TOOLS if not (tools / name).is_file()]
+    if missing:
+        return [finding(
+            "CIT-LOC-001", "default",
+            f"quote-binding gate unavailable ({', '.join(missing)} not found under "
+            "CITATION_GATE_TOOLS); citations remain UNVERIFIED",
+        )]
+    out: List[Finding] = []
+    for name in GATE_TOOLS:
+        command = [sys.executable, str(tools / name), str(checks)]
+        if name == "validate_sources.py":
+            command.append("--offline")  # a pre-flight makes no network calls
+        try:
+            run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=300)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            out.append(finding("CIT-LOC-001", "default",
+                               f"{name} did not complete ({type(exc).__name__}); citations remain UNVERIFIED"))
+            continue
+        lines = [line.strip() for line in run.stdout.splitlines()]
+        for idx, line in enumerate(lines):
+            if line.startswith("FAIL"):
+                follow = lines[idx + 1] if idx + 1 < len(lines) else ""
+                detail = follow.lstrip("- ") if follow.startswith("-") else ""
+                out.append(finding("CIT-LOC-010", "inviolable", f"{name}: {line} {detail}".strip()))
+            elif line.startswith("UNSUPPORTED"):
+                out.append(finding("CIT-LOC-011", "default", f"{name}: {line}"))
+            elif line.startswith("DISCLOSE"):
+                out.append(finding("CIT-LOC-012", "default", f"{name}: {line}", tentative=True))
+            elif line.startswith("REVIEW"):
+                out.append(finding("CIT-LOC-013", "default", f"{name}: {line}", tentative=True))
+    return out
+
+
 def main(argv: List[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")

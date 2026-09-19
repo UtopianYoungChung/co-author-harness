@@ -27,6 +27,7 @@ sys.path.insert(0, str(HERE))
 
 from audit_citations import (  # noqa: E402
     audit_file,
+    audit_source_locators,
     audit_tree,
     load_valid_anchors,
     GP_PATH_DEFAULT,
@@ -142,6 +143,37 @@ def test_cli_exits_0_on_good_fixture() -> None:
     )
 
 
+def test_source_locators_are_unverified_without_a_checks_file() -> None:
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="source-locators-") as tmp:
+        root = Path(tmp)
+        (root / "manuscript").mkdir()
+        plain = root / "manuscript" / "plain.md"
+        plain.write_text("A sentence with no citation.", encoding="utf-8")
+        assert audit_source_locators(plain.read_text(encoding="utf-8"), plain) == []
+
+        cited = root / "manuscript" / "cited.md"
+        cited.write_text("Actors depend on one another (Yu, 2024, p. 211).", encoding="utf-8")
+        found = audit_source_locators(cited.read_text(encoding="utf-8"), cited)
+        assert [f.check_id for f in found] == ["CIT-LOC-000"], found
+        assert found[0].category == "citation" and "UNVERIFIED" in found[0].evidence
+
+        (root / "reviews").mkdir()
+        (root / "reviews" / "citation_checks.json").write_text("{}", encoding="utf-8")
+        previous = os.environ.get("CITATION_GATE_TOOLS")
+        os.environ["CITATION_GATE_TOOLS"] = str(root / "no-tools-here")
+        try:
+            found = audit_source_locators(cited.read_text(encoding="utf-8"), cited)
+        finally:
+            if previous is None:
+                os.environ.pop("CITATION_GATE_TOOLS", None)
+            else:
+                os.environ["CITATION_GATE_TOOLS"] = previous
+        assert [f.check_id for f in found] == ["CIT-LOC-001"], found
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -154,6 +186,7 @@ def main() -> int:
         test_audit_tree_skips_grounding_protocol_self,
         test_cli_exits_1_on_bad_fixture,
         test_cli_exits_0_on_good_fixture,
+        test_source_locators_are_unverified_without_a_checks_file,
     ]
     failures = []
     for t in tests:
