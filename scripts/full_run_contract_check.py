@@ -122,6 +122,10 @@ from draft_evidence_verifier import (              # noqa: E402
     VerifierError,
     validate_lifecycle_verifier_binding,
 )
+from draft_governance_lifecycle import (           # noqa: E402
+    DraftGovernanceLifecycleError,
+    validate_lifecycle_draft_governance_binding,
+)
 import pre_phase_advance_check as ppa              # noqa: E402
 import reader_accessibility_policy as rap          # noqa: E402
 import artefact_frontmatter_validate as afv        # noqa: E402
@@ -1850,6 +1854,11 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                 ))
                 continue
             policy = record.get("policy_evidence")
+            assignment = policy.get("assignment_receipt") if isinstance(policy, dict) else None
+            expected_receipt_id = (
+                assignment.get("receipt_id") if isinstance(assignment, dict) else None
+            )
+            generation_result: dict[str, object] | None = None
             for field, phase, disposition in (
                 ("draft_generation", "generation", "evaluation_ready"),
                 ("draft_evaluation", "evaluation", "product_qualified"),
@@ -1888,18 +1897,53 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                         raise ValueError(
                             "locator target differs from accepted deliverable bytes"
                         )
-                    result = validate_lifecycle_verifier_binding(
-                        locator=evidence_path,
-                        artifact=lifecycle_artifact,
-                        project_root=project_root,
-                        harness_root=ROOT,
-                        expected_phase=phase,
-                        expected_disposition=disposition,
-                    )
+                    if locator_probe.get("binding_type") == "lifecycle_draft_governance":
+                        # A v2 draft-governance locator binds the assignment receipt and the
+                        # dispatch claim/consumption; the verifier-binding validator does not
+                        # know that shape, so it is replayed by its own validator.
+                        claim_binding = locator_probe.get("dispatch_claim")
+                        consumption_binding = locator_probe.get("dispatch_consumption")
+                        if (
+                            not isinstance(claim_binding, dict)
+                            or not isinstance(consumption_binding, dict)
+                            or not isinstance(claim_binding.get("path"), str)
+                            or not isinstance(consumption_binding.get("path"), str)
+                            or not isinstance(expected_receipt_id, str)
+                        ):
+                            raise ValueError("v2 dispatch or receipt binding is malformed")
+                        dispatch_claim = (
+                            project_root / Path(*PurePosixPath(claim_binding["path"]).parts)
+                        ).resolve(strict=True)
+                        dispatch_consumption = (
+                            project_root / Path(*PurePosixPath(consumption_binding["path"]).parts)
+                        ).resolve(strict=True)
+                        result = validate_lifecycle_draft_governance_binding(
+                            locator=evidence_path,
+                            artifact=lifecycle_artifact,
+                            project_root=project_root,
+                            expected_phase=phase,
+                            expected_role=("generator" if phase == "generation" else "evaluator"),
+                            expected_milestone=("FINAL" if key == "M5" else key),
+                            expected_receipt_id=expected_receipt_id,
+                            expected_dispatch_claim=dispatch_claim,
+                            expected_dispatch_consumption=dispatch_consumption,
+                            expected_generation_result=generation_result,
+                        )
+                    else:
+                        result = validate_lifecycle_verifier_binding(
+                            locator=evidence_path,
+                            artifact=lifecycle_artifact,
+                            project_root=project_root,
+                            harness_root=ROOT,
+                            expected_phase=phase,
+                            expected_disposition=disposition,
+                        )
                     if result["locator"].get("target") != target:
                         raise VerifierError(
                             "LIFECYCLE-EVIDENCE-CLAIM", "locator target differs"
                         )
+                    if field == "draft_generation":
+                        generation_result = result
                 except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
                     unmet.append(_u(
                         "full_lifecycle", "FRC-DRAFT-POLICY-STALE", where,
@@ -1912,6 +1956,11 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
                     } else "FRC-DRAFT-POLICY-INVALID"
                     unmet.append(_u(
                         "full_lifecycle", code, where,
+                        f"{exc.code}: {exc.message}",
+                    ))
+                except DraftGovernanceLifecycleError as exc:
+                    unmet.append(_u(
+                        "full_lifecycle", "FRC-DRAFT-POLICY-INVALID", where,
                         f"{exc.code}: {exc.message}",
                     ))
 

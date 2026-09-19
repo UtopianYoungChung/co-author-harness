@@ -769,6 +769,16 @@ def main() -> int:
             v2_project, v2_state, _test_authority_adapter=fixture_adapter,
         )
         assert v2_validation.exit_permitted, v2_validation.findings
+        # The terminal check must replay a v2 draft-governance locator with the
+        # draft-governance validator. Routed to the verifier-binding validator it
+        # is refused on schema grounds before any lifecycle fact is examined. The
+        # fixture authority exists only in-process, so the subprocess replay still
+        # refuses; what is asserted here is which validator refused.
+        routed_full_run = run(
+            FULL_RUN, "terminal", "--project-root", v2_project, expected=4,
+        )
+        assert "LIFECYCLE-EVIDENCE-INVALID" not in routed_full_run.stdout, routed_full_run.stdout
+        assert "LIFECYCLE-DRAFT-GOVERNANCE-" in routed_full_run.stdout, routed_full_run.stdout
         phase_state_path = v2_project / "reviews/phase_state.json"
         phase_state_bytes = phase_state_path.read_bytes()
         malformed_locator.write_text("[]\n", encoding="utf-8")
@@ -792,6 +802,26 @@ def main() -> int:
             FULL_RUN, "terminal", "--project-root", v2_project, expected=4,
         )
         assert "FRC-DRAFT-POLICY-STALE" in malformed_full_run.stdout
+        # A v2 locator whose dispatch binding is absent is refused as malformed
+        # rather than raising out of the terminal check.
+        original_state = json.loads(phase_state_bytes)
+        original_binding = original_state["milestone_framework"]["milestones"]["M1"][
+            "policy_evidence"
+        ]["draft_generation"]
+        undispatched = json.loads(
+            (v2_project / original_binding["evidence_path"]).read_text(encoding="utf-8")
+        )
+        assert undispatched.get("binding_type") == "lifecycle_draft_governance"
+        undispatched["dispatch_claim"] = {}
+        malformed_locator.write_text(json.dumps(undispatched) + "\n", encoding="utf-8")
+        malformed_state["milestone_framework"]["milestones"]["M1"]["policy_evidence"][
+            "draft_generation"
+        ]["evidence_sha256"] = sha(malformed_locator)
+        write_json(phase_state_path, malformed_state)
+        undispatched_full_run = run(
+            FULL_RUN, "terminal", "--project-root", v2_project, expected=4,
+        )
+        assert "v2 dispatch or receipt binding is malformed" in undispatched_full_run.stdout, undispatched_full_run.stdout
         phase_state_path.write_bytes(phase_state_bytes)
         if native_v2_only:
             print("assignment milestone native-v2 lifecycle smoketest: PASS")
