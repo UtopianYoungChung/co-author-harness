@@ -1024,7 +1024,7 @@
       "id": "skill-quick-deterministic",
       "path": "skills/quick-deterministic/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "053521fc90934ccab32a0fbf4fa8e1985fd235471138532338b5284daf94b1b9",
+      "sha256": "72dca8cf3f47f82d2f36e03fc1ae0b0051fc051e4a044562f2bbc8d234bbf985",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
