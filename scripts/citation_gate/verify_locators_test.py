@@ -101,8 +101,9 @@ def main() -> int:
          [pre for l, _, pre in found if l == 6], [""])
 
     # --- what a citation's scope leaves unaccounted for -------------------------------------
-    def frags(scope, covering, frame=()):
-        return [f for f, _ in vl.uncovered_residue(scope, covering, frame)]
+    def frags(scope, covering, attribution=""):
+        extra = [{"claim_text": attribution}] if attribution.strip() else []
+        return [f for f, _ in vl.uncovered_residue(scope, covering + extra)]
 
     scope = ("Analysis shows mismatches between a role and the agent playing it and all "
              "autonomous systems are always safe")
@@ -186,18 +187,34 @@ def main() -> int:
     targets, why = vl.citation_targets("(2026a, p. 1)", CFG_SUFFIX, None)
     case("and without one it still cannot", [k for k, _ in targets], [])
 
-    # The citation's own attribution is not an element. This is the one thing the residue
-    # disposes of besides function words, and it is a named list rather than a length.
+    # --- repair n: an attribution is a position, not a vocabulary (finding F5) -------------
+    # The exemption used to remove any residual word in REPORTING_VERBS. That cleared
+    # "... and write (Tester, 2026)", where "write" is a second predicate about the
+    # participants. Only the reporting clause following a narrative citation is exempt now,
+    # and it is passed in as covered text rather than matched by word list.
     cov_narr = [check("Participants share resources")]
-    case("a reporting verb after a narrative citation is not an element",
-         frags(" states: Participants share resources", cov_narr, {"tester"}), [])
-    case("nor is the cited author's own name",
-         frags(" Tester argues that Participants share resources", cov_narr, {"tester"}), [])
-    case("but a negation inside the attribution still reports",
-         len(frags(" states: Participants never share resources", cov_narr, {"tester"})), 1)
-    case("and a subject that is not the cited author still reports",
-         frags("Analysis shows Participants share resources", cov_narr, {"tester"}),
-         ["Analysis shows"])
+    case("the reporting clause of a narrative citation is covered",
+         frags(" states: Participants share resources", cov_narr, " states: "), [])
+    case("a reporting verb that is not an attribution is reported",
+         frags("Participants share resources and write", cov_narr), ["and write"])
+    case("a negation inside the attribution still reports",
+         len(frags(" states: Participants never share resources", cov_narr, " states: ")), 1)
+    case("a subject that is not the cited author still reports",
+         frags("Analysis shows Participants share resources", cov_narr), ["Analysis shows"])
+    for tail, want in [(" states: ", True), (", who states: ", True), (" argues that ", True),
+                       (" and write ", False), (" resources ", False)]:
+        case(f"attribution tail {tail!r}",
+             bool(vl.ATTRIBUTION_TAIL_RE.match(tail)), want)
+
+    # --- repair n: the narrative author's position is what is dropped (finding F4) ---------
+    case("a narrative author reports where it starts",
+         vl.narrative_attribution("All systems are safe according to Tester ")[1] is not None, True)
+    name, at = vl.narrative_attribution("All systems are safe according to Tester ")
+    case("and the prefix before it survives",
+         "All systems are safe according to".startswith(
+             "All systems are safe according to"[:at].strip()[:20]), True)
+    case("a prefix with no author yields nothing",
+         vl.narrative_attribution("analysis of the data "), (None, None))
 
     # --- repair l: the declared numeric mapping is checked (finding G2) ---------------------
     doc_num = ("Text with a numeric citation [2].\n\n## References\n\n"
@@ -214,6 +231,64 @@ def main() -> int:
                                    "Text with a citation [1] and no reference list.")), True)
     case("no declared mapping is nothing to check",
          vl.check_bib_numbers(CFG_SUFFIX, doc_num), [])
+
+    # --- repair o: prescribed is not observed (finding F6) ---------------------------------
+    # Repair (k) left deontic modals out of the comparison, reasoning that a claim which drops
+    # the quote's "should" is weaker and so over-claims nothing. Wrong: a norm and a report of
+    # behaviour are different kinds of claim, and the second does not follow from the first at
+    # any strength or under any bridge.
+    for text, want in [("Participants should share resources.", True),
+                       ("Authors must verify every reference.", True),
+                       ("Authors are required to verify references.", True),
+                       ("The guideline recommends direct citation.", True),
+                       ("Participants share resources.", False),
+                       ("Participants shared resources in every case.", False),
+                       ("Participants may share resources.", False)]:
+        case(f"prescriptive({text[:34]!r})", vl.prescriptive(text), want)
+
+    obs = "Participants share resources within stable networks."
+    pre = "Participants should share resources within stable networks."
+    case("a norm and a report differ", vl.prescriptive(pre) != vl.prescriptive(obs), True)
+    case("two norms do not", vl.prescriptive(pre) != vl.prescriptive("Participants must share"), False)
+    case("two reports do not", vl.prescriptive(obs) != vl.prescriptive("Participants share"), False)
+
+    # --- repair p: one author, several years (finding F3) ----------------------------------
+    CFG_YEARS = {"sources": {"t2026": {"cite": {"author": "Tester", "year": 2026}},
+                             "t2025": {"cite": {"author": "Tester", "year": 2025}}}}
+    ONE = {"sources": {"t2026": CFG_YEARS["sources"]["t2026"]}}
+    targets, why = vl.citation_targets("(Tester, 2026, 2025, p. 1)", ONE)
+    case("a second year with no source is reported",
+         ([k for k, _ in targets], "2025" in (why or "")), (["t2026"], True))
+    targets, why = vl.citation_targets("(Tester, 2026, 2025, p. 1)", CFG_YEARS)
+    case("and resolves when both works are declared",
+         (sorted(k for k, _ in targets), why), (["t2025", "t2026"], None))
+    case("both years carry the member's page",
+         sorted({sp for _, sp in targets}), [(1, 1)])
+    # A page range in the 2000s is pages, not years.
+    targets, why = vl.citation_targets("(Yu, 2024, pp. 2019-2020)",
+                                       {"sources": {"y": {"cite": {"author": "Yu", "year": 2024}}}})
+    case("a page range is not read as years",
+         ([k for k, _ in targets], [sp for _, sp in targets], why),
+         (["y"], [(2019, 2020)], None))
+
+    # --- repair p: a numbered entry must be the work (finding F2) ---------------------------
+    doc_p = ("Text [1] and [2].\n\n## References\n\n"
+             "[1] Tester, A. (2026). Synthetic Fixture. Journal of\n    Software Test Data, 4(2).\n"
+             "[2] Tester, A. (2026). A Completely Different Work.\n")
+    SRC_P = {"fixture": {"cite": {"author": "Tester", "year": 2026, "title": "Synthetic Fixture"}}}
+    case("the entry naming the work is clean",
+         vl.check_bib_numbers({"sources": SRC_P, "bib_numbers": {"1": "fixture"}}, doc_p), [])
+    case("same author and year, different title, is not",
+         bool(vl.check_bib_numbers({"sources": SRC_P, "bib_numbers": {"2": "fixture"}}, doc_p)), True)
+    case("a wrapped entry is read whole",
+         "Software Test Data" in vl.numbered_bibliography(doc_p)["1"], True)
+    doc_sfx = "Text [1].\n\n## References\n\n[1] Tester, A. (2026b). Some Work.\n"
+    for y, want in [("2026a", True), ("2026b", False), ("2026", True)]:
+        probs = vl.check_bib_numbers(
+            {"sources": {"f": {"cite": {"author": "Tester", "year": y, "title": "Some Work"}}},
+             "bib_numbers": {"1": "f"}}, doc_sfx)
+        case(f"a {y} check against a 2026b entry {'fails' if want else 'passes'}",
+             bool(probs), want)
 
     if failures:
         print(f"\n[BLOCKER] {len(failures)} case(s) failed")

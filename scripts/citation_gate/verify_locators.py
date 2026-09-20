@@ -105,6 +105,24 @@ STRENGTHENER_RE = re.compile(
     r"\b(?:must|always|necessarily|invariably|certainly|entirely|all|every|each|any)\b", re.I)
 
 
+# Prescription and description are different kinds of claim, not two strengths of one.
+# Repair (k) left deontic modals out of the comparison on the reasoning that a claim dropping
+# the quote's "should" is WEAKER than its source and so over-claims nothing. That was wrong:
+# "participants should share resources" and "participants share resources" are not the same
+# assertion at two strengths, and the second does not follow from the first at any strength.
+# The gate certified the second as VERBATIM against the first at 5/5 derived terms
+# (2026-09-20 review, F6).
+DEONTIC_RE = re.compile(
+    r"\b(?:should|shall|must|ought\s+to|needs?\s+to|has\s+to|have\s+to|"
+    r"(?:is|are|was|were)\s+(?:required|expected|obliged|advised)\s+to|"
+    r"recommends?|recommended|mandates?|mandated|requires\s+that)\b", re.I)
+
+
+def prescriptive(text):
+    """Does this text say what ought to happen, rather than what does?"""
+    return bool(DEONTIC_RE.search(text or ""))
+
+
 def _hits(rx, text):
     return sorted({re.sub(r"\s+", " ", m.group(0)).strip().lower() for m in rx.finditer(text or "")})
 
@@ -203,26 +221,52 @@ concludes concluded demonstrate demonstrates demonstrated explain explains expla
 describes described maintain maintains emphasise emphasises emphasize emphasizes""".split())
 
 
+# An attribution is identified by where it stands, not by the words in it. Exempting every
+# residual word that happens to be in REPORTING_VERBS cleared "... and write (Tester, 2026)",
+# where "write" is a second predicate about the participants and no attribution at all
+# (2026-09-20 review, F5). The exemption now applies to one span: the reporting clause
+# immediately following a NARRATIVE citation, which is the only place a citation's own
+# attribution can sit. A parenthetical citation is its own attribution and exempts nothing.
+ATTRIBUTION_TAIL_RE = re.compile(
+    r"^\s*[,;]?\s*(?:who|which)?\s*(?:" + "|".join(sorted(REPORTING_VERBS)) +
+    r")\b\s*(?:that\b|:)?\s*", re.I)
+
+
+def narrative_attribution(text_before):
+    """(author name, where it starts in text_before) for a narrative citation, else (None, None)."""
+    m = NARRATIVE_AUTHOR_RE.search((text_before or "").rstrip())
+    return (m.group(1), m.start(1)) if m else (None, None)
+
+
 def narrative_author(text_before):
     """The author name standing immediately before a parenthetical citation, if any."""
-    m = NARRATIVE_AUTHOR_RE.search((text_before or "").rstrip())
-    return m.group(1) if m else None
+    return narrative_attribution(text_before)[0]
 
 
 BIB_ENTRY_RE = re.compile(r"^\s*[\[(]?(\d{1,3})[\]).]\s+(.+)$")
 
 
 def numbered_bibliography(doc_text):
-    """{label: entry text} from the citing document's own numbered reference list."""
+    """{label: entry text} from the citing document's own numbered reference list.
+
+    Continuation lines are joined: a reference that wraps carries its title on the second
+    line as often as the first, and the identity check below needs the whole entry.
+    """
     lines = (doc_text or "").split("\n")
     start = next((i for i, l in enumerate(lines) if BIB_HEADING_RE.match(l.strip(" *"))), None)
     if start is None:
         return {}
-    out = {}
+    out, label = {}, None
     for line in lines[start + 1:]:
         m = BIB_ENTRY_RE.match(line)
-        if m and m.group(1) not in out:
-            out[m.group(1)] = flat(m.group(2))
+        if m:
+            label = m.group(1) if m.group(1) not in out else None
+            if label:
+                out[label] = flat(m.group(2))
+        elif label and line.strip():
+            out[label] = flat(out[label] + " " + line)
+        elif not line.strip():
+            label = None
     return out
 
 
@@ -251,18 +295,32 @@ def check_bib_numbers(cfg, doc_text):
             continue
         cite = (sources.get(key) or {}).get("cite") or {}
         author = str(cite.get("author", "")).strip()
-        year = str(cite.get("year", "")).strip()
+        year = str(cite.get("year", "")).strip().lower()
+        title = str(cite.get("title", "")).strip()
         family = author.split(",")[0].split()[-1].lower() if author else ""
         low = entry.lower()
         missing = []
         if family and family not in low:
             missing.append(f"author {family!r}")
-        if year and re.sub(r"[a-z]$", "", year.lower()) not in low:
+        # The full year token, matched as a token. Stripping the suffix let a check declaring
+        # 2026a clear an entry declaring 2026b, and a plain substring let 2026 match inside
+        # "2026a" (finding F2).
+        if year and year not in {t.lower() for t in
+                                 re.findall(r"\b(?:1[89]|20)\d\d[a-z]?\b", entry)}:
             missing.append(f"year {year}")
+        # And the work itself. Author and year alone cleared an entry for a different paper by
+        # the same author in the same year, which is exactly what a numeric label must
+        # distinguish. Compared on the leading run of the title so a dropped subtitle does not
+        # fail an otherwise correct entry.
+        if title:
+            want = norm(title)[:TITLE_MATCH_CHARS]
+            if want and want not in norm(entry):
+                missing.append(f"title {title[:48]!r}")
         if missing:
+            says = ("does not name its " + missing[0] if len(missing) == 1
+                    else "names neither its " + " nor its ".join(missing))
             problems.append(f"bib_numbers maps [{label}] to {key}, but the document's entry "
-                            f"[{label}] names neither its {' nor its '.join(missing)}: "
-                            f"{entry[:90]!r}")
+                            f"[{label}] {says}: {entry[:90]!r}")
     return problems
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[\u201C\"])")
 
@@ -302,7 +360,7 @@ def cited_sentences(doc_text):
     return out
 
 
-def uncovered_residue(scope, covering, frame_terms=()):
+def uncovered_residue(scope, covering):
     """[(fragment, why it is claim-bearing)] for every part of a citation's scope no check covers.
 
     Rule 3 item 1 as amended: every clause of a sentence carrying a citation is an element of
@@ -351,18 +409,13 @@ def uncovered_residue(scope, covering, frame_terms=()):
             out.append((r, "carries " + ", ".join(marks) + ": a negation, modality or scope "
                            "marker no check accounts for, which can invert the cited claim"))
             continue
-        # The citation's own attribution -- the cited author's name and a reporting verb --
-        # is how the sentence names its source, not something the source must support. Any
-        # other content word is reported, so this disposes of "states:" and not of
-        # "Analysis shows", whose subject is the citing author's own.
-        rest = [t for t in derive_terms(r)
-                if t not in frame_terms and t not in REPORTING_VERBS]
-        if rest:
+        if derive_terms(r):
             out.append((r, "no check for this citation accounts for it"))
     return out
 
 
-MAX_NUMERIC_RANGE = 50   # "[1-400]" is not a citation this tool will enumerate
+MAX_NUMERIC_RANGE = 50    # "[1-400]" is not a citation this tool will enumerate
+TITLE_MATCH_CHARS = 40    # leading normalised title compared against a numbered entry
 
 
 def member_page_span(text):
@@ -399,13 +452,25 @@ def numeric_labels(citation):
     return labels, bad
 
 
-def author_year_keys(text, sources):
-    """Source keys one author-year member names."""
-    ym = CITE_YEAR_RE.search(text)
-    if not ym:
-        return []
-    year = re.sub(r"\s+", "", ym.group(1) or ym.group(2)).lower()
-    families = {f.lower() for f in FAMILY_RE.findall(text[:ym.start()])}
+def year_tokens(part):
+    """[(year, position)] for every work an author-year member names.
+
+    "(Tester, 2026, 2025, p. 1)" names two works, and reading only the first year left the
+    second neither resolved nor reported (2026-09-20 review, F3). Anything at or after the
+    page locator is a page number, not a year: "pp. 2019-2020" is two pages.
+    """
+    pm = PAGE_IN_CITATION_RE.search(part)
+    cut = pm.start() if pm else len(part)
+    out = []
+    for m in CITE_YEAR_RE.finditer(part):
+        if m.start() >= cut:
+            break
+        out.append((re.sub(r"\s+", "", m.group(1) or m.group(2)).lower(), m.start()))
+    return out
+
+
+def keys_for(families, year, sources):
+    """Source keys whose author family and full year token both match."""
     keys = []
     for key, src in sources.items():
         cite = src.get("cite") or {}
@@ -417,6 +482,15 @@ def author_year_keys(text, sources):
         if family and family in families and src_year == year:
             keys.append(key)
     return keys
+
+
+def author_year_keys(text, sources):
+    """Source keys the FIRST year in an author-year member names."""
+    ys = year_tokens(text)
+    if not ys:
+        return []
+    families = {f.lower() for f in FAMILY_RE.findall(text[:ys[0][1]])}
+    return keys_for(families, ys[0][0], sources)
 
 
 def citation_targets(citation, cfg, author_hint=None):
@@ -455,15 +529,21 @@ def citation_targets(citation, cfg, author_hint=None):
             part = part.strip()
             if not part:
                 continue
-            keys = author_year_keys(part, sources)
-            if not keys and author_hint:
-                # "Tester (2026, p. 1)": the family sits outside the parenthesis.
-                keys = author_year_keys(author_hint + " " + part, sources)
-            if keys:
-                span = member_page_span(part)
-                resolved.extend((k, span) for k in keys)
-            else:
+            years = year_tokens(part)
+            if not years:
                 unresolved.append(part)
+                continue
+            families = {f.lower() for f in FAMILY_RE.findall(part[:years[0][1]])}
+            if not families and author_hint:
+                # "Tester (2026, p. 1)": the family sits outside the parenthesis.
+                families = {f.lower() for f in FAMILY_RE.findall(author_hint)}
+            span = member_page_span(part)
+            for year, _ in years:
+                keys = keys_for(families, year, sources)
+                if keys:
+                    resolved.extend((k, span) for k in keys)
+                else:
+                    unresolved.append(("/".join(sorted(families)) + " " + year).strip())
 
     if not resolved:
         return [], "names no source in this checks file"
@@ -572,6 +652,23 @@ def _main():
             # A check with no claim_text has nothing to compare, and is already failed above
             # for that. Running the comparison on an empty string made every modal in the
             # quote look like an unmatched one.
+            if c.get("claim_text", "").strip() and \
+                    prescriptive(c.get("quote", "")) != prescriptive(c["claim_text"]):
+                # Not restricted to VERBATIM and PARAPHRASE. MAPPED and EXTENDED carry a
+                # written bridge, and no bridge establishes that a prescribed behaviour
+                # occurs; the reviewer's words: "reclassification with a generic bridge does
+                # not establish occurrence".
+                if prescriptive(c.get("quote", "")):
+                    detail = ("the quote states what should happen and the claim states that "
+                              "it does")
+                else:
+                    detail = ("the claim states what should happen and the quote only reports "
+                              "what does")
+                problems.append("PRESCRIPTIVE_NOT_OBSERVED: " + detail + ". A source that "
+                                "prescribes a behaviour is not evidence that the behaviour "
+                                "occurs (Rule 3 item 6). Bind a passage that reports it, or "
+                                "write the claim as the norm it is; no class or bridge closes "
+                                "this gap")
             mod = marker_delta(c["claim_text"], c.get("quote", "")) if c.get("claim_text", "").strip() else []
             if cls in ("VERBATIM", "PARAPHRASE") and mod:
                 problems.append(f"{cls}_MODALITY: " + "; ".join(mod) + ". Rule 3 item 6: a "
@@ -616,9 +713,18 @@ def _main():
                 # A parenthetical citation governs what precedes it; a narrative one --
                 # "Tester (2026, p. 1) states: ..." -- governs what follows, and its author
                 # stands outside the parenthesis (finding G6).
-                author_hint = narrative_author(before)
+                author_hint, author_at = narrative_attribution(before)
+                attribution = ""
                 if author_hint and after.strip():
-                    scope = after
+                    # The claim follows the citation, but whatever stood before the author's
+                    # name is still part of the sentence and still cited. Taking only the
+                    # following text erased it: "All autonomous systems are safe according to
+                    # Tester (2026, p. 1), who states: ..." cleared on the second clause
+                    # alone (2026-09-20 review, F4). The author's name is dropped as
+                    # attribution; the rest of the prefix stays in scope.
+                    tail = ATTRIBUTION_TAIL_RE.match(after)
+                    attribution = tail.group(0) if tail else ""
+                    scope = before[:author_at] + " " + after
                 else:
                     scope = before if before.strip() else preamble
                 targets, why = citation_targets(citation, cfg, author_hint)
@@ -633,12 +739,21 @@ def _main():
                 keys = {k for k, _ in targets}
                 matched = [c for c in checks_with_claims
                            if flat(c["claim_text"]) and flat(c["claim_text"]) in flat(scope)]
-                right_source = [c for c in matched
-                                if any(c["source"] == k
-                                       and (span is None
-                                            or (str(c["page"]).isdigit()
-                                                and span[0] <= int(c["page"]) <= span[1]))
-                                       for k, span in targets)]
+
+                def binds(c, key, span):
+                    return (c["source"] == key
+                            and (span is None
+                                 or (str(c["page"]).isdigit()
+                                     and span[0] <= int(c["page"]) <= span[1])))
+
+                # Rule 3 item 8: a citation names a work, and every work it names is cited for
+                # the claim. Evidence for one member is not evidence for another, so each is
+                # discharged on its own checks and its own stated page. Pooling them let a
+                # single checked reference clear the rest of its group, including a second
+                # locator naming a page the source does not have (2026-09-20 review, F1).
+                per_member = [((key, span), [c for c in matched if binds(c, key, span)])
+                              for key, span in targets]
+                right_source = [c for _, own in per_member for c in own]
                 if matched and not right_source:
                     stated = ", ".join(sorted(keys))
                     spans = {k: sp for k, sp in targets if sp}
@@ -656,13 +771,19 @@ def _main():
                                   + f", not {stated}")
                     uncovered.append((line_no, citation, scope.strip() or citation, detail))
                     continue
-                frame = {f.lower() for k in keys
-                         for f in str(((cfg.get("sources", {}).get(k) or {}).get("cite") or {})
-                                      .get("author", "")).replace(",", " ").split()}
-                if author_hint:
-                    frame |= {w.lower() for w in re.findall(r"[A-Za-z]+", author_hint)}
-                for residue, why in uncovered_residue(scope, right_source, frame):
-                    uncovered.append((line_no, citation, residue, why))
+                # The attribution clause of a narrative citation is how the sentence names
+                # its source, so it is covered rather than reported.
+                covered_extra = [{"claim_text": attribution}] if attribution.strip() else []
+                for (key, span), own in per_member:
+                    where = f"p.{span[0]}" + (f"-{span[1]}" if span and span[1] != span[0] else "") \
+                        if span else "no stated page"
+                    if not own:
+                        uncovered.append((line_no, citation, flat(scope) or citation,
+                                          f"no check binds {key} at {where} to anything in this "
+                                          "sentence; a citation's other members do not support it"))
+                        continue
+                    for residue, why in uncovered_residue(scope, own + covered_extra):
+                        uncovered.append((line_no, citation, residue, f"{why} (for {key})"))
         distinct = len({(l, c) for l, c, _, _ in uncovered})
         print(f"citing document: {os.path.basename(str(bound_path))}"
               f" | citation occurrences {n_citations}, fully covered {n_citations - distinct},"
