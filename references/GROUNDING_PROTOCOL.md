@@ -158,6 +158,47 @@ Tier: [unknown — no read, no artifact, no indirection marked]
 
 ---
 
+<a id="gp-4a"></a>
+## Rule 4a — Bind the Quote Before Any Citation Verdict
+
+**No agent may issue a verdict on a citation to a source — `CLEAN`, `PASS`, `Verified`, `supported`, `grounded`, or any equivalent — unless a script has matched a verbatim quote to the stated page of that source for each element of the cited claim.** Having read the source (Rule 1, Rule 4) is a precondition for writing the attribution. It is not evidence that the source supports the claim.
+
+Added 2026-09-19 on the owner's direction. It mechanizes lesson L-P4 (`research_notes/lessons_learned.md`), where a compound claim passed the grounding audit because the source existed, had been read, and supported the first conjunct.
+
+### What this means
+
+- **Verification** asks whether the source supports the claim. The cited sentence is split into claim elements, one per load-bearing term, and each element is supported by a quote that a script finds on the stated printed page. Support is classed `VERBATIM` (the claim's terms are in the quote), `PARAPHRASE` (the quote entails it), `MAPPED` (a construct translation is needed), or `EXTENDED` (a scope or modality generalization is needed). Anything but `VERBATIM` carries a written bridge naming the inference. `MAPPED` and `EXTENDED` are reported to the author as inferences the author is making, never as passes.
+- **Validation** is a separate gate that runs first and is reported on its own line: the file in hand is the cited work (first-page identity and registry record), its version is known (version of record, author manuscript, web rendering), the page convention is recorded (printed page against PDF index), and retraction status has a dated lookup. A locator taken from an author manuscript is not a journal page.
+- The evidence is a project file, `reviews/citation_checks.json`, read by two quote-binding gates (`verify_locators.py`, `validate_sources.py`, located through `CITATION_GATE_TOOLS`). The mandated pre-flight (`scripts/audit/run_all.py`, auditor `source_locators`) runs them and relays their conclusions as `CIT-LOC-010` to `CIT-LOC-013`. With no checks file it reports `CIT-LOC-000`: the manuscript cites sources and none of those citations is verified.
+- A verdict holds for one version of the citing text. It names the sha256 of the manuscript it was run on and is void once that text changes.
+
+### What this prohibits
+
+- Issuing or recording a citation verdict from an agent's reading of a page. Reading a page and judging it is how neighbouring constructs are conflated.
+- Treating a wiki source page, a concept page, a graph node or edge, a semantic-search hit, a `REFERENCES.md` row, an abstract, a DOI that resolves, a prior verdict, or the wiki's `eligibility: verified` as support for a claim. Those are secondary. They help find the source. The wiki's `verified` records a frontmatter attestation that a page was read; `quote_bound` is `false` for every wiki page.
+- Reporting `MAPPED` or `EXTENDED` support as confirmation, or folding a validation result into a verification verdict.
+- Proposing or writing a replacement page, source, or wording that has not itself passed the same gate. A fix is a claim.
+- Citing a source for a statement that the source attributes to another work, without saying so. Either cite that work, which then goes through this rule, or attribute the statement to the source as its synthesis (Rule 4, Indirect tier).
+
+### How to comply
+
+1. Build `reviews/citation_checks.json` for the section: one check per claim element, with source, stated printed page, verbatim quote, class, key terms, and bridge.
+2. Run both gates. A `FAIL` (quote not on the stated page, wrong file, wrong DOI, undeclared version) blocks. An element with no bound quote stays labelled unverified and is not cited as support.
+3. Read every sentence the empty-reference and counter-evidence screens flag, and record the outcome on the check. Those two screens are aids: a clean screen means only that the screen found nothing.
+4. Report counts by class, the unverified elements, and the manuscript hash. Do not summarize them as a single pass.
+
+Where the gates are unavailable (`CIT-LOC-001`), the citations are unverified. Rule 7a's external verifiers establish that a work exists; they do not establish that it supports a claim, and a Rule 7a `MATCH` does not satisfy this rule.
+
+### Enforcement
+
+The Evaluator does not sign G.4, and the Reflector does not report a grounding audit as `CLEAN`, for a section whose pre-flight carries `CIT-LOC-000`, `CIT-LOC-001`, or `CIT-LOC-010`. A citation verdict issued without gate evidence is flagged as:
+```
+[GROUNDING VIOLATION — Rule 4a] Citation verdict <verdict> issued for <claim> without a quote bound to <source>, p. <page>.
+Evidence: [none — agent judgment | secondary: wiki page / graph / abstract / prior verdict]
+```
+
+---
+
 <a id="gp-5"></a>
 ## Rule 5 — Mark Uncertainty
 
