@@ -145,6 +145,17 @@ def audit_tree(root: Path, valid_anchors: Set[str]) -> FindingsReport:
 # covers a manuscript's citations to sources. It issues no verdict itself: it runs
 # the two quote-binding gates on the project's checks file and relays their
 # conclusions, and it says so when no such evidence exists.
+#
+# Symmetry (2026-09-19). Absence of evidence is treated exactly like failed
+# evidence: `inviolable`. Before this, a manuscript that bound nothing produced a
+# `default` finding while one that bound honestly and failed was blocked, so the
+# cheapest way past the gate was to skip it. The three no-evidence states are
+# no checks file (CIT-LOC-000) and a checks file that yields no verdict
+# (CIT-LOC-002: the gate crashed on it, or it ran clean having bound zero checks).
+# Two findings stay `default` on purpose: CIT-LOC-001, the tools are absent from
+# CITATION_GATE_TOOLS, which is an environment fault the author cannot fix by
+# working better; and CIT-LOC-011, an UNSUPPORTED element, which is a disclosed
+# gap under Rule 3 item 8 (e.g. a closed-access source) rather than a skipped gate.
 
 SOURCE_CITATION_RE = re.compile(
     r"\([^()\n]*?\b(?:1[89]|20)\d\d[a-z]?\b[^()\n]*?\)"
@@ -154,6 +165,9 @@ SOURCE_CITATION_RE = re.compile(
 CHECKS_FILENAME = "citation_checks.json"
 GATE_TOOLS = ("verify_locators.py", "validate_sources.py")
 GATE_RULE_REF = "GROUNDING_PROTOCOL.md#gp-1"
+# verify_locators.py's summary line: "checks: 34 bound / 0 failed / 34 total".
+# No summary means the tool never got far enough to have an opinion.
+GATE_SUMMARY_RE = re.compile(r"^checks:\s*(\d+)\s+bound\s*/\s*\d+\s+failed\s*/\s*(\d+)\s+total")
 
 
 def _find_checks_file(target: Path) -> Path | None:
@@ -194,7 +208,7 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
     checks = _find_checks_file(target)
     if checks is None:
         return [finding(
-            "CIT-LOC-000", "default",
+            "CIT-LOC-000", "inviolable",
             f"manuscript cites sources but no reviews/{CHECKS_FILENAME} exists; no citation "
             "has a quote bound to its stated page, so all are UNVERIFIED",
         )]
@@ -207,6 +221,7 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
             "CITATION_GATE_TOOLS); citations remain UNVERIFIED",
         )]
     out: List[Finding] = []
+    totals: tuple[int, int] | None = None          # (bound, total) from verify_locators.py
     for name in GATE_TOOLS:
         command = [sys.executable, str(tools / name), str(checks)]
         if name == "validate_sources.py":
@@ -219,6 +234,17 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                                f"{name} did not complete ({type(exc).__name__}); citations remain UNVERIFIED"))
             continue
         lines = [line.strip() for line in run.stdout.splitlines()]
+        if name == "verify_locators.py":
+            summary = next((m for m in (GATE_SUMMARY_RE.match(x) for x in lines) if m), None)
+            totals = (int(summary.group(1)), int(summary.group(2))) if summary else None
+            if summary is None:
+                detail = (run.stderr or "").strip().splitlines()
+                out.append(finding(
+                    "CIT-LOC-002", "inviolable",
+                    f"{name} exited {run.returncode} without reaching a verdict on "
+                    f"{checks.name} ({detail[-1][:120] if detail else 'no output'}); the checks "
+                    "file is unreadable, so no citation has a bound quote and all are UNVERIFIED",
+                ))
         for idx, line in enumerate(lines):
             if line.startswith("FAIL"):
                 follow = lines[idx + 1] if idx + 1 < len(lines) else ""
@@ -230,6 +256,16 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                 out.append(finding("CIT-LOC-012", "default", f"{name}: {line}", tentative=True))
             elif line.startswith("REVIEW"):
                 out.append(finding("CIT-LOC-013", "default", f"{name}: {line}", tentative=True))
+    # Only an EMPTY checks file lands here. A file whose checks all failed has already been
+    # reported, once per failure, as CIT-LOC-010; adding "binds no checks at all" to that
+    # would be both duplicative and untrue.
+    if totals is not None and totals == (0, 0):
+        out.append(finding(
+            "CIT-LOC-002", "inviolable",
+            f"manuscript cites sources and {checks.name} contains no checks at all; an empty "
+            "checks file is not evidence, so no citation has a quote bound to its stated page "
+            "and all are UNVERIFIED",
+        ))
     return out
 
 
