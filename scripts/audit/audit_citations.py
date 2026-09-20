@@ -152,10 +152,24 @@ def audit_tree(root: Path, valid_anchors: Set[str]) -> FindingsReport:
 # cheapest way past the gate was to skip it. The three no-evidence states are
 # no checks file (CIT-LOC-000) and a checks file that yields no verdict
 # (CIT-LOC-002: the gate crashed on it, or it ran clean having bound zero checks).
-# Two findings stay `default` on purpose: CIT-LOC-001, the tools are absent from
-# CITATION_GATE_TOOLS, which is an environment fault the author cannot fix by
-# working better; and CIT-LOC-011, an UNSUPPORTED element, which is a disclosed
-# gap under Rule 3 item 8 (e.g. a closed-access source) rather than a skipped gate.
+# Gate availability (2026-09-20). CIT-LOC-001 remains `default`: an environment fault is a
+# diagnosis, not a citation error, and an author cannot fix a missing dependency by citing
+# better. It no longer stands alone. A gate that did not execute -- absent tools, a missing
+# dependency, a timeout -- also raises CIT-LOC-003 at `inviolable`, because an unexecuted gate
+# cannot clear a citation; the review that prompted this showed an empty CITATION_GATE_TOOLS
+# yielding advisory-only findings, which was the cheapest remaining route past the gate.
+# CIT-LOC-011, an UNSUPPORTED element, stays `default`: that is a disclosed gap under Rule 3
+# item 8, such as a closed-access source, rather than a skipped gate.
+#
+# Outcome reconciliation (2026-09-20). The auditor relays a tool's conclusions, so it must
+# relay all of them and must not disagree with the tool about whether anything was wrong.
+# CIT-LOC-014 carries UNCOVERED: a cited sentence no check covers is a citation with no
+# evidence, which is what CIT-LOC-000 says about a whole manuscript, so it blocks for the same
+# reason. And a tool's exit status is now reconciled with what was parsed from its output: a
+# non-zero exit the auditor cannot account for, or a clean exit alongside a failure line, means
+# the two disagree and the run is not evidence of anything. Before this, UNCOVERED was printed
+# by the verifier and read by nobody -- the verifier exited 1 and the auditor returned no
+# finding at all.
 
 SOURCE_CITATION_RE = re.compile(
     r"\([^()\n]*?(?:\b(?:1[89]|20)\d\d[a-z]?\b|\bn\.\s?d\.)[^()\n]*?\)"
@@ -189,23 +203,44 @@ def _find_checks_file(target: Path) -> Path | None:
 BUNDLED_GATE_TOOLS = HARNESS / "scripts" / "citation_gate"
 
 
-def _gate_tools_dir() -> Path:
-    """Where the quote-binding gate lives, most specific first.
+def _resolve_gate_tools() -> tuple[Path, str | None]:
+    """(directory, configuration problem) — the first COMPLETE gate, most specific first.
 
     CITATION_GATE_TOOLS, then the author's working copy, then the copy bundled with the
-    harness. The bundled copy is what makes this gate a property of the harness rather than
-    of one machine: before it shipped, an install found no tools, emitted an advisory
-    CIT-LOC-001 and produced no inviolable finding at all.
+    harness. Completeness is what is ranked, not mere precedence: an override naming a
+    directory without the tools used to win and leave the gate unexecuted, so one environment
+    variable disabled citation checking entirely. A valid complete override still wins; an
+    incomplete one falls back and is reported.
     """
     import os
 
+    candidates: list[tuple[str, Path]] = []
     override = os.environ.get("CITATION_GATE_TOOLS")
     if override:
-        return Path(override)
-    home = Path.home() / ".claude" / "tools"
-    if all((home / name).is_file() for name in GATE_TOOLS):
-        return home
-    return BUNDLED_GATE_TOOLS
+        candidates.append(("CITATION_GATE_TOOLS", Path(override)))
+    candidates.append(("the author's working copy", Path.home() / ".claude" / "tools"))
+    candidates.append(("the copy bundled with the harness", BUNDLED_GATE_TOOLS))
+
+    for index, (label, path) in enumerate(candidates):
+        missing = [name for name in GATE_TOOLS if not (path / name).is_file()]
+        if missing:
+            continue
+        if index == 0:
+            return path, None
+        problem = None
+        if override:
+            absent = [name for name in GATE_TOOLS if not (Path(override) / name).is_file()]
+            problem = (f"CITATION_GATE_TOOLS is set to {override}, which is missing "
+                       f"{', '.join(absent)}; fell back to {label} at {path}")
+        return path, problem
+
+    searched = "; ".join(f"{label} at {path}" for label, path in candidates)
+    return candidates[-1][1], f"no complete quote-binding gate found ({searched})"
+
+
+def _gate_tools_dir() -> Path:
+    """The gate directory alone. Kept for callers that do not need the diagnosis."""
+    return _resolve_gate_tools()[0]
 
 
 def audit_source_locators(text: str, target: Path) -> List[Finding]:
@@ -236,15 +271,22 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
             f"manuscript cites sources but no reviews/{CHECKS_FILENAME} exists; no citation "
             "has a quote bound to its stated page, so all are UNVERIFIED",
         )]
-    tools = _gate_tools_dir()
+    tools, config_problem = _resolve_gate_tools()
     missing = [name for name in GATE_TOOLS if not (tools / name).is_file()]
     if missing:
-        return [finding(
-            "CIT-LOC-001", "default",
-            f"quote-binding gate unavailable ({', '.join(missing)} not found under "
-            "CITATION_GATE_TOOLS); citations remain UNVERIFIED",
-        )]
+        # The diagnosis and the consequence are separate findings on purpose: one says what
+        # is wrong with the machine, the other says that nothing has been cleared.
+        return [
+            finding("CIT-LOC-001", "default",
+                    f"quote-binding gate unavailable: {config_problem or 'missing ' + ', '.join(missing)}"),
+            finding("CIT-LOC-002", "inviolable",
+                    "no quote-binding gate could be executed, so no citation has a bound quote "
+                    "and all are UNVERIFIED. An unexecuted gate clears nothing"),
+        ]
     out: List[Finding] = []
+    if config_problem:
+        out.append(finding("CIT-LOC-001", "default", config_problem
+                           + ". The gate ran from the fallback; fix the configuration"))
     totals: tuple[int, int] | None = None          # (bound, total) from verify_locators.py
     for name in GATE_TOOLS:
         command = [sys.executable, str(tools / name), str(checks)]
@@ -259,15 +301,25 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                                  errors="replace", timeout=300)
         except (OSError, subprocess.TimeoutExpired) as exc:
             out.append(finding("CIT-LOC-001", "default",
-                               f"{name} did not complete ({type(exc).__name__}); citations remain UNVERIFIED"))
+                               f"{name} did not complete ({type(exc).__name__})"))
+            out.append(finding(
+                "CIT-LOC-003", "inviolable",
+                f"{name} did not complete, so its checks are UNVERIFIED. An unexecuted gate "
+                "clears nothing, whatever the reason it could not run"))
             continue
         lines = [line.strip() for line in run.stdout.splitlines()]
+        before_this_tool = len(out)
         unavailable = next((l for l in lines if l.startswith("GATE_UNAVAILABLE:")), None)
         if unavailable:
             out.append(finding(
                 "CIT-LOC-001", "default",
                 f"{name}: {unavailable[len('GATE_UNAVAILABLE:'):].strip()} "
-                "Citations remain UNVERIFIED; this is an environment fault, not evidence",
+                "This is an environment fault, not evidence",
+            ))
+            out.append(finding(
+                "CIT-LOC-003", "inviolable",
+                f"{name} could not execute, so its checks are UNVERIFIED. An unexecuted gate "
+                "clears nothing, whatever the reason it could not run",
             ))
             continue
         marker = GATE_COMPLETION_RE[name]
@@ -294,6 +346,25 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                 out.append(finding("CIT-LOC-012", "default", f"{name}: {line}", tentative=True))
             elif line.startswith("REVIEW"):
                 out.append(finding("CIT-LOC-013", "default", f"{name}: {line}", tentative=True))
+            elif line.startswith("UNCOVERED"):
+                out.append(finding("CIT-LOC-014", "inviolable", f"{name}: {line}"))
+        # The tool's own verdict and the auditor's reading of it have to agree. A summary line
+        # proves the tool got far enough to have an opinion; it does not prove the opinion was
+        # understood.
+        relayed = out[before_this_tool:]
+        blocking = [f for f in relayed if f.severity == "inviolable"]
+        if run.returncode != 0 and not relayed:
+            out.append(finding(
+                "CIT-LOC-002", "inviolable",
+                f"{name} exited {run.returncode} but reported nothing this auditor recognises. "
+                "Its verdict and this relay disagree, so the run clears nothing",
+            ))
+        elif run.returncode == 0 and blocking:
+            out.append(finding(
+                "CIT-LOC-002", "inviolable",
+                f"{name} exited 0 while reporting {len(blocking)} blocking result(s). Its exit "
+                "status and its output disagree, so the run clears nothing",
+            ))
     # Only an EMPTY checks file lands here. A file whose checks all failed has already been
     # reported, once per failure, as CIT-LOC-010; adding "binds no checks at all" to that
     # would be both duplicative and untrue.

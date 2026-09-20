@@ -101,8 +101,21 @@ def coverage(c, q):
         missing.append(t)
     return derived, missing, dropped
 
-CITED_SENTENCE_RE = re.compile(
-    r"\([^()\n]*?(?:\b(?:1[89]|20)\d\d[a-z]?\b|\bn\.\s?d\.)[^()\n]*?\)")
+# Must admit every form the harness auditor's SOURCE_CITATION_RE admits, or a citation can be
+# invisible to the coverage inventory while the auditor treats the document as cited.
+CITATION_RE = re.compile(
+    r"\([^()\n]*?(?:\b(?:1[89]|20)\d\d[a-z]?\b|\bn\.\s?d\.)[^()\n]*?\)"
+    r"|\[\d{1,3}(?:\s*[,\u2013-]\s*\d{1,3})*\]"
+    r"|\\cite[tp]?\*?\{[^}]*\}")
+CITED_SENTENCE_RE = CITATION_RE
+# A citation governs the clauses before it. Splitting on coordination is how "and all
+# autonomous systems are always safe" stops hiding behind a checked first clause.
+CLAUSE_SPLIT_RE = re.compile(
+    r";|(?<=[a-z0-9\)\u201d])\s*,?\s+(?:and|but|while|whereas|although|though|yet)\s+")
+PAGE_IN_CITATION_RE = re.compile(
+    r"\b(?:pp?\.|pages?|slides?|\u00a7)\s*([0-9]+)(?:\s*[\u2013-]\s*([0-9]+))?", re.I)
+CITE_YEAR_RE = re.compile(r"\b((?:1[89]|20)\d\d)[a-z]?\b|(n\.\s?d\.)")
+FAMILY_RE = re.compile(r"\b([A-Z][A-Za-z\u00c0-\u017f'\u2019\-]{1,})\b")
 BIB_HEADING_RE = re.compile(r"^#{1,6}\s+(?:Bibliography|References|Works Cited)\s*$", re.I)
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[\u201C\"])")
 
@@ -123,6 +136,81 @@ def cited_sentences(doc_text):
             if CITED_SENTENCE_RE.search(sent):
                 out.append((n, flat(sent)))
     return out
+
+
+RESIDUAL_MIN_TERMS = 3   # below this a leftover is framing ("Analysis shows"), not a claim
+
+
+def uncovered_residue(scope, covering):
+    """Parts of a citation's scope that no covering check accounts for.
+
+    Rule 3 item 1 as amended: every clause of a sentence carrying a citation is an element of
+    the cited claim. Rather than guess clause boundaries -- splitting on "and" tore
+    "a role and the agent playing it" in half -- mark what the checks actually cover and
+    report what is left.
+    """
+    flat_scope = flat(scope)
+    if not flat_scope:
+        return []
+    mask = bytearray(len(flat_scope))
+    for c in covering:
+        needle = flat(c["claim_text"])
+        if not needle:
+            continue
+        at = flat_scope.find(needle)
+        while at != -1:
+            for i in range(at, at + len(needle)):
+                mask[i] = 1
+            at = flat_scope.find(needle, at + 1)
+    residues, run = [], []
+    for ch, seen in zip(flat_scope, mask):
+        if seen:
+            if run:
+                residues.append("".join(run)); run = []
+        else:
+            run.append(ch)
+    if run:
+        residues.append("".join(run))
+    return [r.strip(" ,;:\u2014-") for r in residues
+            if len(derive_terms(r)) >= RESIDUAL_MIN_TERMS]
+
+
+def citation_targets(citation, cfg):
+    """(source keys the citation names, stated page span or None, why it could not resolve)."""
+    sources = cfg.get("sources", {})
+    m = re.match(r"\\cite[tp]?\*?\{([^}]*)\}", citation)
+    if m:
+        keys = [k.strip() for k in m.group(1).split(",") if k.strip() in sources]
+        return keys, None, None if keys else "names no source in this checks file"
+    if citation.startswith("["):
+        mapping = {str(k): v for k, v in (cfg.get("bib_numbers") or {}).items()}
+        if not mapping:
+            return [], None, ("numeric citation, and the checks file declares no bib_numbers "
+                              "mapping, so the work it names cannot be identified")
+        keys = [mapping[n] for n in re.findall(r"\d+", citation)
+                if n in mapping and mapping[n] in sources]
+        return keys, None, None if keys else "numeric label is not in bib_numbers"
+    ym = CITE_YEAR_RE.search(citation)
+    raw_year = (ym.group(1) or ym.group(2)) if ym else None
+    year = re.sub(r"\s+", "", raw_year).lower() if raw_year else ""
+    families = {f.lower() for f in FAMILY_RE.findall(citation[:ym.start()] if ym else citation)}
+    keys = []
+    for key, src in sources.items():
+        cite = src.get("cite") or {}
+        author, src_year = str(cite.get("author", "")).strip(), str(cite.get("year", "")).strip().lower()
+        if not author or not src_year:
+            continue
+        family = author.split(",")[0].split()[-1].lower()
+        if family and family in families and src_year == year:
+            keys.append(key)
+    span = None
+    pm = PAGE_IN_CITATION_RE.search(citation)
+    if pm:
+        lo = int(pm.group(1))
+        span = (lo, int(pm.group(2)) if pm.group(2) else lo)
+    if not keys:
+        return [], span, "names no source in this checks file"
+    return keys, span, None
 
 
 def bind_citing_document(cfg, override):
@@ -239,20 +327,53 @@ def _main():
         if verbose:
             for cid, cls, have, tot, miss in cov_rows:
                 if miss: print(f"   {cid} {cls} {have}/{tot} missing: {miss}")
-    uncovered = []
+    uncovered, n_citations = [], 0
     if doc_text is not None:
-        claims = [flat(c.get("claim_text", "")) for c in cfg["checks"] if c.get("claim_text", "").strip()]
-        sents = cited_sentences(doc_text)
-        uncovered = [(n, t) for n, t in sents if not any(cl and cl in t for cl in claims)]
         bound_path = override or (cfg.get("citing_document") or {}).get("path")
+        checks_with_claims = [c for c in cfg["checks"] if c.get("claim_text", "").strip()]
+        for line_no, sentence in cited_sentences(doc_text):
+            cursor = 0
+            for m in CITATION_RE.finditer(sentence):
+                n_citations += 1
+                citation = m.group(0)
+                scope, cursor = sentence[cursor:m.start()], m.end()
+                keys, page_span, why = citation_targets(citation, cfg)
+                if why:
+                    uncovered.append((line_no, citation, citation, why))
+                    continue
+                matched = [c for c in checks_with_claims
+                           if flat(c["claim_text"]) and flat(c["claim_text"]) in flat(scope)]
+                right_source = [c for c in matched if c["source"] in keys]
+                if page_span:
+                    right_source = [c for c in right_source
+                                    if str(c["page"]).isdigit()
+                                    and page_span[0] <= int(c["page"]) <= page_span[1]]
+                if matched and not right_source:
+                    stated = ", ".join(sorted(keys))
+                    detail = ("the check(s) covering it cite "
+                              + ", ".join(sorted({c["source"] for c in matched}))
+                              + f", not {stated}")
+                    if page_span and any(c["source"] in keys for c in matched):
+                        detail = (f"the check(s) for {stated} bind p."
+                                  + str(sorted({c["page"] for c in matched if c["source"] in keys}))
+                                  + f", but the citation states p.{page_span[0]}"
+                                  + (f"-{page_span[1]}" if page_span[1] != page_span[0] else ""))
+                    uncovered.append((line_no, citation, scope.strip() or citation, detail))
+                    continue
+                for residue in uncovered_residue(scope, right_source):
+                    uncovered.append((line_no, citation, residue,
+                                      "no check for this citation accounts for it"))
+        distinct = len({(l, c) for l, c, _, _ in uncovered})
         print(f"citing document: {os.path.basename(str(bound_path))}"
-              f" | cited sentences {len(sents)}, covered {len(sents) - len(uncovered)}, UNCOVERED {len(uncovered)}"
-              f" | claim_text bound to document: {len(claims) - len(unbound_claims)}/{len(claims)}")
+              f" | citation occurrences {n_citations}, fully covered {n_citations - distinct},"
+              f" UNCOVERED {len(uncovered)} element(s)"
+              f" | claim_text bound to document: {len(checks_with_claims) - len(unbound_claims)}"
+              f"/{len(checks_with_claims)}")
     hard_doc_problems = [d for d in doc_problems if not d.startswith("NOTE ")]
     for d in doc_problems:
         print(d if d.startswith("NOTE ") else "FAIL " + d)
-    for n, t in uncovered:
-        print(f"UNCOVERED L{n}: {t[:150]} - cited, but no check covers it; it is unverified")
+    for line_no, citation, clause, why in uncovered:
+        print(f"UNCOVERED L{line_no} {citation[:38]}: {clause[:110]} - {why}")
     if no_claim:
         print(f"{'LEGACY' if legacy else 'FAIL'}: {no_claim} check(s) carry no claim_text; their classes rest on chosen key_terms and are unpoliced (Rule 3 item 1)")
     for cid, e, ps in fails:

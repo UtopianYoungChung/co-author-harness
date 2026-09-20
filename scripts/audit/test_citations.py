@@ -162,19 +162,31 @@ def test_source_locators_are_unverified_without_a_checks_file() -> None:
 
         (root / "reviews").mkdir()
         (root / "reviews" / "citation_checks.json").write_text("{}", encoding="utf-8")
+
+        import audit_citations as ac
+        import pathlib
         previous = os.environ.get("CITATION_GATE_TOOLS")
+        original_home, original_bundled = pathlib.Path.home, ac.BUNDLED_GATE_TOOLS
         os.environ["CITATION_GATE_TOOLS"] = str(root / "no-tools-here")
+        pathlib.Path.home = staticmethod(lambda: root / "no-home")
+        ac.BUNDLED_GATE_TOOLS = root / "no-bundle"
         try:
             found = audit_source_locators(cited.read_text(encoding="utf-8"), cited)
         finally:
+            pathlib.Path.home, ac.BUNDLED_GATE_TOOLS = original_home, original_bundled
             if previous is None:
                 os.environ.pop("CITATION_GATE_TOOLS", None)
             else:
                 os.environ["CITATION_GATE_TOOLS"] = previous
-        assert [f.check_id for f in found] == ["CIT-LOC-001"], found
-        assert found[0].severity == "default", (
-            "tools absent from CITATION_GATE_TOOLS is an environment fault, not missing "
-            f"evidence; it must stay advisory, got {found[0].severity}"
+        by_id = {f.check_id: f for f in found}
+        assert set(by_id) == {"CIT-LOC-001", "CIT-LOC-002"}, found
+        assert by_id["CIT-LOC-001"].severity == "default", (
+            "the environment diagnosis stays advisory: an author cannot fix a missing gate by "
+            f"citing better, got {by_id['CIT-LOC-001'].severity}"
+        )
+        assert by_id["CIT-LOC-002"].severity == "inviolable", (
+            "a gate that never executed clears nothing, so the consequence blocks; "
+            f"got {by_id['CIT-LOC-002'].severity}"
         )
 
 
@@ -384,15 +396,34 @@ def test_gate_tools_are_bundled_with_the_harness() -> None:
             f"{name} differs from PROVENANCE.json; re-vendor and update the record together"
         )
 
+    import tempfile
+    from audit_citations import _resolve_gate_tools
+
     previous = os.environ.get("CITATION_GATE_TOOLS")
-    os.environ["CITATION_GATE_TOOLS"] = "C:/explicit-override"
-    try:
-        assert str(_gate_tools_dir()) == str(Path("C:/explicit-override")), _gate_tools_dir()
-    finally:
-        if previous is None:
-            os.environ.pop("CITATION_GATE_TOOLS", None)
-        else:
-            os.environ["CITATION_GATE_TOOLS"] = previous
+    with tempfile.TemporaryDirectory(prefix="gate-precedence-") as tmp:
+        root = Path(tmp)
+        complete = _stub_tools(root)                       # a COMPLETE override wins outright
+        os.environ["CITATION_GATE_TOOLS"] = str(complete)
+        try:
+            chosen, problem = _resolve_gate_tools()
+            assert chosen == complete, chosen
+            assert problem is None, problem
+
+            # An INCOMPLETE override must not disable the gate. Before 2026-09-20 it won
+            # anyway and the gate went unexecuted, so one environment variable turned
+            # citation checking off; the fallback is now reported, not silent.
+            empty = root / "empty-override"
+            empty.mkdir()
+            os.environ["CITATION_GATE_TOOLS"] = str(empty)
+            chosen, problem = _resolve_gate_tools()
+            assert chosen != empty, chosen
+            assert all((chosen / name).is_file() for name in GATE_TOOLS), chosen
+            assert problem and "CITATION_GATE_TOOLS" in problem and "fell back" in problem, problem
+        finally:
+            if previous is None:
+                os.environ.pop("CITATION_GATE_TOOLS", None)
+            else:
+                os.environ["CITATION_GATE_TOOLS"] = previous
 
     import pathlib
     original_home = pathlib.Path.home
@@ -406,11 +437,13 @@ def test_gate_tools_are_bundled_with_the_harness() -> None:
             os.environ["CITATION_GATE_TOOLS"] = previous
 
 
-def test_a_gate_that_cannot_run_is_advisory_not_a_crash() -> None:
-    """A missing PyMuPDF is an environment fault; an author cannot fix it by citing better.
+def test_an_unexecuted_gate_names_the_environment_and_still_blocks() -> None:
+    """A missing PyMuPDF is an environment fault, and it clears nothing either way.
 
-    It must not be confused with a crash, which means the evidence went unexamined and has
-    to block. The tool says so itself with GATE_UNAVAILABLE and exit 3.
+    The diagnosis stays separate from a citation error - an author cannot fix a missing
+    dependency by citing better - but the reviewer's point on 2026-09-20 stands: a gate that
+    did not execute cannot authorise clearance. So CIT-LOC-001 explains the machine and
+    CIT-LOC-003 blocks. Before this, GATE_UNAVAILABLE produced advisory findings only.
     """
     import tempfile
 
@@ -419,14 +452,119 @@ def test_a_gate_that_cannot_run_is_advisory_not_a_crash() -> None:
         cited = _fixture(root)
         found = _run(root, cited,
                      verify=("GATE_UNAVAILABLE: PyMuPDF (fitz) is not installed\n", 3))
-        assert [f.check_id for f in found] == ["CIT-LOC-001"], found
-        assert found[0].severity == "default", found[0].severity
-        assert "environment fault" in found[0].evidence, found[0].evidence
+        by_id = {f.check_id: f for f in found}
+        assert set(by_id) == {"CIT-LOC-001", "CIT-LOC-003"}, found
+        assert by_id["CIT-LOC-001"].severity == "default", by_id["CIT-LOC-001"].severity
+        assert "environment fault" in by_id["CIT-LOC-001"].evidence, by_id["CIT-LOC-001"].evidence
+        assert by_id["CIT-LOC-003"].severity == "inviolable", by_id["CIT-LOC-003"].severity
+        assert "clears nothing" in by_id["CIT-LOC-003"].evidence, by_id["CIT-LOC-003"].evidence
 
         # a crash with no marker still blocks
         found = _run(root, cited, verify=("", 3))
         assert [f.check_id for f in found] == ["CIT-LOC-002"], found
         assert found[0].severity == "inviolable", found[0].severity
+
+
+def test_uncovered_citations_are_relayed_and_block() -> None:
+    """Reviewer R1, 2026-09-20: the verifier printed UNCOVERED and nobody read it.
+
+    A cited sentence no check covers is a citation with no evidence — the same state
+    CIT-LOC-000 describes for a whole manuscript — so it blocks for the same reason. Before
+    this the verifier exited 1 reporting UNCOVERED and the auditor returned no finding at all,
+    which made the whole coverage inventory decorative at the harness layer.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-uncovered-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root)
+        found = _run(root, cited, verify=(
+            VERIFY_OK + "UNCOVERED L2: A second claim nobody checked (Other, 2025, p. 9).\n", 1))
+        by_id = {f.check_id: f for f in found}
+        assert set(by_id) == {"CIT-LOC-014"}, found
+        assert by_id["CIT-LOC-014"].severity == "inviolable", by_id["CIT-LOC-014"].severity
+        assert "UNCOVERED" in by_id["CIT-LOC-014"].evidence, by_id["CIT-LOC-014"].evidence
+
+
+def test_exit_status_and_reported_outcome_must_agree() -> None:
+    """A summary line proves the tool had an opinion, not that the opinion was understood.
+
+    The auditor relays a tool's conclusions. If the tool says something went wrong and the
+    relay finds nothing to report, or the tool exits clean while reporting a failure, the two
+    disagree and the run is not evidence of anything.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-agreement-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root)
+
+        # non-zero exit, nothing the auditor recognises
+        found = _run(root, cited, verify=(VERIFY_OK, 1))
+        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
+        assert found[0].severity == "inviolable", found[0].severity
+        assert "disagree" in found[0].evidence, found[0].evidence
+
+        # the same asymmetry on the validation side
+        found = _run(root, cited, validate=(VALIDATE_OK, 1))
+        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
+        assert "validate_sources.py" in found[0].evidence, found[0].evidence
+
+        # clean exit while reporting a failure
+        found = _run(root, cited, verify=(VERIFY_OK + "FAIL H1 [x]\n", 0))
+        by_id = {f.check_id for f in found}
+        assert by_id == {"CIT-LOC-010", "CIT-LOC-002"}, found
+        agreement = [f for f in found if f.check_id == "CIT-LOC-002"][0]
+        assert agreement.severity == "inviolable", agreement.severity
+        assert "exited 0" in agreement.evidence, agreement.evidence
+
+        # a clean run that reports only advisory results is not a disagreement
+        found = _run(root, cited, verify=(VERIFY_OK + "DISCLOSE MAPPED [E1] via C1\n", 0))
+        assert [f.check_id for f in found] == ["CIT-LOC-012"], found
+
+        # REVIEW-only validation legitimately exits 2
+        found = _run(root, cited, validate=(VALIDATE_OK + "REVIEW 10 x: no retraction lookup\n", 2))
+        assert [f.check_id for f in found] == ["CIT-LOC-013"], found
+
+
+def test_citation_syntax_agrees_between_auditor_and_verifier() -> None:
+    """Reviewer R4, 2026-09-20: the two inventories admitted different citation forms.
+
+    The auditor recognised numeric and LaTeX citations; the verifier's coverage inventory saw
+    only parenthetical author-year and n.d. forms. A manuscript could therefore be "cited" as
+    far as the auditor was concerned while the citation was invisible to coverage, and an
+    unsupported numeric claim passed. Whatever one admits, the other must admit.
+    """
+    import importlib.util
+
+    from audit_citations import BUNDLED_GATE_TOOLS, SOURCE_CITATION_RE
+
+    spec = importlib.util.spec_from_file_location("vl", BUNDLED_GATE_TOOLS / "verify_locators.py")
+    vl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(vl)
+
+    forms = [
+        "Actors depend on one another (Yu, 2024, p. 211).",
+        "A claim with no date (Tester, n.d.).",
+        "A grouped one (Yu, 2024; Ratto et al., 2026, pp. 2-3).",
+        "A numeric one [3].",
+        "A numeric range [3-5].",
+        "A numeric list [3,4].",
+        r"A latex one \citep{yu2024}.",
+        r"A latex variant \cite{yu2024,ratto2026}.",
+    ]
+    for text in forms:
+        auditor = bool(SOURCE_CITATION_RE.search(text))
+        verifier = bool(vl.CITATION_RE.search(text))
+        assert auditor == verifier, (
+            f"citation syntax disagreement on {text!r}: auditor={auditor}, verifier={verifier}. "
+            "A form only one of them sees is a citation that can escape coverage"
+        )
+
+    # and neither may fire on prose that carries no citation
+    for text in ["A sentence with no citation at all.", "A year mentioned in 2024 without brackets."]:
+        assert not SOURCE_CITATION_RE.search(text), text
+        assert not vl.CITATION_RE.search(text), text
 
 
 def main() -> int:
@@ -448,7 +586,10 @@ def main() -> int:
         test_verifier_is_bound_to_the_audited_manuscript,
         test_undated_citations_are_still_citations,
         test_gate_tools_are_bundled_with_the_harness,
-        test_a_gate_that_cannot_run_is_advisory_not_a_crash,
+        test_an_unexecuted_gate_names_the_environment_and_still_blocks,
+        test_uncovered_citations_are_relayed_and_block,
+        test_exit_status_and_reported_outcome_must_agree,
+        test_citation_syntax_agrees_between_auditor_and_verifier,
     ]
     failures = []
     for t in tests:
