@@ -158,16 +158,24 @@ def audit_tree(root: Path, valid_anchors: Set[str]) -> FindingsReport:
 # gap under Rule 3 item 8 (e.g. a closed-access source) rather than a skipped gate.
 
 SOURCE_CITATION_RE = re.compile(
-    r"\([^()\n]*?\b(?:1[89]|20)\d\d[a-z]?\b[^()\n]*?\)"
+    r"\([^()\n]*?(?:\b(?:1[89]|20)\d\d[a-z]?\b|\bn\.\s?d\.)[^()\n]*?\)"
     r"|\[\d{1,3}(?:\s?[,–-]\s?\d{1,3})*\]"
     r"|\\cite[tp]?\*?\{"
 )
 CHECKS_FILENAME = "citation_checks.json"
-GATE_TOOLS = ("verify_locators.py", "validate_sources.py")
+# Validation before verification: Rule 3 item 9 makes validation a separate gate that runs
+# first, and identity/version/page-convention failures decide whether verification means
+# anything at all.
+GATE_TOOLS = ("validate_sources.py", "verify_locators.py")
 GATE_RULE_REF = "GROUNDING_PROTOCOL.md#gp-1"
-# verify_locators.py's summary line: "checks: 34 bound / 0 failed / 34 total".
-# No summary means the tool never got far enough to have an opinion.
+# Each tool's completion marker. A tool that never prints its marker never reached a verdict,
+# whatever it exited with: a Python traceback also exits 1, which is a legitimate verdict code
+# for both tools, so the exit status alone cannot tell success from collapse.
 GATE_SUMMARY_RE = re.compile(r"^checks:\s*(\d+)\s+bound\s*/\s*\d+\s+failed\s*/\s*(\d+)\s+total")
+GATE_COMPLETION_RE = {
+    "verify_locators.py": GATE_SUMMARY_RE,
+    "validate_sources.py": re.compile(r"^validation \(item 9/10\):\s*\d+\s+sources"),
+}
 
 
 def _find_checks_file(target: Path) -> Path | None:
@@ -178,10 +186,26 @@ def _find_checks_file(target: Path) -> Path | None:
     return None
 
 
+BUNDLED_GATE_TOOLS = HARNESS / "scripts" / "citation_gate"
+
+
 def _gate_tools_dir() -> Path:
+    """Where the quote-binding gate lives, most specific first.
+
+    CITATION_GATE_TOOLS, then the author's working copy, then the copy bundled with the
+    harness. The bundled copy is what makes this gate a property of the harness rather than
+    of one machine: before it shipped, an install found no tools, emitted an advisory
+    CIT-LOC-001 and produced no inviolable finding at all.
+    """
     import os
 
-    return Path(os.environ.get("CITATION_GATE_TOOLS") or (Path.home() / ".claude" / "tools"))
+    override = os.environ.get("CITATION_GATE_TOOLS")
+    if override:
+        return Path(override)
+    home = Path.home() / ".claude" / "tools"
+    if all((home / name).is_file() for name in GATE_TOOLS):
+        return home
+    return BUNDLED_GATE_TOOLS
 
 
 def audit_source_locators(text: str, target: Path) -> List[Finding]:
@@ -226,6 +250,10 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
         command = [sys.executable, str(tools / name), str(checks)]
         if name == "validate_sources.py":
             command.append("--offline")  # a pre-flight makes no network calls
+        if name == "verify_locators.py":
+            # Bind the verdict to the bytes being audited. Without this the tools read only the
+            # checks file, so evidence built for another manuscript clears this one.
+            command += ["--citing-document", str(target)]
         try:
             run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
                                  errors="replace", timeout=300)
@@ -234,17 +262,27 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                                f"{name} did not complete ({type(exc).__name__}); citations remain UNVERIFIED"))
             continue
         lines = [line.strip() for line in run.stdout.splitlines()]
+        unavailable = next((l for l in lines if l.startswith("GATE_UNAVAILABLE:")), None)
+        if unavailable:
+            out.append(finding(
+                "CIT-LOC-001", "default",
+                f"{name}: {unavailable[len('GATE_UNAVAILABLE:'):].strip()} "
+                "Citations remain UNVERIFIED; this is an environment fault, not evidence",
+            ))
+            continue
+        marker = GATE_COMPLETION_RE[name]
+        completion = next((m for m in (marker.match(x) for x in lines) if m), None)
+        if completion is None:
+            detail = (run.stderr or "").strip().splitlines()
+            out.append(finding(
+                "CIT-LOC-002", "inviolable",
+                f"{name} exited {run.returncode} without reaching a verdict on {checks.name} "
+                f"({detail[-1][:120] if detail else 'no output'}); its checks are UNVERIFIED. "
+                "A tool that crashes has not cleared anything",
+            ))
+            continue
         if name == "verify_locators.py":
-            summary = next((m for m in (GATE_SUMMARY_RE.match(x) for x in lines) if m), None)
-            totals = (int(summary.group(1)), int(summary.group(2))) if summary else None
-            if summary is None:
-                detail = (run.stderr or "").strip().splitlines()
-                out.append(finding(
-                    "CIT-LOC-002", "inviolable",
-                    f"{name} exited {run.returncode} without reaching a verdict on "
-                    f"{checks.name} ({detail[-1][:120] if detail else 'no output'}); the checks "
-                    "file is unreadable, so no citation has a bound quote and all are UNVERIFIED",
-                ))
+            totals = (int(completion.group(1)), int(completion.group(2)))
         for idx, line in enumerate(lines):
             if line.startswith("FAIL"):
                 follow = lines[idx + 1] if idx + 1 < len(lines) else ""

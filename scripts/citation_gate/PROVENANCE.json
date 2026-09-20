@@ -1,0 +1,18 @@
+{
+ "vendored": "2026-09-20",
+ "upstream": "C:/Users/young/.claude/tools",
+ "why": "The pre-flight auditor relays these tools' conclusions. Before this they lived only in the author's home directory, so an installed harness found nothing, emitted an advisory CIT-LOC-001 and produced no inviolable finding: the citation gate was a property of one machine, not of the harness. Vendored so an install enforces it.",
+ "precedence": "CITATION_GATE_TOOLS wins when set, so a working copy overrides these. Update both together; PROVENANCE.json records what was copied.",
+ "requires": {
+  "verify_locators.py": "pymupdf (reports GATE_UNAVAILABLE and exit 3 without it)",
+  "validate_sources.py": "stdlib only; --offline makes no network call",
+  "reconcile_citations.py": "stdlib only"
+ },
+ "sha256": {
+  "reconcile_citations.py": "a3e9348c6f1033040836bb45345b945ef987d98d34a901a31fba2fc5b8fd8fc8",
+  "reconcile_citations_test.py": "f92a443a15d7c9c3e0bf3ffa2bf60c458122617b7b403dd1a9ba1e0620320952",
+  "validate_sources.py": "7c7ca6ba7cc6eccab9acd5c99127f18022704b7a1c99646ea3bf762355b6ca0e",
+  "verify_locators.py": "e0f1c28138e0569fd40a98a00e48496f82bfdb3926a469408b795a6d2d6d7e8d"
+ },
+ "line_endings": "LF; git normalises these files, so the record must be taken after normalisation"
+}

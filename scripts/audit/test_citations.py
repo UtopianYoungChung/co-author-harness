@@ -178,90 +178,255 @@ def test_source_locators_are_unverified_without_a_checks_file() -> None:
         )
 
 
-def _stub_tools(root: Path, stdout: str, exit_code: int) -> Path:
-    """A fake gate-tool directory whose two tools print `stdout` and exit `exit_code`."""
+VERIFY_OK = "checks: 3 bound / 0 failed / 3 total\n"
+VALIDATE_OK = "validation (item 9/10): 2 sources\n"
+
+
+def _stub_tools(root: Path, *, verify=(VERIFY_OK, 0), validate=(VALIDATE_OK, 0)) -> Path:
+    """A fake gate-tool directory. Each tool is controlled SEPARATELY.
+
+    The first version of this helper gave both tools identical output, which is exactly why
+    the suite missed a validation-only crash: the review of 2026-09-20 reproduced a
+    `validate_sources.py` collapse that produced zero findings while verification succeeded.
+    Any stub that cannot express an asymmetric failure cannot test for one.
+    """
     tools = root / "stub-tools"
     tools.mkdir(exist_ok=True)
-    body = (
-        "import sys\n"
-        f"sys.stdout.write({stdout!r})\n"
-        f"raise SystemExit({exit_code})\n"
-    )
-    for name in ("verify_locators.py", "validate_sources.py"):
-        (tools / name).write_text(body, encoding="utf-8")
+    for name, (stdout, code) in (("verify_locators.py", verify), ("validate_sources.py", validate)):
+        (tools / name).write_text(
+            "import sys\n"
+            "sys.argv and None\n"
+            f"sys.stdout.write({stdout!r})\n"
+            f"raise SystemExit({code})\n",
+            encoding="utf-8",
+        )
     return tools
 
 
-def test_absent_evidence_blocks_exactly_like_failed_evidence() -> None:
-    """Symmetry: skipping the gate must cost what failing it costs (2026-09-19).
+def _fixture(root: Path, body: str = "Actors depend on one another (Yu, 2024, p. 211).",
+             checks: str | None = '{"sources":{},"checks":[],"claims":[]}') -> Path:
+    (root / "manuscript").mkdir(exist_ok=True)
+    cited = root / "manuscript" / "cited.md"
+    cited.write_text(body, encoding="utf-8")
+    if checks is not None:
+        (root / "reviews").mkdir(exist_ok=True)
+        (root / "reviews" / "citation_checks.json").write_text(checks, encoding="utf-8")
+    return cited
 
-    Before this, only CIT-LOC-010 (the gate ran and FAILed) was inviolable, so the
-    cheapest route past the gate was never to bind anything. Each no-evidence state
-    below is now inviolable too.
-    """
+
+def _run(root: Path, cited: Path, **stub_kwargs) -> list:
     import os
+    previous = os.environ.get("CITATION_GATE_TOOLS")
+    os.environ["CITATION_GATE_TOOLS"] = str(_stub_tools(root, **stub_kwargs))
+    try:
+        return audit_source_locators(cited.read_text(encoding="utf-8"), cited)
+    finally:
+        if previous is None:
+            os.environ.pop("CITATION_GATE_TOOLS", None)
+        else:
+            os.environ["CITATION_GATE_TOOLS"] = previous
+
+
+def test_absent_evidence_blocks_exactly_like_failed_evidence() -> None:
+    """Symmetry: skipping the gate must cost what failing it costs (2026-09-19)."""
     import tempfile
 
     with tempfile.TemporaryDirectory(prefix="gate-symmetry-") as tmp:
         root = Path(tmp)
-        (root / "manuscript").mkdir()
-        (root / "reviews").mkdir()
-        cited = root / "manuscript" / "cited.md"
-        cited.write_text("Actors depend on one another (Yu, 2024, p. 211).", encoding="utf-8")
+        cited = _fixture(root)
         text = cited.read_text(encoding="utf-8")
-        checks = root / "reviews" / "citation_checks.json"
-        checks.write_text('{"sources":{},"checks":[],"claims":[]}', encoding="utf-8")
 
         # (a) no checks file at all
-        checks_backup = checks.read_text(encoding="utf-8")
-        checks.unlink()
+        (root / "reviews" / "citation_checks.json").unlink()
         found = audit_source_locators(text, cited)
         assert [f.check_id for f in found] == ["CIT-LOC-000"], found
-        assert found[0].severity == "inviolable", (
-            f"a manuscript that binds nothing must block, got {found[0].severity}"
-        )
-        checks.write_text(checks_backup, encoding="utf-8")
-
-        previous = os.environ.get("CITATION_GATE_TOOLS")
-
-        def run_with(stdout: str, exit_code: int) -> list:
-            os.environ["CITATION_GATE_TOOLS"] = str(_stub_tools(root, stdout, exit_code))
-            try:
-                return audit_source_locators(text, cited)
-            finally:
-                if previous is None:
-                    os.environ.pop("CITATION_GATE_TOOLS", None)
-                else:
-                    os.environ["CITATION_GATE_TOOLS"] = previous
-
-        # (b) the checks file is unreadable, so the gate crashes without a verdict
-        found = run_with("", 1)
-        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
         assert found[0].severity == "inviolable", found[0].severity
+        _fixture(root)
 
-        # (c) the gate exits 0 having bound nothing: a clean run over an empty file
-        found = run_with("checks: 0 bound / 0 failed / 0 total\n", 0)
+        # (b) the checks file is unreadable, so the verifier crashes without a verdict
+        found = _run(root, cited, verify=("", 1))
+        assert {f.check_id for f in found} == {"CIT-LOC-002"}, found
+        assert all(f.severity == "inviolable" for f in found), found
+
+        # (c) the gate exits 0 having bound nothing
+        found = _run(root, cited, verify=("checks: 0 bound / 0 failed / 0 total\n", 0))
         assert [f.check_id for f in found] == ["CIT-LOC-002"], found
-        assert found[0].severity == "inviolable", found[0].severity
-        assert "not evidence" in found[0].evidence, found[0].evidence
+        assert "no checks at all" in found[0].evidence, found[0].evidence
 
         # (d) a gate that actually bound checks stays clean
-        found = run_with("checks: 3 bound / 0 failed / 3 total\n", 0)
-        assert found == [], found
+        assert _run(root, cited) == [], _run(root, cited)
 
-        # (d2) checks that all FAILED are CIT-LOC-010, never "no checks at all". Regression:
-        # a real 26-check file whose checks every one failed also drew a CIT-LOC-002 saying it
-        # bound nothing, which is duplicative and false.
-        found = run_with("checks: 0 bound / 26 failed / 26 total\nFAIL H1 [x]\n", 1)
+        # (d2) checks that all FAILED are CIT-LOC-010, never "no checks at all"
+        found = _run(root, cited, verify=("checks: 0 bound / 26 failed / 26 total\nFAIL H1 [x]\n", 1))
         assert {f.check_id for f in found} == {"CIT-LOC-010"}, found
 
-        # (e) an UNSUPPORTED element is a disclosed gap, not a skipped gate.
-        # Both stubs print it, and each tool's output is relayed, so it appears twice.
-        found = run_with("checks: 3 bound / 0 failed / 3 total\nUNSUPPORTED [E1] - no bound quote\n", 0)
+        # (e) an UNSUPPORTED element is a disclosed gap, not a skipped gate
+        found = _run(root, cited, verify=(VERIFY_OK + "UNSUPPORTED [E1] - no bound quote\n", 0))
         assert {f.check_id for f in found} == {"CIT-LOC-011"}, found
-        assert all(f.severity == "default" for f in found), (
-            f"UNSUPPORTED is disclosure under Rule 3 item 8, got {[f.severity for f in found]}"
+        assert all(f.severity == "default" for f in found), found
+
+
+def test_a_crash_in_either_tool_blocks_on_its_own() -> None:
+    """Reviewer P1, 2026-09-20: a validation-only crash produced zero findings.
+
+    `validate_sources.py` carries Rule 3 items 9-12 — identity, retraction, empty-reference
+    and counter-evidence. Its exit status was ignored unless stdout happened to contain a
+    recognised finding, so a corrupt field or an incompatible tool version silently cleared
+    all four while quote verification succeeded.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-crash-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root)
+
+        # validation collapses, verification succeeds
+        found = _run(root, cited, validate=("", 1))
+        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
+        assert found[0].severity == "inviolable", found[0].severity
+        assert "validate_sources.py" in found[0].evidence, found[0].evidence
+
+        # and the mirror case, so neither tool can be the silent one
+        found = _run(root, cited, verify=("", 3))
+        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
+        assert "verify_locators.py" in found[0].evidence, found[0].evidence
+
+        # a tool that exits non-zero but DID reach a verdict is not a crash
+        found = _run(root, cited, verify=(VERIFY_OK + "UNSUPPORTED [E1] - x\n", 1))
+        assert {f.check_id for f in found} == {"CIT-LOC-011"}, found
+
+
+def test_validation_runs_before_verification() -> None:
+    """Rule 3 item 9: validation is a separate gate and it runs first."""
+    from audit_citations import GATE_TOOLS
+
+    assert GATE_TOOLS[0] == "validate_sources.py", GATE_TOOLS
+    assert GATE_TOOLS[1] == "verify_locators.py", GATE_TOOLS
+
+
+def test_verifier_is_bound_to_the_audited_manuscript() -> None:
+    """Reviewer P1, 2026-09-20: evidence for another document cleared this one.
+
+    The tools read only the checks file, so a checks set built for a different manuscript
+    passed unchallenged. The auditor now names the target on the verifier's command line.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-bind-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root)
+        tools = _stub_tools(root)
+        # a stub that reports back the argv it was handed
+        (tools / "verify_locators.py").write_text(
+            "import sys\n"
+            "sys.stdout.write('checks: 1 bound / 0 failed / 1 total\\n')\n"
+            "sys.stdout.write('REVIEW argv=' + ' '.join(sys.argv[1:]) + '\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
         )
+        import os
+        previous = os.environ.get("CITATION_GATE_TOOLS")
+        os.environ["CITATION_GATE_TOOLS"] = str(tools)
+        try:
+            found = audit_source_locators(cited.read_text(encoding="utf-8"), cited)
+        finally:
+            if previous is None:
+                os.environ.pop("CITATION_GATE_TOOLS", None)
+            else:
+                os.environ["CITATION_GATE_TOOLS"] = previous
+        argv = " ".join(f.evidence for f in found)
+        assert "--citing-document" in argv, found
+        assert str(cited) in argv, found
+
+
+def test_undated_citations_are_still_citations() -> None:
+    """Reviewer P2, 2026-09-20: (Author, n.d.) was invisible to the auditor.
+
+    A manuscript whose citations are all undated presented no citation at all, so the
+    inviolable CIT-LOC-000 never fired — a one-keystroke bypass of the symmetry fix.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-undated-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root, body="Asserted without evidence (Tester, n.d.).", checks=None)
+        found = audit_source_locators(cited.read_text(encoding="utf-8"), cited)
+        assert [f.check_id for f in found] == ["CIT-LOC-000"], found
+        assert found[0].severity == "inviolable", found[0].severity
+
+        # a manuscript with no citation at all is still silent
+        plain = root / "manuscript" / "plain.md"
+        plain.write_text("A sentence with no citation.", encoding="utf-8")
+        assert audit_source_locators(plain.read_text(encoding="utf-8"), plain) == []
+
+
+
+def test_gate_tools_are_bundled_with_the_harness() -> None:
+    """Reviewer, 2026-09-20: the archive shipped none of the three gate tools.
+
+    An installation without them emitted an advisory CIT-LOC-001 and zero inviolable
+    findings, so the citation gate was a property of the author's machine rather than of the
+    harness. Resolution order is CITATION_GATE_TOOLS, then the author's working copy, then
+    the bundled copy.
+    """
+    import json
+    import os
+    from audit_citations import BUNDLED_GATE_TOOLS, GATE_TOOLS, _gate_tools_dir
+
+    for name in GATE_TOOLS:
+        assert (BUNDLED_GATE_TOOLS / name).is_file(), f"{name} is not bundled"
+
+    provenance = json.loads((BUNDLED_GATE_TOOLS / "PROVENANCE.json").read_text(encoding="utf-8"))
+    import hashlib
+    for name, recorded in provenance["sha256"].items():
+        live = hashlib.sha256((BUNDLED_GATE_TOOLS / name).read_bytes()).hexdigest()
+        assert live == recorded, (
+            f"{name} differs from PROVENANCE.json; re-vendor and update the record together"
+        )
+
+    previous = os.environ.get("CITATION_GATE_TOOLS")
+    os.environ["CITATION_GATE_TOOLS"] = "C:/explicit-override"
+    try:
+        assert str(_gate_tools_dir()) == str(Path("C:/explicit-override")), _gate_tools_dir()
+    finally:
+        if previous is None:
+            os.environ.pop("CITATION_GATE_TOOLS", None)
+        else:
+            os.environ["CITATION_GATE_TOOLS"] = previous
+
+    import pathlib
+    original_home = pathlib.Path.home
+    os.environ.pop("CITATION_GATE_TOOLS", None)
+    pathlib.Path.home = staticmethod(lambda: pathlib.Path("C:/no-such-home"))
+    try:
+        assert _gate_tools_dir() == BUNDLED_GATE_TOOLS, _gate_tools_dir()
+    finally:
+        pathlib.Path.home = original_home
+        if previous is not None:
+            os.environ["CITATION_GATE_TOOLS"] = previous
+
+
+def test_a_gate_that_cannot_run_is_advisory_not_a_crash() -> None:
+    """A missing PyMuPDF is an environment fault; an author cannot fix it by citing better.
+
+    It must not be confused with a crash, which means the evidence went unexamined and has
+    to block. The tool says so itself with GATE_UNAVAILABLE and exit 3.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="gate-unavailable-") as tmp:
+        root = Path(tmp)
+        cited = _fixture(root)
+        found = _run(root, cited,
+                     verify=("GATE_UNAVAILABLE: PyMuPDF (fitz) is not installed\n", 3))
+        assert [f.check_id for f in found] == ["CIT-LOC-001"], found
+        assert found[0].severity == "default", found[0].severity
+        assert "environment fault" in found[0].evidence, found[0].evidence
+
+        # a crash with no marker still blocks
+        found = _run(root, cited, verify=("", 3))
+        assert [f.check_id for f in found] == ["CIT-LOC-002"], found
+        assert found[0].severity == "inviolable", found[0].severity
 
 
 def main() -> int:
@@ -278,6 +443,12 @@ def main() -> int:
         test_cli_exits_0_on_good_fixture,
         test_source_locators_are_unverified_without_a_checks_file,
         test_absent_evidence_blocks_exactly_like_failed_evidence,
+        test_a_crash_in_either_tool_blocks_on_its_own,
+        test_validation_runs_before_verification,
+        test_verifier_is_bound_to_the_audited_manuscript,
+        test_undated_citations_are_still_citations,
+        test_gate_tools_are_bundled_with_the_harness,
+        test_a_gate_that_cannot_run_is_advisory_not_a_crash,
     ]
     failures = []
     for t in tests:
