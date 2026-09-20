@@ -70,6 +70,74 @@ shall should will would not no nor only also too very more most less least such 
 other another same own just even still ever never always often if while because since although though unless until whether
 et al pp p vs via per one two""".split())
 
+# Negation, modality and quantifier scope. Every one of these is in STOP, so none of them
+# survives derive_terms: a claim and its own negation derive identical terms. Rule 3 item 6
+# requires modality and scope to be checked, so they are read separately here rather than
+# being silently dropped with the function words (2026-09-20 review, finding G4).
+NEGATION_RE = re.compile(
+    r"\b(?:not|never|no|none|neither|nor|cannot|without|unable|unlikely|fails?\s+to|"
+    r"rather\s+than|instead\s+of)\b|n\u2019t\b|n't\b", re.I)
+MODALITY_RE = re.compile(
+    r"\b(?:may|might|must|should|shall|would|could|can|will|always|often|sometimes|rarely|"
+    r"seldom|all|every|each|any|most|likely|possibly|potentially|generally|typically|"
+    r"usually|necessarily|merely|only)\b", re.I)
+
+
+def claim_markers(text):
+    """The negation, modality and scope markers a piece of text carries."""
+    found = set()
+    for rx in (NEGATION_RE, MODALITY_RE):
+        for m in rx.finditer(text or ""):
+            found.add(re.sub(r"\s+", " ", m.group(0)).strip().lower())
+    return sorted(found)
+
+
+# For the class check the question is not whether the two texts use the same words but
+# whether the claim says something STRONGER than the quote. Measured over the 54 live checks,
+# comparing marker sets fired 14 times and was wrong 11 times: "no reference cites" against
+# "none of the references cite" is one negation in two spellings, "one fourth of all
+# references" is a quantifier inside a noun phrase, and a claim that drops the quote's
+# "should" is weaker than its source, not stronger. Only these three differences survive.
+HEDGE_RE = re.compile(
+    r"\b(?:may|might|can|could|would|possibly|potentially|perhaps|likely|unlikely|often|"
+    r"sometimes|rarely|seldom|generally|typically|usually|appears?|seems?|suggests?)\b", re.I)
+STRENGTHENER_RE = re.compile(
+    r"\b(?:must|always|necessarily|invariably|certainly|entirely|all|every|each|any)\b", re.I)
+
+
+def _hits(rx, text):
+    return sorted({re.sub(r"\s+", " ", m.group(0)).strip().lower() for m in rx.finditer(text or "")})
+
+
+def negated(text):
+    return bool(NEGATION_RE.search(text or ""))
+
+
+def marker_delta(claim_text, quote):
+    """Ways the claim asserts more than its quote does. [] when it does not.
+
+    Three, each one-directional:
+      - one text negates and the other does not, either way round;
+      - the quote hedges and the claim states it flatly;
+      - the claim strengthens or universalises where the quote does not.
+    A claim that is weaker than its quote is not flagged: it over-claims nothing.
+    """
+    problems = []
+    if negated(claim_text) != negated(quote):
+        which = "claim" if negated(claim_text) else "quote"
+        problems.append(f"the {which} negates and the other does not")
+    hedges = [h for h in _hits(HEDGE_RE, quote) if h not in _hits(HEDGE_RE, claim_text)]
+    if hedges and not _hits(HEDGE_RE, claim_text) and not negated(quote):
+        problems.append("the quote hedges with " + ", ".join(hedges)
+                        + " and the claim states it flatly")
+    added = [t for t in _hits(STRENGTHENER_RE, claim_text)
+             if t not in _hits(STRENGTHENER_RE, quote)]
+    if added:
+        problems.append("the claim strengthens with " + ", ".join(added)
+                        + ", which the quote does not say")
+    return problems
+
+
 def derive_terms(claim_text):
     """Content words of the claim element: everything that is not a function word. No chooser."""
     out = []
@@ -155,16 +223,22 @@ def cited_sentences(doc_text):
     return out
 
 
-RESIDUAL_MIN_TERMS = 3   # below this a leftover is framing ("Analysis shows"), not a claim
-
-
 def uncovered_residue(scope, covering):
-    """Parts of a citation's scope that no covering check accounts for.
+    """[(fragment, why it is claim-bearing)] for every part of a citation's scope no check covers.
 
     Rule 3 item 1 as amended: every clause of a sentence carrying a citation is an element of
     the cited claim. Rather than guess clause boundaries -- splitting on "and" tore
     "a role and the agent playing it" in half -- mark what the checks actually cover and
     report what is left.
+
+    What is left is now disposed of rather than filtered by length. A leftover used to be
+    reported only if it carried three content words, on the reasoning that anything shorter
+    was framing such as "Analysis shows". Word count cannot establish that: "and authority
+    shifts" is a claim and was discarded, and "Participants never" is the whole difference
+    between a claim and its opposite and was discarded too. A fragment is now reported when it
+    carries any content word at all, or any negation, modality or scope marker even if it
+    carries no content word. Only pure function words and punctuation are disposed of in
+    silence, and the count of those is reported.
     """
     flat_scope = flat(scope)
     if not flat_scope:
@@ -188,8 +262,18 @@ def uncovered_residue(scope, covering):
             run.append(ch)
     if run:
         residues.append("".join(run))
-    return [r.strip(" ,;:\u2014-") for r in residues
-            if len(derive_terms(r)) >= RESIDUAL_MIN_TERMS]
+    out = []
+    for r in residues:
+        r = r.strip(" ,;:\u2014-")
+        if not r:
+            continue
+        marks = claim_markers(r)
+        if marks:
+            out.append((r, "carries " + ", ".join(marks) + ": a negation, modality or scope "
+                           "marker no check accounts for, which can invert the cited claim"))
+        elif derive_terms(r):
+            out.append((r, "no check for this citation accounts for it"))
+    return out
 
 
 MAX_NUMERIC_RANGE = 50   # "[1-400]" is not a citation this tool will enumerate
@@ -391,6 +475,18 @@ def _main():
                 problems.append(f"{cls}_INCOMPLETE: derived claim term(s) not in quote: {miss_d}. "
                                 "Rule 3 item 3: a missing claim term forces MAPPED or EXTENDED. "
                                 "List an inflection, drop the term with a written reason, or lower the class")
+            # Rule 3 item 6: modality and scope, not only topic. Every negation and modality
+            # word is a function word, so derive_terms drops all of them and a claim derives
+            # exactly the terms of its own negation. Before this, "participants never share
+            # resources" scored 5/5 against a quote saying they do, and certified VERBATIM.
+            # A check with no claim_text has nothing to compare, and is already failed above
+            # for that. Running the comparison on an empty string made every modal in the
+            # quote look like an unmatched one.
+            mod = marker_delta(c["claim_text"], c.get("quote", "")) if c.get("claim_text", "").strip() else []
+            if cls in ("VERBATIM", "PARAPHRASE") and mod:
+                problems.append(f"{cls}_MODALITY: " + "; ".join(mod) + ". Rule 3 item 6: a "
+                                "difference in negation, modality or scope forces MAPPED or "
+                                "EXTENDED with a written bridge, whatever the term coverage")
             if cls == "VERBATIM" and len(c.get("modality_scope", "").strip()) < 15:
                 problems.append("VERBATIM needs a written modality_scope statement (item 6): term coverage alone never yields VERBATIM")
         if problems:
@@ -465,9 +561,8 @@ def _main():
                                   + f", not {stated}")
                     uncovered.append((line_no, citation, scope.strip() or citation, detail))
                     continue
-                for residue in uncovered_residue(scope, right_source):
-                    uncovered.append((line_no, citation, residue,
-                                      "no check for this citation accounts for it"))
+                for residue, why in uncovered_residue(scope, right_source):
+                    uncovered.append((line_no, citation, residue, why))
         distinct = len({(l, c) for l, c, _, _ in uncovered})
         print(f"citing document: {os.path.basename(str(bound_path))}"
               f" | citation occurrences {n_citations}, fully covered {n_citations - distinct},"

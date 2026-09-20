@@ -101,25 +101,69 @@ def main() -> int:
          [pre for l, _, pre in found if l == 6], [""])
 
     # --- what a citation's scope leaves unaccounted for -------------------------------------
+    def frags(scope, covering):
+        return [f for f, _ in vl.uncovered_residue(scope, covering)]
+
     scope = ("Analysis shows mismatches between a role and the agent playing it and all "
              "autonomous systems are always safe")
     covered = [check("mismatches between a role and the agent playing it")]
-    residue = vl.uncovered_residue(scope, covered)
-    case("an unchecked clause is residue", len(residue), 1)
-    case("the residue is the unchecked clause",
-         "autonomous systems are always safe" in (residue[0] if residue else ""), True)
+    residue = frags(scope, covered)
+    case("the unchecked clause is residue",
+         any("autonomous systems are always safe" in r for r in residue), True)
 
     case("a fully covered scope leaves nothing",
-         vl.uncovered_residue("mismatches between a role and the agent playing it", covered), [])
-    # "Analysis shows" is framing, not a claim: two content words stay below the floor.
-    case("framing is not reported as an element",
-         vl.uncovered_residue("Analysis shows mismatches between a role and the agent playing it",
-                              covered), [])
+         frags("mismatches between a role and the agent playing it", covered), [])
     case("an entirely unchecked scope is residue",
-         len(vl.uncovered_residue("all autonomous systems are always safe", [])), 1)
+         len(frags("all autonomous systems are always safe", [])), 1)
     # A check that does not cover the text contributes no coverage.
     case("an unrelated check covers nothing",
-         len(vl.uncovered_residue(scope, [check("something else entirely different")])), 1)
+         len(frags(scope, [check("something else entirely different")])), 1)
+    # Connective tissue between two covered clauses is not a claim.
+    case("a bare connective is disposed of, not reported",
+         frags("roles are reassigned and authority shifts",
+               [check("roles are reassigned"), check("authority shifts")]), [])
+
+    # --- repair k: disposition replaces the word-count floor (finding G4) -------------------
+    # Two content words used to be treated as framing and dropped. "authority shifts" is a
+    # claim, and no word count can tell it from "Analysis shows".
+    case("a two-word clause is reported, not filtered by length",
+         frags("roles are reassigned and authority shifts", [check("roles are reassigned")]),
+         ["and authority shifts"])
+    case("a reporting frame is reported too, since length cannot excuse it",
+         frags("Analysis shows mismatches between a role and the agent playing it", covered),
+         ["Analysis shows"])
+    # The polarity case: a check for the affirmative must not clear its own negation.
+    neg = vl.uncovered_residue("Participants never share resources within stable networks",
+                               [check("share resources within stable networks")])
+    case("a negation left uncovered is reported", len(neg), 1)
+    case("and the reason names the marker",
+         bool(neg) and "never" in neg[0][1], True)
+
+    # --- repair k: the class check sees polarity, modality and scope ------------------------
+    q = "Participants share resources within stable networks."
+    case("an affirmative claim on an affirmative quote is clean",
+         vl.marker_delta("Participants share resources within stable networks", q), [])
+    case("a negated claim cannot be VERBATIM or PARAPHRASE",
+         bool(vl.marker_delta("Participants never share resources", q)), True)
+    case("a strengthened claim cannot either",
+         bool(vl.marker_delta("All participants always share resources", q)), True)
+    case("a flat claim on a hedged quote cannot either",
+         bool(vl.marker_delta("RE guides the search", "RE can guide the systematic search")), True)
+    # Direction matters: these are the false positives the first cut of this rule produced on
+    # the live checks files, and each one must stay clean.
+    case("the same negation in different words is not a difference",
+         vl.marker_delta("no reference cites a retracted article",
+                         "none of the references cite retracted articles"), [])
+    case("not-any is the same negation as no",
+         vl.marker_delta("empty reference = no original evidence",
+                         "references that do not contain any original evidence"), [])
+    case("a quantifier inside the quote's noun phrase is not a scope change",
+         vl.marker_delta("about a quarter of quotations contain an error",
+                         "one fourth of all references is wrong or problematic"), [])
+    case("dropping the quote's deontic makes the claim weaker, not stronger",
+         vl.marker_delta("direct references to original research sources whenever possible",
+                         "Authors should provide direct references to original research "
+                         "sources whenever possible."), [])
 
     if failures:
         print(f"\n[BLOCKER] {len(failures)} case(s) failed")
