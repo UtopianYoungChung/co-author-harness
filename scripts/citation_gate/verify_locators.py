@@ -125,16 +125,33 @@ def flat(text):
 
 
 def cited_sentences(doc_text):
-    """(line, sentence) for every sentence carrying a citation, above any bibliography."""
+    """(line, sentence, preamble) for every sentence carrying a citation.
+
+    `preamble` is the rest of the same paragraph before that sentence. A citation written on
+    its own line - a display quotation's attribution, a citation wrapped past the margin -
+    has nothing before it on its own line, and an empty scope used to count as a fully
+    covered one, so a wholly unchecked claim cleared (2026-09-20 review, finding G3).
+
+    Headings are inventoried rather than skipped. A heading that carries a citation makes a
+    cited claim like any other line, and skipping it meant the claim was never looked at.
+    """
     lines = doc_text.split("\n")
     stop = next((i for i, l in enumerate(lines) if BIB_HEADING_RE.match(l.strip(" *"))), len(lines))
-    out = []
+    out, para = [], []
     for n, l in enumerate(lines[:stop], 1):
-        if l.startswith("#") or not l.strip():
+        if not l.strip():
+            para = []                      # a blank line ends the paragraph, and the scope
             continue
-        for sent in SENTENCE_SPLIT_RE.split(l.strip()):
+        text = l.strip()
+        if text.startswith("#"):
+            para = []                      # a heading opens its own scope
+            text = text.lstrip("#").strip()
+            if not text:
+                continue
+        for sent in SENTENCE_SPLIT_RE.split(text):
             if CITED_SENTENCE_RE.search(sent):
-                out.append((n, flat(sent)))
+                out.append((n, flat(sent), flat(" ".join(para))))
+            para.append(sent)
     return out
 
 
@@ -175,42 +192,114 @@ def uncovered_residue(scope, covering):
             if len(derive_terms(r)) >= RESIDUAL_MIN_TERMS]
 
 
-def citation_targets(citation, cfg):
-    """(source keys the citation names, stated page span or None, why it could not resolve)."""
-    sources = cfg.get("sources", {})
-    m = re.match(r"\\cite[tp]?\*?\{([^}]*)\}", citation)
-    if m:
-        keys = [k.strip() for k in m.group(1).split(",") if k.strip() in sources]
-        return keys, None, None if keys else "names no source in this checks file"
-    if citation.startswith("["):
-        mapping = {str(k): v for k, v in (cfg.get("bib_numbers") or {}).items()}
-        if not mapping:
-            return [], None, ("numeric citation, and the checks file declares no bib_numbers "
-                              "mapping, so the work it names cannot be identified")
-        keys = [mapping[n] for n in re.findall(r"\d+", citation)
-                if n in mapping and mapping[n] in sources]
-        return keys, None, None if keys else "numeric label is not in bib_numbers"
-    ym = CITE_YEAR_RE.search(citation)
-    raw_year = (ym.group(1) or ym.group(2)) if ym else None
-    year = re.sub(r"\s+", "", raw_year).lower() if raw_year else ""
-    families = {f.lower() for f in FAMILY_RE.findall(citation[:ym.start()] if ym else citation)}
+MAX_NUMERIC_RANGE = 50   # "[1-400]" is not a citation this tool will enumerate
+
+
+def member_page_span(text):
+    """The page span a single citation member states, or None."""
+    pm = PAGE_IN_CITATION_RE.search(text)
+    if not pm:
+        return None
+    lo = int(pm.group(1))
+    return (lo, int(pm.group(2)) if pm.group(2) else lo)
+
+
+def numeric_labels(citation):
+    """([labels named], [parts that could not be read]) for "[1]", "[1,3]", "[1-3]".
+
+    The range is expanded. Taking every run of digits turned "[1-3]" into labels 1 and 3, so
+    the interior work was never looked for at all (finding G1).
+    """
+    labels, bad = [], []
+    for part in re.split(r"[,;]", citation.strip("[]")):
+        part = part.strip()
+        if not part:
+            continue
+        rm = re.fullmatch(r"(\d{1,3})\s*[\u2013-]\s*(\d{1,3})", part)
+        if rm:
+            lo, hi = int(rm.group(1)), int(rm.group(2))
+            if lo <= hi <= lo + MAX_NUMERIC_RANGE:
+                labels.extend(str(n) for n in range(lo, hi + 1))
+            else:
+                bad.append(part)
+        elif part.isdigit():
+            labels.append(part)
+        else:
+            bad.append(part)
+    return labels, bad
+
+
+def author_year_keys(text, sources):
+    """Source keys one author-year member names."""
+    ym = CITE_YEAR_RE.search(text)
+    if not ym:
+        return []
+    year = re.sub(r"\s+", "", ym.group(1) or ym.group(2)).lower()
+    families = {f.lower() for f in FAMILY_RE.findall(text[:ym.start()])}
     keys = []
     for key, src in sources.items():
         cite = src.get("cite") or {}
-        author, src_year = str(cite.get("author", "")).strip(), str(cite.get("year", "")).strip().lower()
+        author = str(cite.get("author", "")).strip()
+        src_year = str(cite.get("year", "")).strip().lower()
         if not author or not src_year:
             continue
         family = author.split(",")[0].split()[-1].lower()
         if family and family in families and src_year == year:
             keys.append(key)
-    span = None
-    pm = PAGE_IN_CITATION_RE.search(citation)
-    if pm:
-        lo = int(pm.group(1))
-        span = (lo, int(pm.group(2)) if pm.group(2) else lo)
-    if not keys:
-        return [], span, "names no source in this checks file"
-    return keys, span, None
+    return keys
+
+
+def citation_targets(citation, cfg):
+    """([(source key, the page span THAT member states)], why it could not fully resolve).
+
+    Every member of a grouped citation is inventoried and resolved on its own, and each
+    carries its own locator. A citation that names three works and resolves one is not a
+    resolved citation: the unresolved members used to be dropped silently, leaving the first
+    valid member to clear the whole group (2026-09-20 review, finding G1).
+    """
+    sources = cfg.get("sources", {})
+    resolved, unresolved = [], []
+
+    m = re.match(r"\\cite[tp]?\*?\{([^}]*)\}", citation)
+    if m:
+        for k in [x.strip() for x in m.group(1).split(",") if x.strip()]:
+            if k in sources:
+                resolved.append((k, None))
+            else:
+                unresolved.append(k)
+    elif citation.startswith("["):
+        mapping = {str(k): v for k, v in (cfg.get("bib_numbers") or {}).items()}
+        labels, bad = numeric_labels(citation)
+        if not mapping:
+            return [], ("numeric citation, and the checks file declares no bib_numbers "
+                        "mapping, so the work it names cannot be identified")
+        unresolved.extend(bad)
+        for n in labels:
+            key = mapping.get(n)
+            if key and key in sources:
+                resolved.append((key, None))
+            else:
+                unresolved.append("[" + n + "]")
+    else:
+        for part in citation.strip("()").split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            keys = author_year_keys(part, sources)
+            if keys:
+                span = member_page_span(part)
+                resolved.extend((k, span) for k in keys)
+            else:
+                unresolved.append(part)
+
+    if not resolved:
+        return [], "names no source in this checks file"
+    if unresolved:
+        return resolved, ("names " + str(len(resolved) + len(unresolved))
+                          + " work(s), and " + str(len(unresolved))
+                          + " of them cannot be identified from this checks file: "
+                          + "; ".join(unresolved[:4]))
+    return resolved, None
 
 
 def bind_citing_document(cfg, override):
@@ -331,33 +420,49 @@ def _main():
     if doc_text is not None:
         bound_path = override or (cfg.get("citing_document") or {}).get("path")
         checks_with_claims = [c for c in cfg["checks"] if c.get("claim_text", "").strip()]
-        for line_no, sentence in cited_sentences(doc_text):
+        for line_no, sentence, preamble in cited_sentences(doc_text):
             cursor = 0
             for m in CITATION_RE.finditer(sentence):
                 n_citations += 1
                 citation = m.group(0)
                 scope, cursor = sentence[cursor:m.start()], m.end()
-                keys, page_span, why = citation_targets(citation, cfg)
+                if not scope.strip():
+                    # Nothing precedes the citation on its own line, so its claim is the rest
+                    # of the paragraph. An empty scope must never read as a covered one.
+                    scope = preamble
+                targets, why = citation_targets(citation, cfg)
                 if why:
                     uncovered.append((line_no, citation, citation, why))
                     continue
+                if not scope.strip():
+                    uncovered.append((line_no, citation, citation,
+                                      "the citation has no claim text in its scope, so there "
+                                      "is nothing here for it to support"))
+                    continue
+                keys = {k for k, _ in targets}
                 matched = [c for c in checks_with_claims
                            if flat(c["claim_text"]) and flat(c["claim_text"]) in flat(scope)]
-                right_source = [c for c in matched if c["source"] in keys]
-                if page_span:
-                    right_source = [c for c in right_source
-                                    if str(c["page"]).isdigit()
-                                    and page_span[0] <= int(c["page"]) <= page_span[1]]
+                right_source = [c for c in matched
+                                if any(c["source"] == k
+                                       and (span is None
+                                            or (str(c["page"]).isdigit()
+                                                and span[0] <= int(c["page"]) <= span[1]))
+                                       for k, span in targets)]
                 if matched and not right_source:
                     stated = ", ".join(sorted(keys))
-                    detail = ("the check(s) covering it cite "
-                              + ", ".join(sorted({c["source"] for c in matched}))
-                              + f", not {stated}")
-                    if page_span and any(c["source"] in keys for c in matched):
+                    spans = {k: sp for k, sp in targets if sp}
+                    same_work = [c for c in matched if c["source"] in keys]
+                    clash = next((c for c in same_work if spans.get(c["source"])), None)
+                    if clash is not None:
+                        lo, hi = spans[clash["source"]]
                         detail = (f"the check(s) for {stated} bind p."
-                                  + str(sorted({c["page"] for c in matched if c["source"] in keys}))
-                                  + f", but the citation states p.{page_span[0]}"
-                                  + (f"-{page_span[1]}" if page_span[1] != page_span[0] else ""))
+                                  + str(sorted({c["page"] for c in same_work}))
+                                  + f", but the citation states p.{lo}"
+                                  + (f"-{hi}" if hi != lo else ""))
+                    else:
+                        detail = ("the check(s) covering it cite "
+                                  + ", ".join(sorted({c["source"] for c in matched}))
+                                  + f", not {stated}")
                     uncovered.append((line_no, citation, scope.strip() or citation, detail))
                     continue
                 for residue in uncovered_residue(scope, right_source):

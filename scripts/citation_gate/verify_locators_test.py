@@ -26,6 +26,8 @@ CFG = {
         "ratto2026": {"cite": {"author": "Ratto", "year": 2026}},
     },
 }
+CFG_GROUP = {"sources": dict(CFG["sources"],
+                             smith2025={"cite": {"author": "Smith", "year": 2025}})}
 CFG_NUM = dict(CFG, bib_numbers={"3": "yu2024"})
 
 
@@ -52,20 +54,51 @@ def main() -> int:
         case(f"CITATION_RE sees {label}", bool(vl.CITATION_RE.search(text)), True)
 
     # --- a citation is resolved to the work it names, and the page it states ---------------
-    keys, span, why = vl.citation_targets("(Yu, 2024, p. 211)", CFG)
-    case("author-year resolves to its source", (keys, span, why), (["yu2024"], (211, 211), None))
-    keys, span, why = vl.citation_targets("(Yu, 2024, pp. 211-214)", CFG)
-    case("a page range is read as a span", span, (211, 214))
-    keys, _, why = vl.citation_targets("(Other, 2025, p. 9)", CFG)
-    case("an unknown work does not resolve", (keys, bool(why)), ([], True))
-    keys, _, why = vl.citation_targets("(Yu, 2026, p. 1)", CFG)
-    case("right family, wrong year does not resolve", keys, [])
-    keys, _, why = vl.citation_targets("[3]", CFG)
-    case("numeric without a mapping cannot be identified", (keys, "bib_numbers" in (why or "")), ([], True))
-    keys, _, why = vl.citation_targets("[3]", CFG_NUM)
-    case("numeric with a mapping resolves", (keys, why), (["yu2024"], None))
-    keys, _, why = vl.citation_targets(r"\citep{ratto2026}", CFG)
-    case("a latex key resolves", (keys, why), (["ratto2026"], None))
+    case("author-year resolves to its source",
+         vl.citation_targets("(Yu, 2024, p. 211)", CFG), ([("yu2024", (211, 211))], None))
+    targets, why = vl.citation_targets("(Yu, 2024, pp. 211-214)", CFG)
+    case("a page range is read as a span", targets, [("yu2024", (211, 214))])
+    targets, why = vl.citation_targets("(Other, 2025, p. 9)", CFG)
+    case("an unknown work does not resolve", (targets, why),
+         ([], "names no source in this checks file"))
+    targets, why = vl.citation_targets("(Yu, 2026, p. 1)", CFG)
+    case("right family, wrong year does not resolve", targets, [])
+    targets, why = vl.citation_targets("[3]", CFG)
+    case("numeric without a mapping cannot be identified",
+         (targets, "bib_numbers" in (why or "")), ([], True))
+    case("numeric with a mapping resolves",
+         vl.citation_targets("[3]", CFG_NUM), ([("yu2024", None)], None))
+    case("a latex key resolves",
+         vl.citation_targets(r"\citep{ratto2026}", CFG), ([("ratto2026", None)], None))
+
+    # --- every member of a grouped citation is inventoried (repair j, finding G1) ----------
+    targets, why = vl.citation_targets("(Yu, 2024; Unknown, 1999)", CFG)
+    case("an unknown member of a group is reported",
+         ([k for k, _ in targets], bool(why)), (["yu2024"], True))
+    case("a group whose members all resolve is clean",
+         vl.citation_targets("(Yu, 2024; Smith, 2025)", CFG_GROUP),
+         ([("yu2024", None), ("smith2025", None)], None))
+    targets, why = vl.citation_targets("(Yu, 2024, p. 11; Smith, 2025, p. 7)", CFG_GROUP)
+    case("each member carries its own locator", sorted(targets),
+         sorted([("yu2024", (11, 11)), ("smith2025", (7, 7))]))
+    targets, why = vl.citation_targets("[1-3]", {"sources": CFG["sources"],
+                                                 "bib_numbers": {"1": "yu2024"}})
+    case("a numeric range names every number in it",
+         ([k for k, _ in targets], "2" in (why or "")), (["yu2024"], True))
+    targets, why = vl.citation_targets(r"\cite{yu2024,ghost}", CFG)
+    case("an unknown latex key is reported",
+         ([k for k, _ in targets], "ghost" in (why or "")), (["yu2024"], True))
+
+    # --- a citation's scope, including the line before it (repair j, finding G3) -----------
+    doc = ("# A cited heading (Yu, 2024, p. 1)\n\nAuthority shifts across the enterprise.\n"
+           "(Yu, 2024, p. 1)\n\nAn ordinary sentence (Yu, 2024, p. 1).\n")
+    found = vl.cited_sentences(doc)
+    case("a cited heading is inventoried", any(l == 1 for l, _, _ in found), True)
+    nextline = [(l, s, pre) for l, s, pre in found if l == 4]
+    case("a citation on its own line finds the claim before it",
+         bool(nextline) and nextline[0][2].startswith("Authority shifts"), True)
+    case("an ordinary sentence needs no preamble",
+         [pre for l, _, pre in found if l == 6], [""])
 
     # --- what a citation's scope leaves unaccounted for -------------------------------------
     scope = ("Analysis shows mismatches between a role and the agent playing it and all "
