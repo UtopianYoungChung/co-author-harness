@@ -182,9 +182,88 @@ CLAUSE_SPLIT_RE = re.compile(
     r";|(?<=[a-z0-9\)\u201d])\s*,?\s+(?:and|but|while|whereas|although|though|yet)\s+")
 PAGE_IN_CITATION_RE = re.compile(
     r"\b(?:pp?\.|pages?|slides?|\u00a7)\s*([0-9]+)(?:\s*[\u2013-]\s*([0-9]+))?", re.I)
-CITE_YEAR_RE = re.compile(r"\b((?:1[89]|20)\d\d)[a-z]?\b|(n\.\s?d\.)")
+# The suffix is what tells 2026a from 2026b, so it belongs to the token. Capturing only the
+# digits made a "2026b" citation resolve to a "2026" source, and a "2026a" citation fail
+# against a "2026a" source (2026-09-20 review, finding G5).
+CITE_YEAR_RE = re.compile(r"\b((?:1[89]|20)\d\d[a-z]?)\b|(n\.\s?d\.)")
 FAMILY_RE = re.compile(r"\b([A-Z][A-Za-z\u00c0-\u017f'\u2019\-]{1,})\b")
 BIB_HEADING_RE = re.compile(r"^#{1,6}\s+(?:Bibliography|References|Works Cited)\s*$", re.I)
+# "Tester (2026, p. 1) states: ..." names its work as plainly as "(Tester, 2026, p. 1)" does.
+# The parenthesis holds no family name, so the citation resolved to nothing at all (G6).
+NARRATIVE_AUTHOR_RE = re.compile(
+    r"([A-Z][A-Za-z\u00c0-\u017f'\u2019\-]+"
+    r"(?:\s+(?:et\s+al\.?|and|&)\s+[A-Z][A-Za-z\u00c0-\u017f'\u2019\-]+)*)"
+    r"(?:\s+et\s+al\.?)?\s*$")
+# A citation's own attribution is not a claim element. This is a named, closed list, not a
+# length threshold: everything that is not the cited author or a reporting verb is reported.
+REPORTING_VERBS = frozenset("""show shows showed state states stated argue argues argued note
+notes noted find finds found observe observes observed suggest suggests suggested report
+reports reported write writes wrote claim claims claimed contend contends contended conclude
+concludes concluded demonstrate demonstrates demonstrated explain explains explained describe
+describes described maintain maintains emphasise emphasises emphasize emphasizes""".split())
+
+
+def narrative_author(text_before):
+    """The author name standing immediately before a parenthetical citation, if any."""
+    m = NARRATIVE_AUTHOR_RE.search((text_before or "").rstrip())
+    return m.group(1) if m else None
+
+
+BIB_ENTRY_RE = re.compile(r"^\s*[\[(]?(\d{1,3})[\]).]\s+(.+)$")
+
+
+def numbered_bibliography(doc_text):
+    """{label: entry text} from the citing document's own numbered reference list."""
+    lines = (doc_text or "").split("\n")
+    start = next((i for i, l in enumerate(lines) if BIB_HEADING_RE.match(l.strip(" *"))), None)
+    if start is None:
+        return {}
+    out = {}
+    for line in lines[start + 1:]:
+        m = BIB_ENTRY_RE.match(line)
+        if m and m.group(1) not in out:
+            out[m.group(1)] = flat(m.group(2))
+    return out
+
+
+def check_bib_numbers(cfg, doc_text):
+    """The declared numeric mapping must agree with the document's own numbered list.
+
+    `bib_numbers` was taken on the author's word, so a checks file could map [2] to one work
+    while the manuscript's bibliography assigned [2] to another, and every check bound to [2]
+    would be about the wrong source (finding G2).
+    """
+    mapping = {str(k): v for k, v in (cfg.get("bib_numbers") or {}).items()}
+    if not mapping or doc_text is None:
+        return []
+    entries = numbered_bibliography(doc_text)
+    if not entries:
+        return [f"bib_numbers declares {len(mapping)} label(s), but the citing document has no "
+                "numbered bibliography to check them against, so the mapping rests on nothing"]
+    sources = cfg.get("sources", {})
+    problems = []
+    for label in sorted(mapping, key=lambda x: int(x) if x.isdigit() else 0):
+        key = mapping[label]
+        entry = entries.get(label)
+        if entry is None:
+            problems.append(f"bib_numbers maps [{label}] to {key}, but the document's "
+                            f"bibliography has no entry [{label}]")
+            continue
+        cite = (sources.get(key) or {}).get("cite") or {}
+        author = str(cite.get("author", "")).strip()
+        year = str(cite.get("year", "")).strip()
+        family = author.split(",")[0].split()[-1].lower() if author else ""
+        low = entry.lower()
+        missing = []
+        if family and family not in low:
+            missing.append(f"author {family!r}")
+        if year and re.sub(r"[a-z]$", "", year.lower()) not in low:
+            missing.append(f"year {year}")
+        if missing:
+            problems.append(f"bib_numbers maps [{label}] to {key}, but the document's entry "
+                            f"[{label}] names neither its {' nor its '.join(missing)}: "
+                            f"{entry[:90]!r}")
+    return problems
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[\u201C\"])")
 
 
@@ -223,7 +302,7 @@ def cited_sentences(doc_text):
     return out
 
 
-def uncovered_residue(scope, covering):
+def uncovered_residue(scope, covering, frame_terms=()):
     """[(fragment, why it is claim-bearing)] for every part of a citation's scope no check covers.
 
     Rule 3 item 1 as amended: every clause of a sentence carrying a citation is an element of
@@ -271,7 +350,14 @@ def uncovered_residue(scope, covering):
         if marks:
             out.append((r, "carries " + ", ".join(marks) + ": a negation, modality or scope "
                            "marker no check accounts for, which can invert the cited claim"))
-        elif derive_terms(r):
+            continue
+        # The citation's own attribution -- the cited author's name and a reporting verb --
+        # is how the sentence names its source, not something the source must support. Any
+        # other content word is reported, so this disposes of "states:" and not of
+        # "Analysis shows", whose subject is the citing author's own.
+        rest = [t for t in derive_terms(r)
+                if t not in frame_terms and t not in REPORTING_VERBS]
+        if rest:
             out.append((r, "no check for this citation accounts for it"))
     return out
 
@@ -333,7 +419,7 @@ def author_year_keys(text, sources):
     return keys
 
 
-def citation_targets(citation, cfg):
+def citation_targets(citation, cfg, author_hint=None):
     """([(source key, the page span THAT member states)], why it could not fully resolve).
 
     Every member of a grouped citation is inventoried and resolved on its own, and each
@@ -370,6 +456,9 @@ def citation_targets(citation, cfg):
             if not part:
                 continue
             keys = author_year_keys(part, sources)
+            if not keys and author_hint:
+                # "Tester (2026, p. 1)": the family sits outside the parenthesis.
+                keys = author_year_keys(author_hint + " " + part, sources)
             if keys:
                 span = member_page_span(part)
                 resolved.extend((k, span) for k in keys)
@@ -426,6 +515,7 @@ def _main():
     override = (sys.argv[sys.argv.index("--citing-document") + 1]
                 if "--citing-document" in sys.argv else None)
     doc_text, doc_problems = bind_citing_document(cfg, override)
+    doc_problems += check_bib_numbers(cfg, doc_text)
     doc_flat = flat(doc_text) if doc_text is not None else None
     unbound_claims = []
     src = {k: dict(v, pages=pages_of(v["pdf"])) for k, v in cfg["sources"].items()}
@@ -517,16 +607,21 @@ def _main():
         bound_path = override or (cfg.get("citing_document") or {}).get("path")
         checks_with_claims = [c for c in cfg["checks"] if c.get("claim_text", "").strip()]
         for line_no, sentence, preamble in cited_sentences(doc_text):
-            cursor = 0
-            for m in CITATION_RE.finditer(sentence):
+            spots = list(CITATION_RE.finditer(sentence))
+            for i, m in enumerate(spots):
                 n_citations += 1
                 citation = m.group(0)
-                scope, cursor = sentence[cursor:m.start()], m.end()
-                if not scope.strip():
-                    # Nothing precedes the citation on its own line, so its claim is the rest
-                    # of the paragraph. An empty scope must never read as a covered one.
-                    scope = preamble
-                targets, why = citation_targets(citation, cfg)
+                before = sentence[(spots[i - 1].end() if i else 0):m.start()]
+                after = sentence[m.end():(spots[i + 1].start() if i + 1 < len(spots) else len(sentence))]
+                # A parenthetical citation governs what precedes it; a narrative one --
+                # "Tester (2026, p. 1) states: ..." -- governs what follows, and its author
+                # stands outside the parenthesis (finding G6).
+                author_hint = narrative_author(before)
+                if author_hint and after.strip():
+                    scope = after
+                else:
+                    scope = before if before.strip() else preamble
+                targets, why = citation_targets(citation, cfg, author_hint)
                 if why:
                     uncovered.append((line_no, citation, citation, why))
                     continue
@@ -561,7 +656,12 @@ def _main():
                                   + f", not {stated}")
                     uncovered.append((line_no, citation, scope.strip() or citation, detail))
                     continue
-                for residue, why in uncovered_residue(scope, right_source):
+                frame = {f.lower() for k in keys
+                         for f in str(((cfg.get("sources", {}).get(k) or {}).get("cite") or {})
+                                      .get("author", "")).replace(",", " ").split()}
+                if author_hint:
+                    frame |= {w.lower() for w in re.findall(r"[A-Za-z]+", author_hint)}
+                for residue, why in uncovered_residue(scope, right_source, frame):
                     uncovered.append((line_no, citation, residue, why))
         distinct = len({(l, c) for l, c, _, _ in uncovered})
         print(f"citing document: {os.path.basename(str(bound_path))}"

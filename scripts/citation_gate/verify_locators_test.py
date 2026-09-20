@@ -101,8 +101,8 @@ def main() -> int:
          [pre for l, _, pre in found if l == 6], [""])
 
     # --- what a citation's scope leaves unaccounted for -------------------------------------
-    def frags(scope, covering):
-        return [f for f, _ in vl.uncovered_residue(scope, covering)]
+    def frags(scope, covering, frame=()):
+        return [f for f, _ in vl.uncovered_residue(scope, covering, frame)]
 
     scope = ("Analysis shows mismatches between a role and the agent playing it and all "
              "autonomous systems are always safe")
@@ -164,6 +164,56 @@ def main() -> int:
          vl.marker_delta("direct references to original research sources whenever possible",
                          "Authors should provide direct references to original research "
                          "sources whenever possible."), [])
+
+    # --- repair l: the year suffix names the work (finding G5) ------------------------------
+    CFG_SUFFIX = {"sources": {
+        "t2026a": {"cite": {"author": "Tester", "year": "2026a"}},
+        "t2026b": {"cite": {"author": "Tester", "year": "2026b"}}}}
+    for cite, want in [("(Tester, 2026a, p. 1)", ["t2026a"]),
+                       ("(Tester, 2026b, p. 1)", ["t2026b"]),
+                       ("(Tester, 2026, p. 1)", [])]:
+        targets, _ = vl.citation_targets(cite, CFG_SUFFIX)
+        case(f"{cite} resolves to {want or 'nothing'}", [k for k, _ in targets], want)
+
+    # --- repair l: the author outside the parentheses (finding G6) --------------------------
+    case("a narrative author is read", vl.narrative_author("Tester "), "Tester")
+    case("so is a two-author narrative", vl.narrative_author("Yu and Mylopoulos "),
+         "Yu and Mylopoulos")
+    case("a trailing common noun is not an author", vl.narrative_author("analysis of the data "), None)
+    targets, why = vl.citation_targets("(2026a, p. 1)", CFG_SUFFIX, "Tester")
+    case("a narrative citation resolves with its author",
+         ([k for k, _ in targets], why), (["t2026a"], None))
+    targets, why = vl.citation_targets("(2026a, p. 1)", CFG_SUFFIX, None)
+    case("and without one it still cannot", [k for k, _ in targets], [])
+
+    # The citation's own attribution is not an element. This is the one thing the residue
+    # disposes of besides function words, and it is a named list rather than a length.
+    cov_narr = [check("Participants share resources")]
+    case("a reporting verb after a narrative citation is not an element",
+         frags(" states: Participants share resources", cov_narr, {"tester"}), [])
+    case("nor is the cited author's own name",
+         frags(" Tester argues that Participants share resources", cov_narr, {"tester"}), [])
+    case("but a negation inside the attribution still reports",
+         len(frags(" states: Participants never share resources", cov_narr, {"tester"})), 1)
+    case("and a subject that is not the cited author still reports",
+         frags("Analysis shows Participants share resources", cov_narr, {"tester"}),
+         ["Analysis shows"])
+
+    # --- repair l: the declared numeric mapping is checked (finding G2) ---------------------
+    doc_num = ("Text with a numeric citation [2].\n\n## References\n\n"
+               "[1] Tester, A. (2026a). Synthetic Fixture.\n"
+               "[2] Other, B. (2025). A Different Work.\n")
+    case("a mapping the bibliography contradicts is a failure",
+         bool(vl.check_bib_numbers(dict(CFG_SUFFIX, bib_numbers={"2": "t2026a"}), doc_num)), True)
+    case("a mapping the bibliography agrees with is clean",
+         vl.check_bib_numbers(dict(CFG_SUFFIX, bib_numbers={"1": "t2026a"}), doc_num), [])
+    case("a label the bibliography does not carry is a failure",
+         bool(vl.check_bib_numbers(dict(CFG_SUFFIX, bib_numbers={"7": "t2026a"}), doc_num)), True)
+    case("a mapping with no bibliography to check rests on nothing",
+         bool(vl.check_bib_numbers(dict(CFG_SUFFIX, bib_numbers={"1": "t2026a"}),
+                                   "Text with a citation [1] and no reference list.")), True)
+    case("no declared mapping is nothing to check",
+         vl.check_bib_numbers(CFG_SUFFIX, doc_num), [])
 
     if failures:
         print(f"\n[BLOCKER] {len(failures)} case(s) failed")
