@@ -22,7 +22,10 @@ usage: python verify_locators.py checks.json [--verbose] [--legacy] [--citing-do
                      any manuscript: the same evidence clears any text placed beside it.
 """
 import sys, json, re, os, hashlib, unicodedata, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+try:                                   # reconfigure, never replace: an orphaned wrapper
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # closes the caller's buffer
+except (AttributeError, ValueError):   # not a TextIOWrapper, e.g. under a test harness
+    pass
 CLASSES = ["VERBATIM", "PARAPHRASE", "MAPPED", "EXTENDED"]   # strongest -> weakest
 
 
@@ -34,29 +37,97 @@ class GateUnavailable(RuntimeError):
     machine cannot examine it and the citations simply stay unverified.
     """
 
-CACHE = os.path.join(os.path.expanduser("~"), ".claude", "cache", "locator-text")
+# Overridable so a reviewer can isolate the cache instead of writing into the user's own.
+# The pass-3 reviewer had to recover records they created here because the path was fixed.
+CACHE = os.environ.get("LOCATOR_CACHE") or os.path.join(
+    os.path.expanduser("~"), ".claude", "cache", "locator-text")
 
 def norm(s):
     s = unicodedata.normalize("NFKD", s).replace("\u00ad", "").lower()
     return re.sub(r"[^a-z0-9]", "", s)
 
 def pages_of(pdf):
+    """{"sha256", "pages" (normalised), "raw"}, bound to the exact bytes they were read from.
+
+    The raw text is kept because a printed folio can only be found in it: norm() strips the
+    line structure that tells a header or footer from the body.
+
+    The cache was keyed on path, size and modification time, so a source replaced by
+    different bytes of the same length at the same timestamp served the OLD text and the gate
+    bound a quote that is no longer in the file (2026-09-21 review, F5-05). The bytes are now
+    read once, hashed, and parsed from memory, so the key, the stored record and the text all
+    describe one snapshot and nothing can change between hashing and reading.
+    """
+    with open(pdf, "rb") as fh:
+        data = fh.read()
+    digest = hashlib.sha256(data).hexdigest()
     os.makedirs(CACHE, exist_ok=True)
-    st = os.stat(pdf)
-    key = hashlib.sha256(f"{os.path.abspath(pdf)}|{st.st_size}|{st.st_mtime_ns}".encode()).hexdigest()[:24]
-    cp = os.path.join(CACHE, key + ".json")
+    cp = os.path.join(CACHE, digest + ".json")
     if os.path.exists(cp):
-        return json.load(open(cp, encoding="utf-8"))
+        try:
+            with open(cp, encoding="utf-8") as fh:
+                rec = json.load(fh)
+        except (OSError, ValueError):
+            rec = None
+        # A record names the bytes it came from; anything else is ignored and re-extracted.
+        if isinstance(rec, dict) and rec.get("sha256") == digest and "raw" in rec:
+            return rec
     try:
         import fitz
     except ImportError:
         raise GateUnavailable(
             "PyMuPDF (fitz) is not installed, so no page text can be read and no quote can "
             "be bound. Install it with: pip install pymupdf")
-    d = fitz.open(pdf)
-    out = [norm(d[i].get_text()) for i in range(d.page_count)]
-    json.dump(out, open(cp, "w", encoding="utf-8"))
+    d = fitz.open(stream=data, filetype="pdf")
+    raw = [d[i].get_text() for i in range(d.page_count)]
+    d.close()
+    out = {"sha256": digest, "pages": [norm(t) for t in raw], "raw": raw}
+    with open(cp, "w", encoding="utf-8") as fh:
+        json.dump(out, fh)
     return out
+
+MIN_FOLIO_PAGES = 3      # pages that must show a number at their edge before an offset can
+FOLIO_AGREEMENT = 0.6    # be confirmed, and the share of those that must agree with it
+
+
+def offset_confirmed(raw_pages, offset):
+    """(confirmed, agreeing, pages that state a number) for a declared page offset.
+
+    Rule 3 item 9c asks which pagination a locator uses. The gate took the answer from the
+    checks file and never required it to hold: a source printing 1, 2, 3 with an offset of 10
+    declared bound a citation to p. 11 and exited 0 (2026-09-21 sweep, S1).
+
+    The evidence is the same the validator's 9c screen uses -- a number in the page's edge
+    window -- deliberately, and not the stricter bare-number-line rule the wiki producer uses
+    to DERIVE a page map. Confirming a declared offset and deriving a mapping need different
+    thresholds: measured across the live sources, the strict rule read no folio at all on four
+    documents whose pagination 9c confirms at 19/20, 14/14 and 14/15, because their folios
+    share a line with a running head. A page showing no number states no folio and is not
+    evidence either way, so it is skipped rather than counted against the offset.
+    """
+    hit = tot = 0
+    for i, text in enumerate(raw_pages or []):
+        n = i + 1 + offset
+        if n < 1:
+            continue
+        # Whitespace is collapsed first so this window holds the same words the validator's
+        # 9c window holds. Without that the two tools read different edges of the same page
+        # and disagree about the same source.
+        flat_text = re.sub(r"\s+", " ", text)
+        edge = flat_text[:70] + " | " + flat_text[-70:]
+        if not re.search(r"\d", edge):
+            continue
+        tot += 1
+        hit += bool(re.search(rf"(?<!\d){n}(?!\d)", edge)
+                    or re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat_text))
+    # The floor scales to the document. A fixed three would make every source shorter than
+    # three pages permanently unconfirmable -- a two-page editorial, a one-page letter, and
+    # every small fixture in the review suites, whose positive controls this broke.
+    floor = min(MIN_FOLIO_PAGES, len([t for t in (raw_pages or []) if t.strip()])) or 1
+    if tot < floor:
+        return False, hit, tot
+    return hit / tot >= FOLIO_AGREEMENT, hit, tot
+
 
 def term_ok(term, text):            # "a|b" = alternatives
     return any(norm(t) in text for t in term.split("|"))
@@ -313,15 +384,26 @@ def check_bib_numbers(cfg, doc_text):
         # distinguish. Compared on the leading run of the title so a dropped subtitle does not
         # fail an otherwise correct entry.
         if title:
-            want = norm(title)[:TITLE_MATCH_CHARS]
-            if want and want not in norm(entry):
-                missing.append(f"title {title[:48]!r}")
+            # A 40-character prefix let "... Resource Sharing in Stable Networks" clear an
+            # entry titled "... Resource Sharing in Dynamic Networks": the prefixes coincide
+            # and the works differ (2026-09-21 review, F5-04). Every content word of the
+            # declared title must appear in the entry, and the ones that do not are named.
+            low_entry = norm(entry)
+            absent = [t for t in derive_terms(title) if norm(t) not in low_entry]
+            if absent:
+                missing.append(f"title word(s) {absent} (declared {title[:44]!r})")
         if missing:
             says = ("does not name its " + missing[0] if len(missing) == 1
                     else "names neither its " + " nor its ".join(missing))
             problems.append(f"bib_numbers maps [{label}] to {key}, but the document's entry "
                             f"[{label}] {says}: {entry[:90]!r}")
     return problems
+HAS_CONTENT_RE = re.compile(r"[A-Za-z0-9]")
+# A bullet or a numbered item opens its own block. Joining a paragraph's lines is what lets a
+# wrapped citation be seen (F5-01), but a list is not a wrapped paragraph: joining one pulled
+# the next bullet's prose into the previous bullet's citation scope and reported it uncovered.
+# A continuation line of a wrapped item carries no marker and still joins.
+LIST_ITEM_RE = re.compile(r"^(?:[-*+]\s|\(?\d{1,3}[.)]\s)")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[\u201C\"])")
 
 
@@ -329,34 +411,73 @@ def flat(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+def paragraphs(doc_text):
+    """[(joined text, [(char offset, source line)])] for each paragraph above the bibliography.
+
+    The lines of a paragraph are joined before anything is looked for in them. A citation may
+    wrap past the margin -- "(Tester," on one line and "2026, p. 1)." on the next -- and a
+    line-by-line scan cannot see it: the verifier reported ZERO citation occurrences and
+    exited 0, so a document whose citations all wrapped looked like a document that cites
+    nothing (2026-09-21 review, F5-01). The offsets are kept so a finding still names the line
+    it came from.
+    """
+    lines = doc_text.split("\n")
+    stop = next((i for i, l in enumerate(lines) if BIB_HEADING_RE.match(l.strip(" *"))), len(lines))
+    out, buf, spans = [], [], []
+
+    def flush():
+        if buf:
+            out.append((" ".join(buf), list(spans)))
+        buf.clear()
+        spans.clear()
+
+    for n, line in enumerate(lines[:stop], 1):
+        text = line.strip()
+        if not text:
+            flush()                        # a blank line ends the paragraph, and the scope
+            continue
+        if text.startswith("#"):
+            flush()                        # a heading opens its own scope
+            head = text.lstrip("#").strip()
+            if head:
+                out.append((head, [(0, n)]))
+            continue
+        if LIST_ITEM_RE.match(text):
+            flush()                        # so does each item of a list
+        spans.append((sum(len(b) + 1 for b in buf), n))
+        buf.append(text)
+    flush()
+    return out
+
+
+def line_at(spans, offset):
+    """The source line a character offset in a joined paragraph came from."""
+    n = spans[0][1] if spans else 1
+    for start, line in spans:
+        if start > offset:
+            break
+        n = line
+    return n
+
+
 def cited_sentences(doc_text):
     """(line, sentence, preamble) for every sentence carrying a citation.
 
     `preamble` is the rest of the same paragraph before that sentence. A citation written on
-    its own line - a display quotation's attribution, a citation wrapped past the margin -
-    has nothing before it on its own line, and an empty scope used to count as a fully
+    its own line has nothing before it there, and an empty scope used to count as a fully
     covered one, so a wholly unchecked claim cleared (2026-09-20 review, finding G3).
 
     Headings are inventoried rather than skipped. A heading that carries a citation makes a
     cited claim like any other line, and skipping it meant the claim was never looked at.
     """
-    lines = doc_text.split("\n")
-    stop = next((i for i, l in enumerate(lines) if BIB_HEADING_RE.match(l.strip(" *"))), len(lines))
-    out, para = [], []
-    for n, l in enumerate(lines[:stop], 1):
-        if not l.strip():
-            para = []                      # a blank line ends the paragraph, and the scope
-            continue
-        text = l.strip()
-        if text.startswith("#"):
-            para = []                      # a heading opens its own scope
-            text = text.lstrip("#").strip()
-            if not text:
-                continue
+    out = []
+    for text, spans in paragraphs(doc_text):
+        para, at = [], 0
         for sent in SENTENCE_SPLIT_RE.split(text):
             if CITED_SENTENCE_RE.search(sent):
-                out.append((n, flat(sent), flat(" ".join(para))))
+                out.append((line_at(spans, at), flat(sent), flat(" ".join(para))))
             para.append(sent)
+            at += len(sent) + 1
     return out
 
 
@@ -415,16 +536,46 @@ def uncovered_residue(scope, covering):
 
 
 MAX_NUMERIC_RANGE = 50    # "[1-400]" is not a citation this tool will enumerate
-TITLE_MATCH_CHARS = 40    # leading normalised title compared against a numbered entry
 
 
-def member_page_span(text):
-    """The page span a single citation member states, or None."""
-    pm = PAGE_IN_CITATION_RE.search(text)
-    if not pm:
-        return None
-    lo = int(pm.group(1))
-    return (lo, int(pm.group(2)) if pm.group(2) else lo)
+MAX_LOCATOR_SPAN = 200   # "pp. 1-500" is not a page claim this tool will enumerate
+PAGE_LIST_RE = re.compile(
+    r"\b(?:pp?\.|pages?|slides?|\u00a7)\s*"
+    r"(\d{1,4}(?:\s*(?:[-\u2013\u2014]|,|&|\band\b)\s*\d{1,4})*)", re.I)
+PART_RE = re.compile(r"(\d{1,4})(?:\s*[-\u2013\u2014]\s*(\d{1,4}))?")
+
+
+def member_pages(text):
+    """(pages the member states, fully parsed) -- (None, True) when it states none.
+
+    This kept only the first page or the first dash range, so "(Tester, 2026, pp. 1, 99)"
+    cleared against a one-page source checked at page 1, and "pp. 1, 3" was reported as
+    naming only page 1 and refused a check correctly bound to page 3 (2026-09-21 review,
+    F5-03). It is the same defect repaired in the wiki producer as W4 on 2026-09-20 and never
+    looked for here, which is what the cross-tool sweep was run to find.
+    """
+    m = PAGE_LIST_RE.search(text)
+    if not m:
+        return None, True
+    pages, supported = set(), True
+    for part in re.sub(r"\s*(?:&|\band\b)\s*", ",", m.group(1), flags=re.I).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        mm = PART_RE.fullmatch(part)
+        if not mm:
+            supported = False
+            continue
+        lo = int(mm.group(1))
+        if mm.group(2) is None:
+            pages.add(lo)
+            continue
+        hi = int(mm.group(2))
+        if hi < lo or hi - lo > MAX_LOCATOR_SPAN:
+            supported = False
+            continue
+        pages.update(range(lo, hi + 1))
+    return (frozenset(pages) if pages else None), (supported and bool(pages))
 
 
 def numeric_labels(citation):
@@ -502,7 +653,7 @@ def citation_targets(citation, cfg, author_hint=None):
     valid member to clear the whole group (2026-09-20 review, finding G1).
     """
     sources = cfg.get("sources", {})
-    resolved, unresolved = [], []
+    resolved, unresolved, bad_locators = [], [], []
 
     m = re.match(r"\\cite[tp]?\*?\{([^}]*)\}", citation)
     if m:
@@ -537,16 +688,28 @@ def citation_targets(citation, cfg, author_hint=None):
             if not families and author_hint:
                 # "Tester (2026, p. 1)": the family sits outside the parenthesis.
                 families = {f.lower() for f in FAMILY_RE.findall(author_hint)}
-            span = member_page_span(part)
+            pages, locator_ok = member_pages(part)
+            if not locator_ok:
+                bad_locators.append(part)
+                continue
             for year, _ in years:
                 keys = keys_for(families, year, sources)
                 if keys:
-                    resolved.extend((k, span) for k in keys)
+                    resolved.extend((k, pages) for k in keys)
                 else:
                     unresolved.append(("/".join(sorted(families)) + " " + year).strip())
 
+    if bad_locators and not resolved:
+        # Kept apart from the identity failure below: a citation whose WORK cannot be
+        # identified and one whose PAGE cannot be parsed call for different corrections, and
+        # the reviewer's R3 fixture asserts the wording of the first.
+        return [], ("states a page locator this tool cannot parse: "
+                    + "; ".join(repr(b) for b in bad_locators[:3]))
     if not resolved:
         return [], "names no source in this checks file"
+    if bad_locators:
+        return resolved, ("states a page locator this tool cannot parse: "
+                          + "; ".join(repr(b) for b in bad_locators[:3]))
     if unresolved:
         return resolved, ("names " + str(len(resolved) + len(unresolved))
                           + " work(s), and " + str(len(unresolved))
@@ -598,7 +761,12 @@ def _main():
     doc_problems += check_bib_numbers(cfg, doc_text)
     doc_flat = flat(doc_text) if doc_text is not None else None
     unbound_claims = []
-    src = {k: dict(v, pages=pages_of(v["pdf"])) for k, v in cfg["sources"].items()}
+    src = {}
+    for k, v in cfg["sources"].items():
+        read = pages_of(v["pdf"])
+        ok, agree, readable = offset_confirmed(read["raw"], v.get("offset", 0))
+        src[k] = dict(v, pages=read["pages"], raw=read["raw"],
+                      offset_confirmed=ok, folio_agreement=(agree, readable))
     fails, best = [], {}
     cov_rows, no_claim = [], 0
     for c in cfg["checks"]:
@@ -606,6 +774,15 @@ def _main():
         q, cls = norm(c["quote"]), c.get("class", "")
         idx = c["page"] - s.get("offset", 0) - 1
         problems = []
+        if not s.get("offset_confirmed", True):
+            agree, readable = s.get("folio_agreement", (0, 0))
+            why = (f"only {agree} of {readable} pages that print a number agree with it"
+                   if readable else "no page of it prints a readable number")
+            problems.append(
+                f"PAGE_CONVENTION_UNCONFIRMED: the declared offset {s.get('offset', 0):+d} "
+                f"for {c['source']} cannot be confirmed against the source's own printed "
+                f"pages -- {why}. Rule 3 item 9c: a locator names a pagination, and an "
+                "unconfirmed pagination cannot place a quote on a printed page")
         if cls not in CLASSES:
             problems.append(f"bad class '{cls}'")
         if len(q) < 25:
@@ -715,7 +892,16 @@ def _main():
                 # stands outside the parenthesis (finding G6).
                 author_hint, author_at = narrative_attribution(before)
                 attribution = ""
-                if author_hint and after.strip():
+                # Text after the LAST citation of a sentence belongs to no other citation, so
+                # discarding it left it accounted for by nothing: "... (Tester, 2026, p. 1)
+                # and authority shifts." was reported fully covered with only the first clause
+                # checked (2026-09-21 review, F5-02). For an earlier citation the same text is
+                # the next one's `before`, and is disposed of there.
+                last = i == len(spots) - 1
+                # The author's name is attribution whether or not anything follows the
+                # citation. Requiring content after it sent "... in Ratto et al. (2026, p. 3)."
+                # down the parenthetical branch, which kept the name in scope and reported it.
+                if author_hint:
                     # The claim follows the citation, but whatever stood before the author's
                     # name is still part of the sentence and still cited. Taking only the
                     # following text erased it: "All autonomous systems are safe according to
@@ -724,9 +910,14 @@ def _main():
                     # attribution; the rest of the prefix stays in scope.
                     tail = ATTRIBUTION_TAIL_RE.match(after)
                     attribution = tail.group(0) if tail else ""
-                    scope = before[:author_at] + " " + after
+                    scope = before[:author_at] + " " + (after if last else "")
                 else:
-                    scope = before if before.strip() else preamble
+                    scope = before + (after if last else "")
+                    # "Carries no content", not "is whitespace": a citation whose sentence is
+                    # just "[2]." has a trailing period for a scope, and treating that as
+                    # non-empty killed the preamble fallback that G3 added.
+                    if not HAS_CONTENT_RE.search(scope):
+                        scope = preamble
                 targets, why = citation_targets(citation, cfg, author_hint)
                 if why:
                     uncovered.append((line_no, citation, citation, why))
@@ -740,11 +931,10 @@ def _main():
                 matched = [c for c in checks_with_claims
                            if flat(c["claim_text"]) and flat(c["claim_text"]) in flat(scope)]
 
-                def binds(c, key, span):
+                def binds(c, key, pages):
                     return (c["source"] == key
-                            and (span is None
-                                 or (str(c["page"]).isdigit()
-                                     and span[0] <= int(c["page"]) <= span[1])))
+                            and (pages is None
+                                 or (str(c["page"]).isdigit() and int(c["page"]) in pages)))
 
                 # Rule 3 item 8: a citation names a work, and every work it names is cited for
                 # the claim. Evidence for one member is not evidence for another, so each is
@@ -756,15 +946,14 @@ def _main():
                 right_source = [c for _, own in per_member for c in own]
                 if matched and not right_source:
                     stated = ", ".join(sorted(keys))
-                    spans = {k: sp for k, sp in targets if sp}
+                    spans = {k: pg for k, pg in targets if pg}
                     same_work = [c for c in matched if c["source"] in keys]
                     clash = next((c for c in same_work if spans.get(c["source"])), None)
                     if clash is not None:
-                        lo, hi = spans[clash["source"]]
                         detail = (f"the check(s) for {stated} bind p."
                                   + str(sorted({c["page"] for c in same_work}))
-                                  + f", but the citation states p.{lo}"
-                                  + (f"-{hi}" if hi != lo else ""))
+                                  + ", but the citation states p."
+                                  + str(sorted(spans[clash["source"]])))
                     else:
                         detail = ("the check(s) covering it cite "
                                   + ", ".join(sorted({c["source"] for c in matched}))
@@ -775,8 +964,25 @@ def _main():
                 # its source, so it is covered rather than reported.
                 covered_extra = [{"claim_text": attribution}] if attribution.strip() else []
                 for (key, span), own in per_member:
-                    where = f"p.{span[0]}" + (f"-{span[1]}" if span and span[1] != span[0] else "") \
-                        if span else "no stated page"
+                    where = ("p." + str(sorted(span))) if span else "no stated page"
+                    # Parsing the whole locator is only half of it: a page the citation names
+                    # must also exist in the work it names. "(Tester, 2026, pp. 1, 99)" against
+                    # a one-page source cleared on page 1 alone, because nothing asked whether
+                    # page 99 was there (2026-09-21 review, F5-03).
+                    known = src.get(key) or {}
+                    have = len(known.get("pages") or [])
+                    off = known.get("offset", 0)
+                    outside = sorted(n for n in (span or ())
+                                     if not 0 <= n - off - 1 < have)
+                    if have and outside:
+                        uncovered.append((line_no, citation, flat(scope) or citation,
+                                          f"the citation states p.{outside} for {key}, which "
+                                          f"that source does not have: it is {have} page(s) "
+                                          f"at offset {off:+d}"))
+                        # No check can bind a page the source has not got, so the generic
+                        # "nothing binds this member" finding below would say the same thing
+                        # less precisely.
+                        continue
                     if not own:
                         uncovered.append((line_no, citation, flat(scope) or citation,
                                           f"no check binds {key} at {where} to anything in this "

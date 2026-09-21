@@ -21,7 +21,10 @@ Item 13 (citations reconcile with the bibliography) is a separate script: reconc
 usage: python validate_sources.py checks.json [--verbose] [--offline]
 """
 import sys, json, re, os, io, unicodedata, datetime, difflib, urllib.request, urllib.parse
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+try:                                   # reconfigure, never replace: an orphaned wrapper
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # closes the caller's buffer
+except (AttributeError, ValueError):   # not a TextIOWrapper, e.g. under a test harness
+    pass
 VERSIONS = ["version_of_record", "author_manuscript", "web_rendering", "official_print"]
 EMPTY_DISPOSITIONS = ["confirmed", "resolved-by-attribution", "not-empty"]
 CACHE = os.path.join(os.path.expanduser("~"), ".claude", "cache", "crossref")
@@ -172,14 +175,22 @@ def main():
         else:
             res.append(v)
         # 9c page convention: does the printed number implied by offset appear at the page edge?
+        # Pages under 200 characters were skipped, so a sparse source -- a slide, a figure
+        # page, a short article -- reported "0/0 pages" and the convention was never tested
+        # (2026-09-21 sweep, S1). Length is the wrong filter: what matters is whether the page
+        # shows a number at its edge at all. One that shows none states no folio and is not
+        # evidence either way, so it is skipped rather than counted as a miss.
         hit = tot = 0
-        for i, t in enumerate(raw):
-            n = str(i + 1 + off)
-            if i + 1 + off < 1 or len(t) < 200:
+        for i, tx in enumerate(raw):
+            n = i + 1 + off
+            if n < 1:
+                continue
+            edge = tx[:70] + " | " + tx[-70:]
+            if not re.search(r"\d", edge):
                 continue
             tot += 1
-            edge = t[:70] + " | " + t[-70:]
-            hit += bool(re.search(rf"(?<!\d){n}(?!\d)", edge) or re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", t))
+            hit += bool(re.search(rf"(?<!\d){n}(?!\d)", edge)
+                        or re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", tx))
         if v == "web_rendering":
             res.append("no pagination")
         elif tot and hit / tot >= 0.6:

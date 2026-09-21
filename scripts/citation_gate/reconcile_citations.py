@@ -23,7 +23,10 @@ like any other, and an unresolved one is a FAIL rather than a silence.
 exit:  0 clean, 1 FAIL, 2 REPORT only
 """
 import sys, re, io, hashlib
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+try:                                   # reconfigure, never replace: an orphaned wrapper
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # closes the caller's buffer
+except (AttributeError, ValueError):   # not a TextIOWrapper, e.g. under a test harness
+    pass
 NAME = r"[A-Z][A-Za-zÀ-ſ'’\-]+"
 DATED = r"(?:1[6-9]|20)\d\d[a-z]?"
 NO_DATE = r"n\.\s?d\."

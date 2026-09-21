@@ -243,13 +243,49 @@ def _gate_tools_dir() -> Path:
     return _resolve_gate_tools()[0]
 
 
+def _first_citation_line(text: str) -> int | None:
+    """The line of the document's first citation, looking across wrapped lines.
+
+    The scan was line by line, so a citation wrapping past the margin -- "(Tester," on one
+    line, "2026, p. 1)." on the next -- was invisible, and a manuscript whose citations all
+    wrapped produced no finding at all because it appeared to cite nothing (2026-09-21
+    review, F5-01). Paragraphs are joined before the search, and the offset of the match is
+    mapped back to the line it started on.
+    """
+    lines = text.splitlines()
+    buf: List[str] = []
+    spans: List[tuple] = []
+
+    def search():
+        if not buf:
+            return None
+        m = SOURCE_CITATION_RE.search(" ".join(buf))
+        if not m:
+            return None
+        found = spans[0][1]
+        for start, line in spans:
+            if start > m.start():
+                break
+            found = line
+        return found
+
+    for n, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped:
+            hit = search()
+            if hit is not None:
+                return hit
+            buf, spans = [], []
+            continue
+        spans.append((sum(len(b) + 1 for b in buf), n))
+        buf.append(stripped)
+    return search()
+
+
 def audit_source_locators(text: str, target: Path) -> List[Finding]:
     import subprocess
 
-    first = next(
-        (i for i, line in enumerate(text.splitlines(), 1) if SOURCE_CITATION_RE.search(line)),
-        None,
-    )
+    first = _first_citation_line(text)
     if first is None:
         return []
 
