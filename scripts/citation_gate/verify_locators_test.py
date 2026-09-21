@@ -362,6 +362,75 @@ def main() -> int:
          vl.offset_confirmed([f"Body text. page {i+1} of 6. More body." for i in range(6)], 0)[0],
          True)
 
+    # --- repair v1: loose evidence may confirm a pagination, only strict may refute it -----
+    # A number in the edge window was folio evidence, so the headings "Section 11/12/13" on a
+    # source printing 1, 2, 3 confirmed a declared offset of +10 and the tool announced it
+    # (2026-09-21 review, F6-01).
+    nl = chr(10)
+    heads = [f"Section {i + 11} Body text of the page.{nl}{i + 1}{nl}" for i in range(3)]
+    case("a heading number does not confirm an offset",
+         vl.offset_confirmed(heads, 10)[0], False)
+    case("and the page's own folio still does", vl.offset_confirmed(heads, 0)[0], True)
+    case("a labelled number is not read as a folio",
+         vl.edge_numbers("Section 11 Body text of this page."), [])
+    case("an unlabelled one is", vl.edge_numbers(f"Body text of this page.{nl}11{nl}"), [11])
+    # the label must be seen even when it sits at the window's own edge: building the window
+    # as head + tail truncated "Section 12" to " 12" and counted it (first cut of v1)
+    long_body = "Body text that runs on. " * 12
+    case("a label truncated by the window is still a label",
+         vl.edge_numbers(f"Section 12 {long_body}"), [])
+    case("a number in the body is not edge evidence",
+         vl.edge_numbers(f"{long_body}fully 47 of them{nl}{long_body}"), [])
+
+    # F6-02: a document-wide offset does not overrule the folio on the cited page. Only a
+    # bare-number line refutes, and only if that number is unique: holldack2026 prints a bare
+    # "5" on two pages, and treating that as a folio refuses five correct live checks.
+    pages = [f"Body.{nl}1{nl}", f"Body.{nl}2{nl}", f"Body.{nl}99{nl}"]
+    case("the cited page's own folio is readable", vl.printed_folios(pages)[2], {99})
+    case("a repeated bare number is not a folio",
+         vl.printed_folios([f"Body.{nl}5{nl}"] * 3), [set()] * 3)
+    case("a page printing nothing states no folio",
+         vl.printed_folios(["Body with no numerals."])[0], set())
+    case("dates and a DOI at the edge are not a folio",
+         vl.printed_folios(["Submitted 28 July 2015 Accepted 9 October 2015 "
+                            "DOI 10.7717/peerj.1364"])[0], set())
+
+    # the two tools must read the same page the same way: F5-03 was one tool repaired and its
+    # twin left alone, and 9c is now implemented in both
+    vs_spec = importlib.util.spec_from_file_location("vs", HERE / "validate_sources.py")
+    vs = importlib.util.module_from_spec(vs_spec)
+    vs_spec.loader.exec_module(vs)
+    probes = [f"Section 11 Body.{nl}1{nl}", f"Body text only.{nl}", f"12 Running head Body.{nl}",
+              f"Body.{nl}page 3 of 9{nl}", "Submitted 28 July 2015 DOI 10.7717/peerj.1364",
+              f"{long_body}{nl}207{nl}"]
+    case("both tools read a page's edge identically",
+         [vs.edge_numbers(t) for t in probes], [vl.edge_numbers(t) for t in probes])
+
+    # --- repair w1: a title is matched as written (finding F6-03) --------------------------
+    # "without" and "with" are both function words, so neither survived term derivation and
+    # the works were indistinguishable; and a substring test read "stable" inside "unstable".
+    case("a relation word distinguishes the work",
+         vl.title_parts_absent("Resource Sharing Without Authority",
+                               "[2] Tester. (2026). Resource Sharing With Authority."),
+         ["resource sharing without authority"])
+    case("a title word is matched whole",
+         bool(vl.title_parts_absent("Resource Sharing in Stable Networks",
+                                    "[2] Tester. (2026). Resource Sharing in Unstable Networks.")),
+         True)
+    case("the entry's own title is accepted",
+         vl.title_parts_absent("Resource Sharing Without Authority",
+                               "[2] Tester. (2026). Resource Sharing Without Authority. J. Test."),
+         [])
+    case("a subtitle is matched as its own part",
+         vl.title_parts_absent("Resource Sharing: A Study of Networks",
+                               "[2] Tester. Resource Sharing - A Study of Networks. J. Test."), [])
+    case("a dropped subtitle is reported",
+         vl.title_parts_absent("Resource Sharing: A Study of Networks",
+                               "[2] Tester. (2026). Resource Sharing. J. Test."),
+         ["a study of networks"])
+    case("an ampersand reads as 'and'",
+         vl.title_parts_absent("Trust & Authority", "[2] Tester. Trust and Authority."), [])
+
     # --- no source file may contain a control character where an escape was meant ----------
     # A Git Bash heredoc rewrites \b inside a Python string literal as a literal backspace.
     # The damage is invisible: sed, inspect.getsource and ast all render it as nothing, and

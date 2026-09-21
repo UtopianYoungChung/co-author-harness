@@ -90,6 +90,61 @@ MIN_FOLIO_PAGES = 3      # pages that must show a number at their edge before an
 FOLIO_AGREEMENT = 0.6    # be confirmed, and the share of those that must agree with it
 
 
+# What may count as a printed folio. Any number in the edge window was enough, so the headings
+# "Section 11 / 12 / 13" on a source printing 1, 2, 3 confirmed a declared offset of +10 and
+# the tool announced "offset +10 confirmed on 3/3 pages" (2026-09-21 review, F6-01). A number
+# a labelling word owns is that label's number, not the page's.
+FOLIO_LABEL_RE = re.compile(
+    r"\b(?:sections?|secs?|chapters?|chaps?|ch|parts?|figures?|figs?|tables?|tabs?|appendix|"
+    r"appendices|apps?|volumes?|vols?|numbers?|nos?|issues?|articles?|arts?|items?|steps?|"
+    r"lines?|notes?|equations?|eqs?|paragraphs?|paras?|exhibits?|box|boxes|panels?|slides?|"
+    r"rules?|footnotes?|versions?|editions?|eds?|weeks?|days?|phases?|levels?|rounds?)"
+    r"\.?\s*(?:nos?\.?\s*)?$", re.I)
+EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
+EDGE_CHARS = 70          # of the flattened page, at each end: its running head and its footer
+BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
+
+
+def edge_numbers(raw_text):
+    """Numbers printed at a page's edge that could be its folio. Loose, deliberately.
+
+    Shared verbatim with the sibling tool; the test asserts the two implementations agree.
+    """
+    flat = re.sub(r"\s+", " ", raw_text or "")
+    out = []
+    for m in EDGE_NUMBER_RE.finditer(flat):
+        if m.start() >= EDGE_CHARS and m.end() <= len(flat) - EDGE_CHARS:
+            continue                             # body text, not the page's edge
+        if FOLIO_LABEL_RE.search(flat[max(0, m.start() - 24):m.start()]):
+            continue                             # that label's number, not the page's
+        out.append(int(m.group(1)))
+    return out
+
+
+def printed_folios(raw_pages):
+    """Per page, the folio the page itself prints, on the strict rule: a line whose whole
+    content is a number, whose value appears on one page only.
+
+    Loose evidence may confirm a declared offset; only this may refute one. Measured on the
+    live sources, the loose rule refuses five correct checks -- jergas p.1 and greenberg p.1
+    read their submission dates and DOI, cope reads the date its HTML rendering was taken --
+    and without the uniqueness guard holldack2026's bare "5", printed on both p.6 and p.8,
+    refuses five more. A folio is unique to its page; a number repeated across pages is a
+    label (2026-09-21 review, F6-02).
+    """
+    per, seen = [], {}
+    for text in raw_pages or []:
+        page = set()
+        for line in (text or "").splitlines():
+            m = BARE_FOLIO_RE.match(line.strip())
+            if m:
+                page.add(int(m.group(1)))
+        for n in page:
+            seen[n] = seen.get(n, 0) + 1
+        per.append(page)
+    return [{n for n in page if seen[n] == 1} for page in per]
+
+
 def offset_confirmed(raw_pages, offset):
     """(confirmed, agreeing, pages that state a number) for a declared page offset.
 
@@ -110,16 +165,16 @@ def offset_confirmed(raw_pages, offset):
         n = i + 1 + offset
         if n < 1:
             continue
-        # Whitespace is collapsed first so this window holds the same words the validator's
-        # 9c window holds. Without that the two tools read different edges of the same page
-        # and disagree about the same source.
+        # edge_numbers() collapses whitespace first, so this window holds the same words the
+        # validator's 9c window holds. Without that the two tools read different edges of the
+        # same page and disagree about the same source.
         flat_text = re.sub(r"\s+", " ", text)
-        edge = flat_text[:70] + " | " + flat_text[-70:]
-        if not re.search(r"\d", edge):
-            continue
+        run = re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat_text)
+        nums = edge_numbers(text)
+        if not nums and not run:
+            continue                             # states no number: not evidence either way
         tot += 1
-        hit += bool(re.search(rf"(?<!\d){n}(?!\d)", edge)
-                    or re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat_text))
+        hit += bool(n in nums or run)
     # The floor scales to the document. A fixed three would make every source shorter than
     # three pages permanently unconfirmable -- a two-page editorial, a one-page letter, and
     # every small fixture in the review suites, whose positive controls this broke.
@@ -317,6 +372,36 @@ def narrative_author(text_before):
 BIB_ENTRY_RE = re.compile(r"^\s*[\[(]?(\d{1,3})[\]).]\s+(.+)$")
 
 
+TITLE_TOKEN_RE = re.compile(r"[a-z0-9]+")
+TITLE_PART_RE = re.compile(r"[:;\u2013\u2014]")
+
+
+def title_tokens(text):
+    """A title as words: case-folded, "&" read as "and", punctuation dropped, order kept."""
+    flat = unicodedata.normalize("NFKD", text or "").replace("\u00ad", "").lower()
+    return TITLE_TOKEN_RE.findall(flat.replace("&", " and "))
+
+
+def title_parts_absent(title, entry):
+    """Parts of the declared title that the entry does not contain, word for word, in order.
+
+    Every word counts, including the function words a term derivation drops: "without" is
+    what distinguishes the work from the one the entry names. Whole words only, so "stable"
+    is not found inside "unstable". Colons and dashes separate parts so an entry that gives
+    the main title and the subtitle differently still matches each of them; an entry that
+    drops a declared subtitle is reported, because a main title alone identifies no work.
+    """
+    have = title_tokens(entry)
+    absent = []
+    for part in TITLE_PART_RE.split(title or ""):
+        want = title_tokens(part)
+        if not want:
+            continue
+        if not any(have[i:i + len(want)] == want for i in range(len(have) - len(want) + 1)):
+            absent.append(" ".join(want))
+    return absent
+
+
 def numbered_bibliography(doc_text):
     """{label: entry text} from the citing document's own numbered reference list.
 
@@ -384,14 +469,13 @@ def check_bib_numbers(cfg, doc_text):
         # distinguish. Compared on the leading run of the title so a dropped subtitle does not
         # fail an otherwise correct entry.
         if title:
-            # A 40-character prefix let "... Resource Sharing in Stable Networks" clear an
-            # entry titled "... Resource Sharing in Dynamic Networks": the prefixes coincide
-            # and the works differ (2026-09-21 review, F5-04). Every content word of the
-            # declared title must appear in the entry, and the ones that do not are named.
-            low_entry = norm(entry)
-            absent = [t for t in derive_terms(title) if norm(t) not in low_entry]
+            # Content words let "Resource Sharing Without Authority" clear an entry titled
+            # "... With Authority" -- both relation words are function words, so neither
+            # survived derivation -- and a substring test let "Stable Networks" clear
+            # "Unstable Networks" (2026-09-21 review, F6-03). A title is matched as written.
+            absent = title_parts_absent(title, entry)
             if absent:
-                missing.append(f"title word(s) {absent} (declared {title[:44]!r})")
+                missing.append(f"title {absent} (declared {title[:44]!r})")
         if missing:
             says = ("does not name its " + missing[0] if len(missing) == 1
                     else "names neither its " + " nor its ".join(missing))
@@ -766,7 +850,8 @@ def _main():
         read = pages_of(v["pdf"])
         ok, agree, readable = offset_confirmed(read["raw"], v.get("offset", 0))
         src[k] = dict(v, pages=read["pages"], raw=read["raw"],
-                      offset_confirmed=ok, folio_agreement=(agree, readable))
+                      offset_confirmed=ok, folio_agreement=(agree, readable),
+                      folios=printed_folios(read["raw"]))
     fails, best = [], {}
     cov_rows, no_claim = [], 0
     for c in cfg["checks"]:
@@ -783,6 +868,16 @@ def _main():
                 f"for {c['source']} cannot be confirmed against the source's own printed "
                 f"pages -- {why}. Rule 3 item 9c: a locator names a pagination, and an "
                 "unconfirmed pagination cannot place a quote on a printed page")
+        # An offset agreeing with most pages does not overrule the folio printed on the one
+        # page the claim rests on. The per-check path consulted only the document-wide verdict,
+        # so a source printing 1, 2, 99 bound a quote on its third page to p.3 and exited 0
+        # (2026-09-21 review, F6-02).
+        stated = s.get("folios") or []
+        if 0 <= idx < len(stated) and stated[idx] and c["page"] not in stated[idx]:
+            problems.append(
+                f"PAGE_LOCATOR_REFUTED: the page this check reads prints "
+                f"{sorted(stated[idx])}, not p.{c['page']}. Rule 3 item 9c: a locator names "
+                "the pagination the source prints, and the cited page contradicts it")
         if cls not in CLASSES:
             problems.append(f"bad class '{cls}'")
         if len(q) < 25:

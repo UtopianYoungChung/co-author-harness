@@ -44,6 +44,37 @@ CONTRARY = (r"\b(?:however|although|though|nevertheless|nonetheless|whereas|desp
             r"did not|cannot|is not|are not|was not|were not|not always|not necessarily|rarely|seldom)\b")
 
 
+# What may count as a printed folio. Any number in the edge window was enough, so the headings
+# "Section 11 / 12 / 13" on a source printing 1, 2, 3 confirmed a declared offset of +10 and
+# the tool announced "offset +10 confirmed on 3/3 pages" (2026-09-21 review, F6-01). A number
+# a labelling word owns is that label's number, not the page's.
+FOLIO_LABEL_RE = re.compile(
+    r"\b(?:sections?|secs?|chapters?|chaps?|ch|parts?|figures?|figs?|tables?|tabs?|appendix|"
+    r"appendices|apps?|volumes?|vols?|numbers?|nos?|issues?|articles?|arts?|items?|steps?|"
+    r"lines?|notes?|equations?|eqs?|paragraphs?|paras?|exhibits?|box|boxes|panels?|slides?|"
+    r"rules?|footnotes?|versions?|editions?|eds?|weeks?|days?|phases?|levels?|rounds?)"
+    r"\.?\s*(?:nos?\.?\s*)?$", re.I)
+EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
+EDGE_CHARS = 70          # of the flattened page, at each end: its running head and its footer
+BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
+
+
+def edge_numbers(raw_text):
+    """Numbers printed at a page's edge that could be its folio. Loose, deliberately.
+
+    Shared verbatim with the sibling tool; the test asserts the two implementations agree.
+    """
+    flat = re.sub(r"\s+", " ", raw_text or "")
+    out = []
+    for m in EDGE_NUMBER_RE.finditer(flat):
+        if m.start() >= EDGE_CHARS and m.end() <= len(flat) - EDGE_CHARS:
+            continue                             # body text, not the page's edge
+        if FOLIO_LABEL_RE.search(flat[max(0, m.start() - 24):m.start()]):
+            continue                             # that label's number, not the page's
+        out.append(int(m.group(1)))
+    return out
+
+
 def nchar(ch):
     return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFKD", ch).replace("­", "").lower())
 
@@ -180,17 +211,22 @@ def main():
         # (2026-09-21 sweep, S1). Length is the wrong filter: what matters is whether the page
         # shows a number at its edge at all. One that shows none states no folio and is not
         # evidence either way, so it is skipped rather than counted as a miss.
+        # A number a labelling word owns is that label's number: "Section 11" is not
+        # evidence that the page prints 11 (2026-09-21 review, F6-01). edge_numbers() is
+        # shared verbatim with verify_locators.py so both tools read the same page the
+        # same way; verify_locators_test.py asserts they agree.
         hit = tot = 0
         for i, tx in enumerate(raw):
             n = i + 1 + off
             if n < 1:
                 continue
-            edge = tx[:70] + " | " + tx[-70:]
-            if not re.search(r"\d", edge):
+            flat = re.sub(r"\s+", " ", tx)
+            run = re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat)
+            nums = edge_numbers(tx)
+            if not nums and not run:
                 continue
             tot += 1
-            hit += bool(re.search(rf"(?<!\d){n}(?!\d)", edge)
-                        or re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", tx))
+            hit += bool(n in nums or run)
         if v == "web_rendering":
             res.append("no pagination")
         elif tot and hit / tot >= 0.6:
