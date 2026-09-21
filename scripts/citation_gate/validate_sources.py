@@ -228,7 +228,15 @@ def main():
             tot += 1
             hit += bool(n in nums or run)
         if v == "web_rendering":
-            res.append("no pagination")
+            # Item 9c asks which pagination a locator uses. A printed web page has none, so
+            # its checks must name a section instead, and verify_locators.py binds against
+            # that. Validation runs first, so the requirement is refused here.
+            res.append("no printed pagination; LOCATORS ARE WEB-PAGE SECTIONS, not pages")
+            unlocated = [c["id"] for c in cfg["checks"]
+                         if c.get("source") == k and not str(c.get("section", "")).strip()]
+            if unlocated:
+                fails.append(f"9c {k}: a web rendering prints no page numbers, but check(s) "
+                             f"{unlocated} declare no section locator (Rule 3 item 8)")
         elif tot and hit / tot >= 0.6:
             res.append(f"offset {off:+d} confirmed on {hit}/{tot} pages")
         else:

@@ -431,6 +431,47 @@ def main() -> int:
     case("an ampersand reads as 'and'",
          vl.title_parts_absent("Trust & Authority", "[2] Tester. Trust and Authority."), [])
 
+    # --- repair y: a web rendering is located by section, not by page ---------------------
+    # Its pages are the printer's, so the gate asked a document that prints no page numbers to
+    # confirm a page convention, and refused three live checks for failing to. What a web page
+    # does have is sections (2026-09-21, the three COPE checks).
+    web = {"pages": [vl.norm("COPE position The use of AI tools is expanding rapidly. "
+                             "AI tools cannot be listed as an author of a paper. "
+                             "Later heading Something else entirely.")],
+           "web_rendering": True}
+
+    def web_check(**kw):
+        base = {"source": "cope", "page": 1,
+                "quote": "AI tools cannot be listed as an author of a paper"}
+        return dict(base, **kw)
+
+    case("a section locator binds",
+         vl.web_locator(web_check(section="COPE position"), web)[0], [])
+    case("and reports the render page",
+         vl.web_locator(web_check(section="COPE position"), web)[1], 1)
+    problems, _ = vl.web_locator(web_check(), web)
+    case("no section is UNLOCATED",
+         bool(problems) and problems[0].startswith("UNLOCATED"), True)
+    case("and the finding says the page is the printout's",
+         bool(problems) and "not of the source" in problems[0], True)
+    problems, _ = vl.web_locator(web_check(section="A section that is not there"), web)
+    case("a section the source has not got is refused",
+         bool(problems) and problems[0].startswith("SECTION_NOT_FOUND"), True)
+    problems, _ = vl.web_locator(web_check(section="Later heading"), web)
+    case("a section opening after the quote is refused",
+         bool(problems) and problems[0].startswith("SECTION_AFTER_QUOTE"), True)
+    problems, _ = vl.web_locator(web_check(quote="Nothing like this is in the rendering"), web)
+    case("a quote in no section at all is still not found",
+         bool(problems) and problems[0].startswith("QUOTE_NOT_FOUND"), True)
+    # the quote is sought in the whole rendering: which printed page it landed on is the
+    # printer's business, so a second render page binds the same way
+    split = {"pages": [vl.norm("COPE position The use of AI tools is expanding rapidly."),
+                       vl.norm("AI tools cannot be listed as an author of a paper.")],
+             "web_rendering": True}
+    problems, render = vl.web_locator(web_check(section="COPE position"), split)
+    case("a quote on the second render page still binds", problems, [])
+    case("and its render page is named", render, 2)
+
     # --- no source file may contain a control character where an escape was meant ----------
     # A Git Bash heredoc rewrites \b inside a Python string literal as a literal backspace.
     # The damage is invisible: sed, inspect.getsource and ast all render it as nothing, and

@@ -184,6 +184,41 @@ def offset_confirmed(raw_pages, offset):
     return hit / tot >= FOLIO_AGREEMENT, hit, tot
 
 
+WEB_RENDERING = "web_rendering"   # an HTML page printed to PDF: the pages are the printer's
+
+
+def web_locator(check, source):
+    """(problems, render page) for a check into a web rendering.
+
+    A web page prints no page numbers, so a page is not a locator for it and the gate does not
+    ask the source to confirm one. What it does have is its sections, so that is what a check
+    must name: the section has to be in the source and has to open at or before the quote.
+    The quote is sought in the whole rendering, because which printed page a browser put it on
+    is a fact about the printer (2026-09-21, the three COPE checks).
+    """
+    q = norm(check["quote"])
+    doc, page_of = "", []
+    for i, page in enumerate(source["pages"]):
+        doc += page
+        page_of += [i] * len(page)
+    at = doc.find(q)
+    if at < 0:
+        return ["QUOTE_NOT_FOUND anywhere in source (fabricated or mistyped)"], None
+    render_page = page_of[at] + 1
+    section = (check.get("section") or "").strip()
+    if not norm(section):
+        return ([f"UNLOCATED: {check['source']} is a web rendering and prints no page numbers, "
+                 f"so p.{check.get('page')} names a page of the printout, not of the source. "
+                 "Declare the section the quote sits in (Rule 3 item 8)"], render_page)
+    opens = [m.start() for m in re.finditer(re.escape(norm(section)), doc)]
+    if not opens:
+        return ([f"SECTION_NOT_FOUND: no section {section!r} in {check['source']}"], render_page)
+    if min(opens) > at:
+        return ([f"SECTION_AFTER_QUOTE: {section!r} opens after the quoted passage, so the "
+                 "quote is not in that section"], render_page)
+    return [], render_page
+
+
 def term_ok(term, text):            # "a|b" = alternatives
     return any(norm(t) in text for t in term.split("|"))
 
@@ -848,18 +883,24 @@ def _main():
     src = {}
     for k, v in cfg["sources"].items():
         read = pages_of(v["pdf"])
-        ok, agree, readable = offset_confirmed(read["raw"], v.get("offset", 0))
-        src[k] = dict(v, pages=read["pages"], raw=read["raw"],
+        web = v.get("version") == WEB_RENDERING
+        # Nothing to confirm or refute: the pages of a printed web page are the printer's.
+        ok, agree, readable = ((True, 0, 0) if web
+                               else offset_confirmed(read["raw"], v.get("offset", 0)))
+        src[k] = dict(v, pages=read["pages"], raw=read["raw"], web_rendering=web,
                       offset_confirmed=ok, folio_agreement=(agree, readable),
-                      folios=printed_folios(read["raw"]))
+                      folios=[] if web else printed_folios(read["raw"]))
     fails, best = [], {}
+    where_bound = {}                             # checks whose locator is not a printed page
     cov_rows, no_claim = [], 0
     for c in cfg["checks"]:
         cid, s = c["id"], src[c["source"]]
         q, cls = norm(c["quote"]), c.get("class", "")
         idx = c["page"] - s.get("offset", 0) - 1
         problems = []
-        if not s.get("offset_confirmed", True):
+        if s.get("web_rendering"):
+            pass                                 # no printed pagination to confirm or refute
+        elif not s.get("offset_confirmed", True):
             agree, readable = s.get("folio_agreement", (0, 0))
             why = (f"only {agree} of {readable} pages that print a number agree with it"
                    if readable else "no page of it prints a readable number")
@@ -872,7 +913,7 @@ def _main():
         # page the claim rests on. The per-check path consulted only the document-wide verdict,
         # so a source printing 1, 2, 99 bound a quote on its third page to p.3 and exited 0
         # (2026-09-21 review, F6-02).
-        stated = s.get("folios") or []
+        stated = [] if s.get("web_rendering") else (s.get("folios") or [])
         if 0 <= idx < len(stated) and stated[idx] and c["page"] not in stated[idx]:
             problems.append(
                 f"PAGE_LOCATOR_REFUTED: the page this check reads prints "
@@ -882,7 +923,13 @@ def _main():
             problems.append(f"bad class '{cls}'")
         if len(q) < 25:
             problems.append("quote too short to bind (<25 alnum chars)")
-        if not (0 <= idx < len(s["pages"])) or q not in s["pages"][idx]:
+        if s.get("web_rendering"):
+            web_problems, render_page = web_locator(c, s)
+            problems += web_problems
+            if not web_problems:
+                where_bound[cid] = (f"section {c['section']!r} of {c['source']}, a web "
+                                    f"rendering (render page {render_page}, not a printed page)")
+        elif not (0 <= idx < len(s["pages"])) or q not in s["pages"][idx]:
             elsewhere = [i + 1 + s.get("offset", 0) for i, t in enumerate(s["pages"]) if q in t]
             problems.append(f"WRONG_PAGE: quote is on p.{elsewhere}" if elsewhere
                             else "QUOTE_NOT_FOUND anywhere in source (fabricated or mistyped)")
@@ -1104,6 +1151,9 @@ def _main():
         print(f"UNSUPPORTED [{e}] - no bound quote; do not issue a verdict, do not cite")
     for e, cls, cid in weak:
         print(f"DISCLOSE {cls} [{e}] via {cid} - report to author as inference, not as PASS")
+    # A locator that is not a printed page is never reported as one (Rule 3 item 9c).
+    for cid in sorted(where_bound):
+        print(f"LOCATOR {cid} is {where_bound[cid]}")
     if verbose:
         for e in elements:
             if e in best: print(f"ok {best[e][0]:10s} [{e}] via {best[e][1]}")
