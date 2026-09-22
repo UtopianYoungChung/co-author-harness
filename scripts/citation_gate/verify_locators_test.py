@@ -670,9 +670,11 @@ def main() -> int:
              "bib_numbers": {"2": "f"}}, doc_t)
     case("a title differing after 40 characters is caught",
          bool(bib("A Comparative Investigation of Resource Sharing in Stable Networks")), True)
-    case("and the finding names the word that differs",
-         "stable" in str(bib("A Comparative Investigation of Resource Sharing in Stable "
-                             "Networks")).lower(), True)
+    # F8-06 changed the report: it names the entry's title FIELD against the declared title,
+    # which is what a reader needs when the two are different works.
+    case("and the finding names the entry's title field",
+         "title field" in str(bib("A Comparative Investigation of Resource Sharing in Stable "
+                                  "Networks")).lower(), True)
     case("the entry's own title is clean",
          bib("A Comparative Investigation of Resource Sharing in Dynamic Networks"), [])
 

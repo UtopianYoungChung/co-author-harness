@@ -110,6 +110,58 @@ BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
 FOLIO_ZONE_LINES = 3     # the running head and foot: where a page prints its own number
 
 
+FOLIO_CONTEXT_CHARS = 20   # letters printed before a number: a running head repeats them
+MIN_RUNNING_CONTEXT = 9    # shorter than this is not evidence that two numbers share a role
+
+
+def zone_numbers(raw_text):
+    """[(number, the letters printed before it)] inside the page's edge window.
+
+    The context is what tells a folio from other edge material: a running head or foot
+    repeats its words, so the number that follows those words on most pages is the one
+    playing the folio's role there (2026-09-22 review, F8-04).
+    """
+    flat = re.sub(r"\s+", " ", raw_text or "")
+    out = []
+    for m in EDGE_NUMBER_RE.finditer(flat):
+        if m.start() >= EDGE_CHARS and m.end() <= len(flat) - EDGE_CHARS:
+            continue
+        if FOLIO_LABEL_RE.search(flat[max(0, m.start() - 24):m.start()]):
+            continue
+        ctx = re.sub(r"[^a-z]", "",
+                     flat[max(0, m.start() - FOLIO_CONTEXT_CHARS):m.start()].lower())
+        out.append((int(m.group(1)), ctx))
+    return out
+
+
+def running_contexts(raw_pages, offset):
+    """The contexts in which most agreeing pages print their folio."""
+    seen, agreeing = {}, 0
+    for i, text in enumerate(raw_pages or []):
+        found = {c for n, c in zone_numbers(text) if n == i + 1 + offset}
+        if not found:
+            continue
+        agreeing += 1
+        for c in found:
+            seen[c] = seen.get(c, 0) + 1
+    if not agreeing:
+        return set()
+    return {c for c, n in seen.items()
+            if n / agreeing >= FOLIO_AGREEMENT and len(c) >= MIN_RUNNING_CONTEXT}
+
+
+def page_contradicts(raw_pages, offset, idx):
+    """(number, context) if the cited page prints another number where the folio goes."""
+    ctxs = running_contexts(raw_pages, offset)
+    if not ctxs or not (0 <= idx < len(raw_pages or [])):
+        return None
+    want = idx + 1 + offset
+    for n, c in zone_numbers(raw_pages[idx]):
+        if c in ctxs and n != want:
+            return n, c
+    return None
+
+
 def edge_numbers(raw_text):
     """Numbers printed at a page's edge that could be its folio. Loose, deliberately.
 
@@ -154,12 +206,18 @@ def printed_folios(raw_pages):
             seen[n] = seen.get(n, 0) + 1
         per.append(page)
     return [{n for n in page if seen[n] == 1} for page in per]
-def folio_evidence(raw_pages):
-    """Per page, the numbers the page itself states: its edge numbers and any "page N of M"."""
+def folio_evidence(raw_pages, year=None):
+    """Per page, the numbers the page itself states: its edge numbers and any "page N of M".
+
+    A number equal to the source's own declared year is a date, not a folio. Without that,
+    a one-page source's year competed with its folio and made every short source ambiguous --
+    which is what `max(2, floor)` was really protecting against, by disabling the ambiguity
+    test instead of removing the false candidate (2026-09-22 review, F8-05).
+    """
     per = []
     for text in raw_pages or []:
         flat = re.sub(r"\s+", " ", text or "")
-        nums = set(edge_numbers(text))
+        nums = {n for n in edge_numbers(text) if not year or abs(n - int(year)) > 1}
         m = re.search(r"\bpage (\d+) of \d+", flat, re.I)
         if m:
             nums.add(int(m.group(1)))
@@ -167,7 +225,7 @@ def folio_evidence(raw_pages):
     return per
 
 
-def supported_offsets(raw_pages):
+def supported_offsets(raw_pages, year=None):
     """(offsets the source's own numbers support, pages that state a number, the floor).
 
     A source that supports more than one offset has ambiguous pagination: a page states at
@@ -176,24 +234,22 @@ def supported_offsets(raw_pages):
     "Experiment 11/12/13" printed over folios 1/2/3 supports +10 and +0 and now confirms
     neither.
     """
-    per = folio_evidence(raw_pages)
+    per = folio_evidence(raw_pages, year)
     stating = [i for i, nums in enumerate(per) if nums]
     floor = min(MIN_FOLIO_PAGES, len([t for t in (raw_pages or []) if t.strip()])) or 1
     out = []
     for off in sorted({n - (i + 1) for i in stating for n in per[i]}):
         agree = sum(1 for i in stating if (i + 1 + off) in per[i])
-        # An offset competes only if it reaches the bar confirmation itself has to clear: the
-        # floor AND the agreement share. Dropping the share made allea support 9 offsets and
-        # cfr93 support 63, because a 160-character edge window on a real page holds
-        # citations, years and DOIs, and coincidental agreement on two pages is ordinary.
-        # The max(2, ...) is what a one-page source needs: with a floor of one, every number
-        # on its only page would otherwise support an offset of its own.
-        if agree >= max(2, floor) and agree / len(stating) >= FOLIO_AGREEMENT:
+        # An offset competes at exactly the bar confirmation must clear. The earlier
+        # max(2, floor) kept a one-page source from ever looking ambiguous, which did not
+        # solve one-page ambiguity -- it stopped the code recognising it, and a page printing
+        # "Experiment 11" and a footer "1" confirmed whichever offset was declared (F8-05).
+        if agree >= floor and agree / len(stating) >= FOLIO_AGREEMENT:
             out.append((off, agree))
     return out, stating, floor
 
 
-def offset_confirmed(raw_pages, offset):
+def offset_confirmed(raw_pages, offset, year=None):
     """(confirmed, agreeing, pages that state a number, why not) for a declared page offset.
 
     Rule 3 item 9c asks which pagination a locator uses. The gate took the answer from the
@@ -207,8 +263,8 @@ def offset_confirmed(raw_pages, offset):
     whose pagination 9c confirms at 19/20, 14/14 and 14/15, because their folios share a line
     with a running head.
     """
-    supported, stating, floor = supported_offsets(raw_pages)
-    per = folio_evidence(raw_pages)
+    supported, stating, floor = supported_offsets(raw_pages, year)
+    per = folio_evidence(raw_pages, year)
     hit = sum(1 for i in stating if (i + 1 + offset) in per[i])
     if not stating:
         return False, 0, 0, "no page of it states a readable number"
@@ -230,7 +286,10 @@ def offset_confirmed(raw_pages, offset):
 
 WEB_RENDERING = "web_rendering"   # an HTML page printed to PDF: the pages are the printer's
 HEADING_MAX_CHARS = 80            # a heading is a short line of its own ...
-HEADING_NOT_END = ".?!,;:"        # ... that does not end the way a sentence ends
+HEADING_MAX_WORDS = 4             # ... of few words. Punctuation does not decide it: the
+                                  # reviewer's "Results:" and "Results." are headings, and
+                                  # "Methods were described in a separate document." is not
+                                  # (2026-09-22 review, F8-02).
 SECTION_LOCATOR_RE = re.compile(
     r"[,(]\s*(?:the\s+)?([A-Z][\w '\-]{0,40}?)\s+section\b", re.I)
 
@@ -256,8 +315,14 @@ def web_sections(raw_pages):
             piece = norm(bare)
             if not piece:
                 continue
-            if (len(bare) <= HEADING_MAX_CHARS and bare[-1] not in HEADING_NOT_END
-                    and re.search(r"[A-Za-z]", bare)):
+            # Any short line MAY be a heading, and every one of them ends the section
+            # before it. Only those the tool will name are kept as sections; the rest close
+            # the previous interval without opening a named one, so an ambiguous boundary
+            # leaves material outside the last named section instead of enlarging it
+            # (2026-09-22 review, F8-02: "Results:" and "Results." were swallowed).
+            words = len(re.findall(r"[A-Za-z0-9][\w'\-]*", bare))
+            if (len(bare) <= HEADING_MAX_CHARS and words <= HEADING_MAX_WORDS
+                    and bare[-1] not in ",;" and re.search(r"[A-Za-z]", bare)):
                 heads.append([bare, len(doc), None])
             doc += piece
             page_of += [i] * len(piece)
@@ -286,8 +351,10 @@ def web_locator(check, source):
         return ([f"UNLOCATED: {check['source']} is a web rendering and prints no page numbers, "
                  f"so p.{check.get('page')} names a page of the printout, not of the source. "
                  "Declare the section the quote sits in (Rule 3 item 8)"], render_page)
-    named = [(h, a, b) for h, a, b in sections
-             if norm(h) == norm(section) or norm(h).startswith(norm(section))]
+    # Exact, not prefix: "Methods Supplement" is not the Methods section (F8-02). A
+    # trailing colon is punctuation, not part of the name.
+    want = norm(section.rstrip(":"))
+    named = [(h, a, b) for h, a, b in sections if norm(h.rstrip(":")) == want]
     if not named:
         # Where the name DOES occur is the useful half of this finding, and it is usually in
         # prose -- which is why looking for it among the headings found nothing.
@@ -296,13 +363,16 @@ def web_locator(check, source):
         return ([f"SECTION_NOT_A_HEADING: {section!r} is not a heading of {check['source']}. "
                  + (f"It appears inside {lines[0][:60]!r}, which is prose, not a section."
                     if lines else "No line of the source contains it.")], render_page)
+    # The WHOLE quotation must be inside the section, not just its first character: a quote
+    # starting under Methods and ending under Results bound to Methods, and the claim-bearing
+    # clause was the part outside (2026-09-22 review, F8-03).
     for _, a, b in named:
-        inside = [h for h in hits if a <= h < b]
+        inside = [h for h in hits if a <= h and h + len(q) <= b]
         if inside:
             return [], page_of[inside[0]] + 1
     return ([f"SECTION_DOES_NOT_CONTAIN_QUOTE: the quoted passage is not inside "
-             f"{section!r}; that section runs to the next heading and the quote is outside "
-             "it"], render_page)
+             f"{section!r}; that section ends at the next line that could be a heading, and "
+             "the quote is not wholly within it"], render_page)
 
 
 def term_ok(term, text):            # "a|b" = alternatives
@@ -511,6 +581,20 @@ def title_tokens(text):
     return TITLE_TOKEN_RE.findall(flat.replace("&", " and "))
 
 
+ENTRY_YEAR_RE = re.compile(r"\b((?:1[89]|20)\d\d)[a-z]?\b")
+
+
+def entry_title_field(entry):
+    """The entry's title: what stands between its year and the next sentence break."""
+    m = ENTRY_YEAR_RE.search(entry or "")
+    if not m:
+        return None
+    rest = (entry or "")[m.end():].lstrip(" .,)")
+    cut = re.search(r"\.\s|\.$", rest)
+    field = (rest[:cut.start()] if cut else rest).strip(" .*_")
+    return field or None
+
+
 def title_parts_absent(title, entry):
     """[] if the entry contains the declared title as one contiguous run of words, else what
     is missing.
@@ -604,14 +688,19 @@ def check_bib_numbers(cfg, doc_text):
         # the same author in the same year, which is exactly what a numeric label must
         # distinguish. Compared on the leading run of the title so a dropped subtitle does not
         # fail an otherwise correct entry.
-        if title:
+        # The entry's TITLE FIELD, not the whole entry: the declared title could otherwise be
+        # assembled across a field boundary, taken from the journal name, or matched as a
+        # proper prefix of a longer title (2026-09-22 review, F8-06).
+        field = entry_title_field(entry)
+        if title and field is None:
+            missing.append(f"no title field after the year (declared {title[:44]!r})")
+        elif title:
             # Content words let "Resource Sharing Without Authority" clear an entry titled
             # "... With Authority" -- both relation words are function words, so neither
             # survived derivation -- and a substring test let "Stable Networks" clear
             # "Unstable Networks" (2026-09-21 review, F6-03). A title is matched as written.
-            absent = title_parts_absent(title, entry)
-            if absent:
-                missing.append(f"title {absent} (declared {title[:44]!r})")
+            if title_tokens(field) != title_tokens(title):
+                missing.append(f"title field {field[:52]!r} (declared {title[:44]!r})")
         if missing:
             says = ("does not name its " + missing[0] if len(missing) == 1
                     else "names neither its " + " nor its ".join(missing))
@@ -986,8 +1075,10 @@ def _main():
         read = pages_of(v["pdf"])
         web = v.get("version") == WEB_RENDERING
         # Nothing to confirm or refute: the pages of a printed web page are the printer's.
+        year = (v.get("cite") or {}).get("year")
         ok, agree, readable, why_not = ((True, 0, 0, "") if web
-                                        else offset_confirmed(read["raw"], v.get("offset", 0)))
+                                        else offset_confirmed(read["raw"], v.get("offset", 0),
+                                                              year))
         src[k] = dict(v, pages=read["pages"], raw=read["raw"], web_rendering=web,
                       offset_confirmed=ok, folio_agreement=(agree, readable),
                       offset_why_not=why_not,
@@ -1013,12 +1104,19 @@ def _main():
         # page the claim rests on. The per-check path consulted only the document-wide verdict,
         # so a source printing 1, 2, 99 bound a quote on its third page to p.3 and exited 0
         # (2026-09-21 review, F6-02).
-        stated = [] if s.get("web_rendering") else (s.get("folios") or [])
-        if 0 <= idx < len(stated) and stated[idx] and c["page"] not in stated[idx]:
+        # Refutation reads the same window confirmation reads, and asks about role: the
+        # cited page prints a different number where the agreeing pages print their folio.
+        # The old rule read a bare-number line anywhere in the page, which accused a correct
+        # locator over a table cell (F8-07), and could not see an inline running foot at all,
+        # so a source footed 1/2/3/99 cleared a citation to its fourth page (F8-04).
+        clash = (None if s.get("web_rendering")
+                 else page_contradicts(s["raw"], s.get("offset", 0), idx))
+        if clash:
             problems.append(
-                f"PAGE_LOCATOR_REFUTED: the page this check reads prints "
-                f"{sorted(stated[idx])}, not p.{c['page']}. Rule 3 item 9c: a locator names "
-                "the pagination the source prints, and the cited page contradicts it")
+                f"PAGE_LOCATOR_REFUTED: where the pages that agree with the declared offset "
+                f"print their number, this page prints {clash[0]}, not p.{c['page']} "
+                f"(running context {clash[1]!r}). Rule 3 item 9c: a locator names the "
+                "pagination the source prints, and the cited page contradicts it")
         if cls not in CLASSES:
             problems.append(f"bad class '{cls}'")
         if len(q) < 25:
