@@ -455,9 +455,14 @@ def main() -> int:
     # Its pages are the printer's, so the gate asked a document that prints no page numbers to
     # confirm a page convention, and refused three live checks for failing to. What a web page
     # does have is sections (2026-09-21, the three COPE checks).
-    web = {"pages": [vl.norm("COPE position The use of AI tools is expanding rapidly. "
-                             "AI tools cannot be listed as an author of a paper. "
-                             "Later heading Something else entirely.")],
+    nl_y = chr(10)
+    # Line structure, because a section locator is a claim about structure: the first version
+    # of these fixtures passed one normalised string and could not hold a heading at all.
+    web = {"raw": [nl_y.join(["COPE position",
+                              "The use of AI tools is expanding rapidly.",
+                              "AI tools cannot be listed as an author of a paper.",
+                              "Later heading",
+                              "Something else entirely."])],
            "web_rendering": True}
 
     def web_check(**kw):
@@ -476,17 +481,18 @@ def main() -> int:
          bool(problems) and "not of the source" in problems[0], True)
     problems, _ = vl.web_locator(web_check(section="A section that is not there"), web)
     case("a section the source has not got is refused",
-         bool(problems) and problems[0].startswith("SECTION_NOT_FOUND"), True)
+         bool(problems) and problems[0].startswith("SECTION_NOT_A_HEADING"), True)
     problems, _ = vl.web_locator(web_check(section="Later heading"), web)
-    case("a section opening after the quote is refused",
-         bool(problems) and problems[0].startswith("SECTION_AFTER_QUOTE"), True)
+    case("a section that does not contain the quote is refused",
+         bool(problems) and problems[0].startswith("SECTION_DOES_NOT_CONTAIN_QUOTE"), True)
     problems, _ = vl.web_locator(web_check(quote="Nothing like this is in the rendering"), web)
     case("a quote in no section at all is still not found",
          bool(problems) and problems[0].startswith("QUOTE_NOT_FOUND"), True)
     # the quote is sought in the whole rendering: which printed page it landed on is the
     # printer's business, so a second render page binds the same way
-    split = {"pages": [vl.norm("COPE position The use of AI tools is expanding rapidly."),
-                       vl.norm("AI tools cannot be listed as an author of a paper.")],
+    split = {"raw": [nl_y.join(["COPE position",
+                                "The use of AI tools is expanding rapidly."]),
+                     "AI tools cannot be listed as an author of a paper."],
              "web_rendering": True}
     problems, render = vl.web_locator(web_check(section="COPE position"), split)
     case("a quote on the second render page still binds", problems, [])
@@ -545,24 +551,47 @@ def main() -> int:
          vl.printed_folios([nl.join(["Body.", "1"]), nl.join(["Body.", "2"]),
                             nl.join(["Body.", "99"])])[2], {99})
 
-    # --- F7-06: a quotation that occurs twice binds on the occurrence in the cited section --
-    twice = {"pages": [vl.norm("Abstract Participants share resources within stable networks. "
-                               "Methods Participants share resources within stable networks. "
-                               "Results other text.")],
-             "web_rendering": True}
-    web_case = {"source": "src", "page": 1,
-             "quote": "Participants share resources within stable networks",
-             "section": "Methods"}
-    case("a repeated quotation binds in its cited section",
-         vl.web_locator(web_case, twice)[0], [])
-    once = {"pages": [vl.norm("Abstract Participants share resources within stable networks. "
-                              "Methods other prose. Conclusions later text.")],
-            "web_rendering": True}
-    problems, _ = vl.web_locator(dict(web_case, section="Conclusions"), once)
-    case("a section after every occurrence is still refused",
-         bool(problems) and problems[0].startswith("SECTION_AFTER_QUOTE"), True)
-    case("and the finding says every occurrence precedes it",
-         bool(problems) and "every occurrence" in problems[0], True)
+    # --- F7-06 / F7-02: a section is a heading with an interval, and the quote must be in it
+    Q = "Participants share resources within stable networks"
+    nl2 = chr(10)
+
+    def rendering(*lines):
+        return {"raw": [nl2.join(lines)], "pages": [vl.norm(" ".join(lines))],
+                "web_rendering": True}
+
+    def web_case(**kw):
+        return dict({"source": "src", "page": 1, "quote": Q, "section": "Methods"}, **kw)
+
+    twice = rendering("Synthetic Fixture", "Abstract", Q + ".", "Methods", Q + ".",
+                      "Results", "Other prose entirely.")
+    case("a repeated quotation binds inside its cited section",
+         vl.web_locator(web_case(), twice)[0], [])
+    # F7-02.1 the quote is under Results and the check says Methods
+    wrong = rendering("Synthetic Fixture", "Methods", "Body prose of the methods.",
+                      "Results", Q + ".")
+    problems, _ = vl.web_locator(web_case(), wrong)
+    case("a quote under another heading does not bind",
+         bool(problems) and problems[0].startswith("SECTION_DOES_NOT_CONTAIN_QUOTE"), True)
+    # F7-02.2 the section name occurs only inside prose
+    prose = rendering("Synthetic Fixture", "Introduction",
+                      "Methods were described in a separate document.", "Results", Q + ".")
+    problems, _ = vl.web_locator(web_case(), prose)
+    case("a section name inside a sentence is not a heading",
+         bool(problems) and problems[0].startswith("SECTION_NOT_A_HEADING"), True)
+    case("and the finding says where it does appear",
+         bool(problems) and "prose, not a section" in problems[0], True)
+    # the positive control
+    right = rendering("Synthetic Fixture", "Methods", Q + ".", "Results", "Other prose.")
+    case("the quote inside its named section binds",
+         vl.web_locator(web_case(), right)[0], [])
+    case("a section the source has not got at all is refused",
+         bool(vl.web_locator(web_case(section="Nowhere"), right)[0]), True)
+
+    # F7-02.3 the citation's own section locator is read
+    case("a citation's section locator is parsed",
+         vl.citation_section("(Tester, 2026, Methods section)"), "Methods")
+    case("and a page locator is not mistaken for one",
+         vl.citation_section("(Tester, 2026, p. 1)"), "")
 
     # --- no source file may contain a control character where an escape was meant ----------
     # A Git Bash heredoc rewrites \b inside a Python string literal as a literal backspace.

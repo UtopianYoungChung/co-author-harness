@@ -229,6 +229,41 @@ def offset_confirmed(raw_pages, offset):
 
 
 WEB_RENDERING = "web_rendering"   # an HTML page printed to PDF: the pages are the printer's
+HEADING_MAX_CHARS = 80            # a heading is a short line of its own ...
+HEADING_NOT_END = ".?!,;:"        # ... that does not end the way a sentence ends
+SECTION_LOCATOR_RE = re.compile(
+    r"[,(]\s*(?:the\s+)?([A-Z][\w '\-]{0,40}?)\s+section\b", re.I)
+
+
+def citation_section(citation):
+    """The section a citation names, as in "(Tester, 2026, Methods section)", else ""."""
+    m = SECTION_LOCATOR_RE.search(citation or "")
+    return m.group(1).strip() if m else ""
+
+
+def web_sections(raw_pages):
+    """[(heading, start, end)] over the normalised rendering, plus (doc, page_of).
+
+    A heading is a line of its own, short, not ending as a sentence does. Nothing about this
+    is vocabulary: "Methods were described in a separate document." is prose because it ends
+    in a full stop, and was accepted as a section by the first cut of this rule because the
+    word occurred at all (2026-09-21 review, F7-02).
+    """
+    doc, page_of, heads = "", [], []
+    for i, text in enumerate(raw_pages or []):
+        for line in (text or "").splitlines():
+            bare = line.strip()
+            piece = norm(bare)
+            if not piece:
+                continue
+            if (len(bare) <= HEADING_MAX_CHARS and bare[-1] not in HEADING_NOT_END
+                    and re.search(r"[A-Za-z]", bare)):
+                heads.append([bare, len(doc), None])
+            doc += piece
+            page_of += [i] * len(piece)
+    for j, h in enumerate(heads):
+        h[2] = heads[j + 1][1] if j + 1 < len(heads) else len(doc)
+    return [tuple(h) for h in heads], doc, page_of
 
 
 def web_locator(check, source):
@@ -236,41 +271,38 @@ def web_locator(check, source):
 
     A web page prints no page numbers, so a page is not a locator for it and the gate does not
     ask the source to confirm one. What it does have is its sections, so that is what a check
-    must name: the section has to be in the source and has to open at or before the quote.
-    The quote is sought in the whole rendering, because which printed page a browser put it on
-    is a fact about the printer (2026-09-21, the three COPE checks).
+    must name -- and the quote must fall INSIDE the named section, not merely after it appears
+    somewhere. Establishing occurrence-before-quote and calling it containment let a quote
+    under Results bind to Methods (2026-09-21 review, F7-02).
     """
+    sections, doc, page_of = web_sections(source.get("raw") or source.get("pages") or [])
     q = norm(check["quote"])
-    doc, page_of = "", []
-    for i, page in enumerate(source["pages"]):
-        doc += page
-        page_of += [i] * len(page)
     hits = [m.start() for m in re.finditer(re.escape(q), doc)]
     if not hits:
         return ["QUOTE_NOT_FOUND anywhere in source (fabricated or mistyped)"], None
-    at = hits[0]
-    render_page = page_of[at] + 1
+    render_page = page_of[hits[0]] + 1
     section = (check.get("section") or "").strip()
     if not norm(section):
         return ([f"UNLOCATED: {check['source']} is a web rendering and prints no page numbers, "
                  f"so p.{check.get('page')} names a page of the printout, not of the source. "
                  "Declare the section the quote sits in (Rule 3 item 8)"], render_page)
-    opens = [m.start() for m in re.finditer(re.escape(norm(section)), doc)]
-    if not opens:
-        return ([f"SECTION_NOT_FOUND: no section {section!r} in {check['source']}"], render_page)
-    # Any occurrence of the quote that follows any occurrence of the section name. Taking
-    # the first of each refused a sentence that appears in the Abstract and again in the cited
-    # Methods section, on the Abstract copy, while the Methods copy sat there unexamined
-    # (2026-09-21 review, F7-06).
-    #
-    # This is not containment, and does not pretend to be: F7-02 showed the named section need
-    # not hold the quote at all -- a section heading occurring anywhere earlier is enough --
-    # and that finding is open. Anything here that reads like a membership test is wrong.
-    after = [h for h in hits if min(opens) <= h]
-    if not after:
-        return ([f"SECTION_AFTER_QUOTE: every occurrence of the quoted passage precedes "
-                 f"{section!r}, so the quote is not in that section"], render_page)
-    return [], page_of[after[0]] + 1
+    named = [(h, a, b) for h, a, b in sections
+             if norm(h) == norm(section) or norm(h).startswith(norm(section))]
+    if not named:
+        # Where the name DOES occur is the useful half of this finding, and it is usually in
+        # prose -- which is why looking for it among the headings found nothing.
+        lines = [l.strip() for pg in (source.get("raw") or []) for l in pg.splitlines()
+                 if norm(section) in norm(l)]
+        return ([f"SECTION_NOT_A_HEADING: {section!r} is not a heading of {check['source']}. "
+                 + (f"It appears inside {lines[0][:60]!r}, which is prose, not a section."
+                    if lines else "No line of the source contains it.")], render_page)
+    for _, a, b in named:
+        inside = [h for h in hits if a <= h < b]
+        if inside:
+            return [], page_of[inside[0]] + 1
+    return ([f"SECTION_DOES_NOT_CONTAIN_QUOTE: the quoted passage is not inside "
+             f"{section!r}; that section runs to the next heading and the quote is outside "
+             "it"], render_page)
 
 
 def term_ok(term, text):            # "a|b" = alternatives
@@ -1141,10 +1173,19 @@ def _main():
                 matched = [c for c in checks_with_claims
                            if flat(c["claim_text"]) and flat(c["claim_text"]) in flat(scope)]
 
+                # For a web rendering the citation's locator is a section, and it must be
+                # the section the check binds: the check said Methods while the manuscript
+                # cited "Conclusions section", and nothing compared them (F7-02).
+                cited_section = citation_section(citation)
+
                 def binds(c, key, pages):
-                    return (c["source"] == key
-                            and (pages is None
-                                 or (str(c["page"]).isdigit() and int(c["page"]) in pages)))
+                    if c["source"] != key:
+                        return False
+                    if (cfg["sources"].get(key) or {}).get("version") == WEB_RENDERING:
+                        return bool(norm(cited_section)) and norm(cited_section) == norm(
+                            c.get("section", ""))
+                    return (pages is None
+                            or (str(c["page"]).isdigit() and int(c["page"]) in pages))
 
                 # Rule 3 item 8: a citation names a work, and every work it names is cited for
                 # the claim. Evidence for one member is not evidence for another, so each is
@@ -1174,6 +1215,14 @@ def _main():
                 # its source, so it is covered rather than reported.
                 covered_extra = [{"claim_text": attribution}] if attribution.strip() else []
                 for (key, span), own in per_member:
+                    # A printed page cited from a source that prints none is an invented
+                    # locator, whatever the check declares (F7-02, web-page-one-in-manuscript).
+                    if (cfg["sources"].get(key) or {}).get("version") == WEB_RENDERING and span:
+                        uncovered.append((line_no, citation, scope.strip() or citation,
+                                          f"the citation states p.{sorted(span)} of {key}, "
+                                          "which is a web rendering and prints no page "
+                                          "numbers; name the section instead (Rule 3 item 9c)"))
+                        continue
                     where = ("p." + str(sorted(span))) if span else "no stated page"
                     # Parsing the whole locator is only half of it: a page the citation names
                     # must also exist in the work it names. "(Tester, 2026, pp. 1, 99)" against
