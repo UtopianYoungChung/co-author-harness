@@ -60,6 +60,18 @@
       ]
     },
     {
+      "id": "dev-empirical-benign-pre-1900",
+      "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
+      "artifact": {"text": "# Body\nSystems often adapt (Vasari, 1550).\n", "sha256": "dbbf4def3b4af55efa2f8ca5ecaab7b2934f4eef88a67874f8c7c3ab9ade5304", "byte_length": 43},
+      "corpus": {"text": "Systems adapt under change.\n", "sha256": "c212a001532146ee1e59de72c44eccad31adeb5f0bb5b21b14877b55574aac08", "byte_length": 28},
+      "labels": [
+        {"code": "EMPIRICAL-UNSUPPORTED", "expected_candidate": false, "rationale": "The empirical cue is accompanied by an author-year citation. A pre-1900 year is still a year: the rule is whether the claim is cited, not which century it cites.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "INSIDER-NEGATION", "expected_candidate": false, "rationale": "No Abstract-scoped negated reader term appears.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "REGISTER-ABSENT", "expected_candidate": false, "rationale": "No eligible lemma repeats three times in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"},
+        {"code": "TERM-COINAGE", "expected_candidate": false, "rationale": "No hyphenated compound appears in the artifact.", "semantics": "candidate expectation only; not a factual or scholarly judgment"}
+      ]
+    },
+    {
       "id": "dev-insider-positive",
       "provenance": {"origin": "self-authored synthetic", "author_role": "Evidence Builder", "external_sources": []},
       "artifact": {"text": "# Abstract\nNot a widget.\n\n# Body\nA neutral discussion.\n", "sha256": "6b02bad4f64efef65fadeae356bc2420663a04e6bc5fb822d5c6ef8df4a30faa", "byte_length": 55},

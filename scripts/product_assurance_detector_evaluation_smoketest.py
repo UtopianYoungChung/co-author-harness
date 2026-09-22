@@ -24,8 +24,8 @@ COMMON_SCHEMA_PATH = ROOT / "references/schemas/common_scholarly_primitives.sche
 PRE_CORPUS_SCHEMA_SHA256 = "e22b7ae404208a405cd1b9cb26fb60209a8bb5eb3d6dce03f0ade9365bd9c32d"
 PRE_SCORE_SCHEMA_SHA256 = "813d0ef554b4ad8da34b030ce03c34114cadadc65464bf18bc50859fde4b50d5"
 PRE_SCORE_OUTPUTS = {
-    "development": {"sha256": "f909d8a8369491fb84293e000a5a2a4dc5b55d8f43aa4112680c774cacc05ba3", "byte_length": 11773},
-    "held_out": {"sha256": "c463e3a6a2baaaa589612dd5e2e953d25df14026cd6a4d315f505c77ad92264f", "byte_length": 11788},
+    "development": {"sha256": "52d135ed53d19f8567819ff665e3a034f772d1e0dfc8bc51428f65aba7d99b73", "byte_length": 13109},
+    "held_out": {"sha256": "3aebe5ba5048504aeb197b0518b2dd90aff03253d2085fc584b29f4bd3dc3494", "byte_length": 11788},
 }
 
 
@@ -153,17 +153,23 @@ def expect_refusal(code: str, action: Callable[[], Any]) -> None:
         raise AssertionError(f"expected refusal {code}")
 
 
-def assert_matrix(report: dict[str, Any]) -> None:
-    assert len(report["item_results"]) == 8
+def assert_matrix(report: dict[str, Any], *, items: int, tn: int) -> None:
+    # Pinned per split, not derived from the report: development carries the
+    # ninth item (dev-empirical-benign-pre-1900, four true negatives), held_out
+    # is unchanged at eight. Deriving these from the report would assert nothing.
+    assert len(report["item_results"]) == items
     assert report["aggregate"] == {
-        "tp": 4, "fp": 0, "fn": 0, "tn": 28,
+        "tp": 4, "fp": 0, "fn": 0, "tn": tn,
         "support": 4, "predicted_positive": 4,
         "precision": 1.0, "recall": 1.0,
     }
+    # The corpus holds exactly one positive item per code, so each code sees
+    # one true positive and items-1 true negatives. Asserted, not assumed.
+    assert sum(1 for m in report["per_code"] if m["support"] == 1) == len(report["per_code"])
     for matrix in report["per_code"]:
         assert matrix == {
             "code": matrix["code"],
-            "tp": 1, "fp": 0, "fn": 0, "tn": 7,
+            "tp": 1, "fp": 0, "fn": 0, "tn": items - 1,
             "support": 1, "predicted_positive": 1,
             "precision": 1.0, "recall": 1.0,
         }
@@ -180,8 +186,8 @@ def main() -> int:
 
     development = evaluation.score(FREEZE, "development", purpose="tuning")
     held_out = evaluation.score(FREEZE, "held_out", purpose="scoring")
-    assert_matrix(development)
-    assert_matrix(held_out)
+    assert_matrix(development, items=9, tn=32)
+    assert_matrix(held_out, items=8, tn=28)
     for split, report in (("development", development), ("held_out", held_out)):
         serialized = report_bytes(report)
         assert raw_hash_bytes(serialized) == PRE_SCORE_OUTPUTS[split]["sha256"]
