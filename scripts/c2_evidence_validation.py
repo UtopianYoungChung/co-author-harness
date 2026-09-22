@@ -825,7 +825,7 @@ def validate_v3_receipt(
         })
         if material['path'] != str(extract['normalized']) or material['sha256'] != sha256(extract['normalized']):
             raise EvidenceValidationError('BIBLIOGRAPHY-MATERIAL', 'Conflicting extracts for one source locator')
-        material['passage_texts'].append(selected.decode('utf-8'))
+        material['passage_texts'].append(selected.decode('utf-8', errors='strict'))
         manuscript = _span_bytes(artifact_text, passage.get("manuscript_span"), "MANUSCRIPT-SPAN-MISMATCH")
         use = passage.get("passage_use")
         common = {
