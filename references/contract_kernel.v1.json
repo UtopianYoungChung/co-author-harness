@@ -805,7 +805,7 @@
       "id": "product-assurance-detector-evaluation",
       "path": "scripts/product_assurance_detector_evaluation.py",
       "revision_kind": "sha256",
-      "sha256": "84bd99805231522c696511b3d48a7ce67464358f86bf76a04471349ff329597f",
+      "sha256": "b470de6ab1228ef0a654ee44ac14b7f85ee7deb2db48c5d955f568203173869a",
       "migration_ids": []
     },
     {

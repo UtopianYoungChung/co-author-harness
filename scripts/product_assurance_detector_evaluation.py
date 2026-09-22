@@ -3,6 +3,13 @@
 
 The labels and scores produced here are candidate-detector test evidence only.
 They do not certify scholarly truth, promote a finding, or affect research state.
+
+Scope: `score()` exercises `product_assurance._semantic_findings` and nothing
+else. It never enters `product_assurance.build()`, whose inputs a corpus item
+cannot carry, so a change confined to `build()` moves no number here and only
+DETECTOR-EVAL-FREEZE-STALE will see it. `build()` is covered by
+`scripts/product_assurance_smoketest.py` instead. Details and the worked example:
+`scripts/fixtures/product_assurance_detector_v4/README.md`.
 """
 
 from __future__ import annotations
