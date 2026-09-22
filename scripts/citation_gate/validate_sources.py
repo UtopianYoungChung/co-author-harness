@@ -48,6 +48,18 @@ CONTRARY = (r"\b(?:however|although|though|nevertheless|nonetheless|whereas|desp
 # "Section 11 / 12 / 13" on a source printing 1, 2, 3 confirmed a declared offset of +10 and
 # the tool announced "offset +10 confirmed on 3/3 pages" (2026-09-21 review, F6-01). A number
 # a labelling word owns is that label's number, not the page's.
+# --- shared with the sibling tool: this region is copied, not re-written. Rule 3 runs
+# --- both tools on one checks file and item 9c is implemented in each, so a rule that
+# --- lives in two hands drifts (2026-09-22 review, F9-05). The suite asserts the two
+# --- regions are byte-identical and that both modules answer alike.
+MIN_FOLIO_PAGES = 3      # pages that must show a number at their edge before an offset can
+FOLIO_AGREEMENT = 0.6    # be confirmed, and the share of those that must agree with it
+
+
+# What may count as a printed folio. Any number in the edge window was enough, so the headings
+# "Section 11 / 12 / 13" on a source printing 1, 2, 3 confirmed a declared offset of +10 and
+# the tool announced "offset +10 confirmed on 3/3 pages" (2026-09-21 review, F6-01). A number
+# a labelling word owns is that label's number, not the page's.
 FOLIO_LABEL_RE = re.compile(
     r"\b(?:sections?|secs?|chapters?|chaps?|ch|parts?|figures?|figs?|tables?|tabs?|appendix|"
     r"appendices|apps?|volumes?|vols?|numbers?|nos?|issues?|articles?|arts?|items?|steps?|"
@@ -59,11 +71,15 @@ EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 # that prints "1673 ... pp. 1672-1694, (c) 2023 INFORMS" or a Scientific Reports DOI line
 # falls outside the window and the page states no number at all; measured over every live
 # source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
-MIN_FOLIO_PAGES = 3      # pages that must AGREE before an offset can be confirmed, and
-FOLIO_AGREEMENT = 0.6    # the share of the pages stating a number that must agree with it
 EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
 FOLIO_ZONE_LINES = 3     # the running head and foot: where a page prints its own number
+
+
+# What a page prints that could be its own number, and how strongly it says so. Confirmation
+# used to accept any arithmetic that worked on enough pages, so a source headed
+# "Experiment 11/12/13" confirmed an offset of +10 and a source headed "J 1/2/3/99" cleared a
+# citation to its fourth page (2026-09-22 review, F9-01, F9-02).
 
 
 def edge_numbers(raw_text):
@@ -82,11 +98,6 @@ def edge_numbers(raw_text):
     return out
 
 
-
-# --- shared with the sibling tool: this region is copied, not re-written. Rule 3 runs
-# --- both tools on one checks file and item 9c is implemented in each, so a rule that
-# --- lives in two hands drifts (2026-09-22 review, F9-05). The suite asserts the two
-# --- regions are byte-identical and that both modules answer alike.
 ROLE_HEAD_RE = re.compile(
     r"^(?:sections?|secs?|chapters?|chaps?|ch|parts?|figures?|figs?|tables?|tabs?|appendix|"
     r"appendices|apps?|volumes?|vols?|numbers?|nos?|issues?|articles?|arts?|items?|steps?|"
@@ -97,6 +108,8 @@ ROLE_HEAD_RE = re.compile(
 OWNER_RE = re.compile(r"([A-Za-z][A-Za-z'\-]*)[ ]*$")
 EXPLICIT_RE = re.compile(r"\bpage[ ]+(\d+)[ ]+of[ ]+(\d+)\b", re.I)
 N_OF_M_RE = re.compile(r"^(\d{1,4})[ ]*/[ ]*(\d{1,4})$")
+PAGE_OF_LINE_RE = re.compile(r"^page[ ]+(\d+)[ ]+of[ ]+(\d+)$", re.I)
+HEAD_TAIL = " .:;,\u2014\u2013-([{\"'\u201c\u2018"
 EXPLICIT, BARE, WEAK = 2, 1, 0    # the page said so / a folio on its own line / anything else
 
 
@@ -104,6 +117,21 @@ def zone_lines(text):
     """The lines of the running head and foot, where a page prints its own number."""
     lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
     return lines[:FOLIO_ZONE_LINES] + lines[-FOLIO_ZONE_LINES:]
+
+
+def prints_a_bare_folio(raw_pages):
+    """Whether any page prints a number alone on a line at its edge.
+
+    `N/M` is a bare ratio: a score, a progress count, a date. It is read as pagination only
+    where the document offers no plainer folio, which is jergas's case and not the case of a
+    document that foots 1, 2, 3 and happens to tally `Items completed 11/20`
+    (2026-09-22 review, F10-02).
+    """
+    for text in raw_pages or []:
+        for line in zone_lines(text):
+            if BARE_FOLIO_RE.match(line):
+                return True
+    return False
 
 
 def stated_total(raw_pages):
@@ -114,6 +142,8 @@ def stated_total(raw_pages):
     there are. Requiring the denominator to agree across the pages that show the form keeps a
     fraction or a date in a footer from passing as pagination.
     """
+    if prints_a_bare_folio(raw_pages):
+        return None
     seen, shown = {}, 0
     for text in raw_pages or []:
         for line in zone_lines(text):
@@ -141,9 +171,14 @@ def page_evidence(text, total=None):
     exactly what should make that page doubtful (2026-09-22 review, F9-02/F9-04).
     """
     flat = re.sub(r"\s+", " ", text or "")
-    m = EXPLICIT_RE.search(flat)
-    if m:
-        return {int(m.group(1)): (EXPLICIT, "page-of")}
+    # The statement must be the whole of a line. Searching the flattened page read
+    # "See page 11 of 20 in the accompanying manual." as this page's own number and deleted
+    # the folio printed beneath it (F10-02). The line rule keeps greenberg, which prints
+    # "page 1 of 14" alone on line 110 of 120 -- outside any edge window.
+    for line in [l.strip() for l in (text or "").splitlines() if l.strip()]:
+        m = PAGE_OF_LINE_RE.match(line.strip(HEAD_TAIL))
+        if m:
+            return {int(m.group(1)): (EXPLICIT, "page-of")}
     zone = zone_lines(text)
     if total:
         for line in zone:
@@ -160,7 +195,7 @@ def page_evidence(text, total=None):
             n = int(mm.group(1))
             if n in out and out[n][0] >= BARE:
                 continue
-            head = line[:mm.start()].strip(" .:\u2014\u2013-")
+            head = line[:mm.start()].strip(HEAD_TAIL)
             if head and ROLE_HEAD_RE.match(head):
                 out[n] = (WEAK, "role:" + head.lower().rstrip("."))
             elif not head:
@@ -168,7 +203,7 @@ def page_evidence(text, total=None):
                 # word owns it, and calling that no place refused a positive control.
                 out[n] = (WEAK, "start")
             else:
-                om = OWNER_RE.search(line[:mm.start()])
+                om = OWNER_RE.search(line[:mm.start()].strip(HEAD_TAIL))
                 out[n] = (WEAK, "end:" + om.group(1).lower() if om else "mid")
     for mm in EDGE_NUMBER_RE.finditer(flat):     # edge material no zone line held
         if mm.start() >= EDGE_CHARS and mm.end() <= len(flat) - EDGE_CHARS:
@@ -243,7 +278,10 @@ def folio_place(per, offset):
     place, n = max(places.items(), key=lambda kv: kv[1])
     # A role word's place is not the folio's place: it is where that experiment or table
     # prints ITS number, so it can neither establish a pagination nor overrule a locator.
-    if not place or place.startswith("role:") or n / len(agreeing) < FOLIO_AGREEMENT:
+    # "mid" is not a place either -- it is the absence of one, and accepting it let
+    # "Experiment (11) / Trial (12) / Study (13)" share a position (F10-05).
+    if (not place or place == "mid" or place.startswith("role:")
+            or n / len(agreeing) < FOLIO_AGREEMENT):
         return "", agreeing
     return place, agreeing
 
@@ -280,15 +318,21 @@ def offset_confirmed(raw_pages, offset, year=None):
                 f"only {hit} of {len(stating)} pages that state a number agree with it, and "
                 f"a confirmed pagination needs {floor}")
     place, agreeing = folio_place(per, offset)
-    ranks = [per[i][i + 1 + offset] for i in agreeing]
-    if max(r for r, _ in ranks) >= BARE and not all(pl.startswith("role:") for _, pl in ranks):
-        return True, hit, len(stating), ""       # the pages said so, or printed a folio
-    if place:
-        return True, hit, len(stating), ""       # one running head owns the number throughout
+    # Evidence that can carry a SHIFT has to clear the bar on its own. One bare number let
+    # role-labelled numbers on the other pages confirm +10 (F10-05), and a running head
+    # saying "Observation 11" is the same observation as one saying "Journal of Tests 11".
+    strong = [i for i in agreeing if per[i][i + 1 + offset][0] >= BARE]
+    if len(strong) >= floor and len(strong) / len(stating) >= FOLIO_AGREEMENT:
+        return True, hit, len(stating), ""       # the pages said so, or printed folios
+    # At an offset of zero the numbers coincide with the document's own sequence, so the
+    # claim adds nothing beyond "page N is page N" and a running head is evidence enough.
+    if offset == 0 and place:
+        return True, hit, len(stating), ""
     return (False, hit, len(stating),
-            "the numbers that agree with it are printed in no consistent place -- no page "
-            "states its own number, none prints it on a line of its own, and no one running "
-            "head owns it, so they are a sequence of numbers rather than a pagination")
+            "nothing establishes that the numbers agreeing with it are the pages' own: "
+            f"only {len(strong)} of {len(stating)} state their number outright or print it "
+            "on a line of its own, and a pagination shifted from the document's own sequence "
+            "cannot rest on a running head alone")
 
 
 def page_contradicts(raw_pages, offset, idx):
@@ -299,20 +343,37 @@ def page_contradicts(raw_pages, offset, idx):
     destructive direction, and it should not be done on a guess.
     """
     per = folio_evidence(raw_pages)
-    place, agreeing = folio_place(per, offset)
-    if not place or not (0 <= idx < len(per)):
+    if not (0 <= idx < len(per)):
         return None
     want = idx + 1 + offset
+    # A page that states its own number outright refutes a locator that disagrees with it,
+    # whatever the other pages do. This asked for the majority's place first, so a cited page
+    # printing "Page 99 of 100" among pages printing bare folios was ignored at exactly the
+    # point where the locator is bound (2026-09-22 review, F10-03).
+    for n, (rank, pl) in per[idx].items():
+        if rank >= EXPLICIT and n != want:
+            return n, pl
+    place, agreeing = folio_place(per, offset)
+    if not place:
+        return None
     if place == "line":
         # A folio is unique to its page; a bare number repeated across pages is a label, and
         # without that guard a "5" printed on two pages refused five correct checks (F6-02).
-        seen = {}
-        for e in per:
+        # But a repeated number IS a folio when one of its occurrences agrees with the
+        # declared offset: the document numbers a page that way, so the same number on
+        # another page contradicts that page's locator. Without this, numbering that restarts
+        # -- 1, 2, 3, 4, 1, 2 -- certified a p.6 the document never prints, because the 2 on
+        # its sixth page also appears on its second (2026-09-22 review, F10-04).
+        seen, folios = {}, set()
+        for i, e in enumerate(per):
             for n, (r, pl) in e.items():
-                if pl == "line":
-                    seen[n] = seen.get(n, 0) + 1
+                if pl != "line":
+                    continue
+                seen[n] = seen.get(n, 0) + 1
+                if n == i + 1 + offset:
+                    folios.add(n)
         for n, (r, pl) in per[idx].items():
-            if pl == "line" and n != want and seen.get(n) == 1:
+            if pl == "line" and n != want and (seen.get(n) == 1 or n in folios):
                 return n, pl
         return None
     for n, (r, pl) in per[idx].items():

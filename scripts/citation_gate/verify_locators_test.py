@@ -362,6 +362,60 @@ def main() -> int:
          vl.offset_confirmed([f"Body text. page {i+1} of 6. More body." for i in range(6)], 0)[0],
          True)
 
+    # --- F10-02..F10-05: the evidence must attach to the observation and to the locator ---
+    nl2 = chr(10)
+    b = "Body text of the page."
+    # F10-02: a ratio and a sentence about another document were each read as this page's
+    # own number, deleting the folio printed beneath them.
+    fraction = [f"Items completed{nl2}{11 + i}/20{nl2}{b}{nl2}{i + 1}{nl2}" for i in range(3)]
+    case("a tally is not pagination when the pages print folios",
+         vl.offset_confirmed(fraction, 10)[0], False)
+    case("and the folios themselves still confirm",
+         vl.offset_confirmed(fraction, 0)[0], True)
+    reference = [f"{b}{nl2}See page {11 + i} of 20 in the accompanying manual.{nl2}{b}"
+                 f"{nl2}{i + 1}{nl2}" for i in range(3)]
+    case("a sentence about another document is not a page statement",
+         vl.offset_confirmed(reference, 10)[0], False)
+    case("and that document's own folios confirm",
+         vl.offset_confirmed(reference, 0)[0], True)
+    # greenberg prints "page 1 of 14" alone on line 110 of 120, outside any edge window
+    deep = [nl2.join([b] * 40 + [f"page {i + 1} of 3"] + [b] * 5) for i in range(3)]
+    case("a statement alone on a line is read wherever it stands",
+         vl.offset_confirmed(deep, 0)[0], True)
+
+    # F10-03: the cited page's own statement refutes, whatever the other pages print
+    explicit_clash = [f"{b}{nl2}{i + 1}{nl2}" for i in range(3)] + [f"Page 99 of 100{nl2}{b}{nl2}"]
+    case("a page stating another number refutes the locator",
+         bool(vl.page_contradicts(explicit_clash, 0, 3)), True)
+    case("and the pages it agrees with are not refuted",
+         vl.page_contradicts(explicit_clash, 0, 1), None)
+
+    # F10-04: numbering that restarts must not certify a page the document never prints
+    restart = [f"{b}{nl2}{n}{nl2}" for n in (1, 2, 3, 4, 1, 2)]
+    case("a restarted folio refutes the page above it",
+         bool(vl.page_contradicts(restart, 0, 5)), True)
+    # ... while a number repeated where it agrees with nothing stays a template (F6-02)
+    template = [f"{b}{nl2}5{nl2}" for _ in range(3)]
+    case("a number agreeing nowhere is still a template",
+         vl.page_contradicts(template, 0, 2), None)
+
+    # F10-05: a placeholder is not a place, and one bare number rescues nothing
+    for name, pages_, off, want in (
+        ("bracketed role labels", [f"Experiment ({11 + i}){nl2}{b}{nl2}" for i in range(3)], 10, False),
+        ("one bare number among role labels",
+         [f"Experiment 11{nl2}{b}{nl2}", f"Experiment 12{nl2}{b}{nl2}", f"13{nl2}{b}{nl2}"], 10, False),
+        ("an unlisted role word", [f"Observation {11 + i}{nl2}{b}{nl2}" for i in range(3)], 10, False),
+        ("varying labels with colons",
+         [f"Observation: 11{nl2}{b}{nl2}", f"Measurement: 12{nl2}{b}{nl2}",
+          f"Specimen: 13{nl2}{b}{nl2}"], 10, False),
+        ("a running head ending in a colon",
+         [f"Journal: {i + 1}{nl2}{b}{nl2}" for i in range(4)], 0, True),
+    ):
+        case(name + " -- offset " + format(off, "+d"), vl.offset_confirmed(pages_, off)[0], want)
+    colon_run = [f"Journal: {n}{nl2}{b}{nl2}" for n in (1, 2, 3, 99)]
+    case("and a colon-headed run still refutes its odd page",
+         bool(vl.page_contradicts(colon_run, 0, 3)), True)
+
     # --- F9-01/F9-02/F9-04: confirmation must establish that the numbers are the pages' ----
     nl_ = chr(10)
     body = "Body text of the page."
@@ -508,6 +562,77 @@ def main() -> int:
     case("and place a folio in the same place",
          [vs.folio_place(vs.folio_evidence(pp, yr), off) for _, pp, off, yr in decisions],
          [vl.folio_place(vl.folio_evidence(pp, yr), off) for _, pp, off, yr in decisions])
+
+    # Two modules agreeing says nothing about whether each tool's command line uses their
+    # answers intact: flattening the page at the validator's item-9c call site, and passing
+    # off + 1 there, both passed this suite while the tools disagreed end to end
+    # (2026-09-22 review, F10-06). These run the entry points.
+    try:
+        import fitz as _fitz
+        import json as _j
+        import subprocess as _sp
+        import tempfile as _tf
+
+        def _pdf(path, pages):
+            d = _fitz.open()
+            for body in pages:
+                pg = d.new_page()
+                pg.insert_textbox(_fitz.Rect(50, 50, 540, 700), body, fontsize=10)
+            d.save(str(path))
+            d.close()
+
+        quote = ("Participants share resources within stable networks and this sentence is "
+                 "long enough to bind under the gate's minimum.")
+        neutral = ("These sentences are fabricated software test data and establish no "
+                   "scholarly claim. They give the source screens enough page text to read.")
+        integration = {
+            "bare-folios": [f"{quote if i == 0 else neutral}{nl}{neutral}{nl}{i + 1}"
+                            for i in range(3)],
+            "bracketed-folios-beside-a-role-heading":
+                [f"Experiment {11 + i}{nl}{quote if i == 0 else neutral}{nl}{neutral}"
+                 f"{nl}[{i + 1}]" for i in range(3)],
+            "a-page-stating-its-own-number":
+                [f"{quote if i == 0 else neutral}{nl}{neutral}{nl}page {i + 1} of 3"
+                 for i in range(3)],
+        }
+        agree = []
+        with _tf.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for name, pages_ in integration.items():
+                src = tmp / (name + ".pdf")
+                _pdf(src, pages_)
+                cfg = {
+                    "sources": {"fixture": {
+                        "pdf": str(src), "offset": 0,
+                        "cite": {"author": "Tester", "year": 2026, "title": "Synthetic Fixture"},
+                        "no_doi_reason": "Synthetic software fixture; not a research source",
+                        "version": "official_print"}},
+                    "claims": [{"elements": ["E1"]}],
+                    "checks": [{"id": "Q1", "element": "E1", "source": "fixture", "page": 1,
+                                "quote": quote, "claim_text": quote,
+                                "key_terms": ["participants", "resources", "networks"],
+                                "class": "VERBATIM",
+                                "modality_scope": "Synthetic software control."}],
+                }
+                checks = tmp / (name + ".json")
+                checks.write_text(_j.dumps(cfg), encoding="utf-8")
+                runs = {}
+                for tool, args in (("verify_locators.py", []),
+                                   ("validate_sources.py", ["--offline"])):
+                    r = _sp.run([sys.executable, "-B", str(HERE / tool), str(checks), *args],
+                                capture_output=True, encoding="utf-8", errors="replace",
+                                timeout=120)
+                    runs[tool] = (r.stdout or "") + (r.stderr or "")
+                # Each tool says, in its own words, whether the declared convention holds.
+                gate_ok = "PAGE_CONVENTION_UNCONFIRMED" not in runs["verify_locators.py"]
+                val_ok = "9c fixture" not in runs["validate_sources.py"]
+                agree.append((name, gate_ok, val_ok))
+        case("both command lines agree about the declared page convention",
+             [(n, a) for n, a, _ in agree], [(n, b) for n, _, b in agree])
+        case("and both accept the ordinary fixtures",
+             all(a and b for _, a, b in agree), True)
+    except ImportError:
+        print("  SKIP command-line parity: pymupdf not installed")
 
     # Identical code still disagreed, because the validator flattened every page before
     # reading it and a folio is found in the line structure. Both extractors, same bytes.
