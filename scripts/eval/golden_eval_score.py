@@ -20,7 +20,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve()
 PLUGIN_ROOT = HERE.parents[2]
 MANIFEST = PLUGIN_ROOT / 'scripts/fixtures/golden/manifest.json'
-CODE = r'(?:C-[1-8](?:/(?:M-[1-7]|Check8-[A-J]))?|M-[1-7])'
+CODE = r'(?:C-[1-8](?:/(?:M-[1-7]|Check8-[A-J]))?|M-[1-7]|AC-[1-5])'
 
 
 def norm_code(code: str) -> str:
@@ -89,6 +89,8 @@ def score(findings_doc: dict, manifest: dict) -> dict:
         'scorer_sha256': hashlib.sha256(HERE.read_bytes().replace(b'\r\n', b'\n')).hexdigest(),
         'baseline_status': 'not_supplied', 'gate_passed': False,
         'judgment_quality_qualified': False, 'research_acceptance': False,
+        'split': fx.get('split', 'development'),
+        'independent_curation': bool(fx.get('independently_curated', False)),
     }
     if fx['role'] == 'detection':
         unmatched = list(range(len(findings)))
@@ -103,7 +105,9 @@ def score(findings_doc: dict, manifest: dict) -> dict:
         out.update(per_defect=hits, recall=round(sum(hits.values()) / len(hits), 3),
                    extra_findings=len(unmatched))
     elif fx['role'] == 'false-positive-control':
-        gated = manifest['findings_file_schema']['p2_gated_families']
+        # A control fixture may name the families it is a control for; the P2
+        # list remains the default so existing fixtures score unchanged.
+        gated = fx.get('gated_families') or manifest['findings_file_schema']['p2_gated_families']
         fps = [f for f in findings if any(family_match(g, f['finding_code']) for g in gated)]
         out.update(false_positives=len(fps), false_positive_codes=[f['finding_code'] for f in fps])
     else:
@@ -113,7 +117,7 @@ def score(findings_doc: dict, manifest: dict) -> dict:
 
 def compare_baseline(result: dict, baseline: dict) -> bool:
     keys = ('schema', 'fixture', 'pass', 'role', 'evaluator', 'fixture_sha256',
-            'manifest_sha256', 'scorer_sha256')
+            'manifest_sha256', 'scorer_sha256', 'split')
     if not isinstance(baseline, dict) or not result['evaluator'] or any(
             baseline.get(k) != result[k] for k in keys):
         raise ValueError('baseline fixture, evaluator or scoring bindings differ')
@@ -134,7 +138,7 @@ def compare_baseline(result: dict, baseline: dict) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('findings', type=Path, nargs='?')
-    ap.add_argument('--blind-fixture', choices=('golden_p2_theory.md', 'golden_p1_brief.md'))
+    ap.add_argument('--blind-fixture', help='name of a fixture registered in the manifest')
     ap.add_argument('--baseline', type=Path)
     ap.add_argument('--require-baseline', action='store_true')
     args = ap.parse_args()
@@ -142,6 +146,9 @@ def main() -> int:
         if args.blind_fixture:
             if args.findings or args.baseline or args.require_baseline:
                 raise ValueError('blinding and scoring are separate operations')
+            registered = json.loads(MANIFEST.read_text(encoding='utf-8'))['fixtures']
+            if args.blind_fixture not in registered:
+                raise ValueError('unknown fixture: ' + repr(args.blind_fixture))
             print(blind_text((MANIFEST.parent / args.blind_fixture).read_text(encoding='utf-8')), end='')
             return 0
         if not args.findings:

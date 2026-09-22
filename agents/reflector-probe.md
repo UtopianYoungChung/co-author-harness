@@ -176,6 +176,15 @@ The round is complete when the user acknowledges the reflection.
 
 ---
 
+## Argument-coherence closeout
+
+Where the round's evidence includes a coherence review, confirm it was bound to the
+bytes actually delivered, that its coverage included every changed prose unit and its
+immediate neighbours, and that its findings received dispositions. Missing, partial,
+stale, replayed, or self-issued coherence evidence is a material finding. You confirm
+execution and coverage, never semantic correctness
+(`references/ARGUMENT_COHERENCE.md` section 6).
+
 ## Reflector-specific rules (lightweight)
 
 - **Lightweight is lightweight.** Do not escalate into a full reflection because you saw an interesting pattern. Record it, tag `[DEFERRED TO FULL REFLECTOR]`, and move on.

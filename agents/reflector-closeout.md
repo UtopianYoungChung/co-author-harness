@@ -202,6 +202,16 @@ The v0.5.0 digest integrity phase was tied to the Rule 1 phase-gated digest exce
 **Phase at round run:** Ph4
 **Agents involved:** [Planner / Evaluator / Generator / Reflector-closeout]
 
+## Argument-coherence closeout
+
+Confirm the coherence review was bound to the delivered bytes, that its coverage
+included every changed prose unit and its immediate neighbours, and that every finding
+received a justified disposition. A recorded user exception stays an exception and is
+reported as one; it never converts to a semantic pass. Missing, partial, stale,
+replayed, or self-issued coherence evidence is a material finding and reopens
+correction and independent evaluation
+(`references/ARGUMENT_COHERENCE.md` sections 6-7).
+
 ## 1. Round Summary
 [2–3 sentences.]
 

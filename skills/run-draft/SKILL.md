@@ -93,6 +93,7 @@ Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `deri
 - **Claim coverage** (claim-coverage): evidence coverage for load-bearing claims
 - **Derivation check** (derivation-check): stipulated vs. derived terms
 - **Grammar mechanics** (grammar-mechanics): mechanical correctness
+- **Argument coherence** (SAFEGUARD Check 9, `references/ARGUMENT_COHERENCE.md`): does each sentence advance its paragraph, and does the document still carry the commitments this passage makes? Mandatory and not narrowable; reported separately from source support, because a valid citation does not clear irrelevant placement
 - **Contradictions** (contradictions): SAFEGUARD Check 4 same-diff contradictions
 - **Analytic construction** (analytic-construction): Abbott 7-move audit when applicable
 - **Abstract-body** (check-abstract-body): title/abstract payoff, §1 roadmap, abstract citation polarity (named `abstract_citation_policy` only; `tbd` is INFO and not an insert/strip mandate)

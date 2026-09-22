@@ -212,7 +212,17 @@ Before signaling the Planner that you are done:
 
 5. **Compute the drift measurement** for your Phase 4 completion signal. Canonicalize the section body per the `fingerprint_mode` rules (the former tool `tier_state_canonicalize.py` was removed from the package tree at v0.7.5 RC; see `CHANGELOG.md` — perform the canonicalization manually) against the section's scope under the active `fingerprint_mode` (read from `reviews/phase_state.json` top level). Diff the post-edit canonical body against the `last_scope_fingerprint` target. Record the line-diff count (added + removed + modified) as a single integer. If canonicalization fails (e.g., a verbatim environment is unparseable), record `drift: uncomputed (<reason>)` instead. You do not write this number into the ledger; you report it in the Phase 4 signal and the Planner records it.
 
-6. If any self-check fails, fix it before signaling. Do not hand the Evaluator a piece with known mechanical violations — that wastes the Evaluator's attention budget on problems you could have caught yourself.
+6. **Re-read the whole paragraph you changed, and its neighbours.** A sentence that is
+   correct in isolation can still fail to advance the paragraph, and a sound edit can
+   leave an untouched neighbouring sentence referring to something that is no longer
+   there. Read `references/ARGUMENT_COHERENCE.md` §§1–4 and satisfy yourself that each
+   sentence you wrote does argumentative work, that every inferential bridge still has
+   its premises adjacent and on the page, and that any definition, question,
+   deliverable, or evaluation commitment you touched still agrees with its occurrences
+   elsewhere. You do not certify this — the Evaluator runs Check 9 on your bytes — but
+   handing over a paragraph you have not re-read whole wastes that pass.
+
+7. If any self-check fails, fix it before signaling. Do not hand the Evaluator a piece with known mechanical violations — that wastes the Evaluator's attention budget on problems you could have caught yourself.
 
 ### (Phase 3.5 — retired at v0.7.0)
 

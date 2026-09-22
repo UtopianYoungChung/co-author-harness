@@ -98,5 +98,110 @@ class GoldenTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
 
+DEV_DETECT = 'golden_coherence_defects.md'
+DEV_CONTROL = 'golden_coherence_controls.md'
+HELD_DETECT = 'heldout_coherence_defects.md'
+
+
+def coherence_run(findings, fixture=DEV_DETECT):
+    return {'fixture': fixture, 'pass': 'safeguard-check-9',
+            'evaluator': {'host': 'synthetic-test', 'model': 'fixture',
+                          'configuration': 'coherence-v1'},
+            'findings': findings}
+
+
+def seeded(fixture=DEV_DETECT):
+    return [{'finding_code': d['expected_code_family'], 'severity': 'MAJOR',
+             'line': d['line'], 'location_hint': d['location_hint']}
+            for d in MANIFEST['fixtures'][fixture]['defects']]
+
+
+class CoherenceFixtureTests(unittest.TestCase):
+    """The scoring machinery for SAFEGUARD Check 9 fixtures.
+
+    These assert what the scorer does with findings, not how well any reviewer
+    finds them. Judgment quality is never established here.
+    """
+
+    def test_ac_family_is_a_valid_finding_code(self):
+        for code in ('AC-1', 'AC-2', 'AC-3', 'AC-4', 'AC-5'):
+            self.assertEqual(scorer.norm_code(code), code)
+        with self.assertRaisesRegex(ValueError, 'code'):
+            scorer.norm_code('AC-6')
+
+    def test_every_seeded_coherence_defect_is_locatable_and_scored(self):
+        result = scorer.score(coherence_run(seeded()), MANIFEST)
+        self.assertEqual(result['recall'], 1.0)
+        self.assertEqual(result['extra_findings'], 0)
+        self.assertEqual(len(result['per_defect']), 5)
+        self.assertEqual(sorted({d['expected_code_family']
+                                 for d in MANIFEST['fixtures'][DEV_DETECT]['defects']}),
+                         ['AC-1', 'AC-2', 'AC-3', 'AC-4', 'AC-5'])
+
+    def test_right_class_wrong_paragraph_earns_nothing(self):
+        wrong = seeded()
+        wrong[0]['line'] += 2
+        result = scorer.score(coherence_run(wrong), MANIFEST)
+        self.assertEqual(result['recall'], 0.8)
+        self.assertEqual(result['extra_findings'], 1)
+
+    def test_positive_controls_count_coherence_flags_as_false_positives(self):
+        flagged = scorer.score(coherence_run(
+            [{'finding_code': 'AC-1', 'severity': 'MAJOR', 'line': 13,
+              'location_hint': 'unmarked transition'}], DEV_CONTROL), MANIFEST)
+        self.assertEqual(flagged['false_positives'], 1)
+        clean = scorer.score(coherence_run([], DEV_CONTROL), MANIFEST)
+        self.assertEqual(clean['false_positives'], 0)
+
+    def test_control_fixture_gates_its_own_families_not_the_p2_list(self):
+        fx = MANIFEST['fixtures'][DEV_CONTROL]
+        self.assertEqual(fx['gated_families'], ['AC-1', 'AC-2', 'AC-3', 'AC-4', 'AC-5'])
+        # A P2-gated family is not what this control is a control for.
+        result = scorer.score(coherence_run(
+            [{'finding_code': 'C-8/M-1', 'severity': 'MAJOR', 'line': 13,
+              'location_hint': 'unrelated family'}], DEV_CONTROL), MANIFEST)
+        self.assertEqual(result['false_positives'], 0)
+
+    def test_split_is_reported_and_baselines_do_not_cross_splits(self):
+        dev = scorer.score(coherence_run(seeded()), MANIFEST)
+        self.assertEqual(dev['split'], 'development')
+        self.assertFalse(dev['independent_curation'])
+        self.assertEqual(MANIFEST['fixtures'][HELD_DETECT]['split'], 'held_out')
+        foreign = copy.deepcopy(dev)
+        foreign['split'] = 'held_out'
+        with self.assertRaisesRegex(ValueError, 'bindings differ'):
+            scorer.compare_baseline(scorer.score(coherence_run(seeded()), MANIFEST), foreign)
+
+    def test_no_coherence_fixture_claims_independent_curation(self):
+        for name, fx in MANIFEST['fixtures'].items():
+            with self.subTest(fixture=name):
+                self.assertFalse(fx.get('independently_curated', False))
+
+    def test_scoring_never_reports_judgment_qualification(self):
+        result = scorer.score(coherence_run(seeded()), MANIFEST)
+        self.assertFalse(result['judgment_quality_qualified'])
+        self.assertFalse(result['research_acceptance'])
+
+    def test_blinding_removes_markers_and_preserves_line_coordinates(self):
+        for name in (DEV_DETECT, DEV_CONTROL, HELD_DETECT, 'heldout_coherence_controls.md'):
+            with self.subTest(fixture=name):
+                source = (scorer.MANIFEST.parent / name).read_text(encoding='utf-8')
+                blinded = scorer.blind_text(source)
+                self.assertNotIn('DEFECT', blinded)
+                self.assertNotIn('CONTROL', blinded)
+                self.assertEqual(blinded.count('\n'), source.count('\n'))
+
+    def test_blinding_cli_accepts_registered_fixtures_and_refuses_others(self):
+        ok = subprocess.run([sys.executable, '-X', 'utf8', str(SCRIPT),
+                             '--blind-fixture', DEV_DETECT],
+                            capture_output=True, text=True, encoding='utf-8', errors='strict')
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+        self.assertNotIn('DEFECT', ok.stdout)
+        bad = subprocess.run([sys.executable, '-X', 'utf8', str(SCRIPT),
+                              '--blind-fixture', 'not_a_fixture.md'],
+                             capture_output=True, text=True, encoding='utf-8', errors='strict')
+        self.assertEqual(bad.returncode, 2, bad.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()

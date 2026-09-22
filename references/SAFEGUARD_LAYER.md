@@ -1,8 +1,8 @@
 # SAFEGUARD LAYER — Post-Review Integrity Checks
 
-**Purpose.** This file prescribes eight structured checks that run **after** the consolidated findings report is drafted (Step 8) but **before** the author approves edits. It is Step 8.5 in `REVIEW_ORCHESTRATION.md`. Its job is to catch problems the seven-step review does not prescribe: regression from edits, drift between rounds, abstract-body inconsistency, unacknowledged theoretical contradictions, untraceable edits, voice degradation from AI-assisted revision, unwarranted inter-sentential logical connectives, and reader-experience / prose-architecture failure.
+**Purpose.** This file prescribes nine structured checks that run **after** the consolidated findings report is drafted (Step 8) but **before** the author approves edits. It is Step 8.5 in `REVIEW_ORCHESTRATION.md`. Its job is to catch problems the seven-step review does not prescribe: regression from edits, drift between rounds, abstract-body inconsistency, unacknowledged theoretical contradictions, untraceable edits, voice degradation from AI-assisted revision, unwarranted inter-sentential logical connectives, reader-experience / prose-architecture failure, and prose that is fluent and on-topic but does not advance its argument.
 
-**When to run.** Evaluator engagement is resolved only from `policies/phase_engagement.v1.json`. At **Ph1** the bounded independent pass runs the applicable subset; at **Ph2** run checks 1, 4, 5, and **8** (accessibility baseline); at **Ph3** and **Ph4** run all eight. The full routing table is '### Which checks run at which phase rung' below. See `agents/evaluator.md §Step 8.5` for phase-conditioned dispatch. *(The v0.4.x review-depth vocabulary — `quick` / `standard` / `submission-bound` — is retired; Check 7's pre-filter coupling now binds to Ph4.)*
+**When to run.** Evaluator engagement is resolved only from `policies/phase_engagement.v1.json`. At **Ph1** the bounded independent pass runs the applicable subset; at **Ph2** run checks 1, 4, 5, **8** (accessibility baseline) and **9**; at **Ph3** and **Ph4** run all nine. The full routing table is '### Which checks run at which phase rung' below. See `agents/evaluator.md §Step 8.5` for phase-conditioned dispatch. *(The v0.4.x review-depth vocabulary — `quick` / `standard` / `submission-bound` — is retired; Check 7's pre-filter coupling now binds to Ph4.)*
 
 **Relationship to other package files.**
 - `DETERMINISTIC_CHECKS.md` catches mechanical tics **before** the judgment review.
@@ -446,6 +446,107 @@
 
 ---
 
+---
+
+## Check 9 — Argument Coherence Audit
+
+**Trigger:** Run after Check 8 at `standard` and `submission-bound` depth and at the
+corresponding active lifecycle phases. Consumes the `DETERMINISTIC_CHECKS.md` §9f
+unit inventory and candidate queue. In `project_independent` drafting and revision
+this check is the `argument_coherence` required check and runs on every candidate.
+
+**Obligation.** `references/ARGUMENT_COHERENCE.md` is the binding definition. This
+procedure executes it; it does not restate it. Read that file before running the
+check.
+
+**Rationale for a judgment layer.** The §9f pre-filter inventories prose units and
+surfaces cheap lexical candidates — commitment sentences, source-status remarks,
+re-specification cues, inferential bridges. None of those is a violation. A
+source-status remark that *is* used argumentatively matches exactly as loudly as one
+that is not, and a unit with no marker at all can still contain a sentence that
+answers a different question. The pre-filter's job is the **coverage denominator**;
+this check supplies the judgment.
+
+**Procedure:**
+
+1. **Open the §9f inventory** for the reviewed span
+   (`python scripts/coherence_prefilter.py <target> --json`). Note the coverage
+   denominator, the changed units, and their immediate neighbours. Every required
+   unit is covered or the check is *Review incomplete*. A marker-free unit is not
+   cleared by the absence of a marker.
+2. **For each covered unit, determine its purpose from the text.** What
+   argumentative work does this paragraph do here? A role label asserted without
+   textual warrant is not a determination. An unrecoverable purpose is itself the
+   finding (`purpose_unrecoverable`).
+3. **For each substantive sentence, assign a contribution:** `advances`,
+   `supports`, `qualifies`, `background`, `transition`, or `none`. Only `none` is a
+   defect and it carries a finding. Check the positive controls in
+   `ARGUMENT_COHERENCE.md` §4 before assigning `none`: an implicit transition the
+   reader can recover, legitimate background, a qualification, a counterargument, a
+   connection established earlier in the section, and authorial voice under the C-7
+   carve-out are all passing dispositions.
+4. **Read the transitions between concepts.** Where an inferential bridge
+   (`therefore`, `thus`, `hence`) is present, verify its premises are adjacent and
+   on the page. An aside inserted between a premise and its conclusion breaks the
+   bridge even when every sentence in the unit is true (**AC-1**).
+5. **Read the neighbours of every changed unit.** A sound edit can leave an
+   untouched neighbouring sentence referring to something that is no longer there
+   (**AC-5**). This is unreachable from the changed bytes alone, which is why the
+   neighbours are in the required coverage.
+6. **Check the document's research commitments.** For each commitment in or affected
+   by the reviewed span — a promise, a definition, a research question, a
+   deliverable, an evaluation — find its occurrences elsewhere. A commitment that no
+   method or evaluation carries is **AC-4**. A term used in a sense that differs
+   from its established sense, with no marked revision, is **AC-3**.
+7. **Keep source support on its own line.** A valid citation does not clear
+   irrelevant placement, and a coherent bridge does not clear an unsupported claim.
+   Report the two verdicts separately; `GROUNDING_PROTOCOL.md` is unaffected.
+8. **Bound every finding.** Exact passage, named failed relationship, effect on the
+   argument, bounded remedy. If explaining the defect or justifying the remedy needs
+   a premise the author never made, report the relationship as unrecoverable instead
+   — do not write the author's argument for them.
+9. **Report, do not widen.** Defects in units you read but are not authorized to
+   edit are findings with locators. Reading a paragraph confers no authority to edit
+   it.
+
+**Severity floor.** AC-1 through AC-5 are **MAJOR** by default. AC-3 and AC-4 are
+**BLOCKER** at Ph4 and at `submission-bound` depth. A finding that rests only on a
+missing signpost, a missing connective, or a paragraph shape is not a finding under
+this check and is withdrawn.
+
+**Output format:**
+
+```
+### Check 9 - Argument Coherence Audit
+- Coverage: <covered>/<denominator> prose units (changed: <n>, neighbours: <n>)
+- Purposes determined from text: <n> (unrecoverable: <n>)
+- Sentence contributions: advances <n> / supports <n> / qualifies <n> /
+  background <n> / transition <n> / none <n>
+- Commitments examined: <n> (carried <n>, uncarried <n>)
+- Flagged:
+  - <unit, line>: <AC-n> - <severity> - <failed relationship> - <effect> - <remedy>
+  - ...
+- Out-of-scope observations (no write authority): <n>
+- Outcome: <Review complete / Changes required / Review incomplete>
+```
+
+**Limit of the mechanical layer.** `scripts/coherence_review.py` validates that this
+audit ran on these exact bytes, covered the required units, partitioned each unit's
+sentences exactly, and quoted only passages that occur in the candidate. It
+establishes **evidence integrity and coverage, not semantic correctness**. A passing
+`argument_coherence` check never means the prose is coherent; it means the obligation
+was executed and its findings were dispositioned.
+
+**Why this matters.** Every other control in this layer and in
+`DETERMINISTIC_CHECKS.md` is reachable by a pattern: Check 7 by named-author
+application phrases and normative jumps, Check 8 by length, density, and definition
+topology. A sentence that is grammatical, on-topic, well-cited, and argumentatively
+inert matches none of them. On the reproduced baseline
+(`docs/evaluation/argument-coherence-baseline.md`) a passage carrying five seeded
+coherence defects returned four passive-voice findings and zero coherence findings
+from the full mechanical layer, and the §9a and §9b pre-filters produced no
+candidates on it at all.
+
 ## Integration with the package
 
 ### Where this file sits in the run order
@@ -458,9 +559,9 @@
 
 ### How the output is used
 
-- The output of all eight checks is appended to the consolidated findings report as **§10 (Safeguard Layer Results)**.
+- The output of all nine checks is appended to the consolidated findings report as **§10 (Safeguard Layer Results)**.
 - Any new BLOCKERs or MAJORs found by the safeguard layer are added to the report's §2 (Blockers) or §3 (Majors) with the prefix `[SL-n]` (Safeguard Layer check number).
-- The G.4 sign-off table includes a row for Step 8.5 listing all eight sub-results.
+- The G.4 sign-off table includes a row for Step 8.5 listing all nine sub-results.
 - Check 8 BLOCKERs feed the Ph3 convergence gate according to canonical recomputation and validated transition events (`PHASE_PROTOCOL.md §3.3.3`). VE never changes this gate.
 
 ### Which checks run at which depth
@@ -475,8 +576,9 @@
 | 6 — Humanness Voice Audit | No | **Yes** | **Yes** |
 | 7 — Inter-Sentential Logical Connective Audit | No | No | **Yes** |
 | 8 — Reader-Experience / Prose Architecture Audit | No | **Yes** | **Yes** |
+| 9 — Argument Coherence Audit | No | **Yes** | **Yes** |
 
-Checks 1, 4, and 5 run at all depths because they catch the highest-severity problems (regression, contradiction, untraceable edits) with the lowest time cost. Checks 2, 3, 6, and 8 are deferred at `quick` depth because they require reading the full piece. Check 7 runs only at `submission-bound` because its judgment pass over the §9a pre-filter queue is expensive and its violations are rarely BLOCKER-level below submission.
+Checks 1, 4, and 5 run at all depths because they catch the highest-severity problems (regression, contradiction, untraceable edits) with the lowest time cost. Checks 2, 3, 6, and 8 are deferred at `quick` depth because they require reading the full piece. Check 7 runs only at `submission-bound` because its judgment pass over the §9a pre-filter queue is expensive and its violations are rarely BLOCKER-level below submission. Check 9 runs from `standard` because an argumentatively inert passage survives every cheaper layer, and because a revision round is exactly when a sound edit disconnects an untouched neighbour; at `quick` depth it defers with the other whole-piece reads.
 
 ### Which checks run at which phase rung (introduced v0.7.2 under the stage vocabulary; phase-named per the v0.7.4 rename)
 
@@ -490,6 +592,7 @@ Checks 1, 4, and 5 run at all depths because they catch the highest-severity pro
 | 6 — Humanness Voice Audit | — | No | **Yes** | **Yes** |
 | 7 — Inter-Sentential Logical Connective Audit | — | No | **Yes** | **Yes** |
 | 8 — Reader-Experience / Prose Architecture Audit | **Profile-routed** | **Profile-routed** | **Profile-routed** | **Profile-routed** |
+| 9 — Argument Coherence Audit | **Yes** | **Yes** | **Yes** | **Yes** |
 
 **Phase scope.** Resolve engagement from `policies/phase_engagement.v1.json`, then resolve check applicability from `sub_checks.*.advisory_at`, `binds_at`, passage-role overrides, and validated G/H transition states. Check 8 becomes convergence-gating only through those machine contracts; historical rollout prose is not executable authority.
 

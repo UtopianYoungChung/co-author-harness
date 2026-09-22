@@ -16,6 +16,7 @@ from unittest.mock import patch
 import piw_claude_host as claude
 import piw_completion_guard as guard
 import piw_coordinator as coordinator
+import coherence_fixture_support as coherence_fixture
 import piw_native_host as native
 import piw_session as piw
 
@@ -257,8 +258,10 @@ class ClaudeCoordinatorTests(unittest.TestCase):
             result['artifact'] = piw.identity(path)
             result['addressed_findings'] = [x['id'] for x in req['findings_to_address']]
         else:
-            result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['paragraph 1']} for x in contract['required_checks']]
+            result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['paragraph 1']} for x in req['required_checks']]
             result['findings'] = [{'id': 'F1', 'blocking': True, 'locator': 'paragraph 1', 'message': 'Synthetic planted blocking issue must be corrected before completion.'}] if blockers else []
+            scope_text, changed_units = coordinator.coherence_scope(contract, req['target'], req['phase'])
+            result['coherence_review'] = coherence_fixture.build(scope_text, changed_units)
         evidence = self.writer.run(req, result, agent_id)
         return coordinator.ingest(self.session, result, evidence)
 

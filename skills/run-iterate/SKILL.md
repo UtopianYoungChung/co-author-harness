@@ -120,6 +120,8 @@ receipts or C6 results are missing.
 Named-milestone evaluate of already-staged bytes uses `--stage evaluate` / `derive --purpose evaluate`; dest-safe sequence, source-hash, and wiki-grounding misses do not exit-4 that C6 path. A missing Generator envelope or empty `assignment_dispatch` does not prevent C6 claim/derivation/warrant/citation of those bytes; C6 does not invent an envelope or mint CLEAN. Present stale/wrong envelopes still refuse. File presence is never acceptance. FINAL still requires accepted M1-M4.
 Fire table: grounding-protocol, citation-discipline, claim-coverage,
 derivation-check, grammar-mechanics, contradictions, analytic-construction,
+argument-coherence (SAFEGUARD Check 9; mandatory, not narrowable, and reported
+separately from source support),
 check-abstract-body, chung-academic-voice-pass only when selected and not excluded,
 centroid-evaluation (graph capability may be unavailable; admitted-passage judgment remains separate).
 Mechanical dest-safe preflight only: d-style-profile, deterministic-audit.

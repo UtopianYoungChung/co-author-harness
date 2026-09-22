@@ -329,6 +329,7 @@ def _profile(cases: list[dict[str, Any]], registry_binding: dict[str, Any], obli
         "warrant_logic": {},
         "modal_consistency": {},
         "grounding_citation": {},
+        "argument_coherence": {},
         "d_style": {},
         "reader_accessibility": {},
         "active_overlays": {},

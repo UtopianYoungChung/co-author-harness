@@ -18,6 +18,7 @@ from pathlib import Path
 import piw_session as piw
 import piw_coordinator as coordinator
 import piw_completion_guard as guard
+import coherence_fixture_support as coherence_fixture
 
 SCRIPTS = Path(__file__).resolve().parent
 FIXTURE = b'# Example manuscript\n\n## Anchor\nThe term "request" denotes a submitted item, not an approval. [Anchor-A]\n\n## Scope\nEach reviewer examine one request. The queue record the decision after the review.\n'
@@ -57,7 +58,7 @@ def plan(session):
     return coordinator.record_plan(session, {'summary': 'Map the independent diagnosis and user scope to a bounded correction preserving untouched bytes.', 'steps': ['Correct only diagnosed agreement errors; preserve terminology, argument, citations and all untouched bytes.']})
 
 
-def complete_child(session, *, blockers=False, artifact=None, execution_id=None, outcome='completed', fork_history=False):
+def complete_child(session, *, blockers=False, artifact=None, execution_id=None, outcome='completed', fork_history=False, mutate=None):
     packet = coordinator.next_step(session)
     req = packet['request']
     contract = piw.read_json(session / 'binding/run.json')
@@ -75,6 +76,12 @@ def complete_child(session, *, blockers=False, artifact=None, execution_id=None,
     else:
         result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['Scope sentence 1' if contract['input'] else 'paragraph 1']} for x in req['required_checks']]
         result['findings'] = [{'id': 'F1', 'blocking': True, 'locator': 'paragraph 1', 'message': 'Synthetic planted blocking issue must be corrected before completion.'}] if blockers else []
+        scope_text, changed_units = coordinator.coherence_scope(contract, req['target'], req['phase'])
+        result['coherence_review'] = coherence_fixture.build(scope_text, changed_units)
+    if mutate is not None:
+        # Tamper before the host log is written, so a negative control reaches the
+        # check it targets instead of tripping the host-result comparison first.
+        mutate(result, req, contract)
     log = Path(contract['host']['logs_root']) / f'{eid}.jsonl'
     if not log.exists():
         meta = {'id': eid, 'source': {'subagent': {'thread_spawn': {'parent_thread_id': contract['host']['parent_execution_id']}}}}

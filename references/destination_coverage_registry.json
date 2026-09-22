@@ -176,7 +176,7 @@
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "b54f848c21b5c0e2c45d42682fc087864ecae98650bb35d83421b96155a83608"
+      "sha256": "7b34f7e381fba900fa1c3e6711a131371d13cf5d7c654e4be3d3ec2b7e733507"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

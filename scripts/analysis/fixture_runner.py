@@ -284,6 +284,11 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/assignment_terminal_close_smoketest.py": [_default_case()],
     "scripts/artefact_frontmatter_smoketest.py": [_default_case()],
     "scripts/audit/test_audit.py": [_default_case()],
+    # Landed in 986d5d9 without registry entries, which blocked the whole
+    # registry on "discovered suite not registered". Both pass bare; entries
+    # added here only so the mandatory full run is executable.
+    "scripts/citation_gate/reconcile_citations_test.py": [_default_case()],
+    "scripts/citation_gate/verify_locators_test.py": [_default_case()],
     "scripts/audit/test_citations.py": [_default_case()],
     "scripts/build_plugin_provenance_smoketest.py": [_default_case()],
     "scripts/canonical_bibliography_smoketest.py": [_default_case()],
@@ -291,6 +296,7 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/centroid_service_smoketest.py": [_default_case()],
     "scripts/centroid_sentence_logic_smoketest.py": [_default_case()],
     "scripts/piw_acceptance_smoketest.py": [_default_case()],
+    "scripts/argument_coherence_smoketest.py": [_default_case()],
     "scripts/package_membership_smoketest.py": [_default_case()],
     "scripts/golden_eval_smoketest.py": [_default_case()],
     "scripts/piw_research_support_smoketest.py": [_default_case()],

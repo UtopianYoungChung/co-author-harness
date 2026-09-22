@@ -323,7 +323,7 @@ The response-letter sibling ladder, called T3R in v0.6.0, is renamed **T4R** at 
 | `check-abstract-body` | Abstract–body consistency | yes (since Ph2) |
 | `grounding-audit` | Grounding Protocol compliance | yes (full since Ph2) |
 | `public-interest-accountability-pass` | Policy-critical framing | yes if flagged |
-| SAFEGUARD Layer (8 checks) | Integrity audit | subset {1,4,5,8} since Ph2; all eight since Ph3 (Check 8 convergence-gating at Ph3 per §3.3.3) |
+| SAFEGUARD Layer (9 checks) | Integrity audit | subset {1,4,5,8,9} since Ph2; all nine since Ph3 (Check 8 convergence-gating at Ph3 per §3.3.3; Check 9 runs at every rung) |
 | DRIFT_CHECK | Theoretical drift | yes (since Ph3) |
 | REFLEXIVITY_CHECK | Positionality audit | yes (since Ph3) |
 | EXTERNAL_VERIFIERS | Class 1 / 1.5 / 2 / 3 | **required at Ph4; optional at Ph3** |

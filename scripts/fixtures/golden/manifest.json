@@ -1,7 +1,7 @@
 {
   "schema": "golden-eval-manifest/v2",
   "created": "2026-07-06",
-  "notes": "Seeded-defect inventory for judgment-layer regression evals (plan 2026-07-06 §6, WS-4). Fixtures carry inline <!-- DEFECT --> / <!-- CONTROL --> markers; a scored run must be produced WITHOUT showing the reviewer agent those markers (strip comments before dispatch, or instruct the pass to ignore HTML comments is NOT sufficient — strip them).",
+  "notes": "Seeded-defect inventory for judgment-layer regression evals (plan 2026-07-06 §6, WS-4). Fixtures carry inline <!-- DEFECT --> / <!-- CONTROL --> markers; a scored run must be produced WITHOUT showing the reviewer agent those markers (strip comments before dispatch, or instruct the pass to ignore HTML comments is NOT sufficient — strip them). Coherence fixtures added 2026-09-21 for SAFEGUARD Check 9 under references/ARGUMENT_COHERENCE.md. Splits: `development` fixtures may be scored and tuned against; `held_out` fixtures must not be scored during development. Contamination limit, stated rather than hidden: every fixture here carries `independently_curated: false` because it was authored by the same agent that wrote the obligation. Held-out therefore means held out from tuning, not from authorship, and no number from these files qualifies judgment quality. Final held-out qualification requires fixtures curated by the independent reviewer and acceptance thresholds fixed prospectively with the review owner.",
   "findings_file_schema": {
     "description": "A run names fixture, pass, optional evaluator {host, model, configuration}, and findings [{finding_code, severity, line, location_hint}]. line is a one-based line in the comment-stripped fixture; preserve newlines when blinding. Baseline comparisons require evaluator identity.",
     "matching_rule": "Exact normalized code family and exact defect line; M-n aliases C-8/M-n. Each finding matches at most one defect; duplicates and wrong locations remain extra findings. P1 counts every exact P2-gated family as a false positive. No substring credit.",
@@ -12,7 +12,15 @@
       "M-1",
       "M-2",
       "M-7"
-    ]
+    ],
+    "coherence_families": [
+      "AC-1",
+      "AC-2",
+      "AC-3",
+      "AC-4",
+      "AC-5"
+    ],
+    "split_rule": "A baseline comparison is refused across splits. A development number is never reported as a held-out number, and neither is qualification."
   },
   "fixtures": {
     "golden_p2_theory.md": {
@@ -73,7 +81,9 @@
           "description": "Construct deployed before first-use definition (definition deferred to a later section without orientation).",
           "line": 23
         }
-      ]
+      ],
+      "split": "development",
+      "independently_curated": false
     },
     "golden_p1_brief.md": {
       "p_stage": "P1",
@@ -90,6 +100,220 @@
           "location_hint": "§2 third paragraph, rivals held open",
           "must_not_fire": "C-8/M-2",
           "description": "Undissolved rivals at P1 are appropriate deferral."
+        }
+      ],
+      "split": "development",
+      "independently_curated": false
+    },
+    "golden_coherence_defects.md": {
+      "p_stage": "any",
+      "role": "detection",
+      "split": "development",
+      "independently_curated": false,
+      "authority": "references/ARGUMENT_COHERENCE.md; SAFEGUARD_LAYER.md Check 9",
+      "defects": [
+        {
+          "defect_id": "D1",
+          "location_hint": "section 1, the promised calibration instrument",
+          "expected_code_family": "AC-4",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 14,
+          "description": "A deliverable is promised in the introduction and no later method or evaluation section carries it."
+        },
+        {
+          "defect_id": "D2",
+          "location_hint": "section 2, the survey-based prior-work remark",
+          "expected_code_family": "AC-1",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 20,
+          "description": "A true, relevant source-status aside dropped between a premise and the therefore-conclusion that depends on it, and never used."
+        },
+        {
+          "defect_id": "D3",
+          "location_hint": "section 3, the Site C roster sentence",
+          "expected_code_family": "AC-2",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 26,
+          "description": "Fluent and on-topic, but answers a staffing question the paragraph is not asking."
+        },
+        {
+          "defect_id": "D4",
+          "location_hint": "section 4, the re-specification of escalation",
+          "expected_code_family": "AC-3",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 32,
+          "description": "The term narrows from its section 1 sense with no marked revision, so the counts are not comparable to the framing."
+        },
+        {
+          "defect_id": "D5",
+          "location_hint": "section 5, the verbatim-note sentence",
+          "expected_code_family": "AC-5",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 40,
+          "description": "An untouched neighbouring sentence whose referent moved when the introduction gained a promised instrument."
+        }
+      ]
+    },
+    "heldout_coherence_defects.md": {
+      "p_stage": "any",
+      "role": "detection",
+      "split": "held_out",
+      "independently_curated": false,
+      "authority": "references/ARGUMENT_COHERENCE.md; SAFEGUARD_LAYER.md Check 9",
+      "defects": [
+        {
+          "defect_id": "H1",
+          "location_hint": "section 1, the promised readiness score",
+          "expected_code_family": "AC-4",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 16,
+          "description": "Promised deliverable that no later section carries."
+        },
+        {
+          "defect_id": "H2",
+          "location_hint": "section 2, the applicant-survey remark",
+          "expected_code_family": "AC-1",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 22,
+          "description": "Source-status aside between a premise and its therefore-conclusion, never used."
+        },
+        {
+          "defect_id": "H3",
+          "location_hint": "section 3, the scanning-hardware sentence",
+          "expected_code_family": "AC-2",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 28,
+          "description": "On-topic sentence answering an equipment question the paragraph is not asking."
+        },
+        {
+          "defect_id": "H4",
+          "location_hint": "section 4, the re-specification of pick-up",
+          "expected_code_family": "AC-3",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 34,
+          "description": "The term narrows from its section 1 sense with no marked revision."
+        },
+        {
+          "defect_id": "H5",
+          "location_hint": "section 5, the readiness-score threat sentence",
+          "expected_code_family": "AC-5",
+          "expected_severity": "MAJOR",
+          "p_stage_gate": "any",
+          "line": 42,
+          "description": "Untouched neighbour answering a threat about a quantity the paper never constructs."
+        }
+      ]
+    },
+    "golden_coherence_controls.md": {
+      "p_stage": "any",
+      "role": "false-positive-control",
+      "split": "development",
+      "independently_curated": false,
+      "gated_families": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "authority": "references/ARGUMENT_COHERENCE.md section 4 (positive controls)",
+      "controls": [
+        {
+          "control_id": "K1",
+          "location_hint": "section 2, unmarked transition",
+          "must_not_fire": "AC-1",
+          "description": "Implicit transition the reader recovers without a connective."
+        },
+        {
+          "control_id": "K2",
+          "location_hint": "section 2, historical orientation",
+          "must_not_fire": "AC-2",
+          "description": "Legitimate background the argument needs before contesting the assumption."
+        },
+        {
+          "control_id": "K3",
+          "location_hint": "section 3, scope qualification",
+          "must_not_fire": "AC-2",
+          "description": "A qualification limiting the claim; disposition qualifies."
+        },
+        {
+          "control_id": "K4",
+          "location_hint": "section 3, deferred counterargument",
+          "must_not_fire": "AC-4",
+          "description": "Counterargument deferred to a named destination that exists."
+        },
+        {
+          "control_id": "K5",
+          "location_hint": "section 3, relies on an earlier contrast",
+          "must_not_fire": "AC-5",
+          "description": "Relies on a relation established earlier in the same section."
+        },
+        {
+          "control_id": "K6",
+          "location_hint": "section 5, short declarative run",
+          "must_not_fire": "AC-2",
+          "description": "Recurring authorial cadence under the C-7 idiolect carve-out."
+        }
+      ]
+    },
+    "heldout_coherence_controls.md": {
+      "p_stage": "any",
+      "role": "false-positive-control",
+      "split": "held_out",
+      "independently_curated": false,
+      "gated_families": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "authority": "references/ARGUMENT_COHERENCE.md section 4 (positive controls)",
+      "controls": [
+        {
+          "control_id": "J1",
+          "location_hint": "section 2, unmarked transition",
+          "must_not_fire": "AC-1",
+          "description": "Implicit transition the reader recovers without a connective."
+        },
+        {
+          "control_id": "J2",
+          "location_hint": "section 2, historical orientation",
+          "must_not_fire": "AC-2",
+          "description": "Legitimate background."
+        },
+        {
+          "control_id": "J3",
+          "location_hint": "section 3, scope qualification",
+          "must_not_fire": "AC-2",
+          "description": "A qualification limiting the claim."
+        },
+        {
+          "control_id": "J4",
+          "location_hint": "section 3, deferred counterargument",
+          "must_not_fire": "AC-4",
+          "description": "Counterargument deferred to a destination that exists."
+        },
+        {
+          "control_id": "J5",
+          "location_hint": "section 3, relies on an earlier contrast",
+          "must_not_fire": "AC-5",
+          "description": "Relies on a relation established earlier in the same section."
+        },
+        {
+          "control_id": "J6",
+          "location_hint": "section 5, short declarative run",
+          "must_not_fire": "AC-2",
+          "description": "Recurring authorial cadence under the C-7 idiolect carve-out."
         }
       ]
     }

@@ -171,6 +171,18 @@ Before flagging **monotony**, a **passive cluster**, or a **long sentence** as a
 
 ---
 
+## Argument coherence is a different question
+
+This pass judges how a sentence is *built*. It does not judge whether the sentence
+does argumentative work. A sentence can pass all ten points here — clear focus, clean
+predication, good rhythm — and still answer a different question from its paragraph,
+break the bridge between a premise and its conclusion, or promise something the
+document never delivers. That is `SAFEGUARD_LAYER.md` Check 9 under
+`references/ARGUMENT_COHERENCE.md`. If you notice such a passage, report it as an
+observation with its locator and say it belongs to Check 9; do not rewrite it under a
+craft rule, and do not report a clean craft result as evidence that the passage is
+argumentatively sound.
+
 ## When to escalate
 
 If you find **5+ MAJORs** in sentence craft, the manuscript likely needs a full review (not just sentence polish). Recommend: "Consider running `/run-tier-standard` (or `/run-tier-submission` if the draft is submission-bound) before investing in sentence-level fixes — structural issues may invalidate the sentences you polish."

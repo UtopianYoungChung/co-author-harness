@@ -285,6 +285,7 @@ def _profile(
             "warrant_logic",
             "modal_consistency",
             "grounding_citation",
+            "argument_coherence",
             "d_style",
             "reader_accessibility",
             "active_overlays",

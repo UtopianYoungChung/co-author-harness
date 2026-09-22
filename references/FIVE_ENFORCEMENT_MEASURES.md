@@ -69,15 +69,15 @@ This table classifies; it does not retire the named files.
 | **1 Vocabulary audit** | Grounding Protocol Rules 4 and 6; C-6 (same term, same meaning); C-8/M-1 (derive, do not stipulate); L-P7 (introduction ≠ definition); `CITATION_DISCIPLINE.md`; Check 8 jargon / first-use |
 | **2 Novelty shape** | C-4 (draws on vs extends); C-8/M-2 (reconstruct then dissolve); Baird contribution framing; MASTER Part B claims |
 | **3 Ordering** | C-3 (show-then-tell); C-8/M-1 definitional deferral; MASTER A.1 hourglass; A.4.2 glossary dumps deferred to point of use; EIBU / name-after-act |
-| **4 Gap-before-claim** | C-8 ("earned, not asserted"); MASTER Part B; M1–M3 argumentative-rigor checklist |
-| **5 One job per sentence** | C-2 Bacon; C-5 / Check 8; MASTER A.4.2; `EMDASH_BUNDLE_DISCIPLINE.md`; Ver03 A1–A5 census. C-7 is protective here: it blocks flattening idiolect in the name of this measure |
+| **4 Gap-before-claim** | C-8 ("earned, not asserted"); MASTER Part B; M1–M3 argumentative-rigor checklist; `ARGUMENT_COHERENCE.md` AC-4 (promise without payoff) and AC-3 (unexplained meaning change), judged by SAFEGUARD Check 9 |
+| **5 One job per sentence** | C-2 Bacon; C-5 / Check 8; MASTER A.4.2; `EMDASH_BUNDLE_DISCIPLINE.md`; Ver03 A1–A5 census; `ARGUMENT_COHERENCE.md` AC-1, AC-2 and AC-5 (a sentence doing *no* job, a sentence doing *another paragraph's* job, and an edit that costs a neighbour its job). C-7 is protective here and in Check 9: it blocks flattening idiolect in the name of either measure |
 
 ---
 
 ## Evaluator / Generator contract
 
 - **Generator.** Apply the five before C-1…C-8 craft. Do not introduce a technical term that fails measure 1. Do not name a contribution before its act (measure 3). Do not stack two jobs in one sentence to "save" a round (measure 5).
-- **Evaluator.** Run the five as the section-level check set before wording discussion. Cite the umbrella number in the finding (`[MAJOR — U1 vocabulary]`, `[MAJOR — U4 gap-before-claim]`). Locator and remediation still required.
+- **Evaluator.** Run the five as the section-level check set before wording discussion. Argument coherence (`ARGUMENT_COHERENCE.md`, SAFEGUARD Check 9) is a separate mandatory obligation, not a sixth umbrella: it asks whether each sentence advances its paragraph and whether the document still carries its commitments. A U1–U5 finding and an AC-n finding can sit on the same sentence. Cite the umbrella number in the finding (`[MAJOR — U1 vocabulary]`, `[MAJOR — U4 gap-before-claim]`). Locator and remediation still required.
 - **Planner.** Record that the five apply. Do not treat a C-n suspension as a suspension of the matching umbrella unless Joseph names the umbrella.
 - **Reflector.** Recurrence of a U1–U5 failure across rounds is a lesson candidate. Do not re-flag a closed vocabulary item as a new C-6 finding without naming the umbrella.
 

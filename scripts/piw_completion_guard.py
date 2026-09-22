@@ -87,7 +87,9 @@ def verify_completion(session_path: Path | str) -> dict[str, Any]:
                 raise piw.PIWError('PIW-FINAL-REVIEW-STALE', 'Final review/reflection did not inspect delivered bytes')
         if state['unresolved_findings']:
             raise piw.PIWError('PIW-NEEDS-REVISION', 'Unresolved blocking findings remain')
+        coherence_summary = _verify_coherence(coordinator, contract, state, reviews[-1][1], reflections[-1][1])
         return {'ok': True, 'status': 'task_complete', 'code': 'PIW-TASK-COMPLETE', 'task_complete': True,
+                'coherence': coherence_summary, 'coherence_status': coherence_summary['status'],
                 'completion': True, 'piw_work_id': contract['run_id'], 'run_id': contract['run_id'],
                 'artifact_sha256': delivery['artifact']['sha256'], 'artifact_bytes': delivery['artifact']['bytes'],
                 'artifact': delivery['artifact'], 'input': contract['input'], 'requested_scope': contract['requested_scope'],
@@ -106,6 +108,33 @@ def verify_completion(session_path: Path | str) -> dict[str, Any]:
         return {'ok': False, 'status': 'needs_revision' if getattr(exc, 'code', '') == 'PIW-NEEDS-REVISION' else 'incomplete',
                 'code': getattr(exc, 'code', 'PIW-REQUIRED-EVIDENCE-MISSING'), 'message': str(exc), 'task_complete': False,
                 'completion': False, 'lifecycle_terminal': False, 'research_acceptance': False, 'terminal': False}
+
+
+def _verify_coherence(coordinator, contract, state, evaluation, reflection) -> dict[str, Any]:
+    """Re-validate the coherence obligation against the delivered bytes.
+
+    A passing check here means the obligation ran on these exact bytes with the
+    required coverage and its findings were dispositioned. It is not a statement
+    that the prose is coherent (references/ARGUMENT_COHERENCE.md section 6).
+    """
+    import coherence_review as coherence
+    import piw_session as piw
+    for role, result in (('evaluation', evaluation), ('reflection', reflection)):
+        check = next((x for x in result.get('checks', []) if x.get('id') == 'argument_coherence'), None)
+        if not check:
+            raise piw.PIWError('COHERENCE-REVIEW-MISSING',
+                               'Final ' + role + ' carries no argument_coherence check')
+        if check.get('status') != 'pass':
+            raise piw.PIWError('COHERENCE-NOT-CLEARED',
+                               'Final ' + role + ' argument_coherence status: ' + str(check.get('status')))
+    scope_text, changed_units = coordinator.coherence_scope(contract, state['candidate'], 'evaluation')
+    try:
+        summary = coherence.validate(scope_text, evaluation.get('coherence_review'),
+                                     changed_unit_ids=changed_units, require_clear=True)
+    except coherence.ReviewError as exc:
+        raise piw.PIWError(exc.code, str(exc)) from exc
+    return {**summary, 'status': 'reviewed_on_delivered_bytes',
+            'semantic_correctness_established': False}
 
 
 def evaluate_completion_claim(claim: dict[str, Any] | str | None) -> dict[str, Any]:

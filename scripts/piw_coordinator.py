@@ -13,6 +13,8 @@ import piw_session as piw
 from piw_session import assert_output as assert_writable
 import piw_native_host as native
 import bibliography_review as bibliography
+import coherence_review as coherence
+import coherence_prefilter
 
 require = native.require
 PROFILES = {'draft': 'Produce a new deliverable from the bound brief and supplied sources.', 'refine': 'Improve requested wording and local clarity while preserving argument, terminology and citations.', 'structural': 'Revise organization only within the explicitly authorized scope; preserve claims and sources.', 'deep': 'Make the explicitly requested substantive revision; do not infer authority to alter unrelated material.', 'stability': 'Check whether the requested material needs any change; explained no-change is valid after all required roles.'}
@@ -59,6 +61,37 @@ def _preserved(contract, candidate, read_bytes=None):
     prefix, suffix = original[:scope['start_byte']], original[scope['end_byte']:]
     require(len(final) >= len(prefix) + len(suffix) and final.startswith(prefix) and final.endswith(suffix),
             'PIW-SCOPE-DRIFT', 'Unrequested manuscript bytes changed')
+
+
+def _scope_region(contract, data: bytes) -> str:
+    """Text of the requested scope inside `data`.
+
+    `_preserved` guarantees an unchanged prefix/suffix, so the in-scope region of
+    any candidate is the same byte window measured from both ends. A fresh draft
+    has no input and its whole body is in scope.
+    """
+    scope = contract.get('requested_scope') or {}
+    snapshot = contract.get('input_snapshot')
+    if not snapshot or 'start_byte' not in scope:
+        return data.decode('utf-8-sig')
+    tail = snapshot['bytes'] - scope['end_byte']
+    end = len(data) - tail
+    return data[scope['start_byte']:end].decode('utf-8-sig') if 0 <= scope['start_byte'] <= end else data.decode('utf-8-sig')
+
+
+def coherence_scope(contract, target, stage, read_bytes=None):
+    """In-scope candidate text and the units this stage must cover.
+
+    The AC-5 baseline is the author's original bytes, not the previous
+    correction: a unit the harness disturbed three cycles ago is still a unit
+    whose neighbours can be disconnected now.
+    """
+    reader = read_bytes or _read_bytes
+    candidate = _scope_region(contract, reader(target['path']))
+    if stage == 'diagnosis' or not contract.get('input_snapshot'):
+        return candidate, None
+    original = _scope_region(contract, reader(contract['input_snapshot']['path']))
+    return candidate, coherence_prefilter.changed_unit_ids(original, candidate)
 
 
 def start(session_path: Path, request: dict) -> dict:
@@ -133,6 +166,12 @@ def initial_state(contract):
 
 def effective_checks(contract, target=None, read_bytes=None):
     checks = list(contract['required_checks'])
+    # Argument coherence is not optional and not caller-suppressible: prose this
+    # package drafts or revises is reviewed for whether it advances its argument
+    # (references/ARGUMENT_COHERENCE.md section 8). A narrower required_checks list, a
+    # prose_only scope, or an exclusion cannot remove it.
+    checks = [x for x in checks if x['id'] != 'argument_coherence']
+    checks.append({'id': 'argument_coherence', 'required': True})
     if contract.get('review_scope', 'substantive') != 'prose_only' and target:
         text = (read_bytes or _read_bytes)(target['path']).decode('utf-8-sig')
         if bibliography.has_sources(text):
@@ -212,6 +251,26 @@ def validate_result(contract, request, result, state, read_bytes=None):
                                       require_clear=bibliography_check['status'] == 'pass')
             except bibliography.ReviewError as exc:
                 raise piw.PIWError(exc.code, str(exc)) from exc
+    coherence_check = by_id.get('argument_coherence')
+    require(bool(coherence_check), 'COHERENCE-REVIEW-MISSING',
+            'Substantive prose review requires the argument_coherence check')
+    require(coherence_check['status'] in ('pass', 'fail'), 'COHERENCE-REVIEW-MISSING',
+            'Argument coherence is judged on the actual bytes; it is never not_applicable '
+            'or unavailable while there is prose to review')
+    candidate_scope, changed_units = coherence_scope(contract, request['target'], state['stage'], read_bytes)
+    try:
+        coherence_summary = coherence.validate(
+            candidate_scope, result.get('coherence_review'), changed_unit_ids=changed_units,
+            require_clear=coherence_check['status'] == 'pass')
+    except coherence.ReviewError as exc:
+        raise piw.PIWError(exc.code, str(exc)) from exc
+    if coherence_check['status'] == 'fail':
+        require(coherence_summary['blocking_finding_ids'], 'COHERENCE-OUTCOME-INVALID',
+                'A failed argument_coherence check must name the blocking coherence findings')
+        require(all(any(f['id'] == finding_id for f in result.get('findings', []))
+                    for finding_id in coherence_summary['blocking_finding_ids']),
+                'COHERENCE-FINDING-UNBOUND',
+                'Blocking coherence findings must also appear in the result findings list')
     findings = result.get('findings')
     require(isinstance(findings, list), 'PIW-FINDINGS-MISSING', 'Return findings or explained no-defect checks')
     require(all(isinstance(f.get('blocking'), bool) and f.get('id') and f.get('locator') and len(f.get('message', '').strip()) >= 15 for f in findings), 'PIW-FINDINGS-MISSING', 'Findings need IDs, locators, reasons and blocking disposition')
@@ -229,6 +288,7 @@ def advance(contract, state, role, result):
         return
     blockers = [x for x in result['findings'] if x['blocking']]
     required = {x['id'] for x in contract['required_checks'] if x.get('required', True)}
+    required.add('argument_coherence')
     if contract.get('review_scope', 'substantive') != 'prose_only':
         required.add('bibliography')
     for check in result['checks']:
@@ -308,6 +368,41 @@ def next_step(session_path):
                    'instruction': 'Perform the real assigned role in a distinct native context. Read role_prompt and skill_bodies from package_root on any host, then actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
         pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
         pending['bibliography_instruction'] = 'Read references/CITATION_DISCIPLINE.md. Substantive cited drafts require a bibliography check and bibliography_review in the result. Use scripts/bibliography_review.py inventory(target_text) to enumerate references, citation uses and non_citations; copy the exact non_citations classifications into the assessment, then inspect all claims in each cited paragraph and supply judgments; inventory output is not approval. Bind sources, actually inspected materials, all source_support use IDs, role, authority, directness, currency, discovery/challenging evidence and dispositions. A supported example cannot clear other uses. New references/claims/roles reopen affected judgments; pure numbering changes may reuse identical coverage. Prose-only work must state bibliography not assessed. Unresolved evidence blocks dependent claims, while independent planning/drafting may continue.'
+        if pending['target']:
+            scope_text, changed_units = coherence_scope(contract, pending['target'], stage)
+            needed, changed_ids, neighbour_ids = coherence.required_units(scope_text, changed_units)
+            pending['coherence_scope'] = {
+                'coverage_denominator': len(coherence_prefilter.units_for(scope_text)),
+                'required_unit_ids': needed, 'changed_unit_ids': changed_ids,
+                'neighbour_unit_ids': neighbour_ids,
+                'units': coherence_prefilter.units_for(scope_text),
+                'baseline': 'original author bytes' if contract.get('input_snapshot') else 'new draft'}
+        else:
+            # First generation of a new draft: no candidate exists yet, so the
+            # coverage denominator is not computable. The obligation still binds
+            # the Evaluator that reads what this Generator writes.
+            pending['coherence_scope'] = {'status': 'not_computable_before_first_candidate'}
+        pending['coherence_instruction'] = (
+            'Read references/ARGUMENT_COHERENCE.md in full and execute its obligation on the '
+            'target bytes. Return coherence_review={candidate_sha256, scope:{covered_unit_ids, '
+            'changed_unit_ids, neighbours_reviewed}, units:[{unit_id, sha256, purpose, '
+            'sentences:[{text, contribution, finding_id}]}], commitment_occurrences, findings, '
+            'out_of_scope_observations, outcome}. candidate_sha256 is the sha256 of the requested '
+            'scope region of the target, and unit ids/hashes come from '
+            '`python scripts/coherence_prefilter.py <target> --json`; that pre-filter reaches no '
+            'verdict and clears nothing. Cover every required unit: the changed units and their '
+            'immediate neighbours, because a sound edit can disconnect an untouched neighbour. '
+            'Determine each paragraph purpose from the actual text, not from a role label. The '
+            'sentence texts you report must partition the unit exactly. Quote only passages that '
+            'occur in the bytes. Do not flag implicit transitions the reader can recover, '
+            'legitimate background, qualifications, counterarguments, connections established '
+            'earlier in the section, or authorial voice, and never impose a paragraph formula or '
+            'mandatory signposting. If explaining a defect or its remedy requires a premise the '
+            'author never stated, report the relationship as unrecoverable instead. Source '
+            'support and argument coherence are separate verdicts: a valid citation does not '
+            'clear irrelevant placement and a coherent bridge does not clear an unsupported '
+            'claim. Defects outside the write scope are findings only; they confer no write '
+            'authority. Outcome is review_complete, changes_required or review_incomplete.')
         path = root / 'logs' / f'{len(log["events"]):03d}-{stage}-request.json'
         piw.write_json(path, pending)
         log['pending'] = piw.identity(path)

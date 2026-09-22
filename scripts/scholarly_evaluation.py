@@ -76,6 +76,12 @@ PROFILE_MINIMUM: dict[str, dict[str, Any]] = {
         },
     },
     "grounding_citation": {"omissions": set(), "floors": {}},
+    # references/ARGUMENT_COHERENCE.md section 8: the governed route's enforcement
+    # point. A profile that omits this check is SET_COVERAGE_INCOMPLETE. Coverage
+    # is mandatory; no finding-code floor is pinned here, because AC-1..AC-5
+    # severity is assigned by SAFEGUARD Check 9 on the reviewed bytes and pinning
+    # codes a project has not yet emitted would be a floor over nothing.
+    "argument_coherence": {"omissions": set(), "floors": {}},
     "d_style": {"omissions": set(), "floors": {}},
     "reader_accessibility": {"omissions": set(), "floors": {}},
     "active_overlays": {"omissions": {"not_applicable"}, "floors": {}},

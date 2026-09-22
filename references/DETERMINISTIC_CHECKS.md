@@ -646,6 +646,69 @@ This block is a **pre-filter**, not a pass/fail check. It nominates passage evid
 
 ---
 
+## 9f. Argument-coherence pre-filter (added 2026-09-21, feeds SAFEGUARD_LAYER Check 9)
+
+This block is a **pre-filter**, not a pass/fail check. It emits two things: the
+**prose-unit inventory** that fixes Check 9's coverage denominator, and a list of
+cheap lexical candidates. It assigns no severity and reaches no verdict.
+`scripts/coherence_prefilter.py` is the implementation; every object it emits
+carries `judgment: "not_performed"`.
+
+```text
+python scripts/coherence_prefilter.py <target>          # the Step 0a stub
+python scripts/coherence_prefilter.py <target> --json   # unit ids, hashes, markers
+```
+
+**Unit inventory (the denominator).** A *prose unit* is a blank-line-separated block
+that is not a heading, fenced block, list, table, or block quote. Each unit gets a
+stable `unit_id`, its first line, its `heading_path`, and the SHA-256 of its exact
+bytes. Check 9 must cover every changed unit **and its immediate neighbours**; the
+neighbour requirement exists because AC-5 (a sound edit disconnecting an untouched
+neighbouring sentence) is unreachable from the changed bytes alone.
+
+| Marker class | Pattern (summary) | What it may indicate |
+|---|---|---|
+| Commitment | `we/I/this paper ... will`, `will show/deliver/evaluate/produce`, `we propose to` | a promise the document owes a method or an evaluation (**AC-4**) |
+| Source status | `prior/previous/existing/earlier work`, `the literature is/remains`, `is largely X-based`, `remains untested/contested` | a remark about the state of the field that may or may not be used (**AC-1**) |
+| Meaning change | `as used here`, `in this paper`, `we now use/treat/define ... to mean`, `earlier we treated/defined`, `by X we mean` | a re-specification of a term already in use (**AC-3**) |
+| Inferential bridge | `therefore`, `thus`, `hence`, `consequently`, `it follows that` | a conclusion whose premises must be adjacent and on the page |
+| Deliverable | `instrument`, `framework`, `toolkit`, `taxonomy`, `protocol`, `method`, `model`, `checklist` | a named artefact the document may not carry downstream (**AC-4**) |
+
+**Emission rule:** every prose unit enters the inventory; a unit with a marker also
+enters the candidate list. **A marker is not a defect and the absence of a marker
+clears nothing.** A source-status remark that *is* used argumentatively matches as
+loudly as one that is not, and a marker-free unit can still contain a sentence that
+answers a different question from its paragraph. Only Check 9 can tell them apart.
+
+**Output stub:**
+
+```
+### Argument-coherence pre-filter (feeds SAFEGUARD Check 9)
+- Prose units in scope (coverage denominator): <n>
+- Units carrying candidate markers: <n>
+- Commitment sentences: <n>
+- Payoff-candidate heading present: <yes/no>
+  - <unit_id>, line <n>: [markers matched]
+- Judgment: not performed here (Check 9 assigns severity).
+```
+
+**Relationship to §9a, §9b, §9d, §9e.** Those pre-filters target connective
+integrity, working-memory load, manuscript-scale consolidation, and register. This
+one targets *argumentative contribution*, which none of them can reach: a sentence
+that is grammatical, on-topic, well-cited, and does no argumentative work matches no
+pattern in any of them. It is the only pre-filter whose primary product is a
+coverage denominator rather than a candidate queue, because the defect it feeds is
+defined by what a unit fails to do, not by what it contains.
+
+**Rationale.** A conversational manuscript edit passed a style-lint pass clean while
+inserting a true, relevant, entirely inert remark between a premise and its
+conclusion. Re-run against the full mechanical layer, the reproduced passage
+returned four passive-voice findings and zero coherence findings, and §9a and §9b
+produced no candidates on it at all
+(`docs/evaluation/argument-coherence-baseline.md`).
+
+---
+
 ## 10. Output format (what Step 0a emits)
 
 After running the checks above, emit this block into the findings report:

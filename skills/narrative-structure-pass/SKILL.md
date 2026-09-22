@@ -88,6 +88,17 @@ After the 10-point check, write a short structural diagnosis (3–5 sentences):
 - **Do not run deterministic checks.** This is a judgment-based structural review.
 - **Do not apply P-stage-specific rules.** If you notice a P-stage mismatch (e.g., P2 vocabulary in a P1 paper), flag it as "out of scope — see `/p-stage-checker`."
 
+## Argument coherence is a narrower question
+
+This pass checks the *document* arc across ten items. It does not check, paragraph by
+paragraph, whether each sentence advances the paragraph it sits in, or whether an
+edit disconnected an untouched neighbour. Item 2 (forward drive) and item 6 (cause
+and effect) are the closest, and both operate at section scale. The paragraph- and
+sentence-scale obligation is `SAFEGUARD_LAYER.md` Check 9 under
+`references/ARGUMENT_COHERENCE.md`, which runs with a coverage denominator rather
+than a ten-item verdict. A PASS on items 2 and 6 is not a coherence result and must
+not be reported as one.
+
 ## P-stage sensitivity
 
 The Sexton checks apply at all P-stages, but with register adjustments:

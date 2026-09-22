@@ -22,7 +22,10 @@ before the lifecycle procedure below. The request binds source/input bytes,
 scope, selected checks, profile and exclusions. Read the named rules in full;
 record hashes and actual applied rules separately. Never activate an explicitly
 excluded Chung overlay through a default fire table or required file read.
-Return substantive role evidence in the requested format. Use the host's real
+Return substantive role evidence in the requested format, including the mandatory
+`argument_coherence` check and its `coherence_review` object; that check is not
+caller-suppressible and is never `not_applicable` or `unavailable` while there is
+prose to review (`references/ARGUMENT_COHERENCE.md`). Use the host's real
 execution identity; never manufacture a receipt for another agent. No milestone
 history, F9, acceptance, scholarly CLEAN or terminal status is created.
 
@@ -247,7 +250,7 @@ Do not mark the section terminal here; the Planner composes the `TerminalSignoff
 
 ### Step 8.5 — Safeguard Layer
 
-Run all eight checks in `SAFEGUARD_LAYER.md` at Ph3 and Ph4 and checks **1, 4, 5, and 8** at Ph1 and Ph2. Reader-accessibility scope and enforcement come from the package profile plus `READER_ACCESSIBILITY.md`; no portfolio-root citation is operational. At Ph1 emit the bounded current-byte draft-governance evaluation envelope.
+Run all nine checks in `SAFEGUARD_LAYER.md` at Ph3 and Ph4 and checks **1, 4, 5, 8, and 9** at Ph1 and Ph2. **Check 9 (Argument Coherence) runs at every rung**: read `references/ARGUMENT_COHERENCE.md` in full, take the coverage denominator from `scripts/coherence_prefilter.py`, and cover every changed prose unit and its immediate neighbours. Report argument coherence and source support as separate verdicts — a valid citation does not clear irrelevant placement, and a coherent bridge does not clear an unsupported claim. A passing coherence check means the obligation ran on these bytes and its findings were dispositioned; it is never a statement that the prose is coherent. Reader-accessibility scope and enforcement come from the package profile plus `READER_ACCESSIBILITY.md`; no portfolio-root citation is operational. At Ph1 emit the bounded current-byte draft-governance evaluation envelope.
 
 **Pay special attention to Check 4 (Contradiction Audit).** This is the highest-leverage check: list every pair of co-invoked theoretical sources and test whether their foundational commitments conflict. If a conflict is unacknowledged in the manuscript, flag as BLOCKER.
 

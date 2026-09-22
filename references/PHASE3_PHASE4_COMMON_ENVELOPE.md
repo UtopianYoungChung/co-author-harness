@@ -4,7 +4,7 @@
 
 **Scope.** Semantics shared across `run-phase-3` (full), `run-phase-3-stability` (reduced), and `run-phase-4`. The Evaluator and Planner read this file once on entry to any Ph3 or Ph4 round instead of re-deriving the shared contract from three separate SKILL files. SKILL-specific gates (MCR admission, G.4 sign-off, S-0 hash-match, `check_profile` dispatch, TerminalSignoffRow/ReengagementSignoffRow) remain in their respective SKILLs and are not duplicated here.
 
-**Grounding basis.** `PHASE_PROTOCOL.md §§3, 3.2.1, 3.3, 3.3.0, 3.3.1, 3.3.1a, 3.3.3, 3.3.4, 5, 7, 8, 9, 14`; `REVIEW_ORCHESTRATION.md §§Steps 0a–8.5`; `SAFEGUARD_LAYER.md` (all eight checks); `DETERMINISTIC_CHECKS.md`; `AGENT_CONTRACTS.md`; `agents/evaluator.md §Step 8.5`; `phase_state_schema.md §§2, 2.1, 3.1, 6.1`; `ARTEFACT_FRONTMATTER_SCHEMA.md §7a`.
+**Grounding basis.** `PHASE_PROTOCOL.md §§3, 3.2.1, 3.3, 3.3.0, 3.3.1, 3.3.1a, 3.3.3, 3.3.4, 5, 7, 8, 9, 14`; `REVIEW_ORCHESTRATION.md §§Steps 0a–8.5`; `SAFEGUARD_LAYER.md` (all nine checks); `DETERMINISTIC_CHECKS.md`; `AGENT_CONTRACTS.md`; `agents/evaluator.md §Step 8.5`; `phase_state_schema.md §§2, 2.1, 3.1, 6.1`; `ARTEFACT_FRONTMATTER_SCHEMA.md §7a`.
 
 ---
 
@@ -19,7 +19,7 @@ The Evaluator dispatch at Ph3 (full) and Ph4 follows `REVIEW_ORCHESTRATION.md`:
 | 0b | External-verifier probes | `EXTERNAL_VERIFIERS.md`; optional at Ph3, **required** at Ph4 |
 | 1--7 | Judgment pass on section body | `REVIEW_ORCHESTRATION.md` Steps 1--7 |
 | 8 | Consolidated findings synthesis | `REVIEW_ORCHESTRATION.md` Step 8 |
-| 8.5 | SAFEGUARD layer audit (all eight checks) | `SAFEGUARD_LAYER.md`; `agents/evaluator.md §Step 8.5` |
+| 8.5 | SAFEGUARD layer audit (all nine checks) | `SAFEGUARD_LAYER.md`; `agents/evaluator.md §Step 8.5` |
 
 **Stability sub-mode reduction.** Under `run-phase-3-stability`, Steps 1--7, 0.2, 0b, and SAFEGUARD checks 1/4/5/7 are skipped; only the grounding audit and Check 8 deterministic counters execute (`run-phase-3-stability` §3).
 
@@ -27,7 +27,7 @@ The Evaluator dispatch at Ph3 (full) and Ph4 follows `REVIEW_ORCHESTRATION.md`:
 
 ## 2. SAFEGUARD layer invocation
 
-All eight checks run at Ph3 (full) and Ph4 (`SAFEGUARD_LAYER.md`). At Ph3 stability, only the Check 8 deterministic pre-filter executes (`DETERMINISTIC_CHECKS.md §9b`).
+All nine checks run at Ph3 (full) and Ph4 (`SAFEGUARD_LAYER.md`); Check 9 also runs at Ph1 and Ph2. At Ph3 stability, only the Check 8 deterministic pre-filter executes (`DETERMINISTIC_CHECKS.md §9b`).
 
 **Check 8 aggregation rule.** A Check 8 BLOCKER blocks the TerminalSignoffRow write at Ph3 (`PHASE_PROTOCOL.md §3.3.3`) and blocks G.4 sign-off at Ph4. The Planner refuses the write with `E-Ph3-ACCESSIBILITY-BLOCKER-AT-SIGNOFF` (`phase_state_schema.md §6.1`). Refused writes do not consume iteration budget.
 

@@ -359,7 +359,7 @@ Everywhere else, trust the manual and the component files. They are the condense
 | `PARALLEL_CONDUCTOR.md` | Multi-project concurrency, conductor ledger, session handoff. |
 | `PROJECT_BOOTSTRAP.md` | Starting a new project; directory template. |
 | `GROUNDING_PROTOCOL.md` | No-hallucination rules including Rule 7a external verification. |
-| `SAFEGUARD_LAYER.md` | Post-review integrity: eight checks including contradictions, drift, inter-sentential logical connectives (Check 7), and reader-experience / prose architecture (Check 8, convergence-gating at T3 per `TIER_PROTOCOL.md §3.3.3`). |
+| `SAFEGUARD_LAYER.md` | Post-review integrity: nine checks including contradictions, drift, inter-sentential logical connectives (Check 7), reader-experience / prose architecture (Check 8, convergence-gating at T3 per `TIER_PROTOCOL.md §3.3.3`), and argument coherence (Check 9, blocking on the `project_independent` route). |
 | `DETERMINISTIC_CHECKS.md` | Mechanical grep/count rules. |
 | `DRIFT_CHECK.md` | MASTER/component drift gate; Reflector Phase 2.6. |
 | `REFLEXIVITY_CHECK.md` | Authorship substitution-vs-augmentation; Reflector Phase 2.7. |

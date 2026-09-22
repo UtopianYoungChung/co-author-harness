@@ -78,7 +78,9 @@ certify the prose or impersonate an Evaluator/Reflector.
 ### evaluator
 
 A separate native child diagnoses existing text before any revision plan, with
-locators, reasons and bounded remedies. After each generation it reads and reviews
+locators, reasons and bounded remedies. Every diagnosis, review and reflection
+executes the argument-coherence obligation in `ARGUMENT_COHERENCE.md` and returns
+the `argument_coherence` check with its `coherence_review` object. After each generation it reads and reviews
 the exact candidate bytes against the request, plan and applicable rules. Verify
 scope preservation and exclusions. Report actual checks, findings and limitations;
 an empty findings list is valid only with substantive successful checks. The
@@ -185,6 +187,22 @@ match the bound excerpts; quotations must occur in those excerpts and claims in
 the reviewed target. The native Evaluator/Reflector judges actual support and
 qualifications; substring validation establishes provenance, not entailment.
 Contested, unsupported or unavailable passages cannot clear the check.
+Every substantive prose target also carries the automatic `argument_coherence`
+check. It is added by the coordinator, is not removable by a narrower
+`required_checks` list, a `prose_only` review scope, or an exclusion, and is never
+`not_applicable` or `unavailable` while there is prose to review. Evaluator and
+Reflector results must carry a `coherence_review` bound to the exact reviewed
+bytes: `candidate_sha256`, the covered prose units with their hashes and a purpose
+determined from the text, an exact sentence partition of each covered unit with a
+contribution disposition per sentence, the affected occurrences of any research
+commitment in a changed unit, findings quoting only passages that occur in the
+candidate, and an outcome. Required coverage is every changed unit **and its
+immediate neighbours**, measured against the author's original bytes rather than
+the previous correction; when nothing changed, the whole requested scope is
+required, because a no-change run still owes a review explaining why the unchanged
+bytes satisfy the request. Mechanical validation establishes evidence integrity and
+coverage only; a passing check never reports that the prose is coherent. Argument
+coherence and source support are separate verdicts, and neither clears the other.
 Substantive review of a manuscript containing citations or a bibliography also
 requires the automatic `bibliography` check and a complete `bibliography_review`
 object in both Evaluator and Reflector results, following
