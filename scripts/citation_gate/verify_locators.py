@@ -101,7 +101,11 @@ FOLIO_LABEL_RE = re.compile(
     r"rules?|footnotes?|versions?|editions?|eds?|weeks?|days?|phases?|levels?|rounds?)"
     r"\.?\s*(?:nos?\.?\s*)?$", re.I)
 EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
-EDGE_CHARS = 70          # of the flattened page, at each end: its running head and its footer
+# Wide enough to hold a running foot with the folio in it. At 70 the folio of a journal
+# that prints "1673 ... pp. 1672-1694, (c) 2023 INFORMS" or a Scientific Reports DOI line
+# falls outside the window and the page states no number at all; measured over every live
+# source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
+EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
 
 
@@ -372,7 +376,12 @@ BIB_HEADING_RE = re.compile(r"^#{1,6}\s+(?:Bibliography|References|Works Cited)\
 NARRATIVE_AUTHOR_RE = re.compile(
     r"([A-Z][A-Za-z\u00c0-\u017f'\u2019\-]+"
     r"(?:\s+(?:et\s+al\.?|and|&)\s+[A-Z][A-Za-z\u00c0-\u017f'\u2019\-]+)*)"
-    r"(?:\s+et\s+al\.?)?\s*$")
+    # An author cited in the possessive is still the author. Without this, "Ratto et al.'s
+    # (2026, pp. 3-6)" matched nothing and the citation was reported as naming no source,
+    # which reads as the author's error rather than the tool's (2026-09-21, three live
+    # citations of the re-gated manuscript).
+    r"(?:\s+et\s+al\.?)?(?:['\u2019]s)?\s*$")
+POSSESSIVE_RE = re.compile(r"['\u2019]s$")
 # A citation's own attribution is not a claim element. This is a named, closed list, not a
 # length threshold: everything that is not the cited author or a reporting verb is reported.
 REPORTING_VERBS = frozenset("""show shows showed state states stated argue argues argued note
@@ -396,7 +405,11 @@ ATTRIBUTION_TAIL_RE = re.compile(
 def narrative_attribution(text_before):
     """(author name, where it starts in text_before) for a narrative citation, else (None, None)."""
     m = NARRATIVE_AUTHOR_RE.search((text_before or "").rstrip())
-    return (m.group(1), m.start(1)) if m else (None, None)
+    if not m:
+        return (None, None)
+    # "Yu's" is matched whole by the name pattern, so the possessive comes off here rather
+    # than in the pattern; the offset is the name's either way.
+    return POSSESSIVE_RE.sub("", m.group(1)), m.start(1)
 
 
 def narrative_author(text_before):

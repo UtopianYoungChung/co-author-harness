@@ -472,6 +472,41 @@ def main() -> int:
     case("a quote on the second render page still binds", problems, [])
     case("and its render page is named", render, 2)
 
+    # --- repair z1: a folio in a long running foot is still the page's --------------------
+    # Anthony et al. 2023 prints "pp. 1672-1694, (c) 2023 INFORMS" and Rani et al. 2025 a
+    # Scientific Reports DOI line; at 70 characters the folio of each falls outside the
+    # window and the page reads as stating no number (2026-09-21, re-gating the manuscript).
+    foot = ("13 | https://doi.org/10.1038/s41598-025-90916-1 "
+            "www.nature.com/scientificreports/")
+    long_page = "Body text that runs on and on. " * 4 + chr(10) + foot
+    case("a folio behind a long footer is read", 13 in vl.edge_numbers(long_page), True)
+    case("a number in the middle of the body still is not",
+         vl.edge_numbers("Body. " * 40 + "fully 47 of them " + "Body. " * 40), [])
+    # and the label rule still holds at the wider width
+    case("a labelled number is still not a folio",
+         vl.edge_numbers("Section 12 " + "Body text that runs on. " * 3), [])
+
+    # --- repair z2: an author cited in the possessive is still the author ------------------
+    # "Ratto et al.'s (2026, pp. 3-6)" matched nothing, so the citation was reported as
+    # naming no source -- the author's error, apparently, rather than the tool's.
+    for label, text, want in [
+            ("et al. possessive", "Drawing on Ratto et al.\u2019s ", "Ratto"),
+            ("straight apostrophe", "Drawing on Ratto et al.'s ", "Ratto"),
+            ("single-author possessive", "Yu\u2019s ", "Yu"),
+            ("two authors, possessive", "Yu and Lapouchnian\u2019s ", "Yu and Lapouchnian"),
+            ("no possessive is unchanged", "Drawing on Ratto et al. ", "Ratto"),
+            ("a plain name is unchanged", "The models follow Yu ", "Yu")]:
+        case(f"narrative author: {label}", vl.narrative_attribution(text)[0], want)
+    # a name that merely ends in s keeps its s
+    case("a name ending in s is not a possessive",
+         vl.narrative_attribution("As Jones ")[0], "Jones")
+    # and the citation resolves to its source
+    cfg = {"sources": {"ratto2026": {"cite": {"author": "Ratto", "year": 2026}}}}
+    name = vl.narrative_attribution("Drawing on Ratto et al.\u2019s ")[0]
+    case("and a possessive citation resolves",
+         vl.citation_targets("(2026, pp. 3-6)", cfg, name)[0],
+         [("ratto2026", frozenset({3, 4, 5, 6}))])
+
     # --- no source file may contain a control character where an escape was meant ----------
     # A Git Bash heredoc rewrites \b inside a Python string literal as a literal backspace.
     # The damage is invisible: sed, inspect.getsource and ast all render it as nothing, and
