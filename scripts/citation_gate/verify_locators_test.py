@@ -362,6 +362,70 @@ def main() -> int:
          vl.offset_confirmed([f"Body text. page {i+1} of 6. More body." for i in range(6)], 0)[0],
          True)
 
+    # --- F9-01/F9-02/F9-04: confirmation must establish that the numbers are the pages' ----
+    nl_ = chr(10)
+    body = "Body text of the page."
+    run = lambda head, ns: [f"{head} {n}{nl_}{body}{nl_}" for n in ns]
+
+    # F9-01: the contradiction used to be found by comparing a letter-soup context against a
+    # nine-character floor, so a one-letter running head made the contrary number vanish while
+    # the confirmation stood.
+    case("a long running head confirms its own numbering",
+         vl.offset_confirmed(run("Journal of Tests", (1, 2, 3, 4)), 0)[0], True)
+    case("and a one-letter one does too",
+         vl.offset_confirmed(run("J", (1, 2, 3, 4)), 0)[0], True)
+    case("a page printing another number under a long head is refuted",
+         bool(vl.page_contradicts(run("Journal of Tests", (1, 2, 3, 99)), 0, 3)), True)
+    case("and under a one-letter head just the same",
+         bool(vl.page_contradicts(run("J", (1, 2, 3, 99)), 0, 3)), True)
+
+    # F9-02: a sequence that survives the arithmetic in no consistent place is not a pagination
+    case("a labelled sequence does not confirm an offset",
+         vl.offset_confirmed(run("Experiment", (11, 12, 13)), 10)[0], False)
+    case("and varying labels are not a running head",
+         vl.offset_confirmed(["Experiment 11" + nl_ + body, "Trial 12" + nl_ + body,
+                              "Study 13" + nl_ + body], 10)[0], False)
+
+    # F9-04: the page saying which page it is outranks anything else printed on it
+    for label, extra in (("alone", ""), ("beside a copyright year", "Copyright 2024" + nl_),
+                         ("beside a DOI", "doi:10.8888/9" + nl_),
+                         ("beside a labelled number", "Experiment 11" + nl_)):
+        case(f"an explicit page-of-total confirms {label}",
+             vl.offset_confirmed([f"Page 1 of 1{nl_}{extra}{body}{nl_}"], 0)[0], True)
+
+    # jergas prints "2/20" in its running foot and nothing else about its pages
+    case("N/M in a running foot is the page stating its number",
+         vl.offset_confirmed([f"{body}{nl_}Journal, DOI 10.1/x{nl_}{n}/3{nl_}"
+                              for n in (1, 2, 3)], 0)[0], True)
+    # The guard is on the denominator: disagreeing totals are not a page-of-total statement,
+    # so those pages are read as ordinary edge numbers rather than as the page speaking.
+    case("a total is read only when the pages agree on one",
+         vl.stated_total([f"{body}{nl_}J{nl_}{n}/3{nl_}" for n in (1, 2, 3)]), 3)
+    case("and disagreeing totals are no statement at all",
+         vl.stated_total([f"{body}{nl_}J{nl_}1/3{nl_}", f"{body}{nl_}J{nl_}2/7{nl_}",
+                          f"{body}{nl_}J{nl_}3/9{nl_}"]), None)
+
+    # a folio may open the running foot, owned by nothing at all
+    foot = "Journal of Synthetic Data, published by the imaginary review institute."
+    case("a folio opening the running foot confirms",
+         vl.offset_confirmed([f"{body}{nl_}{body}{nl_}{n} {foot}" for n in (1, 2, 3)], 0)[0],
+         True)
+
+    # a bare number in the zone must not silence the folio printed beside it
+    tabled = [f"{body}{nl_}{body}{nl_}Journal of Tests {n}" for n in (1, 2)]
+    tabled.append(f"{body}{nl_}{body}{nl_}99{nl_}{body}{nl_}Journal of Tests 3")
+    case("a table cell does not displace the folio on its own page",
+         vl.offset_confirmed(tabled, 0)[0], True)
+    case("and does not refute the citation to that page",
+         vl.page_contradicts(tabled, 0, 2), None)
+
+    # but a labelled number of equal standing does make a page doubtful
+    one = f"Title{nl_}Tester 2026{nl_}{body}{nl_}Journal of Tests 1"
+    case("one weak number confirms a one-page source",
+         vl.offset_confirmed([one], 0, 2026)[0], True)
+    case("two of equal standing do not",
+         vl.offset_confirmed([f"Experiment 11{nl_}{one}"], 0, 2026)[0], False)
+
     # --- repair v1: loose evidence may confirm a pagination, only strict may refute it -----
     # A number in the edge window was folio evidence, so the headings "Section 11/12/13" on a
     # source printing 1, 2, 3 confirmed a declared offset of +10 and the tool announced it
@@ -405,6 +469,67 @@ def main() -> int:
               f"{long_body}{nl}207{nl}"]
     case("both tools read a page's edge identically",
          [vs.edge_numbers(t) for t in probes], [vl.edge_numbers(t) for t in probes])
+
+    # The case above passed through four repairs while the twins drifted, because it compares
+    # the PRIMITIVE and every divergence was in the decisions built on it (F9-05). The rule
+    # now lives in one delimited region, copied rather than re-written, and parity is asserted
+    # over the region, over the decision, and over the text the decision reads.
+    def shared_region(path):
+        t = Path(path).read_text(encoding="utf-8")
+        o = t.index("# --- shared with the sibling tool")
+        c = t.index("# --- end shared region")
+        return t[o:c]
+
+    case("the shared folio region is byte-identical in both tools",
+         shared_region(HERE / "verify_locators.py") == shared_region(HERE / "validate_sources.py"),
+         True)
+    for name, const in (("MIN_FOLIO_PAGES", "MIN_FOLIO_PAGES"), ("FOLIO_AGREEMENT", "FOLIO_AGREEMENT"),
+                        ("EDGE_CHARS", "EDGE_CHARS"), ("FOLIO_ZONE_LINES", "FOLIO_ZONE_LINES")):
+        case(f"both tools use the same {name}", getattr(vs, const), getattr(vl, const))
+
+    # one-, two- and many-page sources, positive and ambiguous, as the reviewer asked
+    decisions = [
+        ("many pages, bare folios", [f"Body.{nl}{i}{nl}" for i in (1, 2, 3, 4)], 0, None),
+        ("many pages, running head", [f"Journal of Tests {i}{nl}Body.{nl}" for i in (1, 2, 3)], 0, None),
+        ("many pages, contradicted", [f"Journal of Tests {i}{nl}Body.{nl}" for i in (1, 2, 3, 99)], 0, None),
+        ("many pages, wrong offset", [f"Body.{nl}{i}{nl}" for i in (1, 2, 3)], 10, None),
+        ("labelled sequence", [f"Experiment {i}{nl}Body.{nl}" for i in (11, 12, 13)], 10, None),
+        ("N/M running foot", [f"Body.{nl}J, DOI{nl}{i}/3{nl}" for i in (1, 2, 3)], 0, None),
+        ("two pages, bare folios", [f"Body.{nl}{i}{nl}" for i in (1, 2)], 0, None),
+        ("two pages with a constant year", [f"Copyright 2024{nl}Body.{nl}{i}{nl}" for i in (1, 2)], 0, 2024),
+        ("one page, explicit", [f"Page 1 of 1{nl}Body.{nl}"], 0, None),
+        ("one page, explicit beside a year", [f"Page 1 of 1{nl}Copyright 2024{nl}Body.{nl}"], 0, 2024),
+        ("one page, two weak numbers", [f"Experiment 11{nl}Body.{nl}Journal of Tests 1"], 0, None),
+        ("no numbers anywhere", [f"Body text only.{nl}"] * 4, 0, None),
+    ]
+    case("both tools decide a page convention identically",
+         [vs.offset_confirmed(pp, off, yr) for _, pp, off, yr in decisions],
+         [vl.offset_confirmed(pp, off, yr) for _, pp, off, yr in decisions])
+    case("and place a folio in the same place",
+         [vs.folio_place(vs.folio_evidence(pp, yr), off) for _, pp, off, yr in decisions],
+         [vl.folio_place(vl.folio_evidence(pp, yr), off) for _, pp, off, yr in decisions])
+
+    # Identical code still disagreed, because the validator flattened every page before
+    # reading it and a folio is found in the line structure. Both extractors, same bytes.
+    try:
+        import fitz
+        d = fitz.open()
+        for i, line in enumerate(("Journal of Tests", "Body text of the page.")):
+            pg = d.new_page()
+            pg.insert_text((72, 72), line)
+            pg.insert_text((72, 700), str(i + 1))
+        blob = d.tobytes()
+        d.close()
+        tmp = HERE / "_parity_probe.pdf"
+        tmp.write_bytes(blob)
+        try:
+            case("both tools read the same text from the same bytes",
+                 vs.folio_pages(str(tmp)), vl.pages_of(str(tmp))["raw"])
+        finally:
+            tmp.unlink(missing_ok=True)
+            (HERE / "_parity_probe.pages.json").unlink(missing_ok=True)
+    except ImportError:
+        print("  SKIP extractor parity: pymupdf not installed")
 
     # --- repair w1: a title is matched as written (finding F6-03) --------------------------
     # "without" and "with" are both function words, so neither survived term derivation and
