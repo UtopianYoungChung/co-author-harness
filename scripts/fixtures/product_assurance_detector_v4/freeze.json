@@ -1,15 +1,15 @@
 {
   "schema_version": "1.0.0",
-  "freeze_id": "product-assurance-detector-v4-held-out-freeze-2026-07-27",
-  "frozen_at": "2026-07-27T00:00:00Z",
+  "freeze_id": "product-assurance-detector-v4-held-out-freeze-2026-09-22",
+  "frozen_at": "2026-09-22T00:00:00Z",
   "candidate_only": true,
   "judgment_truth_certified": false,
   "detector": {
     "name": "product-assurance-semantic-candidates",
     "version": "3.0.0",
     "path": "scripts/product_assurance.py",
-    "sha256": "70cf23995ad509e9f8b125cbf389dcd9888c4668acd4623a836d9591afe4847c",
-    "byte_length": 34956
+    "sha256": "25745b7e8889bae4c0f646eb31af8631350889aa278c52c69d3737646fe38a96",
+    "byte_length": 36841
   },
   "splits": {
     "development": {
@@ -27,5 +27,5 @@
       "tuning_use": "prohibited"
     }
   },
-  "held_out_freeze_sha256": "894e5236df4894201a0464532332d7ae3be976bd2b31e56b32a41905c9535ecc"
+  "held_out_freeze_sha256": "20e0e5b98e65e89666fc58a928622a5afda999ec4883b056b295b51bacfc5c78"
 }

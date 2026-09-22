@@ -24,8 +24,8 @@ COMMON_SCHEMA_PATH = ROOT / "references/schemas/common_scholarly_primitives.sche
 PRE_CORPUS_SCHEMA_SHA256 = "e22b7ae404208a405cd1b9cb26fb60209a8bb5eb3d6dce03f0ade9365bd9c32d"
 PRE_SCORE_SCHEMA_SHA256 = "813d0ef554b4ad8da34b030ce03c34114cadadc65464bf18bc50859fde4b50d5"
 PRE_SCORE_OUTPUTS = {
-    "development": {"sha256": "6b1899888c3fa04e4b8a73708e6c84979aefda2f88983fd4d7b53d676d4ccfa8", "byte_length": 11773},
-    "held_out": {"sha256": "669f0787a17b5004de6d27d74ee5ecdccfa1a56fe6ea50a8f3e327c254479d4d", "byte_length": 11788},
+    "development": {"sha256": "f909d8a8369491fb84293e000a5a2a4dc5b55d8f43aa4112680c774cacc05ba3", "byte_length": 11773},
+    "held_out": {"sha256": "c463e3a6a2baaaa589612dd5e2e953d25df14026cd6a4d315f505c77ad92264f", "byte_length": 11788},
 }
 
 
