@@ -107,6 +107,7 @@ EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 # source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
 EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
+FOLIO_ZONE_LINES = 3     # the running head and foot: where a page prints its own number
 
 
 def edge_numbers(raw_text):
@@ -135,57 +136,96 @@ def printed_folios(raw_pages):
     and without the uniqueness guard holldack2026's bare "5", printed on both p.6 and p.8,
     refuses five more. A folio is unique to its page; a number repeated across pages is a
     label (2026-09-21 review, F6-02).
+
+    Only the running head and foot are read. This rule used to scan every line, so a body
+    table cell -- a standalone "99" under "Sample count" -- refused a correct p.3 citation as
+    a contradicted locator (2026-09-21 review, F7-05). The confirming rule reads a page's
+    edges; a rule that may overrule it cannot read more of the page than it does.
     """
     per, seen = [], {}
     for text in raw_pages or []:
         page = set()
-        for line in (text or "").splitlines():
-            m = BARE_FOLIO_RE.match(line.strip())
+        lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
+        for line in lines[:FOLIO_ZONE_LINES] + lines[-FOLIO_ZONE_LINES:]:
+            m = BARE_FOLIO_RE.match(line)
             if m:
                 page.add(int(m.group(1)))
         for n in page:
             seen[n] = seen.get(n, 0) + 1
         per.append(page)
     return [{n for n in page if seen[n] == 1} for page in per]
+def folio_evidence(raw_pages):
+    """Per page, the numbers the page itself states: its edge numbers and any "page N of M"."""
+    per = []
+    for text in raw_pages or []:
+        flat = re.sub(r"\s+", " ", text or "")
+        nums = set(edge_numbers(text))
+        m = re.search(r"\bpage (\d+) of \d+", flat, re.I)
+        if m:
+            nums.add(int(m.group(1)))
+        per.append(nums)
+    return per
+
+
+def supported_offsets(raw_pages):
+    """(offsets the source's own numbers support, pages that state a number, the floor).
+
+    A source that supports more than one offset has ambiguous pagination: a page states at
+    most one folio, so two arithmetic runs mean the numbers are not all folios and the gate
+    cannot tell which are (2026-09-21 review, F7-03). This replaces arguing about vocabulary;
+    "Experiment 11/12/13" printed over folios 1/2/3 supports +10 and +0 and now confirms
+    neither.
+    """
+    per = folio_evidence(raw_pages)
+    stating = [i for i, nums in enumerate(per) if nums]
+    floor = min(MIN_FOLIO_PAGES, len([t for t in (raw_pages or []) if t.strip()])) or 1
+    out = []
+    for off in sorted({n - (i + 1) for i in stating for n in per[i]}):
+        agree = sum(1 for i in stating if (i + 1 + off) in per[i])
+        # An offset competes only if it reaches the bar confirmation itself has to clear: the
+        # floor AND the agreement share. Dropping the share made allea support 9 offsets and
+        # cfr93 support 63, because a 160-character edge window on a real page holds
+        # citations, years and DOIs, and coincidental agreement on two pages is ordinary.
+        # The max(2, ...) is what a one-page source needs: with a floor of one, every number
+        # on its only page would otherwise support an offset of its own.
+        if agree >= max(2, floor) and agree / len(stating) >= FOLIO_AGREEMENT:
+            out.append((off, agree))
+    return out, stating, floor
 
 
 def offset_confirmed(raw_pages, offset):
-    """(confirmed, agreeing, pages that state a number) for a declared page offset.
+    """(confirmed, agreeing, pages that state a number, why not) for a declared page offset.
 
     Rule 3 item 9c asks which pagination a locator uses. The gate took the answer from the
     checks file and never required it to hold: a source printing 1, 2, 3 with an offset of 10
     declared bound a citation to p. 11 and exited 0 (2026-09-21 sweep, S1).
 
     The evidence is the same the validator's 9c screen uses -- a number in the page's edge
-    window -- deliberately, and not the stricter bare-number-line rule the wiki producer uses
-    to DERIVE a page map. Confirming a declared offset and deriving a mapping need different
-    thresholds: measured across the live sources, the strict rule read no folio at all on four
-    documents whose pagination 9c confirms at 19/20, 14/14 and 14/15, because their folios
-    share a line with a running head. A page showing no number states no folio and is not
-    evidence either way, so it is skipped rather than counted against the offset.
+    window -- deliberately, and not the stricter bare-number-line rule used to REFUTE a
+    declared page. Confirming a declared offset and refuting one need different thresholds:
+    measured across the live sources, the strict rule reads no folio at all on four documents
+    whose pagination 9c confirms at 19/20, 14/14 and 14/15, because their folios share a line
+    with a running head.
     """
-    hit = tot = 0
-    for i, text in enumerate(raw_pages or []):
-        n = i + 1 + offset
-        if n < 1:
-            continue
-        # edge_numbers() collapses whitespace first, so this window holds the same words the
-        # validator's 9c window holds. Without that the two tools read different edges of the
-        # same page and disagree about the same source.
-        flat_text = re.sub(r"\s+", " ", text)
-        run = re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat_text)
-        nums = edge_numbers(text)
-        if not nums and not run:
-            continue                             # states no number: not evidence either way
-        tot += 1
-        hit += bool(n in nums or run)
-    # The floor scales to the document. A fixed three would make every source shorter than
-    # three pages permanently unconfirmable -- a two-page editorial, a one-page letter, and
-    # every small fixture in the review suites, whose positive controls this broke.
-    floor = min(MIN_FOLIO_PAGES, len([t for t in (raw_pages or []) if t.strip()])) or 1
-    if tot < floor:
-        return False, hit, tot
-    return hit / tot >= FOLIO_AGREEMENT, hit, tot
+    supported, stating, floor = supported_offsets(raw_pages)
+    per = folio_evidence(raw_pages)
+    hit = sum(1 for i in stating if (i + 1 + offset) in per[i])
+    if not stating:
+        return False, 0, 0, "no page of it states a readable number"
+    if len(supported) > 1:
+        return (False, hit, len(stating),
+                "its own numbers support " + str(len(supported)) + " different offsets ("
+                + ", ".join(f"{o:+d}" for o, _ in supported[:4]) + "), so which of them is "
+                "the printed pagination cannot be told from the source")
+    if supported and supported[0][0] != offset:
+        return (False, hit, len(stating),
+                f"the pages that state a number agree on an offset of {supported[0][0]:+d}, "
+                f"not {offset:+d}")
+    if hit < floor or hit / len(stating) < FOLIO_AGREEMENT:
+        return (False, hit, len(stating),
+                f"only {hit} of {len(stating)} pages that state a number agree with it, and "
+                f"a confirmed pagination needs {floor}")
+    return True, hit, len(stating), ""
 
 
 WEB_RENDERING = "web_rendering"   # an HTML page printed to PDF: the pages are the printer's
@@ -205,9 +245,10 @@ def web_locator(check, source):
     for i, page in enumerate(source["pages"]):
         doc += page
         page_of += [i] * len(page)
-    at = doc.find(q)
-    if at < 0:
+    hits = [m.start() for m in re.finditer(re.escape(q), doc)]
+    if not hits:
         return ["QUOTE_NOT_FOUND anywhere in source (fabricated or mistyped)"], None
+    at = hits[0]
     render_page = page_of[at] + 1
     section = (check.get("section") or "").strip()
     if not norm(section):
@@ -217,10 +258,19 @@ def web_locator(check, source):
     opens = [m.start() for m in re.finditer(re.escape(norm(section)), doc)]
     if not opens:
         return ([f"SECTION_NOT_FOUND: no section {section!r} in {check['source']}"], render_page)
-    if min(opens) > at:
-        return ([f"SECTION_AFTER_QUOTE: {section!r} opens after the quoted passage, so the "
-                 "quote is not in that section"], render_page)
-    return [], render_page
+    # Any occurrence of the quote that follows any occurrence of the section name. Taking
+    # the first of each refused a sentence that appears in the Abstract and again in the cited
+    # Methods section, on the Abstract copy, while the Methods copy sat there unexamined
+    # (2026-09-21 review, F7-06).
+    #
+    # This is not containment, and does not pretend to be: F7-02 showed the named section need
+    # not hold the quote at all -- a section heading occurring anywhere earlier is enough --
+    # and that finding is open. Anything here that reads like a membership test is wrong.
+    after = [h for h in hits if min(opens) <= h]
+    if not after:
+        return ([f"SECTION_AFTER_QUOTE: every occurrence of the quoted passage precedes "
+                 f"{section!r}, so the quote is not in that section"], render_page)
+    return [], page_of[after[0]] + 1
 
 
 def term_ok(term, text):            # "a|b" = alternatives
@@ -421,7 +471,6 @@ BIB_ENTRY_RE = re.compile(r"^\s*[\[(]?(\d{1,3})[\]).]\s+(.+)$")
 
 
 TITLE_TOKEN_RE = re.compile(r"[a-z0-9]+")
-TITLE_PART_RE = re.compile(r"[:;\u2013\u2014]")
 
 
 def title_tokens(text):
@@ -431,23 +480,30 @@ def title_tokens(text):
 
 
 def title_parts_absent(title, entry):
-    """Parts of the declared title that the entry does not contain, word for word, in order.
+    """[] if the entry contains the declared title as one contiguous run of words, else what
+    is missing.
 
     Every word counts, including the function words a term derivation drops: "without" is
     what distinguishes the work from the one the entry names. Whole words only, so "stable"
-    is not found inside "unstable". Colons and dashes separate parts so an entry that gives
-    the main title and the subtitle differently still matches each of them; an entry that
-    drops a declared subtitle is reported, because a main title alone identifies no work.
+    is not found inside "unstable". Punctuation is dropped rather than parsed, so an entry
+    that writes a subtitle after a dash matches one declared after a colon.
+
+    The title used to be split at its colons, with each part asked to occur SOMEWHERE in the
+    entry. That cleared a reversed title, and cleared one whose required subtitle came from
+    the journal name (2026-09-21 review, F7-04). A title is a sequence, so it is matched as
+    one. An entry that drops a declared subtitle is still reported: a main title alone
+    identifies no work.
     """
+    want = title_tokens(title)
+    if not want:
+        return []
     have = title_tokens(entry)
-    absent = []
-    for part in TITLE_PART_RE.split(title or ""):
-        want = title_tokens(part)
-        if not want:
-            continue
-        if not any(have[i:i + len(want)] == want for i in range(len(have) - len(want) + 1)):
-            absent.append(" ".join(want))
-    return absent
+    if any(have[i:i + len(want)] == want for i in range(len(have) - len(want) + 1)):
+        return []
+    # Name the words the entry does not carry at all; if it carries them all, the fault is
+    # their order or their placement, and the report says so instead of listing nothing.
+    absent = [w for w in dict.fromkeys(want) if w not in have]
+    return absent or [" ".join(want) + " (not in this order, or not as the entry's title)"]
 
 
 def numbered_bibliography(doc_text):
@@ -898,10 +954,11 @@ def _main():
         read = pages_of(v["pdf"])
         web = v.get("version") == WEB_RENDERING
         # Nothing to confirm or refute: the pages of a printed web page are the printer's.
-        ok, agree, readable = ((True, 0, 0) if web
-                               else offset_confirmed(read["raw"], v.get("offset", 0)))
+        ok, agree, readable, why_not = ((True, 0, 0, "") if web
+                                        else offset_confirmed(read["raw"], v.get("offset", 0)))
         src[k] = dict(v, pages=read["pages"], raw=read["raw"], web_rendering=web,
                       offset_confirmed=ok, folio_agreement=(agree, readable),
+                      offset_why_not=why_not,
                       folios=[] if web else printed_folios(read["raw"]))
     fails, best = [], {}
     where_bound = {}                             # checks whose locator is not a printed page
@@ -914,9 +971,7 @@ def _main():
         if s.get("web_rendering"):
             pass                                 # no printed pagination to confirm or refute
         elif not s.get("offset_confirmed", True):
-            agree, readable = s.get("folio_agreement", (0, 0))
-            why = (f"only {agree} of {readable} pages that print a number agree with it"
-                   if readable else "no page of it prints a readable number")
+            why = s.get("offset_why_not") or "the source states no readable number"
             problems.append(
                 f"PAGE_CONVENTION_UNCONFIRMED: the declared offset {s.get('offset', 0):+d} "
                 f"for {c['source']} cannot be confirmed against the source's own printed "

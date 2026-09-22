@@ -412,7 +412,7 @@ def main() -> int:
     case("a relation word distinguishes the work",
          vl.title_parts_absent("Resource Sharing Without Authority",
                                "[2] Tester. (2026). Resource Sharing With Authority."),
-         ["resource sharing without authority"])
+         ["without"])
     case("a title word is matched whole",
          bool(vl.title_parts_absent("Resource Sharing in Stable Networks",
                                     "[2] Tester. (2026). Resource Sharing in Unstable Networks.")),
@@ -427,7 +427,27 @@ def main() -> int:
     case("a dropped subtitle is reported",
          vl.title_parts_absent("Resource Sharing: A Study of Networks",
                                "[2] Tester. (2026). Resource Sharing. J. Test."),
-         ["a study of networks"])
+         ["a", "study", "of", "networks"])
+
+    # --- F7-04: a title is a sequence, and the entry's own title at that ------------------
+    # Splitting at colons and asking each part to occur somewhere cleared a reversed title,
+    # and cleared one whose required subtitle came from the journal name.
+    case("a reversed title is not the same work",
+         bool(vl.title_parts_absent("Authority: Resource Sharing",
+                                    "[2] T. (2026). Resource Sharing: Authority. J. Test.")),
+         True)
+    case("and the finding says the order is wrong",
+         "not in this order" in vl.title_parts_absent(
+             "Authority: Resource Sharing",
+             "[2] T. (2026). Resource Sharing: Authority. J. Test.")[0], True)
+    case("a subtitle supplied by the journal name is refused",
+         bool(vl.title_parts_absent(
+             "Authority: Resource Sharing",
+             "[2] T. (2026). Authority: Market Competition. Journal of Resource Sharing.")),
+         True)
+    case("the entry's own title, punctuated differently, is accepted",
+         vl.title_parts_absent("Resource Sharing: A Study of Networks",
+                               "[2] T. Resource Sharing - A Study of Networks. J."), [])
     case("an ampersand reads as 'and'",
          vl.title_parts_absent("Trust & Authority", "[2] Tester. Trust and Authority."), [])
 
@@ -506,6 +526,43 @@ def main() -> int:
     case("and a possessive citation resolves",
          vl.citation_targets("(2026, pp. 3-6)", cfg, name)[0],
          [("ratto2026", frozenset({3, 4, 5, 6}))])
+
+    # --- F7-05: a rule that may overrule a locator may not read more of the page than the
+    # rule it overrules. printed_folios scanned every line, so a body table cell -- a
+    # standalone "99" under "Sample count" -- refused a correct p.3 citation.
+    nl = chr(10)
+    edge_pages = [nl.join(["Body.", "Body.", "Body.", "Body.", str(i + 1)]) for i in range(2)]
+    table_page = nl.join(["Body line of real prose."] * 6 + ["Sample count", "99"]
+                         + ["More body prose."] * 6 + ["3"])
+    case("a body table value is not the page's folio",
+         vl.printed_folios(edge_pages + [table_page])[2], {3})
+    case("a number in the running foot still is",
+         vl.printed_folios(edge_pages + [nl.join(["Body."] * 4 + ["99"])])[2], {99})
+    case("and one in the running head still is",
+         vl.printed_folios(edge_pages + [nl.join(["99"] + ["Body."] * 4)])[2], {99})
+    # the refutation these controls must not disarm (F6-02)
+    case("a contradicted cited page is still refuted",
+         vl.printed_folios([nl.join(["Body.", "1"]), nl.join(["Body.", "2"]),
+                            nl.join(["Body.", "99"])])[2], {99})
+
+    # --- F7-06: a quotation that occurs twice binds on the occurrence in the cited section --
+    twice = {"pages": [vl.norm("Abstract Participants share resources within stable networks. "
+                               "Methods Participants share resources within stable networks. "
+                               "Results other text.")],
+             "web_rendering": True}
+    web_case = {"source": "src", "page": 1,
+             "quote": "Participants share resources within stable networks",
+             "section": "Methods"}
+    case("a repeated quotation binds in its cited section",
+         vl.web_locator(web_case, twice)[0], [])
+    once = {"pages": [vl.norm("Abstract Participants share resources within stable networks. "
+                              "Methods other prose. Conclusions later text.")],
+            "web_rendering": True}
+    problems, _ = vl.web_locator(dict(web_case, section="Conclusions"), once)
+    case("a section after every occurrence is still refused",
+         bool(problems) and problems[0].startswith("SECTION_AFTER_QUOTE"), True)
+    case("and the finding says every occurrence precedes it",
+         bool(problems) and "every occurrence" in problems[0], True)
 
     # --- no source file may contain a control character where an escape was meant ----------
     # A Git Bash heredoc rewrites \b inside a Python string literal as a literal backspace.

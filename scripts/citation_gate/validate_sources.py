@@ -59,6 +59,8 @@ EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 # that prints "1673 ... pp. 1672-1694, (c) 2023 INFORMS" or a Scientific Reports DOI line
 # falls outside the window and the page states no number at all; measured over every live
 # source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
+MIN_FOLIO_PAGES = 3      # pages that must AGREE before an offset can be confirmed, and
+FOLIO_AGREEMENT = 0.6    # the share of the pages stating a number that must agree with it
 EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
 
@@ -77,6 +79,81 @@ def edge_numbers(raw_text):
             continue                             # that label's number, not the page's
         out.append(int(m.group(1)))
     return out
+
+
+
+def folio_evidence(raw_pages):
+    """Per page, the numbers the page itself states: its edge numbers and any "page N of M"."""
+    per = []
+    for text in raw_pages or []:
+        flat = re.sub(r"\s+", " ", text or "")
+        nums = set(edge_numbers(text))
+        m = re.search(r"\bpage (\d+) of \d+", flat, re.I)
+        if m:
+            nums.add(int(m.group(1)))
+        per.append(nums)
+    return per
+
+
+def supported_offsets(raw_pages):
+    """(offsets the source's own numbers support, pages that state a number, the floor).
+
+    A source that supports more than one offset has ambiguous pagination: a page states at
+    most one folio, so two arithmetic runs mean the numbers are not all folios and the gate
+    cannot tell which are (2026-09-21 review, F7-03). This replaces arguing about vocabulary;
+    "Experiment 11/12/13" printed over folios 1/2/3 supports +10 and +0 and now confirms
+    neither.
+    """
+    per = folio_evidence(raw_pages)
+    stating = [i for i, nums in enumerate(per) if nums]
+    floor = min(MIN_FOLIO_PAGES, len([t for t in (raw_pages or []) if t.strip()])) or 1
+    out = []
+    for off in sorted({n - (i + 1) for i in stating for n in per[i]}):
+        agree = sum(1 for i in stating if (i + 1 + off) in per[i])
+        # An offset competes only if it reaches the bar confirmation itself has to clear: the
+        # floor AND the agreement share. Dropping the share made allea support 9 offsets and
+        # cfr93 support 63, because a 160-character edge window on a real page holds
+        # citations, years and DOIs, and coincidental agreement on two pages is ordinary.
+        # The max(2, ...) is what a one-page source needs: with a floor of one, every number
+        # on its only page would otherwise support an offset of its own.
+        if agree >= max(2, floor) and agree / len(stating) >= FOLIO_AGREEMENT:
+            out.append((off, agree))
+    return out, stating, floor
+
+
+def offset_confirmed(raw_pages, offset):
+    """(confirmed, agreeing, pages that state a number, why not) for a declared page offset.
+
+    Rule 3 item 9c asks which pagination a locator uses. The gate took the answer from the
+    checks file and never required it to hold: a source printing 1, 2, 3 with an offset of 10
+    declared bound a citation to p. 11 and exited 0 (2026-09-21 sweep, S1).
+
+    The evidence is the same the validator's 9c screen uses -- a number in the page's edge
+    window -- deliberately, and not the stricter bare-number-line rule used to REFUTE a
+    declared page. Confirming a declared offset and refuting one need different thresholds:
+    measured across the live sources, the strict rule reads no folio at all on four documents
+    whose pagination 9c confirms at 19/20, 14/14 and 14/15, because their folios share a line
+    with a running head.
+    """
+    supported, stating, floor = supported_offsets(raw_pages)
+    per = folio_evidence(raw_pages)
+    hit = sum(1 for i in stating if (i + 1 + offset) in per[i])
+    if not stating:
+        return False, 0, 0, "no page of it states a readable number"
+    if len(supported) > 1:
+        return (False, hit, len(stating),
+                "its own numbers support " + str(len(supported)) + " different offsets ("
+                + ", ".join(f"{o:+d}" for o, _ in supported[:4]) + "), so which of them is "
+                "the printed pagination cannot be told from the source")
+    if supported and supported[0][0] != offset:
+        return (False, hit, len(stating),
+                f"the pages that state a number agree on an offset of {supported[0][0]:+d}, "
+                f"not {offset:+d}")
+    if hit < floor or hit / len(stating) < FOLIO_AGREEMENT:
+        return (False, hit, len(stating),
+                f"only {hit} of {len(stating)} pages that state a number agree with it, and "
+                f"a confirmed pagination needs {floor}")
+    return True, hit, len(stating), ""
 
 
 def nchar(ch):
@@ -219,18 +296,9 @@ def main():
         # evidence that the page prints 11 (2026-09-21 review, F6-01). edge_numbers() is
         # shared verbatim with verify_locators.py so both tools read the same page the
         # same way; verify_locators_test.py asserts they agree.
-        hit = tot = 0
-        for i, tx in enumerate(raw):
-            n = i + 1 + off
-            if n < 1:
-                continue
-            flat = re.sub(r"\s+", " ", tx)
-            run = re.search(rf"\bpage {n} of \d+|(?<!\d){n}/\d+\b", flat)
-            nums = edge_numbers(tx)
-            if not nums and not run:
-                continue
-            tot += 1
-            hit += bool(n in nums or run)
+        # One rule, written identically in both tools, so 9c and the gate cannot disagree
+        # about the same source; verify_locators_test.py asserts the two verdicts match.
+        conf, hit, tot, why_not = offset_confirmed(raw, off)
         if v == "web_rendering":
             # Item 9c asks which pagination a locator uses. A printed web page has none, so
             # its checks must name a section instead, and verify_locators.py binds against
@@ -241,10 +309,11 @@ def main():
             if unlocated:
                 fails.append(f"9c {k}: a web rendering prints no page numbers, but check(s) "
                              f"{unlocated} declare no section locator (Rule 3 item 8)")
-        elif tot and hit / tot >= 0.6:
+        elif conf:
             res.append(f"offset {off:+d} confirmed on {hit}/{tot} pages")
         else:
-            reviews.append(f"9c {k}: offset {off:+d} matches a printed number on only {hit}/{tot} pages - confirm page convention by eye")
+            reviews.append(f"9c {k}: offset {off:+d} is not confirmed -- {why_not}"
+                           " - confirm page convention by eye")
         if v == "author_manuscript":
             rp = src[k].get("registry_pages", "")
             res.append(f"LOCATORS ARE MANUSCRIPT PAGES, not journal pages{(' ' + rp) if rp else ''}")
