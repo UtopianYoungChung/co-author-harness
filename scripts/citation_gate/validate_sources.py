@@ -617,14 +617,16 @@ def main():
         conf, hit, tot, why_not = offset_confirmed(folio_pages(s["pdf"]), off,
                                                     (s.get("cite") or {}).get("year"))
         if v == "web_rendering":
-            # Item 9c asks which pagination a locator uses. A printed web page has none, so
-            # its checks must name a section instead, and verify_locators.py binds against
-            # that. Validation runs first, so the requirement is refused here.
-            res.append("no printed pagination; LOCATORS ARE WEB-PAGE SECTIONS, not pages")
+            # Item 9c asks which pagination a locator uses. The gate reads none in a web
+            # rendering -- not the browser's counters, and not a pagination the source prints
+            # itself (F12-04) -- so its checks must name a section instead, and
+            # verify_locators.py binds against that. Validation runs first, so the requirement
+            # is refused here.
+            res.append("pagination not read; LOCATORS ARE WEB-PAGE SECTIONS, not pages")
             unlocated = [c["id"] for c in cfg["checks"]
                          if c.get("source") == k and not str(c.get("section", "")).strip()]
             if unlocated:
-                fails.append(f"9c {k}: a web rendering prints no page numbers, but check(s) "
+                fails.append(f"9c {k}: the gate reads no page numbers in a web rendering, but check(s) "
                              f"{unlocated} declare no section locator (Rule 3 item 8)")
         elif conf:
             res.append(f"offset {off:+d} confirmed on {hit}/{tot} pages")

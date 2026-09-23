@@ -727,8 +727,11 @@ def main() -> int:
     problems, _ = vl.web_locator(web_check(), web)
     case("no section is UNLOCATED",
          bool(problems) and problems[0].startswith("UNLOCATED"), True)
-    case("and the finding says the page is the printout's",
-         bool(problems) and "not of the source" in problems[0], True)
+    # It used to add "a page of the printout, not of the source" -- false for a source that prints
+    # its own pagination, an RFC's `[Page N]` (F12-04). It says what the gate does not read.
+    case("and the finding says the gate reads no page numbers, not that none are printed",
+         bool(problems) and "reads no page numbers" in problems[0]
+         and "prints no page numbers" not in problems[0], True)
     problems, _ = vl.web_locator(web_check(section="A section that is not there"), web)
     case("a section the source has not got is refused",
          bool(problems) and problems[0].startswith("SECTION_NOT_A_HEADING"), True)

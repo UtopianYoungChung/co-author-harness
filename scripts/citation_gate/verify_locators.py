@@ -594,8 +594,10 @@ def web_sections(raw_pages):
 def web_locator(check, source):
     """(problems, render page) for a check into a web rendering.
 
-    A web page prints no page numbers, so a page is not a locator for it and the gate does not
-    ask the source to confirm one. What it does have is its sections, so that is what a check
+    The gate reads no page numbers in a web rendering: the browser's page counters are the
+    printer's, and a pagination the source prints itself (an RFC's `[Page N]`) is not read either,
+    so a page is not a locator the gate can check. Saying the rendering "prints no page numbers"
+    was false for such a source (2026-09-23 review, F12-04). What it does have is its sections, so that is what a check
     must name -- and the quote must fall INSIDE the named section, not merely after it appears
     somewhere. Establishing occurrence-before-quote and calling it containment let a quote
     under Results bind to Methods (2026-09-21 review, F7-02).
@@ -608,9 +610,11 @@ def web_locator(check, source):
     render_page = page_of[hits[0]] + 1
     section = (check.get("section") or "").strip()
     if not norm(section):
-        return ([f"UNLOCATED: {check['source']} is a web rendering and prints no page numbers, "
-                 f"so p.{check.get('page')} names a page of the printout, not of the source. "
-                 "Declare the section the quote sits in (Rule 3 item 8)"], render_page)
+        return ([f"UNLOCATED: {check['source']} is declared a web rendering, and the gate reads no "
+                 "page numbers in one -- not the browser's page counters, which are the "
+                 "printer's, and not any pagination the source prints itself -- so "
+                 f"p.{check.get('page')} cannot be checked. Declare the section the quote sits "
+                 "in (Rule 3 item 8)"], render_page)
     # Exact, not prefix: "Methods Supplement" is not the Methods section (F8-02). A
     # trailing colon is punctuation, not part of the name.
     want = norm(section.rstrip(":"))
@@ -1352,7 +1356,7 @@ def _main():
         idx = c["page"] - s.get("offset", 0) - 1
         problems = []
         if s.get("web_rendering"):
-            pass                                 # no printed pagination to confirm or refute
+            pass                                 # no pagination read, so none to confirm or refute
         elif not s.get("offset_confirmed", True):
             why = s.get("offset_why_not") or "the source states no readable number"
             problems.append(

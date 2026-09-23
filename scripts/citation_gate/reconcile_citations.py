@@ -265,7 +265,17 @@ def families(author_part):
 def segments(bib):
     """One string per entry. Blank lines separate entries; so does a line that begins one --
     a PDF extraction wraps entries with no blank line between them, and splitting on blank
-    lines alone made a page of entries into one (C-03)."""
+    lines alone made a page of entries into one (C-03).
+
+    In a numbered list only a numbered line opens an entry. `[12] Henk Jonkers, ... Hans` wrapped
+    onto `Bosma, Roel J. Wieringa. 2006. ...`, which is shaped like an entry start, so [12] lost
+    its year and an unlabelled fragment took it (F12-03). A list is numbered when at least three
+    lines carry a label and labelled lines outnumber unlabelled entry-shaped lines two to one."""
+    lines = [BULLET_RE.sub("", l.strip()) for l in bib.split("\n")]
+    labelled = sum(1 for t in lines if t and NUMBERED_RE.match(t))
+    shaped = sum(1 for t in lines if t and starts_entry(t))
+    numbered = labelled >= 3 and labelled >= 2 * (shaped - labelled)
+    opens = (lambda t: bool(NUMBERED_RE.match(t))) if numbered else starts_entry
     out = []
     for chunk in re.split(r"\n\s*\n", bib):
         cur = []
@@ -273,7 +283,7 @@ def segments(bib):
             t = BULLET_RE.sub("", line.strip())
             if not t:
                 continue
-            if cur and starts_entry(t):
+            if cur and opens(t):
                 out.append(" ".join(cur))
                 cur = []
             cur.append(t)

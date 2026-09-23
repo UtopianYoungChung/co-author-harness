@@ -30,6 +30,28 @@ CASES = [
         {"exit": 0, "must_not_contain": ["NO ENTRY", "AMBIGUOUS", "unparsed"]},
     ),
     (
+        "numbered_entry_wrapped_onto_a_name_line",
+        # chen-2024's [12]: the author list wrapped onto `Bosma, Roel J. Wieringa. 2006.`, which
+        # is shaped like an entry start, so [12] lost its year and an unlabelled fragment took
+        # it -- 27 entries parsed for 26 printed (F12-03).
+        "First [1]. Second [12]. Third [13].\n"
+        "\n## References\n\n[1] Ann Alpha. 2020. First work. Journal.\n"
+        "[12] Henk Jonkers, Marc M. Lankhorst, Hans\n"
+        "Bosma, Roel J. Wieringa. 2006. Enterprise architecture. Information Systems Frontiers.\n"
+        "[13] Ahmed Lamey. 2023. A realistic model. Journal.\n",
+        {"exit": 0, "must_contain": ["bibliography entries: 3"],
+         "must_not_contain": ["no parseable year", "REPORT uncited", "NO ENTRY"]},
+    ),
+    (
+        "unnumbered_list_still_splits_on_a_given_name_start",
+        # The control: without labels, `Bosma, Roel ... 2006.` does open an entry.
+        "One (Alpha 2020). Two (Bosma 2006).\n"
+        "\n## References\n\nAlpha, Ann. 2020. First work. Journal.\n"
+        "Bosma, Roel. 2006. Enterprise architecture. Frontiers.\n",
+        {"exit": 0, "must_contain": ["bibliography entries: 2"],
+         "must_not_contain": ["NO ENTRY", "REPORT uncited"]},
+    ),
+    (
         "duplicate_numeric_labels",
         # Two entries labelled [1]: the dict kept the last, so the citation resolved silently
         # and the shadowed entry was reported merely uncited.
