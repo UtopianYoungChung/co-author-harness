@@ -183,26 +183,45 @@ obligation they test, by the same agent. "Held out" therefore means held out fro
 real manuscripts. **Final held-out qualification requires fixtures curated by the
 independent reviewer.**
 
-### 4.3 Thresholds — unresolved, and holding semantic qualification
+### 4.3 Thresholds — fixed prospectively, 2026-09-23
 
-No numerical acceptance threshold has been fixed. Per the work order, thresholds
-are fixed **prospectively with the review owner**, before any run is scored, and
-choosing them after seeing a number would make them a description of that number.
-The following are the open decisions:
+Fixed by the review owner, Joseph, on 2026-09-23, **before any semantic run has been
+scored** on either split. They are recorded here, and committed, so that the commit
+that fixes them predates any number they will judge. Changing them after a scored
+run exists makes them a description of that run, and must be reported as such.
 
-| Decision | Options to settle | Status |
-|---|---|---|
-| Minimum recall on the held-out detection fixture | per-class, or pooled across AC-1…AC-5 | **open** |
-| Maximum false positives on the held-out control fixture | absolute count, or rate per control | **open** |
-| Denominator reporting | per-defect booleans (current) plus pooled recall | proposed, unsettled |
-| Repeat count for variability | n runs per fixture; report spread, not only the mean | **open** |
-| Inter-rater disagreement | whether a second independent reviewer's disagreement on a defect is reported or adjudicated | **open** |
+| Decision | Fixed value |
+|---|---|
+| Detection on the held-out defects fixture | Pooled recall **≥ 0.80**, and **every AC class** (AC-1…AC-5) detected |
+| False positives on the held-out controls fixture | **At most 1** coherence flag on well-formed prose per run |
+| Repeats and how the threshold applies | **n = 3** runs per fixture; each threshold is judged on the **median** of the three runs |
+| Inter-rater disagreement | **Report both judgments and the disagreement rate; do not adjudicate** |
+| Denominator reporting | Per-defect booleans for every run, plus pooled recall (the earlier proposal, adopted) |
 
-**Consequence, applied here:** semantic qualification is **held**. Implementation
-and mechanical testing were unaffected by this and are complete. When a run is
-eventually scored, the report must give missed defects, false alarms, the
-denominators, disagreement, and variability across repeated cases — not a single
-headline number.
+**How the values compose.** With the median rule applied to each threshold separately:
+
+1. the median of the three pooled-recall values is ≥ 0.80;
+2. each AC class is detected in **at least 2 of the 3 runs** (the median of that
+   class's per-run caught / not-caught outcome);
+3. the median false-positive count on the controls fixture is ≤ 1.
+
+Qualification passes only if all three hold. Item 2 is the implementer's reading of
+"every class detected" under the median rule, and is marked as a derivation rather
+than a decision until the review owner confirms it.
+
+**What every scored report must still give,** whatever the verdict: the missed
+defects and the false alarms by name; the denominators; each run's figures and the
+min–median–max spread, not only the median; and, where a second reviewer scored the
+same runs, both judgments and the disagreement rate.
+
+**Which fixtures these apply to.** The thresholds judge **held-out fixtures curated
+by the independent reviewer**. The `heldout_coherence_*` files in this package were
+authored by the implementer and carry `independently_curated: false`; a score on
+them is not qualification, whatever it is.
+
+**Status.** Thresholds are no longer an open decision. Semantic qualification stays
+**held** until an independent reviewer curates held-out fixtures and runs the
+scored evaluation against these values.
 
 ---
 
@@ -222,4 +241,4 @@ exception in every downstream summary.
 | Installed-byte identity | **not established** — source-path only; no installed cache was replaced |
 | Fresh-task / live-host execution | **not established** — synthetic host traces only (`claude_host_smoketest.py` proves adapter mechanics, not live qualification) |
 | Release | **not performed** — no version bump, no packaging, no promotion |
-| Semantic qualification | **held** pending prospective thresholds and independently curated held-out fixtures |
+| Semantic qualification | **held** pending independently curated held-out fixtures and an independent scored run; thresholds fixed prospectively 2026-09-23 (section 4.3) |
