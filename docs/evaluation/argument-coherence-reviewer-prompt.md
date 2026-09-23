@@ -209,14 +209,18 @@ the disagreement rate. **Do not adjudicate** between them.
   `python scripts/analysis/fixture_runner.py --no-write` inside it. A result of
   `REGISTRY_EXIT=2` with 0 failures means the files changed during the run, not
   that a test failed. See `docs/evaluation/fixture-runner-tree-mutation.md`.
-- **The implementer's last full run:** at `e94d6f3`, 113 of 114 cases passed, with
-  identical input hashes before and after the run. The one failure,
-  `release_qualification_controller_smoketest::fixture-owner`, is an intermittent
-  Windows file lock (WinError 32). It failed in 2 of 4 full runs and passed 6 of 6
-  in isolation. No implementer commit touches that suite or its subject. Confirm or
-  refute that attribution; do not assume it.
-- **The full registry takes about 1 h 45 min.** `scholarly_evaluation_smoketest`
-  alone takes about 15 minutes.
+- **The implementer's last full run:** at `a4272dd` on 2026-09-23, **114 of 114 cases
+  passed** (`REGISTRY_EXIT=0`), with the tested-inputs hash `cf67dad97154` over 846
+  files identical before and after the run. That commit contains the whole work
+  order, including the thresholds and an earlier version of this prompt.
+- **One known intermittent failure:**
+  `release_qualification_controller_smoketest::fixture-owner` hits a Windows file lock
+  (WinError 32). It failed in 2 of 5 full runs, both at `e94d6f3`, where the result was
+  113 of 114. It passed 6 of 6 in isolation and passed in the `a4272dd` run. No
+  implementer commit touches that suite or its subject. Confirm or refute that
+  attribution; do not assume it.
+- **The full registry takes about 2 hours** (1 h 44 min to 2 h 7 min across the last
+  four runs). `scholarly_evaluation_smoketest` alone takes about 15 minutes.
 - The repository requires **LF** line endings (`.gitattributes`). Do not rewrite line
   endings by hand.
 
