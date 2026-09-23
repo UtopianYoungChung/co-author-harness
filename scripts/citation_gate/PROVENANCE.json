@@ -9,8 +9,8 @@
   "reconcile_citations.py": "stdlib only"
  },
  "sha256": {
-  "reconcile_citations.py": "eef54e05b943f43908167d65137001a9571edf36e5197c8fe955e480b9a46541",
-  "reconcile_citations_test.py": "23da386a4d4661fc3c6d544996794405b5300b15b802ab58ca4a9e4aaa93cad9",
+  "reconcile_citations.py": "92daeba5dab9916beaf722fe5e38bb820ff7a2109ec4c0a109d7e6434f0c32d1",
+  "reconcile_citations_test.py": "1db70baba520e81631cae60261fc984c8517a5894cb428fc7af324f19600f07f",
   "validate_sources.py": "cc88db3ed7236f7a14f1b9cab9091865fab539663d5fdee4ec476b23e5592c0a",
   "verify_locators.py": "e0314bae6276cce81f2530ef09a7dd8891f76e5b6966a07c38ee69fd7f469706",
   "verify_locators_test.py": "e236357fe6dae9c6fc9ae6d00b2c8f70d53351a25a6207930f00f3c56dbf7461"

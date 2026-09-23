@@ -236,6 +236,40 @@ CASES = [
                           "['Corrales-Garay', 'Rodríguez-S´anchez', 'Montero-Navarro'] 2024"],
          "must_not_contain": ["NO ENTRY", "AUTHORS DIFFER", "'the'", "'Rodríguez-S']"]},
     ),
+    # --- the three entry misreadings, 2026-09-23 --------------------------------------------
+    (
+        "entry_misreadings_resolve_on_their_merits",
+        # `et al.` inside an entry gave the family `al` and no record the list is open;
+        # `Cli√ord` (OCR ff) and `Hans-Jorg` failed the given-name pattern; `W . K.` left a lone
+        # `.` as a family. Each is now read as what it is, and the citation resolves because the
+        # names genuinely agree -- the matching rule was not loosened.
+        "Cites (Lazaris et al. 2002), (Bourdieu et al., 1984), (Hooker 1972), (Rheinberger 1997)\n"
+        "and (Wootters and Zurek 1979).\n"
+        "\nReferences\n"
+        "Bourdieu, P. et al. A social critique of the judgement of taste. Cambridge, MA, 1984.\n"
+        "Hooker, Cli√ord A. 1972. The Nature of Quantum Mechanical Reality.\n"
+        "Lazaris, Anthoula, et al. 2002. Spider Silk Fibers. Science 295.\n"
+        "Rheinberger, Hans-Jorg. 1997. Toward a History of Epistemic Things.\n"
+        "Wootters, W . K., and W . H. Zurek. 1979. Complementarity in the Double-Slit Experiment.\n",
+        {"exit": 0, "args": ["--verbose"],
+         "must_contain": ["resolved: 5", "['Lazaris'] 2002", "['Hooker'] 1972",
+                          "['Rheinberger'] 1997", "['Wootters', 'Zurek'] 1979"],
+         "must_not_contain": ["'al'", "'Cli√ord'", "'Hans-Jorg'", "'.'", "NO ENTRY", "AUTHORS DIFFER"]},
+    ),
+    (
+        "real_disagreements_still_fail",
+        # The census after the fix: what remains of AUTHORS DIFFER is real. Two authors who share
+        # a surname are two authors; `et al.` for a two-author entry and a misspelt co-author
+        # still fail, because citation and entry genuinely disagree.
+        "Cites Bender (1982), Scully et al. (1989) and Keller and Grantkowski (1983).\n"
+        "\nReferences\n"
+        "Bender AE and Bender DA (1982) Nutrition for Medical Students. Wiley.\n"
+        "Keller, Evelyn Fox, and Christine Grontkowski. 1983. The Mind's Eye.\n"
+        "Scully, Marlan O., and Herbert Walther. 1989. Quantum Optical Test.\n",
+        {"exit": 1, "args": ["--verbose"],
+         "must_contain": ["['Bender', 'Bender'] 1982", "AUTHORS DIFFER", "resolved: 0"],
+         "must_not_contain": ["'Evelyn'", "'Marlan'"]},
+    ),
 ]
 
 

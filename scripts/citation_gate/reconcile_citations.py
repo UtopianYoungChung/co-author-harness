@@ -203,13 +203,19 @@ def join_accents(s):
 def families(author_part):
     """family names from the author segment of a bibliography entry, in order."""
     part = join_accents(author_part.strip().rstrip("."))   # Schr¨ odinger, Rodríguez-S ´anchez
+    # `W . K.` -> `W. K.`: an OCR-spaced initial left a lone `.` read as a family (Wootters).
+    part = re.sub(r"\b([A-Z])\s+\.(?=\s|,|$)", r"\1.", part)
+    # `et al.` is a statement about the list, not a name; parse_bib records it as `open`.
+    part = re.sub(r",?\s*\bet\.?\s*al\b\.?", "", part)
     part = re.sub(r"\s+(?:and|&)\s+", ", ", part)
     out = []
     chunks = [x.strip() for x in part.split(",") if x.strip()]
     initials = lambda c: bool(re.fullmatch(r"(?:[A-Z]\.?(?:-[A-Z]\.?)?\s*)+", c))   # J.-P.
     # A given name: one to three capitalised words or bare initials -- `Huw`, `K Scarlett`,
     # `Sue V.`. Only ever read as one straight after a bare family name (C-05).
-    given = lambda c: bool(re.fullmatch(r"[A-Z][a-zà-ÿ'’\-]*\.?(?:\s+[A-Z][a-zà-ÿ'’\-]*\.?){0,2}", c))
+    # A word starts with a capital and runs to the next space or punctuation: `Cli√ord` (OCR's
+    # `√` for `ff`) and `Hans-Jorg` failed the letters-only pattern and became families.
+    given = lambda c: bool(re.fullmatch(r"[A-Z][^\s,;:()\[\]\d]*(?:\s+[A-Z][^\s,;:()\[\]\d]*){0,2}", c))
     # `eds.`, `(Eds.)`, `Hrsg.`: the role of the names before them, never a name.
     # A bare capitalised `Ed` is a NAME (`Di Brown, Ed Green, and Flo White`): the marker is
     # written with a period, in parentheses, in the plural, or in lowercase.
@@ -237,7 +243,9 @@ def families(author_part):
         if expect_given and given(a):
             expect_given = False
             continue
-        toks = a.split()
+        toks = [t for t in a.split() if any(ch.isalpha() for ch in t)]   # never `.` alone
+        if not toks:
+            continue
         popped = False
         while len(toks) > 1 and re.fullmatch(r"(?:[A-Z]\.)+|[A-Z]{1,3}|[A-Z]\.?-[A-Z]\.?", toks[-1]):
             toks.pop()                                   # "Yu E." / "Van Fraassen B" / "Zee HD"
@@ -338,7 +346,12 @@ def parse_bib(bib):
         fams = (list(prev_fams) if repeat else
                 families(head if head is not None else e[:y.start()]))
         prev_fams = fams
-        entries.append({"num": num, "raw": e, "year": norm_year(yr), "fams": fams, "cited": 0})
+        # `Lazaris, Anthoula, et al.`: the entry lists fewer authors than it has.
+        seg = head if head is not None else e[:y.start()]
+        tail = e[len(head):len(head) + 12] if head is not None else ""
+        open_list = (not repeat) and bool(re.search(r"\bet\.?\s*al\b", seg + " " + tail))
+        entries.append({"num": num, "raw": e, "year": norm_year(yr), "fams": fams, "cited": 0,
+                        "open": open_list})
     return entries
 
 
@@ -392,7 +405,8 @@ def match(entry, names, etal, year):
     if not first_author_year(entry, names, year):
         return False
     if etal:
-        return len(entry["fams"]) >= 3
+        # An entry that itself says `et al.` has more authors than it lists.
+        return len(entry["fams"]) >= 3 or entry.get("open", False)
     if len(names) == 2:
         return len(entry["fams"]) == 2 and entry["fams"][1].lower() == names[1].lower()
     if len(names) >= 3:
