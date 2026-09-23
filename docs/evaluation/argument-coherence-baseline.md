@@ -205,9 +205,10 @@ run exists makes them a description of that run, and must be reported as such.
    class's per-run caught / not-caught outcome);
 3. the median false-positive count on the controls fixture is ≤ 1.
 
-Qualification passes only if all three hold. Item 2 is the implementer's reading of
-"every class detected" under the median rule, and is marked as a derivation rather
-than a decision until the review owner confirms it.
+Qualification passes only if all three hold. Item 2 was first drafted as the
+implementer's reading of "every class detected" under the median rule; the review
+owner **confirmed it on 2026-09-23**, still before any run was scored. The lenient
+alternative, a class caught at least once across the three runs, was rejected.
 
 **What every scored report must still give,** whatever the verdict: the missed
 defects and the false alarms by name; the denominators; each run's figures and the
