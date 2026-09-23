@@ -73,13 +73,13 @@ EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 # source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
 EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
-FOLIO_ZONE_LINES = 4     # the running head and foot: where a page prints its own number.
-                         # Three missed the recto folio of a verso/recto journal, whose
-                         # head runs title / issue / rule / folio -- 15 of 31 pages
-                         # instead of 30, refusing a pagination printed throughout
-                         # (2026-09-23, corpus finding C-01). Measured over every
-                         # regression source: 4 costs nothing, 5 brings back the body
-                         # table cell that F7-05 and F8-07 were about.
+FOLIO_SCAN_LINES = 8     # how far in to LOOK at each edge. Not how far in a folio may be:
+                         # three missed a verso/recto journal's recto folio on the fourth
+                         # line, four struck a table cell on the fourth line of one page
+                         # and missed a five-line running head, and every other width
+                         # moves the failure somewhere else (2026-09-23 review, F11-04).
+                         # What decides is recurrence, below: running matter repeats at a
+                         # position page after page, and a table cell does not.
 
 
 # What a page prints that could be its own number, and how strongly it says so. Confirmation
@@ -119,10 +119,41 @@ HEAD_TAIL = " .:;,\u2014\u2013-([{\"'\u201c\u2018"
 EXPLICIT, BARE, WEAK = 2, 1, 0    # the page said so / a folio on its own line / anything else
 
 
-def zone_lines(text):
-    """The lines of the running head and foot, where a page prints its own number."""
+def edge_positions(text):
+    """[(position, line)] near either edge. A position is the index from the top, or the
+    negative index from the bottom, so the same place can be named across pages of different
+    lengths."""
     lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
-    return lines[:FOLIO_ZONE_LINES] + lines[-FOLIO_ZONE_LINES:]
+    return ([(i, l) for i, l in enumerate(lines[:FOLIO_SCAN_LINES])]
+            + [(-1 - j, l) for j, l in enumerate(reversed(lines[-FOLIO_SCAN_LINES:]))])
+
+
+def one_off_positions(raw_pages):
+    """Positions inside the window where a number appears on ONE page only.
+
+    Running matter recurs; a table cell does not. Striking out the one-off positions is what
+    lets the window be generous without letting a body number into the folio's place
+    (2026-09-23 review, F11-04). It is an exclusion and not a selection: selecting the folio's
+    position by recurrence refused a live source whose folio sits at varying indices.
+    """
+    pages = [t for t in (raw_pages or []) if t.strip()]
+    if len(pages) < MIN_FOLIO_PAGES:
+        # Nothing to recur across. On a one-page source every position carries its number on
+        # exactly one page, so striking out the one-offs emptied the whole window and the
+        # folio vanished -- which took out ten positive controls, all of them one-page
+        # fixtures (2026-09-23, found by the probe re-run).
+        return set()
+    seen = {}
+    for text in pages:
+        for k, line in edge_positions(text):
+            if any(c.isdigit() for c in line):
+                seen[k] = seen.get(k, 0) + 1
+    return {k for k, n in seen.items() if n < 2}
+
+
+def zone_lines(text, drop=()):
+    """The lines where a page may print its own number, one-off positions struck out."""
+    return [l for k, l in edge_positions(text) if k not in drop]
 
 
 def prints_a_bare_folio(raw_pages):
@@ -133,14 +164,15 @@ def prints_a_bare_folio(raw_pages):
     document that foots 1, 2, 3 and happens to tally `Items completed 11/20`
     (2026-09-22 review, F10-02).
     """
+    drop = one_off_positions(raw_pages)
     for text in raw_pages or []:
-        for line in zone_lines(text):
+        for line in zone_lines(text, drop):
             if BARE_FOLIO_RE.match(line):
                 return True
     return False
 
 
-def stated_total(raw_pages):
+def stated_total(raw_pages, drop=None):
     """The denominator most pages print as "N/M" at their edge, when they agree on one.
 
     jergas prints no bare folio and no "page N of M"; it prints "2/20", "3/20", "6/20" as the
@@ -150,9 +182,10 @@ def stated_total(raw_pages):
     """
     if prints_a_bare_folio(raw_pages):
         return None
+    drop = one_off_positions(raw_pages) if drop is None else drop
     seen, shown = {}, 0
     for text in raw_pages or []:
-        for line in zone_lines(text):
+        for line in zone_lines(text, drop):
             m = N_OF_M_RE.match(line)
             if m:
                 seen[int(m.group(2))] = seen.get(int(m.group(2)), 0) + 1
@@ -164,7 +197,7 @@ def stated_total(raw_pages):
     return total if n / shown >= FOLIO_AGREEMENT else None
 
 
-def page_evidence(text, total=None):
+def page_evidence(text, total=None, drop=()):
     """{number: (rank, place)} -- what one page states about itself, and where it states it.
 
     A page's own statement outranks anything inferred from arithmetic, which is what F9-04
@@ -185,7 +218,7 @@ def page_evidence(text, total=None):
         m = PAGE_OF_LINE_RE.match(line.strip(HEAD_TAIL))
         if m:
             return {int(m.group(1)): (EXPLICIT, "page-of")}
-    zone = zone_lines(text)
+    zone = zone_lines(text, drop)
     if total:
         for line in zone:
             nm = N_OF_M_RE.match(line)
@@ -228,10 +261,11 @@ def folio_evidence(raw_pages, year=None):
     A number equal to the source's declared year is a date, not a folio -- unless the page
     stated it outright, in which case the page is a better witness than the arithmetic.
     """
-    total = stated_total(raw_pages)
+    drop = one_off_positions(raw_pages)
+    total = stated_total(raw_pages, drop)
     per = []
     for text in raw_pages or []:
-        e = page_evidence(text, total)
+        e = page_evidence(text, total, drop)
         if year:
             e = {n: v for n, v in e.items() if v[0] == EXPLICIT or abs(n - int(year)) > 1}
         per.append(e)
@@ -266,6 +300,27 @@ def supported_offsets(raw_pages, year=None):
         best = max(rank.values())
         out = [(off, n) for off, n in out if rank[off] == best]
     return out, stating, floor
+
+
+def folio_positions(raw_pages, offset, drop):
+    """The positions at which the pages agreeing with `offset` print that agreeing number.
+
+    Refutation reads this and confirmation does not. A wider window is safe when the
+    arithmetic must agree across pages and unsafe when one number on one page overturns a
+    locator: at eight lines a bare cited year in a reference list refuted a correct page
+    (2026-09-23 review, F11-04). Confirmation cannot use it, because a verso/recto layout puts
+    its folio at two positions and each carries only half the pages.
+    """
+    out = set()
+    for i, text in enumerate(raw_pages or []):
+        want = str(i + 1 + offset)
+        for k, line in edge_positions(text):
+            if k in drop:
+                continue
+            m = BARE_FOLIO_RE.match(line)
+            if m and m.group(1) == want:
+                out.add(k)
+    return out
 
 
 def folio_place(per, offset):
@@ -342,6 +397,7 @@ def offset_confirmed(raw_pages, offset, year=None):
 
 
 def page_contradicts(raw_pages, offset, idx):
+    # the pages themselves, for the positional test below
     """(number, place) when the cited page prints another number in the folio's own place.
 
     Refutation may read only a place that can be named. Where the agreeing pages show none,
@@ -349,6 +405,7 @@ def page_contradicts(raw_pages, offset, idx):
     destructive direction, and it should not be done on a guess.
     """
     per = folio_evidence(raw_pages)
+    per_text = list(raw_pages or [])
     if not (0 <= idx < len(per)):
         return None
     want = idx + 1 + offset
@@ -363,6 +420,9 @@ def page_contradicts(raw_pages, offset, idx):
     if not place:
         return None
     if place == "line":
+        # Where the agreeing pages actually print their folios. A bare number elsewhere in the
+        # window is not in the folio's place, whatever else it may be (F11-04).
+        where = folio_positions(raw_pages, offset, one_off_positions(raw_pages))
         # A folio is unique to its page; a bare number repeated across pages is a label, and
         # without that guard a "5" printed on two pages refused five correct checks (F6-02).
         # But a repeated number IS a folio when one of its occurrences agrees with the
@@ -379,8 +439,15 @@ def page_contradicts(raw_pages, offset, idx):
                 if n == i + 1 + offset:
                     folios.add(n)
         for n, (r, pl) in per[idx].items():
-            if pl == "line" and n != want and (seen.get(n) == 1 or n in folios):
-                return n, pl
+            if pl != "line" or n == want:
+                continue
+            if not (seen.get(n) == 1 or n in folios):
+                continue
+            here = {k for k, line in edge_positions(per_text[idx])
+                    if BARE_FOLIO_RE.match(line) and int(BARE_FOLIO_RE.match(line).group(1)) == n}
+            if where and not (here & where):
+                continue                          # printed somewhere the folios are not
+            return n, pl
         return None
     for n, (r, pl) in per[idx].items():
         if pl == place and n != want:

@@ -16,6 +16,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TOOL = HERE / "reconcile_citations.py"
 
+PAGED = "## PDF page 1\nBody citing (Adlam & Rovelli, 2022) and Bell and Newell (1971).\nAI MAGAZINE Summer 1981 1\n## PDF page 2\nMore body, and (Jackson, 1986).\nAI MAGAZINE Summer 1981 2\n## PDF page 3\nReferences\nAdlam, E. & Rovelli, C. (2022). Information is physical.\nPhilosophy of Physics 1.\nBell, C. G & Newell, A. Computer Structures: Readings and\nAI MAGAZINE Summer 1981 3\n## PDF page 4\nExamples New York McGraw-Hill 1971\nJackson, F. (1986). What Mary didn't know. Journal of\nPhilosophy 83.\nAI MAGAZINE Summer 1981 4\n"
+
+UNLABELLED = 'Claims rest on (Price, 2011) and (Reichenbach, 1956).\n\nPrice, H. (2011). Naturalism without mirrors. Oxford University Press.\nReichenbach, H. (1956). The direction of time. Dover.\nRovelli, C. (2014). Where is knowledge. Unpublished notes.\n'
+
 CASES = [
     (
         "apa_single_author_initial",
@@ -54,6 +58,117 @@ CASES = [
         "\n## Bibliography\n\nTester, T. (2026). A Work. Journal of Things.\n",
         {"exit": 0, "must_not_contain": ["unparsed"]},
     ),
+    # --- C-03, 2026-09-23: the reading store's reference lists -----------------------------
+    (
+        "label_line_wrapped_entries_across_page_breaks",
+        # A bare `References` line with no `#`; entries wrapping with no blank line between;
+        # `## PDF page N` inside the list; a running foot between entries; a year after the
+        # title. All five corpus units exited "no bibliography section found" before this.
+        PAGED,
+        {"exit": 0, "must_contain": ["label line", "bibliography entries: 3", "resolved: 3"],
+         "must_not_contain": ["NO ENTRY", "no parseable year", "NOT FOUND"]},
+    ),
+    (
+        "repeat_author_entries_open_and_inherit",
+        # `(1975) The meaning of` and `———. 1996.` open entries and take the names above them;
+        # each was swallowed by the entry before it.
+        "Cites (Putnam, 1975), (Putnam, 1978) and (Rouse, 1996).\n"
+        "\nReferences\n"
+        "Putnam, H. (1974) Comment on Sellars. Synthese 27.\n"
+        "(1975) The meaning of meaning. In: Mind, language and\n"
+        "reality. Cambridge University Press.\n"
+        "(1978) Meaning and the moral sciences. Routledge.\n"
+        "Rouse, J. 1987. Knowledge and power.\n"
+        "———. 1996. Engaging science.\n",
+        {"exit": 2, "must_contain": ["bibliography entries: 5", "resolved: 3", "uncited entries: 2"],
+         "must_not_contain": ["NO ENTRY"]},
+    ),
+    (
+        "physics_style_and_capitalised_particles",
+        # `Jauch J 1968,` -- family and bare initials -- and `Van Fraassen B`, whose capitalised
+        # particle is part of the family name because the name is written family-first.
+        "See (Jauch, 1968) and (Joos & Zee, 1985).\n"
+        "\nReferences\n"
+        "Jauch J 1968, Foundations of Quantum Mechanics ,\n"
+        "Adison Wesley.\n"
+        "Joos E and Zee HD 1985, Zeitschrift fur Physik B59, 223\n"
+        "Van Fraassen B 1991, Quantum Mechanics: an Empiri-\n"
+        "cist View , Oxford University Press\n",
+        {"exit": 2, "args": ["--verbose"],
+         "must_contain": ["bibliography entries: 3", "resolved: 2", "['Van Fraassen'] 1991",
+                          "['Joos', 'Zee'] 1985"],
+         "must_not_contain": ["NO ENTRY", "no parseable year"]},
+    ),
+    (
+        "wrapped_places_and_dates_are_continuations",
+        # `Ithaca, N.Y.:`, `University, August 1993`, `Quantenmechanik, Springer` and
+        # `Cambridge, MA:` have the shape of an author line; each opened a spurious entry.
+        "Cites (Newman, 1993), (Rouse, 1996) and (Winograd, 1986).\n"
+        "\nReferences\n"
+        "Newman, E. T. (1993). Talk at the inaugural ceremony. Penn State\n"
+        "University, August 1993.\n"
+        "Rouse, J. (1996). Engaging science.\n"
+        "Ithaca, N.Y.: Cornell University Press.\n"
+        "Von Neumann, J. (1932). Mathematische Grundlagen der\n"
+        "Quantenmechanik, Springer, Berlin.\n"
+        "Winograd, T. (1986). Understanding computers.\n"
+        "Cambridge, MA: MIT Press.\n",
+        {"exit": 2, "args": ["--verbose"],
+         "must_contain": ["bibliography entries: 4", "resolved: 3", "['Von Neumann'] 1932"],
+         "must_not_contain": ["NO ENTRY", "no parseable year"]},
+    ),
+    (
+        "particle_kept_in_entry_given_name_is_not_one",
+        # The entry keeps `de Waal`. The CITATION `(de Waal, 1986)` is not parsed at all --
+        # find_citations wants one capitalised word -- and must be REPORTED, never dropped.
+        # `Di Brown`, given name first, must not become a family `Di Brown`: the tool's own
+        # self-test document caught that in the 58-document regression diff.
+        "Cites (de Waal, 1986) and (Brown et al., 2021).\n"
+        "\n## Bibliography\n\n"
+        "de Waal, F. (1986). Deception in the natural communication of chimpanzees. Book.\n\n"
+        "Di Brown, Ed Green, and Flo White. 2021. Third. Venue.\n",
+        {"exit": 2, "args": ["--verbose"],
+         "must_contain": ["resolved: 1", "['de Waal'] 1986", "['Brown', 'Green', 'White'] 2021",
+                          "unparsed citation-shaped text: (de Waal, 1986)"],
+         "must_not_contain": ["NO ENTRY", "['Di Brown'"]},
+    ),
+    (
+        "alphanumeric_labels_and_bullet_glyphs",
+        "Cites (Dennett, 1988) and (Markus & Nurius, 1986).\n"
+        "\nReferences\n"
+        "\uf0a7Dennett, D. C. (1988). Precis of the intentional stance. BBS 11.\n"
+        "\uf0a7Markus, H., & Nurius, P. (1986). Possible selves.\n"
+        "\nWorks cited\n"
+        "[ABH18] van der Aalst, W. M. P.; Bichler, M.: Robotic process automation, 2018.\n",
+        {"exit": 2, "must_contain": ["label line", "bibliography entries: 3", "resolved: 2",
+                                     "uncited entries: 1"],
+         "must_not_contain": ["NO ENTRY", "no parseable year"]},
+    ),
+    (
+        "table_of_contents_label_is_not_the_list",
+        # A `References` line in a contents list is followed by more contents, not entries.
+        "Contents\nIntroduction\nReferences\nAppendix\n"
+        "\n## Introduction\n\nAs argued (Price, 2011).\n"
+        "\nReferences\n"
+        "Price, H. (2011). Naturalism without mirrors. Oxford University Press.\n",
+        {"exit": 0, "must_contain": ["label line 11", "resolved: 1"],
+         "must_not_contain": ["NO ENTRY", "label line 4"]},
+    ),
+    (
+        "unlabelled_list_is_named_never_used",
+        # No heading and no label: the tool names the likeliest run and still fails. A
+        # position it chose for itself is a guess.
+        UNLABELLED,
+        {"exit": 1, "must_contain": ["no bibliography section found",
+                                     "most entry-shaped run begins at line 4", "Not used"]},
+    ),
+    (
+        "declared_bib_start_is_used",
+        UNLABELLED,
+        {"exit": 2, "args": ["--bib-start", "4"],
+         "must_contain": ["declared by --bib-start at line 4", "resolved: 2", "uncited entries: 1"],
+         "must_not_contain": ["NO ENTRY"]},
+    ),
 ]
 
 
@@ -65,7 +180,7 @@ def main() -> int:
         for name, body, want in CASES:
             path = Path(tmp) / f"{name}.md"
             path.write_text("# T\n" + body, encoding="utf-8")
-            run = subprocess.run([sys.executable, str(TOOL), str(path)],
+            run = subprocess.run([sys.executable, str(TOOL), str(path)] + want.get("args", []),
                                  capture_output=True, text=True, encoding="utf-8",
                                  errors="replace")
             out = run.stdout

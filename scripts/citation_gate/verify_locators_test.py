@@ -538,7 +538,7 @@ def main() -> int:
          shared_region(HERE / "verify_locators.py") == shared_region(HERE / "validate_sources.py"),
          True)
     for name, const in (("MIN_FOLIO_PAGES", "MIN_FOLIO_PAGES"), ("FOLIO_AGREEMENT", "FOLIO_AGREEMENT"),
-                        ("EDGE_CHARS", "EDGE_CHARS"), ("FOLIO_ZONE_LINES", "FOLIO_ZONE_LINES")):
+                        ("EDGE_CHARS", "EDGE_CHARS"), ("FOLIO_SCAN_LINES", "FOLIO_SCAN_LINES")):
         case(f"both tools use the same {name}", getattr(vs, const), getattr(vl, const))
 
     # one-, two- and many-page sources, positive and ambiguous, as the reviewer asked
@@ -794,8 +794,15 @@ def main() -> int:
          vl.printed_folios(edge_pages + [table_page])[2], {3})
     case("a number in the running foot still is",
          vl.printed_folios(edge_pages + [nl.join(["Body."] * 4 + ["99"])])[2], {99})
-    case("and one in the running head still is",
-         vl.printed_folios(edge_pages + [nl.join(["99"] + ["Body."] * 4)])[2], {99})
+    # A running head recurs, so a document that heads its folios has them on every page. This
+    # case used to head ONE page of a document that footed the others, which is a layout no
+    # document has and is the table-cell signature in different clothing: a number at a
+    # position no other page uses (2026-09-23 review, F11-04).
+    head_pages = [nl.join([str(i + 1)] + ["Body."] * 4) for i in range(2)]
+    case("and one in a running head that recurs still is",
+         vl.printed_folios(head_pages + [nl.join(["99"] + ["Body."] * 4)])[2], {99})
+    case("but a number where no other page prints one is not a folio",
+         vl.printed_folios(edge_pages + [nl.join(["99"] + ["Body."] * 4)])[2], set())
     # the refutation these controls must not disarm (F6-02)
     case("a contradicted cited page is still refuted",
          vl.printed_folios([nl.join(["Body.", "1"]), nl.join(["Body.", "2"]),

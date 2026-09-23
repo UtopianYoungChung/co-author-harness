@@ -16,7 +16,14 @@ Matching: same year; same first-author family name; two named authors need an en
 "et al." needs an entry with three or more authors; a single name needs a single-author entry. An organisation
 as author is matched on its first word.
 
-usage: python reconcile_citations.py <document> [--bib-heading "Bibliography"] [--verbose]
+usage: python reconcile_citations.py <document> [--bib-heading "Bibliography"] [--bib-start LINE] [--verbose]
+
+Locating the list: a Markdown heading (`## References`); failing that, a bare label line
+(`References` alone on its line) followed by entry-shaped lines, which is how PDF extractions
+in the reading store print it; failing that, only a position the operator declares with
+`--bib-start LINE` (1-based, the first entry line). An undeclared position is never used: the
+tool names the likeliest run and fails. `## PDF page N` markers and running heads or feet that
+recur down the document are not part of the list and do not end it.
 Undated citations count: `(Author, n.d.)` is matched against an `n.d.` bibliography entry
 like any other, and an unresolved one is a FAIL rather than a silence.
 
@@ -34,37 +41,162 @@ NO_DATE = r"n\.\s?d\."
 # both inventories, so an unresolved undated citation reported clean (review, 2026-09-20).
 YEAR = r"(?:" + DATED + r"|" + NO_DATE + r")"
 BIB_HEADINGS = ("bibliography", "references", "reference list", "works cited")
+# The reading store marks each PDF page with a heading. It is extraction apparatus, not a
+# section of the document: treating it as one ended every reference list at its first page
+# break (C-03, 2026-09-23).
+PAGE_MARKER_RE = re.compile(r"^#{1,6}\s+PDF page \d+\s*$", re.I)
+# A bare label line: the label alone, optionally emphasised or followed by a colon.
+LABEL_RE = re.compile(r"^[*_\s]*(" + "|".join(BIB_HEADINGS) + r")[\s:*_]*$", re.I)
+# The first line of an entry. Author-led: a family name and a comma, then an initial
+# (`A.`, `A `, `A,`) or a given name (`Frank`) -- not any capital, or `Cambridge, MA: MIT`
+# as a wrapped line would open an entry. `Management, vol. 3` and `Quantum Mechanics',
+# Philosophy` are continuations. Physics style: `Jauch J 1968,`, `Joos E and Zee HD,` -- a
+# family name and bare initials. Repeat-author: `———. 1996.` and `(1975) The meaning of`,
+# which inherit the names of the entry above.
+STATUS = r"(?:in press|in preparation|forthcoming)"
+PARTICLE = r"(?:(?:[a-z]{1,3}|Van|Von|De|Del|Della|Der|Den|Di|Du|La|Le|Ten|Ter)\s)?"
+# A family name, allowing an OCR spacing diacritic inside it: `Schr¨ odinger`.
+FAM = r"[A-Z][A-Za-zÀ-ſ'’\-]+(?:[¨´`ˆ˜]\s?[a-zà-ÿ]+)*"
+ENTRY_START_RE = re.compile(
+    r"^" + PARTICLE + FAM + r",\s+[A-Z](?:\.|\s|,|$)"                       # Newell, A.
+    r"|^" + PARTICLE + FAM + r"\s[A-Z]{1,3}(?:\s*,|\s+(?:and|&)\s|\s+\(?\s*(?:1[6-9]|20)\d\d)")  # Jauch J 1968, Adesman A (2009)
+# `Jackson, Frank (1986)`: opens an entry only with a DELIMITED year on the same line, or a
+# wrapped `Company, Dordrecht` and `University, August 1993` would.
+GIVEN_START_RE = re.compile(r"^" + PARTICLE + FAM + r",\s+[A-Z][a-z]+")
+GIVEN_YEAR_RE = re.compile(r"[.(]\s*(?:(?:1[6-9]|20)\d\d|" + STATUS + r")", re.I)
+REPEAT_RE = re.compile(r"^(?:[—–_]{2,}|-{3,})\s*[.,]?|^\((?:(?:1[6-9]|20)\d\d[a-z]?|" + STATUS + r")\)", re.I)
+NUMBERED_RE = re.compile(r"^(?:\[\d+\]|\d+\.\s|\[[A-Z][A-Za-z+]{0,5}\d{2}[a-z]?\])")   # [3], 3., [ABH18]
+# A list-item glyph an extractor left in front of each entry: `\uf0a7Dennett, D. C.`
+BULLET_RE = re.compile(r"^[\uf0a7\uf0b7•▪◦·]\s*")
+
+
+# `Ithaca, N.Y.: Cornell` -- a place and its state, running into the publisher's colon.
+PLACE_RE = re.compile(r"^" + FAM + r",\s+(?:[A-Z]\.){1,3}\s*:")
+PARTICLES = {"van", "von", "de", "del", "della", "der", "den", "di", "du", "da", "la", "le",
+             "ten", "ter", "dos", "das"}
+
+
+def starts_entry(t):
+    """Whether this line opens a bibliography entry rather than continuing one."""
+    t = BULLET_RE.sub("", t)
+    if PLACE_RE.match(t):
+        return False
+    return bool(ENTRY_START_RE.match(t) or NUMBERED_RE.match(t) or REPEAT_RE.match(t)
+                or (GIVEN_START_RE.match(t) and GIVEN_YEAR_RE.search(t)))
+# The author list at the head of an entry whose year comes after the title:
+# `Bell, C. G & Newell, A. Computer Structures ... McGraw-Hill 1971`.
+AUTHOR_PREFIX_RE = re.compile(
+    r"^((?:" + PARTICLE + FAM + r",?\s*(?:[A-Z](?![a-z])\.?\s*)+(?:,|&|and)?\s*)+)")
 
 
 def norm_year(y):
     """`n. d.` and `n.d.` are one token; a dated year is itself."""
-    y = (y or "").strip().lower()
+    y = " ".join((y or "").strip().lower().split())
     return "n.d." if re.fullmatch(r"n\.\s?d\.", y) else y
 
 
-def split_doc(text, heading=None):
+EDGE_LINES = 3
+
+
+def furniture(lines):
+    """Indexes of lines that are page apparatus rather than text: page markers, and running
+    heads and feet -- a line among the first or last EDGE_LINES of a `## PDF page` segment whose
+    form, numbers masked, sits at an edge on three or more pages. Recurrence alone is not
+    enough: `Press.` and `3:417-57.` recur down any reference list and are entry text (C-03).
+    Running matter recurs AT THE EDGE, the rule the locator gate uses for folios (F11-04).
+    A document without page markers has no furniture."""
+    out = {i for i, l in enumerate(lines) if PAGE_MARKER_RE.match(l.strip())}
+    if len(out) < 3:
+        return out
+    bounds = sorted(out) + [len(lines)]
+    edges = []
+    for a, b in zip(bounds, bounds[1:]):
+        body = [i for i in range(a + 1, b) if lines[i].strip()]
+        edges.extend(set(body[:EDGE_LINES] + body[-EDGE_LINES:]))
+    key = lambda i: re.sub(r"\d+", "#", " ".join(lines[i].split())).casefold()
+    pages = {}
+    for i in edges:
+        pages.setdefault(key(i), set()).add(max(m for m in bounds if m <= i))
+    for i in edges:
+        t = lines[i].strip()
+        if len(t) <= 80 and len(pages[key(i)]) >= 3:
+            out.add(i)
+    return out
+
+
+def entry_shaped(lines, i, drop, look=12, need=3):
+    """The first substantive line after line i opens an entry, or `need` of the next `look` do.
+    The first-line route admits a list of one (a supplement citing a single work)."""
+    got = n = 0
+    for j in range(i + 1, len(lines)):
+        t = lines[j].strip()
+        if not t or j in drop:
+            continue
+        n += 1
+        if starts_entry(t):
+            got += 1
+            if n == 1:
+                return True
+        if n >= look:
+            break
+    return got >= need
+
+
+def section_end(lines, start):
+    for j in range(start + 1, len(lines)):
+        if re.match(r"^#{1,6}\s+\S", lines[j]) and not PAGE_MARKER_RE.match(lines[j].strip()):
+            return j
+    return len(lines)
+
+
+def likeliest_run(lines, drop, window=30):
+    """(first line, entry-start count) of the densest entry-shaped window. Named, never used."""
+    starts = [i for i, l in enumerate(lines) if i not in drop and starts_entry(l.strip())]
+    if len(starts) < 3:
+        return None
+    best = max(starts, key=lambda i: sum(1 for j in starts if i <= j < i + window))
+    return best + 1, sum(1 for j in starts if best <= j < best + window)
+
+
+def split_doc(text, heading=None, bib_start=None):
+    """(body, bibliography, how it was found). `how` is None when there is no list."""
     lines = text.split("\n")
+    drop = furniture(lines)
     wanted = [heading.lower()] if heading else BIB_HEADINGS
-    start = end = None
+    start = found = None
     for i, l in enumerate(lines):
         m = re.match(r"^#{1,6}\s+(.*\S)\s*$", l)
-        if not m:
-            continue
-        if start is None and m.group(1).strip(" *_").lower() in wanted:
-            start = i
-        elif start is not None and end is None:
-            end = i
+        if m and not PAGE_MARKER_RE.match(l.strip()) and m.group(1).strip(" *_").lower() in wanted:
+            start, found = i, l.strip()
+            break
+    if start is None and not heading:
+        for i, l in enumerate(lines):
+            if LABEL_RE.match(l) and not l.lstrip().startswith("#") and entry_shaped(lines, i, drop):
+                start = i
+                found = f"{l.strip()} (label line {i + 1}, no Markdown heading)"
+                break
+    if start is None and bib_start:
+        start = bib_start - 2                   # the list begins ON the declared line
+        found = f"declared by --bib-start at line {bib_start}"
     if start is None:
         return text, "", None
-    end = end if end is not None else len(lines)
-    return "\n".join(lines[:start] + lines[end:]), "\n".join(lines[start + 1:end]), lines[start].strip()
+    end = section_end(lines, start)
+    # A second label inside the run (`Works cited` after `References`) is structure, not an
+    # entry: it became a year-less entry and a FAIL (C-03).
+    bib = [l for j, l in enumerate(lines[start + 1:end], start + 1)
+           if j not in drop and not LABEL_RE.match(l)]
+    keep = start + 1 if found.startswith("declared") else start   # no heading line to remove
+    return "\n".join(lines[:keep] + lines[end:]), "\n".join(bib), found
 
 
 def families(author_part):
     """family names from the author segment of a bibliography entry, in order."""
-    part = re.sub(r"\s+(?:and|&)\s+", ", ", author_part.strip().rstrip("."))
+    part = re.sub(r"([¨´`ˆ˜])\s+", r"\1", author_part.strip().rstrip("."))   # Schr¨ odinger
+    part = re.sub(r"\s+(?:and|&)\s+", ", ", part)
     out = []
-    for a in [x.strip() for x in part.split(",") if x.strip()]:
+    chunks = [x.strip() for x in part.split(",") if x.strip()]
+    initials = lambda c: bool(re.fullmatch(r"(?:[A-Z]\.?\s*)+", c))
+    for n, a in enumerate(chunks):
         # Initials belonging to the previous "Family, I." name. The period is optional
         # because the author segment's own trailing period has already been stripped: in
         # "Tester, T. (2026)" that left a bare "T", which was then read as a second family
@@ -72,26 +204,75 @@ def families(author_part):
         if re.fullmatch(r"(?:[A-Z]\.?\s*)+", a):
             continue
         toks = a.split()
-        if len(toks) > 1 and all(re.fullmatch(r"(?:[A-Z]\.)+|[A-Z]", t) for t in toks[1:]):
-            out.append(toks[0])                          # "Yu E." / "Yu, E."
-        else:
-            out.append(toks[-1])                         # "Eric Yu"
+        popped = False
+        while len(toks) > 1 and re.fullmatch(r"(?:[A-Z]\.)+|[A-Z]{1,3}", toks[-1]):
+            toks.pop()                                   # "Yu E." / "Van Fraassen B" / "Zee HD"
+            popped = True
+        family_first = popped or (n + 1 < len(chunks) and initials(chunks[n + 1]))
+        fam = [toks.pop()]                               # the family name: "Yu", "Fraassen"
+        # A lowercase particle is one wherever it stands; a capitalised one only in a name
+        # written family-first -- `Von Neumann J`, `Van Kleeck, M. H.` -- and not `Di Brown`,
+        # given name first (C-03; the self-test caught it).
+        while toks and toks[-1].lower() in PARTICLES and (toks[-1].islower() or family_first):
+            fam.insert(0, toks.pop())                    # ... with its particle: "de Waal"
+        out.append(" ".join(fam))
+    return out
+
+
+def segments(bib):
+    """One string per entry. Blank lines separate entries; so does a line that begins one --
+    a PDF extraction wraps entries with no blank line between them, and splitting on blank
+    lines alone made a page of entries into one (C-03)."""
+    out = []
+    for chunk in re.split(r"\n\s*\n", bib):
+        cur = []
+        for line in chunk.split("\n"):
+            t = BULLET_RE.sub("", line.strip())
+            if not t:
+                continue
+            if cur and starts_entry(t):
+                out.append(" ".join(cur))
+                cur = []
+            cur.append(t)
+        if cur:
+            out.append(" ".join(cur))
     return out
 
 
 def parse_bib(bib):
     entries = []
-    for raw in [b.strip() for b in re.split(r"\n\s*\n|\n(?=\[\d+\]|\d+\.\s)", bib) if b.strip()]:
+    prev_fams = []
+    for raw in segments(bib):
         e = re.sub(r"\s+", " ", raw)
         num = None
         m = re.match(r"^\[(\d+)\]\s*|^(\d+)\.\s+", e)
         if m:
             num = int(m.group(1) or m.group(2)); e = e[m.end():]
-        y = re.search(rf"[.(,]\s*({YEAR})", e)
+        repeat = bool(REPEAT_RE.match(e))
+        head = None
+        # A year straight after the author list is the entry's year. Searching for the first
+        # delimited year instead took `Rovelli C 1995;1997, ... 1997` and read title words as
+        # family names (C-03).
+        a = AUTHOR_PREFIX_RE.match(e)
+        y = re.match(rf"\(?\s*({YEAR}|{STATUS})", e[a.end():], re.I) if a else None
+        if y:
+            head = a.group(1)
+        else:
+            y = re.search(rf"[.(,]\s*({YEAR}|{STATUS})", e, re.I)
+        if not y:
+            # Year after the title, as in `... New York McGraw-Hill 1971`. Taken only when the
+            # entry opens with an author list that can be read by itself, so the family names
+            # never include title words.
+            a = AUTHOR_PREFIX_RE.match(e)
+            y = re.search(rf"(?<![\w\-]){YEAR}(?![\w\-])", e) if a else None
+            head = a.group(1) if a and y else None
         if not y:
             entries.append({"num": num, "raw": e, "year": None, "fams": [], "cited": 0}); continue
-        entries.append({"num": num, "raw": e, "year": norm_year(y.group(1)),
-                        "fams": families(e[:y.start()]), "cited": 0})
+        yr = y.group(1) if y.groups() else y.group(0)
+        fams = (list(prev_fams) if repeat else
+                families(head if head is not None else e[:y.start()]))
+        prev_fams = fams
+        entries.append({"num": num, "raw": e, "year": norm_year(yr), "fams": fams, "cited": 0})
     return entries
 
 
@@ -153,11 +334,24 @@ def main():
     verbose = "--verbose" in sys.argv
     heading = sys.argv[sys.argv.index("--bib-heading") + 1] if "--bib-heading" in sys.argv else None
     if heading in args: args.remove(heading)
+    bib_start = None
+    if "--bib-start" in sys.argv:
+        v = sys.argv[sys.argv.index("--bib-start") + 1]
+        bib_start = int(v)
+        if v in args: args.remove(v)
     raw = open(args[0], "rb").read()
-    body, bib, found = split_doc(raw.decode("utf-8-sig"), heading)
+    text = raw.decode("utf-8-sig")
+    body, bib, found = split_doc(text, heading, bib_start)
     print(f"document sha256[:16] {hashlib.sha256(raw).hexdigest()[:16]} | bibliography heading: {found or 'NOT FOUND'}")
     if found is None:
-        print("FAIL   no bibliography section found; no citation can resolve"); sys.exit(1)
+        lines = text.split("\n")
+        cand = likeliest_run(lines, furniture(lines))
+        print("FAIL   no bibliography section found; no citation can resolve")
+        if cand:
+            print(f"REPORT no heading or label line; the most entry-shaped run begins at line {cand[0]} "
+                  f"({cand[1]} entry-like lines in 30). Not used: declare it with --bib-start {cand[0]} "
+                  f"if that is the reference list")
+        sys.exit(1)
     entries = parse_bib(bib)
     cites, nums, unparsed = find_citations(body)
     fails, unparsed_bib = [], [e for e in entries if not e["year"]]

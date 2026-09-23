@@ -1,5 +1,5 @@
 {
- "vendored": "2026-09-22",
+ "vendored": "2026-09-23",
  "upstream": "C:/Users/young/.claude/tools",
  "why": "The pre-flight auditor relays these tools' conclusions. Before this they lived only in the author's home directory, so an installed harness found nothing, emitted an advisory CIT-LOC-001 and produced no inviolable finding: the citation gate was a property of one machine, not of the harness. Vendored so an install enforces it.",
  "precedence": "CITATION_GATE_TOOLS wins when set, so a working copy overrides these. Update both together; PROVENANCE.json records what was copied.",
@@ -9,11 +9,11 @@
   "reconcile_citations.py": "stdlib only"
  },
  "sha256": {
-  "reconcile_citations.py": "8a562de39997ee1f7199afc18b512bef461ef13eec5ce712d8f208dfaec51172",
-  "reconcile_citations_test.py": "f92a443a15d7c9c3e0bf3ffa2bf60c458122617b7b403dd1a9ba1e0620320952",
-  "validate_sources.py": "dee4dc3bdde0ea4465a9b7fbac579a81f5c3f2be3aead59f8a6f7e89a6a9e6eb",
-  "verify_locators.py": "c0ea18c0b5caecbee49c85288d63f551d31c883e66a5aaa529a22d51f5abbae0",
-  "verify_locators_test.py": "39880a8f857b5c224bd8f3e05054a3074a2b5d814025e3f33dc3ea0e0e986fa9"
+  "reconcile_citations.py": "60deea96776387bd8bed88f28059054193787fbda3ab7141e763d0e09f248c23",
+  "reconcile_citations_test.py": "0af300e2c4a1dada89c35276013bcf64a97426909a95ebe7ca16ab21b205d7f1",
+  "validate_sources.py": "cc88db3ed7236f7a14f1b9cab9091865fab539663d5fdee4ec476b23e5592c0a",
+  "verify_locators.py": "e0314bae6276cce81f2530ef09a7dd8891f76e5b6966a07c38ee69fd7f469706",
+  "verify_locators_test.py": "e236357fe6dae9c6fc9ae6d00b2c8f70d53351a25a6207930f00f3c56dbf7461"
  },
  "line_endings": "LF; git normalises these files, so the record must be taken after normalisation"
 }
