@@ -55,9 +55,14 @@ LABEL_RE = re.compile(r"^[*_\s]*(" + "|".join(BIB_HEADINGS) + r")[\s:*_]*$", re.
 # family name and bare initials. Repeat-author: `———. 1996.` and `(1975) The meaning of`,
 # which inherit the names of the entry above.
 STATUS = r"(?:in press|in preparation|forthcoming)"
-PARTICLE = r"(?:(?:[a-z]{1,3}|Van|Von|De|Del|Della|Der|Den|Di|Du|La|Le|Ten|Ter)\s)?"
+# The particles themselves, in either case -- not any short lowercase word: `[a-z]{1,3}` read
+# `& the PDP Research Group` as particle `the`, family `PD`, initial `P` (2026-09-23).
+_PARTICLE_WORDS = ("van", "von", "de", "del", "della", "der", "den", "di", "du", "da", "la", "le",
+                   "ten", "ter", "dos", "das")
+PARTICLE = (r"(?:(?:" + "|".join(sorted({w for p in _PARTICLE_WORDS for w in (p, p.capitalize())},
+                                         key=len, reverse=True)) + r")\s)?")
 # A family name, allowing an OCR spacing diacritic inside it: `Schr¨ odinger`.
-FAM = r"[A-Z][A-Za-zÀ-ſ'’\-]+(?:[¨´`ˆ˜]\s?[a-zà-ÿ]+)*"
+FAM = r"[A-Z][A-Za-zÀ-ſ'’\-]*[A-Za-zÀ-ſ'’](?:[¨´`ˆ˜]\s?[a-zà-ÿ]+)*"   # never ends in a hyphen
 ENTRY_START_RE = re.compile(
     r"^" + PARTICLE + FAM + r",\s+[A-Z](?:\.|\s|,|$)"                       # Newell, A.
     r"|^" + PARTICLE + FAM + r"\s[A-Z]{1,3}(?:\s*,|\s+(?:and|&)\s|\s+\(?\s*(?:1[6-9]|20)\d\d)")  # Jauch J 1968, Adesman A (2009)
@@ -87,7 +92,7 @@ def starts_entry(t):
 # The author list at the head of an entry whose year comes after the title:
 # `Bell, C. G & Newell, A. Computer Structures ... McGraw-Hill 1971`.
 AUTHOR_PREFIX_RE = re.compile(
-    r"^((?:" + PARTICLE + FAM + r",?\s*(?:[A-Z](?![a-z])\.?\s*)+(?:,|&|and)?\s*)+)")
+    r"^((?:" + PARTICLE + FAM + r",?\s*(?:[A-Z](?![a-z])\.?(?:-[A-Z]\.?)?\s*)+(?:,|&|and)?\s*)+)")
 
 
 def norm_year(y):
@@ -190,23 +195,39 @@ def split_doc(text, heading=None, bib_start=None):
     return "\n".join(lines[:keep] + lines[end:]), "\n".join(bib), found
 
 
+def join_accents(s):
+    """Rejoin an OCR spacing accent to its word, on either side: `Schr¨ odinger`, `S ´anchez`."""
+    return re.sub(r"\s*([¨´`ˆ˜])\s*", r"\1", s)
+
+
 def families(author_part):
     """family names from the author segment of a bibliography entry, in order."""
-    part = re.sub(r"([¨´`ˆ˜])\s+", r"\1", author_part.strip().rstrip("."))   # Schr¨ odinger
+    part = join_accents(author_part.strip().rstrip("."))   # Schr¨ odinger, Rodríguez-S ´anchez
     part = re.sub(r"\s+(?:and|&)\s+", ", ", part)
     out = []
     chunks = [x.strip() for x in part.split(",") if x.strip()]
-    initials = lambda c: bool(re.fullmatch(r"(?:[A-Z]\.?\s*)+", c))
+    initials = lambda c: bool(re.fullmatch(r"(?:[A-Z]\.?(?:-[A-Z]\.?)?\s*)+", c))   # J.-P.
     # A given name: one to three capitalised words or bare initials -- `Huw`, `K Scarlett`,
     # `Sue V.`. Only ever read as one straight after a bare family name (C-05).
     given = lambda c: bool(re.fullmatch(r"[A-Z][a-zà-ÿ'’\-]*\.?(?:\s+[A-Z][a-zà-ÿ'’\-]*\.?){0,2}", c))
+    # `eds.`, `(Eds.)`, `Hrsg.`: the role of the names before them, never a name.
+    # A bare capitalised `Ed` is a NAME (`Di Brown, Ed Green, and Flo White`): the marker is
+    # written with a period, in parentheses, in the plural, or in lowercase.
+    editor = lambda c: bool(re.fullmatch(
+        r"\((?i:eds?|editors?|hrsg)\.?\)|(?:eds?|editors?|hrsg)\.?|(?:Eds|Editors?|Hrsg)\.?|Ed\.",
+        c.strip()))
+    chunks = [c for c in chunks if not editor(c)]
     expect_given = False
     for n, a in enumerate(chunks):
+        # Before anything reads the chunk: `O. (Eds.)` must reach the initials test as `O.`.
+        a = " ".join(t for t in a.split() if not editor(t))
+        if not a:
+            continue
         # Initials belonging to the previous "Family, I." name. The period is optional
         # because the author segment's own trailing period has already been stripped: in
         # "Tester, T. (2026)" that left a bare "T", which was then read as a second family
         # name, so `(Tester, 2026)` failed against its own entry (review, 2026-09-20).
-        if re.fullmatch(r"(?:[A-Z]\.?\s*)+", a):
+        if initials(a):
             expect_given = False
             continue
         # Chicago and MLA invert only the first author -- `Price, Huw`, `Adlam, Emily and Carlo
@@ -218,7 +239,7 @@ def families(author_part):
             continue
         toks = a.split()
         popped = False
-        while len(toks) > 1 and re.fullmatch(r"(?:[A-Z]\.)+|[A-Z]{1,3}", toks[-1]):
+        while len(toks) > 1 and re.fullmatch(r"(?:[A-Z]\.)+|[A-Z]{1,3}|[A-Z]\.?-[A-Z]\.?", toks[-1]):
             toks.pop()                                   # "Yu E." / "Van Fraassen B" / "Zee HD"
             popped = True
         family_first = popped or (n + 1 < len(chunks) and initials(chunks[n + 1]))
@@ -253,6 +274,22 @@ def segments(bib):
     return out
 
 
+def name_list(seg):
+    """Whether an author segment is only names: capitalised words, initials, particles and the
+    connectors `and` / `&` / `et al.`. A segment that ran on into a title holds lowercase words
+    (`computer program beats`, `of the`), and its last chunk's last word became a family name."""
+    for tok in re.split(r"[\s,;]+", join_accents(seg).strip()):
+        t = tok.strip("().")
+        if not t or t[0].isupper() or t.lower() in PARTICLES or t in ("and", "&", "et", "al"):
+            continue
+        # A token with no letters -- `6:` where the scan turned `&` into `6:` in `Nicolis, G. 6:
+        # Prigogine, I.` -- is noise, not a title word. Counting it lost Prigogine (2026-09-23).
+        if not any(ch.isalpha() for ch in t):
+            continue
+        return False
+    return True
+
+
 def parse_bib(bib):
     entries = []
     prev_fams = []
@@ -273,6 +310,21 @@ def parse_bib(bib):
             head = a.group(1)
         else:
             y = re.search(rf"[.(,]\s*({YEAR}|{STATUS})", e, re.I)
+            # `Berliner, H. J. Backgammon ... Artificial Intelligence, 1980`: the delimited year
+            # comes after the title, so e[:y.start()] is authors AND title and gave
+            # ['Berliner', 'Intelligence']. Read the author prefix instead -- but only when that
+            # segment is not a plain name list, or `Kingsley, K Scarlett and Richard Parry` would
+            # lose Parry to a prefix that stops at `Kingsley, K`.
+            # ... and only when the prefix stops on an initial. Stopping on a connector
+            # (`Rumelhart, D. E., McClelland, J. L. &`) means more authors follow -- `the PDP
+            # Research Group` is one -- and the segment is the author list after all.
+            # ... and only when the list does not resume one token later: `Brown, R. or Fish, D.`
+            # (the scan turned `&` into `or`) continues with `Fish, D.`; a title does not.
+            if (y and a and a.end() <= y.start() and not name_list(e[:y.start()])
+                    and not re.search(r"(?:,|&|\band)\s*$", a.group(1))
+                    and not re.match(r"\S+\s+" + PARTICLE + FAM + r",?\s*[A-Z](?![a-z])",
+                                     e[a.end():y.start()])):
+                head = a.group(1)
         if not y:
             # Year after the title, as in `... New York McGraw-Hill 1971`. Taken only when the
             # entry opens with an author list that can be read by itself, so the family names

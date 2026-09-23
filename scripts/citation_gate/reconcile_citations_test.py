@@ -199,6 +199,43 @@ CASES = [
          # It is a failure with a true name, not a resolution: never NO ENTRY, never resolved.
          "must_not_contain": ["'Scarlett'", "NO ENTRY", "resolved: 1"]},
     ),
+    # --- the two misreadings, and what fixing them ran into, 2026-09-23 ------------------------
+    (
+        "year_after_title_reads_the_author_prefix",
+        # `Berliner ... Artificial Intelligence, 1980` parsed as ['Berliner', 'Intelligence'].
+        # A hyphenated initial (`Ewert, J.-P.`) was kept as a name. Editor markers were names.
+        "As shown by Berliner (1980), (Simon, 1969), Ewert's (1987) and (Roitblat, Bever & Terrace, 1984).\n"
+        "\nReferences\n"
+        "Berliner, H. J. Backgammon computer program beats world champion Artificial\n"
+        "Intelligence, 1980, 14, 205-220\n"
+        "Simon, H A Science of the Artificial Cambridge, MA: MIT Press, 1969\n"
+        "Ewert, J.-P. (1987) Neuroethology of releasing mechanisms. BBS 10.\n"
+        "Roitblat, H. L., Bever, T. G. & Terrace, H. S., eds. (1984) Animal cognition. Erlbaum.\n",
+        {"exit": 0, "args": ["--verbose"],
+         "must_contain": ["resolved: 4", "['Berliner'] 1980", "['Simon'] 1969", "['Ewert'] 1987",
+                          "['Roitblat', 'Bever', 'Terrace'] 1984"],
+         "must_not_contain": ["Intelligence'", "'J.-P'", "'eds'", "NO ENTRY", "AUTHORS DIFFER"]},
+    ),
+    (
+        "author_lists_the_prefix_must_not_cut_short",
+        # Each of these lost an author to a prefix reading before it was guarded: an
+        # organisation after a connector, a two-name author with given names, an OCR-mangled
+        # `&` (`or`, `6:`), an accent split before its letters, a hyphenated surname.
+        "Cites (Rumelhart, McClelland & Group, 1986), (Kingsley & Parry, 2020), (Brown & Fish, 1983),\n"
+        "(Nicolis & Prigogine, 1977) and (Corrales-Garay et al., 2024).\n"
+        "\nReferences\n"
+        "Rumelhart, D. E., McClelland, J. L. & the PDP Research Group (1986) Parallel distributed processing.\n"
+        "Kingsley, K Scarlett and Richard Parry ( 2020 ) Empedocles, in The Stanford Encyclopedia.\n"
+        "Brown, R. or Fish, D. (1983) The psychological causality implicit in language.\n"
+        "Nicolis, G. 6: Prigogine, I. (1977) Self-organization in nonequilibrium systems.\n"
+        "Corrales-Garay, D., Rodríguez-S ´anchez, J.L., Montero-Navarro, A., 2024. Co-creating value.\n",
+        {"exit": 0, "args": ["--verbose"],
+         "must_contain": ["resolved: 5", "['Rumelhart', 'McClelland', 'Group'] 1986",
+                          "['Kingsley', 'Parry'] 2020", "['Brown', 'Fish'] 1983",
+                          "['Nicolis', 'Prigogine'] 1977",
+                          "['Corrales-Garay', 'Rodríguez-S´anchez', 'Montero-Navarro'] 2024"],
+         "must_not_contain": ["NO ENTRY", "AUTHORS DIFFER", "'the'", "'Rodríguez-S']"]},
+    ),
 ]
 
 
