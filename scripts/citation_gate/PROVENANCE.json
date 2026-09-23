@@ -11,8 +11,8 @@
  "sha256": {
   "reconcile_citations.py": "8a562de39997ee1f7199afc18b512bef461ef13eec5ce712d8f208dfaec51172",
   "reconcile_citations_test.py": "f92a443a15d7c9c3e0bf3ffa2bf60c458122617b7b403dd1a9ba1e0620320952",
-  "validate_sources.py": "187e3be96ea31f1d8ca5e5516589350bbec27d18a6dfaf298a4687539a1ee1ec",
-  "verify_locators.py": "f4d1256455c426f9db362d89848656a2886877abdd011cfc1e6cbe811fafce6b",
+  "validate_sources.py": "dee4dc3bdde0ea4465a9b7fbac579a81f5c3f2be3aead59f8a6f7e89a6a9e6eb",
+  "verify_locators.py": "c0ea18c0b5caecbee49c85288d63f551d31c883e66a5aaa529a22d51f5abbae0",
   "verify_locators_test.py": "39880a8f857b5c224bd8f3e05054a3074a2b5d814025e3f33dc3ea0e0e986fa9"
  },
  "line_endings": "LF; git normalises these files, so the record must be taken after normalisation"

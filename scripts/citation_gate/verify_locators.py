@@ -131,7 +131,13 @@ EDGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,4})(?!\d)")
 # source, 160 loses none and recovers two (2026-09-21, re-gating the manuscript).
 EDGE_CHARS = 160         # of the flattened page, at each end: its running head and its footer
 BARE_FOLIO_RE = re.compile(r"^[\[(]?\s*(\d{1,4})\s*[\])]?$")
-FOLIO_ZONE_LINES = 3     # the running head and foot: where a page prints its own number
+FOLIO_ZONE_LINES = 4     # the running head and foot: where a page prints its own number.
+                         # Three missed the recto folio of a verso/recto journal, whose
+                         # head runs title / issue / rule / folio -- 15 of 31 pages
+                         # instead of 30, refusing a pagination printed throughout
+                         # (2026-09-23, corpus finding C-01). Measured over every
+                         # regression source: 4 costs nothing, 5 brings back the body
+                         # table cell that F7-05 and F8-07 were about.
 
 
 # What a page prints that could be its own number, and how strongly it says so. Confirmation
