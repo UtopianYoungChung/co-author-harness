@@ -5,7 +5,8 @@ Lists the in-text citations and the bibliography entries of one citing document 
 reconciles them. Prints conclusions only.
 
   FAIL    an in-text citation that resolves to no bibliography entry (the work cannot be identified), or to
-          more than one (ambiguous)
+          more than one (ambiguous). NO ENTRY means nothing shares its first author and year;
+          AUTHORS DIFFER means an entry does, but the author lists AS PARSED differ -- shown, so a misparse can be seen
   REPORT  a bibliography entry that is never cited
 
 Handles author-year forms - (Yu, 2024, pp. 211-214), Yu (2024, p. 211), Yu's (2024), Wand and Weber (2002),
@@ -327,11 +328,16 @@ def find_citations(body):
     return out, nums, unparsed
 
 
-def match(entry, names, etal, year):
+def first_author_year(entry, names, year):
+    """Same year and same first author -- the part of match() that identifies a candidate."""
     if entry["year"] != year or not entry["fams"] or not names:
         return False
     first = names[0].split()[-1].lower() if " " not in names[0] else names[0].split()[0].lower()
-    if entry["fams"][0].lower() != first and entry["fams"][0].lower() != names[0].lower():
+    return entry["fams"][0].lower() in (first, names[0].lower())
+
+
+def match(entry, names, etal, year):
+    if not first_author_year(entry, names, year):
         return False
     if etal:
         return len(entry["fams"]) >= 3
@@ -376,7 +382,21 @@ def main():
             hits[0]["cited"] += 1
         else:
             line = body.count("\n", 0, pos) + 1
-            fails.append(f"{'NO ENTRY' if not hits else 'AMBIGUOUS (' + str(len(hits)) + ' entries)'}: {shown[:90]}  [about line {line}]")
+            near = [] if hits else [e for e in entries if first_author_year(e, names, y)]
+            if hits:
+                label = f"AMBIGUOUS ({len(hits)} entries)"
+            elif near:
+                # An entry agrees on first author and year; the author list does not. Called
+                # NO ENTRY until 2026-09-23, which was false -- `(Kingsley 2020)` against
+                # `Kingsley ... and Richard Parry (2020)`. Still a FAIL: same verdict, true name.
+                cited = f"{len(names)}{' et al.' if etal else ''}"
+                listed = " || ".join(f"{len(e['fams'])} {e['fams'][:4]}" for e in near[:3])
+                label = f"AUTHORS DIFFER (citation parsed as {cited}; entry parsed as {listed})"
+                # "parsed as", not "lists": the counts are the tool's reading, and a misread
+                # entry (`Berliner ... Artificial Intelligence, 1980` -> 2 names) must show as one.
+            else:
+                label = "NO ENTRY"
+            fails.append(f"{label}: {shown[:90]}  [about line {line}]")
     by_num = {}
     for e in entries:
         if e["num"] is not None:

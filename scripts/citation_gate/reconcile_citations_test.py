@@ -194,8 +194,10 @@ CASES = [
         "\nReferences\n"
         "Kingsley, K Scarlett and Richard Parry (2020) Empedocles. Stanford Encyclopedia.\n",
         {"exit": 1, "args": ["--verbose"],
-         "must_contain": ["NO ENTRY", "['Kingsley', 'Parry'] 2020"],
-         "must_not_contain": ["'Scarlett'"]},
+         "must_contain": ["AUTHORS DIFFER (citation parsed as 1; entry parsed as 2 ['Kingsley', 'Parry'])",
+                          "['Kingsley', 'Parry'] 2020", "uncited entry"],
+         # It is a failure with a true name, not a resolution: never NO ENTRY, never resolved.
+         "must_not_contain": ["'Scarlett'", "NO ENTRY", "resolved: 1"]},
     ),
 ]
 
