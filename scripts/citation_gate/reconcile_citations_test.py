@@ -169,6 +169,34 @@ CASES = [
          "must_contain": ["declared by --bib-start at line 4", "resolved: 2", "uncited entries: 1"],
          "must_not_contain": ["NO ENTRY"]},
     ),
+    # --- C-05, 2026-09-23: Chicago and MLA invert only the first author ---------------------
+    (
+        "chicago_given_name_is_not_a_family",
+        # `Price, Huw` parsed as families ['Price', 'Huw'], so the one-name citation found no
+        # one-author entry; U2 and U4 resolved 0 of 14. `Adlam, Emily and Carlo Rovelli` is two
+        # authors, and a same-year single-author `Rovelli, Carlo` must stay distinct from it.
+        "As argued (Price 2011), (Rovelli 2022) and (Adlam & Rovelli 2022).\n"
+        "\nReferences\n"
+        "Adlam, Emily and Carlo Rovelli (2022) Information is physical. Philosophy of Physics 1.\n"
+        "Price, Huw (2011) Naturalism without mirrors. Oxford University Press.\n"
+        "Rovelli, Carlo (2022) Agency in physics. Unpublished.\n",
+        {"exit": 0, "args": ["--verbose"],
+         "must_contain": ["resolved: 3", "['Adlam', 'Rovelli'] 2022", "['Price'] 2011",
+                          "['Rovelli'] 2022"],
+         "must_not_contain": ["NO ENTRY", "AMBIGUOUS", "'Huw'", "'Emily'", "'Carlo'"]},
+    ),
+    (
+        "one_name_still_needs_a_one_author_entry",
+        # The names now parse; the matching rule is unchanged. `(Kingsley 2020)` against a
+        # two-author entry still fails -- U4 prints exactly this -- and must not be loosened by
+        # accident while names are being fixed.
+        "As argued (Kingsley 2020).\n"
+        "\nReferences\n"
+        "Kingsley, K Scarlett and Richard Parry (2020) Empedocles. Stanford Encyclopedia.\n",
+        {"exit": 1, "args": ["--verbose"],
+         "must_contain": ["NO ENTRY", "['Kingsley', 'Parry'] 2020"],
+         "must_not_contain": ["'Scarlett'"]},
+    ),
 ]
 
 

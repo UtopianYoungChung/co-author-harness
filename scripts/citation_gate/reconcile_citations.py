@@ -196,12 +196,24 @@ def families(author_part):
     out = []
     chunks = [x.strip() for x in part.split(",") if x.strip()]
     initials = lambda c: bool(re.fullmatch(r"(?:[A-Z]\.?\s*)+", c))
+    # A given name: one to three capitalised words or bare initials -- `Huw`, `K Scarlett`,
+    # `Sue V.`. Only ever read as one straight after a bare family name (C-05).
+    given = lambda c: bool(re.fullmatch(r"[A-Z][a-zà-ÿ'’\-]*\.?(?:\s+[A-Z][a-zà-ÿ'’\-]*\.?){0,2}", c))
+    expect_given = False
     for n, a in enumerate(chunks):
         # Initials belonging to the previous "Family, I." name. The period is optional
         # because the author segment's own trailing period has already been stripped: in
         # "Tester, T. (2026)" that left a bare "T", which was then read as a second family
         # name, so `(Tester, 2026)` failed against its own entry (review, 2026-09-20).
         if re.fullmatch(r"(?:[A-Z]\.?\s*)+", a):
+            expect_given = False
+            continue
+        # Chicago and MLA invert only the first author -- `Price, Huw`, `Adlam, Emily and Carlo
+        # Rovelli` -- so the chunk after a bare family name is that author's given name. Read as
+        # a second family, `(Price 2011)` found no one-author entry: U2 and U4 resolved 0 of 14
+        # (C-05, 2026-09-23).
+        if expect_given and given(a):
+            expect_given = False
             continue
         toks = a.split()
         popped = False
@@ -215,6 +227,7 @@ def families(author_part):
         # given name first (C-03; the self-test caught it).
         while toks and toks[-1].lower() in PARTICLES and (toks[-1].islower() or family_first):
             fam.insert(0, toks.pop())                    # ... with its particle: "de Waal"
+        expect_given = not toks and not popped           # the chunk was a bare family name
         out.append(" ".join(fam))
     return out
 
