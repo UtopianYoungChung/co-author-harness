@@ -209,6 +209,20 @@ the disagreement rate. **Do not adjudicate** between them.
   `python scripts/analysis/fixture_runner.py --no-write` inside it. A result of
   `REGISTRY_EXIT=2` with 0 failures means the files changed during the run, not
   that a test failed. See `docs/evaluation/fixture-runner-tree-mutation.md`.
+- **Two uncommitted edits in the owner's shared checkout are not part of this work.**
+  At 10:44 (UTC−4) on 2026-09-23, an unidentified author edited two files in the
+  same second:
+  - `references/REVIEW_ORCHESTRATION.md`: a one-line change to the Precedence note,
+    `CLAUDE.md` to `AGENTS.md`;
+  - `scripts/hooks/full_run_pretooluse_gate.py`: a change that loosens the hook's
+    Agent/Task dispatch gate.
+
+  Neither Claude session working in this repository made them, and neither edit was
+  committed when this prompt was written. Review a fixed commit, not a working tree,
+  so they cannot enter your review. **If you made these edits, say so in your
+  report**, because this prompt forbids modifying the repository. If they appear in a
+  later commit, treat them as outside this work order. The first one fails
+  `contract-kernel-check` until its pin is refreshed.
 - **The implementer's last full run:** at `a4272dd` on 2026-09-23, **114 of 114 cases
   passed** (`REGISTRY_EXIT=0`), with the tested-inputs hash `cf67dad97154` over 846
   files identical before and after the run. That commit contains the whole work
