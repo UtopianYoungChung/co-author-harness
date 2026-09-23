@@ -45,6 +45,10 @@ The work order required the fix to:
 - **Repository:** <https://github.com/UtopianYoungChung/co-author-harness> (public;
   `git clone https://github.com/UtopianYoungChung/co-author-harness.git`). If you
   are working on the owner's machine, the owner will point you to the local checkout.
+- **The commit to review** is named by whoever gave you this prompt; the GitHub issue
+  that carries it names one. If you received this prompt without a named commit, ask
+  the owner before you start. Review that one commit throughout, and give its full
+  40-character SHA in your report.
 - **The implementer's commits**, in order: `51e6349` `0ea1f69` `178c419` `c4e7f5c`
   `8f2a4f5` `fee200d` `69197b3` `e94d6f3` `35e1982` `3424638`.
 - **Other commits are interleaved** in that range. A separate session committed work
@@ -217,12 +221,13 @@ the disagreement rate. **Do not adjudicate** between them.
   - `scripts/hooks/full_run_pretooluse_gate.py`: a change that loosens the hook's
     Agent/Task dispatch gate.
 
-  Neither Claude session working in this repository made them, and neither edit was
-  committed when this prompt was written. Review a fixed commit, not a working tree,
-  so they cannot enter your review. **If you made these edits, say so in your
-  report**, because this prompt forbids modifying the repository. If they appear in a
-  later commit, treat them as outside this work order. The first one fails
-  `contract-kernel-check` until its pin is refreshed.
+  Both Claude sessions working in this repository report that they did not make them.
+  File timestamps and git state do not establish who did. Neither edit was committed
+  when this prompt was written. Review a fixed commit, not a working tree, so they
+  cannot enter your review. **If you made these edits, say so in your report**: this
+  prompt forbids modifying the implementation or the owner's shared checkout (see
+  *What you may not do*). If they appear in a later commit, treat them as outside this
+  work order. The first one fails `contract-kernel-check` until its pin is refreshed.
 - **The implementer's last full run:** at `a4272dd` on 2026-09-23, **114 of 114 cases
   passed** (`REGISTRY_EXIT=0`), with the tested-inputs hash `cf67dad97154` over 846
   files identical before and after the run. That commit contains the whole work
@@ -240,16 +245,21 @@ the disagreement rate. **Do not adjudicate** between them.
 
 ## What you may not do
 
-- Modify the implementation, push to `main`, or open changes against it. Report
-  defects; do not fix them.
+- Modify the implementation or the owner's shared checkout, push to `main`, or open
+  changes against it. Report defects; do not fix them.
 - Install, version, package, release, or promote anything.
 - Read, copy from, or modify the owner's research manuscripts, or any file outside
   this repository.
 - Show your fixtures or intermediate scores to any Claude session before you finish.
 
+**Permitted, and required by Part 2:** in your own isolated clone or detached
+worktree, add your qualification fixtures and register them in the fixture manifest.
+Keep those changes private.
+
 ## Your report
 
-Report each of these on its own line. Never fold one into another:
+Begin with the full 40-character SHA of the commit you reviewed. Then report each of
+these on its own line. Never fold one into another:
 
 | Line | Values |
 |---|---|
