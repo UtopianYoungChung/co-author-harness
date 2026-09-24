@@ -178,7 +178,11 @@ def validate_session(piw_session: Path | str) -> dict:
     return {'ok': True, 'code': 'OK', 'session': session, 'staging_root': str(staging)}
 
 def rule_bindings(passes: list[str], exclusions: list[str]) -> list[dict]:
-    names = ['GROUNDING_PROTOCOL.md', 'CITATION_DISCIPLINE.md']
+    # ARGUMENT_COHERENCE.md and SAFEGUARD_LAYER.md are mandatory for every prose
+    # review, so they are bound by content here: a change to either invalidates
+    # completion exactly as a change to a bound pass rule does.
+    names = ['GROUNDING_PROTOCOL.md', 'CITATION_DISCIPLINE.md', 'ARGUMENT_COHERENCE.md',
+             'SAFEGUARD_LAYER.md']
     for name in passes:
         if name in exclusions:
             continue

@@ -21,6 +21,10 @@
     "created_at"
   ],
   "properties": {
+    "coherence_review": {
+      "type": "object",
+      "description": "Structured argument-coherence review (references/ARGUMENT_COHERENCE.md); required by the verifier whenever the profile carries argument_coherence."
+    },
     "bibliography_review": {"type": "object", "description": "Complete bibliography/use assessment; required by the verifier for cited artifacts."},
     "source_materials": {
       "type": "array",

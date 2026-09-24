@@ -127,10 +127,12 @@ def _verify_coherence(coordinator, contract, state, evaluation, reflection) -> d
         if check.get('status') != 'pass':
             raise piw.PIWError('COHERENCE-NOT-CLEARED',
                                'Final ' + role + ' argument_coherence status: ' + str(check.get('status')))
-    scope_text, changed_units = coordinator.coherence_scope(contract, state['candidate'], 'evaluation')
+    read_context, changed_units, scope_units = coordinator.coherence_scope(
+        contract, state['candidate'], 'evaluation')
     try:
-        summary = coherence.validate(scope_text, evaluation.get('coherence_review'),
-                                     changed_unit_ids=changed_units, require_clear=True)
+        summary = coherence.validate(read_context, evaluation.get('coherence_review'),
+                                     changed_unit_ids=changed_units, scope_unit_ids=scope_units,
+                                     require_clear=True)
     except coherence.ReviewError as exc:
         raise piw.PIWError(exc.code, str(exc)) from exc
     return {**summary, 'status': 'reviewed_on_delivered_bytes',

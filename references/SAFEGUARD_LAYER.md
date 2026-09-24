@@ -471,7 +471,10 @@ this check supplies the judgment.
 
 1. **Open the §9f inventory** for the reviewed span
    (`python scripts/coherence_prefilter.py <target> --json`). Note the coverage
-   denominator, the changed units, and their immediate neighbours. Every required
+   denominator, the changed units, and their immediate neighbours, including
+   neighbours in the next or previous section and the surviving units next to a
+   deleted or moved paragraph. The inventory covers the whole target; the requested
+   section bounds writes, not reads. Every required
    unit is covered or the check is *Review incomplete*. A marker-free unit is not
    cleared by the absence of a marker.
 2. **For each covered unit, determine its purpose from the text.** What
@@ -480,7 +483,9 @@ this check supplies the judgment.
    finding (`purpose_unrecoverable`).
 3. **For each substantive sentence, assign a contribution:** `advances`,
    `supports`, `qualifies`, `background`, `transition`, or `none`. Only `none` is a
-   defect and it carries a finding. Check the positive controls in
+   defect and it carries a finding. Report one sentence per record; where the
+   pre-filter splits at an abbreviation, keep the sentence whole and declare that
+   boundary, with a reason. Check the positive controls in
    `ARGUMENT_COHERENCE.md` §4 before assigning `none`: an implicit transition the
    reader can recover, legitimate background, a qualification, a counterargument, a
    connection established earlier in the section, and authorial voice under the C-7
@@ -495,7 +500,10 @@ this check supplies the judgment.
    neighbours are in the required coverage.
 6. **Check the document's research commitments.** For each commitment in or affected
    by the reviewed span — a promise, a definition, a research question, a
-   deliverable, an evaluation — find its occurrences elsewhere. A commitment that no
+   deliverable, an evaluation — find its occurrences elsewhere. Every required unit
+   that states a promise, definition or question gets an explicit assessment, on a
+   fresh draft as well as a revision, and each occurrence is located by unit and
+   quotation. A commitment that no
    method or evaluation carries is **AC-4**. A term used in a sense that differs
    from its established sense, with no marked revision, is **AC-3**.
 7. **Keep source support on its own line.** A valid citation does not clear
@@ -532,7 +540,8 @@ this check and is withdrawn.
 
 **Limit of the mechanical layer.** `scripts/coherence_review.py` validates that this
 audit ran on these exact bytes, covered the required units, partitioned each unit's
-sentences exactly, and quoted only passages that occur in the candidate. It
+sentences exactly with one sentence per record, assessed every commitment-bearing
+unit, and quoted only passages that occur in the candidate. It
 establishes **evidence integrity and coverage, not semantic correctness**. A passing
 `argument_coherence` check never means the prose is coherent; it means the obligation
 was executed and its findings were dispositioned.

@@ -11,8 +11,16 @@ Anti-fabrication is the point of the exact-partition rule below: a unit's
 supplied sentence texts must reconstruct the unit's own text, and every quoted
 passage must occur in the candidate. A review copied from other bytes, replayed
 from an earlier candidate, or written from a summary cannot satisfy either.
+
+The partition is also bound to the inventory's sentence segmentation: each
+sentence record holds one sentence, so a paragraph cannot be dispositioned as a
+single `advances` record. A record may span a boundary the splitter found only
+by declaring that boundary an abbreviation, and only a short form can be
+declared one (`MERGEABLE`).
 """
 from __future__ import annotations
+
+import re
 
 import coherence_prefilter as prefilter
 
@@ -26,6 +34,23 @@ COMMITMENT_STATUS = ('carried', 'uncarried', 'not_applicable')
 
 MIN_PURPOSE = 40
 MIN_PROSE = 20
+
+# A boundary the splitter found may be declared a non-boundary only when the
+# token ending it is a short form: a title-case form of up to four letters
+# ("Jan.", "Gen."), an all-capital or dotted form ("NATO.", "U.S."), a single
+# initial, or a closed list of lower-case scholarly abbreviations. An ordinary
+# word ("demand.", "delivery.") never qualifies, so a whole paragraph cannot be
+# passed off as one sentence by declaration.
+_MERGEABLE_SHAPE = re.compile(r'^(?:[A-Z][a-z]{0,3}|[A-Z]{1,5}|[A-Za-z](?:\.[A-Za-z])+)\.$')
+_MERGEABLE_LOWER = frozenset({'al', 'ca', 'cf', 'pp', 'vs', 'vol', 'ed', 'eds', 'etc', 'approx',
+                              'fig', 'no', 'sec', 'ch', 'eq', 'op', 'cit', 'ibid', 'viz', 'p', 'n'})
+
+
+def mergeable(token):
+    """True when `token` may be declared an abbreviation, not a sentence end."""
+    token = str(token)
+    return bool(_MERGEABLE_SHAPE.match(token)) or (
+        token.endswith('.') and token[:-1] in _MERGEABLE_LOWER)
 
 
 class ReviewError(ValueError):
@@ -48,35 +73,73 @@ def _text(value, minimum, code, message):
     return value
 
 
-def required_units(candidate_text, changed_unit_ids=None, *, neighbour_radius=1):
+def required_units(candidate_text, changed_unit_ids=None, *, scope_unit_ids=None,
+                   neighbour_radius=1):
     """Units a review must cover: changed units plus their immediate neighbours.
 
+    `candidate_text` is the whole read context, never just the write scope. A
+    section-scoped revision can still disconnect the first paragraph of the
+    next section, so neighbours are taken across section boundaries.
+
     `changed_unit_ids=None` means no prior version was bound (a fresh draft) and
-    an empty list means nothing changed; in both cases every prose unit in the
-    requested scope is required. A no-change run still owes a review explaining
-    why the unchanged bytes satisfy the request, and an empty denominator would
-    make that review vacuous. Neighbours are required because AC-5 is
-    unreachable from the changed bytes alone.
+    an empty list means nothing changed. In both cases every unit of the write
+    scope is required (`scope_unit_ids`, or the whole document when that is
+    None), together with the scope's neighbours on either side. A no-change run
+    still owes a review explaining why the unchanged bytes satisfy the request,
+    and an empty denominator would make that review vacuous. Neighbours are
+    required because AC-5 is unreachable from the changed bytes alone.
     """
     units = prefilter.units_for(candidate_text)
     ids = [u['unit_id'] for u in units]
+
+    def around(base):
+        extra = set()
+        for unit_id in base:
+            position = ids.index(unit_id)
+            for offset in range(-neighbour_radius, neighbour_radius + 1):
+                index = position + offset
+                if 0 <= index < len(ids) and ids[index] not in base:
+                    extra.add(ids[index])
+        return extra
+
     if not changed_unit_ids:
-        return ids, list(changed_unit_ids or []), []
+        scope = set(ids) if scope_unit_ids is None else set(scope_unit_ids) & set(ids)
+        neighbours = around(scope)
+        needed = scope | neighbours
+        return ([x for x in ids if x in needed], list(changed_unit_ids or []),
+                [x for x in ids if x in neighbours])
     changed = [x for x in ids if x in set(changed_unit_ids)]
-    needed, neighbours = set(changed), set()
-    for unit_id in changed:
-        position = ids.index(unit_id)
-        for offset in range(-neighbour_radius, neighbour_radius + 1):
-            index = position + offset
-            if 0 <= index < len(ids) and ids[index] not in needed:
-                neighbours.add(ids[index])
-    needed |= neighbours
+    neighbours = around(set(changed))
+    needed = set(changed) | neighbours
     return [x for x in ids if x in needed], changed, [x for x in ids if x in neighbours]
 
 
-def validate(candidate_text, review, *, changed_unit_ids=None, candidate_sha256=None,
-             require_clear=False):
+def _one_sentence(item, unit_id):
+    """One sentence per record, unless each internal boundary is declared."""
+    pieces = prefilter.split_sentences(item['text'])
+    boundaries = [piece.split()[-1] for piece in pieces[:-1]]
+    declared = item.get('merged_boundaries') or []
+    require(isinstance(declared, list) and len(declared) == len(boundaries),
+            'COHERENCE-SENTENCE-MERGED',
+            'Each sentence record holds one sentence; a record in ' + unit_id + ' spans '
+            + str(len(pieces)) + '. Report each sentence with its own contribution, or '
+            'declare each internal boundary an abbreviation in merged_boundaries')
+    for boundary, entry in zip(boundaries, declared):
+        require(isinstance(entry, dict) and entry.get('after') == boundary
+                and mergeable(boundary)
+                and len(str(entry.get('reason', '')).strip()) >= MIN_PROSE,
+                'COHERENCE-SENTENCE-MERGED',
+                'Only a short form at an actual boundary can be declared an abbreviation, '
+                'with a reason; not ' + repr(entry.get('after') if isinstance(entry, dict)
+                                             else entry) + ' in ' + unit_id)
+
+
+def validate(candidate_text, review, *, changed_unit_ids=None, scope_unit_ids=None,
+             candidate_sha256=None, require_clear=False):
     """Validate one `coherence_review` object against the candidate bytes.
+
+    `candidate_text` is the whole read context; `scope_unit_ids` names the
+    units inside the write scope when that is narrower than the document.
 
     Raises `ReviewError` with a stable code. Returns a summary of what was
     actually covered, for the caller's evidence record.
@@ -95,7 +158,8 @@ def validate(candidate_text, review, *, changed_unit_ids=None, candidate_sha256=
                 'Candidate bytes changed after the review was produced')
 
     by_id = {u['unit_id']: u for u in inventory['units']}
-    needed, changed, neighbours = required_units(candidate_text, changed_unit_ids)
+    needed, changed, neighbours = required_units(candidate_text, changed_unit_ids,
+                                                 scope_unit_ids=scope_unit_ids)
 
     scope = review.get('scope')
     require(isinstance(scope, dict), 'COHERENCE-SCOPE-MISSING',
@@ -142,6 +206,7 @@ def validate(candidate_text, review, *, changed_unit_ids=None, candidate_sha256=
                     and item['text'].strip(), 'COHERENCE-SENTENCE-EVIDENCE-MISSING',
                     'Each sentence entry needs the verbatim sentence text in ' + unit_id)
             texts.append(normalized(item['text']))
+            _one_sentence(item, unit_id)
             contribution = item.get('contribution')
             require(contribution in CONTRIBUTIONS, 'COHERENCE-SENTENCE-EVIDENCE-MISSING',
                     'Contribution must be one of ' + '/'.join(CONTRIBUTIONS)
@@ -215,34 +280,54 @@ def validate(candidate_text, review, *, changed_unit_ids=None, candidate_sha256=
                 'COHERENCE-SCOPE-INVALID',
                 'Inspection beyond the write scope is a finding, never write authority')
 
-    occurrences = review.get('commitment_occurrences', []) or []
-    changed_commitment_units = [u for u in changed
-                                if 'commitment' in by_id[u]['markers']]
-    if changed_commitment_units:
-        require(isinstance(occurrences, list) and occurrences,
-                'COHERENCE-COMMITMENT-UNCHECKED',
-                'A changed unit carries a research commitment; report that commitment\'s '
-                'affected occurrences elsewhere in the document '
-                '(references/ARGUMENT_COHERENCE.md section 5)')
-    for row in occurrences:
+    # Commitments: every required unit that states a promise, a definition or a
+    # question is assessed explicitly, and every claimed occurrence is bound to
+    # real bytes. Mechanical binding is all this establishes; whether the
+    # assessment is right is Check 9's judgment (ARGUMENT_COHERENCE.md section 6).
+    require(isinstance(review.get('commitment_occurrences'), list),
+            'COHERENCE-COMMITMENT-UNCHECKED',
+            'Report commitment_occurrences explicitly, as an empty list only when no '
+            'required unit states a promise, definition or question '
+            '(references/ARGUMENT_COHERENCE.md section 5)')
+    flat_units = {unit_id: normalized(unit.get('text', '')) for unit_id, unit in by_id.items()}
+    assessed = set()
+    for row in review['commitment_occurrences']:
         require(isinstance(row, dict), 'COHERENCE-COMMITMENT-UNCHECKED',
                 'Each commitment row must be an object')
+        home = row.get('unit_id')
         commitment = normalized(row.get('commitment', ''))
-        require(commitment and commitment in candidate_flat,
+        require(home in by_id and commitment and commitment in flat_units[home],
                 'COHERENCE-PASSAGE-UNBOUND',
-                'Quote the commitment as it occurs in the candidate')
+                'Name the unit that states the commitment and quote it as it occurs there: '
+                + str(home))
         status = row.get('status')
         require(status in COMMITMENT_STATUS, 'COHERENCE-COMMITMENT-UNCHECKED',
                 'Commitment status must be one of ' + '/'.join(COMMITMENT_STATUS))
         locators = row.get('occurrence_locators')
         require(isinstance(locators, list), 'COHERENCE-COMMITMENT-UNCHECKED',
                 'List the commitment occurrences examined, empty if none exist')
+        for locator in locators:
+            quote = normalized(locator.get('quote', '')) if isinstance(locator, dict) else ''
+            require(isinstance(locator, dict) and locator.get('unit_id') in by_id
+                    and quote and quote in flat_units[locator['unit_id']],
+                    'COHERENCE-PASSAGE-UNBOUND',
+                    'Each occurrence locator names a prose unit of these bytes and quotes '
+                    'text that occurs in it: ' + repr(locator))
         if status == 'carried':
             require(locators, 'COHERENCE-COMMITMENT-UNCHECKED',
                     'A carried commitment names where it is carried')
         if status == 'uncarried':
             require(row.get('finding_id') in ids, 'COHERENCE-FINDING-UNBOUND',
                     'An uncarried commitment requires an AC-4 finding')
+        _text(row.get('assessment'), MIN_PROSE, 'COHERENCE-COMMITMENT-UNCHECKED',
+              'State how the commitment in ' + str(home) + ' was assessed')
+        assessed.add(home)
+    owed = [unit_id for unit_id in needed
+            if set(prefilter.COMMITMENT_MARKERS) & set(by_id[unit_id]['markers'])]
+    unassessed = [unit_id for unit_id in owed if unit_id not in assessed]
+    require(not unassessed, 'COHERENCE-COMMITMENT-UNCHECKED',
+            'Required units state a promise, definition or question the review does not '
+            'assess: ' + ', '.join(unassessed) + ' (references/ARGUMENT_COHERENCE.md section 5)')
 
     outcome = review.get('outcome')
     require(outcome in OUTCOMES, 'COHERENCE-OUTCOME-INVALID',
@@ -269,6 +354,9 @@ def validate(candidate_text, review, *, changed_unit_ids=None, candidate_sha256=
         'candidate_sha256': actual_sha,
         'coverage_denominator': inventory['coverage_denominator'],
         'required_unit_ids': needed,
+        'write_scope_unit_ids': (list(scope_unit_ids) if scope_unit_ids is not None
+                                 else 'whole_document'),
+        'commitment_units_assessed': sorted(assessed),
         'covered_unit_ids': list(covered),
         'changed_unit_ids': changed,
         'neighbour_unit_ids': neighbours,

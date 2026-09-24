@@ -63,35 +63,47 @@ def _preserved(contract, candidate, read_bytes=None):
             'PIW-SCOPE-DRIFT', 'Unrequested manuscript bytes changed')
 
 
-def _scope_region(contract, data: bytes) -> str:
-    """Text of the requested scope inside `data`.
+def _scope_lines(contract, data: bytes):
+    """First line and one-past-last line of the write scope inside `data`.
 
-    `_preserved` guarantees an unchanged prefix/suffix, so the in-scope region of
-    any candidate is the same byte window measured from both ends. A fresh draft
-    has no input and its whole body is in scope.
+    `_preserved` guarantees an unchanged prefix/suffix, so the write scope of any
+    candidate is the same byte window measured from both ends. None when the
+    whole document is in scope (a fresh draft, or no section requested).
     """
     scope = contract.get('requested_scope') or {}
     snapshot = contract.get('input_snapshot')
     if not snapshot or 'start_byte' not in scope:
-        return data.decode('utf-8-sig')
-    tail = snapshot['bytes'] - scope['end_byte']
-    end = len(data) - tail
-    return data[scope['start_byte']:end].decode('utf-8-sig') if 0 <= scope['start_byte'] <= end else data.decode('utf-8-sig')
+        return None
+    start, end = scope['start_byte'], len(data) - (snapshot['bytes'] - scope['end_byte'])
+    if not 0 <= start <= end:
+        return None
+    return data[:start].count(b'\n') + 1, data[:end].count(b'\n') + 1
 
 
 def coherence_scope(contract, target, stage, read_bytes=None):
-    """In-scope candidate text and the units this stage must cover.
+    """Read context, affected units and write-scope units for this stage.
+
+    Returns `(text, changed_unit_ids, scope_unit_ids)`. The requested section is
+    the **write** boundary only: `text` is the whole target, so the first
+    paragraph of the next section, and a commitment stated elsewhere, stay
+    inside the review. `scope_unit_ids` names the units inside the write scope,
+    or is None when that is the whole document.
 
     The AC-5 baseline is the author's original bytes, not the previous
     correction: a unit the harness disturbed three cycles ago is still a unit
     whose neighbours can be disconnected now.
     """
     reader = read_bytes or _read_bytes
-    candidate = _scope_region(contract, reader(target['path']))
+    data = reader(target['path'])
+    candidate = data.decode('utf-8-sig')
+    window = _scope_lines(contract, data)
+    scope_ids = None if window is None else [
+        u['unit_id'] for u in coherence_prefilter.units_for(candidate)
+        if window[0] <= u['line'] < window[1]]
     if stage == 'diagnosis' or not contract.get('input_snapshot'):
-        return candidate, None
-    original = _scope_region(contract, reader(contract['input_snapshot']['path']))
-    return candidate, coherence_prefilter.changed_unit_ids(original, candidate)
+        return candidate, None, scope_ids
+    original = reader(contract['input_snapshot']['path']).decode('utf-8-sig')
+    return candidate, coherence_prefilter.changed_unit_ids(original, candidate), scope_ids
 
 
 def start(session_path: Path, request: dict) -> dict:
@@ -257,11 +269,12 @@ def validate_result(contract, request, result, state, read_bytes=None):
     require(coherence_check['status'] in ('pass', 'fail'), 'COHERENCE-REVIEW-MISSING',
             'Argument coherence is judged on the actual bytes; it is never not_applicable '
             'or unavailable while there is prose to review')
-    candidate_scope, changed_units = coherence_scope(contract, request['target'], state['stage'], read_bytes)
+    read_context, changed_units, scope_units = coherence_scope(
+        contract, request['target'], state['stage'], read_bytes)
     try:
         coherence_summary = coherence.validate(
-            candidate_scope, result.get('coherence_review'), changed_unit_ids=changed_units,
-            require_clear=coherence_check['status'] == 'pass')
+            read_context, result.get('coherence_review'), changed_unit_ids=changed_units,
+            scope_unit_ids=scope_units, require_clear=coherence_check['status'] == 'pass')
     except coherence.ReviewError as exc:
         raise piw.PIWError(exc.code, str(exc)) from exc
     if coherence_check['status'] == 'fail':
@@ -369,13 +382,20 @@ def next_step(session_path):
         pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
         pending['bibliography_instruction'] = 'Read references/CITATION_DISCIPLINE.md. Substantive cited drafts require a bibliography check and bibliography_review in the result. Use scripts/bibliography_review.py inventory(target_text) to enumerate references, citation uses and non_citations; copy the exact non_citations classifications into the assessment, then inspect all claims in each cited paragraph and supply judgments; inventory output is not approval. Bind sources, actually inspected materials, all source_support use IDs, role, authority, directness, currency, discovery/challenging evidence and dispositions. A supported example cannot clear other uses. New references/claims/roles reopen affected judgments; pure numbering changes may reuse identical coverage. Prose-only work must state bibliography not assessed. Unresolved evidence blocks dependent claims, while independent planning/drafting may continue.'
         if pending['target']:
-            scope_text, changed_units = coherence_scope(contract, pending['target'], stage)
-            needed, changed_ids, neighbour_ids = coherence.required_units(scope_text, changed_units)
+            read_context, changed_units, scope_units = coherence_scope(contract, pending['target'], stage)
+            needed, changed_ids, neighbour_ids = coherence.required_units(
+                read_context, changed_units, scope_unit_ids=scope_units)
+            units = coherence_prefilter.units_for(read_context)
+            by_id = {u['unit_id']: u for u in units}
             pending['coherence_scope'] = {
-                'coverage_denominator': len(coherence_prefilter.units_for(scope_text)),
+                'coverage_denominator': len(units),
                 'required_unit_ids': needed, 'changed_unit_ids': changed_ids,
                 'neighbour_unit_ids': neighbour_ids,
-                'units': coherence_prefilter.units_for(scope_text),
+                'write_scope_unit_ids': scope_units if scope_units is not None else 'whole_document',
+                'commitment_unit_ids': [x for x in needed if set(coherence_prefilter.COMMITMENT_MARKERS)
+                                        & set(by_id[x]['markers'])],
+                'units': units,
+                'read_context': 'whole target; the requested section bounds writes only',
                 'baseline': 'original author bytes' if contract.get('input_snapshot') else 'new draft'}
         else:
             # First generation of a new draft: no candidate exists yet, so the
@@ -386,14 +406,20 @@ def next_step(session_path):
             'Read references/ARGUMENT_COHERENCE.md in full and execute its obligation on the '
             'target bytes. Return coherence_review={candidate_sha256, scope:{covered_unit_ids, '
             'changed_unit_ids, neighbours_reviewed}, units:[{unit_id, sha256, purpose, '
-            'sentences:[{text, contribution, finding_id}]}], commitment_occurrences, findings, '
-            'out_of_scope_observations, outcome}. candidate_sha256 is the sha256 of the requested '
-            'scope region of the target, and unit ids/hashes come from '
-            '`python scripts/coherence_prefilter.py <target> --json`; that pre-filter reaches no '
-            'verdict and clears nothing. Cover every required unit: the changed units and their '
-            'immediate neighbours, because a sound edit can disconnect an untouched neighbour. '
-            'Determine each paragraph purpose from the actual text, not from a role label. The '
-            'sentence texts you report must partition the unit exactly. Quote only passages that '
+            'sentences:[{text, contribution, finding_id, merged_boundaries?}]}], '
+            'commitment_occurrences:[{commitment, unit_id, status, occurrence_locators:[{unit_id, '
+            'quote}], assessment, finding_id?}], findings, out_of_scope_observations, outcome}. '
+            'candidate_sha256 is the sha256 of the whole target text, and unit ids/hashes come '
+            'from `python scripts/coherence_prefilter.py <target> --json`; that pre-filter reaches '
+            'no verdict and clears nothing. The requested section bounds what may be written, not '
+            'what is read: cover every required unit in coherence_scope, including neighbours in '
+            'the next or previous section, because a sound edit can disconnect an untouched '
+            'neighbour. Determine each paragraph purpose from the actual text, not from a role '
+            'label. The sentence texts you report must partition the unit exactly, one sentence '
+            'per record; where the pre-filter splits at an abbreviation, keep the sentence whole '
+            'and declare that boundary in merged_boundaries=[{after, reason}]. Assess every unit '
+            'in commitment_unit_ids with a commitment_occurrences row that quotes it, and locate '
+            'each occurrence by unit id and a quote from that unit. Quote only passages that '
             'occur in the bytes. Do not flag implicit transitions the reader can recover, '
             'legitimate background, qualifications, counterarguments, connections established '
             'earlier in the section, or authorial voice, and never impose a paragraph formula or '

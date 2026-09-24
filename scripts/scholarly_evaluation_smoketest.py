@@ -401,6 +401,9 @@ def _base_evaluation(
     from bibliography_fixture_support import attach_evaluation_review
     semantic = json.loads(prepared['activation'].receipt.read_text(encoding='utf-8'))
     attach_evaluation_review(value, prepared['artifact'], project, semantic['diagnostic_legacy_view']['passages'])
+    import coherence_fixture_support
+    value['coherence_review'] = coherence_fixture_support.build(
+        Path(prepared['artifact']).read_bytes().decode('utf-8-sig'))
     return value
 
 
@@ -655,6 +658,8 @@ def _staged_bytes_c6_evaluation(
         },
         "created_at": "2026-07-26T00:00:04Z",
     }
+    import coherence_fixture_support
+    value['coherence_review'] = coherence_fixture_support.build(artifact.read_bytes().decode('utf-8-sig'))
     if include_finding:
         value["_profile_path"] = str(profile)
         _add_finding(value, case["red_change"]["value"], artifact, register_value)
@@ -1877,6 +1882,15 @@ def main() -> int:
                              lambda value, *_: value['bibliography_review'].update(coverage_sha256='0' * 64), 'BIBLIOGRAPHY-STALE')
         authenticated_attack("bibliography-prose-only", clean_value, clean_artifact, clean_register, clean_prepared,
                              lambda value, *_: value['bibliography_review'].update(scope='prose_only'), 'BIBLIOGRAPHY-SCOPE')
+        # The governed argument_coherence pass needs a structured review of these
+        # artifact bytes, not a check id and a generic evidence binding.
+        authenticated_attack("coherence-review-missing", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value.pop('coherence_review'), 'COHERENCE-REVIEW-MISSING')
+        authenticated_attack("coherence-review-other-bytes", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: value['coherence_review'].update(candidate_sha256='0' * 64), 'COHERENCE-REVIEW-STALE')
+        authenticated_attack("coherence-review-partial", clean_value, clean_artifact, clean_register, clean_prepared,
+                             lambda value, *_: (value['coherence_review']['scope'].update(covered_unit_ids=value['coherence_review']['scope']['covered_unit_ids'][:1]),
+                                                value['coherence_review'].update(units=value['coherence_review']['units'][:1])), 'COHERENCE-COVERAGE-INCOMPLETE')
         authenticated_attack("forged-separation", clean_value, clean_artifact, clean_register, clean_prepared, lambda value, *_: value["dispatch_separation"].update({"generator_claim_id": "dispatch-0000000000000000"}), "SET-DISPATCH-SEPARATION")
         authenticated_attack("forged-dispatch", clean_value, clean_artifact, clean_register, clean_prepared, lambda value, *_: value["evaluation_dispatch"].update({"claim": value["generator_envelope"]}), "SET-DISPATCH-SEPARATION")
 

@@ -1557,6 +1557,10 @@ def main() -> int:
                 ],
             },
         }
+        import coherence_fixture_support
+        judgment["coherence_review"] = coherence_fixture_support.build(
+            Path(artifact).read_bytes().decode("utf-8-sig")
+        )
         invalid_judgment = copy.deepcopy(judgment)
         invalid_judgment["verdict"]["check_results"] = []
         try:

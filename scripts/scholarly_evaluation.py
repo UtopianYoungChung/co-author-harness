@@ -26,6 +26,7 @@ import assignment_dispatch_claim as dispatch
 import obligation_result as obligations
 import scholarly_claim_register as claim_register
 import bibliography_review as bibliography
+import coherence_review as coherence
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +117,10 @@ STATIC_DEPENDENCY_PATHS = (
     SCHEMA,
     ROOT / 'scripts' / 'bibliography_review.py',
     ROOT / 'references' / 'CITATION_DISCIPLINE.md',
+    ROOT / 'scripts' / 'coherence_review.py',
+    ROOT / 'scripts' / 'coherence_prefilter.py',
+    ROOT / 'references' / 'ARGUMENT_COHERENCE.md',
+    ROOT / 'references' / 'SAFEGUARD_LAYER.md',
     dispatch.CLAIM_SCHEMA,
     dispatch.CONSUMPTION_SCHEMA,
     dispatch.HOST_SCHEMA,
@@ -1196,6 +1201,19 @@ def _verify_evaluation_transaction(
         except bibliography.ReviewError as exc:
             blockers.append({'code': exc.code, 'message': str(exc),
                              'scholarly_code': 'BIBLIOGRAPHY-REVIEW-REQUIRED',
+                             'current_fingerprint': value['artifact']['sha256']})
+    # references/ARGUMENT_COHERENCE.md section 8. A check id and a generic
+    # evidence binding cannot show the obligation ran, so the structured review
+    # is validated against these artifact bytes, over the whole artifact, before
+    # the verdict can be qualified. Absent, partial, stale or wrong-scope review
+    # evidence is a blocker; a failing check still needs a valid review.
+    if 'argument_coherence' in check_by_id:
+        try:
+            coherence.validate(artifact.payload.decode('utf-8-sig'), value.get('coherence_review'),
+                               require_clear='argument_coherence' in pass_ids)
+        except coherence.ReviewError as exc:
+            blockers.append({'code': exc.code, 'message': str(exc),
+                             'scholarly_code': 'COHERENCE-REVIEW-REQUIRED',
                              'current_fingerprint': value['artifact']['sha256']})
     if not evaluator_fire:
         blockers.append(

@@ -18,6 +18,7 @@ exactly as loudly as one that is not. Only Check 9 can tell them apart.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import re
@@ -34,12 +35,21 @@ _LIST = re.compile(r'^[ \t]*(?:[-*+]\s|\d+[.)]\s)')
 _TABLE = re.compile(r'^[ \t]*\|')
 _QUOTE = re.compile(r'^[ \t]*>')
 
-# Sentence segmentation is advisory only: a review binds sentence text verbatim
-# and `coherence_review.py` verifies containment, so this splitter is never
-# load-bearing for coverage. Common abbreviations are protected to keep the
-# advisory count usable, not to make it authoritative.
-_ABBREV = r'(?<!\be\.g)(?<!\bi\.e)(?<!\bcf)(?<!\bet\sal)(?<!\bvs)(?<!\bpp)(?<!\bNo)(?<!\bFig)'
-_SENTENCE_END = re.compile(_ABBREV + r'([.!?])[\"”\')\]]*\s+(?=[\"“(\[]*[A-Z0-9])')
+# Sentence segmentation is load-bearing in one direction only. A review may split
+# a unit more finely than this splitter does, but a single sentence record may
+# not span a boundary it finds unless the record declares that boundary an
+# abbreviation (`coherence_review.MERGEABLE`). So an over-split here costs a
+# reviewer one declaration, and an under-split costs nothing. Common
+# abbreviations, titles and single-letter initials are protected so declarations
+# stay rare; boundaries that remain genuinely ambiguous ("until Jan. Riders ...")
+# are left to the reviewer to declare and justify.
+_ABBREV = (r'(?<!\be\.g)(?<!\bi\.e)(?<!\bcf)(?<!\bet\sal)(?<!\bvs)(?<!\bpp)(?<!\bNo)(?<!\bFig)'
+           r'(?<!\bDr)(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bSt)(?<!\bJr)(?<!\bSr)(?<!\bProf)'
+           r'(?<!\bInc)(?<!\bLtd)(?<!\bvol)(?<!\beds)(?<!\bapprox)(?<!\bca)(?<!\bEq)(?<!\bSec)'
+           r'(?<!\b[A-Z])')
+# Group 1 keeps closing quotes and brackets with the sentence they close, so the
+# pieces partition the unit exactly ('He said "stop." Then ...').
+_SENTENCE_END = re.compile(_ABBREV + r'([.!?][\"”\')\]]*)\s+(?=[\"“(\[]*[A-Z0-9])')
 
 MARKERS = {
     # A commitment the document owes a method or an evaluation (AC-4).
@@ -64,6 +74,19 @@ MARKERS = {
         r'|\b(?:earlier|previously|above)\s+(?:we|i)\s+(?:treated|used|defined|called)\b'
         r'|\b(?:by|on)\s+\w+\s+(?:we|i)\s+mean\b',
         re.I),
+    # A plain definition. `meaning_change` catches marked re-specifications; this
+    # catches the unmarked "A case means one trip", whose revision can silently
+    # change every later use of the term (AC-3).
+    'definition': re.compile(
+        r'\b(?:means|is\s+defined\s+as|are\s+defined\s+as|refers?\s+to|denotes?|'
+        r'is\s+understood\s+as|stands?\s+for|(?:we|i)\s+define)\b',
+        re.I),
+    # A question the document undertakes to answer (AC-4 when unanswered).
+    'question': re.compile(
+        r'\?|\bresearch\s+questions?\b|\bRQ\s?\d\b'
+        r'|\b(?:we|i|this\s+(?:paper|study|proposal|thesis|article|chapter))\s+'
+        r'(?:asks?|examines?\s+whether|investigates?\s+whether)\b',
+        re.I),
     # An inferential bridge: its premises must be adjacent and on the page.
     'inferential_bridge': re.compile(
         r'(?:^|(?<=[.;:]\s))\s*(?:therefore|thus|hence|consequently|accordingly|it\s+follows\s+that)\b'
@@ -75,6 +98,14 @@ MARKERS = {
         r'model|procedure|checklist|apparatus)s?\b',
         re.I),
 }
+
+# Markers whose unit states something the rest of the document owes or depends
+# on: a promise, a definition or re-definition, a question. A review must assess
+# each such unit in its required scope explicitly (`coherence_review`
+# COHERENCE-COMMITMENT-UNCHECKED). `deliverable` stays advisory: it matches any
+# mention of a method or a model, and a promised deliverable is already caught
+# by `commitment` ("will deliver", "will provide", "will develop").
+COMMITMENT_MARKERS = ('commitment', 'definition', 'meaning_change', 'question')
 
 # Headings under which a commitment is normally discharged. Absence is a
 # candidate for AC-4, never a finding: a document may discharge a commitment in
@@ -186,10 +217,12 @@ def inventory(text: str) -> dict:
     flush(len(lines))
 
     commitments = [
-        {'unit_id': unit['unit_id'], 'line': unit['line'], 'sentence': sentence}
-        for unit in units if 'commitment' in unit['markers']
+        {'unit_id': unit['unit_id'], 'line': unit['line'], 'sentence': sentence,
+         'kinds': kinds}
+        for unit in units if set(COMMITMENT_MARKERS) & set(unit['markers'])
         for sentence in split_sentences(unit['text'])
-        if MARKERS['commitment'].search(sentence)
+        for kinds in [[name for name in COMMITMENT_MARKERS if MARKERS[name].search(sentence)]]
+        if kinds
     ]
     payoff_units = [u for u in units
                     if any(_PAYOFF_HEADING.search(h) for h in u['heading_path'])]
@@ -220,12 +253,32 @@ def units_for(text: str) -> list[dict]:
 
 
 def changed_unit_ids(before: str, after: str) -> list[str]:
-    """Units of `after` whose bytes are not present unchanged in `before`.
+    """Units of `after` that a review must treat as affected by the change.
 
-    A pure insertion shifts unit ids, so identity is by content hash, not index.
+    Two kinds, returned together in document order:
+
+    * units that are new or altered: inserted, rewritten, or moved here;
+    * surviving units that a deletion or a move made newly adjacent. A deleted
+      paragraph has no unit in `after`, so the units on either side of the gap
+      stand in for it: "Both conditions must hold" is affected when the
+      paragraph defining the conditions is removed, even though its own bytes
+      did not change.
+
+    Identity comes from an **ordered** alignment of unit hashes, not set
+    membership. Set membership misses a repeated paragraph inserted a second
+    time, and lets an unrelated edit elsewhere mask a deletion.
     """
-    prior = {u['sha256'] for u in inventory(before)['units']}
-    return [u['unit_id'] for u in inventory(after)['units'] if u['sha256'] not in prior]
+    old = [u['sha256'] for u in inventory(before)['units']]
+    new_units = inventory(after)['units']
+    new = [u['sha256'] for u in new_units]
+    affected: set[int] = set()
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
+        if tag in ('replace', 'insert'):
+            affected.update(range(j1, j2))
+        if tag in ('delete', 'replace') and i2 - i1 > j2 - j1:
+            # More units left than arrived: the gap's surviving neighbours.
+            affected.update(x for x in (j1 - 1, j2) if 0 <= x < len(new))
+    return [new_units[x]['unit_id'] for x in sorted(affected)]
 
 
 def stub(result: dict) -> str:

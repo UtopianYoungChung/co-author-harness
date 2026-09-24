@@ -666,13 +666,36 @@ bytes. Check 9 must cover every changed unit **and its immediate neighbours**; t
 neighbour requirement exists because AC-5 (a sound edit disconnecting an untouched
 neighbouring sentence) is unreachable from the changed bytes alone.
 
+**Changed units come from an ordered alignment** of the before and after unit
+hashes, not from set membership. A paragraph inserted a second time is a change,
+and a deleted or moved paragraph marks the surviving units on either side of the
+gap as affected, because the unit that disappeared has no bytes left to review.
+The inventory always covers the **whole target**. A section write scope bounds
+what may be written, never what must be read, so a neighbour across a section
+boundary is still required.
+
+**Sentence segmentation is load-bearing in one direction.** A review may report a
+unit's sentences more finely than the splitter does, but one sentence record may
+not span a boundary the splitter found unless the record declares that boundary
+an abbreviation, with a reason, and only a short form qualifies. Titles, common
+scholarly abbreviations and single initials are protected, so declarations stay
+rare.
+
 | Marker class | Pattern (summary) | What it may indicate |
 |---|---|---|
 | Commitment | `we/I/this paper ... will`, `will show/deliver/evaluate/produce`, `we propose to` | a promise the document owes a method or an evaluation (**AC-4**) |
 | Source status | `prior/previous/existing/earlier work`, `the literature is/remains`, `is largely X-based`, `remains untested/contested` | a remark about the state of the field that may or may not be used (**AC-1**) |
 | Meaning change | `as used here`, `in this paper`, `we now use/treat/define ... to mean`, `earlier we treated/defined`, `by X we mean` | a re-specification of a term already in use (**AC-3**) |
+| Definition | `means`, `is defined as`, `refers to`, `denotes`, `stands for`, `we define` | a definition whose revision can silently change every later use of the term (**AC-3**) |
+| Question | `?`, `research question`, `RQ1`, `this study asks`, `examines whether` | a question the document undertakes to answer (**AC-4** when unanswered) |
 | Inferential bridge | `therefore`, `thus`, `hence`, `consequently`, `it follows that` | a conclusion whose premises must be adjacent and on the page |
 | Deliverable | `instrument`, `framework`, `toolkit`, `taxonomy`, `protocol`, `method`, `model`, `checklist` | a named artefact the document may not carry downstream (**AC-4**) |
+
+**Commitment-bearing units.** Units carrying a commitment, definition, meaning-change
+or question marker (`COMMITMENT_MARKERS`) are the ones Check 9 must assess
+explicitly whenever they fall in the required scope, a fresh draft included. The
+deliverable marker stays advisory: it matches any mention of a method or a model,
+and a promised deliverable is already caught by the commitment marker.
 
 **Emission rule:** every prose unit enters the inventory; a unit with a marker also
 enters the candidate list. **A marker is not a defect and the absence of a marker

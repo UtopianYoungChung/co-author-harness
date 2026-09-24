@@ -224,6 +224,35 @@ them is not qualification, whatever it is.
 **held** until an independent reviewer curates held-out fixtures and runs the
 scored evaluation against these values.
 
+### 4.4 Independent source review of `2718107`
+
+An independent, non-Anthropic reviewer reviewed the source at `2718107` (issue #17)
+and returned **changes required**, with six MAJOR findings. All six are gaps in
+*enforcement*, places where the validator or a gate accepted evidence it should
+refuse, not errors of judgment. The implementer received them through a
+source-only findings file and did not see the reviewer's held-out fixtures, their
+evaluator findings or their scores.
+
+| # | Finding | Fixed by |
+|---|---|---|
+| F1 | A governed `argument_coherence` pass was accepted with no structured review | the verifier validates `coherence_review` against the artifact; failures are blockers |
+| F2 | A deletion plus a distant edit dropped the deletion's surviving neighbour | ordered alignment of unit hashes; gap neighbours are affected |
+| F3 | A section write scope truncated the read context | whole-target inventory; the section bounds writes only |
+| F4 | One sentence record could hold a whole paragraph | one sentence per record, bound to the inventory's segmentation |
+| F5 | The two coherence authorities were not bound, so their drift left completions valid | both are bound by content in every contract |
+| F6 | Commitment assessment could be skipped, and occurrence locators were unchecked | explicit assessment of every commitment-bearing unit; locators quote real units |
+
+Each finding was first reproduced from invented text as a failing control in
+`scripts/argument_coherence_smoketest.py`: 14 of the 20 new controls failed on
+`2718107`. The six that passed are controls that guard against over-correction, such
+as an unchanged text having no changed units, or a real abbreviation not forcing a
+split.
+
+**What this does not change.** These fixes tighten evidence integrity and coverage.
+They say nothing about whether a reviewer executing Check 9 finds coherence
+defects. That is still the held-out qualification in §4.3, which runs on the fixed
+commit.
+
 ---
 
 ## 5. Outcomes vocabulary
@@ -238,7 +267,7 @@ exception in every downstream summary.
 | Dimension | Status |
 |---|---|
 | Source validation | repository structural checks and the affected suites pass; see the return report |
-| Independent review | **not performed** — returned for a separately authorized non-Anthropic reviewer |
+| Independent review | **source review performed** on `2718107` (changes required, six MAJOR findings; see §4.4). Fixes are awaiting re-review on the fixed commit |
 | Installed-byte identity | **not established** — source-path only; no installed cache was replaced |
 | Fresh-task / live-host execution | **not established** — synthetic host traces only (`claude_host_smoketest.py` proves adapter mechanics, not live qualification) |
 | Release | **not performed** — no version bump, no packaging, no promotion |

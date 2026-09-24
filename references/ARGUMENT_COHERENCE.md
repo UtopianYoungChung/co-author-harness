@@ -108,9 +108,18 @@ three-part paragraph, or a roadmap. A remedy that imposes one is out of scope.
   independent of the revision plan and precedes it.
 - **After revision.** Review the **whole changed paragraph**, not the changed
   sentences, plus the declared neighbouring units. AC-5 is unreachable otherwise.
-- **On commitment-bearing changes.** A change to a definition, a research question,
-  a deliverable, or an evaluation commitment additionally requires examining that
-  commitment's affected occurrences elsewhere in the document, and reporting them.
+  Neighbours are taken in the whole document, **across section boundaries**: a
+  requested section bounds what may be written, never what must be read. A deleted
+  or moved paragraph leaves no bytes to review, so the surviving paragraphs on
+  either side of the gap are treated as affected.
+- **On commitments in the required scope.** Every required unit that states a
+  promise, a definition or re-definition, or a question is assessed explicitly, a
+  fresh draft included, where nothing counts as "changed". The assessment names
+  the unit that states the commitment, quotes it there, gives its status, locates
+  each occurrence examined by unit and quotation, and says how it was assessed. A
+  change to a definition, a research question, a deliverable, or an evaluation
+  commitment additionally requires examining that commitment's affected
+  occurrences elsewhere in the document, and reporting them.
 
 **Inspection may extend beyond authorized write scope.** Reading a neighbouring
 paragraph to judge AC-5 is required; editing it is not authorized by having read it.
@@ -129,6 +138,15 @@ guarded application and read-back verification.
 
 Missing, partial, failed, stale, replayed, or improperly self-issued evidence
 prevents a reviewed-completion claim.
+
+**What is bound.** The review is bound to the whole target text, not to the write
+scope. Each sentence record holds one sentence of the inventory's segmentation. A
+record may keep a sentence whole across a boundary the pre-filter found only by
+declaring that boundary an abbreviation, with a reason, and only a short form
+qualifies (`COHERENCE-SENTENCE-MERGED`). Each commitment row, and each occurrence
+locator, quotes text that occurs in the unit it names (`COHERENCE-PASSAGE-UNBOUND`).
+This file and `SAFEGUARD_LAYER.md` are bound by content in every contract, so a
+change to either invalidates an earlier completion.
 
 **Mechanical validation establishes evidence integrity and coverage. It does not
 establish semantic correctness.** `scripts/coherence_review.py` can confirm that
@@ -160,7 +178,7 @@ pass, and it is reported as an exception in every downstream summary.
 |---|---|---|---|
 | Named read-only pass | `adhoc_review` | the named skill's reporting contract | report-only; there is no completion to gate |
 | Ordinary drafting / revision | `project_independent` | `piw_coordinator.effective_checks` → `validate_result` → `advance` → `piw_completion_guard.verify_completion` | blocking |
-| Governed staging / lifecycle | `lab_iteration`, `full_lifecycle` | `scholarly_evaluation.PROFILE_MINIMUM['argument_coherence']` | blocking |
+| Governed staging / lifecycle | `lab_iteration`, `full_lifecycle` | `scholarly_evaluation.PROFILE_MINIMUM['argument_coherence']` requires the check; the verifier validates the evaluation's `coherence_review` against the artifact bytes | blocking |
 | Conversational manuscript application | — | **none** | see below |
 
 **Conversational application is not a reviewed route.** When an agent edits a

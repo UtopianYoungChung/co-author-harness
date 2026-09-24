@@ -264,7 +264,15 @@ def publish_evaluation(
         "independence_level",
         "verdict",
     }
-    if not isinstance(judgment, dict) or set(judgment) != required_judgment:
+    # coherence_review is the Evaluator's structured argument-coherence evidence
+    # (references/ARGUMENT_COHERENCE.md section 8). It is carried through, never
+    # judged here: scholarly_evaluation's verifier is the one authority on
+    # whether it is present, current and complete for these artifact bytes.
+    carried_judgment = {"coherence_review"}
+    if (
+        not isinstance(judgment, dict)
+        or not required_judgment <= set(judgment) <= required_judgment | carried_judgment
+    ):
         raise ScholarlyPublicationError(
             "supplied judgment fields are incomplete or include publisher assertions"
         )
@@ -292,6 +300,8 @@ def publish_evaluation(
         "verdict": copy.deepcopy(judgment["verdict"]),
         "created_at": created_at,
     }
+    if "coherence_review" in judgment:
+        evaluation_value["coherence_review"] = copy.deepcopy(judgment["coherence_review"])
     evaluation_data = _canonical(evaluation_value)
     _preflight_evaluation_value(profile_value, evaluation_value)
     try:

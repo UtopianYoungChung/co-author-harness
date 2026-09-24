@@ -777,14 +777,14 @@
       "id": "scholarly-evaluation-schema",
       "path": "references/schemas/scholarly_evaluation.schema.json",
       "revision_kind": "sha256",
-      "sha256": "ec4a5fda40909f2cd6aafb1e5de5b0e8177a95e74baebdd0040ca1808ba10934",
+      "sha256": "a2bf091ab558f5492837fdd07d901bf9b543ad8fa3747e31081b90c8bed64489",
       "migration_ids": []
     },
     {
       "id": "scholarly-evaluation",
       "path": "scripts/scholarly_evaluation.py",
       "revision_kind": "sha256",
-      "sha256": "bbdf8d3f142caba5d0f619cd31f48a407f56b731dc70648183ad3e9d58a22af0",
+      "sha256": "ada81c46fde01a9f26f57bfed563485ade1224ee096dcd7788be53344a926ae0",
       "migration_ids": []
     },
     {
@@ -1128,42 +1128,42 @@
       "id": "piw-session",
       "path": "scripts/piw_session.py",
       "revision_kind": "sha256",
-      "sha256": "7ce4bf532914dfd6fc5ef1f485fb39c5c0ad3521f479ac7001593dffed5bc75a",
+      "sha256": "07ba32faf124bce1221ee236d0339150b86671b6d4f114c1688d64a6bc30a17b",
       "migration_ids": []
     },
     {
       "id": "piw-coordinator",
       "path": "scripts/piw_coordinator.py",
       "revision_kind": "sha256",
-      "sha256": "dc5466fb3865812cad48a5988d21b66487f0b120ecbeead7f97dbf0f61196b95",
+      "sha256": "18ba17ad9b08a737ea68fa4e6e49ae6335fabaa404240df04d17569429a9bf2e",
       "migration_ids": []
     },
     {
       "id": "piw-completion",
       "path": "scripts/piw_completion_guard.py",
       "revision_kind": "sha256",
-      "sha256": "2a4ba1e5f8e5d7f3277483c36f69689776aed91e045605783bad63a7888ec323",
+      "sha256": "cab2ffd9474af83c94315888da23e87ae30afb74a09d1570b965c80cce3a02f6",
       "migration_ids": []
     },
     {
       "id": "argument-coherence",
       "path": "references/ARGUMENT_COHERENCE.md",
       "revision_kind": "sha256",
-      "sha256": "6d3e964bd67aa44f9e55a51b0be36a138469948796bd07cdc0ffc87726114509",
+      "sha256": "afdcc3f28af1f088b19fc774ece0b83ccd77220b60bdea562719b12b55b94bcf",
       "migration_ids": []
     },
     {
       "id": "coherence-review",
       "path": "scripts/coherence_review.py",
       "revision_kind": "sha256",
-      "sha256": "6129536c7f2ce027c2e81fcd3bb265d416dc5e5273779b7b6f1e4be034dcea2b",
+      "sha256": "954aae34923f9b14f83660638a05166c3dac5f4cb60a088311904546e7638d4d",
       "migration_ids": []
     },
     {
       "id": "coherence-prefilter",
       "path": "scripts/coherence_prefilter.py",
       "revision_kind": "sha256",
-      "sha256": "9a24d7b3fc29c5671cadd21237cba40fd07beb425837c431be833aaf54c8c7bd",
+      "sha256": "3ebc1b1535f6b617d775334ccf2cfb86bd780dba1a7431432d20f84d29a24375",
       "migration_ids": []
     },
     {

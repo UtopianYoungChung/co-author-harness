@@ -76,8 +76,8 @@ def complete_child(session, *, blockers=False, artifact=None, execution_id=None,
     else:
         result['checks'] = [{'id': x['id'], 'status': 'pass', 'rationale': 'Synthetic integration assertion supplies a concrete scope-bound check result for validator testing.', 'locators': ['Scope sentence 1' if contract['input'] else 'paragraph 1']} for x in req['required_checks']]
         result['findings'] = [{'id': 'F1', 'blocking': True, 'locator': 'paragraph 1', 'message': 'Synthetic planted blocking issue must be corrected before completion.'}] if blockers else []
-        scope_text, changed_units = coordinator.coherence_scope(contract, req['target'], req['phase'])
-        result['coherence_review'] = coherence_fixture.build(scope_text, changed_units)
+        scope_text, changed_units, scope_units = coordinator.coherence_scope(contract, req['target'], req['phase'])
+        result['coherence_review'] = coherence_fixture.build(scope_text, changed_units, scope_unit_ids=scope_units)
     if mutate is not None:
         # Tamper before the host log is written, so a negative control reaches the
         # check it targets instead of tripping the host-result comparison first.

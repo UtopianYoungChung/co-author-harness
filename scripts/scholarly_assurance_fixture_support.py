@@ -696,6 +696,9 @@ def build_qualified_scholarly_fixture(
     from bibliography_fixture_support import attach_evaluation_review
     semantic_source = json.loads(prepared['activation'].receipt.read_text(encoding='utf-8'))
     attach_evaluation_review(evaluation_value, artifact, project, semantic_source['diagnostic_legacy_view']['passages'])
+    import coherence_fixture_support
+    evaluation_value['coherence_review'] = coherence_fixture_support.build(
+        Path(artifact).read_bytes().decode('utf-8-sig'))
     write_json(evaluation_path, evaluation_value)
     evaluation_relative = evaluation_path.relative_to(project).as_posix()
     _append_mutation(
