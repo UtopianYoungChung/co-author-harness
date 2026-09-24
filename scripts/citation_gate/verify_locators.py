@@ -516,6 +516,25 @@ def page_contradicts(raw_pages, offset, idx):
 # --- end shared region ---------------------------------------------------------------
 
 
+def printed_on_page(per, offset, idx, page):
+    """Whether page `idx` prints `page` itself, where this source prints its folios.
+
+    Decision 1 (Joseph, 2026-09-23): a page number the page does not print may bind, inferred
+    from the source's confirmed pagination, but the report must say it was inferred. A number on
+    a line of its own, or stated outright, is printed; a weaker one counts only in the place the
+    agreeing pages print their folios. P1's opening page prints the article's range `633-674`,
+    and the 633 in it is not that page's folio: the gate bound p.633 there with nothing to say
+    it had inferred the number (second corpus, sealed expectation breach).
+    """
+    got = per[idx].get(page) if 0 <= idx < len(per) else None
+    if not got:
+        return False
+    if got[0] >= BARE:
+        return True
+    place, _ = folio_place(per, offset)
+    return bool(place) and got[1] == place
+
+
 def printed_folios(raw_pages):
     """Per page, the folio the page itself prints, on the strict rule: a line whose whole
     content is a number, whose value appears on one page only.
@@ -1344,6 +1363,7 @@ def _main():
                                         else offset_confirmed(read["raw"], v.get("offset", 0),
                                                               year))
         src[k] = dict(v, pages=read["pages"], raw=read["raw"], web_rendering=web,
+                      per=[] if web else folio_evidence(read["raw"], year),
                       offset_confirmed=ok, folio_agreement=(agree, readable),
                       offset_why_not=why_not,
                       folios=[] if web else printed_folios(read["raw"]))
@@ -1461,6 +1481,12 @@ def _main():
         if problems:
             fails.append((cid, c["element"], problems))
         else:
+            if not s.get("web_rendering") and not printed_on_page(s["per"], s.get("offset", 0),
+                                                                  idx, c["page"]):
+                where_bound[cid] = (f"p.{c['page']} of {c['source']}, INFERRED: that page does not "
+                                    "print its own number; it is carried from the source's "
+                                    f"confirmed pagination (offset {s.get('offset', 0):+d}). "
+                                    "Report it to the author as an inferred page, not a printed one")
             e = c["element"]
             if e not in best or CLASSES.index(cls) < CLASSES.index(best[e][0]):
                 best[e] = (cls, cid)

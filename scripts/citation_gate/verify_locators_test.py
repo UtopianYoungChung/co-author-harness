@@ -399,6 +399,21 @@ def main() -> int:
     case("a number agreeing nowhere is still a template",
          vl.page_contradicts(template, 0, 2), None)
 
+    # --- decision 1 (2026-09-23): an inferred page number binds, and is labelled inferred ---
+    # P1's opening page prints only the article's range; the gate bound p.633 there and said
+    # nothing about having inferred it (second corpus). It still binds, but it is not printed.
+    opening = [f"Journal of Tests 12 (2025) 633{chr(8211)}638{nl2}{b}{nl2}"] + \
+              [f"{b}{nl2}{634 + i}{nl2}" for i in range(5)]
+    per_open = vl.folio_evidence(opening)
+    case("the confirmed pagination covers the opening page",
+         vl.offset_confirmed(opening, 632)[0], True)
+    case("and the opening page is not refuted",
+         vl.page_contradicts(opening, 632, 0), None)
+    case("but it does not print its own number: the page is inferred",
+         vl.printed_on_page(per_open, 632, 0, 633), False)
+    case("while a page printing its folio is printed",
+         vl.printed_on_page(per_open, 632, 1, 634), True)
+
     # F10-05: a placeholder is not a place, and one bare number rescues nothing
     for name, pages_, off, want in (
         ("bracketed role labels", [f"Experiment ({11 + i}){nl2}{b}{nl2}" for i in range(3)], 10, False),
