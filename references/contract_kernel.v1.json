@@ -1149,21 +1149,21 @@
       "id": "argument-coherence",
       "path": "references/ARGUMENT_COHERENCE.md",
       "revision_kind": "sha256",
-      "sha256": "afdcc3f28af1f088b19fc774ece0b83ccd77220b60bdea562719b12b55b94bcf",
+      "sha256": "92efe9b341d7ffb40c342cf60bafb8740f1a110e6c7130c3dc650316581e2ae3",
       "migration_ids": []
     },
     {
       "id": "coherence-review",
       "path": "scripts/coherence_review.py",
       "revision_kind": "sha256",
-      "sha256": "954aae34923f9b14f83660638a05166c3dac5f4cb60a088311904546e7638d4d",
+      "sha256": "96f311bd47cc8decd9a94669f20b6996f7eab014644771e5345bc17d9ac6f3d4",
       "migration_ids": []
     },
     {
       "id": "coherence-prefilter",
       "path": "scripts/coherence_prefilter.py",
       "revision_kind": "sha256",
-      "sha256": "3ebc1b1535f6b617d775334ccf2cfb86bd780dba1a7431432d20f84d29a24375",
+      "sha256": "835218a77d54f92cd89cbfb348b58d22474547f6887393cda9842e25a4ec610a",
       "migration_ids": []
     },
     {

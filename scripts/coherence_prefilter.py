@@ -35,18 +35,18 @@ _LIST = re.compile(r'^[ \t]*(?:[-*+]\s|\d+[.)]\s)')
 _TABLE = re.compile(r'^[ \t]*\|')
 _QUOTE = re.compile(r'^[ \t]*>')
 
-# Sentence segmentation is load-bearing in one direction only. A review may split
-# a unit more finely than this splitter does, but a single sentence record may
-# not span a boundary it finds unless the record declares that boundary an
-# abbreviation (`coherence_review.MERGEABLE`). So an over-split here costs a
-# reviewer one declaration, and an under-split costs nothing. Common
-# abbreviations, titles and single-letter initials are protected so declarations
-# stay rare; boundaries that remain genuinely ambiguous ("until Jan. Riders ...")
-# are left to the reviewer to declare and justify.
-_ABBREV = (r'(?<!\be\.g)(?<!\bi\.e)(?<!\bcf)(?<!\bet\sal)(?<!\bvs)(?<!\bpp)(?<!\bNo)(?<!\bFig)'
-           r'(?<!\bDr)(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bSt)(?<!\bJr)(?<!\bSr)(?<!\bProf)'
-           r'(?<!\bInc)(?<!\bLtd)(?<!\bvol)(?<!\beds)(?<!\bapprox)(?<!\bca)(?<!\bEq)(?<!\bSec)'
-           r'(?<!\b[A-Z])')
+# Sentence segmentation is load-bearing, and it must never merge two sentences
+# silently. A single sentence record may not span a boundary this splitter finds
+# unless the record declares that boundary an abbreviation, with a reason
+# (`coherence_review.mergeable`). So an over-split costs a reviewer one
+# declaration, while an under-split would let one record hold two sentences with
+# no declaration at all ("option A. Costs remain high."). Only forms that
+# practically never end a sentence are protected: e.g., i.e., cf., vs., pp.,
+# Fig., and titles before a name. Anything that can end a sentence -- a single
+# capital, "et al.", "Inc.", "No." -- is a boundary, left to the reviewer to
+# declare and justify when it is not one.
+_ABBREV = (r'(?<!\be\.g)(?<!\bi\.e)(?<!\bcf)(?<!\bvs)(?<!\bpp)(?<!\bFig)'
+           r'(?<!\bDr)(?<!\bMr)(?<!\bMrs)(?<!\bMs)(?<!\bProf)')
 # Group 1 keeps closing quotes and brackets with the sentence they close, so the
 # pieces partition the unit exactly ('He said "stop." Then ...').
 _SENTENCE_END = re.compile(_ABBREV + r'([.!?][\"”\')\]]*)\s+(?=[\"“(\[]*[A-Z0-9])')
@@ -267,6 +267,12 @@ def changed_unit_ids(before: str, after: str) -> list[str]:
     Identity comes from an **ordered** alignment of unit hashes, not set
     membership. Set membership misses a repeated paragraph inserted a second
     time, and lets an unrelated edit elsewhere mask a deletion.
+
+    Inside a run of identical paragraphs the bytes cannot say which copy was
+    removed or added, and the alignment picks one end of the run. Every
+    equivalent position is therefore treated as affected: a unit claiming the
+    caveat "appears three times" is required when one of three copies goes,
+    wherever the alignment happened to put the gap.
     """
     old = [u['sha256'] for u in inventory(before)['units']]
     new_units = inventory(after)['units']
@@ -274,11 +280,32 @@ def changed_unit_ids(before: str, after: str) -> list[str]:
     affected: set[int] = set()
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
         if tag in ('replace', 'insert'):
-            affected.update(range(j1, j2))
+            lo, hi = _slide(new, j1, j2)
+            affected.update(range(lo, hi))
         if tag in ('delete', 'replace') and i2 - i1 > j2 - j1:
-            # More units left than arrived: the gap's surviving neighbours.
-            affected.update(x for x in (j1 - 1, j2) if 0 <= x < len(new))
+            # More units left than arrived: every surviving unit that may border
+            # the gap, over all equivalent placements of the removed run.
+            lo, hi = _slide(old, i1, i2)
+            first, last = j1 - (i1 - lo), j2 + (hi - i2)
+            affected.update(x for x in range(first - 1, last + 1) if 0 <= x < len(new))
     return [new_units[x]['unit_id'] for x in sorted(affected)]
+
+
+def _slide(seq: list[str], start: int, stop: int) -> tuple[int, int]:
+    """Widest window over which the block seq[start:stop] could equally sit.
+
+    A block that repeats its neighbours can be shifted left while the unit
+    before it equals its last unit, and right while the unit after it equals
+    its first; each shift is an alignment the bytes cannot rule out.
+    """
+    lo, hi = start, stop
+    while lo > 0 and hi > lo and seq[lo - 1] == seq[hi - 1]:
+        lo, hi = lo - 1, hi - 1
+    left = lo
+    lo, hi = start, stop
+    while hi < len(seq) and hi > lo and seq[lo] == seq[hi]:
+        lo, hi = lo + 1, hi + 1
+    return left, hi
 
 
 def stub(result: dict) -> str:

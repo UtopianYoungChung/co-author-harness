@@ -670,16 +670,19 @@ neighbouring sentence) is unreachable from the changed bytes alone.
 hashes, not from set membership. A paragraph inserted a second time is a change,
 and a deleted or moved paragraph marks the surviving units on either side of the
 gap as affected, because the unit that disappeared has no bytes left to review.
+Inside a run of identical paragraphs the bytes cannot say which copy was removed,
+so every position the gap could occupy counts.
 The inventory always covers the **whole target**. A section write scope bounds
 what may be written, never what must be read, so a neighbour across a section
 boundary is still required.
 
-**Sentence segmentation is load-bearing in one direction.** A review may report a
-unit's sentences more finely than the splitter does, but one sentence record may
-not span a boundary the splitter found unless the record declares that boundary
-an abbreviation, with a reason, and only a short form qualifies. Titles, common
-scholarly abbreviations and single initials are protected, so declarations stay
-rare.
+**Sentence segmentation is load-bearing, and it never merges silently.** One
+sentence record may not span a boundary the splitter found unless the record
+declares that boundary an abbreviation, with a reason, and only a short form
+qualifies. The splitter therefore protects only forms that practically never end
+a sentence (e.g., i.e., cf., vs., pp., Fig., and titles before a name). A single
+capital, "et al.", "Inc." or "No." can end a sentence, so each is a boundary: an
+under-split would let one record cover two sentences with no declaration at all.
 
 | Marker class | Pattern (summary) | What it may indicate |
 |---|---|---|

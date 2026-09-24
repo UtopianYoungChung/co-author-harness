@@ -500,10 +500,11 @@ this check supplies the judgment.
    neighbours are in the required coverage.
 6. **Check the document's research commitments.** For each commitment in or affected
    by the reviewed span — a promise, a definition, a research question, a
-   deliverable, an evaluation — find its occurrences elsewhere. Every required unit
-   that states a promise, definition or question gets an explicit assessment, on a
-   fresh draft as well as a revision, and each occurrence is located by unit and
-   quotation. A commitment that no
+   deliverable, an evaluation — find its occurrences elsewhere. Every promise,
+   definition or question stated in the required units gets its own explicit
+   assessment, on a fresh draft as well as a revision, and each occurrence is
+   located by unit and quotation. A commitment is `carried` only by an occurrence
+   outside the unit that states it. A commitment that no
    method or evaluation carries is **AC-4**. A term used in a sense that differs
    from its established sense, with no marked revision, is **AC-3**.
 7. **Keep source support on its own line.** A valid citation does not clear

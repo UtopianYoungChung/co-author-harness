@@ -577,10 +577,87 @@ def source_review_controls():
               lambda: coherence.validate(fresh, fixture.build(fresh)))
 
 
+def rereview_controls():
+    """Controls written from the independent re-review of 80c5370."""
+    # N1 -- a deletion inside a run of identical paragraphs can have happened at
+    # any position in the run, so every possible gap is affected.
+    same = 'The same caveat applies to this route.'
+    claim = 'The caveat below applies to all three routes, so it appears three times.'
+    tail = 'Route selection follows in the next section.'
+    before = '\n\n'.join([claim, same, same, same, tail]) + '\n'
+    after = '\n\n'.join([claim, same, same, tail]) + '\n'
+
+    def repeated_run_deletion():
+        changed = prefilter.changed_unit_ids(before, after)
+        needed, _, _ = coherence.required_units(after, changed)
+        return 'u000' in needed, {'changed': changed, 'needed': needed}
+    guarded('repeated_run_deletion_requires_every_possible_gap', repeated_run_deletion)
+
+    # N2 -- the splitter never merges two sentences silently.
+    guarded('single_capital_sentence_end_is_a_boundary', lambda: (
+        len(prefilter.split_sentences('The board chose option A. Costs remain high.')) == 2,
+        prefilter.split_sentences('The board chose option A. Costs remain high.')))
+    guarded('et_al_sentence_end_is_a_boundary', lambda: (
+        len(prefilter.split_sentences('The effect was reported by Lee et al. These findings hold.')) == 2,
+        prefilter.split_sentences('The effect was reported by Lee et al. These findings hold.')))
+    guarded('title_before_a_name_is_not_a_boundary', lambda: (
+        len(prefilter.split_sentences('Dr. Lee reviewed the queue.')) == 1, None))
+    option = 'The board chose option A. Costs remain high.\n'
+
+    def one_record_for_option_a():
+        review = fixture.build(option)
+        unit = review['units'][0]
+        unit['sentences'] = [{'text': option.strip(), 'contribution': 'advances', 'finding_id': None}]
+        return review
+    expect_code('undeclared_merge_at_single_capital_is_rejected', 'COHERENCE-SENTENCE-MERGED',
+                lambda: coherence.validate(option, one_record_for_option_a()))
+
+    # N3a -- every promise, definition or question sentence gets its own row.
+    two = 'We will survey riders in May. We will deliver a route toolkit in June.\n'
+
+    def keep_first_row():
+        review = fixture.build(two)
+        review['commitment_occurrences'] = review['commitment_occurrences'][:1]
+        return review
+    expect_code('each_promise_needs_its_own_assessment', 'COHERENCE-COMMITMENT-UNCHECKED',
+                lambda: coherence.validate(two, keep_first_row()))
+
+    def one_row_for_both():
+        review = fixture.build(two)
+        row = dict(review['commitment_occurrences'][0], commitment=two.strip())
+        review['commitment_occurrences'] = [row]
+        return review
+    expect_code('one_row_spanning_two_promises_is_rejected', 'COHERENCE-COMMITMENT-UNCHECKED',
+                lambda: coherence.validate(two, one_row_for_both()))
+    expect_ok('fixture_assesses_each_promise', lambda: coherence.validate(two, fixture.build(two)))
+
+    # N3b -- "carried" names somewhere other than the commitment itself.
+    before_def = 'A case means one trip.\n\nCases are counted per district.\n'
+    after_def = 'A case means one completed trip.\n\nCases are counted per district.\n'
+    changed_def = prefilter.changed_unit_ids(before_def, after_def)
+
+    def carried(locators):
+        review = fixture.build(after_def, changed_def)
+        review['commitment_occurrences'] = [{
+            'commitment': 'A case means one completed trip.', 'unit_id': 'u000',
+            'status': 'carried', 'occurrence_locators': locators,
+            'assessment': 'The definition is examined where the term is used later.'}]
+        return review
+    expect_code('carried_by_its_own_unit_is_rejected', 'COHERENCE-COMMITMENT-UNCHECKED',
+                lambda: coherence.validate(after_def, carried(
+                    [{'unit_id': 'u000', 'quote': 'A case means one completed trip.'}]),
+                    changed_unit_ids=changed_def))
+    expect_ok('carried_to_a_later_use_is_accepted',
+              lambda: coherence.validate(after_def, carried(
+                  [{'unit_id': 'u001', 'quote': 'Cases are counted per district.'}]),
+                  changed_unit_ids=changed_def))
+
+
 def main() -> int:
     unit_controls()
     route_controls()
     source_review_controls()
+    rereview_controls()
     failed = [r for r in RESULTS if not r['passed']]
     print(json.dumps({'passed': len(RESULTS) - len(failed), 'failed': len(failed),
                       'establishes': 'enforcement of the coherence obligation',

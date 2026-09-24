@@ -291,6 +291,7 @@ def validate(candidate_text, review, *, changed_unit_ids=None, scope_unit_ids=No
             '(references/ARGUMENT_COHERENCE.md section 5)')
     flat_units = {unit_id: normalized(unit.get('text', '')) for unit_id, unit in by_id.items()}
     assessed = set()
+    quoted = []
     for row in review['commitment_occurrences']:
         require(isinstance(row, dict), 'COHERENCE-COMMITMENT-UNCHECKED',
                 'Each commitment row must be an object')
@@ -314,20 +315,44 @@ def validate(candidate_text, review, *, changed_unit_ids=None, scope_unit_ids=No
                     'Each occurrence locator names a prose unit of these bytes and quotes '
                     'text that occurs in it: ' + repr(locator))
         if status == 'carried':
-            require(locators, 'COHERENCE-COMMITMENT-UNCHECKED',
-                    'A carried commitment names where it is carried')
+            # Carried means carried somewhere else: a method, an evaluation, a
+            # later use of a defined term. The statement is not its own carrier.
+            require(any(locator['unit_id'] != home for locator in locators),
+                    'COHERENCE-COMMITMENT-UNCHECKED',
+                    'A carried commitment names at least one occurrence outside the unit '
+                    'that states it: ' + str(home))
         if status == 'uncarried':
             require(row.get('finding_id') in ids, 'COHERENCE-FINDING-UNBOUND',
                     'An uncarried commitment requires an AC-4 finding')
         _text(row.get('assessment'), MIN_PROSE, 'COHERENCE-COMMITMENT-UNCHECKED',
               'State how the commitment in ' + str(home) + ' was assessed')
         assessed.add(home)
-    owed = [unit_id for unit_id in needed
-            if set(prefilter.COMMITMENT_MARKERS) & set(by_id[unit_id]['markers'])]
-    unassessed = [unit_id for unit_id in owed if unit_id not in assessed]
+        quoted.append((home, commitment))
+    # Every promise, definition or question sentence in the required scope gets
+    # its own row: a row counts for a sentence only when its quote lies inside
+    # that one sentence, so two promises cannot share one assessment.
+    needed_set = set(needed)
+    owed = [(row['unit_id'], normalized(row['sentence']))
+            for row in inventory['commitment_candidates'] if row['unit_id'] in needed_set]
+    unassessed = []
+    available = list(quoted)
+    for unit_id, sentence in owed:
+        match = next((i for i, (home, quote) in enumerate(available)
+                      if home == unit_id and quote in sentence), None)
+        if match is None:
+            unassessed.append(f'{unit_id}: "{sentence[:60]}"')
+        else:
+            available.pop(match)
+    # A unit whose marker matches across sentences has no single candidate
+    # sentence; it still owes at least one row.
+    candidate_units = {unit_id for unit_id, _ in owed}
+    unassessed += [unit_id for unit_id in needed
+                   if set(prefilter.COMMITMENT_MARKERS) & set(by_id[unit_id]['markers'])
+                   and unit_id not in candidate_units and unit_id not in assessed]
     require(not unassessed, 'COHERENCE-COMMITMENT-UNCHECKED',
-            'Required units state a promise, definition or question the review does not '
-            'assess: ' + ', '.join(unassessed) + ' (references/ARGUMENT_COHERENCE.md section 5)')
+            'Each promise, definition or question in the required scope needs its own '
+            'assessment row; unassessed: ' + '; '.join(unassessed)
+            + ' (references/ARGUMENT_COHERENCE.md section 5)')
 
     outcome = review.get('outcome')
     require(outcome in OUTCOMES, 'COHERENCE-OUTCOME-INVALID',

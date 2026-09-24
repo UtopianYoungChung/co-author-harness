@@ -112,11 +112,14 @@ three-part paragraph, or a roadmap. A remedy that imposes one is out of scope.
   requested section bounds what may be written, never what must be read. A deleted
   or moved paragraph leaves no bytes to review, so the surviving paragraphs on
   either side of the gap are treated as affected.
-- **On commitments in the required scope.** Every required unit that states a
-  promise, a definition or re-definition, or a question is assessed explicitly, a
-  fresh draft included, where nothing counts as "changed". The assessment names
-  the unit that states the commitment, quotes it there, gives its status, locates
-  each occurrence examined by unit and quotation, and says how it was assessed. A
+- **On commitments in the required scope.** Every promise, definition or
+  re-definition, and question stated in the required units is assessed explicitly,
+  **each on its own**: two promises in one paragraph are two assessments. A fresh
+  draft is included, where nothing counts as "changed". The assessment names the
+  unit that states the commitment, quotes it there, gives its status, locates each
+  occurrence examined by unit and quotation, and says how it was assessed.
+  `carried` means carried somewhere else: a method, an evaluation, a later use of a
+  defined term. The statement is never its own carrier. A
   change to a definition, a research question, a deliverable, or an evaluation
   commitment additionally requires examining that commitment's affected
   occurrences elsewhere in the document, and reporting them.
@@ -140,10 +143,11 @@ Missing, partial, failed, stale, replayed, or improperly self-issued evidence
 prevents a reviewed-completion claim.
 
 **What is bound.** The review is bound to the whole target text, not to the write
-scope. Each sentence record holds one sentence of the inventory's segmentation. A
-record may keep a sentence whole across a boundary the pre-filter found only by
-declaring that boundary an abbreviation, with a reason, and only a short form
-qualifies (`COHERENCE-SENTENCE-MERGED`). Each commitment row, and each occurrence
+scope. Each sentence record holds one sentence of the inventory's segmentation,
+and the segmentation never merges two sentences silently. A record may keep a
+sentence whole across a boundary the pre-filter found only by declaring that
+boundary an abbreviation, with a reason, and only a short form qualifies
+(`COHERENCE-SENTENCE-MERGED`). Each commitment row, and each occurrence
 locator, quotes text that occurs in the unit it names (`COHERENCE-PASSAGE-UNBOUND`).
 This file and `SAFEGUARD_LAYER.md` are bound by content in every contract, so a
 change to either invalidates an earlier completion.

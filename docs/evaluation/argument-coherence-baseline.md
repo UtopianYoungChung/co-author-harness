@@ -248,6 +248,15 @@ Each finding was first reproduced from invented text as a failing control in
 as an unchanged text having no changed units, or a real abbreviation not forcing a
 split.
 
+**Re-review of `80c5370`: changes required, three MAJOR findings.** All six
+original reproductions were refused. Three new invented probes still let an incomplete
+review pass: a deletion inside a run of identical paragraphs omitted a unit whose
+claim it falsified; the splitter merged "option A. Costs remain high." into one
+sentence; and one commitment row could stand for two promises, or mark a changed
+definition `carried` by pointing at itself. All three are fixed, with 10 more
+controls (7 failed before the fix). The reviewer's full registry gave 112/114; the
+two failures passed when rerun alone at the same commit.
+
 **What this does not change.** These fixes tighten evidence integrity and coverage.
 They say nothing about whether a reviewer executing Check 9 finds coherence
 defects. That is still the held-out qualification in §4.3, which runs on the fixed
@@ -267,7 +276,7 @@ exception in every downstream summary.
 | Dimension | Status |
 |---|---|
 | Source validation | repository structural checks and the affected suites pass; see the return report |
-| Independent review | **source review performed** on `2718107` (changes required, six MAJOR findings; see §4.4). Fixes are awaiting re-review on the fixed commit |
+| Independent review | **source review** of `2718107`: changes required, six MAJOR findings, fixed in `80c5370`. **Re-review** of `80c5370`: changes required, three MAJOR findings, fixed in the following commit, which awaits re-review (see §4.4) |
 | Installed-byte identity | **not established** — source-path only; no installed cache was replaced |
 | Fresh-task / live-host execution | **not established** — synthetic host traces only (`claude_host_smoketest.py` proves adapter mechanics, not live qualification) |
 | Release | **not performed** — no version bump, no packaging, no promotion |

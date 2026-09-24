@@ -50,23 +50,25 @@ def build(candidate_text: str, changed_unit_ids=None, *, scope_unit_ids=None,
         'out_of_scope_observations': [],
         'outcome': 'review_complete',
     }
-    # One not_applicable row per required unit that states a promise, definition
-    # or question: the row exists, so the obligation's bookkeeping holds, and
-    # its status claims nothing a fixture cannot know.
-    first = {}
-    for row in inventory['commitment_candidates']:
-        first.setdefault(row['unit_id'], row)
+    # One not_applicable row per promise, definition or question sentence in the
+    # required units: the rows exist, so the obligation's bookkeeping holds, and
+    # their status claims nothing a fixture cannot know.
+    needed_set = set(needed)
+    candidates = [row for row in inventory['commitment_candidates'] if row['unit_id'] in needed_set]
+    with_candidates = {row['unit_id'] for row in candidates}
     for unit_id in needed:
-        if set(prefilter.COMMITMENT_MARKERS) & set(by_id[unit_id]['markers']):
-            sentence = (first[unit_id]['sentence'] if unit_id in first
-                        else prefilter.split_sentences(by_id[unit_id]['text'])[0])
-            review['commitment_occurrences'].append({
-                'commitment': sentence,
-                'unit_id': unit_id,
-                'status': 'not_applicable',
-                'occurrence_locators': [],
-                'assessment': ASSESSMENT,
-            })
+        if (set(prefilter.COMMITMENT_MARKERS) & set(by_id[unit_id]['markers'])
+                and unit_id not in with_candidates):
+            candidates.append({'unit_id': unit_id,
+                               'sentence': prefilter.split_sentences(by_id[unit_id]['text'])[0]})
+    for row in candidates:
+        review['commitment_occurrences'].append({
+            'commitment': row['sentence'],
+            'unit_id': row['unit_id'],
+            'status': 'not_applicable',
+            'occurrence_locators': [],
+            'assessment': ASSESSMENT,
+        })
     return review
 
 
