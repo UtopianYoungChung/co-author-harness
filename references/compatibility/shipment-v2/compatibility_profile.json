@@ -4,7 +4,7 @@
   "binding_state": "template",
   "producer": {
     "name": "co-author-harness",
-    "version": "0.50.2",
+    "version": "0.51.0",
     "commit": null,
     "tree": null
   },

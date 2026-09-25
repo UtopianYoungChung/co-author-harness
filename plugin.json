@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "co-author-harness",
-  "version": "0.50.2",
+  "version": "0.51.0",
   "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
   "author": {
     "name": "Young Jo Chung",

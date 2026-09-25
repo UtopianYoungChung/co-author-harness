@@ -6,7 +6,7 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
-## Unreleased
+## v0.51.0 — 2026-09-25
 
 **Claude Code installs track `main`; release bundles move to GitHub Releases (25 September 2026).** Claude Code pins a marketplace install to a declared version, so with `.claude-plugin/plugin.json` and the marketplace self-entry mirroring `0.50.2`, a new commit was never delivered: in an isolated install from this repository, `claude plugin update` answered "already at the latest version (0.50.2)" and the commit's file never reached the installed copy. Both Claude files now omit the version. Claude then derives it from the source commit, and two consecutive commits installed as updates (`57a79e572ca6`, then `d368eccd130a`). `version.json` stays the release authority, and root `plugin.json` and `.codex-plugin/plugin.json` still mirror it. `version-check.py` refuses a version in either Claude file, with the `AGENTS.md` rule amended to match. `update_version_manifests.py` validates the Claude files without writing them, and `loader-compat-check.py` accepts an absent version. The marketplace source stays the HTTPS URL, which Codex also needs (v0.33.1).
 
