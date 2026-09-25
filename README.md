@@ -189,8 +189,9 @@ The fixture registry is the single behavioral-test authority. Omit
 passes.
 
 A case may declare `requires_workspace_paths` (files beside the package in a
-governed workspace, such as the sibling knowledge wiki). Where one is missing
-the case is `UNAVAILABLE`: a failure by default, and listed but never counted as
+governed workspace, such as the sibling knowledge wiki), or
+`unavailable_on_github_hosted` (platforms whose GitHub-hosted runner cannot run
+it). Where one applies the case is `UNAVAILABLE`: a failure by default, and listed but never counted as
 a pass under `--allow-unavailable`, which hosted CI uses and which cannot write
 canonical evidence. Hosted CI runs the registry from a sandbox governed
 workspace with Poppler `pdftotext` installed.

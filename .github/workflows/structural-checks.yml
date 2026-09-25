@@ -68,8 +68,9 @@ jobs:
   # workspace (<workspace>/platform/co-author-harness, beside the routing
   # manifest) with a qualified pdftotext on PATH. The job recreates that as a
   # sandbox. Cases whose declared workspace preconditions (the sibling
-  # knowledge wiki) are absent report UNAVAILABLE, never PASS; the release
-  # gate on the author's workspace still requires them.
+  # knowledge wiki) are absent, or that declare the hosted runner unable to
+  # run them, report UNAVAILABLE, never PASS; the release gate on the
+  # author's workspace still requires them.
   fixtures:
     strategy:
       fail-fast: false
