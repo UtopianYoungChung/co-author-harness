@@ -330,6 +330,11 @@
       "class": "excluded",
       "reason": "only write is a page-text cache file named by the PDF's sha256 under LOCATOR_CACHE or ~/.claude/cache/locator-text; no project, manuscript or governed destination is ever an input",
       "sha256": "6fcc2aebd127f81403a69313d25745e7cf7d42976842ab537daa8b01070c5da1"
+    },
+    "scripts/init_governed_workspace.py": {
+      "class": "excluded",
+      "reason": "user-invoked setup tool: creates only a routing manifest (exclusive create, never overwritten) and the outputs/co-author-harness/staging lane at an explicitly named directory; refuses the harness package, a directory enclosing it, and any directory already inside a governed workspace",
+      "sha256": "22f006a06158b8ef30b9fb34805a743c4796659af6b02bd2533e21912c066291"
     }
   }
 }

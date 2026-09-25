@@ -64,6 +64,8 @@ SK-32 stays CLOSED. Graph `extraction_mode` structural-only remains; 2026-07-25 
 | [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
 | [`references/AGENTS.md`](references/AGENTS.md) | **Package-level** invocation rules and component map. |
 
+**No governed workspace yet?** Governed writes (project bootstrap, reports under `reviews/`) are refused with `DEST-UNGOVERNED` until one exists. Run `python scripts/init_governed_workspace.py <workspace-dir>` once and keep projects in its `outputs/co-author-harness/staging/<work-id>/<run-id>/` lane; read-only modes such as `scripts/audit/run_all.py <file> --stdout` need no workspace.
+
 **New project?** Use `scripts/native_project_bootstrap.py` exactly as specified in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md); it atomically seeds the standard directories and the mandatory graph-independent reader-profile v2 binding. Hand-built native ledgers are not supported. **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
 
 ---
@@ -185,6 +187,13 @@ changes; it is not the default feedback loop for every local edit.
 The fixture registry is the single behavioral-test authority. Omit
 `--no-write` only to regenerate the committed manifest after the full corpus
 passes.
+
+A case may declare `requires_workspace_paths` (files beside the package in a
+governed workspace, such as the sibling knowledge wiki). Where one is missing
+the case is `UNAVAILABLE`: a failure by default, and listed but never counted as
+a pass under `--allow-unavailable`, which hosted CI uses and which cannot write
+canonical evidence. Hosted CI runs the registry from a sandbox governed
+workspace with Poppler `pdftotext` installed.
 
 Full release packaging: `scripts/release-gate.sh` (see script header). Release zip: `scripts/build-release-zip.sh`—artefact naming and notes in [`CHANGELOG.md`](CHANGELOG.md).
 

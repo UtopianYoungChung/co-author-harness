@@ -578,6 +578,110 @@ def case_audit_shipment_output() -> None:
         check("audit creates no loose project report", not outside.exists())
 
 
+SCRIPTS = HARNESS / "scripts"
+
+
+def case_installer_workspace_and_read_only_modes() -> None:
+    """Read-only modes need no write capability; installers can make a workspace.
+
+    Regression for the 2026-09-25 audit: `check8_g_prefilter --stdout-only`
+    ("do not write"), `render_lifecycle_state --check` and a `run_all --stdout`
+    run with both project reports skipped were refused by the write guard, and
+    an installer had no supported way to create the routing manifest.
+    """
+    with tempfile.TemporaryDirectory(prefix="destcap-installer-") as td:
+        base = Path(td)
+        fake = make_fake_root(base / "governed")
+        project = fake / "research" / "60_Workbench" / "read-only-probe"
+        (project / "reviews").mkdir(parents=True)
+        manuscript = project / "draft.md"
+        manuscript.write_text("# Draft\n\nA plain sentence for the probe.\n", encoding="utf-8")
+        env = {**os.environ, "COAUTHOR_EXTRA_GOVERNED_ROOTS": str(fake)}
+        check("read-only probe project is protected on every host",
+              subprocess.run(
+                  [sys.executable, "-c",
+                   "import sys; sys.path.insert(0, sys.argv[1]);"
+                   "import destination_capability as d; print(d.classify(sys.argv[2]))",
+                   str(SCRIPTS), str(project)],
+                  capture_output=True, text=True, env=env,
+              ).stdout.strip() == "protected")
+        read_only = (
+            ("check8_g --stdout-only",
+             [sys.executable, str(SCRIPTS / "check8_g_prefilter.py"), "--project-root",
+              str(project), "--manuscript", str(manuscript), "--stdout-only"], {0}),
+            ("render_lifecycle_state --check",
+             [sys.executable, str(SCRIPTS / "render_lifecycle_state.py"), "--project-root",
+              str(project), "--check"], None),
+            ("run_all --stdout with project reports skipped",
+             [sys.executable, str(SCRIPTS / "audit" / "run_all.py"), str(manuscript),
+              "--project-root", str(project), "--stdout", "--skip-d-style-profile",
+              "--skip-accessibility"], {0}),
+        )
+        for label, argv, codes in read_only:
+            before = sorted(p.relative_to(project) for p in project.rglob("*"))
+            r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", env=env)
+            after = sorted(p.relative_to(project) for p in project.rglob("*"))
+            out = r.stdout + r.stderr
+            check(f"{label}: needs no write capability",
+                  "DEST-" not in out and (codes is None or r.returncode in codes),
+                  f"rc={r.returncode} {out.strip().splitlines()[-1][:90] if out.strip() else ''}")
+            check(f"{label}: wrote nothing", before == after)
+
+        # The same run on a host with no governed workspace at all (an installer).
+        loose = base / "loose-project"
+        (loose / "reviews").mkdir(parents=True)
+        loose_manuscript = loose / "draft.md"
+        loose_manuscript.write_text("# Draft\n\nA plain sentence.\n", encoding="utf-8")
+        ungoverned_run = (
+            "import runpy, sys; sys.path.insert(0, sys.argv[1]);"
+            "import destination_capability as d; d.discovered_workspace_root = lambda: None;"
+            "sys.argv = sys.argv[2:]; runpy.run_path(sys.argv[0], run_name='__main__')"
+        )
+        plain_env = {k: v for k, v in os.environ.items() if k != "COAUTHOR_EXTRA_GOVERNED_ROOTS"}
+        r = subprocess.run(
+            [sys.executable, "-c", ungoverned_run, str(SCRIPTS),
+             str(SCRIPTS / "audit" / "run_all.py"), str(loose_manuscript),
+             "--project-root", str(loose), "--stdout", "--skip-d-style-profile",
+             "--skip-accessibility"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", env=plain_env,
+        )
+        check("run_all --stdout on an ungoverned host reads a project without write capability",
+              r.returncode == 0 and "DEST-" not in r.stdout + r.stderr,
+              f"rc={r.returncode} {(r.stdout + r.stderr).strip()[-90:]}")
+
+        init = SCRIPTS / "init_governed_workspace.py"
+        workspace = base / "installer-ws"
+        r = subprocess.run([sys.executable, str(init), str(workspace)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=plain_env)
+        manifest = workspace / "governance" / "output-routing" / "output_routing.yaml"
+        check("initializer creates a governed workspace",
+              r.returncode == 0 and manifest.is_file()
+              and '"INITIALIZED"' in r.stdout, f"rc={r.returncode} {r.stderr[:90]}")
+        lane = workspace / "outputs" / "co-author-harness" / "staging" / "w1" / "r1"
+        check("initialized staging lane is writable",
+              dc.classify(lane) == "staging", dc.classify(lane))
+        check("initialized workspace root itself stays protected",
+              dc.classify(workspace / "notes.md") == "protected",
+              dc.classify(workspace / "notes.md"))
+        first = manifest.read_bytes()
+        r = subprocess.run([sys.executable, str(init), str(workspace)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=plain_env)
+        check("initializer is idempotent and never overwrites the manifest",
+              r.returncode == 0 and "ALREADY_INITIALIZED" in r.stdout
+              and manifest.read_bytes() == first)
+        nested = workspace / "nested"
+        r = subprocess.run([sys.executable, str(init), str(nested)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=plain_env)
+        check("initializer refuses to nest a workspace",
+              r.returncode == 2 and "WORKSPACE-NESTED" in r.stderr and not nested.exists())
+        inside = HARNESS / "init-governed-workspace-probe"
+        r = subprocess.run([sys.executable, str(init), str(inside)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=plain_env)
+        check("initializer refuses the harness package",
+              r.returncode == 2 and "DEST-MISROUTED" in r.stderr and not inside.exists())
+
+
 def main() -> int:
     print("destination_capability_smoketest")
     for fn in (case_classifier, case_package_local_staging_hygiene,
@@ -585,7 +689,8 @@ def main() -> int:
                 case_distributed_destination_discovery,
                 case_ungoverned_fails_closed, case_mutator_wiring,
                 case_output_redirect_refusals, case_r0_writer_refusals,
-                case_audit_shipment_output):
+                case_audit_shipment_output,
+                case_installer_workspace_and_read_only_modes):
         print(f"{fn.__name__}:")
         try:
             fn()

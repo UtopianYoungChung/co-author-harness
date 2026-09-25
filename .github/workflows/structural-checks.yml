@@ -64,20 +64,55 @@ jobs:
           python scripts/analysis/code_census.py \
             --parity docs/analysis/generated/predicate_rows.md
 
+  # The registry's documented environment is a checkout inside a governed
+  # workspace (<workspace>/platform/co-author-harness, beside the routing
+  # manifest) with a qualified pdftotext on PATH. The job recreates that as a
+  # sandbox. Cases whose declared workspace preconditions (the sibling
+  # knowledge wiki) are absent report UNAVAILABLE, never PASS; the release
+  # gate on the author's workspace still requires them.
   fixtures:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ws/platform/co-author-harness
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ws/platform/co-author-harness
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install pyyaml tiktoken==0.12.0 jsonschema
+      - name: Governed sandbox workspace
+        shell: bash
+        run: |
+          mkdir -p ../../governance/output-routing
+          printf 'schema_version: 1\nworkspace_kind: ci-sandbox\nroutes: []\n' \
+            > ../../governance/output-routing/output_routing.yaml
+      - name: Poppler pdftotext (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdftotext -v
+      - name: Poppler pdftotext (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "poppler-24.02.0.zip"
+          Invoke-WebRequest "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.02.0-0/Release-24.02.0-0.zip" -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "f6f01582484b0587096955adcb4b8881bcf7ff27ad62fc4809c23e20810fb7cc") { throw "poppler archive hash mismatch: $hash" }
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          $bin = Join-Path $env:RUNNER_TEMP "poppler-24.02.0\Library\bin"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          & (Join-Path $bin "pdftotext.exe") -v
       - name: Fixture infrastructure preflight
         run: python scripts/analysis/fixture_infrastructure_check.py
       - name: Authoritative fixture registry
-        run: python scripts/analysis/fixture_runner.py --no-write
+        run: python scripts/analysis/fixture_runner.py --no-write --allow-unavailable

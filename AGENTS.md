@@ -34,7 +34,12 @@ this package root, the governed staging lane
 shipment lane above. Script writers resolve destinations through
 `scripts/destination_capability.py` (`DEST-MISROUTED` for package-local project
 output; `DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without
-discoverable workspace governance).
+discoverable workspace governance). The one setup-time exception is
+`scripts/init_governed_workspace.py`: run by the user, it creates a new
+workspace's routing manifest and staging lane at an explicitly named directory,
+never inside the package or an existing governed workspace, and never
+overwrites a manifest. Read-only modes (`--stdout`, `--stdout-only`, `--check`)
+write nothing and so need no write capability.
 The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
 body for the harness.

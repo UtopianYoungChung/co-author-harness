@@ -588,6 +588,19 @@ Ask the user for:
 
 ### Step 2: Create the directory skeleton
 
+The project root must be writable under the producer boundary: inside a
+governed workspace's staging lane, `<workspace>/outputs/co-author-harness/staging/<work-id>/<run-id>/`.
+Outside a governed workspace every write is refused with `DEST-UNGOVERNED`. An
+installer without one runs the one-time setup step first:
+
+```bash
+python <package-root>/scripts/init_governed_workspace.py <workspace-dir>
+```
+
+It creates the routing manifest (`governance/output-routing/output_routing.yaml`)
+and the staging lane, refuses the package tree and nested workspaces, and never
+overwrites an existing manifest.
+
 Do **not** pre-create the project root. Confirm that its parent exists, then run the deterministic native milestone seed once:
 
 ```powershell
