@@ -681,6 +681,65 @@ def case_recorded_publication_replays_exact_intent() -> None:
         evidence_publication.validate_recorded_committed(**kwargs)
 
 
+def case_contract_transaction_is_per_lane(
+    project: Path, artifact: Path, prepared: dict
+) -> None:
+    """One contract in two lanes is two transactions; reruns stay idempotent.
+
+    The contract carries no lane, so a contract-only transaction id gave the
+    same contract under a second evidence label the first lane's transaction,
+    and publication was refused as a differing intent.
+    """
+
+    def prepare(label: str) -> dict:
+        return draft_publish.prepare_contract(
+            project_root=project, artifact=artifact, milestone="M1",
+            phase="generation", role="generator", evidence_label=label,
+        )
+
+    rerun = prepare("producer-smoke")
+    assert rerun["transaction_id"] == prepared["transaction_id"], "rerun changed its transaction"
+    assert rerun["commit_marker"].read_bytes() == prepared["commit_marker"].read_bytes()
+
+    other = prepare("lane-probe")
+    assert other["contract"] == prepared["contract"], "fixture contracts must be identical"
+    assert other["transaction_id"] != prepared["transaction_id"], "two lanes shared a transaction"
+    draft_publish.validate_prepared_contract(**other["validation"])
+
+    # A lane committed by the previous release under the contract-only id
+    # re-prepares under that id instead of conflicting with its own marker.
+    lane = draft_publish.publication_lane(
+        project, milestone="M1", phase="generation", evidence_label="legacy-probe",
+    )
+    contract_data = prepared["contract_path"].read_bytes()
+    legacy_id = (
+        "draft-governance-prepare-" + hashlib.sha256(contract_data).hexdigest()[:16]
+    )
+    legacy_marker = draft_publish._canonical({
+        "schema_version": "1.0.0",
+        "publication_type": "draft_governance_contract",
+        "state": "committed",
+        "transaction_id": legacy_id,
+        "contract": {
+            "path": (lane / "contract.json").relative_to(project).as_posix(),
+            "sha256": hashlib.sha256(contract_data).hexdigest(),
+            "byte_length": len(contract_data),
+        },
+    })
+    evidence_publication.publish_committed(
+        project_root=project,
+        transaction_id=legacy_id,
+        preconditions=[(artifact, hashlib.sha256(artifact.read_bytes()).hexdigest())],
+        inventory_preconditions=[],
+        outputs=[(lane / "contract.json", contract_data)],
+        marker=(lane / "contract-commit-marker.json", legacy_marker),
+    )
+    legacy = prepare("legacy-probe")
+    assert legacy["transaction_id"] == legacy_id, "legacy lane lost its transaction id"
+    assert legacy["commit_marker"].read_bytes() == legacy_marker
+    print("  PASS  one contract in two lanes is two transactions; reruns stay idempotent")
+
+
 def main() -> int:
     case_recorded_publication_replays_exact_intent()
     case_committed_dependencies_are_replayed()
@@ -995,6 +1054,7 @@ def main() -> int:
         assert prepared["contract"]["status"] == "binding_resolved"
         assert prepared["contract"]["centroid"]["semantic_usage"] == "not_invoked"
         draft_publish.validate_prepared_contract(**prepared["validation"])
+        case_contract_transaction_is_per_lane(project, artifact, prepared)
         if not callable(getattr(dispatch, "issue_obligation_evaluation_claim", None)):
             raise AssertionError(
                 "production obligation-evaluation dispatch issuer is absent"
