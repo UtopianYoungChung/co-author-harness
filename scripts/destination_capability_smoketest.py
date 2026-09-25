@@ -603,7 +603,7 @@ def case_installer_workspace_and_read_only_modes() -> None:
                    "import sys; sys.path.insert(0, sys.argv[1]);"
                    "import destination_capability as d; print(d.classify(sys.argv[2]))",
                    str(SCRIPTS), str(project)],
-                  capture_output=True, text=True, env=env,
+                  capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
               ).stdout.strip() == "protected")
         read_only = (
             ("check8_g --stdout-only",
