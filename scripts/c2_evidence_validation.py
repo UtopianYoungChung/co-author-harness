@@ -17,6 +17,18 @@ SUPPORTED_EXTRACTOR = {
     "sha256": "640b9a93fa31fc093860c635cd410a3e30f7d1e6166cb1130993fb1985f474ff",
     "size": 343552,
 }
+# Any other pdftotext is admitted only when the committed miniature fixture
+# qualifies it (docs/superpowers/specs/2026-07-24-assurance-provenance-closure-c0.md):
+# its utf8-lf-v1 normalization of miniature.pdf must equal the committed
+# expected_utf8_lf_v1.txt byte for byte. The receipt then records the real
+# executable's identity plus this qualification.
+EXTRACTOR_NAMES = frozenset({"pdftotext", "pdftotext.exe"})
+EXTRACTOR_QUALIFICATION = {
+    "method": "fixture-conformance-v1",
+    "fixture_id": "assurance-provenance-c2",
+    "fixture_sha256": "e21a489ac04667bc46d4335e604f6e6ba3fbfa27d8f473a96d0ebce9737a6c3a",
+    "normalized_sha256": "62260ccc2f6bcddf37f55f23d17d184493b2ba9ab17e3d9484d757b9f2ae5b87",
+}
 PORTABLE_FIELDS = {"root", "path", "sha256", "evidence_type"}
 ROOT_FIELDS = {"kind", "identity", "discovery", "manifest_sha256"}
 
@@ -382,6 +394,44 @@ def validate_page_map(
     _validate_page_map(value, raw.resolve(strict=True), normalized.resolve(strict=True))
 
 
+def validate_extractor_identity(executable: Any) -> None:
+    """Admit the reference extractor, or one the conformance fixture qualified."""
+    base_keys = set(SUPPORTED_EXTRACTOR)
+    if not isinstance(executable, dict) or set(executable) not in (
+        base_keys, base_keys | {"qualification"}
+    ):
+        raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "extractor identity is malformed")
+    if "qualification" not in executable:
+        if executable.get("version") != SUPPORTED_EXTRACTOR["version"]:
+            raise EvidenceValidationError(
+                "EXTRACTOR-UNSUPPORTED", "extractor version is not qualified"
+            )
+        if any(
+            executable.get(key) != value
+            for key, value in SUPPORTED_EXTRACTOR.items() if key != "version"
+        ):
+            raise EvidenceValidationError(
+                "EXTRACTOR-IDENTITY-MISMATCH", "extractor bytes do not match qualification"
+            )
+        return
+    if executable["qualification"] != EXTRACTOR_QUALIFICATION:
+        raise EvidenceValidationError(
+            "EXTRACTOR-UNSUPPORTED",
+            "extractor qualification does not name the committed conformance fixture",
+        )
+    name = executable.get("name")
+    version = executable.get("version")
+    digest = executable.get("sha256")
+    size = executable.get("size")
+    if (
+        not isinstance(name, str) or name.casefold() not in EXTRACTOR_NAMES
+        or not isinstance(version, str) or not version
+        or not isinstance(digest, str) or not SHA_RE.fullmatch(digest)
+        or not isinstance(size, int) or isinstance(size, bool) or size < 1
+    ):
+        raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "extractor identity is malformed")
+
+
 def _validate_extract(
     path: Path,
     *,
@@ -409,13 +459,7 @@ def _validate_extract(
         "adapter", "executable", "argv", "layout_mode", "normalization_version"
     } or extraction.get("adapter") != "poppler-pdftotext":
         raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "extract metadata is invalid")
-    executable = extraction.get("executable")
-    if not isinstance(executable, dict) or set(executable) != set(SUPPORTED_EXTRACTOR):
-        raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "extractor identity is malformed")
-    if executable.get("version") != SUPPORTED_EXTRACTOR["version"]:
-        raise EvidenceValidationError("EXTRACTOR-UNSUPPORTED", "extractor version is not qualified")
-    if any(executable.get(key) != value_ for key, value_ in SUPPORTED_EXTRACTOR.items() if key != "version"):
-        raise EvidenceValidationError("EXTRACTOR-IDENTITY-MISMATCH", "extractor bytes do not match qualification")
+    validate_extractor_identity(extraction.get("executable"))
     if (
         extraction.get("argv") != ["-enc", "UTF-8"]
         or extraction.get("layout_mode") != "logical-default-v1"

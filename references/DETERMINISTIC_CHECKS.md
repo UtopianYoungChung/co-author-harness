@@ -72,7 +72,12 @@ member extracts, not on a generic dictionary:
 | `EMPIRICAL-UNSUPPORTED` | a sentence-level frequency/tendency generalization lacks a parenthetical or narrative author-year citation and lacks `[S]` ownership in that sentence | Evaluator candidate |
 
 PDF evidence is canonical only when produced by `scripts/source_extract.py`
-with `pdftotext`. Generation may surface semantic candidates; evaluation must
+with `pdftotext`: either the reference Poppler 24.04.0 build, or any `pdftotext`
+whose `utf8-lf-v1` normalization of the committed conformance fixture
+(`scripts/fixtures/assurance_provenance_c2/miniature.pdf`) equals
+`expected_utf8_lf_v1.txt` byte for byte. The receipt records the executable
+actually used; a fixture-qualified one also carries its `qualification`.
+Generation may surface semantic candidates; evaluation must
 dispose each current code/locator pair with a rationale. Hard evidence failures
 cannot be waived. Candidate fingerprints bind the detector version, exact span,
 and candidate text, so an adjudication from an older detector remains stale.

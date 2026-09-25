@@ -166,7 +166,7 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "78ca205002a401feb1e9a02ac2b18c86b29dc89af8619ed9d875ef15ad86f432"
+      "sha256": "199fe5245905e42288a73e5dd941357ac4aef6fe2c484d1c55bcde54f2a6d4fc"
     },
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",

@@ -8,23 +8,31 @@ import copy
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from c2_evidence_validation import canonical_bytes, payload_sha256, validate_page_map
+from c2_evidence_validation import (
+    EXTRACTOR_NAMES,
+    EXTRACTOR_QUALIFICATION,
+    SUPPORTED_EXTRACTOR,
+    canonical_bytes,
+    payload_sha256,
+    validate_page_map,
+)
 from destination_capability import DestinationRefused, assert_writable
 from evidence_publication import EvidencePublicationError, publish_committed
 
 
-SUPPORTED_PDF_EXTRACTOR = {
-    "name": "pdftotext.exe",
-    "version": "24.04.0",
-    "sha256": "640b9a93fa31fc093860c635cd410a3e30f7d1e6166cb1130993fb1985f474ff",
-    "size": 343552,
-}
+# The reference extractor: Poppler pdftotext 24.04.0 as first qualified.
+SUPPORTED_PDF_EXTRACTOR = dict(SUPPORTED_EXTRACTOR)
+CONFORMANCE_PDF = (
+    Path(__file__).resolve().parent / "fixtures" / "assurance_provenance_c2" / "miniature.pdf"
+)
+_VERSION_RE = re.compile(r"pdftotext version (\S+)", re.IGNORECASE)
 
 
 def sha(path: Path) -> str:
@@ -45,34 +53,88 @@ def _block(code: str, detail: str) -> int:
     return 4
 
 
-def qualified_pdf_extractor() -> tuple[Path | None, str | None]:
-    """Resolve the exact pinned extractor even when PATH contains a shadow binary."""
+def _extractor_candidates() -> list[Path]:
     candidates: list[Path] = []
     seen: set[str] = set()
     for entry in os.get_exec_path():
         path_entry = entry.strip().strip('"')
         if not path_entry:
             continue
-        candidate_value = shutil.which(
-            SUPPORTED_PDF_EXTRACTOR["name"], path=path_entry
+        for name in sorted(EXTRACTOR_NAMES):
+            candidate_value = shutil.which(name, path=path_entry)
+            if candidate_value is None:
+                continue
+            candidate = Path(candidate_value)
+            if candidate.name.casefold() not in EXTRACTOR_NAMES:
+                continue
+            identity = str(candidate.resolve()).casefold()
+            if identity not in seen:
+                seen.add(identity)
+                candidates.append(candidate)
+    return candidates
+
+
+def _reported_version(candidate: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            [str(candidate), "-v"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
         )
-        if candidate_value is None:
-            continue
-        candidate = Path(candidate_value)
-        identity = str(candidate.resolve()).casefold()
-        if identity not in seen:
-            seen.add(identity)
-            candidates.append(candidate)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = _VERSION_RE.search(result.stdout + result.stderr)
+    return match.group(1) if match else None
 
+
+def _conforms(candidate: Path) -> bool:
+    """True when the candidate reproduces the committed conformance fixture."""
+    try:
+        if sha(CONFORMANCE_PDF) != EXTRACTOR_QUALIFICATION["fixture_sha256"]:
+            return False
+    except OSError:
+        return False
+    with tempfile.TemporaryDirectory(prefix="coauthor-extractor-conformance-") as td:
+        out = Path(td) / "raw.txt"
+        try:
+            result = subprocess.run(
+                [str(candidate), "-enc", "UTF-8", str(CONFORMANCE_PDF), str(out)],
+                capture_output=True,
+                timeout=60,
+            )
+            raw = out.read_bytes() if result.returncode == 0 and out.is_file() else None
+        except (OSError, subprocess.SubprocessError):
+            return False
+    if raw is None:
+        return False
+    try:
+        normalized = raw.decode("utf-8", errors="strict").replace("\r\n", "\n").replace("\r", "\n")
+    except UnicodeError:
+        return False
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return digest == EXTRACTOR_QUALIFICATION["normalized_sha256"]
+
+
+def resolve_pdf_extractor() -> tuple[Path | None, dict | None, str | None]:
+    """Return (tool, receipt identity, error code).
+
+    The reference extractor is preferred wherever it sits on PATH, so an
+    earlier shadow binary cannot displace it. Any other pdftotext is admitted
+    only when it reproduces the committed conformance fixture; its identity is
+    then its own bytes plus that qualification, never the reference's.
+    """
+    candidates = _extractor_candidates()
     if not candidates:
-        return None, "EXTRACTOR-UNAVAILABLE"
+        return None, None, "EXTRACTOR-UNAVAILABLE"
 
-    identity_match_seen = False
+    reference_bytes_seen = False
     for candidate in candidates:
         try:
             identity_matches = (
-                candidate.name.casefold()
-                == SUPPORTED_PDF_EXTRACTOR["name"].casefold()
+                candidate.name.casefold() == SUPPORTED_PDF_EXTRACTOR["name"].casefold()
                 and candidate.stat().st_size == SUPPORTED_PDF_EXTRACTOR["size"]
                 and sha(candidate) == SUPPORTED_PDF_EXTRACTOR["sha256"]
             )
@@ -80,24 +142,35 @@ def qualified_pdf_extractor() -> tuple[Path | None, str | None]:
             continue
         if not identity_matches:
             continue
-        identity_match_seen = True
+        reference_bytes_seen = True
+        if _reported_version(candidate) == SUPPORTED_PDF_EXTRACTOR["version"]:
+            return candidate, copy.deepcopy(SUPPORTED_PDF_EXTRACTOR), None
+
+    for candidate in candidates:
+        version = _reported_version(candidate)
+        if version is None or not _conforms(candidate):
+            continue
         try:
-            version_result = subprocess.run(
-                [str(candidate), "-v"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
+            identity = {
+                "name": candidate.name,
+                "version": version,
+                "sha256": sha(candidate),
+                "size": candidate.stat().st_size,
+                "qualification": copy.deepcopy(EXTRACTOR_QUALIFICATION),
+            }
         except OSError:
             continue
-        version_text = version_result.stdout + version_result.stderr
-        if SUPPORTED_PDF_EXTRACTOR["version"] in version_text:
-            return candidate, None
+        return candidate, identity, None
 
-    if identity_match_seen:
-        return None, "EXTRACTOR-UNSUPPORTED"
-    return None, "EXTRACTOR-IDENTITY-MISMATCH"
+    if reference_bytes_seen:
+        return None, None, "EXTRACTOR-UNSUPPORTED"
+    return None, None, "EXTRACTOR-IDENTITY-MISMATCH"
+
+
+def qualified_pdf_extractor() -> tuple[Path | None, str | None]:
+    """Resolve the reference or a fixture-qualified extractor (see resolve_pdf_extractor)."""
+    tool, _identity, error = resolve_pdf_extractor()
+    return tool, error
 
 
 def _project_binding(
@@ -152,7 +225,9 @@ def _page_map(raw: bytes, normalized: str) -> dict:
     }
 
 
-def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> int:
+def _future_pdf_extract(
+    args: argparse.Namespace, source: Path, tool: Path, extractor_identity: dict
+) -> int:
     required = {
         "project_root": args.project_root,
         "project_manifest": args.project_manifest,
@@ -276,7 +351,7 @@ def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> i
         "page_span_map": map_binding,
         "extraction": {
             "adapter": "poppler-pdftotext",
-            "executable": copy.deepcopy(SUPPORTED_PDF_EXTRACTOR),
+            "executable": copy.deepcopy(extractor_identity),
             "argv": ["-enc", "UTF-8"],
             "layout_mode": "logical-default-v1",
             "normalization_version": "utf8-lf-v1",
@@ -346,7 +421,7 @@ def _future_pdf_extract(args: argparse.Namespace, source: Path, tool: Path) -> i
         preconditions = [
             (source, source_digest),
             (project_manifest, project_manifest_digest),
-            (tool, SUPPORTED_PDF_EXTRACTOR["sha256"]),
+            (tool, extractor_identity["sha256"]),
         ]
         if args.page_map_seed is not None:
             assert page_map_seed_digest is not None
@@ -401,7 +476,7 @@ def main(argv: list[str] | None = None) -> int:
         return 4
     source = args.source.resolve(strict=True)
     if source.suffix.casefold() == ".pdf":
-        tool_path, resolution_error = qualified_pdf_extractor()
+        tool_path, tool_identity, resolution_error = resolve_pdf_extractor()
         if resolution_error == "EXTRACTOR-UNAVAILABLE":
             return _block(
                 "EXTRACTOR-UNAVAILABLE",
@@ -415,11 +490,13 @@ def main(argv: list[str] | None = None) -> int:
         if resolution_error == "EXTRACTOR-IDENTITY-MISMATCH":
             return _block(
                 "EXTRACTOR-IDENTITY-MISMATCH",
-                "pdftotext bytes are not qualified",
+                "no pdftotext on PATH is the reference build or reproduces the "
+                "committed conformance fixture",
             )
         assert tool_path is not None
         if args.project_root is not None:
-            return _future_pdf_extract(args, source, tool_path)
+            assert tool_identity is not None
+            return _future_pdf_extract(args, source, tool_path, tool_identity)
         args.text_out.parent.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
             [str(tool_path), "-enc", "UTF-8", str(source), str(args.text_out)],

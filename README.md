@@ -84,6 +84,13 @@ least one of them to do useful work.
   discovery loop's verifier fall-through path. Same no-op behaviour
   applies when the connector is absent.
 
+- **Poppler `pdftotext`** — required for canonical PDF evidence (source
+  extraction, scholarly evaluation, the product gate). The reference build is
+  Poppler 24.04.0 on Windows; any other `pdftotext` on `PATH` is admitted when it
+  reproduces the committed conformance fixture byte for byte (for example
+  `poppler-utils` 24.02 on Ubuntu 24.04). Without one, PDF extraction refuses
+  with `EXTRACTOR-UNAVAILABLE` or `EXTRACTOR-IDENTITY-MISMATCH`.
+
 Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.

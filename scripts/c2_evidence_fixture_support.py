@@ -9,17 +9,46 @@ import hashlib
 import io
 import json
 import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 from canonical_bibliography import publish_bibliography
 from source_extract import main as source_extract_main
+from source_extract import resolve_pdf_extractor
 from bibliography_fixture_support import from_passages
 
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSET_ROOT = ROOT / "scripts" / "fixtures" / "assurance_provenance_c2"
+
+
+def page_map_seed_for_active_extractor(destination: Path) -> Path:
+    """Return the committed page-map seed, rebased onto this host's extractor.
+
+    The committed map binds the reference extractor's raw bytes. An extractor
+    admitted by the conformance fixture reproduces the same normalized text,
+    so its pages and named spans are unchanged and only ``raw_sha256`` must
+    name its own raw output. With the reference extractor (or none) the
+    committed seed is returned untouched.
+    """
+    committed = ASSET_ROOT / "expected_page_span_map.json"
+    tool, identity, _error = resolve_pdf_extractor()
+    if tool is None or identity is None or "qualification" not in identity:
+        return committed
+    seed = json.loads(committed.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(prefix="coauthor-c2-seed-") as td:
+        raw = Path(td) / "raw.txt"
+        subprocess.run(
+            [str(tool), "-enc", "UTF-8", str(ASSET_ROOT / "miniature.pdf"), str(raw)],
+            check=True, capture_output=True,
+        )
+        seed["raw_sha256"] = hashlib.sha256(raw.read_bytes()).hexdigest()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(seed, indent=2) + "\n", encoding="utf-8")
+    return destination
 
 
 def sha(path: Path) -> str:
@@ -326,7 +355,9 @@ class ActivationFixture:
                 "--source-key", "fixture-centroid-evidence",
                 "--raw-out", str(self.support_root / "raw.txt"),
                 "--page-map-out", str(self.page_span_map),
-                "--page-map-seed", str(ASSET_ROOT / "expected_page_span_map.json"),
+                "--page-map-seed", str(page_map_seed_for_active_extractor(
+                    self.support_root / "page-map-seed.json"
+                )),
                 "--manifest-out", str(self.extract_manifest),
                 "--commit-marker-out", str(self.extract_marker),
             ])
@@ -636,7 +667,9 @@ def build_activation_fixture(
             "--source-key", "fixture-centroid-evidence",
             "--raw-out", str(raw),
             "--page-map-out", str(runtime_page_map),
-            "--page-map-seed", str(static_page_map),
+            "--page-map-seed", str(page_map_seed_for_active_extractor(
+                support_root / "page-map-seed.json"
+            )),
             "--manifest-out", str(extract_manifest),
             "--commit-marker-out", str(extract_marker),
         ])
