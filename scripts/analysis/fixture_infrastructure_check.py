@@ -658,13 +658,17 @@ def case_suite_process_tree_ownership() -> None:
             "import os,time\n"
             f"os.write(1,{infrastructure_stdout!r})\n"
             f"os.write(2,{infrastructure_stderr!r})\n"
-            "time.sleep(5)\n",
+            "time.sleep(30)\n",
         )
         transcript_workspace, transcript_root = _staging_capture_root(
             "infrastructure-error-transcripts-"
         )
         rc = runner.run(
-            {infrastructure_suite: [runner._default_case(timeout_s=0.25)]},
+            # 3s, not 0.25s: under POSIX systemd supervision the unit's own
+            # RuntimeMaxSec (deadline minus cleanup reserve) must outlast unit
+            # activation, or systemd kills the anchor before the suite writes
+            # and the case reports an absent anchor instead of a timeout.
+            {infrastructure_suite: [runner._default_case(timeout_s=3.0)]},
             [infrastructure_suite],
             failure_transcript_root=transcript_root,
             _test_only_allow_noncanonical_write=True,
