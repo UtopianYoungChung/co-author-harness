@@ -36,9 +36,9 @@ Thumbs.db
 
 # Plugin bundles (build artefacts; built by scripts/build-plugin.py from
 # git ls-tree HEAD) are never tracked. .github/workflows/release.yml builds
-# the Claude Desktop / Cowork .plugin and .zip for each vX.Y.Z tag and
-# attaches them to that GitHub Release; Claude Code installs track main
-# through the marketplace instead.
+# the Claude Desktop / Cowork .plugin and .zip for each version bump on main
+# (or vX.Y.Z tag) and attaches them to that GitHub Release; Claude Code
+# installs track main through the marketplace instead.
 *.plugin
 
 # Pre-built release ZIPs stay untracked.

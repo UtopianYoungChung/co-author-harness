@@ -151,7 +151,7 @@ with until `/reload-plugins`; new sessions load the latest. To update at once:
 `claude plugin marketplace update joseph-chung-co-author-harness`, then
 `claude plugin update co-author-harness@joseph-chung-co-author-harness`.
 
-**Claude Desktop / Cowork file upload.** Each `vX.Y.Z` tag publishes
+**Claude Desktop / Cowork file upload.** Each version bump on `main` publishes
 `co-author-harness.plugin` (and an identical `.zip`) on the
 [Releases](https://github.com/UtopianYoungChung/co-author-harness/releases) page;
 the newest is always at

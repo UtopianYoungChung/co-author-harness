@@ -1,8 +1,13 @@
-# Release bundles — for each vX.Y.Z tag, build the Claude Desktop / Cowork
-# .plugin with the committed builder and attach it to that tag's GitHub
-# Release. The bundle is no longer committed to the repository. Claude Code
-# installs do not use it: they add the repository as a marketplace and track
-# main (README "Install").
+# Release bundles — publish the Claude Desktop / Cowork .plugin, built with
+# the committed builder, as a GitHub Release for the version in version.json.
+# The bundle is no longer committed to the repository. Claude Code installs do
+# not use it: they add the repository as a marketplace and track main (README
+# "Install").
+#
+# Triggers: a push to main that changes version.json (the release step is the
+# version bump itself; the workflow creates the vX.Y.Z tag at that commit), a
+# pushed vX.Y.Z tag, or a manual run. An existing release is left alone unless
+# its own tag was pushed, which refreshes its assets.
 #
 # The newest bundle stays at a stable URL:
 #   https://github.com/UtopianYoungChung/co-author-harness/releases/latest/download/co-author-harness.plugin
@@ -11,10 +16,17 @@ name: release
 
 on:
   push:
+    branches: ["main"]
+    paths: ["version.json"]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   bundle:
@@ -26,43 +38,63 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: ws/platform/co-author-harness
+      - name: Release identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('version.json'))['version'])")
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [ "$REF_NAME" != "$tag" ]; then
+              echo "::error::tag $REF_NAME does not match version.json version $version"
+              exit 1
+            fi
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::release $tag already exists; nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v5
+        if: steps.identity.outputs.publish == 'true'
         with:
           python-version: "3.11"
       - name: Install dependencies
+        if: steps.identity.outputs.publish == 'true'
         run: pip install pyyaml jsonschema
       # build-plugin.py refuses output inside the package or a governed
       # destination; a sandbox workspace mirrors the author's layout, as in
       # structural-checks.yml.
       - name: Governed sandbox workspace
+        if: steps.identity.outputs.publish == 'true'
         run: |
           mkdir -p ../../governance/output-routing
           printf 'schema_version: 1\nworkspace_kind: ci-sandbox\nroutes: []\n' \
             > ../../governance/output-routing/output_routing.yaml
-      - name: Tag matches version.json
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          version=$(python -c "import json; print(json.load(open('version.json'))['version'])")
-          if [ "$TAG" != "v$version" ]; then
-            echo "::error::tag $TAG does not match version.json version $version"
-            exit 1
-          fi
       - name: Build bundle
+        if: steps.identity.outputs.publish == 'true'
         run: python scripts/build-plugin.py --out "$RUNNER_TEMP/bundle"
       - name: Verify bundle
+        if: steps.identity.outputs.publish == 'true'
         run: |
           python scripts/release_source_parity_check.py "$RUNNER_TEMP/bundle/co-author-harness.plugin"
           python scripts/loader-compat-check.py --plugin-root . \
             --plugin-file "$RUNNER_TEMP/bundle/co-author-harness.plugin"
       - name: Release notes
+        if: steps.identity.outputs.publish == 'true'
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.identity.outputs.tag }}
         run: python scripts/release_notes.py "${TAG#v}" > "$RUNNER_TEMP/bundle/notes.md"
       - name: Publish release assets
+        if: steps.identity.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.identity.outputs.tag }}
         run: |
           cd "$RUNNER_TEMP/bundle"
           cp co-author-harness.plugin co-author-harness.zip
@@ -71,6 +103,6 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" $assets --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG" $assets --verify-tag --repo "$GITHUB_REPOSITORY" \
+            gh release create "$TAG" $assets --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" \
               --title "co-author-harness $TAG" --notes-file notes.md
           fi
