@@ -430,6 +430,54 @@ def validate_extractor_identity(executable: Any) -> None:
         or not isinstance(size, int) or isinstance(size, bool) or size < 1
     ):
         raise EvidenceValidationError("EXTRACT-RECEIPT-INVALID", "extractor identity is malformed")
+    _reestablish_qualification(name, version, digest, size)
+
+
+# (resolved executable path, sha256) -> (reported version, reproduces fixture)
+_QUALIFICATION_CACHE: dict[tuple[str, str], tuple[str | None, bool]] = {}
+
+
+def _reestablish_qualification(name: str, version: str, digest: str, size: int) -> None:
+    """A qualified identity is self-reported, so re-establish it on this host.
+
+    The executable the receipt names must be present on PATH with exactly that
+    name, size and hash, must report the declared version, and must still
+    reproduce the conformance fixture. A receipt naming an executable this host
+    cannot re-qualify is refused rather than trusted.
+    """
+    # Lazy: source_extract imports this module at load time.
+    from source_extract import _conforms, _extractor_candidates, _reported_version
+
+    for candidate in _extractor_candidates():
+        try:
+            if (
+                candidate.name.casefold() != name.casefold()
+                or candidate.stat().st_size != size
+                or sha256(candidate) != digest
+            ):
+                continue
+        except OSError:
+            continue
+        key = (str(candidate.resolve()), digest)
+        if key not in _QUALIFICATION_CACHE:
+            _QUALIFICATION_CACHE[key] = (_reported_version(candidate), _conforms(candidate))
+        observed_version, conforms = _QUALIFICATION_CACHE[key]
+        if observed_version != version:
+            raise EvidenceValidationError(
+                "EXTRACTOR-UNSUPPORTED",
+                "extractor version does not match the qualified executable",
+            )
+        if not conforms:
+            raise EvidenceValidationError(
+                "EXTRACTOR-UNSUPPORTED",
+                "extractor no longer reproduces the conformance fixture",
+            )
+        return
+    raise EvidenceValidationError(
+        "EXTRACTOR-IDENTITY-MISMATCH",
+        "the fixture-qualified extractor this receipt names is not on this host's "
+        "PATH, so its qualification cannot be re-established",
+    )
 
 
 def _validate_extract(

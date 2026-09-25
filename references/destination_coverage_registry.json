@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "19511b089fe905f5e0484170d1803afbad27bac5c80e9581555075771471856b"
+      "sha256": "c86ad64d1969fac27a5f4b8634eb77be90a51f6a61abeff6af1c1bc38c462760"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
@@ -166,7 +166,7 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "199fe5245905e42288a73e5dd941357ac4aef6fe2c484d1c55bcde54f2a6d4fc"
+      "sha256": "30a0cdf35a740bfde5c2d318edf9e1ad1eb5a38305d4fd2add2ecf5458a9fe3c"
     },
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",

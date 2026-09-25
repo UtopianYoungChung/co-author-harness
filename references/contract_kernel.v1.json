@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "e32e9aeb5bee57cb6018432f8a6b9499faa1abf871f38e1755d6eacdcc93fa4a",
+      "sha256": "c9f344dfa0aeb877b0b6c5bf1f887e78dd87c29596e88ea77a6aba6594b304a2",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
