@@ -833,7 +833,7 @@
       "id": "fixture-process-supervisor",
       "path": "scripts/analysis/fixture_process_supervisor.py",
       "revision_kind": "sha256",
-      "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1",
+      "sha256": "9cba37f1f7b5d72623563e4ff1f91c65d9709d7ec67f8dc46e5805f766ef29a9",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "c9f344dfa0aeb877b0b6c5bf1f887e78dd87c29596e88ea77a6aba6594b304a2",
+      "sha256": "c0a046ba9cf6261deb2aef9d3a9a7f49bd8684aa10996d4d0174f24d915d4bc7",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

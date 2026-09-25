@@ -23,12 +23,12 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "c86ad64d1969fac27a5f4b8634eb77be90a51f6a61abeff6af1c1bc38c462760"
+      "sha256": "bc38b4758f8aae11441bf94f04c4c1be585174ca5b61e41f5ffe4580eb2bf64d"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
       "justification": "internal fixture-suite supervisor writes only anonymous OS temporary capture files and inherited pipe descriptors; it exposes no persistent destination argument",
-      "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1"
+      "sha256": "9cba37f1f7b5d72623563e4ff1f91c65d9709d7ec67f8dc46e5805f766ef29a9"
     },
     "scripts/analysis/fixture_runner.py": {
       "class": "guarded",

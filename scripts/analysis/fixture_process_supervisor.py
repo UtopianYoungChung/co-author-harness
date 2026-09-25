@@ -810,7 +810,7 @@ def _posix_worker(
     product: subprocess.Popen[bytes] | None = None
     returncode: int | None = None
     deadline = float(spec["deadline"])
-    execution_deadline = deadline - _cleanup_reserve(float(spec["timeout_s"]))
+    execution_deadline = float(spec["execution_deadline"])
     try:
         _set_child_subreaper()
         product = subprocess.Popen(
@@ -972,7 +972,7 @@ def _posix_anchor(
     worker_result_read = worker_result_write = -1
     worker_raw = b""
     deadline = float(spec["deadline"])
-    execution_deadline = deadline - _cleanup_reserve(float(spec["timeout_s"]))
+    execution_deadline = float(spec["execution_deadline"])
     try:
         _require_pidfd()
         _set_child_subreaper()
@@ -1668,12 +1668,23 @@ def _run_posix(
             raise FixtureProcessError(
                 "FIXTURE-PROCESS-UNSUPPORTED", "anchor and parent observed different cgroups",
             )
-        if time.monotonic() >= execution_deadline:
+        # RuntimeMaxSec is systemd's hard stop behind the anchor.  It lands at
+        # activation + (timeout - reserve), a startup latency after
+        # execution_deadline, so an anchor that detected a suite timeout at
+        # execution_deadline was killed mid-report and its TIMEOUT diagnostic
+        # and captured bytes were lost.  Detect the timeout early enough to
+        # leave the anchor half the reserve before the proven hard stop.
+        runtime_end = (
+            int(values["ActiveEnterTimestampMonotonic"]) + runtime_max_usec
+        ) / 1_000_000
+        suite_deadline = min(execution_deadline, runtime_end - cleanup_reserve / 2)
+        spec["execution_deadline"] = suite_deadline
+        if time.monotonic() >= suite_deadline:
             raise FixtureProcessError(
                 "FIXTURE-PROCESS-UNSUPPORTED", "absolute deadline expired before START",
             )
         encoded = (json.dumps(spec, sort_keys=True, separators=(",", ":")) + "\n").encode()
-        _write_all_before(client.stdin.fileno(), encoded, execution_deadline)
+        _write_all_before(client.stdin.fileno(), encoded, suite_deadline)
         client.stdin.flush()
         if test_fault == "parent_keyboard_interrupt":
             raise KeyboardInterrupt
@@ -1688,11 +1699,15 @@ def _run_posix(
             "baseexception_in_raw_fd_close",
         }
         if test_fault not in cleanup_interrupt_faults:
+            # Wait for the anchor's report, or for systemd's hard stop to end
+            # the unit; only a unit that outlives that stop is killed here,
+            # leaving the rest of the reserve for terminal proof.
+            unit_cutoff = runtime_end + max(0.0, deadline - runtime_end) / 2
             while client.poll() is None:
-                remaining = execution_deadline - time.monotonic()
+                remaining = unit_cutoff - time.monotonic()
                 if remaining <= 0:
                     raise FixtureProcessError(
-                        "FIXTURE-PROCESS-LIVE", "systemd unit exceeded its execution budget",
+                        "FIXTURE-PROCESS-LIVE", "systemd unit outlived its RuntimeMaxSec hard stop",
                     )
                 out_eof, err_eof = _drain_systemd_pipes(
                     stdout_fd, stderr_fd, protocol, diagnostics, min(0.01, remaining),

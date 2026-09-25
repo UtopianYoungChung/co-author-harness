@@ -663,8 +663,11 @@ def case_suite_process_tree_ownership() -> None:
         transcript_workspace, transcript_root = _staging_capture_root(
             "infrastructure-error-transcripts-"
         )
+        # The budget must cover supervised startup (systemd unit, anchor and
+        # suite interpreters, about 0.3s on Linux) so the suite writes its
+        # bytes before it times out.
         rc = runner.run(
-            {infrastructure_suite: [runner._default_case(timeout_s=0.25)]},
+            {infrastructure_suite: [runner._default_case(timeout_s=3)]},
             [infrastructure_suite],
             failure_transcript_root=transcript_root,
             _test_only_allow_noncanonical_write=True,
